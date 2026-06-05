@@ -1,1 +1,90 @@
-{}
+{
+  "25": {
+    "name": "Worn Shortsword",
+    "quality": 1,
+    "ilvl": 2,
+    "slot": "Main Hand",
+    "subclass": "One-Handed Swords",
+    "required_level": 0
+  },
+  "38": {
+    "name": "Recruit's Shirt",
+    "quality": 1,
+    "ilvl": 1,
+    "slot": "Shirt",
+    "subclass": "",
+    "required_level": 0
+  },
+  "39": {
+    "name": "Recruit's Pants",
+    "quality": 0,
+    "ilvl": 1,
+    "slot": "Legs",
+    "subclass": "Cloth Armor",
+    "required_level": 0
+  },
+  "40": {
+    "name": "Recruit's Boots",
+    "quality": 1,
+    "ilvl": 1,
+    "slot": "Feet",
+    "subclass": "Miscellaneous (Armor)",
+    "required_level": 0
+  },
+  "117": {
+    "name": "Tough Jerky",
+    "quality": 1,
+    "ilvl": 5,
+    "slot": "Consumables",
+    "subclass": "Food & Drinks",
+    "required_level": 0
+  },
+  "1168": {
+    "name": "Skullflame Shield",
+    "quality": 4,
+    "ilvl": 59,
+    "slot": "Off Hand",
+    "subclass": "Shields",
+    "required_level": 54
+  },
+  "2362": {
+    "name": "Worn Wooden Shield",
+    "quality": 0,
+    "ilvl": 1,
+    "slot": "Off Hand",
+    "subclass": "Shields",
+    "required_level": 0
+  },
+  "6948": {
+    "name": "Hearthstone",
+    "quality": 1,
+    "ilvl": 1,
+    "slot": "Miscellaneous",
+    "subclass": "Other (Miscellaneous)",
+    "required_level": 0
+  },
+  "11815": {
+    "name": "Hand of Justice",
+    "quality": 3,
+    "ilvl": 58,
+    "slot": "Trinket",
+    "subclass": "",
+    "required_level": 53
+  },
+  "12640": {
+    "name": "Lionheart Helm",
+    "quality": 4,
+    "ilvl": 61,
+    "slot": "Head",
+    "subclass": "Plate Armor",
+    "required_level": 56
+  },
+  "13394": {
+    "name": "Skul's Cold Embrace",
+    "quality": 3,
+    "ilvl": 59,
+    "slot": "Chest",
+    "subclass": "Plate Armor",
+    "required_level": 54
+  }
+}

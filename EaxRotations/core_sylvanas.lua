@@ -140,6 +140,12 @@ if not _ct_ok or type(_cooldown_tracker) ~= "table" then _cooldown_tracker = nil
 local _settings_ok, _settings_manager = pcall(require, "common/modules/settings_manager")
 if not _settings_ok or type(_settings_manager) ~= "table" then _settings_manager = nil end
 
+-- Configure persistence filename so auto-save doesn't spam "File name not set"
+if _settings_manager and type(_settings_manager.set_file_name) == "function" then
+    local ok = pcall(_settings_manager.set_file_name, _settings_manager, "eaxrotations")
+    if ok and type(NS.log) == "function" then NS.log("Settings persistence configured: eaxrotations.txt") end
+end
+
 -- spell_helper: native spell readiness checks (cooldown + range + resource + facing + LOS + learned)
 local _sh_ok, _spell_helper = pcall(require, "common/utility/spell_helper")
 if not _sh_ok or type(_spell_helper) ~= "table" then _spell_helper = nil end
@@ -256,7 +262,7 @@ local VANILLA_TBC_SPELL_BLOCKLIST = {
 
     [5938] = true, -- Shiv
 
-    [12472] = true, -- Icy Veins
+    -- [12472] removed: 12472 = Cold Snap in Vanilla (lexxer-verified); Icy Veins is TBC-only, filtered by spell IDs
 
     [20243] = true, -- Devastate
 
@@ -1054,6 +1060,34 @@ function NS.time_now()
 
 end
 
+-- Per-frame time cache for deduplicating NS.time_now() calls in the hot path.
+-- When core.frame_count is unavailable the cache becomes sticky (set once,
+-- never invalidated).  The primary optimization comes from context.now set
+-- in build_context(), which all context-aware functions use directly.
+local _cached_now = 0
+local _cached_frame = -1
+local function get_frame()
+    return (core.frame_count and core.frame_count()) or 0
+end
+
+--- Returns the current game time in seconds, with per-frame caching.
+---@param context table|nil Rotation context table (optional).  If provided
+---   and context.now is set, returns that directly with zero overhead.
+---   Otherwise falls back to a module-level frame cache that calls
+---   NS.time_now() at most once per frame.
+---@return number Current game time in seconds.
+function NS.now(context)
+    if context and context.now then
+        return context.now
+    end
+    local frame = get_frame()
+    if frame ~= _cached_frame then
+        _cached_now = NS.time_now()
+        _cached_frame = frame
+    end
+    return _cached_now
+end
+
 function NS.game_time_ms()
 
     if type(core.game_time) == "function" then
@@ -1224,20 +1258,7 @@ end
 function NS.broken_api_throttled(spell_id, seconds)
     local id = spell_id
     if type(id) == "table" then
-        if id._meta then
-            local mid = id._meta.id or id._meta.ids
-            if type(mid) == "table" then
-                id = mid[1]
-            elseif type(mid) == "number" then
-                id = mid
-            else
-                id = nil
-            end
-        elseif id[1] then
-            id = id[1]
-        else
-            id = nil
-        end
+        id = NS.get_spell_id(id)
     end
     if type(id) ~= "number" then return false end
     if not _api_health_broken then return false end
@@ -1715,13 +1736,20 @@ function NS.spell_action(id, label)
 
 end
 
+-- Static buffer for collect_ids to avoid per-call table allocation (Pattern 4)
+local _collect_buf = { n = 0, _max = 0 }
+
 local function collect_ids(spell, out)
 
-    out = out or {}
+    if out == nil then
+        _collect_buf.n = 0
+        out = _collect_buf
+    end
+    if out.n == nil then out.n = 0 end
 
     if type(spell) == "number" then
 
-        if vanilla_spell_id_allowed(spell) then out[#out + 1] = spell end
+        if vanilla_spell_id_allowed(spell) then out.n = out.n + 1; out[out.n] = spell end
 
     elseif type(spell) == "table" then
 
@@ -1731,16 +1759,23 @@ local function collect_ids(spell, out)
 
             local id = safe(spell.id, spell)
 
-            if type(id) == "number" then out[#out + 1] = id
+            if type(id) == "number" then out.n = out.n + 1; out[out.n] = id
 
             elseif type(id) == "table" then collect_ids(id, out) end
 
-        elseif type(spell.id) == "number" then if vanilla_spell_id_allowed(spell.id) then out[#out + 1] = spell.id end
+        elseif type(spell.id) == "number" then if vanilla_spell_id_allowed(spell.id) then out.n = out.n + 1; out[out.n] = spell.id end
 
-        elseif type(spell.spell_id) == "number" then if vanilla_spell_id_allowed(spell.spell_id) then out[#out + 1] = spell.spell_id end end
+        elseif type(spell.spell_id) == "number" then if vanilla_spell_id_allowed(spell.spell_id) then out.n = out.n + 1; out[out.n] = spell.spell_id end end
 
-        for i = 1, #spell do if type(spell[i]) == "number" and vanilla_spell_id_allowed(spell[i]) then out[#out + 1] = spell[i] end end
+        for i = 1, #spell do if type(spell[i]) == "number" and vanilla_spell_id_allowed(spell[i]) then out.n = out.n + 1; out[out.n] = spell[i] end end
 
+    end
+
+    if out == _collect_buf then
+        if _collect_buf._max then
+            for i = out.n + 1, _collect_buf._max do out[i] = nil end
+        end
+        if out.n > (_collect_buf._max or 0) then _collect_buf._max = out.n end
     end
 
     return out
@@ -2123,7 +2158,7 @@ function NS.cooldown_remains(spell, expected_cooldown)
 
     -- Primary: spell_helper cooldown API
     if _spell_helper then
-        local cd_remaining = _spell_helper:get_spell_cooldown(id)
+        local ok_cd, cd_remaining = pcall(_spell_helper.get_spell_cooldown, _spell_helper, id)
         if type(cd_remaining) == "number" and cd_remaining > 0 then
             return cd_remaining
         end
@@ -2139,12 +2174,14 @@ function NS.cooldown_remains(spell, expected_cooldown)
             local now_ms = NS.game_time_ms()
             local now_seconds = NS.time_now()
             local remaining
-            if start_time > 1000 then
-                local duration_ms = duration > 1000 and duration or duration * 1000
-                remaining = (start_time + duration_ms - now_ms) / 1000
-            elseif duration > 1000 then
-                remaining = ((start_time * 1000) + duration - now_ms) / 1000
+            if duration >= 600 then
+                -- Long cooldowns (10+ min): duration in seconds, start_time in seconds
+                remaining = start_time + duration - now_seconds
+            elseif start_time > 1e7 then
+                -- Large timestamps: start_time in ms, duration in ms, convert to s
+                remaining = (start_time + duration - now_ms) / 1000
             else
+                -- Small offsets: both in seconds
                 remaining = start_time + duration - now_seconds
             end
             if remaining > 0 then return remaining end
@@ -2199,8 +2236,8 @@ function NS.is_spell_in_range(spell, target)
     local id = NS.get_spell_id(spell)
     if not id then return true end
     if _spell_helper then
-        local ok = _spell_helper:is_spell_in_range(id, target, nil, nil)
-        if ok == true then return true end
+        local ok_range, in_range = pcall(_spell_helper.is_spell_in_range, _spell_helper, id, target, nil, nil)
+        if ok_range and in_range == true then return true end
     end
     -- Fallback: basic distance check
     local me = NS.GetPlayer()
@@ -2250,9 +2287,10 @@ function NS.spell_ready(spell, target, opts)
 
     -- Primary: spell_helper does cooldown + resource + range + facing + LOS in one call
     local id = NS.get_spell_id(spell)
-    if id and _spell_helper then
-        local castable = _spell_helper:is_spell_castable(id, target, nil, nil)
-        if castable == false then
+    if id and _spell_helper and not _is_ps_build() then
+        if not target then return false end
+        local ok, castable = pcall(_spell_helper.is_spell_castable, _spell_helper, id, target, nil, nil)
+        if not ok or castable == false then
             core_trace("ready:" .. label .. ":castable", label .. " ready=false reason=spell_helper:is_spell_castable false", 300)
             return false
         end
@@ -2315,11 +2353,11 @@ function NS.evaluate_cast(spell, unit, reason, opts)
     end
     local label = spell_label(spell, id)
     local target = unit or NS.GetPlayer()
-
     -- 1. Primary: spell_helper native gate (cooldown + range + resource + facing + LOS + learned)
-    if id and _spell_helper then
-        local castable = _spell_helper:is_spell_castable(id, target, nil, nil)
-        if castable ~= true then
+    if id and _spell_helper and not _is_ps_build() then
+        if not target then return false end
+        local ok, castable = pcall(_spell_helper.is_spell_castable, _spell_helper, id, target, nil, nil)
+        if not ok or castable ~= true then
             core_trace("eval:" .. tostring(id) .. ":not_castable", "evaluate_cast " .. label .. " blocked: is_spell_castable=false", 300)
             return false
         end
@@ -2716,7 +2754,7 @@ end
 
 function NS.buff_up(unit, ids)
     if not unit then return false end
-    local list = collect_ids(ids, {})
+    local list = collect_ids(ids)
     if #list == 0 then return false end
 
     -- Primary path: buff_manager with 50ms cache
@@ -2740,7 +2778,7 @@ end
 
 function NS.debuff_up(unit, ids)
     if not unit then return false end
-    local list = collect_ids(ids, {})
+    local list = collect_ids(ids)
     if #list == 0 then return false end
 
     -- Primary path: buff_manager with 50ms cache
@@ -2762,7 +2800,7 @@ end
 
 function NS.buff_remains(unit, ids)
     if not unit then return 0 end
-    local list = collect_ids(ids, {})
+    local list = collect_ids(ids)
     if #list == 0 then return 0 end
 
     -- Primary path: buff_manager with 50ms cache
@@ -2796,12 +2834,26 @@ end
 ---@return number[]|nil points The points array from active buff data, or nil.
 function NS.buff_points(unit, ids)
     if not unit then return nil end
+    local list = collect_ids(ids)
+    if #list == 0 then return nil end
+
+    -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local data = _buff_manager:get_buff_data(unit, collect_ids(ids, {}), 50)
+        local data = _buff_manager:get_buff_data(unit, list, 50)
         if data and data.is_active ~= false and type(data.points) == "table" then
             return data.points
         end
     end
+
+    -- Fallback: direct unit API
+    for i = 1, #list do
+        local id = list[i]
+        local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
+        if fd and fd.is_active ~= false and type(fd.points) == "table" then
+            return fd.points
+        end
+    end
+
     return nil
 end
 
@@ -2811,18 +2863,32 @@ end
 ---@return number[]|nil points The points array from active debuff data, or nil.
 function NS.debuff_points(unit, ids)
     if not unit then return nil end
+    local list = collect_ids(ids)
+    if #list == 0 then return nil end
+
+    -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local data = _buff_manager:get_debuff_data(unit, collect_ids(ids, {}), 50)
+        local data = _buff_manager:get_debuff_data(unit, list, 50)
         if data and data.is_active ~= false and type(data.points) == "table" then
             return data.points
         end
     end
+
+    -- Fallback: direct unit API
+    for i = 1, #list do
+        local id = list[i]
+        local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
+        if fd and fd.is_active ~= false and type(fd.points) == "table" then
+            return fd.points
+        end
+    end
+
     return nil
 end
 
 function NS.debuff_remains(unit, ids)
     if not unit then return 0 end
-    local list = collect_ids(ids, {})
+    local list = collect_ids(ids)
     if #list == 0 then return 0 end
 
     -- Primary path: buff_manager with 50ms cache
@@ -2849,7 +2915,7 @@ end
 
 function NS.debuff_stacks(unit, ids)
     if not unit then return 0 end
-    local list = collect_ids(ids, {})
+    local list = collect_ids(ids)
     if #list == 0 then return 0 end
 
     -- Primary path: buff_manager with 50ms cache
@@ -3486,15 +3552,18 @@ function NS.is_behind_target(target)
 end
 
 function NS.get_player_stance()
-
+    -- Primary: engine-level shapeshift form ID (works on PS builds where buff APIs are broken)
+    local ok, form_id = pcall(core.spell_book.get_shapeshift_form_id)
+    if ok and form_id and form_id > 0 then
+        if form_id == 1 then return 1 end  -- Battle Stance
+        if form_id == 2 then return 2 end  -- Defensive Stance
+        if form_id == 3 then return 3 end  -- Berserker Stance
+    end
+    -- Fallback: buff-based detection
     if NS.has_form("battle") then return 1 end
-
     if NS.has_form("defensive") then return 2 end
-
     if NS.has_form("berserker") then return 3 end
-
     return 0
-
 end
 
 local distance
@@ -4784,9 +4853,9 @@ function NS.action_matches(context, action)
 
         local last = _last_action_exec[name]
 
-        if last and (NS.time_now() - last) < action.min_interval then
+        if last and (NS.now(context) - last) < action.min_interval then
 
-            if debug_trace then core_trace("action:" .. tostring(action.name) .. ":min_interval", "[DEBUG] " .. name .. " blocked: min_interval=" .. tostring(action.min_interval) .. "s (last=" .. tostring(NS.time_now() - last) .. "s ago)", 2000) end
+            if debug_trace then core_trace("action:" .. tostring(action.name) .. ":min_interval", "[DEBUG] " .. name .. " blocked: min_interval=" .. tostring(action.min_interval) .. "s (last=" .. tostring(NS.now(context) - last) .. "s ago)", 2000) end
             return false
 
         end
@@ -5194,7 +5263,7 @@ function NS.action_execute(context, action, prefix)
                 local queued = spell_queue:queue_spell_position(id, position, 1, reason, false)
                 if queued ~= false then
                     mark_spell_cast(id)
-                    _last_action_exec[action.name] = NS.time_now()
+                    _last_action_exec[action.name] = NS.now(context)
                     if debug_trace then NS.log(reason) end
                     return true
                 end
@@ -5207,7 +5276,7 @@ function NS.action_execute(context, action, prefix)
 
             mark_spell_cast(id)
 
-            _last_action_exec[action.name] = NS.time_now()
+            _last_action_exec[action.name] = NS.now(context)
 
             if debug_trace then NS.log(reason) end
 
@@ -5259,7 +5328,7 @@ function NS.action_execute(context, action, prefix)
             local queued = spell_queue:queue_spell_target(id, target, 1, reason, false)
             if queued ~= false then
                 mark_spell_cast(id)
-                _last_action_exec[action.name] = NS.time_now()
+                _last_action_exec[action.name] = NS.now(context)
                 if debug_trace then NS.log(reason) end
                 return true
             end
@@ -5272,7 +5341,7 @@ function NS.action_execute(context, action, prefix)
                 local ok = izi_spell:cast_safe(target, reason) == true
                 if ok then
                     mark_spell_cast(id)
-                    _last_action_exec[action.name] = NS.time_now()
+                    _last_action_exec[action.name] = NS.now(context)
                     if debug_trace then NS.log(reason) end
                     return true
                 end
@@ -5288,7 +5357,7 @@ function NS.action_execute(context, action, prefix)
         end
 
 
-        _last_action_exec[action.name] = NS.time_now()
+        _last_action_exec[action.name] = NS.now(context)
 
         if debug_trace then NS.log(reason) end
 
@@ -5311,7 +5380,7 @@ function NS.action_execute(context, action, prefix)
 
     local ok = NS.try_cast(action.spell, target, reason, opts)
 
-    if ok then _last_action_exec[action.name] = NS.time_now() end
+    if ok then _last_action_exec[action.name] = NS.now(context) end
 
     return ok
 
