@@ -38,6 +38,7 @@ _G.EaxRotations = {
         return nil
     end,
     log = function() end,
+    gate_overheal = function() return false end,
     rotation_registry = {
         register = function() end,
     },

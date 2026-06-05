@@ -323,11 +323,11 @@ local strategies = {
             return false
         end,
     },
-    -- Soulshatter (threat reduction)
+    -- Threat reduction placeholder (TBC-only)
     {
-        name = "Soulshatter",
+        name = "ThreatDrop",
         matches = function(context, state)
-            return false  -- Soulshatter placeholder
+            return false  -- UnavailableClassicWarlockThreat placeholder
         end,
         execute = function(context)
             return false

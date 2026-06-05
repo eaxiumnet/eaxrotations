@@ -202,7 +202,7 @@ local kick_matches = function(context, state)
 end
 
 --- Shiv Purge - dispel 1 magic buff via Wound Poison (PvP, no stance required)
--- Ported from Flux Warrior ShieldSlamPurge via warrior leveling pattern.
+-- Shared warrior ShieldSlamPurge leveling pattern.
 local shiv_purge_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
@@ -399,6 +399,7 @@ local strategies = {
     { name = "ShivPurge",
       matches = shiv_purge_matches,
       execute = function(context)
+          if not context then return false end
           local name = context._shiv_purge_name or "buff"
           return try_cast(SPELLS.Shiv, context.target, "[LEVELING] Shiv purge → " .. name, { expected_cooldown = 10 })
       end },
