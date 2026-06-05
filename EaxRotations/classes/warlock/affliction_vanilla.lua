@@ -45,7 +45,7 @@ local IMMOLATE_DEBUFF        = { 25309, 11668, 11667, 11665, 2941, 1094, 707, 34
 local CURSE_OF_ELEMENTS_DEBUFF = { 11722, 11721, 1490 }
 local SEED_OF_CORRUPTION_DEBUFF = { }  -- Seed is TBC-only; empty in Classic
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
-local SOULSHATTER_BUFF       = { }  -- Soulshatter is TBC-only; empty in Classic
+local THREAT_REDUCTION_BUFF   = { }  -- UnavailableClassicWarlockThreat is TBC-only; empty in Classic
 local FEL_ARMOR_BUFF         = { }  -- Fel Armor is TBC-only; empty in Classic
 local DEMON_ARMOR_BUFF       = { 11735, 11734, 11733, 1086, 706 }
 

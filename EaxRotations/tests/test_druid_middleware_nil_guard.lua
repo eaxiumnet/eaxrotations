@@ -17,6 +17,15 @@ _G._mock_player = {
     has_buff = function(self, buff_id) return false end,
 }
 
+_G.core = {
+    spell_book = {
+        is_spell_learned = function() return false end,
+    },
+    object_manager = {
+        get_party_frames = function() return {} end,
+    },
+}
+
 _G.EaxRotations = {
     DruidSpells = {
         BearForm = 9634,
@@ -37,6 +46,7 @@ _G.EaxRotations = {
     debuff_up = function(unit, ids) return false end,
     has_player_buff = function(ids) return false end,
     has_buff = function(ids) return false end,
+    buff_up = function(unit, ids) return false end,
     is_item_ready = function() return false end,
     use_item_by_id = function() return false end,
     action_matches = function(...) return false end,

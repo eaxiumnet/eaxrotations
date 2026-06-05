@@ -208,7 +208,7 @@ local function frost_nova_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
-    if not context.me then return false end
+    if not context or not context.me then return false end
     -- Only frost nova when target is in melee range
     local ok, dist = pcall(function() return state.target:get_distance(context.me) end)
     if not ok or not dist or dist > 10 then return false end
@@ -274,7 +274,7 @@ local function cone_of_cold_matches(context, state)
     if not state.target then return false end
     if not state.in_combat then return false end
     if (state.enemies or 0) < 2 then return false end
-    if not context.me then return false end
+    if not context or not context.me then return false end
     local ok, dist = pcall(function() return state.target:get_distance(context.me) end)
     if not ok or not dist or dist > 10 then return false end
     return state.cone_of_cold_ready
