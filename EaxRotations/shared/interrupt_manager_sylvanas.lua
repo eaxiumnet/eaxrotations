@@ -36,13 +36,15 @@ local _HUMANIZE_CACHE_TTL = 10 -- seconds
 local _school_locks = {}
 
 local INTERRUPT_SCHOOL_MAP = {
-    [2139]  = "arcane",
-    [6554]  = "physical",
-    [6552]  = "physical",
-    [1766]  = "physical",
-    [8042]  = "nature",
-    [19647] = "shadow",
-    [34490] = "physical",
+    -- Counterspell (2139) is NOT listed here — its school is dynamic
+    -- based on the target's current cast. See _resolve_cast_school().
+    [6554]  = "physical",  -- Pummel (highest rank)
+    [6552]  = "physical",  -- Pummel (lowest rank)
+    [1766]  = "physical",  -- Kick
+    [8042]  = "nature",    -- Earth Shock
+    [19647] = "shadow",    -- Spell Lock
+    [34490] = "physical",  -- Silencing Shot
+    [31661] = "fire",      -- Dragon's Breath (Mage)
 }
 
 local INTERRUPT_LOCK_DURATION = {
@@ -53,10 +55,65 @@ local INTERRUPT_LOCK_DURATION = {
     [8042]  = 2,
     [19647] = 3,
     [34490] = 3,
+    [31661] = 3,
 }
+
+-- Counterspell (2139) locks whatever school the target is currently casting.
+-- This table maps common spell IDs to their school for dynamic resolution.
+local SPELL_SCHOOL_LOOKUP = {
+    -- Fire
+    [133]   = "fire",   [143]   = "fire",   [144]   = "fire",   [3140]  = "fire",
+    [980]   = "fire",   [1014]  = "fire",   [10197] = "fire",
+    [2120]  = "fire",   [2121]  = "fire",   [5857]  = "fire",   [8422]  = "fire",
+    [10205] = "fire",   [10206] = "fire",   [10207] = "fire",   [10148] = "fire",
+    [10149] = "fire",   [10150] = "fire",   [10151] = "fire",   [25306] = "fire",
+    [27070] = "fire",   [30451] = "fire",   [11113] = "fire",   [11366] = "fire",
+    [33041] = "fire",   [33042] = "fire",   [33043] = "fire",
+    -- Frost
+    [116]   = "frost",  [865]   = "frost",  [6143]  = "frost",  [9915]  = "frost",
+    [10179] = "frost",  [10180] = "frost",  [10181] = "frost",  [10185] = "frost",
+    [10186] = "frost",  [10187] = "frost",  [25304] = "frost",  [27072] = "frost",
+    [38697] = "frost",  [8056]  = "frost",  [8058]  = "frost",  [10472] = "frost",
+    [10473] = "frost",  [25464] = "frost",
+    -- Holy
+    [635]   = "holy",   [639]   = "holy",   [647]   = "holy",   [1026]  = "holy",
+    [1042]  = "holy",   [3472]  = "holy",   [10328] = "holy",   [10329] = "holy",
+    [25292] = "holy",   [27135] = "holy",   [27136] = "holy",
+    [19750] = "holy",   [19939] = "holy",   [19940] = "holy",   [19941] = "holy",
+    [19942] = "holy",   [19943] = "holy",   [27137] = "holy",
+    [2060]  = "holy",   [10963] = "holy",   [10964] = "holy",   [10965] = "holy",
+    [25314] = "holy",   [25210] = "holy",   [25213] = "holy",
+    [2061]  = "holy",   [9472]  = "holy",   [9473]  = "holy",   [9474]  = "holy",
+    [10915] = "holy",   [10916] = "holy",   [10917] = "holy",   [25233] = "holy",
+    [25235] = "holy",
+    -- Arcane
+    [5143]  = "arcane", [5144]  = "arcane", [5145]  = "arcane", [8416]  = "arcane",
+    [8417]  = "arcane", [10211] = "arcane", [10212] = "arcane", [25345] = "arcane",
+    [27075] = "arcane", [38699] = "arcane",
+    -- Shadow
+    [594]   = "shadow", [970]   = "shadow", [992]   = "shadow", [2767]  = "shadow",
+    [1079]  = "shadow", [8921]  = "shadow",
+    -- Nature
+    [403]   = "nature", [421]   = "nature", [943]   = "nature", [10391] = "nature",
+    [10392] = "nature", [25439] = "nature",
+    [5765]  = "nature", [5766]  = "nature",
+    -- Physical (melee specials)
+    [78]    = "physical",  [284]   = "physical",  [285]   = "physical",
+}
+
+-- Counterspell school lock IDs (for dynamic resolution)
+local COUNTERSPELL_ID = 2139
 
 -- Forward declarations (defined later but referenced earlier)
 local current_cast_spell_id
+
+--- Resolve the school of a target's current cast spell.
+--- Falls back to "arcane" if the spell is unknown (safe default).
+local function _resolve_cast_school(target)
+    local id = current_cast_spell_id(target)
+    if not id then return "arcane" end
+    return SPELL_SCHOOL_LOOKUP[id] or "arcane"
+end
 
 local HEAL_CASTS = {
     [2054] = true, [2055] = true, [6063] = true, [6064] = true, [25210] = true, [25213] = true,
@@ -180,7 +237,13 @@ end
 
 function M.record_school_lock(target, spell_id)
     if not target or not spell_id then return end
-    local school = INTERRUPT_SCHOOL_MAP[spell_id]
+    -- Counterspell locks the school of the spell being cast, not a fixed school
+    local school
+    if spell_id == COUNTERSPELL_ID then
+        school = _resolve_cast_school(target)
+    else
+        school = INTERRUPT_SCHOOL_MAP[spell_id]
+    end
     local duration = INTERRUPT_LOCK_DURATION[spell_id]
     if not school or not duration then return end
     local guid = safe_method(target, "get_guid")

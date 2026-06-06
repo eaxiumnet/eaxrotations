@@ -1114,10 +1114,10 @@ end
 
 _settings_cache_time = NS.time_now
 
+-- DEPRECATED: was a no-op passthrough with no caching. Use NS.get_setting() directly.
+-- Retained as nil-safe alias for any external callers.
 function NS.get_setting_cached(key, default)
-
     return NS.get_setting(key, default)
-
 end
 
 function NS.register_izi_buff_events()
@@ -2859,6 +2859,42 @@ function NS.buff_points(unit, ids)
     return nil
 end
 
+--- Returns the active buff's spell ID and its rank position in the ID array.
+--- Rank position 1 = highest rank (convention: arrays are high-to-low).
+--- Returns nil, nil if no buff is active or unit is nil.
+---@param unit game_object The unit to check.
+---@param ids table Array of spell IDs (highest rank first).
+---@return number|nil active_id The spell ID of the active buff, or nil.
+---@return number|nil rank Position in the ids array (1 = highest), or nil.
+function NS.buff_rank(unit, ids)
+    if not unit then return nil, nil end
+    local list = collect_ids(ids)
+    if #list == 0 then return nil, nil end
+
+    -- Primary path: buff_manager with 50ms cache
+    if _buff_manager then
+        local data = _buff_manager:get_buff_data(unit, list, 50)
+        if data and data.is_active ~= false then
+            local active_id = data.buff_id
+            if type(active_id) == "number" then
+                for i = 1, #list do
+                    if list[i] == active_id then return active_id, i end
+                end
+                return active_id, nil
+            end
+        end
+        return nil, nil
+    end
+
+    -- Fallback: direct unit API
+    for i = 1, #list do
+        local id = list[i]
+        local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
+        if fd and fd.is_active ~= false then return id, i end
+    end
+    return nil, nil
+end
+
 --- Returns the points array from debuff aura data.
 ---@param unit game_object The unit to check.
 ---@param ids table Array of spell IDs.
@@ -3429,6 +3465,8 @@ function NS.try_interrupt(target)
 
 end
 
+-- DEPRECATED: match_fail() always returns false and discards its argument.
+-- Use `return false` directly in match functions. Retained for nil-safety.
 function NS.match_fail() return false end
 
 function NS.is_current_spell(spell_id)
@@ -4058,14 +4096,11 @@ function NS.is_in_party()
 
 end
 
+-- NOTE: The Sylvanas object API does not distinguish raid from party.
+-- This function returns true when grouped (party or raid). Callers that
+-- need raid-only behavior should guard with GetNumGroupMembers() > 5.
 function NS.is_in_raid()
-
-    -- The public object API exposes party membership, not a separate raid
-
-    -- membership query. Treat grouped raid/party healing as group-aware here.
-
     return NS.is_in_party()
-
 end
 
 local API_MODULES = {
