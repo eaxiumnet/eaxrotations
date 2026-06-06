@@ -53,6 +53,7 @@ dev_developer_tools/
 dist/
 docs/
 ext_rotation_tbc_opendruid_alpha/
+flux/
 tools/
 node_modules/
 
@@ -62,6 +63,7 @@ node_modules/
 *.md.original.md
 AGENTS.md
 DASHBOARD_HANDOVER.md
+FLUX_EAX_TANKING_HANDOVER.md
 HANDOVER.md
 HANDOVER_MENU_WIRING_FIXES.md
 KIMI_HANDOVER_PROMPT.md
