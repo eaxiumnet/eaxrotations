@@ -35,7 +35,7 @@ local function now_seconds()
         end
     end
 
-    return os.clock()
+    return 0
 end
 
 local function get_telemetry_enabled(context)

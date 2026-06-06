@@ -85,7 +85,7 @@ local function now_s()
     if core and core.time then
         return core.time()
     end
-    return os.clock()
+    return 0
 end
 
 local function unit_guid(unit)

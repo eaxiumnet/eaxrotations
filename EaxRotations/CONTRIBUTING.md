@@ -2,29 +2,6 @@
 
 Thank you for your interest in contributing to EaxRotations. This document provides guidelines for contributing to the project.
 
-## Set Up the Pre-commit Hook
-
-All contributors must install the pre-commit hook before committing:
-
-```bash
-sh tools/install-hooks.sh
-```
-
-Or use one of the convenience shortcuts:
-
-```bash
-make hooks
-# or
-npm run hooks
-```
-
-This hook runs two checks before every commit:
-
-1. **`luac -p`** — syntax validation on all `.lua` files under `EaxRotations/`
-2. **Vanilla TBC spell ID audit** — scans vanilla spec files for TBC-only spell IDs that should not be present
-
-See `tools/README.md` for bypass options and requirements.
-
 ## Reporting Bugs
 
 When reporting bugs, please include:
@@ -47,14 +24,7 @@ When reporting bugs, please include:
 
 ### Before Submitting
 
-All contributions must pass (the pre-commit hook catches syntax and TBC ID issues automatically; run the full suite before opening a PR):
-
-```bash
-# Run all checks at once
-sh tools/run_all_checks.sh
-```
-
-Or run individually:
+All contributions must pass:
 
 ```bash
 # Syntax check
@@ -67,7 +37,7 @@ lua EaxRotations/tests/run_rotation_tests.lua
 lua EaxRotations/tests/run_leveling_tests.lua
 
 # Vanilla TBC spell ID audit
-lua tools/run_vanilla_audit_tests.lua
+lua EaxRotations/tests/run_vanilla_audit_tests.lua
 ```
 
 ## Code Style
@@ -99,7 +69,7 @@ if not NS then return nil end
 
 ### What Not to Add
 
-- **No WotLK or Cataclysm spells** - TBC Classic only (up to patch 2.4.3)
+- **No Cataclysm spells** - TBC Classic Anniversary only
 - **No external API calls** - Project Sylvanas API only
 - **No banned APIs** - No `ffi.C`, `io.popen`, `os.execute`, `debug.*`
 - **No platform-specific code** - Must work on all supported platforms

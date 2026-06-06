@@ -1,5 +1,5 @@
--- Feature audit for discipline_sylvanas: verifies all strategies and FrostByte/Research gaps.
--- 18 baseline + 3 ClassResearchTBC (PainSuppression, PowerInfusion, InnerFocus) + 4 FrostByte = 25 total.
+-- Feature audit for discipline_sylvanas: verifies all strategies and parity gaps.
+-- 18 baseline + 3 ClassResearchTBC (PainSuppression, PowerInfusion, InnerFocus) + 4 parity = 25 total.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
@@ -133,7 +133,7 @@ for i = 1, #strategies do
 end
 
 -- ============================================================================
--- Feature Audit: Check which FrostByte features exist vs missing
+-- Feature Audit: Check which parity features exist vs missing
 -- ============================================================================
 
 -- Core healing/utility strategies that ARE present
@@ -157,7 +157,7 @@ assert_true(strategy_names["ShackleUndead"], "ShackleUndead should be present")
 assert_true(strategy_names["DispelMagic"], "DispelMagic should be present")
 
 -- FrostByte gaps from FROSTBYTE_GAP_ANALYSIS.md (4 gaps for Discipline)
-local frostbyte_gaps = {
+local parity_gaps = {
     "StopCast",            -- Stop-cast engine (mid-cast cancellation at HP checkpoints)
     "PreHeal",             -- Pre-heal system (queues GH/FH based on damage patterns)
     "Fade",                -- Fade auto-use (aggro drop with backup healer check)
@@ -166,7 +166,7 @@ local frostbyte_gaps = {
 
 local present_gaps = 0
 local missing_gaps = {}
-for _, gap_name in ipairs(frostbyte_gaps) do
+for _, gap_name in ipairs(parity_gaps) do
     if strategy_names[gap_name] then
         present_gaps = present_gaps + 1
     else
@@ -177,16 +177,16 @@ end
 -- All 4 FrostByte gaps + 3 ClassResearchTBC enhancements are now implemented.
 assert_eq(#strategies, 29, "expected 29 strategies (Deep Upgrade adjusted), got " .. #strategies)
 
-print("PASS test_discipline_frostbyte_gaps (gap audit: " .. #strategies .. " strategies present, " .. present_gaps .. "/4 FrostByte gaps closed)")
+print("PASS test_discipline_feature_gaps (gap audit: " .. #strategies .. " strategies present, " .. present_gaps .. "/4 parity gaps closed)")
 
 -- Print gap status
 if #missing_gaps > 0 then
-    print("  Missing FrostByte features (" .. #missing_gaps .. "):")
+    print("  Missing parity features (" .. #missing_gaps .. "):")
     for _, name in ipairs(missing_gaps) do
         print("    - " .. name)
     end
 else
-    print("  All 4 FrostByte gaps closed!")
+    print("  All 4 parity gaps closed!")
 end
 
 -- Print strategy inventory for reference

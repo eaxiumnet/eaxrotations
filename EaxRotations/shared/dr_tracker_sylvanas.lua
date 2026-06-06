@@ -6,6 +6,15 @@ local NS = _G.EaxRotations
 
 local initialized = false
 
+-- Lazy init: call M.init() once when player object becomes available
+-- Safe to call repeatedly (guarded by initialized flag + player check)
+local function ensure_init()
+    if initialized then return end
+    if NS and NS.GetPlayer and NS.GetPlayer() then
+        M.init()
+    end
+end
+
 local function now()
     return NS and NS.time_now and NS.time_now() or 0
 end
@@ -127,6 +136,7 @@ end
 -- Record a CC spell application on a target
 -- Called from spell cast callback when we observe a CC being applied
 function M.record_dr_application(target, spell_id)
+    ensure_init()
     if not spell_id then return end
     
     local category = SPELL_TO_CATEGORY[spell_id]
@@ -162,6 +172,7 @@ end
 -- Get raw DR state table for a unit/category
 -- Returns {count = N, expires_at = T, last_spell_id = ID} or nil
 function M.get_dr_state(unit_or_guid, category)
+    ensure_init()
     if not unit_or_guid then return nil end
     local guid = get_unit_guid(unit_or_guid)
     if not guid then return nil end
@@ -185,6 +196,7 @@ end
 -- Get the current DR multiplier for a spell cast on a target
 -- Returns: 1.0 (full), 0.5 (half), 0.25 (quarter), 0.0 (immune)
 function M.get_dr_multiplier(unit_or_guid, category)
+    ensure_init()
     -- IZI SDK path: use native DR query when available
     if type(unit_or_guid) == "table" and type(unit_or_guid.get_dr) == "function" then
         local ok, dr = pcall(unit_or_guid.get_dr, unit_or_guid, category)
@@ -197,22 +209,29 @@ function M.get_dr_multiplier(unit_or_guid, category)
     if not state then return 1.0 end
     
     local count = state.count
-    -- DR progression: 1st = 1.0, 2nd = 0.5, 3rd = 0.25, 4th+ = immune
+    -- TBC DR progression: silence is special — only 2 effective applications (1.0→0.5→immune)
+    -- All other categories: 1st = 1.0, 2nd = 0.5, 3rd = 0.25, 4th+ = immune
     if count == 0 then return 1.0
     elseif count == 1 then return 0.5
-    elseif count == 2 then return 0.25
+    elseif count == 2 then
+        if category == DR_CATEGORIES.SILENCE then return 0.0 end
+        return 0.25
     else return 0.0 end
 end
 
 -- Check if target is immune to further DRs in this category
 function M.is_dr_immune(unit_or_guid, category)
+    ensure_init()
     local state = M.get_dr_state(unit_or_guid, category)
     if not state then return false end
-    return state.count >= 3
+    -- Silence caps at 2 applications; all others at 3
+    local max_effective = (category == DR_CATEGORIES.SILENCE) and 2 or 3
+    return state.count >= max_effective
 end
 
 -- Get the number of DRs applied to this category (0-3+)
 function M.get_dr_count(unit_or_guid, category)
+    ensure_init()
     local state = M.get_dr_state(unit_or_guid, category)
     if not state then return 0 end
     return state.count
@@ -220,6 +239,7 @@ end
 
 -- Get seconds until DR resets for this category
 function M.get_dr_reset_in(unit_or_guid, category)
+    ensure_init()
     local state = M.get_dr_state(unit_or_guid, category)
     if not state then return 0 end
     local t = now()
@@ -228,6 +248,7 @@ end
 
 -- Clean up expired entries to prevent memory growth
 function M.cleanup()
+    ensure_init()
     local t = now()
     for guid, entry in pairs(dr_state) do
         local has_active = false
@@ -277,6 +298,7 @@ end
 -- Manual hook for when external modules detect CC application
 -- Useful when spell cast callback data is incomplete
 function M.on_cc_applied(target, spell_id)
+    ensure_init()
     M.record_dr_application(target, spell_id)
 end
 
@@ -284,6 +306,7 @@ end
 -- Returns: {spell_id, category, multiplier} or nil if all immune
 -- available_spells: array of {spell_id, category} pairs
 function M.get_optimal_cc_chain(unit, available_spells)
+    ensure_init()
     if not unit or not available_spells or #available_spells == 0 then return nil end
 
     local best = nil
@@ -315,12 +338,14 @@ end
 -- Returns: true if trinket was used in the last N seconds
 local _trinket_tracker = {}
 function M.record_trinket_use(unit)
+    ensure_init()
     local guid = get_unit_guid(unit)
     if not guid then return end
     _trinket_tracker[guid] = now()
 end
 
 function M.was_trinket_used_recently(unit, seconds)
+    ensure_init()
     seconds = seconds or 30
     local guid = get_unit_guid(unit)
     if not guid then return false end
@@ -329,9 +354,9 @@ function M.was_trinket_used_recently(unit, seconds)
     return (now() - t) < seconds
 end
 
-if NS then
-    NS.DRTracker = M
-    M.init()
-end
+    if NS then
+        NS.DRTracker = M
+        ensure_init()
+    end
 
 return M

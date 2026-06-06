@@ -1,4 +1,4 @@
--- Warrior Fury priority list — FrostByte v1.0.6+ parity (auto-charge, rampage stacks, sunder, rend, overpower, defensives)
+-- Warrior Fury priority list — parity v1.0.6+ parity (auto-charge, rampage stacks, sunder, rend, overpower, defensives)
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarriorSpells or {}
@@ -725,5 +725,5 @@ if NS.register_strategy then  -- both unified APIs available
     end
 end
 
-NS.log("Warrior fury rotation registered (FrostByte v1.0.6+ parity) — legacy + unified")
+NS.log("Warrior fury rotation registered (parity v1.0.6+ parity) — legacy + unified")
 return strategies

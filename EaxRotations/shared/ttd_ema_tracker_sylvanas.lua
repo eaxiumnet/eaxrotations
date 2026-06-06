@@ -91,7 +91,7 @@ local function get_damage_to_target(target, window)
     local events = parser.get_events_by_target(target)
     if type(events) ~= "table" then return 0, 0, 0 end
 
-    local now = (NS and NS.time_now and NS.time_now()) or os.clock()
+    local now = (NS and NS.time_now and NS.time_now()) or 0
     local cutoff = now - window
     local total = 0
     local count = 0

@@ -15,7 +15,7 @@ local function now_seconds()
         return core.time()
     end
 
-    return os.clock()
+    return 0
 end
 
 local function clamp_window(seconds)

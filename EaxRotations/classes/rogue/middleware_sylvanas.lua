@@ -68,7 +68,7 @@ local strategies = {
 
     -- ============================================================================
     -- PvP: SHIV PURGE — dispel 1 magic buff via Wound Poison (BoP, PW:S, Ice Barrier)
-    -- Ported from Flux Warrior ShieldSlamPurge pattern. Uses offensive dispel priority DB.
+    -- Shared warrior ShieldSlamPurge dispel pattern.
     -- Shiv is a 20-energy off-hand attack with 10s cooldown — no stance requirement.
     -- Requires off-hand weapon with Wound Poison applied for the dispel effect.
     -- ============================================================================

@@ -392,8 +392,8 @@ local SPELLS = {
         power_type = "none",
         school = "holy",
     }),
-    SealBlood = NS.spell_action({ 31892 }, "SealBlood"), -- TBC ret paladins use Seal of Blood
-    -- SealOfTheMartyr removed (WotLK spell 348701/348700)
+    SealBlood = NS.spell_action({ 31892 }, "SealBlood"),
+    SealOfTheMartyr = NS.spell_action({ 348701, 348700 }, "SealOfTheMartyr"),
     SealCommand = NS.spell_action({ 27170, 20920, 20919, 20918, 20915, 20375 }, "SealCommand"),
     SealCommandRank1 = NS.spell_action({ 20375 }, "SealCommandRank1"),
     SealCrusader = NS.spell_action({ 27158, 20308, 20307, 20306, 20305, 21082, 20162 }, "SealCrusader"),

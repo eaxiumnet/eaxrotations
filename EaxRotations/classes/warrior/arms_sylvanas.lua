@@ -54,6 +54,7 @@ local ACTION = {
 }
 
 local BATTLE_SHOUT_BUFF = { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
+local BLEED_IMMUNE_TYPES = { [4]=true, [6]=true, [9]=true }  -- Elemental, Undead, Mechanical
 local BERSERKER_RAGE_BUFF = { 18499 }
 local COMMANDING_SHOUT_BUFF = CONSTANTS.COMMANDING_SHOUT_BUFF or { 469 }
 local DEMO_SHOUT_DEBUFF = CONSTANTS.DEMO_SHOUT_DEBUFF or { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }
@@ -82,6 +83,7 @@ local SWEEPING_STRIKES_COUNT = 2
 local TACTICAL_MASTERY_CAP = 25
 local HAMSTRING_SPAM_RAGE = 55
 local STANCE_CAST_LOCKOUT = 2.0
+local RAGE_CAP = 90
 local last_stance_cast_at = 0
 
 local function stance_lockout_active()
@@ -385,7 +387,9 @@ local function execute_matches(context, state)
     return action(context, build_action("Execute", ACTION.Execute, { min_rage = 15 }))
 end
 
-local function mortal_strike_matches(context)
+local function mortal_strike_matches(context, state)
+    -- Rage cap: bypass min_rage gate to prevent rage waste when capped
+    if (state.rage or 0) >= RAGE_CAP then return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 })) end
     return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }))
 end
 
@@ -401,6 +405,12 @@ local function rend_matches(context, state)
     if (state.target_hp or 100) < 25 then return false end
     -- TTD gate: skip Rend if target dying soon (bleed won't tick enough)
     if (state.ttd or 0) > 0 and (state.ttd or 0) < 15 then return false end
+    -- Skip Rend on bleed-immune creature types (Elemental, Undead, Mechanical)
+    local target = context.target
+    if target and target.get_creature_type then
+        local ok, ctype = pcall(function() return target:get_creature_type() end)
+        if ok and ctype and BLEED_IMMUNE_TYPES[ctype] then return false end
+    end
     return action(context, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3 }))
 end
 
@@ -408,7 +418,10 @@ local function slam_matches(context, state)
     if setting(context, "slam_weave_enabled", true) == false then return false end
     if not SwingTimer then return false end
     if state.is_moving then return false end
-    if (state.rage or 0) < SLAM_RAGE then return false end
+    local rage = state.rage or 0
+    if rage < SLAM_RAGE then return false end
+    -- Rage cap: bypass swing timer and MS/Overpower timing to dump rage
+    if rage >= RAGE_CAP then return action(context, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true })) end
     if (state.ms_cd or 99) <= 1.0 or state.overpower_ready then return false end
     if (state.mh_until or 999) <= SLAM_CAST_TIME + SLAM_SAFETY then return false end
     if (state.mh_until or 999) > 1.5 then return false end
@@ -444,7 +457,10 @@ end
 
 local function whirlwind_matches(context, state)
     if not state.ww_ready then return false end
-    if (state.enemy_count or 0) < 2 and (state.rage or 0) < 45 then return false end
+    local rage = state.rage or 0
+    -- Rage cap: bypass enemy count gate to prevent rage waste
+    if rage >= RAGE_CAP then return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 })) end
+    if (state.enemy_count or 0) < 2 and rage < 45 then return false end
     return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
 end
 
@@ -642,12 +658,12 @@ local STRATEGY_SPECS = {
     { "Recklessness", recklessness_matches, build_action("Recklessness", ACTION.Recklessness, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false }) },
     { "DeathWish", death_wish_matches, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false }) },
     { "MortalStrike", mortal_strike_matches, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }) },
+    { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }) },
     { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
     { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true }) },
     { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { min_rage = 15 }) },
-    { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }) },
     { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false }) },
-    { "Rend", rend_matches, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3 }) },
+    { "Rend", rend_matches, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3, creature_types = BLEED_IMMUNE_TYPES }) },
     { "PiercingHowl", piercing_howl_matches, build_action("PiercingHowl", ACTION.PiercingHowl, { target = "self", min_rage = 10, requires_target = false, enemy_count = 2 }) },
     { "Hamstring", hamstring_matches, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }) },
     { "DemoralizingShout", demo_shout_matches, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false }) },

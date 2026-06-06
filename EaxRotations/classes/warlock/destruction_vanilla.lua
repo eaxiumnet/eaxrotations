@@ -361,7 +361,7 @@ for i = 1, #ACTIONS do
 end
 
 -- ============================================================================
--- FrostByte parity strategies (inserted at correct priority positions)
+-- parity parity strategies (inserted at correct priority positions)
 -- ============================================================================
 
 -- ManaGem: auto-use mana items when mana is low

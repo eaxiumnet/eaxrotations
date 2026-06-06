@@ -1,5 +1,5 @@
--- Feature audit for holy_sylvanas: documents FrostByte gaps vs present strategies.
--- Verifies all 22 strategies (16 existing + 6 FrostByte)
+-- Feature audit for holy_sylvanas: documents parity gaps vs present strategies.
+-- Verifies all 22 strategies (16 existing + 6 parity)
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;../?.lua;../EaxRotations/?.lua;../EaxRotations/?/?.lua;" .. package.path
 
@@ -131,7 +131,7 @@ for i = 1, #strategies do
 end
 
 -- ============================================================================
--- Feature Audit: Check which FrostByte features exist vs missing
+-- Feature Audit: Check which parity features exist vs missing
 -- ============================================================================
 
 -- Core healing strategies that ARE present
@@ -152,7 +152,7 @@ assert_true(strategy_names["IdleSWP"], "IdleSWP should be present")
 assert_true(strategy_names["IdleHolyFire"], "IdleHolyFire should be present")
 assert_true(strategy_names["IdleSmite"], "IdleSmite should be present")
 
--- FrostByte gap strategy assertions (6 newly implemented)
+-- Parity gap strategy assertions (6 newly implemented)
 assert_true(strategy_names["StopCast"], "StopCast should be present")
 assert_true(strategy_names["PreHeal"], "PreHeal should be present")
 assert_true(strategy_names["Fade"], "Fade should be present")
@@ -160,9 +160,8 @@ assert_true(strategy_names["Healthstone"], "Healthstone should be present")
 assert_true(strategy_names["MountedProtection"], "MountedProtection should be present")
 assert_true(strategy_names["EncounterReactions"], "EncounterReactions should be present")
 
--- FrostByte features that should be present
--- These are known gaps from FROSTBYTE_GAP_ANALYSIS.md
-local frostbyte_gaps = {
+-- Parity features that should be present
+local parity_gaps = {
     "StopCast",            -- Stop-cast engine (mid-cast cancellation at HP checkpoints)
     "PreHeal",             -- Pre-heal system (queues GH/FH based on damage patterns)
     "Fade",                -- Fade auto-use (aggro drop with backup healer check)
@@ -173,7 +172,7 @@ local frostbyte_gaps = {
 
 local present_gaps = 0
 local missing_gaps = {}
-for _, gap_name in ipairs(frostbyte_gaps) do
+for _, gap_name in ipairs(parity_gaps) do
     if strategy_names[gap_name] then
         present_gaps = present_gaps + 1
     else
@@ -184,16 +183,16 @@ end
  local expected_count = 29
 assert_eq(#strategies, expected_count, "expected " .. expected_count .. " strategies, got " .. #strategies)
 
-print("PASS test_holy_priest_frostbyte_gaps (gap audit: " .. #strategies .. " strategies present, " .. present_gaps .. "/6 FrostByte gaps closed)")
+print("PASS test_holy_priest_feature_gaps (gap audit: " .. #strategies .. " strategies present, " .. present_gaps .. "/6 parity gaps closed)")
 
 -- Print gap status
 if #missing_gaps > 0 then
-    print("  Missing FrostByte features (" .. #missing_gaps .. "):")
+    print("  Missing parity features (" .. #missing_gaps .. "):")
     for _, name in ipairs(missing_gaps) do
         print("    - " .. name)
     end
 else
-    print("  All 6 FrostByte gaps closed!")
+    print("  All 6 parity gaps closed!")
 end
 
 -- Print strategy inventory for reference

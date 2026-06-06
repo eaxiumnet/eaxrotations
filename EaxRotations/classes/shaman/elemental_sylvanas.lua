@@ -261,7 +261,7 @@ local function chain_heal_matches_fn(context, state)
 end
 
 -- ============================================================================
--- Weapon buffs (FrostByte parity)
+-- Weapon buffs (parity parity)
 -- ============================================================================
 
 local function flametongue_weapon_matches_fn(context, state)
@@ -485,7 +485,7 @@ local strategies = {
     { name = "MagmaTotem",
       matches = magma_totem_matches_fn,
       execute = function() return NS.try_cast(SPELLS.MagmaTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Magma Totem AoE") end },
-    -- FrostByte parity: weapon buffs, self-heal, totem recall
+    -- parity parity: weapon buffs, self-heal, totem recall
     { name = "FlametongueWeapon",
       matches = flametongue_weapon_matches_fn,
       execute = flametongue_weapon_execute },
@@ -504,5 +504,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("elemental", strategies, { get_state = build_state })
-NS.log("Shaman elemental rotation registered (deep enhanced, FrostByte weapon/heal/totem parity)")
+NS.log("Shaman elemental rotation registered (deep enhanced, parity weapon/heal/totem parity)")
 return strategies

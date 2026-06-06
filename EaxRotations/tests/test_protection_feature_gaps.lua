@@ -1,5 +1,5 @@
 -- Feature audit for protection_sylvanas: Bloodrage, VictoryRush, Rend, IntimidatingShout.
--- Documents FrostByte features and verifies all 4 gaps are now closed.
+-- Documents parity features and verifies all 4 gaps are now closed.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
@@ -88,7 +88,7 @@ for i = 1, #strategies do
 end
 
 -- ============================================================================
--- Feature Audit: Check which FrostByte features exist vs missing
+-- Feature Audit: Check which parity features exist vs missing
 -- ============================================================================
 
 -- Core threat-gen features
@@ -127,17 +127,19 @@ assert_true(strategy_names["Hamstring"], "Hamstring should be present")
 assert_true(strategy_names["Intercept"], "Intercept should be present")
 assert_true(strategy_names["BerserkerRage"], "BerserkerRage should be present")
 
--- FrostByte gaps (4 newly implemented)
-assert_true(strategy_names["Bloodrage"], "Bloodrage should be present - FrostByte feature: rage generation")
-assert_true(strategy_names["VictoryRush"], "VictoryRush should be present - FrostByte feature: sustain/heal")
-assert_true(strategy_names["Rend"], "Rend should be present - FrostByte feature: bleed threat")
-assert_true(strategy_names["IntimidatingShout"], "IntimidatingShout should be present - FrostByte feature: AoE fear")
+-- Parity features (4 newly implemented)
+assert_true(strategy_names["Bloodrage"], "Bloodrage should be present - rage generation")
+assert_true(strategy_names["VictoryRush"], "VictoryRush should be present - sustain/heal")
+assert_true(strategy_names["Rend"], "Rend should be present - bleed threat")
+assert_true(strategy_names["IntimidatingShout"], "IntimidatingShout should be present - AoE fear")
+assert_true(strategy_names["RageDumpSafetyNet"], "RageDumpSafetyNet should be present - rage cap safety net")
 
-local expected_count = 29
+local expected_count = 31
 assert_eq(#strategies, expected_count, "expected " .. expected_count .. " strategies, got " .. #strategies)
-assert_true(strategy_names["ShieldSlamPurge"], "ShieldSlamPurge should be present - Ported from Flux middleware")
+assert_true(strategy_names["ShieldSlamPurge"], "ShieldSlamPurge should be present")
+assert_true(strategy_names["TauntSecondary"], "TauntSecondary should be present - tab-target MockingBlow cycling")
 
-print("PASS test_protection_frostbyte_gaps (gap audit: " .. #strategies .. " strategies present, 4 FrostByte gaps closed)")
+print("PASS test_protection_feature_gaps (gap audit: " .. #strategies .. " strategies present, 4 parity gaps closed)")
 
 -- Print strategy inventory for reference
 local sorted_names = {}

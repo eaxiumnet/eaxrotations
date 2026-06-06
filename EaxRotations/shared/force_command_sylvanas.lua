@@ -35,8 +35,8 @@ function M.activate(command)
     if not COMMAND_WINDOWS[command] then
         return false
     end
-    -- Use core.time() via NS when available, fallback to os.time for standalone
-    local now = (_G.EaxRotations and _G.EaxRotations.time_now and _G.EaxRotations.time_now()) or os.time()
+    -- Use core.time() via NS when available, 0 fallback (os is sandboxed)
+    local now = (_G.EaxRotations and _G.EaxRotations.time_now and _G.EaxRotations.time_now()) or 0
     active_commands[command] = now + COMMAND_WINDOWS[command]
     return true
 end
@@ -49,7 +49,7 @@ function M.is_active(command)
     if not expiration then
         return false
     end
-    local now = (_G.EaxRotations and _G.EaxRotations.time_now and _G.EaxRotations.time_now()) or os.time()
+    local now = (_G.EaxRotations and _G.EaxRotations.time_now and _G.EaxRotations.time_now()) or 0
     if now > expiration then
         -- Clear expired command
         active_commands[command] = nil
@@ -66,7 +66,7 @@ function M.get_remaining(command)
     if not expiration then
         return nil
     end
-    local now = (_G.EaxRotations and _G.EaxRotations.time_now and _G.EaxRotations.time_now()) or os.time()
+    local now = (_G.EaxRotations and _G.EaxRotations.time_now and _G.EaxRotations.time_now()) or 0
     local remaining = expiration - now
     if remaining <= 0 then
         active_commands[command] = nil
@@ -84,7 +84,7 @@ end
 -- @return table - array of active command names
 function M.get_active_commands()
     local result = {}
-    local now = (_G.EaxRotations and _G.EaxRotations.time_now and _G.EaxRotations.time_now()) or os.time()
+    local now = (_G.EaxRotations and _G.EaxRotations.time_now and _G.EaxRotations.time_now()) or 0
     for command, expiration in pairs(active_commands) do
         if now <= expiration then
             table.insert(result, command)

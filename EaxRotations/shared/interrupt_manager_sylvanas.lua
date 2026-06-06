@@ -32,6 +32,29 @@ local FALLBACK_IDS = {
 local _humanize_cache = {}
 local _HUMANIZE_CACHE_TTL = 10 -- seconds
 
+-- School lock tracking: guid -> school -> expiry_timestamp
+local _school_locks = {}
+
+local INTERRUPT_SCHOOL_MAP = {
+    [2139]  = "arcane",
+    [6554]  = "physical",
+    [6552]  = "physical",
+    [1766]  = "physical",
+    [8042]  = "nature",
+    [19647] = "shadow",
+    [34490] = "physical",
+}
+
+local INTERRUPT_LOCK_DURATION = {
+    [2139]  = 4,
+    [6554]  = 4,
+    [6552]  = 4,
+    [1766]  = 5,
+    [8042]  = 2,
+    [19647] = 3,
+    [34490] = 3,
+}
+
 -- Forward declarations (defined later but referenced earlier)
 local current_cast_spell_id
 
@@ -151,6 +174,59 @@ function M.humanize_interrupt_elapsed(target, settings)
     return elapsed >= state.jitter
 end
 
+function M.clear_school_locks()
+    for k in pairs(_school_locks) do _school_locks[k] = nil end
+end
+
+function M.record_school_lock(target, spell_id)
+    if not target or not spell_id then return end
+    local school = INTERRUPT_SCHOOL_MAP[spell_id]
+    local duration = INTERRUPT_LOCK_DURATION[spell_id]
+    if not school or not duration then return end
+    local guid = safe_method(target, "get_guid")
+    if not guid then return end
+    local now = NS.time_now and NS.time_now() or 0
+    local locks = _school_locks[guid]
+    if not locks then
+        locks = {}
+        _school_locks[guid] = locks
+    end
+    locks[school] = now + duration
+end
+
+function M.is_school_locked(target, school)
+    if not target or not school then return false end
+    local guid = safe_method(target, "get_guid")
+    if not guid then return false end
+    local locks = _school_locks[guid]
+    if not locks then return false end
+    local expiry = locks[school]
+    if not expiry then return false end
+    local now = NS.time_now and NS.time_now() or 0
+    if now >= expiry then
+        locks[school] = nil
+        return false
+    end
+    return true
+end
+
+function M.school_lock_remains(target, school)
+    if not target or not school then return 0 end
+    local guid = safe_method(target, "get_guid")
+    if not guid then return 0 end
+    local locks = _school_locks[guid]
+    if not locks then return 0 end
+    local expiry = locks[school]
+    if not expiry then return 0 end
+    local now = NS.time_now and NS.time_now() or 0
+    local remaining = expiry - now
+    if remaining <= 0 then
+        locks[school] = nil
+        return 0
+    end
+    return remaining
+end
+
 local function player_can_act(context)
     if not context or not context.me then return false end
     if context.is_casting or context.is_channeling then return false end
@@ -256,6 +332,10 @@ end
 function M.create_interrupt_strategy(spell_entry, target_validator)
     local entry = spell_entry or EMPTY
     local spell = entry.spell or entry
+    local _interrupt_id = type(spell) == "number" and spell
+        or (spell and spell._meta and type(spell._meta.id) == "number" and spell._meta.id)
+        or (spell and type(spell.id) == "function" and spell:id())
+        or nil
     return {
         name = "Interrupt",
         matches = function(context, state)
@@ -270,9 +350,11 @@ function M.create_interrupt_strategy(spell_entry, target_validator)
             if not target or not NS.try_interrupt(target) then return false end
             if target_validator and target_validator(target, context, state) == false then return false end
             if not M.cast_has_interrupt_window(target, settings) then return false end
-            -- Humanization: add random per-cast delay before interrupting
             if not M.humanize_interrupt_elapsed(target, settings) then return false end
             if not NS.spell_ready(spell, target, { expected_cooldown = entry.cooldown }) then return false end
+
+            local lock_school = _interrupt_id and INTERRUPT_SCHOOL_MAP[_interrupt_id]
+            if lock_school and M.is_school_locked(target, lock_school) then return false end
 
             local cast_id = current_cast_spell_id(target)
             if state then state.interrupt_priority = M.spell_interrupt_priority(cast_id) end
@@ -281,7 +363,9 @@ function M.create_interrupt_strategy(spell_entry, target_validator)
         execute = function(context)
             local target = context and context.target or nil
             if not target then return false end
-            return NS.try_cast(spell, target, INTERRUPT_REASON, { expected_cooldown = entry.cooldown })
+            local ok = NS.try_cast(spell, target, INTERRUPT_REASON, { expected_cooldown = entry.cooldown })
+            if ok and _interrupt_id then M.record_school_lock(target, _interrupt_id) end
+            return ok
         end,
     }
 end

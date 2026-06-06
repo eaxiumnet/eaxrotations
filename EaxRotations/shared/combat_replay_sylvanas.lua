@@ -565,12 +565,15 @@ function M.init()
             end
         end)
     end
-
-    NS.CombatReplay = M
-    NS.combat_replay = M
-    return true
 end
 
-M.init()
+if NS then
+    NS.CombatReplay = M
+    NS.combat_replay = M
+end
+-- Defer init until player is available (engine callbacks may not be ready at require() time)
+if NS and NS.GetPlayer and NS.GetPlayer() then
+    M.init()
+end
 
 return M

@@ -44,7 +44,7 @@ local BLOODLUST_BUFFS = { 2825, 32182 }  -- Bloodlust (Horde) / Heroism (Allianc
 local REFRESH_EXTRA_WINDOW = 1.5         -- Extra seconds past pandemic window for upgrade refresh
 
 -- Per-target cast lockout: prevents double-queuing a DoT to the same target
--- while a cast is in flight (matching FrostByte's lockout tracking)
+-- while a cast is in flight (matching parity's lockout tracking)
 local _cast_lockouts = {}  -- guid -> { spell_name = true, expires = time_ms }
 
 local function _set_lockout(spell_name, duration_ms)

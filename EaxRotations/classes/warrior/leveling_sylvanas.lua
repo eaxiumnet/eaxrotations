@@ -327,7 +327,7 @@ local heroic_strike_matches = function(_, state)
 end
 
 --- Shield Slam Purge — dispel 1 magic buff on enemy player (BoP, PW:S, etc.)
--- Ported from Flux Warrior middleware via main middleware. PvP-only, stance-dances to Defensive.
+-- Shared warrior PvP stance-dance pattern.
 local shield_slam_purge_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
@@ -350,7 +350,7 @@ local shield_slam_purge_matches = function(context, state)
 end
 
 --- Disarm - remove enemy melee weapon (PvP, requires Defensive Stance)
--- Ported from Flux Warrior middleware. Uses offensive dispel priority DB for on_burst trigger.
+-- Shared warrior offensive dispel pattern.
 local disarm_matches = function(context, state)
     if not state then return false end
     -- Skip entirely if Disarm not learned (level < 22)
