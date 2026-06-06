@@ -1832,7 +1832,7 @@ local function fallback_spell_id(spell, ids)
 
     end
 
-    return ids[#ids]
+    return ids[1]
 
 end
 

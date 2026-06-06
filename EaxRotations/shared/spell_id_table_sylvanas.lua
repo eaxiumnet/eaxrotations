@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Expansion-aware Spell ID Table (AUTO-GENERATED)
 -- =============================================================================
--- Generated: 2026-06-06 00:10:43
+-- Generated: 2026-06-06 03:13:39
 -- Source: lexxer.org API (TBC + Vanilla)
 --
 -- Maps spell names to their expansion-specific IDs.
