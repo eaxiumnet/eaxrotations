@@ -55,7 +55,7 @@ local HAMSTRING_DEBUFF = { 7373, 7372, 1715 }
 local MORTAL_STRIKE_DEBUFF = { 21553, 21552, 21551, 12294 }
 local REND_DEBUFF = { 11574, 11573, 6548, 6547, 772 }
 local SUNDER_DEBUFF = { 11597, 11596, 8380, 7405, 7386 }
-local SWEEPING_STRIKES_BUFF = { 12328 }
+local SWEEPING_STRIKES_BUFF = { 12292 }  -- Vanilla ID (TBC=12328; different ID per expansion)
 local THUNDER_CLAP_DEBUFF = { 11581, 11580, 8205, 8204, 8198, 6343 }
 
 local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22116, 22105, 22104, 22103, 22102, 22101 }
@@ -73,6 +73,9 @@ local SLAM_SAFETY = 0.2
 local SWEEPING_STRIKES_COUNT = 2
 local TACTICAL_MASTERY_CAP = 25
 local HAMSTRING_SPAM_RAGE = 55
+-- Sweeping Strikes rage pooling (from kebab pattern)
+local SS_RESERVE_FLOOR = 60
+local SS_POOL_WINDOW = 2.0
 
 local arms_state = {
     rage = 0,
@@ -277,6 +280,7 @@ local function build_state(context)
     arms_state.ww_ready = ready(ACTION.Whirlwind, target, { expected_cooldown = 10 })
     arms_state.slam_ready = ready(ACTION.Slam, target)
     arms_state.sweeping_ready = ready(ACTION.SweepingStrikes, me, { skip_range = true })
+    arms_state.ss_cd = cooldown(ACTION.SweepingStrikes, 30)
     arms_state.heroic_ready = ready(ACTION.HeroicStrike, target)
     arms_state.cleave_ready = ready(ACTION.Cleave, target)
     arms_state.pummel_ready = ready(ACTION.Pummel, target)
@@ -348,6 +352,9 @@ end
 
 local function overpower_matches(context, state)
     if not state.overpower_ready then return false end
+    -- Rage protection: skip Overpower if MS is imminent and rage is too low for both
+    local ms_cd = state.ms_cd or 99
+    if ms_cd <= 1.5 and (state.rage or 0) < MORTAL_STRIKE_RAGE then return false end
     return action(context, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }))
 end
 
@@ -408,11 +415,22 @@ local function whirlwind_matches(context, state)
     return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
 end
 
-local function heroic_strike_matches(context)
+-- Sweep Strikes rage pooling: hold rage when SS cooldown is near
+local function should_reserve_for_sweeping(context, state)
+    if (context.enemy_count or 0) < 2 then return false end
+    if state.has_sweeping_strikes then return false end
+    local ss_cd = state.ss_cd or 99
+    if ss_cd <= SS_POOL_WINDOW and (context.rage or 0) < SS_RESERVE_FLOOR then return true end
+    return false
+end
+
+local function heroic_strike_matches(context, state)
+    if state and should_reserve_for_sweeping(context, state) then return false end
     return action(context, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = HEROIC_STRIKE_RAGE }))
 end
 
 local function cleave_matches(context, state)
+    if state and should_reserve_for_sweeping(context, state) then return false end
     if (state.enemy_count or 0) < 2 then return false end
     if (state.rage or 0) < CLEAVE_RAGE then return false end
     return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true }))
