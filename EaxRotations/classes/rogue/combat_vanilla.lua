@@ -6,7 +6,7 @@ local SPELLS = NS.RogueSpells or {}
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
 local SND_BUFF = { 6774, 5171 }
-local RUPTURE_DEBUFF = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
+local RUPTURE_DEBUFF = { 11275, 11274, 11273, 8640, 8639, 1943 }
 local STEALTH_BUFF = { 1787, 1786, 1785, 1784 }
 local BLADE_FLURRY_BUFF = { 13877 }
 local ADRENALINE_RUSH_BUFF = { 13750 }

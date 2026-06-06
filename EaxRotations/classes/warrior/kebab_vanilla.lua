@@ -30,7 +30,7 @@ end
 local SUNDER_DEBUFF = { 7386, 7405, 8380, 11596, 11597 }
 local THUNDER_CLAP_DEBUFF = { 6343, 8198, 8204, 8205, 11580, 11581 }
 local DEMO_SHOUT_DEBUFF = { 11556, 11555, 11554, 6190, 1160 }
-local BATTLE_SHOUT_IDS = Constants.BATTLE_SHOUT_IDS or { 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
+local BATTLE_SHOUT_IDS = Constants.BATTLE_SHOUT_IDS or { 11551, 11550, 11549, 6192, 5242, 6673 }
 
 local try_cast, spell_exists, spell_ready, debuff_remains, debuff_stacks, buff_remains, health_pct, player_control_locked, has_player_buff, has_breakable_cc_nearby, can_attack_target = NS.import_helpers(
     "try_cast", "spell_exists", "spell_ready", "debuff_remains",
