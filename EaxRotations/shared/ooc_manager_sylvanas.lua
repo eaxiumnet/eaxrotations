@@ -44,6 +44,7 @@
 --     try_self_buffs  -> healer mana floor -> for each entry:
 --       should_handle_buff -> buff_remains <= threshold -> get_spell ->
 --       broken_api_throttled(10s) -> NS.try_cast(skip_range)
+--     try_buff_upgrades -> buff_rank position > 1 -> NS.try_cast (rank upgrade)
 --     try_food_flask  -> broken_api_throttled(3s) -> NS.try_cast (numeric ID, no rank mismatch)
 -- ============================================================================
 
@@ -61,6 +62,7 @@ local _registered = false
 local _last_check = -1000
 local _spell_cache = {}
 local _work_ids = { n = 0 }
+local _buff_upgrade_ok, _buff_upgrade = pcall(require, "shared/buff_upgrade_sylvanas")
 
 local CLASS = NS and NS.CLASS_ID or {
     WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5,
@@ -385,6 +387,7 @@ function M.on_update(context)
 
     if try_pet_summon(settings, me, class_id) then return true end
     if try_self_buffs(context, settings, me, class_id) then return true end
+    if _buff_upgrade_ok and _buff_upgrade and _buff_upgrade.try_buff_upgrades(context, settings, me) then return true end
     if try_food_flask(settings, me) then return true end
     return false
 end
