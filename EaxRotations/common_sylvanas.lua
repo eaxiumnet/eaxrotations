@@ -57,14 +57,6 @@ function NS.common_auto_aoe_section()
     }, "Dynamically switches to AoE rotation when enough enemies are in range.")
 end
 
-function NS.common_force_flags_section()
-    return section("Force Commands", {
-        checkbox("force_burst_enabled", true, "Enable /eax burst", "Allow force-burst slash command"),
-        checkbox("force_defensive_enabled", true, "Enable /eax def", "Allow force-defensive slash command"),
-        checkbox("force_gap_enabled", true, "Enable /eax gap", "Allow force-gap-closer slash command"),
-    }, "Slash-command overrides: /eax burst, /eax def, /eax gap (3-second timeout).")
-end
-
 function NS.common_interrupt_humanize_section()
     return section("Interrupt Humanization", {
         checkbox("interrupt_humanize_enabled", true, "Humanize Interrupts", "Add random per-cast delay so interrupts look less robotic"),

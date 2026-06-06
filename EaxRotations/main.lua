@@ -80,7 +80,6 @@ load_modules({
     "shared/cast_bar_overlay_sylvanas",
     "shared/execute_phase_sylvanas",
     "shared/dot_refresh_sylvanas",
-    "shared/force_command_sylvanas",
 
     -- PvP support
     "shared/dr_tracker_sylvanas",
@@ -208,9 +207,6 @@ if class_schema and NS and NS.common_auto_aoe_section then
     if type(class_schema) == "table" and #class_schema > 0 and type(class_schema[1]) == "table" and class_schema[1].sections then
         -- Tabs format: append sections to the first tab
         table.insert(class_schema[1].sections, NS.common_auto_aoe_section())
-        if NS.common_force_flags_section then
-            table.insert(class_schema[1].sections, NS.common_force_flags_section())
-        end
         if NS.common_interrupt_humanize_section then
             table.insert(class_schema[1].sections, NS.common_interrupt_humanize_section())
         end
@@ -225,12 +221,6 @@ if class_schema and NS and NS.common_auto_aoe_section then
         local auto_aoe = NS.common_auto_aoe_section()
         if auto_aoe and auto_aoe.settings then
             for _, setting in ipairs(auto_aoe.settings) do
-                table.insert(class_schema, setting)
-            end
-        end
-        local force_flags = NS.common_force_flags_section and NS.common_force_flags_section()
-        if force_flags and force_flags.settings then
-            for _, setting in ipairs(force_flags.settings) do
                 table.insert(class_schema, setting)
             end
         end
@@ -467,20 +457,14 @@ local menu_elements = {
     interrupts_toggle = core.menu.keybind(7, true, "eax_interrupts_enabled_keybind"),
     utility_toggle = core.menu.keybind(7, true, "eax_utility_enabled_keybind"),
     threat_drop_toggle = core.menu.keybind(7, true, "eax_threat_drop_enabled_keybind"),
-    debug_mode_check = core.menu.checkbox(false, "debug_mode"),
-    verbose_trace_check = core.menu.checkbox(false, "verbose_trace"),
     settings_tree = core.menu.tree_node(),
     diagnostics_tree = core.menu.tree_node(),
     dashboard_check = core.menu.checkbox(false, "show_dashboard"),
-    aura_dump_check = core.menu.checkbox(false, "dump_player_auras"),
     -- [#4] Pre-allocated header widgets — created ONCE, not every render frame.
     -- core.menu.header() returns a new widget each call; creating inside render_menu()
     -- leaked instances every frame. Now stored and reused.
     header_class_info = core.menu.header(),
     header_active_playstyle = core.menu.header(),
-    header_debugging_note = core.menu.header(),
-
-    header_dc_not_loaded = core.menu.header(),
 
 }
 
@@ -906,32 +890,6 @@ do
         end
     end
 end
-
--- ============================================================================
--- SLASH COMMAND REGISTRATION
--- ============================================================================
-local function register_slash_commands()
-    if not NS then return end
-    local function make_handler(flag_fn, name)
-        return function(msg)
-            if flag_fn then
-                flag_fn()
-            else
-                core.log("[EaxRotations] " .. name .. " command unavailable")
-            end
-        end
-    end
-    if type(_G.SlashCmdList) == "table" then
-        _G.SLASH_EAXBURST1 = "/eax burst"
-        _G.SlashCmdList["EAXBURST"] = make_handler(NS.set_force_burst, "Force burst")
-        _G.SLASH_EAXDEF1 = "/eax def"
-        _G.SlashCmdList["EAXDEF"] = make_handler(NS.set_force_defensive, "Force defensive")
-        _G.SLASH_EAXGAP1 = "/eax gap"
-        _G.SlashCmdList["EAXGAP"] = make_handler(NS.set_force_gap, "Force gap")
-        core.log("[EaxRotations] Slash commands registered: /eax burst, /eax def, /eax gap")
-    end
-end
-register_slash_commands()
 
 core.log("[EaxRotations] Framework initialized successfully!")
 core.log("[EaxRotations] Class: " .. plugin_info.player_class_name)

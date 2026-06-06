@@ -194,7 +194,7 @@ end
 
 local function use_shadowstep_now(context)
     local usage = option(context, "shadowstep_usage", "always")
-    if usage == "burst_only" then return context.should_burst == true or context.force_burst == true end
+    if usage == "burst_only" then return context.should_burst == true or false end
     return usage ~= "off" and usage ~= false
 end
 
@@ -339,12 +339,12 @@ local function vanish_burst_matches(context, state)
     if state.hp <= setting(context, "rogue_vanish_hp", 20) and setting(context, "rogue_use_vanish_defensive", false) then
         return NS.spell_ready(SPELLS.Vanish, NS.PLAYER_UNIT, { skip_range = true })
     end
-    if not (context.should_burst or context.force_burst) then return false end
+    if not (context.should_burst) then return false end
     return NS.spell_ready(SPELLS.Vanish, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function preparation_matches(context, state)
-    local in_burst = context.should_burst or context.force_burst or false
+    local in_burst = context.should_burst or false
     if setting(context, "use_cooldowns", true) == false and not in_burst then return false end
     if state.hp > setting(context, "subtlety_prep_hp", 40) then return false end
     -- Only use when at least one major cooldown is actually on cooldown
@@ -438,7 +438,7 @@ local function backstab_matches(context, state)
     if not enough_energy(state, ENERGY_BACKSTAB) then return false end
     if state.stealth_up then return false end  -- use Ambush instead
     -- Backstab is positional burst; Hemorrhage is primary builder per Research
-    local in_burst = context.should_burst or context.force_burst or false
+    local in_burst = context.should_burst or false
     if (state.energy or 0) < 75 and not in_burst then return false end
     return NS.spell_ready(SPELLS.Backstab, context.target)
 end
