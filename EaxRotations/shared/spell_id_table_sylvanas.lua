@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Expansion-aware Spell ID Table (AUTO-GENERATED)
 -- =============================================================================
--- Generated: 2026-06-06 03:13:39
+-- Generated: 2026-06-06 03:51:40
 -- Source: lexxer.org API (TBC + Vanilla)
 --
 -- Maps spell names to their expansion-specific IDs.
@@ -20,6 +20,7 @@ local SWAPPED_SPELLS = {
     -- Mage
     ["Arcane Missiles"] = { tbc = 8418, vanilla = 8417 },  -- TBC=8418, Vanilla=8417 (arcane)
     ["Cold Snap"] = { tbc = 11958, vanilla = 12472 },  -- TBC=11958, Vanilla=12472
+    ["Icy Veins"] = { tbc = 12472, vanilla = nil },  -- TBC-only; ID 12472 conflicts with Vanilla "Cold Snap"
 
     -- Warrior
     ["Death Wish"] = { tbc = 12292, vanilla = 12328 },  -- TBC=12292, Vanilla=12328 (physical)

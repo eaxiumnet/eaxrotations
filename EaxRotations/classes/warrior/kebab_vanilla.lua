@@ -85,7 +85,7 @@ local function should_reserve_for_sweeping(context)
     if (context.enemy_count or 0) < 2 then return false end
     if settings.kebab_use_sweeping_strikes == false then return false end
     if not spell_exists(SPELLS.SweepingStrikes) then return false end
-    if has_player_buff(Constants.BUFF_ID.SWEEPING_STRIKES or 12328) then return false end
+    if has_player_buff(Constants.BUFF_ID.SWEEPING_STRIKES or 12292) then return false end
     local ss_cd = get_cooldown(SPELLS.SweepingStrikes)
     if ss_cd > SS_POOL_WINDOW then return false end
     if ss_cd <= SS_POOL_WINDOW and (context.rage or 0) < SS_RESERVE_FLOOR then return true end
@@ -190,7 +190,7 @@ local strategies = {
             if not can_attack_target(context) then return false end
             if settings.kebab_use_sweeping_strikes == false then return false end
             if (context.enemy_count or 0) < 2 then return false end
-            if has_player_buff(Constants.BUFF_ID.SWEEPING_STRIKES or 12328) then return false end
+            if has_player_buff(Constants.BUFF_ID.SWEEPING_STRIKES or 12292) then return false end
             if (context.rage or 0) < 30 then return false end
             if context.stance ~= Constants.STANCE.BATTLE then
                 return spell_exists(SPELLS.BattleStance) and spell_ready(SPELLS.BattleStance, NS.PLAYER_UNIT)

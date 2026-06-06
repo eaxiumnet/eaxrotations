@@ -42,6 +42,53 @@ def fetch_spell_list(game):
     return spells
 
 
+def find_id_reuse_conflicts(tbc_spells, vanilla_spells):
+    """
+    Detect TBC spells whose IDs are used by DIFFERENT spells in Vanilla.
+
+    Example: Ice Block (TBC ID 45438) doesn't exist in Vanilla, but the
+    related Cold Snap ID (11958) means TBC's Ice Block rotation must not
+    blindly fall back to Vanilla IDs.
+
+    Strategy: build id->spell maps for each expansion. For each TBC spell,
+    check if the same ID appears in Vanilla for a different spell name.
+
+    Returns dict: tbc_spell_name -> {tbc_id, conflict_name, conflict_class}
+    """
+    # Build id -> spell entry for Vanilla
+    van_id_map = {}
+    for s in vanilla_spells:
+        van_id_map[s["id"]] = s
+
+    # For each TBC spell, check if its ID is used by a different spell in Vanilla
+    # Filter out debug/test spells (e.g. "Copy of Ferocious Bite")
+    def is_debug_spell(name):
+        lower = name.lower()
+        return lower.startswith("copy of ") or lower.startswith("test ") or lower.startswith("nyi ")
+
+    conflicts = {}
+    for s in tbc_spells:
+        tbc_id = s["id"]
+        van_match = van_id_map.get(tbc_id)
+        if van_match and van_match["name"] != s["name"]:
+            # Skip if the Vanilla side is a debug/test spell
+            if is_debug_spell(van_match["name"]):
+                continue
+            # Skip if the TBC side is a debug/test spell
+            if is_debug_spell(s["name"]):
+                continue
+            name = s["name"]
+            if name not in conflicts:
+                conflicts[name] = {
+                    "tbc_id": tbc_id,
+                    "conflict_name": van_match["name"],
+                    "conflict_class": van_match.get("required_class", ""),
+                    "class": s.get("required_class", ""),
+                    "school": s.get("school", ""),
+                }
+    return conflicts
+
+
 def find_swapped_spells(tbc_spells, vanilla_spells):
     """
     Find spell names that exist in both expansions but have different IDs
@@ -133,10 +180,19 @@ def generate_lua_table(swapped_spells):
         tbc_id = info["tbc_id"]
         van_id = info["vanilla_id"]
         school = info.get("school", "")
-        comment = f"  -- TBC={tbc_id}, Vanilla={van_id}"
-        if school:
-            comment += f" ({school})"
-        lines.append(f'    ["{name}"] = {{ tbc = {tbc_id}, vanilla = {van_id} }},{comment}')
+        is_reuse = info.get("reuse_conflict", False)
+        conflict_name = info.get("conflict_name", "")
+
+        if van_id is not None:
+            # Genuine swap: both expansions have the spell
+            comment = f"  -- TBC={tbc_id}, Vanilla={van_id}"
+            if school:
+                comment += f" ({school})"
+            lines.append(f'    ["{name}"] = {{ tbc = {tbc_id}, vanilla = {van_id} }},{comment}')
+        else:
+            # ID reuse conflict: TBC-only spell whose ID overlaps with a Vanilla spell
+            comment = f"  -- TBC-only; ID {tbc_id} conflicts with Vanilla \"{conflict_name}\""
+            lines.append(f'    ["{name}"] = {{ tbc = {tbc_id}, vanilla = nil }},{comment}')
 
     lines.append("}")
     lines.append("")
@@ -236,25 +292,53 @@ def main():
         print(f"ERROR: Too few spells returned (TBC={len(tbc_spells)}, Vanilla={len(vanilla_spells)}). API may be down.")
         sys.exit(1)
 
-    # Find swapped spells
+    # Find swapped spells (same name+level, different IDs)
     print("\nAnalyzing ID differences...")
     swapped = find_swapped_spells(tbc_spells, vanilla_spells)
     print(f"Found {len(swapped)} spells with swapped IDs between expansions")
 
     if swapped:
-        print("\nSwapped spells:")
+        print("\nSwapped spells (same rank/level, different IDs):")
         for name, info in sorted(swapped.items()):
             print(f"  {name}: TBC={info['tbc_id']}, Vanilla={info['vanilla_id']} ({info['class']})")
 
+    # Find ID reuse conflicts (TBC ID used by different spell in Vanilla)
+    reuse = find_id_reuse_conflicts(tbc_spells, vanilla_spells)
+    print(f"\nFound {len(reuse)} cross-expansion ID reuse conflicts")
+
+    if reuse:
+        print("\nID reuse conflicts (TBC ID used by different spell in Vanilla):")
+        for name, info in sorted(reuse.items()):
+            cname = info['conflict_name']
+            ccls = info['conflict_class']
+            print(f"  {name} (TBC ID {info['tbc_id']}) conflicts with Vanilla '{cname}' ({ccls})")
+
+    # Merge: swapped spells take precedence; add reuse conflicts that aren't already swapped
+    all_entries = {}
+    all_entries.update(swapped)
+    for name, info in reuse.items():
+        if name not in all_entries:
+            # For ID reuse conflicts, the spell is TBC-only (no Vanilla ID)
+            all_entries[name] = {
+                "tbc_id": info["tbc_id"],
+                "vanilla_id": None,  # TBC-only spell, no Vanilla equivalent
+                "class": info["class"],
+                "school": info["school"],
+                "reuse_conflict": True,
+                "conflict_name": info["conflict_name"],
+            }
+
+    print(f"\nTotal entries for spell_id_table: {len(all_entries)}")
+
     # Generate Lua file
     print(f"\nGenerating {OUTPUT_PATH}...")
-    lua_code = generate_lua_table(swapped)
+    lua_code = generate_lua_table(all_entries)
 
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         f.write(lua_code)
 
-    print(f"Done! Generated {len(swapped)} swapped spell entries.")
+    print(f"Done! Generated {len(all_entries)} spell entries ({len(swapped)} swapped + {len(reuse)} ID reuse).")
     print(f"File size: {os.path.getsize(OUTPUT_PATH)} bytes")
 
 

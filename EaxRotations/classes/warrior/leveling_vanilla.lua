@@ -33,7 +33,7 @@ local PVP_CC_RADIUS = 15
 local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
 
 -- AoE/cleave spell IDs for PvP CC gating (any rank learned = gate active)
-local WARRIOR_AOE_IDS = { 845, 1680, 12328 }  -- Cleave, Whirlwind, Sweeping Strikes
+local WARRIOR_AOE_IDS = { 845, 1680, 12292 }  -- Cleave, Whirlwind, Sweeping Strikes (Vanilla ID; TBC=12328)
 
 -- ============================================================================
 -- Strategy helpers

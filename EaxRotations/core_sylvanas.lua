@@ -262,7 +262,9 @@ local VANILLA_TBC_SPELL_BLOCKLIST = {
 
     [5938] = true, -- Shiv
 
-    -- [12472] removed: 12472 = Cold Snap in Vanilla (lexxer-verified); Icy Veins is TBC-only, filtered by spell IDs
+    -- [12472] NOT blocked: 12472 = Cold Snap in Vanilla (spell_id_table.resolve("Cold Snap") returns 12472).
+    -- Icy Veins (TBC-only, also 12472) is safe because no Vanilla spec file references SPELLS.IcyVeins
+    -- from class_sylvanas.lua — Vanilla frost/arcane use SPELLS.ColdSnap directly.
 
     [20243] = true, -- Devastate
 
