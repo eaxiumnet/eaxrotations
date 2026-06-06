@@ -44,10 +44,6 @@ local _auto_aoe_last_enemy_count = 0
 local _auto_aoe_state_changed_at = nil
 local _auto_aoe_base_playstyle = nil
 
--- ============================================================================
--- Debug trace is a no-op in production builds
-local function trace() end
-
 local function safe(fn, ...)
     if type(fn) ~= "function" then return nil end
     local ok, a = pcall(fn, ...)
@@ -137,9 +133,7 @@ end
 
 local function find_enemy_target(me, selected)
     local selected_ok = valid_enemy(me, selected)
-    trace("target:selected", "[EaxRotations:target] selected=" .. tostring(selected ~= nil) .. " valid=" .. tostring(selected_ok), 2000)
     if selected_ok then
-        trace("target:selected_ok", "target selected=valid_enemy", 1000)
         return selected
     end
     -- IZI-selected target fallback (for scripts that use the IZI target helper)
@@ -147,16 +141,12 @@ local function find_enemy_target(me, selected)
         local izi_target = NS.izi and NS.izi.target and NS.izi.target()
         if izi_target then
             local izi_ok = valid_enemy(me, izi_target)
-            trace("target:izi", "[EaxRotations:target] izi_target=" .. tostring(izi_target ~= nil) .. " valid=" .. tostring(izi_ok), 2000)
             if izi_ok then return izi_target end
         end
     end
     local focus = NS.GetFocus and NS.GetFocus() or nil
     local focus_ok = valid_enemy(me, focus)
-    trace("target:focus", "[EaxRotations:target] focus=" .. tostring(focus ~= nil) .. " valid=" .. tostring(focus_ok), 2000)
-    trace("target:pick", "target pick selected=" .. tostring(selected ~= nil) .. " selected_ok=" .. tostring(selected_ok) .. " focus=" .. tostring(focus ~= nil) .. " focus_ok=" .. tostring(focus_ok), 2000)
     if focus_ok then return focus end
-    trace("target:no_valid", "[EaxRotations:target] NO VALID TARGET - selected invalid, focus invalid or missing", 2000)
     return nil  -- Never auto-acquire enemies; only cast on selected or focus target
 end
 
@@ -337,7 +327,6 @@ local function build_context()
     for k in pairs(_context) do _context[k] = nil end
     local me = NS.GetPlayer()
     if not me then
-        trace("context:no_player", "build_context failed: no player", 1000)
         NS.current_context = nil
         return nil
     end
@@ -389,7 +378,7 @@ local function build_context()
     --
     --   4th (implicit): nil
     --        - No TTD source could provide a value.
-    --        - _context.ttd defaults to 999 ("infinite"), _context.ttd_known is false.
+    --        - _context.ttd defaults to 999 (\"infinite\"), _context.ttd_known is false.
     --
     -- _context.ttd_known == false when:
     --   - No valid enemy target (target is nil or friendly).
@@ -418,7 +407,6 @@ local function build_context()
         ttd = engine_ttd
         ttd_source = "engine"
     end
-    trace("ttd:source", "[TTD] source=" .. ttd_source .. " value=" .. tostring(ttd) .. " ema=" .. tostring(ema_ttd) .. " reg=" .. tostring(regression_ttd) .. " eng=" .. tostring(engine_ttd), 2000)
     _context.me = me
     _context.target = target
     _context.in_combat = in_combat
@@ -582,21 +570,6 @@ local function build_context()
             if NS._fire_combat_end then NS._fire_combat_end(_context) end
         end
     end
-    trace("context:summary",
-        "ctx raw_combat=" .. tostring(raw_in_combat) ..
-        " known=" .. tostring(combat_state_known) ..
-        " in_combat=" .. tostring(in_combat) ..
-        " selected=" .. tostring(selected_target ~= nil) ..
-        " target=" .. tostring(target ~= nil) ..
-        " enemy_ok=" .. tostring(enemy_ok) ..
-        " enemies=" .. tostring(count) ..
-        " hp=" .. tostring(_context.hp) ..
-        " mana=" .. tostring(_context.mana_pct) ..
-        " gcd=" .. tostring(_context.gcd_remains) ..
-        " moving=" .. tostring(_context.is_moving) ..
-        " casting=" .. tostring(_context.is_casting) ..
-        " channeling=" .. tostring(_context.is_channeling),
-        2000)
     return _context
 end
 
@@ -738,68 +711,35 @@ end
 
 local function run_list(name, list, options, context, debug_on)
     if type(list) ~= "table" then
-        trace("list:" .. tostring(name) .. ":missing", "list " .. tostring(name) .. " missing type=" .. type(list), 1000)
         return false
     end
     if debug_on == nil then debug_on = is_debug_enabled() end
-    if debug_on then
-        trace("list:" .. tostring(name) .. ":start", "list " .. tostring(name) .. " start count=" .. tostring(#list), 2000)
-    end
     local state = context
     if options and options.get_state then
-        state = safe(options.get_state, context) or context            if debug_on then
-                trace("list:" .. tostring(name) .. ":state", "list " .. tostring(name) .. " get_state returned " .. tostring(state ~= context and state ~= nil), 1000)
-            end
-        end
-        if options and options.context_builder then
-            if debug_on then
-                trace("list:" .. tostring(name) .. ":builder", "list " .. tostring(name) .. " context_builder returned " .. tostring(state ~= context and state ~= nil), 1000)
-            end
-            state = safe(options.context_builder, context) or context
-        end
+        state = safe(options.get_state, context) or context
+    end
+    if options and options.context_builder then
+        state = safe(options.context_builder, context) or context
+    end
     for i = 1, #list do
         local strategy = list[i]
         if type(strategy) == "table" then
             local sname = tostring(strategy.name or i)
             local allowed, allow_reason, category = strategy_allowed(strategy, name, context.active_playstyle, context)
             if not allowed then
-                if debug_on then
-                    trace("strategy:" .. tostring(name) .. ":" .. sname .. ":blocked", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " blocked category=" .. tostring(category) .. " reason=" .. tostring(allow_reason), 2000)
-                end
             elseif type(strategy.execute) ~= "function" then
                 NS.log_warning(name .. " strategy " .. tostring(strategy.name or i) .. " missing execute")
             else
                 local ok = true
                 if type(strategy.matches) == "function" then ok = strategy.matches(context, state) == true end
-                if debug_on then
-                    trace("strategy:" .. tostring(name) .. ":" .. sname .. ":match", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " category=" .. tostring(category) .. " match=" .. tostring(ok), 2000)
-                end
                 if ok then
                     local executed = safe(strategy.execute, context, state) == true
-                    if debug_on then
-                        trace("strategy:" .. tostring(name) .. ":" .. sname .. ":exec", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname .. " execute=" .. tostring(executed), 2000)
-                    end
                     if executed then
-                        if debug_on then
-                            trace("strategy:" .. tostring(name) .. ":" .. tostring(sname) .. ":fired", "[EaxRotations:strategy] FIRED: " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname, 2000)
-                        end
                         return true
-                    else
-                        if debug_on then
-                            trace("strategy:" .. tostring(name) .. ":" .. tostring(sname) .. ":failed", "[EaxRotations:strategy] MATCHED but execute FAILED: " .. tostring(name) .. "[" .. tostring(i) .. "] " .. sname, 2000)
-                        end
                     end
                 end
             end
-        else
-            if debug_on then
-                trace("strategy:" .. tostring(name) .. ":" .. tostring(i) .. ":bad", "strategy " .. tostring(name) .. "[" .. tostring(i) .. "] invalid type=" .. type(strategy), 1000)
-            end
         end
-    end
-    if debug_on then
-        trace("list:" .. tostring(name) .. ":none", "list " .. tostring(name) .. " finished without action", 2000)
-        trace("strategy:" .. tostring(name) .. ":no_fires", "[EaxRotations:strategy] " .. tostring(name) .. " list finished - NO strategies fired (checked " .. tostring(#list) .. " entries)", 2000)
     end
     return false
 end
@@ -809,19 +749,11 @@ function M.on_rotation_update()
     local context = build_context()
     local debug_enabled = is_debug_enabled()
     if not context then
-        trace("update:no_context", "[EaxRotations:update] EXIT: build_context returned nil - no player object?", 2000)
-        trace("update:no_context", "on_rotation_update stop: no context", 1000)
         return false
     end
-    trace("update:vars", "[EaxRotations:update] in_combat=" .. tostring(context.in_combat) .. " has_valid_enemy_target=" .. tostring(context.has_valid_enemy_target) .. " combat_state_known=" .. tostring(context.combat_state_known) .. " hp=" .. tostring(context.hp) .. " gcd=" .. tostring(context.gcd_remains) .. " level=" .. tostring(context.player_level) .. " is_leveling=" .. tostring(context.is_leveling), 2000)
     if not (context.in_combat or context.has_valid_enemy_target) then
-        trace("gate:blocked", "[EaxRotations:gate] BLOCKED: not in_combat AND no valid enemy target. combat_state_known=" .. tostring(context.combat_state_known) .. " has_target=" .. tostring(context.has_target), 2000)
         -- Only run OOC manager when there's no valid enemy target (even if combat_state_known is false)
-        trace("gate:ooc_path", "[EaxRotations:gate] EXIT: OOC path - in_combat=false, has_enemy=false, trying ooc_manager=" .. tostring(ooc_manager ~= nil), 2000)
-        trace("gate:ooc", "gate OOC: in_combat=false has_enemy=false ooc_manager=" .. tostring(ooc_manager ~= nil), 2000)
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
-            trace("gate:ooc_fired", "[EaxRotations:gate] OOC manager fired successfully", 2000)
-            trace("gate:ooc_fired", "OOC manager executed", 500)
             return true
         end
         trace_no_action("none", context, "idle_no_enemy")
@@ -830,12 +762,10 @@ function M.on_rotation_update()
     -- Global reaction delay: blocks ALL middleware + playstyle strategies for reaction_delay_ms after GCD ends.
     -- Applies to all 9 classes. Bypassed during burst windows and out of combat.
     if reaction_delay_active(context) then
-        trace("gate:reaction_delay", "[EaxRotations:gate] REACTION DELAY active - blocking all strategies", 1000)
         return true
     end
     local registry = NS.rotation_registry
     local config = registry and registry.class_config or nil
-    trace("registry:summary", "registry config=" .. tostring(config ~= nil) .. " class_key=" .. tostring(config and config.class_key) .. " playstyles=" .. tostring(registry and registry.playstyles ~= nil), 1000)
     local requested_playstyle = NS.get_setting("playstyle", nil)
     local active_source = (type(requested_playstyle) == "string" and requested_playstyle ~= "") and requested_playstyle
         or NS.get_setting("active_playstyle", config and config.default_playstyle)
@@ -843,7 +773,6 @@ function M.on_rotation_update()
     -- Auto-detect leveling/solo context: switch to leveling playstyle when no explicit playstyle is set
     if (not requested_playstyle or requested_playstyle == "") and (context.is_leveling or context.is_solo) and registry and registry.playstyles and registry.playstyles.leveling then
         active = "leveling"
-        trace("playstyle:auto_leveling", "auto-detected leveling/solo context, switching to leveling playstyle", 500)
     end
     -- Dynamic Auto-AoE: automatically switch to AoE playstyle when enemy_count >= threshold
     active = resolve_auto_aoe_playstyle(registry, active, context.enemy_count or 0)
@@ -851,23 +780,13 @@ function M.on_rotation_update()
         NS.set_setting("active_playstyle", active)
     end
     context.active_playstyle = active
-    trace("playstyle:active", "playstyle requested=" .. tostring(requested_playstyle) .. " source=" .. tostring(active_source) .. " active=" .. tostring(active), 2000)
     log_expansion_once(config, active)
     local class_key = config and config.class_key
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context, debug_enabled) then
-        trace("update:middleware_fired", "on_rotation_update fired middleware class_key=" .. tostring(class_key), 2000)
-        trace("update:middleware_fired", "[EaxRotations:update] MIDDLEWARE FIRED - BLOCKING playstyle rotation. class_key=" .. tostring(class_key) .. " active=" .. tostring(active), 2000)
         return true
     end
-    trace("update:running_playstyle", "[EaxRotations:update] running playstyle=" .. tostring(active) .. " list_count=" .. tostring(registry and registry.playstyles and registry.playstyles[active] and #registry.playstyles[active] or 0) .. " options=" .. tostring(registry and registry.options and registry.options[active] ~= nil), 2000)
     local fired = run_list(tostring(active), registry and registry.playstyles[active], registry and registry.options[active], context, debug_enabled)
-    trace("update:done", "on_rotation_update finished active=" .. tostring(active) .. " fired=" .. tostring(fired), 2000)
-    if fired then
-        trace("update:playstyle_fired", "[EaxRotations:update] playstyle=" .. tostring(active) .. " FIRED a strategy", 2000)
-    else
-        trace("update:playstyle_idle", "[EaxRotations:update] playstyle=" .. tostring(active) .. " finished WITHOUT firing any strategy", 2000)
-        trace_no_action(active, context, "strategies_blocked")
-    end
+    if not fired then trace_no_action(active, context, "strategies_blocked") end
     if _tick_start and tick_profiler then tick_profiler.end_tick(_tick_start) end
     return fired
 end
@@ -887,19 +806,15 @@ function M.on_rotation_update_unified()
     local context = build_context()
     local debug_enabled = is_debug_enabled()
     if not context then
-        trace("unified:no_context", "on_rotation_update_unified stop: no context", 1000)
         return false
     end
     if not (context.in_combat or context.has_valid_enemy_target) then
         if context.combat_state_known == false then
-            trace("unified:combat_pending", "unified gate stop: combat_state_pending target=" .. tostring(context.has_valid_enemy_target), 500)
             trace_no_action("none", context, "combat_state_pending")
             return false
         end
         -- Only run OOC manager when there's no valid enemy target
-        trace("unified:ooc", "unified gate OOC: in_combat=false has_enemy=false ooc_manager=" .. tostring(ooc_manager ~= nil), 500)
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
-            trace("unified:ooc_fired", "unified OOC manager executed", 500)
             return true
         end
         trace_no_action("none", context, "idle_no_enemy")
@@ -907,7 +822,6 @@ function M.on_rotation_update_unified()
     end
     -- Global reaction delay: blocks ALL middleware + playstyle strategies.
     if reaction_delay_active(context) then
-        trace("unified:reaction_delay", "[EaxRotations:unified] REACTION DELAY active - blocking all strategies", 500)
         return true
     end
     local registry = NS.rotation_registry
@@ -919,7 +833,6 @@ function M.on_rotation_update_unified()
     -- Auto-detect leveling/solo context: switch to leveling playstyle when no explicit playstyle is set
     if (not requested_playstyle or requested_playstyle == "") and (context.is_leveling or context.is_solo) and registry and registry.playstyles and registry.playstyles.leveling then
         active = "leveling"
-        trace("unified:auto_leveling", "auto-detected leveling/solo context, switching to leveling playstyle", 500)
     end
     -- Dynamic Auto-AoE: automatically switch to AoE playstyle when enemy_count >= threshold
     active = resolve_auto_aoe_playstyle(registry, active, context.enemy_count or 0)
@@ -927,16 +840,13 @@ function M.on_rotation_update_unified()
         NS.set_setting("active_playstyle", active)
     end
     context.active_playstyle = active
-    trace("unified:playstyle", "unified playstyle requested=" .. tostring(requested_playstyle) .. " source=" .. tostring(active_source) .. " active=" .. tostring(active), 500)
     log_expansion_once(config, active)
     local class_key = config and config.class_key
     -- Run legacy class middleware first; new unified entries are in NS.unified_registry
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context, debug_enabled) then
-        trace("unified:middleware_fired", "on_rotation_update_unified fired middleware class_key=" .. tostring(class_key), 500)
         return true
     end
     local fired = NS.run_unified_strategies(context)
-    trace("unified:done", "on_rotation_update_unified finished active=" .. tostring(active) .. " fired=" .. tostring(fired), 500)
     if not fired then trace_no_action(active, context, "unified_strategies_blocked") end
     if _tick_start and tick_profiler then tick_profiler.end_tick(_tick_start) end
     return fired
