@@ -170,6 +170,9 @@ local tests = {
 
     -- reset_api_health integration tests
     "test_reset_api_health_aspect_manager.lua",
+
+    -- Cross-expansion spell ID validation
+    "test_cross_expansion_spell_validation.lua",
 }
 
 local function quote(path)
