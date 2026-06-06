@@ -34,7 +34,6 @@ if not _spell_queue_ok or type(spell_queue_module) ~= "table" then spell_queue_m
 NS.spell_queue = spell_queue_module
 
 local _last_error_time = 0
-local _trace_times = {}
 
 local _cached_tank_alive, _cached_tank_alive_time = true, -1
 
@@ -46,24 +45,8 @@ local _auto_aoe_state_changed_at = nil
 local _auto_aoe_base_playstyle = nil
 
 -- ============================================================================
--- Force Flag State (slash-command overrides)
--- ============================================================================
-local _force_flags = {
-    burst = { active = false, expires = 0 },
-    defensive = { active = false, expires = 0 },
-    gap = { active = false, expires = 0 },}
-
-local FORCE_FLAG_TIMEOUT = 3.0
-
-local function trace(key, message, interval_ms)
-    if not NS.get_setting("debug_system", false) then return end
-    local now = NS.game_time_ms and NS.game_time_ms() or 0
-    local interval = interval_ms or 500
-    local last = _trace_times[key] or -100000
-    if now - last < interval then return end
-    _trace_times[key] = now
-    NS.log("[ROTDBG] " .. tostring(message))
-end
+-- Debug trace is a no-op in production builds
+local function trace() end
 
 local function safe(fn, ...)
     if type(fn) ~= "function" then return nil end
@@ -146,65 +129,6 @@ end
 local function get_target(me)
     local fallback_get_target = NS.safe_field and NS.safe_field(me, "get_target") or nil
     return NS.GetTarget and NS.GetTarget() or (fallback_get_target and safe(fallback_get_target, me) or nil)
-end
-
-local function update_force_flags()
-    local now = NS.time_now and NS.time_now() or 0
-    for _, flag in pairs(_force_flags) do
-        if flag.active and now > flag.expires then
-            flag.active = false
-        end
-    end
-end
-
-local function set_force_flag(flag_name)
-    local now = NS.time_now and NS.time_now() or 0
-    if _force_flags[flag_name] then
-        _force_flags[flag_name].active = true
-        _force_flags[flag_name].expires = now + FORCE_FLAG_TIMEOUT
-    end
-end
-
-function NS.force_burst_active()
-    update_force_flags()
-    return _force_flags.burst.active
-end
-
-function NS.force_defensive_active()
-    update_force_flags()
-    return _force_flags.defensive.active
-end
-
-function NS.force_gap_active()
-    update_force_flags()
-    return _force_flags.gap.active
-end
-
-function NS.set_force_burst()
-    if NS.get_setting and not NS.get_setting("force_burst_enabled", true) then
-        NS.log("Force burst disabled in settings")
-        return
-    end
-    set_force_flag("burst")
-    NS.log("Force burst active for " .. tostring(FORCE_FLAG_TIMEOUT) .. "s")
-end
-
-function NS.set_force_defensive()
-    if NS.get_setting and not NS.get_setting("force_defensive_enabled", true) then
-        NS.log("Force defensive disabled in settings")
-        return
-    end
-    set_force_flag("defensive")
-    NS.log("Force defensive active for " .. tostring(FORCE_FLAG_TIMEOUT) .. "s")
-end
-
-function NS.set_force_gap()
-    if NS.get_setting and not NS.get_setting("force_gap_enabled", true) then
-        NS.log("Force gap disabled in settings")
-        return
-    end
-    set_force_flag("gap")
-    NS.log("Force gap active for " .. tostring(FORCE_FLAG_TIMEOUT) .. "s")
 end
 
 local function valid_enemy(me, target)
@@ -584,9 +508,6 @@ local function build_context()
     _context.settings = NS.settings or {}
     _context.ttd = ttd or 999
     _context.ttd_source = ttd_source
-    _context.force_burst = NS.force_burst_active and NS.force_burst_active() or false
-    _context.force_defensive = NS.force_defensive_active and NS.force_defensive_active() or false
-    _context.force_gap = NS.force_gap_active and NS.force_gap_active() or false
     _context.has_breakable_cc_nearby = NS.has_breakable_cc_nearby and NS.has_breakable_cc_nearby() or false
     -- Boss school immunities for strategy gating
     local school_immunities = get_target_school_immunities(target)

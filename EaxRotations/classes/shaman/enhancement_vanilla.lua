@@ -796,7 +796,6 @@ end
 local function earth_totem_resolve(ctx)
     local s = ctx.settings or {}
     local desired = s.enhancement_earth_totem or "strength"
-    debug_log(ctx, "Earth totem check: combobox=" .. desired .. ", matches=" .. tostring(earth_totem_matches(ctx, desired)))
     if earth_totem_matches(ctx, desired) then
         enh_state.earth_totem_desired = desired
         local result = earth_totem_execute()
