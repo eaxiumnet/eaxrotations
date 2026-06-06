@@ -173,6 +173,7 @@ local tests = {
 
     -- Cross-expansion spell ID validation
     "test_cross_expansion_spell_validation.lua",
+    "test_spell_rank_resolver_cross_expansion.lua",
 }
 
 local function quote(path)

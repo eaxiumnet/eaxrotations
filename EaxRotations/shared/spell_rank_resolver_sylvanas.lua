@@ -1,9 +1,10 @@
 -- ============================================================================
--- Shared Helper: Spell Rank Resolver
+-- Shared Helper: Spell Rank Resolver (Expansion-Aware)
 -- ============================================================================
--- What:   Auto-resolves spell rank chains from wowhead_data/spell_list_tbc.json.
+-- What:   Auto-resolves spell rank chains from wowhead_data spell lists.
 -- When:   Module load (cached). Used by spec files for rank-by-level lookups.
 -- Why:    Replace hardcoded spell rank arrays with data-driven resolution.
+--         Supports both TBC and Vanilla expansions with separate rank tables.
 -- Safety: Read-only. Falls back gracefully if wowhead_data is unavailable.
 --         All results cached at load time — no JSON parsing in hot paths.
 --         Uses io.open (allowed) — NOT io.popen (banned).
@@ -118,21 +119,17 @@ end
 
 -- ============================================================================
 -- Rank tables: keyed by "name:class" -> sorted array of {id, level, rank}
+-- Separate tables per expansion to support cross-expansion resolution.
 -- ============================================================================
-local _rank_tables = {}  -- ["Fireball:Mage"] = {{id=133,level=1,rank=nil}, ...}
-local _loaded = false
+local _rank_tables_tbc = {}     -- ["Fireball:Mage"] = {{id=27070,level=66,...}, ...}
+local _rank_tables_vanilla = {} -- ["Fireball:Mage"] = {{id=133,level=1,...}, ...}
+local _loaded_tbc = false
+local _loaded_vanilla = false
 
-local function load_rank_data()
-    if _loaded then return end
-    _loaded = true
-
-    local content = read_file("wowhead_data/spell_list_tbc.json")
-    if not content then return end
-
+local function parse_rank_data(content)
     local parsed = _json_decode(content)
-    if type(parsed) ~= "table" then return end
+    if type(parsed) ~= "table" then return {} end
 
-    -- Group by name:class to avoid cross-class name collisions
     local groups = {}
     for _, entry in ipairs(parsed) do
         if type(entry) == "table" and entry.id and entry.name and entry.required_class then
@@ -152,7 +149,6 @@ local function load_rank_data()
     end
 
     -- Sort each group: primary by level ascending, secondary by rank ascending
-    -- Ascending order enables early-break in level-based lookups
     for _, g in pairs(groups) do
         table.sort(g, function(a, b)
             if a.level ~= b.level then return a.level < b.level end
@@ -162,23 +158,58 @@ local function load_rank_data()
         end)
     end
 
-    _rank_tables = groups
+    return groups
+end
+
+local function load_tbc_data()
+    if _loaded_tbc then return end
+    _loaded_tbc = true
+    local content = read_file("wowhead_data/spell_list_tbc.json")
+    if not content then return end
+    _rank_tables_tbc = parse_rank_data(content)
+end
+
+local function load_vanilla_data()
+    if _loaded_vanilla then return end
+    _loaded_vanilla = true
+    local content = read_file("wowhead_data/spell_list_vanilla.json")
+    if not content then return end
+    _rank_tables_vanilla = parse_rank_data(content)
+end
+
+-- ============================================================================
+-- Internal: resolve expansion key to rank table
+-- ============================================================================
+local function get_rank_table(expansion)
+    if expansion == "vanilla" then
+        load_vanilla_data()
+        return _rank_tables_vanilla
+    end
+    -- Default: TBC
+    load_tbc_data()
+    return _rank_tables_tbc
+end
+
+--- Returns the current expansion key based on NS.is_vanilla().
+--- @return string "vanilla" or "tbc"
+local function current_expansion()
+    if NS and NS.is_vanilla and NS.is_vanilla() then return "vanilla" end
+    return "tbc"
 end
 
 -- ============================================================================
 -- Internal: find the rank group for a spell name + optional class
 -- ============================================================================
-local function find_group(spell_name, class_name)
+local function find_group(spell_name, class_name, expansion)
     if not spell_name then return nil end
-    load_rank_data()
+    local tables = get_rank_table(expansion or current_expansion())
 
     if class_name then
-        return _rank_tables[spell_name .. ":" .. class_name]
+        return tables[spell_name .. ":" .. class_name]
     end
 
     -- No class specified: try to find any matching group
-    -- Exact key scan (bounded by number of unique spells, ~839)
-    for key, g in pairs(_rank_tables) do
+    for key, g in pairs(tables) do
         local kname = key:match("^(.-):")
         if kname == spell_name then return g end
     end
@@ -192,10 +223,10 @@ end
 --- Get all spell IDs for a spell name, sorted by level ascending.
 --- @param spell_name string Spell name (e.g., "Fireball")
 --- @param class_name string|nil Optional class name (e.g., "Mage").
----        If nil, returns ranks from the first matching class.
+--- @param expansion string|nil Optional expansion override ("tbc" or "vanilla"). Defaults to current.
 --- @return number[] ids Sorted array of spell IDs (ascending level), empty if not found
-function M.get_spell_ranks(spell_name, class_name)
-    local g = find_group(spell_name, class_name)
+function M.get_spell_ranks(spell_name, class_name, expansion)
+    local g = find_group(spell_name, class_name, expansion)
     if not g then return {} end
     local result = {}
     for i = 1, #g do result[i] = g[i].id end
@@ -206,53 +237,54 @@ end
 --- @param spell_name string Spell name (e.g., "Fireball")
 --- @param player_level number Player level
 --- @param class_name string|nil Optional class filter
+--- @param expansion string|nil Optional expansion override ("tbc" or "vanilla"). Defaults to current.
 --- @return number|nil spell_id nil if no rank available at that level
-function M.get_highest_rank(spell_name, player_level, class_name)
+function M.get_highest_rank(spell_name, player_level, class_name, expansion)
     if not spell_name or not player_level then return nil end
-    local g = find_group(spell_name, class_name)
+    local g = find_group(spell_name, class_name, expansion)
     if not g then return nil end
 
-    -- Array sorted ascending by level — walk forward, track last qualifying
     local best = nil
     for i = 1, #g do
         if g[i].level <= player_level then
             best = g[i].id
         else
-            break  -- sorted ascending, no more qualifying entries
+            break
         end
     end
     return best
 end
 
 --- Get the spell ID for a rank at a specific level.
---- Returns the spell whose required_level is closest to (not exceeding) the
---- given level.
 --- @param spell_name string Spell name
 --- @param level number Target level
 --- @param class_name string|nil Optional class filter
+--- @param expansion string|nil Optional expansion override
 --- @return number|nil spell_id nil if no rank found
-function M.get_rank_by_level(spell_name, level, class_name)
-    return M.get_highest_rank(spell_name, level, class_name)
+function M.get_rank_by_level(spell_name, level, class_name, expansion)
+    return M.get_highest_rank(spell_name, level, class_name, expansion)
 end
 
 --- Check if a spell name exists in the rank database.
 --- @param spell_name string Spell name
 --- @param class_name string|nil Optional class filter
+--- @param expansion string|nil Optional expansion override
 --- @return boolean exists
-function M.has_spell(spell_name, class_name)
-    return find_group(spell_name, class_name) ~= nil
+function M.has_spell(spell_name, class_name, expansion)
+    return find_group(spell_name, class_name, expansion) ~= nil
 end
 
 --- Get all spell names for a class.
 --- @param class_name string Class name (e.g., "Mage")
+--- @param expansion string|nil Optional expansion override
 --- @return string[] names Array of spell names
-function M.get_class_spell_names(class_name)
+function M.get_class_spell_names(class_name, expansion)
     if not class_name then return {} end
-    load_rank_data()
+    local tables = get_rank_table(expansion or current_expansion())
     local seen = {}
     local result = {}
     local n = 0
-    for key, _ in pairs(_rank_tables) do
+    for key, _ in pairs(tables) do
         local kname, kclass = key:match("^(.-):(.-)$")
         if kclass == class_name and kname and not seen[kname] then
             seen[kname] = true
@@ -264,11 +296,56 @@ function M.get_class_spell_names(class_name)
     return result
 end
 
---- Force reload (for testing).
+--- Get the rank count for a spell in the current (or specified) expansion.
+--- Useful for cross-expansion validation (TBC has more ranks than Vanilla for most spells).
+--- @param spell_name string Spell name
+--- @param class_name string|nil Optional class filter
+--- @param expansion string|nil Optional expansion override
+--- @return number count Number of ranks (0 if spell not found)
+function M.get_rank_count(spell_name, class_name, expansion)
+    local g = find_group(spell_name, class_name, expansion)
+    return g and #g or 0
+end
+
+--- Force reload all expansion data (for testing).
 function M._reload()
-    _loaded = false
-    _rank_tables = {}
-    load_rank_data()
+    _loaded_tbc = false
+    _loaded_vanilla = false
+    _rank_tables_tbc = {}
+    _rank_tables_vanilla = {}
+    load_tbc_data()
+    load_vanilla_data()
+end
+
+--- Force reload a specific expansion (for testing).
+--- @param expansion string "tbc" or "vanilla"
+function M._reload_expansion(expansion)
+    if expansion == "vanilla" then
+        _loaded_vanilla = false
+        _rank_tables_vanilla = {}
+        load_vanilla_data()
+    else
+        _loaded_tbc = false
+        _rank_tables_tbc = {}
+        load_tbc_data()
+    end
+end
+
+--- Get which expansions are loaded (for diagnostics).
+--- @return table { tbc = boolean, vanilla = boolean }
+function M._loaded_expansions()
+    load_tbc_data()
+    load_vanilla_data()
+    local tbc_count = 0
+    for _ in pairs(_rank_tables_tbc) do tbc_count = tbc_count + 1 end
+    local van_count = 0
+    for _ in pairs(_rank_tables_vanilla) do van_count = van_count + 1 end
+    return {
+        tbc = tbc_count > 0,
+        vanilla = van_count > 0,
+        tbc_spell_groups = tbc_count,
+        vanilla_spell_groups = van_count,
+    }
 end
 
 -- ============================================================================
