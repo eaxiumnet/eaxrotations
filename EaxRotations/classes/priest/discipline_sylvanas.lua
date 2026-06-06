@@ -675,5 +675,5 @@ for i = 1, #idle_dps_strategies do
 end
 
 NS.rotation_registry:register("discipline", strategies, { get_state = build_state })
-NS.log("Priest discipline rotation registered (Tier A)")
+NS.log("Priest discipline rotation registered")
 return strategies
