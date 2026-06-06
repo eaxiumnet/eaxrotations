@@ -17,7 +17,7 @@ local function spell(field, ids, label)
 end
 
 local ACTION = {
-    BattleShout = spell("BattleShout", { 2048, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
+    BattleShout = spell("BattleShout", { 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
     BattleStance = spell("BattleStance", 2457, "BattleStance"),
     BerserkerRage = spell("BerserkerRage", 18499, "BerserkerRage"),
     BerserkerStance = spell("BerserkerStance", 2458, "BerserkerStance"),
@@ -48,7 +48,7 @@ local ACTION = {
     Whirlwind = spell("Whirlwind", 1680, "Whirlwind"),
 }
 
-local BATTLE_SHOUT_BUFF = { 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
+local BATTLE_SHOUT_BUFF = { 11551, 11550, 11549, 6192, 5242, 6673 }
 local BERSERKER_RAGE_BUFF = { 18499 }
 local DEMO_SHOUT_DEBUFF = { 11556, 11555, 11554, 6190, 1160 }
 local HAMSTRING_DEBUFF = { 7373, 7372, 1715 }

@@ -26,7 +26,7 @@ local SPELLS = NS.WarriorSpells or NS.SPELLS or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { DEFENSIVE = 2 }
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
-local BATTLE_SHOUT_BUFF = { 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
+local BATTLE_SHOUT_BUFF = { 11551, 11550, 11549, 6192, 5242, 6673 }
 local PVP_CC_RADIUS = 15
 
 -- Disarm target classes: melee classes that lose weapon-based damage when disarmed
