@@ -61,7 +61,6 @@ local tests = {
     "test_interrupt_manager.lua",
     "test_interrupt_manager_school_lock.lua",
     "test_burst_logic_integration.lua",
-    "test_force_command_activation.lua",
     "test_mage_tbc_corrections.lua",
     "test_api_lint.lua",
     "test_rotation_static_compliance.lua",

@@ -98,8 +98,6 @@ local bear_state = {
     barkskin_hp = 55,
     frenzied_regen_hp = 35,
     demo_roar_enabled = true,
-    force_defensive = false,
-    force_gap = false,
     should_burst = false,
     has_valid_target = false,
     is_bear = false,
@@ -392,9 +390,7 @@ local function build_state(context)
     state.barkskin_hp = NS.setting_number(settings, "bear_barkskin_hp", 55)
     state.frenzied_regen_hp = NS.setting_number(settings, "bear_frenzied_regen_hp", 35)
     state.demo_roar_enabled = NS.setting_bool(settings, "bear_demo_roar", true)
-    state.force_defensive = context.force_defensive == true
-    state.force_gap = context.force_gap == true
-    state.should_burst = context.should_burst == true or context.force_burst == true
+    state.should_burst = context.should_burst == true
     state.has_valid_target = context.has_valid_enemy_target ~= false and state.target ~= nil
     if NS.has_form then
         state.is_bear = NS.has_form("bear")
@@ -452,8 +448,8 @@ local function build_state(context)
 
     scan_pack(state)
     state.group_pressure = state.enemy_count >= state.aoe_threshold or state.pack_loose > 0
-    state.heavy_damage = state.force_defensive or state.hp <= state.frenzied_regen_hp or (state.hp <= state.barkskin_hp and (state.enemy_count >= 2 or state.pack_elites > 0))
-    state.emergency_damage = state.force_defensive or (state.hp <= 30 and state.pack_loose > 0)
+    state.heavy_damage = state.hp <= state.frenzied_regen_hp or (state.hp <= state.barkskin_hp and (state.enemy_count >= 2 or state.pack_elites > 0))
+    state.emergency_damage = state.hp <= 30 and state.pack_loose > 0
 
     update_rage_tracking(state)
     return state
@@ -545,7 +541,7 @@ local function feral_charge_pull_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.has_valid_target then return false end
     if state.target_range < CHARGE_MIN_RANGE or state.target_range > CHARGE_MAX_RANGE then return false end
-    if not state.force_gap and state.in_combat and state.combat_time > 6 then return false end
+    if state.in_combat and state.combat_time > 6 then return false end
     return action_ready(context, action)
 end
 
@@ -561,7 +557,7 @@ end
 local function healthstone_matches(context)
     local state = build_state(context)
     if not state.in_combat then return false end
-    if (state.hp or 100) > 28 and not state.force_defensive then return false end
+    if (state.hp or 100) > 28 then return false end
     return state.healthstone_ready > 0
 end
 
@@ -569,7 +565,7 @@ local function potion_matches(context)
     local state = build_state(context)
     if not state.in_combat then return false end
     if state.healthstone_ready > 0 and (state.hp or 100) <= 28 then return false end
-    if (state.hp or 100) > 32 and not state.force_defensive then return false end
+    if (state.hp or 100) > 32 then return false end
     return state.potion_ready > 0
 end
 
@@ -578,7 +574,7 @@ local function frenzied_regen_matches(context, action)
     if not state.is_bear or not state.in_combat then return false end
     if state.has_frenzied_regen then return false end
     if (state.rage or 0) < RAGE_FRENZIED_REGEN then return false end
-    if (state.hp or 100) > state.frenzied_regen_hp and not (state.force_defensive and state.hp <= 60) then return false end
+    if (state.hp or 100) > state.frenzied_regen_hp then return false end
     return action_ready(context, action)
 end
 
@@ -586,7 +582,7 @@ local function survival_instincts_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat then return false end
     if state.has_survival_instincts then return false end
-    if (state.hp or 100) > 25 and not state.force_defensive then return false end
+    if (state.hp or 100) > 25 then return false end
     return action_ready(context, action)
 end
 
@@ -595,7 +591,7 @@ local function barkskin_matches(context, action)
     if not state.in_combat then return false end
     if state.has_barkskin then return false end
 
-    if (state.hp or 100) > state.barkskin_hp and not state.force_defensive then return false end
+    if (state.hp or 100) > state.barkskin_hp then return false end
     if (state.hp or 100) <= 15 then return false end
 
     return action_ready(context, action)
@@ -605,7 +601,7 @@ local function challenging_roar_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat then return false end
     if (state.enemy_count or 0) < CHALLENGING_ROAR_ENEMY_COUNT and state.pack_loose < 2 then return false end
-    if state.pack_loose < 2 and state.hp > 45 and not state.force_defensive then return false end
+    if state.pack_loose < 2 and state.hp > 45 then return false end
     return action_ready(context, action)
 end
 
@@ -613,8 +609,8 @@ local function growl_matches(context, action)
     local state = build_state(context)
     if not can_use_bear_ability(state) then return false end
     if not state.loose_target then return false end
-    if state.target_target_is_tank and not state.force_defensive then return false end
-    if state.target_target_is_player or state.target_target_is_healer or state.force_defensive then
+    if state.target_target_is_tank then return false end
+    if state.target_target_is_player or state.target_target_is_healer then
         if state.now - state.recent_taunt < TAUNT_COOLDOWN_WINDOW then return false end
         return action_ready(context, action)
     end
