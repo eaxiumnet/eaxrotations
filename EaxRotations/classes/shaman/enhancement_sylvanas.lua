@@ -322,16 +322,6 @@ local function can_drop_totem(ctx, spell, slot, buff_ids)
     return NS.spell_ready(spell, NS.PLAYER_UNIT, { skip_range = true })
 end
 
--- Throttled debug log (1s interval, gated by debug_mode setting)
-local _last_debug_log = 0
-local function debug_log(ctx, message)
-    if not ctx.settings or ctx.settings.debug_mode ~= true then return end
-    local now = NS.game_time_ms()
-    if now - _last_debug_log < 1000 then return end
-    _last_debug_log = now
-    NS.log("[ENHANCEMENT DEBUG] " .. message)
-end
-
 local function cooldowns_enabled(context)
     return not context.settings or context.settings.use_cooldowns ~= false
 end
@@ -812,14 +802,9 @@ end
 local function earth_totem_resolve(ctx)
     local s = ctx.settings or {}
     local desired = s.enhancement_earth_totem or "strength"
-    debug_log(ctx, "Earth totem check: combobox=" .. desired .. ", matches=" .. tostring(earth_totem_matches(ctx, desired)))
     if earth_totem_matches(ctx, desired) then
         enh_state.earth_totem_desired = desired
         local result = earth_totem_execute()
-        if result then
-            local spell_id = (desired == "strength" and SPELLS.StrengthOfEarthTotem.ids[1]) or (desired == "stoneskin" and SPELLS.StoneskinTotem.ids[1]) or 0
-            debug_log(ctx, "Earth totem queued: " .. desired .. " (spell_id=" .. spell_id .. ")")
-        end
         return result
     end
     return false
@@ -828,14 +813,9 @@ end
 local function water_totem_resolve(ctx)
     local s = ctx.settings or {}
     local desired = s.enhancement_water_totem or "mana_spring"
-    debug_log(ctx, "Water totem check: combobox=" .. desired .. ", matches=" .. tostring(water_totem_matches(ctx, desired)))
     if water_totem_matches(ctx, desired) then
         enh_state.water_totem_desired = desired
         local result = water_totem_execute()
-        if result then
-            local spell_id = (desired == "mana_spring" and SPELLS.ManaSpringTotem.ids[1]) or (desired == "healing_stream" and SPELLS.HealingStreamTotem.ids[1]) or 0
-            debug_log(ctx, "Water totem queued: " .. desired .. " (spell_id=" .. spell_id .. ")")
-        end
         return result
     end
     return false
@@ -845,25 +825,15 @@ local function fire_totem_resolve(ctx)
     local s = ctx.settings or {}
     local desired = s.enhancement_fire_totem or "searing"
 
-    debug_log(ctx, "Fire totem check: combobox=" .. desired)
-
     -- Check Fire Nova replacement first
     if fire_nova_replacement_matches(ctx) then
-        debug_log(ctx, "Fire Nova -> Magma replacement triggered")
         local result = fire_nova_replacement_execute()
-        if result then
-            debug_log(ctx, "Fire Nova replacement queued: MagmaTotem (spell_id=" .. (SPELLS.MagmaTotem and tostring(SPELLS.MagmaTotem.ids[1]) or "nil") .. ")")
-        end
         return result
     end
 
     if fire_totem_matches(ctx, desired) then
         enh_state.fire_totem_desired = desired
         local result = fire_totem_execute()
-        if result then
-            local spell_id = (desired == "searing" and SPELLS.SearingTotem.ids[1]) or (desired == "magma" and SPELLS.MagmaTotem.ids[1]) or (desired == "fire_nova" and SPELLS.FireNovaTotem.ids[1]) or 0
-            debug_log(ctx, "Fire totem queued: " .. desired .. " (spell_id=" .. spell_id .. ")")
-        end
         return result
     end
     return false
@@ -998,7 +968,6 @@ local strategies = {
           return true
       end,
       execute = function(ctx)
-          debug_log(ctx, "Mana emergency — auto-attack only")
           local target = ctx.target
           if auto_attack and target and target:is_valid() and not target:is_dead() then
               if not auto_attack:is_auto_attacking(ctx.me) then

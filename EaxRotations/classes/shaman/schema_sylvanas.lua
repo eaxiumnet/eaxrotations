@@ -156,12 +156,6 @@ return {
                 },
             },
             {
-                header = "Debug",
-                settings = {
-                    { key = "debug_mode", type = "checkbox", label = "Debug Mode (console logs)", default = false },
-                },
-            },
-            {
                 header = "Enhancement – Cooldowns",
                 settings = {
                     { key = "enhancement_cd_shamanistic_rage", type = "checkbox", label = "Shamanistic Rage", default = true },

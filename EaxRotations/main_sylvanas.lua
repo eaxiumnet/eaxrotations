@@ -606,16 +606,6 @@ local function normalize_playstyle(registry, active)
     return active
 end
 
-local last_trace_ms = -10000
-local function trace_no_action(active, context, reason)
-    if not NS.get_setting or not (NS.get_setting("debug_system", false) or NS.get_setting("log_context", false)) then return end
-    local now = NS.game_time_ms and NS.game_time_ms() or 0
-    if now - last_trace_ms < 1000 then return end
-    last_trace_ms = now
-    local gates = NS.explain_context_gates and NS.explain_context_gates(context) or "context=?"
-    NS.log("[TRACE] no action active=" .. tostring(active) .. " reason=" .. tostring(reason or "none") .. " " .. gates)
-end
-
 local HEALING_PLAYSTYLES = {
     holy = true,
     discipline = true,
@@ -697,23 +687,10 @@ local function strategy_allowed(strategy, list_name, active, context)
     return true, "allowed", category
 end
 
-local _debug_enabled_cache = nil
-local _debug_cache_time = -1
-
-local function is_debug_enabled()
-    local now = NS.game_time_ms and NS.game_time_ms() or 0
-    if now - _debug_cache_time > 500 then
-        _debug_enabled_cache = NS.get_setting and NS.get_setting("debug_system", false) or false
-        _debug_cache_time = now
-    end
-    return _debug_enabled_cache
-end
-
-local function run_list(name, list, options, context, debug_on)
+local function run_list(name, list, options, context)
     if type(list) ~= "table" then
         return false
     end
-    if debug_on == nil then debug_on = is_debug_enabled() end
     local state = context
     if options and options.get_state then
         state = safe(options.get_state, context) or context
@@ -724,8 +701,7 @@ local function run_list(name, list, options, context, debug_on)
     for i = 1, #list do
         local strategy = list[i]
         if type(strategy) == "table" then
-            local sname = tostring(strategy.name or i)
-            local allowed, allow_reason, category = strategy_allowed(strategy, name, context.active_playstyle, context)
+            local allowed = strategy_allowed(strategy, name, context.active_playstyle, context)
             if not allowed then
             elseif type(strategy.execute) ~= "function" then
                 NS.log_warning(name .. " strategy " .. tostring(strategy.name or i) .. " missing execute")
@@ -747,7 +723,6 @@ end
 function M.on_rotation_update()
     local _tick_start = tick_profiler and tick_profiler.begin_tick() or nil
     local context = build_context()
-    local debug_enabled = is_debug_enabled()
     if not context then
         return false
     end
@@ -756,7 +731,6 @@ function M.on_rotation_update()
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true
         end
-        trace_no_action("none", context, "idle_no_enemy")
         return false
     end
     -- Global reaction delay: blocks ALL middleware + playstyle strategies for reaction_delay_ms after GCD ends.
@@ -782,11 +756,10 @@ function M.on_rotation_update()
     context.active_playstyle = active
     log_expansion_once(config, active)
     local class_key = config and config.class_key
-    if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context, debug_enabled) then
+    if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
         return true
     end
-    local fired = run_list(tostring(active), registry and registry.playstyles[active], registry and registry.options[active], context, debug_enabled)
-    if not fired then trace_no_action(active, context, "strategies_blocked") end
+    local fired = run_list(tostring(active), registry and registry.playstyles[active], registry and registry.options[active], context)
     if _tick_start and tick_profiler then tick_profiler.end_tick(_tick_start) end
     return fired
 end
@@ -804,20 +777,17 @@ that pre-flight will naturally become a no-op.
 function M.on_rotation_update_unified()
     local _tick_start = tick_profiler and tick_profiler.begin_tick() or nil
     local context = build_context()
-    local debug_enabled = is_debug_enabled()
     if not context then
         return false
     end
     if not (context.in_combat or context.has_valid_enemy_target) then
         if context.combat_state_known == false then
-            trace_no_action("none", context, "combat_state_pending")
             return false
         end
         -- Only run OOC manager when there's no valid enemy target
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true
         end
-        trace_no_action("none", context, "idle_no_enemy")
         return false
     end
     -- Global reaction delay: blocks ALL middleware + playstyle strategies.
@@ -843,11 +813,10 @@ function M.on_rotation_update_unified()
     log_expansion_once(config, active)
     local class_key = config and config.class_key
     -- Run legacy class middleware first; new unified entries are in NS.unified_registry
-    if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context, debug_enabled) then
+    if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
         return true
     end
     local fired = NS.run_unified_strategies(context)
-    if not fired then trace_no_action(active, context, "unified_strategies_blocked") end
     if _tick_start and tick_profiler then tick_profiler.end_tick(_tick_start) end
     return fired
 end

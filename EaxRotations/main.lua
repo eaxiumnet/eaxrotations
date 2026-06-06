@@ -175,8 +175,6 @@ local schema_widget_last_values = {}
 -- [#5] Section headers created once per schema tab/section at init time.
 -- Must be declared BEFORE initialize_schema_menu() which populates it.
 local section_headers = {}
--- Guard flag for one-shot aura dump trigger from menu checkbox
-local _aura_dump_triggered = false
 local _last_playstyle_log = nil
 local _last_enabled_log = nil
 local _last_disabled_log_ms = -10000
@@ -681,21 +679,7 @@ local function render_menu()
 
         -- [#5] Diagnostics subtree nested inside main_tree
         menu_elements.diagnostics_tree:render("Diagnostics", function()
-            menu_elements.header_debugging_note:render("Debugging is off by default for FPS.", MENU_COLORS.white)
-            menu_elements.debug_mode_check:render("Debug Mode", "Show detailed debug output")
-            menu_elements.verbose_trace_check:render("Verbose Trace", "Log decision checks, context, and no-action frames")
             menu_elements.dashboard_check:render("Show Dashboard", "Toggle the rotation dashboard window on/off")
-            menu_elements.aura_dump_check:render("Dump Player Auras", "Check to log local-player auras and Lightning Shield ID checks once.")
-            if menu_elements.aura_dump_check and menu_elements.aura_dump_check:get_state() then
-                if not _aura_dump_triggered then
-                    _aura_dump_triggered = true
-                    if NS.dump_player_auras then NS.dump_player_auras() end
-                end
-            else
-                _aura_dump_triggered = false
-            end
-            -- DecisionCache stats (optimizer module was removed)
-            menu_elements.header_dc_not_loaded:render("DecisionCache: not loaded", MENU_COLORS.red)
         end)
     end)
 end
@@ -747,16 +731,11 @@ local function on_update()
     end
 
     -- Sync menu-backed settings even when rotation execution is disabled.
-    local debug_mode = menu_elements.debug_mode_check and menu_elements.debug_mode_check:get_state() or false
-    local verbose_trace = menu_elements.verbose_trace_check and menu_elements.verbose_trace_check:get_state() or false
     local show_dashboard = menu_elements.dashboard_check and menu_elements.dashboard_check:get_state() or false
     sync_quick_toggles()
     sync_playstyle_control()
 
     if framework_core and framework_core.set_setting then
-        framework_core.set_setting("debug_mode", debug_mode)
-        framework_core.set_setting("debug_system", verbose_trace)
-        framework_core.set_setting("log_context", verbose_trace)
 
         -- Optional UI windows stay unloaded until explicitly enabled.
         if show_dashboard and not dashboard_module then
@@ -850,19 +829,10 @@ local function on_update()
         core.log("[EaxRotations:main] ALL-GUARDS-PASSED: reached dispatcher block")
     end
     if framework_main and framework_main.on_rotation_update then
-        if debug_mode then
-            local _now_ms = core.game_time and core.game_time() or 0
-            if not _last_calling_log_time or (_now_ms - _last_calling_log_time) > 2000 then
-                _last_calling_log_time = _now_ms
-                core.log("[EaxRotations:main] CALLING on_rotation_update")
-            end
-        end
         local success, err = pcall(framework_main.on_rotation_update)
         if not success then
             core.log_error("[EaxRotations] Rotation error: " .. tostring(err))
         end
-    else
-        if debug_mode then core.log("[EaxRotations:main] SKIP: framework_main=" .. tostring(framework_main ~= nil) .. " on_rotation_update=" .. tostring(framework_main and framework_main.on_rotation_update ~= nil)) end
     end
 end
 
