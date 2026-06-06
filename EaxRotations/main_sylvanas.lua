@@ -598,6 +598,47 @@ local function build_context()
     _context.target_holy_immune = school_immunities.holy == true
     _context.target_is_player = target and NS.safe_field and NS.safe_field(target, "is_player") and safe(target.is_player, target) == true or false
     _context.target_is_boss = is_target_boss
+    -- ============================================================================
+    -- Derived context fields (for specs that consume nil-unsafe guards)
+    -- ============================================================================
+    -- Threat percentage (0-100) for threat-sensitive specs (rogue, warlock, shaman)
+    if target and me then
+        local ok_ts, ts = pcall(function() return target:get_threat_situation() end)
+        local ts_num = (ok_ts and type(ts) == "number") and ts or 0
+        -- Threat zones: 0=none, 1=low, 2=medium, 3=aggro; scale to 0-100%
+        _context.threat_pct = (ts_num / 3) * 100
+    else
+        _context.threat_pct = 0
+    end
+    -- Bleed immune creature types (Elemental=4, Undead=6, Mechanical=9)
+    _context.target_bleed_immune = false
+    if target then
+        local ok_ct, ctype = pcall(function() return target:get_creature_type() end)
+        if ok_ct and ctype then
+            _context.target_bleed_immune = (ctype == 4 or ctype == 6 or ctype == 9)
+        end
+    end
+    -- DR (diminishing returns) on stun for target
+    _context.target_dr_stun = 0
+    if target and NS.dr_tracker and NS.dr_tracker.get_dr_multiplier then
+        local ok_dr, dr_mult = pcall(NS.dr_tracker.get_dr_multiplier, target, "stun")
+        if ok_dr and dr_mult then
+            _context.target_dr_stun = dr_mult  -- 1.0 = full, <1.0 = diminished
+        end
+    end
+    -- Sunder Armor presence on target
+    _context.has_sunder = false
+    if target then
+        _context.has_sunder = NS.debuff_remains and NS.debuff_remains(target, { 7386, 7405, 8380, 11596, 11597, 25225 }) > 0 or false
+    end
+    -- AoE damage incoming (enemy count > 1 as proxy for cleave/AoE packs)
+    _context.aoe_damage_incoming = count > 1
+    -- Is this a raid boss? (worldboss=3 classification or target_is_boss)
+    _context.is_raid_boss = is_target_boss or (target_classification and target_classification >= 3) or false
+    -- Is the player mounted? (guards OOC buffs, aspect switching)
+    _context.is_mounted = me and NS.safe_field and NS.safe_field(me, "is_mounted") and safe(me.is_mounted, me) == true or false
+    -- Is player control locked? (fear, charm, mind control — stop casting/gcd)
+    _context.player_control_locked = NS.player_control_locked and NS.player_control_locked() or false
     if combat_forecast and type(combat_forecast.get_forecast_single) == "function" then
         local ok, forecast = pcall(combat_forecast.get_forecast_single, target)
         if ok and type(forecast) == "number" and forecast > 0 then

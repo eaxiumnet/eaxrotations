@@ -49,6 +49,6 @@ local ranked = NS.spell_action({
 })
 
 assert_eq(NS.get_spell_id(ranked), 200, "level 62 fallback should choose the level 60 rank")
-assert_eq(NS.get_spell_id({ 300, 200, 100 }), 100, "unannotated fallback should choose the safest low rank")
+assert_eq(NS.get_spell_id({ 300, 200, 100 }), 300, "unannotated fallback should choose highest rank (convention: high-to-low)")
 
 print("PASS test_spell_rank_fallback")
