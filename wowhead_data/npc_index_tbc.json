@@ -43,8 +43,7 @@
     "name": "Gruff Swiftbite",
     "creature_type": "Humanoid",
     "role": "Rare Mob",
-    "difficulty": "Rare",
-    "zone_id": 12
+    "difficulty": "Rare"
   },
   "114": {
     "name": "Harvest Watcher",
@@ -91,18 +90,14 @@
     "level": 10,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 12,
-    "title": "General Supplies"
+    "difficulty": "Normal"
   },
   "152": {
     "name": "Brother Danil",
     "level": 5,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 12,
-    "title": "General Supplies"
+    "difficulty": "Normal"
   },
   "154": {
     "name": "Greater Fleshripper",
@@ -121,9 +116,7 @@
     "level": 5,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 12,
-    "title": "Cloth & Leather Armor Merchant"
+    "difficulty": "Normal"
   },
   "196": {
     "name": "Eagan Peltskinner",
@@ -1097,8 +1090,7 @@
     "name": "Dana",
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 12
+    "difficulty": "Normal"
   },
   "813": {
     "name": "Colonel Kurzen",
@@ -1149,9 +1141,7 @@
     "level": 5,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "General Supplies"
+    "difficulty": "Normal"
   },
   "830": {
     "name": "Sand Crawler",
@@ -1178,9 +1168,7 @@
     "level": 5,
     "creature_type": "Humanoid",
     "role": "Quest Giver, Quest Ender, Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Cloth & Leather Armor Merchant"
+    "difficulty": "Normal"
   },
   "837": {
     "name": "Branstock Khalder",
@@ -1455,9 +1443,7 @@
     "level": 5,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Weaponsmith"
+    "difficulty": "Normal"
   },
   "948": {
     "name": "Rotted One",
@@ -1680,9 +1666,7 @@
     "level": 5,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Armorer"
+    "difficulty": "Normal"
   },
   "1105": {
     "name": "Jern Hornhelm",
@@ -1816,17 +1800,13 @@
     "name": "Kazan Mogosh",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Food & Drink Merchant"
+    "difficulty": "Normal"
   },
   "1238": {
     "name": "Gamili Frosthide",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Cloth & Leather Armor Merchant"
+    "difficulty": "Normal"
   },
   "1239": {
     "name": "First Mate Fitzsimmons",
@@ -1836,9 +1816,7 @@
     "name": "Boran Ironclink",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Armorer"
+    "difficulty": "Normal"
   },
   "1242": {
     "name": "Karl Boran",
@@ -1905,9 +1883,7 @@
     "level": 10,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Weaponsmith"
+    "difficulty": "Normal"
   },
   "1274": {
     "name": "Senator Barin Redstone",
@@ -2273,36 +2249,28 @@
     "name": "Thrawn Boltar",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Blacksmithing Supplies"
+    "difficulty": "Normal"
   },
   "1691": {
     "name": "Kreg Bilmn",
     "level": 10,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "General Supplies"
+    "difficulty": "Normal"
   },
   "1692": {
     "name": "Golorn Frostbeard",
     "level": 10,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Tradesman"
+    "difficulty": "Normal"
   },
   "1694": {
     "name": "Loslor Rudge",
     "level": 10,
     "creature_type": "Humanoid",
     "role": "Quest Giver, Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Engineering Supplies"
+    "difficulty": "Normal"
   },
   "1695": {
     "name": "Rendow",
@@ -2313,9 +2281,7 @@
     "level": 10,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Apprentice Weaponsmith"
+    "difficulty": "Normal"
   },
   "1713": {
     "name": "Elder Shadowmaw Panther",
@@ -2909,8 +2875,7 @@
     "name": "Undead Mining Trainer",
     "creature_type": "Undead",
     "role": "Mob",
-    "difficulty": "Normal",
-    "title": "Mining Trainer"
+    "difficulty": "Normal"
   },
   "2226": {
     "name": "Karos Razok",
@@ -3485,8 +3450,7 @@
     "level": 1,
     "creature_type": "Critter",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 357
+    "difficulty": "Normal"
   },
   "2916": {
     "name": "Historian Karnik",
@@ -3697,9 +3661,7 @@
     "level": 46,
     "creature_type": "Humanoid",
     "role": "Quest Ender",
-    "difficulty": "Normal",
-    "zone_id": 1638,
-    "title": "Leatherworking Trainer"
+    "difficulty": "Normal"
   },
   "3033": {
     "name": "Turak Runetotem",
@@ -4058,9 +4020,7 @@
     "level": 10,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "General Goods"
+    "difficulty": "Normal"
   },
   "3159": {
     "name": "Kzan Thornslash",
@@ -4071,9 +4031,7 @@
     "level": 11,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "Cloth & Leather Armor Merchant"
+    "difficulty": "Normal"
   },
   "3161": {
     "name": "Rarc",
@@ -4084,9 +4042,7 @@
     "level": 12,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Leather Armor Merchant"
+    "difficulty": "Normal"
   },
   "3163": {
     "name": "Uhgar",
@@ -4097,9 +4053,7 @@
     "level": 14,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "General Goods"
+    "difficulty": "Normal"
   },
   "3165": {
     "name": "Ghrawt",
@@ -4110,9 +4064,7 @@
     "level": 14,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "Cloth & Leather Armor Merchant"
+    "difficulty": "Normal"
   },
   "3167": {
     "name": "Wuark",
@@ -4123,9 +4075,7 @@
     "level": 15,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "Trade Supplies"
+    "difficulty": "Normal"
   },
   "3169": {
     "name": "Tarshaw Jaggedscar",
@@ -4188,18 +4138,14 @@
     "level": 11,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "General Goods"
+    "difficulty": "Normal"
   },
   "3187": {
     "name": "Tai'tasi",
     "level": 12,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "Trade Supplies"
+    "difficulty": "Normal"
   },
   "3188": {
     "name": "Master Gadrin",
@@ -4602,8 +4548,7 @@
     "level": 65,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 1637
+    "difficulty": "Normal"
   },
   "3297": {
     "name": "Sen'jin Watcher",
@@ -5261,18 +5206,14 @@
     "name": "Lyrai",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "General Supplies"
+    "difficulty": "Normal"
   },
   "3588": {
     "name": "Khardan Proudblade",
     "level": 8,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "Weaponsmith"
+    "difficulty": "Normal"
   },
   "3589": {
     "name": "Keina",
@@ -5286,17 +5227,13 @@
     "name": "Freja Nightwing",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "Leather Armor Merchant"
+    "difficulty": "Normal"
   },
   "3592": {
     "name": "Andiss",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "Armorer & Shieldcrafter"
+    "difficulty": "Normal"
   },
   "3601": {
     "name": "Dazalar",
@@ -5307,18 +5244,14 @@
     "level": 17,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "General Supplies"
+    "difficulty": "Normal"
   },
   "3609": {
     "name": "Shalomon",
     "level": 18,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "Weaponsmith"
+    "difficulty": "Normal"
   },
   "3610": {
     "name": "Jeena Featherbow",
@@ -5333,27 +5266,21 @@
     "level": 20,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "Leather Armor Merchant"
+    "difficulty": "Normal"
   },
   "3613": {
     "name": "Meri Ironweave",
     "level": 19,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "Armorer & Shieldcrafter"
+    "difficulty": "Normal"
   },
   "3614": {
     "name": "Narret Shadowgrove",
     "level": 16,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "Trade Supplies"
+    "difficulty": "Normal"
   },
   "3615": {
     "name": "Devrak",
@@ -5812,18 +5739,14 @@
     "level": 20,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "Cooking Supplies"
+    "difficulty": "Normal"
   },
   "4266": {
     "name": "Danlyia",
     "level": 17,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "Food & Drink Vendor"
+    "difficulty": "Normal"
   },
   "4267": {
     "name": "Daelyshia",
@@ -6506,9 +6429,7 @@
     "level": 14,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "Fishing Supplies"
+    "difficulty": "Normal"
   },
   "5943": {
     "name": "Rawrk",
@@ -6691,9 +6612,7 @@
     "level": 9,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "Food & Drink Vendor"
+    "difficulty": "Normal"
   },
   "6114": {
     "name": "Muren Stormpike",
@@ -6984,9 +6903,7 @@
     "level": 30,
     "creature_type": "Humanoid",
     "role": "Quest Giver, Quest Ender, Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1497,
-    "title": "Innkeeper"
+    "difficulty": "Normal"
   },
   "6746": {
     "name": "Innkeeper Pala",
@@ -7685,9 +7602,7 @@
     "level": 50,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Mechanostrider Merchant"
+    "difficulty": "Normal"
   },
   "7975": {
     "name": "Mulgore Protector",
@@ -7866,9 +7781,7 @@
     "level": 10,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Fishing Supplies"
+    "difficulty": "Normal"
   },
   "8554": {
     "name": "Chief Sharptusk Thornmantle",
@@ -8263,9 +8176,7 @@
     "level": 25,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 141,
-    "title": "Fishing Supplies"
+    "difficulty": "Normal"
   },
   "10119": {
     "name": "Volchan",
@@ -8406,9 +8317,7 @@
     "level": 12,
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "Weapon Merchant"
+    "difficulty": "Normal"
   },
   "10373": {
     "name": "Xabraxxis",
@@ -8777,8 +8686,8 @@
   "11583": {
     "name": "Nefarian",
     "creature_type": "Dragonkin",
-    "difficulty": "Boss",
-    "zone_id": 2677
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "11629": {
     "name": "Jessica Redpath",
@@ -8821,72 +8730,63 @@
     "level": 57,
     "creature_type": "- 58",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 1377
+    "difficulty": "Normal"
   },
   "11722": {
     "name": "Hive'Ashi Defender",
     "level": 58,
     "creature_type": "- 59",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 1377
+    "difficulty": "Normal"
   },
   "11724": {
     "name": "Hive'Ashi Swarmer",
     "level": 57,
     "creature_type": "- 58",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 1377
+    "difficulty": "Normal"
   },
   "11735": {
     "name": "Stonelash Scorpid",
     "level": 54,
     "creature_type": "Beast",
     "role": "Tameable",
-    "difficulty": "Normal",
-    "zone_id": 1377
+    "difficulty": "Normal"
   },
   "11736": {
     "name": "Stonelash Pincer",
     "level": 56,
     "creature_type": "Beast",
     "role": "Tameable",
-    "difficulty": "Normal",
-    "zone_id": 1377
+    "difficulty": "Normal"
   },
   "11738": {
     "name": "Sand Skitterer",
     "level": 55,
     "creature_type": "Beast",
     "role": "Tameable",
-    "difficulty": "Normal",
-    "zone_id": 1377
+    "difficulty": "Normal"
   },
   "11740": {
     "name": "Dredge Striker",
     "level": 55,
     "creature_type": "Beast",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 1377
+    "difficulty": "Normal"
   },
   "11741": {
     "name": "Dredge Crusher",
     "level": 57,
     "creature_type": "Beast",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 1377
+    "difficulty": "Normal"
   },
   "11744": {
     "name": "Dust Stormer",
     "level": 55,
     "creature_type": "Elemental",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 1377
+    "difficulty": "Normal"
   },
   "11748": {
     "name": "Samantha Swifthoof",
@@ -8909,9 +8809,7 @@
     "level": 60,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 1377,
-    "title": "Twilight's Hammer"
+    "difficulty": "Normal"
   },
   "11807": {
     "name": "Tristane Shadowstone",
@@ -8986,27 +8884,21 @@
     "level": 58,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 1377,
-    "title": "Twilight's Hammer"
+    "difficulty": "Normal"
   },
   "11881": {
     "name": "Twilight Geolord",
     "level": 59,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 1377,
-    "title": "Twilight's Hammer"
+    "difficulty": "Normal"
   },
   "11882": {
     "name": "Twilight Stonecaller",
     "level": 59,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 1377,
-    "title": "Twilight's Hammer"
+    "difficulty": "Normal"
   },
   "11901": {
     "name": "Andruk",
@@ -9812,6 +9704,12 @@
     "name": "Ranger Sallina",
     "role": "Mob"
   },
+  "15550": {
+    "name": "Attumen the Huntsman",
+    "creature_type": "Undead",
+    "role": "Boss",
+    "difficulty": "Boss"
+  },
   "15552": {
     "name": "Doctor Weavil",
     "role": "Mob"
@@ -9951,33 +9849,32 @@
   "15687": {
     "name": "Moroes",
     "creature_type": "Undead",
-    "difficulty": "Boss",
-    "zone_id": 3457,
-    "title": "Tower Steward"
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "15688": {
     "name": "Terestian Illhoof",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 3457
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "15689": {
     "name": "Netherspite",
     "creature_type": "Dragonkin",
-    "difficulty": "Boss",
-    "zone_id": 3457
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "15690": {
     "name": "Prince Malchezaar",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 3457
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "15691": {
     "name": "The Curator",
     "creature_type": "Mechanical",
-    "difficulty": "Boss",
-    "zone_id": 3457
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "15722": {
     "name": "Squire Leoren Mal'derath",
@@ -10139,16 +10036,13 @@
     "name": "Apothecary Staffron Lerent",
     "creature_type": "Humanoid",
     "role": "Quest Ender",
-    "difficulty": "Normal",
-    "zone_id": 36,
-    "title": "Royal Apothecary Society"
+    "difficulty": "Normal"
   },
   "16109": {
     "name": "Mara Rennick",
     "creature_type": "Humanoid",
     "role": "Quest Giver, Quest Ender",
-    "difficulty": "Normal",
-    "zone_id": 1497
+    "difficulty": "Normal"
   },
   "16136": {
     "name": "Necrotic Shard",
@@ -10173,8 +10067,8 @@
   "16152": {
     "name": "Attumen the Huntsman",
     "creature_type": "Undead",
-    "difficulty": "Boss",
-    "zone_id": 3457
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "16160": {
     "name": "Magistrix Eredania",
@@ -10414,8 +10308,8 @@
   },
   "16457": {
     "name": "Maiden of Virtue",
-    "difficulty": "Boss",
-    "zone_id": 3457
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "16475": {
     "name": "Megelon",
@@ -10693,8 +10587,7 @@
     "name": "Quillfang Ravager",
     "creature_type": "Beast",
     "role": "Skinnable, Tameable",
-    "difficulty": "Normal",
-    "zone_id": 3483
+    "difficulty": "Normal"
   },
   "16943": {
     "name": "Cyber-Rage Forgelord",
@@ -11075,8 +10968,8 @@
   "17225": {
     "name": "Nightbane",
     "creature_type": "Undead",
-    "difficulty": "Boss",
-    "zone_id": 3457
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "17228": {
     "name": "Draenei Artificer",
@@ -11122,14 +11015,13 @@
     "name": "Felguard",
     "creature_type": "Demon",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 3790
+    "difficulty": "Normal"
   },
   "17257": {
     "name": "Magtheridon",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 3836
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "17272": {
     "name": "Flaming Aspect",
@@ -11543,8 +11435,7 @@
     "name": "The Big Bad Wolf",
     "creature_type": "Humanoid",
     "role": "Boss",
-    "difficulty": "Boss",
-    "zone_id": 3457
+    "difficulty": "Boss"
   },
   "17522": {
     "name": "Myst Spinner",
@@ -11581,19 +11472,19 @@
   "17533": {
     "name": "Romulo",
     "creature_type": "Undead",
-    "difficulty": "Boss",
-    "zone_id": 3457
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "17534": {
     "name": "Julianne",
     "creature_type": "Undead",
-    "difficulty": "Boss",
-    "zone_id": 3457
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "17535": {
     "name": "Dorothee",
-    "difficulty": "Boss",
-    "zone_id": 3457
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "17542": {
     "name": "Young Furbolg Shaman",
@@ -11601,10 +11492,10 @@
   },
   "17543": {
     "name": "Strawman",
-    "creature_type": "Mechanical",
-    "difficulty": "Elite",
     "level": 72,
-    "zone_id": 3457
+    "creature_type": "Mechanical",
+    "role": "Elite Mob",
+    "difficulty": "Elite"
   },
   "17545": {
     "name": "K'ure",
@@ -11613,15 +11504,15 @@
   "17546": {
     "name": "Roar",
     "creature_type": "Beast",
-    "difficulty": "Elite",
-    "zone_id": 3457
+    "role": "Elite Mob",
+    "difficulty": "Elite"
   },
   "17547": {
     "name": "Tinhead",
-    "creature_type": "Mechanical",
-    "difficulty": "Elite",
     "level": 72,
-    "zone_id": 3457
+    "creature_type": "Mechanical",
+    "role": "Elite Mob",
+    "difficulty": "Elite"
   },
   "17549": {
     "name": "Blood Watch Peacekeeper",
@@ -11838,8 +11729,8 @@
   "17711": {
     "name": "Doomwalker",
     "creature_type": "Mechanical",
-    "difficulty": "Boss",
-    "zone_id": 3520
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "17712": {
     "name": "Captain Edward Hanes",
@@ -11860,15 +11751,15 @@
   "17767": {
     "name": "Rage Winterchill",
     "creature_type": "Undead",
-    "difficulty": "Boss",
-    "zone_id": 3606
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "17797": {
     "name": "Hydromancer Thespia",
-    "creature_type": "Humanoid",
-    "difficulty": "Elite",
     "level": 72,
-    "zone_id": 3715
+    "creature_type": "Humanoid",
+    "role": "Elite Mob",
+    "difficulty": "Elite"
   },
   "17807": {
     "name": "Master Kelerun Bloodmourn",
@@ -11877,8 +11768,8 @@
   "17808": {
     "name": "Anetheron",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 3606
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "17809": {
     "name": "Champion Bloodwrath",
@@ -11919,8 +11810,8 @@
   "17842": {
     "name": "Azgalor",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 3606
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "17843": {
     "name": "Vindicator Kuros",
@@ -11989,8 +11880,8 @@
   "17888": {
     "name": "Kaz'rogal",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 3606
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "17896": {
     "name": "Kameel Longstride",
@@ -12030,17 +11921,17 @@
   },
   "17941": {
     "name": "Mennu the Betrayer",
-    "creature_type": "Humanoid",
-    "difficulty": "Elite",
     "level": 64,
-    "zone_id": 3717
+    "creature_type": "Humanoid",
+    "role": "Elite Mob",
+    "difficulty": "Elite"
   },
   "17942": {
     "name": "Quagmirran",
-    "creature_type": "Giant",
-    "difficulty": "Elite",
     "level": 64,
-    "zone_id": 3717
+    "creature_type": "Giant",
+    "role": "Elite Mob",
+    "difficulty": "Elite"
   },
   "17956": {
     "name": "Ikeyen",
@@ -12049,8 +11940,8 @@
   "17968": {
     "name": "Archimonde",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 3606
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "17969": {
     "name": "Kayra Longmane",
@@ -13387,8 +13278,8 @@
   "18728": {
     "name": "Doom Lord Kazzak",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 3483
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "18745": {
     "name": "Captain Auric Sunchaser",
@@ -13505,8 +13396,8 @@
   "18805": {
     "name": "High Astromancer Solarian",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3845
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "18807": {
     "name": "Kerna",
@@ -13547,9 +13438,8 @@
   "18831": {
     "name": "High King Maulgar",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3923,
-    "title": "Lord of the Ogres"
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "18846": {
     "name": "Furious Mr. Pinchy",
@@ -13966,8 +13856,8 @@
   "19044": {
     "name": "Gruul the Dragonkiller",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3923
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "19045": {
     "name": "Oloraak",
@@ -14393,17 +14283,13 @@
     "name": "Supply Officer Shandria",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Elite",
-    "zone_id": 3483,
-    "title": "General Goods & Repairs"
+    "difficulty": "Elite"
   },
   "19315": {
     "name": "Supply Officer Isabel",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Elite",
-    "zone_id": 3483,
-    "title": "General Goods & Repairs"
+    "difficulty": "Elite"
   },
   "19317": {
     "name": "Drek'Gol",
@@ -14470,9 +14356,7 @@
     "level": 62,
     "creature_type": "Humanoid",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 3520,
-    "title": "Food & Drink"
+    "difficulty": "Normal"
   },
   "19349": {
     "name": "Thornfang Ravager",
@@ -14685,15 +14569,14 @@
   "19514": {
     "name": "Al'ar",
     "creature_type": "Elemental",
-    "difficulty": "Boss",
-    "zone_id": 3845,
-    "title": "Phoenix God"
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "19516": {
     "name": "Void Reaver",
     "creature_type": "Mechanical",
-    "difficulty": "Boss",
-    "zone_id": 3845
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "19517": {
     "name": "Alorra",
@@ -14785,8 +14668,7 @@
   },
   "19554": {
     "name": "Dimensius the All-Devouring",
-    "role": "Mob",
-    "zone_id": 3523
+    "role": "Mob"
   },
   "19556": {
     "name": "Thrall",
@@ -14891,9 +14773,8 @@
   "19622": {
     "name": "Kael'thas Sunstrider",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3845,
-    "title": "Lord of the Blood Elves"
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "19625": {
     "name": "Alorya",
@@ -14995,9 +14876,7 @@
     "name": "Fantei",
     "creature_type": "Humanoid",
     "role": "Quest Giver, Vendor",
-    "difficulty": "Normal",
-    "zone_id": 3703,
-    "title": "Reagents"
+    "difficulty": "Normal"
   },
   "19679": {
     "name": "\"Slim\"",
@@ -16289,8 +16168,7 @@
   },
   "20932": {
     "name": "Nuramoc",
-    "role": "Mob",
-    "zone_id": 3523
+    "role": "Mob"
   },
   "20934": {
     "name": "Severed Defender",
@@ -16559,40 +16437,38 @@
   "21212": {
     "name": "Lady Vashj",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3607,
-    "title": "Coilfang Matron"
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "21213": {
     "name": "Morogrim Tidewalker",
     "creature_type": "Giant",
-    "difficulty": "Boss",
-    "zone_id": 3607
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "21214": {
     "name": "Fathom-Lord Karathress",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3607
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "21215": {
     "name": "Leotheras the Blind",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3607
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "21216": {
     "name": "Hydross the Unstable",
     "creature_type": "Elemental",
-    "difficulty": "Boss",
-    "zone_id": 3607,
-    "title": "Duke of Currents"
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "21217": {
     "name": "The Lurker Below",
     "creature_type": "Beast",
-    "difficulty": "Boss",
-    "zone_id": 3607
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "21233": {
     "name": "Legion Fel Cannon",
@@ -17410,9 +17286,7 @@
     "name": "Markus Scylan",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 3483,
-    "title": "Gem Vendor"
+    "difficulty": "Normal"
   },
   "22232": {
     "name": "Grishna Arakkoa",
@@ -17558,8 +17432,7 @@
     "name": "Incandescent Fel Spark",
     "creature_type": "Elemental",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 3483
+    "difficulty": "Normal"
   },
   "22326": {
     "name": "Redeemed Avian",
@@ -17888,32 +17761,32 @@
   "22871": {
     "name": "Teron Gorefiend",
     "creature_type": "Undead",
-    "difficulty": "Boss",
-    "zone_id": 3959
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "22873": {
     "name": "Coilskar General",
     "creature_type": "Humanoid",
-    "difficulty": "Elite",
-    "zone_id": 3959
+    "role": "Elite Mob",
+    "difficulty": "Elite"
   },
   "22874": {
     "name": "Coilskar Harpooner",
     "creature_type": "Humanoid",
-    "difficulty": "Elite",
-    "zone_id": 3959
+    "role": "Elite Mob",
+    "difficulty": "Elite"
   },
   "22875": {
     "name": "Coilskar Sea-Caller",
     "creature_type": "Humanoid",
-    "difficulty": "Elite",
-    "zone_id": 3959
+    "role": "Elite Mob",
+    "difficulty": "Elite"
   },
   "22887": {
     "name": "High Warlord Naj'entus",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3959
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "22893": {
     "name": "Wodin the Troll-Servant",
@@ -17922,8 +17795,8 @@
   "22898": {
     "name": "Supremus",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 3959
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "22908": {
     "name": "Earth Elemental Force",
@@ -17952,9 +17825,8 @@
   "22917": {
     "name": "Illidan Stormrage",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 3959,
-    "title": "The Betrayer"
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "22919": {
     "name": "Image of Commander Ameer",
@@ -17995,26 +17867,26 @@
   "22947": {
     "name": "Mother Shahraz",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 3959
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "22948": {
     "name": "Gurtogg Bloodboil",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3959
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "22949": {
     "name": "Gathios the Shatterer",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3959
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "22950": {
     "name": "High Nethermancer Zerevor",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3959
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "22972": {
     "name": "Cenarion Sparrowhawk",
@@ -18608,17 +18480,13 @@
     "name": "Keiran Donoghue",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Sausage Vendor"
+    "difficulty": "Normal"
   },
   "23482": {
     "name": "Barleybrew Apprentice",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Barleybrew Brew Vendor"
+    "difficulty": "Normal"
   },
   "23483": {
     "name": "Arcanist Xorith",
@@ -18640,41 +18508,31 @@
     "name": "Thunderbrew Apprentice",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 12,
-    "title": "Thunderbrew Brew Vendor"
+    "difficulty": "Normal"
   },
   "23511": {
     "name": "Gordok Brew Apprentice",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 3703,
-    "title": "Gordok Brew Vendor"
+    "difficulty": "Normal"
   },
   "23521": {
     "name": "Anne Summers",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Cheese Vendor"
+    "difficulty": "Normal"
   },
   "23522": {
     "name": "Arlen Lochlan",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Bread Vendor"
+    "difficulty": "Normal"
   },
   "23525": {
     "name": "Brother Cartwright",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1,
-    "title": "Wine Vendor"
+    "difficulty": "Normal"
   },
   "23527": {
     "name": "Teldrassil Pink Elekk",
@@ -18684,9 +18542,7 @@
     "name": "T'chali's Voodoo Brewery Apprentice",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1497,
-    "title": "Voodoo Brew Vendor"
+    "difficulty": "Normal"
   },
   "23534": {
     "name": "Babagaya Shadowcleft",
@@ -18711,62 +18567,50 @@
   "23574": {
     "name": "Akil'zon",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3805,
-    "title": "Eagle Avatar"
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "23576": {
     "name": "Nalorakk",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3805,
-    "title": "Bear Avatar"
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "23577": {
     "name": "Halazzi",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3805,
-    "title": "Lynx Avatar"
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "23578": {
     "name": "Jan'alai",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3805,
-    "title": "Dragonhawk Avatar"
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "23603": {
     "name": "Uta Roughdough",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "Bread Vendor"
+    "difficulty": "Normal"
   },
   "23604": {
     "name": "Agnes Farwithers",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "Cheese Vendor"
+    "difficulty": "Normal"
   },
   "23605": {
     "name": "Bron",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "Sausage Vendor"
+    "difficulty": "Normal"
   },
   "23606": {
     "name": "Suntouched Apprentice",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 14,
-    "title": "Wine Vendor"
+    "difficulty": "Normal"
   },
   "23616": {
     "name": "Kyle the Frenzied",
@@ -18819,8 +18663,8 @@
   "23863": {
     "name": "Zul'jin",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3805
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "23948": {
     "name": "Apprentice Tasserel",
@@ -18841,8 +18685,8 @@
   "24239": {
     "name": "Hex Lord Malacrass",
     "creature_type": "Humanoid",
-    "difficulty": "Boss",
-    "zone_id": 3805
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "24366": {
     "name": "Nizzle",
@@ -18920,9 +18764,7 @@
     "name": "Drohn's Distillery Apprentice",
     "creature_type": "Humanoid",
     "role": "Vendor",
-    "difficulty": "Normal",
-    "zone_id": 1497,
-    "title": "Drohn's Distillery Brew Vendor"
+    "difficulty": "Normal"
   },
   "24510": {
     "name": "Driz Tumblequick",
@@ -18963,8 +18805,8 @@
   "24850": {
     "name": "Kalecgos",
     "creature_type": "Dragonkin",
-    "difficulty": "Boss",
-    "zone_id": 4075
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "24866": {
     "name": "Lakoor",
@@ -18981,8 +18823,8 @@
   "24882": {
     "name": "Brutallus",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 4075
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "24885": {
     "name": "Exorcist Sullivan",
@@ -18995,8 +18837,8 @@
   "24891": {
     "name": "Kalecgos",
     "creature_type": "Dragonkin",
-    "difficulty": "Boss",
-    "zone_id": 4075
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "24905": {
     "name": "Leassian",
@@ -19010,15 +18852,13 @@
     "name": "Felblood Initiate",
     "creature_type": "Humanoid",
     "role": "Elite Mob",
-    "difficulty": "Elite",
-    "zone_id": 3483
+    "difficulty": "Elite"
   },
   "24919": {
     "name": "Wrath Herald",
     "creature_type": "Demon",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 3483
+    "difficulty": "Normal"
   },
   "24920": {
     "name": "Razorthorn Flayer",
@@ -19044,8 +18884,7 @@
     "name": "Suspended Terrorguard",
     "creature_type": "Demon",
     "role": "Mob",
-    "difficulty": "Normal",
-    "zone_id": 3483
+    "difficulty": "Normal"
   },
   "24938": {
     "name": "Shattered Sun Marksman",
@@ -19058,8 +18897,8 @@
   "25038": {
     "name": "Felmyst",
     "creature_type": "Undead",
-    "difficulty": "Boss",
-    "zone_id": 4075
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "25099": {
     "name": "Jonathan Garrett",
@@ -19116,14 +18955,14 @@
   "25165": {
     "name": "Lady Sacrolash",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 4075
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "25166": {
     "name": "Grand Warlock Alythess",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 4075
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "25167": {
     "name": "General Tiras'alan",
@@ -19152,9 +18991,8 @@
   "25315": {
     "name": "Kil'jaeden",
     "creature_type": "Demon",
-    "difficulty": "Boss",
-    "zone_id": 4075,
-    "title": "The Deceiver"
+    "role": "Boss",
+    "difficulty": "Boss"
   },
   "25518": {
     "name": "Ground Flower",
@@ -19166,8 +19004,7 @@
   },
   "25741": {
     "name": "M'uru",
-    "zone_id": 4075,
-    "title": "(Boss)"
+    "role": "Mob"
   },
   "25885": {
     "name": "Whirligig Wafflefry",

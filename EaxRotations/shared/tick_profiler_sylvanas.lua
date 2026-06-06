@@ -1,20 +1,24 @@
 -- ============================================================================
 -- Tick Profiler: measures per-tick CPU time of the rotation dispatcher.
 --
--- What:  Wraps on_rotation_update() with os.clock() timing, stores rolling
+-- What:  Wraps on_rotation_update() with core.cpu_time() timing, stores rolling
 --        statistics (min/avg/max) in a ring buffer, and exposes formatted
 --        lines for the dashboard custom_lines display.
 -- When:  Every tick, at the top and bottom of the main dispatcher.
 -- Why:   Lets users see the real-world CPU impact of the rotation system
 --        directly in-game via the dashboard overlay.
--- Safety:Stateless ring buffer (no allocations after init). os.clock() has
---        µs precision and negligible call overhead (~0.01 µs).
+-- Safety:Stateless ring buffer (no allocations after init). core.cpu_time() has
+--        ns precision and negligible call overhead. os library is unavailable
+--        in the Sylvanas sandbox.
 -- Decision:Separate module so the dispatcher stays clean. Dashboard reads
 --        via custom_lines function references (lazy eval each frame).
 -- ============================================================================
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+local core = _G.core
+local _cpu_time = core and core.cpu_time
 
 local M = {}
 
@@ -41,14 +45,16 @@ local _peak_head = 0
 
 --- Called at the START of the dispatcher, returns a timestamp for pairing.
 function M.begin_tick()
-    return os.clock()
+    if _cpu_time then return _cpu_time() end
+    return 0
 end
 
 --- Called at the END of the dispatcher with the begin_tick() value.
 --- Records elapsed time in the ring buffer.
 function M.end_tick(begin)
-    local elapsed = os.clock() - begin
-    local us = elapsed * 1e6  -- convert to microseconds
+    local now = _cpu_time and _cpu_time() or 0
+    local elapsed = now - begin
+    local us = elapsed / 1e3  -- convert ns to microseconds
 
     -- Ring buffer insert
     _head = _head + 1
@@ -59,7 +65,7 @@ function M.end_tick(begin)
     _dirty = true
 
     -- Peak tracking: store elapsed in current 1-second bucket
-    local now = NS.time_now and NS.time_now() or 0
+    now = NS.time_now and NS.time_now() or 0
     local bucket_index = math.floor(now) % PEAK_BUCKETS + 1
     _peak_buckets[bucket_index] = math.max(_peak_buckets[bucket_index] or 0, us)
 end

@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Spellsteal",
+    "icon": "spell_arcane_arcane02",
+    "cost": {
+      "type": "mana",
+      "percent": 20
+    },
+    "range": 30,
+    "cast_time": 0,
+    "required_class": "Mage",
+    "required_level": 70,
+    "description": "Steals a beneficial magic effect from the target.  This effect lasts a maximum of 2 min.",
+    "target_type": "hostile"
+  },
+  "source": "cache",
+  "cached_at": "2026-06-05 20:50:08"
+}

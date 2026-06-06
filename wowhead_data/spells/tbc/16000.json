@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Throw",
+    "icon": "ability_throw",
+    "range": 30,
+    "cast_time": 0,
+    "required_class": "Hunter",
+    "required_level": 20,
+    "description": "Throws a weapon at an enemy, inflicting Physical damage.",
+    "school": "physical",
+    "target_type": "hostile"
+  },
+  "source": "cache",
+  "cached_at": "2026-06-05 20:57:49"
+}

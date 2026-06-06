@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Overpower",
+    "icon": "ability_meleedamage",
+    "cost": {
+      "type": "rage",
+      "amount": 5
+    },
+    "range": "melee",
+    "cast_time": 0,
+    "cooldown": "5 sec cooldown",
+    "required_class": "Warrior",
+    "required_level": 28,
+    "requires_weapon": "Melee Weapon",
+    "description": "Instantly overpower the enemy, causing weapon damage plus 15.  Only useable after the target dodges.  The Overpower cannot be blocked, dodged or parried.",
+    "school": "physical",
+    "weapon_bonus": 15,
+    "target_type": "hostile"
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:18:04"
+}

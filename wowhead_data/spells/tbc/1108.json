@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Curse of Weakness",
+    "icon": "spell_shadow_curseofmannoroth",
+    "cost": {
+      "type": "mana",
+      "amount": 35
+    },
+    "range": 30,
+    "cast_time": 0,
+    "required_class": "Warlock",
+    "required_level": 12,
+    "description": "Target's melee attack power is reduced by 41 for 2 min.  Only one Curse per Warlock can be active on any one target.",
+    "has_buff": true,
+    "buff_duration": 120,
+    "buff_text": "Melee attack power reduced by 41."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:16:30"
+}

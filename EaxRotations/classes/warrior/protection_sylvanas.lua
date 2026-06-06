@@ -50,10 +50,53 @@ local setting = NS.setting or function(context, key, fallback)
     return fallback
 end
 
+-- Enemy scanning API (cached at module load)
+local _get_enemy_list = core and core.object_manager and core.object_manager.get_enemy_list or nil
+local _safe_field = NS.safe_field or function(obj, field)
+    if not obj or type(obj[field]) ~= "function" then return nil end
+    return obj[field]
+end
+
 local function target_is_casting(unit)
     if not unit or type(unit.is_casting) ~= "function" then return false end
     local ok, casting = pcall(unit.is_casting, unit)
     return ok and casting == true
+end
+
+-- ============================================================================
+-- Threat target scanning (tab targeting)
+-- ============================================================================
+
+-- Static tables reused every frame — zero garbage
+local _threat_enemies = {}
+local _threat_enemy_count = 0
+
+local function get_threat_targets(context, me, target)
+    _threat_enemy_count = 0
+    if not _get_enemy_list then return _threat_enemies, _threat_enemy_count end
+    local ok, enemy_list = pcall(_get_enemy_list)
+    if not ok or not enemy_list then return _threat_enemies, _threat_enemy_count end
+    local tab_range = setting(context, "prot_tab_range", 20)
+    local range_sq = (tab_range or 20) * (tab_range or 20)
+    for _, enemy in ipairs(enemy_list) do
+        if enemy and enemy ~= target then
+            local ok_alive, alive = pcall(function()
+                if enemy.is_alive then return enemy:is_alive() end
+                return true
+            end)
+            if ok_alive and alive ~= false then
+                local ok_dist, dist_sq = pcall(function()
+                    if me.get_distance then return me:get_distance(enemy) end
+                    return 999
+                end)
+                if ok_dist and type(dist_sq) == "number" and dist_sq < range_sq then
+                    _threat_enemy_count = _threat_enemy_count + 1
+                    _threat_enemies[_threat_enemy_count] = enemy
+                end
+            end
+        end
+    end
+    return _threat_enemies, _threat_enemy_count
 end
 
 -- ============================================================================
@@ -185,6 +228,50 @@ local function build_state(context)
         end
     end
 
+    -- Threat tab targeting: scan nearby enemies for Taunt/MockingBlow cycling
+    if prot_state.in_combat and setting(context, "prot_tab_targeting", true) then
+        local nearby, nearby_count = get_threat_targets(context, me, target)
+        prot_state.nearby_enemies = nearby
+        prot_state.nearby_count = nearby_count
+        -- Find first enemy not targeting us (has no aggro on tank)
+        prot_state.no_threat_target = nil
+        for i = 1, nearby_count do
+            local enemy = nearby[i]
+            if enemy then
+                local ok_t, enemy_target = pcall(function()
+                    if enemy.get_target then return enemy:get_target() end
+                    return nil
+                end)
+                if ok_t and enemy_target ~= me then
+                    -- HP gate: don't taunt a target at <5% HP (waste of CD)
+                    local ok_hp, enemy_hp = pcall(function()
+                        if enemy.get_health_percentage then return enemy:get_health_percentage() end
+                        return 100
+                    end)
+                    if ok_hp and (enemy_hp or 100) < 5 then
+                        -- Skip low-HP targets — they'll die before taunt matters
+                    else
+                        -- TTD gate: don't taunt a target about to die
+                        local ttd_ok = true
+                        if context.ttd_known == false then
+                            -- No TTD data, safe to taunt
+                        elseif (context.ttd or 999) < 8 then
+                            ttd_ok = false
+                        end
+                        if ttd_ok then
+                            prot_state.no_threat_target = enemy
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    else
+        prot_state.nearby_enemies = nil
+        prot_state.nearby_count = 0
+        prot_state.no_threat_target = nil
+    end
+
     return prot_state
 end
 
@@ -308,17 +395,56 @@ end
 local function taunt_matches_fn(context, state)
     if not state.taunt_ready then return false end
     if (state.enemy_count or 0) < 2 then return false end
+    local me = context.me or NS.GetPlayer()
+    local target = context.target
+    if not target then return false end
+    -- Don't waste Taunt on a target that already has aggro on us
+    if me then
+        local ok, enemy_target = pcall(function()
+            if target.get_target then return target:get_target() end
+            return nil
+        end)
+        if ok and enemy_target == me then return false end
+    end
+    -- Threat-level gate: only Taunt if target is NOT already being tanked by us
+    if me and target.get_threat_situation then
+        local ok, threat = pcall(target.get_threat_situation, target, me)
+        if ok and threat and threat.is_tanking then return false end
+    end
+    -- Prefer: taunt an enemy NOT targeting us (no aggro)
+    if state.no_threat_target then
+        context._taunt_target = state.no_threat_target
+        return true
+    end
     return true
 end
 
 local function mocking_blow_matches_fn(context, state)
     if not state.mocking_ready then return false end
     if (state.enemy_count or 0) < 2 then return false end
+    -- Prefer: Mocking Blow an enemy NOT targeting us
+    if state.no_threat_target then
+        context._mocking_target = state.no_threat_target
+        return true
+    end
+    return true
+end
+
+local function taunt_secondary_matches_fn(context, state)
+    if not state.mocking_ready then return false end
+    if not setting(context, "prot_tab_targeting", true) then return false end
+    if (state.enemy_count or 0) < 3 then return false end
+    -- We need a nearby enemy we can tab to
+    if not state.no_threat_target then return false end
+    -- Only fire if primary Taunt is on cooldown (otherwise Taunt takes priority)
+    if state.taunt_ready then return false end
+    context._mocking_target = state.no_threat_target
     return true
 end
 
 local function challenging_shout_matches_fn(context, state)
     if not state.challenging_ready then return false end
+    -- Challenging Shout is AoE — needs 3+ enemies to be worth the 1min cooldown
     if (state.enemy_count or 0) < 3 then return false end
     return true
 end
@@ -366,7 +492,7 @@ local function berserker_rage_matches_fn(context, state)
     return true
 end
 
--- FrostByte gaps: Bloodrage, VictoryRush, Rend, IntimidatingShout
+-- parity gaps: Bloodrage, VictoryRush, Rend, IntimidatingShout
 
 local function bloodrage_matches_fn(context, state)
     if not state.bloodrage_ready then return false end
@@ -471,14 +597,25 @@ local strategies = {
         name = "Taunt",
         matches = function(context, state) return taunt_matches_fn(context, state) end,
         execute = function(context)
-            return NS.try_cast(SPELLS.Taunt, context.target, "[PROT] Taunt")
+            local target = context._taunt_target or context.target
+            return NS.try_cast(SPELLS.Taunt, target, "[PROT] Taunt")
+        end,
+    },
+    -- Tab-target Taunt cycling: MockingBlow on nearby enemy when Taunt is on CD
+    {
+        name = "TauntSecondary",
+        matches = function(context, state) return taunt_secondary_matches_fn(context, state) end,
+        execute = function(context)
+            local target = context._mocking_target or context.target
+            return NS.try_cast(SPELLS.MockingBlow, target, "[PROT] MockingBlow (tab cycle)")
         end,
     },
     {
         name = "MockingBlow",
         matches = function(context, state) return mocking_blow_matches_fn(context, state) end,
         execute = function(context)
-            return NS.try_cast(SPELLS.MockingBlow, context.target, "[PROT] MockingBlow")
+            local target = context._mocking_target or context.target
+            return NS.try_cast(SPELLS.MockingBlow, target, "[PROT] MockingBlow")
         end,
     },
     {
@@ -580,7 +717,7 @@ local strategies = {
     },
     {
         name = "Disarm",
-        matches = function(context)
+        matches = function(context, state)
             local settings = context.settings or {}
             if settings.use_disarm == false then return false end
             if not (NS.is_spell_learned and NS.is_spell_learned(676)) then return false end
@@ -626,7 +763,7 @@ local strategies = {
             return NS.try_cast(SPELLS.BerserkerRage, context.me or NS.GetPlayer(), "[PROT] BerserkerRage", { skip_range = true })
         end,
     },
-    -- 11) FrostByte gaps: utility and sustain
+    -- 11) parity gaps: utility and sustain
     {
         name = "Bloodrage",
         matches = function(context, state) return bloodrage_matches_fn(context, state) end,
@@ -654,6 +791,16 @@ local strategies = {
         matches = function(context, state) return intimidating_shout_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.IntimidatingShout, context.me or NS.GetPlayer(), "[PROT] IntimidatingShout", { skip_range = true })
+        end,
+    },
+    -- 12) Rage cap safety net: dump excess rage when nothing else matched
+    {
+        name = "RageDumpSafetyNet",
+        matches = function(context, state)
+            return (state.rage or 0) >= 90
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.HeroicStrike, context.target, "[PROT] RageDump")
         end,
     },
 }

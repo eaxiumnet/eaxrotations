@@ -8,7 +8,7 @@ Thumbs.db
 *.swp
 .opencode/
 .claude/
-omo/
+.omo/
 
 # Worktrees
 .worktrees/
@@ -27,8 +27,6 @@ nul
 # Local dev docs / old projects
 sylvanas-dev-docs-llm/
 OldProjects/
-Sonah/
-
 # Packaging
 *.toc
 *.zip
@@ -55,9 +53,7 @@ dev_developer_tools/
 dist/
 docs/
 ext_rotation_tbc_opendruid_alpha/
-flux/
 tools/
-SlyRotate/
 node_modules/
 
 # ---- Loose files to ignore ----
@@ -66,7 +62,6 @@ node_modules/
 *.md.original.md
 AGENTS.md
 DASHBOARD_HANDOVER.md
-FLUX_EAX_TANKING_HANDOVER.md
 HANDOVER.md
 HANDOVER_MENU_WIRING_FIXES.md
 KIMI_HANDOVER_PROMPT.md
@@ -90,6 +85,7 @@ EaxRotations/**/debugui_*.lua
 EaxRotations/**/_debug_*.lua
 EaxRotations/**/*_edge_insert.lua
 EaxRotations/**/FROSTBYTE_GAP_ANALYSIS.md
+EaxRotations/**/GAP_ANALYSIS.md
 EaxRotations/docs/
 EaxRotations/tools/
 EaxRotations/community_profiles/

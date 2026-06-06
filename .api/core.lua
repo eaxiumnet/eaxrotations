@@ -459,6 +459,39 @@ function core.write_log_file(filename, message)
     return nil
 end
 
+--- Lists entry names (files and folders) inside a `scripts_log/` subdirectory.
+---
+--- Sandbox scope:
+--- - Only reads from: `<loader_path>/scripts_log/<dir_name>/`
+--- - Returns nil on failure (missing directory, path escape, etc).
+---
+---@param dir_name string Subdirectory name inside `scripts_log/` (UTF-8).
+---@return string[]|nil entries Array of entry names, or nil on failure.
+function core.read_log_dir(dir_name)
+    return nil
+end
+
+--- Recursively deletes a folder and all its contents under `scripts_log/`.
+---
+--- Sandbox scope:
+--- - Only deletes inside: `<loader_path>/scripts_log/`
+--- - Path traversal attempts are rejected (returns false).
+---
+---@param folder_path string Folder path inside `scripts_log/` (UTF-8).
+---@return boolean success `true` if the folder was deleted successfully.
+function core.delete_log_folder(folder_path)
+    return true
+end
+
+--- Returns the local system date and time as a table.
+---
+--- Useful in sandboxed Lua where `os.date()` / `os.time()` are unavailable.
+---
+---@return { year: integer, month: integer, day: integer, hour: integer, minute: integer, second: integer }
+function core.get_local_time()
+    return { year = 2025, month = 1, day = 1, hour = 0, minute = 0, second = 0 }
+end
+
 --- Reads a portion of a loader data file from `scripts_data/`, starting at a byte offset.
 ---
 --- Sandbox scope:
@@ -578,9 +611,19 @@ function core.delete_data_file(filename)
     return false
 end
 
----@param id number
----@return nil
+--- Plays a sound by sound kit ID.
+---@param id integer The sound kit ID to play.
+---@return boolean will_play Whether the sound will play.
+---@return number handle The sound handle that can be passed to core.stop_sound_by_handle.
 function core.play_sound_by_id(id)
+    return false, 0
+end
+
+--- Stops a sound instance by handle.
+---@param handle integer The handle returned by core.play_sound_by_id.
+---@param fadeout_ms? integer Optional fadeout time in milliseconds.
+---@return nil
+function core.stop_sound_by_handle(handle, fadeout_ms)
     return nil
 end
 
@@ -804,18 +847,15 @@ function core.game_ui.get_tooltip_info()
     return {}
 end
 
---- Sets up the tooltip data processor hook for displaying item/spell/NPC IDs.
----@return boolean success True if the processor was registered successfully.
-function core.game_ui.setup_tooltip_processor()
-    return false
-end
+--- Deprecated. Removed from core.game_ui on May 10, 2026 and will be nil at runtime.
+--- IMPORTANT: Do not call this function. It no longer exists in core 1.930+.
+---@deprecated Removed on May 10, 2026. This field is nil in core 1.930+.
+core.game_ui.setup_tooltip_processor = nil
 
---- Sets the fallback NPC ID for the tooltip processor.
----@param npc_id integer The NPC ID to set.
----@return nil
-function core.game_ui.set_tooltip_npc_id(npc_id)
-    return nil
-end
+--- Deprecated. Removed from core.game_ui on May 10, 2026 and will be nil at runtime.
+--- IMPORTANT: Do not call this function. It no longer exists in core 1.930+.
+---@deprecated Removed on May 10, 2026. This field is nil in core 1.930+.
+core.game_ui.set_tooltip_npc_id = nil
 
 --- Adds a colored line to the GameTooltip.
 ---@param text string The line text.
@@ -906,24 +946,72 @@ function core.game_ui.get_active_talents()
     return {}
 end
 
---- Shows a context menu at the cursor with simple text buttons.
---- Use get_context_menu_result() to poll for the clicked option.
----@class context_menu_entry
----@field text string The button label.
----@field id integer The button identifier.
+--- Deprecated. Removed from core.game_ui on May 10, 2026 and will be nil at runtime.
+--- IMPORTANT: Do not call this function. It no longer exists in core 1.930+.
+---@deprecated Removed on May 10, 2026. This field is nil in core 1.930+.
+core.game_ui.show_context_menu = nil
 
----@param items context_menu_entry[] Array of menu entries.
+--- Deprecated. Removed from core.game_ui on May 10, 2026 and will be nil at runtime.
+--- IMPORTANT: Do not call this function. It no longer exists in core 1.930+.
+---@deprecated Removed on May 10, 2026. This field is nil in core 1.930+.
+core.game_ui.get_context_menu_result = nil
+
+--- Deprecated. Removed from core.game_ui on May 10, 2026 and will be nil at runtime.
+--- IMPORTANT: Do not call this function. It no longer exists in core 1.930+.
+---@deprecated Removed on May 10, 2026. This field is nil in core 1.930+.
+core.game_ui.add_unit_menu_button = nil
+
+--- Deprecated. Removed from core.game_ui on May 10, 2026 and will be nil at runtime.
+--- IMPORTANT: Do not call this function. It no longer exists in core 1.930+.
+---@deprecated Removed on May 10, 2026. This field is nil in core 1.930+.
+core.game_ui.set_unit_menu_button_text = nil
+
+--- Deprecated. Removed from core.game_ui on May 10, 2026 and will be nil at runtime.
+--- IMPORTANT: Do not call this function. It no longer exists in core 1.930+.
+---@deprecated Removed on May 10, 2026. This field is nil in core 1.930+.
+core.game_ui.remove_unit_menu_button = nil
+
+--- Deprecated. Removed from core.game_ui on May 10, 2026 and will be nil at runtime.
+--- IMPORTANT: Do not call this function. It no longer exists in core 1.930+.
+---@deprecated Removed on May 10, 2026. This field is nil in core 1.930+.
+core.game_ui.poll_unit_menu_click = nil
+
+--- Adds a custom button to all unit right-click context menus.
+--- The button appears in menus for players, targets, focus, party, raid, arena, boss, pet, and vehicle units.
+--- Poll for clicks with poll_unit_menu_click().
+---@param text string The button label text.
+---@return integer id The button ID used to update, remove, or identify clicks.
+function core.game_ui.add_unit_menu_button(text)
+    return 0
+end
+
+--- Updates the label text of an existing unit menu button.
+---@param id integer The button ID returned by add_unit_menu_button.
+---@param text string The new button label text.
 ---@return nil
-function core.game_ui.show_context_menu(items)
+function core.game_ui.set_unit_menu_button_text(id, text)
     return nil
 end
 
---- Polls the result of the last context menu shown with show_context_menu.
---- Returns the id of the clicked button, or 0 if nothing was clicked.
---- Reading the result consumes it (one-shot).
----@return integer id The clicked button id, or 0 if none.
-function core.game_ui.get_context_menu_result()
-    return 0
+--- Removes a unit menu button entirely.
+---@param id integer The button ID returned by add_unit_menu_button.
+---@return nil
+function core.game_ui.remove_unit_menu_button(id)
+    return nil
+end
+
+--- Polls the oldest queued unit menu button click.
+--- Returns nil if no clicks are pending.
+---@class unit_menu_click_result
+---@field button_id integer The ID of the button that was clicked.
+---@field unit_token string The unit token (e.g. "target", "party1").
+---@field unit_name string The unit's name.
+---@field unit_guid string The unit's GUID.
+---@field menu_tag string The menu context tag (e.g. "MENU_UNIT_PLAYER").
+
+---@return unit_menu_click_result|nil result The click info table, or nil if no clicks pending.
+function core.game_ui.poll_unit_menu_click()
+    return nil
 end
 
 ---@class character
@@ -971,6 +1059,18 @@ end
 ---@param ui_map_id integer The UI map ID to query encounters for.
 ---@return encounter_info[] An array of encounter info tables.
 function core.world.get_encounters_on_map(ui_map_id)
+    return {}
+end
+
+---@class active_keystone_info
+---@field level integer Keystone level. Missing or 0 when no active keystone is available.
+---@field was_charged boolean Whether the keystone was charged when slotted.
+---@field affix_ids integer[] Array of active affix IDs.
+
+--- Returns the active Mythic+ keystone information.
+--- Returns an empty table on classic clients or when no active keystone is available.
+---@return active_keystone_info info The active keystone info table.
+function core.world.get_active_keystone_info()
     return {}
 end
 
@@ -1477,6 +1577,12 @@ function core.object_manager.get_arena_frames()
     return {}
 end
 
+--- Retrieves a list of game objects with all the party frames, excluding the local player.
+---@return game_objects_table party_members An array of party frame game objects.
+function core.object_manager.get_party_frames()
+    return {}
+end
+
 --- Retrieves mouse_over object
 ---@return game_object
 function core.object_manager.get_mouse_over_object()
@@ -1502,7 +1608,47 @@ function core.object_manager.get_boss_count()
     return 0
 end
 
+--- A missile (spell projectile) currently in flight.
+---@class missile
+---@field source game_object|nil The source object that fired the missile.
+---@field caster game_object|nil The caster object.
+---@field target game_object|nil The target object.
+---@field source_position vec3 The position where the missile was fired from.
+---@field current_position vec3 The missile's current position in the world.
+---@field impact_position vec3 The missile's destination/impact position.
+---@field spell_id integer The spell ID of the missile.
+---@field speed number The missile's travel speed.
+
+--- Returns all in-flight spell missiles (projectiles) currently in the world.
+---@return missile[]|nil missiles Array of missile tables, or nil if none.
+function core.object_manager.get_all_missiles()
+    return {}
+end
+
+---@class lfg_list
+core.lfg_list = {}
+
+---@class lfg_search_result_member_counts
+---@field tank integer Filled tank slots.
+---@field healer integer Filled healer slots.
+---@field damager integer Filled damage slots.
+---@field tank_remaining integer Open tank slots.
+---@field healer_remaining integer Open healer slots.
+---@field damager_remaining integer Open damage slots.
+
+--- Returns role slot counts for an LFG search result.
+---@param result_id number The LFG search result ID.
+---@return lfg_search_result_member_counts|nil counts Filled and remaining role slot counts, or nil if unavailable.
+function core.lfg_list.get_search_result_member_counts(result_id)
+    return {}
+end
+
 ---@class spell_book
+--- Indicates if the spell can be usable based on many requirements.
+--- Declared as a field (not a function stub) because core_lua/go_override_fnc.lua
+--- monkey-patches it at load; a field declaration is not a "set", so the override
+--- is the sole definition and there is no duplicate-set-field.
+---@field is_usable_spell fun(spell_id: integer): boolean
 core.spell_book = {}
 
 --- Retrieves the local_player specialization_id
@@ -1524,12 +1670,8 @@ function core.spell_book.get_spell_cooldown(spell_id)
     return 0
 end
 
---- Indicates if the spell can be usable based on many requirements.
----@param spell_id integer The ID of the spell.
----@return boolean to indicate if the spell is usable.
-function core.spell_book.is_usable_spell(spell_id)
-    return false
-end
+-- core.spell_book.is_usable_spell is declared as a ---@field on the class above
+-- (it is monkey-patched by go_override_fnc.lua, so it must not be a stub "set" here).
 
 --- Retrieves the amount of current charges of the specified spell identified by its ID.
 ---@param spell_id integer The ID of the spell.
@@ -1770,6 +1912,18 @@ function core.spell_book.get_mount_info(mount_index)
     return {}
 end
 
+---@class gliding_info
+---@field is_gliding boolean Whether the local player is currently gliding/skyriding.
+---@field can_glide boolean Whether the local player can currently glide.
+---@field forward_speed number The current forward speed in yards per second.
+
+--- Retrieves the local player's current gliding/skyriding state.
+--- Returns a fallback table with false/false/0 when gliding info is unavailable.
+---@return gliding_info info A table containing is_gliding, can_glide, and forward_speed.
+function core.spell_book.get_gliding_info()
+    return {}
+end
+
 ---@return integer
 ---@param spell_id integer
 function core.spell_book.get_base_spell_id(spell_id)
@@ -1876,7 +2030,7 @@ end
 
 ---@return number
 ---@param target game_object
----@param ui_check boolean -- true wont suggest the spell unless is on the action bar
+---@param ui_check? boolean -- true wont suggest the spell unless is on the action bar (optional)
 function core.spell_book.get_assisted_spell_id(target, ui_check)
     return 0
 end
@@ -1929,6 +2083,21 @@ end
 ---@return integer override_id The override spell ID.
 function core.spell_book.get_override_spell_id(spell_id)
     return 0
+end
+
+--- Returns the current shapeshift form ID.
+--- Returns 0 if the player is not shapeshifted or the Blizzard API is unavailable.
+---@return integer form_id The current shapeshift form ID.
+function core.spell_book.get_shapeshift_form_id()
+    return 0
+end
+
+--- Casts the shapeshift form at the given 1-based shapeshift/stance bar index.
+--- The actual form change is observed asynchronously via UPDATE_SHAPESHIFT_FORM.
+---@param index integer The 1-based shapeshift/stance bar index to cast.
+---@return boolean success True if the cast call was issued without a Lua error.
+function core.spell_book.cast_shapeshift_form(index)
+    return false
 end
 
 ---@class graphics
@@ -1995,7 +2164,11 @@ end
 --- Accounts for screen resolution, slider offsets, and animation offsets.
 --- Slot N position: vec2(layout.base_pos.x, layout.base_pos.y + layout.separation * N)
 --- Note: actual notification width/height may exceed default_size depending on text content.
---- @return table layout { base_pos: vec2, default_size: vec2, separation: number }
+---@class notifications_layout
+---@field base_pos vec2 Pixel position of the first notification slot.
+---@field default_size vec2 Base notification size in pixels before text expansion.
+---@field separation number Vertical pixel distance between stacked slots.
+---@return notifications_layout layout Pixel-space notification layout data.
 function core.graphics.get_notifications_layout()
     return {}
 end
@@ -2150,7 +2323,7 @@ function core.graphics.rect_2d_filled(top_left_point, width, height, color, roun
 ---@param has_volume? boolean Add volume. Default true.
 function core.graphics.line_3d(start_point, end_point, color, thickness, fade_factor, has_volume) end
 
---- Draw 3D Rectangle Outline New
+--- Draw 3D Rectangle Outline Old (Works but require thickness compensation)
 ---@param origin vec3
 ---@param destination vec3
 ---@param color color The color of the rectangle outline.
@@ -2158,6 +2331,15 @@ function core.graphics.line_3d(start_point, end_point, color, thickness, fade_fa
 ---@param fade_factor? number The thickness of the outline. Default is 2.5.
 function core.graphics.rect_3d(origin, destination, width, color, thickness, fade_factor) end
 
+--- Draws a crisp 3D rectangle outline inside the requested bounds.
+---@param start_pos vec3 The start position of the rectangle center line.
+---@param end_pos vec3 The end position of the rectangle center line.
+---@param width number The perpendicular width of the rectangle.
+---@param thickness number The outline thickness.
+---@param color color The outline color.
+function core.graphics.render_rect_3d_new(start_pos, end_pos, width, thickness, color) end
+
+--- DEPRECATED
 --- Draw 3D Filled Rectangle
 ---@param p1 vec3 The first corner point of the rectangle in 3D space.
 ---@param p2 vec3 The second corner point of the rectangle in 3D space.
@@ -2165,6 +2347,22 @@ function core.graphics.rect_3d(origin, destination, width, color, thickness, fad
 ---@param p4 vec3 The fourth corner point of the rectangle in 3D space.
 ---@param color color The fill color of the rectangle.
 function core.graphics.rect_3d_filled(p1, p2, p3, p4, color) end
+
+--- Draws a filled 3D rectangle inside the requested bounds.
+---@param start_pos vec3 The start position of the rectangle center line.
+---@param end_pos vec3 The end position of the rectangle center line.
+---@param width number The perpendicular width of the rectangle.
+---@param color color The fill color.
+function core.graphics.render_rect_3d_filled_new(start_pos, end_pos, width, color) end
+
+--- Draws a 3D polygon from world-space vertices.
+---@param points vec3[] Array of polygon vertices in ring order. Maximum 64 points.
+---@param color color The polygon fill or outline color.
+---@param filled boolean True to draw a filled polygon, false to draw an outline.
+---@param thickness? number Outline width in pixels when filled is false. Default is 2.
+---@param border_fade? number Edge feather width in pixels. Default is 2; use 0 for a crisp anti-aliased edge.
+---@return nil
+function core.graphics.render_polygon_3d(points, color, filled, thickness, border_fade) end
 
 --- Draw 2D Circle Outline
 ---@param center vec2 The center point of the circle.
@@ -2439,6 +2637,14 @@ function core.menu.combobox_reorderable(default_index, id)
     return {} -- Empty return statement to implicitly return nil
 end
 
+--- Creates a new reorderable combobox (overlay-window variant).
+---@param id string The unique identifier for the combobox.
+---@param items string[]|nil The initial items list.
+---@return combobox_reorderable_ow
+function core.menu.combobox_reorderable_ow(id, items)
+    return {} -- Empty return statement to implicitly return nil
+end
+
 --- Creates a new keybind.
 ---@param default_value number The default value for the keybind.
 ---@param initial_toggle_state boolean The initial toggle state for the keybind.
@@ -2607,6 +2813,167 @@ end
 function core.graphics.draw_texture(texture_id, top_left, width, height, color, is_for_window)
   return nil
 end
+
+--- Loads an animated GIF from raw bytes and uploads all frames to the GPU.
+--- Subsequent calls with the same bytes return the cached entry.
+---@param gif_data string Raw GIF file bytes.
+---@return integer gif_id The GIF identifier (used with draw_gif).
+---@return integer width The GIF width in pixels.
+---@return integer height The GIF height in pixels.
+---@return integer frame_count The total number of frames.
+---@return integer total_duration_ms The total animation duration in milliseconds.
+function core.graphics.load_gif(gif_data)
+    return 0, 0, 0, 0, 0
+end
+
+--- Draws the current frame of a loaded GIF. Frame selection is automatic
+--- based on elapsed time — the animation loops continuously.
+---@param gif_id integer The GIF identifier returned by load_gif.
+---@param top_left vec2 Screen position (top-left corner).
+---@param width number Draw width in pixels.
+---@param height number Draw height in pixels.
+---@param color color|nil Optional tint color (defaults to white).
+---@param is_for_window boolean|nil If true, draws into the current window draw list.
+---@param speed number|nil Playback speed multiplier (defaults to 1.0).
+function core.graphics.draw_gif(gif_id, top_left, width, height, color, is_for_window, speed) end
+
+-- ========================================
+-- SDF Shader Rendering (GPU-accelerated)
+-- ========================================
+
+--- Draws a smooth rounded rectangle using an SDF pixel shader.
+---@param p_min vec2 Top-left corner in screen space.
+---@param p_max vec2 Bottom-right corner in screen space.
+---@param color color Fill color.
+---@param rounding number|nil Corner rounding radius (default 4.0).
+---@param softness number|nil Edge softness (default 1.0).
+function core.graphics.render_smooth_rect(p_min, p_max, color, rounding, softness) end
+
+--- Draws a drop shadow behind an element using an SDF pixel shader.
+---@param p_min vec2 Top-left corner of the shadow quad.
+---@param p_max vec2 Bottom-right corner of the shadow quad.
+---@param color color Shadow color.
+---@param offset_x number Horizontal shadow offset.
+---@param offset_y number Vertical shadow offset.
+---@param element_w number Width of the element casting the shadow.
+---@param element_h number Height of the element casting the shadow.
+---@param rounding number|nil Corner rounding radius (default 6.0).
+---@param softness number|nil Shadow blur softness (default 8.0).
+---@param spread number|nil Shadow spread amount (default 0.0).
+function core.graphics.render_drop_shadow(p_min, p_max, color, offset_x, offset_y, element_w, element_h, rounding, softness, spread) end
+
+--- Draws a filled rectangle with a border using an SDF pixel shader.
+---@param p_min vec2 Top-left corner in screen space.
+---@param p_max vec2 Bottom-right corner in screen space.
+---@param fill_color color Interior fill color.
+---@param border_color color Border color.
+---@param rounding number|nil Corner rounding radius (default 4.0).
+---@param softness number|nil Edge softness (default 1.0).
+---@param thickness number|nil Border thickness (default 1.0).
+function core.graphics.render_border_rect(p_min, p_max, fill_color, border_color, rounding, softness, thickness) end
+
+--- Draws a linear gradient rectangle using an SDF pixel shader.
+---@param p_min vec2 Top-left corner in screen space.
+---@param p_max vec2 Bottom-right corner in screen space.
+---@param color_a color Start color of the gradient.
+---@param color_b color End color of the gradient.
+---@param angle number|nil Gradient angle in radians (default 0.0, left-to-right).
+---@param rounding number|nil Corner rounding radius (default 0.0).
+---@param softness number|nil Edge softness (default 0.0).
+function core.graphics.render_linear_gradient(p_min, p_max, color_a, color_b, angle, rounding, softness) end
+
+--- Draws a keybind pill widget using an SDF pixel shader.
+---@param p_min vec2 Top-left corner in screen space.
+---@param p_max vec2 Bottom-right corner in screen space.
+---@param base_color color Base background color.
+---@param elevation_color color Elevation/shadow color.
+---@param accent_color color Accent highlight color.
+---@param rounding number|nil Corner rounding radius (default 6.0).
+---@param hover number|nil Hover animation factor 0-1 (default 0.0).
+---@param listening number|nil Listening/active state factor 0-1 (default 0.0).
+---@param time_val number|nil Animation time value (default 0.0).
+---@param speed number|nil Animation speed multiplier (default 1.0).
+function core.graphics.render_keybind_pill(p_min, p_max, base_color, elevation_color, accent_color, rounding, hover, listening, time_val, speed) end
+
+--- Draws a dropdown field widget using an SDF pixel shader.
+---@param p_min vec2 Top-left corner in screen space.
+---@param p_max vec2 Bottom-right corner in screen space.
+---@param base_color color Base background color.
+---@param elevation_color color Elevation/shadow color.
+---@param accent_color color Accent highlight color.
+---@param rounding number|nil Corner rounding radius (default 4.0).
+---@param hover number|nil Hover animation factor 0-1 (default 0.0).
+---@param open number|nil Open state factor 0-1 (default 0.0).
+---@param time_val number|nil Animation time value (default 0.0).
+---@param speed number|nil Animation speed multiplier (default 1.0).
+function core.graphics.render_dropdown_field(p_min, p_max, base_color, elevation_color, accent_color, rounding, hover, open, time_val, speed) end
+
+--- Draws a section header widget using an SDF pixel shader.
+---@param p_min vec2 Top-left corner in screen space.
+---@param p_max vec2 Bottom-right corner in screen space.
+---@param primary_color color Primary section color.
+---@param secondary_color color Secondary section color.
+---@param accent_color color Accent highlight color.
+---@param head_split number|nil Header split ratio (default 1.0).
+---@param rounding number|nil Corner rounding radius (default 4.0).
+---@param hover number|nil Hover animation factor 0-1 (default 0.0).
+---@param open number|nil Open state factor 0-1 (default 0.0).
+---@param time_val number|nil Animation time value (default 0.0).
+---@param speed number|nil Animation speed multiplier (default 1.0).
+function core.graphics.render_section_header(p_min, p_max, primary_color, secondary_color, accent_color, head_split, rounding, hover, open, time_val, speed) end
+
+--- Draws a slider track widget using an SDF pixel shader.
+---@param p_min vec2 Top-left corner in screen space.
+---@param p_max vec2 Bottom-right corner in screen space.
+---@param fill_lo color Fill color at the low end of the slider.
+---@param fill_hi color Fill color at the high end of the slider.
+---@param rail_color color Rail/track background color.
+---@param fill_t number Fill progress 0-1.
+---@param rounding number|nil Corner rounding radius (default 3.0).
+---@param hover number|nil Hover animation factor 0-1 (default 0.0).
+---@param time_val number|nil Animation time value (default 0.0).
+---@param speed number|nil Animation speed multiplier (default 1.0).
+function core.graphics.render_slider_track(p_min, p_max, fill_lo, fill_hi, rail_color, fill_t, rounding, hover, time_val, speed) end
+
+--- Draws a hover pill widget with animated streaks using an SDF pixel shader.
+---@param p_min vec2 Top-left corner in screen space.
+---@param p_max vec2 Bottom-right corner in screen space.
+---@param base_color color Base background color.
+---@param streak_color color Animated streak color.
+---@param rounding number|nil Corner rounding radius (default 6.0).
+---@param softness number|nil Edge softness (default 1.0).
+---@param density number|nil Streak density (default 1.0).
+---@param time_val number|nil Animation time value (default 0.0).
+---@param speed number|nil Animation speed multiplier (default 1.0).
+function core.graphics.render_hover_pill(p_min, p_max, base_color, streak_color, rounding, softness, density, time_val, speed) end
+
+--- Draws a 2D circular progress ring using an SDF pixel shader.
+---@param p_min vec2 Top-left corner in screen space.
+---@param p_max vec2 Bottom-right corner in screen space.
+---@param bg_color color Background ring color.
+---@param fill_start_color color Fill gradient start color.
+---@param fill_end_color color Fill gradient end color.
+---@param progress number Fill fraction from 0.0 to 1.0.
+---@param start_angle_rad number|nil Arc start angle in radians (default -pi/2).
+---@param direction number|nil Positive values draw clockwise, negative values draw counter-clockwise (default 1.0).
+---@param inner_norm number|nil Inner radius normalized 0-1 (default 0.70).
+---@param outer_norm number|nil Outer radius normalized 0-1 (default 0.98).
+---@param softness number|nil Edge softness in pixels (default 1.0).
+function core.graphics.render_circle_percentage(p_min, p_max, bg_color, fill_start_color, fill_end_color, progress, start_angle_rad, direction, inner_norm, outer_norm, softness) end
+
+--- Draws a 3D circular progress ring using an SDF pixel shader.
+---@param world_pos vec3 Center position in world space.
+---@param world_radius number Circle radius in world units.
+---@param bg_color color Background ring color.
+---@param fill_start_color color Fill gradient start color.
+---@param fill_end_color color Fill gradient end color.
+---@param progress number Fill fraction from 0.0 to 1.0.
+---@param start_angle_rad number|nil Arc start angle in radians (default -pi/2).
+---@param direction number|nil Positive values draw clockwise, negative values draw counter-clockwise (default 1.0).
+---@param inner_norm number|nil Inner radius normalized 0-1 (default 0.70).
+---@param outer_norm number|nil Outer radius normalized 0-1 (default 0.98).
+---@param softness number|nil Edge softness in pixels (default 1.0).
+function core.graphics.render_circle_percentage_3d(world_pos, world_radius, bg_color, fill_start_color, fill_end_color, progress, start_angle_rad, direction, inner_norm, outer_norm, softness) end
 
 --------------------------------------------------------------------------------
 -- EXAMPLES
@@ -4409,6 +4776,184 @@ function core.addons.swing_timer.get_player_ranged_info()
     return {}
 end
 
+---@class swing_timer_hand_info
+---@field expiration_time number The time when the current melee swing expires.
+---@field last_swing number The time of the last melee swing.
+---@field swing_speed number The current melee swing speed.
+---@field base_swing_speed number The base melee swing speed.
+
+--- Returns the player's main-hand melee swing timer information.
+---@return swing_timer_hand_info info The main-hand swing timer information.
+function core.addons.swing_timer.get_player_mainhand_info()
+    return {}
+end
+
+--- Returns the player's off-hand melee swing timer information.
+--- Returns nil when the player is not dual wielding.
+---@return swing_timer_hand_info|nil info The off-hand swing timer information, or nil when unavailable.
+function core.addons.swing_timer.get_player_offhand_info()
+    return {}
+end
+
+-- ========================================
+-- core.addons.arena_core
+-- ========================================
+
+---@class addons_arena_core
+core.addons.arena_core = {}
+
+---@class arena_core_frame_info
+---@field unit string The arena unit token, such as "arena1".
+---@field id integer The arena frame ID.
+---@field class string The class name.
+---@field spec_id integer The specialization ID.
+---@field spec_icon_texture string The specialization icon texture path.
+---@field class_icon integer The class icon texture ID.
+---@field spec_icon integer The specialization icon texture ID.
+
+--- Returns whether the Arena Core addon is loaded.
+---@return boolean is_loaded Whether Arena Core is loaded.
+function core.addons.arena_core.is_loaded()
+    return false
+end
+
+--- Returns frame info for an arena opponent.
+---@param arena_index integer The arena frame index.
+---@return arena_core_frame_info|nil info The arena frame info, or nil when unavailable.
+function core.addons.arena_core.get_frame_info(arena_index)
+    return {}
+end
+
+--- Returns the class name for an arena opponent.
+---@param arena_index integer The arena frame index.
+---@return string class_name The class name, or an empty string when unavailable.
+function core.addons.arena_core.get_class(arena_index)
+    return ""
+end
+
+--- Returns the specialization ID for an arena opponent.
+---@param arena_index integer The arena frame index.
+---@return integer spec_id The specialization ID, or 0 when unavailable.
+function core.addons.arena_core.get_spec_id(arena_index)
+    return 0
+end
+
+-- ========================================
+-- core.addons.mdt
+-- ========================================
+
+---@class addons_mdt
+core.addons.mdt = {}
+
+---@class mdt_preset_meta
+---@field text string The current preset display text.
+---@field current_dungeon_idx integer The current MDT dungeon index.
+---@field current_pull integer The current pull index.
+---@field current_sublevel integer The current dungeon sublevel.
+---@field week integer The configured affix week.
+---@field difficulty integer The configured difficulty.
+---@field uid string The preset UID.
+
+---@class mdt_pull_enemy
+---@field enemy_idx integer The MDT enemy index.
+---@field clones integer[] Clone indexes included in the pull.
+
+---@class mdt_pull
+---@field color string The pull color.
+---@field enemies mdt_pull_enemy[] Enemies included in the pull.
+
+---@class mdt_object
+---@field kind string The object kind: "line", "arrow", "note", or "unknown".
+---@field color string The object color.
+---@field note_text string The note text for note objects.
+---@field note_x number The note X coordinate.
+---@field note_y number The note Y coordinate.
+---@field arrow_angle number The arrow angle.
+---@field points number[] Flat array of object points.
+
+---@class mdt_dungeon_enemy_info
+---@field name string The enemy name.
+---@field id integer The NPC ID.
+---@field count integer The enemy count value.
+---@field health integer The enemy health value.
+---@field scale number The enemy scale.
+---@field display_id integer The enemy display ID.
+---@field creature_type string The creature type.
+---@field level integer The enemy level.
+---@field is_boss boolean Whether this enemy is a boss.
+---@field encounter_id integer The encounter ID.
+---@field instance_id integer The instance ID.
+---@field clone_count integer Number of clone placements.
+
+---@class mdt_dungeon_enemy_clone
+---@field x number The clone X coordinate.
+---@field y number The clone Y coordinate.
+---@field g integer The clone group.
+---@field sublevel integer The dungeon sublevel.
+---@field scale number The clone scale.
+
+--- Returns whether Method Dungeon Tools is loaded.
+---@return boolean is_loaded Whether MDT is loaded.
+function core.addons.mdt.is_loaded()
+    return false
+end
+
+--- Returns metadata for the current MDT preset.
+---@return mdt_preset_meta|nil meta The current preset metadata, or nil when unavailable.
+function core.addons.mdt.get_current_preset_meta()
+    return {}
+end
+
+--- Returns the number of pulls in the current MDT preset.
+---@return integer count The pull count.
+function core.addons.mdt.get_pull_count()
+    return 0
+end
+
+--- Returns a pull from the current MDT preset.
+---@param pull_idx integer The pull index.
+---@return mdt_pull|nil pull The pull data, or nil when unavailable.
+function core.addons.mdt.get_pull(pull_idx)
+    return {}
+end
+
+--- Returns the number of map objects in the current MDT preset.
+---@return integer count The object count.
+function core.addons.mdt.get_object_count()
+    return 0
+end
+
+--- Returns a map object from the current MDT preset.
+---@param obj_idx integer The object index.
+---@return mdt_object|nil object The object data, or nil when unavailable.
+function core.addons.mdt.get_object(obj_idx)
+    return {}
+end
+
+--- Returns the number of enemies for a dungeon in MDT data.
+---@param dungeon_idx integer The MDT dungeon index.
+---@return integer count The enemy count.
+function core.addons.mdt.get_dungeon_enemy_count(dungeon_idx)
+    return 0
+end
+
+--- Returns static info for a dungeon enemy in MDT data.
+---@param dungeon_idx integer The MDT dungeon index.
+---@param enemy_idx integer The enemy index.
+---@return mdt_dungeon_enemy_info|nil enemy The enemy info, or nil when unavailable.
+function core.addons.mdt.get_dungeon_enemy_info(dungeon_idx, enemy_idx)
+    return {}
+end
+
+--- Returns clone placement info for a dungeon enemy in MDT data.
+---@param dungeon_idx integer The MDT dungeon index.
+---@param enemy_idx integer The enemy index.
+---@param clone_idx integer The clone index.
+---@return mdt_dungeon_enemy_clone|nil clone The clone placement info, or nil when unavailable.
+function core.addons.mdt.get_dungeon_enemy_clone(dungeon_idx, enemy_idx, clone_idx)
+    return {}
+end
+
 -- ========================================
 -- core.damage_meter
 -- ========================================
@@ -4477,5 +5022,139 @@ end
 ---@return nil
 function core.damage_meter.reset_all()
     return nil
+end
+
+-- ========================================
+-- core.lfg_list
+-- ========================================
+
+---@class lfg_list
+core.lfg_list = {}
+
+--- Triggers a Looking For Group search. Results arrive via the LFG_LIST_SEARCH_RESULT_UPDATED event.
+--- Skips the search if the Blizzard LFG or PVE frame is currently shown.
+---@param category_id integer The LFG category ID to search.
+---@param filter? integer Optional search filter bitmask. Default 0.
+---@param preferred_filters? integer Optional preferred filter bitmask. Default 0.
+---@return boolean issued True if the search was issued, false if it was skipped.
+function core.lfg_list.search(category_id, filter, preferred_filters)
+    return false
+end
+
+--- Returns the current LFG search results.
+---@class lfg_search_results
+---@field total_results integer The total number of results.
+---@field result_ids number[] Array of search result IDs.
+
+---@return lfg_search_results results The search results.
+function core.lfg_list.get_search_results()
+    return {}
+end
+
+--- Checks whether detailed info is available for a search result.
+---@param result_id number The search result ID.
+---@return boolean has_info True if info is available.
+function core.lfg_list.has_search_result_info(result_id)
+    return false
+end
+
+--- Returns detailed information about a search result.
+---@class lfg_search_result_info
+---@field search_result_id number The search result ID.
+---@field activity_id integer The activity ID.
+---@field leader_name string The group leader's name.
+---@field name string The group listing name.
+---@field comment string The group listing comment.
+---@field voice_chat string The voice chat info string.
+---@field required_ilvl integer The required item level.
+---@field age integer The listing age in seconds.
+---@field num_bnet_friends integer Number of Battle.net friends in the group.
+---@field num_char_friends integer Number of character friends in the group.
+---@field num_guildmates integer Number of guildmates in the group.
+---@field is_delisted boolean Whether the listing has been delisted.
+---@field num_members integer The number of members in the group.
+---@field is_auto_accept boolean Whether the group auto-accepts applicants.
+---@field required_honor_level integer The required honor level.
+
+---@param result_id number The search result ID.
+---@return lfg_search_result_info|nil info The result info table, or nil if unavailable.
+function core.lfg_list.get_search_result_info(result_id)
+    return {}
+end
+
+--- Applies to a group listing with the specified roles.
+--- The actual outcome arrives via LFG_LIST_APPLICATION_STATUS_UPDATED.
+---@param result_id number The search result ID to apply to.
+---@param tank boolean Whether to apply as tank.
+---@param healer boolean Whether to apply as healer.
+---@param damage boolean Whether to apply as damage.
+---@return boolean success True if the apply call was issued without error.
+---@return string|nil error The error message if the call failed, nil on success.
+function core.lfg_list.apply_to_group(result_id, tank, healer, damage)
+    return false, nil
+end
+
+--- Returns the list of applicant IDs for a group you are hosting.
+---@return integer[] applicant_ids Array of applicant IDs.
+function core.lfg_list.get_applicants()
+    return {}
+end
+
+--- Returns detailed information about an applicant.
+---@class lfg_applicant_info
+---@field applicant_id number The applicant ID.
+---@field application_status string The current application status.
+---@field pending_application_status string The pending application status.
+---@field num_members integer The number of members in the applicant's group.
+---@field is_new boolean Whether the applicant is new.
+---@field comment string The applicant's comment.
+---@field display_order_id integer The display order ID.
+
+---@param applicant_id number The applicant ID.
+---@return lfg_applicant_info|nil info The applicant info table, or nil if unavailable.
+function core.lfg_list.get_applicant_info(applicant_id)
+    return {}
+end
+
+--- Cancels a pending application to a group.
+---@param result_id number The search result ID of the group to cancel the application for.
+---@return boolean success True if the cancel call was issued without error.
+---@return string|nil error The error message if the call failed, nil on success.
+function core.lfg_list.cancel_application(result_id)
+    return false, nil
+end
+
+--- Accepts a group invite.
+---@param result_id number The search result ID of the group invite to accept.
+---@return boolean success True if the accept call was issued without error.
+---@return string|nil error The error message if the call failed, nil on success.
+function core.lfg_list.accept_invite(result_id)
+    return false, nil
+end
+
+--- Returns application info for a search result.
+---@class lfg_application_info
+---@field app_id number The application ID.
+---@field app_status string The current application status ("none", "applied", "invited", "failed", "cancelled", "declined", "declined_full", "declined_delisted", "timedout", "inviteaccepted", "invitedeclined").
+---@field pending_status string The pending application status.
+---@field app_duration number The application duration in seconds.
+
+---@param result_id number The search result ID.
+---@return lfg_application_info|nil info The application info table, or nil if unavailable.
+function core.lfg_list.get_application_info(result_id)
+    return {}
+end
+
+--- Programmatically clicks the refresh button on the Blizzard LFG search panel.
+---@return boolean success True if the click was issued without error.
+---@return string|nil error The error message if the call failed, nil on success.
+function core.lfg_list.refresh_search_panel()
+    return false, nil
+end
+
+--- Returns whether the Blizzard LFG search panel is currently visible.
+---@return boolean is_visible True if the search panel is visible.
+function core.lfg_list.search_panel_is_visible()
+    return false
 end
 

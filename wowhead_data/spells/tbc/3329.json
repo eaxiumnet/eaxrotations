@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Creature - Frog Form",
+    "icon": "spell_totem_wardofdraining",
+    "cast_time": 0,
+    "required_level": 1,
+    "has_buff": true,
+    "buff_duration": 60,
+    "buff_text": "Transformed into Toad."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:17:27"
+}

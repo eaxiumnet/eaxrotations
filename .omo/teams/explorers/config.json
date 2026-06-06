@@ -1,23 +1,23 @@
 {
   "name": "rotation-merger",
-  "description": "Implement Sonah features into EaxRotations - sticky spells, PvP mode, buff tracking, talent awareness",
+  "description": "Implement missing features into EaxRotations - sticky spells, PvP mode, buff tracking, talent awareness",
   "lead": {
     "kind": "subagent_type",
     "subagent_type": "sisyphus",
-    "prompt": "Lead the implementation of Sonah features into EaxRotations. Use the gap analysis in C:\\newbot\\scripts\\EaxRotations\\SONAH_GAP_ANALYSIS.md. Coordinate 4 implementers: (1) Infrastructure - add sticky spell system and proactive buff refresh to core, (2) PvP - add PvP mode to Warrior/Warlock/Hunter, (3) PvP - add PvP mode to Rogue/Priest/Paladin, (4) Talent awareness - add talent detection and spec-specific mechanics. Use ONLY api modules from C:\\newbot\\scripts\\api\\ (spell_helper.lua, cooldown_tracker.lua, buff_manager.lua) and their docs in C:\\newbot\\scripts\\apidocs\\."
+    "prompt": "Lead the implementation of missing features into EaxRotations. Use the gap analysis in C:\\newbot\\scripts\\EaxRotations\\GAP_ANALYSIS.md. Coordinate 4 implementers: (1) Infrastructure - add sticky spell system and proactive buff refresh to core, (2) PvP - add PvP mode to Warrior/Warlock/Hunter, (3) PvP - add PvP mode to Rogue/Priest/Paladin, (4) Talent awareness - add talent detection and spec-specific mechanics. Use ONLY api modules from C:\\newbot\\scripts\\api\\ (spell_helper.lua, cooldown_tracker.lua, buff_manager.lua) and their docs in C:\\newbot\\scripts\\apidocs\\."
   },
   "members": [
     {
       "kind": "category",
       "name": "infrastructure-impl",
       "category": "deep",
-      "prompt": "Implement core infrastructure for EaxRotations. (1) Add sticky spell system to prevent double-casting - track lastCastSpell with timestamp and priority. (2) Add proactive buff refresh function that checks expiring buffs before combat. Read SONAH_GAP_ANALYSIS.md. Use API: C:\\newbot\\scripts\\api\\common\\utility\\spell_helper.lua, C:\\newbot\\scripts\\api\\common\\modules\\buff_manager.lua and docs in C:\\newbot\\scripts\\apidocs\\."
+      "prompt": "Implement core infrastructure for EaxRotations. (1) Add sticky spell system to prevent double-casting - track lastCastSpell with timestamp and priority. (2) Add proactive buff refresh function that checks expiring buffs before combat. Read GAP_ANALYSIS.md. Use API: C:\\newbot\\scripts\\api\\common\\utility\\spell_helper.lua, C:\\newbot\\scripts\\api\\common\\modules\\buff_manager.lua and docs in C:\\newbot\\scripts\\apidocs\\."
     },
     {
       "kind": "category",
       "name": "pvp-impl-1",
       "category": "deep",
-      "prompt": "Add PvP mode to Warrior and Warlock specs. For Warrior: add stance dancing, intercept, disarm, spell reflection, interrupts (Pummel). For Warlock: add fear, curse management, pet control. Reference Sonah GetNextSpellPvP(). Use API: C:\\newbot\\scripts\\api\\common\\utility\\cooldown_tracker.lua, C:\\newbot\\scripts\\api\\common\\modules\\buff_manager.lua and docs in apidocs\\."
+      "prompt": "Add PvP mode to Warrior and Warlock specs. For Warrior: add stance dancing, intercept, disarm, spell reflection, interrupts (Pummel). For Warlock: add fear, curse management, pet control. Use API: C:\\newbot\\scripts\\api\\common\\utility\\cooldown_tracker.lua, C:\\newbot\\scripts\\api\\common\\modules\\buff_manager.lua and docs in apidocs\\."
     },
     {
       "kind": "category",

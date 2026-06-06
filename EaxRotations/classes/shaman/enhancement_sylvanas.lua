@@ -1,4 +1,4 @@
--- Shaman Enhancement rotation - FrostByte feature port v2.0.
+-- Shaman Enhancement rotation - parity feature port v2.0.
 -- Features: per-slot weapon buffs, smart shield auto-swap, totem twisting
 -- with Fire Nova cycle, shock priority, randomized interrupts, Ghost Wolf OOC
 
@@ -650,7 +650,7 @@ local function earth_shock_matches(ctx)
         if dist and dist > 20 then return false end
         return NS.spell_ready(SPELLS.EarthShock, target, { expected_cooldown = 6 })
     end
-    -- DPS mode: only cast if Flame Shock DoT is active on target (FrostByte v2.0.1)
+    -- DPS mode: only cast if Flame Shock DoT is active on target (parity v2.0.1)
     if enh_state.earth_shock_mode == "dps" then
         if not enh_state.earth_shock_ready then return false end
         -- Hold shocks OOC when Shamanistic Focus proc is desired
@@ -1055,7 +1055,7 @@ local strategies = {
     { name = "LesserHealingWave", matches = lesser_healing_wave_matches, execute = function(ctx) return NS.try_cast(SPELLS.LesserHealingWave, NS.PLAYER_UNIT, "[ENHANCEMENT] Lesser Healing Wave", { skip_range = true }) end },
     { name = "ChainHeal", matches = chain_heal_matches, execute = function(ctx) return NS.try_cast(SPELLS.ChainHeal, NS.PLAYER_UNIT, "[ENHANCEMENT] Chain Heal", { skip_range = true }) end },
 
-    -- 9. Offensive priority (FrostByte v2.0.1: Flame Shock first, Earth Shock only while FS active)
+    -- 9. Offensive priority (parity v2.0.1: Flame Shock first, Earth Shock only while FS active)
     { name = "Stormstrike", matches = stormstrike_matches, execute = function(ctx) return NS.try_cast(SPELLS.Stormstrike, ctx.target, "[ENHANCEMENT] Stormstrike") end },
     { name = "FlameShock", matches = flame_shock_matches, execute = function(ctx) return NS.try_cast(SPELLS.FlameShock, ctx.target, "[ENHANCEMENT] Flame Shock") end },
     { name = "EarthShock", matches = earth_shock_matches, execute = function(ctx) return NS.try_cast(SPELLS.EarthShock, ctx.target, "[ENHANCEMENT] Earth Shock") end },
@@ -1067,5 +1067,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("enhancement", strategies, { get_state = build_state })
-NS.log("Shaman enhancement rotation registered (FrostByte v2.0 port)")
+NS.log("Shaman enhancement rotation registered (parity v2.0 port)")
 return strategies

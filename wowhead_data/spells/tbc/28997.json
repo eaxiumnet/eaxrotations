@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Elemental Warding",
+    "icon": "spell_nature_spiritarmor",
+    "description": "Reduces damage taken from Fire, Frost and Nature effects by 7%."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-05 20:57:59"
+}

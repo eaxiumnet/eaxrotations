@@ -417,7 +417,7 @@ local strategies = {
 
     -- ============================================================================
     -- PvP: SHIELD SLAM PURGE — dispel 1 magic buff (BoP, PW:S, Ice Barrier, etc.)
-    -- Ported from Flux Warrior middleware. Uses offensive dispel priority DB.
+    -- Shared warrior offensive dispel pattern.
     -- Requires Defensive Stance + shield equipped. Stance dances if needed.
     -- ============================================================================
     {

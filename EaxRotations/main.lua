@@ -32,6 +32,14 @@ end
 -- FRAMEWORK BOOTSTRAP
 -- ============================================================================
 
+if not plugin_info.player_class_name then
+    -- At login/character-select screen, player object is not yet available.
+    -- header.lua returns early without setting player_class_name.
+    -- Exit cleanly; on_update will fire after UI loads with a real player.
+    core.log("[EaxRotations] Plugin loaded (no player class yet at login screen)")
+    return
+end
+
 core.log("[EaxRotations] Initializing framework for " .. plugin_info.player_class_name)
 core.log("[EaxRotations] Version " .. tostring(plugin_info.version or "unknown") .. " loaded")
 
@@ -103,25 +111,27 @@ end
 local framework_main = require("main_sylvanas")           -- Dispatcher; class modules register below
 
 -- Load class-specific module
-local class_name = plugin_info.player_class_name:lower()
--- [#10] Guard class module require with pcall + validation against known class names
+-- Guard: player_class_name may be nil at login screen (header.lua returns early without class detection)
+-- CRITICAL: Do NOT hard-return on nil/unknown class, or callbacks never register and plugin stays dead.
+-- Instead, set a flag so the rest of setup runs unconditionally.
+local class_name = plugin_info.player_class_name and plugin_info.player_class_name:lower() or nil
+local class_module_loaded = false
 local KNOWN_CLASSES = {
     druid = true, hunter = true, mage = true, paladin = true,
     priest = true, rogue = true, shaman = true, warlock = true, warrior = true,
 }
 
-if not KNOWN_CLASSES[class_name] then
-    core.log_error("[EaxRotations] Unknown class: " .. tostring(class_name) .. " — no module to load")
-    return
+if KNOWN_CLASSES[class_name] then
+    local class_module_ok, class_module = pcall(require, "classes/" .. class_name .. "/class_sylvanas")
+    if class_module_ok and class_module then
+        class_module_loaded = true
+        core.log("[EaxRotations] Class module loaded: " .. tostring(plugin_info.player_class_name))
+    else
+        core.log_error("[EaxRotations] Failed to load class module for " .. tostring(plugin_info.player_class_name) .. ": " .. tostring(class_module))
+    end
+else
+    core.log("[EaxRotations] Deferring class load: " .. tostring(plugin_info.player_class_name or "no player yet (login screen)"))
 end
-
-local class_module_ok, class_module = pcall(require, "classes/" .. class_name .. "/class_sylvanas")
-if not class_module_ok or not class_module then
-    core.log_error("[EaxRotations] Failed to load class module for " .. plugin_info.player_class_name .. ": " .. tostring(class_module))
-    return
-end
-
-core.log("[EaxRotations] Class module loaded: " .. plugin_info.player_class_name)
 
 local format = string.format
 local color_ok, color = pcall(require, "common/color")
@@ -183,7 +193,7 @@ local QUICK_TOGGLE_SETTING_KEYS = {
     use_threat_drop = true,
 }
 
-do
+if class_name then
     local ok, result = pcall(require, "classes/" .. class_name .. "/schema_sylvanas")
     if ok then
         class_schema = result

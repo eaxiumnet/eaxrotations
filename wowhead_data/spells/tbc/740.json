@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Tranquility",
+    "icon": "spell_nature_tranquility",
+    "cost": {
+      "type": "mana",
+      "amount": 525
+    },
+    "channeled": true,
+    "cast_time": 8,
+    "cooldown": "10 min cooldown",
+    "spell_level": 70,
+    "required_class": "Druid",
+    "required_level": 30,
+    "description": "Heals all nearby group members for 365 every 2 seconds for 8 sec.  Druid must channel to maintain the spell.",
+    "is_heal": true,
+    "duration": 8,
+    "target_type": "friendly",
+    "has_buff": true,
+    "buff_duration": 8,
+    "buff_text": "Heals nearby party members for 365 every 2 seconds."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:16:21"
+}

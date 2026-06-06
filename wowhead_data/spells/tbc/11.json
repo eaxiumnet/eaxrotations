@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Frostbolt of Ages",
+    "icon": "spell_frost_frostbolt02",
+    "range": 100,
+    "cast_time": 0,
+    "required_class": "Mage",
+    "required_level": 1,
+    "description": "Deals 1000 Frost damage to the target.",
+    "school": "frost",
+    "target_type": "hostile"
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:16:52"
+}

@@ -1,0 +1,168 @@
+---
+import '../styles/global.css';
+import { config, url } from '../config';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'Multi-class WoW TBC rotation addon.' } = Astro.props;
+const pageTitle = `${title} | Flux AIO`;
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
+const path = Astro.url.pathname.replace(/\/$/, '');
+const isActive = (href: string) => path === url(href).replace(/\/$/, '') || path.startsWith(url(href).replace(/\/$/, '') + '/');
+const isClassPage = path.startsWith(url('/classes').replace(/\/$/, ''));
+---
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{pageTitle}</title>
+
+  <!-- SEO -->
+  <meta name="description" content={description} />
+  <meta name="author" content="Flux AIO" />
+  <meta name="keywords" content="WoW, TBC, rotation, addon, druid, hunter, mage, paladin, priest, rogue, shaman, warlock, warrior, TellMeWhen, classic" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href={canonicalUrl.href} />
+  <meta name="theme-color" content="#6c63ff" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href={url('/favicon.svg')} />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Flux AIO" />
+  <meta property="og:title" content={pageTitle} />
+  <meta property="og:description" content={description} />
+  <meta property="og:url" content={canonicalUrl.href} />
+  <meta property="og:image" content={new URL(url('/og.svg'), Astro.site).href} />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content={new URL(url('/og.svg'), Astro.site).href} />
+  <meta name="twitter:title" content={pageTitle} />
+  <meta name="twitter:description" content={description} />
+</head>
+<body>
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href={url('/')} class="nav-logo">Flux <span>AIO</span></a>
+      <button class:list={["nav-classes-btn", { active: isClassPage }]} aria-expanded="false">Classes</button>
+      <div class="nav-links">
+        <a href={url('/guides/installation')} class:list={["nav-link", { active: isActive('/guides/installation') }]}>Install</a>
+        <a href={url('/changelog')} class:list={["nav-link", { active: isActive('/changelog') }]}>Changelog</a>
+        <a href={url('/faq')} class:list={["nav-link", { active: isActive('/faq') }]}>FAQ</a>
+        <a href={config.discord} class="nav-link" target="_blank">Discord</a>
+      </div>
+      <button class="hamburger-btn" aria-label="Menu" aria-expanded="false">
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+      </button>
+    </div>
+    <div class="nav-panel" id="nav-panel">
+      <div class="nav-panel-inner">
+        <div class="nav-panel-label">Classes</div>
+        <div class="nav-panel-grid">
+          <a href={url('/classes/druid')} class="c-druid">Druid</a>
+          <a href={url('/classes/hunter')} class="c-hunter">Hunter</a>
+          <a href={url('/classes/mage')} class="c-mage">Mage</a>
+          <a href={url('/classes/paladin')} class="c-paladin">Paladin</a>
+          <a href={url('/classes/priest')} class="c-priest">Priest</a>
+          <a href={url('/classes/rogue')} class="c-rogue">Rogue</a>
+          <a href={url('/classes/shaman')} class="c-shaman">Shaman</a>
+          <a href={url('/classes/warlock')} class="c-warlock">Warlock</a>
+          <a href={url('/classes/warrior')} class="c-warrior">Warrior</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <slot />
+  </main>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href={config.downloadUrl}>Download</a>
+      <a href={config.github} target="_blank">GitHub</a>
+      <a href={config.discord} target="_blank">Discord</a>
+    </div>
+    <p>Flux AIO &mdash; WoW TBC rotation addon</p>
+  </footer>
+
+  <script is:inline>
+    var nav = document.getElementById('nav');
+    var classesBtn = document.querySelector('.nav-classes-btn');
+    var hamburger = document.querySelector('.hamburger-btn');
+    var panel = document.getElementById('nav-panel');
+
+    // Position panel under Classes button (desktop only)
+    function positionPanel() {
+      if (window.innerWidth > 768) {
+        var btnRect = classesBtn.getBoundingClientRect();
+        var navRect = nav.getBoundingClientRect();
+        var left = btnRect.left - navRect.left + btnRect.width / 2 - 110;
+        left = Math.max(8, Math.min(left, navRect.width - 288));
+        panel.style.left = left + 'px';
+      }
+    }
+    function openPanel() {
+      panel.classList.add('open');
+      classesBtn.setAttribute('aria-expanded', 'true');
+      positionPanel();
+    }
+    function closePanel() {
+      panel.classList.remove('open');
+      classesBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    // Desktop: click toggles panel
+    classesBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (panel.classList.contains('open')) { closePanel(); } else { openPanel(); }
+    });
+
+    // Desktop: hover opens/closes with small delay for cursor travel
+    var hoverTimer = null;
+    function cancelHover() { clearTimeout(hoverTimer); hoverTimer = null; }
+    classesBtn.addEventListener('mouseenter', function() {
+      if (window.innerWidth > 768) { cancelHover(); openPanel(); }
+    });
+    classesBtn.addEventListener('mouseleave', function() {
+      if (window.innerWidth > 768) { hoverTimer = setTimeout(closePanel, 150); }
+    });
+    panel.addEventListener('mouseenter', cancelHover);
+    panel.addEventListener('mouseleave', function() {
+      if (window.innerWidth > 768) { hoverTimer = setTimeout(closePanel, 150); }
+    });
+
+    // Mobile: hamburger toggles nav.open (page links) + panel
+    hamburger.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var open = nav.classList.toggle('open');
+      panel.classList.toggle('open', open);
+      hamburger.classList.toggle('open', open);
+      hamburger.setAttribute('aria-expanded', open);
+      classesBtn.setAttribute('aria-expanded', open);
+    });
+
+    // Click outside closes everything
+    document.addEventListener('click', function(e) {
+      if (!nav.contains(e.target)) {
+        panel.classList.remove('open');
+        nav.classList.remove('open');
+        hamburger.classList.remove('open');
+        hamburger.setAttribute('aria-expanded', 'false');
+        classesBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Pummel",
+    "icon": "inv_gauntlets_04",
+    "cost": {
+      "type": "rage",
+      "amount": 10
+    },
+    "range": "melee",
+    "cast_time": 0,
+    "cooldown": "10 sec cooldown",
+    "required_class": "Warrior",
+    "required_level": 38,
+    "description": "Pummel the target for 20 damage.  It also interrupts spellcasting and prevents any spell in that school from being cast for 4 sec.",
+    "duration": 4,
+    "target_type": "hostile"
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:17:54"
+}

@@ -45,14 +45,14 @@ The spell audit used `wowhead_data/spells/tbc/` which only covers original TBC 2
 
 | # | Spec | Missing Ability | Source |
 |---|------|---------------|--------|
-| X-1 | MM Hunter | **Aimed Shot** (41-pt MM talent) | ConROC, BadRotations both use it |
-| X-2 | SV Hunter | **Wyvern Sting** (41-pt SV talent) | BadRotations uses it |
-| X-3 | SV Hunter | **Explosive Trap / Immolation Trap** | ConROC, Flux, BadRotations all use |
-| X-4 | SV Hunter | **Mongoose Bite** (melee) | Competitors handle melee better |
-| X-5 | Frost Mage | **Summon Water Elemental** (41-pt Frost talent) | Flux uses it |
-| X-6 | Arcane Mage | **Icy Veins** (DPS cooldown) | Flux uses it in burn phase |
-| X-7 | Arcane Mage | **Cold Snap** (resets IV) | Flux uses it |
-| X-8 | Destro Warlock | **Shadowburn** (execute) | ConROC, Flux both use it |
+| X-1 | MM Hunter | **Aimed Shot** (41-pt MM talent) | Standard MM talent — widely used |
+| X-2 | SV Hunter | **Wyvern Sting** (41-pt SV talent) | Standard SV talent — widely used |
+| X-3 | SV Hunter | **Explosive Trap / Immolation Trap** | Standard SV trap rotation |
+| X-4 | SV Hunter | **Mongoose Bite** (melee) | Melee gap — competitors handle better |
+| X-5 | Frost Mage | **Summon Water Elemental** (41-pt Frost talent) | Standard Frost cooldown |
+| X-6 | Arcane Mage | **Icy Veins** (DPS cooldown) | Standard Arcane burn cooldown |
+| X-7 | Arcane Mage | **Cold Snap** (resets IV) | Standard Arcane cooldown reset |
+| X-8 | Destro Warlock | **Shadowburn** (execute) | Standard Destro execute
 
 ## Priority 3: Schema Gaps (settings used but no UI widget)
 

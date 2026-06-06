@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Volley",
+    "icon": "ability_marksmanship",
+    "cost": {
+      "type": "mana",
+      "amount": 350
+    },
+    "range": 35,
+    "cooldown": "1 min cooldown",
+    "required_class": "Hunter",
+    "required_level": 40,
+    "requires_weapon": "Ranged Weapon",
+    "description": "Continuously fires a volley of ammo at the target area, causing 50 Arcane damage to enemy targets within 8 yards every second for 6 sec.",
+    "school": "arcane",
+    "duration": 6,
+    "aoe": true,
+    "radius": 8,
+    "target_type": "hostile"
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:16:35"
+}

@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Poison Cleansing Totem",
+    "icon": "spell_nature_poisoncleansingtotem",
+    "cost": {
+      "type": "mana",
+      "percent": 8
+    },
+    "cast_time": 0,
+    "required_class": "Shaman",
+    "required_level": 22,
+    "description": "Summons a Poison Cleansing Totem with 5 health at the feet of the caster that attempts to remove 1 poison effect from party members within 20 yards every 5 seconds.  Lasts 2 min.",
+    "duration": 120,
+    "radius": 20,
+    "target_type": "friendly"
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:18:15"
+}

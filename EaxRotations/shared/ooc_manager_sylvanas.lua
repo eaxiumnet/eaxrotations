@@ -13,8 +13,12 @@
 -- Safety:   Five-layer throttle chain prevents infinite retry loops:
 --             1. on_update fires at most 1/s via _last_check timer
 --             2. GCD gate — skips entirely when gcd_remains > 0
---             3. broken_api_throttled — per-spell 3s cooldown when
---                is_spell_learned reports everything as missing (PS builds)
+--             3. broken_api_throttled — per-spell 10s cooldown (buffs/pets) when
+--                is_spell_learned reports everything as missing (PS builds) —
+--                extended from 3s to 10s because buff_remains returns 0 on PS
+--                (broken aura API), causing the manager to think every buff
+--                needs refreshing. 10s reduces spam while still allowing eventual
+--                casting when resources become available.
 --             4. Buff threshold — only recast when buff_remains <
 --                ooc_buff_threshold (default 30s)
 --             5. Healer mana floor — skips buffs when mana < threshold
@@ -31,16 +35,16 @@
 --   2. reset_work_ids copies buff rank IDs into reusable _work_ids table
 --   3. NS.buff_remains checks all buff IDs; nil = API unavailable, skip
 --   4. If remains <= threshold, resolve spell action via get_spell/NS.spell_action
---   5. broken_api_throttled guard: if API is broken, skip for 3s per spell
+--   5. broken_api_throttled guard: if API is broken, skip for 10s per spell
 --   6. NS.try_cast with skip_range=true
 --
 -- Throttle chain detail:
 --   on_update (1s) -> GCD guard -> per-path logic:
---     try_pet_summon  -> broken_api_throttled(3s) -> NS.try_cast(cooldown)
+--     try_pet_summon  -> broken_api_throttled(10s) -> NS.try_cast(cooldown)
 --     try_self_buffs  -> healer mana floor -> for each entry:
 --       should_handle_buff -> buff_remains <= threshold -> get_spell ->
---       broken_api_throttled(3s) -> NS.try_cast(skip_range)
---     try_food_flask  -> broken_api_throttled(3s) -> NS.try_cast
+--       broken_api_throttled(10s) -> NS.try_cast(skip_range)
+--     try_food_flask  -> broken_api_throttled(3s) -> NS.try_cast (numeric ID, no rank mismatch)
 -- ============================================================================
 
 local _G = _G
@@ -295,20 +299,19 @@ local function try_self_buffs(context, settings, me, class_id)
             if remains <= threshold then
                 local spell = get_spell(entry)
                 if spell then
+                    -- On rage-based classes, skip if not enough rage to cast
+                    -- (avoids "not enough rage" game errors when OOC with 0 rage)
+                    if class_id == CLASS.WARRIOR then
+                        local rage = NS.power_current and NS.power_current(NS.POWER_RAGE) or 0
+                        if rage < 10 then return false end
+                    end
                     local should_cast = true
-                    -- When the spell-book API is broken on private servers, throttle retries
-                    -- to avoid log spam from repeated GCD-blocked attempts.
-                    -- Extract a numeric spell ID from the entry for throttling, since
-                    -- get_spell() may return a spell action table rather than a raw ID.
-                    if NS.broken_api_throttled then
-                        local spell_id = type(entry.spell) == "number" and entry.spell
-                            or (type(entry.spell) == "table" and entry.spell.ids and type(entry.spell.ids) == "table" and entry.spell.ids[1])
-                            or (type(entry.spell) == "table" and type(entry.spell[1]) == "number" and entry.spell[1])
-                            or nil
-                        if spell_id and NS.broken_api_throttled(spell_id, 3.0) then
-                            should_cast = false
-                            if NS.log then NS.log("[OOC] " .. entry.label .. " throttled (broken API, spell " .. spell_id .. ")") end
-                        end
+                    -- Throttle retries when spell-book API is broken on private servers.
+                    -- Pass the resolved spell object so NS.broken_api_throttled resolves
+                    -- the correct cast ID via NS.get_spell_id (avoids rank-1 vs cast-rank mismatch).
+                    if NS.broken_api_throttled and NS.broken_api_throttled(spell, 10.0) then
+                        should_cast = false
+                        if NS.log then NS.log("[OOC] " .. entry.label .. " throttled (broken API)") end
                     end
                     if should_cast and NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true }) then
                         return true
@@ -333,12 +336,9 @@ local function try_pet_summon(settings, me, class_id)
     local spell = get_spell(entry)
     if not spell then return false end
     -- Throttle retries when spell-book API is broken on private servers
-    if NS.broken_api_throttled then
-        local spell_id = type(entry.spell) == "number" and entry.spell or nil
-        if spell_id and NS.broken_api_throttled(spell_id, 3.0) then
-            if NS.log then NS.log("[OOC] " .. entry.label .. " throttled (broken API, spell " .. spell_id .. ")") end
-            return false
-        end
+    if NS.broken_api_throttled and NS.broken_api_throttled(spell, 10.0) then
+        if NS.log then NS.log("[OOC] " .. entry.label .. " throttled (broken API)") end
+        return false
     end
     return NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true, expected_cooldown = entry.cooldown }) == true
 end

@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Rockbiter Weapon",
+    "icon": "spell_nature_rockbiter",
+    "cost": {
+      "type": "mana",
+      "amount": 25
+    },
+    "cast_time": 0,
+    "required_class": "Shaman",
+    "required_level": 8,
+    "description": "Imbue the Shaman's weapon, increasing its damage per second by 4.  Lasts 30 minutes.",
+    "duration": 1800
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:18:06"
+}

@@ -283,7 +283,10 @@ end
 
 if NS then
     NS.CombatStats = M
-    M.init()
+    -- Defer init until player is available (engine callbacks may not be ready at require() time)
+    if NS.GetPlayer and NS.GetPlayer() then
+        M.init()
+    end
 end
 
 return M

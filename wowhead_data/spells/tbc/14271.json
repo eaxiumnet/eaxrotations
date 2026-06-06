@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Mongoose Bite",
+    "icon": "ability_hunter_swiftstrike",
+    "cost": {
+      "type": "mana",
+      "amount": 65
+    },
+    "range": "melee",
+    "cast_time": 0,
+    "cooldown": "5 sec cooldown",
+    "required_class": "Hunter",
+    "required_level": 58,
+    "description": "Counterattack the enemy for (Attack Power * 0.2 + 115) damage.  Can only be performed after you dodge."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-03 17:37:24"
+}

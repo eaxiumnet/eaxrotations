@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "data": {
+    "name": "[PH] Teleport to Orgrimmar",
+    "icon": "classic_temp",
+    "range": 20,
+    "cast_time": 2,
+    "required_level": 1,
+    "description": "Sends player to Orgrimmar"
+  },
+  "source": "cache",
+  "cached_at": "2026-06-05 20:57:34"
+}

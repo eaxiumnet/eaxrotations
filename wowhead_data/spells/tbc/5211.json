@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Bash",
+    "icon": "ability_druid_bash",
+    "cost": {
+      "type": "rage",
+      "amount": 10
+    },
+    "range": "melee",
+    "cast_time": 0,
+    "cooldown": "1 min cooldown",
+    "required_class": "Druid",
+    "required_level": 14,
+    "description": "Stuns the target for 2 sec.",
+    "duration": 2,
+    "target_type": "hostile",
+    "has_buff": true,
+    "buff_duration": 2,
+    "buff_text": "Stunned."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:17:34"
+}

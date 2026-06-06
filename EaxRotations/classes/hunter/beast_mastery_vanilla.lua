@@ -1,4 +1,4 @@
--- Hunter Beast Mastery ? FrostByte Parity (1-70)
+-- Hunter Beast Mastery ? parity Parity (1-70)
 -- Auto-shot timer, pet mgmt, dynamic aspects, stings, threat, pull modes, melee, AoE
 
 local NS = _G.EaxRotations
@@ -43,7 +43,7 @@ local state = {
     call_pet_ready = false, revive_pet_ready = false,
     hunters_mark_ready = false, serpent_sting_ready = false,
     scorpid_sting_ready = false, viper_sting_ready = false,
-    -- FrostByte features
+    -- parity features
     aspect_mode = "auto",
     sting_mode = "serpent",
     fd_mode = "high_threat",
@@ -60,7 +60,7 @@ local state = {
     is_mounted = false,
     has_pet_spell = false,
     wing_clip_active = false,
-    -- Melee & AoE features (FrostByte parity)
+    -- Melee & AoE features (parity parity)
     use_melee = true,
     raptor_strike_ready = false,
     concussive_shot_ready = false,
@@ -148,7 +148,7 @@ local function build_state(context)
     state.trinket_1_ready = state.trinket_1_id ~= nil and is_item_ready(me, state.trinket_1_id)
     state.trinket_2_ready = state.trinket_2_id ~= nil and is_item_ready(me, state.trinket_2_id)
 
-    -- FrostByte settings
+    -- parity settings
     state.aspect_mode = settings.aspect_mode or "auto"
     state.sting_mode = settings.sting_mode or "serpent"
     state.fd_mode = settings.fd_mode or settings.use_threat_drop and "high_threat" or "off"
@@ -160,7 +160,7 @@ local function build_state(context)
     state.sticky_target = settings.sticky_target == true
     state.prioritize_markers = settings.prioritize_markers == true
 
-    -- Melee & AoE settings (FrostByte parity)
+    -- Melee & AoE settings (parity parity)
     state.use_melee = settings.use_melee ~= false
     state.use_volley = settings.use_volley == true
     state.use_explosive_trap = settings.use_explosive_trap == true
@@ -427,7 +427,7 @@ local function freezing_trap_matches(context, s)
 end
 
 -- ============================================================================
--- FrostByte parity match functions (Melee, AoE, Trinkets)
+-- parity parity match functions (Melee, AoE, Trinkets)
 -- ============================================================================
 
 -- Raptor Strike: melee weaving when target in close range
@@ -736,6 +736,6 @@ local ok, existing = pcall(NS.rotation_registry.register, NS.rotation_registry, 
 if not ok then
     NS.rotation_registry:register("beast_mastery", strategies, { get_state = build_state })
 end
-NS.log("Hunter beast_mastery rotation registered (FrostByte parity)")
+NS.log("Hunter beast_mastery rotation registered (parity parity)")
 
 return strategies

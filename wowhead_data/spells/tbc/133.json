@@ -607,24 +607,6 @@
       "name": "Improved Fireball, Frostbolt, and Arcane Missiles",
       "level": 0,
       "school": "Physical"
-    },
-    {
-      "id": 44457,
-      "name": "Living Bomb",
-      "level": 60,
-      "school": "Fire"
-    },
-    {
-      "id": 44459,
-      "name": "Living Bomb",
-      "level": 60,
-      "school": "Fire"
-    },
-    {
-      "id": 44461,
-      "name": "Living Bomb",
-      "level": 60,
-      "school": "Fire"
     }
   ],
   "see_also": [
@@ -698,12 +680,6 @@
       "id": 27070,
       "name": "Fireball",
       "level": 66,
-      "school": "Fire"
-    },
-    {
-      "id": 38692,
-      "name": "Fireball",
-      "level": 70,
       "school": "Fire"
     }
   ],

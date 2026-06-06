@@ -67,6 +67,7 @@ local CLEAVE_RAGE = 55
 local MORTAL_STRIKE_RAGE = 30
 local OVERPOWER_RAGE = 5
 local SLAM_RAGE = 15
+local RAGE_CAP = 90
 local SLAM_CAST_TIME = 0.5
 local SLAM_SAFETY = 0.2
 local SWEEPING_STRIKES_COUNT = 2
@@ -340,7 +341,8 @@ local function execute_matches(context, state)
     return action(context, build_action("Execute", ACTION.Execute, { min_rage = 15 }))
 end
 
-local function mortal_strike_matches(context)
+local function mortal_strike_matches(context, state)
+    if (state.rage or 0) >= RAGE_CAP then return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 })) end
     return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }))
 end
 
@@ -349,11 +351,21 @@ local function overpower_matches(context, state)
     return action(context, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }))
 end
 
+local function target_creature_type(unit)
+    if not unit or not unit.get_creature_type then return nil end
+    local ok, value = pcall(unit.get_creature_type, unit)
+    return ok and value or nil
+end
+local BLEED_IMMUNE_TYPES = { [4]=true, [6]=true, [9]=true }  -- Elemental, Undead, Mechanical
+
 local function rend_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rend, 2.0) then return false end
     if execute_phase(context, state) then return false end
     if (state.rend_remains or 0) > 3 then return false end
     if (state.target_hp or 100) < 25 then return false end
+    -- Skip Rend on bleed-immune creatures (Elemental, Undead, Mechanical)
+    local ctype = target_creature_type(context.target)
+    if ctype and BLEED_IMMUNE_TYPES[ctype] then return false end
     return action(context, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3 }))
 end
 
@@ -361,6 +373,8 @@ local function slam_matches(context, state)
     if setting(context, "slam_weave_enabled", true) == false then return false end
     if not SwingTimer then return false end
     if state.is_moving then return false end
+    -- Rage cap: bypass rage gate to prevent waste when capped
+    if (state.rage or 0) >= RAGE_CAP then return action(context, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true })) end
     if (state.rage or 0) < SLAM_RAGE then return false end
     if (state.ms_cd or 99) <= 1.0 or state.overpower_ready then return false end
     if (state.mh_until or 999) <= SLAM_CAST_TIME + SLAM_SAFETY then return false end
@@ -387,7 +401,10 @@ end
 
 local function whirlwind_matches(context, state)
     if not state.ww_ready then return false end
-    if (state.enemy_count or 0) < 2 and (state.rage or 0) < 45 then return false end
+    local rage = state.rage or 0
+    -- Rage cap: bypass enemy count gate to prevent rage waste
+    if rage >= RAGE_CAP then return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 })) end
+    if (state.enemy_count or 0) < 2 and rage < 45 then return false end
     return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
 end
 
@@ -570,7 +587,7 @@ local STRATEGY_SPECS = {
     { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { min_rage = 15 }) },
     { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false }) },
     { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
-    { "Rend", rend_matches, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3 }) },
+    { "Rend", rend_matches, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3, creature_types = { [1]=true, [2]=true, [3]=true, [5]=true, [7]=true, [8]=true, [10]=true } }) },
     { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true }) },
     { "PiercingHowl", piercing_howl_matches, build_action("PiercingHowl", ACTION.PiercingHowl, { target = "self", min_rage = 10, requires_target = false, enemy_count = 2 }) },
     { "Hamstring", hamstring_matches, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }) },
@@ -602,6 +619,7 @@ for i = 1, #STRATEGY_SPECS do
         required_stance = row.required_stance,
         min_rage = row.min_rage,
         cooldown = row.cooldown,
+        creature_types = row.creature_types,
         matches = function(context)
             local state = build_state(context or {})
             return matches(context or {}, state)

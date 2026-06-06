@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Beast Training",
+    "icon": "ability_hunter_beastcall02",
+    "cast_time": 0,
+    "required_class": "Hunter",
+    "required_level": 10,
+    "description": "Lets the Hunter train his pet with various abilities that he has learned."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:17:33"
+}

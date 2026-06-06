@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Increase Nature Dam 41",
+    "icon": "classic_temp",
+    "description": "Increases damage done by Nature spells and effects by up to 41."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-05 20:57:50"
+}

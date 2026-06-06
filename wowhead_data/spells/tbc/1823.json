@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Rake",
+    "icon": "ability_druid_disembowel",
+    "cost": {
+      "type": "energy",
+      "amount": 40
+    },
+    "range": "melee",
+    "cast_time": 0,
+    "required_class": "Druid",
+    "required_level": 34,
+    "description": "Rake the target for (Attack Power / 100 + 26) bleed damage and an additional (15 * 3 + Attack Power * 0.06) damage over 9 sec.  Awards 1 combo point.",
+    "duration": 9,
+    "target_type": "hostile",
+    "has_buff": true,
+    "buff_duration": 9,
+    "buff_text": "Bleeding for 15 damage every 3 seconds."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:16:38"
+}

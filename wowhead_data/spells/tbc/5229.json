@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Enrage",
+    "icon": "ability_druid_enrage",
+    "cast_time": 0,
+    "cooldown": "1 min cooldown",
+    "required_class": "Druid",
+    "required_level": 12,
+    "description": "Generates 20 rage over 10 sec, but reduces base armor by 27% in Bear Form and 16% in Dire Bear Form.",
+    "duration": 10,
+    "has_buff": true,
+    "buff_duration": 10,
+    "buff_text": "Gain 2 rage per second.  Base armor reduced."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:17:35"
+}

@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Bracers of Shackled Souls",
+    "icon": "inv_bracer_17",
+    "cast_time": 50
+  },
+  "source": "cache",
+  "cached_at": "2026-06-05 20:56:32"
+}

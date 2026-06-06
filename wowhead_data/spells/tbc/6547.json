@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Rend",
+    "icon": "ability_gouge",
+    "cost": {
+      "type": "rage",
+      "amount": 10
+    },
+    "range": "melee",
+    "cast_time": 0,
+    "required_class": "Warrior",
+    "required_level": 20,
+    "requires_weapon": "Melee Weapon",
+    "description": "Wounds the target causing them to bleed for 45 damage plus an additional [0.00743 * 5 * ((Mainhand weapon max base damage + Mainhand weapon min base damage) / 2 + Attack Power / 14 * Mainhand weapon max base speed)] (based on weapon damage) over 15 sec.",
+    "school": "physical",
+    "duration": 15,
+    "target_type": "hostile",
+    "has_buff": true,
+    "buff_duration": 15,
+    "buff_text": "Bleeding for 9 plus a percentage of weapon damage every 3 seconds."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:17:53"
+}

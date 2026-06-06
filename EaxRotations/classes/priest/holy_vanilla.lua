@@ -46,7 +46,7 @@ local INNER_FOCUS_BUFF = 14751
 local SHADOW_WORD_PAIN_DEBUFF = { 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
 local HOLY_FIRE_DOT_DEBUFF = { 15261, 15267, 15266, 15265, 15264, 15263, 15262, 14914 }
 
--- FrostByte feature constants
+-- parity feature constants
 -- ============================================================================
 -- Fade buff IDs (all ranks)
 local FADE_BUFF = { 10942, 10941, 9592, 9579, 9578, 586 }
@@ -57,7 +57,7 @@ local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 2210
 -- Karazhan encounter map ID
 local KARAZHAN_MAP_ID = 532
 
--- Pushback detection for Greater Heal (Frostbyte v0.5.0 style)
+-- Pushback detection for Greater Heal (parity v0.5.0 style)
 -- Tracks recent damage taken to gate long-cast heals during pushback
 --- Checks if the player is taking damage or in pushback using available API.
 --- Uses fallback detection when standard enemy scanner isn't exposed.
@@ -102,7 +102,7 @@ local holy_state = {
     has_inner_focus = false,
     swp_remaining = 0,
     holy_fire_remaining = 0,
-    -- FrostByte feature state
+    -- parity feature state
     healthstone_ready = false,
     healthstone_id = nil,
     has_fade_buff = false,
@@ -171,7 +171,7 @@ local function build_holy_state(context)
     end
     holy_state.surge_of_light = false  -- TBC-only talent
     holy_state.clearcasting = false    -- TBC-only talent
-    -- FrostByte: Healthstone scanning
+    -- parity: Healthstone scanning
     holy_state.healthstone_id = nil
     holy_state.healthstone_ready = false
     if NS.is_item_ready then
@@ -185,11 +185,11 @@ local function build_holy_state(context)
         end
     end
 
-    -- FrostByte: Fade state
+    -- parity: Fade state
     holy_state.has_fade_buff = has_player_buff(FADE_BUFF)
     holy_state.fade_ready = spell_exists(SPELLS.Fade) and spell_ready(SPELLS.Fade)
 
-    -- FrostByte: Encounter ID for Karazhan reactions
+    -- parity: Encounter ID for Karazhan reactions
     holy_state.encounter_id = (NS.core and NS.core.get_map_id and NS.core.get_map_id())
         or (core and core.get_map_id and core.get_map_id())
         or 0
@@ -219,7 +219,7 @@ local function holy_idle_damage_enabled(context)
 end
 
 -- ============================================================================
--- FrostByte Feature: StopCast
+-- parity Feature: StopCast
 -- Mid-cast cancellation: if a higher-priority target emerges during a long cast,
 -- interrupt the current cast to switch to the higher-priority target.
 -- ============================================================================
@@ -243,7 +243,7 @@ local function stop_cast_matches(context, state)
 end
 
 -- ============================================================================
--- FrostByte Feature: PreHeal
+-- parity Feature: PreHeal
 -- Pre-cast Greater Heal when tank is about to take predictable damage.
 -- Timed to land just after the damage hits.
 -- ============================================================================
@@ -265,7 +265,7 @@ local function pre_heal_matches(context, state)
 end
 
 -- ============================================================================
--- FrostByte Feature: Fade
+-- parity Feature: Fade
 -- Auto-use Fade when player has aggro and Fade is ready.
 -- ============================================================================
 local function fade_matches(context, state)
@@ -287,10 +287,10 @@ local function fade_matches(context, state)
 end
 
 -- ============================================================================
--- FrostByte Feature: Healthstone
+-- parity Feature: Healthstone
 -- Auto-use healthstone below HP threshold, off-GCD.
 -- ============================================================================
-local function healthstone_matches_frostbyte(context, state)
+local function healthstone_matches_parity(context, state)
     if not state.healthstone_ready then return false end
     local hs_hp = (context.settings and context.settings.holy_healthstone_hp) or 35
     if context.hp > hs_hp then return false end
@@ -298,7 +298,7 @@ local function healthstone_matches_frostbyte(context, state)
 end
 
 -- ============================================================================
--- FrostByte Feature: MountedProtection
+-- parity Feature: MountedProtection
 -- Safety net: prevent actions while mounted.
 -- build_holy_state returns early when mounted, but this strategy acts as
 -- an additional guard at the strategy evaluation level.
@@ -314,7 +314,7 @@ local function mounted_protection_matches(context, state)
 end
 
 -- ============================================================================
--- FrostByte Feature: EncounterReactions
+-- parity Feature: EncounterReactions
 -- React to specific Karazhan encounter mechanics:
 -- Netherspite: avoid long casts during Nether Breath
 -- Maiden: cleanse/heal through Repentance
@@ -694,7 +694,7 @@ local strategies = {
             return false
         end,
     },
-    -- FrostByte Feature: StopCast
+    -- parity Feature: StopCast
     {
         name = "StopCast",
         matches = stop_cast_matches,
@@ -709,7 +709,7 @@ local strategies = {
             return false
         end,
     },
-    -- FrostByte Feature: PreHeal
+    -- parity Feature: PreHeal
     {
         name = "PreHeal",
         matches = pre_heal_matches,
@@ -720,7 +720,7 @@ local strategies = {
             return try_cast(chosen_spell, target, format("[HOLY] %s (PreHeal) %.0f%%", spell_label, state.tank_hp or 0))
         end,
     },
-    -- FrostByte Feature: Fade
+    -- parity Feature: Fade
     {
         name = "Fade",
         matches = fade_matches,
@@ -728,10 +728,10 @@ local strategies = {
             return try_cast(SPELLS.Fade, nil, "[HOLY] Fade (aggro drop)", { skip_range = true })
         end,
     },
-    -- FrostByte Feature: Healthstone
+    -- parity Feature: Healthstone
     {
         name = "Healthstone",
-        matches = healthstone_matches_frostbyte,
+        matches = healthstone_matches_parity,
         execute = function(_, state)
             if state.healthstone_id and state.healthstone_ready then
                 if NS.use_item_by_id then
@@ -742,7 +742,7 @@ local strategies = {
             return false
         end,
     },
-    -- FrostByte Feature: MountedProtection
+    -- parity Feature: MountedProtection
     {
         name = "MountedProtection",
         matches = mounted_protection_matches,
@@ -750,7 +750,7 @@ local strategies = {
             return true  -- No-op: mount check is handled in build_holy_state
         end,
     },
-    -- FrostByte Feature: EncounterReactions
+    -- parity Feature: EncounterReactions
     {
         name = "EncounterReactions",
         matches = encounter_reactions_matches,

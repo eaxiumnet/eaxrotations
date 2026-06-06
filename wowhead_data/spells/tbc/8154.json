@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Stoneskin Totem",
+    "icon": "spell_nature_stoneskintotem",
+    "cost": {
+      "type": "mana",
+      "amount": 60
+    },
+    "cast_time": 0,
+    "required_class": "Shaman",
+    "required_level": 14,
+    "description": "Summons a Stoneskin Totem with 5 health at the feet of the caster.  The totem protects party members within 20 yards, reducing melee damage taken by 7.  Lasts 2 min.",
+    "duration": 120,
+    "radius": 20,
+    "target_type": "friendly"
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:18:14"
+}

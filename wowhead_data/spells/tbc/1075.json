@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Thorns",
+    "icon": "spell_nature_thorns",
+    "cost": {
+      "type": "mana",
+      "amount": 105
+    },
+    "range": 30,
+    "cast_time": 0,
+    "required_class": "Druid",
+    "required_level": 24,
+    "description": "Thorns sprout from the friendly target causing 9 Nature damage to attackers when hit.  Lasts 10 min.",
+    "school": "nature",
+    "duration": 600,
+    "target_type": "friendly",
+    "has_buff": true,
+    "buff_duration": 600,
+    "buff_text": "Causes 9 Nature damage to attackers."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:16:29"
+}

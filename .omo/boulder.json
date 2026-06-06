@@ -1,20 +1,13 @@
 {
-  "active_plan": "C:\\newbot\\scripts\\.sisyphus\\plans\\flux-eax-conversion.md",
-  "started_at": "2026-04-13T16:30:00Z",
-  "session_ids": [
-    "ses_278c0cf56ffeelZvdO4nTVdi5q",
-    "ses_2779e5fa7ffehpacwRBdXg7ZS0",
-    "ses_2779d1ca0ffeA5dVwLrA730lws"
-  ],
-  "session_origins": {
-    "ses_278c0cf56ffeelZvdO4nTVdi5q": "direct",
-    "ses_2779e5fa7ffehpacwRBdXg7ZS0": "appended",
-    "ses_2779d1ca0ffeA5dVwLrA730lws": "appended"
-  },
-  "plan_name": "flux-eax-conversion",
+  "plan_name": null,
+  "started_at": null,
+  "session_ids": [],
+  "session_origins": {},
   "agent": "atlas",
   "task_sessions": {},
-  "current_phase": "Phase 1: Warrior Specs",
+  "current_phase": null,
   "completed_tasks": [],
-  "in_progress_task": null
+  "in_progress_task": null,
+  "schema_version": 2,
+  "updated_at": "2026-06-02T16:09:53.914Z"
 }

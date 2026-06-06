@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Readiness",
+    "icon": "ability_hunter_readiness",
+    "cast_time": 0,
+    "cooldown": "5 min cooldown",
+    "required_class": "Hunter",
+    "description": "When activated, this ability immediately finishes the cooldown on your other Hunter abilities."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-03 17:37:07"
+}

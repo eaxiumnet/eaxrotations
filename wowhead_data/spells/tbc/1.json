@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Word of Recall (OLD)",
+    "icon": "classic_temp",
+    "cost": {
+      "type": "mana",
+      "amount": 10
+    },
+    "cast_time": 10
+  },
+  "source": "cache",
+  "cached_at": "2026-06-05 20:57:27"
+}

@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Sprint",
+    "icon": "ability_rogue_sprint",
+    "cast_time": 0,
+    "cooldown": "5 min cooldown",
+    "required_class": "Rogue",
+    "required_level": 10,
+    "description": "Increases the rogue's movement speed by 50% for 15 sec.  Does not break stealth.",
+    "duration": 15,
+    "has_buff": true,
+    "buff_duration": 15,
+    "buff_text": "Movement speed increased by 50%."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:17:24"
+}

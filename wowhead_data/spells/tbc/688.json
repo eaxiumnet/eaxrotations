@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Summon Imp",
+    "icon": "spell_shadow_summonimp",
+    "cost": {
+      "type": "mana",
+      "percent": 64
+    },
+    "cast_time": 10,
+    "required_class": "Warlock",
+    "required_level": 1,
+    "description": "Summons an Imp under the command of the Warlock."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:16:18"
+}

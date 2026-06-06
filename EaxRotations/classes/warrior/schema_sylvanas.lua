@@ -29,6 +29,8 @@ return {
                     { key = "shield_slam_purge_pvp_only", type = "checkbox", label = "Shield Slam Purge — Players Only", default = true, tooltip = "Only purge buffs from enemy players (safer for PvE dungeons with CC'd mobs)." },
                     { key = "pvp_kite_threshold", type = "slider", label = "PvP Kite HP", min = 20, max = 80, default = 50 },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },
+                    { key = "prot_tab_targeting", type = "checkbox", label = "Multi-Target Taunt Cycling (Prot)", default = true, tooltip = "Tab-target enemies that lack aggro for Taunt/Mocking Blow cycling." },
+                    { key = "prot_tab_range", type = "slider", label = "Tab Target Range (yd)", min = 10, max = 40, default = 20, tooltip = "Range in yards to scan for threat targets." },
                 },
             },
             {

@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "data": {
+    "name": "Challenging Shout",
+    "icon": "ability_bullrush",
+    "cost": {
+      "type": "rage",
+      "amount": 5
+    },
+    "cast_time": 0,
+    "cooldown": "10 min cooldown",
+    "required_class": "Warrior",
+    "required_level": 26,
+    "description": "Forces all enemies within 10 yards to focus attacks on you for 6 sec.",
+    "duration": 6,
+    "aoe": true,
+    "radius": 10,
+    "has_buff": true,
+    "buff_duration": 6,
+    "buff_text": "Taunted."
+  },
+  "source": "cache",
+  "cached_at": "2026-06-02 16:16:31"
+}

@@ -62,7 +62,7 @@ local FEAR_WARD_BUFF = { 6346 }
 local POWER_WORD_FORTITUDE_BUFF = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
 local RENEW_BUFF = { 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
 local INNER_FOCUS_BUFF = { 14751 }
--- FrostByte feature constants
+-- parity feature constants
 local FADE_BUFF = { 10942, 10941, 9592, 9579, 9578, 586 }
 local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 
@@ -118,7 +118,7 @@ local disc_state = {
     power_infusion_ready = false,
     inner_focus_ready = false,
     has_inner_focus = false,
-    -- FrostByte feature state
+    -- parity feature state
     healthstone_ready = false,
     healthstone_id = nil,
     has_fade_buff = false,
@@ -186,7 +186,7 @@ local function build_state(context)
     disc_state.power_infusion_ready = me and NS.spell_ready(10060, me, { skip_range = true }) or false
     disc_state.inner_focus_ready = me and NS.spell_ready(SPELLS.InnerFocus or 14751, me, { skip_range = true }) or false
 
-    -- FrostByte: Healthstone scanning
+    -- parity: Healthstone scanning
     disc_state.healthstone_id = nil
     disc_state.healthstone_ready = false
     if NS.is_item_ready then
@@ -200,7 +200,7 @@ local function build_state(context)
         end
     end
 
-    -- FrostByte: Fade state
+    -- parity: Fade state
     disc_state.has_fade_buff = me and NS.buff_up(me, FADE_BUFF) or false
     disc_state.fade_ready = me and NS.spell_ready(SPELLS.Fade, me, { skip_range = true }) or false
 
@@ -459,7 +459,7 @@ local function inner_focus_matches(context, s)
 end
 
 -- ============================================================================
--- FrostByte Feature: StopCast
+-- parity Feature: StopCast
 -- Mid-cast cancellation: if a higher-priority target emerges during a long cast,
 -- interrupt the current cast to switch to the higher-priority target.
 -- ============================================================================
@@ -476,7 +476,7 @@ local function stop_cast_matches(context, s)
 end
 
 -- ============================================================================
--- FrostByte Feature: PreHeal
+-- parity Feature: PreHeal
 -- Pre-cast Greater Heal when tank is about to take predictable damage.
 -- ============================================================================
 local function pre_heal_matches(context, s)
@@ -494,7 +494,7 @@ local function pre_heal_matches(context, s)
 end
 
 -- ============================================================================
--- FrostByte Feature: Fade
+-- parity Feature: Fade
 -- Auto-use Fade when player has aggro.
 -- ============================================================================
 local function fade_matches(context, s)
@@ -522,7 +522,7 @@ local function fade_matches(context, s)
 end
 
 -- ============================================================================
--- FrostByte Feature: Healthstone
+-- parity Feature: Healthstone
 -- Auto-use healthstone below HP threshold, off-GCD.
 -- ============================================================================
 local function healthstone_matches(context, s)
@@ -565,7 +565,7 @@ local healing_strategies = {
     -- Cooldown Features
     { name = "PowerInfusion", matches = power_infusion_matches, execute = function() return NS.try_cast(10060, NS.PLAYER_UNIT, "[DISCIPLINE] Power Infusion", { skip_range = true }) end },
     { name = "InnerFocus", matches = inner_focus_matches, execute = function() return NS.try_cast(SPELLS.InnerFocus or 14751, NS.PLAYER_UNIT, "[DISCIPLINE] Inner Focus", { skip_range = true }) end },
-    -- FrostByte Features
+    -- parity Features
     { name = "StopCast", matches = stop_cast_matches, execute = function() if NS.stop_casting then return NS.stop_casting() end; if NS.cancel_current_cast then return NS.cancel_current_cast() end; return false end },
     { name = "PreHeal", matches = pre_heal_matches, execute = function(context, s) return NS.try_cast(SPELLS.GreaterHeal, (s.tank and s.tank.unit) or (s.lowest and s.lowest.unit), string.format("[DISCIPLINE] PreHeal GH %.0f%%", (s.tank and s.tank.effective_hp) or (s.lowest and s.lowest.effective_hp) or 0)) end },
     { name = "Fade", matches = fade_matches, execute = function() return NS.try_cast(SPELLS.Fade, nil, "[DISCIPLINE] Fade (aggro drop)", { skip_range = true }) end },
