@@ -537,14 +537,33 @@ end
 
 local function fade_matches(context, s)
     if not context.in_combat then return false end
-    if s.enemy_count < 2 then return false end
     if not s.fade_ready then return false end
+    -- Only fade if we have a living party member within 40yd who can take threat
+    if not context.is_group then return false end
+    local members = NS.GetPartyMembers and NS.GetPartyMembers() or nil
+    if type(members) ~= "table" or #members == 0 then return false end
+    local me = NS.GetPlayer()
+    local has_tank_nearby = false
+    for i = 1, #members do
+        local m = members[i]
+        if m and m.is_alive and m:is_alive() then
+            local dist = (me and m.get_distance) and m:get_distance(me) or 0
+            if dist <= 40 then
+                has_tank_nearby = true
+                break
+            end
+        end
+    end
+    if not has_tank_nearby then return false end
     return true
 end
 
 local function dispel_magic_matches(context, s)
-    if not s.dispel_magic_ready then return false end
-    return true
+    -- Disabled: middleware PartyDispelMagic already handles self + party dispel
+    -- with proper settings gating and debuff detection.
+    -- This strategy was casting DispelMagic on self without checking for debuffs,
+    -- wasting GCD on every frame.
+    return false
 end
 
 local function shackle_undead_matches(context, s)
@@ -566,6 +585,7 @@ end
 local function mana_below_5_wand_matches(context, s)
     if (context.mana_pct or 100) >= 5 then return false end
     if not context.in_combat then return false end
+    if not context.has_valid_enemy_target then return false end
     return true
 end
 
