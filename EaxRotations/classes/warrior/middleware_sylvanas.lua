@@ -458,8 +458,8 @@ local strategies = {
 
     -- ============================================================================
     -- PvP: DISARM — remove enemy melee weapon (10s, Defensive Stance required)
-    -- Ported from Flux Warrior middleware. Uses offensive dispel priority DB
-    -- for on_burst trigger mode: disarms when target has priority buffs.
+    -- Uses offensive dispel priority DB for on_burst trigger mode:
+    -- disarms when target has priority buffs.
     -- NOTE: Does not check disarm immunity/DR (API not exposed in EaxRotations).
     --       NS.spell_ready + try_cast will fail gracefully on immune targets.
     -- ============================================================================
