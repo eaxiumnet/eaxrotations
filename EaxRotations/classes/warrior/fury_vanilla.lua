@@ -255,7 +255,7 @@ end
 -- 10. Sunder Armor
 if ACTION.SunderArmor then
     table.insert(strategies, { name = "SunderArmor",
-        matches = function(c, s) return s.sunder_ready and not s.has_sunder end,
+        matches = function(c, s) return s.sunder_ready and not s.has_sunder and (c.target_armor or 0) > 0 end,
         execute = function(c) return try_cast(ACTION.SunderArmor, c.target, "[VANILLA FURY] Sunder") end
     })
 end

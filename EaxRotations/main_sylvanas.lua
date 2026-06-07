@@ -6,6 +6,7 @@ local M = {}
 local _context = {}
 local _combat_start_time = nil
 local was_in_combat = false
+local _combat_state_last_known = 0  -- timestamp when combat state was last confirmed by API
 local _ooc_ok, ooc_manager = pcall(require, "shared/ooc_manager_sylvanas")
 if not _ooc_ok then ooc_manager = nil end
 local _burst_ok, BurstLogic = pcall(require, "shared/burst_logic_sylvanas")
@@ -20,10 +21,17 @@ local _ttd_ema_ok, ttd_ema = pcall(require, "shared/ttd_ema_tracker_sylvanas")
 if not _ttd_ema_ok or type(ttd_ema) ~= "table" then ttd_ema = nil end
 local _tick_profiler_ok, tick_profiler = pcall(require, "shared/tick_profiler_sylvanas")
 if not _tick_profiler_ok then tick_profiler = nil end
+-- PvP trinket tracker: self-registers NS.PvPTrinket + spell cast + update callbacks
+pcall(require, "shared/pvp_trinket_tracker_sylvanas")
 local _buff_db_ok, buffs = pcall(require, "common/buff_db")
 if not _buff_db_ok or type(buffs) ~= "table" then buffs = {} end
 local BLOODLUST_IDS = buffs.BLOODLUST or { 2825, 32182 }
 local DRUMS_IDS = buffs.DRUMS or { 35475, 35474, 35473, 35476 }
+
+-- PvP context field constants (cc_target, cc_safe, fear_nearby, enemy_healer, melee_on_you)
+local FEAR_IDS = { 6215, 6213, 5782, 8122, 8124, 10888, 10890, 5484, 17928 }  -- Fear, Psychic Scream, Howl of Terror
+local HEALER_CLASS_IDS = { [5]=true, [2]=true, [11]=true, [7]=true }  -- Priest, Paladin, Druid, Shaman
+local MELEE_CLASS_IDS = { [1]=true, [4]=true, [2]=true, [7]=true, [11]=true }  -- Warrior, Rogue, Paladin, Shaman, Druid
 
 -- Spell queue module is loaded here so the dispatcher knows it is available.
 -- Actual queueing happens inside NS.try_cast() in core_sylvanas.lua.
@@ -335,10 +343,17 @@ local function build_context()
     local is_in_combat = NS.safe_field and NS.safe_field(me, "is_in_combat") or nil
     local raw_in_combat = is_in_combat and safe(is_in_combat, me) or nil
     local combat_state_known = type(raw_in_combat) == "boolean"
-    local in_combat = combat_state_known and raw_in_combat or was_in_combat
-
+    local in_combat
     if combat_state_known then
+        in_combat = raw_in_combat
         was_in_combat = in_combat
+        _combat_state_last_known = NS.time_now()
+    else
+        -- Decay: if API has been returning nil for > 1s, assume out of combat
+        if was_in_combat and NS.time_now() - _combat_state_last_known > 1.0 then
+            was_in_combat = false
+        end
+        in_combat = was_in_combat
     end
 
     if not _combat_start_time and me and in_combat then _combat_start_time = NS.time_now() end
@@ -434,6 +449,13 @@ local function build_context()
     _context.energy = NS.power_current(NS.POWER_ENERGY)
     _context.player_energy = _context.energy
     _context.focus = NS.power_current(NS.POWER_FOCUS)
+    -- Attack power for cat druid AP snapshotting (falls back to 0 if unit method unavailable)
+    _context.attack_power = unit_number(me, "get_attack_power") or 0
+    -- Spell crit chance for paladin Illumination mana-return calculations.
+    -- Expected as percentage (0-100); consumer divides by 100. Falls back to 0 if API unavailable.
+    _context.crit_chance = unit_number(me, "get_spell_crit_chance") or 0
+    -- Target armor for sunder/faerie fire value assessment
+    _context.target_armor = unit_number(target, "get_armor") or 0
     _context.bloodlust_active = me and NS.buff_up(me, BLOODLUST_IDS) or false
     _context.drums_active = me and NS.buff_up(me, DRUMS_IDS) or false
     _context.should_burst = BurstLogic.should_auto_burst(_context, {
@@ -527,10 +549,11 @@ local function build_context()
             _context.target_bleed_immune = (ctype == 4 or ctype == 6 or ctype == 9)
         end
     end
-    -- DR (diminishing returns) on stun for target
+    -- DR (diminishing returns) on stun for target.
+    -- Defaults to 0 (no DR) — stays 0 if NS.DRTracker module failed to load.
     _context.target_dr_stun = 0
-    if target and NS.dr_tracker and NS.dr_tracker.get_dr_multiplier then
-        local ok_dr, dr_mult = pcall(NS.dr_tracker.get_dr_multiplier, target, "stun")
+    if target and NS.DRTracker and NS.DRTracker.get_dr_multiplier then
+        local ok_dr, dr_mult = pcall(NS.DRTracker.get_dr_multiplier, target, "stun")
         if ok_dr and dr_mult then
             _context.target_dr_stun = dr_mult  -- 1.0 = full, <1.0 = diminished
         end
@@ -544,6 +567,104 @@ local function build_context()
     _context.aoe_damage_incoming = count > 1
     -- Is this a raid boss? (worldboss=3 classification or target_is_boss)
     _context.is_raid_boss = is_target_boss or (target_classification and target_classification >= 3) or false
+    -- Fire mage: Improved Scorch maintenance (Scorch debuff = spell ID 22959)
+    _context.scorch_stacks = 0
+    _context.scorch_remains = 0
+    if target then
+        _context.scorch_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, { 22959 }) or 0
+        _context.scorch_remains = NS.debuff_remains and NS.debuff_remains(target, { 22959 }) or 0
+    end
+    -- Enemy array for spec-level iteration (frost mage Cone of Cold, prot pally CC checks)
+    _context.enemies = throttled_enemies() or {}
+    -- Legacy aliases for paladin specs that use alternative field names
+    _context.enemy_list = _context.enemies
+    _context.targets = _context.enemies
+    -- Group injured flag for off-heal gating (shaman elemental Chain Heal)
+    _context.group_injured = false
+    if _context.is_group then
+        local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
+        if party then
+            for _, u in ipairs(party) do
+                if u and NS.unit_alive(u) and NS.unit_health_pct(u) < 90 then
+                    _context.group_injured = true
+                    break
+                end
+            end
+        end
+    end
+    -- PvP: CC target for Polymorph (mage specs) — uses focus target when valid
+    _context.cc_target = nil
+    if _context.is_pvp and target then
+        local focus = NS.GetFocus and NS.GetFocus() or nil
+        if focus and NS.unit_alive(focus) and valid_enemy(me, focus) and not NS.same_unit(focus, target) then
+            _context.cc_target = focus
+        end
+    end
+    -- PvP: CC-safe flag for AoE (shaman elemental) — false when nearby enemies are CC'd
+    _context.cc_safe = true
+    if _context.is_pvp and target then
+        local enemies = throttled_enemies()
+        if type(enemies) == "table" then
+            local n = enemies.n or #enemies
+            for i = 1, n do
+                local e = enemies[i]
+                if e and NS.unit_alive(e) and NS.debuff_up(e, NS.CC_DEBUFFS) then
+                    _context.cc_safe = false
+                    break
+                end
+            end
+        end
+    end
+    -- PvP: Fear nearby detection for Tremor Totem (shaman specs)
+    _context.fear_nearby = false
+    if _context.is_pvp then
+        local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
+        if party then
+            for _, u in ipairs(party) do
+                if u and NS.unit_alive(u) and NS.debuff_up(u, FEAR_IDS) then
+                    _context.fear_nearby = true
+                    break
+                end
+            end
+        end
+        if not _context.fear_nearby and me and NS.debuff_up(me, FEAR_IDS) then
+            _context.fear_nearby = true
+        end
+    end
+    -- PvP: Enemy healer detection for curse selection (warlock specs)
+    _context.enemy_healer = false
+    if _context.is_pvp and target and NS.safe_field then
+        local get_class = NS.safe_field and NS.safe_field(target, "get_class")
+        local class_id = get_class and safe(get_class, target) or nil
+        if class_id and HEALER_CLASS_IDS[class_id] then
+            _context.enemy_healer = true
+        end
+    end
+    -- PvP: Melee enemy targeting player for defensive curse/Howl (warlock specs)
+    _context.melee_on_you = false
+    if _context.is_pvp and target and me and NS.safe_field then
+        local enemies = throttled_enemies()
+        if type(enemies) == "table" then
+            local n = enemies.n or #enemies
+            for i = 1, n do
+                local e = enemies[i]
+                if e and NS.unit_alive(e) then
+                    local get_class = NS.safe_field and NS.safe_field(e, "get_class")
+                    local class_id = get_class and safe(get_class, e) or nil
+                    if class_id and MELEE_CLASS_IDS[class_id] then
+                        local get_target_fn = NS.safe_field(e, "get_target")
+                        if get_target_fn then
+                            local ok, e_target = pcall(get_target_fn, e)
+                            if ok and e_target and NS.same_unit(e_target, me) then
+                                _context.melee_on_you = true
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
     -- Is the player mounted? (guards OOC buffs, aspect switching)
     _context.is_mounted = me and NS.safe_field and NS.safe_field(me, "is_mounted") and safe(me.is_mounted, me) == true or false
     -- Is player control locked? (fear, charm, mind control — stop casting/gcd)
@@ -727,7 +848,7 @@ function M.on_rotation_update()
         return false
     end
     if not (context.in_combat or context.has_valid_enemy_target) then
-        -- Only run OOC manager when there's no valid enemy target (even if combat_state_known is false)
+        -- Only run OOC manager when there's no valid enemy target
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true
         end
@@ -781,9 +902,6 @@ function M.on_rotation_update_unified()
         return false
     end
     if not (context.in_combat or context.has_valid_enemy_target) then
-        if context.combat_state_known == false then
-            return false
-        end
         -- Only run OOC manager when there's no valid enemy target
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true

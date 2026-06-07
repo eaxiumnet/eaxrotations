@@ -148,11 +148,8 @@ local function debuff_remains(unit, debuff)
 end
 
 local function get_attack_power(context, me)
+    -- context.attack_power is now wired in build_context()
     if context and type(context.attack_power) == "number" then return context.attack_power end
-    if NS.attack_power then return NS.attack_power() or 0 end
-    if NS.get_attack_power then return NS.get_attack_power() or 0 end
-    local ap = safe_method(me, "get_attack_power", nil)
-    if type(ap) == "number" then return ap end
     return 0
 end
 
@@ -419,6 +416,8 @@ local _strategies = {
         matches = function(ctx, s)
             if not s.is_stealthed then return false end
             if not ctx.has_valid_enemy_target then return false end
+            -- Skip if target has no armor (API unavailable or already fully reduced)
+            if (ctx.target_armor or 0) <= 0 then return false end
             if s.faerie_fire_remains > FAERIE_FIRE_REFRESH then return false end
             return spell_ready(SPELLS.FaerieFireFeral, s.target)
         end,
@@ -431,6 +430,8 @@ local _strategies = {
         matches = function(ctx, s)
             if not s.is_cat then return false end
             if not ctx.has_valid_enemy_target then return false end
+            -- Skip if target has no armor (API unavailable or already fully reduced)
+            if (ctx.target_armor or 0) <= 0 then return false end
             if s.faerie_fire_remains > FAERIE_FIRE_REFRESH then return false end
             return spell_ready(SPELLS.FaerieFireFeral, s.target)
         end,

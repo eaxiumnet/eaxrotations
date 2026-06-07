@@ -96,7 +96,7 @@ local function build_state(context)
     end
     state.mana_gem_ready = state.mana_gem_id ~= nil
     -- SP-aware gating: Falls back through context (middleware) then to 0 (conservative: skip DoTs when SP unknown)
-    state.spell_damage = (NS.get_spell_damage and NS.get_spell_damage()) or context.spell_damage or 0
+    state.spell_damage = context.spell_damage or 0
     return state
 end
 
@@ -404,4 +404,5 @@ table.insert(strategies, 24, {
 NS.rotation_registry:register("destruction", strategies, { get_state = build_state })
 NS.log("Warlock destruction rotation registered (build_state, explicit strategies, Backlash/Backdraft, execute, AoE, defensives, utility)")
 return strategies
+
 

@@ -548,6 +548,8 @@ end
 local function faerie_fire_pull_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.has_valid_target then return false end
+    -- Skip if target has no armor (API unavailable or already fully reduced)
+    if (context.target_armor or 0) <= 0 then return false end
     if state.in_melee then return false end
     if state.target_range > 30 then return false end
     if state.faerie_remains > FAERIE_FIRE_REFRESH then return false end
@@ -621,6 +623,8 @@ local function faerie_fire_matches(context, action)
     local state = build_state(context)
     if not state.target then return false end
     if not can_use_bear_ability(state) then return false end
+    -- Skip if target has no armor (API unavailable or already fully reduced)
+    if (context.target_armor or 0) <= 0 then return false end
     if state.faerie_remains > FAERIE_FIRE_REFRESH then return false end
     return action_ready(context, action)
 end

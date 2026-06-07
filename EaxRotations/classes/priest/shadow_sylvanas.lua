@@ -23,7 +23,6 @@ local MIND_FLAY_IDS = { 25387, 18807, 17314, 17313, 17312, 17311, 15407 }
 local DEVOURING_PLAGUE_DEBUFF = { 25467, 19280, 19279, 19278, 19277, 19276, 2944 }
 local SHADOW_WEAVING_DEBUFF = { 15258 }  -- Shadow Weaving talent debuff (5-stack +2% shadow dmg/stack)
 local PSYCHIC_SCREAM_BUFF = { 10890, 10888, 8124, 8122 }
-local FADE_BUFF = { 25429, 10942, 10941, 9592, 9579, 9578, 586 }
 local STARSHARDS_SPELL = { 25446, 19305, 19304, 19303, 19302, 19299, 19296, 10797 }
 local HOLY_NOVA_SPELL = { 25331, 25329, 27805, 27804, 27803, 27801, 27800, 27799, 15431, 15430, 15237 }
 
@@ -106,7 +105,6 @@ local shadow_state = {
     mounted = false,
     psychic_scream_ready = false,
     silence_ready = false,
-    fade_ready = false,
     dispel_magic_ready = false,
     shackle_undead_ready = false,
     mana_pct = 100,
@@ -191,7 +189,6 @@ local function build_state(context)
     
     shadow_state.silence_ready = me and NS.spell_ready(SILENCE_INTERRUPT_SPELL, target, { expected_cooldown = 45 }) or false
     shadow_state.psychic_scream_ready = me and NS.spell_ready(SPELLS.PsychicScream, me, { skip_range = true, expected_cooldown = 30 }) or false
-    shadow_state.fade_ready = me and NS.spell_ready(SPELLS.Fade, me, { skip_range = true, expected_cooldown = 30 }) or false
     shadow_state.dispel_magic_ready = me and NS.spell_ready(SPELLS.DispelMagic, me, { skip_range = true }) or false
     shadow_state.shackle_undead_ready = me and NS.spell_ready(SPELLS.ShackleUndead, me, { expected_cooldown = 1.5 }) or false
     shadow_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
@@ -251,7 +248,7 @@ local function build_state(context)
     shadow_state.target_creature_type = target_creature_type(target)
 
     -- Current spell damage from NS (provided by middleware or character API)
-    shadow_state.spell_damage = (NS.get_spell_damage and NS.get_spell_damage()) or context.spell_damage or 0
+    shadow_state.spell_damage = context.spell_damage or 0
     -- Bloodlust/Heroism buff — enables more aggressive snapshot upgrade threshold
     shadow_state.has_bloodlust = me and NS.buff_up(me, BLOODLUST_BUFFS) or false
     -- Maintain snapshot state: reset snapshots if DoT expired or target changed
@@ -394,6 +391,7 @@ local function racial_matches(context, s)
 end
 
 local function vampiric_touch_matches(context, s)
+    if context.is_casting or context.is_channeling then return false end
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.VampiricTouch, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
     if context.is_moving then return false end
@@ -452,6 +450,7 @@ local function inner_focus_matches(context, s)
 end
 
 local function mind_blast_matches(context, s)
+    if context.is_casting or context.is_channeling then return false end
     if not can_break_mind_flay(s) then return false end
     if context.is_moving then return false end
     if not context.has_valid_enemy_target then return false end
@@ -535,28 +534,6 @@ local function psychic_scream_matches(context, s)
     return true
 end
 
-local function fade_matches(context, s)
-    if not context.in_combat then return false end
-    if not s.fade_ready then return false end
-    -- Only fade if we have a living party member within 40yd who can take threat
-    if not context.is_group then return false end
-    local members = NS.GetPartyMembers and NS.GetPartyMembers() or nil
-    if type(members) ~= "table" or #members == 0 then return false end
-    local me = NS.GetPlayer()
-    local has_tank_nearby = false
-    for i = 1, #members do
-        local m = members[i]
-        if m and m.is_alive and m:is_alive() then
-            local dist = (me and m.get_distance) and m:get_distance(me) or 0
-            if dist <= 40 then
-                has_tank_nearby = true
-                break
-            end
-        end
-    end
-    if not has_tank_nearby then return false end
-    return true
-end
 
 local function dispel_magic_matches(context, s)
     -- Disabled: middleware PartyDispelMagic already handles self + party dispel
@@ -615,7 +592,7 @@ local strategies = {
     { name = "ShadowWordDeath", matches = shadow_word_death_matches, execute = function(context) return NS.try_cast(SPELLS.ShadowWordDeath, context.target, "[SHADOW] ShadowWordDeath") end },
     { name = "MindFlay", matches = mind_flay_matches, execute = function(context) return NS.try_cast(SPELLS.MindFlay, context.target, "[SHADOW] MindFlay") end },
     { name = "PsychicScream", matches = psychic_scream_matches, execute = function(context) return NS.try_cast(SPELLS.PsychicScream, context.target, "[SHADOW] PsychicScream") end },
-    { name = "Fade", matches = fade_matches, execute = function(context) return NS.try_cast(SPELLS.Fade, NS.PLAYER_UNIT, "[SHADOW] Fade", { skip_range = true }) end },
+    -- Fade removed: middleware ThreatDrop + EnhancedFade handle threat-based Fade
     { name = "DispelMagic", matches = dispel_magic_matches, execute = function(context) return NS.try_cast(SPELLS.DispelMagic, NS.PLAYER_UNIT, "[SHADOW] DispelMagic", { skip_range = true }) end },
     { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return NS.try_cast(SPELLS.ShackleUndead, context.target, "[SHADOW] ShackleUndead") end },
     { name = "SWPSpread", matches = shadow_swp_spread_matches, execute = function(context) _set_lockout("SWP", 3000); local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] SWPSpread"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
@@ -633,3 +610,4 @@ local strategies = {
 NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
 NS.log("Priest shadow rotation registered")
 return strategies
+

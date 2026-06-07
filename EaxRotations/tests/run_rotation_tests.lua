@@ -167,6 +167,9 @@ local tests = {
     -- TTD fallback chain (build_context)
     "test_ema_ttd_fallback.lua",
 
+    -- Context field wiring regression (June 2026)
+    "test_context_wired_fields_2026_06.lua",
+
     -- reset_api_health integration tests
     "test_reset_api_health_aspect_manager.lua",
 

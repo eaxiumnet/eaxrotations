@@ -100,7 +100,7 @@ local function build_state(context)
     ele_state.target_count = context.enemy_count or 1
     ele_state.now_ms = NS.game_time_ms and NS.game_time_ms() or 0
     -- Current spell damage from NS (provided by middleware or character API)
-    ele_state.spell_damage = (NS.get_spell_damage and NS.get_spell_damage()) or context.spell_damage or 0
+    ele_state.spell_damage = context.spell_damage or 0
     -- Weapon buff freshness
     ele_state.has_flametongue = (ele_state.now_ms - runtime.last_flametongue_ms) < WEAPON_BUFF_REFRESH_MS
     ele_state.has_windfury = (ele_state.now_ms - runtime.last_windfury_ms) < WEAPON_BUFF_REFRESH_MS
@@ -496,3 +496,4 @@ local strategies = {
 NS.rotation_registry:register("elemental", strategies, { get_state = build_state })
 NS.log("Shaman elemental rotation registered (deep enhanced, parity weapon/heal/totem parity)")
 return strategies
+

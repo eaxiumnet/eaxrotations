@@ -178,11 +178,8 @@ local function debuff_remains(unit, debuff)
 end
 
 local function get_attack_power(context, me)
+    -- context.attack_power is now wired in build_context()
     if context and type(context.attack_power) == "number" then return context.attack_power end
-    if NS.attack_power then return NS.attack_power() or 0 end
-    if NS.get_attack_power then return NS.get_attack_power() or 0 end
-    local ap = safe_method(me, "get_attack_power", nil)
-    if type(ap) == "number" then return ap end
     return 0
 end
 
@@ -528,6 +525,8 @@ end
 local function faerie_fire_matches(context, action)
     local state = build_state(context)
     if not state.target then return false end
+    -- Skip if target has no armor (API unavailable or already fully reduced)
+    if (context.target_armor or 0) <= 0 then return false end
     if state.faerie_fire_remains > MANGLE_REFRESH_WINDOW then return false end
     if state.target_ttd > 0 and state.target_ttd < 10 then return false end
     if state.is_pvp and state.is_player_target then return true end
@@ -537,6 +536,8 @@ end
 local function faerie_fire_stealth_matches(context, action)
     local state = build_state(context)
     if not state.is_pvp and not state.is_player_target then return false end
+    -- Skip if target has no armor (API unavailable or already fully reduced)
+    if (context.target_armor or 0) <= 0 then return false end
     if state.faerie_fire_remains > FAERIE_FIRE_REFRESH then return false end
     local creature_type = safe_method(state.target, "get_creature_type", nil)
     if creature_type and not STEALTH_PREVENT_TYPES[creature_type] then return false end

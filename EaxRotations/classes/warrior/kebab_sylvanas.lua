@@ -388,6 +388,8 @@ local strategies = {
             if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
             local mode = settings.sunder_armor_mode or "none"
             if not can_attack_target(context) or mode == "none" then return false end
+            -- Skip if target has no armor (API unavailable or already fully reduced)
+            if (context.target_armor or 0) <= 0 then return false end
             if context.stance ~= Constants.STANCE.BATTLE and context.stance ~= Constants.STANCE.DEFENSIVE then return false end
 
             if mode == "help_stack" then

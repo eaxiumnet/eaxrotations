@@ -21,6 +21,7 @@ local MANA_GEM_CONJURE = { 27101, 10054, 10053, 3552, 759 }  -- Conjure Mana Eme
 local fire_state = {
     scorch_stacks = 0,
     scorch_remains = 0,
+    pyroblast_ready = false,
     combustion_ready = false,
     mana_pct = 100,
     mana_gem_available = false,
@@ -56,6 +57,9 @@ local function build_state(context)
     fire_state.mana_pct = context.mana_pct or 100
     fire_state.remove_curse_ready = NS.spell_ready(SPELLS.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
     fire_state.mana_gem_available = first_ready_mana_gem() ~= nil
+    if target then
+        fire_state.pyroblast_ready = NS.spell_ready(SPELLS.Pyroblast, target)
+    end
     return fire_state
 end
 
