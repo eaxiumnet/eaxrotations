@@ -58,8 +58,7 @@ local function has_buff(buff_ids)
 end
 
 local function target_creature_type(context, state)
-    local ctype = context and context.state and context.state.target_creature_type
-    if ctype ~= nil then return ctype end
+    -- context.target_creature_type no longer exists; query target directly.
     local target = (state and state.target) or (context and context.target)
     if target and target.get_creature_type then
         local ok, value = pcall(function() return target:get_creature_type() end)
@@ -128,12 +127,12 @@ function build_state(context)
     state.wand_threshold = (context.settings and context.settings.leveling_wand_threshold) or 20
 
     -- Count nearby enemies
-    state.enemies = (context.state and context.state.enemy_count) or 0
-    state.hp = (context.state and context.state.hp_pct) or 100
-    state.is_moving = (context.state and context.state.is_moving) or false
+    state.enemies = context.enemies_count or 0
+    state.hp = context.hp or 100
+    state.is_moving = context.is_moving or false
 
     -- Mana
-    state.mana_pct = (context.state and context.state.mana_pct) or 100
+    state.mana_pct = context.mana_pct or 100
 
     -- Shadowform toggle setting (default: true = auto-enter Shadowform when available)
     state.use_shadowform = (context.settings and context.settings.leveling_use_shadowform) ~= false
@@ -204,8 +203,8 @@ local function fade_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.fade_ready then return false end
-    if not context.state then return false end
-    return (context.state.threat_status or 0) >= 3
+    -- context.threat_pct is 0-100; >= 99 = drawn aggro (threat zone 3, with float safety margin)
+    return (context.threat_pct or 0) >= 99
 end
 
 local function shackle_matches(context, state)

@@ -455,6 +455,7 @@ end
 
 local function sunder_armor_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
+    if (context.target_armor or 0) <= 0 then return false end
     if not setting(context, "use_sunder_armor", false) then return false end
     if (state.sunder_stacks or 0) >= 5 then return false end
     if (state.rage or 0) < 15 then return false end

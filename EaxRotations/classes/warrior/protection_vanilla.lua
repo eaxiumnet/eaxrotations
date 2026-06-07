@@ -141,6 +141,8 @@ end
 local function sunder_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
     if not context.target then return false end
+    -- Skip if target has no armor (armorless mob or API unavailable)
+    if (context.target_armor or 0) <= 0 then return false end
     if (state.sunder_stacks or 0) < SUNDER_MAX_STACKS then
         return state.revenge_ready == false
     end

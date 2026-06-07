@@ -288,10 +288,11 @@ local rampage_matches = function(_, state)
 end
 
 --- Sunder Armor - durable target armor reduction before rage dumps
-local sunder_armor_matches = function(_, state)
+local sunder_armor_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.target then return false end
+    if (context.target_armor or 0) <= 0 then return false end
     if not state.sunder_armor_ready then return false end
     if (state.sunder_stacks or 0) >= 3 then return false end
     local ok, hp = pcall(function() return state.target:get_health_percentage() end)

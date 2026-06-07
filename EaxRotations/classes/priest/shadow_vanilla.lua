@@ -232,7 +232,7 @@ local function build_state(context)
     shadow_state.target_creature_type = target_creature_type(target)
 
     -- Current spell damage from NS (provided by middleware or character API)
-    shadow_state.spell_damage = (NS.get_spell_damage and NS.get_spell_damage()) or context.spell_damage or 0
+    shadow_state.spell_damage = context.spell_damage or 0
     -- Classic haste buff — enables more aggressive snapshot upgrade threshold
     shadow_state.has_bloodlust = false
     -- Maintain snapshot state: reset snapshots if DoT expired or target changed
@@ -485,3 +485,4 @@ local strategies = {
 NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
 NS.log("Priest shadow rotation registered")
 return strategies
+

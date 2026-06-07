@@ -124,6 +124,7 @@ action_calls = {}
 local ctx_ff_fresh = {
     target = { _debuff_remains = 10 },
     ttd = 60,
+    target_armor = 5000,
 }
 assert_false(faerie_fire.matches(ctx_ff_fresh), "FaerieFireFeral should not match when debuff > 3 sec")
 assert_eq(#action_calls, 0, "action_matches should not be called when debuff fresh")
@@ -133,6 +134,7 @@ action_calls = {}
 local ctx_ff_low_ttd = {
     target = { _debuff_remains = 1 },
     ttd = 5,
+    target_armor = 5000,
 }
 assert_false(faerie_fire.matches(ctx_ff_low_ttd), "FaerieFireFeral should not match when ttd < 10")
 assert_eq(#action_calls, 0, "action_matches should not be called when ttd < 10")
@@ -142,6 +144,7 @@ action_calls = {}
 local ctx_ff_ok = {
     target = { _debuff_remains = 1 },
     ttd = 30,
+    target_armor = 5000,
 }
 assert_true(faerie_fire.matches(ctx_ff_ok), "FaerieFireFeral should match when debuff low and ttd >= 10")
 

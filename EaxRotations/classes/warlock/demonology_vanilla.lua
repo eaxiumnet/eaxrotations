@@ -171,7 +171,7 @@ local function build_state(context)
     end
 
     -- Snapshot state
-    demo_state.spell_damage = (NS.get_spell_damage and NS.get_spell_damage()) or context.spell_damage or 0
+    demo_state.spell_damage = context.spell_damage or 0
     local target_key = target and (target.get_guid and target:get_guid()) or nil
     if target_key ~= demo_state.snapshot_target then
         demo_state.snapshot_corruption_dmg = 0
@@ -636,3 +636,4 @@ local strategies = {
 NS.rotation_registry:register("demonology", strategies, { get_state = build_state })
 NS.log("[VANILLA] Warlock Demonology rotation registered (S+ tier)")
 return { strategies = strategies, build_state = build_state }
+

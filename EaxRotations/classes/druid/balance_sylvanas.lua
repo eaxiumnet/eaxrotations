@@ -78,7 +78,7 @@ local function _build_state(ctx)
             break
         end
     end
-    _state.spell_damage = (_G_E.get_spell_damage and _G_E.get_spell_damage()) or ctx.spell_damage or 0
+    _state.spell_damage = ctx.spell_damage or 0
     _state.innervate_target = nil
     local floor_mana = (ctx.settings and ctx.settings.balance_innervate_mana) or 30
     if ctx.in_combat and ctx.is_group and ctx.me and _G_E.GetPartyMembers then
@@ -427,3 +427,4 @@ local _strategies = {
 
 _G_E.rotation_registry:register("balance", _strategies, { get_state = _build_state })
 return { strategies = _strategies, build_state = _build_state }
+
