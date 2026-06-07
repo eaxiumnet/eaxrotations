@@ -369,6 +369,8 @@ local function expose_armor_matches(context, s)
     if not s.expose_armor_ready then return false end
     -- Research: only apply Expose Armor when assigned (conflicts with Sunder/Devastate)
     if not s.expose_assigned then return false end
+    -- Skip if target has no armor (API unavailable or already fully reduced)
+    if (context.target_armor or 0) <= 0 then return false end
     return true
 end
 

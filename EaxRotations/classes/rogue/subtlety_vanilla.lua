@@ -392,6 +392,9 @@ end
 
 local function expose_armor_matches(context, state)
     if state.combo < 4 then return false end
+    if context.has_sunder then return false end
+    -- Skip if target has no armor (API unavailable or already fully reduced)
+    if (context.target_armor or 0) <= 0 then return false end
     if state.expose_remains > 3 then return false end
     if not context.target_is_boss and (context.ttd or 999) < 20 then return false end
     return NS.spell_ready(SPELLS.ExposeArmor, context.target)

@@ -467,6 +467,8 @@ local strategies = {
             local target = context.target
             if not target then return false end
             if state.combo < 3 then return false end
+            -- Skip if target has no armor (API unavailable or already fully reduced)
+            if (context.target_armor or 0) <= 0 then return false end
             if context.has_sunder then return false end
             return NS.spell_ready(SPELLS.ExposeArmor, target)
         end,
