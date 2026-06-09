@@ -47,6 +47,12 @@ local function spell_ready(spell_action)
     return NS.spell_ready and NS.spell_ready(spell_action) or false
 end
 
+local function try_cast(spell_action, target, label, opts)
+    if not NS.try_cast then return false end
+    local ok, result = pcall(NS.try_cast, spell_action, target, label or "", opts)
+    return ok and result == true
+end
+
 local function get_player()
     return (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
 end
@@ -56,20 +62,30 @@ local function has_buff(buff_ids)
     local me = get_player()
     if not me then return false end
     local ids = type(buff_ids) == "table" and buff_ids or { buff_ids }
-    if NS.buff_up then return NS.buff_up(me, ids) end
+    if NS.buff_up then
+        local ok, result = pcall(NS.buff_up, me, ids)
+        return ok and result
+    end
     return false
 end
 
 local function buff_remains(buff_ids)
     local me = get_player()
     if not me or not NS.buff_remains then return 0 end
-    return NS.buff_remains(me, buff_ids) or 0
+    local ok, remains = pcall(NS.buff_remains, me, buff_ids)
+    return (ok and remains) or 0
 end
 
 local function debuff_stacks(unit, ids)
     if not unit then return 0 end
-    if NS.debuff_stacks then return NS.debuff_stacks(unit, ids) or 0 end
-    if NS.get_debuff_stacks then return NS.get_debuff_stacks(unit, ids) or 0 end
+    if NS.debuff_stacks then
+        local ok, stacks = pcall(NS.debuff_stacks, unit, ids)
+        return (ok and stacks) or 0
+    end
+    if NS.get_debuff_stacks then
+        local ok, stacks = pcall(NS.get_debuff_stacks, unit, ids)
+        return (ok and stacks) or 0
+    end
     return 0
 end
 
@@ -468,70 +484,72 @@ local strategies = {
     -- OOC: Battle Shout
     { name = "BattleShout",
       matches = battle_shout_matches,
-      execute = function(context) return NS.try_cast(SPELLS.BattleShout, (context and context.me) or get_player(), "[LEVELING] Battle Shout", { skip_range = true }) end },
+      execute = function(context) return try_cast(SPELLS.BattleShout, (context and context.me) or get_player(), "[LEVELING] Battle Shout", { skip_range = true }) end },
 
     -- Interrupt: Pummel
     { name = "Pummel",
       matches = pummel_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Pummel, context.target, "[LEVELING] Pummel") end },
+      execute = function(context) return try_cast(SPELLS.Pummel, context and context.target, "[LEVELING] Pummel") end },
 
     -- PvP: Shield Slam Purge (after interrupt, before AoE - same priority as main middleware)
     { name = "ShieldSlamPurge",
       matches = shield_slam_purge_matches,
-      execute = function(context) if false then return NS.try_cast(nil, nil, "[LEVELING] Scanner marker") end
+      execute = function(context) if not context then return false end
+          if false then return try_cast(nil, nil, "[LEVELING] Scanner marker") end
           -- Shield Slam requires Defensive Stance — stance dance if needed
           if context.stance ~= STANCE.DEFENSIVE then
               if spell_ready(SPELLS.DefensiveStance) then
-                  return NS.try_cast(SPELLS.DefensiveStance, (context and context.me) or get_player(), "[LEVELING] Defensive Stance for purge", { skip_range = true })
+                  return try_cast(SPELLS.DefensiveStance, (context and context.me) or get_player(), "[LEVELING] Defensive Stance for purge", { skip_range = true })
               end
               return false
           end
           local name = context._ss_purge_name or "buff"
-          return NS.try_cast(SPELLS.ShieldSlam, context.target, "[LEVELING] Shield Slam purge → " .. name, { expected_cooldown = SHIELD_SLAM_CD })
+          return try_cast(SPELLS.ShieldSlam, context.target, "[LEVELING] Shield Slam purge → " .. name, { expected_cooldown = SHIELD_SLAM_CD })
       end },
 
     -- PvP: Disarm (after ShieldSlamPurge, before Charge - same priority as main middleware)
     { name = "Disarm",
       matches = disarm_matches,
-      execute = function(context) if false then return NS.try_cast(nil, nil, "[LEVELING] Scanner marker") end
+      execute = function(context) if not context then return false end
+          if false then return try_cast(nil, nil, "[LEVELING] Scanner marker") end
           -- Disarm requires Defensive Stance — stance dance if rage-safe
           if context.stance ~= STANCE.DEFENSIVE then
               if (context.rage or 0) > 25 then return false end
               if spell_ready(SPELLS.DefensiveStance) then
-                  return NS.try_cast(SPELLS.DefensiveStance, (context and context.me) or get_player(), "[LEVELING] Defensive Stance for Disarm", { skip_range = true })
+                  return try_cast(SPELLS.DefensiveStance, (context and context.me) or get_player(), "[LEVELING] Defensive Stance for Disarm", { skip_range = true })
               end
               return false
           end
           local label = context._disarm_burst_name
               and ("[LEVELING] Disarm → " .. context._disarm_burst_name)
               or "[LEVELING] Disarm"
-          return NS.try_cast(SPELLS.Disarm, context.target, label, { expected_cooldown = DISARM_CD })
+          return try_cast(SPELLS.Disarm, context.target, label, { expected_cooldown = DISARM_CD })
       end },
 
     -- Opener: Charge
     { name = "Charge",
       matches = charge_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Charge, context.target, "[LEVELING] Charge") end },
+      execute = function(context) return try_cast(SPELLS.Charge, context and context.target, "[LEVELING] Charge") end },
 
     -- Rage: Bloodrage
     { name = "Bloodrage",
       matches = bloodrage_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Bloodrage, (context and context.me) or get_player(), "[LEVELING] Bloodrage", { skip_range = true }) end },
+      execute = function(context) return try_cast(SPELLS.Bloodrage, (context and context.me) or get_player(), "[LEVELING] Bloodrage", { skip_range = true }) end },
 
     -- Rage: Berserker Rage (fear immunity + rage generation)
     { name = "BerserkerRage",
       matches = berserker_rage_matches,
-      execute = function(context) return NS.try_cast(SPELLS.BerserkerRage, (context and context.me) or get_player(), "[LEVELING] Berserker Rage", { skip_range = true }) end },
+      execute = function(context) return try_cast(SPELLS.BerserkerRage, (context and context.me) or get_player(), "[LEVELING] Berserker Rage", { skip_range = true }) end },
 
     -- Heal: Victory Rush
     { name = "VictoryRush",
       matches = victory_rush_matches,
-      execute = function(context) return NS.try_cast(SPELLS.VictoryRush, context.target, "[LEVELING] Victory Rush") end },
+      execute = function(context) return try_cast(SPELLS.VictoryRush, context and context.target, "[LEVELING] Victory Rush") end },
 
     -- Defense: Shield Wall (50% damage reduction emergency)
     { name = "ShieldWall",
       matches = shield_wall_matches,
-      execute = function(context) return NS.try_cast(SPELLS.ShieldWall, (context and context.me) or get_player(), "[LEVELING] Shield Wall", { skip_range = true }) end },
+      execute = function(context) return try_cast(SPELLS.ShieldWall, (context and context.me) or get_player(), "[LEVELING] Shield Wall", { skip_range = true }) end },
 
     -- Emergency: Health Potion
     { name = "HealthPotion",
@@ -541,68 +559,69 @@ local strategies = {
     -- Execute
     { name = "Execute",
       matches = execute_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Execute, context.target, "[LEVELING] Execute") end },
+      execute = function(context) return try_cast(SPELLS.Execute, context and context.target, "[LEVELING] Execute") end },
 
     -- PvP CC Gate: blocks AoE when nearby breakable CC (after all utilities, before AoE)
     { name = "PvPCCGate",
       matches = pvp_cc_gate_matches,
-      execute = function() if false then return NS.try_cast(nil, nil, "[LEVELING] PvP CC Gate") end
+      execute = function() if false then return try_cast(nil, nil, "[LEVELING] PvP CC Gate") end
           return true
       end },  -- No-op: consume tick, block AoE
 
     -- CC: Intimidating Shout (AoE fear escape when overwhelmed)
     { name = "IntimidatingShout",
       matches = intimidating_shout_matches,
-      execute = function(context) return NS.try_cast(SPELLS.IntimidatingShout, (context and context.me) or get_player(), "[LEVELING] Intimidating Shout", { skip_range = true }) end },
+      execute = function(context) return try_cast(SPELLS.IntimidatingShout, (context and context.me) or get_player(), "[LEVELING] Intimidating Shout", { skip_range = true }) end },
 
     -- DoT: Rend (bleed, good leveling opener)
     { name = "Rend",
       matches = rend_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Rend, context.target, "[LEVELING] Rend") end },
+      execute = function(context) return try_cast(SPELLS.Rend, context and context.target, "[LEVELING] Rend") end },
 
     -- AoE: Sweeping Strikes
     { name = "SweepingStrikes",
       matches = sweeping_strikes_matches,
-      execute = function(context) return NS.try_cast(SPELLS.SweepingStrikes, (context and context.me) or get_player(), "[LEVELING] Sweeping Strikes", { skip_range = true }) end },
+      execute = function(context) return try_cast(SPELLS.SweepingStrikes, (context and context.me) or get_player(), "[LEVELING] Sweeping Strikes", { skip_range = true }) end },
 
     -- AoE: Cleave (2+ enemies)
     { name = "Cleave",
       matches = cleave_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Cleave, context.target, "[LEVELING] Cleave") end },
+      execute = function(context) return try_cast(SPELLS.Cleave, context and context.target, "[LEVELING] Cleave") end },
 
     -- AoE: Whirlwind
     { name = "Whirlwind",
       matches = whirlwind_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Whirlwind, (context and context.me) or get_player(), "[LEVELING] Whirlwind", { skip_range = true }) end },
+      execute = function(context) return try_cast(SPELLS.Whirlwind, (context and context.me) or get_player(), "[LEVELING] Whirlwind", { skip_range = true }) end },
 
     -- AoE: Thunder Clap
     { name = "ThunderClap",
       matches = thunder_clap_matches,
-      execute = function(context) return NS.try_cast(SPELLS.ThunderClap, (context and context.me) or get_player(), "[LEVELING] Thunder Clap", { skip_range = true }) end },
+      execute = function(context) return try_cast(SPELLS.ThunderClap, (context and context.me) or get_player(), "[LEVELING] Thunder Clap", { skip_range = true }) end },
 
     -- Debuff: Demoralizing Shout (reduce enemy attack power)
     { name = "DemoralizingShout",
       matches = demo_shout_matches,
-      execute = function(context) return NS.try_cast(SPELLS.DemoralizingShout, (context and context.me) or get_player(), "[LEVELING] Demoralizing Shout", { skip_range = true }) end },
+      execute = function(context) return try_cast(SPELLS.DemoralizingShout, (context and context.me) or get_player(), "[LEVELING] Demoralizing Shout", { skip_range = true }) end },
 
     -- Spec: Rampage (Fury only — self-buff + flurry strikes)
     { name = "Rampage",
       matches = rampage_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Rampage, (context and context.me) or get_player(), "[LEVELING] Rampage", { skip_range = true }) end },
+      execute = function(context) return try_cast(SPELLS.Rampage, (context and context.me) or get_player(), "[LEVELING] Rampage", { skip_range = true }) end },
 
     -- Utility: Hamstring (slow fleeing targets or kite)
     { name = "Hamstring",
       matches = hamstring_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Hamstring, context.target, "[LEVELING] Hamstring") end },
+      execute = function(context) return try_cast(SPELLS.Hamstring, context and context.target, "[LEVELING] Hamstring") end },
 
     -- Spec filler: Mortal Strike / Bloodthirst
     { name = "SpecFiller",
       matches = spec_filler_matches,
-      execute = function(context) if false then return NS.try_cast(nil, nil, "[LEVELING] Scanner marker") end
+      execute = function(context) if not context then return false end
+          if false then return try_cast(nil, nil, "[LEVELING] Scanner marker") end
           if spell_ready(SPELLS.MortalStrike) then
-              return NS.try_cast(SPELLS.MortalStrike, context.target, "[LEVELING] Mortal Strike")
+              return try_cast(SPELLS.MortalStrike, context.target, "[LEVELING] Mortal Strike")
           elseif spell_ready(SPELLS.Bloodthirst) then
-              return NS.try_cast(SPELLS.Bloodthirst, context.target, "[LEVELING] Bloodthirst")
+              return try_cast(SPELLS.Bloodthirst, context.target, "[LEVELING] Bloodthirst")
           end
           return false
       end },
@@ -610,17 +629,17 @@ local strategies = {
     -- Overpower
     { name = "Overpower",
       matches = overpower_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Overpower, context.target, "[LEVELING] Overpower") end },
+      execute = function(context) return try_cast(SPELLS.Overpower, context and context.target, "[LEVELING] Overpower") end },
 
     -- Debuff: Sunder Armor for durable targets before rage dumps
     { name = "SunderArmor",
       matches = sunder_armor_matches,
-      execute = function(context) return NS.try_cast(SPELLS.SunderArmor, context.target, "[LEVELING] Sunder Armor") end },
+      execute = function(context) return try_cast(SPELLS.SunderArmor, context and context.target, "[LEVELING] Sunder Armor") end },
 
     -- Rage dump: Heroic Strike
     { name = "HeroicStrike",
       matches = heroic_strike_matches,
-      execute = function(context) return NS.try_cast(SPELLS.HeroicStrike, context.target, "[LEVELING] Heroic Strike") end },
+      execute = function(context) return try_cast(SPELLS.HeroicStrike, context and context.target, "[LEVELING] Heroic Strike") end },
 }
 
 if NS.rotation_registry and NS.rotation_registry.register then
