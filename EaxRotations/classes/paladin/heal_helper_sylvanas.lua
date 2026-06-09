@@ -1,7 +1,11 @@
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then
-    print("[EaxRotations ERROR] Core module not loaded!")
+    if type(core) == "table" and type(core.log_error) == "function" then
+        core.log_error("[EaxRotations ERROR] Core module not loaded!")
+    else
+        print("[EaxRotations ERROR] Core module not loaded!")
+    end
     return
 end
 
