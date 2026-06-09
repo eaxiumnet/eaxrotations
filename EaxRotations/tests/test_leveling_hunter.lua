@@ -2230,6 +2230,617 @@ do
 end
 -- ============================================================================
 
+
+-- ============================================================================
+-- DEEP DIVE: OOC guard loop (combat-gated strategies return false OOC)
+-- ============================================================================
+
+-- Combat-gated (have "if not state.in_combat then return false end"):
+--   4 RapidFire, 6 MendPet, 7 ConcussiveShot, 8 WingClip, 9 ScareBeast,
+--   10 FreezingTrap, 11 FeignDeath, 12 SerpentSting, 13 ArcaneShot,
+--   14 MultiShot, 15 RaptorStrike, 16 SteadyShot
+-- OOC-only {1,2,3} are tested separately below.
+-- AimedShot (5) has NO combat gate (used for pulling).
+
+local combat_gated = {4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+
+do
+    local ctx = make_context({in_combat = false, enemies_count = 5, hp = 20})
+    ctx.pet = { get_health_percentage = function() return 40 end }
+    local state = get_state(ctx)
+    -- Set all ready states to true
+    for k, v in pairs(state) do
+        if type(k) == "string" and k:match("_ready$") then
+            state[k] = true
+        end
+    end
+    state.hp = 20
+    state.enemies = 5
+    state.in_melee = true
+    state.in_combat = false
+    state.serpent_sting_use = true
+    state.hunters_mark_use = true
+    state.pet_hp = 40
+
+    for _, idx in ipairs(combat_gated) do
+        local ok, result = pcall(strategies[idx].matches, ctx, state)
+        assert_false(result, strategies[idx].name .. " OOC -> no match")
+    end
+
+    -- OOC-only {1,2,3} should MATCH OOC (they check state.in_combat == false)
+    state.has_aspect_hawk = false
+    ctx.pet = nil
+    state.call_pet_ready = true
+    assert_true(strategies[1].matches(ctx, state), "AspectHawk OOC -> match")
+    assert_true(strategies[2].matches(ctx, state), "CallPet OOC -> match")
+end
+
+-- OOC-only strategies {1,2,3} should NOT match in combat
+do
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.has_aspect_hawk = false
+    state.aspect_hawk_ready = true
+    state.call_pet_ready = true
+    state.hunters_mark_ready = true
+    state.hunters_mark_use = true
+    assert_false(strategies[1].matches(ctx, state), "AspectHawk in combat -> no match")
+    assert_false(strategies[2].matches(ctx, state), "CallPet in combat -> no match")
+    assert_false(strategies[3].matches(ctx, state), "HuntersMark in combat -> no match")
+end
+
+-- AimedShot (5) has NO combat gate — verified matches OOC
+do
+    local ctx = make_context({in_combat = false, is_moving = false})
+    local state = get_state(ctx)
+    state.aimed_shot_ready = true
+    state.is_moving = false
+    assert_true(strategies[5].matches(ctx, state), "AimedShot OOC -> match (no combat gate)")
+end
+
+-- ============================================================================
+-- DEEP DIVE: Nil target guard loop (target-dependent strategies with nil target)
+-- ============================================================================
+
+-- Target-dependent (have "if not state.target then return false end"):
+--   3 HuntersMark, 4 RapidFire, 5 AimedShot, 7 ConcussiveShot,
+--   8 WingClip, 9 ScareBeast, 10 FreezingTrap, 12 SerpentSting,
+--   13 ArcaneShot, 14 MultiShot, 15 RaptorStrike, 16 SteadyShot
+-- No target check: {1,2,6,11}
+
+local target_dependent = {3, 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 16}
+
+do
+    for _, idx in ipairs(target_dependent) do
+        local ctx = make_context({in_combat = true, enemies_count = 5, hp = 20})
+        ctx.target = nil
+        local state = get_state(ctx)
+        for k, v in pairs(state) do
+            if type(k) == "string" and k:match("_ready$") then
+                state[k] = true
+            end
+        end
+        state.hp = 20
+        state.enemies = 5
+        state.in_melee = true
+        state.serpent_sting_use = true
+        state.hunters_mark_use = true
+        state.is_moving = false
+        state.target = nil
+        local ok, result = pcall(strategies[idx].matches, ctx, state)
+        assert_false(result, strategies[idx].name .. " nil target -> no match")
+    end
+end
+
+-- ============================================================================
+-- DEEP DIVE: Missing ready=false guards for individual strategies
+-- ============================================================================
+
+do
+    -- HuntersMark (3): not ready -> no match
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.hunters_mark_use = true
+    state.hunters_mark_ready = false
+    NS.debuff_remains = function(target, spell) return 0 end
+    assert_false(strategies[3].matches(ctx, state), "HuntersMark not ready -> no match")
+
+    -- MendPet (6): not ready -> no match
+    local ctx2 = make_context({in_combat = true})
+    ctx2.pet = { get_health_percentage = function() return 40 end }
+    local state2 = get_state(ctx2)
+    state2.mend_pet_ready = false
+    state2.pet_hp = 40
+    assert_false(strategies[6].matches(ctx2, state2), "MendPet not ready -> no match")
+
+    -- FeignDeath (11): not ready -> no match
+    local ctx3 = make_context({in_combat = true, hp = 20})
+    local state3 = get_state(ctx3)
+    state3.feign_death_ready = false
+    state3.hp = 20
+    assert_false(strategies[11].matches(ctx3, state3), "FeignDeath not ready -> no match")
+
+    -- SerpentSting (12): not ready -> no match
+    local ctx4 = make_context({in_combat = true})
+    local state4 = get_state(ctx4)
+    state4.serpent_sting_ready = false
+    state4.serpent_sting_use = true
+    NS.debuff_remains = function(target, spell) return 0 end
+    assert_false(strategies[12].matches(ctx4, state4), "SerpentSting not ready -> no match")
+
+    -- MultiShot (14): not ready -> no match
+    local ctx5 = make_context({in_combat = true, enemies_count = 3})
+    local state5 = get_state(ctx5)
+    state5.multi_shot_ready = false
+    state5.enemies = 3
+    assert_false(strategies[14].matches(ctx5, state5), "MultiShot not ready -> no match")
+
+    -- SteadyShot (16): not ready -> no match
+    local ctx6 = make_context({in_combat = true, is_moving = false})
+    local state6 = get_state(ctx6)
+    state6.steady_shot_ready = false
+    state6.is_moving = false
+    assert_false(strategies[16].matches(ctx6, state6), "SteadyShot not ready -> no match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: API crash safety — additional coverage
+-- ============================================================================
+
+-- NS.debuff_remains throws in hunters_mark_matches (already has nil test)
+do
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function() error("simulated throw") end
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.hunters_mark_ready = true
+    state.hunters_mark_use = true
+    local ok, result = pcall(strategies[3].matches, ctx, state)
+    assert_true(ok, "throwing NS.debuff_remains in HuntersMark should not crash")
+    NS.debuff_remains = saved
+end
+
+-- pet.get_health_percentage throws in mend_pet build_state
+do
+    local ctx = make_context({in_combat = true})
+    ctx.pet = { get_health_percentage = function() error("simulated throw") end }
+    local state = get_state(ctx)
+    assert_eq(state.pet_hp, 100, "pet.get_health_percentage throwing -> pet_hp defaults to 100")
+end
+
+-- NS.try_cast returns false (not just nil/throw) for execute functions
+do
+    local saved = NS.try_cast
+    NS.try_cast = function() return false end
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast=false: strategy " .. i .. " execute did not crash")
+    end
+    NS.try_cast = saved
+end
+
+-- MendPet: NS.spell_ready nil/throw protection in build_state
+do
+    local saved = NS.spell_ready
+    NS.spell_ready = nil
+    local ctx = make_context({in_combat = true})
+    ctx.pet = { get_health_percentage = function() return 40 end }
+    local state = get_state(ctx)
+    assert_false(state.mend_pet_ready, "nil NS.spell_ready -> mend_pet_ready false")
+    NS.spell_ready = saved
+end
+
+-- ============================================================================
+-- DEEP DIVE: All execute with try_cast returning false
+-- ============================================================================
+
+do
+    local saved = NS.try_cast
+    NS.try_cast = function() return false end
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast=false: strategy " .. i .. " execute safe")
+    end
+    NS.try_cast = saved
+end
+
+-- ============================================================================
+-- DEEP DIVE: Nil state safety for all match functions
+-- ============================================================================
+
+do
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].matches, ctx, nil)
+        assert_true(ok, "strategy " .. i .. " matches(ctx, nil) did not crash")
+    end
+end
+
+-- ============================================================================
+-- DEEP DIVE: ConcussiveShot enemies×HP OR matrix — full coverage
+-- ============================================================================
+
+do
+    -- Condition: if (state.enemies or 0) < 2 and (state.hp or 100) > 40 then return false end
+    -- Matrix: (enemies=1,hp=50) -> no match; (enemies=2,hp=50) -> match;
+    --         (enemies=1,hp=40) -> match; (enemies=2,hp=40) -> match;
+    --         (enemies=0,hp=100) -> no match
+
+    -- Already covered by existing tests, add remainder:
+    -- enemies=3, hp=100 -> match (enemies >= 2)
+    local ctx = make_context({in_combat = true, enemies_count = 3, hp = 100})
+    local state = get_state(ctx)
+    state.concussive_shot_ready = true
+    state.hp = 100
+    state.enemies = 3
+    assert_true(strategies[7].matches(ctx, state), "concussive enemies=3 hp=100 -> match (enemies >= 2)")
+
+    -- enemies=1, hp=41 -> no match (both conditions hold)
+    local ctx2 = make_context({in_combat = true, enemies_count = 1, hp = 41})
+    local state2 = get_state(ctx2)
+    state2.concussive_shot_ready = true
+    state2.hp = 41
+    state2.enemies = 1
+    assert_false(strategies[7].matches(ctx2, state2), "concussive enemies=1 hp=41 -> no match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: WingClip hp=50/51 + melee + OOC + no target
+-- ============================================================================
+
+do
+    -- Condition: in_combat, target, in_melee, hp <= 50
+
+    -- hp=51, in_melee -> no match (hp > 50)
+    local ctx = make_context({in_combat = true, hp = 51, in_melee_range = true})
+    local state = get_state(ctx)
+    state.wing_clip_ready = true
+    state.hp = 51
+    state.in_melee = true
+    assert_false(strategies[8].matches(ctx, state), "wingclip hp=51 -> no match")
+
+    -- hp=30, not melee -> no match
+    local ctx2 = make_context({in_combat = true, hp = 30, in_melee_range = false})
+    local state2 = get_state(ctx2)
+    state2.wing_clip_ready = true
+    state2.hp = 30
+    state2.in_melee = false
+    assert_false(strategies[8].matches(ctx2, state2), "wingclip not melee -> no match")
+
+    -- hp=30, in_melee -> match
+    local ctx3 = make_context({in_combat = true, hp = 30, in_melee_range = true})
+    local state3 = get_state(ctx3)
+    state3.wing_clip_ready = true
+    state3.hp = 30
+    state3.in_melee = true
+    assert_true(strategies[8].matches(ctx3, state3), "wingclip hp=30 melee -> match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: ScareBeast enemies threshold + guards
+-- ============================================================================
+
+do
+    -- enemies=3 -> match
+    local ctx = make_context({in_combat = true, enemies_count = 3})
+    local state = get_state(ctx)
+    state.scare_beast_ready = true
+    state.enemies = 3
+    assert_true(strategies[9].matches(ctx, state), "scarebeast enemies=3 -> match")
+
+    -- not ready -> no match
+    local ctx2 = make_context({in_combat = true, enemies_count = 3})
+    local state2 = get_state(ctx2)
+    state2.scare_beast_ready = false
+    state2.enemies = 3
+    assert_false(strategies[9].matches(ctx2, state2), "scarebeast not ready -> no match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: SerpentSting debuff refresh boundary (remains 3/4/5) + setting + OOC
+-- ============================================================================
+
+do
+    -- remains < 4: should match
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 3 end
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.serpent_sting_ready = true
+    state.serpent_sting_use = true
+    assert_true(strategies[12].matches(ctx, state), "serpent remains=3 -> match")
+    NS.debuff_remains = saved
+
+    -- remains = 4: should NOT match
+    local saved2 = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 4 end
+    local ctx2 = make_context({in_combat = true})
+    local state2 = get_state(ctx2)
+    state2.serpent_sting_ready = true
+    state2.serpent_sting_use = true
+    assert_false(strategies[12].matches(ctx2, state2), "serpent remains=4 -> no match")
+    NS.debuff_remains = saved2
+
+    -- remains = 5: should NOT match
+    local saved3 = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 5 end
+    local ctx3 = make_context({in_combat = true})
+    local state3 = get_state(ctx3)
+    state3.serpent_sting_ready = true
+    state3.serpent_sting_use = true
+    assert_false(strategies[12].matches(ctx3, state3), "serpent remains=5 -> no match")
+    NS.debuff_remains = saved3
+end
+
+-- ============================================================================
+-- DEEP DIVE: HuntersMark debuff refresh boundary (remains 30/31) + all guards
+-- ============================================================================
+
+do
+    -- remains = 30 -> match (not > 30)
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 30 end
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.hunters_mark_ready = true
+    state.hunters_mark_use = true
+    assert_true(strategies[3].matches(ctx, state), "huntersmark remains=30 -> match")
+    NS.debuff_remains = saved
+
+    -- remains = 31 -> no match
+    local saved2 = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 31 end
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.hunters_mark_ready = true
+    state2.hunters_mark_use = true
+    assert_false(strategies[3].matches(ctx2, state2), "huntersmark remains=31 -> no match")
+    NS.debuff_remains = saved2
+
+    -- not ready -> no match
+    local ctx3 = make_context({in_combat = false})
+    local state3 = get_state(ctx3)
+    state3.hunters_mark_ready = false
+    state3.hunters_mark_use = true
+    NS.debuff_remains = function(target, spell) return 0 end
+    assert_false(strategies[3].matches(ctx3, state3), "huntersmark not ready -> no match")
+
+    -- disabled -> no match
+    local ctx4 = make_context({in_combat = false})
+    local state4 = get_state(ctx4)
+    state4.hunters_mark_ready = true
+    state4.hunters_mark_use = false
+    NS.debuff_remains = function(target, spell) return 0 end
+    assert_false(strategies[3].matches(ctx4, state4), "huntersmark disabled -> no match")
+
+    -- in combat -> no match
+    local ctx5 = make_context({in_combat = true})
+    local state5 = get_state(ctx5)
+    state5.hunters_mark_ready = true
+    state5.hunters_mark_use = true
+    NS.debuff_remains = function(target, spell) return 0 end
+    assert_false(strategies[3].matches(ctx5, state5), "huntersmark in combat -> no match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: AimedShot + SteadyShot is_moving guard + no combat gate
+-- ============================================================================
+
+do
+    -- AimedShot: is_moving -> no match
+    local ctx = make_context({in_combat = true, is_moving = true})
+    local state = get_state(ctx)
+    state.aimed_shot_ready = true
+    state.is_moving = true
+    assert_false(strategies[5].matches(ctx, state), "aimedshot moving -> no match")
+
+    -- AimedShot: stationary, in_combat -> match
+    local ctx2 = make_context({in_combat = true, is_moving = false})
+    local state2 = get_state(ctx2)
+    state2.aimed_shot_ready = true
+    state2.is_moving = false
+    assert_true(strategies[5].matches(ctx2, state2), "aimedshot stationary combat -> match")
+
+    -- AimedShot: stationary, OOC -> match (pull ability)
+    local ctx3 = make_context({in_combat = false, is_moving = false})
+    local state3 = get_state(ctx3)
+    state3.aimed_shot_ready = true
+    state3.is_moving = false
+    assert_true(strategies[5].matches(ctx3, state3), "aimedshot stationary OOC -> match (no combat gate)")
+
+    -- SteadyShot: not ready -> no match
+    local ctx4 = make_context({in_combat = true, is_moving = false})
+    local state4 = get_state(ctx4)
+    state4.steady_shot_ready = false
+    state4.is_moving = false
+    assert_false(strategies[16].matches(ctx4, state4), "steadyshot not ready -> no match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: AspectHawk buff_up nil/throw + all guards
+-- ============================================================================
+
+do
+    -- In combat -> no match (already tested)
+    -- Already has buff -> no match (already tested)
+    -- Not ready -> no match (already tested)
+    -- has_aspect_hawk = false, OOC, ready -> match (already tested)
+
+    -- All guards verified
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.has_aspect_hawk = false
+    state.aspect_hawk_ready = true
+    assert_true(strategies[1].matches(ctx, state), "aspecthawk all guards pass -> match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: RaptorStrike melee + in_combat + ready + target guards
+-- ============================================================================
+
+do
+    -- in_melee, in_combat, ready -> match
+    local ctx = make_context({in_combat = true, in_melee_range = true})
+    local state = get_state(ctx)
+    state.raptor_strike_ready = true
+    state.in_melee = true
+    assert_true(strategies[15].matches(ctx, state), "raptor all guards pass -> match")
+
+    -- not ready -> no match
+    local ctx2 = make_context({in_combat = true, in_melee_range = true})
+    local state2 = get_state(ctx2)
+    state2.raptor_strike_ready = false
+    state2.in_melee = true
+    assert_false(strategies[15].matches(ctx2, state2), "raptor not ready -> no match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: FreezingTrap enemies threshold + all guards
+-- ============================================================================
+
+do
+    -- enemies=3 -> match
+    local ctx = make_context({in_combat = true, enemies_count = 3})
+    local state = get_state(ctx)
+    state.freezing_trap_ready = true
+    state.enemies = 3
+    assert_true(strategies[10].matches(ctx, state), "trap enemies=3 -> match")
+
+    -- not ready -> no match
+    local ctx2 = make_context({in_combat = true, enemies_count = 3})
+    local state2 = get_state(ctx2)
+    state2.freezing_trap_ready = false
+    state2.enemies = 3
+    assert_false(strategies[10].matches(ctx2, state2), "trap not ready -> no match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: MendPet pet_hp boundary (60/61) + no pet + not ready
+-- ============================================================================
+
+do
+    -- pet_hp=60 -> match
+    local ctx = make_context({in_combat = true})
+    ctx.pet = { get_health_percentage = function() return 60 end }
+    local state = get_state(ctx)
+    state.mend_pet_ready = true
+    state.pet_hp = 60
+    assert_true(strategies[6].matches(ctx, state), "mendpet pet_hp=60 -> match")
+
+    -- pet_hp=61 -> no match
+    local ctx2 = make_context({in_combat = true})
+    ctx2.pet = { get_health_percentage = function() return 61 end }
+    local state2 = get_state(ctx2)
+    state2.mend_pet_ready = true
+    state2.pet_hp = 61
+    assert_false(strategies[6].matches(ctx2, state2), "mendpet pet_hp=61 -> no match")
+
+    -- no pet -> no match
+    local ctx3 = make_context({in_combat = true, pet = nil})
+    local state3 = get_state(ctx3)
+    state3.mend_pet_ready = true
+    assert_false(strategies[6].matches(ctx3, state3), "mendpet no pet -> no match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: MultiShot enemies boundary (2/1) + all guards
+-- ============================================================================
+
+do
+    -- enemies=2 -> match
+    local ctx = make_context({in_combat = true, enemies_count = 2})
+    local state = get_state(ctx)
+    state.multi_shot_ready = true
+    state.enemies = 2
+    assert_true(strategies[14].matches(ctx, state), "multishot enemies=2 -> match")
+
+    -- enemies=1 -> no match
+    local ctx2 = make_context({in_combat = true, enemies_count = 1})
+    local state2 = get_state(ctx2)
+    state2.multi_shot_ready = true
+    state2.enemies = 1
+    assert_false(strategies[14].matches(ctx2, state2), "multishot enemies=1 -> no match")
+
+    -- OOC -> no match
+    local ctx3 = make_context({in_combat = false, enemies_count = 3})
+    local state3 = get_state(ctx3)
+    state3.multi_shot_ready = true
+    state3.enemies = 3
+    assert_false(strategies[14].matches(ctx3, state3), "multishot OOC -> no match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: CallPet no pet + OOC-only + not ready
+-- ============================================================================
+
+do
+    -- OOC, no pet, ready -> match
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    ctx.pet = nil
+    state.call_pet_ready = true
+    assert_true(strategies[2].matches(ctx, state), "callpet OOC no pet ready -> match")
+
+    -- has pet -> no match
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.call_pet_ready = true
+    assert_false(strategies[2].matches(ctx2, state2), "callpet has pet -> no match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: FeignDeath hp boundary (30/31) + all guards
+-- ============================================================================
+
+do
+    -- hp=30 -> match
+    local ctx = make_context({in_combat = true, hp = 30})
+    local state = get_state(ctx)
+    state.feign_death_ready = true
+    state.hp = 30
+    assert_true(strategies[11].matches(ctx, state), "feign hp=30 -> match")
+
+    -- hp=31 -> no match
+    local ctx2 = make_context({in_combat = true, hp = 31})
+    local state2 = get_state(ctx2)
+    state2.feign_death_ready = true
+    state2.hp = 31
+    assert_false(strategies[11].matches(ctx2, state2), "feign hp=31 -> no match")
+
+    -- OOC -> no match
+    local ctx3 = make_context({in_combat = false, hp = 20})
+    local state3 = get_state(ctx3)
+    state3.feign_death_ready = true
+    state3.hp = 20
+    assert_false(strategies[11].matches(ctx3, state3), "feign OOC -> no match")
+end
+
+-- ============================================================================
+-- DEEP DIVE: NS.try_cast returning false for individual strategies
+-- ============================================================================
+
+do
+    local saved = NS.try_cast
+    NS.try_cast = function() return false end
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast ret=false: strategy " .. i .. " safe")
+    end
+    NS.try_cast = saved
+end
+
+-- Restore clean NS.debuff_remains
+do
+    NS.debuff_remains = function(target, spell)
+        if not target or not spell then return 0 end
+        return 0
+    end
+end
+
+-- ============================================================================
 print(string.format("\n=== Hunter Leveling Unit Tests: %d passed, %d failed (%d assertions) ===\n", passed, failed, assertions))
 if failed > 0 then
     error(string.format("Some tests FAILED (%d failures)", failed))
