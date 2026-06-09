@@ -652,7 +652,11 @@ local function render_menu()
 
         -- [#4] Use pre-allocated header instead of core.menu.header() per frame
         local rotation_state = framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) ~= false
-        menu_elements.header_class_info:render(plugin_info.player_class_name .. " / " .. tostring(active_playstyle) .. " / " .. (rotation_state and "ENABLED" or "DISABLED"), rotation_state and MENU_COLORS.green or MENU_COLORS.red)
+        -- Title Case: "PALADIN" -> "Paladin", "protection" -> "Protection" (via playstyle_options display_name)
+        local class_label = plugin_info.player_class_name and plugin_info.player_class_name:gsub("^%u", string.lower):gsub("^%l", string.upper) or "Unknown"
+        local playstyle_label = playstyle_options[get_playstyle_index(active_playstyle)] or tostring(active_playstyle)
+        local state_label = rotation_state and "Enabled" or "Disabled"
+        menu_elements.header_class_info:render(class_label .. " / " .. playstyle_label .. " / " .. state_label, rotation_state and MENU_COLORS.green or MENU_COLORS.red)
 
         render_quick_toggles()
 
