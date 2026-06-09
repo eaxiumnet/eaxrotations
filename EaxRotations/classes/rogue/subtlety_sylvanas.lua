@@ -3,6 +3,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+local potion_helper = require("shared/potion_helper_sylvanas")
 local BASE_SPELLS = NS.RogueSpells or {}
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
@@ -464,6 +465,24 @@ local function fallback_builder_matches(context, state)
 end
 
 local strategies = {
+    { name = "HealthPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_health_potion then return false end
+          if (context.hp or 100) > 35 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS) end },
+    { name = "DamagePotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_damage_potion then return false end
+          if not context.should_burst then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
     { name = "Kick", matches = kick_matches, execute = function(context) return cast(SPELLS.Kick, context.target, "[SUBTLETY] Kick") end },
     { name = "ShivPurge", matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return cast(SPELLS.Shiv, context.target, "[SUBTLETY] Shiv purge → " .. name, { expected_cooldown = 10 }) end },
     { name = "CloakOfShadows", matches = cloak_matches, execute = function() return cast(SPELLS.CloakOfShadows, NS.PLAYER_UNIT, "[SUBTLETY] Cloak of Shadows", { skip_range = true }) end },

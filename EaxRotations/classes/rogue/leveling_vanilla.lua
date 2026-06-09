@@ -204,6 +204,8 @@ local expose_armor_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.expose_armor_ready then return false end
     if not state.target then return false end
+    -- Skip if target has no armor (API unavailable or already fully reduced)
+    if (context.target_armor or 0) <= 0 then return false end
     if (state.combo_points or 0) < 3 then return false end
     local ok, stacks = pcall(function() return NS.debuff_stacks and NS.debuff_stacks(state.target, SPELLS.ExposeArmor) or 0 end)
     if ok and stacks and stacks > 0 then return false end

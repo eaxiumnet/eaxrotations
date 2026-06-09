@@ -864,7 +864,7 @@ local function auto_attack_matches(ctx)
     if not ctx.in_combat then return false end
     local target = ctx.target
     if not target or not target:is_valid() or target:is_dead() then return false end
-    if NS.is_auto_attacking(ctx.me) then return false end
+    if NS.is_auto_attacking and NS.is_auto_attacking(ctx.me) then return false end
     return true
 end
 
@@ -956,7 +956,7 @@ local strategies = {
       execute = function(ctx)
           local target = ctx.target
           if target and target:is_valid() and not target:is_dead() then
-              if not NS.is_auto_attacking(ctx.me) then
+              if not (NS.is_auto_attacking and NS.is_auto_attacking(ctx.me)) then
                   NS.start_auto_attack(target)
               end
           end

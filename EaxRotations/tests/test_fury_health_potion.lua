@@ -83,6 +83,6 @@ assert_true(strategy_names["Healthstone"], "Healthstone should be present")
 
 -- Missing FrostByte features
 -- Health potion is a minor gap - if health pot is not ready, there's no fallback
-assert_false(strategy_names["HealthPotion"], "HealthPotion is MISSING - FrostByte gap: health potion fallback not implemented")
+assert_true(strategy_names["HealthPotion"], "HealthPotion should be present - health potion fallback implemented")
 
-print("PASS test_fury_health_potion (gap audit: " .. #strategies .. " strategies present, Overpower intentionally removed, 1 minor FrostByte gap: health potion fallback)")
+print("PASS test_fury_health_potion (gap audit: " .. #strategies .. " strategies present, Overpower intentionally removed, health potion fallback implemented)")

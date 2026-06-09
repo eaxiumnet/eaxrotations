@@ -421,7 +421,7 @@ local strategies = {
     -- AoE
     { name = "Blizzard",
       matches = blizzard_matches,
-      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Blizzard, context.target, "[LEVELING] Blizzard") or false end },
+      execute = function(context) if not context then return false end; local t = context.target; local pos = t and context and NS.get_aoe_cast_position and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, 8, 35); if pos and NS.try_cast_position then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[LEVELING] Blizzard") end; return context and NS.try_cast and NS.try_cast(SPELLS.Blizzard, t, "[LEVELING] Blizzard") or false end },
 
     -- Mana recovery
     { name = "Evocation",

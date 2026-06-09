@@ -1,13 +1,13 @@
 -- ============================================================================
 -- Shared Helper: Spell Rank Resolver (Expansion-Aware)
 -- ============================================================================
--- What:   Auto-resolves spell rank chains from wowhead_data spell lists.
+-- What:   Auto-resolves spell rank chains from embedded wowhead spell data.
 -- When:   Module load (cached). Used by spec files for rank-by-level lookups.
 -- Why:    Replace hardcoded spell rank arrays with data-driven resolution.
 --         Supports both TBC and Vanilla expansions with separate rank tables.
--- Safety: Read-only. Falls back gracefully if wowhead_data is unavailable.
---         All results cached at load time — no JSON parsing in hot paths.
---         Uses io.open (allowed) — NOT io.popen (banned).
+-- Safety: Read-only. Falls back gracefully if bridge module is unavailable.
+--         All results cached at load time — no table traversal in hot paths.
+--         Uses embedded Lua tables (ship-safe) — no io.open or JSON.
 
 local _G = _G
 local NS = _G.EaxRotations
@@ -16,135 +16,48 @@ if not NS then return end
 local M = {}
 
 -- ============================================================================
--- JSON decode (cjson-first, minimal fallback)
+-- Data bridge — loads embedded spell index (ship-safe Lua tables)
 -- ============================================================================
-local _json_decode = nil
-do
-    local ok, cjson = pcall(require, "cjson")
-    if ok and type(cjson) == "table" then
-        _json_decode = cjson.decode
-    else
-        -- Minimal recursive JSON parser (same pattern as spell_corpus_sylvanas.lua)
-        local function skip_ws(s, i)
-            while i <= #s and s:sub(i, i):match("[ \t\n\r]") do i = i + 1 end
-            return i
-        end
-
-        local function parse_number(s, i)
-            i = skip_ws(s, i)
-            local start = i
-            if s:sub(i, i) == "-" then i = i + 1 end
-            while i <= #s and s:sub(i, i):match("[0-9.]") do i = i + 1 end
-            return tonumber(s:sub(start, i - 1)), i
-        end
-
-        local function parse_string(s, i)
-            i = skip_ws(s, i)
-            if s:sub(i, i) ~= '"' then return nil, i end
-            i = i + 1
-            local start = i
-            while i <= #s and s:sub(i, i) ~= '"' do
-                if s:sub(i, i) == "\\" then i = i + 1 end
-                i = i + 1
-            end
-            return s:sub(start, i - 1), i + 1
-        end
-
-        local parse_value
-
-        local function parse_object(s, i)
-            i = skip_ws(s, i)
-            i = i + 1  -- skip '{'
-            local obj = {}
-            while true do
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "}" then return obj, i + 1 end
-                local key
-                key, i = parse_string(s, i)
-                i = skip_ws(s, i)
-                i = i + 1  -- skip ':'
-                obj[key], i = parse_value(s, i)
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "," then i = i + 1 end
-            end
-        end
-
-        local function parse_array(s, i)
-            i = skip_ws(s, i)
-            i = i + 1  -- skip '['
-            local arr = {}
-            local n = 0
-            while true do
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "]" then return arr, i + 1 end
-                n = n + 1
-                arr[n], i = parse_value(s, i)
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "," then i = i + 1 end
-            end
-        end
-
-        parse_value = function(s, i)
-            i = skip_ws(s, i)
-            local c = s:sub(i, i)
-            if c == '"' then return parse_string(s, i)
-            elseif c == "{" then return parse_object(s, i)
-            elseif c == "[" then return parse_array(s, i)
-            elseif c == "t" then return true, i + 4
-            elseif c == "f" then return false, i + 5
-            elseif c == "n" then return nil, i + 4
-            else return parse_number(s, i)
-            end
-        end
-
-        _json_decode = function(str)
-            if not str or #str == 0 then return nil end
-            local ok2, result = pcall(parse_value, str, 1)
-            if ok2 then return result end
-            return nil
-        end
+local _bridge = nil
+local function get_bridge()
+    if _bridge then return _bridge end
+    local ok, mod = pcall(require, "shared/wowhead_data_bridge_sylvanas")
+    if ok and type(mod) == "table" then
+        _bridge = mod
+        return mod
     end
-end
-
--- ============================================================================
--- File reader
--- ============================================================================
-local function read_file(path)
-    local f = io.open(path, "rb")
-    if not f then return nil end
-    local data = f:read("*a")
-    f:close()
-    return data
+    return nil
 end
 
 -- ============================================================================
 -- Rank tables: keyed by "name:class" -> sorted array of {id, level, rank}
 -- Separate tables per expansion to support cross-expansion resolution.
+-- Built from bridge module's spell_index_* tables on first access.
 -- ============================================================================
 local _rank_tables_tbc = {}     -- ["Fireball:Mage"] = {{id=27070,level=66,...}, ...}
 local _rank_tables_vanilla = {} -- ["Fireball:Mage"] = {{id=133,level=1,...}, ...}
 local _loaded_tbc = false
 local _loaded_vanilla = false
 
-local function parse_rank_data(content)
-    local parsed = _json_decode(content)
-    if type(parsed) ~= "table" then return {} end
-
+-- Convert bridge's positional format to rank tables.
+-- Bridge format: [spell_id] = {name, class, level, school, is_heal, aoe, cast_time, rank}
+-- Positional: 1=name, 2=class, 3=level, 8=rank
+local function build_rank_tables(spell_index)
     local groups = {}
-    for _, entry in ipairs(parsed) do
-        if type(entry) == "table" and entry.id and entry.name and entry.required_class then
-            local key = entry.name .. ":" .. entry.required_class
+    for id, entry in pairs(spell_index) do
+        local name = entry[1]
+        local cls = entry[2]
+        local level = entry[3]
+        local rank = entry[8]
+        if name and cls then
+            local key = name .. ":" .. cls
             local g = groups[key]
             if not g then
                 g = {}
                 groups[key] = g
             end
             local n = #g + 1
-            g[n] = {
-                id = entry.id,
-                level = entry.required_level or 0,
-                rank = entry.rank,
-            }
+            g[n] = { id = id, level = level or 0, rank = rank }
         end
     end
 
@@ -164,17 +77,17 @@ end
 local function load_tbc_data()
     if _loaded_tbc then return end
     _loaded_tbc = true
-    local content = read_file("wowhead_data/spell_list_tbc.json")
-    if not content then return end
-    _rank_tables_tbc = parse_rank_data(content)
+    local bridge = get_bridge()
+    if not bridge or not bridge.spell_index_tbc then return end
+    _rank_tables_tbc = build_rank_tables(bridge.spell_index_tbc)
 end
 
 local function load_vanilla_data()
     if _loaded_vanilla then return end
     _loaded_vanilla = true
-    local content = read_file("wowhead_data/spell_list_vanilla.json")
-    if not content then return end
-    _rank_tables_vanilla = parse_rank_data(content)
+    local bridge = get_bridge()
+    if not bridge or not bridge.spell_index_vanilla then return end
+    _rank_tables_vanilla = build_rank_tables(bridge.spell_index_vanilla)
 end
 
 -- ============================================================================

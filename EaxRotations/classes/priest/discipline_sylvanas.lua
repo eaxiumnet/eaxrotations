@@ -186,6 +186,7 @@ local function build_state(context)
     disc_state.inner_fire_ready = me and NS.spell_ready(SPELLS.InnerFire, me, { skip_range = true }) or false
     disc_state.fear_ward_ready = me and NS.spell_ready(SPELLS.FearWard, me, { skip_range = true }) or false
     disc_state.power_word_fortitude_ready = me and NS.spell_ready(SPELLS.PowerWordFortitude, me, { skip_range = true }) or false
+    disc_state.symbol_of_hope_ready = me and NS.spell_ready(SPELLS.SymbolOfHope, me, { skip_range = true }) or false
     disc_state.pws_ready = me and NS.spell_ready(SPELLS.PowerWordShield, me, { skip_range = true }) or false
     disc_state.pom_ready = me and NS.spell_ready(SPELLS.PrayerofMending, me, { skip_range = true }) or false
     disc_state.flash_heal_ready = me and NS.spell_ready(SPELLS.FlashHeal, me, { skip_range = true }) or false
@@ -406,6 +407,13 @@ local function pwf_matches(context, s)
     if s.has_prayer_of_fortitude then return false end
     if not s.power_word_fortitude_ready then return false end
     if _buff_on_cooldown(SPELLS.PowerWordFortitude) then return false end
+    return _safe_buff_in_combat(context, s)
+end
+
+local function symbol_of_hope_matches(context, s)
+    if not s.symbol_of_hope_ready then return false end
+    if not s.is_group then return false end
+    if _buff_on_cooldown(SPELLS.SymbolOfHope) then return false end
     return _safe_buff_in_combat(context, s)
 end
 
@@ -640,6 +648,7 @@ local healing_strategies = {
     { name = "InnerFire", matches = inner_fire_matches, execute = function() return NS.try_cast(SPELLS.InnerFire, NS.PLAYER_UNIT, "[DISCIPLINE] InnerFire") end },
     { name = "FearWard", matches = fear_ward_matches, execute = function() return NS.try_cast(SPELLS.FearWard, NS.PLAYER_UNIT, "[DISCIPLINE] FearWard") end },
     { name = "PowerWordFortitude", matches = pwf_matches, execute = function() return NS.try_cast(SPELLS.PowerWordFortitude, NS.PLAYER_UNIT, "[DISCIPLINE] PowerWordFortitude") end },
+    { name = "SymbolOfHope", matches = symbol_of_hope_matches, execute = function() return NS.try_cast(SPELLS.SymbolOfHope, NS.PLAYER_UNIT, "[DISCIPLINE] SymbolOfHope") end },
     { name = "DivineSpirit", matches = divine_spirit_matches, execute = function() return NS.try_cast(SPELLS.DivineSpirit, NS.PLAYER_UNIT, "[DISCIPLINE] DivineSpirit") end },
     { name = "PrayerOfFortitude", matches = pof_matches, execute = function() return NS.try_cast(SPELLS.PrayerOfFortitude, NS.PLAYER_UNIT, "[DISCIPLINE] PrayerOfFortitude") end },
     { name = "PsychicScream", matches = psychic_scream_matches, execute = function(context) return NS.try_cast(SPELLS.PsychicScream, context.target, "[DISCIPLINE] PsychicScream", { expected_cooldown = 30 }) end },

@@ -302,6 +302,16 @@ local SPELLS = {
         power_type = "none",
         school = "shadow",
     }),
+    SymbolOfHope = NS.spell_action({
+        name = "SymbolOfHope",
+        ids = {32548},
+        levels = {10},
+        cast_time = 0,
+        cooldown = 300,
+        power_cost = 15,
+        power_type = "mana",
+        school = "holy",
+    }),
     VampiricTouch = NS.spell_action({
         name = "VampiricTouch",
         ids = {34917, 34916, 34914},

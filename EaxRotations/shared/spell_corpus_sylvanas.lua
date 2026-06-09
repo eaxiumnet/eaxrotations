@@ -1,12 +1,12 @@
 -- ============================================================================
 -- Shared Helper: Spell Corpus
 -- ============================================================================
--- What:   Provides access to wowhead spell data for rotation optimization.
+-- What:   Provides access to embedded wowhead spell data for rotation optimization.
 -- When:   On-demand (cached). Used by spec files for spell metadata lookup.
 -- Why:    Enrich spell decisions with data-driven spell cost, range, cast_time,
 --         damage, periodic effects, and talent modifiers.
--- Safety: Read-only. Falls back gracefully if wowhead_data is unavailable.
---         Uses io.open (allowed) — NOT io.popen (banned).
+-- Safety: Read-only. Falls back gracefully if bridge module is unavailable.
+--         Uses embedded Lua tables (ship-safe) — no io.open or JSON.
 
 local _G = _G
 local NS = _G.EaxRotations
@@ -16,140 +16,57 @@ local M = {}
 NS.SpellCorpus = M
 
 -- ============================================================================
--- JSON decode (cjson-first, minimal fallback)
+-- Data bridge — loads embedded spell data (ship-safe Lua tables)
 -- ============================================================================
-local _json_decode = nil
-do
-    local ok, cjson = pcall(require, "cjson")
-    if ok and type(cjson) == "table" then
-        _json_decode = cjson.decode
-    else
-        -- Minimal JSON parser (same approach as dot_refresh_sylvanas.lua)
-        local function skip_ws(s, i)
-            while i <= #s and s:sub(i, i):match("[ \t\n\r]") do i = i + 1 end
-            return i
-        end
+---@class SpellDetailEntry
+---Positional fields from bridge.spell_detail:
+---  1=cost_type, 2=cost_amount, 3=range, 4=cast_time, 5=duration,
+---  6=periodic_amount, 7=periodic_school, 8=periodic_interval, 9=flags, 10=school
 
-        local function parse_number(s, i)
-            i = skip_ws(s, i)
-            local start = i
-            if s:sub(i, i) == "-" then i = i + 1 end
-            while i <= #s and s:sub(i, i):match("[0-9.]") do i = i + 1 end
-            return tonumber(s:sub(start, i - 1)), i
-        end
-
-        local function parse_string(s, i)
-            i = skip_ws(s, i)
-            if s:sub(i, i) ~= '"' then return nil, i end
-            i = i + 1
-            local start = i
-            while i <= #s and s:sub(i, i) ~= '"' do
-                if s:sub(i, i) == "\\" then i = i + 1 end
-                i = i + 1
-            end
-            return s:sub(start, i - 1), i + 1
-        end
-
-        local parse_value
-
-        local function parse_object(s, i)
-            i = skip_ws(s, i)
-            i = i + 1  -- skip '{'
-            local obj = {}
-            while true do
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "}" then return obj, i + 1 end
-                local key
-                key, i = parse_string(s, i)
-                i = skip_ws(s, i)
-                i = i + 1  -- skip ':'
-                obj[key], i = parse_value(s, i)
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "," then i = i + 1 end
-            end
-        end
-
-        local function parse_array(s, i)
-            i = skip_ws(s, i)
-            i = i + 1  -- skip '['
-            local arr = {}
-            local n = 0
-            while true do
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "]" then return arr, i + 1 end
-                n = n + 1
-                arr[n], i = parse_value(s, i)
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "," then i = i + 1 end
-            end
-        end
-
-        parse_value = function(s, i)
-            i = skip_ws(s, i)
-            local c = s:sub(i, i)
-            if c == '"' then return parse_string(s, i)
-            elseif c == "{" then return parse_object(s, i)
-            elseif c == "[" then return parse_array(s, i)
-            elseif c == "t" then return true, i + 4
-            elseif c == "f" then return false, i + 5
-            elseif c == "n" then return nil, i + 4
-            else return parse_number(s, i)
-            end
-        end
-
-        _json_decode = function(str)
-            if not str or #str == 0 then return nil end
-            local ok, result = pcall(parse_value, str, 1)
-            if ok then return result end
-            return nil
-        end
+local _bridge = nil
+local function get_bridge()
+    if _bridge then return _bridge end
+    local ok, mod = pcall(require, "shared/wowhead_data_bridge_sylvanas")
+    if ok and type(mod) == "table" then
+        _bridge = mod
+        return mod
     end
+    return nil
 end
 
 -- ============================================================================
 -- Cache: spell_id -> spell data table (false = miss, table = hit)
 -- ============================================================================
 local _spell_cache = {}
-local _index_loaded = false
+
+-- ============================================================================
+-- Index loading (from bridge module — lightweight, load once)
+-- ============================================================================
 local _spell_index = {}  -- spell_id -> {name, class, school, is_heal, aoe, cast_time, level}
+local _index_loaded = false
 
--- ============================================================================
--- Helper: read file content
--- ============================================================================
-local function read_file(path)
-    local f = io.open(path, "rb")
-    if not f then return nil end
-    local data = f:read("*a")
-    f:close()
-    return data
-end
-
--- ============================================================================
--- Index loading (spell_list_tbc.json — lightweight, load once)
--- ============================================================================
 local function load_index()
     if _index_loaded then return end
     _index_loaded = true
 
-    local content = read_file("wowhead_data/spell_list_tbc.json")
-    if not content then return end
+    local bridge = get_bridge()
+    if not bridge then return end
 
-    local parsed = _json_decode(content)
-    if type(parsed) ~= "table" then return end
-
-    -- spell_list_tbc.json is an array of objects
-    for _, entry in ipairs(parsed) do
-        if type(entry) == "table" and entry.id then
-            _spell_index[entry.id] = {
-                name = entry.name,
-                class = entry.required_class,  -- field is "required_class" in source
-                school = entry.school,
-                is_heal = entry.is_heal == true,
-                aoe = entry.aoe == true,
-                cast_time = entry.cast_time,
-                level = entry.required_level,
-            }
-        end
+    -- Convert bridge's positional format to named fields
+    -- Bridge: [spell_id] = {name, class, level, school, is_heal, aoe, cast_time, rank}
+    -- Pos:      1=name, 2=class, 3=level, 4=school, 5=is_heal, 6=aoe, 7=cast_time, 8=rank
+    local raw = bridge.spell_index_tbc
+    if not raw then return end
+    for id, entry in pairs(raw) do
+        _spell_index[id] = {
+            name = entry[1],
+            class = entry[2],
+            school = entry[4],
+            is_heal = entry[5],
+            aoe = entry[6],
+            cast_time = entry[7],
+            level = entry[3],
+        }
     end
 end
 
@@ -157,7 +74,7 @@ end
 -- Public API
 -- ============================================================================
 
---- Get full spell data for a spell ID (loads from individual JSON file).
+--- Get full spell data for a spell ID (from embedded bridge data).
 --- Cached after first read. Returns nil if not found.
 --- @param spell_id number Spell ID
 --- @return table|nil data Full spell data, or nil if not found
@@ -166,52 +83,42 @@ function M.get_spell_info(spell_id)
     local cached = _spell_cache[spell_id]
     if cached ~= nil then return cached or nil end
 
-    local content = read_file("wowhead_data/spells/tbc/" .. spell_id .. ".json")
-    if not content then
-        content = read_file("wowhead_data/spells/vanilla/" .. spell_id .. ".json")
-    end
-    if not content then
+    local bridge = get_bridge()
+    if not bridge or not bridge.spell_detail then
         _spell_cache[spell_id] = false
         return nil
     end
 
-    local parsed = _json_decode(content)
-    if type(parsed) ~= "table" then
+    local detail = bridge.spell_detail[spell_id]
+    if not detail then
         _spell_cache[spell_id] = false
         return nil
     end
 
-    -- Normalize nested objects into flat access
+    -- Bridge detail format: positional array
+    -- 1=cost_type, 2=cost_amount, 3=range, 4=cast_time, 5=duration,
+    -- 6=periodic_amount, 7=periodic_school, 8=periodic_interval, 9=flags, 10=school
+    local index_entry = M.get_spell_index(spell_id)
     local data = {
-        id = parsed._id or spell_id,
-        name = parsed.name,
-        icon = parsed.icon,
-        school = parsed.school,
-        cast_time = parsed.cast_time,
-        required_level = parsed.required_level,
-        description = parsed.description,
-        duration = parsed.duration,
-        target_type = parsed.target_type,
+        id = spell_id,
+        name = index_entry and index_entry.name or nil,
+        icon = nil,
+        school = detail[10] or (index_entry and index_entry.school),
+        cast_time = detail[4] or (index_entry and index_entry.cast_time),
+        required_level = index_entry and index_entry.level,
+        description = nil,
+        duration = detail[5],
+        target_type = nil,
+        cost_type = detail[1],
+        cost_amount = detail[2],
+        periodic_amount = detail[6],
+        periodic_school = detail[7],
+        periodic_interval = detail[8],
+        range = detail[3],
+        has_buff = nil,
+        buff_duration = nil,
+        buff_text = nil,
     }
-
-    -- Flatten cost: {type, amount} -> cost_type, cost_amount
-    if type(parsed.cost) == "table" then
-        data.cost_type = parsed.cost.type
-        data.cost_amount = parsed.cost.amount
-    end
-
-    -- Flatten periodic: {amount, school, interval} -> periodic_amount, etc.
-    if type(parsed.periodic) == "table" then
-        data.periodic_amount = parsed.periodic.amount
-        data.periodic_school = parsed.periodic.school
-        data.periodic_interval = parsed.periodic.interval
-    end
-
-    -- Pass through range and buff data
-    data.range = parsed.range
-    data.has_buff = parsed.has_buff
-    data.buff_duration = parsed.buff_duration
-    data.buff_text = parsed.buff_text
 
     _spell_cache[spell_id] = data
     return data

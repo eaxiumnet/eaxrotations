@@ -1,13 +1,12 @@
 -- Warrior Arms priority list ? Classic Vanilla
 local NS = _G.EaxRotations
 if not NS then return nil end
+local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
 local PLAYER_UNIT = NS.PLAYER_UNIT
 
-local _swing_ok, SwingTimer = pcall(require, "shared/swing_timer_sylvanas")
-if not _swing_ok or type(SwingTimer) ~= "table" then SwingTimer = nil end
 
 local function spell(field, ids, label)
     if SPELLS[field] ~= nil then return SPELLS[field] end
@@ -313,9 +312,8 @@ local function build_state(context)
         end
     end
 
-    if SwingTimer and SwingTimer.update then SwingTimer.update() end
-    arms_state.mh_until = SwingTimer and SwingTimer.get_mh_time_until and SwingTimer.get_mh_time_until() or 999
-    arms_state.mh_progress = SwingTimer and SwingTimer.get_mh_progress and SwingTimer.get_mh_progress() or 0
+    arms_state.mh_until = me and NS.swing_time_until(me) or 999
+    arms_state.mh_progress = me and NS.swing_progress(me) or 0
 
     return arms_state
 end
@@ -378,7 +376,6 @@ end
 
 local function slam_matches(context, state)
     if setting(context, "slam_weave_enabled", true) == false then return false end
-    if not SwingTimer then return false end
     if state.is_moving then return false end
     -- Rage cap: bypass rage gate to prevent waste when capped
     if (state.rage or 0) >= RAGE_CAP then return action(context, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true })) end
@@ -555,6 +552,7 @@ end
 
 local function death_wish_matches(context, state)
     if not cooldowns_allowed(context, state) then return false end
+    if not NS.gate_cooldown_boss_only(context) then return false end
     if (state.hp or 100) < 45 then return false end
     if (state.target_hp or 100) < 20 and (state.rage or 0) < 25 then return false end
     return action(context, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false, cooldown = 180 }))
@@ -562,6 +560,7 @@ end
 
 local function recklessness_matches(context, state)
     if not cooldowns_allowed(context, state) then return false end
+    if not NS.gate_cooldown_boss_only(context) then return false end
     if (state.hp or 100) < 50 then return false end
     if not execute_phase(context, state) and (state.target_hp or 100) > 35 then return false end
     return action(context, build_action("Recklessness", ACTION.Recklessness, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false, cooldown = 1800 }))
@@ -588,6 +587,24 @@ local function healthstone_matches(context, state)
 end
 
 local STRATEGY_SPECS = {
+    { "HealthPotion", function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_health_potion then return false end
+          if (context.hp or 100) > 35 then return false end
+          return true
+      end, build_action("HealthPotion", nil, { target = "self", requires_target = false }), function(context)
+          return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS)
+      end },
+    { "DamagePotion", function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_damage_potion then return false end
+          if not context.should_burst then return false end
+          return true
+      end, build_action("DamagePotion", nil, { target = "self", requires_target = false }), function(context)
+          return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS)
+      end },
     { "Pummel", pummel_matches, build_action("Pummel", ACTION.Pummel, { required_stance = STANCE.BERSERKER, min_rage = 10 }) },
     { "ShieldWall", shield_wall_matches, build_action("ShieldWall", ACTION.ShieldWall, { target = "self", required_stance = STANCE.DEFENSIVE, requires_target = false }) },
     { "IntimidatingShout", intimidating_shout_matches, build_action("IntimidatingShout", ACTION.IntimidatingShout, { target = "self", min_rage = 25, requires_target = false }) },

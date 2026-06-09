@@ -38,6 +38,12 @@ function M.should_auto_burst(context, deps)
         return false
     end
 
+    -- CD Min TTD gate: don't burst on dying targets
+    local min_ttd = settings.cd_min_ttd or 0
+    if min_ttd > 0 and (context.ttd or 999) < min_ttd then
+        return false
+    end
+
     if settings.burst_in_combat then return true end
     if settings.burst_on_pull and context.combat_time and context.combat_time < 5 then return true end
     if settings.burst_on_execute and context.target_hp and context.target_hp <= 20 then return true end
@@ -69,6 +75,11 @@ end
 -- @return boolean
 function M.offensive_autocast_matches(context, deps)
     if not context.in_combat or not context.has_valid_enemy_target then return false end
+    -- CD Min TTD gate: don't autocast on dying targets
+    local min_ttd = context.settings and context.settings.cd_min_ttd or 0
+    if min_ttd > 0 and (context.ttd or 999) < min_ttd then
+        return false
+    end
     -- APL alignment: fire during Bloodlust/Drums when burst_on_bloodlust is on
     if context.settings and context.settings.burst_on_bloodlust then
         if context.bloodlust_active or context.drums_active then

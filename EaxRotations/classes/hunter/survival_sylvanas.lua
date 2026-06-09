@@ -4,6 +4,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
+local pet_manager = require("shared/pet_manager_sylvanas")
+local potion_helper = require("shared/potion_helper_sylvanas")
 
 local AUTO_SHOT_BUFFER_MS = 100
 local MULTI_SHOT_CAST_MS = 500
@@ -119,6 +121,7 @@ local function build_state(context)
     sv_state.revive_pet_ready = me and NS.spell_ready(SPELLS.RevivePet, me, { skip_range = true }) or false
     sv_state.feign_death_ready = me and NS.spell_ready(SPELLS.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
     sv_state.freezing_trap_ready = me and NS.spell_ready(SPELLS.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    sv_state.snake_trap_ready = me and NS.spell_ready(SPELLS.SnakeTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     sv_state.viper_sting_ready = target and NS.spell_ready(SPELLS.ViperSting, target, { expected_cooldown = 8 }) or false
     sv_state.wyvern_sting_ready = target and NS.spell_ready(SPELLS.WyvernSting, target) or false
     sv_state.scorpid_sting_ready = target and NS.spell_ready(SPELLS.ScorpidSting, target) or false
@@ -250,6 +253,14 @@ end
 local function freezing_trap_matches(context, s)
     if s.in_combat then return false end
     if not s.freezing_trap_ready then return false end
+    return true
+end
+
+local function snake_trap_matches(context, s)
+    if not s.snake_trap_ready then return false end
+    if context.settings and context.settings.use_snake_trap == false then return false end
+    if not s.in_combat then return false end
+    if (s.enemy_count or 0) < 2 then return false end
     return true
 end
 
@@ -393,6 +404,53 @@ end
 -- Strategies
 -- ============================================================================
 local strategies = {
+    -- Auto Health Potion — gate on context.has_health_potion (inventory_helper)
+    { name = "HealthPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_health_potion then return false end
+          if (context.hp or 100) > 35 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS) end },
+    -- Auto Mana Potion — gate on context.has_mana_potion (inventory_helper)
+    { name = "ManaPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_mana_potion then return false end
+          if (context.mana_pct or 100) > 25 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+    -- Pet State: set defensive when pet HP is critically low
+    { name = "PetDefensive",
+      matches = function(context, state)
+          if not state.pet_alive then return false end
+          if not state.in_combat then return false end
+          if (state.pet_hp_pct or 100) > 40 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_defensive() end },
+    -- Pet State: set passive when player HP critically low (survival mode)
+    { name = "PetPassive",
+      matches = function(context, state)
+          if not state.pet_alive then return false end
+          if not state.in_combat then return false end
+          if (context.hp or 100) > 25 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_passive() end },
+    -- Pet State: set aggressive during combat when pet is healthy
+    { name = "PetAggressive",
+      matches = function(context, state)
+          if not state.pet_alive then return false end
+          if not state.in_combat then return false end
+          if (state.pet_hp_pct or 100) < 50 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_aggressive() end },
     { name = "MendPet", matches = mend_pet_matches, execute = function(context) return NS.try_cast(SPELLS.MendPet, context.pet or (NS.GetPet and NS.GetPet()) or context.me, "[SURVIVAL] Mend Pet", { skip_range = true }) end },
     { name = "CallPet", matches = call_pet_matches, execute = function(context) return NS.try_cast(SPELLS.CallPet, context.me, "[SURVIVAL] Call Pet", { skip_range = true }) end },
     { name = "RevivePet", matches = revive_pet_matches, execute = function(context) return NS.try_cast(SPELLS.RevivePet, context.me, "[SURVIVAL] Revive Pet", { skip_range = true }) end },
@@ -404,13 +462,14 @@ local strategies = {
     { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[SURVIVAL] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[SURVIVAL] Readiness", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "ExplosiveTrap", matches = explosive_trap_matches, execute = function(context) return NS.try_cast(SPELLS.ExplosiveTrap, context.me, "[SURVIVAL] Explosive Trap", { skip_range = true, expected_cooldown = 30 }) end },
+    { name = "SnakeTrap", matches = snake_trap_matches, execute = function(context) return NS.try_cast(SPELLS.SnakeTrap, context.me, "[SURVIVAL] Snake Trap", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "ImmolationTrap", matches = immolation_trap_matches, execute = function(context) return NS.try_cast(SPELLS.ImmolationTrap, context.me, "[SURVIVAL] Immolation Trap", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "KillCommand", matches = kill_command_matches, execute = function(context) return NS.try_cast(SPELLS.KillCommand, context.target, "[SURVIVAL] Kill Command", { expected_cooldown = 5, skip_gcd = true }) end },
     { name = "FeignDeath", matches = feign_death_matches, execute = function(context) return NS.try_cast(SPELLS.FeignDeath, context.me, "[SURVIVAL] Feign Death", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "Misdirection", matches = misdirection_matches, execute = misdirection_execute },
     { name = "ConcussiveShot", matches = concussive_shot_matches, execute = function(context) return NS.try_cast(SPELLS.ConcussiveShot, context.target, "[SURVIVAL] Concussive Shot") end },
     { name = "ScorpidSting", matches = scorpid_sting_matches, execute = function(context) return NS.try_cast(SPELLS.ScorpidSting, context.target, "[SURVIVAL] Scorpid Sting") end },
-    { name = "Volley", matches = volley_matches, execute = function(context) return NS.try_cast(SPELLS.Volley, context.target, "[SURVIVAL] Volley") end },
+    { name = "Volley", matches = volley_matches, execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Volley), t, 8, 35); if pos then return NS.try_cast_position(SPELLS.Volley, pos, t, "[SURVIVAL] Volley") end; return NS.try_cast(SPELLS.Volley, t, "[SURVIVAL] Volley") end },
     { name = "RaptorStrike", matches = raptor_strike_matches, execute = function(context) return NS.try_cast(SPELLS.RaptorStrike, context.target, "[SURVIVAL] Raptor Strike") end },
     { name = "MongooseBite", matches = mongoose_bite_matches, execute = function(context) return NS.try_cast(SPELLS.MongooseBite, context.target, "[SURVIVAL] Mongoose Bite") end },
     { name = "WingClip", matches = wing_clip_matches, execute = function(context) return NS.try_cast(SPELLS.WingClip, context.target, "[SURVIVAL] Wing Clip") end },

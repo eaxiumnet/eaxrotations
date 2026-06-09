@@ -2,6 +2,7 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
@@ -39,6 +40,7 @@ local SHIELD_WALL_BUFF = { 871 }
 local SNARE_IDS = { 25212, 1715 }
 local REND_DEBUFF = { 25208, 11574, 11573, 6548, 6547, 772 }
 local INTIMIDATING_SHOUT_DEBUFF = { 5246 }
+local CC_DEBUFFS = { 118, 12824, 12825, 12826, 6770, 2070, 5782, 6213, 6215, 20066, 2637, 9484, 9485, 10955 }
 
 -- Disarm target classes: melee classes that lose weapon-based damage when disarmed
 local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
@@ -51,15 +53,18 @@ local setting = NS.setting or function(context, key, fallback)
 end
 
 -- Enemy scanning API (cached at module load)
-local _get_enemy_list = core and core.object_manager and core.object_manager.get_enemy_list or nil
+local _get_visible_objects = core and core.object_manager and core.object_manager.get_visible_objects or nil
 local _safe_field = NS.safe_field or function(obj, field)
     if not obj or type(obj[field]) ~= "function" then return nil end
     return obj[field]
 end
 
 local function target_is_casting(unit)
-    if not unit or type(unit.is_casting) ~= "function" then return false end
-    local ok, casting = pcall(unit.is_casting, unit)
+    if not unit then return false end
+    local ok, casting = pcall(function()
+        if unit.is_casting_spell then return unit:is_casting_spell() end
+        return false
+    end)
     return ok and casting == true
 end
 
@@ -73,25 +78,33 @@ local _threat_enemy_count = 0
 
 local function get_threat_targets(context, me, target)
     _threat_enemy_count = 0
-    if not _get_enemy_list then return _threat_enemies, _threat_enemy_count end
-    local ok, enemy_list = pcall(_get_enemy_list)
-    if not ok or not enemy_list then return _threat_enemies, _threat_enemy_count end
+    if not _get_visible_objects then return _threat_enemies, _threat_enemy_count end
+    local ok, visible_objects = pcall(_get_visible_objects)
+    if not ok or not visible_objects then return _threat_enemies, _threat_enemy_count end
     local tab_range = setting(context, "prot_tab_range", 20)
     local range_sq = (tab_range or 20) * (tab_range or 20)
-    for _, enemy in ipairs(enemy_list) do
-        if enemy and enemy ~= target then
-            local ok_alive, alive = pcall(function()
-                if enemy.is_alive then return enemy:is_alive() end
-                return true
-            end)
-            if ok_alive and alive ~= false then
-                local ok_dist, dist_sq = pcall(function()
-                    if me.get_distance then return me:get_distance(enemy) end
-                    return 999
+    for _, obj in ipairs(visible_objects) do
+        if obj and obj ~= target then
+            -- Filter: must be enemy to player
+            local ok_enemy, is_enemy = pcall(function() return obj:is_enemy_with(me) end)
+            if ok_enemy and is_enemy then
+                local ok_alive, alive = pcall(function()
+                    if obj.is_dead then return not obj:is_dead() end
+                    if obj.is_ghost then return not obj:is_ghost() end
+                    return true
                 end)
-                if ok_dist and type(dist_sq) == "number" and dist_sq < range_sq then
-                    _threat_enemy_count = _threat_enemy_count + 1
-                    _threat_enemies[_threat_enemy_count] = enemy
+                if ok_alive and alive ~= false then
+                    local ok_dist, dist = pcall(function()
+                        if me.distance_to then return me:distance_to(obj) end
+                        if obj.distance_to then return obj:distance_to(me) end
+                        if me.get_distance then return me:get_distance(obj) end
+                        if obj.get_distance then return obj:get_distance(me) end
+                        return 999
+                    end)
+                    if ok_dist and type(dist) == "number" and dist * dist < range_sq then
+                        _threat_enemy_count = _threat_enemy_count + 1
+                        _threat_enemies[_threat_enemy_count] = obj
+                    end
                 end
             end
         end
@@ -148,6 +161,9 @@ local prot_state = {
     ss_purge_name = nil,
     disarm_class_ok = false,
     disarm_burst_name = nil,
+    is_group = false,
+    tank = nil,
+    lowest_allied = nil,
 }
 
 local function build_state(context)
@@ -195,6 +211,7 @@ local function build_state(context)
     prot_state.spell_reflect_ready = me and NS.spell_ready(SPELLS.SpellReflection, me, { skip_range = true }) or false
     prot_state.concussion_ready = target and NS.spell_ready(SPELLS.ConcussionBlow, target) or false
     prot_state.intercept_ready = target and NS.spell_ready(SPELLS.Intercept, target) or false
+    prot_state.intervene_ready = me and NS.spell_ready(SPELLS.Intervene, me, { skip_range = true }) or false
     prot_state.hamstring_ready = target and NS.spell_ready(SPELLS.Hamstring, target) or false
     prot_state.berserker_rage_ready = me and NS.spell_ready(SPELLS.BerserkerRage, me, { skip_range = true }) or false
     prot_state.battle_shout_ready = me and NS.spell_ready(SPELLS.BattleShout, me, { skip_range = true }) or false
@@ -245,8 +262,7 @@ local function build_state(context)
                 if ok_t and enemy_target ~= me then
                     -- HP gate: don't taunt a target at <5% HP (waste of CD)
                     local ok_hp, enemy_hp = pcall(function()
-                        if enemy.get_health_percentage then return enemy:get_health_percentage() end
-                        return 100
+                        return NS.unit_health_pct(enemy)
                     end)
                     if ok_hp and (enemy_hp or 100) < 5 then
                         -- Skip low-HP targets — they'll die before taunt matters
@@ -270,6 +286,46 @@ local function build_state(context)
         prot_state.nearby_enemies = nil
         prot_state.nearby_count = 0
         prot_state.no_threat_target = nil
+    end
+
+    -- Intervene: populate party state
+    prot_state.is_group = context.is_group or false
+    prot_state.tank = nil
+    prot_state.lowest_allied = nil
+    if prot_state.is_group and me then
+        local party_scan = NS.get_party_members or NS.party_members
+        local me_pos_ok, me_x, me_y = pcall(function()
+            if me.get_position then return me:get_position() end
+            return nil, nil
+        end)
+        if party_scan and me_pos_ok and me_x and me_y then
+            local members = party_scan(me, NS) or {}
+            local best_ally = nil
+            local best_hp = 101
+            local best_dist_sq = 999999
+            for _, member in ipairs(members) do
+                if member and member ~= me then
+                    local ok_hp, hp = pcall(function() return NS.unit_health_pct(member) end)
+                    if ok_hp and hp and hp < best_hp then
+                        local ok_pos, ax, ay = pcall(function()
+                            if member.get_position then return member:get_position() end
+                            return nil, nil
+                        end)
+                        if ok_pos and ax and ay then
+                            local ddx, ddy = me_x - ax, me_y - ay
+                            local dist_sq = ddx * ddx + ddy * ddy
+                            if dist_sq <= 625 then
+                                best_ally = { unit = member, effective_hp = hp }
+                                best_hp = hp
+                                best_dist_sq = dist_sq
+                            end
+                        end
+                    end
+                end
+            end
+            prot_state.lowest_allied = best_ally
+            prot_state.tank = best_ally
+        end
     end
 
     return prot_state
@@ -400,6 +456,10 @@ local function taunt_matches_fn(context, state)
     local me = context.me or NS.GetPlayer()
     local target = context.target
     if not target then return false end
+    -- Smart taunt: only taunt elites/bosses (classification >= 1)
+    if (context.target_classification or 0) < 1 then return false end
+    -- Skip CC'd targets
+    if NS.has_target_debuff and context.target and NS.has_target_debuff(context.target, { 118, 12824, 12825, 12826, 6770, 2070, 5782, 6213, 6215, 20066, 2637, 9484, 9485, 10955 }) then return false end
     -- Don't waste Taunt on a target that already has aggro on us
     if me then
         local ok, enemy_target = pcall(function()
@@ -424,6 +484,10 @@ end
 local function mocking_blow_matches_fn(context, state)
     if not state.mocking_ready then return false end
     if (state.enemy_count or 0) < 2 then return false end
+    -- Smart taunt: only mocking blow elites/bosses (classification >= 1)
+    if (context.target_classification or 0) < 1 then return false end
+    -- Skip CC'd targets
+    if NS.has_target_debuff and context.target and NS.has_target_debuff(context.target, { 118, 12824, 12825, 12826, 6770, 2070, 5782, 6213, 6215, 20066, 2637, 9484, 9485, 10955 }) then return false end
     -- Prefer: Mocking Blow an enemy NOT targeting us
     if state.no_threat_target then
         context._mocking_target = state.no_threat_target
@@ -436,6 +500,10 @@ local function taunt_secondary_matches_fn(context, state)
     if not state.mocking_ready then return false end
     if not setting(context, "prot_tab_targeting", true) then return false end
     if (state.enemy_count or 0) < 3 then return false end
+    -- Smart taunt: only mocking blow elites/bosses (classification >= 1)
+    if (context.target_classification or 0) < 1 then return false end
+    -- Skip CC'd targets
+    if NS.has_target_debuff and context.target and NS.has_target_debuff(context.target, { 118, 12824, 12825, 12826, 6770, 2070, 5782, 6213, 6215, 20066, 2637, 9484, 9485, 10955 }) then return false end
     -- We need a nearby enemy we can tab to
     if not state.no_threat_target then return false end
     -- Only fire if primary Taunt is on cooldown (otherwise Taunt takes priority)
@@ -448,6 +516,10 @@ local function challenging_shout_matches_fn(context, state)
     if not state.challenging_ready then return false end
     -- Challenging Shout is AoE — needs 3+ enemies to be worth the 1min cooldown
     if (state.enemy_count or 0) < 3 then return false end
+    -- Smart taunt: only shout on elites/bosses (classification >= 1)
+    if (context.target_classification or 0) < 1 then return false end
+    -- Skip CC'd targets
+    if NS.has_target_debuff and context.target and NS.has_target_debuff(context.target, { 118, 12824, 12825, 12826, 6770, 2070, 5782, 6213, 6215, 20066, 2637, 9484, 9485, 10955 }) then return false end
     return true
 end
 
@@ -480,6 +552,27 @@ end
 local function intercept_matches_fn(context, state)
     if not state.intercept_ready then return false end
     if not state.is_pvp then return false end
+    return true
+end
+
+local function intervene_matches_fn(context, state)
+    if not state.intervene_ready then return false end
+    if not state.in_combat then return false end
+    if not state.is_group then return false end
+    if not setting(context, "warrior_use_intervene", true) then return false end
+    if setting(context, "warrior_intervene_pvp_only", true) and not state.is_pvp then return false end
+    if (state.rage or 0) < 10 then return false end
+    local ally = state.lowest_allied or state.tank
+    if not ally or not ally.unit then return false end
+    local hp_threshold = setting(context, "warrior_intervene_hp_threshold", 60)
+    if (ally.effective_hp or 100) > hp_threshold then return false end
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+    if not me then return false end
+    local dx, dy = me.get_position and me:get_position()
+    local ax, ay = ally.unit.get_position and ally.unit:get_position()
+    if not (dx and dy and ax and ay) then return false end
+    local ddx, ddy = dx - ax, dy - ay
+    if ddx*ddx + ddy*ddy > 625 then return false end
     return true
 end
 
@@ -534,6 +627,24 @@ end
 -- Strategies
 -- ============================================================================
 local strategies = {
+    { name = "HealthPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_health_potion then return false end
+          if (context.hp or 100) > 35 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS) end },
+    { name = "DamagePotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_damage_potion then return false end
+          if not context.should_burst then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
     -- 1) Emergency defensives (always first)
     {
         name = "LastStand",
@@ -756,6 +867,15 @@ local strategies = {
         matches = function(context, state) return intercept_matches_fn(context, state) end,
         execute = function(context)
             return NS.try_cast(SPELLS.Intercept, context.target, "[PROT] Intercept")
+        end,
+    },
+    {
+        name = "Intervene",
+        matches = function(context, state) return intervene_matches_fn(context, state) end,
+        execute = function(context, state)
+            local ally = state.lowest_allied or state.tank
+            if not (ally and ally.unit) then return false end
+            return NS.try_cast(SPELLS.Intervene, ally.unit, "[PROT] Intervene", { skip_range = true })
         end,
     },
     {

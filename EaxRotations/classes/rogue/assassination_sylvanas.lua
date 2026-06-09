@@ -3,6 +3,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.RogueSpells or {}
+local potion_helper = require("shared/potion_helper_sylvanas")
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
 -- ============================================================================
@@ -160,6 +161,36 @@ end
 -- Strategies (priority order: survival → cooldowns → finishers → builders → PvP)
 -- ============================================================================
 local strategies = {
+
+    -- ------------------------------------------------------------------------
+    -- 1a. Health Potion (context-based O(1) gate)
+    -- ------------------------------------------------------------------------
+    {
+        name = "HealthPotion",
+        matches = function(context)
+            if not context.in_combat then return false end
+            if context.settings and context.settings.use_auto_potions == false then return false end
+            if not context.has_health_potion then return false end
+            if (context.hp or 100) > 35 then return false end
+            return true
+        end,
+        execute = function(context) return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS) end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 1b. Damage Potion (context-based O(1) gate, burst-only)
+    -- ------------------------------------------------------------------------
+    {
+        name = "DamagePotion",
+        matches = function(context)
+            if not context.in_combat then return false end
+            if context.settings and context.settings.use_auto_potions == false then return false end
+            if not context.has_damage_potion then return false end
+            if not context.should_burst then return false end
+            return true
+        end,
+        execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end,
+    },
 
     -- ------------------------------------------------------------------------
     -- 1. Evasion (oh-shit)

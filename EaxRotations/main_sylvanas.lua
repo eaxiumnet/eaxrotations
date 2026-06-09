@@ -7,6 +7,8 @@ local _context = {}
 local _combat_start_time = nil
 local was_in_combat = false
 local _combat_state_last_known = 0  -- timestamp when combat state was last confirmed by API
+local _last_target_guid = nil          -- Previous frame's target GUID for manual target change detection
+local _manual_target_lockout_until = 0 -- Timestamp when 3s manual target grace period expires
 local _ooc_ok, ooc_manager = pcall(require, "shared/ooc_manager_sylvanas")
 if not _ooc_ok then ooc_manager = nil end
 local _burst_ok, BurstLogic = pcall(require, "shared/burst_logic_sylvanas")
@@ -15,6 +17,15 @@ local _forecast_gate_ok = pcall(require, "shared/combat_forecast_gate_sylvanas")
 if not _forecast_gate_ok and not NS.should_use_long_cd then NS.should_use_long_cd = function() return true end end
 local _combat_forecast_ok, combat_forecast = pcall(require, "common/modules/combat_forecast")
 if not _combat_forecast_ok or type(combat_forecast) ~= "table" then combat_forecast = nil end
+-- Platform-provided target selector: pre-filtered enemy and heal target lists
+local _target_selector_ok, target_selector = pcall(require, "common/modules/target_selector")
+if not _target_selector_ok or type(target_selector) ~= "table" then target_selector = nil end
+-- Platform-provided health prediction: tank detection, PvP detection, incoming damage
+local _health_pred_ok, health_prediction = pcall(require, "common/modules/health_prediction")
+if not _health_pred_ok or type(health_prediction) ~= "table" then health_prediction = nil end
+-- Platform-provided inventory helper: consumable tracking, bag scanning
+local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
+if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local _ttd_tracker_ok, ttd_tracker = pcall(require, "shared/ttd_tracker_sylvanas")
 if not _ttd_tracker_ok or type(ttd_tracker) ~= "table" then ttd_tracker = nil end
 local _ttd_ema_ok, ttd_ema = pcall(require, "shared/ttd_ema_tracker_sylvanas")
@@ -144,6 +155,10 @@ local function find_enemy_target(me, selected)
     if selected_ok then
         return selected
     end
+    -- During manual target grace period, skip all fallbacks — respect the player's choice
+    if NS.time_now() < _manual_target_lockout_until then
+        return nil
+    end
     -- IZI-selected target fallback (for scripts that use the IZI target helper)
     if not selected then
         local izi_target = NS.izi and NS.izi.target and NS.izi.target()
@@ -264,6 +279,11 @@ local function resolve_auto_aoe_playstyle(registry, active, enemy_count)
 end
 
 local function throttled_enemies()
+    -- Primary: target_selector platform module (pre-filtered, cached by engine)
+    if target_selector and type(target_selector.get_targets) == "function" then
+        return target_selector:get_targets(40)
+    end
+    -- Fallback: engine GetEnemiesInRange API
     local now = NS.game_time_ms and NS.game_time_ms() or 0
     if now - _cached_enemies_time > 100 then
         _cached_enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(40) or nil
@@ -339,6 +359,21 @@ local function build_context()
         return nil
     end
     local selected_target = get_target(me)
+    -- Detect manual target change: if GUID differs from last frame, start 3s grace period
+    if selected_target then
+        local current_guid = nil
+        local get_guid = NS.safe_field and NS.safe_field(selected_target, "get_guid") or nil
+        if get_guid then
+            local ok, guid = pcall(get_guid, selected_target)
+            if ok then current_guid = guid end
+        end
+        if current_guid and _last_target_guid and current_guid ~= _last_target_guid then
+            _manual_target_lockout_until = (NS.time_now and NS.time_now() or 0) + 3.0
+        end
+        _last_target_guid = current_guid
+    else
+        _last_target_guid = nil
+    end
     local target = find_enemy_target(me, selected_target)
     local is_in_combat = NS.safe_field and NS.safe_field(me, "is_in_combat") or nil
     local raw_in_combat = is_in_combat and safe(is_in_combat, me) or nil
@@ -481,7 +516,13 @@ local function build_context()
     if not _context.is_casting and not _context.is_channeling then
         _context.is_channeling = unit_bool(me, "is_channeling_or_casting")
     end
-    _context.is_pvp = NS.is_pvp_zone and NS.is_pvp_zone() or false
+    -- PvP detection: health_prediction platform module, fallback to zone-based detection
+    if health_prediction and type(health_prediction.is_pvp_situation) == "function" and target then
+        local ok, pvp_sit = pcall(health_prediction.is_pvp_situation, health_prediction, target)
+        _context.is_pvp = ok and pvp_sit == true
+    else
+        _context.is_pvp = NS.is_pvp_zone and NS.is_pvp_zone() or false
+    end
     _context.instance_type = instance_type
     _context.is_dungeon = instance_type == "party"
     _context.is_raid = instance_type == "raid"
@@ -495,16 +536,36 @@ local function build_context()
         local now = NS.game_time_ms and NS.game_time_ms() or 0
         if now - _cached_tank_alive_time > 500 then
             tank_alive = true
-            local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
-            if party then
-                for _, u in ipairs(party) do
-                    if u then
-                        local ok, is_tank = pcall(function() return u.is_tank and u:is_tank() end)
-                        if ok and is_tank then
-                            local ok2, alive = pcall(function() return u.is_alive and u:is_alive() end)
-                            if ok2 and not alive then
-                                tank_alive = false
-                                break
+            -- Primary: health_prediction platform module (engine-level tank detection)
+            if health_prediction and type(health_prediction.is_tank) == "function" then
+                local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
+                if party then
+                    for _, u in ipairs(party) do
+                        if u then
+                            local ok, is_tank = pcall(health_prediction.is_tank, health_prediction, u)
+                            if ok and is_tank then
+                                local ok2, alive = pcall(function() return u.is_alive and u:is_alive() end)
+                                if ok2 and not alive then
+                                    tank_alive = false
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            else
+                -- Fallback: manual party iteration with unit:is_tank()
+                local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
+                if party then
+                    for _, u in ipairs(party) do
+                        if u then
+                            local ok, is_tank = pcall(function() return u.is_tank and u:is_tank() end)
+                            if ok and is_tank then
+                                local ok2, alive = pcall(function() return u.is_alive and u:is_alive() end)
+                                if ok2 and not alive then
+                                    tank_alive = false
+                                    break
+                                end
                             end
                         end
                     end
@@ -680,6 +741,26 @@ local function build_context()
         _context.combat_length_forecast = _context.ttd or 999
     end
     _context.ttd_known = ttd ~= nil
+    -- Consumable inventory: exposed via platform inventory_helper for potion auto-use strategies
+    if inventory_helper and type(inventory_helper.update_consumables_list) == "function" then
+        pcall(inventory_helper.update_consumables_list, inventory_helper)
+    end
+    _context.has_mana_potion = false
+    _context.has_health_potion = false
+    _context.has_damage_potion = false
+    _context.has_food_or_drink = false
+    if inventory_helper and type(inventory_helper.get_current_consumables_list) == "function" then
+        local ok, consumables = pcall(inventory_helper.get_current_consumables_list, inventory_helper)
+        if ok and type(consumables) == "table" then
+            for i = 1, #consumables do
+                local c = consumables[i]
+                if c.is_mana_potion then _context.has_mana_potion = true end
+                if c.is_health_potion then _context.has_health_potion = true end
+                if c.is_damage_bonus_potion then _context.has_damage_potion = true end
+                if c.is_food_or_drink then _context.has_food_or_drink = true end
+            end
+        end
+    end
     _context.now = NS.time_now()
     NS.current_context = _context
     -- Fire combat start/end callbacks AFTER context is fully built so subscribers
@@ -688,6 +769,8 @@ local function build_context()
         if in_combat and not was_in_combat then
             if NS._fire_combat_start then NS._fire_combat_start(_context) end
         elseif not in_combat and was_in_combat then
+            _manual_target_lockout_until = 0
+            _last_target_guid = nil
             if NS._fire_combat_end then NS._fire_combat_end(_context) end
         end
     end

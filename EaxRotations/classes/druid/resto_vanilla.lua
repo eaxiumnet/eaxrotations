@@ -2,6 +2,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.DruidSpells or {}
+local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.DruidHealing or require("classes/druid/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
@@ -53,10 +54,6 @@ local LOCAL_SPELLS = {
     NaturesGrasp = NS.spell_action({ 16813, 16812, 16811, 16810, 16689 }, "NaturesGrasp"),
 }
 
-local MANA_POTION_IDS = {
-    TBC_POTIONS.major_mana or 13444,
-    TBC_POTIONS.superior_mana or 13443,
-}
 local HEALER_CLASS_IDS = { [2] = true, [5] = true, [7] = true, [11] = true }
 
 local SKIP_RANGE = { skip_range = true }
@@ -87,7 +84,6 @@ local resto_state = {
     melee_target = nil,
     enemy_healer = nil,
     root_target = nil,
-    mana_potion_id = nil,
     has_natures_swiftness = false,
     in_caster = false,
     should_move_form = false,
@@ -152,15 +148,6 @@ local function needs_regrowth(entry)
     if effective_hp(entry) > REGROWTH_SPOT_HP then return false end
     local remains = buff_remains(entry.unit, REGROWTH_BUFF)
     return not entry.has_regrowth or remains <= REGROWTH_REFRESH
-end
-
-local function find_ready_mana_potion()
-    if not NS.is_item_ready then return nil end
-    for i = 1, #MANA_POTION_IDS do
-        local item_id = MANA_POTION_IDS[i]
-        if NS.is_item_ready(item_id) then return item_id end
-    end
-    return nil
 end
 
 local function scan_pvp_pressure(context, state)
@@ -236,8 +223,8 @@ local function build_state(context)
 
     resto_state.entries = entries
     resto_state.count = count
-    resto_state.tank = NS.healing_get_tank(entries, count)
-    resto_state.lowest = NS.healing_get_lowest_hp(entries, count, 100)
+    resto_state.tank = NS.healing_get_tank and NS.healing_get_tank(entries, count) or nil
+    resto_state.lowest = NS.healing_get_lowest_hp and NS.healing_get_lowest_hp(entries, count, 100) or nil
     resto_state.lowest_tank = nil
     resto_state.lowest_healer = nil
     resto_state.lowest_dps = nil
@@ -290,7 +277,6 @@ local function build_state(context)
 
     resto_state.swiftmend_target = choose_swiftmend_target(entries, count, swiftmend_hp)
     resto_state.innervate_target = find_priority_innervate(entries, count, context)
-    if (context.mana_pct or 100) <= 18 then resto_state.mana_potion_id = find_ready_mana_potion() end
     if context.is_moving and (context.target_distance or 0) >= REPOSITION_RANGE then resto_state.should_move_form = true end
     scan_pvp_pressure(context, resto_state)
     return resto_state
@@ -311,7 +297,7 @@ local strategies = {
     { name = "NaturesGraspMelee", matches = function(context, state) return context.is_pvp and state.melee_pressure_count > 0 and not NS.has_player_buff(NATURES_GRASP_BUFF) and NS.spell_ready(LOCAL_SPELLS.NaturesGrasp, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(LOCAL_SPELLS.NaturesGrasp, PLAYER_UNIT, "[RESTO] Nature's Grasp melee peel", SKIP_RANGE) end },
     { name = "RemoveCurse", matches = function(_, state) return state.cursed_target and NS.spell_ready(SPELLS.RemoveCurse, state.cursed_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.RemoveCurse, state.cursed_target.unit, "[RESTO] Remove Curse") end },
     { name = "AbolishPoison", matches = function(_, state) return state.poison_target and NS.spell_ready(SPELLS.AbolishPoison, state.poison_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.AbolishPoison, state.poison_target.unit, "[RESTO] Abolish Poison") end },
-    { name = "ManaPotionFloor", matches = function(_, state) return state.mana_potion_id ~= nil and NS.use_item_by_id ~= nil end, execute = function(context, state) if NS.use_item_by_id(state.mana_potion_id, context.me) then local debug = NS.get_setting and NS.get_setting("debug_system", false) or false; if debug then NS.log("[RESTO] Mana potion") end; return true end return false end },
+    { name = "ManaPotionFloor", matches = function(_, s) return (s.mana_pct or 100) <= 18 end, execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
     { name = "InnervateSelf", matches = function(context, state) return state.innervate_target and NS.same_unit(state.innervate_target, context.me) and NS.spell_ready(LOCAL_SPELLS.Innervate, state.innervate_target, INNERVATE_OPTS) end, execute = function(_, state) return NS.try_cast(LOCAL_SPELLS.Innervate, state.innervate_target, "[RESTO] Innervate self", INNERVATE_OPTS) end },
     { name = "InnervateHealer", matches = function(context, state) return state.innervate_target and not NS.same_unit(state.innervate_target, context.me) and NS.spell_ready(LOCAL_SPELLS.Innervate, state.innervate_target, INNERVATE_OPTS) end, execute = function(_, state) return NS.try_cast(LOCAL_SPELLS.Innervate, state.innervate_target, "[RESTO] Innervate healer", INNERVATE_OPTS) end },
     { name = "RebirthBattleRez", matches = function(context) return context.in_combat and (NS.is_in_party and NS.is_in_party() or NS.is_in_raid and NS.is_in_raid()) and NS.spell_ready(LOCAL_SPELLS.Rebirth, PLAYER_UNIT, { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD }) end, execute = function() return NS.try_cast(LOCAL_SPELLS.Rebirth, PLAYER_UNIT, "[RESTO] Rebirth battle rez", { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD }) end },

@@ -523,21 +523,21 @@ end)
 -- ============================================================================
 
 test("fade_matches: ready, high threat → true", function()
-    local ctx = make_context({state = {threat_status = 3, target_creature_type = "humanoid", hp_pct = 80, mana_pct = 80, enemy_count = 1, is_moving = false}})
+    local ctx = make_context({threat_pct = 99, target_creature_type = "humanoid", hp_pct = 80, mana_pct = 80, enemy_count = 1, is_moving = false})
     local state = get_state(ctx)
     state.fade_ready = true
     assert_true(strategies[10].matches(ctx, state), "high threat should match")
 end)
 
 test("fade_matches: low threat → false", function()
-    local ctx = make_context({state = {threat_status = 1, target_creature_type = "humanoid", hp_pct = 80, mana_pct = 80, enemy_count = 1, is_moving = false}})
+    local ctx = make_context({threat_pct = 33, target_creature_type = "humanoid", hp_pct = 80, mana_pct = 80, enemy_count = 1, is_moving = false})
     local state = get_state(ctx)
     state.fade_ready = true
     assert_false(strategies[10].matches(ctx, state), "low threat should not match")
 end)
 
 test("fade_matches: not ready → false", function()
-    local ctx = make_context({state = {threat_status = 3, target_creature_type = "humanoid", hp_pct = 80, mana_pct = 80, enemy_count = 1, is_moving = false}})
+    local ctx = make_context({threat_pct = 99, target_creature_type = "humanoid", hp_pct = 80, mana_pct = 80, enemy_count = 1, is_moving = false})
     local state = get_state(ctx)
     state.fade_ready = false
     assert_false(strategies[10].matches(ctx, state), "fade not ready")
@@ -548,21 +548,27 @@ end)
 -- ============================================================================
 
 test("shackle_matches: ready, undead target → true", function()
-    local ctx = make_context({state = {target_creature_type = "undead", threat_status = 0, hp_pct = 80, mana_pct = 80, enemy_count = 1, is_moving = false}})
+    local ctx = make_context({target_creature_type = "undead"})
     local state = get_state(ctx)
     state.shackle_ready = true
+    -- target_creature_type() re-queries the target object on every match call,
+    -- so replace state.target with one that reports undead.
+    state.target = {
+        is_valid = function() return true end,
+        get_creature_type = function() return "undead" end,
+    }
     assert_true(strategies[11].matches(ctx, state), "undead target should match")
 end)
 
 test("shackle_matches: humanoid target → false", function()
-    local ctx = make_context({state = {target_creature_type = "humanoid", threat_status = 0, hp_pct = 80, mana_pct = 80, enemy_count = 1, is_moving = false}})
+    local ctx = make_context({target_creature_type = "humanoid"})
     local state = get_state(ctx)
     state.shackle_ready = true
     assert_false(strategies[11].matches(ctx, state), "humanoid should not match")
 end)
 
 test("shackle_matches: not ready → false", function()
-    local ctx = make_context({state = {target_creature_type = "undead", threat_status = 0, hp_pct = 80, mana_pct = 80, enemy_count = 1, is_moving = false}})
+    local ctx = make_context({target_creature_type = "undead"})
     local state = get_state(ctx)
     state.shackle_ready = false
     assert_false(strategies[11].matches(ctx, state), "shackle not ready")
@@ -1082,21 +1088,21 @@ end
 
 do -- edge_fade
     test("edge_fade: fade matches when threat >= 3", function()
-        local ctx = make_context({}, {threat_status = 3})
+        local ctx = make_context({threat_pct = 99})
         local state = get_state(ctx)
         state.fade_ready = true
         assert_true(strategies[10].matches(ctx, state), "fade should match at threat 3")
     end)
 
     test("edge_fade: fade does not match when threat < 3", function()
-        local ctx = make_context({}, {threat_status = 2})
+        local ctx = make_context({threat_pct = 33})
         local state = get_state(ctx)
         state.fade_ready = true
         assert_false(strategies[10].matches(ctx, state), "fade should not match at threat 2")
     end)
 
     test("edge_fade: fade does not match when not ready", function()
-        local ctx = make_context({}, {threat_status = 3})
+        local ctx = make_context({threat_pct = 99})
         local state = get_state(ctx)
         state.fade_ready = false
         assert_false(strategies[10].matches(ctx, state), "fade should not match when not ready")
@@ -1112,6 +1118,12 @@ do -- edge_shackle
         local ctx = make_context({}, {target_creature_type = "undead"})
         local state = get_state(ctx)
         state.shackle_ready = true
+        -- target_creature_type() re-queries the target object on every match call,
+        -- so replace state.target with one that reports undead.
+        state.target = {
+            is_valid = function() return true end,
+            get_creature_type = function() return "undead" end,
+        }
         assert_true(strategies[11].matches(ctx, state), "shackle should match on undead target")
     end)
 

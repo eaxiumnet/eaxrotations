@@ -175,6 +175,16 @@ local SPELLS = {
         school = "nature",
         cc_type = "fear",
     }),
+    SnakeTrap = NS.spell_action({
+        name = "SnakeTrap",
+        ids = {34600},
+        levels = {68},
+        cast_time = 0,
+        cooldown = 30,
+        power_cost = 305,
+        power_type = "mana",
+        school = "nature",
+    }),
     SerpentSting = NS.spell_action({
         name = "SerpentSting",
         ids = {27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978},

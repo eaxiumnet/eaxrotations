@@ -1,6 +1,7 @@
 -- Warrior Fury priority list ? Classic Vanilla
 local NS = _G.EaxRotations
 if not NS then return nil end
+local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
@@ -173,6 +174,28 @@ end
 
 -- Classic Fury Strategy table
 local strategies = {}
+
+-- Auto-potions (context-based, O(1) gate)
+table.insert(strategies, { name = "HealthPotion",
+    matches = function(c)
+        if not c.in_combat then return false end
+        if c.settings and c.settings.use_auto_potions == false then return false end
+        if not c.has_health_potion then return false end
+        if (c.hp or 100) > 35 then return false end
+        return true
+    end,
+    execute = function(c) return potion_helper.try_use_potion(c, potion_helper.HEALTH_POTION_IDS) end
+})
+table.insert(strategies, { name = "DamagePotion",
+    matches = function(c)
+        if not c.in_combat then return false end
+        if c.settings and c.settings.use_auto_potions == false then return false end
+        if not c.has_damage_potion then return false end
+        if not c.should_burst then return false end
+        return true
+    end,
+    execute = function(c) return potion_helper.try_use_potion(c, potion_helper.DAMAGE_POTION_IDS) end
+})
 
 -- 1. Defensive: Berserker Rage
 if ACTION.BerserkerRage then

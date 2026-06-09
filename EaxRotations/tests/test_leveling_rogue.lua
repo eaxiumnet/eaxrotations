@@ -718,6 +718,7 @@ end)
 
 test("expose_armor_matches: ready, 3-4 CP, no stacks -> true", function()
     local ctx = make_context()
+    ctx.target_armor = 100  -- gate added in feat(rogue): gate Expose Armor on target_armor > 0
     NS.debuff_stacks = function(target, spell) return 0 end
     local state = get_state(ctx)
     state.expose_armor_ready = true
@@ -729,6 +730,7 @@ end)
 
 test("expose_armor_matches: already has stacks -> false", function()
     local ctx = make_context()
+    ctx.target_armor = 100
     NS.debuff_stacks = function(target, spell) return 3 end
     local state = get_state(ctx)
     state.expose_armor_ready = true
@@ -741,6 +743,7 @@ end)
 
 test("expose_armor_matches: 5 CP (prefer eviscerate) -> false", function()
     local ctx = make_context()
+    ctx.target_armor = 100
     local state = get_state(ctx)
     state.expose_armor_ready = true
     state.use_expose_armor = true
@@ -751,6 +754,7 @@ end)
 
 test("expose_armor_matches: 1 CP -> false", function()
     local ctx = make_context()
+    ctx.target_armor = 100
     local state = get_state(ctx)
     state.expose_armor_ready = true
     state.use_expose_armor = true

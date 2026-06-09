@@ -42,6 +42,8 @@
 ---@field is_visible fun(self: game_object): boolean
 ---Returns the type of the game object.
 ---@field get_type fun(self: game_object): number
+---Returns the object type as a string.
+---@field get_object_type_string fun(self: game_object): string
 ---Returns the class of the game object.
 ---@field get_class fun(self: game_object): number
 ---Returns the spec_id of the game object.
@@ -156,6 +158,8 @@
 ---@field get_name fun(self: game_object): string
 ---Returns the current health of the game object.
 ---@field get_health fun(self: game_object): number
+---Returns the unit's money in copper (local player only; may be absent on other builds).
+---@field get_money? fun(self: game_object): number
 ---Returns the maximum health of the game object.
 ---@field get_max_health fun(self: game_object): number
 ---Returns the max health modifier of the game object.
@@ -310,6 +314,8 @@
 ---@field get_unit_ranged_damage fun(self: game_object): unit_ranged_damage_data
 ---Returns the armor value of the game object.
 ---@field get_armor fun(self: game_object): number
+---Returns the current state flags bitfield of the game object.
+---@field get_state_flags fun(self: game_object): integer
 ---Returns whatever the npc is tap denied for the localplayer (grey healthbar)
 ---@field is_tap_denied fun(self: game_object): number
 

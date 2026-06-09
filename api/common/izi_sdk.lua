@@ -523,6 +523,7 @@
 ---@field logf fun(filename: string, fmt: string, ...: string|number|boolean|nil): nil
 
 ---@class izi_api
+---@field on_update       fun()                                                                   -- per-frame SDK update; call once from your on_update callback
 ---@field on_buff_gain    fun(cb: fun(ev: { unit: game_object, buff_id: integer })) : (fun())      -- unsubscribe() return
 ---@field on_buff_lose    fun(cb: fun(ev: { unit: game_object, buff_id: integer })) : (fun())
 ---@field on_debuff_gain  fun(cb: fun(ev: { unit: game_object, debuff_id: integer })) : (fun())
@@ -1251,6 +1252,7 @@
 ---@field load_local_data fun(data_path: string, default_value?: string): string
 ---@field load_http_data fun(url: string, callback: fun(ok: boolean, data: string, http_code: integer, content_type: string, response_headers: string), headers?: table<string, string>): nil
 ---@field draw_icon fun(icon_name_or_url: string, position: vec2|vec3, width: number, height: number, tint?: color, is_for_window?: boolean, opts?: icons_helper_draw_opts): boolean
+---@field draw_item_icon fun(item_id: number, position: vec2|vec3, width: number, height: number, tint?: color, is_for_window?: boolean, opts?: icons_helper_draw_opts): boolean
 ---@field draw_spell_icon fun(spell_id: number, position: vec2|vec3, width: number, height: number, tint?: color, is_for_window?: boolean, opts?: icons_helper_draw_opts): boolean
 ---@field get_spell_icon_name fun(spell_id: number): string|nil
 ---@field clear_icon_cache fun(): nil

@@ -6,6 +6,9 @@ if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
 local hunter_core = require("shared/hunter_core_sylvanas")
 local targeting = require("shared/targeting_sylvanas")
+local pet_manager = require("shared/pet_manager_sylvanas")
+
+local potion_helper = require("shared/potion_helper_sylvanas")
 
 -- ============================================================================
 -- Constants
@@ -312,6 +315,7 @@ end
 local function bestial_wrath_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not cooldowns_allowed(context) then return false end
+    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not s.pet_alive then return false end
     if not s.bestial_wrath_ready then return false end
     return true
@@ -567,6 +571,24 @@ end
 -- Strategies
 -- ============================================================================
 local strategies = {
+    { name = "HealthPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_health_potion then return false end
+          if (context.hp or 100) > 35 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS) end },
+    { name = "ManaPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_mana_potion then return false end
+          if (context.mana_pct or 100) > 25 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
     -- 1. OOC: Call Pet
     {
         name = "CallPet",
@@ -579,6 +601,33 @@ local strategies = {
         matches = revive_pet_matches,
         execute = function(context) return NS.try_cast(SPELLS.RevivePet, context.me, "[BEAST_MASTERY] RevivePet", { skip_range = true }) end,
     },
+    -- Pet State: set defensive when pet HP is critically low to preserve it
+    { name = "PetDefensive",
+      matches = function(context, state)
+          if not state.pet_alive then return false end
+          if not state.in_combat then return false end
+          if (state.pet_hp or 100) > 40 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_defensive() end },
+    -- Pet State: set passive when player HP is critically low (survival mode)
+    { name = "PetPassive",
+      matches = function(context, state)
+          if not state.pet_alive then return false end
+          if not state.in_combat then return false end
+          if (context.hp or 100) > 25 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_passive() end },
+    -- Pet State: set aggressive during combat when pet is healthy
+    { name = "PetAggressive",
+      matches = function(context, state)
+          if not state.pet_alive then return false end
+          if not state.in_combat then return false end
+          if (state.pet_hp or 100) < 50 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_aggressive() end },
     -- 3. OOC: Aspect of the Hawk (initial buff)
     {
         name = "AspectOfTheHawk_OOC",

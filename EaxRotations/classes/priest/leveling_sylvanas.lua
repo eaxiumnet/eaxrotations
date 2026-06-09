@@ -97,6 +97,7 @@ function build_state(context)
     state.scream_ready = spell_ready(SPELLS.PsychicScream)
     state.shackle_ready = spell_ready(SPELLS.ShackleUndead)
     state.fade_ready = spell_ready(SPELLS.Fade)
+    state.symbol_of_hope_ready = spell_ready(SPELLS.SymbolOfHope)
     state.inner_focus_ready = spell_ready(SPELLS.InnerFocus)
 
     -- Shadow spells (level-gated: unlearned → spell_ready returns false)
@@ -434,6 +435,19 @@ local strategies = {
         execute = function(context)
             if not context then return false end
             return leveling.execute_wand(context)
+        end,
+    },
+    {
+        name = "SymbolOfHope",
+        matches = function(context, state)
+            if not state.symbol_of_hope_ready then return false end
+            if not context.is_group then return false end
+            if context.settings and context.settings.use_symbol_of_hope == false then return false end
+            if state.in_combat and (state.mana_pct or 100) < 20 then return false end
+            return true
+        end,
+        execute = function()
+            return try_cast(SPELLS.SymbolOfHope, nil, "[LEVELING] Symbol of Hope")
         end,
     },
 }
