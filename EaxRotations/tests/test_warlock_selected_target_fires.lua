@@ -54,6 +54,7 @@ package.loaded["classes/warlock/class_sylvanas"] = nil
 _G.EaxRotations = nil
 
 local NS = require("core_sylvanas")
+NS.is_hostile_unit = function(me, target) return target ~= nil end
 require("classes/warlock/class_sylvanas")
 NS.set_setting("active_playstyle", "destruction")
 

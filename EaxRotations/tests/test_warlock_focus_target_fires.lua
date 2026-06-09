@@ -60,9 +60,12 @@ package.loaded["classes/warlock/class_sylvanas"] = nil
 _G.EaxRotations = nil
 
 local NS = require("core_sylvanas")
+NS.is_hostile_unit = function(me, target) return target ~= nil end
+NS.GetFocus = function() return focus_target end
 NS.has_player_buff = function() return true end
 NS.buff_up = function(unit) return unit == player end
 require("classes/warlock/class_sylvanas")
+NS.set_setting("playstyle", "destruction")
 NS.set_setting("active_playstyle", "destruction")
 
 local dispatcher = require("main_sylvanas")
