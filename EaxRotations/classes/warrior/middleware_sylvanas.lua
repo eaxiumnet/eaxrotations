@@ -269,10 +269,16 @@ local strategies = {
             local is_casting = false
             local casting_spell_id = nil
             if context.target then
-                local ok1, val1 = pcall(function() return context.target:is_casting() end)
+                local ok1, val1 = pcall(function()
+                    if context.target.is_casting_spell then return context.target:is_casting_spell() end
+                    return false
+                end)
                 if ok1 then is_casting = val1 end
-                
-                local ok2, val2 = pcall(function() return context.target:get_casting_spell_id() end)
+
+                local ok2, val2 = pcall(function()
+                    if context.target.get_active_spell_id then return context.target:get_active_spell_id() end
+                    return nil
+                end)
                 if ok2 then casting_spell_id = val2 end
             end
             
