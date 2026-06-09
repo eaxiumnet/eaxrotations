@@ -58,6 +58,7 @@ end
 
 local function self_spell_ready(spell, context)
     local me = player_unit(context)
+    if not NS.spell_ready then return false end
     return spell and me and NS.spell_ready(spell, me, { skip_range = true })
 end
 
@@ -69,6 +70,7 @@ local function should_use_mage_defensive(context)
 end
 
 local function has_armor_buff()
+    if not NS.has_player_buff then return false end
     return NS.has_player_buff(MAGE_ARMOR_BUFFS) or NS.has_player_buff(MOLTEN_ARMOR_BUFFS)
 end
 
@@ -236,14 +238,12 @@ local strategies = {
             end
             return false
         end,
-    },
-
-{
+    },    {
         name = "PvPIceBlock",
         matches = function(context)
             local settings = context.settings or {}
             if settings.use_pvp_defensives == false then return false end
-            if not NS.should_kite(context) or (context.hp or 100) >= 30 then return false end
+            if not NS.should_kite or not NS.should_kite(context) or (context.hp or 100) >= 30 then return false end
             return true
         end,
         execute = function(context)
@@ -262,7 +262,7 @@ local strategies = {
             if not (context.in_combat and context.me) then return false end
             -- Check if Ice Barrier buff is active (114 # Ice Shield in TBC)
             local barrier_buffs = { 13032, 13031, 13033 }
-            if NS.buff_up(context.me, barrier_buffs) then return false end
+            if NS.buff_up and NS.buff_up(context.me, barrier_buffs) then return false end
             return self_spell_ready(SPELLS.IceBarrier, context)
         end,
         execute = function(context)
