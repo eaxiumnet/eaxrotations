@@ -1757,6 +1757,626 @@ do
     end
 end
 
+-- ============================================================================
+-- Deep dive: Totem OOC guards (all 7 totems must not match OOC)
+-- ============================================================================
+do
+    -- SearingTotem OOC
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.searing_totem_ready = true
+    state.use_totems = true
+    state.use_searing_totem = true
+    state.mana_pct = 80
+    assert_false(strategies[8].matches(ctx, state), "searing_totem OOC -> no match")
+
+    -- StrengthOfEarthTotem OOC
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.strength_of_earth_ready = true
+    state2.use_totems = true
+    state2.use_strength_totem = true
+    state2.mana_pct = 80
+    assert_false(strategies[9].matches(ctx2, state2), "strength_totem OOC -> no match")
+
+    -- WaterTotem OOC
+    local ctx3 = make_context({in_combat = false, mana_pct = 60})
+    local state3 = get_state(ctx3)
+    state3.mana_spring_ready = true
+    state3.use_totems = true
+    state3.use_water_totem = true
+    state3.mana_pct = 60
+    assert_false(strategies[10].matches(ctx3, state3), "water_totem OOC -> no match")
+
+    -- GroundingTotem OOC
+    local ctx4 = make_context({in_combat = false, enemies_count = 3})
+    local state4 = get_state(ctx4)
+    state4.grounding_totem_ready = true
+    state4.enemies = 3
+    state4.mana_pct = 80
+    assert_false(strategies[11].matches(ctx4, state4), "grounding_totem OOC -> no match")
+
+    -- TremorTotem OOC
+    local ctx5 = make_context({in_combat = false})
+    local state5 = get_state(ctx5)
+    state5.tremor_totem_ready = true
+    state5.mana_pct = 80
+    assert_false(strategies[12].matches(ctx5, state5), "tremor_totem OOC -> no match")
+
+    -- EarthbindTotem OOC
+    local ctx6 = make_context({in_combat = false, hp = 40, enemies_count = 4})
+    local state6 = get_state(ctx6)
+    state6.earthbind_totem_ready = true
+    state6.hp = 40
+    state6.enemies = 4
+    assert_false(strategies[19].matches(ctx6, state6), "earthbind_totem OOC -> no match")
+
+    -- StoneclawTotem OOC
+    local ctx7 = make_context({in_combat = false, hp = 40, enemies_count = 4})
+    local state7 = get_state(ctx7)
+    state7.stoneclaw_totem_ready = true
+    state7.hp = 40
+    state7.enemies = 4
+    assert_false(strategies[20].matches(ctx7, state7), "stoneclaw_totem OOC -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Totem proximity (can_drop_totem mana gate + existing totem)
+-- ============================================================================
+do
+    -- can_drop_totem: mana 20 -> match (>= 20)
+    local ctx = make_context({mana_pct = 20})
+    local state = get_state(ctx)
+    state.searing_totem_ready = true
+    state.use_totems = true
+    state.use_searing_totem = true
+    state.mana_pct = 20
+    assert_true(strategies[8].matches(ctx, state), "searing_totem mana=20 -> match (>= 20)")
+
+    -- can_drop_totem: mana 19 -> no match (< 20)
+    local ctx2 = make_context({mana_pct = 19})
+    local state2 = get_state(ctx2)
+    state2.searing_totem_ready = true
+    state2.use_totems = true
+    state2.use_searing_totem = true
+    state2.mana_pct = 19
+    assert_false(strategies[8].matches(ctx2, state2), "searing_totem mana=19 -> no match (< 20)")
+
+    -- can_drop_totem: existing fire totem active -> no match
+    -- Mock NS.get_totem_info to report an active fire totem
+    local saved_gt = NS.get_totem_info
+    NS.get_totem_info = function(slot)
+        -- slot 1 = fire
+        if slot == 1 then return { have_totem = true, totem = "Searing Totem" } end
+        return nil
+    end
+    local ctx3 = make_context({mana_pct = 80})
+    local state3 = get_state(ctx3)
+    state3.searing_totem_ready = true
+    state3.use_totems = true
+    state3.use_searing_totem = true
+    state3.mana_pct = 80
+    assert_false(strategies[8].matches(ctx3, state3), "searing_totem existing fire totem -> no match")
+    NS.get_totem_info = saved_gt
+
+    -- can_drop_totem: existing earth totem active blocks StrengthOfEarth -> no match
+    local saved_gt2 = NS.get_totem_info
+    NS.get_totem_info = function(slot)
+        if slot == 2 then return { have_totem = true, totem = "Strength of Earth Totem" } end
+        return nil
+    end
+    local ctx4 = make_context({mana_pct = 80})
+    local state4 = get_state(ctx4)
+    state4.strength_of_earth_ready = true
+    state4.use_totems = true
+    state4.use_strength_totem = true
+    state4.mana_pct = 80
+    assert_false(strategies[9].matches(ctx4, state4), "strength_totem existing earth totem -> no match")
+    NS.get_totem_info = saved_gt2
+
+    -- can_drop_totem: existing air totem active blocks Grounding -> no match
+    local saved_gt3 = NS.get_totem_info
+    NS.get_totem_info = function(slot)
+        if slot == 4 then return { have_totem = true, totem = "Windfury Totem" } end
+        return nil
+    end
+    local ctx5 = make_context({mana_pct = 80, enemies_count = 3})
+    local state5 = get_state(ctx5)
+    state5.grounding_totem_ready = true
+    state5.enemies = 3
+    state5.mana_pct = 80
+    assert_false(strategies[11].matches(ctx5, state5), "grounding_totem existing air totem -> no match")
+    NS.get_totem_info = saved_gt3
+end
+
+-- ============================================================================
+-- Deep dive: GroundingTotem enemies threshold
+-- ============================================================================
+do
+    -- GroundingTotem: enemies 2 -> match
+    local ctx = make_context({enemies_count = 2, mana_pct = 80})
+    local state = get_state(ctx)
+    state.grounding_totem_ready = true
+    state.enemies = 2
+    state.mana_pct = 80
+    assert_true(strategies[11].matches(ctx, state), "grounding_totem enemies=2 -> match (>= 2)")
+
+    -- GroundingTotem: enemies 1 -> no match
+    local ctx2 = make_context({enemies_count = 1, mana_pct = 80})
+    local state2 = get_state(ctx2)
+    state2.grounding_totem_ready = true
+    state2.enemies = 1
+    state2.mana_pct = 80
+    assert_false(strategies[11].matches(ctx2, state2), "grounding_totem enemies=1 -> no match (< 2)")
+end
+
+-- ============================================================================
+-- Deep dive: TremorTotem PvP condition
+-- ============================================================================
+do
+    -- TremorTotem: in combat -> match
+    local ctx = make_context({mana_pct = 80})
+    local state = get_state(ctx)
+    state.tremor_totem_ready = true
+    state.mana_pct = 80
+    assert_true(strategies[12].matches(ctx, state), "tremor_totem in combat -> match")
+
+    -- TremorTotem: OOC -> no match
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.tremor_totem_ready = true
+    state2.mana_pct = 80
+    assert_false(strategies[12].matches(ctx2, state2), "tremor_totem not in combat -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: StoneclawTotem / EarthbindTotem enemy+HP boundaries
+-- ============================================================================
+do
+    -- StoneclawTotem: enemies 3 hp 49 -> match
+    local ctx = make_context({hp = 49, enemies_count = 3})
+    local state = get_state(ctx)
+    state.stoneclaw_totem_ready = true
+    state.hp = 49
+    state.enemies = 3
+    assert_true(strategies[20].matches(ctx, state), "stoneclaw enemies=3 hp=49 -> match")
+
+    -- StoneclawTotem: enemies 2 hp 49 -> no match (enemies < 3)
+    local ctx2 = make_context({hp = 49, enemies_count = 2})
+    local state2 = get_state(ctx2)
+    state2.stoneclaw_totem_ready = true
+    state2.hp = 49
+    state2.enemies = 2
+    assert_false(strategies[20].matches(ctx2, state2), "stoneclaw enemies=2 -> no match")
+
+    -- StoneclawTotem: enemies 3 hp 51 -> no match (hp > 50)
+    local ctx3 = make_context({hp = 51, enemies_count = 3})
+    local state3 = get_state(ctx3)
+    state3.stoneclaw_totem_ready = true
+    state3.hp = 51
+    state3.enemies = 3
+    assert_false(strategies[20].matches(ctx3, state3), "stoneclaw hp=51 -> no match (> 50)")
+
+    -- EarthbindTotem: enemies 3 hp 49 -> match
+    local ctx4 = make_context({hp = 49, enemies_count = 3})
+    local state4 = get_state(ctx4)
+    state4.earthbind_totem_ready = true
+    state4.hp = 49
+    state4.enemies = 3
+    assert_true(strategies[19].matches(ctx4, state4), "earthbind enemies=3 hp=49 -> match")
+
+    -- EarthbindTotem: enemies 4 hp 50 -> match (boundary)
+    local ctx5 = make_context({hp = 50, enemies_count = 4})
+    local state5 = get_state(ctx5)
+    state5.earthbind_totem_ready = true
+    state5.hp = 50
+    state5.enemies = 4
+    assert_true(strategies[19].matches(ctx5, state5), "earthbind enemies=4 hp=50 -> match (boundary)")
+
+    -- EarthbindTotem: not ready -> no match
+    local ctx6 = make_context({hp = 40, enemies_count = 4})
+    local state6 = get_state(ctx6)
+    state6.earthbind_totem_ready = false
+    state6.hp = 40
+    state6.enemies = 4
+    assert_false(strategies[19].matches(ctx6, state6), "earthbind not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: WaterTotem dual branch coverage (mana_spring vs healing_stream)
+-- ============================================================================
+do
+    -- WaterTotem: mana_spring ready, mana 85 -> match
+    local ctx = make_context({mana_pct = 85, hp = 100})
+    local state = get_state(ctx)
+    state.mana_spring_ready = true
+    state.healing_stream_ready = false
+    state.use_totems = true
+    state.use_water_totem = true
+    state.mana_pct = 85
+    state.hp = 100
+    assert_true(strategies[10].matches(ctx, state), "water_totem mana_spring mana=85 -> match")
+
+    -- WaterTotem: healing_stream ready, hp 85 -> match
+    local ctx2 = make_context({mana_pct = 100, hp = 85})
+    local state2 = get_state(ctx2)
+    state2.mana_spring_ready = false
+    state2.healing_stream_ready = true
+    state2.use_totems = true
+    state2.use_water_totem = true
+    state2.mana_pct = 100
+    state2.hp = 85
+    assert_true(strategies[10].matches(ctx2, state2), "water_totem healing_stream hp=85 -> match")
+
+    -- WaterTotem: neither branch triggers -> no match
+    local ctx3 = make_context({mana_pct = 100, hp = 100})
+    local state3 = get_state(ctx3)
+    state3.mana_spring_ready = true
+    state3.healing_stream_ready = true
+    state3.use_totems = true
+    state3.use_water_totem = true
+    state3.mana_pct = 100
+    state3.hp = 100
+    assert_false(strategies[10].matches(ctx3, state3), "water_totem mana=100 hp=100 -> no match (both > 85)")
+
+    -- WaterTotem: water_totem disabled -> no match
+    local ctx4 = make_context({mana_pct = 60, hp = 100})
+    local state4 = get_state(ctx4)
+    state4.mana_spring_ready = true
+    state4.use_totems = true
+    state4.use_water_totem = false
+    state4.mana_pct = 60
+    assert_false(strategies[10].matches(ctx4, state4), "water_totem disabled -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: FlameShock debuff refresh timing (remains 4/5 boundary)
+-- ============================================================================
+do
+    -- FlameShock: debuff remains exactly 4 -> match (<= 4)
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.flame_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "flame"
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function() return 4 end
+    assert_true(strategies[15].matches(ctx, state), "flameshock remains=4 -> match (<= 4)")
+    NS.debuff_remains = saved
+
+    -- FlameShock: debuff remains exactly 5 -> no match (> 4)
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.flame_shock_ready = true
+    state2.use_shocks = true
+    state2.default_shock = "flame"
+    local saved2 = NS.debuff_remains
+    NS.debuff_remains = function() return 5 end
+    assert_false(strategies[15].matches(ctx2, state2), "flameshock remains=5 -> no match (> 4)")
+    NS.debuff_remains = saved2
+
+    -- FlameShock: debuff_remains returns 0 (API crash) -> match
+    local ctx3 = make_context({})
+    local state3 = get_state(ctx3)
+    state3.flame_shock_ready = true
+    state3.use_shocks = true
+    state3.default_shock = "flame"
+    local saved3 = NS.debuff_remains
+    NS.debuff_remains = function() return 0 end
+    assert_true(strategies[15].matches(ctx3, state3), "flameshock remains=0 -> match (edge)")
+    NS.debuff_remains = saved3
+
+    -- FlameShock: no target -> no match
+    local ctx4 = make_context({})
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.flame_shock_ready = true
+    state4.use_shocks = true
+    state4.default_shock = "flame"
+    state4.target = nil
+    assert_false(strategies[15].matches(ctx4, state4), "flameshock no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: FrostShock slow and target state
+-- ============================================================================
+do
+    -- FrostShock: frost default, target alive -> match
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.frost_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "frost"
+    assert_true(strategies[18].matches(ctx, state), "frostshock default=frost -> match")
+
+    -- FrostShock: shock disabled -> no match
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.frost_shock_ready = true
+    state2.use_shocks = false
+    state2.default_shock = "frost"
+    assert_false(strategies[18].matches(ctx2, state2), "frostshock shocks disabled -> no match")
+
+    -- FrostShock: default not frost -> no match
+    local ctx3 = make_context({})
+    local state3 = get_state(ctx3)
+    state3.frost_shock_ready = true
+    state3.use_shocks = true
+    state3.default_shock = "earth"
+    assert_false(strategies[18].matches(ctx3, state3), "frostshock default=earth -> no match")
+
+    -- FrostShock: no target -> no match
+    local ctx4 = make_context({})
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.frost_shock_ready = true
+    state4.use_shocks = true
+    state4.default_shock = "frost"
+    state4.target = nil
+    assert_false(strategies[18].matches(ctx4, state4), "frostshock no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: EarthShock (DPS) default shock boundary
+-- ============================================================================
+do
+    -- EarthShock: earth default -> match
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.earth_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "earth"
+    assert_true(strategies[16].matches(ctx, state), "earthshock default=earth -> match")
+
+    -- EarthShock: not earth -> no match
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.earth_shock_ready = true
+    state2.use_shocks = true
+    state2.default_shock = "frost"
+    assert_false(strategies[16].matches(ctx2, state2), "earthshock default=frost -> no match")
+
+    -- EarthShock: shocks disabled -> no match
+    local ctx3 = make_context({})
+    local state3 = get_state(ctx3)
+    state3.earth_shock_ready = true
+    state3.use_shocks = false
+    state3.default_shock = "earth"
+    assert_false(strategies[16].matches(ctx3, state3), "earthshock shocks disabled -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: EarthShockInterrupt casting state
+-- ============================================================================
+do
+    -- EarthShockInterrupt: target casting -> match
+    local ctx = make_context({})
+    ctx.target.is_casting = function() return true end
+    local state = get_state(ctx)
+    state.earth_shock_ready = true
+    state.use_interrupt = true
+    assert_true(strategies[4].matches(ctx, state), "interrupt target casting -> match")
+
+    -- EarthShockInterrupt: target not casting -> no match
+    local ctx2 = make_context({})
+    ctx2.target.is_casting = function() return false end
+    local state2 = get_state(ctx2)
+    state2.earth_shock_ready = true
+    state2.use_interrupt = true
+    assert_false(strategies[4].matches(ctx2, state2), "interrupt target not casting -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Purge PvP gate
+-- ============================================================================
+do
+    -- Purge: PvP -> match
+    local ctx = make_context({})
+    ctx.is_pvp = true
+    local state = get_state(ctx)
+    state.purge_ready = true
+    state.is_pvp = true
+    assert_true(strategies[17].matches(ctx, state), "purge PvP -> match")
+
+    -- Purge: not PvP -> no match
+    local ctx2 = make_context({})
+    ctx2.is_pvp = false
+    local state2 = get_state(ctx2)
+    state2.purge_ready = true
+    state2.is_pvp = false
+    assert_false(strategies[17].matches(ctx2, state2), "purge not PvP -> no match")
+
+    -- Purge: OOC -> no match
+    local ctx3 = make_context({in_combat = false})
+    ctx3.is_pvp = true
+    local state3 = get_state(ctx3)
+    state3.purge_ready = true
+    state3.in_combat = false
+    state3.is_pvp = true
+    assert_false(strategies[17].matches(ctx3, state3), "purge OOC -> no match")
+
+    -- Purge: no target -> no match
+    local ctx4 = make_context({})
+    ctx4.is_pvp = true
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.purge_ready = true
+    state4.is_pvp = true
+    state4.target = nil
+    assert_false(strategies[17].matches(ctx4, state4), "purge no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: ShamanisticRage mana boundary
+-- ============================================================================
+do
+    -- ShamanisticRage: mana 30 -> match (<= 30)
+    local ctx = make_context({mana_pct = 30})
+    local state = get_state(ctx)
+    state.shamanistic_rage_ready = true
+    state.shamanistic_rage_mana = 30
+    state.mana_pct = 30
+    assert_true(strategies[5].matches(ctx, state), "rage mana=30 -> match (<= threshold)")
+
+    -- ShamanisticRage: mana 31 -> no match (> 30)
+    local ctx2 = make_context({mana_pct = 31})
+    local state2 = get_state(ctx2)
+    state2.shamanistic_rage_ready = true
+    state2.shamanistic_rage_mana = 30
+    state2.mana_pct = 31
+    assert_false(strategies[5].matches(ctx2, state2), "rage mana=31 -> no match (> threshold)")
+
+    -- ShamanisticRage: already has rage buff -> no match
+    local ctx3 = make_context({mana_pct = 20})
+    local state3 = get_state(ctx3)
+    state3.shamanistic_rage_ready = true
+    state3.shamanistic_rage_mana = 30
+    state3.mana_pct = 20
+    state3.has_shamanistic_rage = true
+    assert_false(strategies[5].matches(ctx3, state3), "rage already active -> no match")
+
+    -- ShamanisticRage: OOC -> no match
+    local ctx4 = make_context({in_combat = false, mana_pct = 20})
+    local state4 = get_state(ctx4)
+    state4.shamanistic_rage_ready = true
+    state4.shamanistic_rage_mana = 30
+    state4.mana_pct = 20
+    state4.in_combat = false
+    assert_false(strategies[5].matches(ctx4, state4), "rage OOC -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Stormstrike melee range + mana gate
+-- ============================================================================
+do
+    -- Stormstrike: in melee range, mana 10 -> match
+    local ctx = make_context({mana_pct = 10})
+    ctx.in_melee_range = true
+    local state = get_state(ctx)
+    state.stormstrike_ready = true
+    state.use_stormstrike = true
+    state.in_melee_range = true
+    state.mana_pct = 10
+    assert_true(strategies[13].matches(ctx, state), "stormstrike melee mana=10 -> match")
+
+    -- Stormstrike: not in melee range -> no match
+    local ctx2 = make_context({mana_pct = 50})
+    ctx2.in_melee_range = false
+    local state2 = get_state(ctx2)
+    state2.stormstrike_ready = true
+    state2.use_stormstrike = true
+    state2.in_melee_range = false
+    state2.mana_pct = 50
+    assert_false(strategies[13].matches(ctx2, state2), "stormstrike out of range -> no match")
+
+    -- Stormstrike: mana 9 -> no match (< 10)
+    local ctx3 = make_context({mana_pct = 9})
+    ctx3.in_melee_range = true
+    local state3 = get_state(ctx3)
+    state3.stormstrike_ready = true
+    state3.use_stormstrike = true
+    state3.in_melee_range = true
+    state3.mana_pct = 9
+    assert_false(strategies[13].matches(ctx3, state3), "stormstrike mana=9 -> no match (< 10)")
+end
+
+-- ============================================================================
+-- Deep dive: WaterShield mana boundary
+-- ============================================================================
+do
+    -- WaterShield: mana 40 -> match (<= 40)
+    local ctx = make_context({in_combat = false, mana_pct = 40})
+    local state = get_state(ctx)
+    state.water_shield_ready = true
+    state.has_water_shield = false
+    state.water_shield_mana = 40
+    state.mana_pct = 40
+    assert_true(strategies[3].matches(ctx, state), "watershield mana=40 -> match (<= threshold)")
+
+    -- WaterShield: mana 41 -> no match (> 40)
+    local ctx2 = make_context({in_combat = false, mana_pct = 41})
+    local state2 = get_state(ctx2)
+    state2.water_shield_ready = true
+    state2.has_water_shield = false
+    state2.water_shield_mana = 40
+    state2.mana_pct = 41
+    assert_false(strategies[3].matches(ctx2, state2), "watershield mana=41 -> no match (> threshold)")
+
+    -- WaterShield: already has water shield -> no match
+    local ctx3 = make_context({in_combat = false, mana_pct = 30})
+    local state3 = get_state(ctx3)
+    state3.water_shield_ready = true
+    state3.has_water_shield = true
+    state3.water_shield_mana = 40
+    state3.mana_pct = 30
+    assert_false(strategies[3].matches(ctx3, state3), "watershield already active -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: All 3 shock types with all 3 default_shock settings
+-- ============================================================================
+do
+    -- Setting = "flame" -> only FlameShock matches
+    local ctx = make_context({})
+    ctx.settings.leveling_default_shock = "flame"
+    local state = get_state(ctx)
+    state.flame_shock_ready = true
+    state.earth_shock_ready = true
+    state.frost_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "flame"
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function() return 0 end
+    assert_true(strategies[15].matches(ctx, state), "setting=flame -> flameshock matches")
+    assert_false(strategies[16].matches(ctx, state), "setting=flame -> earthshock no match")
+    assert_false(strategies[18].matches(ctx, state), "setting=flame -> frostshock no match")
+    NS.debuff_remains = saved
+
+    -- Setting = "earth" -> only EarthShock matches
+    local ctx2 = make_context({})
+    ctx2.settings.leveling_default_shock = "earth"
+    local state2 = get_state(ctx2)
+    state2.flame_shock_ready = true
+    state2.earth_shock_ready = true
+    state2.frost_shock_ready = true
+    state2.use_shocks = true
+    state2.default_shock = "earth"
+    assert_false(strategies[15].matches(ctx2, state2), "setting=earth -> flameshock no match")
+    assert_true(strategies[16].matches(ctx2, state2), "setting=earth -> earthshock matches")
+    assert_false(strategies[18].matches(ctx2, state2), "setting=earth -> frostshock no match")
+
+    -- Setting = "frost" -> only FrostShock matches
+    local ctx3 = make_context({})
+    ctx3.settings.leveling_default_shock = "frost"
+    local state3 = get_state(ctx3)
+    state3.flame_shock_ready = true
+    state3.earth_shock_ready = true
+    state3.frost_shock_ready = true
+    state3.use_shocks = true
+    state3.default_shock = "frost"
+    assert_false(strategies[15].matches(ctx3, state3), "setting=frost -> flameshock no match")
+    assert_false(strategies[16].matches(ctx3, state3), "setting=frost -> earthshock no match")
+    assert_true(strategies[18].matches(ctx3, state3), "setting=frost -> frostshock matches")
+end
+
+-- ============================================================================
+-- Deep dive: LesserHealingWave HP boundary
+-- ============================================================================
+do
+    -- LesserHealingWave: hp 40 -> match (<= 40)
+    local ctx = make_context({hp = 40})
+    local state = get_state(ctx)
+    state.lesser_healing_wave_ready = true
+    state.hp = 40
+    assert_true(strategies[7].matches(ctx, state), "lesserheal hp=40 -> match (<= 40)")
+
+    -- LesserHealingWave: hp 41 -> no match (> 40)
+    local ctx2 = make_context({hp = 41})
+    local state2 = get_state(ctx2)
+    state2.lesser_healing_wave_ready = true
+    state2.hp = 41
+    assert_false(strategies[7].matches(ctx2, state2), "lesserheal hp=41 -> no match (> 40)")
+end
 -- Summary
 -- ============================================================================
 
