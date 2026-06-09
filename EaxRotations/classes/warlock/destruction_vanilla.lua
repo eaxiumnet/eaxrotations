@@ -286,7 +286,7 @@ local function aoe_matches(context, action, state)
     if context.is_channeling then return false end
     if not action.spell then return false end
     if (context.enemy_count or context.enemies_count or 0) < (action.enemy_count or 0) then return false end
-    if not NS.spell_ready(action.spell, context.target) then return false end
+    if not (NS.spell_ready and NS.spell_ready(action.spell, context.target)) then return false end
     if context.is_moving and action.not_moving then return false end
     return true
 end
@@ -350,8 +350,12 @@ for i = 1, #ACTIONS do
             elseif action.target == "pet" then
                 target = context.pet or (NS.GetPet and NS.GetPet())
             elseif action.position == "target" and NS.try_cast_position then
-                local get_position = target and target.get_position
-                local pos = get_position and target:get_position() or nil
+                local spell_id = NS.get_spell_id(action.spell)
+                local pos = spell_id and NS.get_aoe_cast_position and NS.get_aoe_cast_position(spell_id, target, 8, 35)
+                if not pos then
+                    local get_position = target and target.get_position
+                    pos = get_position and target:get_position() or nil
+                end
                 if not pos then return false end
                 return NS.try_cast_position(action.spell, pos, target, "[DESTRUCTION] " .. action.name, opts)
             end

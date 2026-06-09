@@ -310,7 +310,7 @@ local function power_word_shield_matches(context, s)
     if (context.hp or 100) > (s.shield_hp or 35) then return false end
     -- Can't cast if Weakened Soul is active
     if s.has_weakened_soul then return false end
-    if not NS.spell_ready(SPELLS.PowerWordShield, NS.PLAYER_UNIT, { skip_range = true }) then return false end
+    if not (NS.spell_ready and NS.spell_ready(SPELLS.PowerWordShield, NS.PLAYER_UNIT, { skip_range = true })) then return false end
     return true
 end
 
