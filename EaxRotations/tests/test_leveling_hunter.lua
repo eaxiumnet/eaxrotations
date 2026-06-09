@@ -1361,6 +1361,414 @@ test("edge_range: execute functions do not crash at any target distance", functi
 end)
 
 -- ============================================================================
+-- ============================================================================
+-- Edge case: HP boundaries
+-- ============================================================================
+do
+    -- ConcussiveShot: enemies < 2 AND hp > 40 -> no match
+    -- So match when: enemies >= 2 OR hp <= 40
+    local ctx = make_context({ hp = 40, enemies_count = 1 })
+    local state = get_state(ctx)
+    state.concussive_shot_ready = true
+    state.arcane_shot_ready = true
+    state.steady_shot_ready = true
+    state.aimed_shot_ready = true
+    state.raptor_strike_ready = true
+    assert_true(strategies[7].matches(ctx, state), "concussive hp=40 enemies=1 -> match (hp <= 40)")
+
+    local ctx2 = make_context({ hp = 41, enemies_count = 1 })
+    local state2 = get_state(ctx2)
+    state2.concussive_shot_ready = true
+    state2.arcane_shot_ready = true
+    state2.steady_shot_ready = true
+    state2.aimed_shot_ready = true
+    state2.raptor_strike_ready = true
+    assert_false(strategies[7].matches(ctx2, state2), "concussive hp=41 enemies=1 -> no match (hp > 40)")
+
+    -- WingClip: hp > 50 -> no match
+    local ctx3 = make_context({ hp = 50, enemies_count = 1 })
+    ctx3.target = {
+        is_valid = function() return true end,
+        get_health = function() return 5000 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return false end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_distance = function(other) return 5 end,
+        get_health_percentage = function() return 50 end,
+    }
+    ctx3.in_melee_range = true
+    local state3 = get_state(ctx3)
+    state3.wing_clip_ready = true
+    state3.raptor_strike_ready = true
+    assert_true(strategies[8].matches(ctx3, state3), "wingclip hp=50 -> match (hp <= 50)")
+
+    local ctx4 = make_context({ hp = 51, enemies_count = 1 })
+    ctx4.target = {
+        is_valid = function() return true end,
+        get_health = function() return 5100 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return false end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_distance = function(other) return 5 end,
+        get_health_percentage = function() return 51 end,
+    }
+    ctx4.in_melee_range = true
+    local state4 = get_state(ctx4)
+    state4.wing_clip_ready = true
+    state4.raptor_strike_ready = true
+    assert_false(strategies[8].matches(ctx4, state4), "wingclip hp=51 -> no match (hp > 50)")
+
+    -- FeignDeath: hp > 30 -> no match
+    local ctx5 = make_context({ hp = 30 })
+    local state5 = get_state(ctx5)
+    state5.feign_death_ready = true
+    assert_true(strategies[11].matches(ctx5, state5), "feign hp=30 -> match (hp <= 30)")
+
+    local ctx6 = make_context({ hp = 31 })
+    local state6 = get_state(ctx6)
+    state6.feign_death_ready = true
+    assert_false(strategies[11].matches(ctx6, state6), "feign hp=31 -> no match (hp > 30)")
+end
+
+-- ============================================================================
+-- Edge case: Enemy thresholds
+-- ============================================================================
+do
+    -- ConcussiveShot: enemies 2 hp 35 -> match (enemies >= 2)
+    local ctx = make_context({ hp = 35, enemies_count = 2 })
+    local state = get_state(ctx)
+    state.concussive_shot_ready = true
+    state.arcane_shot_ready = true
+    state.steady_shot_ready = true
+    state.aimed_shot_ready = true
+    state.raptor_strike_ready = true
+    assert_true(strategies[7].matches(ctx, state), "concussive enemies=2 hp=35 -> match (enemies >= 2)")
+
+    -- ScareBeast: enemies < 2 -> no match
+    local ctx2 = make_context({ enemies_count = 2 })
+    local state2 = get_state(ctx2)
+    state2.scare_beast_ready = true
+    state2.arcane_shot_ready = true
+    state2.steady_shot_ready = true
+    state2.aimed_shot_ready = true
+    state2.raptor_strike_ready = true
+    assert_true(strategies[9].matches(ctx2, state2), "scarebeast enemies=2 -> match (enemies >= 2)")
+
+    local ctx3 = make_context({ enemies_count = 1 })
+    local state3 = get_state(ctx3)
+    state3.scare_beast_ready = true
+    assert_false(strategies[9].matches(ctx3, state3), "scarebeast enemies=1 -> no match (enemies < 2)")
+
+    -- FreezingTrap: enemies < 2 -> no match
+    local ctx4 = make_context({ enemies_count = 2 })
+    local state4 = get_state(ctx4)
+    state4.freezing_trap_ready = true
+    state4.arcane_shot_ready = true
+    state4.steady_shot_ready = true
+    state4.aimed_shot_ready = true
+    state4.raptor_strike_ready = true
+    assert_true(strategies[10].matches(ctx4, state4), "freezingtrap enemies=2 -> match (enemies >= 2)")
+
+    local ctx5 = make_context({ enemies_count = 1 })
+    local state5 = get_state(ctx5)
+    state5.freezing_trap_ready = true
+    assert_false(strategies[10].matches(ctx5, state5), "freezingtrap enemies=1 -> no match (enemies < 2)")
+
+    -- MultiShot: enemies < 2 -> no match
+    local ctx6 = make_context({ enemies_count = 2 })
+    local state6 = get_state(ctx6)
+    state6.multi_shot_ready = true
+    state6.arcane_shot_ready = true
+    state6.steady_shot_ready = true
+    state6.aimed_shot_ready = true
+    state6.raptor_strike_ready = true
+    assert_true(strategies[14].matches(ctx6, state6), "multishot enemies=2 -> match (enemies >= 2)")
+
+    local ctx7 = make_context({ enemies_count = 1 })
+    local state7 = get_state(ctx7)
+    state7.multi_shot_ready = true
+    assert_false(strategies[14].matches(ctx7, state7), "multishot enemies=1 -> no match (enemies < 2)")
+end
+
+-- ============================================================================
+-- Edge case: Pet management
+-- ============================================================================
+do
+    -- MendPet: pet_hp > 60 -> no match
+    local ctx = make_context({})
+    ctx.pet = { guid = "mock-pet", get_health_percentage = function() return 60 end }
+    local state = get_state(ctx)
+    state.mend_pet_ready = true
+    state.arcane_shot_ready = true
+    state.steady_shot_ready = true
+    state.aimed_shot_ready = true
+    state.raptor_strike_ready = true
+    assert_true(strategies[6].matches(ctx, state), "mendpet pet_hp=60 -> match (pet_hp <= 60)")
+
+    local ctx2 = make_context({})
+    ctx2.pet = { guid = "mock-pet", get_health_percentage = function() return 61 end }
+    local state2 = get_state(ctx2)
+    state2.mend_pet_ready = true
+    assert_false(strategies[6].matches(ctx2, state2), "mendpet pet_hp=61 -> no match (pet_hp > 60)")
+
+    -- MendPet: no pet -> no match
+    local ctx3 = make_context({})
+    ctx3.pet = nil
+    local state3 = get_state(ctx3)
+    state3.mend_pet_ready = true
+    assert_false(strategies[6].matches(ctx3, state3), "mendpet no pet -> no match")
+
+    -- CallPet: pet exists -> no match
+    local ctx4 = make_context({ in_combat = false, enemies_count = 0 })
+    ctx4.pet = { guid = "mock-pet", get_health_percentage = function() return 100 end }
+    local state4 = get_state(ctx4)
+    state4.call_pet_ready = true
+    assert_false(strategies[2].matches(ctx4, state4), "callpet pet exists -> no match")
+end
+
+-- ============================================================================
+-- Edge case: Aspect management
+-- ============================================================================
+do
+    -- AspectHawk: already has buff -> no match
+    local ctx = make_context({ in_combat = false, enemies_count = 0 })
+    local state = get_state(ctx)
+    state.has_aspect_hawk = true
+    state.aspect_hawk_ready = true
+    assert_false(strategies[1].matches(ctx, state), "aspect hawk buff active -> no match")
+
+    -- AspectHawk: OOC, no buff, ready -> match
+    local ctx2 = make_context({ in_combat = false, enemies_count = 0 })
+    local state2 = get_state(ctx2)
+    state2.has_aspect_hawk = false
+    state2.aspect_hawk_ready = true
+    assert_true(strategies[1].matches(ctx2, state2), "aspect hawk OOC no buff ready -> match")
+end
+
+-- ============================================================================
+-- Edge case: Debuff refresh boundaries
+-- ============================================================================
+do
+    -- SerpentSting: remains = 3 -> match (refresh)
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.serpent_sting_ready = true
+    state.serpent_sting_use = true
+    state.arcane_shot_ready = true
+    state.steady_shot_ready = true
+    state.aimed_shot_ready = true
+    state.raptor_strike_ready = true
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 3 end
+    assert_true(strategies[12].matches(ctx, state), "serpent remains=3 -> match")
+    NS.debuff_remains = saved
+
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.serpent_sting_ready = true
+    state2.serpent_sting_use = true
+    local saved2 = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 4 end
+    assert_false(strategies[12].matches(ctx2, state2), "serpent remains=4 -> no match (>=4)")
+    NS.debuff_remains = saved2
+
+    -- HuntersMark: remains = 30 -> match (<=30)
+    local ctx3 = make_context({ in_combat = false, enemies_count = 0 })
+    local state3 = get_state(ctx3)
+    state3.hunters_mark_ready = true
+    state3.hunters_mark_use = true
+    local saved3 = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 30 end
+    assert_true(strategies[3].matches(ctx3, state3), "huntersmark remains=30 -> match")
+    NS.debuff_remains = saved3
+
+    local ctx4 = make_context({ in_combat = false, enemies_count = 0 })
+    local state4 = get_state(ctx4)
+    state4.hunters_mark_ready = true
+    state4.hunters_mark_use = true
+    local saved4 = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 31 end
+    assert_false(strategies[3].matches(ctx4, state4), "huntersmark remains=31 -> no match (>30)")
+    NS.debuff_remains = saved4
+end
+
+-- ============================================================================
+-- Edge case: Movement and melee guards
+-- ============================================================================
+do
+    -- AimedShot: is_moving -> no match
+    local ctx = make_context({ is_moving = true })
+    local state = get_state(ctx)
+    state.aimed_shot_ready = true
+    state.arcane_shot_ready = true
+    state.steady_shot_ready = true
+    state.raptor_strike_ready = true
+    assert_false(strategies[5].matches(ctx, state), "aimed moving -> no match")
+
+    -- SteadyShot: is_moving -> no match
+    local ctx2 = make_context({ is_moving = true })
+    local state2 = get_state(ctx2)
+    state2.steady_shot_ready = true
+    state2.arcane_shot_ready = true
+    state2.raptor_strike_ready = true
+    assert_false(strategies[16].matches(ctx2, state2), "steady moving -> no match")
+
+    -- WingClip: not in melee -> no match
+    local ctx3 = make_context({ hp = 40, enemies_count = 1 })
+    ctx3.in_melee_range = false
+    ctx3.target = {
+        is_valid = function() return true end,
+        get_health = function() return 5000 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return false end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_distance = function(other) return 15 end,
+        get_health_percentage = function() return 40 end,
+    }
+    local state3 = get_state(ctx3)
+    state3.wing_clip_ready = true
+    state3.raptor_strike_ready = true
+    assert_false(strategies[8].matches(ctx3, state3), "wingclip not melee -> no match")
+
+    -- RaptorStrike: not in melee -> no match
+    local ctx4 = make_context({})
+    ctx4.in_melee_range = false
+    local state4 = get_state(ctx4)
+    state4.raptor_strike_ready = true
+    state4.arcane_shot_ready = true
+    state4.steady_shot_ready = true
+    state4.aimed_shot_ready = true
+    assert_false(strategies[15].matches(ctx4, state4), "raptor not melee -> no match")
+end
+
+-- ============================================================================
+-- Edge case: Settings toggle
+-- ============================================================================
+do
+    -- SerpentSting: serpent_sting_use disabled -> no match
+    local ctx = make_context({})
+    ctx.settings.leveling_serpent_sting_use = false
+    local state = get_state(ctx)
+    state.serpent_sting_ready = true
+    state.arcane_shot_ready = true
+    state.steady_shot_ready = true
+    state.aimed_shot_ready = true
+    state.raptor_strike_ready = true
+    assert_false(strategies[12].matches(ctx, state), "serpent sting setting disabled -> no match")
+
+    -- HuntersMark: hunters_mark_use disabled -> no match
+    local ctx2 = make_context({ in_combat = false, enemies_count = 0 })
+    ctx2.settings.leveling_hunters_mark_use = false
+    local state2 = get_state(ctx2)
+    state2.hunters_mark_ready = true
+    assert_false(strategies[3].matches(ctx2, state2), "hunters mark setting disabled -> no match")
+end
+
+-- ============================================================================
+-- Edge case: OOC guards
+-- ============================================================================
+do
+    -- RapidFire: OOC -> no match
+    local ctx = make_context({ in_combat = false })
+    local state = get_state(ctx)
+    state.rapid_fire_ready = true
+    assert_false(strategies[4].matches(ctx, state), "rapidfire OOC -> no match")
+
+    -- AimedShot: no OOC guard, matches OOC for pulling
+    local ctx2 = make_context({ in_combat = false })
+    local state2 = get_state(ctx2)
+    state2.aimed_shot_ready = true
+    assert_true(strategies[5].matches(ctx2, state2), "aimed OOC -> match (no OOC guard)")
+
+    -- ArcaneShot: OOC -> no match
+    local ctx3 = make_context({ in_combat = false })
+    local state3 = get_state(ctx3)
+    state3.arcane_shot_ready = true
+    assert_false(strategies[13].matches(ctx3, state3), "arcane OOC -> no match")
+
+    -- MultiShot: OOC -> no match
+    local ctx4 = make_context({ in_combat = false })
+    local state4 = get_state(ctx4)
+    state4.multi_shot_ready = true
+    assert_false(strategies[14].matches(ctx4, state4), "multishot OOC -> no match")
+
+    -- RaptorStrike: OOC -> no match
+    local ctx5 = make_context({ in_combat = false })
+    local state5 = get_state(ctx5)
+    state5.raptor_strike_ready = true
+    assert_false(strategies[15].matches(ctx5, state5), "raptor OOC -> no match")
+
+    -- SteadyShot: OOC -> no match
+    local ctx6 = make_context({ in_combat = false })
+    local state6 = get_state(ctx6)
+    state6.steady_shot_ready = true
+    assert_false(strategies[16].matches(ctx6, state6), "steady OOC -> no match")
+end
+
+-- ============================================================================
+-- API crash: NS.try_cast nil/throwing
+-- ============================================================================
+do
+    local saved = NS.try_cast
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.arcane_shot_ready = true
+    state.steady_shot_ready = true
+    state.aimed_shot_ready = true
+    state.raptor_strike_ready = true
+    state.wing_clip_ready = true
+    state.concussive_shot_ready = true
+    state.scare_beast_ready = true
+    state.freezing_trap_ready = true
+    state.mend_pet_ready = true
+    state.hunters_mark_ready = true
+    state.call_pet_ready = true
+    state.aspect_hawk_ready = true
+    state.rapid_fire_ready = true
+    state.feign_death_ready = true
+    state.serpent_sting_ready = true
+    state.multi_shot_ready = true
+
+    -- NS.try_cast = nil -> execute should not crash
+    NS.try_cast = nil
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast=nil: strategy " .. i .. " execute did not crash")
+    end
+
+    -- NS.try_cast throws -> execute should not crash
+    NS.try_cast = function() error("simulated throw") end
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast=throw: strategy " .. i .. " execute did not crash")
+    end
+
+    NS.try_cast = saved
+end
+
+-- ============================================================================
+-- Rotation crash: nil context for all execute functions
+-- ============================================================================
+do
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, nil)
+        assert_true(ok, "execute nil ctx: strategy " .. i .. " did not crash")
+    end
+end
+
+-- ============================================================================
+-- Rotation crash: no-arg execute for all functions
+-- ============================================================================
+do
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute)
+        assert_true(ok, "execute no-arg: strategy " .. i .. " did not crash")
+    end
+end
+
 -- Summary
 -- ============================================================================
 

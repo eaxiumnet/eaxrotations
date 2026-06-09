@@ -41,6 +41,12 @@ local function safe_debuff_remains(unit, ids)
     return 0
 end
 
+local function try_cast(spell_action, target, label, opts)
+    if not NS.try_cast then return false end
+    local ok, result = pcall(NS.try_cast, spell_action, target, label, opts)
+    return ok and result == true
+end
+
 -- ============================================================================
 -- State builder
 -- ============================================================================
@@ -244,30 +250,30 @@ local strategies = {
     -- OOC prep
     { name = "AspectHawk",
       matches = aspect_hawk_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.AspectOfTheHawk, NS.PLAYER_UNIT, "[LEVELING] Aspect of the Hawk") or false end },
+      execute = function() return try_cast(SPELLS.AspectOfTheHawk, NS.PLAYER_UNIT, "[LEVELING] Aspect of the Hawk") end },
 
     { name = "CallPet",
       matches = call_pet_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.CallPet, NS.PLAYER_UNIT, "[LEVELING] Call Pet") or false end },
+      execute = function() return try_cast(SPELLS.CallPet, NS.PLAYER_UNIT, "[LEVELING] Call Pet") end },
 
     { name = "HuntersMark",
       matches = hunters_mark_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.HuntersMark, context.target, "[LEVELING] Hunter's Mark") or false
+        return try_cast(SPELLS.HuntersMark, context.target, "[LEVELING] Hunter's Mark")
       end },
 
     -- DPS cooldown
     { name = "RapidFire",
       matches = rapid_fire_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.RapidFire, NS.PLAYER_UNIT, "[LEVELING] Rapid Fire") or false end },
+      execute = function() return try_cast(SPELLS.RapidFire, NS.PLAYER_UNIT, "[LEVELING] Rapid Fire") end },
 
     -- Damage opener
     { name = "AimedShot",
       matches = aimed_shot_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.AimedShot, context.target, "[LEVELING] Aimed Shot") or false
+        return try_cast(SPELLS.AimedShot, context.target, "[LEVELING] Aimed Shot")
       end },
 
     -- Pet sustain
@@ -275,7 +281,7 @@ local strategies = {
       matches = mend_pet_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.MendPet, context.pet, "[LEVELING] Mend Pet") or false
+        return try_cast(SPELLS.MendPet, context.pet, "[LEVELING] Mend Pet")
       end },
 
     -- Survival / CC
@@ -283,54 +289,54 @@ local strategies = {
       matches = concussive_shot_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.ConcussiveShot, context.target, "[LEVELING] Concussive Shot") or false
+        return try_cast(SPELLS.ConcussiveShot, context.target, "[LEVELING] Concussive Shot")
       end },
 
     { name = "WingClip",
       matches = wing_clip_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.WingClip, context.target, "[LEVELING] Wing Clip") or false
+        return try_cast(SPELLS.WingClip, context.target, "[LEVELING] Wing Clip")
       end },
 
     { name = "ScareBeast",
       matches = scare_beast_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.ScareBeast, context.target, "[LEVELING] Scare Beast") or false
+        return try_cast(SPELLS.ScareBeast, context.target, "[LEVELING] Scare Beast")
       end },
 
     { name = "FreezingTrap",
       matches = freezing_trap_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.FreezingTrap, context.me or NS.PLAYER_UNIT, "[LEVELING] Freezing Trap", { skip_range = true, expected_cooldown = 30 }) or false
+        return try_cast(SPELLS.FreezingTrap, context and context.me or NS.PLAYER_UNIT, "[LEVELING] Freezing Trap", { skip_range = true, expected_cooldown = 30 })
       end },
 
     { name = "FeignDeath",
       matches = feign_death_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.FeignDeath, NS.PLAYER_UNIT, "[LEVELING] Feign Death") or false end },
+      execute = function() return try_cast(SPELLS.FeignDeath, NS.PLAYER_UNIT, "[LEVELING] Feign Death") end },
 
     -- Damage
     { name = "SerpentSting",
       matches = serpent_sting_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.SerpentSting, context.target, "[LEVELING] Serpent Sting") or false
+        return try_cast(SPELLS.SerpentSting, context.target, "[LEVELING] Serpent Sting")
       end },
 
     { name = "ArcaneShot",
       matches = arcane_shot_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.ArcaneShot, context.target, "[LEVELING] Arcane Shot") or false
+        return try_cast(SPELLS.ArcaneShot, context.target, "[LEVELING] Arcane Shot")
       end },
 
     { name = "MultiShot",
       matches = multi_shot_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.MultiShot, context.target, "[LEVELING] Multi-Shot") or false
+        return try_cast(SPELLS.MultiShot, context.target, "[LEVELING] Multi-Shot")
       end },
 
     -- Melee weave: Raptor Strike when mob is in melee range
@@ -338,14 +344,14 @@ local strategies = {
       matches = raptor_strike_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.RaptorStrike, context.target, "[LEVELING] Raptor Strike") or false
+        return try_cast(SPELLS.RaptorStrike, context.target, "[LEVELING] Raptor Strike")
       end },
 
     { name = "SteadyShot",
       matches = steady_shot_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.SteadyShot, context.target, "[LEVELING] Steady Shot") or false
+        return try_cast(SPELLS.SteadyShot, context.target, "[LEVELING] Steady Shot")
       end },
 }
 
