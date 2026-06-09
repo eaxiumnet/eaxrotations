@@ -2377,6 +2377,478 @@ do
     state2.hp = 41
     assert_false(strategies[7].matches(ctx2, state2), "lesserheal hp=41 -> no match (> 40)")
 end
+-- ============================================================================
+-- Deep dive: OOC guard loop — combat-gated strategies return false OOC
+-- ============================================================================
+do
+    -- Combat-gated (check `if not state.in_combat` or use has_enemy_target):
+    -- {4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21}
+    -- OOC-only: {1,2,3,22}
+    -- No gate: {23 Wand}
+    local combat_gated = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21}
+    local ctx = make_context({in_combat = false, mana_pct = 80, hp = 30, enemies_count = 4, is_moving = false, is_pvp = true})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        is_casting = function() return true end,
+        get_distance = function(other) return 5 end,
+    }
+    local state = get_state(ctx)
+    for k, v in pairs(state) do
+        if type(v) == "boolean" then state[k] = true end
+    end
+    state.in_combat = false
+    state.hp = 30
+    state.mana_pct = 50
+    state.enemies = 4
+    state.use_totems = true
+    state.use_searing_totem = true
+    state.use_strength_totem = true
+    state.use_water_totem = true
+    state.use_shocks = true
+    state.use_stormstrike = true
+    state.default_shock = "flame"
+    state.is_pvp = true
+    state.in_melee_range = true
+    state.wand_threshold = 20
+    state.wand_learned = true
+
+    for _, idx in ipairs(combat_gated) do
+        local ok, matched = pcall(strategies[idx].matches, ctx, state)
+        assert_true(ok, "strategy " .. idx .. " (" .. strategies[idx].name .. ") OOC guards do not throw")
+        assert_false(matched, "strategy " .. idx .. " (" .. strategies[idx].name .. ") should not match OOC")
+    end
+
+    -- OOC-only {1,2,3,22} verify match OOC but NOT in combat
+    local ctx_ooc = make_context({in_combat = false})
+    ctx_ooc.target = {
+        is_valid = function() return true end,
+        get_distance = function(other) return 25 end,
+    }
+    local state_ooc = get_state(ctx_ooc)
+    state_ooc.use_weapon_imbue = true
+    state_ooc.weapon_imbue = { 25485 }
+    state_ooc.has_mainhand_imbue = false
+    state_ooc.weapon_imbue_api_known = true
+    state_ooc.has_lightning_shield = false
+    state_ooc.lightning_shield_ready = true
+    state_ooc.has_water_shield = false
+    state_ooc.water_shield_ready = true
+    state_ooc.mana_pct = 30
+    state_ooc.water_shield_mana = 40
+    state_ooc.ghost_wolf_ready = true
+    assert_true(strategies[1].matches(ctx_ooc, state_ooc), "weaponimbue matches OOC")
+    assert_true(strategies[2].matches(ctx_ooc, state_ooc), "lightningshield matches OOC")
+    assert_true(strategies[3].matches(ctx_ooc, state_ooc), "watershield matches OOC")
+    local saved_dist = NS.get_distance
+    NS.get_distance = function() return 25 end
+    assert_true(strategies[22].matches(ctx_ooc, state_ooc), "ghostwolf matches OOC with far target")
+    NS.get_distance = saved_dist
+
+    -- OOC-only in combat -> false
+    local ctx_combat = make_context({in_combat = true})
+    local state_combat = get_state(ctx_combat)
+    state_combat.use_weapon_imbue = true
+    state_combat.has_mainhand_imbue = false
+    state_combat.weapon_imbue_api_known = true
+    assert_false(strategies[1].matches(ctx_combat, state_combat), "weaponimbue no match in combat")
+    assert_false(strategies[2].matches(ctx_combat, state_combat), "lightningshield no match in combat")
+    assert_false(strategies[3].matches(ctx_combat, state_combat), "watershield no match in combat")
+    assert_false(strategies[22].matches(ctx_combat, state_combat), "ghostwolf no match in combat")
+end
+
+-- ============================================================================
+-- Deep dive: Nil target guard loop
+-- ============================================================================
+do
+    -- Target-dependent: {4,8,13,14,15,16,17,18,21,22,23}
+    -- Non-target: {1,2,3,5,6,7,9,10,11,12,19,20}
+    local target_dependent = {4, 8, 13, 14, 15, 16, 17, 18, 21, 22, 23}
+    local ctx = make_context({target = nil, in_combat = true, mana_pct = 50, hp = 60, enemies_count = 3, is_moving = false, is_pvp = true})
+    ctx.target = nil
+    local state = get_state(ctx)
+    for k, v in pairs(state) do
+        if type(v) == "boolean" then state[k] = true end
+    end
+    state.target = nil
+    state.in_combat = true
+    state.mana_pct = 50
+    state.enemies = 3
+    state.hp = 60
+    state.use_shocks = true
+    state.default_shock = "flame"
+    state.use_stormstrike = true
+    state.in_melee_range = true
+    state.is_pvp = true
+    state.wand_threshold = 20
+    state.wand_learned = true
+    state.ghost_wolf_ready = true
+
+    for _, idx in ipairs(target_dependent) do
+        local ok, matched = pcall(strategies[idx].matches, ctx, state)
+        assert_true(ok, "strategy " .. idx .. " (" .. strategies[idx].name .. ") nil target guards do not throw")
+        assert_false(matched, "strategy " .. idx .. " (" .. strategies[idx].name .. ") should not match with nil target")
+    end
+end
+
+-- ============================================================================
+-- Deep dive: Missing spell readiness guards
+-- ============================================================================
+do
+    local ctx = make_context({in_combat = true, mana_pct = 50, hp = 30, enemies_count = 4, is_moving = false, is_pvp = true})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        is_casting = function() return true end,
+        get_distance = function(other) return 5 end,
+    }
+    ctx.is_pvp = true
+
+    -- Strategy 1: WeaponImbue not ready
+    local state1 = get_state(ctx)
+    state1.use_weapon_imbue = true
+    state1.weapon_imbue = { 25485 }
+    state1.has_mainhand_imbue = false
+    state1.weapon_imbue_api_known = true
+    state1.in_combat = false
+    -- weapon_imbue_matches checks `return spell_ready(state.weapon_imbue, ...)`
+    -- NS.spell_ready returns true by default, so we need to check a different gate
+    state1.weapon_imbue = nil
+    assert_false(strategies[1].matches(ctx, state1), "weaponimbue no weapon selected -> no match")
+
+    -- Strategy 1: WeaponImbue has_mainhand_imbue already -> no match
+    local state1b = get_state(ctx)
+    state1b.use_weapon_imbue = true
+    state1b.weapon_imbue = { 25485 }
+    state1b.has_mainhand_imbue = true
+    state1b.weapon_imbue_api_known = true
+    state1b.in_combat = false
+    assert_false(strategies[1].matches(ctx, state1b), "weaponimbue already imbued -> no match")
+
+    -- Strategy 2: LightningShield not ready
+    local state2 = get_state(ctx)
+    state2.has_lightning_shield = false
+    state2.lightning_shield_ready = false
+    state2.in_combat = false
+    assert_false(strategies[2].matches(ctx, state2), "lightningshield not ready -> no match")
+
+    -- Strategy 3: WaterShield not ready
+    local state3 = get_state(ctx)
+    state3.water_shield_ready = false
+    state3.has_water_shield = false
+    state3.mana_pct = 30
+    state3.water_shield_mana = 40
+    state3.in_combat = false
+    assert_false(strategies[3].matches(ctx, state3), "watershield not ready -> no match")
+
+    -- Strategy 4: EarthShockInterrupt not ready
+    local state4 = get_state(ctx)
+    state4.earth_shock_ready = false
+    state4.use_interrupt = true
+    assert_false(strategies[4].matches(ctx, state4), "earthshockinterrupt not ready -> no match")
+
+    -- Strategy 5: ShamanisticRage not ready
+    local state5 = get_state(ctx)
+    state5.shamanistic_rage_ready = false
+    state5.mana_pct = 20
+    state5.shamanistic_rage_mana = 30
+    assert_false(strategies[5].matches(ctx, state5), "shamanisticrage not ready -> no match")
+
+    -- Strategy 6: HealingWave not ready
+    local state6 = get_state(ctx)
+    state6.healing_wave_ready = false
+    state6.hp = 30
+    state6.heal_hp = 50
+    assert_false(strategies[6].matches(ctx, state6), "healingwave not ready -> no match")
+
+    -- Strategy 7: LesserHealingWave not ready
+    local state7 = get_state(ctx)
+    state7.lesser_healing_wave_ready = false
+    state7.hp = 30
+    assert_false(strategies[7].matches(ctx, state7), "lesserhealingwave not ready -> no match")
+
+    -- Strategy 8: SearingTotem not ready
+    local state8 = get_state(ctx)
+    state8.searing_totem_ready = false
+    state8.use_totems = true
+    state8.use_searing_totem = true
+    state8.mana_pct = 80
+    assert_false(strategies[8].matches(ctx, state8), "searingtotem not ready -> no match")
+
+    -- Strategy 9: StrengthOfEarthTotem not ready
+    local state9 = get_state(ctx)
+    state9.strength_of_earth_ready = false
+    state9.use_totems = true
+    state9.use_strength_totem = true
+    state9.mana_pct = 80
+    assert_false(strategies[9].matches(ctx, state9), "strengthtotem not ready -> no match")
+
+    -- Strategy 10: WaterTotem not ready (neither mana_spring nor healing_stream)
+    local state10 = get_state(ctx)
+    state10.mana_spring_ready = false
+    state10.healing_stream_ready = false
+    state10.use_totems = true
+    state10.use_water_totem = true
+    state10.mana_pct = 60
+    state10.hp = 60
+    assert_false(strategies[10].matches(ctx, state10), "watertotem neither ready -> no match")
+
+    -- Strategy 11: GroundingTotem not ready
+    local state11 = get_state(ctx)
+    state11.grounding_totem_ready = false
+    state11.enemies = 3
+    state11.mana_pct = 80
+    assert_false(strategies[11].matches(ctx, state11), "groundingtotem not ready -> no match")
+
+    -- Strategy 12: TremorTotem not ready
+    local state12 = get_state(ctx)
+    state12.tremor_totem_ready = false
+    state12.mana_pct = 80
+    assert_false(strategies[12].matches(ctx, state12), "tremortotem not ready -> no match")
+
+    -- Strategy 13: Stormstrike not ready
+    local state13 = get_state(ctx)
+    state13.stormstrike_ready = false
+    state13.use_stormstrike = true
+    state13.in_melee_range = true
+    state13.mana_pct = 50
+    assert_false(strategies[13].matches(ctx, state13), "stormstrike not ready -> no match")
+
+    -- Strategy 14: ChainLightning not ready
+    local state14 = get_state(ctx)
+    state14.chain_lightning_ready = false
+    state14.enemies = 3
+    assert_false(strategies[14].matches(ctx, state14), "chainlightning not ready -> no match")
+
+    -- Strategy 15: FlameShock not ready
+    local state15 = get_state(ctx)
+    state15.flame_shock_ready = false
+    state15.use_shocks = true
+    state15.default_shock = "flame"
+    assert_false(strategies[15].matches(ctx, state15), "flameshock not ready -> no match")
+
+    -- Strategy 16: EarthShock not ready
+    local state16 = get_state(ctx)
+    state16.earth_shock_ready = false
+    state16.use_shocks = true
+    state16.default_shock = "earth"
+    assert_false(strategies[16].matches(ctx, state16), "earthshock not ready -> no match")
+
+    -- Strategy 17: Purge not ready
+    local state17 = get_state(ctx)
+    state17.purge_ready = false
+    state17.is_pvp = true
+    assert_false(strategies[17].matches(ctx, state17), "purge not ready -> no match")
+
+    -- Strategy 18: FrostShock not ready
+    local state18 = get_state(ctx)
+    state18.frost_shock_ready = false
+    state18.use_shocks = true
+    state18.default_shock = "frost"
+    assert_false(strategies[18].matches(ctx, state18), "frostshock not ready -> no match")
+
+    -- Strategy 19: EarthbindTotem not ready
+    local state19 = get_state(ctx)
+    state19.earthbind_totem_ready = false
+    state19.hp = 40
+    state19.enemies = 4
+    assert_false(strategies[19].matches(ctx, state19), "earthbindtotem not ready -> no match")
+
+    -- Strategy 20: StoneclawTotem not ready
+    local state20 = get_state(ctx)
+    state20.stoneclaw_totem_ready = false
+    state20.hp = 40
+    state20.enemies = 4
+    assert_false(strategies[20].matches(ctx, state20), "stoneclawtotem not ready -> no match")
+
+    -- Strategy 21: LightningBolt not ready
+    local state21 = get_state(ctx)
+    state21.lightning_bolt_ready = false
+    assert_false(strategies[21].matches(ctx, state21), "lightningbolt not ready -> no match")
+
+    -- Strategy 22: GhostWolf not ready
+    local state22 = get_state(ctx)
+    state22.ghost_wolf_ready = false
+    state22.in_combat = false
+    assert_false(strategies[22].matches(ctx, state22), "ghostwolf not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: has_enemy_target helper — context.has_valid_enemy_target = true
+-- ============================================================================
+do
+    -- has_enemy_target returns true if state.in_combat == true OR context.has_valid_enemy_target == true
+    -- This means some strategies can match even when state.in_combat is false
+    local ctx = make_context({in_combat = false, has_valid_enemy_target = true})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        get_distance = function(other) return 5 end,
+    }
+    local state = get_state(ctx)
+    for k, v in pairs(state) do
+        if type(v) == "boolean" then state[k] = true end
+    end
+    state.in_combat = false
+    state.enemies = 3
+    state.use_shocks = true
+    state.default_shock = "flame"
+    state.is_moving = false
+    state.mana_pct = 50
+
+    -- even when state.in_combat = false
+    -- LightningBolt (21): also checks target + is_moving. has_enemy_target true -> passes
+    assert_true(strategies[15].matches(ctx, state), "flameshock has_valid_enemy_target -> match")
+    -- But need to set default_shock for earthshock
+    state.default_shock = "earth"
+    assert_true(strategies[16].matches(ctx, state), "earthshock has_valid_enemy_target -> match (earth default)")
+    state.default_shock = "frost"
+    assert_true(strategies[18].matches(ctx, state), "frostshock has_valid_enemy_target -> match")
+    state.default_shock = "flame"
+    assert_true(strategies[21].matches(ctx, state), "lightningbolt has_valid_enemy_target -> match")
+    assert_true(strategies[14].matches(ctx, state), "chainlightning has_valid_enemy_target -> match")
+end
+
+-- ============================================================================
+-- Deep dive: has_enemy_target helper — both false = no match
+-- ============================================================================
+do
+    local ctx = make_context({in_combat = false, has_valid_enemy_target = false})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        get_distance = function(other) return 5 end,
+    }
+    local state = get_state(ctx)
+    for k, v in pairs(state) do
+        if type(v) == "boolean" then state[k] = true end
+    end
+    state.in_combat = false
+    state.enemies = 3
+    state.use_shocks = true
+    state.default_shock = "flame"
+    state.is_moving = false
+    state.mana_pct = 50
+
+    assert_false(strategies[15].matches(ctx, state), "flameshock no combat + no valid target -> no match")
+    assert_false(strategies[16].matches(ctx, state), "earthshock no combat + no valid target -> no match")
+    assert_false(strategies[18].matches(ctx, state), "frostshock no combat + no valid target -> no match")
+    assert_false(strategies[21].matches(ctx, state), "lightningbolt no combat + no valid target -> no match")
+    assert_false(strategies[14].matches(ctx, state), "chainlightning no combat + no valid target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: All execute functions handle nil/try_cast gracefully
+-- ============================================================================
+do
+    local saved_try = NS.try_cast
+    NS.try_cast = nil
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast=nil: strategy " .. i .. " execute did not crash")
+    end
+    NS.try_cast = saved_try
+end
+
+do
+    local saved_try = NS.try_cast
+    NS.try_cast = function() return false end
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast=false: strategy " .. i .. " execute did not crash")
+    end
+    NS.try_cast = saved_try
+end
+
+-- ============================================================================
+-- Deep dive: All match functions handle nil state -> false
+-- ============================================================================
+do
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].matches, ctx, nil)
+        assert_true(ok, "strategy " .. i .. " nil state does not throw")
+        assert_false(result, "strategy " .. i .. " nil state returns false")
+    end
+end
+
+-- ============================================================================
+-- Deep dive: EarthShockInterrupt target.is_casting throws
+-- ============================================================================
+do
+    local ctx = make_context()
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        is_casting = function() error("simulated is_casting throw") end,
+    }
+    local state = get_state(ctx)
+    state.earth_shock_ready = true
+    state.use_interrupt = true
+    local ok, result = pcall(strategies[4].matches, ctx, state)
+    assert_true(ok, "interrupt is_casting throws -> pcall catches")
+    assert_false(result, "interrupt is_casting throws -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: GhostWolf context.target nil explicitly
+-- ============================================================================
+do
+    -- GhostWolf checks `if not context.target then return false end`
+    local ctx = make_context({in_combat = false})
+    ctx.target = nil
+    local state = get_state(ctx)
+    state.ghost_wolf_ready = true
+    state.in_combat = false
+    assert_false(strategies[22].matches(ctx, state), "ghostwolf no context.target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: NS.debuff_remains nil for FlameShock
+-- ============================================================================
+do
+    local saved = NS.debuff_remains
+    NS.debuff_remains = nil
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.flame_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "flame"
+    -- safe_debuff_remains: if not NS.debuff_remains then return 0 end
+    local ok, result = pcall(strategies[15].matches, ctx, state)
+    assert_true(ok, "flameshock NS.debuff_remains nil -> no crash")
+    assert_true(result, "flameshock NS.debuff_remains nil -> remains=0, match fires")
+    NS.debuff_remains = saved
+end
+
+-- ============================================================================
+-- Deep dive: NS.debuff_remains throws for FlameShock
+-- ============================================================================
+do
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function() error("simulated debuff remains throw") end
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.flame_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "flame"
+    local ok, result = pcall(strategies[15].matches, ctx, state)
+    assert_true(ok, "flameshock debuff_remains throws -> no crash")
+    assert_true(result, "flameshock debuff_remains throws -> falls back to 0, match fires")
+    NS.debuff_remains = saved
+end
 -- Summary
 -- ============================================================================
 
