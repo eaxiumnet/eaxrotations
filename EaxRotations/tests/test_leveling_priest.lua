@@ -2493,6 +2493,407 @@ do
 end
 -- Summary
 -- ============================================================================
+-- Deep dive: NS.buff_up nil in build_state — all buff flags default to false
+-- ============================================================================
+do
+    test("buff_up_nil: NS.buff_up nil -> all buff flags false", function()
+        local saved = NS.buff_up
+        NS.buff_up = nil
+        local ctx = make_context({in_combat = false})
+        local state = get_state(ctx)
+        assert_false(state.has_fortitude, "has_fortitude false when buff_up nil")
+        assert_false(state.has_inner_fire, "has_inner_fire false when buff_up nil")
+        assert_false(state.has_shadowform, "has_shadowform false when buff_up nil")
+        assert_false(state.has_shield, "has_shield false when buff_up nil")
+        assert_false(state.has_renew, "has_renew false when buff_up nil")
+        NS.buff_up = saved
+    end)
+
+    test("buff_up_nil: NS.buff_up throws -> all buff flags false", function()
+        local saved = NS.buff_up
+        NS.buff_up = function() error("crash") end
+        local ctx = make_context({in_combat = false})
+        local ok, state = pcall(get_state, ctx)
+        assert_true(ok, "build_state does not crash when buff_up throws")
+        if ok and state then
+            assert_false(state.has_fortitude, "has_fortitude false when buff_up throws")
+            assert_false(state.has_inner_fire, "has_inner_fire false when buff_up throws")
+        end
+        NS.buff_up = saved
+    end)
+end
+
+-- ============================================================================
+-- Deep dive: NS.debuff_remains nil in build_state for VT remaining
+-- ============================================================================
+do
+    test("vt_debuff_remains_nil: NS.debuff_remains nil -> vt_remaining defaults to 0", function()
+        local saved = NS.debuff_remains
+        NS.debuff_remains = nil
+        local ctx = make_context()
+        local state = get_state(ctx)
+        assert_eq(state.vt_remaining, 0, "vt_remaining default 0 when debuff_remains nil")
+        state.vt_ready = true
+        state.is_channeling = false
+        -- With vt_remaining=0 <= 3, VT should match
+        assert_true(strategies[13].matches(ctx, state), "vt matches when vt_remaining=0 from nil debuff_remains")
+        NS.debuff_remains = saved
+    end)
+
+    test("vt_debuff_remains_nil: NS.debuff_remains throws -> pcall catches, vt_remaining=0", function()
+        local saved = NS.debuff_remains
+        NS.debuff_remains = function() error("crash") end
+        local ctx = make_context()
+        local state = get_state(ctx)
+        assert_eq(state.vt_remaining, 0, "vt_remaining default 0 when debuff_remains throws")
+        NS.debuff_remains = saved
+    end)
+end
+
+-- ============================================================================
+-- Deep dive: is_undead_type helper handles both number 6 and string "undead"
+-- ============================================================================
+do
+    test("is_undead_type: number 6 -> true", function()
+        -- is_undead_type checks ctype == 6 or ctype == "undead"
+        local ctx = make_context({})
+        ctx.target = {
+            is_valid = function() return true end,
+            get_creature_type = function() return 6 end,
+        }
+        local state = get_state(ctx)
+        state.shackle_ready = true
+        assert_true(strategies[11].matches(ctx, state), "shackle creature_type=6 (number) -> match")
+    end)
+
+    test("is_undead_type: string 'undead' -> true", function()
+        local ctx = make_context({})
+        ctx.target = {
+            is_valid = function() return true end,
+            get_creature_type = function() return "undead" end,
+        }
+        local state = get_state(ctx)
+        state.shackle_ready = true
+        assert_true(strategies[11].matches(ctx, state), "shackle creature_type=undead -> match")
+    end)
+
+    test("is_undead_type: nil -> false (no crash)", function()
+        local ctx = make_context({})
+        ctx.target = {
+            is_valid = function() return true end,
+            get_creature_type = function() return nil end,
+        }
+        local state = get_state(ctx)
+        state.shackle_ready = true
+        assert_false(strategies[11].matches(ctx, state), "shackle creature_type=nil -> no match")
+    end)
+
+    test("is_undead_type: number 5 (humanoid) -> false", function()
+        local ctx = make_context({})
+        ctx.target = {
+            is_valid = function() return true end,
+            get_creature_type = function() return 5 end,
+        }
+        local state = get_state(ctx)
+        state.shackle_ready = true
+        assert_false(strategies[11].matches(ctx, state), "shackle creature_type=5 -> no match")
+    end)
+end
+
+-- ============================================================================
+-- Deep dive: target_creature_type with nil target — no crash
+-- ============================================================================
+do
+    test("target_creature_type_nil: nil state.target does not crash shackle", function()
+        local ctx = make_context({target = nil})
+        ctx.target = nil
+        local state = get_state(ctx)
+        state.shackle_ready = true
+        state.target = nil
+        local ok, result = pcall(strategies[11].matches, ctx, state)
+        assert_true(ok, "shackle with nil target does not crash")
+        assert_false(result, "shackle with nil target returns false")
+    end)
+end
+
+-- ============================================================================
+-- Deep dive: No combat gate strategies — verify no crash OOC or in combat
+-- ============================================================================
+do
+    -- Strategies without combat gates: {3,9,10,11,12,13,14,15,16,17,18,19,20,21}
+    local no_gate = {3, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21}
+    local ctx_ooc = make_context({in_combat = false, hp = 50, mana_pct = 50, enemies_count = 3, is_moving = false})
+    ctx_ooc.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        is_casting = function() return false end,
+        is_alive = function() return true end,
+        get_guid = function() return "mock-target" end,
+        get_creature_type = function() return "undead" end,
+        get_health_percentage = function() return 80 end,
+    }
+    ctx_ooc.is_group = true
+
+    local state_ooc = get_state(ctx_ooc)
+    for k, v in pairs(state_ooc) do
+        if type(v) == "boolean" then state_ooc[k] = true end
+    end
+    state_ooc.in_combat = false
+    state_ooc.has_shadowform = false
+    state_ooc.has_fortitude = true      -- prevent fortitude from matching (it's OOC-only)
+    state_ooc.has_inner_fire = true     -- prevent inner fire from matching
+    state_ooc.mana_pct = 50
+    state_ooc.hp = 61
+    state_ooc.enemies = 3
+    state_ooc.wand_threshold = 20
+    state_ooc.vt_remaining = 0
+    state_ooc.is_moving = false
+    state_ooc.is_channeling = false
+    state_ooc.use_shadowform = true
+
+    test("no_combat_gate_strategies: no crash OOC for strategies without combat gate", function()
+        for _, idx in ipairs(no_gate) do
+            local ok, result = pcall(strategies[idx].matches, ctx_ooc, state_ooc)
+            assert_true(ok, "strategy " .. idx .. " (" .. strategies[idx].name .. ") no crash OOC")
+        end
+    end)
+
+    -- Also verify in combat (no crash)
+    local ctx_combat = make_context({in_combat = true, hp = 50, mana_pct = 50, enemies_count = 3, is_moving = false})
+    ctx_combat.target = ctx_ooc.target
+    ctx_combat.is_group = true
+    local state_combat = get_state(ctx_combat)
+    for k, v in pairs(state_combat) do
+        if type(v) == "boolean" then state_combat[k] = true end
+    end
+    state_combat.has_shadowform = false
+    state_combat.in_combat = true
+    state_combat.mana_pct = 50
+    state_combat.hp = 61
+    state_combat.enemies = 3
+    state_combat.wand_threshold = 20
+    state_combat.vt_remaining = 0
+    state_combat.is_moving = false
+    state_combat.is_channeling = false
+    state_combat.use_shadowform = true
+
+    test("no_combat_gate_strategies: no crash in combat for strategies without combat gate", function()
+        for _, idx in ipairs(no_gate) do
+            local ok, result = pcall(strategies[idx].matches, ctx_combat, state_ooc)
+            assert_true(ok, "strategy " .. idx .. " (" .. strategies[idx].name .. ") no crash in combat")
+        end
+    end)
+end
+
+-- ============================================================================
+-- Deep dive: Scream/HolyNova at zero enemies
+-- ============================================================================
+do
+    test("scream_zero_enemies: scream with 0 enemies -> no match (not ready gate only)", function()
+        local ctx = make_context({in_combat = true, enemies_count = 0})
+        local state = get_state(ctx)
+        state.scream_ready = true
+        state.enemies = 0
+        assert_false(strategies[9].matches(ctx, state), "scream enemies=0 -> no match (<3)")
+    end)
+
+    test("holynova_zero_enemies: holy nova with 0 enemies -> no match", function()
+        local ctx = make_context({in_combat = true, enemies_count = 0, is_moving = false})
+        local state = get_state(ctx)
+        state.holy_nova_ready = true
+        state.enemies = 0
+        state.is_moving = false
+        assert_false(strategies[18].matches(ctx, state), "holynova enemies=0 -> no match (<3)")
+    end)
+end
+
+-- ============================================================================
+-- Deep dive: build_state with extreme mana values
+-- ============================================================================
+do
+    test("build_state_mana_0: mana_pct=0 produces safe state", function()
+        local ctx = make_context({mana_pct = 0})
+        local state = get_state(ctx)
+        assert_eq(state.mana_pct, 0, "mana_pct=0 from context")
+        -- Smite should not match (0 < 20 threshold)
+        state.smite_ready = true
+        state.wand_threshold = 20
+        state.is_moving = false
+        assert_false(strategies[19].matches(ctx, state), "smite mana=0 -> no match (<20)")
+        -- Wand should match (0 < 20)
+        assert_true(strategies[20].matches(ctx, state), "wand mana=0 -> match (<20)")
+    end)
+
+    test("build_state_mana_100: mana_pct=100 produces safe state", function()
+        local ctx = make_context({mana_pct = 100})
+        local state = get_state(ctx)
+        assert_eq(state.mana_pct, 100, "mana_pct=100 from context")
+        -- Smite should match (100 >= 20)
+        state.smite_ready = true
+        state.wand_threshold = 20
+        state.is_moving = false
+        assert_true(strategies[19].matches(ctx, state), "smite mana=100 -> match (>=20)")
+        -- Wand should not match (100 >= 20)
+        assert_false(strategies[20].matches(ctx, state), "wand mana=100 -> no match (>=20)")
+    end)
+end
+
+-- ============================================================================
+-- Deep dive: FlashHeal HP window boundaries (30-50 exclusive of ends)
+-- ============================================================================
+do
+    -- FlashHeal: HP 30 -> match (>=30)
+    -- FlashHeal: HP 49 -> match (<50)
+    -- FlashHeal: HP 29 -> no match (<30)
+    -- FlashHeal: HP 50 -> no match (>=50)
+    local ctx = make_context({hp = 30})
+    local state = get_state(ctx)
+    state.flash_heal_ready = true
+    state.hp = 30
+    assert_true(strategies[6].matches(ctx, state), "flashheal hp=30 -> match (>=30)")
+
+    local ctx2 = make_context({hp = 49})
+    local state2 = get_state(ctx2)
+    state2.flash_heal_ready = true
+    state2.hp = 49
+    assert_true(strategies[6].matches(ctx2, state2), "flashheal hp=49 -> match (<50)")
+
+    local ctx3 = make_context({hp = 29})
+    local state3 = get_state(ctx3)
+    state3.flash_heal_ready = true
+    state3.hp = 29
+    assert_false(strategies[6].matches(ctx3, state3), "flashheal hp=29 -> no match (<30)")
+
+    local ctx4 = make_context({hp = 50})
+    local state4 = get_state(ctx4)
+    state4.flash_heal_ready = true
+    state4.hp = 50
+    assert_false(strategies[6].matches(ctx4, state4), "flashheal hp=50 -> no match (>=50)")
+end
+
+-- ============================================================================
+-- Deep dive: build_state with context.is_channeling and context.is_casting
+-- ============================================================================
+do
+    test("build_state_channeling: is_channeling=true or is_casting=true produces is_channeling=true", function()
+        local ctx = make_context({})
+        ctx.is_channeling = true
+        local state = get_state(ctx)
+        assert_true(state.is_channeling, "is_channeling is true when context.is_channeling is true")
+    end)
+
+    test("build_state_channeling: is_casting fallback produces is_channeling=true", function()
+        local ctx = make_context({})
+        ctx.is_casting = true
+        local state = get_state(ctx)
+        assert_true(state.is_channeling, "is_channeling is true when context.is_casting is true (fallback)")
+    end)
+
+    test("build_state_channeling: neither set -> is_channeling=false", function()
+        local ctx = make_context({})
+        ctx.is_channeling = nil
+        ctx.is_casting = nil
+        local state = get_state(ctx)
+        assert_false(state.is_channeling, "is_channeling is false when neither channeling nor casting set")
+    end)
+end
+
+-- ============================================================================
+-- Deep dive: NS.try_cast returning false for all 21 strategy executes
+-- ============================================================================
+do
+    test("try_cast_false_all: all executes handle NS.try_cast returning false without crash", function()
+        local saved = NS.try_cast
+        NS.try_cast = function() return false end
+        local ctx = make_context()
+        for i = 1, #strategies do
+            local ok, result = pcall(strategies[i].execute, ctx)
+            assert_true(ok, "strategy " .. i .. " execute did not crash when try_cast returns false")
+        end
+        NS.try_cast = saved
+    end)
+end
+
+-- ============================================================================
+-- Deep dive: VampiricTouch VT refresh boundary at exactly 3 seconds
+-- ============================================================================
+do
+    test("vt_refresh_boundary: vt_remaining=3 -> match (<=3)", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.vt_ready = true
+        state.vt_remaining = 3
+        state.is_channeling = false
+        assert_true(strategies[13].matches(ctx, state), "vt remaining=3 -> match (<=3)")
+    end)
+
+    test("vt_refresh_boundary: vt_remaining=4 -> no match (>3)", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.vt_ready = true
+        state.vt_remaining = 4
+        state.is_channeling = false
+        assert_false(strategies[13].matches(ctx, state), "vt remaining=4 -> no match (>3)")
+    end)
+
+    test("vt_refresh_boundary: vt_remaining=0 -> match (needs refresh)", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.vt_ready = true
+        state.vt_remaining = 0
+        state.is_channeling = false
+        assert_true(strategies[13].matches(ctx, state), "vt remaining=0 -> match")
+    end)
+end
+
+-- ============================================================================
+-- Deep dive: ShackleUndead creature_type=6 (number) via build_state target_creature_type
+-- ============================================================================
+do
+    test("shackle_creature_type_number: build_state stores creature_type properly", function()
+        local ctx = make_context({})
+        ctx.target = {
+            is_valid = function() return true end,
+            get_health = function() return 8000 end,
+            get_max_health = function() return 10000 end,
+            is_casting = function() return false end,
+            is_alive = function() return true end,
+            get_guid = function() return "mock-target" end,
+            get_creature_type = function() return 6 end,
+            get_health_percentage = function() return 80 end,
+        }
+        local state = get_state(ctx)
+        state.shackle_ready = true
+        assert_true(strategies[11].matches(ctx, state), "shackle creature_type=6 -> match via build_state")
+    end)
+end
+
+-- ============================================================================
+-- Deep dive: GreaterHeal moving guard (double-check with explicit test)
+-- ============================================================================
+do
+    test("greaterheal_moving_explicit: greater heal does not match while moving", function()
+        local ctx = make_context({hp = 30, is_moving = true})
+        local state = get_state(ctx)
+        state.greater_heal_ready = true
+        state.hp = 30
+        state.heal_hp = 60
+        state.is_moving = true
+        assert_false(strategies[8].matches(ctx, state), "greaterheal moving -> no match")
+    end)
+
+    test("greaterheal_not_moving: greater heal matches while stationary", function()
+        local ctx = make_context({hp = 30, is_moving = false})
+        local state = get_state(ctx)
+        state.greater_heal_ready = true
+        state.hp = 30
+        state.heal_hp = 60
+        state.is_moving = false
+        assert_true(strategies[8].matches(ctx, state), "greaterheal stationary -> match")
+    end)
+end
+-- ============================================================================
 
 print(string.format("\\n=== Priest Leveling Unit Tests: %d passed, %d failed (%d assertions) ===\\n", passed, failed, assertions))
 if failed > 0 then

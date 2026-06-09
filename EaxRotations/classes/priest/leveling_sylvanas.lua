@@ -53,7 +53,10 @@ local function has_buff(buff_ids)
     if ok then me = result end
     if not me then return false end
     local ids = type(buff_ids) == "table" and buff_ids or { buff_ids }
-    if NS.buff_up then return NS.buff_up(me, ids) end
+    if NS.buff_up then
+        local ok, result = pcall(NS.buff_up, me, ids)
+        if ok then return result end
+    end
     return false
 end
 
