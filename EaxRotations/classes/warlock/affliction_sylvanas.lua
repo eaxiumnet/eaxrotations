@@ -2,6 +2,9 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local pet_manager = require("shared/pet_manager_sylvanas")
+
+local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.WarlockSpells or {}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
@@ -276,6 +279,45 @@ local function broken_api_dot_throttled(spell_id)
 end
 local strategies = {
 
+    -- Auto Damage Potion — gate on context.has_damage_potion (inventory_helper)
+    { name = "DamagePotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_damage_potion then return false end
+          if not context.should_burst then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
+
+    -- Pet State: set defensive when pet HP is critically low
+    { name = "PetDefensive",
+      matches = function(context, state)
+          if not state.pet_alive then return false end
+          if not (context.in_combat or false) then return false end
+          if (state.pet_health or 100) > 35 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_defensive() end },
+    -- Pet State: set passive when player HP critically low
+    { name = "PetPassive",
+      matches = function(context, state)
+          if not state.pet_alive then return false end
+          if not (context.in_combat or false) then return false end
+          if (context.hp or 100) > 25 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_passive() end },
+    -- Pet State: set aggressive during combat when pet is healthy
+    { name = "PetAggressive",
+      matches = function(context, state)
+          if not state.pet_alive then return false end
+          if not (context.in_combat or false) then return false end
+          if (state.pet_health or 100) < 50 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_aggressive() end },
+
     -- ------------------------------------------------------------------------
     -- 1. Death Coil (survival heal + CC)
     -- ------------------------------------------------------------------------
@@ -284,7 +326,7 @@ local strategies = {
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
             if (state.hp_pct or 100) > 30 then return false end
-            return NS.spell_ready(LOCAL_SPELLS.DeathCoil, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.DeathCoil, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.DeathCoil, context.target, "[AFFL] Death Coil (survival + heal)")
@@ -318,7 +360,7 @@ local strategies = {
             -- Local timer: Soul shatter has 5min CD
             if (NS.time_now() - _last_soulshatter) < 290 then return false end
             if NS.cooldown_remains(SPELLS.Soulshatter, 300) > 0 then return false end
-            return NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true })
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true }) or false
         end,
         execute = function(context)
             local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
@@ -336,7 +378,7 @@ local strategies = {
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
             if not state.nightfall_active then return false end
-            return NS.spell_ready(SPELLS.ShadowBolt, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Nightfall instant Shadow Bolt")
@@ -355,7 +397,7 @@ local strategies = {
             -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
             if (state.corruption_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_corruption_dmg or 0, state.corruption_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
-            return NS.spell_ready(SPELLS.Corruption, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Corruption, context.target) or false
         end,
         execute = function(context)
             local ok = NS.try_cast(SPELLS.Corruption, context.target, "[AFFL] Corruption")
@@ -371,7 +413,7 @@ local strategies = {
             if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
             local target = find_dot_target(CORRUPTION_DEBUFF[1])
             if not target then return false end
-            return NS.spell_ready(SPELLS.Corruption, target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Corruption, target) or false
         end,
         execute = function(context)
             local target = find_dot_target(CORRUPTION_DEBUFF[1])
@@ -390,7 +432,7 @@ local strategies = {
             if not context.has_valid_enemy_target then return false end
             if broken_api_dot_throttled(27216) then return false end
             if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            return NS.spell_ready(SPELLS.Corruption, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Corruption, context.target) or false
         end,
         execute = function(context)
             local ok = NS.try_cast(SPELLS.Corruption, context.target, "[AFFL] Corruption (moving)")
@@ -411,7 +453,7 @@ local strategies = {
             -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
             if (state.ua_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_ua_dmg or 0, state.ua_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
-            return NS.spell_ready(SPELLS.UnstableAffliction, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.UnstableAffliction, context.target) or false
         end,
         execute = function(context)
             local ok = NS.try_cast(SPELLS.UnstableAffliction, context.target, "[AFFL] Unstable Affliction")
@@ -433,7 +475,7 @@ local strategies = {
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
             if (state.siphon_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_siphon_dmg or 0, state.siphon_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             -- Siphon Life is talent-gated; spell won't be ready if not learned
-            return NS.spell_ready(SPELLS.SiphonLife, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.SiphonLife, context.target) or false
         end,
         execute = function(context)
             local ok = NS.try_cast(SPELLS.SiphonLife, context.target, "[AFFL] Siphon Life")
@@ -449,7 +491,7 @@ local strategies = {
             if (state.siphon_remains or 0) > DOT_REFRESH_WINDOW then return false end
             local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
             if not target then return false end
-            return NS.spell_ready(SPELLS.SiphonLife, target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.SiphonLife, target) or false
         end,
         execute = function(context)
             local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
@@ -470,7 +512,7 @@ local strategies = {
             if (state.doom_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Only on long-lived targets (Doom takes 60s to tick)
             if context.ttd_known and context.ttd < 62 then return false end
-            return NS.spell_ready(SPELLS.CurseOfDoom, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.CurseOfDoom, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.CurseOfDoom, context.target, "[AFFL] Curse of Doom")
@@ -487,7 +529,7 @@ local strategies = {
             -- Only in group content when no other warlock has it
             if not context.is_group then return false end
             if (state and state.coe_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            return NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.CurseElements, context.target, "[AFFL] Curse of Elements")
@@ -508,7 +550,7 @@ local strategies = {
             if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- On short-lived targets, CoA may not run full duration
             if context.ttd_known and context.ttd < 8 then return false end
-            return NS.spell_ready(SPELLS.CurseOfAgony, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.CurseOfAgony, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.CurseOfAgony, context.target, "[AFFL] Curse of Agony")
@@ -523,7 +565,7 @@ local strategies = {
             if context.ttd_known and context.ttd < 8 then return false end
             local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
             if not target then return false end
-            return NS.spell_ready(SPELLS.CurseOfAgony, target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.CurseOfAgony, target) or false
         end,
         execute = function(context)
             local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
@@ -541,7 +583,7 @@ local strategies = {
             if not context.has_valid_enemy_target then return false end
             if (state.hp_pct or 100) > 55 then return false end
             if context.is_channeling then return false end
-            return NS.spell_ready(LOCAL_SPELLS.DrainLife, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.DrainLife, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.DrainLife, context.target, "[AFFL] Drain Life sustain")
@@ -560,7 +602,7 @@ local strategies = {
             if context.ttd_known and context.ttd < 5 then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
 	            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
 	            if (state.immolate_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_immolate_dmg or 0, state.immolate_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
-            return NS.spell_ready(SPELLS.Immolate, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Immolate, context.target) or false
         end,
         execute = function(context)
             local ok = NS.try_cast(SPELLS.Immolate, context.target, "[AFFL] Immolate")
@@ -604,7 +646,7 @@ local strategies = {
             if not context.has_valid_enemy_target then return false end
             local min_targets = context.settings and context.settings.aff_seed_targets or 3
             if (state.enemy_count or 0) < min_targets then return false end
-            return NS.spell_ready(SPELLS.SeedOfCorruption, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.SeedOfCorruption, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.SeedOfCorruption, context.target, "[AFFL] Seed of Corruption")
@@ -620,7 +662,7 @@ local strategies = {
             if not context.has_valid_enemy_target then return false end
             if (state.target_hp or 100) > EXECUTE_HP then return false end
             if context.is_channeling then return false end
-            return NS.spell_ready(LOCAL_SPELLS.DrainSoul, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.DrainSoul, context.target) or false
         end,
         execute = function(context, state)
             return NS.try_cast(LOCAL_SPELLS.DrainSoul, context.target,
@@ -639,7 +681,7 @@ local strategies = {
             -- Range check: Shadow Bolt has 30yd range
             if context.target_range and context.target_range > 28 then return false end
             -- Pre-cast Shadow Bolt on pull timer targets
-            return NS.spell_ready(SPELLS.ShadowBolt, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Pre-combat Shadow Bolt")
@@ -650,7 +692,7 @@ local strategies = {
         name = "ShadowBoltFiller",
         matches = function(context)
             if not context.has_valid_enemy_target then return false end
-            return NS.spell_ready(SPELLS.ShadowBolt, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Shadow Bolt filler")
@@ -667,7 +709,7 @@ local strategies = {
             local threshold = math.min(context.settings and context.settings.aff_life_tap_mana or 30, 65)
             if (state.mana_pct or 100) > threshold then return false end
             if (state.hp_pct or 100) < LIFE_TAP_SAFETY_HP then return false end
-            return NS.spell_ready(SPELLS.LifeTap, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.LifeTap, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
         execute = function()
             return NS.try_cast(SPELLS.LifeTap, NS.PLAYER_UNIT, "[AFFL] Life Tap")
@@ -684,7 +726,7 @@ local strategies = {
             if (state.mana_pct or 100) > threshold then return false end
             if not state.pet_alive then return false end
             if (state.pet_mana or 0) < 20 then return false end
-            return NS.spell_ready(LOCAL_SPELLS.DarkPact, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.DarkPact, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
         execute = function()
             return NS.try_cast(LOCAL_SPELLS.DarkPact, NS.PLAYER_UNIT, "[AFFL] Dark Pact")
@@ -734,7 +776,7 @@ local strategies = {
         matches = function(context)
             if not context.is_pvp then return false end
             if not context.target then return false end
-            return NS.spell_ready(LOCAL_SPELLS.Fear, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.Fear, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.Fear, context.target, "[AFFL PvP] Fear")
@@ -745,7 +787,7 @@ local strategies = {
         matches = function(context)
             if not context.is_pvp then return false end
             if not context.melee_on_you then return false end
-            return NS.spell_ready(LOCAL_SPELLS.HowlOfTerror, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.HowlOfTerror, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
         execute = function()
             return NS.try_cast(LOCAL_SPELLS.HowlOfTerror, NS.PLAYER_UNIT, "[AFFL PvP] Howl of Terror")
@@ -757,7 +799,7 @@ local strategies = {
             if not context.is_pvp then return false end
             if not context.target then return false end
             if not context.melee_on_you then return false end
-            return NS.spell_ready(LOCAL_SPELLS.CurseExhaustion, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseExhaustion, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.CurseExhaustion, context.target, "[AFFL PvP] Curse of Exhaustion kite")
@@ -769,7 +811,7 @@ local strategies = {
             if not context.is_pvp then return false end
             if not context.target then return false end
             if not context.enemy_caster then return false end
-            return NS.spell_ready(LOCAL_SPELLS.CurseTongues, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseTongues, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.CurseTongues, context.target, "[AFFL PvP] Curse of Tongues")
@@ -786,7 +828,7 @@ local strategies = {
             if me and NS.buff_remains(me, FEL_ARMOR_BUFF) > 0 then return false end
             -- In combat: only refresh if not channeling (don't interrupt Drain Soul)
             if context.in_combat and context.is_channeling then return false end
-            return NS.spell_ready(LOCAL_SPELLS.FelArmor, me or NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.FelArmor, me or NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
         execute = function()
             return NS.try_cast(LOCAL_SPELLS.FelArmor, NS.PLAYER_UNIT, "[AFFL] Fel Armor")
@@ -801,7 +843,7 @@ local strategies = {
         matches = function(context, state)
             if not state.pet_alive then return false end
             if (state.pet_health or 100) > 40 then return false end
-            return NS.spell_ready(LOCAL_SPELLS.HealthFunnel, context.pet)
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.HealthFunnel, context.pet) or false
         end,
         execute = function(context)
             if context.pet then
@@ -819,7 +861,7 @@ local strategies = {
         matches = function(context)
             if not context.is_pvp then return false end
             if not context.enemy_shadow_caster then return false end
-            return NS.spell_ready(LOCAL_SPELLS.ShadowWard, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.ShadowWard, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
         execute = function()
             return NS.try_cast(LOCAL_SPELLS.ShadowWard, NS.PLAYER_UNIT, "[AFFL PvP] Shadow Ward")
@@ -840,7 +882,7 @@ local strategies = {
                 local spell_id = LOCAL_SPELLS.CreateSoulstone and LOCAL_SPELLS.CreateSoulstone.id and LOCAL_SPELLS.CreateSoulstone:id()
                 if spell_id and not reagent.check_reagent(spell_id) then return false end
             end
-            return NS.spell_ready(LOCAL_SPELLS.CreateSoulstone, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CreateSoulstone, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
         execute = function()
             return NS.try_cast(LOCAL_SPELLS.CreateSoulstone, NS.PLAYER_UNIT, "[AFFL] Create Soulstone (self-buff)")
@@ -858,7 +900,7 @@ local strategies = {
             local wand_threshold = context.settings and context.settings.aff_wand_mana or 15
             if (state.mana_pct or 100) >= wand_threshold then return false end
             if not context.has_valid_enemy_target then return false end
-            return NS.spell_ready(LOCAL_SPELLS.Shoot, context.target)
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.Shoot, context.target) or false
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.Shoot, context.target, "[AFFL] Wand (mana conservation)")

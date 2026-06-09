@@ -2,6 +2,7 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { shaman = {} } } end
@@ -130,7 +131,7 @@ local function lightning_shield_matches_fn(context, state)
     if s.elemental_lightning_shield == false then return false end
     if state.lightning_shield_up then return false end
     if state.now_ms - runtime.last_lightning_shield_ms < SHIELD_REFRESH_UNKNOWN_MS then return false end
-    return NS.spell_ready(SPELLS.LightningShield, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.LightningShield, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function lightning_shield_execute(context, state)
@@ -143,8 +144,9 @@ end
 
 local function bloodlust_matches_fn(context, state)
     if not context.in_combat then return false end
+    if not NS.gate_cooldown_boss_only(context) then return false end
     if not context.should_burst then return false end
-    return NS.spell_ready(SPELLS.Bloodlust, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Bloodlust, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function chain_lightning_matches_fn(context, state)
@@ -160,7 +162,7 @@ local function chain_lightning_matches_fn(context, state)
     local s = context.settings or {}
     local min_targets = s.elemental_cl_min_targets or CL_MIN_TARGETS
     if (state.target_count or 0) < min_targets then return false end
-    return NS.spell_ready(SPELLS.ChainLightning, context.target)
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ChainLightning, context.target) or false
 end
 
 local function lightning_bolt_matches_fn(context, state)
@@ -173,7 +175,7 @@ local function lightning_bolt_matches_fn(context, state)
     local lower_rank = SPELLS.LightningBoltLowerRank
     local lower_id = (type(lower_rank) == "table" and lower_rank.ids and lower_rank.ids[1]) or lower_rank
     local spell_id = (state.mana_low and lower_id and NS.is_spell_learned and NS.is_spell_learned(lower_id)) and lower_rank or SPELLS.LightningBolt
-    return NS.spell_ready(spell_id, context.target)
+    return NS.spell_ready ~= nil and NS.spell_ready(spell_id, context.target) or false
 end
 
 local function flame_shock_matches_fn(context, state)
@@ -186,7 +188,7 @@ local function flame_shock_matches_fn(context, state)
     local min_sp = s.elemental_flame_shock_min_sp or FLAME_SHOCK_MIN_SP_DEFAULT
     if (state.spell_damage or 0) < min_sp then return false end
     if NS.should_refresh_dot and not NS.should_refresh_dot(state.flame_remains, 1.5, context.ttd, 12) then return false end
-    return NS.spell_ready(SPELLS.FlameShock, context.target)
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.FlameShock, context.target) or false
 end
 
 local function earth_shock_filler_matches_fn(context, state)
@@ -194,13 +196,13 @@ local function earth_shock_filler_matches_fn(context, state)
     -- Respect interrupt reserve: when ON, suppress Earth Shock filler to save for interrupts
     local s = context.settings or {}
     if s.elemental_interrupt_reserve ~= false then return false end
-    return NS.spell_ready(SPELLS.EarthShock, context.target)
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.EarthShock, context.target) or false
 end
 
 local function frost_shock_matches_fn(context, state)
     if not context.is_moving then return false end
     if not context.is_pvp then return false end
-    return NS.spell_ready(SPELLS.FrostShock, context.target)
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.FrostShock, context.target) or false
 end
 
 local function elemental_mastery_matches_fn(context, state)
@@ -209,7 +211,13 @@ local function elemental_mastery_matches_fn(context, state)
     if not context.in_combat then return false end
     if state.mana_conserve then return false end
     if not context.should_burst then return false end
-    return NS.spell_ready(SPELLS.ElementalMastery, NS.PLAYER_UNIT, { skip_range = true })
+    -- EM+CL hold: don't waste EM on Lightning Bolt when CL is the better nuke
+    local min_targets = s.elemental_cl_min_targets or CL_MIN_TARGETS
+    if (state.target_count or 0) >= min_targets then
+        local cl_cd = NS.cooldown_remains and NS.cooldown_remains(SPELLS.ChainLightning) or 0
+        if cl_cd > 1.5 then return false end
+    end
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ElementalMastery, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function natures_swiftness_matches_fn(context, state)
@@ -217,7 +225,7 @@ local function natures_swiftness_matches_fn(context, state)
     if s.elemental_use_natures_swiftness == false then return false end
     if not context.in_combat then return false end
     if not context.should_burst then return false end
-    return NS.spell_ready(SPELLS.NaturesSwiftness, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.NaturesSwiftness, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function water_shield_matches_fn(context, state)
@@ -226,12 +234,12 @@ local function water_shield_matches_fn(context, state)
     if state.mana_emergency then return false end
     local ws_mana = s.elemental_water_shield_mana or WATER_SHIELD_MANA_DEFAULT
     if (state.mana_pct or 100) > ws_mana then return false end
-    return NS.spell_ready(SPELLS.WaterShield, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.WaterShield, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function ghost_wolf_matches_fn(context, state)
     if context.in_combat then return false end
-    return NS.spell_ready(SPELLS.GhostWolf, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.GhostWolf, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function tremor_totem_matches_fn(context, state)
@@ -239,25 +247,25 @@ local function tremor_totem_matches_fn(context, state)
     if not context.in_combat then return false end
     if state.mana_emergency then return false end
     if not (context.fear_nearby or false) then return false end
-    return NS.spell_ready(SPELLS.TremorTotem, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.TremorTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function earthbind_totem_matches_fn(context, state)
     if not context.is_pvp then return false end
     if state.mana_emergency then return false end
-    return NS.spell_ready(SPELLS.EarthbindTotem, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.EarthbindTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function mana_tide_totem_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ManaTideTotem, 3.0) then return false end
     if state.mana_emergency then return false end
     if (state.mana_pct or 100) > 30 then return false end
-    return NS.spell_ready(SPELLS.ManaTideTotem, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ManaTideTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function chain_heal_matches_fn(context, state)
     if not (context.group_injured or false) then return false end
-    return NS.spell_ready(SPELLS.ChainHeal, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ChainHeal, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 -- ============================================================================
@@ -268,7 +276,7 @@ local function flametongue_weapon_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FlametongueWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_flametongue then return false end
-    return NS.spell_ready(SPELLS.FlametongueWeapon, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.FlametongueWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function flametongue_weapon_execute(context, state)
@@ -283,7 +291,7 @@ local function windfury_weapon_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.WindfuryWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_windfury then return false end
-    return NS.spell_ready(SPELLS.WindfuryWeapon, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.WindfuryWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function windfury_weapon_execute(context, state)
@@ -298,7 +306,7 @@ local function rockbiter_weapon_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.RockbiterWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_rockbiter then return false end
-    return NS.spell_ready(SPELLS.RockbiterWeapon, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.RockbiterWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function rockbiter_weapon_execute(context, state)
@@ -318,7 +326,7 @@ local function healing_wave_matches_fn(context, state)
     local s = context.settings or {}
     local heal_hp = s.elemental_self_heal_hp or HEALING_WAVE_HP_PCT
     if (state.hp_pct or 100) > heal_hp then return false end
-    return NS.spell_ready(SPELLS.HealingWave, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.HealingWave, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 -- ============================================================================
@@ -331,7 +339,7 @@ local function totem_of_wrath_matches_fn(context, state)
     if s.elemental_use_totem_of_wrath == false then return false end
     if state.mana_emergency then return false end
     if NS.has_player_buff(TOTEM_OF_WRATH_BUFF) then return false end
-    return NS.spell_ready(SPELLS.TotemOfWrath, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.TotemOfWrath, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function wrath_of_air_totem_matches_fn(context, state)
@@ -339,7 +347,7 @@ local function wrath_of_air_totem_matches_fn(context, state)
     if s.elemental_manage_totems == false then return false end
     if state.mana_emergency then return false end
     if NS.has_player_buff(WRATH_OF_AIR_BUFF) then return false end
-    return NS.spell_ready(SPELLS.WrathOfAirTotem, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.WrathOfAirTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function mana_spring_totem_matches_fn(context, state)
@@ -347,7 +355,7 @@ local function mana_spring_totem_matches_fn(context, state)
     if s.elemental_manage_totems == false then return false end
     if state.mana_emergency then return false end
     if NS.has_player_buff(MANA_SPRING_BUFF) then return false end
-    return NS.spell_ready(SPELLS.ManaSpringTotem, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ManaSpringTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 -- ============================================================================
@@ -362,7 +370,7 @@ local function fire_nova_totem_matches_fn(context, state)
     local min_targets = s.elemental_aoe_threshold or 4
     if (state.target_count or 0) < min_targets then return false end
     if context.cc_safe == false then return false end
-    return NS.spell_ready(SPELLS.FireNovaTotem, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.FireNovaTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function magma_totem_matches_fn(context, state)
@@ -373,7 +381,7 @@ local function magma_totem_matches_fn(context, state)
     local min_targets = s.elemental_aoe_threshold or 4
     if (state.target_count or 0) < min_targets then return false end
     if context.cc_safe == false then return false end
-    return NS.spell_ready(SPELLS.MagmaTotem, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.MagmaTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 -- ============================================================================
@@ -384,7 +392,7 @@ local function totemic_call_matches_fn(context, state)
     if not context.in_combat then return false end
     if not context.is_moving then return false end
     if not (context.has_totems or false) then return false end
-    return NS.spell_ready(SPELLS.TotemicCall, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.TotemicCall, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 -- ============================================================================
@@ -392,6 +400,15 @@ end
 -- ============================================================================
 
 local strategies = {
+    { name = "ManaPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_mana_potion then return false end
+          if (context.mana_pct or 100) > 20 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
     -- Mana emergency: auto-attack/wand only (Research: Mana < 5% all spells forbidden)
     -- MUST be first so it gates all other strategies when mana is critically low
     { name = "ManaEmergencyWand",
