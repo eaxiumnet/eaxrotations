@@ -228,7 +228,7 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if settings.use_pvp_defensives == false then return false end
-            if not NS.should_kite(context) then return false end
+            if NS.should_kite and not NS.should_kite(context) then return false end
             if (NS.GetEnemiesCount and NS.GetEnemiesCount(8) or 0) < 2 then return false end
             return true
         end,
