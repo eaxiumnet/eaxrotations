@@ -38,6 +38,7 @@ _G.EaxRotations = {
     spell_exists = function(spell)
         return spell ~= 30451
     end,
+    gate_cooldown_boss_only = function() return true end,
     spell_ready = function()
         return true
     end,

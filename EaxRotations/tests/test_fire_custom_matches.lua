@@ -52,6 +52,7 @@ _G.EaxRotations = {
     rotation_registry = {
         register = function() end,
     },
+    gate_cooldown_boss_only = function() return true end,
 }
 
 local strategies = dofile("EaxRotations/classes/mage/fire_sylvanas.lua")

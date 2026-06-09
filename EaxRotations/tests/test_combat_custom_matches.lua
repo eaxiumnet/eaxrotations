@@ -48,6 +48,7 @@ _G.EaxRotations = {
     is_spell_learned = function(id) return true end,
     is_interruptible = function(target) return true end,
     get_spell_cooldown = function(spell) return 0 end,
+    gate_cooldown_boss_only = function() return true end,
     log = function() end,
     time_now = function() return 1000 end,
     broken_api_throttled = function(spell, seconds) return false end,
