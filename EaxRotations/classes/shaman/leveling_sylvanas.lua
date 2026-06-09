@@ -634,13 +634,17 @@ local strategies = {
     { name = "GhostWolf",
       matches = ghost_wolf_matches,
       execute = function(context, state)
+          if not state then return false end
           return try_cast(SPELLS.GhostWolf, nil, "[LEVELING] Ghost Wolf", { skip_range = true })
       end },
 
     -- Wand fallback (when low mana)
     { name = "Wand",
       matches = leveling.create_wand_matches("leveling_wand_threshold", 30),
-      execute = function(context) return leveling.execute_wand(context) end },
+      execute = function(context)
+          local ok, result = pcall(leveling.execute_wand, context)
+          return ok and (result == true) or false
+      end },
 }
 
 if NS.rotation_registry and NS.rotation_registry.register then
