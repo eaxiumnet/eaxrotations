@@ -179,8 +179,13 @@ local _last_playstyle_log = nil
 local _last_enabled_log = nil
 local _last_disabled_log_ms = -10000
 local _last_sync_error_ms = -10000
-local _frame_counter = 0
-local ROTATION_FRAME_SKIP = 5  -- Run rotation every 5th frame (~12 ticks/sec at 60fps)
+
+-- Throttling note: NS.register_on_update_callback (see core_sylvanas.lua) registers
+-- our callback into a shared ~20Hz dispatcher (skip 2 of 3 frames). The old
+-- internal _frame_counter / ROTATION_FRAME_SKIP=5 (~12Hz) throttle was
+-- originally needed to drop the per-frame on_update entry point from 60Hz.
+-- With the shared dispatcher, that layer is redundant and over-throttling
+-- (~4Hz) would make the rotation feel laggy — so it's been removed.
 
 -- Shared toggles live as keybind widgets so the main menu and Control Panel
 -- use the exact same menu element. Schema checkboxes with these keys are
@@ -733,13 +738,9 @@ local function on_update()
         return
     end
 
-    -- Frame-skip throttle: EVERYTHING below this line runs at ~20Hz.
-    -- Keeping the cheap runtime_generation + alive guards at 60fps is fine,
-    -- but ALL engine API calls (widget sync, get_setting, GetPlayer, keybind reads)
-    -- must be throttled to reduce C↔Lua boundary crossings per frame.
-    _frame_counter = _frame_counter + 1
-    if _frame_counter < ROTATION_FRAME_SKIP then return end
-    _frame_counter = 0
+    -- We're now inside the shared ~20Hz dispatcher (see header comment).
+    -- The cheap runtime_generation + is_alive guards above run at 20Hz.
+    -- Everything below (widget sync, build_context, dispatch) runs at 20Hz.
 
     -- [#P1] Resolve rotation_enabled BEFORE the expensive widget sync loop.
     -- When rotation is disabled, we still need to listen for the user re-enabling
@@ -875,15 +876,16 @@ end
 -- REGISTER CALLBACKS
 -- ============================================================================
 
--- Register main rotation callback DIRECTLY with core (not through NS.register_on_update_callback
--- which batches shared module callbacks). Main.lua has its own internal frame-skip
--- (_frame_counter / ROTATION_FRAME_SKIP = 5, ~12Hz) and must not be further throttled.
-local main_gen = framework_core.runtime_generation
-if type(core.register_on_update_callback) == "function" then
-    core.register_on_update_callback(function()
-        if main_gen ~= framework_core.runtime_generation then return end
-        on_update()
-    end)
+-- Register main rotation callback through the throttled shared dispatcher
+-- (NS.register_on_update_callback in core_sylvanas.lua). The shared dispatcher:
+--   1. Throttles to ~20Hz (skip 2 of 3 frames)
+--   2. Performs the runtime_generation check (bails on /reload)
+--   3. Wraps the callback in pcall so a single bad tick doesn't crash the game
+-- Registering through it cuts the engine C→Lua entry point count from N+1 down
+-- to 1 for the whole plugin, removing the previous 60Hz no-op spam that
+-- caused measurable FPS drops on weak CPUs.
+if NS and NS.register_on_update_callback then
+    NS.register_on_update_callback(on_update)
 end
 if type(core.register_on_render_menu_callback) == "function" then
     pcall(core.register_on_render_menu_callback, render_menu)
