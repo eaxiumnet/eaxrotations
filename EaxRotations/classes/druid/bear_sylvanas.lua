@@ -478,12 +478,7 @@ end
 
 local function execute_item(context, item_id, label)
     if item_id <= 0 or not NS.use_item_by_id then return false end
-    if NS.use_item_by_id(item_id, context.me) then
-        local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
-        if debug then NS.log("[BEAR] " .. label) end
-        return true
-    end
-    return false
+    return NS.use_item_by_id(item_id, context.me) and true or false
 end
 
 local function would_starve_mangle(state, rage_cost)

@@ -179,6 +179,8 @@ local _last_playstyle_log = nil
 local _last_enabled_log = nil
 local _last_disabled_log_ms = -10000
 local _last_sync_error_ms = -10000
+local _frame_counter = 0
+local ROTATION_FRAME_SKIP = 5  -- Run rotation every 5th frame (~12 ticks/sec at 60fps)
 
 -- Shared toggles live as keybind widgets so the main menu and Control Panel
 -- use the exact same menu element. Schema checkboxes with these keys are
@@ -458,6 +460,7 @@ local menu_elements = {
     settings_tree = core.menu.tree_node(),
     diagnostics_tree = core.menu.tree_node(),
     dashboard_check = core.menu.checkbox(false, "show_dashboard"),
+    dump_spells_btn = core.menu.button("eax_dump_spells"),
     -- [#4] Pre-allocated header widgets — created ONCE, not every render frame.
     -- core.menu.header() returns a new widget each call; creating inside render_menu()
     -- leaked instances every frame. Now stored and reused.
@@ -684,6 +687,13 @@ local function render_menu()
         -- [#5] Diagnostics subtree nested inside main_tree
         menu_elements.diagnostics_tree:render("Diagnostics", function()
             menu_elements.dashboard_check:render("Show Dashboard", "Toggle the rotation dashboard window on/off")
+            if menu_elements.dump_spells_btn:render("Dump Learned Spells", "Writes every known spell for this class to the console log") then
+                local raw = plugin_info.player_class_name
+                if raw and NS and NS.dump_class_spells then
+                    local name = raw:sub(1,1):upper() .. raw:sub(2):lower()
+                    NS.dump_class_spells(name)
+                end
+            end
         end)
     end)
 end
@@ -723,6 +733,24 @@ local function on_update()
         return
     end
 
+    -- Frame-skip throttle: EVERYTHING below this line runs at ~20Hz.
+    -- Keeping the cheap runtime_generation + alive guards at 60fps is fine,
+    -- but ALL engine API calls (widget sync, get_setting, GetPlayer, keybind reads)
+    -- must be throttled to reduce C↔Lua boundary crossings per frame.
+    _frame_counter = _frame_counter + 1
+    if _frame_counter < ROTATION_FRAME_SKIP then return end
+    _frame_counter = 0
+
+    -- [#P1] Resolve rotation_enabled BEFORE the expensive widget sync loop.
+    -- When rotation is disabled, we still need to listen for the user re-enabling
+    -- it (sync_quick_toggles reads the keybind), but we can skip the bulk schema
+    -- widget sync (~30-50 pcall) entirely.
+    local rotation_enabled = not (framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) == false)
+    if _last_enabled_log ~= rotation_enabled then
+        _last_enabled_log = rotation_enabled
+        core.log("[EaxRotations] Rotation " .. (rotation_enabled and "Enabled" or "Disabled"))
+    end
+
     if control_panel_helper and control_panel_helper.on_update then
         local cp_ok, cp_err = pcall(function() control_panel_helper:on_update(menu_elements) end)
         if not cp_ok then
@@ -736,6 +764,7 @@ local function on_update()
 
     -- Sync menu-backed settings even when rotation execution is disabled.
     local show_dashboard = menu_elements.dashboard_check and menu_elements.dashboard_check:get_state() or false
+
     sync_quick_toggles()
     sync_playstyle_control()
 
@@ -753,34 +782,39 @@ local function on_update()
             end
         end
 
-        -- [#11] Only sync settings that actually changed since last frame.
-        -- Avoids 30-60+ redundant set_setting calls per frame for unchanged checkboxes/sliders.
-        for key, widget in pairs(schema_widgets) do
-            local sync_ok, value = pcall(function()
-                return widget.sync and widget.sync() or nil
-            end)
-            if not sync_ok then
-                local now_ms = core.game_time and core.game_time() or 0
-                if now_ms - _last_sync_error_ms > 5000 then
-                    _last_sync_error_ms = now_ms
-                    core.log_warning("[EaxRotations] Setting sync failed for " .. tostring(key) .. ": " .. tostring(value))
-                end
-                value = nil
-            end
-            if value ~= nil then
-                local last_val = schema_widget_last_values[key]
-                if value ~= last_val then
-                    schema_widget_last_values[key] = value
-                    framework_core.set_setting(key, value)
-                end
-                if key == "playstyle" and type(value) == "string" then
-                    local active_value = framework_core.get_setting and framework_core.get_setting("active_playstyle", nil) or nil
-                    if active_value ~= value then
-                        framework_core.set_setting("active_playstyle", value)
+        -- [#P1] Skip the bulk schema widget sync (~30-50 pcall) when rotation is disabled.
+        -- Quick toggles (keybind read) already ran above; nothing to push to settings.
+        if rotation_enabled then
+            -- [#11] Only sync settings that actually changed since last frame.
+            -- Avoids 30-60+ redundant set_setting calls per frame for unchanged checkboxes/sliders.
+            -- Already at frame-skip rate (~20Hz).
+            for key, widget in pairs(schema_widgets) do
+                local sync_ok, value = pcall(function()
+                    return widget.sync and widget.sync() or nil
+                end)
+                if not sync_ok then
+                    local now_ms = core.game_time and core.game_time() or 0
+                    if now_ms - _last_sync_error_ms > 5000 then
+                        _last_sync_error_ms = now_ms
+                        core.log_warning("[EaxRotations] Setting sync failed for " .. tostring(key) .. ": " .. tostring(value))
                     end
-                    if _last_playstyle_log ~= value then
-                        _last_playstyle_log = value
-                        core.log("[EaxRotations] Active playstyle: " .. tostring(value))
+                    value = nil
+                end
+                if value ~= nil then
+                    local last_val = schema_widget_last_values[key]
+                    if value ~= last_val then
+                        schema_widget_last_values[key] = value
+                        framework_core.set_setting(key, value)
+                    end
+                    if key == "playstyle" and type(value) == "string" then
+                        local active_value = framework_core.get_setting and framework_core.get_setting("active_playstyle", nil) or nil
+                        if active_value ~= value then
+                            framework_core.set_setting("active_playstyle", value)
+                        end
+                        if _last_playstyle_log ~= value then
+                            _last_playstyle_log = value
+                            core.log("[EaxRotations] Active playstyle: " .. tostring(value))
+                        end
                     end
                 end
             end
@@ -788,11 +822,8 @@ local function on_update()
     end
 
     -- Check if script is enabled after menu settings are synchronized.
-    local rotation_enabled = not (framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) == false)
-    if _last_enabled_log ~= rotation_enabled then
-        _last_enabled_log = rotation_enabled
-        core.log("[EaxRotations] Rotation " .. (rotation_enabled and "Enabled" or "Disabled"))
-    end
+    -- rotation_enabled already resolved above (before widget sync) to allow
+    -- skipping the bulk schema widget sync loop when disabled.
     if not rotation_enabled then
         if not _guard4_logged then
             _guard4_logged = true
@@ -844,7 +875,16 @@ end
 -- REGISTER CALLBACKS
 -- ============================================================================
 
-framework_core.register_on_update_callback(on_update)
+-- Register main rotation callback DIRECTLY with core (not through NS.register_on_update_callback
+-- which batches shared module callbacks). Main.lua has its own internal frame-skip
+-- (_frame_counter / ROTATION_FRAME_SKIP = 5, ~12Hz) and must not be further throttled.
+local main_gen = framework_core.runtime_generation
+if type(core.register_on_update_callback) == "function" then
+    core.register_on_update_callback(function()
+        if main_gen ~= framework_core.runtime_generation then return end
+        on_update()
+    end)
+end
 if type(core.register_on_render_menu_callback) == "function" then
     pcall(core.register_on_render_menu_callback, render_menu)
 end
