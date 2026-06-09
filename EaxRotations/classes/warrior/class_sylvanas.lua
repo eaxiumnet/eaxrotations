@@ -232,6 +232,16 @@ local SPELLS = {
         power_type = "rage",
         school = "physical",
     }),
+    Intervene = NS.spell_action({
+        name = "Intervene",
+        ids = {3411},
+        levels = {70},
+        cast_time = 0,
+        cooldown = 30,
+        power_cost = 10,
+        power_type = "rage",
+        school = "physical",
+    }),
     Pummel = NS.spell_action({
         name = "Pummel",
         ids = {6554, 6552},

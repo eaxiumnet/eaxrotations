@@ -15,6 +15,7 @@ return {
                             { text = "Protection", value = "protection" },
                     } },
                     { key = "use_cooldowns", type = "checkbox", label = "Cooldowns", default = true },
+                    { key = "use_cooldowns_on_boss_only", type = "checkbox", label = "Cooldowns on Bosses Only", default = false, tooltip = "Only use major offensive cooldowns (Death Wish, Recklessness) on boss targets — skip on trash" },
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
                     { key = "use_pvp_defensives", type = "checkbox", label = "PvP Defensives", default = true },
@@ -38,6 +39,9 @@ return {
                 settings = {
                     { key = "warrior_use_spell_reflection", type = "checkbox", label = "Spell Reflection", default = true },
                     { key = "warrior_reflect_pvp_only", type = "checkbox", label = "Spell Reflection PvP Only", default = true },
+                    { key = "warrior_use_intervene", type = "checkbox", label = "Intervene (Prot)", default = true, tooltip = "Charge to a party member to intercept the next attack against them. 10 rage, 30s cd, 25yd range." },
+                    { key = "warrior_intervene_pvp_only", type = "checkbox", label = "Intervene PvP Only", default = true, tooltip = "Only use Intervene in PvP to avoid wasting rage in PvE." },
+                    { key = "warrior_intervene_hp_threshold", type = "slider", label = "Intervene Party HP%", min = 0, max = 100, default = 60, tooltip = "Party member HP threshold to trigger Intervene." },
                     { key = "use_disarm", type = "checkbox", label = "Auto Disarm (PvP)", default = true, tooltip = "Disarm enemy melee players (Warrior/Rogue/Paladin/Shaman). Requires Defensive Stance." },
                     { key = "disarm_trigger", type = "dropdown", label = "Disarm Trigger", default = "on_burst", options = {
                             { text = "On Burst (target has priority buffs)", value = "on_burst" },

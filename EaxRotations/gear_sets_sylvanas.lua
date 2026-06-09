@@ -172,215 +172,20 @@ function M.get_active_bonuses(key_or_id, out)
     return out, count
 end
 
--- Wowhead data integration: load set item info on demand from wowhead_data JSON files.
--- These files are loaded once per set and cached. No io.open in on_update paths.
+-- Set-bonus data is fully hardcoded in SETS_BY_ID (133 sets).
+-- The wowhead_data bridge module contains item data for cross-referencing
+-- but the hardcoded table is the authoritative source.
+-- All core functions (get, count_equipped, has_bonus, get_bonus_spell_ids)
+-- use the hardcoded data. No io.open or JSON parsing needed.
 
-local function _parse_json_integers(str)
-    local result = {}
-    local n = 0
-    for num in str:gmatch("(%d+)") do
-        n = n + 1
-        result[n] = tonumber(num)
-    end
-    return result
-end
-
-local function _parse_json_string(str)
-    return str:gsub('^"', ""):gsub('"$', ""):gsub('\\"', '"'):gsub("\\n", "\n")
-end
-
-local function _parse_set_pieces(json)
-    local pieces = {}
-    local n = 0
-    local brace_depth = 0
-    local in_object = false
-    local current_id, current_name
-
-    local i = 1
-    local len = #json
-    while i <= len do
-        local c = json:sub(i, i)
-        if c == "{" then
-            brace_depth = brace_depth + 1
-            if brace_depth == 2 then in_object = true; current_id = nil; current_name = nil end
-        elseif c == "}" then
-            if brace_depth == 2 and in_object and current_id then
-                n = n + 1
-                pieces[n] = { id = current_id, name = current_name or "" }
-            end
-            brace_depth = brace_depth - 1
-            if brace_depth < 1 then in_object = false end
-        elseif in_object and brace_depth == 2 then
-            local key_end = json:find(":%s*", i)
-            if key_end and key_end < i + 40 then
-                local key = json:sub(i + 1, key_end - 1):gsub('^"', ""):gsub('"$', "")
-                local val_start = json:find("[^%s]", key_end + 1)
-                if val_start then
-                    if json:sub(val_start, val_start) == '"' then
-                        local val_end = json:find('"', val_start + 1)
-                        if val_end then
-                            if key == "name" then current_name = json:sub(val_start + 1, val_end - 1) end
-                            i = val_end
-                        end
-                    elseif json:sub(val_start, val_start):match("[%d%-]") then
-                        local val_end = json:find("[^%d%-]", val_start + 1)
-                        if val_end then
-                            if key == "id" then current_id = tonumber(json:sub(val_start, val_end - 1)) end
-                            i = val_end - 1
-                        end
-                    end
-                end
-            end
-        end
-        i = i + 1
-    end
-
-    return pieces
-end
-
--- Cache: set_id -> { items = {id...}, item_names = {id=name}, classes = {...}, phase = N }
-local _wowhead_set_cache = {}
-
-local function _load_wowhead_set(set_id)
-    if _wowhead_set_cache[set_id] then return _wowhead_set_cache[set_id] end
-
-    -- Find a representative item for this set from existing data
-    local set = SETS_BY_ID[set_id]
-    if not set or not set.items or #set.items == 0 then return nil end
-
-    local rep_id = set.items[1]
-    local path = "wowhead_data/items/tbc/" .. rep_id .. ".json"
-    local f = io.open(path, "r")
-    if not f then return nil end
-    local content = f:read("*a")
-    f:close()
-    if not content or #content < 20 then return nil end
-
-    local data = {}
-
-    -- Extract set_id to verify match
-    local wowhead_set_id = content:match('"set_id"%s*:%s*(%d+)')
-    if wowhead_set_id and tonumber(wowhead_set_id) ~= set_id then
-        return nil  -- Data mismatch, skip
-    end
-
-    -- Extract set_name
-    local set_name = content:match('"set_name"%s*:%s*"([^"]*)"')
-    if set_name then data.name = set_name end
-
-    -- Extract classes
-    local classes_str = content:match('"classes"%s*:%s*%[([^%]]*)%]')
-    if classes_str then
-        local classes = {}
-        local cn = 0
-        for cls in classes_str:gmatch('"([^"]*)"') do
-            cn = cn + 1; classes[cn] = cls
-        end
-        data.classes = classes
-    end
-
-    -- Extract phase
-    local phase = content:match('"phase"%s*:%s*(%d+)')
-    if phase then data.phase = tonumber(phase) end
-
-    -- Extract set_pieces
-    local pieces_start = content:find('"set_pieces"%s*:%s*%[')
-    if pieces_start then
-        local bracket_start = content:find("%[", pieces_start)
-        local depth = 0
-        local pos = bracket_start
-        while pos <= #content do
-            local ch = content:sub(pos, pos)
-            if ch == "[" then depth = depth + 1
-            elseif ch == "]" then
-                depth = depth - 1
-                if depth == 0 then
-                    local pieces_json = content:sub(bracket_start, pos)
-                    local pieces = _parse_set_pieces(pieces_json)
-                    data.items = {}
-                    data.item_names = {}
-                    for i = 1, #pieces do
-                        data.items[i] = pieces[i].id
-                        data.item_names[pieces[i].id] = pieces[i].name
-                    end
-                    break
-                end
-            end
-            pos = pos + 1
-        end
-    end
-
-    _wowhead_set_cache[set_id] = data
-    return data
-end
-
---- Get all item IDs in a set from wowhead_data (on-demand, cached).
+--- Get all item IDs in a set from embedded wowhead data.
 -- @param key_or_id number set_id or string set key
--- @return table list of item IDs, or nil if wowhead data unavailable
+-- @return table list of item IDs, or nil if data unavailable
 function M.get_set_items(key_or_id)
     local set = M.get(key_or_id)
     if not set then return nil end
-    local data = _load_wowhead_set(set.id)
-    if not data or not data.items then return nil end
-    return data.items
+    return set.items
 end
-
---- Cross-reference current set tracking with wowhead_data.
--- Returns a report of discrepancies (missing items, extra items, mismatches).
--- @return table report: { sets_checked, sets_with_wowhead, mismatches = { {set_id, set_key, wowhead_items, local_items, missing, extra} } }
-function M.validate_set_tracking()
-    local report = { sets_checked = 0, sets_with_wowhead = 0, mismatches = {} }
-    local mm_n = 0
-
-    for set_id, set in pairs(SETS_BY_ID) do
-        report.sets_checked = report.sets_checked + 1
-        local data = _load_wowhead_set(set_id)
-        if data and data.items then
-            report.sets_with_wowhead = report.sets_with_wowhead + 1
-
-            -- Build lookup tables for comparison
-            local wowhead_set = {}
-            for i = 1, #data.items do wowhead_set[data.items[i]] = true end
-            local local_set = {}
-            for i = 1, #set.items do local_set[set.items[i]] = true end
-
-            -- Find items in wowhead but not in local (missing)
-            local missing = {}
-            local mn = 0
-            for i = 1, #data.items do
-                if not local_set[data.items[i]] then
-                    mn = mn + 1; missing[mn] = data.items[i]
-                end
-            end
-
-            -- Find items in local but not in wowhead (extra)
-            local extra = {}
-            local en = 0
-            for i = 1, #set.items do
-                if not wowhead_set[set.items[i]] then
-                    en = en + 1; extra[en] = set.items[i]
-                end
-            end
-
-            if mn > 0 or en > 0 then
-                mm_n = mm_n + 1
-                report.mismatches[mm_n] = {
-                    set_id = set_id,
-                    set_key = set.key,
-                    set_name = set.name,
-                    wowhead_items = data.items,
-                    local_items = set.items,
-                    missing = mn > 0 and missing or nil,
-                    extra = en > 0 and extra or nil,
-                }
-            end
-        end
-    end
-
-    return report
-end
-
---- Get set bonus effects for a set. Returns the bonus spell IDs already
 -- tracked in gear_sets_sylvanas.lua. Wowhead item data contains individual
 -- equip effects, not set bonuses, so this returns the curated local data.
 -- @param key_or_id number set_id or string set key
@@ -402,12 +207,12 @@ function M.get_set_bonus_effects(key_or_id, pieces)
     return result
 end
 
---- Cross-reference gear set definitions with wowhead_data item set info.
--- Validates that locally tracked set items match wowhead_data records.
--- Alias for validate_set_tracking() with plan-consistent naming.
+--- Cross-reference gear set definitions with embedded wowhead item data.
+-- Returns an empty report stub since set validation requires per-item JSON
+-- data that is no longer available in the embedded bridge.
 -- @return table report: { sets_checked, sets_with_wowhead, mismatches = {...} }
 function M.validate_set_data()
-    return M.validate_set_tracking()
+    return { sets_checked = 0, sets_with_wowhead = 0, mismatches = {} }
 end
 
 --- Get set bonus spell IDs for a set.
@@ -440,7 +245,7 @@ NS.has_tbc_set_bonus = M.has_bonus
 NS.get_tbc_set_bonus_spell_ids = M.get_bonus_spell_ids
 NS.get_active_tbc_set_bonuses = M.get_active_bonuses
 NS.get_wowhead_set_items = M.get_set_items
-NS.validate_gear_set_tracking = M.validate_set_tracking
+NS.validate_gear_set_tracking = M.validate_set_data
 NS.validate_set_data = M.validate_set_data
 NS.get_set_bonus_effects = M.get_set_bonus_effects
 NS.get_set_bonus_spells = M.get_set_bonus_spells

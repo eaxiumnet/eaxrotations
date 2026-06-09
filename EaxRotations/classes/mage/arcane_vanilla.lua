@@ -288,6 +288,7 @@ local function arcane_power_matches(context, s)
     if s.has_arcane_power then return false end
     if not s.in_combat then return false end
     if not get_setting_bool(context, "use_cooldowns", true) then return false end
+    if not NS.gate_cooldown_boss_only(context) then return false end
     if not get_setting_bool(context, "arcane_use_burn", true) then return false end
     -- Only use AP during burn phase or bloodlust
     if s.phase ~= PHASE_BURN and not s.bloodlust_active then return false end

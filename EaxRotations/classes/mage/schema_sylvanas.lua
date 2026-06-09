@@ -15,6 +15,7 @@ return {
                             { text = "Frost", value = "frost" },
                     } },
                     { key = "use_cooldowns", type = "checkbox", label = "Cooldowns", default = true },
+                    { key = "use_cooldowns_on_boss_only", type = "checkbox", label = "Cooldowns on Bosses Only", default = false, tooltip = "Only use major offensive cooldowns (Combustion, Icy Veins, Arcane Power) on boss targets — skip on trash" },
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
                     { key = "use_pvp_defensives", type = "checkbox", label = "PvP Defensives", default = true },

@@ -152,6 +152,7 @@ action_calls = {}
 local ctx_ff_fresh = {
     target = { _debuff_remains = 10 },
     has_valid_enemy_target = true,
+    target_armor = 5000,
 }
 assert_false(faerie_fire.matches(ctx_ff_fresh, { ff_remains = 10 }), "FaerieFire should not match when debuff > 4 sec")
 assert_eq(#action_calls, 0, "action_matches should not be called when debuff fresh")
@@ -161,6 +162,7 @@ action_calls = {}
 local ctx_ff_low = {
     target = { _debuff_remains = 1 },
     has_valid_enemy_target = true,
+    target_armor = 5000,
 }
 assert_true(faerie_fire.matches(ctx_ff_low, { ff_remains = 1 }), "FaerieFire should match when debuff <= 4 sec")
 assert_eq(spell_ready_calls[#spell_ready_calls].spell, "FaerieFire", "Balance should use caster Faerie Fire, not Feral Faerie Fire")

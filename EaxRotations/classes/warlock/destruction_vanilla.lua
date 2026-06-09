@@ -148,7 +148,7 @@ local function immolate_matches(context, action, state)
     local min_sp = s.destro_immolate_min_sp or IMMOLATE_MIN_SP_DEFAULT
     if (state.spell_damage or 0) < min_sp then return false end
     if (state.immolate_remains or 0) > IMMOLATE_PANDEMIC_WINDOW then return false end
-    if not NS.should_refresh_dot((state.immolate_remains or 0), 1.5, context.ttd, 15) then return false end
+    if not (NS.should_refresh_dot and NS.should_refresh_dot((state.immolate_remains or 0), 1.5, context.ttd, 15)) then return false end
     return true
 end
 
@@ -163,13 +163,13 @@ local function shadowburn_matches(context, action, state)
     if not context.target then return false end
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
     local hp_threshold = (context.settings and context.settings.destro_shadowburn_hp) or SHADOWBURN_HP_PCT
-    if not NS.is_execute_phase(context.target_hp, hp_threshold) then return false end
+    if not (NS.is_execute_phase and NS.is_execute_phase(context.target_hp, hp_threshold)) then return false end
     return NS.spell_ready(action.spell, context.target)
 end
 
 local function curse_of_doom_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfDoom, 2.0) then return false end
-    if not NS.should_use_long_cd(context, action.cooldown) then return false end
+    if not (NS.should_use_long_cd and NS.should_use_long_cd(context, action.cooldown)) then return false end
     if not state then return false end
     state = state or {}
     if (state.cod_remains or 0) > 5 then return false end

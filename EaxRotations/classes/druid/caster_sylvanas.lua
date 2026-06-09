@@ -63,6 +63,8 @@ end
 local function faerie_fire_matches_fn(context, state)
     if not caster_context_allowed(context) then return false end
     if not context.target then return false end
+    -- Skip if target has no armor (API unavailable or already fully reduced)
+    if (context.target_armor or 0) <= 0 then return false end
     if state.ff_remains > 4 then return false end
     return NS.spell_ready(SPELLS.FaerieFire, context.target)
 end

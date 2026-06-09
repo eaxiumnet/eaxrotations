@@ -3,6 +3,9 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarlockSpells or {}
+local pet_manager = require("shared/pet_manager_sylvanas")
+
+local potion_helper = require("shared/potion_helper_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
@@ -271,6 +274,49 @@ end
 -- Strategies
 -- ============================================================================
 local strategies = {
+    -- Auto Damage Potion — gate on context.has_damage_potion (inventory_helper)
+    { name = "DamagePotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_damage_potion then return false end
+          if not context.should_burst then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
+    -- Pet State: set defensive when pet HP is critically low
+    {
+        name = "PetDefensive",
+        matches = function(context, state)
+            if not state.has_pet then return false end
+            if not (context.in_combat or false) then return false end
+            if (state.pet_hp_pct or 100) > 35 then return false end
+            return true
+        end,
+        execute = function() return pet_manager.set_defensive() end,
+    },
+    -- Pet State: set passive when player HP critically low (survival mode)
+    {
+        name = "PetPassive",
+        matches = function(context, state)
+            if not state.has_pet then return false end
+            if not (context.in_combat or false) then return false end
+            if (context.hp or state.hp_pct or 100) > 25 then return false end
+            return true
+        end,
+        execute = function() return pet_manager.set_passive() end,
+    },
+    -- Pet State: set aggressive during combat when pet is healthy
+    {
+        name = "PetAggressive",
+        matches = function(context, state)
+            if not state.has_pet then return false end
+            if not (context.in_combat or false) then return false end
+            if (state.pet_hp_pct or 100) < 50 then return false end
+            return true
+        end,
+        execute = function() return pet_manager.set_aggressive() end,
+    },
     -- Death Coil (survival heal + CC)
     {
         name = "DeathCoilSurvival",

@@ -15,6 +15,7 @@ return {
                             { text = "Survival", value = "survival" },
                     } },
                     { key = "use_cooldowns", type = "checkbox", label = "Cooldowns", default = true },
+                    { key = "use_cooldowns_on_boss_only", type = "checkbox", label = "Cooldowns on Bosses Only", default = false, tooltip = "Only use major offensive cooldowns (Bestial Wrath) on boss targets — skip on trash" },
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },
@@ -38,6 +39,7 @@ return {
                 header = "Traps",
                 settings = {
                     { key = "freezing_trap_pve", type = "checkbox", label = "Freezing Trap on Adds", default = true },
+                    { key = "use_snake_trap", type = "checkbox", label = "Snake Trap (AoE)", default = true, tooltip = "Places a Snake Trap that releases venomous snakes to attack the first enemy. 305 mana, 30s cd. Requires level 68." },
                 },
             },
             {

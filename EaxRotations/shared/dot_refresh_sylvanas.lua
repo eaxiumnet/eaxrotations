@@ -25,102 +25,31 @@
 local M = {}
 
 -- ============================================================================
--- Wowhead DoT Tick Data Integration
+-- Wowhead DoT Tick Data Integration (Embedded)
 -- ============================================================================
--- Reads periodic damage data from wowhead_data/spells/tbc/{spell_id}.json
+-- Reads periodic damage data from embedded spell detail tables.
 -- to enrich DoT refresh decisions with tick interval and damage per tick.
 
 local _dot_cache = {}  -- [spell_id] = {interval, amount, school, duration, total_ticks, total_damage} or false (miss)
 
-local _json_decode = nil
-do
-    local ok, cjson = pcall(require, "cjson")
-    if ok and type(cjson) == "table" then
-        _json_decode = cjson.decode
-    else
-        -- Minimal JSON parser for wowhead_data spell files
-        -- Only handles the subset needed: "periodic": {"amount": N, "interval": N}
-        local function skip_ws(s, i)
-            while i <= #s and s:sub(i, i):match("[ \t\n\r]") do i = i + 1 end
-            return i
-        end
+---@class SpellDetailEntry
+---Positional fields from bridge.spell_detail:
+---  1=cost_type, 2=cost_amount, 3=range, 4=cast_time, 5=duration,
+---  6=periodic_amount, 7=periodic_school, 8=periodic_interval, 9=flags, 10=school
 
-        local function parse_number(s, i)
-            i = skip_ws(s, i)
-            local start = i
-            if s:sub(i, i) == "-" then i = i + 1 end
-            while i <= #s and s:sub(i, i):match("[0-9.]") do i = i + 1 end
-            return tonumber(s:sub(start, i - 1)), i
-        end
-
-        local function parse_string(s, i)
-            i = skip_ws(s, i)
-            if s:sub(i, i) ~= '"' then return nil, i end
-            i = i + 1
-            local start = i
-            while i <= #s and s:sub(i, i) ~= '"' do
-                if s:sub(i, i) == "\\" then i = i + 1 end
-                i = i + 1
-            end
-            return s:sub(start, i - 1), i + 1
-        end
-
-        local parse_array  -- forward declaration
-
-        local function parse_value(s, i)
-            i = skip_ws(s, i)
-            local c = s:sub(i, i)
-            if c == '"' then return parse_string(s, i)
-            elseif c == "{" then return parse_object(s, i)
-            elseif c == "[" then return parse_array(s, i)
-            elseif c == "t" then return true, i + 4  -- "true"
-            elseif c == "f" then return false, i + 5  -- "false"
-            elseif c == "n" then return nil, i + 4  -- "null"
-            else return parse_number(s, i)
-            end
-        end
-
-        function parse_object(s, i)
-            i = skip_ws(s, i)
-            i = i + 1  -- skip '{'
-            local obj = {}
-            while true do
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "}" then return obj, i + 1 end
-                local key
-                key, i = parse_string(s, i)
-                i = skip_ws(s, i)
-                i = i + 1  -- skip ':'
-                obj[key], i = parse_value(s, i)
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "," then i = i + 1 end
-            end
-        end
-
-        local function parse_array(s, i)
-            i = skip_ws(s, i)
-            i = i + 1  -- skip '['
-            local arr = {}
-            local n = 0
-            while true do
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "]" then return arr, i + 1 end
-                n = n + 1
-                arr[n], i = parse_value(s, i)
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "," then i = i + 1 end
-            end
-        end
-
-        _json_decode = function(str)
-            local ok, result = pcall(parse_object, str, 1)
-            if ok then return result end
-            return nil
-        end
+-- Data bridge — loads embedded spell data (ship-safe Lua tables)
+local _bridge = nil
+local function get_bridge()
+    if _bridge then return _bridge end
+    local ok, mod = pcall(require, "shared/wowhead_data_bridge_sylvanas")
+    if ok and type(mod) == "table" then
+        _bridge = mod
+        return mod
     end
+    return nil
 end
 
---- Get periodic damage (tick) data for a spell from wowhead_data.
+--- Get periodic damage (tick) data for a spell from embedded data.
 -- Returns {interval, amount, school, duration, total_ticks, total_damage} or nil.
 -- Cached after first read — safe to call every frame.
 -- @param spell_id  number — spell ID
@@ -132,41 +61,41 @@ function M.get_dot_tick_data(spell_id)
         return cached or nil  -- cached is false for misses, table for hits
     end
 
-    -- Try TBC spell path first, then vanilla
-    local paths = {
-        "wowhead_data/spells/tbc/" .. spell_id .. ".json",
-        "wowhead_data/spells/vanilla/" .. spell_id .. ".json",
-    }
-
-    for _, path in ipairs(paths) do
-        local f = io.open(path, "rb")
-        if f then
-            local data = f:read("*a")
-            f:close()
-            if data and #data > 0 then
-                local ok, parsed = pcall(_json_decode, data)
-                if ok and type(parsed) == "table" and type(parsed.periodic) == "table" then
-                    local interval = parsed.periodic.interval or 0
-                    local amount = parsed.periodic.amount or 0
-                    local duration = parsed.duration or parsed.buff_duration or 0
-                    local total_ticks = (interval > 0 and duration > 0) and math.floor(duration / interval) or 0
-                    local result = {
-                        interval = interval,
-                        amount = amount,
-                        school = parsed.periodic.school or "",
-                        duration = duration,
-                        total_ticks = total_ticks,
-                        total_damage = amount * total_ticks,
-                    }
-                    _dot_cache[spell_id] = result
-                    return result
-                end
-            end
-        end
+    local bridge = get_bridge()
+    if not bridge or not bridge.spell_detail then
+        _dot_cache[spell_id] = false
+        return nil
     end
 
-    _dot_cache[spell_id] = false  -- cache miss
-    return nil
+    local detail = bridge.spell_detail[spell_id]
+    if not detail then
+        _dot_cache[spell_id] = false
+        return nil
+    end
+
+    -- Bridge detail format: positional array
+    -- 5=duration, 6=periodic_amount, 7=periodic_school, 8=periodic_interval
+    local interval = detail[8] or 0
+    local amount = detail[6] or 0
+    local school = detail[7] or ""
+    local duration = detail[5] or 0
+
+    if interval <= 0 then
+        _dot_cache[spell_id] = false
+        return nil
+    end
+
+    local total_ticks = (duration > 0) and math.floor(duration / interval) or 0
+    local result = {
+        interval = interval,
+        amount = amount,
+        school = school,
+        duration = duration,
+        total_ticks = total_ticks,
+        total_damage = amount * total_ticks,
+    }
+    _dot_cache[spell_id] = result
+    return result
 end
 
 --- Get the total periodic damage for a spell (amount * total_ticks).

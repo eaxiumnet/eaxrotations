@@ -31,6 +31,7 @@ return {
                     { key = "use_shadowfiend", type = "checkbox", label = "Shadowfiend", default = true },
                     { key = "shadowfiend_mana_threshold", type = "slider", label = "Shadowfiend Mana", min = 10, max = 60, default = 30 },
                     { key = "use_enhanced_fade", type = "checkbox", label = "Enhanced Fade", default = true },
+                    { key = "use_symbol_of_hope", type = "checkbox", label = "Symbol of Hope (Party Mana)", default = true, tooltip = "Buffs party members with 33 mana every 5 sec for 15 sec. 15 mana cost, 5 min cooldown. Requires group/party." },
                 },
             },
         },

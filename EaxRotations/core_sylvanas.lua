@@ -153,6 +153,36 @@ if not _sh_ok or type(_spell_helper) ~= "table" then _spell_helper = nil end
 local _find_dead_ok, _find_dead_scan = pcall(require, "shared/find_dead_party_ally_sylvanas")
 if not _find_dead_ok or type(_find_dead_scan) ~= "table" then _find_dead_scan = nil end
 
+-- auto_attack_helper: native swing-timer prediction for all melee specs.
+-- Replaces the manual Player:GetSwingStart()/GetSwing() polling in swing_timer_sylvanas.lua.
+-- Provides per-frame-cached core_time / game_time attack prediction from the engine.
+local _aa_ok, _auto_attack = pcall(require, "common/utility/auto_attack_helper")
+if not _aa_ok or type(_auto_attack) ~= "table" then _auto_attack = nil end
+
+
+-- pvp_helper: native PvP utilities (DR tracking, trinket detection, burst detection, CC queries).
+-- Replaces the manual spell-cast-based pvp_trinket_tracker_sylvanas.lua and dr_tracker_sylvanas.lua.
+-- Uses engine-level buff observation for DR/trinket/burst tracking with per-frame caching.
+local _pvp_ok, _pvp_helper = pcall(require, "common/utility/pvp_helper")
+if not _pvp_ok or type(_pvp_helper) ~= "table" then _pvp_helper = nil end
+
+-- cc_data_helper: NPC CC susceptibility database (DungeonTools crowdsourced data).
+-- Covers BfA through Midnight dungeons. Returns true when NPC is susceptible (default),
+-- false when NPC is in the immune exception list. Use with get_npc_id() for PvE CC gating.
+local _cc_ok, _cc_data = pcall(require, "common/utility/cc_data_helper")
+if not _cc_ok or type(_cc_data) ~= "table" then _cc_data = nil end
+
+-- unit_helper: native unit queries (boss/dummy detection, health+incoming damage prediction,
+-- spatial enemy/ally queries, role detection, resource percentage).
+-- Uses engine-level caching for performance-friendly spatial queries.
+local _uh_ok, _unit_helper = pcall(require, "common/utility/unit_helper")
+if not _uh_ok or type(_unit_helper) ~= "table" then _unit_helper = nil end
+
+-- spell_sequence_helper: multi-step spell sequencer (stealth openers, burst combos).
+-- Provides simple sequences (A→B→C), advanced sequences (priority loop + conditions),
+-- and server-confirmed sequences (step-by-step with spell cast confirmation).
+local _ss_ok, _spell_sequence = pcall(require, "common/utility/spell_sequence_helper")
+if not _ss_ok or type(_spell_sequence) ~= "table" then _spell_sequence = nil end
 -- SpellRankResolver: auto-resolves spell rank chains from wowhead_data
 local _srr_ok, _spell_rank_resolver = pcall(require, "shared/spell_rank_resolver_sylvanas")
 if _srr_ok and type(_spell_rank_resolver) == "table" then NS.SpellRankResolver = _spell_rank_resolver end
@@ -981,15 +1011,15 @@ function NS.GetPartyMembers()
 
     if not me then return EMPTY end
 
-    -- Try core.object_manager.get_party_members
+    -- Try core.object_manager.get_party_frames (valid API)
 
     local object_manager = core and core.object_manager or nil
 
-    local get_party_members = object_manager and safe_field(object_manager, "get_party_members")
+    local get_party_frames = object_manager and safe_field(object_manager, "get_party_frames")
 
-    if get_party_members then
+    if get_party_frames then
 
-        local members = safe(get_party_members)
+        local members = safe(get_party_frames)
 
         if type(members) == "table" then return members end
 
@@ -2600,6 +2630,53 @@ end
 
 NS.cast_position = NS.try_cast_position
 
+-- ============================================================================
+-- AoE Cast Position Optimization (spell_prediction bridge)
+-- ============================================================================
+
+--- Computes the optimal ground-target position for circular AoE spells.
+--- Uses the platform spell_prediction module (MOST_HITS mode) when available;
+--- falls back to the target's raw position otherwise.
+---@param spell_id number The spell ID to optimize position for.
+---@param target game_object The target unit (reference position + range check).
+---@param radius number The spell's AoE radius in yards (e.g., 8 for Blizzard).
+---@param max_range number The spell's maximum cast range in yards (default 35).
+---@return vec3|nil position The optimal cast position, or nil if unavailable.
+function NS.get_aoe_cast_position(spell_id, target, radius, max_range)
+    if not spell_id or not target then return nil end
+    local spell_prediction = NS.GetAPIModule and NS.GetAPIModule("spell_prediction") or nil
+    if not spell_prediction then
+        local get_position = target.get_position
+        return get_position and target:get_position() or nil
+    end
+    local ok, pos = pcall(function()
+        local pred = spell_prediction.prediction_type
+        local geom = spell_prediction.geometry_type
+        local spell_data = spell_prediction:new_spell_data(
+            spell_id,
+            max_range or 35,
+            radius or 8,
+            nil,
+            nil,
+            pred.MOST_HITS,
+            geom.CIRCLE,
+            nil
+        )
+        local get_pos = target.get_position
+        local target_pos = get_pos and target:get_position() or nil
+        if not target_pos then return nil end
+        local result = spell_prediction:get_most_hits_position(
+            target_pos,
+            spell_data,
+            target
+        )
+        return result and result.cast_position or nil
+    end)
+    if ok and pos then return pos end
+    local get_position = target.get_position
+    return get_position and target:get_position() or nil
+end
+
 function NS.cancel_spells()
 
     local fn = core.input and core.input.cancel_spells
@@ -2663,7 +2740,588 @@ function NS.get_totem_info(slot)
     if type(info) == "table" then return info end
 
     return nil
+end
 
+-- ============================================================================
+-- Auto-Attack / Swing Timer Wrappers (auto_attack_helper bridge)
+-- ============================================================================
+
+-- Attack type constants for start_auto_attack / stop_auto_attack.
+NS.AUTO_ATTACK_MELEE = 6603
+NS.AUTO_ATTACK_RANGED = 75
+NS.AUTO_ATTACK_WAND = 5019
+
+function NS.swing_time_until(unit, weapon)
+    if not _auto_attack or not unit then return 999 end
+    local next_time = _auto_attack:get_next_attack_core_time(unit, weapon)
+    local now = _auto_attack:get_current_combat_core_time()
+    if next_time and now and next_time > now then return next_time - now end
+    return 0
+end
+
+function NS.swing_time_since(unit)
+    if not _auto_attack or not unit then return 0 end
+    local last = _auto_attack:get_last_attack_core_time(unit)
+    local now = _auto_attack:get_current_combat_core_time()
+    if last and now then return math.max(0, now - last) end
+    return 0
+end
+
+function NS.swing_progress(unit, weapon)
+    if not _auto_attack or not unit then return 0 end
+    local next_time = _auto_attack:get_next_attack_core_time(unit, weapon)
+    local last_time = _auto_attack:get_last_attack_core_time(unit)
+    local now = _auto_attack:get_current_combat_core_time()
+    if not last_time or not next_time or next_time <= last_time then return 0 end
+    local elapsed = now - last_time
+    local total = next_time - last_time
+    if total <= 0 then return 0 end
+    return math.min(1, math.max(0, elapsed / total))
+end
+
+function NS.is_auto_attacking(unit)
+    if not _auto_attack or not unit then return false end
+    return _auto_attack:is_auto_attacking(unit) == true
+end
+
+function NS.start_auto_attack(target, attack_type)
+    if not _auto_attack or not target then return false end
+    return _auto_attack:start_attack(target, attack_type or NS.AUTO_ATTACK_MELEE) == true
+end
+
+function NS.stop_auto_attack(target, attack_type)
+    if not _auto_attack or not target then return false end
+    return _auto_attack:stop_attack(target, attack_type or NS.AUTO_ATTACK_MELEE) == true
+end
+
+-- ============================================================================
+-- PvP Utility Wrappers (pvp_helper bridge)
+-- ============================================================================
+
+-- PvP helper version info for compatibility checks.
+NS.PVP_IS_TBC = _pvp_helper and _pvp_helper.is_tbc == true
+
+-- Expose CC flag constants for use with pvp_is_cc_immune / pvp_get_dr_count.
+NS.PVP_CC_FLAGS = _pvp_helper and _pvp_helper.cc_flags or {}
+NS.PVP_DR_CATEGORIES = _pvp_helper and _pvp_helper.dr_categories or {}
+
+--- Time (seconds) since the target last used their PvP trinket.
+--- Returns 9999 if never used or module unavailable.
+---@param unit game_object The target unit.
+---@return number seconds Time since last trinket use.
+function NS.pvp_trinket_time_since(unit)
+    if not _pvp_helper or not unit then return 9999 end
+    local ok, v = pcall(_pvp_helper.time_since_last_trinket, _pvp_helper, unit)
+    return ok and type(v) == "number" and v or 9999
+end
+
+--- Returns true if the target used their PvP trinket within window seconds.
+---@param unit game_object The target unit.
+---@param window number Lookback window in seconds (default 120 = 2 min cooldown).
+---@return boolean used_recently True if trinket was used within the window.
+function NS.pvp_trinket_used_recently(unit, window)
+    if not _pvp_helper or not unit then return false end
+    local w = type(window) == "number" and window or 120
+    local ok, v = pcall(_pvp_helper.trinket_used_within, _pvp_helper, unit, w)
+    return ok and v == true
+end
+
+--- Returns the core.time() timestamp of the targets last PvP trinket use, or 0.
+---@param unit game_object The target unit.
+---@return number timestamp Last trinket use time.
+function NS.pvp_trinket_last_time(unit)
+    if not _pvp_helper or not unit then return 0 end
+    local ok, v = pcall(_pvp_helper.get_last_trinket_time, _pvp_helper, unit)
+    return ok and type(v) == "number" and v or 0
+end
+
+--- Returns true if the target has an offensive burst buff active.
+---@param unit game_object The target unit.
+---@param min_remaining_ms number|nil Minimum remaining duration in ms (default 0).
+---@return boolean bursting True if burst buff is active.
+function NS.pvp_has_burst_active(unit, min_remaining_ms)
+    if not _pvp_helper or not unit then return false end
+    local ok, v = pcall(_pvp_helper.has_burst_active, _pvp_helper, unit, min_remaining_ms or nil)
+    return ok and v == true
+end
+
+--- Returns whether the target is currently crowd controlled.
+--- Returns is_ccd, cc_flag, remaining_ms
+---@param unit game_object The target unit.
+---@param type_flags number|nil CC type bitmask to filter (nil = any CC).
+---@param min_remaining_ms number|nil Minimum remaining duration in ms.
+---@return boolean is_ccd True if unit is crowd controlled.
+---@return number|nil cc_flag The CC flag of the active CC.
+---@return number|nil remaining_ms Remaining CC duration in ms.
+function NS.pvp_is_crowd_controlled(unit, type_flags, min_remaining_ms)
+    if not _pvp_helper or not unit then return false, nil, nil end
+    local ok, is_cc, cc_flag, remaining = pcall(_pvp_helper.is_crowd_controlled, _pvp_helper, unit, type_flags or nil, min_remaining_ms or nil, nil)
+    if ok then return is_cc == true, cc_flag, remaining end
+    return false, nil, nil
+end
+
+--- Returns the DR count (0-3) for a CC category on the target.
+---@param unit game_object The target unit.
+---@param cc_flag number The CC flag (from pvp_helper.cc_flags or dr_categories).
+---@return number dr_count DR count (0 = no DR, 3 = immune).
+function NS.pvp_get_dr_count(unit, cc_flag)
+    if not _pvp_helper or not unit or not cc_flag then return 0 end
+    local ok, v = pcall(_pvp_helper.get_unit_dr, _pvp_helper, unit, cc_flag, 0)
+    return ok and type(v) == "number" and v or 0
+end
+
+--- Returns true if the target is immune to the given CC category via DR.
+---@param unit game_object The target unit.
+---@param cc_flag number The CC flag to check immunity for.
+---@return boolean immune True if target is DR-immune to this CC.
+function NS.pvp_is_cc_immune(unit, cc_flag)
+    return NS.pvp_get_dr_count(unit, cc_flag) >= 3
+end
+
+--- Returns true if the target is in an immune CC state (Cyclone, Banish, etc.)
+--- where heals will not land.
+---@param unit game_object The target unit.
+---@param min_remaining_ms number|nil Minimum remaining duration in ms.
+---@return boolean immune True if target is immune to heals.
+function NS.pvp_is_heal_immune(unit, min_remaining_ms)
+    if not _pvp_helper or not unit then return false end
+    local ok, is_immune = pcall(_pvp_helper.is_immune_to_heal, _pvp_helper, unit, min_remaining_ms or nil)
+    return ok and is_immune == true
+end
+
+--- Returns true if the unit is an enemy player (not NPC).
+---@param unit game_object The unit to check.
+---@return boolean is_player True if unit is a player.
+function NS.pvp_is_player(unit)
+    if not _pvp_helper or not unit then return false end
+    local ok, v = pcall(_pvp_helper.is_player, _pvp_helper, unit)
+    return ok and v == true
+end
+
+-- ============================================================================
+-- PvE CC Immunity Wrappers (cc_data_helper bridge)
+-- ============================================================================
+
+--- Helper: get NPC ID from a unit. Returns nil if unit is not an NPC.
+---@param unit game_object The target unit.
+---@return number|nil npc_id The NPC ID, or nil.
+function NS.cc_get_npc_id(unit)
+    if not unit then return nil end
+    local ok, id = pcall(function() return unit:get_npc_id() end)
+    return (ok and type(id) == "number" and id > 0) and id or nil
+end
+
+function NS.cc_is_stunnable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_stunnable(id) ~= false
+end
+
+function NS.cc_is_rootable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_rootable(id) ~= false
+end
+
+function NS.cc_is_fearable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_fearable(id) ~= false
+end
+
+---@param unit game_object The target unit.
+---@return boolean polymorphable True if NPC is polymorphable.
+function NS.cc_is_polymorphable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_polymorphable(id, unit) ~= false
+end
+
+function NS.cc_is_sappable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_sappable(id, unit) ~= false
+end
+
+function NS.cc_is_banishable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_banishable(id, unit) ~= false
+end
+
+function NS.cc_is_tauntable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_tauntable(id) ~= false
+end
+
+function NS.cc_is_silenceable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_silenceable(id) ~= false
+end
+
+function NS.cc_is_disorientable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_disorientable(id) ~= false
+end
+
+function NS.cc_is_incapacitateable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_incapacitateable(id) ~= false
+end
+
+function NS.cc_is_slowable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_slowable(id) ~= false
+end
+
+function NS.cc_is_knockable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_knockable(id) ~= false
+end
+
+function NS.cc_is_grippable(unit)
+    local id = NS.cc_get_npc_id(unit)
+    if not id or not _cc_data then return true end
+    return _cc_data:is_grippable(id) ~= false
+end
+
+-- ============================================================================
+-- Unit Utility Wrappers (unit_helper bridge)
+-- ============================================================================
+
+--- Returns true if the unit is a boss (world boss, dungeon boss, raid boss).
+---@param unit game_object The target unit.
+---@return boolean is_boss True if the unit is a boss.
+function NS.unit_is_boss(unit)
+    if not _unit_helper or not unit then return false end
+    local ok, v = pcall(_unit_helper.is_boss, _unit_helper, unit)
+    return ok and v == true
+end
+
+--- Returns true if the unit is a training dummy.
+---@param unit game_object The target unit.
+---@return boolean is_dummy True if the unit is a training dummy.
+function NS.unit_is_dummy(unit)
+    if not _unit_helper or not unit then return false end
+    local ok, v = pcall(_unit_helper.is_dummy, _unit_helper, unit)
+    return ok and v == true
+end
+
+--- Returns true if the unit is a valid enemy (filters out immune/untargetable NPCs).
+---@param unit game_object The target unit.
+---@return boolean is_valid_enemy True if the unit is a valid enemy.
+function NS.unit_is_valid_enemy(unit)
+    if not _unit_helper or not unit then return false end
+    local ok, v = pcall(_unit_helper.is_valid_enemy, _unit_helper, unit)
+    return ok and v == true
+end
+
+--- Returns true if the unit is a valid ally (filters out hostile/immune units).
+---@param unit game_object The target unit.
+---@return boolean is_valid_ally True if the unit is a valid ally.
+function NS.unit_is_valid_ally(unit)
+    if not _unit_helper or not unit then return false end
+    local ok, v = pcall(_unit_helper.is_valid_ally, _unit_helper, unit)
+    return ok and v == true
+end
+
+--- Returns true if the unit is in combat.
+---@param unit game_object The target unit.
+---@return boolean in_combat True if the unit is in combat.
+function NS.unit_is_in_combat(unit)
+    if not _unit_helper or not unit then return false end
+    local ok, v = pcall(_unit_helper.is_in_combat, _unit_helper, unit)
+    return ok and v == true
+end
+
+--- Returns true if the unit is in the tank role.
+---@param unit game_object The target unit.
+---@return boolean is_tank True if the unit is a tank.
+function NS.unit_is_tank(unit)
+    if not _unit_helper or not unit then return false end
+    local ok, v = pcall(_unit_helper.is_tank, _unit_helper, unit)
+    return ok and v == true
+end
+
+--- Returns true if the unit is in the healer role.
+---@param unit game_object The target unit.
+---@return boolean is_healer True if the unit is a healer.
+function NS.unit_is_healer(unit)
+    if not _unit_helper or not unit then return false end
+    local ok, v = pcall(_unit_helper.is_healer, _unit_helper, unit)
+    return ok and v == true
+end
+
+--- Returns the health percentage (0-100) minus predicted incoming damage.
+--- health_pct_inc, incoming_damage, health_pct_raw, incoming_damage_pct
+---@param unit game_object The target unit.
+---@param time_limit number|nil Time window in seconds for incoming damage prediction (default 5).
+---@return number health_pct_inc Health percentage after subtracting incoming damage (0-100).
+---@return number incoming_damage Total incoming damage predicted.
+---@return number health_pct_raw Raw health percentage (0-100).
+---@return number incoming_damage_pct Incoming damage as percentage of max health.
+function NS.unit_health_inc(unit, time_limit)
+    if not _unit_helper or not unit then return 100, 0, 100, 0 end
+    local ok, hp_inc, inc_dmg, hp_raw, inc_pct = pcall(_unit_helper.get_health_percentage_inc, _unit_helper, unit, time_limit or nil)
+    if ok then return (hp_inc or 0) * 100, inc_dmg or 0, (hp_raw or 0) * 100, (inc_pct or 0) * 100 end
+    return 100, 0, 100, 0
+end
+
+--- Returns the resource percentage (0-100) for a given power type.
+---@param unit game_object The target unit.
+---@param power_type number Power type (0=Mana, 1=Rage, 2=Focus, 3=Energy).
+---@return number pct Resource percentage 0-100.
+function NS.unit_resource_pct(unit, power_type)
+    if not _unit_helper or not unit then return 100 end
+    local ok, v = pcall(_unit_helper.get_resource_percentage, _unit_helper, unit, power_type or 0)
+    return ok and type(v) == "number" and v * 100 or 100
+end
+
+--- Returns a list of enemy units within range of a position.
+--- Uses engine-level caching for performance.
+---@param position vec3 The center position.
+---@param range number Search radius in yards.
+---@param incl_out_combat boolean|nil Include out-of-combat enemies (default true).
+---@param players_only boolean|nil Only include player units (default false).
+---@return table enemies List of enemy game_objects.
+function NS.unit_get_enemies_around(position, range, incl_out_combat, players_only)
+    if not _unit_helper or not position or not range then return {} end
+    local ok, enemies = pcall(_unit_helper.get_enemy_list_around, _unit_helper, position, range,
+        incl_out_combat ~= false, false, players_only or false, false)
+    if ok and type(enemies) == "table" then return enemies end
+    return {}
+end
+
+--- Returns a list of ally units within range of a position.
+--- Uses engine-level caching for performance.
+---@param position vec3 The center position.
+---@param range number Search radius in yards.
+---@param players_only boolean|nil Only include player units (default false).
+---@param party_only boolean|nil Only include party members (default false).
+---@return table allies List of ally game_objects.
+function NS.unit_get_allies_around(position, range, players_only, party_only)
+    if not _unit_helper or not position or not range then return {} end
+    local ok, allies = pcall(_unit_helper.get_ally_list_around, _unit_helper, position, range,
+        players_only or false, party_only or false, false)
+    if ok and type(allies) == "table" then return allies end
+    return {}
+end
+
+--- Boss-only cooldown gate. When use_cooldowns_on_boss_only is true,
+--- returns false if the target is not a boss. Use at the top of cooldown
+--- match functions to save big CDs for boss encounters.
+---@param context table Rotation context (needs .target and .settings).
+---@return boolean allowed True if cooldown is allowed on this target.
+function NS.gate_cooldown_boss_only(context)
+    if not context then return true end
+    local settings = context.settings
+    if not settings or settings.use_cooldowns_on_boss_only ~= true then return true end
+    return NS.unit_is_boss(context.target)
+end
+
+-- ============================================================================
+-- Spell Sequence Wrappers (spell_sequence_helper bridge)
+-- ============================================================================
+
+-- Cast Policy constants exposed for advanced_sequence opts.cast_policy
+NS.SEQ_CAST_POLICY = _spell_sequence and _spell_sequence.CAST_POLICY or {
+    NO_RESTRICTIONS = "no_restrictions",
+    ONCE_EACH_CYCLE = "once_each_cycle",
+    ONCE_EACH_CYCLE_OR_FILL = "once_each_cycle_or_fill",
+    ONCE_EACH_COOLDOWN = "once_each_cooldown",
+    ONCE_EACH_SWITCH = "once_each_switch",
+    ONCE_EACH_SWITCH_OR_FILL = "once_each_switch_or_fill",
+}
+
+--- Cast spell A then immediately spell B. Two-spell micro-sequence.
+---@param spell_a izi_spell First spell
+---@param target_a game_object Target for first spell
+---@param spell_b izi_spell Second spell
+---@param target_b game_object Target for second spell
+---@param delay number|nil Seconds between casts (default 0)
+---@param timeout number|nil Seconds before auto-cancel (default 10)
+---@param debug_name string|nil Name for logging
+---@param cooldown number|nil Cooldown after completion (default 0)
+---@return boolean queued True if sequence was started
+function NS.seq_a_into_b(spell_a, target_a, spell_b, target_b, delay, timeout, debug_name, cooldown)
+    if not _spell_sequence or not spell_a or not target_a or not spell_b or not target_b then return false end
+    local ok, result = pcall(_spell_sequence.a_into_b, _spell_sequence, spell_a, target_a, spell_b, target_b, delay, timeout, debug_name, cooldown)
+    return ok and result == true
+end
+
+--- Cast spells in strict order, one-shot. Each step advances on cast_safe success.
+---@param spells izi_spell[] Array of spell objects
+---@param targets (game_object|fun():game_object)[] Array of targets (one per spell)
+---@param delay number|nil Seconds between steps (default 0)
+---@param timeout number|nil Seconds before auto-cancel (default 10)
+---@param debug_name string|nil Name for logging
+---@param cooldown number|nil Cooldown after completion (default 0)
+---@return boolean queued True if sequence was started
+function NS.seq_simple(spells, targets, delay, timeout, debug_name, cooldown)
+    if not _spell_sequence or type(spells) ~= "table" or #spells == 0 then return false end
+    local ok, result = pcall(_spell_sequence.simple_sequence, _spell_sequence, spells, targets, delay, timeout, debug_name, cooldown)
+    return ok and result == true
+end
+
+--- Priority loop with conditions + fill spells. Scans all entries every frame.
+--- Perfect for DoT rotations: conditions become true when debuffs fall off.
+---@param entries advanced_spell_entry[] Array of {spell, target, condition, opts}
+---@param opts advanced_sequence_opts|nil Options (timeout, fill_entries, cast_policy, etc.)
+---@return boolean queued True if sequence was started
+function NS.seq_advanced(entries, opts)
+    if not _spell_sequence or type(entries) ~= "table" or #entries == 0 then return false end
+    local ok, result = pcall(_spell_sequence.advanced_sequence, _spell_sequence, entries, opts)
+    return ok and result == true
+end
+
+--- Server-confirmed step-by-step sequence. Waits for on_spell_cast callback
+--- to match spell_id before advancing. Requires wiring on_spell_cast callback.
+---@param steps confirmed_step[] Array of {spell, target, spell_id, opts, use_cast}
+---@param opts confirmed_sequence_opts|nil Options (timeout, step_timeout, retry_delay, etc.)
+---@return boolean queued True if sequence was started
+function NS.seq_confirmed(steps, opts)
+    if not _spell_sequence or type(steps) ~= "table" or #steps == 0 then return false end
+    local ok, result = pcall(_spell_sequence.confirmed_sequence, _spell_sequence, steps, opts)
+    return ok and result == true
+end
+
+--- Feed spell cast callback data for confirmed_sequence player filtering.
+--- Wire once: core.register_on_spell_cast_callback(function(data) NS.seq_on_spell_cast(data) end)
+---@param data table Spell cast callback data from engine
+function NS.seq_on_spell_cast(data)
+    if not _spell_sequence or not data then return end
+    pcall(_spell_sequence.on_spell_cast, _spell_sequence, data)
+end
+
+--- Returns true if ANY sequence (native, simple, advanced, or confirmed) is active.
+--- Use in rotation tick to gate normal strategies while a sequence is running.
+---@return boolean active
+function NS.seq_is_active()
+    if not _spell_sequence then return false end
+    local ok, v = pcall(_spell_sequence.is_active, _spell_sequence)
+    return ok and v == true
+end
+
+--- Returns true if a confirmed sequence is running.
+---@return boolean active
+function NS.seq_is_confirmed_active()
+    if not _spell_sequence then return false end
+    local ok, v = pcall(_spell_sequence.is_confirmed_active, _spell_sequence)
+    return ok and v == true
+end
+
+--- Advance all active sequences. Call once per frame from your rotation on_update handler.
+function NS.seq_on_update()
+    if not _spell_sequence then return end
+    pcall(_spell_sequence.on_update, _spell_sequence)
+end
+
+--- Cancel native + simple + advanced sequences (NOT confirmed; use seq_cancel_confirmed for that).
+function NS.seq_cancel()
+    if not _spell_sequence then return end
+    pcall(_spell_sequence.cancel, _spell_sequence)
+end
+
+--- Cancel the active confirmed sequence.
+function NS.seq_cancel_confirmed()
+    if not _spell_sequence then return end
+    pcall(_spell_sequence.cancel_confirmed, _spell_sequence)
+end
+
+--- Cancel ALL sequences (native + simple + advanced + confirmed).
+function NS.seq_cancel_all()
+    if not _spell_sequence then return end
+    pcall(_spell_sequence.cancel_all, _spell_sequence)
+end
+
+--- Returns true if any cooldown is active across all sequence sources.
+---@return boolean on_cooldown
+function NS.seq_is_on_cooldown()
+    if not _spell_sequence then return false end
+    local ok, v = pcall(_spell_sequence.is_on_cooldown, _spell_sequence)
+    return ok and v == true
+end
+
+--- Maximum remaining cooldown across all sequence sources.
+---@return number seconds Cooldown remaining, or 0
+function NS.seq_cooldown_remaining()
+    if not _spell_sequence then return 0 end
+    local ok, v = pcall(_spell_sequence.get_cooldown_remaining, _spell_sequence)
+    return ok and type(v) == "number" and v or 0
+end
+
+--- Type of the currently active sequence.
+---@return string|nil type "confirmed" | "advanced" | "simple" | "a_into_b" | nil
+function NS.seq_get_type()
+    if not _spell_sequence then return nil end
+    local ok, v = pcall(_spell_sequence.get_sequence_type, _spell_sequence)
+    return ok and v or nil
+end
+
+--- Progress of whichever sequence is active (confirmed > simple > advanced > a_into_b).
+---@return integer|nil current Current step (1-based)
+---@return integer|nil total Total steps
+function NS.seq_get_progress()
+    if not _spell_sequence then return nil, nil end
+    local ok, cur, total = pcall(_spell_sequence.get_progress, _spell_sequence)
+    return ok and cur or nil, ok and total or nil
+end
+
+--- Progress of confirmed sequence only.
+---@return integer|nil current Current step (1-based)
+---@return integer|nil total Total steps
+function NS.seq_get_confirmed_progress()
+    if not _spell_sequence then return nil, nil end
+    local ok, cur, total = pcall(_spell_sequence.get_confirmed_progress, _spell_sequence)
+    return ok and cur or nil, ok and total or nil
+end
+
+--- Enable/disable debug logging for native + simple + advanced sequences.
+---@param enabled boolean
+function NS.seq_set_debug(enabled)
+    if not _spell_sequence then return end
+    pcall(_spell_sequence.set_debug, _spell_sequence, enabled)
+end
+
+---@return boolean debug_enabled
+function NS.seq_get_debug()
+    if not _spell_sequence then return false end
+    local ok, v = pcall(_spell_sequence.get_debug, _spell_sequence)
+    return ok and v == true
+end
+
+--- Enable/disable debug logging for confirmed sequences.
+---@param enabled boolean
+function NS.seq_set_confirmed_debug(enabled)
+    if not _spell_sequence then return end
+    pcall(_spell_sequence.set_confirmed_debug, _spell_sequence, enabled)
+end
+
+---@return boolean debug_enabled
+function NS.seq_get_confirmed_debug()
+    if not _spell_sequence then return false end
+    local ok, v = pcall(_spell_sequence.get_confirmed_debug, _spell_sequence)
+    return ok and v == true
+end
+
+--- Override the local player resolver for on_spell_cast filtering.
+---@param fn fun():game_object Function that returns the local player
+function NS.seq_set_local_player_fn(fn)
+    if not _spell_sequence or type(fn) ~= "function" then return end
+    pcall(_spell_sequence.set_local_player_fn, _spell_sequence, fn)
+end
+
+--- Bind the native C++ module manually (if loaded after require-time).
+---@param native_module table Native module reference
+function NS.seq_bind_native(native_module)
+    if not _spell_sequence or not native_module then return end
+    pcall(_spell_sequence.bind_native, _spell_sequence, native_module)
 end
 
 local function unit_alive_inner(unit)
@@ -3189,7 +3847,16 @@ local function unit_distance(a, b)
 
     v = distance_self and safe(distance_self, a) or nil
 
-    return type(v) == "number" and v or 999
+    if type(v) == "number" then return v end
+
+    -- Fallback: IsSpellInRange with Attack (6603) for clients where get_distance returns nil
+    if other and NS.is_spell_in_range then
+        local in_range = NS.is_spell_in_range(6603, other)
+        if in_range == true then return 5 end
+        if in_range == false then return 999 end
+    end
+
+    return 999
 
 end
 
@@ -3198,6 +3865,8 @@ function NS.unit_distance(unit, other)
     return unit_distance(unit, other)
 
 end
+
+NS.get_distance = NS.unit_distance
 
 local function unit_class_id(unit)
 
@@ -3736,13 +4405,9 @@ function NS.GetBestEnemyTarget(range)
 
     local position = get_position and safe(get_position, me) or nil
 
-    local unit_helper = position and NS.GetAPIModule and NS.GetAPIModule("unit_helper") or nil
+    if position then
 
-    local helper_scan = unit_helper and safe_field(unit_helper, "get_enemy_list_around")
-
-    if helper_scan then
-
-        best, best_distance = pick_enemy_from_list(me, safe(helper_scan, unit_helper, position, limit, true, false, false, false), limit, best, best_distance)
+        best, best_distance = pick_enemy_from_list(me, NS.unit_get_enemies_around(position, limit, true), limit, best, best_distance)
 
         if best then return best end
 
@@ -3876,7 +4541,16 @@ distance = function(a, b)
 
     v = get_distance and safe(get_distance, a, other)
 
-    return type(v) == "number" and v or 999
+    if type(v) == "number" then return v end
+
+    -- Fallback: IsSpellInRange with Attack (6603) for clients where get_distance returns nil
+    if other and NS.is_spell_in_range then
+        local in_range = NS.is_spell_in_range(6603, other)
+        if in_range == true then return 5 end
+        if in_range == false then return 999 end
+    end
+
+    return 999
 
 end
 
@@ -3936,13 +4610,9 @@ function NS.GetEnemiesInRange(range)
 
     local position = get_position and safe(get_position, me) or nil
 
-    local unit_helper = position and NS.GetAPIModule and NS.GetAPIModule("unit_helper") or nil
+    if position then
 
-    local helper_scan = unit_helper and safe_field(unit_helper, "get_enemy_list_around")
-
-    if helper_scan then
-
-        append_enemies_from_list(out, me, safe(helper_scan, unit_helper, position, limit, true, false, false, false), limit)
+        append_enemies_from_list(out, me, NS.unit_get_enemies_around(position, limit, true), limit)
 
     end
 
@@ -4110,6 +4780,18 @@ local API_MODULES = {
     unit_helper = "common/utility/unit_helper",
 
     cooldown_tracker = "common/utility/cooldown_tracker",
+
+    inventory_helper = "common/utility/inventory_helper",
+
+    pet_handler = "common/utility/pet_handler",
+
+    target_selector = "common/modules/target_selector",
+
+    health_prediction = "common/modules/health_prediction",
+
+    spell_prediction = "common/modules/spell_prediction",
+
+    unit_manager = "common/unit_manager",
 
 }
 
@@ -4307,11 +4989,11 @@ local function get_party_ally_list(me)
 
     end
 
-    local get_party_members = object_manager and object_manager.get_party_members
+    local get_party_frames = object_manager and object_manager.get_party_frames
 
-    if type(get_party_members) == "function" then
+    if type(get_party_frames) == "function" then
 
-        added = added + append_healing_source_list(healing_source_units, safe(get_party_members))
+        added = added + append_healing_source_list(healing_source_units, safe(get_party_frames))
 
     end
 

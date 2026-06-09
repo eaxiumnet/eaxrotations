@@ -144,7 +144,7 @@ end
 
 local function bloodlust_matches_fn(context, state)
     if not context.in_combat then return false end
-    if not NS.gate_cooldown_boss_only(context) then return false end
+    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not context.should_burst then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Bloodlust, NS.PLAYER_UNIT, { skip_range = true }) or false
 end

@@ -71,6 +71,7 @@ local function make_context(target_hp, has_feral)
     return {
         target = { get_health_percentage = function() return target_hp or 100 end },
         target_hp = target_hp or 100,
+        target_armor = 5000,
         has_feral_druid = has_feral or false,
         has_valid_enemy_target = true,
     }

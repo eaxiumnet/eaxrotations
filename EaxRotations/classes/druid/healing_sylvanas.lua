@@ -48,12 +48,12 @@ end
 
 function M.tank_target()
     M.scan_healing_targets()
-    return NS.healing_get_tank(healing_targets, healing_targets_count)
+    return NS.healing_get_tank and NS.healing_get_tank(healing_targets, healing_targets_count) or nil
 end
 
 function M.best_target(context)
     M.scan_healing_targets()
-    return NS.healing_get_lowest_hp(healing_targets, healing_targets_count, 92)
+    return NS.healing_get_lowest_hp and NS.healing_get_lowest_hp(healing_targets, healing_targets_count, 92) or nil
 end
 
 function M.recommend(context)

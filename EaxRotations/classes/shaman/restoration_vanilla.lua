@@ -2,6 +2,7 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 local Healing = NS.ShamanHealing or require("classes/shaman/healing_sylvanas")
 
@@ -453,6 +454,15 @@ end
 -- Strategies
 -- ============================================================================
 local healing_strategies = {
+    { name = "ManaPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_mana_potion then return false end
+          if (context.mana_pct or 100) > 20 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
     -- Mana emergency: auto-attack only, all spells forbidden (Research: Mana < 5%)
     { name = "ManaEmergencyWand",
         matches = function(context, state)

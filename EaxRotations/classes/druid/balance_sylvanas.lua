@@ -2,6 +2,7 @@
 local _G_E = rawget(_G, "EaxRotations")
 if not _G_E then return nil end
 local SPELLS = _G_E.DruidSpells or {}
+local _potion_helper = require("shared/potion_helper_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local _TBC_P = (TBC.ITEMS and TBC.ITEMS.potions) or {}
@@ -25,15 +26,6 @@ local _LOCAL_SPELLS = {
     MarkOfTheWild= _G_E.spell_action({ 26991,9885,9884,8907,5234,6756,5232,1126 }, "MarkOfTheWild"),
 }
 
-local _MANA_POTION = {
-    _TBC_P.crystal_mana or 33935,
-    _TBC_P.auchenai_mana or 32948,
-    _TBC_P.super_mana or 22832,
-    _TBC_P.super_rejuvenation or 22850,
-    _TBC_P.major_mana or 13444,
-    _TBC_P.superior_mana or 13443,
-}
-
 local _INSECT_MIN_SP = 800
 local _MOONFIRE_MIN_SP = 800
 
@@ -46,7 +38,7 @@ local _ACT_IS  = { name="InsectSwarm", spell=SPELLS.InsectSwarm, position="targe
 
 local _state = {
     insect_remains=0, moonfire_remains=0, ff_remains=0, natures_grace_active=false,
-    barkskin_active=false, mana_pct=100, mana_potion_id=nil,
+    barkskin_active=false, mana_pct=100,
     enemy_count=1, target_ttd=999, innervate_target=nil, spell_damage=0,
 }
 
@@ -71,13 +63,6 @@ local function _build_state(ctx)
     _state.mana_pct = ctx.mana_pct or ctx.mana or 100
     _state.enemy_count = ctx.enemy_count or 1
     _state.target_ttd = ctx.ttd or ctx.target_ttd or 999
-    _state.mana_potion_id = nil
-    for _, id in ipairs(_MANA_POTION) do
-        if _G_E.is_item_ready and _G_E.is_item_ready(id) then
-            _state.mana_potion_id = id
-            break
-        end
-    end
     _state.spell_damage = ctx.spell_damage or 0
     _state.innervate_target = nil
     local floor_mana = (ctx.settings and ctx.settings.balance_innervate_mana) or 30
@@ -141,11 +126,10 @@ local _strategies = {
         matches=function(_, s)
             local floor = 15
             if (s.mana_pct or 100) > floor then return false end
-            return s.mana_potion_id ~= nil
-        end,
-        execute=function(_, s)
-            if _G_E.use_item_by_id then _G_E.use_item_by_id(s.mana_potion_id) end
             return true
+        end,
+        execute=function(ctx)
+            return _potion_helper.try_use_potion(ctx, _potion_helper.MANA_POTION_IDS)
         end,
     },
     {
@@ -245,6 +229,8 @@ local _strategies = {
             local target = ctx.target
             if not target then return false end
             if not ctx.has_valid_enemy_target then return false end
+            -- Skip if target has no armor (API unavailable or already fully reduced)
+            if (ctx.target_armor or 0) <= 0 then return false end
             if ctx.has_feral_druid then return false end
             return _G_E.spell_ready(SPELLS.FaerieFire, target)
         end,
@@ -339,11 +325,10 @@ local _strategies = {
         matches=function(_, s)
             local threshold = 25
             if (s.mana_pct or 100) > threshold then return false end
-            return s.mana_potion_id ~= nil
-        end,
-        execute=function(_, s)
-            if _G_E.use_item_by_id then _G_E.use_item_by_id(s.mana_potion_id) end
             return true
+        end,
+        execute=function(ctx)
+            return _potion_helper.try_use_potion(ctx, _potion_helper.MANA_POTION_IDS)
         end,
     },
     {
@@ -360,7 +345,7 @@ local _strategies = {
     {
         name="PvP_EntanglingRoots",
         matches=function(ctx)
-            if _G_E.PvPTrinket and _G_E.PvPTrinket.is_on_cooldown and ctx.target and _G_E.PvPTrinket.is_on_cooldown(ctx.target) then return false end
+            if NS.pvp_trinket_used_recently(ctx.target) then return false end
             if not ctx.is_pvp then return false end
             if not (ctx.melee_on_you or false) then return false end
             return _G_E.spell_ready(_LOCAL_SPELLS.EntanglingRoots, ctx.target)
@@ -373,7 +358,7 @@ local _strategies = {
         name="PvP_Cyclone",
         matches=function(ctx)
             if _G_E.DRTracker and _G_E.DRTracker.is_dr_immune and ctx.target and _G_E.DRTracker.is_dr_immune(ctx.target, "cyclone") then return false end
-            if _G_E.PvPTrinket and _G_E.PvPTrinket.is_on_cooldown and ctx.target and _G_E.PvPTrinket.is_on_cooldown(ctx.target) then return false end
+            if NS.pvp_trinket_used_recently(ctx.target) then return false end
             if not ctx.is_pvp then return false end
             if not (ctx.enemy_healer or false) then return false end
             return _G_E.spell_ready(_LOCAL_SPELLS.Cyclone, ctx.target)

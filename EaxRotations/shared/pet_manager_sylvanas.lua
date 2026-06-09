@@ -9,6 +9,10 @@
 local NS = _G.EaxRotations
 local M = {}
 
+-- Platform-provided pet handler for engine-level pet state management
+local _ph_ok, pet_handler = pcall(require, "common/utility/pet_handler")
+if not _ph_ok or type(pet_handler) ~= "table" then pet_handler = nil end
+
 local STATE_IDLE, STATE_ENGAGING, STATE_FIGHTING, STATE_RETREATING = 0, 1, 2, 3
 
 local _states = {}
@@ -115,6 +119,33 @@ function M.on_update(me, target, spec)
         if M.try_cast(st.special_id, target) then st.last_special = now; return end
     end
     st.state = STATE_FIGHTING
+end
+
+function M.set_passive(delay)
+    if pet_handler and type(pet_handler.set_pet_state) == "function" then
+        if pet_handler.pet_state and pet_handler.pet_state.PASSIVE then
+            return pcall(pet_handler.set_pet_state, pet_handler, pet_handler.pet_state.PASSIVE, delay or 0)
+        end
+    end
+    return false
+end
+
+function M.set_aggressive(delay)
+    if pet_handler and type(pet_handler.set_pet_state) == "function" then
+        if pet_handler.pet_state and pet_handler.pet_state.AGGRESSIVE then
+            return pcall(pet_handler.set_pet_state, pet_handler, pet_handler.pet_state.AGGRESSIVE, delay or 0)
+        end
+    end
+    return false
+end
+
+function M.set_defensive(delay)
+    if pet_handler and type(pet_handler.set_pet_state) == "function" then
+        if pet_handler.pet_state and pet_handler.pet_state.DEFENSIVE then
+            return pcall(pet_handler.set_pet_state, pet_handler, pet_handler.pet_state.DEFENSIVE, delay or 0)
+        end
+    end
+    return false
 end
 
 return M

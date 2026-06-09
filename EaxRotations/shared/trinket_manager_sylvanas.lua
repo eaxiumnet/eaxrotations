@@ -214,6 +214,11 @@ local function should_use_offensive(context, settings)
     if not setting_enabled(settings, "use_trinket_offensive", true) then return false end
     if not context.in_combat or not context.has_valid_enemy_target then return false end
     if context.should_burst then return true end
+    -- CD Min TTD gate: don't waste trinket CDs on dying targets
+    local min_ttd = setting(settings, "cd_min_ttd", 0)
+    if min_ttd > 0 and (context.ttd or 999) < min_ttd then
+        return false
+    end
     return setting(settings, "use_trinket_offensive", true) == true
 end
 

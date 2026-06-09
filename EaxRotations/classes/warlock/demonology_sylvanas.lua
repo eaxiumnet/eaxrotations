@@ -3,6 +3,9 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarlockSpells or {}
+local pet_manager = require("shared/pet_manager_sylvanas")
+
+local potion_helper = require("shared/potion_helper_sylvanas")
 
 -- ============================================================================
 -- Buff & Debuff ID tables
@@ -345,6 +348,43 @@ end
 -- Strategies
 -- ============================================================================
 local strategies = {
+    -- Auto Damage Potion — gate on context.has_damage_potion (inventory_helper)
+    { name = "DamagePotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_damage_potion then return false end
+          if not context.should_burst then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
+    -- Pet State: set defensive when pet HP is critically low
+    { name = "PetDefensive",
+      matches = function(context, state)
+          if not state.has_pet then return false end
+          if not (context.in_combat or state.in_combat) then return false end
+          if (state.pet_hp_pct or 100) > 35 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_defensive() end },
+    -- Pet State: set passive when player HP critically low (survival mode)
+    { name = "PetPassive",
+      matches = function(context, state)
+          if not state.has_pet then return false end
+          if not (context.in_combat or state.in_combat) then return false end
+          if (context.hp or state.hp_pct or 100) > 25 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_passive() end },
+    -- Pet State: set aggressive during combat when pet is healthy
+    { name = "PetAggressive",
+      matches = function(context, state)
+          if not state.has_pet then return false end
+          if not (context.in_combat or state.in_combat) then return false end
+          if (state.pet_hp_pct or 100) < 50 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_aggressive() end },
     { name = "FelArmor", matches = fel_armor_matches, execute = function(context) return NS.try_cast(SPELLS.FelArmor, context.me, "[DEMONOLOGY] Fel Armor", { skip_range = true }) end },
     { name = "SummonFelguard", matches = function(context) return needs_felguard(context, { name = "SummonFelguard", spell = SPELLS.SummonFelguard }) end, execute = function(context) return NS.try_cast(SPELLS.SummonFelguard, context.me, "[DEMONOLOGY] Summon Felguard", { skip_range = true }) end },
     { name = "FelDomination", matches = fel_domination_matches, execute = function(context) return NS.try_cast(SPELLS.FelDomination, context.me, "[DEMONOLOGY] Fel Domination", { skip_range = true, expected_cooldown = 900 }) end },
@@ -358,7 +398,7 @@ local strategies = {
     { name = "SeedOfCorruption", matches = seed_of_corruption_matches, execute = function(context) return NS.try_cast(SPELLS.SeedOfCorruption, context.target, "[DEMONOLOGY] Seed of Corruption") end },
     { name = "SoulFire", matches = soul_fire_matches, execute = function(context) return NS.try_cast(SPELLS.SoulFire, context.target, "[DEMONOLOGY] Soul Fire", { expected_cooldown = 1.5 }) end },
     { name = "DrainSoul", matches = drain_soul_matches, execute = function(context) return NS.try_cast(SPELLS.DrainSoul, context.target, "[DEMONOLOGY] Drain Soul") end },
-    { name = "RainOfFire", matches = rain_of_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RainOfFire, context.target, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end },
+    { name = "RainOfFire", matches = rain_of_fire_matches, execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.RainOfFire), t, 8, 35); if pos then return NS.try_cast_position(SPELLS.RainOfFire, pos, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end; return NS.try_cast(SPELLS.RainOfFire, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end },
     { name = "Hellfire", matches = hellfire_matches, execute = function(context) return NS.try_cast(SPELLS.Hellfire, context.me, "[DEMONOLOGY] Hellfire", { skip_range = true }) end },
     { name = "DemonicEmpowerment", matches = demonic_empowerment_matches, execute = function(context) return NS.try_cast(SPELLS.DemonicEmpowerment, context.me, "[DEMONOLOGY] Demonic Empowerment", { skip_range = true, expected_cooldown = 60 }) end },
     { name = "DeathCoil", matches = function(context, state) return death_coil_matches(context, { name = "DeathCoil", spell = SPELLS.DeathCoil }) end, execute = function(context) return NS.try_cast(SPELLS.DeathCoil, context.target, "[DEMONOLOGY] Death Coil", { expected_cooldown = 120 }) end },

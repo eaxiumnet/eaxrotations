@@ -4,6 +4,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}
+local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.PaladinHealing or require("classes/paladin/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
@@ -67,10 +68,6 @@ local FROST_DAMAGE_DEBUFFS = { 12494, 116, 7321 }
 local SHADOW_DAMAGE_DEBUFFS = { }
 local ROOT_SNARE_DEBUFFS = { 122, 339, 512, 865, 1022, 116, 1715, 2974, 3409, 3600, 12494 }
 local PHYSICAL_FOCUS_DEBUFFS = { 26017, 12809, 25274, 25273 }
-local MANA_POTION_IDS = {
-    TBC_POTIONS.major_mana or 13444,
-    TBC_POTIONS.superior_mana or 13443,
-}
 local DARK_RUNE_IDS = { 20520, 12662 }
 
 local DEFAULT_SCAN_HP = 96
@@ -593,8 +590,8 @@ local strategies = {
         matches = function(_, s)
             return (s.mana_pct or 100) <= POTION_MANA_PCT
         end,
-        execute = function()
-            return try_use_item(MANA_POTION_IDS, "[HOLY] Mana potion")
+        execute = function(context)
+            return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS)
         end,
     },
     {

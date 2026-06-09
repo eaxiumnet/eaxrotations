@@ -14,6 +14,7 @@ return {
                             { text = "Restoration", value = "restoration" },
                     } },
                     { key = "use_cooldowns", type = "checkbox", label = "Cooldowns", default = true },
+                    { key = "use_cooldowns_on_boss_only", type = "checkbox", label = "Cooldowns on Bosses Only", default = false, tooltip = "Only use major offensive cooldowns (Bloodlust/Heroism, Shamanistic Rage) on boss targets — skip on trash" },
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },

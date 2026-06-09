@@ -397,8 +397,8 @@ function M.scan_party_casts(now)
 
     -- 2. Visible friendly fallback
     local core = _G.core
-    if core and core.object_manager and core.object_manager.get_visible_friendly_units then
-        local ok, visible = pcall(core.object_manager.get_visible_friendly_units)
+    if core and core.object_manager and core.object_manager.get_visible_objects then
+        local ok, visible = pcall(core.object_manager.get_visible_objects)
         if ok and type(visible) == "table" then
             for _, u in ipairs(visible) do
                 if u and is_party_or_raid(u) then

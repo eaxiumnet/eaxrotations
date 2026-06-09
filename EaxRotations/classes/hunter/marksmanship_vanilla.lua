@@ -4,6 +4,9 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
+local pet_manager = require("shared/pet_manager_sylvanas")
+
+local potion_helper = require("shared/potion_helper_sylvanas")
 
 local AUTO_SHOT_BUFFER_MS = 100
 local MULTI_SHOT_CAST_MS = 500
@@ -252,6 +255,7 @@ end
 
 local function bestial_wrath_matches(context, s)
     if not s.in_combat then return false end
+    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not s.pet_alive then return false end
     if not s.bestial_wrath_ready then return false end
     return true
@@ -280,9 +284,59 @@ end
 -- Strategies
 -- ============================================================================
 local strategies = {
+    { name = "HealthPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_health_potion then return false end
+          if (context.hp or 100) > 35 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS) end },
+    { name = "ManaPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_mana_potion then return false end
+          if (context.mana_pct or 100) > 25 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
     { name = "MendPet", matches = mend_pet_matches, execute = function(context) return NS.try_cast(SPELLS.MendPet, context.pet or (NS.GetPet and NS.GetPet()) or context.me, "[MARKSMANSHIP] Mend Pet", { skip_range = true }) end },
     { name = "CallPet", matches = call_pet_matches, execute = function(context) return NS.try_cast(SPELLS.CallPet, context.me, "[MARKSMANSHIP] Call Pet", { skip_range = true }) end },
     { name = "RevivePet", matches = revive_pet_matches, execute = function(context) return NS.try_cast(SPELLS.RevivePet, context.me, "[MARKSMANSHIP] Revive Pet", { skip_range = true }) end },
+    -- Pet State: set defensive when pet HP is critically low
+    { name = "PetDefensive",
+      matches = function(context, state)
+          local pet = context.pet or (NS.GetPet and NS.GetPet()) or nil
+          if not pet then return false end
+          if not context.in_combat then return false end
+          local hp = pet.get_health_percentage and pet:get_health_percentage() or 100
+          if hp > 40 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_defensive() end },
+    -- Pet State: set passive when player HP critically low (survival mode)
+    { name = "PetPassive",
+      matches = function(context, state)
+          local pet = context.pet or (NS.GetPet and NS.GetPet()) or nil
+          if not pet then return false end
+          if not context.in_combat then return false end
+          if (context.hp or 100) > 25 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_passive() end },
+    -- Pet State: set aggressive during combat when pet is healthy
+    { name = "PetAggressive",
+      matches = function(context, state)
+          local pet = context.pet or (NS.GetPet and NS.GetPet()) or nil
+          if not pet then return false end
+          if not context.in_combat then return false end
+          local hp = pet.get_health_percentage and pet:get_health_percentage() or 100
+          if hp < 50 then return false end
+          return true
+      end,
+      execute = function() return pet_manager.set_aggressive() end },
     { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) return NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[MARKSMANSHIP] Aspect of the Hawk", { skip_range = true }) end },
     { name = "UnavailableClassicHunterAspect", matches = aspect_viper_matches, execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicHunterAspect, context.me, "[MARKSMANSHIP] Aspect of the Viper", { skip_range = true }) end },
     { name = "FreezingTrap", matches = freezing_trap_matches, execute = function(context) return NS.try_cast(SPELLS.FreezingTrap, context.me, "[MARKSMANSHIP] Freezing Trap", { skip_range = true, expected_cooldown = 30 }) end },

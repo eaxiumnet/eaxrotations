@@ -30,99 +30,21 @@
 local M = {}
 
 -- ============================================================================
--- Wowhead Spell Flag Data Integration
+-- Spell Flag Data — uses only hardcoded FORM_RESTRICTIONS table (240+ entries).
+-- The wowhead_data bridge module contains spell flags but the hardcoded table
+-- is the authoritative source for TBC druid form restrictions.
 -- ============================================================================
--- Reads spell flag data from wowhead_data/spells/tbc/{spell_id}.json
 
 local _flag_cache = {}  -- [spell_id] = flags table or false (miss)
-
-local _json_decode = nil
-do
-    local ok, cjson = pcall(require, "cjson")
-    if ok and type(cjson) == "table" then
-        _json_decode = cjson.decode
-    else
-        -- Minimal JSON parser for wowhead_data spell files
-        -- Forward-declare recursive helpers so parse_value can reference them
-        local parse_object
-        local parse_array
-
-        local function skip_ws(s, i)
-            while i <= #s and s:sub(i, i):match("[ \t\n\r]") do i = i + 1 end
-            return i
-        end
-
-        local function parse_number(s, i)
-            i = skip_ws(s, i)
-            local start = i
-            if s:sub(i, i) == "-" then i = i + 1 end
-            while i <= #s and s:sub(i, i):match("[0-9.]") do i = i + 1 end
-            return tonumber(s:sub(start, i - 1)), i
-        end
-
-        local function parse_string(s, i)
-            i = skip_ws(s, i)
-            if s:sub(i, i) ~= '"' then return nil, i end
-            i = i + 1
-            local start = i
-            while i <= #s and s:sub(i, i) ~= '"' do
-                if s:sub(i, i) == "\\" then i = i + 1 end
-                i = i + 1
-            end
-            return s:sub(start, i - 1), i + 1
-        end
-
-        local function parse_value(s, i)
-            i = skip_ws(s, i)
-            local c = s:sub(i, i)
-            if c == '"' then return parse_string(s, i)
-            elseif c == "{" then return parse_object(s, i)
-            elseif c == "[" then return parse_array(s, i)
-            elseif c == "t" then return true, i + 4  -- "true"
-            elseif c == "f" then return false, i + 5  -- "false"
-            elseif c == "n" then return nil, i + 4  -- "null"
-            else return parse_number(s, i)
-            end
-        end
-
-        parse_object = function(s, i)
-            i = skip_ws(s, i)
-            i = i + 1  -- skip '{'
-            local obj = {}
-            while true do
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "}" then return obj, i + 1 end
-                local key
-                key, i = parse_string(s, i)
-                i = skip_ws(s, i)
-                i = i + 1  -- skip ':'
-                obj[key], i = parse_value(s, i)
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "," then i = i + 1 end
-            end
-        end
-
-        parse_array = function(s, i)
-            i = skip_ws(s, i)
-            i = i + 1  -- skip '['
-            local arr = {}
-            local n = 0
-            while true do
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "]" then return arr, i + 1 end
-                n = n + 1
-                arr[n], i = parse_value(s, i)
-                i = skip_ws(s, i)
-                if s:sub(i, i) == "," then i = i + 1 end
-            end
-        end
-
-        _json_decode = function(str)
-            local ok, result = pcall(parse_object, str, 1)
-            if ok then return result end
-            return nil
-        end
+local _bridge = nil
+local function get_bridge()
+    if _bridge then return _bridge end
+    local ok, mod = pcall(require, "shared/wowhead_data_bridge_sylvanas")
+    if ok and type(mod) == "table" then
+        _bridge = mod
+        return mod
     end
+    return nil
 end
 
 -- ============================================================================
@@ -343,41 +265,33 @@ M.FORM_TRAVEL = 3
 M.FORM_MOONKIN = 4
 M.FORM_TREE = 5
 
---- Get spell flags from wowhead_data JSON file.
--- Returns flags table from the JSON file, or nil if no flags field.
+--- Get spell flags from embedded data bridge.
+-- Returns flags table from the bridge, or nil if not found.
 -- Cached after first read — safe to call every frame.
 -- @param spell_id  number — spell ID
--- @return table|nil — flags table from JSON, or nil
+-- @return table|nil — flags table, or nil
 function M.get_spell_flags(spell_id)
     if not spell_id then return nil end
     local cached = _flag_cache[spell_id]
     if cached ~= nil then
-        return cached or nil  -- cached is false for misses, table for hits
+        return cached or nil
     end
 
-    -- Try TBC spell path first, then vanilla
-    local paths = {
-        "wowhead_data/spells/tbc/" .. spell_id .. ".json",
-        "wowhead_data/spells/vanilla/" .. spell_id .. ".json",
-    }
-
-    for _, path in ipairs(paths) do
-        local f = io.open(path, "rb")
-        if f then
-            local data = f:read("*a")
-            f:close()
-            if data and #data > 0 then
-                local ok, parsed = pcall(_json_decode, data)
-                if ok and type(parsed) == "table" and type(parsed.flags) == "table" then
-                    _flag_cache[spell_id] = parsed.flags
-                    return parsed.flags
-                end
-            end
-        end
+    local bridge = get_bridge()
+    if not bridge or not bridge.spell_detail then
+        _flag_cache[spell_id] = false
+        return nil
     end
 
-    _flag_cache[spell_id] = false  -- cache miss
-    return nil
+    local detail = bridge.spell_detail[spell_id]
+    if not detail or not detail[9] then
+        _flag_cache[spell_id] = false
+        return nil
+    end
+
+    -- detail[9] = flags array
+    _flag_cache[spell_id] = detail[9]
+    return detail[9]
 end
 
 --- Check if a spell can be cast in a given form.

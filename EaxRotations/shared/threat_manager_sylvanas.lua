@@ -8,6 +8,7 @@ local _G = _G
 local NS = _G.EaxRotations
 local _core_time = core.time
 local _get_local_player = core.object_manager.get_local_player
+local _get_focus = core.input.get_focus
 
 -- ============================================================================
 -- Internal state
@@ -169,7 +170,7 @@ function M.use_misdirection(spell_id, target_type, ctx)
         local ok, pet = pcall(function() return me:get_pet() end)
         if ok and pet then target = pet end
     elseif target_type == 'focus' then
-        local ok, focus = pcall(core.object_manager.get_focus)
+        local ok, focus = pcall(_get_focus)
         if ok and focus then target = focus end
     else
         -- Party member by index or name

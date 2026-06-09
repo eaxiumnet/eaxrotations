@@ -217,6 +217,7 @@ local function build_holy_state(context)
     holy_state.dispel_magic_ready = spell_exists(SPELLS.DispelMagic) and spell_ready(SPELLS.DispelMagic, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
     holy_state.cure_disease_ready = spell_exists(SPELLS.CureDisease) and spell_ready(SPELLS.CureDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
     holy_state.abolish_disease_ready = spell_exists(SPELLS.AbolishDisease) and spell_ready(SPELLS.AbolishDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
+    holy_state.symbol_of_hope_ready = spell_exists(SPELLS.SymbolOfHope) and spell_ready(SPELLS.SymbolOfHope, NS.PLAYER_UNIT)
 
     return holy_state
 end
@@ -633,6 +634,18 @@ local strategies = {
         end,
         execute = function(_, state)
             return try_cast(SPELLS.AbolishDisease, state.tank.unit, "[HOLY] Abolish Disease (preventive)")
+        end,
+    },
+    {
+        name = "SymbolOfHope",
+        matches = function(context, state)
+            if not state.symbol_of_hope_ready then return false end
+            if not context.is_group then return false end
+            if context.player_control_locked then return false end
+            return true
+        end,
+        execute = function(_, _state)
+            return try_cast(SPELLS.SymbolOfHope, NS.PLAYER_UNIT, "[HOLY] Symbol of Hope")
         end,
     },
     {

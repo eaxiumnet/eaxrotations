@@ -5,6 +5,8 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.MageSpells or {}
 
+local potion_helper = require("shared/potion_helper_sylvanas")
+
 local SCORCH_DEBUFF = { 22959 }
 
 -- Mana Gem item IDs (highest to lowest rank)
@@ -66,6 +68,7 @@ local function combustion_matches_fn(context, state)
     if not state.combustion_ready then return false end
     if not context.in_combat then return false end
     if context.settings and context.settings.use_cooldowns == false then return false end
+    if not NS.gate_cooldown_boss_only(context) then return false end
     if context.should_burst then return true end
     if NS.should_use_long_cd then return NS.should_use_long_cd(context, 180) end; return false
 end
@@ -240,6 +243,15 @@ end
 -- ============================================================================
 
 local strategies = {
+    { name = "ManaPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_mana_potion then return false end
+          if (context.mana_pct or 100) > 20 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
     -- Defensives
     { name = "IceBarrier",
       matches = ice_barrier_matches_fn,
@@ -287,7 +299,7 @@ local strategies = {
       execute = function(context) return NS.try_cast(SPELLS.ArcaneExplosion, context.target, "[FIRE] Arcane Explosion") end },
     { name = "Blizzard",
       matches = blizzard_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.Blizzard, context.target, "[FIRE] Blizzard") end },
+      execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, 8, 35); if pos then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[FIRE] Blizzard") end; return NS.try_cast(SPELLS.Blizzard, t, "[FIRE] Blizzard") end },
     -- AoE burst
     { name = "BlastWave",
       matches = blast_wave_matches_fn,

@@ -89,4 +89,10 @@ function NS.common_predictive_healing_section()
     }, "Estimates future health deficit from recent damage intake to stop healers from overhealing.")
 end
 
+function NS.common_cd_min_ttd_section()
+    return section("CD Min TTD", {
+        { type = "slider", key = "cd_min_ttd", default = 0, min = 0, max = 60, label = "CD Min TTD", tooltip = "Prevent offensive cooldowns from firing on targets dying within X seconds. 0 = disabled." },
+    }, "Gates offensive trinkets and burst cooldowns behind a minimum time-to-die threshold.")
+end
+
 NS.log("Common schema helpers loaded")
