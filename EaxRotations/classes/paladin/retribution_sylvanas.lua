@@ -168,7 +168,7 @@ end
 
 local function find_ally(context, predicate)
     local members = candidate_members(context)
-    if members then
+    if type(members) == "table" and #members > 0 then
         for i = 1, #members do
             local member = members[i]
             if member and predicate(member) then return member end
@@ -250,6 +250,9 @@ local function build_state(context)
     ret_state.secondary_target = find_secondary_enemy(context)
     ret_state.mana_item = first_ready_item(MANA_POTIONS)
     ret_state.healing_item = first_ready_item(HEALING_ITEMS)
+    -- Low-mana emergency: strip to essentials when mana critically low
+    local mana_floor_pct = get_setting(context, "retri_mana_floor_pct", 15)
+    ret_state.mana_emergency = (ret_state.mana_pct or 100) <= mana_floor_pct
     return ret_state
 end
 
@@ -334,14 +337,14 @@ end, function(_, state) return cast(SPELLS.Cleanse, state.utility_target, "[RET]
 
 add_strategy(strategies, "Ret_PvP_Repentance_Opener", 850, function(context, state)
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "disorient") then return false end
-    if NS.PvPTrinket and NS.PvPTrinket.is_on_cooldown and context.target and NS.PvPTrinket.is_on_cooldown(context.target) then return false end
+    if NS.pvp_trinket_used_recently(context.target) then return false end
     if not get_setting(context, "repentance_pvp_usage", true) then return false end
     return context.is_pvp and state.target_player and ready(Repentance, context.target, {})
 end, function(context) return cast(Repentance, context.target, "[RET PvP] Repentance opener") end)
 
 add_strategy(strategies, "Ret_PvP_HammerJustice_Burst", 820, function(context, state)
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
-    if NS.PvPTrinket and NS.PvPTrinket.is_on_cooldown and context.target and NS.PvPTrinket.is_on_cooldown(context.target) then return false end
+    if NS.pvp_trinket_used_recently(context.target) then return false end
     return context.is_pvp and state.target_player and ready(HammerJustice, context.target, { expected_cooldown = 60 })
 end, function(context) return cast(HammerJustice, context.target, "[RET PvP] Hammer of Justice burst", { expected_cooldown = 60 }) end)
 
@@ -361,6 +364,20 @@ add_strategy(strategies, "Ret_AvengingWrath_Burst", 780, function(context, state
     if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
     return true
 end, function() return cast(SPELLS.AvengingWrath, PLAYER, "[RET] Avenging Wrath burst", { skip_range = true, expected_cooldown = 180 }) end, 180)
+
+-- HotC Opener: Apply Judgement of the Crusader on pull for +3% raid crit.
+-- Skips if another paladin already has the debuff on the target.
+add_strategy(strategies, "Ret_HotC_Opener_Seal", 775, function(context, state)
+    return context.in_combat and (context.combat_time or 0) < 5
+        and not state.target_has_crusader and not state.has_crusader and not state.has_damage_seal
+        and ready(SealCrusader, PLAYER, { skip_range = true })
+end, function() return cast(SealCrusader, PLAYER, "[RET] HotC Opener - Seal of the Crusader", { skip_range = true }) end)
+
+add_strategy(strategies, "Ret_HotC_Opener_Judge", 770, function(context, state)
+    return context.in_combat and (context.combat_time or 0) < 8
+        and not state.target_has_crusader and state.has_crusader
+        and ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 })
+end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] HotC Opener - Judge Crusader", { skip_gcd = true, expected_cooldown = 10 }) end)
 
 strategies[#strategies + 1] = {
     name = "SealTwistBlood",
@@ -382,6 +399,9 @@ strategies[#strategies + 1] = {
         local twist_window = state.twist_window or TWIST_WINDOW
         local prep_start = twist_window + 0.75 -- Give enough time for GCD + Reaction
         local swing_remains = state.swing_remains or 99
+        -- If Judgement is about to come off CD (≤1.5s), skip prep and let Judgement fire first
+        local judge_cd = NS.cooldown_remains and NS.cooldown_remains(SPELLS.Judgement) or 0
+        if judge_cd <= 1.5 then return false end
         return state.can_twist and state.can_use_blood and not state.has_command_rank1 and swing_remains <= prep_start and swing_remains > twist_window and ready(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, { skip_range = true })
     end,
     execute = function()
@@ -406,6 +426,8 @@ strategies[#strategies + 1] = {
     priority = 700,
     cooldown = 6,
     matches = function(context, state)
+        local prep_start = (state.twist_window or TWIST_WINDOW) + 0.75
+        if state.can_twist and (state.has_command or state.has_command_rank1) and not state.has_blood and (state.swing_remains or 99) <= prep_start then return false end
         return state.in_melee and ready(SPELLS.CrusaderStrike, context.target, { expected_cooldown = 6 })
     end,
     execute = function(context)
@@ -448,6 +470,9 @@ strategies[#strategies + 1] = {
     priority = 600,
     cooldown = 8,
     matches = function(context, state)
+        local prep_start = (state.twist_window or TWIST_WINDOW) + 0.75
+        if state.can_twist and (state.has_command or state.has_command_rank1) and not state.has_blood and (state.swing_remains or 99) <= prep_start then return false end
+        if state.mana_emergency then return false end
         local min_targets = get_setting(context, "consecration_min_targets", get_setting(context, "retri_consecration_targets", 3))
         return (state.enemy_count or 0) >= min_targets and (state.mana_pct or 100) >= 35 and ready(SPELLS.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 })
     end,
@@ -457,10 +482,14 @@ strategies[#strategies + 1] = {
 }
 
 add_strategy(strategies, "Ret_Consecration_ManaDump", 590, function(context, state)
+    if state.mana_emergency then return false end
     return get_setting(context, "consecration_single_target", false) and (state.mana_pct or 0) >= 75 and ready(SPELLS.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 })
 end, function() return cast(SPELLS.Consecration, PLAYER, "[RET] Consecration mana dump", { skip_range = true, expected_cooldown = 8 }) end, 8)
 
-add_strategy(strategies, "Exorcism", 580, function(context)
+add_strategy(strategies, "Exorcism", 580, function(context, state)
+    local prep_start = (state.twist_window or TWIST_WINDOW) + 0.75
+    if state.can_twist and (state.has_command or state.has_command_rank1) and not state.has_blood and (state.swing_remains or 99) <= prep_start then return false end
+    if state.mana_emergency then return false end
     -- [ARTISTRY] Improved: TBC Exorcism only works on Undead and Demons.
     if not context.target then return false end
     local type = creature_type(context.target)
@@ -468,6 +497,9 @@ add_strategy(strategies, "Exorcism", 580, function(context)
 end, function(context) return NS.try_cast(SPELLS.Exorcism, context.target, "[RET] Exorcism", { expected_cooldown = 15 }) end, 15)
 
 add_strategy(strategies, "Ret_HolyWrath_AoE", 575, function(context, state)
+    local prep_start = (state.twist_window or TWIST_WINDOW) + 0.75
+    if state.can_twist and (state.has_command or state.has_command_rank1) and not state.has_blood and (state.swing_remains or 99) <= prep_start then return false end
+    if state.mana_emergency then return false end
     -- [ARTISTRY] Improved: TBC Holy Wrath works on Undead/Demon groups.
     if (state.enemy_count or 0) < 2 or (state.mana_pct or 100) < 40 then return false end
     if not ready(SPELLS.HolyWrath, PLAYER, { skip_range = true }) then return false end
@@ -503,6 +535,7 @@ add_strategy(strategies, "Ret_BlessingKings_Party", 510, function(context, state
 end, function(_, state) return cast(SPELLS.BlessingOfKings, state.utility_target, "[RET] Blessing of Kings party") end)
 
 add_strategy(strategies, "Ret_SealCommand_AoE", 490, function(context, state)
+    if state.mana_emergency then return false end
     local min_targets = get_setting(context, "command_cleave_min_targets", 2)
     return (state.enemy_count or 0) >= min_targets and not state.has_command and ready(SPELLS.SealCommand, PLAYER, { skip_range = true })
 end, function() return cast(SPELLS.SealCommand, PLAYER, "[RET] Seal of Command cleave", { skip_range = true }) end)

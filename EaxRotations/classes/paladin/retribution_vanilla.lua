@@ -159,7 +159,7 @@ end
 
 local function find_ally(context, predicate)
     local members = candidate_members(context)
-    if members then
+    if type(members) == "table" and #members > 0 then
         for i = 1, #members do
             local member = members[i]
             if member and predicate(member) then return member end
