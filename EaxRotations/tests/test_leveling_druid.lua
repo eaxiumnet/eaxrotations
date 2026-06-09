@@ -3028,6 +3028,530 @@ do
 end
 -- Summary
 -- ============================================================================
+-- ============================================================================
+-- DEEP DIVE: OOC guard loop - ALL combat-gated strategies return false OOC
+-- ============================================================================
+do
+    -- Strategies that check "if not state.in_combat then return false end":
+    local combat_gated = {1, 2, 3, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29}
+    -- OOC-only strategies (check "if state.in_combat then return false end"):
+    local ooc_only = {4, 17, 18}
+    -- No combat gate (Pounce 5, Ravage 6, Wand 30 uses shared wand_matches):
+    local no_gate = {5, 6, 30}
+
+    local ctx_ooc = make_context({in_combat = false})
+    local state_ooc = get_state(ctx_ooc)
+    state_ooc.is_stealthed = true  -- Needed for Pounce/Ravage to potentially match
+    state_ooc.is_cat = true
+    state_ooc.pounce_ready = true
+    state_ooc.ravage_ready = true
+    state_ooc.energy = 100
+    state_ooc.is_behind = true
+    state_ooc.in_combat = false
+
+    -- Combat-gated strategies: must return false OOC
+    for _, idx in ipairs(combat_gated) do
+        local s = strategies[idx]
+        test("ooc_guard: " .. s.name .. " returns false OOC (combat-gated)", function()
+            assert_false(s.matches(ctx_ooc, state_ooc), s.name .. " should not match OOC")
+        end)
+    end
+
+    local ctx_combat = make_context({in_combat = true})
+    local state_combat = get_state(ctx_combat)
+    state_combat.in_combat = true
+
+    -- OOC-only strategies: must return false in combat
+    for _, idx in ipairs(ooc_only) do
+        local s = strategies[idx]
+        test("ooc_guard: " .. s.name .. " returns false in combat (OOC-only)", function()
+            assert_false(s.matches(ctx_combat, state_combat), s.name .. " should not match in combat")
+        end)
+    end
+
+    -- No-gate strategies: should NOT crash OOC (may match depending on other guards)
+    for _, idx in ipairs(no_gate) do
+        local s = strategies[idx]
+        test("ooc_guard: " .. s.name .. " does not crash OOC (no combat gate)", function()
+            local ok, result = pcall(s.matches, ctx_ooc, state_ooc)
+            assert_true(ok, s.name .. " should not throw OOC")
+        end)
+    end
+end
+
+-- ============================================================================
+-- DEEP DIVE: Nil target guard loop - ALL target-dependent strategies
+-- ============================================================================
+do
+    -- Strategies that check "if not state.target then return false end":
+    local target_dependent = {3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 16, 23, 24, 25, 26, 27, 28, 29, 30}
+    -- SwipeBear (15) has no target check (AoE)
+    -- NaturesGrasp (19), Barkskin (20), HealingTouch (21), Rejuvenation (22) have no target check
+    -- BearFormSurvival (1), FrenziedRegen (2): no target check
+    -- MarkOfTheWild (17), Thorns (18): no target check
+    -- Pounce (5), Ravage (6): don't check state.target (use context.target from execute)
+    local target_independent = {1, 2, 5, 6, 15, 17, 18, 19, 20, 21, 22}
+
+    local ctx_notarget = make_context({in_combat = true})
+    ctx_notarget.target = nil  -- pairs() skips nil, set explicitly
+    local state_notarget = get_state(ctx_notarget)
+    state_notarget.target = nil
+    state_notarget.in_combat = true
+    state_notarget.is_bear = true         -- Enable bear form for bear abilities
+    state_notarget.is_cat = true           -- Enable cat form for cat abilities
+    state_notarget.use_feral = true
+    state_notarget.is_stealthed = true
+    state_notarget.energy = 100
+    state_notarget.rage = 100
+    state_notarget.in_melee = true
+
+    -- Ensure all spell readiness flags
+    for _, s in ipairs(strategies) do
+        for k, v in pairs(state_notarget) do
+            if type(k) == "string" and k:match("_ready$") then
+                state_notarget[k] = true
+            end
+        end
+    end
+
+    -- Target-dependent: must return false with nil target
+    for _, idx in ipairs(target_dependent) do
+        local s = strategies[idx]
+        test("nil_target: " .. s.name .. " returns false with nil target", function()
+            local ok, result = pcall(s.matches, ctx_notarget, state_notarget)
+            assert_true(ok, s.name .. " should not throw with nil target")
+            assert_false(result, s.name .. " should return false with nil target")
+        end)
+    end
+
+    -- Target-independent: should NOT crash (may match or not, but shouldn't throw)
+    for _, idx in ipairs(target_independent) do
+        local s = strategies[idx]
+        test("nil_target: " .. s.name .. " does not crash with nil target", function()
+            local ok, result = pcall(s.matches, ctx_notarget, state_notarget)
+            assert_true(ok, s.name .. " should not throw with nil target")
+        end)
+    end
+end
+
+-- ============================================================================
+-- DEEP DIVE: Missing ready guards - per-strategy not-ready verification
+-- ============================================================================
+do
+    -- Each strategy's specific ready flag that gates it
+    local ready_checks = {
+        { idx = 1,  flag = "bear_form_ready",         label = "BearFormSurvival" },
+        { idx = 2,  flag = "frenzied_regen_ready",    label = "FrenziedRegeneration" },
+        { idx = 3,  flag = "cat_form_ready",          label = "CatFormEntry" },
+        { idx = 4,  flag = "prowl_ready",             label = "ProwlOpener" },
+        { idx = 5,  flag = "pounce_ready",            label = "Pounce" },
+        { idx = 6,  flag = "ravage_ready",            label = "Ravage" },
+        { idx = 7,  flag = "faerie_fire_feral_ready", label = "FaerieFireFeral" },
+        { idx = 8,  flag = "rake_ready",              label = "Rake" },
+        { idx = 9,  flag = "mangle_cat_ready",        label = "MangleCat" },
+        { idx = 10, flag = "shred_ready",             label = "Shred" },
+        { idx = 11, flag = "rip_ready",               label = "Rip" },
+        { idx = 12, flag = "bite_ready",              label = "FerociousBite" },
+        { idx = 13, flag = "claw_ready",              label = "Claw" },
+        { idx = 14, flag = "mangle_bear_ready",       label = "MangleBear" },
+        { idx = 15, flag = "swipe_ready",             label = "SwipeBear" },
+        { idx = 16, flag = "maul_ready",              label = "Maul" },
+        { idx = 17, flag = "mark_of_the_wild_ready",  label = "MarkOfTheWild" },
+        { idx = 18, flag = "thorns_ready",            label = "Thorns" },
+        { idx = 19, flag = "natures_grasp_ready",     label = "NaturesGrasp" },
+        { idx = 20, flag = "barkskin_ready",          label = "Barkskin" },
+        { idx = 21, flag = "healing_touch_ready",     label = "HealingTouch" },
+        { idx = 22, flag = "rejuvenation_ready",      label = "Rejuvenation" },
+        { idx = 23, flag = "entangling_roots_ready",  label = "EntanglingRoots" },
+        { idx = 24, flag = "moonfire_ready",          label = "Moonfire" },
+        { idx = 25, flag = "insect_swarm_ready",      label = "InsectSwarm" },
+        { idx = 26, flag = "faerie_fire_ready",       label = "FaerieFire" },
+        { idx = 27, flag = "hurricane_ready",         label = "Hurricane" },
+        { idx = 28, flag = "starfire_ready",          label = "Starfire" },
+        { idx = 29, flag = "wrath_ready",             label = "Wrath" },
+        -- Wand (30) uses create_wand_matches which checks wand_learned internally
+    }
+
+    -- Build a context+state where all normal conditions are met
+    local ctx = make_context({in_combat = true, hp = 20, mana_pct = 10, enemies_count = 4, is_moving = false})
+    ctx.target = { is_valid = function() return true end, get_health = function() return 8000 end, get_max_health = function() return 10000 end, is_casting = function() return false end, is_alive = function() return true end, get_guid = function() return "mock-target" end, get_distance = function() return 5 end, get_health_percentage = function() return 80 end }
+    local state = get_state(ctx)
+    state.target = ctx.target
+    state.in_combat = true
+    state.is_bear = true
+    state.is_cat = true
+    state.use_feral = true
+    state.is_stealthed = true
+    state.energy = 100
+    state.rage = 100
+    state.combo_points = 4
+    state.hp = 20
+    state.bear_hp = 40
+    state.heal_hp = 40
+    state.mana_pct = 10
+    state.enemies = 4
+    state.is_moving = false
+    state.in_melee = true
+    state.target_range = 5
+    state.is_behind = true
+    state.mangle_remains = 6
+    state.rake_remains = 0
+    state.rip_remains = 0
+    state.wand_threshold = 30
+    state.wand_learned = true
+
+    -- Set ALL ready flags to true first, then override individually
+    for k, v in pairs(state) do
+        if type(k) == "string" and k:match("_ready$") then
+            state[k] = true
+        end
+    end
+
+    local saved_debuff = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 0 end
+
+    for _, check in ipairs(ready_checks) do
+        local s = strategies[check.idx]
+        -- Set the specific flag to false
+        state[check.flag] = false
+        test("not_ready: " .. check.label .. " returns false when " .. check.flag .. " = false", function()
+            assert_false(s.matches(ctx, state), check.label .. " should not match when not ready")
+        end)
+        state[check.flag] = true  -- Restore
+    end
+
+    NS.debuff_remains = saved_debuff
+end
+
+-- ============================================================================
+-- DEEP DIVE: API crash safety - NS.debuff_remains throws in match functions
+-- ============================================================================
+do
+    -- Moonfire and InsectSwarm match functions call NS.debuff_remains directly
+    -- (inside pcall, but we should verify the pcall actually catches)
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.moonfire_ready = true
+    state.insect_swarm_ready = true
+    state.faerie_fire_ready = true
+    state.in_combat = true
+
+    -- NS.debuff_remains throws
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function() error("crash") end
+
+    test("api_crash: moonfire_matches catches debuff_remains throw", function()
+        local ok, result = pcall(S_MOONFIRE.matches, ctx, state)
+        assert_true(ok, "Moonfire match should not throw when debuff_remains crashes")
+    end)
+
+    test("api_crash: insect_swarm_matches catches debuff_remains throw", function()
+        local ok, result = pcall(S_IS.matches, ctx, state)
+        assert_true(ok, "InsectSwarm match should not throw when debuff_remains crashes")
+    end)
+
+    test("api_crash: faerie_fire_matches catches debuff_remains throw", function()
+        local ok, result = pcall(S_FF.matches, ctx, state)
+        assert_true(ok, "FaerieFire match should not throw when debuff_remains crashes")
+    end)
+
+    NS.debuff_remains = saved
+end
+
+-- ============================================================================
+-- DEEP DIVE: Powershift/shapeshift scenarios - form transition boundaries
+-- ============================================================================
+do
+    -- BearFormSurvival: transitions from cat/caster to bear when low HP
+    test("powershift: cat->bear survival when HP drops below bear_hp", function()
+        local ctx = make_context({hp = 25})
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.is_bear = false
+        state.bear_form_ready = true
+        state.use_feral = true
+        state.hp = 25
+        state.bear_hp = 40
+        assert_true(strategies[1].matches(ctx, state), "should shift to bear when cat + HP low")
+    end)
+
+    test("powershift: caster->bear survival when HP drops below bear_hp", function()
+        local ctx = make_context({hp = 25})
+        local state = get_state(ctx)
+        state.is_cat = false
+        state.is_bear = false
+        state.in_caster = true
+        state.bear_form_ready = true
+        state.use_feral = true
+        state.hp = 25
+        state.bear_hp = 40
+        assert_true(strategies[1].matches(ctx, state), "should shift to bear when caster + HP low")
+    end)
+
+    test("powershift: cat->cat when already cat -> no match", function()
+        local ctx = make_context({hp = 35})
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.is_bear = false
+        state.bear_form_ready = true
+        state.use_feral = true
+        state.hp = 35
+        state.bear_hp = 40
+        assert_true(strategies[1].matches(ctx, state), "cat with low HP -> shift to bear (bear form ignores cat form)")
+    end)
+
+    -- CatFormEntry: transitions from caster/bear to cat when safe
+    test("powershift: bear->cat when HP is safe", function()
+        local ctx = make_context({hp = 80})
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.is_cat = false
+        state.cat_form_ready = true
+        state.use_feral = true
+        state.hp = 80
+        state.bear_hp = 40
+        state.target = { is_valid = function() return true end }
+        state.in_melee = true
+        assert_true(strategies[3].matches(ctx, state), "should shift to cat when bear + HP safe")
+    end)
+
+    test("powershift: bear->cat blocked when HP is low", function()
+        local ctx = make_context({hp = 30})
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.is_cat = false
+        state.cat_form_ready = true
+        state.use_feral = true
+        state.hp = 30
+        state.bear_hp = 40
+        state.target = { is_valid = function() return true end }
+        state.in_melee = true
+        assert_false(strategies[3].matches(ctx, state), "should stay bear when HP is low")
+    end)
+
+    test("powershift: bear->cat at exactly bear_hp -> no match", function()
+        local ctx = make_context({hp = 40})
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.is_cat = false
+        state.cat_form_ready = true
+        state.use_feral = true
+        state.hp = 40
+        state.bear_hp = 40
+        state.target = { is_valid = function() return true end }
+        state.in_melee = true
+        assert_false(strategies[3].matches(ctx, state), "should stay bear at HP exactly bear_hp")
+    end)
+
+    test("powershift: bear->cat at bear_hp+1 -> match", function()
+        local ctx = make_context({hp = 41})
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.is_cat = false
+        state.cat_form_ready = true
+        state.use_feral = true
+        state.hp = 41
+        state.bear_hp = 40
+        state.target = { is_valid = function() return true end }
+        state.in_melee = true
+        assert_true(strategies[3].matches(ctx, state), "should shift to cat at HP bear_hp+1")
+    end)
+
+    -- FrenziedRegeneration: only usable in bear form
+    test("powershift: frenzied_regen not available in cat form", function()
+        local ctx = make_context({hp = 30})
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.is_bear = false
+        state.frenzied_regen_ready = true
+        state.rage = 40
+        state.hp = 30
+        state.bear_hp = 40
+        assert_false(strategies[2].matches(ctx, state), "frenzied regen not available in cat")
+    end)
+
+    test("powershift: frenzied_regen not available in caster form", function()
+        local ctx = make_context({hp = 30})
+        local state = get_state(ctx)
+        state.is_cat = false
+        state.is_bear = false
+        state.in_caster = true
+        state.frenzied_regen_ready = true
+        state.rage = 40
+        state.hp = 30
+        state.bear_hp = 40
+        assert_false(strategies[2].matches(ctx, state), "frenzied regen not available in caster")
+    end)
+
+    -- Cat-only abilities:
+    local cat_only_names = {"Pounce", "Ravage", "Rake", "MangleCat", "Shred", "Rip", "FerociousBite", "Claw"}
+    for _, name in ipairs(cat_only_names) do
+        local s = find_strategy(name)
+        if s then
+            test("powershift: " .. name .. " not available when not in cat form", function()
+                local ctx = make_context({hp = 80, enemies_count = 1})
+                local state = get_state(ctx)
+                state.is_cat = false
+                state.is_bear = false
+                state.in_caster = true
+                state.use_feral = true
+                state.energy = 100
+                state.combo_points = 4
+                state.is_stealthed = true
+                state.is_behind = true
+                state.target = ctx.target
+                state.in_melee = true
+                state.rake_remains = 0
+                state.rip_remains = 0
+                state.mangle_remains = 6
+                state.target_ttd = 60
+                for k, v in pairs(state) do
+                    if type(k) == "string" and k:match("_ready$") then state[k] = true end
+                end
+                assert_false(s.matches(ctx, state), name .. " should not match when not in cat")
+            end)
+        end
+    end
+
+    -- Bear-only abilities:
+    local bear_only_names = {"MangleBear", "SwipeBear", "Maul", "FrenziedRegeneration"}
+    for _, name in ipairs(bear_only_names) do
+        local s = find_strategy(name)
+        if s then
+            test("powershift: " .. name .. " not available when not in bear form", function()
+                local ctx = make_context({hp = 30, enemies_count = 4})
+                local state = get_state(ctx)
+                state.is_bear = false
+                state.is_cat = true
+                state.hp = 30
+                state.bear_hp = 40
+                state.rage = 100
+                state.target = ctx.target
+                state.in_melee = true
+                for k, v in pairs(state) do
+                    if type(k) == "string" and k:match("_ready$") then state[k] = true end
+                end
+                assert_false(s.matches(ctx, state), name .. " should not match when not in bear")
+            end)
+        end
+    end
+end
+
+-- ============================================================================
+-- DEEP DIVE: Mana boundaries - comprehensive wand threshold testing
+-- ============================================================================
+do
+    test("mana_boundary: wand mana_pct exactly threshold -> no wand (>= threshold)", function()
+        local ctx = make_context({mana_pct = 30})
+        local state = get_state(ctx)
+        state.mana_pct = 30
+        state.wand_threshold = 30
+        state.wand_learned = true
+        assert_false(strategies[30].matches(ctx, state), "mana exactly threshold -> no wand")
+    end)
+
+    test("mana_boundary: wand mana_pct below threshold -> wand", function()
+        local ctx = make_context({mana_pct = 29})
+        local state = get_state(ctx)
+        state.mana_pct = 29
+        state.wand_threshold = 30
+        state.wand_learned = true
+        assert_true(strategies[30].matches(ctx, state), "mana below threshold -> wand")
+    end)
+
+    test("mana_boundary: NS.spell_ready nil does not crash wand match", function()
+        local saved = NS.spell_ready
+        NS.spell_ready = nil
+        local ctx = make_context({mana_pct = 10})
+        local state = get_state(ctx)
+        state.mana_pct = 10
+        state.wand_threshold = 30
+        state.wand_learned = false
+        local ok, result = pcall(strategies[30].matches, ctx, state)
+        assert_true(ok, "wand match should not throw when spell_ready is nil")
+        NS.spell_ready = saved
+    end)
+
+    test("mana_boundary: mana_pct=0 exactly -> wand below threshold", function()
+        local ctx = make_context({mana_pct = 0})
+        local state = get_state(ctx)
+        state.mana_pct = 0
+        state.wand_threshold = 30
+        state.wand_learned = true
+        assert_true(strategies[30].matches(ctx, state), "0% mana -> wand")
+    end)
+
+    test("mana_boundary: mana_pct=100 with threshold=30 -> no wand", function()
+        local ctx = make_context({mana_pct = 100})
+        local state = get_state(ctx)
+        state.mana_pct = 100
+        state.wand_threshold = 30
+        state.wand_learned = true
+        assert_false(strategies[30].matches(ctx, state), "100% mana -> no wand")
+    end)
+end
+
+-- ============================================================================
+-- DEEP DIVE: NS.try_cast returning false for individual strategies
+-- ============================================================================
+do
+    -- All executes should handle try_cast returning false gracefully
+    local saved = NS.try_cast
+    NS.try_cast = function() return false end
+
+    test("try_cast_false: all 30 strategies handle try_cast returning false", function()
+        local ctx = make_context({in_combat = true, hp = 20, mana_pct = 10})
+        for i, s in ipairs(strategies) do
+            local ok, result = pcall(s.execute, ctx)
+            assert_true(ok, "strategy[" .. i .. "] (" .. s.name .. ") execute should not throw when try_cast returns false")
+            assert_false(result, "strategy[" .. i .. "] (" .. s.name .. ") execute should return false when try_cast returns false")
+        end
+    end)
+
+    NS.try_cast = saved
+end
+
+-- ============================================================================
+-- DEEP DIVE: NS.try_cast nil for individual strategies
+-- ============================================================================
+do
+    local saved = NS.try_cast
+    NS.try_cast = nil
+
+    test("try_cast_nil: all 30 strategies handle nil try_cast gracefully", function()
+        local ctx = make_context({in_combat = true, hp = 20, mana_pct = 10})
+        for i, s in ipairs(strategies) do
+            local ok, result = pcall(s.execute, ctx)
+            assert_true(ok, "strategy[" .. i .. "] (" .. s.name .. ") execute should not throw when try_cast is nil")
+        end
+    end)
+
+    NS.try_cast = saved
+end
+
+-- ============================================================================
+-- DEEP DIVE: NS.has_form nil/throws in build_state
+-- ============================================================================
+do
+    test("has_form_nil: build_state handles NS.has_form is nil", function()
+        local saved = NS.has_form
+        NS.has_form = nil
+        local ctx = make_context()
+        local state = get_state(ctx)
+        assert_eq(state.is_bear, false, "is_bear should be false when has_form is nil")
+        assert_eq(state.is_cat, false, "is_cat should be false when has_form is nil")
+        assert_eq(state.in_caster, true, "in_caster should be true when has_form is nil")
+        NS.has_form = saved
+    end)
+
+    test("has_form_throws: build_state handles NS.has_form throwing", function()
+        local saved = NS.has_form
+        NS.has_form = function() error("crash") end
+        local ok, state = pcall(get_state, make_context())
+        assert_false(ok, "build_state should throw when has_form throws (no pcall)")
+        NS.has_form = saved
+    end)
+end
 
 print(string.format("\n=== Druid Leveling Unit Tests: %d passed, %d failed (%d assertions) ===\n", passed, failed, assertions))
 if failed > 0 then
