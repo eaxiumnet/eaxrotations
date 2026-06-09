@@ -266,7 +266,7 @@ end
 --- Polymorph: crowd control in PvP
 local function polymorph_matches(context, s)
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.cc_target and NS.DRTracker.is_dr_immune(context.cc_target, "incapacitate") then return false end
-    if NS.PvPTrinket and NS.PvPTrinket.is_on_cooldown and context.cc_target and NS.PvPTrinket.is_on_cooldown(context.cc_target) then return false end
+    if NS.pvp_trinket_used_recently and NS.pvp_trinket_used_recently(context.cc_target) then return false end
     if not context.is_pvp then return false end
     if not context.cc_target then return false end
     if context.is_moving then return false end
@@ -307,6 +307,7 @@ local function arcane_power_matches(context, s)
     if s.has_arcane_power then return false end
     if not s.in_combat then return false end
     if not get_setting_bool(context, "use_cooldowns", true) then return false end
+    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not get_setting_bool(context, "arcane_use_burn", true) then return false end
     -- Only use AP during burn phase or bloodlust
     if s.phase ~= PHASE_BURN and not s.bloodlust_active then return false end
