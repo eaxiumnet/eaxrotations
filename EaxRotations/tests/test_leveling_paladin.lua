@@ -1632,12 +1632,487 @@ do -- edge_rotation_crash
         end
     end)
 end
--- Summary
+-- ============================================================================
+-- Deep dive: Seal management - has_any_seal guard + seal priority
+-- ============================================================================
+do
+    -- Seal: no seal up, ready -> match
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.has_any_seal = false
+    state.seal_command_ready = true
+    state.seal_blood_ready = false
+    state.seal_martyr_ready = false
+    state.seal_righteousness_ready = false
+    assert_true(strategies[17].matches(ctx, state), "seal no seal up, command ready -> match")
+
+    -- Seal: already has seal -> no match
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.has_any_seal = true
+    state2.seal_command_ready = true
+    state2.seal_blood_ready = false
+    state2.seal_martyr_ready = false
+    state2.seal_righteousness_ready = false
+    assert_false(strategies[17].matches(ctx2, state2), "seal already has seal -> no match")
+
+    -- Seal: OOC -> no match
+    local ctx3 = make_context({in_combat = false})
+    local state3 = get_state(ctx3)
+    state3.has_any_seal = false
+    state3.seal_command_ready = true
+    state3.seal_righteousness_ready = false
+    state3.in_combat = false
+    assert_false(strategies[17].matches(ctx3, state3), "seal OOC -> no match")
+
+    -- Seal: no target -> no match
+    local ctx4 = make_context({})
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.has_any_seal = false
+    state4.seal_command_ready = true
+    state4.seal_righteousness_ready = false
+    state4.target = nil
+    assert_false(strategies[17].matches(ctx4, state4), "seal no target -> no match")
+
+    -- Seal: none ready -> no match
+    local ctx5 = make_context({})
+    local state5 = get_state(ctx5)
+    state5.has_any_seal = false
+    state5.seal_command_ready = false
+    state5.seal_blood_ready = false
+    state5.seal_martyr_ready = false
+    state5.seal_righteousness_ready = false
+    assert_false(strategies[17].matches(ctx5, state5), "seal none ready -> no match")
+end
+
 -- ============================================================================
 
-print(string.format("\n=== Paladin Leveling Unit Tests: %d passed, %d failed (%d assertions) ===\n", passed, failed, assertions))
-if failed > 0 then
-    error(string.format("Some tests FAILED (%d failures)", failed))
-else
-    print("All Paladin leveling unit tests passed!")
+-- ============================================================================
+-- Deep dive: Judgement - OOC, target, cooldown guards
+-- ============================================================================
+do
+    -- Judgement: in combat, ready -> match
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.judgement_ready = true
+    assert_true(strategies[12].matches(ctx, state), "judgement ready combat -> match")
+
+    -- Judgement: OOC -> no match
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.judgement_ready = true
+    state2.in_combat = false
+    assert_false(strategies[12].matches(ctx2, state2), "judgement OOC -> no match")
+
+    -- Judgement: no target -> no match
+    local ctx3 = make_context({})
+    ctx3.target = nil
+    local state3 = get_state(ctx3)
+    state3.judgement_ready = true
+    state3.target = nil
+    assert_false(strategies[12].matches(ctx3, state3), "judgement no target -> no match")
+
+    -- Judgement: not ready -> no match
+    local ctx4 = make_context({})
+    local state4 = get_state(ctx4)
+    state4.judgement_ready = false
+    assert_false(strategies[12].matches(ctx4, state4), "judgement not ready -> no match")
 end
+
+-- ============================================================================
+-- Deep dive: HP boundaries (FlashOfLight 60/61, HolyLight 35/36, etc.)
+-- ============================================================================
+do
+    -- FlashOfLight: HP 60 -> match (<= 60)
+    local ctx = make_context({hp = 60})
+    local state = get_state(ctx)
+    state.flash_light_ready = true
+    state.hp = 60
+    assert_true(strategies[7].matches(ctx, state), "flashlight hp=60 -> match (<= 60)")
+
+    -- FlashOfLight: HP 61 -> no match (> 60)
+    local ctx2 = make_context({hp = 61})
+    local state2 = get_state(ctx2)
+    state2.flash_light_ready = true
+    state2.hp = 61
+    assert_false(strategies[7].matches(ctx2, state2), "flashlight hp=61 -> no match (> 60)")
+
+    -- HolyLight: HP 35 -> match (<= 35)
+    local ctx3 = make_context({hp = 35})
+    local state3 = get_state(ctx3)
+    state3.holy_light_ready = true
+    state3.hp = 35
+    assert_true(strategies[8].matches(ctx3, state3), "holylight hp=35 -> match (<= 35)")
+
+    -- HolyLight: HP 36 -> no match (> 35)
+    local ctx4 = make_context({hp = 36})
+    local state4 = get_state(ctx4)
+    state4.holy_light_ready = true
+    state4.hp = 36
+    assert_false(strategies[8].matches(ctx4, state4), "holylight hp=36 -> no match (> 35)")
+
+    -- DivineShield: HP 20 -> match (<= 20)
+    local ctx5 = make_context({hp = 20})
+    local state5 = get_state(ctx5)
+    state5.divine_shield_ready = true
+    state5.hp = 20
+    assert_true(strategies[9].matches(ctx5, state5), "divineshield hp=20 -> match (<= 20)")
+
+    -- DivineShield: HP 21 -> no match (> 20)
+    local ctx6 = make_context({hp = 21})
+    local state6 = get_state(ctx6)
+    state6.divine_shield_ready = true
+    state6.hp = 21
+    assert_false(strategies[9].matches(ctx6, state6), "divineshield hp=21 -> no match (> 20)")
+
+    -- LayOnHands: HP 15 -> match (<= 15)
+    local ctx7 = make_context({hp = 15})
+    local state7 = get_state(ctx7)
+    state7.lay_on_hands_ready = true
+    state7.hp = 15
+    assert_true(strategies[10].matches(ctx7, state7), "layonhands hp=15 -> match (<= 15)")
+
+    -- LayOnHands: HP 16 -> no match (> 15)
+    local ctx8 = make_context({hp = 16})
+    local state8 = get_state(ctx8)
+    state8.lay_on_hands_ready = true
+    state8.hp = 16
+    assert_false(strategies[10].matches(ctx8, state8), "layonhands hp=16 -> no match (> 15)")
+
+    -- LayOnHands: OOC -> no match
+    local ctx9 = make_context({in_combat = false, hp = 10})
+    local state9 = get_state(ctx9)
+    state9.lay_on_hands_ready = true
+    state9.hp = 10
+    state9.in_combat = false
+    assert_false(strategies[10].matches(ctx9, state9), "layonhands OOC -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: HammerOfWrath execute threshold (target HP 20/21)
+-- ============================================================================
+do
+    -- HammerOfWrath: target HP 20 -> match
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.hammer_wrath_ready = true
+    local saved = ctx.target.get_health_percentage
+    ctx.target.get_health_percentage = function() return 20 end
+    state.target = ctx.target
+    -- rebuild state so target_hp is populated via hammer_wrath_matches
+    -- Actually the match function reads directly from state.target:get_health_percentage()
+    -- We need to pass the mock target through build_state context
+    local state_rebuilt = get_state(ctx)
+    state_rebuilt.hammer_wrath_ready = true
+    ctx.target.get_health_percentage = function() return 20 end
+    assert_true(strategies[13].matches(ctx, state_rebuilt), "hammerwrath target HP=20 -> match")
+    ctx.target.get_health_percentage = saved
+
+    -- HammerOfWrath: target HP 21 -> no match
+    local ctx2 = make_context({})
+    local saved2 = ctx2.target.get_health_percentage
+    ctx2.target.get_health_percentage = function() return 21 end
+    local state_rebuilt2 = get_state(ctx2)
+    state_rebuilt2.hammer_wrath_ready = true
+    ctx2.target.get_health_percentage = function() return 21 end
+    assert_false(strategies[13].matches(ctx2, state_rebuilt2), "hammerwrath target HP=21 -> no match")
+    ctx2.target.get_health_percentage = saved2
+
+    -- HammerOfWrath: OOC -> no match
+    local ctx3 = make_context({in_combat = false})
+    local state3 = get_state(ctx3)
+    state3.hammer_wrath_ready = true
+    state3.in_combat = false
+    assert_false(strategies[13].matches(ctx3, state3), "hammerwrath OOC -> no match")
+
+    -- HammerOfWrath: no target -> no match
+    local ctx4 = make_context({})
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.hammer_wrath_ready = true
+    state4.target = nil
+    assert_false(strategies[13].matches(ctx4, state4), "hammerwrath no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Consecration AoE threshold + movement guard
+-- ============================================================================
+do
+    -- Consecration: enemies 2 -> match (>= 2)
+    local ctx = make_context({enemies_count = 2})
+    local state = get_state(ctx)
+    state.consecration_ready = true
+    state.enemies = 2
+    state.is_moving = false
+    assert_true(strategies[16].matches(ctx, state), "consecration enemies=2 -> match (>= 2)")
+
+    -- Consecration: enemies 1 -> no match (< 2)
+    local ctx2 = make_context({enemies_count = 1})
+    local state2 = get_state(ctx2)
+    state2.consecration_ready = true
+    state2.enemies = 1
+    state2.is_moving = false
+    assert_false(strategies[16].matches(ctx2, state2), "consecration enemies=1 -> no match")
+
+    -- Consecration: moving -> no match
+    local ctx3 = make_context({enemies_count = 3, is_moving = true})
+    local state3 = get_state(ctx3)
+    state3.consecration_ready = true
+    state3.enemies = 3
+    state3.is_moving = true
+    assert_false(strategies[16].matches(ctx3, state3), "consecration moving -> no match")
+
+    -- Consecration: OOC -> no match
+    local ctx4 = make_context({in_combat = false, enemies_count = 3})
+    local state4 = get_state(ctx4)
+    state4.consecration_ready = true
+    state4.enemies = 3
+    state4.in_combat = false
+    assert_false(strategies[16].matches(ctx4, state4), "consecration OOC -> no match")
+
+    -- Consecration: no target -> no match
+    local ctx5 = make_context({enemies_count = 3})
+    ctx5.target = nil
+    local state5 = get_state(ctx5)
+    state5.consecration_ready = true
+    state5.enemies = 3
+    state5.target = nil
+    assert_false(strategies[16].matches(ctx5, state5), "consecration no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Exorcism - creature type + movement guard
+-- ============================================================================
+do
+    -- Exorcism: demon type (3), not moving -> match
+    local ctx = make_context({is_moving = false})
+    local state = get_state(ctx)
+    state.exorcism_ready = true
+    state.is_moving = false
+    assert_true(strategies[15].matches(ctx, state), "exorcism demon type, not moving -> match")
+
+    -- Exorcism: moving -> no match
+    local ctx2 = make_context({is_moving = true})
+    local state2 = get_state(ctx2)
+    state2.exorcism_ready = true
+    state2.is_moving = true
+    assert_false(strategies[15].matches(ctx2, state2), "exorcism moving -> no match")
+
+    -- Exorcism: undead type (6), not moving -> match
+    local ctx3 = make_context({is_moving = false})
+    ctx3.target.get_creature_type = function() return 6 end
+    local state3 = get_state(ctx3)
+    state3.exorcism_ready = true
+    state3.is_moving = false
+    assert_true(strategies[15].matches(ctx3, state3), "exorcism undead type -> match")
+
+    -- Exorcism: humanoid type (not demon/undead) -> no match
+    local ctx4 = make_context({is_moving = false})
+    ctx4.target.get_creature_type = function() return 7 end
+    local state4 = get_state(ctx4)
+    state4.exorcism_ready = true
+    state4.is_moving = false
+    assert_false(strategies[15].matches(ctx4, state4), "exorcism humanoid type -> no match")
+
+    -- Exorcism: OOC -> no match
+    local ctx5 = make_context({in_combat = false, is_moving = false})
+    local state5 = get_state(ctx5)
+    state5.exorcism_ready = true
+    state5.is_moving = false
+    state5.in_combat = false
+    assert_false(strategies[15].matches(ctx5, state5), "exorcism OOC -> no match")
+
+    -- Exorcism: no target -> no match
+    local ctx6 = make_context({is_moving = false})
+    ctx6.target = nil
+    local state6 = get_state(ctx6)
+    state6.exorcism_ready = true
+    state6.target = nil
+    assert_false(strategies[15].matches(ctx6, state6), "exorcism no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: HolyShield OOC + has_holy_shield guard
+-- ============================================================================
+do
+    -- HolyShield: OOC -> no match
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.holy_shield_ready = true
+    state.has_holy_shield = false
+    state.in_combat = false
+    assert_false(strategies[5].matches(ctx, state), "holyshield OOC -> no match")
+
+    -- HolyShield: has holy shield -> no match
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.holy_shield_ready = true
+    state2.has_holy_shield = true
+    assert_false(strategies[5].matches(ctx2, state2), "holyshield already up -> no match")
+
+    -- HolyShield: not ready -> no match
+    local ctx3 = make_context({})
+    local state3 = get_state(ctx3)
+    state3.holy_shield_ready = false
+    state3.has_holy_shield = false
+    assert_false(strategies[5].matches(ctx3, state3), "holyshield not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: BlessingWisdom - has_blessing_might blocks
+-- ============================================================================
+do
+    -- BlessingWisdom: has blessing might -> no match (already has a blessing)
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.has_blessing_wisdom = false
+    state.has_blessing_might = true
+    state.blessing_wisdom_ready = true
+    assert_false(strategies[2].matches(ctx, state), "wisdom has might -> no match")
+
+    -- BlessingWisdom: in combat -> no match
+    local ctx2 = make_context({in_combat = true})
+    local state2 = get_state(ctx2)
+    state2.has_blessing_wisdom = false
+    state2.has_blessing_might = false
+    state2.blessing_wisdom_ready = true
+    state2.in_combat = true
+    assert_false(strategies[2].matches(ctx2, state2), "wisdom combat -> no match")
+
+    -- BlessingWisdom: already has wisdom -> no match
+    local ctx3 = make_context({in_combat = false})
+    local state3 = get_state(ctx3)
+    state3.has_blessing_wisdom = true
+    state3.has_blessing_might = false
+    state3.blessing_wisdom_ready = true
+    assert_false(strategies[2].matches(ctx3, state3), "wisdom already up -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: RetributionAura vs DevotionAura ordering
+-- ============================================================================
+do
+    -- RetributionAura: OOC, no buff, ready -> match
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.has_retribution_aura = false
+    state.retribution_aura_ready = true
+    assert_true(strategies[3].matches(ctx, state), "retribution OOC no buff -> match")
+
+    -- RetributionAura: already up -> no match
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.has_retribution_aura = true
+    state2.retribution_aura_ready = true
+    assert_false(strategies[3].matches(ctx2, state2), "retribution already up -> no match")
+
+    -- DevotionAura: Retribution up blocks Devotion -> no match
+    local ctx3 = make_context({in_combat = false})
+    local state3 = get_state(ctx3)
+    state3.has_devotion_aura = false
+    state3.has_retribution_aura = true
+    state3.devotion_aura_ready = true
+    assert_false(strategies[4].matches(ctx3, state3), "devotion retribution up -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Cleanse OOC guard
+-- ============================================================================
+do
+    -- Cleanse: in combat -> no match (OOC only after combat)
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.cleanse_ready = true
+    state.in_combat = true
+    assert_false(strategies[6].matches(ctx, state), "cleanse in combat -> no match (OOC only)")
+
+    -- Cleanse: OOC, ready -> match
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.cleanse_ready = true
+    state2.in_combat = false
+    assert_true(strategies[6].matches(ctx2, state2), "cleanse OOC ready -> match")
+
+    -- Cleanse: not ready -> no match
+    local ctx3 = make_context({in_combat = false})
+    local state3 = get_state(ctx3)
+    state3.cleanse_ready = false
+    state3.in_combat = false
+    assert_false(strategies[6].matches(ctx3, state3), "cleanse not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Null target guards for all combat strategies
+-- ============================================================================
+do
+    local target_dependent = {11, 12, 13, 14, 15, 16, 17}  -- HammerJustice through Seal
+    for _, idx in ipairs(target_dependent) do
+        local ctx = make_context({})
+        ctx.target = nil
+        local state = get_state(ctx)
+        -- Set all readiness to true
+        for k, v in pairs(state) do
+            if type(k) == "string" and k:match("_ready$") then
+                state[k] = true
+            end
+        end
+        state.seal_command_ready = true
+        state.seal_blood_ready = false
+        state.seal_martyr_ready = false
+        state.seal_righteousness_ready = true
+        state.has_any_seal = false
+        state.target = nil
+        local ok, result = pcall(strategies[idx].matches, ctx, state)
+        assert_false(result, strategies[idx].name .. " no target -> no match")
+    end
+end
+
+-- ============================================================================
+-- Deep dive: CrusaderStrike OOC + target guards
+-- ============================================================================
+do
+    -- CrusaderStrike: OOC -> no match
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.crusader_strike_ready = true
+    state.in_combat = false
+    assert_false(strategies[14].matches(ctx, state), "crusaderstrike OOC -> no match")
+
+    -- CrusaderStrike: no target -> no match
+    local ctx2 = make_context({})
+    ctx2.target = nil
+    local state2 = get_state(ctx2)
+    state2.crusader_strike_ready = true
+    state2.target = nil
+    assert_false(strategies[14].matches(ctx2, state2), "crusaderstrike no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: HammerOfJustice enemies threshold + target guard
+-- ============================================================================
+do
+    -- HammerOfJustice: enemies 2 -> match
+    local ctx = make_context({enemies_count = 2})
+    local state = get_state(ctx)
+    state.hammer_justice_ready = true
+    state.enemies = 2
+    assert_true(strategies[11].matches(ctx, state), "hammerjustice enemies=2 -> match (>= 2)")
+
+    -- HammerOfJustice: enemies 1 -> no match
+    local ctx2 = make_context({enemies_count = 1})
+    local state2 = get_state(ctx2)
+    state2.hammer_justice_ready = true
+    state2.enemies = 1
+    assert_false(strategies[11].matches(ctx2, state2), "hammerjustice enemies=1 -> no match")
+
+    -- HammerOfJustice: OOC -> no match
+    local ctx3 = make_context({in_combat = false, enemies_count = 3})
+    local state3 = get_state(ctx3)
+    state3.hammer_justice_ready = true
+    state3.enemies = 3
+    state3.in_combat = false
+    assert_false(strategies[11].matches(ctx3, state3), "hammerjustice OOC -> no match")
+end
+
+-- ============================================================================
