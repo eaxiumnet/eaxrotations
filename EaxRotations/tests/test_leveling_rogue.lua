@@ -1743,7 +1743,1230 @@ do -- edge_rotation_crash
         end
     end)
 end
+-- ============================================================================
+-- Deep dive: Stealth - target distance + state guards
+-- ============================================================================
+do
+    -- Stealth: OOC, not stealthed, ready, target close -> match
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.stealthed = false
+    state.stealth_ready = true
+    local saved = NS.get_distance
+    NS.get_distance = function() return 25 end
+    ctx.target = { is_valid = function() return true end }
+    state.target = ctx.target
+    assert_true(strategies[1].matches(ctx, state), "stealth dist=25 -> match (<= 30)")
+    NS.get_distance = saved
+
+    -- Stealth: target dist 31 -> no match (> 30)
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.stealthed = false
+    state2.stealth_ready = true
+    local saved2 = NS.get_distance
+    NS.get_distance = function() return 31 end
+    ctx2.target = { is_valid = function() return true end }
+    state2.target = ctx2.target
+    assert_false(strategies[1].matches(ctx2, state2), "stealth dist=31 -> no match (> 30)")
+    NS.get_distance = saved2
+
+    -- Stealth: already stealthed -> no match
+    local ctx3 = make_context({in_combat = false})
+    local state3 = get_state(ctx3)
+    state3.stealthed = true
+    state3.stealth_ready = true
+    ctx3.target = { is_valid = function() return true end }
+    state3.target = ctx3.target
+    assert_false(strategies[1].matches(ctx3, state3), "stealth already stealthed -> no match")
+
+    -- Stealth: in combat -> no match
+    local ctx4 = make_context({in_combat = true})
+    local state4 = get_state(ctx4)
+    state4.stealthed = false
+    state4.stealth_ready = true
+    state4.in_combat = true
+    assert_false(strategies[1].matches(ctx4, state4), "stealth in combat -> no match")
+
+    -- Stealth: no target -> no match
+    local ctx5 = make_context({in_combat = false})
+    ctx5.target = nil
+    local state5 = get_state(ctx5)
+    state5.stealthed = false
+    state5.stealth_ready = true
+    state5.target = nil
+    assert_false(strategies[1].matches(ctx5, state5), "stealth no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Ambush/Garrote - stealth + OOC guards
+-- ============================================================================
+do
+    -- Ambush: OOC, stealthed, ready -> match
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.stealthed = true
+    state.ambush_ready = true
+    ctx.target = { is_valid = function() return true end }
+    state.target = ctx.target
+    assert_true(strategies[2].matches(ctx, state), "ambush stealthed OOC -> match")
+
+    -- Ambush: not stealthed -> no match
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.stealthed = false
+    state2.ambush_ready = true
+    assert_false(strategies[2].matches(ctx2, state2), "ambush not stealthed -> no match")
+
+    -- Ambush: in combat -> no match
+    local ctx3 = make_context({in_combat = true})
+    local state3 = get_state(ctx3)
+    state3.stealthed = true
+    state3.ambush_ready = true
+    state3.in_combat = true
+    assert_false(strategies[3].matches(ctx3, state3), "ambush in combat -> no match")
+
+    -- Ambush: no target -> no match
+    local ctx4 = make_context({in_combat = false})
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.stealthed = true
+    state4.ambush_ready = true
+    state4.target = nil
+    assert_false(strategies[2].matches(ctx4, state4), "ambush no target -> no match")
+
+    -- Garrote: stealthed OOC -> match
+    local ctx5 = make_context({in_combat = false})
+    local state5 = get_state(ctx5)
+    state5.stealthed = true
+    state5.garrote_ready = true
+    assert_true(strategies[3].matches(ctx5, state5), "garrote stealthed OOC -> match")
+
+    -- Garrote: not stealthed -> no match
+    local ctx6 = make_context({in_combat = false})
+    local state6 = get_state(ctx6)
+    state6.stealthed = false
+    state6.garrote_ready = true
+    assert_false(strategies[3].matches(ctx6, state6), "garrote not stealthed -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Kick interrupt - target casting
+-- ============================================================================
+do
+    -- Kick: target casting -> match
+    local ctx = make_context({})
+    ctx.target.is_casting = function() return true end
+    local state = get_state(ctx)
+    state.kick_ready = true
+    state.use_interrupt = true
+    assert_true(strategies[4].matches(ctx, state), "kick target casting -> match")
+
+    -- Kick: target not casting -> no match
+    local ctx2 = make_context({})
+    ctx2.target.is_casting = function() return false end
+    local state2 = get_state(ctx2)
+    state2.kick_ready = true
+    state2.use_interrupt = true
+    assert_false(strategies[4].matches(ctx2, state2), "kick target not casting -> no match")
+
+    -- Kick: interrupt disabled -> no match
+    local ctx3 = make_context({})
+    ctx3.target.is_casting = function() return true end
+    local state3 = get_state(ctx3)
+    state3.kick_ready = true
+    state3.use_interrupt = false
+    assert_false(strategies[4].matches(ctx3, state3), "kick interrupt disabled -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Gouge/Vanish/Evasion/Sprint/Blind HP boundaries
+-- ============================================================================
+do
+    -- Gouge: HP 40 -> match (<= 40)
+    local ctx = make_context({hp = 40})
+    local state = get_state(ctx)
+    state.gouge_ready = true
+    state.hp = 40
+    assert_true(strategies[5].matches(ctx, state), "gouge hp=40 -> match (<= 40)")
+
+    -- Gouge: HP 41 -> no match (> 40)
+    local ctx2 = make_context({hp = 41})
+    local state2 = get_state(ctx2)
+    state2.gouge_ready = true
+    state2.hp = 41
+    assert_false(strategies[5].matches(ctx2, state2), "gouge hp=41 -> no match")
+
+    -- Vanish: HP 15 (vanish_hp default) -> match
+    local ctx3 = make_context({hp = 15})
+    local state3 = get_state(ctx3)
+    state3.vanish_ready = true
+    state3.vanish_hp = 15
+    state3.hp = 15
+    assert_true(strategies[7].matches(ctx3, state3), "vanish hp=15 -> match (<= 15)")
+
+    -- Vanish: HP 16 -> no match
+    local ctx4 = make_context({hp = 16})
+    local state4 = get_state(ctx4)
+    state4.vanish_ready = true
+    state4.vanish_hp = 15
+    state4.hp = 16
+    assert_false(strategies[7].matches(ctx4, state4), "vanish hp=16 -> no match")
+
+    -- Evasion: HP 50, enemies 2 -> match
+    local ctx5 = make_context({hp = 50, enemies_count = 2})
+    local state5 = get_state(ctx5)
+    state5.evasion_ready = true
+    state5.hp = 50
+    state5.enemies = 2
+    assert_true(strategies[8].matches(ctx5, state5), "evasion hp=50 enemies=2 -> match")
+
+    -- Evasion: HP 51, enemies 2 -> no match (hp > 50)
+    local ctx6 = make_context({hp = 51, enemies_count = 2})
+    local state6 = get_state(ctx6)
+    state6.evasion_ready = true
+    state6.hp = 51
+    state6.enemies = 2
+    assert_false(strategies[8].matches(ctx6, state6), "evasion hp=51 -> no match")
+
+    -- Evasion: HP 40, enemies 1 -> no match (enemies < 2)
+    local ctx7 = make_context({hp = 40, enemies_count = 1})
+    local state7 = get_state(ctx7)
+    state7.evasion_ready = true
+    state7.hp = 40
+    state7.enemies = 1
+    assert_false(strategies[8].matches(ctx7, state7), "evasion enemies=1 -> no match")
+
+    -- Sprint: HP 30 -> match (<= 30)
+    local ctx8 = make_context({hp = 30})
+    local state8 = get_state(ctx8)
+    state8.sprint_ready = true
+    state8.hp = 30
+    assert_true(strategies[10].matches(ctx8, state8), "sprint hp=30 -> match (<= 30)")
+
+    -- Sprint: HP 31 -> no match
+    local ctx9 = make_context({hp = 31})
+    local state9 = get_state(ctx9)
+    state9.sprint_ready = true
+    state9.hp = 31
+    assert_false(strategies[10].matches(ctx9, state9), "sprint hp=31 -> no match")
+
+    -- Blind: HP 30 -> match (<= 30)
+    local ctx10 = make_context({hp = 30})
+    local state10 = get_state(ctx10)
+    state10.blind_ready = true
+    state10.hp = 30
+    assert_true(strategies[11].matches(ctx10, state10), "blind hp=30 -> match (<= 30)")
+
+    -- Blind: HP 31 -> no match
+    local ctx11 = make_context({hp = 31})
+    local state11 = get_state(ctx11)
+    state11.blind_ready = true
+    state11.hp = 31
+    assert_false(strategies[11].matches(ctx11, state11), "blind hp=31 -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: CP boundaries (SliceAndDice, Rupture, Eviscerate, SinisterStrike, etc.)
+-- ============================================================================
+do
+    -- SliceAndDice: CP 1 -> match (>= 1)
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.slice_and_dice_ready = true
+    state.has_slice_and_dice = false
+    state.combo_points = 1
+    assert_true(strategies[15].matches(ctx, state), "snd cp=1 -> match (>= 1)")
+
+    -- SliceAndDice: CP 0 -> no match
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.slice_and_dice_ready = true
+    state2.has_slice_and_dice = false
+    state2.combo_points = 0
+    assert_false(strategies[15].matches(ctx2, state2), "snd cp=0 -> no match")
+
+    -- SliceAndDice: already has buff -> no match
+    local ctx3 = make_context({})
+    local state3 = get_state(ctx3)
+    state3.slice_and_dice_ready = true
+    state3.has_slice_and_dice = true
+    state3.combo_points = 3
+    assert_false(strategies[15].matches(ctx3, state3), "snd buff active -> no match")
+
+    -- Rupture: CP 3 -> match (>= 3, < 5)
+    local ctx4 = make_context({})
+    local state4 = get_state(ctx4)
+    state4.rupture_ready = true
+    state4.combo_points = 3
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function() return 0 end
+    assert_true(strategies[16].matches(ctx4, state4), "rupture cp=3 -> match")
+    NS.debuff_remains = saved
+
+    -- Rupture: CP 2 -> no match (< 3)
+    local ctx5 = make_context({})
+    local state5 = get_state(ctx5)
+    state5.rupture_ready = true
+    state5.combo_points = 2
+    assert_false(strategies[16].matches(ctx5, state5), "rupture cp=2 -> no match")
+
+    -- Rupture: CP 5 -> no match (prefer Eviscerate at 5)
+    local ctx6 = make_context({})
+    local state6 = get_state(ctx6)
+    state6.rupture_ready = true
+    state6.combo_points = 5
+    state6.max_combo_points = 5
+    assert_false(strategies[16].matches(ctx6, state6), "rupture cp=5 -> no match (prefer evisc)")
+
+    -- Rupture: remains 4 -> match (<= 4)
+    local ctx7 = make_context({})
+    local state7 = get_state(ctx7)
+    state7.rupture_ready = true
+    state7.combo_points = 3
+    local saved7 = NS.debuff_remains
+    NS.debuff_remains = function() return 4 end
+    assert_true(strategies[16].matches(ctx7, state7), "rupture remains=4 -> match")
+    NS.debuff_remains = saved7
+
+    -- Rupture: remains 5 -> no match (> 4)
+    local ctx8 = make_context({})
+    local state8 = get_state(ctx8)
+    state8.rupture_ready = true
+    state8.combo_points = 3
+    local saved8 = NS.debuff_remains
+    NS.debuff_remains = function() return 5 end
+    assert_false(strategies[16].matches(ctx8, state8), "rupture remains=5 -> no match")
+    NS.debuff_remains = saved8
+
+    -- Eviscerate: CP 5 -> match (>= 5)
+    local ctx9 = make_context({})
+    local state9 = get_state(ctx9)
+    state9.eviscerate_ready = true
+    state9.combo_points = 5
+    state9.max_combo_points = 5
+    assert_true(strategies[19].matches(ctx9, state9), "eviscerate cp=5 -> match (>= 5)")
+
+    -- Eviscerate: CP 4 -> no match (< 5)
+    local ctx10 = make_context({})
+    local state10 = get_state(ctx10)
+    state10.eviscerate_ready = true
+    state10.combo_points = 4
+    state10.max_combo_points = 5
+    assert_false(strategies[19].matches(ctx10, state10), "eviscerate cp=4 -> no match")
+
+    -- SinisterStrike: CP 4 -> match (< 5)
+    local ctx11 = make_context({})
+    local state11 = get_state(ctx11)
+    state11.sinister_strike_ready = true
+    state11.combo_points = 4
+    state11.max_combo_points = 5
+    assert_true(strategies[20].matches(ctx11, state11), "ss cp=4 -> match (< 5)")
+
+    -- SinisterStrike: CP 5 -> no match (>= 5)
+    local ctx12 = make_context({})
+    local state12 = get_state(ctx12)
+    state12.sinister_strike_ready = true
+    state12.combo_points = 5
+    state12.max_combo_points = 5
+    assert_false(strategies[20].matches(ctx12, state12), "ss cp=5 -> no match (>= 5)")
+end
+
+-- ============================================================================
+-- Deep dive: ColdBlood + AdrenalineRush - cooldown/energy boundaries
+-- ============================================================================
+do
+    -- ColdBlood: CP 5, cooldowns enabled -> match
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.cold_blood_ready = true
+    state.combo_points = 5
+    state.use_cooldowns = true
+    assert_true(strategies[12].matches(ctx, state), "coldblood cp=5 enabled -> match")
+
+    -- ColdBlood: CP 4 -> no match (< 5)
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.cold_blood_ready = true
+    state2.combo_points = 4
+    state2.use_cooldowns = true
+    assert_false(strategies[12].matches(ctx2, state2), "coldblood cp=4 -> no match")
+
+    -- ColdBlood: cooldowns disabled -> no match
+    local ctx3 = make_context({})
+    local state3 = get_state(ctx3)
+    state3.cold_blood_ready = true
+    state3.combo_points = 5
+    state3.use_cooldowns = false
+    assert_false(strategies[12].matches(ctx3, state3), "coldblood cds disabled -> no match")
+
+    -- AdrenalineRush: energy 60 -> match (<= 60)
+    local ctx4 = make_context({})
+    local state4 = get_state(ctx4)
+    state4.adrenaline_rush_ready = true
+    state4.energy = 60
+    state4.use_cooldowns = true
+    assert_true(strategies[13].matches(ctx4, state4), "ar energy=60 -> match (<= 60)")
+
+    -- AdrenalineRush: energy 61 -> no match (> 60)
+    local ctx5 = make_context({})
+    local state5 = get_state(ctx5)
+    state5.adrenaline_rush_ready = true
+    state5.energy = 61
+    state5.use_cooldowns = true
+    assert_false(strategies[13].matches(ctx5, state5), "ar energy=61 -> no match")
+
+    -- AdrenalineRush: cooldowns disabled -> no match
+    local ctx6 = make_context({})
+    local state6 = get_state(ctx6)
+    state6.adrenaline_rush_ready = true
+    state6.energy = 40
+    state6.use_cooldowns = false
+    assert_false(strategies[13].matches(ctx6, state6), "ar cds disabled -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: BladeFlurry enemies threshold + setting
+-- ============================================================================
+do
+    -- BladeFlurry: enemies 3 -> match (>= 3)
+    local ctx = make_context({enemies_count = 3})
+    local state = get_state(ctx)
+    state.blade_flurry_ready = true
+    state.use_blade_flurry = true
+    state.blade_flurry_min_enemies = 3
+    state.enemies = 3
+    assert_true(strategies[14].matches(ctx, state), "bf enemies=3 -> match (>= 3)")
+
+    -- BladeFlurry: enemies 2 -> no match (< 3)
+    local ctx2 = make_context({enemies_count = 2})
+    local state2 = get_state(ctx2)
+    state2.blade_flurry_ready = true
+    state2.use_blade_flurry = true
+    state2.blade_flurry_min_enemies = 3
+    state2.enemies = 2
+    assert_false(strategies[14].matches(ctx2, state2), "bf enemies=2 -> no match")
+
+    -- BladeFlurry: setting disabled -> no match
+    local ctx3 = make_context({enemies_count = 4})
+    local state3 = get_state(ctx3)
+    state3.blade_flurry_ready = true
+    state3.use_blade_flurry = false
+    state3.blade_flurry_min_enemies = 3
+    state3.enemies = 4
+    assert_false(strategies[14].matches(ctx3, state3), "bf setting disabled -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: KidneyShot CP + HP boundaries
+-- ============================================================================
+do
+    -- KidneyShot: CP 3, HP 40 -> match (>= 3, <= 40)
+    local ctx = make_context({hp = 40})
+    local state = get_state(ctx)
+    state.kidney_shot_ready = true
+    state.combo_points = 3
+    state.hp = 40
+    assert_true(strategies[18].matches(ctx, state), "ks cp=3 hp=40 -> match")
+
+    -- KidneyShot: CP 2 -> no match (< 3)
+    local ctx2 = make_context({hp = 30})
+    local state2 = get_state(ctx2)
+    state2.kidney_shot_ready = true
+    state2.combo_points = 2
+    state2.hp = 30
+    assert_false(strategies[18].matches(ctx2, state2), "ks cp=2 -> no match")
+
+    -- KidneyShot: HP 41 -> no match (> 40)
+    local ctx3 = make_context({hp = 41})
+    local state3 = get_state(ctx3)
+    state3.kidney_shot_ready = true
+    state3.combo_points = 4
+    state3.hp = 41
+    assert_false(strategies[18].matches(ctx3, state3), "ks hp=41 -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Null target guards for all target-dependent strategies
+-- ============================================================================
+do
+    local target_dependent = {2, 3, 4, 5, 11, 16, 17, 18, 19, 20}  -- Ambush through SinisterStrike
+    for _, idx in ipairs(target_dependent) do
+        local ctx = make_context({})
+        ctx.target = nil
+        local state = get_state(ctx)
+        for k, v in pairs(state) do
+            if type(k) == "string" and k:match("_ready$") then
+                state[k] = true
+            end
+        end
+        state.stealthed = false
+        state.combo_points = 4
+        state.max_combo_points = 5
+        state.energy = 100
+        state.hp = 30
+        state.use_interrupt = true
+        state.use_cooldowns = true
+        state.target = nil
+        local ok, result = pcall(strategies[idx].matches, ctx, state)
+        assert_false(result, strategies[idx].name .. " no target -> no match")
+    end
+end
+
+-- ============================================================================
+-- Deep dive: ExposeArmor setting + armor gate
+-- ============================================================================
+do
+    -- ExposeArmor: setting enabled, cp 3, armor > 0 -> match
+    local ctx = make_context({})
+    ctx.target_armor = 100
+    local state = get_state(ctx)
+    state.expose_armor_ready = true
+    state.use_expose_armor = true
+    state.combo_points = 3
+    state.target_armor = 100
+    state.max_combo_points = 5
+    local saved = NS.debuff_stacks
+    NS.debuff_stacks = function() return 0 end
+    -- Check 1: ttd defaults to 999 which IS >= 20, so without elite/boss it still matches
+    assert_true(strategies[17].matches(ctx, state), "exposearmor cp=3 ttd default -> match (ttd 999 >= 20)")
+    NS.debuff_stacks = saved
+
+    -- Check 2: ttd < 20 and no elite/boss -> no match
+    local ctx1b = make_context({})
+    ctx1b.target_armor = 100
+    local state1b = get_state(ctx1b)
+    state1b.expose_armor_ready = true
+    state1b.use_expose_armor = true
+    state1b.combo_points = 3
+    state1b.max_combo_points = 5
+    state1b.target_ttd = 5
+    local saved1b = NS.debuff_stacks
+    NS.debuff_stacks = function() return 0 end
+    assert_false(strategies[17].matches(ctx1b, state1b), "exposearmor cp=3 ttd=5 no elite -> no match")
+    NS.debuff_stacks = saved1b
+
+    -- Check 3: target_is_elite -> match even with low ttd
+    local state1c = get_state(ctx1b)
+    state1c.expose_armor_ready = true
+    state1c.use_expose_armor = true
+    state1c.combo_points = 3
+    state1c.max_combo_points = 5
+    state1c.target_is_elite = true
+    state1c.target_ttd = 5
+    local saved1c = NS.debuff_stacks
+    NS.debuff_stacks = function() return 0 end
+    assert_true(strategies[17].matches(ctx1b, state1c), "exposearmor cp=3 target_is_elite -> match")
+    NS.debuff_stacks = saved1c
+
+    -- ExposeArmor: setting disabled -> no match
+    local ctx2 = make_context({})
+    ctx2.target_armor = 100
+    local state2 = get_state(ctx2)
+    state2.expose_armor_ready = true
+    state2.use_expose_armor = false
+    state2.combo_points = 3
+    assert_false(strategies[17].matches(ctx2, state2), "exposearmor disabled -> no match")
+
+    -- ExposeArmor: cp 2 -> no match
+    local ctx3 = make_context({})
+    ctx3.target_armor = 100
+    local state3 = get_state(ctx3)
+    state3.expose_armor_ready = true
+    state3.use_expose_armor = true
+    state3.combo_points = 2
+    state3.target_armor = 100
+    assert_false(strategies[17].matches(ctx3, state3), "exposearmor cp=2 -> no match")
+
+    -- ExposeArmor: CP 5 -> no match (prefer Eviscerate at 5)
+    local ctx4 = make_context({})
+    ctx4.target_armor = 100
+    local state4 = get_state(ctx4)
+    state4.expose_armor_ready = true
+    state4.use_expose_armor = true
+    state4.combo_points = 5
+    state4.max_combo_points = 5
+    state4.target_armor = 100
+    assert_false(strategies[17].matches(ctx4, state4), "exposearmor cp=5 -> no match (prefer evisc)")
+end
+
+-- ============================================================================
+-- Deep dive: OOC guards for combat abilities
+-- ============================================================================
+do
+    local combat_strategies = {4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
+    for _, idx in ipairs(combat_strategies) do
+        local ctx = make_context({in_combat = false})
+        local state = get_state(ctx)
+        for k, v in pairs(state) do
+            if type(k) == "string" and k:match("_ready$") then
+                state[k] = true
+            end
+        end
+        state.stealthed = false
+        state.combo_points = 4
+        state.max_combo_points = 5
+        state.energy = 100
+        state.hp = 20
+        state.enemies = 4
+        state.use_interrupt = true
+        state.use_cooldowns = true
+        state.has_slice_and_dice = false
+        state.in_combat = false
+        state.blade_flurry_min_enemies = 3
+        state.vanish_hp = 15
+        state.use_expose_armor = true
+        -- ExposeArmor also needs target_armor > 0 and special conditions
+        ctx.target_armor = 1000
+        state.target_armor = 1000
+        state.target_is_elite = true
+        local saved = NS.debuff_stacks
+        NS.debuff_stacks = function() return 0 end
+        local ok, result = pcall(strategies[idx].matches, ctx, state)
+        assert_false(result, strategies[idx].name .. " OOC -> no match")
+        NS.debuff_stacks = saved
+    end
+end
+
+-- ============================================================================
+-- Deep dive: ShivPurge PvP gate + melee range
+-- ============================================================================
+do
+    -- ShivPurge complex conditions - just test PvP gate
+    local ctx = make_context({})
+    ctx.is_pvp = true
+    ctx.in_melee_range = true
+    ctx.target.is_player = function() return true end
+    local state = get_state(ctx)
+    state.shiv_ready = true
+    state.is_pvp = true
+    state.in_melee_range = true
+    state.target = ctx.target
+    state.shiv_purge_name = nil  -- No dispel target found -> no match
+    assert_false(strategies[6].matches(ctx, state), "shivpurge no dispel target -> no match")
+
+    -- ShivPurge: not PvP -> no match
+    local ctx2 = make_context({})
+    ctx2.is_pvp = false
+    local state2 = get_state(ctx2)
+    state2.shiv_ready = true
+    state2.is_pvp = false
+    assert_false(strategies[6].matches(ctx2, state2), "shivpurge not pvp -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Execute functions crash safety (NS.try_cast throwing)
+-- ============================================================================
+do
+    local saved = NS.try_cast
+    NS.try_cast = function() error('simulated throw') end
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, 'try_cast=throw: strategy ' .. i .. ' execute did not crash')
+    end
+    NS.try_cast = saved
+end
+
+-- ============================================================================
+-- Deep dive: Execute functions nil context + no-arg
+-- ============================================================================
+do
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, nil)
+        assert_true(ok, 'execute nil ctx: strategy ' .. i .. ' did not crash')
+    end
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute)
+        assert_true(ok, 'execute no-arg: strategy ' .. i .. ' did not crash')
+    end
+end
+
+-- ============================================================================
+-- Deep dive: NS.spell_ready throws (crash safety for pcall fix)
+-- ============================================================================
+do
+    local saved = NS.spell_ready
+    NS.spell_ready = function() error('simulated throw') end
+    local ctx = make_context()
+    local ok, state = pcall(get_state, ctx)
+    NS.spell_ready = saved
+    assert_true(ok, 'spell_ready throwing should not crash build_state (pcall fix)')
+end
 -- Summary
+-- ============================================================================
+-- Deep dive: Stealth - target distance + state guards
+-- ============================================================================
+do
+    -- Stealth: OOC, not stealthed, ready, target close -> match
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.stealthed = false
+    state.stealth_ready = true
+    local saved = NS.get_distance
+    NS.get_distance = function() return 25 end
+    ctx.target = { is_valid = function() return true end }
+    state.target = ctx.target
+    assert_true(strategies[1].matches(ctx, state), "stealth dist=25 -> match (<= 30)")
+    NS.get_distance = saved
+
+    -- Stealth: target dist 31 -> no match (> 30)
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.stealthed = false
+    state2.stealth_ready = true
+    local saved2 = NS.get_distance
+    NS.get_distance = function() return 31 end
+    ctx2.target = { is_valid = function() return true end }
+    state2.target = ctx2.target
+    assert_false(strategies[1].matches(ctx2, state2), "stealth dist=31 -> no match (> 30)")
+    NS.get_distance = saved2
+
+    -- Stealth: already stealthed -> no match
+    local ctx3 = make_context({in_combat = false})
+    local state3 = get_state(ctx3)
+    state3.stealthed = true
+    state3.stealth_ready = true
+    ctx3.target = { is_valid = function() return true end }
+    state3.target = ctx3.target
+    assert_false(strategies[1].matches(ctx3, state3), "stealth already stealthed -> no match")
+
+    -- Stealth: in combat -> no match
+    local ctx4 = make_context({in_combat = true})
+    local state4 = get_state(ctx4)
+    state4.stealthed = false
+    state4.stealth_ready = true
+    state4.in_combat = true
+    assert_false(strategies[1].matches(ctx4, state4), "stealth in combat -> no match")
+
+    -- Stealth: no target -> no match
+    local ctx5 = make_context({in_combat = false})
+    ctx5.target = nil
+    local state5 = get_state(ctx5)
+    state5.stealthed = false
+    state5.stealth_ready = true
+    state5.target = nil
+    assert_false(strategies[1].matches(ctx5, state5), "stealth no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Ambush/Garrote - stealth + OOC guards
+-- ============================================================================
+do
+    -- Ambush: OOC, stealthed, ready -> match
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.stealthed = true
+    state.ambush_ready = true
+    ctx.target = { is_valid = function() return true end }
+    state.target = ctx.target
+    assert_true(strategies[2].matches(ctx, state), "ambush stealthed OOC -> match")
+
+    -- Ambush: not stealthed -> no match
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.stealthed = false
+    state2.ambush_ready = true
+    assert_false(strategies[2].matches(ctx2, state2), "ambush not stealthed -> no match")
+
+    -- Ambush: in combat -> no match
+    local ctx3 = make_context({in_combat = true})
+    local state3 = get_state(ctx3)
+    state3.stealthed = true
+    state3.ambush_ready = true
+    state3.in_combat = true
+    assert_false(strategies[3].matches(ctx3, state3), "ambush in combat -> no match")
+
+    -- Ambush: no target -> no match
+    local ctx4 = make_context({in_combat = false})
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.stealthed = true
+    state4.ambush_ready = true
+    state4.target = nil
+    assert_false(strategies[2].matches(ctx4, state4), "ambush no target -> no match")
+
+    -- Garrote: stealthed OOC -> match
+    local ctx5 = make_context({in_combat = false})
+    local state5 = get_state(ctx5)
+    state5.stealthed = true
+    state5.garrote_ready = true
+    assert_true(strategies[3].matches(ctx5, state5), "garrote stealthed OOC -> match")
+
+    -- Garrote: not stealthed -> no match
+    local ctx6 = make_context({in_combat = false})
+    local state6 = get_state(ctx6)
+    state6.stealthed = false
+    state6.garrote_ready = true
+    assert_false(strategies[3].matches(ctx6, state6), "garrote not stealthed -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Kick interrupt - target casting
+-- ============================================================================
+do
+    -- Kick: target casting -> match
+    local ctx = make_context({})
+    ctx.target.is_casting = function() return true end
+    local state = get_state(ctx)
+    state.kick_ready = true
+    state.use_interrupt = true
+    assert_true(strategies[4].matches(ctx, state), "kick target casting -> match")
+
+    -- Kick: target not casting -> no match
+    local ctx2 = make_context({})
+    ctx2.target.is_casting = function() return false end
+    local state2 = get_state(ctx2)
+    state2.kick_ready = true
+    state2.use_interrupt = true
+    assert_false(strategies[4].matches(ctx2, state2), "kick target not casting -> no match")
+
+    -- Kick: interrupt disabled -> no match
+    local ctx3 = make_context({})
+    ctx3.target.is_casting = function() return true end
+    local state3 = get_state(ctx3)
+    state3.kick_ready = true
+    state3.use_interrupt = false
+    assert_false(strategies[4].matches(ctx3, state3), "kick interrupt disabled -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Gouge/Vanish/Evasion/Sprint/Blind HP boundaries
+-- ============================================================================
+do
+    -- Gouge: HP 40 -> match (<= 40)
+    local ctx = make_context({hp = 40})
+    local state = get_state(ctx)
+    state.gouge_ready = true
+    state.hp = 40
+    assert_true(strategies[5].matches(ctx, state), "gouge hp=40 -> match (<= 40)")
+
+    -- Gouge: HP 41 -> no match (> 40)
+    local ctx2 = make_context({hp = 41})
+    local state2 = get_state(ctx2)
+    state2.gouge_ready = true
+    state2.hp = 41
+    assert_false(strategies[5].matches(ctx2, state2), "gouge hp=41 -> no match")
+
+    -- Vanish: HP 15 (vanish_hp default) -> match
+    local ctx3 = make_context({hp = 15})
+    local state3 = get_state(ctx3)
+    state3.vanish_ready = true
+    state3.vanish_hp = 15
+    state3.hp = 15
+    assert_true(strategies[7].matches(ctx3, state3), "vanish hp=15 -> match (<= 15)")
+
+    -- Vanish: HP 16 -> no match
+    local ctx4 = make_context({hp = 16})
+    local state4 = get_state(ctx4)
+    state4.vanish_ready = true
+    state4.vanish_hp = 15
+    state4.hp = 16
+    assert_false(strategies[7].matches(ctx4, state4), "vanish hp=16 -> no match")
+
+    -- Evasion: HP 50, enemies 2 -> match
+    local ctx5 = make_context({hp = 50, enemies_count = 2})
+    local state5 = get_state(ctx5)
+    state5.evasion_ready = true
+    state5.hp = 50
+    state5.enemies = 2
+    assert_true(strategies[8].matches(ctx5, state5), "evasion hp=50 enemies=2 -> match")
+
+    -- Evasion: HP 51, enemies 2 -> no match (hp > 50)
+    local ctx6 = make_context({hp = 51, enemies_count = 2})
+    local state6 = get_state(ctx6)
+    state6.evasion_ready = true
+    state6.hp = 51
+    state6.enemies = 2
+    assert_false(strategies[8].matches(ctx6, state6), "evasion hp=51 -> no match")
+
+    -- Evasion: HP 40, enemies 1 -> no match (enemies < 2)
+    local ctx7 = make_context({hp = 40, enemies_count = 1})
+    local state7 = get_state(ctx7)
+    state7.evasion_ready = true
+    state7.hp = 40
+    state7.enemies = 1
+    assert_false(strategies[8].matches(ctx7, state7), "evasion enemies=1 -> no match")
+
+    -- Sprint: HP 30 -> match (<= 30)
+    local ctx8 = make_context({hp = 30})
+    local state8 = get_state(ctx8)
+    state8.sprint_ready = true
+    state8.hp = 30
+    assert_true(strategies[10].matches(ctx8, state8), "sprint hp=30 -> match (<= 30)")
+
+    -- Sprint: HP 31 -> no match
+    local ctx9 = make_context({hp = 31})
+    local state9 = get_state(ctx9)
+    state9.sprint_ready = true
+    state9.hp = 31
+    assert_false(strategies[10].matches(ctx9, state9), "sprint hp=31 -> no match")
+
+    -- Blind: HP 30 -> match (<= 30)
+    local ctx10 = make_context({hp = 30})
+    local state10 = get_state(ctx10)
+    state10.blind_ready = true
+    state10.hp = 30
+    assert_true(strategies[11].matches(ctx10, state10), "blind hp=30 -> match (<= 30)")
+
+    -- Blind: HP 31 -> no match
+    local ctx11 = make_context({hp = 31})
+    local state11 = get_state(ctx11)
+    state11.blind_ready = true
+    state11.hp = 31
+    assert_false(strategies[11].matches(ctx11, state11), "blind hp=31 -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: CP boundaries (SliceAndDice, Rupture, Eviscerate, SinisterStrike, etc.)
+-- ============================================================================
+do
+    -- SliceAndDice: CP 1 -> match (>= 1)
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.slice_and_dice_ready = true
+    state.has_slice_and_dice = false
+    state.combo_points = 1
+    assert_true(strategies[15].matches(ctx, state), "snd cp=1 -> match (>= 1)")
+
+    -- SliceAndDice: CP 0 -> no match
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.slice_and_dice_ready = true
+    state2.has_slice_and_dice = false
+    state2.combo_points = 0
+    assert_false(strategies[15].matches(ctx2, state2), "snd cp=0 -> no match")
+
+    -- SliceAndDice: already has buff -> no match
+    local ctx3 = make_context({})
+    local state3 = get_state(ctx3)
+    state3.slice_and_dice_ready = true
+    state3.has_slice_and_dice = true
+    state3.combo_points = 3
+    assert_false(strategies[15].matches(ctx3, state3), "snd buff active -> no match")
+
+    -- Rupture: CP 3 -> match (>= 3, < 5)
+    local ctx4 = make_context({})
+    local state4 = get_state(ctx4)
+    state4.rupture_ready = true
+    state4.combo_points = 3
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function() return 0 end
+    assert_true(strategies[16].matches(ctx4, state4), "rupture cp=3 -> match")
+    NS.debuff_remains = saved
+
+    -- Rupture: CP 2 -> no match (< 3)
+    local ctx5 = make_context({})
+    local state5 = get_state(ctx5)
+    state5.rupture_ready = true
+    state5.combo_points = 2
+    assert_false(strategies[16].matches(ctx5, state5), "rupture cp=2 -> no match")
+
+    -- Rupture: CP 5 -> no match (prefer Eviscerate at 5)
+    local ctx6 = make_context({})
+    local state6 = get_state(ctx6)
+    state6.rupture_ready = true
+    state6.combo_points = 5
+    state6.max_combo_points = 5
+    assert_false(strategies[16].matches(ctx6, state6), "rupture cp=5 -> no match (prefer evisc)")
+
+    -- Rupture: remains 4 -> match (<= 4)
+    local ctx7 = make_context({})
+    local state7 = get_state(ctx7)
+    state7.rupture_ready = true
+    state7.combo_points = 3
+    local saved7 = NS.debuff_remains
+    NS.debuff_remains = function() return 4 end
+    assert_true(strategies[16].matches(ctx7, state7), "rupture remains=4 -> match")
+    NS.debuff_remains = saved7
+
+    -- Rupture: remains 5 -> no match (> 4)
+    local ctx8 = make_context({})
+    local state8 = get_state(ctx8)
+    state8.rupture_ready = true
+    state8.combo_points = 3
+    local saved8 = NS.debuff_remains
+    NS.debuff_remains = function() return 5 end
+    assert_false(strategies[16].matches(ctx8, state8), "rupture remains=5 -> no match")
+    NS.debuff_remains = saved8
+
+    -- Eviscerate: CP 5 -> match (>= 5)
+    local ctx9 = make_context({})
+    local state9 = get_state(ctx9)
+    state9.eviscerate_ready = true
+    state9.combo_points = 5
+    state9.max_combo_points = 5
+    assert_true(strategies[19].matches(ctx9, state9), "eviscerate cp=5 -> match (>= 5)")
+
+    -- Eviscerate: CP 4 -> no match (< 5)
+    local ctx10 = make_context({})
+    local state10 = get_state(ctx10)
+    state10.eviscerate_ready = true
+    state10.combo_points = 4
+    state10.max_combo_points = 5
+    assert_false(strategies[19].matches(ctx10, state10), "eviscerate cp=4 -> no match")
+
+    -- SinisterStrike: CP 4 -> match (< 5)
+    local ctx11 = make_context({})
+    local state11 = get_state(ctx11)
+    state11.sinister_strike_ready = true
+    state11.combo_points = 4
+    state11.max_combo_points = 5
+    assert_true(strategies[20].matches(ctx11, state11), "ss cp=4 -> match (< 5)")
+
+    -- SinisterStrike: CP 5 -> no match (>= 5)
+    local ctx12 = make_context({})
+    local state12 = get_state(ctx12)
+    state12.sinister_strike_ready = true
+    state12.combo_points = 5
+    state12.max_combo_points = 5
+    assert_false(strategies[20].matches(ctx12, state12), "ss cp=5 -> no match (>= 5)")
+end
+
+-- ============================================================================
+-- Deep dive: ColdBlood + AdrenalineRush - cooldown/energy boundaries
+-- ============================================================================
+do
+    -- ColdBlood: CP 5, cooldowns enabled -> match
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.cold_blood_ready = true
+    state.combo_points = 5
+    state.use_cooldowns = true
+    assert_true(strategies[12].matches(ctx, state), "coldblood cp=5 enabled -> match")
+
+    -- ColdBlood: CP 4 -> no match (< 5)
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.cold_blood_ready = true
+    state2.combo_points = 4
+    state2.use_cooldowns = true
+    assert_false(strategies[12].matches(ctx2, state2), "coldblood cp=4 -> no match")
+
+    -- ColdBlood: cooldowns disabled -> no match
+    local ctx3 = make_context({})
+    local state3 = get_state(ctx3)
+    state3.cold_blood_ready = true
+    state3.combo_points = 5
+    state3.use_cooldowns = false
+    assert_false(strategies[12].matches(ctx3, state3), "coldblood cds disabled -> no match")
+
+    -- AdrenalineRush: energy 60 -> match (<= 60)
+    local ctx4 = make_context({})
+    local state4 = get_state(ctx4)
+    state4.adrenaline_rush_ready = true
+    state4.energy = 60
+    state4.use_cooldowns = true
+    assert_true(strategies[13].matches(ctx4, state4), "ar energy=60 -> match (<= 60)")
+
+    -- AdrenalineRush: energy 61 -> no match (> 60)
+    local ctx5 = make_context({})
+    local state5 = get_state(ctx5)
+    state5.adrenaline_rush_ready = true
+    state5.energy = 61
+    state5.use_cooldowns = true
+    assert_false(strategies[13].matches(ctx5, state5), "ar energy=61 -> no match")
+
+    -- AdrenalineRush: cooldowns disabled -> no match
+    local ctx6 = make_context({})
+    local state6 = get_state(ctx6)
+    state6.adrenaline_rush_ready = true
+    state6.energy = 40
+    state6.use_cooldowns = false
+    assert_false(strategies[13].matches(ctx6, state6), "ar cds disabled -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: BladeFlurry enemies threshold + setting
+-- ============================================================================
+do
+    -- BladeFlurry: enemies 3 -> match (>= 3)
+    local ctx = make_context({enemies_count = 3})
+    local state = get_state(ctx)
+    state.blade_flurry_ready = true
+    state.use_blade_flurry = true
+    state.blade_flurry_min_enemies = 3
+    state.enemies = 3
+    assert_true(strategies[14].matches(ctx, state), "bf enemies=3 -> match (>= 3)")
+
+    -- BladeFlurry: enemies 2 -> no match (< 3)
+    local ctx2 = make_context({enemies_count = 2})
+    local state2 = get_state(ctx2)
+    state2.blade_flurry_ready = true
+    state2.use_blade_flurry = true
+    state2.blade_flurry_min_enemies = 3
+    state2.enemies = 2
+    assert_false(strategies[14].matches(ctx2, state2), "bf enemies=2 -> no match")
+
+    -- BladeFlurry: setting disabled -> no match
+    local ctx3 = make_context({enemies_count = 4})
+    local state3 = get_state(ctx3)
+    state3.blade_flurry_ready = true
+    state3.use_blade_flurry = false
+    state3.blade_flurry_min_enemies = 3
+    state3.enemies = 4
+    assert_false(strategies[14].matches(ctx3, state3), "bf setting disabled -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: KidneyShot CP + HP boundaries
+-- ============================================================================
+do
+    -- KidneyShot: CP 3, HP 40 -> match (>= 3, <= 40)
+    local ctx = make_context({hp = 40})
+    local state = get_state(ctx)
+    state.kidney_shot_ready = true
+    state.combo_points = 3
+    state.hp = 40
+    assert_true(strategies[18].matches(ctx, state), "ks cp=3 hp=40 -> match")
+
+    -- KidneyShot: CP 2 -> no match (< 3)
+    local ctx2 = make_context({hp = 30})
+    local state2 = get_state(ctx2)
+    state2.kidney_shot_ready = true
+    state2.combo_points = 2
+    state2.hp = 30
+    assert_false(strategies[18].matches(ctx2, state2), "ks cp=2 -> no match")
+
+    -- KidneyShot: HP 41 -> no match (> 40)
+    local ctx3 = make_context({hp = 41})
+    local state3 = get_state(ctx3)
+    state3.kidney_shot_ready = true
+    state3.combo_points = 4
+    state3.hp = 41
+    assert_false(strategies[18].matches(ctx3, state3), "ks hp=41 -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Null target guards for all target-dependent strategies
+-- ============================================================================
+do
+    local target_dependent = {2, 3, 4, 5, 11, 16, 17, 18, 19, 20}  -- Ambush through SinisterStrike
+    for _, idx in ipairs(target_dependent) do
+        local ctx = make_context({})
+        ctx.target = nil
+        local state = get_state(ctx)
+        for k, v in pairs(state) do
+            if type(k) == "string" and k:match("_ready$") then
+                state[k] = true
+            end
+        end
+        state.stealthed = false
+        state.combo_points = 4
+        state.max_combo_points = 5
+        state.energy = 100
+        state.hp = 30
+        state.use_interrupt = true
+        state.use_cooldowns = true
+        state.target = nil
+        local ok, result = pcall(strategies[idx].matches, ctx, state)
+        assert_false(result, strategies[idx].name .. " no target -> no match")
+    end
+end
+
+-- ============================================================================
+-- Deep dive: OOC guards for combat abilities
+-- ============================================================================
+do
+    local combat_strategies = {4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
+    for _, idx in ipairs(combat_strategies) do
+        local ctx = make_context({in_combat = false})
+        local state = get_state(ctx)
+        for k, v in pairs(state) do
+            if type(k) == "string" and k:match("_ready$") then
+                state[k] = true
+            end
+        end
+        state.stealthed = false
+        state.combo_points = 4
+        state.max_combo_points = 5
+        state.energy = 100
+        state.hp = 20
+        state.enemies = 4
+        state.use_interrupt = true
+        state.use_cooldowns = true
+        state.has_slice_and_dice = false
+        state.in_combat = false
+        state.blade_flurry_min_enemies = 3
+        state.vanish_hp = 15
+        state.use_expose_armor = true
+        -- ExposeArmor also needs target_armor > 0 and special conditions
+        ctx.target_armor = 1000
+        state.target_armor = 1000
+        state.target_is_elite = true
+        local saved = NS.debuff_stacks
+        NS.debuff_stacks = function() return 0 end
+        local ok, result = pcall(strategies[idx].matches, ctx, state)
+        assert_false(result, strategies[idx].name .. " OOC -> no match")
+        NS.debuff_stacks = saved
+    end
+end
+
+-- ============================================================================
+-- Deep dive: ShivPurge PvP gate + melee range
+-- ============================================================================
+do
+    -- ShivPurge complex conditions - just test PvP gate
+    local ctx = make_context({})
+    ctx.is_pvp = true
+    ctx.in_melee_range = true
+    ctx.target.is_player = function() return true end
+    local state = get_state(ctx)
+    state.shiv_ready = true
+    state.is_pvp = true
+    state.in_melee_range = true
+    state.target = ctx.target
+    state.shiv_purge_name = nil  -- No dispel target found -> no match
+    assert_false(strategies[6].matches(ctx, state), "shivpurge no dispel target -> no match")
+
+    -- ShivPurge: not PvP -> no match
+    local ctx2 = make_context({})
+    ctx2.is_pvp = false
+    local state2 = get_state(ctx2)
+    state2.shiv_ready = true
+    state2.is_pvp = false
+    assert_false(strategies[6].matches(ctx2, state2), "shivpurge not pvp -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Execute functions crash safety (NS.try_cast throwing)
+-- ============================================================================
+do
+    local saved = NS.try_cast
+    NS.try_cast = function() error('simulated throw') end
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, 'try_cast=throw: strategy ' .. i .. ' execute did not crash')
+    end
+    NS.try_cast = saved
+end
+
+-- ============================================================================
+-- Deep dive: Execute functions nil context + no-arg
+-- ============================================================================
+do
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, nil)
+        assert_true(ok, 'execute nil ctx: strategy ' .. i .. ' did not crash')
+    end
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute)
+        assert_true(ok, 'execute no-arg: strategy ' .. i .. ' did not crash')
+    end
+end
+
+-- ============================================================================
+-- Deep dive: NS.spell_ready throws (crash safety for pcall fix)
+-- ============================================================================
+do
+    local saved = NS.spell_ready
+    NS.spell_ready = function() error('simulated throw') end
+    local ctx = make_context()
+    local ok, state = pcall(get_state, ctx)
+    NS.spell_ready = saved
+    assert_true(ok, 'spell_ready throwing should not crash build_state (pcall fix)')
+end
 -- ============================================================================
 
 print(string.format("\n=== Rogue Leveling Unit Tests: %d passed, %d failed (%d assertions) ===\n", passed, failed, assertions))

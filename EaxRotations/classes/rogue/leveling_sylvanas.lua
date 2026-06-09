@@ -37,7 +37,9 @@ local STEALTH_BUFF = { 1787, 1786, 1785, 1784 }
 
 local function spell_ready(spell_action)
     if not spell_action then return false end
-    return NS.spell_ready and NS.spell_ready(spell_action) or false
+    if not NS.spell_ready then return false end
+    local ok, result = pcall(NS.spell_ready, spell_action)
+    return ok and result == true
 end
 
 local function try_cast(spell_action, target, label, opts)
