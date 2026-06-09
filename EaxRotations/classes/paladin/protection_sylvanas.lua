@@ -3,6 +3,7 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.PaladinSpells or {}
 
 -- ============================================================================
@@ -103,7 +104,7 @@ local function build_state(context)
         -- Track remaining Holy Shield charges via buff.points for proactive refresh
         prot_state.holy_shield_charges = 0
         if prot_state.has_holy_shield and type(NS.buff_points) == "function" then
-            local pts = NS.buff_points(me, HOLY_SHIELD_BUFF)
+            local pts = NS.buff_points and NS.buff_points(me, HOLY_SHIELD_BUFF) or nil
             prot_state.holy_shield_charges = (pts and pts[1]) or 0
         end
         prot_state.has_seal = me and NS.buff_up(me, SEAL_RIGHTEOUSNESS_BUFF) or false
@@ -143,8 +144,8 @@ local function build_state(context)
     -- Scan allies for threat and low HP (Righteous Defense / BoP peel)
     prot_state.ally_threatened = nil
     prot_state.low_hp_ally = nil
-    local allies = context.party_members or context.group_members or (context.enemy_count or 1)
-    if allies then
+    local allies = context.party_members or context.group_members
+    if type(allies) == "table" and #allies > 0 then
         for i = 1, #allies do
             local ally = allies[i]
             if ally and ally ~= me then
@@ -401,6 +402,15 @@ end
 -- DevotionAura and BlessingOfSanctuary are placed low so they don't block
 -- the actual combat rotation.
 local strategies = {
+    { name = "ManaPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_mana_potion then return false end
+          if (context.mana_pct or 100) > 20 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
     -- Buff maintenance (no target needed, check once)
 { name = "RighteousFury", matches = righteous_fury_matches, execute = function(context) return NS.try_cast(SPELLS.RighteousFury, context.me, "[PROTECTION] RighteousFury") end },
     { name = "Consecration", matches = consecration_matches, execute = function(context) return NS.try_cast(SPELLS.Consecration, context.me, "[PROTECTION] Consecration") end },
@@ -424,7 +434,7 @@ local strategies = {
     { name = "DivineShield", matches = divine_shield_matches, execute = function(context) return NS.try_cast(SPELLS.DivineShield, context.me, "[PROTECTION] DivineShield") end },
     { name = "LayOnHands", matches = lay_on_hands_matches, execute = function(context) return NS.try_cast(SPELLS.LayOnHands, context.me, "[PROTECTION] LayOnHands") end },
     -- Peel
-    { name = "RighteousDefense", matches = function(context, state) return get_setting(context, "prot_righteous_defense", true) and state.ally_threatened ~= nil and state.righteous_defense_ready end, execute = function(context, state) return NS.try_cast(SPELLS.RighteousDefense, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end },
+    { name = "RighteousDefense", matches = function(context, state) return get_setting(context, "prot_righteous_defense", true) and state.ally_threatened ~= nil and state.righteous_defense_ready and (context.target_classification or 0) >= 1 end, execute = function(context, state) return NS.try_cast(SPELLS.RighteousDefense, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end },
     { name = "BlessingOfProtectionAlly", matches = function(context, state) return get_setting(context, "prot_blessing_of_protection", true) and state.low_hp_ally ~= nil and NS.spell_ready(SPELLS.BlessingOfProtection, state.low_hp_ally, {}) or false end, execute = function(context, state) return NS.try_cast(SPELLS.BlessingOfProtection, state.low_hp_ally, "[PROTECTION] BoP emergency peel") end },
 }
 
