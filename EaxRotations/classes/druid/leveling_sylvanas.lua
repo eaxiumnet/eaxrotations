@@ -64,8 +64,17 @@ local function has_buff(buff_ids)
     local me = (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
     if not me then return false end
     local ids = type(buff_ids) == "table" and buff_ids or { buff_ids }
-    if NS.buff_up then return NS.buff_up(me, ids) end
+    if NS.buff_up then
+        local ok, result = pcall(NS.buff_up, me, ids)
+        return ok and result
+    end
     return false
+end
+
+local function safe_debuff_remains(unit, debuff_ids)
+    if not unit or not NS.debuff_remains then return 0 end
+    local ok, remains = pcall(NS.debuff_remains, unit, debuff_ids)
+    return (ok and remains) or 0
 end
 
 -- ============================================================================
@@ -127,10 +136,10 @@ function druid_leveling.build_state(context)
 
     -- Feral debuff tracking
     if context.target then
-        state.rake_remains = (NS.debuff_remains and NS.debuff_remains(context.target, RAKE_DEBUFF)) or 0
-        state.rip_remains = (NS.debuff_remains and NS.debuff_remains(context.target, RIP_DEBUFF)) or 0
-        state.mangle_remains = (NS.debuff_remains and NS.debuff_remains(context.target, MANGLE_DEBUFF)) or 0
-        state.faerie_fire_feral_remains = (NS.debuff_remains and NS.debuff_remains(context.target, FAERIE_FIRE_FERAL)) or 0
+        state.rake_remains = safe_debuff_remains(context.target, RAKE_DEBUFF)
+        state.rip_remains = safe_debuff_remains(context.target, RIP_DEBUFF)
+        state.mangle_remains = safe_debuff_remains(context.target, MANGLE_DEBUFF)
+        state.faerie_fire_feral_remains = safe_debuff_remains(context.target, FAERIE_FIRE_FERAL)
     else
         state.rake_remains = 0
         state.rip_remains = 0
@@ -532,7 +541,7 @@ local strategies = {
     -- Prowl: stealth opener setup (OOC)
     { name = "ProwlOpener",
       matches = prowl_opener_matches,
-      execute = function(context)
+      execute = function(context) if not context then return false end
           -- Use stashed state; shift cat first if needed, Prowl picks up on next tick
           local st = context._leveling_state or druid_leveling.build_state(context)
           if st and not st.is_cat then
@@ -544,52 +553,52 @@ local strategies = {
     -- Pounce: stealth opener (stun + bleed)
     { name = "Pounce",
       matches = pounce_matches,
-      execute = function(context) return try_cast(SPELLS.Pounce, context.target, "[LEVELING] Pounce") end },
+      execute = function(context) return try_cast(SPELLS.Pounce, context and context.target, "[LEVELING] Pounce") end },
 
     -- Ravage: stealth opener (high damage, behind)
     { name = "Ravage",
       matches = ravage_matches,
-      execute = function(context) return try_cast(SPELLS.Ravage, context.target, "[LEVELING] Ravage") end },
+      execute = function(context) return try_cast(SPELLS.Ravage, context and context.target, "[LEVELING] Ravage") end },
 
     -- Faerie Fire (Feral): armor debuff from any form
     { name = "FaerieFireFeral",
       matches = faerie_fire_feral_matches,
-      execute = function(context) return try_cast(SPELLS.FaerieFireFeral, context.target, "[LEVELING] Faerie Fire (Feral)") end },
+      execute = function(context) return try_cast(SPELLS.FaerieFireFeral, context and context.target, "[LEVELING] Faerie Fire (Feral)") end },
 
     -- Rake: bleed application/refresh
     { name = "Rake",
       matches = rake_matches,
-      execute = function(context) return try_cast(SPELLS.Rake, context.target, "[LEVELING] Rake") end },
+      execute = function(context) return try_cast(SPELLS.Rake, context and context.target, "[LEVELING] Rake") end },
 
     -- Mangle (Cat): debuff + combo builder
     { name = "MangleCat",
       matches = mangle_cat_matches,
-      execute = function(context) return try_cast(SPELLS.MangleCat, context.target, "[LEVELING] Mangle") end },
+      execute = function(context) return try_cast(SPELLS.MangleCat, context and context.target, "[LEVELING] Mangle") end },
 
     -- Shred: behind-target builder (better than Mangle when debuff is up)
     { name = "Shred",
       matches = shred_matches,
-      execute = function(context) return try_cast(SPELLS.Shred, context.target, "[LEVELING] Shred") end },
+      execute = function(context) return try_cast(SPELLS.Shred, context and context.target, "[LEVELING] Shred") end },
 
     -- Rip: finisher (bleed, scales with CP)
     { name = "Rip",
       matches = rip_matches,
-      execute = function(context) return try_cast(SPELLS.Rip, context.target, "[LEVELING] Rip") end },
+      execute = function(context) return try_cast(SPELLS.Rip, context and context.target, "[LEVELING] Rip") end },
 
     -- Ferocious Bite: finisher/execute
     { name = "FerociousBite",
       matches = bite_matches,
-      execute = function(context) return try_cast(SPELLS.FerociousBite, context.target, "[LEVELING] Bite") end },
+      execute = function(context) return try_cast(SPELLS.FerociousBite, context and context.target, "[LEVELING] Bite") end },
 
     -- Claw: energy dump filler
     { name = "Claw",
       matches = claw_matches,
-      execute = function(context) return try_cast(SPELLS.Claw, context.target, "[LEVELING] Claw") end },
+      execute = function(context) return try_cast(SPELLS.Claw, context and context.target, "[LEVELING] Claw") end },
 
     -- Mangle (Bear): rage dump
     { name = "MangleBear",
       matches = mangle_bear_matches,
-      execute = function(context) return try_cast(SPELLS.MangleBear, context.target, "[LEVELING] Mangle (Bear)") end },
+      execute = function(context) return try_cast(SPELLS.MangleBear, context and context.target, "[LEVELING] Mangle (Bear)") end },
 
     -- Swipe (Bear): AoE rage dump
     { name = "SwipeBear",
@@ -599,7 +608,7 @@ local strategies = {
     -- Maul: rage dump (bear)
     { name = "Maul",
       matches = maul_matches,
-      execute = function(context) return try_cast(SPELLS.Maul, context.target, "[LEVELING] Maul") end },
+      execute = function(context) return try_cast(SPELLS.Maul, context and context.target, "[LEVELING] Maul") end },
 
     -- ============================================================================
     -- CASTER FALLBACK STRATEGIES (original)
@@ -638,37 +647,37 @@ local strategies = {
     -- CC: Entangling Roots (when overwhelmed)
     { name = "EntanglingRoots",
       matches = entangling_roots_matches,
-      execute = function(context) return try_cast(SPELLS.EntanglingRoots, context.target, "[LEVELING] Entangling Roots") end },
+      execute = function(context) return try_cast(SPELLS.EntanglingRoots, context and context.target, "[LEVELING] Entangling Roots") end },
 
     -- DoT: Moonfire
     { name = "Moonfire",
       matches = moonfire_matches,
-      execute = function(context) return try_cast(SPELLS.Moonfire, context.target, "[LEVELING] Moonfire") end },
+      execute = function(context) return try_cast(SPELLS.Moonfire, context and context.target, "[LEVELING] Moonfire") end },
 
     -- DoT: Insect Swarm
     { name = "InsectSwarm",
       matches = insect_swarm_matches,
-      execute = function(context) return try_cast(SPELLS.InsectSwarm, context.target, "[LEVELING] Insect Swarm") end },
+      execute = function(context) return try_cast(SPELLS.InsectSwarm, context and context.target, "[LEVELING] Insect Swarm") end },
 
     -- Debuff: Faerie Fire
     { name = "FaerieFire",
       matches = faerie_fire_matches,
-      execute = function(context) return try_cast(SPELLS.FaerieFire, context.target, "[LEVELING] Faerie Fire") end },
+      execute = function(context) return try_cast(SPELLS.FaerieFire, context and context.target, "[LEVELING] Faerie Fire") end },
 
     -- AoE: Hurricane
     { name = "Hurricane",
       matches = hurricane_matches,
-      execute = function(context) return try_cast(SPELLS.Hurricane, context.target, "[LEVELING] Hurricane") end },
+      execute = function(context) return try_cast(SPELLS.Hurricane, context and context.target, "[LEVELING] Hurricane") end },
 
     -- Filler: Starfire (not moving)
     { name = "Starfire",
       matches = starfire_matches,
-      execute = function(context) return try_cast(SPELLS.Starfire, context.target, "[LEVELING] Starfire") end },
+      execute = function(context) return try_cast(SPELLS.Starfire, context and context.target, "[LEVELING] Starfire") end },
 
     -- Filler: Wrath (any state)
     { name = "Wrath",
       matches = wrath_matches,
-      execute = function(context) return try_cast(SPELLS.Wrath, context.target, "[LEVELING] Wrath") end },
+      execute = function(context) return try_cast(SPELLS.Wrath, context and context.target, "[LEVELING] Wrath") end },
 
     -- Wand fallback (when low mana)
     { name = "Wand",

@@ -1588,6 +1588,873 @@ test("edge_helper: empty settings table does not crash state builder", function(
 end)
 
 -- ============================================================================
+-- ============================================================================
+-- Edge case tests - boundary values
+-- ============================================================================
+
+do -- edge_bear_form_survival
+    local label = "edge_bear_form_survival"
+
+    test(label .. ": HP exactly bear_hp (40) -> match", function()
+        local ctx = make_context({hp = 40})
+        local state = get_state(ctx)
+        state.bear_form_ready = true
+        state.use_feral = true
+        state.is_bear = false
+        state.bear_hp = 40
+        state.hp = 40
+        assert_true(strategies[1].matches(ctx, state), "HP 40 should match (<= threshold)")
+    end)
+
+    test(label .. ": HP exactly 41 -> no match", function()
+        local ctx = make_context({hp = 41})
+        local state = get_state(ctx)
+        state.bear_form_ready = true
+        state.use_feral = true
+        state.is_bear = false
+        state.bear_hp = 40
+        state.hp = 41
+        assert_false(strategies[1].matches(ctx, state), "HP 41 should not match (> threshold)")
+    end)
+
+    test(label .. ": already bear -> no match", function()
+        local ctx = make_context({hp = 30})
+        local state = get_state(ctx)
+        state.bear_form_ready = true
+        state.use_feral = true
+        state.is_bear = true
+        state.bear_hp = 40
+        state.hp = 30
+        assert_false(strategies[1].matches(ctx, state), "already bear should not match")
+    end)
+end
+
+do -- edge_frenzied_regen
+    local label = "edge_frenzied_regen"
+
+    test(label .. ": rage 15, HP 35 -> match", function()
+        local ctx = make_context({hp = 35})
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.frenzied_regen_ready = true
+        state.bear_hp = 40
+        state.hp = 35
+        state.rage = 15
+        assert_true(strategies[2].matches(ctx, state), "rage 15 with HP 35 should match")
+    end)
+
+    test(label .. ": rage 14 -> no match", function()
+        local ctx = make_context({hp = 35})
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.frenzied_regen_ready = true
+        state.bear_hp = 40
+        state.hp = 35
+        state.rage = 14
+        assert_false(strategies[2].matches(ctx, state), "rage 14 should not match (< 15)")
+    end)
+
+    test(label .. ": HP 36 -> no match", function()
+        local ctx = make_context({hp = 36})
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.frenzied_regen_ready = true
+        state.bear_hp = 40
+        state.hp = 36
+        state.rage = 20
+        assert_false(strategies[2].matches(ctx, state), "HP 36 should not match (> 35)")
+    end)
+end
+
+do -- edge_pounce
+    local label = "edge_pounce"
+
+    test(label .. ": energy exactly 50 -> match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_stealthed = true
+        state.is_cat = true
+        state.pounce_ready = true
+        state.energy = 50
+        assert_true(strategies[5].matches(ctx, state), "energy 50 should match (>= threshold)")
+    end)
+
+    test(label .. ": energy exactly 49 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_stealthed = true
+        state.is_cat = true
+        state.pounce_ready = true
+        state.energy = 49
+        assert_false(strategies[5].matches(ctx, state), "energy 49 should not match (< threshold)")
+    end)
+end
+
+do -- edge_ravage
+    local label = "edge_ravage"
+
+    test(label .. ": energy 60, behind, stealthed -> match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_stealthed = true
+        state.is_cat = true
+        state.ravage_ready = true
+        state.energy = 60
+        state.is_behind = true
+        assert_true(strategies[6].matches(ctx, state), "energy 60 behind should match")
+    end)
+
+    test(label .. ": energy 59 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_stealthed = true
+        state.is_cat = true
+        state.ravage_ready = true
+        state.energy = 59
+        state.is_behind = true
+        assert_false(strategies[6].matches(ctx, state), "energy 59 should not match (< 60)")
+    end)
+end
+
+do -- edge_rake
+    local label = "edge_rake"
+
+    test(label .. ": energy 35, CP 4, remains 3, TTD 6 -> match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.rake_ready = true
+        state.energy = 35
+        state.combo_points = 4
+        state.rake_remains = 3
+        state.target_ttd = 6
+        assert_true(strategies[8].matches(ctx, state), "should match at boundary conditions")
+    end)
+
+    test(label .. ": energy 34 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.rake_ready = true
+        state.energy = 34
+        state.combo_points = 2
+        state.rake_remains = 0
+        assert_false(strategies[8].matches(ctx, state), "energy 34 should not match (< 35)")
+    end)
+
+    test(label .. ": CP 5 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.rake_ready = true
+        state.energy = 100
+        state.combo_points = 5
+        state.rake_remains = 0
+        assert_false(strategies[8].matches(ctx, state), "CP 5 should not match (>= 5)")
+    end)
+
+    test(label .. ": remains 4 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.rake_ready = true
+        state.energy = 100
+        state.combo_points = 2
+        state.rake_remains = 4
+        assert_false(strategies[8].matches(ctx, state), "remains 4 should not match (> 3)")
+    end)
+
+    test(label .. ": TTD 5 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.rake_ready = true
+        state.energy = 100
+        state.combo_points = 2
+        state.rake_remains = 0
+        state.target_ttd = 5
+        assert_false(strategies[8].matches(ctx, state), "TTD 5 should not match (< 6)")
+    end)
+end
+
+do -- edge_mangle_cat
+    local label = "edge_mangle_cat"
+
+    test(label .. ": energy 40, CP 4 -> match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.mangle_cat_ready = true
+        state.energy = 40
+        state.combo_points = 4
+        assert_true(strategies[9].matches(ctx, state), "energy 40 with CP 4 should match")
+    end)
+
+    test(label .. ": energy 39 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.mangle_cat_ready = true
+        state.energy = 39
+        state.combo_points = 2
+        assert_false(strategies[9].matches(ctx, state), "energy 39 should not match (< 40)")
+    end)
+
+    test(label .. ": CP 5 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.mangle_cat_ready = true
+        state.energy = 100
+        state.combo_points = 5
+        assert_false(strategies[9].matches(ctx, state), "CP 5 should not match (>= 5)")
+    end)
+end
+
+do -- edge_shred
+    local label = "edge_shred"
+
+    test(label .. ": energy 42, behind, mangle up -> match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.shred_ready = true
+        state.energy = 42
+        state.combo_points = 3
+        state.is_behind = true
+        state.mangle_remains = 6
+        assert_true(strategies[10].matches(ctx, state), "energy 42 behind with mangle should match")
+    end)
+
+    test(label .. ": energy 41 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.shred_ready = true
+        state.energy = 41
+        state.combo_points = 3
+        state.is_behind = true
+        state.mangle_remains = 6
+        assert_false(strategies[10].matches(ctx, state), "energy 41 should not match (< 42)")
+    end)
+
+    test(label .. ": not behind -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.shred_ready = true
+        state.energy = 100
+        state.combo_points = 3
+        state.is_behind = false
+        state.mangle_remains = 6
+        assert_false(strategies[10].matches(ctx, state), "not behind should not match")
+    end)
+end
+
+do -- edge_rip
+    local label = "edge_rip"
+
+    test(label .. ": energy 30, CP 4, remains 2, TTD 6 -> match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.rip_ready = true
+        state.energy = 30
+        state.combo_points = 4
+        state.rip_remains = 2
+        state.target_ttd = 6
+        assert_true(strategies[11].matches(ctx, state), "should match at boundary conditions")
+    end)
+
+    test(label .. ": energy 29 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.rip_ready = true
+        state.energy = 29
+        state.combo_points = 4
+        state.rip_remains = 0
+        assert_false(strategies[11].matches(ctx, state), "energy 29 should not match (< 30)")
+    end)
+
+    test(label .. ": CP 3 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.rip_ready = true
+        state.energy = 100
+        state.combo_points = 3
+        state.rip_remains = 0
+        assert_false(strategies[11].matches(ctx, state), "CP 3 should not match (< 4)")
+    end)
+
+    test(label .. ": remains 3 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.rip_ready = true
+        state.energy = 100
+        state.combo_points = 4
+        state.rip_remains = 3
+        assert_false(strategies[11].matches(ctx, state), "remains 3 should not match (> 2)")
+    end)
+end
+
+do -- edge_bite
+    local label = "edge_bite"
+
+    test(label .. ": energy 35, CP 4 -> match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.bite_ready = true
+        state.energy = 35
+        state.combo_points = 4
+        state.rip_ready = false  -- Don't prefer Rip
+        assert_true(strategies[12].matches(ctx, state), "energy 35 with CP 4 should match")
+    end)
+
+    test(label .. ": energy 34 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.bite_ready = true
+        state.energy = 34
+        state.combo_points = 4
+        assert_false(strategies[12].matches(ctx, state), "energy 34 should not match (< 35)")
+    end)
+
+    test(label .. ": CP 3 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.bite_ready = true
+        state.energy = 100
+        state.combo_points = 3
+        assert_false(strategies[12].matches(ctx, state), "CP 3 should not match (< 4)")
+    end)
+end
+
+do -- edge_claw
+    local label = "edge_claw"
+
+    test(label .. ": energy 45, CP 4, no other builder available -> match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.claw_ready = true
+        state.energy = 45
+        state.combo_points = 4
+        state.mangle_cat_ready = false
+        state.rake_ready = false
+        state.shred_ready = false
+        assert_true(strategies[13].matches(ctx, state), "energy 45 with CP 4 should match")
+    end)
+
+    test(label .. ": energy 44 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.claw_ready = true
+        state.energy = 44
+        state.combo_points = 2
+        assert_false(strategies[13].matches(ctx, state), "energy 44 should not match (< 45)")
+    end)
+
+    test(label .. ": CP 5 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.claw_ready = true
+        state.energy = 100
+        state.combo_points = 5
+        assert_false(strategies[13].matches(ctx, state), "CP 5 should not match (>= 5)")
+    end)
+end
+
+do -- edge_bear_abilities
+    local label = "edge_bear_abilities"
+
+    test(label .. ": MangleBear rage exactly 15 -> match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.mangle_bear_ready = true
+        state.rage = 15
+        state.in_melee = true
+        assert_true(strategies[14].matches(ctx, state), "rage 15 should match (>= threshold)")
+    end)
+
+    test(label .. ": MangleBear rage 14 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.mangle_bear_ready = true
+        state.rage = 14
+        state.in_melee = true
+        assert_false(strategies[14].matches(ctx, state), "rage 14 should not match (< 15)")
+    end)
+
+    test(label .. ": SwipeBear rage 20, enemies 2 -> match", function()
+        local ctx = make_context({enemies_count = 2})
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.swipe_ready = true
+        state.rage = 20
+        state.enemies = 2
+        assert_true(strategies[15].matches(ctx, state), "rage 20 with 2 enemies should match")
+    end)
+
+    test(label .. ": SwipeBear rage 19 -> no match", function()
+        local ctx = make_context({enemies_count = 2})
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.swipe_ready = true
+        state.rage = 19
+        state.enemies = 2
+        assert_false(strategies[15].matches(ctx, state), "rage 19 should not match (< 20)")
+    end)
+
+    test(label .. ": SwipeBear 1 enemy -> no match", function()
+        local ctx = make_context({enemies_count = 1})
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.swipe_ready = true
+        state.rage = 40
+        state.enemies = 1
+        assert_false(strategies[15].matches(ctx, state), "1 enemy should not match (< 2)")
+    end)
+
+    test(label .. ": Maul rage exactly 40 -> match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.maul_ready = true
+        state.rage = 40
+        assert_true(strategies[16].matches(ctx, state), "rage 40 should match (>= threshold)")
+    end)
+
+    test(label .. ": Maul rage 39 -> no match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.is_bear = true
+        state.maul_ready = true
+        state.rage = 39
+        assert_false(strategies[16].matches(ctx, state), "rage 39 should not match (< 40)")
+    end)
+end
+
+do -- edge_caster_defensive
+    local label = "edge_caster_defensive"
+
+    test(label .. ": Barkskin HP exactly 50 -> match", function()
+        local ctx = make_context({hp = 50})
+        local state = get_state(ctx)
+        state.barkskin_ready = true
+        state.hp = 50
+        assert_true(strategies[20].matches(ctx, state), "HP 50 should match (<= threshold)")
+    end)
+
+    test(label .. ": Barkskin HP exactly 51 -> no match", function()
+        local ctx = make_context({hp = 51})
+        local state = get_state(ctx)
+        state.barkskin_ready = true
+        state.hp = 51
+        assert_false(strategies[20].matches(ctx, state), "HP 51 should not match (> threshold)")
+    end)
+
+    test(label .. ": HealingTouch HP exactly 30 -> match", function()
+        local ctx = make_context({hp = 30})
+        local state = get_state(ctx)
+        state.healing_touch_ready = true
+        state.heal_hp = 40
+        state.hp = 30
+        assert_true(strategies[21].matches(ctx, state), "HP 30 should match (<= heal_hp - 10)")
+    end)
+
+    test(label .. ": HealingTouch HP exactly 31 -> no match", function()
+        local ctx = make_context({hp = 31})
+        local state = get_state(ctx)
+        state.healing_touch_ready = true
+        state.heal_hp = 40
+        state.hp = 31
+        assert_false(strategies[21].matches(ctx, state), "HP 31 should not match (> 30)")
+    end)
+
+    test(label .. ": Rejuvenation HP exactly 40 -> match", function()
+        local ctx = make_context({hp = 40})
+        local state = get_state(ctx)
+        state.rejuvenation_ready = true
+        state.heal_hp = 40
+        state.hp = 40
+        assert_true(strategies[22].matches(ctx, state), "HP 40 should match (<= threshold)")
+    end)
+
+    test(label .. ": Rejuvenation HP exactly 41 -> no match", function()
+        local ctx = make_context({hp = 41})
+        local state = get_state(ctx)
+        state.rejuvenation_ready = true
+        state.heal_hp = 40
+        state.hp = 41
+        assert_false(strategies[22].matches(ctx, state), "HP 41 should not match (> threshold)")
+    end)
+end
+
+do -- edge_entangling_roots
+    local label = "edge_entangling_roots"
+
+    test(label .. ": enemies 3, any HP -> match", function()
+        local ctx = make_context({hp = 50, enemies_count = 3})
+        local state = get_state(ctx)
+        state.entangling_roots_ready = true
+        state.hp = 50
+        state.enemies = 3
+        assert_true(strategies[23].matches(ctx, state), "3 enemies should match regardless of HP")
+    end)
+
+    test(label .. ": HP exactly 30, enemies 2 -> match", function()
+        local ctx = make_context({hp = 30, enemies_count = 2})
+        local state = get_state(ctx)
+        state.entangling_roots_ready = true
+        state.hp = 30
+        state.enemies = 2
+        assert_true(strategies[23].matches(ctx, state), "HP 30 with 2 enemies should match")
+    end)
+
+    test(label .. ": HP 31, enemies 2 -> no match", function()
+        local ctx = make_context({hp = 31, enemies_count = 2})
+        local state = get_state(ctx)
+        state.entangling_roots_ready = true
+        state.hp = 31
+        state.enemies = 2
+        assert_false(strategies[23].matches(ctx, state), "HP 31 with 2 enemies should not match")
+    end)
+
+    test(label .. ": enemies 2, HP 30 -> no target, no match", function()
+        local ctx = make_context({hp = 30, enemies_count = 2, target = nil})
+        local state = get_state(ctx)
+        state.entangling_roots_ready = true
+        state.hp = 30
+        state.enemies = 2
+        state.target = nil
+        assert_false(strategies[23].matches(ctx, state), "no target should not match")
+    end)
+end
+
+do -- edge_natures_grasp
+    local label = "edge_natures_grasp"
+
+    test(label .. ": HP 50, enemies 2 -> match", function()
+        local ctx = make_context({hp = 50, enemies_count = 2})
+        local state = get_state(ctx)
+        state.natures_grasp_ready = true
+        state.hp = 50
+        state.enemies = 2
+        assert_true(strategies[19].matches(ctx, state), "HP 50 with 2 enemies should match")
+    end)
+
+    test(label .. ": HP 51, enemies 1 -> no match", function()
+        local ctx = make_context({hp = 51, enemies_count = 1})
+        local state = get_state(ctx)
+        state.natures_grasp_ready = true
+        state.hp = 51
+        state.enemies = 1
+        assert_false(strategies[19].matches(ctx, state), "HP 51 with 1 enemy should not match")
+    end)
+
+    test(label .. ": HP 51, enemies 1 -> no match", function()
+        local ctx = make_context({hp = 51, enemies_count = 1})
+        local state = get_state(ctx)
+        state.natures_grasp_ready = true
+        state.hp = 51
+        state.enemies = 1
+        assert_false(strategies[19].matches(ctx, state), "HP 51 with 1 enemy should not match")
+    end)
+end
+
+do -- edge_caster_doTs
+    local label = "edge_caster_doTs"
+
+    test(label .. ": Moonfire remains 4 -> match", function()
+        local ctx = make_context()
+        local saved = NS.debuff_remains
+        NS.debuff_remains = function(target, spell) return 4 end
+        local state = get_state(ctx)
+        state.moonfire_ready = true
+        assert_true(strategies[24].matches(ctx, state), "remains 4 should match (<= 4)")
+        NS.debuff_remains = saved
+    end)
+
+    test(label .. ": Moonfire remains 5 -> no match", function()
+        local ctx = make_context()
+        local saved = NS.debuff_remains
+        NS.debuff_remains = function(target, spell) return 5 end
+        local state = get_state(ctx)
+        state.moonfire_ready = true
+        assert_false(strategies[24].matches(ctx, state), "remains 5 should not match (> 4)")
+        NS.debuff_remains = saved
+    end)
+
+    test(label .. ": Insect Swarm remains 4 -> match", function()
+        local ctx = make_context()
+        local saved = NS.debuff_remains
+        NS.debuff_remains = function(target, spell) return 4 end
+        local state = get_state(ctx)
+        state.insect_swarm_ready = true
+        assert_true(strategies[25].matches(ctx, state), "remains 4 should match (<= 4)")
+        NS.debuff_remains = saved
+    end)
+
+    test(label .. ": Insect Swarm remains 5 -> no match", function()
+        local ctx = make_context()
+        local saved = NS.debuff_remains
+        NS.debuff_remains = function(target, spell) return 5 end
+        local state = get_state(ctx)
+        state.insect_swarm_ready = true
+        assert_false(strategies[25].matches(ctx, state), "remains 5 should not match (> 4)")
+        NS.debuff_remains = saved
+    end)
+
+    test(label .. ": Faerie Fire remains 10 -> match", function()
+        local ctx = make_context()
+        local saved = NS.debuff_remains
+        NS.debuff_remains = function(target, spell) return 10 end
+        local state = get_state(ctx)
+        state.faerie_fire_ready = true
+        assert_true(strategies[26].matches(ctx, state), "remains 10 should match (<= 10)")
+        NS.debuff_remains = saved
+    end)
+
+    test(label .. ": Faerie Fire remains 11 -> no match", function()
+        local ctx = make_context()
+        local saved = NS.debuff_remains
+        NS.debuff_remains = function(target, spell) return 11 end
+        local state = get_state(ctx)
+        state.faerie_fire_ready = true
+        assert_false(strategies[26].matches(ctx, state), "remains 11 should not match (> 10)")
+        NS.debuff_remains = saved
+    end)
+end
+
+do -- edge_hurricane
+    local label = "edge_hurricane"
+
+    test(label .. ": enemies exactly 3, not moving -> match", function()
+        local ctx = make_context({enemies_count = 3, is_moving = false})
+        local state = get_state(ctx)
+        state.hurricane_ready = true
+        state.enemies = 3
+        state.is_moving = false
+        assert_true(strategies[27].matches(ctx, state), "3 enemies not moving should match")
+    end)
+
+    test(label .. ": enemies exactly 2 -> no match", function()
+        local ctx = make_context({enemies_count = 2})
+        local state = get_state(ctx)
+        state.hurricane_ready = true
+        state.enemies = 2
+        assert_false(strategies[27].matches(ctx, state), "2 enemies should not match (< 3)")
+    end)
+
+    test(label .. ": moving -> no match", function()
+        local ctx = make_context({enemies_count = 4, is_moving = true})
+        local state = get_state(ctx)
+        state.hurricane_ready = true
+        state.enemies = 4
+        state.is_moving = true
+        assert_false(strategies[27].matches(ctx, state), "moving should not match")
+    end)
+end
+
+do -- edge_starfire_wrath
+    local label = "edge_starfire_wrath"
+
+    test(label .. ": Starfire not moving -> match", function()
+        local ctx = make_context({is_moving = false})
+        local state = get_state(ctx)
+        state.starfire_ready = true
+        state.is_moving = false
+        assert_true(strategies[28].matches(ctx, state), "not moving should match")
+    end)
+
+    test(label .. ": Starfire moving -> no match", function()
+        local ctx = make_context({is_moving = true})
+        local state = get_state(ctx)
+        state.starfire_ready = true
+        state.is_moving = true
+        assert_false(strategies[28].matches(ctx, state), "moving should not match")
+    end)
+
+    test(label .. ": Wrath in combat ready -> match", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.wrath_ready = true
+        assert_true(strategies[29].matches(ctx, state), "in combat ready should match")
+    end)
+end
+
+do -- edge_motw_thorns
+    local label = "edge_motw_thorns"
+
+    test(label .. ": MarkOfTheWild OOC, no buff -> match", function()
+        local ctx = make_context({in_combat = false})
+        local state = get_state(ctx)
+        state.has_mark_of_wild = false
+        state.mark_of_the_wild_ready = true
+        assert_true(strategies[17].matches(ctx, state), "OOC no buff should match")
+    end)
+
+    test(label .. ": Thorns OOC, no buff -> match", function()
+        local ctx = make_context({in_combat = false})
+        local state = get_state(ctx)
+        state.has_thorns = false
+        state.thorns_ready = true
+        assert_true(strategies[18].matches(ctx, state), "OOC no buff should match")
+    end)
+end
+
+-- ============================================================================
+-- Edge case tests - API crash safety
+-- ============================================================================
+
+do -- edge_api_buff
+    local label = "edge_api_buff"
+
+    test(label .. ": NS.buff_up is nil -> has_buff returns false", function()
+        local saved = NS.buff_up
+        NS.buff_up = nil
+        local ctx = make_context({in_combat = false})
+        local state = get_state(ctx)
+        assert_eq(state.has_mark_of_wild, false, "has_mark_of_wild should be false when buff_up nil")
+        assert_eq(state.has_thorns, false, "has_thorns should be false when buff_up nil")
+        NS.buff_up = saved
+    end)
+
+    test(label .. ": NS.buff_up throws -> pcall catches, returns false", function()
+        local saved = NS.buff_up
+        NS.buff_up = function() error("crash") end
+        local ctx = make_context({in_combat = false})
+        local state = get_state(ctx)
+        assert_eq(state.has_mark_of_wild, false, "has_mark_of_wild should be false when buff_up throws")
+        assert_eq(state.has_thorns, false, "has_thorns should be false when buff_up throws")
+        NS.buff_up = saved
+    end)
+end
+
+do -- edge_api_debuff_remains
+    local label = "edge_api_debuff_remains"
+
+    test(label .. ": NS.debuff_remains nil -> safe_debuff_remains returns 0", function()
+        local saved = NS.debuff_remains
+        NS.debuff_remains = nil
+        local ctx = make_context()
+        local state = get_state(ctx)
+        assert_eq(state.rake_remains, 0, "rake_remains 0 when debuff_remains nil")
+        assert_eq(state.rip_remains, 0, "rip_remains 0 when debuff_remains nil")
+        NS.debuff_remains = saved
+    end)
+
+    test(label .. ": NS.debuff_remains throws -> pcall catches, returns 0", function()
+        local saved = NS.debuff_remains
+        NS.debuff_remains = function() error("crash") end
+        local ctx = make_context()
+        local state = get_state(ctx)
+        assert_eq(state.rake_remains, 0, "rake_remains 0 when debuff_remains throws")
+        assert_eq(state.rip_remains, 0, "rip_remains 0 when debuff_remains throws")
+        NS.debuff_remains = saved
+    end)
+end
+
+do -- edge_api_spell_ready
+    local label = "edge_api_spell_ready"
+
+    test(label .. ": NS.spell_ready is nil -> all readiness fields false", function()
+        local saved = NS.spell_ready
+        NS.spell_ready = nil
+        local ctx = make_context()
+        local state = get_state(ctx)
+        assert_eq(state.wrath_ready, false, "wrath_ready should be false")
+        assert_eq(state.moonfire_ready, false, "moonfire_ready should be false")
+        assert_eq(state.rake_ready, false, "rake_ready should be false")
+        assert_eq(state.rip_ready, false, "rip_ready should be false")
+        NS.spell_ready = saved
+    end)
+
+    test(label .. ": match functions handle nil readiness -> no crash", function()
+        local saved_spell = NS.spell_ready
+        NS.spell_ready = nil
+        local ctx = make_context()
+        local state = get_state(ctx)
+        for i = 1, #strategies do
+            local ok, matched = pcall(strategies[i].matches, ctx, state)
+            assert_true(ok, "strategy[" .. i .. "] matches should not throw when readiness is nil")
+        end
+        NS.spell_ready = saved_spell
+    end)
+end
+
+do -- edge_api_try_cast
+    local label = "edge_api_try_cast"
+
+    test(label .. ": NS.try_cast returns nil -> execute returns false, no crash", function()
+        local saved = NS.try_cast
+        NS.try_cast = function() return nil end
+        local ctx = make_context()
+        for i, s in ipairs(strategies) do
+            local ok, result = pcall(s.execute, ctx)
+            assert_true(ok, "strategy[" .. i .. "] execute should not throw when try_cast returns nil")
+        end
+        NS.try_cast = saved
+    end)
+
+    test(label .. ": NS.try_cast is nil -> execute returns false, no crash", function()
+        local saved = NS.try_cast
+        NS.try_cast = nil
+        local ctx = make_context()
+        for i, s in ipairs(strategies) do
+            local ok, result = pcall(s.execute, ctx)
+            assert_true(ok, "strategy[" .. i .. "] execute should not throw when try_cast is nil")
+        end
+        NS.try_cast = saved
+    end)
+end
+
+-- ============================================================================
+-- Edge case tests - rotation crash safety
+-- ============================================================================
+
+do -- edge_rotation_crash
+    local label = "edge_rotation_crash"
+
+    test(label .. ": all match functions handle nil context", function()
+        for i, s in ipairs(strategies) do
+            local ok, result = pcall(s.matches, nil, {})
+            assert_true(ok, "strategy[" .. i .. "] matches(nil, {}) should not throw")
+        end
+    end)
+
+    test(label .. ": all match functions handle nil state", function()
+        local ctx = make_context()
+        for i, s in ipairs(strategies) do
+            local ok, result = pcall(s.matches, ctx, nil)
+            assert_true(ok, "strategy[" .. i .. "] matches(ctx, nil) should not throw")
+        end
+    end)
+
+    test(label .. ": all execute functions handle nil context", function()
+        for i, s in ipairs(strategies) do
+            local ok, result = pcall(s.execute, nil)
+            assert_true(ok, "strategy[" .. i .. "] execute(nil) should not throw")
+        end
+    end)
+
+    test(label .. ": all execute functions handle no args", function()
+        for i, s in ipairs(strategies) do
+            local ok, result = pcall(s.execute)
+            assert_true(ok, "strategy[" .. i .. "] execute() with no args should not throw")
+        end
+    end)
+end
 -- Summary
 -- ============================================================================
 
