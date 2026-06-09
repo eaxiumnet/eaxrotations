@@ -50,7 +50,9 @@ local MIN_RAKE_TTD = 6
 
 local function spell_ready(spell_action)
     if not spell_action then return false end
-    return NS.spell_ready and NS.spell_ready(spell_action) or false
+    if not NS.spell_ready then return false end
+    local ok, result = pcall(NS.spell_ready, spell_action)
+    return ok and result == true
 end
 
 local function try_cast(spell_action, target, label)
@@ -682,7 +684,10 @@ local strategies = {
     -- Wand fallback (when low mana)
     { name = "Wand",
       matches = leveling.create_wand_matches("leveling_wand_threshold", 30),
-      execute = function(context) return leveling.execute_wand(context) end },
+      execute = function(context)
+          local ok, result = pcall(leveling.execute_wand, context)
+          return ok and (result == true) or false
+      end },
 }
 
 if NS.rotation_registry and NS.rotation_registry.register then
