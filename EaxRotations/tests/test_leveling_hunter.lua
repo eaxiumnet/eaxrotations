@@ -1771,6 +1771,464 @@ end
 
 -- Summary
 -- ============================================================================
+-- Deep dive: ConcussiveShot - enemies 1/2 × HP 40/41 OR matrix
+-- ============================================================================
+do
+    -- Condition: if (state.enemies or 0) < 2 and (state.hp or 100) > 40 then return false end
+    -- So: enemies < 2 AND hp > 40 -> no match
+    --     enemies >= 2 OR hp <= 40 -> match
+
+    -- enemies=1, hp=50 -> both conditions true -> no match
+    local ctx = make_context({in_combat = true, enemies_count = 1, hp = 50})
+    local state = get_state(ctx)
+    state.concussive_shot_ready = true
+    state.hp = 50
+    state.enemies = 1
+    assert_false(strategies[7].matches(ctx, state), "concussive enemies=1 hp=50 -> no match")
+
+    -- enemies=2, hp=50 -> enemies >= 2 -> match
+    local ctx2 = make_context({in_combat = true, enemies_count = 2, hp = 50})
+    local state2 = get_state(ctx2)
+    state2.concussive_shot_ready = true
+    state2.hp = 50
+    state2.enemies = 2
+    assert_true(strategies[7].matches(ctx2, state2), "concussive enemies=2 hp=50 -> match")
+
+    -- enemies=1, hp=40 -> hp <= 40 -> match
+    local ctx3 = make_context({in_combat = true, enemies_count = 1, hp = 40})
+    local state3 = get_state(ctx3)
+    state3.concussive_shot_ready = true
+    state3.hp = 40
+    state3.enemies = 1
+    assert_true(strategies[7].matches(ctx3, state3), "concussive enemies=1 hp=40 -> match")
+
+    -- enemies=2, hp=40 -> both satisfy -> match
+    local ctx4 = make_context({in_combat = true, enemies_count = 2, hp = 40})
+    local state4 = get_state(ctx4)
+    state4.concussive_shot_ready = true
+    state4.hp = 40
+    state4.enemies = 2
+    assert_true(strategies[7].matches(ctx4, state4), "concussive enemies=2 hp=40 -> match")
+
+    -- enemies=0, hp=100 -> no enemies, high hp -> no match
+    local ctx5 = make_context({in_combat = true, enemies_count = 0, hp = 100})
+    local state5 = get_state(ctx5)
+    state5.concussive_shot_ready = true
+    state5.hp = 100
+    state5.enemies = 0
+    assert_false(strategies[7].matches(ctx5, state5), "concussive enemies=0 hp=100 -> no match")
+
+    -- OOC -> no match
+    local ctx6 = make_context({in_combat = false})
+    local state6 = get_state(ctx6)
+    state6.concussive_shot_ready = true
+    state6.hp = 20
+    state6.enemies = 3
+    assert_false(strategies[7].matches(ctx6, state6), "concussive OOC -> no match")
+
+    -- not ready -> no match
+    local ctx7 = make_context({in_combat = true, enemies_count = 3, hp = 20})
+    local state7 = get_state(ctx7)
+    state7.concussive_shot_ready = false
+    state7.hp = 20
+    state7.enemies = 3
+    assert_false(strategies[7].matches(ctx7, state7), "concussive not ready -> no match")
+
+    -- no target -> no match
+    local ctx8 = make_context({in_combat = true, enemies_count = 3, hp = 20})
+    ctx8.target = nil
+    local state8 = get_state(ctx8)
+    state8.concussive_shot_ready = true
+    state8.hp = 20
+    state8.enemies = 3
+    state8.target = nil
+    assert_false(strategies[7].matches(ctx8, state8), "concussive no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: WingClip - hp 50/51 + melee guard
+-- ============================================================================
+do
+    -- Condition: in_melee required, hp <= 50
+
+    -- hp=50, in_melee -> match
+    local ctx = make_context({in_combat = true, hp = 50, in_melee_range = true})
+    local state = get_state(ctx)
+    state.wing_clip_ready = true
+    state.hp = 50
+    state.in_melee = true
+    assert_true(strategies[8].matches(ctx, state), "wingclip hp=50 melee -> match")
+
+    -- hp=51, in_melee -> no match (hp > 50)
+    local ctx2 = make_context({in_combat = true, hp = 51, in_melee_range = true})
+    local state2 = get_state(ctx2)
+    state2.wing_clip_ready = true
+    state2.hp = 51
+    state2.in_melee = true
+    assert_false(strategies[8].matches(ctx2, state2), "wingclip hp=51 melee -> no match")
+
+    -- hp=30, not melee -> no match
+    local ctx3 = make_context({in_combat = true, hp = 30, in_melee_range = false})
+    local state3 = get_state(ctx3)
+    state3.wing_clip_ready = true
+    state3.hp = 30
+    state3.in_melee = false
+    assert_false(strategies[8].matches(ctx3, state3), "wingclip not melee -> no match")
+
+    -- hp=20, in_melee, OOC -> no match
+    local ctx4 = make_context({in_combat = false, hp = 20, in_melee_range = true})
+    local state4 = get_state(ctx4)
+    state4.wing_clip_ready = true
+    state4.hp = 20
+    state4.in_melee = true
+    assert_false(strategies[8].matches(ctx4, state4), "wingclip OOC -> no match")
+
+    -- not ready -> no match
+    local ctx5 = make_context({in_combat = true, hp = 30, in_melee_range = true})
+    local state5 = get_state(ctx5)
+    state5.wing_clip_ready = false
+    state5.hp = 30
+    state5.in_melee = true
+    assert_false(strategies[8].matches(ctx5, state5), "wingclip not ready -> no match")
+
+    -- no target -> no match
+    local ctx6 = make_context({in_combat = true, hp = 30, in_melee_range = true})
+    ctx6.target = nil
+    local state6 = get_state(ctx6)
+    state6.wing_clip_ready = true
+    state6.hp = 30
+    state6.in_melee = true
+    state6.target = nil
+    assert_false(strategies[8].matches(ctx6, state6), "wingclip no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: ScareBeast - enemies threshold + guards
+-- ============================================================================
+do
+    -- Condition: in_combat, target, enemies >= 2
+
+    -- enemies=2 -> match
+    local ctx = make_context({in_combat = true, enemies_count = 2})
+    local state = get_state(ctx)
+    state.scare_beast_ready = true
+    state.enemies = 2
+    assert_true(strategies[9].matches(ctx, state), "scarebeast enemies=2 -> match")
+
+    -- enemies=1 -> no match
+    local ctx2 = make_context({in_combat = true, enemies_count = 1})
+    local state2 = get_state(ctx2)
+    state2.scare_beast_ready = true
+    state2.enemies = 1
+    assert_false(strategies[9].matches(ctx2, state2), "scarebeast enemies=1 -> no match")
+
+    -- OOC -> no match
+    local ctx3 = make_context({in_combat = false, enemies_count = 3})
+    local state3 = get_state(ctx3)
+    state3.scare_beast_ready = true
+    state3.enemies = 3
+    assert_false(strategies[9].matches(ctx3, state3), "scarebeast OOC -> no match")
+
+    -- no target -> no match
+    local ctx4 = make_context({in_combat = true, enemies_count = 3})
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.scare_beast_ready = true
+    state4.enemies = 3
+    state4.target = nil
+    assert_false(strategies[9].matches(ctx4, state4), "scarebeast no target -> no match")
+
+    -- not ready -> no match
+    local ctx5 = make_context({in_combat = true, enemies_count = 3})
+    local state5 = get_state(ctx5)
+    state5.scare_beast_ready = false
+    state5.enemies = 3
+    assert_false(strategies[9].matches(ctx5, state5), "scarebeast not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: FreezingTrap - extra guards beyond enemy threshold
+-- ============================================================================
+do
+    -- OOC -> no match
+    local ctx = make_context({in_combat = false, enemies_count = 3})
+    local state = get_state(ctx)
+    state.freezing_trap_ready = true
+    state.enemies = 3
+    assert_false(strategies[10].matches(ctx, state), "trap OOC -> no match")
+
+    -- no target -> no match
+    local ctx2 = make_context({in_combat = true, enemies_count = 3})
+    ctx2.target = nil
+    local state2 = get_state(ctx2)
+    state2.freezing_trap_ready = true
+    state2.enemies = 3
+    state2.target = nil
+    assert_false(strategies[10].matches(ctx2, state2), "trap no target -> no match")
+
+    -- not ready -> no match
+    local ctx3 = make_context({in_combat = true, enemies_count = 3})
+    local state3 = get_state(ctx3)
+    state3.freezing_trap_ready = false
+    state3.enemies = 3
+    assert_false(strategies[10].matches(ctx3, state3), "trap not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: RapidFire - OOC + no target guards
+-- ============================================================================
+do
+    -- In combat, has target -> match
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.rapid_fire_ready = true
+    assert_true(strategies[4].matches(ctx, state), "rapidfire in combat -> match")
+
+    -- OOC -> no match
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.rapid_fire_ready = true
+    assert_false(strategies[4].matches(ctx2, state2), "rapidfire OOC -> no match")
+
+    -- no target -> no match
+    local ctx3 = make_context({in_combat = true})
+    ctx3.target = nil
+    local state3 = get_state(ctx3)
+    state3.rapid_fire_ready = true
+    state3.target = nil
+    assert_false(strategies[4].matches(ctx3, state3), "rapidfire no target -> no match")
+
+    -- not ready -> no match
+    local ctx4 = make_context({in_combat = true})
+    local state4 = get_state(ctx4)
+    state4.rapid_fire_ready = false
+    assert_false(strategies[4].matches(ctx4, state4), "rapidfire not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: AimedShot + SteadyShot - movement guards
+-- ============================================================================
+do
+    -- AimedShot: not moving -> match
+    local ctx = make_context({in_combat = true, is_moving = false})
+    local state = get_state(ctx)
+    state.aimed_shot_ready = true
+    assert_true(strategies[5].matches(ctx, state), "aimedshot stationary -> match")
+
+    -- AimedShot: moving -> no match
+    local ctx2 = make_context({in_combat = true, is_moving = true})
+    local state2 = get_state(ctx2)
+    state2.aimed_shot_ready = true
+    assert_false(strategies[5].matches(ctx2, state2), "aimedshot moving -> no match")
+
+    -- AimedShot: no target -> no match
+    local ctx3 = make_context({in_combat = true})
+    ctx3.target = nil
+    local state3 = get_state(ctx3)
+    state3.aimed_shot_ready = true
+    state3.target = nil
+    assert_false(strategies[5].matches(ctx3, state3), "aimedshot no target -> no match")
+
+    -- AimedShot: not ready -> no match
+    local ctx4 = make_context({in_combat = true, is_moving = false})
+    local state4 = get_state(ctx4)
+    state4.aimed_shot_ready = false
+    assert_false(strategies[5].matches(ctx4, state4), "aimedshot not ready -> no match")
+
+    -- SteadyShot: moving -> no match
+    local ctx5 = make_context({in_combat = true, is_moving = true})
+    local state5 = get_state(ctx5)
+    state5.steady_shot_ready = true
+    assert_false(strategies[16].matches(ctx5, state5), "steadyshot moving -> no match")
+
+    -- SteadyShot: not moving -> match
+    local ctx6 = make_context({in_combat = true, is_moving = false})
+    local state6 = get_state(ctx6)
+    state6.steady_shot_ready = true
+    assert_true(strategies[16].matches(ctx6, state6), "steadyshot stationary -> match")
+
+    -- SteadyShot: no target -> no match
+    local ctx7 = make_context({in_combat = true})
+    ctx7.target = nil
+    local state7 = get_state(ctx7)
+    state7.steady_shot_ready = true
+    state7.target = nil
+    assert_false(strategies[16].matches(ctx7, state7), "steadyshot no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: ArcaneShot + MultiShot - OOC + no target + enemies
+-- ============================================================================
+do
+    -- ArcaneShot: OOC -> no match
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.arcane_shot_ready = true
+    assert_false(strategies[13].matches(ctx, state), "arcaneshot OOC -> no match")
+
+    -- ArcaneShot: no target -> no match
+    local ctx2 = make_context({in_combat = true})
+    ctx2.target = nil
+    local state2 = get_state(ctx2)
+    state2.arcane_shot_ready = true
+    state2.target = nil
+    assert_false(strategies[13].matches(ctx2, state2), "arcaneshot no target -> no match")
+
+    -- ArcaneShot: not ready -> no match
+    local ctx3 = make_context({in_combat = true})
+    local state3 = get_state(ctx3)
+    state3.arcane_shot_ready = false
+    assert_false(strategies[13].matches(ctx3, state3), "arcaneshot not ready -> no match")
+
+    -- MultiShot: OOC -> no match
+    local ctx4 = make_context({in_combat = false, enemies_count = 3})
+    local state4 = get_state(ctx4)
+    state4.multi_shot_ready = true
+    state4.enemies = 3
+    assert_false(strategies[14].matches(ctx4, state4), "multishot OOC -> no match")
+
+    -- MultiShot: no target -> no match
+    local ctx5 = make_context({in_combat = true, enemies_count = 3})
+    ctx5.target = nil
+    local state5 = get_state(ctx5)
+    state5.multi_shot_ready = true
+    state5.enemies = 3
+    state5.target = nil
+    assert_false(strategies[14].matches(ctx5, state5), "multishot no target -> no match")
+
+    -- MultiShot: enemies=0 -> no match
+    local ctx6 = make_context({in_combat = true, enemies_count = 0})
+    local state6 = get_state(ctx6)
+    state6.multi_shot_ready = true
+    state6.enemies = 0
+    assert_false(strategies[14].matches(ctx6, state6), "multishot enemies=0 -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: RaptorStrike - melee range + OOC + no target
+-- ============================================================================
+do
+    -- RaptorStrike: melee, in_combat -> match
+    local ctx = make_context({in_combat = true, in_melee_range = true})
+    local state = get_state(ctx)
+    state.raptor_strike_ready = true
+    state.in_melee = true
+    assert_true(strategies[15].matches(ctx, state), "raptor melee combat -> match")
+
+    -- RaptorStrike: not melee -> no match
+    local ctx2 = make_context({in_combat = true, in_melee_range = false})
+    local state2 = get_state(ctx2)
+    state2.raptor_strike_ready = true
+    state2.in_melee = false
+    assert_false(strategies[15].matches(ctx2, state2), "raptor not melee -> no match")
+
+    -- RaptorStrike: OOC -> no match
+    local ctx3 = make_context({in_combat = false, in_melee_range = true})
+    local state3 = get_state(ctx3)
+    state3.raptor_strike_ready = true
+    state3.in_melee = true
+    assert_false(strategies[15].matches(ctx3, state3), "raptor OOC -> no match")
+
+    -- RaptorStrike: no target -> no match
+    local ctx4 = make_context({in_combat = true, in_melee_range = true})
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.raptor_strike_ready = true
+    state4.in_melee = true
+    state4.target = nil
+    assert_false(strategies[15].matches(ctx4, state4), "raptor no target -> no match")
+
+    -- RaptorStrike: not ready -> no match
+    local ctx5 = make_context({in_combat = true, in_melee_range = true})
+    local state5 = get_state(ctx5)
+    state5.raptor_strike_ready = false
+    state5.in_melee = true
+    assert_false(strategies[15].matches(ctx5, state5), "raptor not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Null target guards for all target-dependent strategies
+-- ============================================================================
+do
+    local target_dependent = {3, 4, 5, 7, 8, 9, 10, 12, 13, 15, 16}
+    -- indices: HuntersMark(3), RapidFire(4), AimedShot(5), Concussive(7),
+    -- WingClip(8), ScareBeast(9), FreezingTrap(10),
+    -- SerpentSting(11), ArcaneShot(12), MultiShot(13), RaptorStrike(15), SteadyShot(16)
+    for _, idx in ipairs(target_dependent) do
+        local ctx = make_context({in_combat = true})
+        ctx.target = nil
+        local state = get_state(ctx)
+        -- Set all ready states to true
+        for k, v in pairs(state) do
+            if type(k) == "string" and k:match("_ready$") then
+                state[k] = true
+            end
+        end
+        state.hp = 30
+        state.enemies = 5
+        state.in_melee = true
+        state.target = nil
+        local ok, result = pcall(strategies[idx].matches, ctx, state)
+        assert_false(result, strategies[idx].name .. " no target -> no match")
+    end
+end
+
+-- ============================================================================
+-- Deep dive: OOC guards for all combat strategies
+-- ============================================================================
+do
+    local combat_strategies = {4, 7, 8, 9, 10, 11, 12, 13, 15, 16}
+    -- RapidFire(4), Concussive(7), WingClip(8), ScareBeast(9),
+    -- FreezingTrap(10), SerpentSting(11), ArcaneShot(12), MultiShot(13),
+    -- RaptorStrike(15), SteadyShot(16)
+    -- Note: AspectHawk(1), CallPet(2), HuntersMark(3) are OOC-only (already tested)
+    -- MendPet(6) requires in_combat (already tested)
+    -- FeignDeath(14) requires in_combat (already tested)
+    for _, idx in ipairs(combat_strategies) do
+        local ctx = make_context({in_combat = false})
+        local state = get_state(ctx)
+        for k, v in pairs(state) do
+            if type(k) == "string" and k:match("_ready$") then
+                state[k] = true
+            end
+        end
+        state.hp = 20
+        state.enemies = 5
+        state.in_melee = true
+        state.in_combat = false
+        local ok, result = pcall(strategies[idx].matches, ctx, state)
+        assert_false(result, strategies[idx].name .. " OOC -> no match")
+    end
+end
+
+-- ============================================================================
+-- Deep dive: Execute functions crash safety (NS.try_cast throwing)
+-- ============================================================================
+do
+    local saved = NS.try_cast
+    NS.try_cast = function() error('simulated throw') end
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, 'try_cast=throw: strategy ' .. i .. ' execute did not crash')
+    end
+    NS.try_cast = saved
+end
+
+-- ============================================================================
+-- Deep dive: Execute functions nil context + no-arg
+-- ============================================================================
+do
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, nil)
+        assert_true(ok, 'execute nil ctx: strategy ' .. i .. ' did not crash')
+    end
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute)
+        assert_true(ok, 'execute no-arg: strategy ' .. i .. ' did not crash')
+    end
+end
+-- ============================================================================
 
 print(string.format("\n=== Hunter Leveling Unit Tests: %d passed, %d failed (%d assertions) ===\n", passed, failed, assertions))
 if failed > 0 then
