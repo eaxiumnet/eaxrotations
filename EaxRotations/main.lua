@@ -791,7 +791,7 @@ local function on_update()
     local rotation_enabled = not (framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) == false)
     if _last_enabled_log ~= rotation_enabled then
         _last_enabled_log = rotation_enabled
-        core.log("[EaxRotations] Rotation " .. (rotation_enabled and "ENABLED" or "DISABLED"))
+        core.log("[EaxRotations] Rotation " .. (rotation_enabled and "Enabled" or "Disabled"))
     end
     if not rotation_enabled then
         if not _guard4_logged then

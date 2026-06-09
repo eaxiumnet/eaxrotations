@@ -70,7 +70,7 @@ local function safe(fn, ...)
     local now = core.time and core.time() or 0
     if now - _last_error_time > 2 then
         _last_error_time = now
-        NS.log("rotation callback warning: " .. tostring(a))
+        NS.log("Rotation Callback Warning: " .. tostring(a))
     end
     return nil
 end
@@ -908,7 +908,7 @@ local function run_list(name, list, options, context)
             local allowed = strategy_allowed(strategy, name, context.active_playstyle, context)
             if not allowed then
             elseif type(strategy.execute) ~= "function" then
-                NS.log_warning(name .. " strategy " .. tostring(strategy.name or i) .. " missing execute")
+                NS.log_warning(name .. " Strategy '" .. tostring(strategy.name or i) .. "' Is Missing An Execute Action")
             else
                 local ok = true
                 if type(strategy.matches) == "function" then ok = strategy.matches(context, state) == true end
