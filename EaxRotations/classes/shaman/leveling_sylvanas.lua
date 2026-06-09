@@ -127,27 +127,10 @@ end
 
 local function mainhand_has_imbue()
     local item = get_equipped_item(MAIN_HAND_SLOT)
-    if not item then
-        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] mainhand: NO item in slot 16") end
-        return false, false
-    end
+    if not item then return false, false end
     if item.item_has_enchant then
         local ok, result = pcall(function() return item:item_has_enchant() end)
-        local ench_id, ench_exp, ench_charges = "?", "?", "?"
-        if ok and result then
-            local id_ok, id_v = pcall(function() return item:item_enchant_id() end)
-            local ex_ok, ex_v = pcall(function() return item:item_enchant_expiration() end)
-            local ch_ok, ch_v = pcall(function() return item:item_enchant_charges() end)
-            ench_id = id_ok and tostring(id_v) or "err"
-            ench_exp = ex_ok and tostring(ex_v) or "err"
-            ench_charges = ch_ok and tostring(ch_v) or "err"
-        end
-        if NS.get_setting and NS.get_setting("debug_system", false) then
-            NS.log("[IMBUEDIAG] mainhand: api_ok=" .. tostring(ok) .. " has_ench=" .. tostring(result) .. " ench_id=" .. ench_id .. " exp=" .. ench_exp .. " charges=" .. ench_charges)
-        end
         if ok then return result == true, true end
-    else
-        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] mainhand: item_has_enchant API MISSING on item object") end
     end
     return false, false
 end
@@ -231,29 +214,9 @@ function shaman_leveling.build_state(context)
         state.has_mainhand_imbue, state.weapon_imbue_api_known = mainhand_has_imbue()
     end
 
-    -- Off-hand detection logging (for enhancement dual-wield diagnosis)
-    if NS.get_setting and NS.get_setting("debug_system", false) then
-        if imbue and type(imbue.offhand_has_imbue) == "function" then
-            NS.log("[IMBUEDIAG] offhand: WeaponImbueManager reports has_imbue=" .. tostring(imbue.offhand_has_imbue()))
-        else
-            local oh_item = get_equipped_item(OFF_HAND_SLOT)
-            if oh_item then
-                local oh_has, oh_id, oh_exp = "?", "?", "?"
-                if oh_item.item_has_enchant then
-                    local ok1, r1 = pcall(function() return oh_item:item_has_enchant() end)
-                    oh_has = ok1 and tostring(r1) or "err"
-                    if ok1 and r1 then
-                        local ok2, r2 = pcall(function() return oh_item:item_enchant_id() end)
-                        local ok3, r3 = pcall(function() return oh_item:item_enchant_expiration() end)
-                        oh_id = ok2 and tostring(r2) or "err"
-                        oh_exp = ok3 and tostring(r3) or "err"
-                    end
-                end
-                NS.log("[IMBUEDIAG] offhand: item_exists=true has_enchant=" .. oh_has .. " ench_id=" .. oh_id .. " exp=" .. oh_exp)
-            else
-                NS.log("[IMBUEDIAG] offhand: NO item in slot 17")
-            end
-        end
+    -- Off-hand detection (uses WeaponImbueManager when available)
+    if not (imbue and type(imbue.offhand_has_imbue) == "function") then
+        get_equipped_item(OFF_HAND_SLOT) -- probe side-effect: warm API cache
     end
 
     -- Settings
@@ -286,39 +249,13 @@ end
 
 --- Main-hand weapon imbue - maintain OOC
 local weapon_imbue_matches = function(_, state)
-    if not state then
-        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: no state") end
-        return false
-    end
-    if state.in_combat then
-        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: in_combat=" .. tostring(state.in_combat) .. " -> skip") end
-        return false
-    end
-    if not state.use_weapon_imbue then
-        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: use_weapon_imbue=false -> skip") end
-        return false
-    end
-    if not state.weapon_imbue then
-        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: no weapon_imbue selected -> skip") end
-        return false
-    end
-    if state.has_mainhand_imbue then
-        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: has_mainhand_imbue=true -> already OK, skip") end
-        return false
-    end
-    if not state.weapon_imbue_api_known then
-        local retry_ok = can_retry_unknown_imbue(state)
-        if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] match: api_known=false retry_ok=" .. tostring(retry_ok) .. " retry_ms=" .. tostring(1500000)) end
-        if not retry_ok then return false end
-    end
-    local ready = spell_ready(state.weapon_imbue, get_player(), { skip_range = true })
-    if NS.get_setting and NS.get_setting("debug_system", false) then
-        local spell_name = (state.weapon_imbue and state.weapon_imbue.name) or "nil"
-        local ids_raw = (state.weapon_imbue and state.weapon_imbue.ids) or nil
-        local spell_ids = (ids_raw and type(ids_raw) == "table" and table.concat(ids_raw, ",")) or "nil"
-        NS.log("[IMBUEDIAG] match: ready=" .. tostring(ready) .. " spell=" .. tostring(spell_name) .. " ids={" .. spell_ids .. "}")
-    end
-    return ready
+    if not state then return false end
+    if state.in_combat then return false end
+    if not state.use_weapon_imbue then return false end
+    if not state.weapon_imbue then return false end
+    if state.has_mainhand_imbue then return false end
+    if not state.weapon_imbue_api_known and not can_retry_unknown_imbue(state) then return false end
+    return spell_ready(state.weapon_imbue, get_player(), { skip_range = true })
 end
 
 --- Lightning Shield - maintain OOC
@@ -553,20 +490,8 @@ local strategies = {
     { name = "WeaponImbue",
       matches = weapon_imbue_matches,
       execute = function(context, state)
-          if not state then
-              if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] execute: no state -> skip") end
-              return false
-          end
-          local spell_name = (state.weapon_imbue and state.weapon_imbue.name) or "nil"
-          local cast_ok = try_cast(state.weapon_imbue, nil, "[LEVELING] Weapon Imbue", { skip_range = true })
-          if NS.get_setting and NS.get_setting("debug_system", false) then
-              NS.log("[IMBUEDIAG] execute: try_cast(" .. spell_name .. ")=" .. tostring(cast_ok) .. " target=nil")
-          end
-          if cast_ok then
-              return true
-          end
-          if NS.get_setting and NS.get_setting("debug_system", false) then NS.log("[IMBUEDIAG] execute: try_cast FAILED") end
-          return false
+          if not state then return false end
+          return try_cast(state.weapon_imbue, nil, "[LEVELING] Weapon Imbue", { skip_range = true }) and true or false
       end },
 
     -- OOC: Lightning Shield
