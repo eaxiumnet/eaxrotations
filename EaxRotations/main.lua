@@ -895,12 +895,17 @@ if type(core.register_on_render_control_panel_callback) == "function" then
 end
 
 -- Movement handler render callback: required for pause/face delays and auto-resume.
--- Loaded here so movement_handler:on_render() fires every frame when the module is available.
+-- Loaded here so movement_handler:on_render() fires every render frame.
+-- Gated on rotation_enabled — render callbacks fire at 60fps+ (un-throttled), so
+-- skipping when rotation is off saves a per-frame C->Lua crossing.
 do
     local _ma_ok, _movement_assist = pcall(require, "shared/movement_assist_sylvanas")
     if _ma_ok and type(_movement_assist) == "table" and _movement_assist.on_render then
         if type(core.register_on_render_callback) == "function" then
             core.register_on_render_callback(function()
+                local _roten = framework_core and framework_core.get_setting
+                    and framework_core.get_setting("rotation_enabled", true) ~= false
+                if not _roten then return end
                 _movement_assist.on_render()
             end)
         end
