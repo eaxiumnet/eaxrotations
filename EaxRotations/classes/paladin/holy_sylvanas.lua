@@ -4,6 +4,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}
+local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.PaladinHealing or require("classes/paladin/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
@@ -69,14 +70,6 @@ local FROST_DAMAGE_DEBUFFS = { 12494, 116, 7321, 33395, 27087 }
 local SHADOW_DAMAGE_DEBUFFS = { 27216, 27243, 30910, 30414, 33676 }
 local ROOT_SNARE_DEBUFFS = { 122, 339, 512, 865, 1022, 116, 1715, 2974, 3409, 3600, 12494, 27088, 33395 }
 local PHYSICAL_FOCUS_DEBUFFS = { 26017, 12809, 25274, 25273, 30108 }
-local MANA_POTION_IDS = {
-    TBC_POTIONS.crystal_mana or 33935,
-    TBC_POTIONS.auchenai_mana or 32948,
-    TBC_POTIONS.super_mana or 22832,
-    TBC_POTIONS.super_rejuvenation or 22850,
-    TBC_POTIONS.major_mana or 13444,
-    TBC_POTIONS.superior_mana or 13443,
-}
 local DARK_RUNE_IDS = { 20520, 12662 }
 
 local DEFAULT_SCAN_HP = 96
@@ -607,7 +600,7 @@ local strategies = {
             if not can_help(s.lowest) then return false end
             local moving = s.moving or context and context.is_moving
             if hp_of(s.lowest) > setting(context, "holy_shock_hp", 40) and not moving then return false end
-            if not NS.spell_ready(SPELLS.HolyShock, s.lowest.unit, EMPTY_OPTS) then return false end
+            if not (NS.spell_ready and NS.spell_ready(SPELLS.HolyShock, s.lowest.unit, EMPTY_OPTS)) then return false end
             -- Predictive overheal gate: Holy Shock is instant but still gated at higher HP
             if NS.gate_overheal("HolyShock", s.lowest.unit, 1.5, context.settings) then return false end
             return true
@@ -621,7 +614,7 @@ local strategies = {
         matches = function(context, s)
             if not can_help(s.lowest) or hp_of(s.lowest) > 55 then return false end
             s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.lowest)
-            if not NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS) then return false end
+            if not (NS.spell_ready and NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS)) then return false end
             -- Predictive overheal gate
             if NS.gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings) then return false end
             return true
@@ -635,7 +628,7 @@ local strategies = {
         matches = function(context, s)
             if not s.has_divine_favor or not can_help(s.lowest) then return false end
             s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.lowest)
-            if not NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS) then return false end
+            if not (NS.spell_ready and NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS)) then return false end
             -- Predictive overheal gate: even with Divine Favor, avoid wasteful overheal
             if NS.gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings) then return false end
             return true
@@ -660,8 +653,8 @@ local strategies = {
         matches = function(_, s)
             return (s.mana_pct or 100) <= POTION_MANA_PCT
         end,
-        execute = function()
-            return try_use_item(MANA_POTION_IDS, "[HOLY] Mana potion")
+        execute = function(context)
+            return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS)
         end,
     },
     {
@@ -737,7 +730,7 @@ local strategies = {
         matches = function(context, s)
             if not can_help(s.lowest) then return false end
             if hp_of(s.lowest) > setting(context, "holy_flash_light_hp", 85) then return false end
-            if not NS.spell_ready(SPELLS.FlashOfLight, s.lowest.unit, EMPTY_OPTS) then return false end
+            if not (NS.spell_ready and NS.spell_ready(SPELLS.FlashOfLight, s.lowest.unit, EMPTY_OPTS)) then return false end
             -- Predictive overheal gate: skip FoL if predicted deficit is small
             if NS.gate_overheal("FlashOfLight", s.lowest.unit, 1.5, context.settings) then return false end
             return true
