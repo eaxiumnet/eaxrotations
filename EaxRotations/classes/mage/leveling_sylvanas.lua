@@ -70,6 +70,13 @@ local function safe_use_item(item_id)
     return ok and used
 end
 
+--- Safe try_cast wrapper — pcall protects against nil/throwing NS.try_cast
+local function try_cast(spell_action, target, label, opts)
+    if not NS.try_cast then return false end
+    local ok, result = pcall(NS.try_cast, spell_action, target, label, opts)
+    return ok and result == true
+end
+
 -- ============================================================================
 -- State builder
 -- ============================================================================
@@ -333,19 +340,20 @@ end
 -- ============================================================================
 
 local function execute_wand(context)
-    return leveling.execute_wand(context)
+    local ok, result = pcall(leveling.execute_wand, context)
+    return ok and (result == true) or false
 end
 
 local function frost_nova_execute()
     -- Frost Nova is a self-centered AoE, no target needed
-    return NS.try_cast and NS.try_cast(SPELLS.FrostNova, nil, "[LEVELING] Frost Nova") or false
+    return try_cast(SPELLS.FrostNova, nil, "[LEVELING] Frost Nova")
 end
 
 local function conjure_gem_execute()
     -- Conjure the highest rank mana gem (spell resolution handled by spell exists check)
     for _, spell_id in ipairs(CONJURE_MANA_GEM_SPELLS) do
         if NS.spell_exists and NS.spell_exists(spell_id) then
-            return NS.try_cast and NS.try_cast(spell_id, NS.PLAYER_UNIT, "[LEVELING] Conjure Mana Gem") or false
+            return try_cast(spell_id, NS.PLAYER_UNIT, "[LEVELING] Conjure Mana Gem")
         end
     end
     return false
@@ -369,16 +377,16 @@ local strategies = {
     -- Out-of-combat buffs
     { name = "ArcaneIntellect",
       matches = arcane_intellect_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.ArcaneIntellect, NS.PLAYER_UNIT, "[LEVELING] Arcane Intellect") or false end },
+      execute = function() return try_cast(SPELLS.ArcaneIntellect, NS.PLAYER_UNIT, "[LEVELING] Arcane Intellect") end },
 
     { name = "FrostArmor",
       matches = frost_armor_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.FrostArmor, NS.PLAYER_UNIT, "[LEVELING] Frost Armor") or false end },
+      execute = function() return try_cast(SPELLS.FrostArmor, NS.PLAYER_UNIT, "[LEVELING] Frost Armor") end },
 
     -- OOC: remove curses between pulls
     { name = "RemoveCurse",
       matches = remove_curse_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.RemoveCurse, NS.PLAYER_UNIT, "[LEVELING] Remove Curse") or false end },
+      execute = function() return try_cast(SPELLS.RemoveCurse, NS.PLAYER_UNIT, "[LEVELING] Remove Curse") end },
 
     -- Pre-combat: conjure mana gem if missing
     { name = "ConjureManaGem",
@@ -388,21 +396,21 @@ local strategies = {
     -- Pull / CC
     { name = "Polymorph",
       matches = polymorph_matches,
-      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Polymorph, context.target, "[LEVELING] Polymorph") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.Polymorph, context.target, "[LEVELING] Polymorph") end },
 
     -- Combat utility
     { name = "Counterspell",
       matches = counterspell_matches,
-      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Counterspell, context.target, "[LEVELING] Counterspell") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.Counterspell, context.target, "[LEVELING] Counterspell") end },
 
     -- Defensive
     { name = "ManaShield",
       matches = mana_shield_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.ManaShield, NS.PLAYER_UNIT, "[LEVELING] Mana Shield") or false end },
+      execute = function() return try_cast(SPELLS.ManaShield, NS.PLAYER_UNIT, "[LEVELING] Mana Shield") end },
 
     { name = "IceBarrier",
       matches = ice_barrier_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.IceBarrier, NS.PLAYER_UNIT, "[LEVELING] Ice Barrier") or false end },
+      execute = function() return try_cast(SPELLS.IceBarrier, NS.PLAYER_UNIT, "[LEVELING] Ice Barrier") end },
 
     { name = "FrostNova",
       matches = frost_nova_matches,
@@ -411,39 +419,39 @@ local strategies = {
     -- AoE: Cone of Cold (kite tool, before Blizzard)
     { name = "ConeOfCold",
       matches = cone_of_cold_matches,
-      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.ConeOfCold, context.target, "[LEVELING] Cone of Cold") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.ConeOfCold, context.target, "[LEVELING] Cone of Cold") end },
 
     -- Escape: Blink
     { name = "Blink",
       matches = blink_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.Blink, NS.PLAYER_UNIT, "[LEVELING] Blink") or false end },
+      execute = function() return try_cast(SPELLS.Blink, NS.PLAYER_UNIT, "[LEVELING] Blink") end },
 
     -- AoE
     { name = "Blizzard",
       matches = blizzard_matches,
-      execute = function(context) if not context then return false end; local t = context.target; local pos = t and context and NS.get_aoe_cast_position and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, 8, 35); if pos and NS.try_cast_position then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[LEVELING] Blizzard") end; return context and NS.try_cast and NS.try_cast(SPELLS.Blizzard, t, "[LEVELING] Blizzard") or false end },
+      execute = function(context) if not context then return false end; local t = context.target; local pos = t and context and NS.get_aoe_cast_position and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, 8, 35); if pos and NS.try_cast_position then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[LEVELING] Blizzard") end; return try_cast(SPELLS.Blizzard, context and context.target, "[LEVELING] Blizzard") end },
 
     -- Mana recovery
     { name = "Evocation",
       matches = evocation_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.Evocation, NS.PLAYER_UNIT, "[LEVELING] Evocation") or false end },
+      execute = function() return try_cast(SPELLS.Evocation, NS.PLAYER_UNIT, "[LEVELING] Evocation") end },
 
     -- Damage
     { name = "FireBlast",
       matches = fire_blast_matches,
-      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.FireBlast, context.target, "[LEVELING] Fire Blast") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.FireBlast, context.target, "[LEVELING] Fire Blast") end },
 
     { name = "Scorch",
       matches = scorch_matches,
-      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Scorch, context.target, "[LEVELING] Scorch") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.Scorch, context.target, "[LEVELING] Scorch") end },
 
     { name = "ArcaneMissiles",
       matches = arcane_missiles_matches,
-      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.ArcaneMissiles, context.target, "[LEVELING] Arcane Missiles") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.ArcaneMissiles, context.target, "[LEVELING] Arcane Missiles") end },
 
     { name = "Frostbolt",
       matches = frostbolt_matches,
-      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Frostbolt, context.target, "[LEVELING] Frostbolt") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.Frostbolt, context.target, "[LEVELING] Frostbolt") end },
 
     -- Mana recovery: use mana gem before resorting to wand
     { name = "UseManaGem",
