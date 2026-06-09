@@ -61,6 +61,13 @@ local function creature_type(unit)
     return ok and value or nil
 end
 
+local function try_cast(spell_action, target, label, opts)
+    if not spell_action then return false end
+    if not NS.try_cast then return false end
+    local ok, result = pcall(NS.try_cast, spell_action, target, label or "", opts)
+    return ok and result == true
+end
+
 local function choose_seal_action(state)
     if state.seal_command_ready then return SPELLS.SealCommand end
     if state.seal_blood_ready then return SPELLS.SealBlood end
@@ -285,41 +292,41 @@ local strategies = {
     -- OOC prep
     { name = "BlessingMight",
       matches = blessing_might_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.BlessingOfMight, NS.PLAYER_UNIT, "[LEVELING] Blessing of Might") or false end },
+      execute = function() return try_cast(SPELLS.BlessingOfMight, NS.PLAYER_UNIT, "[LEVELING] Blessing of Might") end },
 
     -- OOC: Blessing of Wisdom for mana sustain (prefer Might when it's up, fallback to Wisdom)
     { name = "BlessingWisdom",
       matches = blessing_wisdom_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.BlessingOfWisdom, NS.PLAYER_UNIT, "[LEVELING] Blessing of Wisdom") or false end },
+      execute = function() return try_cast(SPELLS.BlessingOfWisdom, NS.PLAYER_UNIT, "[LEVELING] Blessing of Wisdom") end },
 
     -- DPS aura for leveling (reflects melee damage from mobs)
     { name = "RetributionAura",
       matches = retribution_aura_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.RetributionAura, NS.PLAYER_UNIT, "[LEVELING] Retribution Aura") or false end },
+      execute = function() return try_cast(SPELLS.RetributionAura, NS.PLAYER_UNIT, "[LEVELING] Retribution Aura") end },
 
     { name = "DevotionAura",
       matches = devotion_aura_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.DevotionAura, NS.PLAYER_UNIT, "[LEVELING] Devotion Aura") or false end },
+      execute = function() return try_cast(SPELLS.DevotionAura, NS.PLAYER_UNIT, "[LEVELING] Devotion Aura") end },
 
     -- Self-buffs / defensives
     { name = "HolyShield",
       matches = holy_shield_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.HolyShield, context.me, "[LEVELING] Holy Shield") or false
+        return try_cast(SPELLS.HolyShield, context.me, "[LEVELING] Holy Shield")
       end },
 
     -- OOC: Cleanse debuffs between pulls
     { name = "Cleanse",
       matches = cleanse_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.Cleanse, NS.PLAYER_UNIT, "[LEVELING] Cleanse") or false end },
+      execute = function() return try_cast(SPELLS.Cleanse, NS.PLAYER_UNIT, "[LEVELING] Cleanse") end },
 
     -- Survival
     { name = "FlashOfLight",
       matches = flash_light_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.FlashOfLight, context.me, "[LEVELING] Flash of Light") or false
+        return try_cast(SPELLS.FlashOfLight, context.me, "[LEVELING] Flash of Light")
       end },
 
     -- Big heal when critically low
@@ -327,18 +334,18 @@ local strategies = {
       matches = holy_light_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.HolyLight, context.me, "[LEVELING] Holy Light") or false
+        return try_cast(SPELLS.HolyLight, context.me, "[LEVELING] Holy Light")
       end },
 
     { name = "DivineShield",
       matches = divine_shield_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.DivineShield, NS.PLAYER_UNIT, "[LEVELING] Divine Shield") or false end },
+      execute = function() return try_cast(SPELLS.DivineShield, NS.PLAYER_UNIT, "[LEVELING] Divine Shield") end },
 
     { name = "LayOnHands",
       matches = lay_on_hands_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.LayOnHands, context.me, "[LEVELING] Lay on Hands") or false
+        return try_cast(SPELLS.LayOnHands, context.me, "[LEVELING] Lay on Hands")
       end },
 
     -- CC
@@ -346,7 +353,7 @@ local strategies = {
       matches = hammer_justice_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.HammerOfJustice, context.target, "[LEVELING] Hammer of Justice") or false
+        return try_cast(SPELLS.HammerOfJustice, context.target, "[LEVELING] Hammer of Justice")
       end },
 
     -- Damage
@@ -354,41 +361,41 @@ local strategies = {
       matches = judgement_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.Judgement, context.target, "[LEVELING] Judgement") or false
+        return try_cast(SPELLS.Judgement, context.target, "[LEVELING] Judgement")
       end },
 
     { name = "HammerOfWrath",
       matches = hammer_wrath_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.HammerOfWrath, context.target, "[LEVELING] Hammer of Wrath") or false
+        return try_cast(SPELLS.HammerOfWrath, context.target, "[LEVELING] Hammer of Wrath")
       end },
 
     { name = "CrusaderStrike",
       matches = crusader_strike_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.CrusaderStrike, context.target, "[LEVELING] Crusader Strike") or false
+        return try_cast(SPELLS.CrusaderStrike, context.target, "[LEVELING] Crusader Strike")
       end },
 
     { name = "Exorcism",
       matches = exorcism_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.Exorcism, context.target, "[LEVELING] Exorcism") or false
+        return try_cast(SPELLS.Exorcism, context.target, "[LEVELING] Exorcism")
       end },
 
     { name = "Consecration",
       matches = consecration_matches,
       execute = function(context)
         if not context then return false end
-        return NS.try_cast and NS.try_cast(SPELLS.Consecration, context.me, "[LEVELING] Consecration", { skip_range = true, expected_cooldown = 8 }) or false
+        return try_cast(SPELLS.Consecration, context.me, "[LEVELING] Consecration", { skip_range = true, expected_cooldown = 8 })
       end },
 
     -- Seal (lowest priority - always keep up)
     { name = "Seal",
        matches = seal_matches,
-      execute = function(_, state) return NS.try_cast and NS.try_cast(state and state.selected_seal or SPELLS.SealRighteousness, NS.PLAYER_UNIT, "[LEVELING] Seal") or false end },
+      execute = function(_, state) return try_cast(state and state.selected_seal or SPELLS.SealRighteousness, NS.PLAYER_UNIT, "[LEVELING] Seal") end },
 }
 
 NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
