@@ -2,6 +2,7 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.RogueSpells or {}
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
@@ -235,6 +236,7 @@ end
 
 local function adrenaline_rush_wrapper(context, s)
     if not cooldowns_enabled(context) then return false end
+    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not s.in_combat then return false end
     if s.has_adrenaline_rush then return false end
     if not s.adrenaline_rush_ready then return false end
@@ -247,6 +249,7 @@ end
 
 local function blade_flurry_wrapper(context, s)
     if not cooldowns_enabled(context) then return false end
+    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not s.in_combat then return false end
     if s.has_blade_flurry then return false end
     if not s.blade_flurry_ready then return false end
@@ -436,6 +439,24 @@ end
 -- Strategies
 -- ============================================================================
 local strategies = {
+    { name = "HealthPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_health_potion then return false end
+          if (context.hp or 100) > 35 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS) end },
+    { name = "DamagePotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_damage_potion then return false end
+          if not context.should_burst then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
     { name = "Stealth", matches = stealth_matches, execute = function(context) return NS.try_cast(SPELLS.Stealth, NS.PLAYER_UNIT, "[COMBAT] Stealth", { skip_range = true }) end },
     { name = "SliceAndDice", matches = slice_and_dice_wrapper, execute = function(context) return NS.try_cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, "[COMBAT] SliceAndDice", { skip_range = true }) end },
     { name = "AdrenalineRush", matches = adrenaline_rush_wrapper, execute = function(context) return NS.try_cast(SPELLS.AdrenalineRush, NS.PLAYER_UNIT, "[COMBAT] AdrenalineRush", { skip_range = true }) end },

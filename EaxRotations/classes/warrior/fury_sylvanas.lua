@@ -1,14 +1,12 @@
 -- Warrior Fury priority list — parity v1.0.6+ parity (auto-charge, rampage stacks, sunder, rend, overpower, defensives)
 local NS = _G.EaxRotations
 if not NS then return nil end
+local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
 local PLAYER_UNIT = NS.PLAYER_UNIT
 
--- Swing timer integration (optional, for Slam weaving)
-local _swing_ok, SwingTimer = pcall(require, "shared/swing_timer_sylvanas")
-if not _swing_ok or type(SwingTimer) ~= "table" then SwingTimer = nil end
 
 -- Helper: resolve spell ID
 local function spell(field, ids, label)
@@ -357,9 +355,8 @@ local function build_state(context)
     end
 
     -- Swing timer for Slam weave
-    if SwingTimer and SwingTimer.update then SwingTimer.update() end
-    fury_state.mh_until = SwingTimer and SwingTimer.get_mh_time_until and SwingTimer.get_mh_time_until() or 999
-    fury_state.mh_progress = SwingTimer and SwingTimer.get_mh_progress and SwingTimer.get_mh_progress() or 0
+    fury_state.mh_until = (me and NS.swing_time_until and NS.swing_time_until(me)) or 999
+    fury_state.mh_progress = (me and NS.swing_progress and NS.swing_progress(me)) or 0
 
     return fury_state
 end
@@ -437,6 +434,7 @@ end
 local function recklessness_matches(context, state)
     local cds_enabled = setting(context, "use_cooldowns", true)
     if not cds_enabled or not state.recklessness_ready then return false end
+    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not state.in_combat then return false end
     if (state.hp or 100) < 50 then return false end
     -- TTD gate: don't waste 30min CD if target is about to die
@@ -448,6 +446,7 @@ end
 local function death_wish_matches(context, state)
     local cds_enabled = setting(context, "use_cooldowns", true)
     if not cds_enabled or not state.death_wish_ready then return false end
+    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if (state.hp or 100) < 45 then return false end
     -- TTD gate: don't waste burst CD if target is about to die
     if (state.ttd or 0) > 0 and (state.ttd or 0) < 10 then return false end
@@ -530,7 +529,6 @@ end
 -- Slam: weave between swings (when Bloodthirst on CD)
 local function slam_matches(context, state)
     if setting(context, "slam_weave_enabled", true) == false then return false end
-    if not SwingTimer then return false end
     if state.is_moving then return false end
     if (state.rage or 0) < SLAM_RAGE_COST then return false end
     if (state.bt_cd or 99) <= 1.5 then return false end
@@ -633,6 +631,25 @@ end
 -- Strategies
 -- ============================================================================
 local STRATEGY_SPECS = {
+    -- Auto-potions (context-based, O(1) gate)
+    { "HealthPotion", function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_health_potion then return false end
+          if (context.hp or 100) > 35 then return false end
+          return true
+      end, build_action("HealthPotion", nil, { target = "self", requires_target = false }), function(context)
+          return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS)
+      end },
+    { "DamagePotion", function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_damage_potion then return false end
+          if not context.should_burst then return false end
+          return true
+      end, build_action("DamagePotion", nil, { target = "self", requires_target = false }), function(context)
+          return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS)
+      end },
     -- Utility / Survival (highest priority)
     { "Healthstone", healthstone_matches, build_action("Healthstone", nil, { target = "self", requires_target = false }), function(context)
         local s = build_state(context or {})
