@@ -434,12 +434,14 @@ local strategies = {
         matches = wand_matches_fn,
         execute = function(context)
             if not context then return false end
-            return leveling.execute_wand(context)
+            local ok, result = pcall(leveling.execute_wand, context)
+            return ok and (result == true) or false
         end,
     },
     {
         name = "SymbolOfHope",
         matches = function(context, state)
+            if not state then return false end
             if not state.symbol_of_hope_ready then return false end
             if not context.is_group then return false end
             if context.settings and context.settings.use_symbol_of_hope == false then return false end
