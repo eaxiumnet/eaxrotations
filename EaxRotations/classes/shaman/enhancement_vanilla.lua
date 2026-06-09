@@ -4,21 +4,14 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 
 local _core = (NS and NS.core) or rawget(_G, "core")
 local _get_totem_info = _core and _core.spell_book and _core.spell_book.get_totem_info
 local _get_visible_objects = _core and _core.object_manager and _core.object_manager.get_visible_objects
 
--- Auto-attack helper
-local _ok_aa, auto_attack = pcall(require, "common/utility/auto_attack_helper")
-if not _ok_aa or type(auto_attack) ~= "table" then
-    auto_attack = {
-        is_auto_attacking = function() return false end,
-        start_attack = function() return false end,
-        ATTACK_TYPE = { MELEE = 1 },
-    }
-end
+-- Use NS.is_auto_attacking() and NS.start_auto_attack() (core_sylvanas.lua wrappers)
 
 -- ============================================================================
 -- Constants
@@ -313,7 +306,7 @@ local function can_drop_totem(ctx, spell, slot, buff_ids)
     if enh_state.mana_low then return false end
     if slot and totem_active(slot) then return false end
     if buff_ids and NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, buff_ids) then return false end
-    return NS.spell_ready(spell, NS.PLAYER_UNIT, { skip_range = true })
+    return NS.spell_ready ~= nil and NS.spell_ready(spell, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function cooldowns_enabled(context)
@@ -625,7 +618,7 @@ local function earth_shock_matches(ctx)
         if not target then return false end
         local dist = target.get_distance and target:get_distance(NS.PLAYER_UNIT or ctx.me)
         if dist and dist > 20 then return false end
-        return NS.spell_ready(SPELLS.EarthShock, target, { expected_cooldown = 6 })
+        return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.EarthShock, target, { expected_cooldown = 6 }) or false
     end
     -- DPS mode: only cast if Flame Shock DoT is active on target (parity v2.0.1)
     if enh_state.earth_shock_mode == "dps" then
@@ -871,14 +864,14 @@ local function auto_attack_matches(ctx)
     if not ctx.in_combat then return false end
     local target = ctx.target
     if not target or not target:is_valid() or target:is_dead() then return false end
-    if auto_attack:is_auto_attacking(ctx.me) then return false end
+    if NS.is_auto_attacking(ctx.me) then return false end
     return true
 end
 
 local function auto_attack_execute(ctx)
     local target = ctx.target
     if not target then return false end
-    return auto_attack:start_attack(target, auto_attack.ATTACK_TYPE.MELEE)
+    return NS.start_auto_attack(target)
 end
 
 -- ============================================================================
@@ -944,6 +937,15 @@ end
 -- Strategies
 -- ============================================================================
 local strategies = {
+    { name = "ManaPotion",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not context.has_mana_potion then return false end
+          if (context.mana_pct or 100) > 20 then return false end
+          return true
+      end,
+      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
     -- 0. Mana emergency: auto-attack only, all spells forbidden (Research: Mana < 10%)
     { name = "ManaEmergencyWand",
       matches = function(ctx)
@@ -953,9 +955,9 @@ local strategies = {
       end,
       execute = function(ctx)
           local target = ctx.target
-          if auto_attack and target and target:is_valid() and not target:is_dead() then
-              if not auto_attack:is_auto_attacking(ctx.me) then
-                  auto_attack:start_attack(target, auto_attack.ATTACK_TYPE.MELEE)
+          if target and target:is_valid() and not target:is_dead() then
+              if not NS.is_auto_attacking(ctx.me) then
+                  NS.start_auto_attack(target)
               end
           end
           return true
