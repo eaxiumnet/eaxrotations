@@ -71,6 +71,8 @@ _G.EaxRotations = {
         return 99
     end,
     is_execute_phase = function(hp, threshold) return hp and hp <= (threshold or 20) end,
+    swing_time_until = function() return 1.0 end,
+    swing_progress = function() return 0 end,
     log = function() end,
     time = function() return 1000 end,
     GetPlayer = function() return {} end,
@@ -78,6 +80,7 @@ _G.EaxRotations = {
     rotation_registry = {
         register = function() end,
     },
+    gate_cooldown_boss_only = function() return true end,
 }
 
 local strategies = dofile("EaxRotations/classes/warrior/fury_sylvanas.lua")
