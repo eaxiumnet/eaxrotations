@@ -54,6 +54,35 @@ NS.spell_queue = spell_queue_module
 
 local _last_error_time = 0
 
+-- Hot-path NS API references cached at module load to avoid table lookups and pcall overhead per frame.
+-- Safe to cache: these are stable functions set during NS initialization (see core_sylvanas.lua).
+-- DO NOT cache APIs that may not exist at load time (optional modules loaded via pcall).
+local _time_now = NS.time_now
+local _game_time_ms = NS.game_time_ms
+local _unit_health_pct = NS.unit_health_pct
+local _mana_pct = NS.mana_pct
+local _power_current = NS.power_current
+local _buff_up = NS.buff_up
+local _debuff_remains = NS.debuff_remains
+local _debuff_up = NS.debuff_up
+local _unit_alive = NS.unit_alive
+local _get_party_members = NS.GetPartyMembers
+local _get_focus = NS.GetFocus
+local _get_pet = NS.GetPet
+local _get_player_stance = NS.get_player_stance
+local _is_hostile_unit = NS.is_hostile_unit
+local _is_pvp_zone = NS.is_pvp_zone
+local _is_in_party = NS.is_in_party
+local _player_control_locked = NS.player_control_locked
+local _has_breakable_cc_nearby = NS.has_breakable_cc_nearby
+local _get_debuff_stacks = NS.get_debuff_stacks
+local _same_unit = NS.same_unit
+local _gcd_remains = NS.gcd_remains
+local _get_setting = NS.get_setting
+
+local _get_expansion_max_level = NS.get_expansion_max_level
+local _get_player = NS.GetPlayer
+
 local _cached_tank_alive, _cached_tank_alive_time = true, -1
 
 -- ============================================================================
@@ -353,7 +382,7 @@ end
 
 local function build_context()
     for k in pairs(_context) do _context[k] = nil end
-    local me = NS.GetPlayer()
+    local me = _get_player()
     if not me then
         NS.current_context = nil
         return nil
@@ -395,12 +424,13 @@ local function build_context()
     if _combat_start_time and me and combat_state_known and not in_combat then _combat_start_time = nil end
     local enemy_ok = valid_enemy(me, target)
     local count = throttled_enemies_count()
+    local _enemies_cache = throttled_enemies()
     local engine_ttd = enemy_ok and target_time_to_die(target) or nil
     local instance_type = tostring(core_string("get_instance_type") or "none"):lower()
     local player_level = unit_number(me, "get_effective_level") or unit_number(me, "get_level") or 70
     local target_level = target and (unit_number(target, "get_effective_level") or unit_number(target, "get_level")) or nil
     local target_classification = target and unit_number(target, "get_classification") or nil
-    local expansion_max_level = NS.get_expansion_max_level and NS.get_expansion_max_level() or 70
+    local expansion_max_level = _get_expansion_max_level and _get_expansion_max_level() or 70
     -- Compute boss/elite flag locally before _context is fully populated
     local is_target_boss = target and NS.safe_field and NS.safe_field(target, "is_boss") and safe(target.is_boss, target) == true or false
     -- ============================================================================
@@ -463,7 +493,7 @@ local function build_context()
     _context.combat_state_known = combat_state_known
     _context.has_target = target ~= nil
     _context.has_valid_enemy_target = enemy_ok
-    _context.target_hp = enemy_ok and NS.unit_health_pct(target) or 100
+    _context.target_hp = enemy_ok and _unit_health_pct(target) or 100
     _context.player_level = player_level
     _context.level = player_level
     _context.expansion_max_level = expansion_max_level
@@ -471,19 +501,19 @@ local function build_context()
     _context.target_level = target_level
     _context.target_level_delta = target_level and (target_level - player_level) or 0
     _context.target_classification = target_classification
-    _context.hp = NS.unit_health_pct(me)
+    _context.hp = _unit_health_pct(me)
     _context.player_hp = _context.hp
-    _context.mana_pct = NS.mana_pct(me)
+    _context.mana_pct = _mana_pct(me)
     _context.player_mana = _context.mana_pct
     _context.player_mana_pct = _context.mana_pct
-    _context.gcd_remains = NS.gcd_remains and NS.gcd_remains() or 0
+    _context.gcd_remains = _gcd_remains and _gcd_remains() or 0
     _context.on_gcd = (_context.gcd_remains or 0) > 0
-    _context.combat_time = _combat_start_time and (NS.time_now() - _combat_start_time) or 0
-    _context.rage = NS.power_current(NS.POWER_RAGE)
+    _context.combat_time = _combat_start_time and (_time_now() - _combat_start_time) or 0
+    _context.rage = _power_current(NS.POWER_RAGE)
     _context.player_rage = _context.rage
-    _context.energy = NS.power_current(NS.POWER_ENERGY)
+    _context.energy = _power_current(NS.POWER_ENERGY)
     _context.player_energy = _context.energy
-    _context.focus = NS.power_current(NS.POWER_FOCUS)
+    _context.focus = _power_current(NS.POWER_FOCUS)
     -- Attack power for cat druid AP snapshotting (falls back to 0 if unit method unavailable)
     _context.attack_power = unit_number(me, "get_attack_power") or 0
     -- Spell crit chance for paladin Illumination mana-return calculations.
@@ -491,8 +521,8 @@ local function build_context()
     _context.crit_chance = unit_number(me, "get_spell_crit_chance") or 0
     -- Target armor for sunder/faerie fire value assessment
     _context.target_armor = unit_number(target, "get_armor") or 0
-    _context.bloodlust_active = me and NS.buff_up(me, BLOODLUST_IDS) or false
-    _context.drums_active = me and NS.buff_up(me, DRUMS_IDS) or false
+    _context.bloodlust_active = me and _buff_up(me, BLOODLUST_IDS) or false
+    _context.drums_active = me and _buff_up(me, DRUMS_IDS) or false
     _context.should_burst = BurstLogic.should_auto_burst(_context, {
         is_bloodlust_active = function() return _context.bloodlust_active end,
         is_drums_active = function() return _context.drums_active end,
@@ -507,9 +537,9 @@ local function build_context()
     _context.enemy_count = count
     _context.enemies_count = count
     -- Pet: used by hunter/warlock files
-    _context.pet = NS.GetPet and NS.GetPet()
+    _context.pet = _get_pet and _get_pet()
     _context.pet_dead = _context.pet and not _context.pet:is_alive() or false
-    _context.stance = NS.get_player_stance()
+    _context.stance = _get_player_stance()
     _context.is_moving = unit_bool(me, "is_moving")
     _context.is_casting = unit_bool(me, "is_casting", "is_casting_spell")
     _context.is_channeling = unit_bool(me, "is_channeling", "is_channelling_spell")
@@ -521,65 +551,80 @@ local function build_context()
         local ok, pvp_sit = pcall(health_prediction.is_pvp_situation, health_prediction, target)
         _context.is_pvp = ok and pvp_sit == true
     else
-        _context.is_pvp = NS.is_pvp_zone and NS.is_pvp_zone() or false
+        _context.is_pvp = _is_pvp_zone and _is_pvp_zone() or false
     end
     _context.instance_type = instance_type
     _context.is_dungeon = instance_type == "party"
     _context.is_raid = instance_type == "raid"
     _context.is_arena = instance_type == "arena"
     _context.is_battleground = instance_type == "pvp"
-    _context.is_group = _context.is_dungeon or _context.is_raid or (NS.is_in_party and NS.is_in_party() or false)
+    _context.is_group = _context.is_dungeon or _context.is_raid or (_is_in_party and _is_in_party() or false)
     _context.is_solo = not _context.is_group
-    -- Tank-alive detection for Rebirth safety gating (throttled to 500ms)
+    -- Cache GetPartyMembers() once per frame for all downstream consumers
+    local _party_members = nil
+    if _context.is_group then
+        _party_members = NS.GetPartyMembers and NS.GetPartyMembers() or nil
+    end
+    -- Combined party scan: tank_alive, group_injured, fear_nearby in a single ipairs pass.
+    -- Replaces 3 separate loops (was: tank_alive 568-612, group_injured 679-690, fear_nearby 715-729).
+    -- tank_alive detection is throttled to 500ms; other flags are per-frame but early-exit on first match.
     local tank_alive = _cached_tank_alive
+    _context.group_injured = false
+    _context.fear_nearby = false
     if _context.is_group then
         local now = NS.game_time_ms and NS.game_time_ms() or 0
-        if now - _cached_tank_alive_time > 500 then
+        local refresh_tank = now - _cached_tank_alive_time > 500
+        if refresh_tank then
             tank_alive = true
-            -- Primary: health_prediction platform module (engine-level tank detection)
-            if health_prediction and type(health_prediction.is_tank) == "function" then
-                local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
-                if party then
-                    for _, u in ipairs(party) do
-                        if u then
-                            local ok, is_tank = pcall(health_prediction.is_tank, health_prediction, u)
-                            if ok and is_tank then
-                                local ok2, alive = pcall(function() return u.is_alive and u:is_alive() end)
-                                if ok2 and not alive then
-                                    tank_alive = false
-                                    break
-                                end
+            _cached_tank_alive_time = now
+        end
+        local party = _party_members
+        if party then
+            for _, u in ipairs(party) do
+                if u then
+                    local alive = _unit_alive(u)
+                    if not alive then
+                        if refresh_tank and tank_alive then
+                            local is_tank = false
+                            if health_prediction and type(health_prediction.is_tank) == "function" then
+                                local ok, result = pcall(health_prediction.is_tank, health_prediction, u)
+                                if ok and result then is_tank = true end
+                            else
+                                local ok, result = pcall(function() return u.is_tank and u:is_tank() end)
+                                if ok and result then is_tank = true end
                             end
+                            if is_tank then tank_alive = false end
                         end
-                    end
-                end
-            else
-                -- Fallback: manual party iteration with unit:is_tank()
-                local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
-                if party then
-                    for _, u in ipairs(party) do
-                        if u then
-                            local ok, is_tank = pcall(function() return u.is_tank and u:is_tank() end)
-                            if ok and is_tank then
-                                local ok2, alive = pcall(function() return u.is_alive and u:is_alive() end)
-                                if ok2 and not alive then
-                                    tank_alive = false
-                                    break
-                                end
-                            end
+                    else
+                        if not _context.group_injured and _unit_health_pct(u) < 90 then
+                            _context.group_injured = true
                         end
                     end
                 end
             end
-            _cached_tank_alive = tank_alive
-            _cached_tank_alive_time = now
+        end
+        -- fear_nearby: check party members for fear debuffs (PvP-specific)
+        if _context.is_pvp then
+            local party2 = _party_members
+            if party2 then
+                for _, u in ipairs(party2) do
+                    if u and _unit_alive(u) and _debuff_up(u, FEAR_IDS) then
+                        _context.fear_nearby = true
+                        break
+                    end
+                end
+            end
+            if not _context.fear_nearby and me and _debuff_up(me, FEAR_IDS) then
+                _context.fear_nearby = true
+            end
         end
     end
+    _cached_tank_alive = tank_alive
     _context.tank_alive = tank_alive
     _context.settings = NS.settings or {}
     _context.ttd = ttd or 999
     _context.ttd_source = ttd_source
-    _context.has_breakable_cc_nearby = NS.has_breakable_cc_nearby and NS.has_breakable_cc_nearby() or false
+    _context.has_breakable_cc_nearby = _has_breakable_cc_nearby and _has_breakable_cc_nearby() or false
     -- Boss school immunities for strategy gating
     local school_immunities = get_target_school_immunities(target)
     _context.target_arcane_immune = school_immunities.arcane == true
@@ -622,7 +667,7 @@ local function build_context()
     -- Sunder Armor presence on target
     _context.has_sunder = false
     if target then
-        _context.has_sunder = NS.debuff_remains and NS.debuff_remains(target, { 7386, 7405, 8380, 11596, 11597, 25225 }) > 0 or false
+        _context.has_sunder = _debuff_remains and _debuff_remains(target, { 7386, 7405, 8380, 11596, 11597, 25225 }) > 0 or false
     end
     -- AoE damage incoming (enemy count > 1 as proxy for cleave/AoE packs)
     _context.aoe_damage_incoming = count > 1
@@ -632,64 +677,35 @@ local function build_context()
     _context.scorch_stacks = 0
     _context.scorch_remains = 0
     if target then
-        _context.scorch_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, { 22959 }) or 0
-        _context.scorch_remains = NS.debuff_remains and NS.debuff_remains(target, { 22959 }) or 0
+        _context.scorch_stacks = _get_debuff_stacks and _get_debuff_stacks(target, { 22959 }) or 0
+        _context.scorch_remains = _debuff_remains and _debuff_remains(target, { 22959 }) or 0
     end
     -- Enemy array for spec-level iteration (frost mage Cone of Cold, prot pally CC checks)
-    _context.enemies = throttled_enemies() or {}
+    _context.enemies = _enemies_cache or {}
     -- Legacy aliases for paladin specs that use alternative field names
     _context.enemy_list = _context.enemies
     _context.targets = _context.enemies
-    -- Group injured flag for off-heal gating (shaman elemental Chain Heal)
-    _context.group_injured = false
-    if _context.is_group then
-        local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
-        if party then
-            for _, u in ipairs(party) do
-                if u and NS.unit_alive(u) and NS.unit_health_pct(u) < 90 then
-                    _context.group_injured = true
-                    break
-                end
-            end
-        end
-    end
     -- PvP: CC target for Polymorph (mage specs) — uses focus target when valid
     _context.cc_target = nil
     if _context.is_pvp and target then
-        local focus = NS.GetFocus and NS.GetFocus() or nil
-        if focus and NS.unit_alive(focus) and valid_enemy(me, focus) and not NS.same_unit(focus, target) then
+        local focus = _get_focus and _get_focus() or nil
+        if focus and _unit_alive(focus) and valid_enemy(me, focus) and not _same_unit(focus, target) then
             _context.cc_target = focus
         end
     end
     -- PvP: CC-safe flag for AoE (shaman elemental) — false when nearby enemies are CC'd
     _context.cc_safe = true
     if _context.is_pvp and target then
-        local enemies = throttled_enemies()
+        local enemies = _enemies_cache
         if type(enemies) == "table" then
             local n = enemies.n or #enemies
             for i = 1, n do
                 local e = enemies[i]
-                if e and NS.unit_alive(e) and NS.debuff_up(e, NS.CC_DEBUFFS) then
+                if e and _unit_alive(e) and _debuff_up(e, NS.CC_DEBUFFS) then
                     _context.cc_safe = false
                     break
                 end
             end
-        end
-    end
-    -- PvP: Fear nearby detection for Tremor Totem (shaman specs)
-    _context.fear_nearby = false
-    if _context.is_pvp then
-        local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
-        if party then
-            for _, u in ipairs(party) do
-                if u and NS.unit_alive(u) and NS.debuff_up(u, FEAR_IDS) then
-                    _context.fear_nearby = true
-                    break
-                end
-            end
-        end
-        if not _context.fear_nearby and me and NS.debuff_up(me, FEAR_IDS) then
-            _context.fear_nearby = true
         end
     end
     -- PvP: Enemy healer detection for curse selection (warlock specs)
@@ -704,19 +720,19 @@ local function build_context()
     -- PvP: Melee enemy targeting player for defensive curse/Howl (warlock specs)
     _context.melee_on_you = false
     if _context.is_pvp and target and me and NS.safe_field then
-        local enemies = throttled_enemies()
+        local enemies = _enemies_cache
         if type(enemies) == "table" then
             local n = enemies.n or #enemies
             for i = 1, n do
                 local e = enemies[i]
-                if e and NS.unit_alive(e) then
+                if e and _unit_alive(e) then
                     local get_class = NS.safe_field and NS.safe_field(e, "get_class")
                     local class_id = get_class and safe(get_class, e) or nil
                     if class_id and MELEE_CLASS_IDS[class_id] then
                         local get_target_fn = NS.safe_field(e, "get_target")
                         if get_target_fn then
                             local ok, e_target = pcall(get_target_fn, e)
-                            if ok and e_target and NS.same_unit(e_target, me) then
+                            if ok and e_target and _same_unit(e_target, me) then
                                 _context.melee_on_you = true
                                 break
                             end
@@ -729,7 +745,7 @@ local function build_context()
     -- Is the player mounted? (guards OOC buffs, aspect switching)
     _context.is_mounted = me and NS.safe_field and NS.safe_field(me, "is_mounted") and safe(me.is_mounted, me) == true or false
     -- Is player control locked? (fear, charm, mind control — stop casting/gcd)
-    _context.player_control_locked = NS.player_control_locked and NS.player_control_locked() or false
+    _context.player_control_locked = _player_control_locked and _player_control_locked() or false
     if combat_forecast and type(combat_forecast.get_forecast_single) == "function" then
         local ok, forecast = pcall(combat_forecast.get_forecast_single, target)
         if ok and type(forecast) == "number" and forecast > 0 then
@@ -741,9 +757,13 @@ local function build_context()
         _context.combat_length_forecast = _context.ttd or 999
     end
     _context.ttd_known = ttd ~= nil
-    -- Consumable inventory: exposed via platform inventory_helper for potion auto-use strategies
+    -- Consumable inventory: throttled to 1000ms (was every frame)
     if inventory_helper and type(inventory_helper.update_consumables_list) == "function" then
-        pcall(inventory_helper.update_consumables_list, inventory_helper)
+        local now = NS.game_time_ms and NS.game_time_ms() or 0
+        if now - (_cached_inventory_time or 0) > 1000 then
+            pcall(inventory_helper.update_consumables_list, inventory_helper)
+            _cached_inventory_time = now
+        end
     end
     _context.has_mana_potion = false
     _context.has_health_potion = false
@@ -863,19 +883,28 @@ local DEFENSIVE_NAMES = {
 local function strategy_category(strategy, list_name, active)
     if type(strategy) ~= "table" then return "damage" end
     if type(strategy.category) == "string" then return strategy.category end
+    -- Per-playstyle cache: category is stable for the same active playstyle.
+    -- Eliminates ~3160 string.find calls/frame after first evaluation per playstyle.
+    local cat_cache = strategy._cat_cache
+    if active and cat_cache and cat_cache[active] then return cat_cache[active] end
+    if active and not cat_cache then cat_cache = {}; strategy._cat_cache = cat_cache end
+
     local name = tostring(strategy.name or ""):lower():gsub("%s+", "")
 
-    if contains_any(name, HEALING_NAMES) then return "healing" end
-    if contains_any(name, DEFENSIVE_NAMES) then return "utility" end
-    if strategy.is_burst or contains_any(name, COOLDOWN_NAMES) then return "cooldown" end
-    if contains_any(name, UTILITY_NAMES) then return "utility" end
-    if list_name == "middleware" then return "utility" end
-    if HEALING_PLAYSTYLES[tostring(active or ""):lower()] then
-        if contains_any(name, DAMAGE_NAMES) then return "damage" end
-        return "healing"
+    local cat
+    if contains_any(name, HEALING_NAMES) then cat = "healing"
+    elseif contains_any(name, DEFENSIVE_NAMES) then cat = "utility"
+    elseif strategy.is_burst or contains_any(name, COOLDOWN_NAMES) then cat = "cooldown"
+    elseif contains_any(name, UTILITY_NAMES) then cat = "utility"
+    elseif list_name == "middleware" then cat = "utility"
+    elseif HEALING_PLAYSTYLES[tostring(active or ""):lower()] then
+        if contains_any(name, DAMAGE_NAMES) then cat = "damage"
+        else cat = "healing" end
+    else cat = "damage"
     end
 
-    return "damage"
+    if active then cat_cache[active] = cat end
+    return cat
 end
 
 local function strategy_allowed(strategy, list_name, active, context)
@@ -936,6 +965,12 @@ function M.on_rotation_update()
             return true
         end
         return false
+    end
+    -- GCD gate: while on global cooldown in combat, skip strategy evaluation entirely.
+    -- No spell can be cast during GCD; evaluating 20-40 strategies is wasted CPU.
+    -- OOC manager (lines 969-974) still fires — GCD gate only applies after OOC check.
+    if context.on_gcd and context.in_combat then
+        return true
     end
     -- Global reaction delay: blocks ALL middleware + playstyle strategies for reaction_delay_ms after GCD ends.
     -- Applies to all 9 classes. Bypassed during burst windows and out of combat.
