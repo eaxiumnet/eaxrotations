@@ -154,39 +154,37 @@ local strategies = {
             if not target then return false end
             return NS.try_cast(DEVOUR_MAGIC_SPELL, target, "[WARLOCK] Devour Magic")
         end,
-    },
-
-    {
-        name = "PvPHowlofTerror",
-        matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_pvp_defensives == false then return false end
-            if not NS.should_kite(context) then return false end
-            if (NS.GetEnemiesCount and NS.GetEnemiesCount(8) or 0) < 2 then return false end
-            return true
-        end,
+    },        {
+            name = "PvPHowlofTerror",
+            matches = function(context)
+                local settings = context.settings or {}
+                if settings.use_pvp_defensives == false then return false end
+                if NS.should_kite and not NS.should_kite(context) then return false end
+                if (NS.GetEnemiesCount and NS.GetEnemiesCount(8) or 0) < 2 then return false end
+                return true
+            end,
         execute = function(context)
             return NS.try_cast(SPELLS.HowlofTerror, context.me, "[WARLOCK] Howl of Terror", { skip_range = true })
         end,
-    },
-
-    {
-        name = "ThreatDrop",
-        matches = function(context)
-            if context.settings.use_threat_drop == false then return false end
-            if not context.in_combat then return false end
-            -- Only when threat is high (90%+)
-            if context.threat_pct and context.threat_pct < 90 then return false end
-            -- Local anti-spam: Soulshatter has 5min cooldown, enforce minimum 290s between casts
-            if (NS.time_now() - _last_soulshatter_time) < 290 then return false end
-            local me = context.me or (NS.GetPlayer and NS.GetPlayer())
-            if not me then return false end
-            return NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true })
-        end,
+    },        {
+            name = "ThreatDrop",
+            matches = function(context)
+                if context.settings.use_threat_drop == false then return false end
+                if not context.in_combat then return false end
+                -- Only when threat is high (90%+)
+                if context.threat_pct and context.threat_pct < 90 then return false end
+                -- Local anti-spam: Soulshatter has 5min cooldown, enforce minimum 290s between casts
+                local now = NS.time_now and NS.time_now() or 0
+                if (now - _last_soulshatter_time) < 290 then return false end
+                local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+                if not me then return false end
+                if NS.spell_ready then return NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true }) end
+                return false
+            end,
         execute = function(context)
             local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
             local ok = NS.try_cast(SPELLS.Soulshatter, me, "[WARLOCK] Soulshatter", { skip_range = true })
-            if ok then _last_soulshatter_time = NS.time_now() end
+            if ok and NS.time_now then _last_soulshatter_time = NS.time_now() end
             return ok
         end,
     },
@@ -214,7 +212,7 @@ local strategies = {
             local target = context.target
             if not target then return false end
             local spell = SPELLS.DeathCoil or { id = DEATH_COIL_IDS, name = "DeathCoil" }
-            if NS.spell_ready(spell, target, {}) then
+            if NS.spell_ready and NS.spell_ready(spell, target, {}) then
                 return NS.try_cast(spell, target, "[WARLOCK] Death Coil")
             end
             return false
@@ -286,7 +284,8 @@ local strategies = {
                 if not SHADOW_CASTER_CLASS_IDS[class_id] then return false end
             end
             local spell = SPELLS.ShadowWard or { id = SHADOW_WARD_IDS, name = "ShadowWard" }
-            return NS.spell_ready(spell, context.me, { skip_range = true })
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
         end,
         execute = function(context)
             local spell = SPELLS.ShadowWard or { id = SHADOW_WARD_IDS, name = "ShadowWard" }
@@ -310,7 +309,8 @@ local strategies = {
             -- Only if pet is dead
             if NS.has_pet and NS.has_pet() then return false end
             local spell = { id = { 18708 }, name = "FelDomination" }
-            return NS.spell_ready(spell, context.me, { skip_range = true })
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
         end,
         execute = function(context)
             return NS.try_cast({ id = { 18708 }, name = "FelDomination" }, context.me, "[WARLOCK] Fel Domination", { skip_range = true })
@@ -333,7 +333,8 @@ local strategies = {
             -- Must have a pet alive to sacrifice
             if not NS.has_pet or not NS.has_pet() then return false end
             local spell = { id = { 18788 }, name = "DemonicSacrifice" }
-            return NS.spell_ready(spell, context.me, { skip_range = true })
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
         end,
         execute = function(context)
             return NS.try_cast({ id = { 18788 }, name = "DemonicSacrifice" }, context.me, "[WARLOCK] Demonic Sacrifice", { skip_range = true })
@@ -359,7 +360,8 @@ local strategies = {
             local pet_hp_pct = NS.get_pet_hp and NS.get_pet_hp() or 100
             if pet_hp_pct > (settings.health_funnel_pet_hp or 40) then return false end
             local spell = { id = { 27259, 11695, 11694, 11693, 3700, 3699, 3698, 755 }, name = "HealthFunnel" }
-            return NS.spell_ready(spell, context.me, { skip_range = true })
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
         end,
         execute = function(context)
             local pet = NS.get_pet and NS.get_pet()
@@ -380,7 +382,8 @@ local strategies = {
             if context.in_combat then return false end
             if settings.auto_create_healthstone == false then return false end
             -- Retry throttle: don't retry for 3s after last failure (e.g. missing reagent)
-            if (NS.time_now() - _last_create_hs_retry) < 3 then return false end
+            local now = NS.time_now and NS.time_now() or 0
+            if (now - _last_create_hs_retry) < 3 then return false end
             -- Check if we already have a Healthstone (item check)
             local has_hs = false
             if NS.has_item then
@@ -400,11 +403,12 @@ local strategies = {
                 has_shard = ok_shard and (count or 0) > 0
             end
             if not has_shard then
-                _last_create_hs_retry = NS.time_now()
+                if NS.time_now then _last_create_hs_retry = NS.time_now() end
                 return false
             end
             local spell = { id = { 27230, 11730, 11729, 6202, 6201, 5699 }, name = "CreateHealthstone" }
-            return NS.spell_ready(spell, context.me, { skip_range = true })
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
         end,
         execute = function(context)
             return NS.try_cast({ id = { 27230, 11730, 11729, 6202, 6201, 5699 }, name = "CreateHealthstone" }, context.me, "[WARLOCK] Create Healthstone", { skip_range = true })
@@ -434,7 +438,8 @@ local strategies = {
                 if not NS.has_item(SOUL_SHARD_ITEM) then return false end
             end
             local spell = { id = { 27238, 20756, 20755, 20752, 693 }, name = "CreateSoulstone" }
-            return NS.spell_ready(spell, context.me, { skip_range = true })
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
         end,
         execute = function(context)
             return NS.try_cast({ id = { 27238, 20756, 20755, 20752, 693 }, name = "CreateSoulstone" }, context.me, "[WARLOCK] Create Soulstone", { skip_range = true })
