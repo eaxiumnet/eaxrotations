@@ -1479,6 +1479,284 @@ do -- edge_rotation_crash
         end
     end)
 end
+-- ============================================================================
+-- Edge case: HP boundaries
+-- ============================================================================
+do
+    -- HealingWave: hp <= heal_hp (50) -> match; > -> no match
+    local ctx = make_context({hp = 50})
+    local state = get_state(ctx)
+    state.healing_wave_ready = true
+    state.hp = 50
+    state.heal_hp = 50
+    assert_true(strategies[6].matches(ctx, state), "healingwave hp=50 -> match (<=50)")
+
+    local ctx2 = make_context({hp = 51})
+    local state2 = get_state(ctx2)
+    state2.healing_wave_ready = true
+    state2.hp = 51
+    state2.heal_hp = 50
+    assert_false(strategies[6].matches(ctx2, state2), "healingwave hp=51 -> no match (>50)")
+
+    -- LesserHealingWave: hp <= 40 -> match; > 40 -> no match
+    local ctx3 = make_context({hp = 40})
+    local state3 = get_state(ctx3)
+    state3.lesser_healing_wave_ready = true
+    state3.hp = 40
+    assert_true(strategies[7].matches(ctx3, state3), "lesserhealingwave hp=40 -> match (<=40)")
+
+    local ctx4 = make_context({hp = 41})
+    local state4 = get_state(ctx4)
+    state4.lesser_healing_wave_ready = true
+    state4.hp = 41
+    assert_false(strategies[7].matches(ctx4, state4), "lesserhealingwave hp=41 -> no match (>40)")
+end
+
+-- ============================================================================
+-- Edge case: Mana boundaries
+-- ============================================================================
+do
+    -- ShamanisticRage: mana <= rage_mana (30) -> match; > -> no match
+    local ctx = make_context({mana_pct = 30})
+    local state = get_state(ctx)
+    state.shamanistic_rage_ready = true
+    state.shamanistic_rage_mana = 30
+    state.mana_pct = 30
+    assert_true(strategies[5].matches(ctx, state), "shamanisticrage mana=30 -> match (<=30)")
+
+    local ctx2 = make_context({mana_pct = 31})
+    local state2 = get_state(ctx2)
+    state2.shamanistic_rage_ready = true
+    state2.shamanistic_rage_mana = 30
+    state2.mana_pct = 31
+    assert_false(strategies[5].matches(ctx2, state2), "shamanisticrage mana=31 -> no match (>30)")
+
+    -- Stormstrike: mana >= 10 -> match; < 10 -> no match
+    local ctx3 = make_context({mana_pct = 10})
+    ctx3.in_melee_range = true
+    ctx3.settings.leveling_use_stormstrike = true
+    local state3 = get_state(ctx3)
+    state3.stormstrike_ready = true
+    state3.use_stormstrike = true
+    state3.in_melee_range = true
+    state3.mana_pct = 10
+    assert_true(strategies[13].matches(ctx3, state3), "stormstrike mana=10 -> match (>=10)")
+
+    local ctx4 = make_context({mana_pct = 9})
+    ctx4.in_melee_range = true
+    ctx4.settings.leveling_use_stormstrike = true
+    local state4 = get_state(ctx4)
+    state4.stormstrike_ready = true
+    state4.use_stormstrike = true
+    state4.in_melee_range = true
+    state4.mana_pct = 9
+    assert_false(strategies[13].matches(ctx4, state4), "stormstrike mana=9 -> no match (<10)")
+end
+
+-- ============================================================================
+-- Edge case: Enemy thresholds
+-- ============================================================================
+do
+    -- ChainLightning: enemies >= 2 -> match; < 2 -> no match
+    local ctx = make_context({enemies_count = 2})
+    local state = get_state(ctx)
+    state.chain_lightning_ready = true
+    state.enemies = 2
+    assert_true(strategies[14].matches(ctx, state), "chainlightning enemies=2 -> match (>=2)")
+
+    local ctx2 = make_context({enemies_count = 1})
+    local state2 = get_state(ctx2)
+    state2.chain_lightning_ready = true
+    state2.enemies = 1
+    assert_false(strategies[14].matches(ctx2, state2), "chainlightning enemies=1 -> no match (<2)")
+
+    -- EarthbindTotem: enemies >= 3, hp <= 50 -> match
+    local ctx3 = make_context({enemies_count = 3, hp = 50})
+    local state3 = get_state(ctx3)
+    state3.earthbind_totem_ready = true
+    state3.enemies = 3
+    state3.hp = 50
+    assert_true(strategies[19].matches(ctx3, state3), "earthbind enemies=3 hp=50 -> match")
+
+    local ctx4 = make_context({enemies_count = 2, hp = 50})
+    local state4 = get_state(ctx4)
+    state4.earthbind_totem_ready = true
+    state4.enemies = 2
+    state4.hp = 50
+    assert_false(strategies[19].matches(ctx4, state4), "earthbind enemies=2 -> no match (<3)")
+end
+
+-- ============================================================================
+-- Edge case: Shock default_shock setting
+-- ============================================================================
+do
+    -- FlameShock: default_shock = flame -> match; earth/frost -> no match
+    local ctx = make_context({})
+    ctx.settings.leveling_default_shock = "flame"
+    local state = get_state(ctx)
+    state.flame_shock_ready = true
+    state.use_shocks = true
+    state.default_shock = "flame"
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function() return 0 end
+    assert_true(strategies[15].matches(ctx, state), "flameshock default=flame -> match")
+    NS.debuff_remains = saved
+
+    local ctx2 = make_context({})
+    ctx2.settings.leveling_default_shock = "earth"
+    local state2 = get_state(ctx2)
+    state2.flame_shock_ready = true
+    state2.use_shocks = true
+    state2.default_shock = "earth"
+    assert_false(strategies[15].matches(ctx2, state2), "flameshock default=earth -> no match")
+
+    -- EarthShock: default_shock = earth -> match; frost/flame -> no match
+    local ctx3 = make_context({})
+    ctx3.settings.leveling_default_shock = "earth"
+    local state3 = get_state(ctx3)
+    state3.earth_shock_ready = true
+    state3.use_shocks = true
+    state3.default_shock = "earth"
+    assert_true(strategies[16].matches(ctx3, state3), "earthshock default=earth -> match")
+
+    local ctx4 = make_context({})
+    ctx4.settings.leveling_default_shock = "frost"
+    local state4 = get_state(ctx4)
+    state4.earth_shock_ready = true
+    state4.use_shocks = true
+    state4.default_shock = "frost"
+    assert_false(strategies[16].matches(ctx4, state4), "earthshock default=frost -> no match")
+end
+
+-- ============================================================================
+-- Edge case: Settings toggle
+-- ============================================================================
+do
+    -- use_shocks disabled -> no shock matches
+    local ctx = make_context({})
+    ctx.settings.leveling_use_shocks = false
+    local state = get_state(ctx)
+    state.flame_shock_ready = true
+    state.use_shocks = false
+    assert_false(strategies[15].matches(ctx, state), "flameshock shocks disabled -> no match")
+
+    -- use_stormstrike disabled -> no match
+    local ctx3 = make_context({})
+    ctx3.settings.leveling_use_stormstrike = false
+    local state3 = get_state(ctx3)
+    state3.stormstrike_ready = true
+    state3.use_stormstrike = false
+    state3.in_melee_range = true
+    state3.mana_pct = 50
+    assert_false(strategies[13].matches(ctx3, state3), "stormstrike setting disabled -> no match")
+end
+
+-- ============================================================================
+-- Edge case: Movement guard
+-- ============================================================================
+do
+    local ctx = make_context({is_moving = true})
+    local state = get_state(ctx)
+    state.lightning_bolt_ready = true
+    state.is_moving = true
+    assert_false(strategies[21].matches(ctx, state), "lightningbolt moving -> no match")
+end
+
+-- ============================================================================
+-- Edge case: GhostWolf distance boundary
+-- ============================================================================
+do
+    local saved_dist = NS.get_distance
+    local ctx = make_context({in_combat = false})
+    ctx.target = { is_valid = function() return true end }
+    local state = get_state(ctx)
+    state.ghost_wolf_ready = true
+
+    NS.get_distance = function() return 20 end
+    assert_true(strategies[22].matches(ctx, state), "ghostwolf dist=20 -> match (>=20)")
+    NS.get_distance = saved_dist
+
+    local ctx2 = make_context({in_combat = false})
+    ctx2.target = { is_valid = function() return true end }
+    local state2 = get_state(ctx2)
+    state2.ghost_wolf_ready = true
+    local saved_dist2 = NS.get_distance
+    NS.get_distance = function() return 19 end
+    assert_false(strategies[22].matches(ctx2, state2), "ghostwolf dist=19 -> no match (<20)")
+    NS.get_distance = saved_dist2
+end
+
+-- ============================================================================
+-- Edge case: OOC guards
+-- ============================================================================
+do
+    -- HealingWave: OOC -> no match
+    local ctx = make_context({in_combat = false, hp = 30})
+    local state = get_state(ctx)
+    state.healing_wave_ready = true
+    state.hp = 30
+    state.heal_hp = 50
+    assert_false(strategies[6].matches(ctx, state), "healingwave OOC -> no match")
+
+    -- LesserHealingWave: OOC -> no match
+    local ctx2 = make_context({in_combat = false, hp = 30})
+    local state2 = get_state(ctx2)
+    state2.lesser_healing_wave_ready = true
+    state2.hp = 30
+    assert_false(strategies[7].matches(ctx2, state2), "lesserhealingwave OOC -> no match")
+
+    -- ChainLightning: OOC -> no match
+    local ctx3 = make_context({in_combat = false, enemies_count = 3})
+    local state3 = get_state(ctx3)
+    state3.chain_lightning_ready = true
+    state3.enemies = 3
+    assert_false(strategies[14].matches(ctx3, state3), "chainlightning OOC -> no match")
+
+    -- LightningBolt: OOC -> no match
+    local ctx4 = make_context({in_combat = false, is_moving = false})
+    local state4 = get_state(ctx4)
+    state4.lightning_bolt_ready = true
+    state4.is_moving = false
+    assert_false(strategies[21].matches(ctx4, state4), "lightningbolt OOC -> no match")
+end
+
+-- ============================================================================
+-- API crash: NS.try_cast throwing
+-- ============================================================================
+do
+    local saved = NS.try_cast
+    local ctx = make_context({})
+
+    -- NS.try_cast throws -> execute should not crash
+    NS.try_cast = function() error("simulated throw") end
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast=throw: strategy " .. i .. " execute did not crash")
+    end
+
+    NS.try_cast = saved
+end
+
+-- ============================================================================
+-- Rotation crash: nil context for all execute functions
+-- ============================================================================
+do
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, nil)
+        assert_true(ok, "execute nil ctx: strategy " .. i .. " did not crash")
+    end
+end
+
+-- ============================================================================
+-- Rotation crash: no-arg execute for all functions
+-- ============================================================================
+do
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute)
+        assert_true(ok, "execute no-arg: strategy " .. i .. " did not crash")
+    end
+end
+
 -- Summary
 -- ============================================================================
 
