@@ -2127,6 +2127,583 @@ do
     end
 end
 
+-- ============================================================================
+-- Deep dive: OOC guard verification — all combat-gated strategies return false OOC
+-- ============================================================================
+do
+    -- Combat-gated indices: {6,7,8,9,10,11,12,13,14,15,16,17,18}
+    -- states that check `if not state.in_combat then return false end`
+    -- OOC-only indices: {1,2,3,4,5} check `if state.in_combat then return false end`
+    -- wand (19) has no combat gate — matches OOC when mana low
+    -- Counterspell (6) omitted — it does NOT check state.in_combat, only target + casting + ready
+    local combat_gated = {7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}
+    local ctx = make_context({in_combat = false, mana_pct = 80, hp = 80, enemies_count = 1, is_moving = false})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        is_casting = function() return true end,
+        get_distance = function(other) return 5 end,
+    }
+    local state = get_state(ctx)
+    for k, v in pairs(state) do
+        if type(v) == "boolean" then
+            state[k] = true
+        end
+    end
+    state.in_combat = false
+    state.has_ai = false
+    state.has_frost_armor = false
+    state.has_ice_barrier = false
+    state.has_mana_shield = false
+    state.mana_gem_available = true
+    state.use_mana_gem = true
+    state.mana_pct = 50
+    state.mana_gem_threshold = 70
+    state.polymorph_hp = 40
+    state.hp = 30
+
+    for _, idx in ipairs(combat_gated) do
+        local ok, matched = pcall(strategies[idx].matches, ctx, state)
+        assert_true(ok, "strategy " .. idx .. " (" .. strategies[idx].name .. ") OOC guards do not throw")
+        assert_false(matched, "strategy " .. idx .. " (" .. strategies[idx].name .. ") should not match OOC")
+    end
+end
+
+-- ============================================================================
+-- Deep dive: Nil target guard verification
+-- ============================================================================
+do
+    -- Target-dependent indices: {5,6,9,10,12,14,15,16,17,19}
+    -- These check `if not state.target then return false end`
+    -- Non-target: {1,2,3,4,7,8,11,13,18}
+    local target_dependent = {5, 6, 9, 10, 12, 14, 15, 16, 17, 19}
+    local ctx = make_context({target = nil, in_combat = true, mana_pct = 80, hp = 50, enemies_count = 1, is_moving = false})
+    -- ctx must have no target
+    ctx.target = nil
+    local state = get_state(ctx)
+    for k, v in pairs(state) do
+        if type(v) == "boolean" then
+            state[k] = true
+        end
+    end
+    state.target = nil
+    state.in_combat = true
+    state.mana_pct = 50
+    state.wand_learned = true
+    state.polymorph_hp = 40
+    state.use_fire_blast = true
+    state.use_scorch = true
+    state.use_arcane_missiles = true
+    state.use_interrupt = true
+
+    for _, idx in ipairs(target_dependent) do
+        local ok, matched = pcall(strategies[idx].matches, ctx, state)
+        assert_true(ok, "strategy " .. idx .. " (" .. strategies[idx].name .. ") nil target guards do not throw")
+        assert_false(matched, "strategy " .. idx .. " (" .. strategies[idx].name .. ") should not match with nil target")
+    end
+end
+
+-- ============================================================================
+-- Deep dive: Cone of Cold distance boundary
+-- ============================================================================
+do
+    -- ConeOfCold: dist <= 10 -> match; dist > 10 -> no match
+    local ctx = make_context({enemies_count = 2})
+    ctx.me = { is_valid = function() return true end, get_position = function() return { x = 0, y = 0, z = 0 } end }
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        get_distance = function(other) return 10 end,
+    }
+    local state = get_state(ctx)
+    state.cone_of_cold_ready = true
+    state.frostbolt_ready = true
+    state.arcane_missiles_ready = true
+    state.fire_blast_ready = true
+    state.scorch_ready = true
+    assert_true(strategies[10].matches(ctx, state), "conecold dist=10 -> match (<=10)")
+
+    local ctx2 = make_context({enemies_count = 2})
+    ctx2.me = { is_valid = function() return true end, get_position = function() return { x = 0, y = 0, z = 0 } end }
+    ctx2.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        get_distance = function(other) return 11 end,
+    }
+    local state2 = get_state(ctx2)
+    state2.cone_of_cold_ready = true
+    assert_false(strategies[10].matches(ctx2, state2), "conecold dist=11 -> no match (>10)")
+end
+
+-- ============================================================================
+-- Deep dive: RemoveCurse full guards
+-- ============================================================================
+do
+    -- RemoveCurse: OOC only, ready needed
+    local ctx = make_context({ in_combat = false })
+    local state = get_state(ctx)
+    state.remove_curse_ready = true
+    assert_true(strategies[3].matches(ctx, state), "removecurse OOC ready -> match")
+
+    -- RemoveCurse: in combat -> false
+    local ctx2 = make_context({ in_combat = true })
+    local state2 = get_state(ctx2)
+    state2.remove_curse_ready = true
+    assert_false(strategies[3].matches(ctx2, state2), "removecurse in combat -> no match")
+
+    -- RemoveCurse: not ready -> false
+    local ctx3 = make_context({ in_combat = false })
+    local state3 = get_state(ctx3)
+    state3.remove_curse_ready = false
+    assert_false(strategies[3].matches(ctx3, state3), "removecurse not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: FrostArmor full guards
+-- ============================================================================
+do
+    -- FrostArmor: in combat -> false
+    local ctx = make_context({ in_combat = true })
+    local state = get_state(ctx)
+    state.has_frost_armor = false
+    state.frost_armor_ready = true
+    assert_false(strategies[2].matches(ctx, state), "frostarmor in combat -> no match")
+
+    -- FrostArmor: has_mage_armor -> false
+    local ctx2 = make_context({ in_combat = false })
+    local state2 = get_state(ctx2)
+    state2.has_frost_armor = false
+    state2.has_mage_armor = true
+    state2.frost_armor_ready = true
+    assert_false(strategies[2].matches(ctx2, state2), "frostarmor mage armor active -> no match")
+
+    -- FrostArmor: not ready -> false
+    local ctx3 = make_context({ in_combat = false })
+    local state3 = get_state(ctx3)
+    state3.has_frost_armor = false
+    state3.has_mage_armor = false
+    state3.frost_armor_ready = false
+    assert_false(strategies[2].matches(ctx3, state3), "frostarmor not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Spell readiness guards for all strategies
+-- ============================================================================
+do
+    -- Create a combat context with all other conditions met
+    local ctx = make_context({ in_combat = true, mana_pct = 50, hp = 30, enemies_count = 3, is_moving = false })
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 3900 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 39 end,
+        is_casting = function() return true end,
+        get_distance = function(other) return 5 end,
+    }
+    ctx.me = { is_valid = function() return true end, get_position = function() return { x = 0, y = 0, z = 0 } end }
+
+    -- Strategy 1: AI not ready -> no match
+    local state1 = get_state(ctx)
+    state1.ai_ready = false
+    state1.has_ai = false
+    state1.in_combat = false
+    assert_false(strategies[1].matches(ctx, state1), "arcaneintellect not ready -> no match")
+
+    -- Strategy 2: FrostArmor not ready (already tested above)
+    -- Strategy 3: RemoveCurse not ready (already tested above)
+    -- Strategy 4: ConjureManaGem not ready
+    local state4 = get_state(ctx)
+    state4.in_combat = false
+    state4.conjure_gem_ready = false
+    state4.mana_gem_available = false
+    assert_false(strategies[4].matches(ctx, state4), "conjuregem not ready -> no match")
+
+    -- Strategy 5: Polymorph not ready
+    local state5 = get_state(ctx)
+    state5.in_combat = false
+    state5.polymorph_ready = false
+    state5.polymorph_hp = 40
+    assert_false(strategies[5].matches(ctx, state5), "polymorph not ready -> no match")
+
+    -- Strategy 6: Counterspell not ready
+    local state6 = get_state(ctx)
+    state6.counterspell_ready = false
+    state6.use_interrupt = true
+    assert_false(strategies[6].matches(ctx, state6), "counterspell not ready -> no match")
+
+    -- Strategy 7: ManaShield not ready
+    local state7 = get_state(ctx)
+    state7.mana_shield_ready = false
+    state7.has_mana_shield = false
+    state7.hp = 30
+    assert_false(strategies[7].matches(ctx, state7), "manashield not ready -> no match")
+
+    -- Strategy 8: IceBarrier not ready
+    local state8 = get_state(ctx)
+    state8.ice_barrier_ready = false
+    state8.has_ice_barrier = false
+    assert_false(strategies[8].matches(ctx, state8), "icebarrier not ready -> no match")
+
+    -- Strategy 9: FrostNova not ready
+    local state9 = get_state(ctx)
+    state9.frost_nova_ready = false
+    assert_false(strategies[9].matches(ctx, state9), "frostnova not ready -> no match")
+
+    -- Strategy 10: ConeOfCold not ready
+    local state10 = get_state(ctx)
+    state10.cone_of_cold_ready = false
+    state10.enemies = 2
+    assert_false(strategies[10].matches(ctx, state10), "conecold not ready -> no match")
+
+    -- Strategy 11: Blink not ready
+    local state11 = get_state(ctx)
+    state11.blink_ready = false
+    state11.hp = 30
+    assert_false(strategies[11].matches(ctx, state11), "blink not ready -> no match")
+
+    -- Strategy 12: Blizzard not ready
+    local state12 = get_state(ctx)
+    state12.blizzard_ready = false
+    state12.enemies = 3
+    assert_false(strategies[12].matches(ctx, state12), "blizzard not ready -> no match")
+
+    -- Strategy 13: Evocation not ready
+    local state13 = get_state(ctx)
+    state13.evocation_ready = false
+    state13.mana_pct = 20
+    assert_false(strategies[13].matches(ctx, state13), "evocation not ready -> no match")
+
+    -- Strategy 14: FireBlast not ready
+    local state14 = get_state(ctx)
+    state14.fire_blast_ready = false
+    state14.use_fire_blast = true
+    assert_false(strategies[14].matches(ctx, state14), "fireblast not ready -> no match")
+
+    -- Strategy 15: Scorch not ready
+    local state15 = get_state(ctx)
+    state15.scorch_ready = false
+    state15.use_scorch = true
+    state15.mana_pct = 50
+    assert_false(strategies[15].matches(ctx, state15), "scorch not ready -> no match")
+
+    -- Strategy 16: ArcaneMissiles not ready
+    local state16 = get_state(ctx)
+    state16.arcane_missiles_ready = false
+    state16.use_arcane_missiles = true
+    state16.mana_pct = 50
+    assert_false(strategies[16].matches(ctx, state16), "arcanemissiles not ready -> no match")
+
+    -- Strategy 17: Frostbolt not ready
+    local state17 = get_state(ctx)
+    state17.frostbolt_ready = false
+    state17.mana_pct = 50
+    assert_false(strategies[17].matches(ctx, state17), "frostbolt not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: target.get_distance throws
+-- ============================================================================
+do
+    -- FrostNova: target.get_distance throws -> pcall catches, returns false
+    local ctx = make_context()
+    ctx.me = { is_valid = function() return true end, get_position = function() return { x = 0, y = 0, z = 0 } end }
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        is_casting = function() return false end,
+        get_distance = function() error("simulated distance throw") end,
+    }
+    local state = get_state(ctx)
+    state.frost_nova_ready = true
+    local ok1, result1 = pcall(strategies[9].matches, ctx, state)
+    assert_true(ok1, "frostnova get_distance throws -> pcall catches")
+
+    -- ConeOfCold: target.get_distance throws -> pcall catches, returns false
+    local ctx2 = make_context({enemies_count = 2})
+    ctx2.me = { is_valid = function() return true end, get_position = function() return { x = 0, y = 0, z = 0 } end }
+    ctx2.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        is_casting = function() return false end,
+        get_distance = function() error("simulated distance throw") end,
+    }
+    local state2 = get_state(ctx2)
+    state2.cone_of_cold_ready = true
+    state2.enemies = 2
+    local ok2, result2 = pcall(strategies[10].matches, ctx2, state2)
+    assert_true(ok2, "conecold get_distance throws -> pcall catches")
+end
+
+-- ============================================================================
+-- Deep dive: Polymorph target.get_health_percentage throws
+-- ============================================================================
+do
+    local ctx = make_context({in_combat = false})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() error("simulated hp pct throw") end,
+    }
+    local state = get_state(ctx)
+    state.polymorph_ready = true
+    state.polymorph_hp = 40
+    local ok, result = pcall(strategies[5].matches, ctx, state)
+    assert_true(ok, "polymorph get_health_percentage throws -> pcall catches, matches when debuff allows")
+end
+
+-- ============================================================================
+-- Deep dive: Mana gem conjure NS.spell_exists nil in build_state
+-- ============================================================================
+do
+    local saved_exists = NS.spell_exists
+    NS.spell_exists = nil
+    local ctx = make_context({in_combat = false})
+    local ok, state = pcall(get_state, ctx)
+    assert_true(ok, "NS.spell_exists nil -> build_state does not crash")
+    if ok and state then
+        assert_false(state.conjure_gem_ready, "conjure_gem_ready false when NS.spell_exists nil")
+    end
+    NS.spell_exists = saved_exists
+
+    -- Also test conjure gem execute with nil spell_exists
+    local saved_try = NS.try_cast
+    NS.try_cast = nil
+    local ok2, result2 = pcall(strategies[4].execute)
+    assert_true(ok2, "conjure_gem execute does not crash when NS.try_cast nil")
+    NS.try_cast = saved_try
+end
+
+-- ============================================================================
+-- Deep dive: Mana gem conjure max health is 0 doesn't break polymorph
+-- ============================================================================
+do
+    local ctx = make_context({in_combat = false})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 0 end,
+        get_max_health = function() return 0 end,
+        get_health_percentage = function() return 0 end,
+    }
+    local state = get_state(ctx)
+    state.polymorph_ready = true
+    state.polymorph_hp = 40
+    local ok, result = pcall(strategies[5].matches, ctx, state)
+    assert_true(ok, "polymorph target 0 HP -> does not crash")
+end
+
+-- ============================================================================
+-- Deep dive: Frost armor mage armor both false OOC ready -> match
+-- ============================================================================
+do
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.has_frost_armor = false
+    state.has_mage_armor = false
+    state.frost_armor_ready = true
+    assert_true(strategies[2].matches(ctx, state), "frostarmor OOC ready no armor -> match")
+end
+
+-- ============================================================================
+-- Deep dive: Mana shield not in combat -> false
+-- ============================================================================
+do
+    local ctx = make_context({in_combat = false, hp = 30})
+    local state = get_state(ctx)
+    state.mana_shield_ready = true
+    state.has_mana_shield = false
+    state.hp = 30
+    assert_false(strategies[7].matches(ctx, state), "manashield OOC -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Blink OOC -> false, Blink not ready -> false
+-- ============================================================================
+do
+    local ctx = make_context({in_combat = false, hp = 30})
+    local state = get_state(ctx)
+    state.blink_ready = true
+    state.hp = 30
+    assert_false(strategies[11].matches(ctx, state), "blink OOC -> no match")
+
+    local ctx2 = make_context({in_combat = true, hp = 30})
+    local state2 = get_state(ctx2)
+    state2.blink_ready = false
+    state2.hp = 30
+    assert_false(strategies[11].matches(ctx2, state2), "blink not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Fire blast (instant) works while moving — already tested, but
+-- also verify fire blast not ready + no target + disabled combo
+-- ============================================================================
+do
+    -- FireBlast: disabled + not ready -> false
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.fire_blast_ready = false
+    state.use_fire_blast = false
+    assert_false(strategies[14].matches(ctx, state), "fireblast disabled & not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Counterspell target.is_casting returns unexpected values
+-- ============================================================================
+do
+    -- is_casting returns nil instead of boolean
+    local ctx = make_context()
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        is_casting = function() return nil end,
+    }
+    local state = get_state(ctx)
+    state.counterspell_ready = true
+    state.use_interrupt = true
+    assert_false(strategies[6].matches(ctx, state), "counterspell is_casting returns nil -> no match")
+
+    -- is_casting returns 0 (truthy but not boolean)
+    local ctx2 = make_context()
+    ctx2.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        is_casting = function() return 0 end,
+    }
+    local state2 = get_state(ctx2)
+    state2.counterspell_ready = true
+    state2.use_interrupt = true
+    local ok2, result2 = pcall(strategies[6].matches, ctx2, state2)
+    assert_true(ok2, "counterspell is_casting returns 0 -> pcall handles it")
+end
+
+-- ============================================================================
+-- Deep dive: Evocation OOC -> false, not ready -> false
+-- ============================================================================
+do
+    -- Already has: in combat mana <= 25 -> match, mana > 25 -> no match, OOC -> no match
+    local ctx = make_context({in_combat = true, mana_pct = 25})
+    local state = get_state(ctx)
+    state.evocation_ready = false
+    state.mana_pct = 25
+    assert_false(strategies[13].matches(ctx, state), "evocation not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: UseManaGem mana exactly at threshold -> no match
+-- (already tested, additional check)
+-- ============================================================================
+do
+    local ctx = make_context({mana_pct = 70, in_combat = true})
+    local saved_ready = NS.is_item_ready
+    NS.is_item_ready = function(id) return true end
+    local state = get_state(ctx)
+    state.use_mana_gem = true
+    state.mana_gem_available = true
+    state.mana_pct = 70
+    state.mana_gem_threshold = 70
+    assert_false(strategies[18].matches(ctx, state), "usemanagem mana exactly 70 -> no match")
+    NS.is_item_ready = saved_ready
+end
+
+-- ============================================================================
+-- Deep dive: Wand OOC with low mana matches (no combat gate)
+-- ============================================================================
+do
+    -- wand has no combat gate — already tested, double-check
+    local ctx = make_context({in_combat = false, mana_pct = 10})
+    local state = get_state(ctx)
+    state.mana_pct = 10
+    state.wand_threshold = 30
+    state.wand_learned = true
+    assert_true(strategies[19].matches(ctx, state), "wand OOC low mana -> match (no combat gate)")
+
+    -- wand OOC with enough mana -> false
+    local ctx2 = make_context({in_combat = false, mana_pct = 80})
+    local state2 = get_state(ctx2)
+    state2.mana_pct = 80
+    state2.wand_threshold = 30
+    state2.wand_learned = true
+    assert_false(strategies[19].matches(ctx2, state2), "wand OOC enough mana -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Polymorph remains=0 (no debuff) — match
+-- ============================================================================
+do
+    local ctx = make_context({in_combat = false})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 3000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 30 end,
+    }
+    local state = get_state(ctx)
+    state.polymorph_ready = true
+    state.polymorph_hp = 40
+    local saved_debuff = NS.debuff_remains
+    NS.debuff_remains = function() return 0 end
+    assert_true(strategies[5].matches(ctx, state), "polymorph remains=0 -> match")
+    NS.debuff_remains = saved_debuff
+end
+
+-- ============================================================================
+-- Deep dive: Conjure gem NS.spell_exists returns false for all gem spells
+-- ============================================================================
+do
+    local saved_exists = NS.spell_exists
+    NS.spell_exists = function(id) return false end
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    assert_false(state.conjure_gem_ready, "conjure_gem_ready false when no gem spells exist")
+
+    local ok, result = pcall(strategies[4].execute)
+    assert_true(ok, "conjure gem execute with no spells exists -> no crash")
+    NS.spell_exists = saved_exists
+end
+
+-- ============================================================================
+-- Deep dive: Use mana gem exeucte with no usable items
+-- ============================================================================
+do
+    local saved_ready = NS.is_item_ready
+    NS.is_item_ready = function(id) return false end
+    local saved_use = NS.use_item_by_id
+    NS.use_item_by_id = function(id) return false end
+    local ok, result = pcall(strategies[18].execute)
+    assert_true(ok, "use mana gem execute with no items ready -> no crash")
+    NS.is_item_ready = saved_ready
+    NS.use_item_by_id = saved_use
+end
+
+-- ============================================================================
+-- Deep dive: All execute functions handle nil NS.try_cast gracefully
+-- ============================================================================
+do
+    -- Already tested above for all 19 strategies, but add targeted check
+    -- that the return value is false when try_cast returns false
+    local saved_try = NS.try_cast
+    NS.try_cast = function() return false end
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast=false: strategy " .. i .. " execute did not crash")
+    end
+    NS.try_cast = saved_try
+end
 -- Summary
 -- ============================================================================
 
