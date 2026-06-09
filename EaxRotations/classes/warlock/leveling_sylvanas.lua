@@ -341,8 +341,15 @@ end
 -- Execute functions
 -- ============================================================================
 
+local function try_cast(spell_action, target, label, opts)
+    if not NS.try_cast then return false end
+    local ok, result = pcall(NS.try_cast, spell_action, target, label, opts)
+    return ok and result == true
+end
+
 local function execute_wand(context)
-    return leveling.execute_wand(context)
+    local ok, result = pcall(leveling.execute_wand, context)
+    return ok and (result == true) or false
 end
 
 -- ============================================================================
@@ -353,45 +360,45 @@ local strategies = {
     -- Out-of-combat buffs
     { name = "FelArmor",
       matches = fel_armor_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.FelArmor, NS.PLAYER_UNIT, "[LEVELING] Fel Armor") or false end },
+      execute = function() return try_cast(SPELLS.FelArmor, NS.PLAYER_UNIT, "[LEVELING] Fel Armor") end },
 
     { name = "CreateHealthstone",
       matches = healthstone_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.CreateHealthstone, NS.PLAYER_UNIT, "[LEVELING] Healthstone") or false end },
+      execute = function() return try_cast(SPELLS.CreateHealthstone, NS.PLAYER_UNIT, "[LEVELING] Healthstone") end },
 
     -- OOC: Soulstone (self-buff, pre-death safety)
     { name = "CreateSoulstone",
       matches = soulstone_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.CreateSoulstone, NS.PLAYER_UNIT, "[LEVELING] Soulstone") or false end },
+      execute = function() return try_cast(SPELLS.CreateSoulstone, NS.PLAYER_UNIT, "[LEVELING] Soulstone") end },
 
     -- Interrupt
     { name = "SpellLock",
       matches = spell_lock_matches,
-      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.SpellLock, context.target, "[LEVELING] Spell Lock") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.SpellLock, context.target, "[LEVELING] Spell Lock") end },
 
     -- Pet sustain
     { name = "HealthFunnel",
       matches = health_funnel_matches,
-      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.HealthFunnel, context.pet, "[LEVELING] Health Funnel") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.HealthFunnel, context.pet, "[LEVELING] Health Funnel") end },
 
     -- Pet resummon: try highest-level summon available (combat only, requires enemy target)
     { name = "SummonPet", matches = summon_pet_matches,
       execute = function(context)
         if not context then return false end
         if SPELLS.SummonFelguard and safe_is_spell_ready(SPELLS.SummonFelguard, nil, { skip_range = true }) then
-            return NS.try_cast and NS.try_cast(SPELLS.SummonFelguard, NS.PLAYER_UNIT, "[LEVELING] Summon Felguard", { skip_range = true }) or false
+            return try_cast(SPELLS.SummonFelguard, NS.PLAYER_UNIT, "[LEVELING] Summon Felguard", { skip_range = true })
         end
         if SPELLS.SummonFelhunter and safe_is_spell_ready(SPELLS.SummonFelhunter, nil, { skip_range = true }) then
-            return NS.try_cast and NS.try_cast(SPELLS.SummonFelhunter, NS.PLAYER_UNIT, "[LEVELING] Summon Felhunter", { skip_range = true }) or false
+            return try_cast(SPELLS.SummonFelhunter, NS.PLAYER_UNIT, "[LEVELING] Summon Felhunter", { skip_range = true })
         end
         if SPELLS.SummonSuccubus and safe_is_spell_ready(SPELLS.SummonSuccubus, nil, { skip_range = true }) then
-            return NS.try_cast and NS.try_cast(SPELLS.SummonSuccubus, NS.PLAYER_UNIT, "[LEVELING] Summon Succubus", { skip_range = true }) or false
+            return try_cast(SPELLS.SummonSuccubus, NS.PLAYER_UNIT, "[LEVELING] Summon Succubus", { skip_range = true })
         end
         if SPELLS.SummonVoidwalker and safe_is_spell_ready(SPELLS.SummonVoidwalker, nil, { skip_range = true }) then
-            return NS.try_cast and NS.try_cast(SPELLS.SummonVoidwalker, NS.PLAYER_UNIT, "[LEVELING] Summon Voidwalker", { skip_range = true }) or false
+            return try_cast(SPELLS.SummonVoidwalker, NS.PLAYER_UNIT, "[LEVELING] Summon Voidwalker", { skip_range = true })
         end
         if SPELLS.SummonImp and safe_is_spell_ready(SPELLS.SummonImp, nil, { skip_range = true }) then
-            return NS.try_cast and NS.try_cast(SPELLS.SummonImp, NS.PLAYER_UNIT, "[LEVELING] Summon Imp", { skip_range = true }) or false
+            return try_cast(SPELLS.SummonImp, NS.PLAYER_UNIT, "[LEVELING] Summon Imp", { skip_range = true })
         end
         return false
       end },
@@ -399,54 +406,54 @@ local strategies = {
     -- CC / survival
     { name = "Fear",
       matches = fear_matches,
-      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.Fear, context.target, "[LEVELING] Fear") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.Fear, context.target, "[LEVELING] Fear") end },
 
     -- CC: Howl of Terror (AoE fear escape)
     { name = "HowlOfTerror",
       matches = howl_of_terror_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.HowlofTerror, nil, "[LEVELING] Howl of Terror") or false end },
+      execute = function() return try_cast(SPELLS.HowlofTerror, nil, "[LEVELING] Howl of Terror") end },
 
     { name = "DeathCoil",
       matches = death_coil_matches,
-      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.DeathCoil, context.target, "[LEVELING] Death Coil") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.DeathCoil, context.target, "[LEVELING] Death Coil") end },
 
     -- Mana
     { name = "LifeTap",
       matches = life_tap_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.LifeTap, NS.PLAYER_UNIT, "[LEVELING] Life Tap") or false end },
+      execute = function() return try_cast(SPELLS.LifeTap, NS.PLAYER_UNIT, "[LEVELING] Life Tap") end },
 
     -- DoTs
     { name = "Corruption",
       matches = corruption_matches,
-      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.Corruption, context.target, "[LEVELING] Corruption") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.Corruption, context.target, "[LEVELING] Corruption") end },
 
     { name = "Immolate",
       matches = immolate_matches,
-      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.Immolate, context.target, "[LEVELING] Immolate") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.Immolate, context.target, "[LEVELING] Immolate") end },
 
     { name = "CurseOfAgony",
       matches = curse_of_agony_matches,
-      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.CurseOfAgony, context.target, "[LEVELING] Curse of Agony") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.CurseOfAgony, context.target, "[LEVELING] Curse of Agony") end },
 
     -- DoT: Siphon Life (damage + self-heal)
     { name = "SiphonLife",
       matches = siphon_life_matches,
-      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.SiphonLife, context.target, "[LEVELING] Siphon Life") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.SiphonLife, context.target, "[LEVELING] Siphon Life") end },
 
     -- Sustain: Drain Life (channeled damage + self-heal)
     { name = "DrainLife",
       matches = drain_life_matches,
-      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.DrainLife, context.target, "[LEVELING] Drain Life") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.DrainLife, context.target, "[LEVELING] Drain Life") end },
 
     -- Execute / low mana filler
     { name = "DrainSoul",
       matches = drain_soul_matches,
-      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.DrainSoul, context.target, "[LEVELING] Drain Soul") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.DrainSoul, context.target, "[LEVELING] Drain Soul") end },
 
     -- Main filler
     { name = "ShadowBolt",
       matches = shadow_bolt_matches,
-      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.ShadowBolt, context.target, "[LEVELING] Shadow Bolt") or false end },
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.ShadowBolt, context.target, "[LEVELING] Shadow Bolt") end },
 
     -- Wand fallback (threshold controlled by schema setting)
     { name = "Wand",

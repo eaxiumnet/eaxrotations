@@ -1582,6 +1582,303 @@ do -- edge_rotation_crash
     end)
 end
 -- ============================================================================
+-- Edge case: HowlOfTerror boundaries
+-- ============================================================================
+do
+    -- HowlOfTerror: enemies >= 3 and hp <= 40 -> match
+    local ctx = make_context({enemies_count = 3, hp = 40})
+    local state = get_state(ctx)
+    state.howl_of_terror_ready = true
+    state.enemies = 3
+    state.hp = 40
+    assert_true(strategies[8].matches(ctx, state), "howl enemies=3 hp=40 -> match (>=3, <=40)")
+
+    local ctx2 = make_context({enemies_count = 2, hp = 40})
+    local state2 = get_state(ctx2)
+    state2.howl_of_terror_ready = true
+    state2.enemies = 2
+    state2.hp = 40
+    assert_false(strategies[8].matches(ctx2, state2), "howl enemies=2 -> no match (<3)")
+
+    local ctx3 = make_context({enemies_count = 3, hp = 41})
+    local state3 = get_state(ctx3)
+    state3.howl_of_terror_ready = true
+    state3.enemies = 3
+    state3.hp = 41
+    assert_false(strategies[8].matches(ctx3, state3), "howl hp=41 -> no match (>40)")
+end
+
+-- ============================================================================
+-- Edge case: SiphonLife debuff refresh
+-- ============================================================================
+do
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.siphon_life_ready = true
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function(target, ids) return 3 end
+    assert_true(strategies[14].matches(ctx, state), "siphonlife remains=3 -> match (<=4)")
+    NS.debuff_remains = saved
+
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.siphon_life_ready = true
+    local saved2 = NS.debuff_remains
+    NS.debuff_remains = function(target, ids) return 5 end
+    assert_false(strategies[14].matches(ctx2, state2), "siphonlife remains=5 -> no match (>4)")
+    NS.debuff_remains = saved2
+end
+
+-- ============================================================================
+-- Edge case: DrainLife boundaries
+-- ============================================================================
+do
+    -- DrainLife: hp <= drain_life_hp (60) -> match; > -> no match
+    local ctx = make_context({hp = 60, is_moving = false})
+    local state = get_state(ctx)
+    state.drain_life_ready = true
+    state.hp = 60
+    state.drain_life_hp = 60
+    state.mana_pct = 50
+    state.drain_soul_execute = 25
+    local saved = ctx.target.get_health_percentage
+    ctx.target.get_health_percentage = function() return 50 end
+    state = get_state(ctx)
+    state.drain_life_ready = true
+    state.hp = 60
+    state.drain_life_hp = 60
+    state.mana_pct = 50
+    state.drain_soul_execute = 25
+    assert_true(strategies[15].matches(ctx, state), "drainlife hp=60 -> match (<=60)")
+    ctx.target.get_health_percentage = saved
+
+    local ctx2 = make_context({hp = 61, is_moving = false})
+    local state2 = get_state(ctx2)
+    state2.drain_life_ready = true
+    state2.hp = 61
+    state2.drain_life_hp = 60
+    state2.mana_pct = 50
+    assert_false(strategies[15].matches(ctx2, state2), "drainlife hp=61 -> no match (>60)")
+
+    -- DrainLife: target HP <= drain_soul_execute (25) -> no match (Drain Soul priority)
+    local ctx3 = make_context({hp = 50, is_moving = false})
+    local state3 = get_state(ctx3)
+    state3.drain_life_ready = true
+    state3.hp = 50
+    state3.drain_life_hp = 60
+    state3.mana_pct = 50
+    state3.drain_soul_execute = 25
+    local saved3 = ctx3.target.get_health_percentage
+    ctx3.target.get_health_percentage = function() return 25 end
+    state3 = get_state(ctx3)
+    state3.drain_life_ready = true
+    state3.hp = 50
+    state3.drain_life_hp = 60
+    state3.mana_pct = 50
+    state3.drain_soul_execute = 25
+    assert_false(strategies[15].matches(ctx3, state3), "drainlife target_hp=25 -> no match (DS executes)")
+    ctx3.target.get_health_percentage = saved3
+
+    -- DrainLife: mana < 10 -> no match
+    local ctx4 = make_context({hp = 50, is_moving = false, mana_pct = 9})
+    local state4 = get_state(ctx4)
+    state4.drain_life_ready = true
+    state4.hp = 50
+    state4.drain_life_hp = 60
+    state4.mana_pct = 9
+    state4.drain_soul_execute = 25
+    local saved4 = ctx4.target.get_health_percentage
+    ctx4.target.get_health_percentage = function() return 50 end
+    state4 = get_state(ctx4)
+    state4.drain_life_ready = true
+    state4.hp = 50
+    state4.drain_life_hp = 60
+    state4.mana_pct = 9
+    state4.drain_soul_execute = 25
+    assert_false(strategies[15].matches(ctx4, state4), "drainlife mana=9 -> no match (<10)")
+    ctx4.target.get_health_percentage = saved4
+end
+
+-- ============================================================================
+-- Edge case: SummonPet guards
+-- ============================================================================
+do
+    -- SummonPet: pet exists -> no match
+    local ctx = make_context({})
+    ctx.pet = { is_valid = function() return true end, get_health_percentage = function() return 100 end }
+    local state = get_state(ctx)
+    state.summon_felguard_ready = true
+    assert_false(strategies[6].matches(ctx, state), "summonpet pet exists -> no match")
+
+    -- SummonPet: OOC -> no match
+    local ctx2 = make_context({in_combat = false})
+    ctx2.pet = nil
+    local state2 = get_state(ctx2)
+    state2.summon_felguard_ready = true
+    assert_false(strategies[6].matches(ctx2, state2), "summonpet OOC -> no match")
+end
+
+-- ============================================================================
+-- Edge case: Soulstone OOC guard
+-- ============================================================================
+do
+    local ctx = make_context({in_combat = true})
+    local state = get_state(ctx)
+    state.soulstone_ready = true
+    assert_false(strategies[3].matches(ctx, state), "soulstone in combat -> no match")
+
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.soulstone_ready = true
+    assert_true(strategies[3].matches(ctx2, state2), "soulstone OOC ready -> match")
+end
+
+-- ============================================================================
+-- Edge case: Settings toggle
+-- ============================================================================
+do
+    local ctx = make_context({})
+    ctx.settings.leveling_use_corruption = false
+    local state = get_state(ctx)
+    state.corruption_ready = true
+    state.use_corruption = false
+    state.siphon_life_ready = true
+    assert_false(strategies[11].matches(ctx, state), "corruption setting disabled -> no match")
+
+    local ctx2 = make_context({})
+    ctx2.settings.leveling_use_immolate = false
+    local state2 = get_state(ctx2)
+    state2.immolate_ready = true
+    state2.use_immolate = false
+    assert_false(strategies[12].matches(ctx2, state2), "immolate setting disabled -> no match")
+
+    local ctx3 = make_context({})
+    ctx3.settings.leveling_use_curse_of_agony = false
+    local state3 = get_state(ctx3)
+    state3.curse_of_agony_ready = true
+    state3.use_curse_of_agony = false
+    assert_false(strategies[13].matches(ctx3, state3), "curseofagony setting disabled -> no match")
+end
+
+-- ============================================================================
+-- Edge case: Movement guard (DrainLife)
+-- ============================================================================
+do
+    local ctx = make_context({hp = 50, is_moving = true})
+    local state = get_state(ctx)
+    state.drain_life_ready = true
+    state.hp = 50
+    state.drain_life_hp = 60
+    state.mana_pct = 50
+    state.is_moving = true
+    assert_false(strategies[15].matches(ctx, state), "drainlife moving -> no match")
+end
+
+-- ============================================================================
+-- Edge case: OOC guards
+-- ============================================================================
+do
+    -- Fear: OOC -> no match
+    local ctx = make_context({in_combat = false, enemies_count = 3})
+    local state = get_state(ctx)
+    state.fear_ready = true
+    state.enemies = 3
+    assert_false(strategies[7].matches(ctx, state), "fear OOC -> no match")
+
+    -- DeathCoil: OOC -> no match
+    local ctx2 = make_context({in_combat = false, hp = 30})
+    local state2 = get_state(ctx2)
+    state2.death_coil_ready = true
+    state2.hp = 30
+    assert_false(strategies[9].matches(ctx2, state2), "deathcoil OOC -> no match")
+
+    -- LifeTap: OOC -> no match
+    local ctx3 = make_context({in_combat = false, mana_pct = 20, hp = 50})
+    local state3 = get_state(ctx3)
+    state3.life_tap_ready = true
+    state3.mana_pct = 20
+    state3.hp = 50
+    assert_false(strategies[10].matches(ctx3, state3), "lifetap OOC -> no match")
+
+    -- Corruption: OOC -> no match
+    local ctx4 = make_context({in_combat = false})
+    local state4 = get_state(ctx4)
+    state4.corruption_ready = true
+    state4.use_corruption = true
+    assert_false(strategies[11].matches(ctx4, state4), "corruption OOC -> no match")
+
+    -- Immolate: OOC -> no match
+    local ctx5 = make_context({in_combat = false})
+    local state5 = get_state(ctx5)
+    state5.immolate_ready = true
+    state5.use_immolate = true
+    assert_false(strategies[12].matches(ctx5, state5), "immolate OOC -> no match")
+
+    -- CurseOfAgony: OOC -> no match
+    local ctx6 = make_context({in_combat = false})
+    local state6 = get_state(ctx6)
+    state6.curse_of_agony_ready = true
+    state6.use_curse_of_agony = true
+    assert_false(strategies[13].matches(ctx6, state6), "curseofagony OOC -> no match")
+
+    -- SiphonLife: OOC -> no match
+    local ctx7 = make_context({in_combat = false})
+    local state7 = get_state(ctx7)
+    state7.siphon_life_ready = true
+    assert_false(strategies[14].matches(ctx7, state7), "siphonlife OOC -> no match")
+
+    -- DrainSoul: OOC -> no match
+    local ctx8 = make_context({in_combat = false})
+    local state8 = get_state(ctx8)
+    state8.drain_soul_ready = true
+    state8.mana_pct = 20
+    state8.drain_soul_execute = 25
+    local saved8 = ctx8.target.get_health_percentage
+    ctx8.target.get_health_percentage = function() return 20 end
+    state8 = get_state(ctx8)
+    state8.drain_soul_ready = true
+    state8.mana_pct = 20
+    state8.drain_soul_execute = 25
+    assert_false(strategies[16].matches(ctx8, state8), "drainsoul OOC -> no match")
+    ctx8.target.get_health_percentage = saved8
+
+    -- ShadowBolt: OOC -> no match
+    local ctx9 = make_context({in_combat = false, is_moving = false, mana_pct = 50})
+    local state9 = get_state(ctx9)
+    state9.shadow_bolt_ready = true
+    state9.mana_pct = 50
+    state9.is_moving = false
+    assert_false(strategies[17].matches(ctx9, state9), "shadowbolt OOC -> no match")
+end
+
+-- ============================================================================
+-- API crash: NS.try_cast throwing
+-- ============================================================================
+do
+    local saved = NS.try_cast
+    local ctx = make_context({})
+
+    -- NS.try_cast throws -> execute should not crash
+    NS.try_cast = function() error("simulated throw") end
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast=throw: strategy " .. i .. " execute did not crash")
+    end
+
+    NS.try_cast = saved
+end
+
+-- ============================================================================
+-- Rotation crash: no-arg execute for all functions
+-- ============================================================================
+do
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute)
+        assert_true(ok, "execute no-arg: strategy " .. i .. " did not crash")
+    end
+end
+
+-- ============================================================================
 -- Summary
 -- ============================================================================
 
