@@ -2455,6 +2455,577 @@ do -- edge_rotation_crash
         end
     end)
 end
+-- ============================================================================
+-- Deep dive: BearFormSurvival - form guards + OOC + HP boundary
+-- ============================================================================
+do
+    -- BearFormSurvival: already in bear -> no match
+    local ctx = make_context({hp = 25})
+    local state = get_state(ctx)
+    state.is_bear = true
+    state.bear_form_ready = true
+    state.use_feral = true
+    state.hp = 25
+    state.bear_hp = 40
+    assert_false(strategies[1].matches(ctx, state), "bearsurvival already bear -> no match")
+
+    -- BearFormSurvival: OOC -> no match
+    local ctx2 = make_context({in_combat = false, hp = 25})
+    local state2 = get_state(ctx2)
+    state2.is_bear = false
+    state2.bear_form_ready = true
+    state2.use_feral = true
+    state2.hp = 25
+    state2.bear_hp = 40
+    state2.in_combat = false
+    assert_false(strategies[1].matches(ctx2, state2), "bearsurvival OOC -> no match")
+
+    -- BearFormSurvival: feral disabled -> no match
+    local ctx3 = make_context({hp = 25})
+    local state3 = get_state(ctx3)
+    state3.is_bear = false
+    state3.bear_form_ready = true
+    state3.use_feral = false
+    state3.hp = 25
+    state3.bear_hp = 40
+    assert_false(strategies[1].matches(ctx3, state3), "bearsurvival feral disabled -> no match")
+
+    -- BearFormSurvival: HP 41 (above bear_hp) -> no match
+    local ctx4 = make_context({hp = 41})
+    local state4 = get_state(ctx4)
+    state4.is_bear = false
+    state4.bear_form_ready = true
+    state4.use_feral = true
+    state4.hp = 41
+    state4.bear_hp = 40
+    assert_false(strategies[1].matches(ctx4, state4), "bearsurvival hp=41 -> no match (> bear_hp)")
+end
+
+-- ============================================================================
+-- Deep dive: FrenziedRegeneration - rage/HP/form guards
+-- ============================================================================
+do
+    -- FrenziedRegen: rage 15, hp 35 -> match
+    local ctx = make_context({hp = 35})
+    local state = get_state(ctx)
+    state.is_bear = true
+    state.frenzied_regen_ready = true
+    state.rage = 15
+    state.hp = 35
+    state.bear_hp = 40
+    assert_true(strategies[2].matches(ctx, state), "frenziedregen rage=15 hp=35 -> match")
+
+    -- FrenziedRegen: rage 14 -> no match
+    local ctx2 = make_context({hp = 35})
+    local state2 = get_state(ctx2)
+    state2.is_bear = true
+    state2.frenzied_regen_ready = true
+    state2.rage = 14
+    state2.hp = 35
+    state2.bear_hp = 40
+    assert_false(strategies[2].matches(ctx2, state2), "frenziedregen rage=14 -> no match (< 15)")
+
+    -- FrenziedRegen: hp 36 -> no match (> bear_hp - 5 = 35)
+    local ctx3 = make_context({hp = 36})
+    local state3 = get_state(ctx3)
+    state3.is_bear = true
+    state3.frenzied_regen_ready = true
+    state3.rage = 40
+    state3.hp = 36
+    state3.bear_hp = 40
+    assert_false(strategies[2].matches(ctx3, state3), "frenziedregen hp=36 -> no match (> 35)")
+
+    -- FrenziedRegen: not in bear -> no match
+    local ctx4 = make_context({hp = 35})
+    local state4 = get_state(ctx4)
+    state4.is_bear = false
+    state4.frenzied_regen_ready = true
+    state4.rage = 40
+    state4.hp = 35
+    assert_false(strategies[2].matches(ctx4, state4), "frenziedregen not bear -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: CatFormEntry - transition guards
+-- ============================================================================
+do
+    -- CatFormEntry: already cat -> no match
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.is_cat = true
+    state.cat_form_ready = true
+    state.use_feral = true
+    assert_false(strategies[3].matches(ctx, state), "catentry already cat -> no match")
+
+    -- CatFormEntry: stay bear when hp <= bear_hp
+    local ctx2 = make_context({hp = 35})
+    local state2 = get_state(ctx2)
+    state2.is_bear = true
+    state2.is_cat = false
+    state2.cat_form_ready = true
+    state2.use_feral = true
+    state2.hp = 35
+    state2.bear_hp = 40
+    state2.target = { is_valid = function() return true end }
+    state2.in_melee = true
+    assert_false(strategies[3].matches(ctx2, state2), "catentry stay bear hp=35 -> no match")
+
+    -- CatFormEntry: not in melee -> no match
+    local ctx3 = make_context({hp = 80})
+    local state3 = get_state(ctx3)
+    state3.is_bear = false
+    state3.is_cat = false
+    state3.cat_form_ready = true
+    state3.use_feral = true
+    state3.hp = 80
+    state3.in_melee = false
+    assert_false(strategies[3].matches(ctx3, state3), "catentry not melee -> no match")
+
+    -- CatFormEntry: no target -> no match
+    local ctx4 = make_context({hp = 80})
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.is_bear = false
+    state4.is_cat = false
+    state4.cat_form_ready = true
+    state4.use_feral = true
+    state4.hp = 80
+    state4.target = nil
+    state4.in_melee = true
+    assert_false(strategies[3].matches(ctx4, state4), "catentry no target -> no match")
+
+    -- CatFormEntry: OOC -> no match
+    local ctx5 = make_context({in_combat = false, hp = 80})
+    local state5 = get_state(ctx5)
+    state5.is_bear = false
+    state5.is_cat = false
+    state5.cat_form_ready = true
+    state5.use_feral = true
+    state5.hp = 80
+    state5.in_combat = false
+    state5.in_melee = true
+    assert_false(strategies[3].matches(ctx5, state5), "catentry OOC -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: ProwlOpener - target_range boundary + form requirements
+-- ============================================================================
+do
+    -- Prowl: target_range 18 -> match
+    local ctx = make_context({in_combat = false})
+    local state = get_state(ctx)
+    state.prowl_ready = true
+    state.use_feral = true
+    state.is_cat = true
+    state.is_stealthed = false
+    state.target_range = 18
+    assert_true(strategies[4].matches(ctx, state), "prowl range=18 -> match (<= 18)")
+
+    -- Prowl: target_range 19 -> no match (> 18)
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.prowl_ready = true
+    state2.use_feral = true
+    state2.is_cat = true
+    state2.is_stealthed = false
+    state2.target_range = 19
+    assert_false(strategies[4].matches(ctx2, state2), "prowl range=19 -> no match (> 18)")
+
+    -- Prowl: already stealthed -> no match
+    local ctx3 = make_context({in_combat = false})
+    local state3 = get_state(ctx3)
+    state3.prowl_ready = true
+    state3.use_feral = true
+    state3.is_cat = true
+    state3.is_stealthed = true
+    state3.target_range = 10
+    assert_false(strategies[4].matches(ctx3, state3), "prowl already stealthed -> no match")
+
+    -- Prowl: in combat -> no match
+    local ctx4 = make_context({in_combat = true})
+    local state4 = get_state(ctx4)
+    state4.prowl_ready = true
+    state4.use_feral = true
+    state4.is_cat = true
+    state4.is_stealthed = false
+    state4.target_range = 10
+    assert_false(strategies[4].matches(ctx4, state4), "prowl in combat -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Pounce/Ravage - stealth/energy/form guards
+-- ============================================================================
+do
+    -- Pounce: not stealthed -> no match
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.is_cat = true
+    state.is_stealthed = false
+    state.pounce_ready = true
+    state.energy = 50
+    assert_false(strategies[5].matches(ctx, state), "pounce not stealthed -> no match")
+
+    -- Pounce: energy 49 -> no match
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.is_cat = true
+    state2.is_stealthed = true
+    state2.pounce_ready = true
+    state2.energy = 49
+    assert_false(strategies[5].matches(ctx2, state2), "pounce energy=49 -> no match (< 50)")
+
+    -- Pounce: not cat -> no match
+    local ctx3 = make_context({})
+    local state3 = get_state(ctx3)
+    state3.is_cat = false
+    state3.is_stealthed = true
+    state3.pounce_ready = true
+    state3.energy = 50
+    assert_false(strategies[5].matches(ctx3, state3), "pounce not cat -> no match")
+
+    -- Ravage: not stealthed -> no match
+    local ctx4 = make_context({})
+    local state4 = get_state(ctx4)
+    state4.is_cat = true
+    state4.is_stealthed = false
+    state4.ravage_ready = true
+    state4.energy = 60
+    state4.is_behind = true
+    assert_false(strategies[6].matches(ctx4, state4), "ravage not stealthed -> no match")
+
+    -- Ravage: energy 59 -> no match
+    local ctx5 = make_context({})
+    local state5 = get_state(ctx5)
+    state5.is_cat = true
+    state5.is_stealthed = true
+    state5.ravage_ready = true
+    state5.energy = 59
+    state5.is_behind = true
+    assert_false(strategies[6].matches(ctx5, state5), "ravage energy=59 -> no match (< 60)")
+
+    -- Ravage: not behind -> no match
+    local ctx6 = make_context({})
+    local state6 = get_state(ctx6)
+    state6.is_cat = true
+    state6.is_stealthed = true
+    state6.ravage_ready = true
+    state6.energy = 60
+    state6.is_behind = false
+    assert_false(strategies[6].matches(ctx6, state6), "ravage not behind -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: FaerieFireFeral - form requirement + debuff boundary
+-- ============================================================================
+do
+    -- FaerieFireFeral: in caster form (no cat/bear) -> no match
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.is_cat = false
+    state.is_bear = false
+    state.faerie_fire_feral_ready = true
+    state.faerie_fire_feral_remains = 0
+    assert_false(strategies[7].matches(ctx, state), "ffferal caster form -> no match")
+
+    -- FaerieFireFeral: remains 11 -> no match (> 10)
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.is_cat = true
+    state2.faerie_fire_feral_ready = true
+    state2.faerie_fire_feral_remains = 11
+    assert_false(strategies[7].matches(ctx2, state2), "ffferal remains=11 -> no match (> 10)")
+
+    -- FaerieFireFeral: OOC -> no match
+    local ctx3 = make_context({in_combat = false})
+    local state3 = get_state(ctx3)
+    state3.is_cat = true
+    state3.faerie_fire_feral_ready = true
+    state3.faerie_fire_feral_remains = 0
+    state3.in_combat = false
+    assert_false(strategies[7].matches(ctx3, state3), "ffferal OOC -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Feral ability null target guards
+-- ============================================================================
+do
+    local feral_strategies = {8, 9, 10, 11, 12, 13, 14, 15, 16}  -- Rake through Maul
+    for _, idx in ipairs(feral_strategies) do
+        local ctx = make_context({})
+        ctx.target = nil
+        local state = get_state(ctx)
+        state.is_cat = strategies[idx].name ~= "SwipeBear" and strategies[idx].name ~= "MangleBear" and strategies[idx].name ~= "Maul"
+        state.is_bear = not state.is_cat
+        -- Set all readiness to true
+        for k, v in pairs(state) do
+            if type(k) == "string" and k:match("_ready$") then
+                state[k] = true
+            end
+        end
+        state.energy = 100
+        state.rage = 100
+        state.combo_points = 3
+        state.in_melee = true
+        state.is_behind = true
+        state.mangle_remains = 10
+        state.rake_remains = 0
+        state.rip_remains = 0
+        state.target = nil
+        local ok, result = pcall(strategies[idx].matches, ctx, state)
+        assert_false(result, strategies[idx].name .. " no target -> no match")
+    end
+end
+
+-- ============================================================================
+-- Deep dive: Claw - better builder preference guards
+-- ============================================================================
+do
+    -- Claw: MangleCat available with enough energy -> no match (prefer Mangle)
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.is_cat = true
+    state.claw_ready = true
+    state.energy = 50
+    state.combo_points = 3
+    state.mangle_cat_ready = true
+    state.rake_ready = false
+    state.shred_ready = false
+    assert_false(strategies[13].matches(ctx, state), "claw mangle available -> no match")
+
+    -- Claw: Rake ready, remains 3, energy 50 -> no match (prefer Rake)
+    local ctx2 = make_context({})
+    local state2 = get_state(ctx2)
+    state2.is_cat = true
+    state2.claw_ready = true
+    state2.energy = 50
+    state2.combo_points = 3
+    state2.mangle_cat_ready = false
+    state2.rake_ready = true
+    state2.rake_remains = 3
+    state2.shred_ready = false
+    assert_false(strategies[13].matches(ctx2, state2), "claw rake refreshable -> no match")
+
+    -- Claw: Shred ready, behind, mangle debuff up, energy 50 -> no match (prefer Shred)
+    local ctx3 = make_context({})
+    local state3 = get_state(ctx3)
+    state3.is_cat = true
+    state3.claw_ready = true
+    state3.energy = 50
+    state3.combo_points = 3
+    state3.mangle_cat_ready = false
+    state3.rake_ready = false
+    state3.shred_ready = true
+    state3.is_behind = true
+    state3.mangle_remains = 10
+    assert_false(strategies[13].matches(ctx3, state3), "claw shred available -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Bear ability not-bear guards
+-- ============================================================================
+do
+    -- MangleBear: not bear -> no match
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.is_bear = false
+    state.is_cat = true
+    state.mangle_bear_ready = true
+    state.rage = 40
+    state.in_melee = true
+    assert_false(strategies[14].matches(ctx, state), "manglebear not bear -> no match")
+
+    -- SwipeBear: not bear -> no match
+    local ctx2 = make_context({enemies_count = 3})
+    local state2 = get_state(ctx2)
+    state2.is_bear = false
+    state2.swipe_ready = true
+    state2.rage = 40
+    state2.enemies = 3
+    assert_false(strategies[15].matches(ctx2, state2), "swipebear not bear -> no match")
+
+    -- Maul: not bear -> no match
+    local ctx3 = make_context({})
+    local state3 = get_state(ctx3)
+    state3.is_bear = false
+    state3.maul_ready = true
+    state3.rage = 50
+    assert_false(strategies[16].matches(ctx3, state3), "maul not bear -> no match")
+
+    -- MangleBear: OOC -> no match
+    local ctx4 = make_context({in_combat = false})
+    local state4 = get_state(ctx4)
+    state4.is_bear = true
+    state4.mangle_bear_ready = true
+    state4.rage = 40
+    state4.in_melee = true
+    state4.in_combat = false
+    assert_false(strategies[14].matches(ctx4, state4), "manglebear OOC -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Caster ability OOC + null target guards
+-- ============================================================================
+do
+    -- NaturesGrasp: OOC -> no match
+    local ctx = make_context({in_combat = false, hp = 30})
+    local state = get_state(ctx)
+    state.natures_grasp_ready = true
+    state.hp = 30
+    state.in_combat = false
+    state.enemies = 1
+    assert_false(strategies[19].matches(ctx, state), "naturesgrasp OOC -> no match")
+
+    -- Barkskin: OOC -> no match
+    local ctx2 = make_context({in_combat = false, hp = 30})
+    local state2 = get_state(ctx2)
+    state2.barkskin_ready = true
+    state2.hp = 30
+    state2.in_combat = false
+    assert_false(strategies[20].matches(ctx2, state2), "barkskin OOC -> no match")
+
+    -- HealingTouch: OOC -> no match
+    local ctx3 = make_context({in_combat = false, hp = 20})
+    local state3 = get_state(ctx3)
+    state3.healing_touch_ready = true
+    state3.hp = 20
+    state3.heal_hp = 40
+    state3.in_combat = false
+    assert_false(strategies[21].matches(ctx3, state3), "healingtouch OOC -> no match")
+
+    -- Rejuvenation: OOC -> no match
+    local ctx4 = make_context({in_combat = false, hp = 30})
+    local state4 = get_state(ctx4)
+    state4.rejuvenation_ready = true
+    state4.hp = 30
+    state4.heal_hp = 40
+    state4.in_combat = false
+    assert_false(strategies[22].matches(ctx4, state4), "rejuvenation OOC -> no match")
+
+    -- Moonfire: no target -> no match
+    local ctx5 = make_context({})
+    ctx5.target = nil
+    local state5 = get_state(ctx5)
+    state5.moonfire_ready = true
+    state5.target = nil
+    assert_false(strategies[24].matches(ctx5, state5), "moonfire no target -> no match")
+
+    -- InsectSwarm: no target -> no match
+    local ctx6 = make_context({})
+    ctx6.target = nil
+    local state6 = get_state(ctx6)
+    state6.insect_swarm_ready = true
+    state6.target = nil
+    assert_false(strategies[25].matches(ctx6, state6), "insectswarm no target -> no match")
+
+    -- Wrath: no target -> no match
+    local ctx7 = make_context({})
+    ctx7.target = nil
+    local state7 = get_state(ctx7)
+    state7.wrath_ready = true
+    state7.target = nil
+    assert_false(strategies[29].matches(ctx7, state7), "wrath no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Wand mana boundary
+-- ============================================================================
+do
+    -- Wand: mana 29 -> match (< 30)
+    local ctx = make_context({mana_pct = 29})
+    local state = get_state(ctx)
+    state.wand_threshold = 30
+    state.mana_pct = 29
+    state.wand_learned = true
+    assert_true(strategies[30].matches(ctx, state), "wand mana=29 -> match (< threshold)")
+
+    -- Wand: mana 30 -> no match (>= 30)
+    local ctx2 = make_context({mana_pct = 30})
+    local state2 = get_state(ctx2)
+    state2.wand_threshold = 30
+    state2.mana_pct = 30
+    state2.wand_learned = true
+    assert_false(strategies[30].matches(ctx2, state2), "wand mana=30 -> no match (>= threshold)")
+end
+
+-- ============================================================================
+-- Deep dive: Hurricane + Starfire OOC guards
+-- ============================================================================
+do
+    -- Hurricane: OOC -> no match
+    local ctx = make_context({in_combat = false, enemies_count = 4, is_moving = false})
+    local state = get_state(ctx)
+    state.hurricane_ready = true
+    state.enemies = 4
+    state.is_moving = false
+    state.in_combat = false
+    assert_false(strategies[27].matches(ctx, state), "hurricane OOC -> no match")
+
+    -- Starfire: OOC -> no match
+    local ctx2 = make_context({in_combat = false, is_moving = false})
+    local state2 = get_state(ctx2)
+    state2.starfire_ready = true
+    state2.is_moving = false
+    state2.in_combat = false
+    assert_false(strategies[28].matches(ctx2, state2), "starfire OOC -> no match")
+
+    -- Hurricane: no target -> no match
+    local ctx3 = make_context({enemies_count = 4})
+    ctx3.target = nil
+    local state3 = get_state(ctx3)
+    state3.hurricane_ready = true
+    state3.enemies = 4
+    state3.target = nil
+    assert_false(strategies[27].matches(ctx3, state3), "hurricane no target -> no match")
+
+    -- Starfire: no target -> no match
+    local ctx4 = make_context({})
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.starfire_ready = true
+    state4.target = nil
+    assert_false(strategies[28].matches(ctx4, state4), "starfire no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: NS.spell_ready throws (crash safety)
+-- ============================================================================
+do
+    local saved = NS.spell_ready
+    NS.spell_ready = function() error("simulated throw") end
+    local ctx = make_context()
+    local ok, state = pcall(get_state, ctx)
+    NS.spell_ready = saved
+    assert_true(ok, "spell_ready throwing should not crash build_state (pcall added)")
+end
+
+-- ============================================================================
+-- Deep dive: Execute functions crash safety (NS.try_cast throwing)
+-- ============================================================================
+do
+    local saved = NS.try_cast
+    NS.try_cast = function() error("simulated throw") end
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast=throw: strategy " .. i .. " execute did not crash")
+    end
+    NS.try_cast = saved
+end
+
+-- ============================================================================
+-- Deep dive: Execute functions nil context + no-arg
+-- ============================================================================
+do
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, nil)
+        assert_true(ok, "execute nil ctx: strategy " .. i .. " did not crash")
+    end
+
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute)
+        assert_true(ok, "execute no-arg: strategy " .. i .. " did not crash")
+    end
+end
 -- Summary
 -- ============================================================================
 
