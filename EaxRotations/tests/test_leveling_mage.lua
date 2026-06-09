@@ -1653,6 +1653,480 @@ test("edge_mana_gem_use: mana at exactly threshold should not match", function()
 end)
 
 -- ============================================================================
+-- ============================================================================
+-- Edge case: HP boundaries
+-- ============================================================================
+do
+    -- ManaShield: hp <= 40 -> match; hp > 40 -> no match
+    local ctx = make_context({ hp = 40 })
+    local state = get_state(ctx)
+    state.mana_shield_ready = true
+    state.ice_barrier_ready = true
+    state.frostbolt_ready = true
+    state.arcane_missiles_ready = true
+    state.fire_blast_ready = true
+    state.scorch_ready = true
+    assert_true(strategies[7].matches(ctx, state), "manashield hp=40 -> match (hp <= 40)")
+
+    local ctx2 = make_context({ hp = 41 })
+    local state2 = get_state(ctx2)
+    state2.mana_shield_ready = true
+    state2.ice_barrier_ready = true
+    assert_false(strategies[7].matches(ctx2, state2), "manashield hp=41 -> no match (hp > 40)")
+
+    -- Blink: hp <= 50 -> match; hp > 50 -> no match
+    local ctx3 = make_context({ hp = 50 })
+    local state3 = get_state(ctx3)
+    state3.blink_ready = true
+    assert_true(strategies[11].matches(ctx3, state3), "blink hp=50 -> match (hp <= 50)")
+
+    local ctx4 = make_context({ hp = 51 })
+    local state4 = get_state(ctx4)
+    state4.blink_ready = true
+    assert_false(strategies[11].matches(ctx4, state4), "blink hp=51 -> no match (hp > 50)")
+end
+
+-- ============================================================================
+-- Edge case: Mana boundaries
+-- ============================================================================
+do
+    -- Evocation: mana_pct <= 25 -> match; > 25 -> no match
+    local ctx = make_context({ mana_pct = 25 })
+    local state = get_state(ctx)
+    state.evocation_ready = true
+    assert_true(strategies[13].matches(ctx, state), "evocation mana=25 -> match (<=25)")
+
+    local ctx2 = make_context({ mana_pct = 26 })
+    local state2 = get_state(ctx2)
+    state2.evocation_ready = true
+    assert_false(strategies[13].matches(ctx2, state2), "evocation mana=26 -> no match (>25)")
+
+    -- ArcaneMissiles: mana_pct >= 20 -> match; < 20 -> no match
+    local ctx3 = make_context({ mana_pct = 20 })
+    local state3 = get_state(ctx3)
+    state3.arcane_missiles_ready = true
+    state3.use_arcane_missiles = true
+    state3.frostbolt_ready = true
+    state3.fire_blast_ready = true
+    state3.scorch_ready = true
+    assert_true(strategies[16].matches(ctx3, state3), "arcanemissiles mana=20 -> match (>=20)")
+
+    local ctx4 = make_context({ mana_pct = 19 })
+    local state4 = get_state(ctx4)
+    state4.arcane_missiles_ready = true
+    state4.use_arcane_missiles = true
+    assert_false(strategies[16].matches(ctx4, state4), "arcanemissiles mana=19 -> no match (<20)")
+
+    -- Frostbolt: mana_pct >= 10 -> match; < 10 -> no match
+    local ctx5 = make_context({ mana_pct = 10 })
+    local state5 = get_state(ctx5)
+    state5.frostbolt_ready = true
+    state5.fire_blast_ready = true
+    state5.scorch_ready = true
+    assert_true(strategies[17].matches(ctx5, state5), "frostbolt mana=10 -> match (>=10)")
+
+    local ctx6 = make_context({ mana_pct = 9 })
+    local state6 = get_state(ctx6)
+    state6.frostbolt_ready = true
+    assert_false(strategies[17].matches(ctx6, state6), "frostbolt mana=9 -> no match (<10)")
+
+    -- Scorch: mana_pct >= 10 -> match; < 10 -> no match
+    local ctx7 = make_context({ mana_pct = 10 })
+    local state7 = get_state(ctx7)
+    state7.scorch_ready = true
+    state7.use_scorch = true
+    state7.fire_blast_ready = true
+    assert_true(strategies[15].matches(ctx7, state7), "scorch mana=10 -> match (>=10)")
+
+    local ctx8 = make_context({ mana_pct = 9 })
+    local state8 = get_state(ctx8)
+    state8.scorch_ready = true
+    state8.use_scorch = true
+    assert_false(strategies[15].matches(ctx8, state8), "scorch mana=9 -> no match (<10)")
+end
+
+-- ============================================================================
+-- Edge case: Wand threshold
+-- ============================================================================
+do
+    -- Wand: mana_pct < wand_threshold (default 30) -> match
+    local ctx = make_context({ mana_pct = 29 })
+    ctx.wand_learned = true
+    local state = get_state(ctx)
+    state.wand_learned = true
+    state.frostbolt_ready = true
+    state.arcane_missiles_ready = true
+    assert_true(strategies[19].matches(ctx, state), "wand mana=29 -> match (<30)")
+
+    local ctx2 = make_context({ mana_pct = 30 })
+    ctx2.wand_learned = true
+    local state2 = get_state(ctx2)
+    state2.wand_learned = true
+    state2.frostbolt_ready = true
+    state2.arcane_missiles_ready = true
+    assert_false(strategies[19].matches(ctx2, state2), "wand mana=30 -> no match (>=30)")
+end
+
+-- ============================================================================
+-- Edge case: Mana gem boundaries
+-- ============================================================================
+do
+    -- UseManaGem: mana_pct < mana_gem_threshold (default 70) -> match
+    local ctx = make_context({ mana_pct = 69 })
+    ctx.mana_gem_available = true
+    local state = get_state(ctx)
+    state.mana_gem_available = true
+    state.use_mana_gem = true
+    state.frostbolt_ready = true
+    state.arcane_missiles_ready = true
+    state.fire_blast_ready = true
+    state.scorch_ready = true
+    assert_true(strategies[18].matches(ctx, state), "usemanagem mana=69 -> match (<70)")
+
+    local ctx2 = make_context({ mana_pct = 70 })
+    ctx2.mana_gem_available = true
+    local state2 = get_state(ctx2)
+    state2.mana_gem_available = true
+    state2.use_mana_gem = true
+    assert_false(strategies[18].matches(ctx2, state2), "usemanagem mana=70 -> no match (>=70)")
+
+    -- UseManaGem: no gem available -> no match
+    local ctx3 = make_context({ mana_pct = 50 })
+    ctx3.mana_gem_available = false
+    local state3 = get_state(ctx3)
+    state3.mana_gem_available = false
+    state3.use_mana_gem = true
+    assert_false(strategies[18].matches(ctx3, state3), "usemanagem no gem -> no match")
+
+    -- ConjureManaGem: gem already available -> no match
+    local ctx4 = make_context({ in_combat = false })
+    ctx4.mana_gem_available = true
+    local state4 = get_state(ctx4)
+    state4.conjure_gem_ready = true
+    state4.mana_gem_available = true
+    assert_false(strategies[4].matches(ctx4, state4), "conjuregem gem available -> no match")
+end
+
+-- ============================================================================
+-- Edge case: Polymorph boundaries
+-- ============================================================================
+do
+    -- Polymorph: target HP < polymorph_hp (40) -> match
+    local ctx = make_context({ in_combat = false, enemies_count = 0 })
+    ctx.polymorph_hp = 40
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 3900 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 39 end,
+    }
+    local state = get_state(ctx)
+    state.polymorph_ready = true
+    state.ai_ready = true
+    state.frost_armor_ready = true
+    assert_true(strategies[5].matches(ctx, state), "polymorph target_hp=39 -> match (<40)")
+
+    local ctx2 = make_context({ in_combat = false, enemies_count = 0 })
+    ctx2.polymorph_hp = 40
+    ctx2.target = {
+        is_valid = function() return true end,
+        get_health = function() return 4000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 40 end,
+    }
+    local state2 = get_state(ctx2)
+    state2.polymorph_ready = true
+    state2.ai_ready = true
+    state2.frost_armor_ready = true
+    assert_false(strategies[5].matches(ctx2, state2), "polymorph target_hp=40 -> no match (>=40)")
+
+    -- Polymorph: remains >= 10 -> no match
+    local ctx3 = make_context({ in_combat = false, enemies_count = 0 })
+    ctx3.target = {
+        is_valid = function() return true end,
+        get_health = function() return 3000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 30 end,
+    }
+    local state3 = get_state(ctx3)
+    state3.polymorph_ready = true
+    state3.ai_ready = true
+    state3.frost_armor_ready = true
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 9 end
+    assert_true(strategies[5].matches(ctx3, state3), "polymorph remains=9 -> match (<10)")
+    NS.debuff_remains = saved
+
+    local ctx4 = make_context({ in_combat = false, enemies_count = 0 })
+    ctx4.target = {
+        is_valid = function() return true end,
+        get_health = function() return 3000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 30 end,
+    }
+    local state4 = get_state(ctx4)
+    state4.polymorph_ready = true
+    state4.ai_ready = true
+    state4.frost_armor_ready = true
+    local saved4 = NS.debuff_remains
+    NS.debuff_remains = function(target, spell) return 10 end
+    assert_false(strategies[5].matches(ctx4, state4), "polymorph remains=10 -> no match (>=10)")
+    NS.debuff_remains = saved4
+end
+
+-- ============================================================================
+-- Edge case: Enemy thresholds
+-- ============================================================================
+do
+    -- Blizzard: enemies >= 3 -> match; < 3 -> no match
+    local ctx = make_context({ enemies_count = 3 })
+    local state = get_state(ctx)
+    state.blizzard_ready = true
+    state.frostbolt_ready = true
+    state.arcane_missiles_ready = true
+    state.fire_blast_ready = true
+    state.scorch_ready = true
+    assert_true(strategies[12].matches(ctx, state), "blizzard enemies=3 -> match (>=3)")
+
+    local ctx2 = make_context({ enemies_count = 2 })
+    local state2 = get_state(ctx2)
+    state2.blizzard_ready = true
+    assert_false(strategies[12].matches(ctx2, state2), "blizzard enemies=2 -> no match (<3)")
+
+    -- ConeOfCold: enemies >= 2 -> match; < 2 -> no match
+    local ctx3 = make_context({ enemies_count = 2 })
+    ctx3.me = { is_valid = function() return true end, get_position = function() return { x = 0, y = 0, z = 0 } end }
+    ctx3.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        get_distance = function(other) return 5 end,
+    }
+    local state3 = get_state(ctx3)
+    state3.cone_of_cold_ready = true
+    state3.frostbolt_ready = true
+    state3.arcane_missiles_ready = true
+    state3.fire_blast_ready = true
+    state3.scorch_ready = true
+    assert_true(strategies[10].matches(ctx3, state3), "conecold enemies=2 -> match (>=2)")
+
+    local ctx4 = make_context({ enemies_count = 1 })
+    ctx4.me = { is_valid = function() return true end, get_position = function() return { x = 0, y = 0, z = 0 } end }
+    local state4 = get_state(ctx4)
+    state4.cone_of_cold_ready = true
+    assert_false(strategies[10].matches(ctx4, state4), "conecold enemies=1 -> no match (<2)")
+end
+
+-- ============================================================================
+-- Edge case: Movement guards
+-- ============================================================================
+do
+    -- Blizzard: is_moving -> no match
+    local ctx = make_context({ is_moving = true, enemies_count = 3 })
+    local state = get_state(ctx)
+    state.blizzard_ready = true
+    assert_false(strategies[12].matches(ctx, state), "blizzard moving -> no match")
+
+    -- ArcaneMissiles: is_moving -> no match
+    local ctx2 = make_context({ is_moving = true })
+    local state2 = get_state(ctx2)
+    state2.arcane_missiles_ready = true
+    state2.use_arcane_missiles = true
+    assert_false(strategies[16].matches(ctx2, state2), "arcanemissiles moving -> no match")
+
+    -- Frostbolt: is_moving -> no match
+    local ctx3 = make_context({ is_moving = true })
+    local state3 = get_state(ctx3)
+    state3.frostbolt_ready = true
+    assert_false(strategies[17].matches(ctx3, state3), "frostbolt moving -> no match")
+
+    -- Scorch: is_moving -> no match
+    local ctx4 = make_context({ is_moving = true })
+    local state4 = get_state(ctx4)
+    state4.scorch_ready = true
+    state4.use_scorch = true
+    assert_false(strategies[15].matches(ctx4, state4), "scorch moving -> no match")
+end
+
+-- ============================================================================
+-- Edge case: Buff guards
+-- ============================================================================
+do
+    -- ArcaneIntellect: has_ai -> no match
+    local ctx = make_context({ in_combat = false, enemies_count = 0 })
+    local state = get_state(ctx)
+    state.has_ai = true
+    state.ai_ready = true
+    assert_false(strategies[1].matches(ctx, state), "arcaneintellect buff active -> no match")
+
+    -- FrostArmor: has_frost_armor -> no match
+    local ctx2 = make_context({ in_combat = false, enemies_count = 0 })
+    local state2 = get_state(ctx2)
+    state2.has_frost_armor = true
+    state2.frost_armor_ready = true
+    assert_false(strategies[2].matches(ctx2, state2), "frostarmor buff active -> no match")
+
+    -- FrostArmor: has_mage_armor -> no match
+    local ctx3 = make_context({ in_combat = false, enemies_count = 0 })
+    local state3 = get_state(ctx3)
+    state3.has_frost_armor = false
+    state3.has_mage_armor = true
+    state3.frost_armor_ready = true
+    assert_false(strategies[2].matches(ctx3, state3), "frostarmor mage armor active -> no match")
+
+    -- IceBarrier: has_ice_barrier -> no match
+    local ctx4 = make_context({})
+    local state4 = get_state(ctx4)
+    state4.has_ice_barrier = true
+    state4.ice_barrier_ready = true
+    assert_false(strategies[8].matches(ctx4, state4), "icebarrier buff active -> no match")
+end
+
+-- ============================================================================
+-- Edge case: Settings toggle
+-- ============================================================================
+do
+    -- FireBlast: use_fire_blast disabled -> no match
+    local ctx = make_context({})
+    ctx.settings.leveling_fire_blast_use = false
+    local state = get_state(ctx)
+    state.fire_blast_ready = true
+    state.frostbolt_ready = true
+    state.arcane_missiles_ready = true
+    state.scorch_ready = true
+    assert_false(strategies[14].matches(ctx, state), "fireblast setting disabled -> no match")
+
+    -- Scorch: use_scorch disabled -> no match
+    local ctx2 = make_context({})
+    ctx2.settings.leveling_scorch_use = false
+    local state2 = get_state(ctx2)
+    state2.scorch_ready = true
+    state2.frostbolt_ready = true
+    state2.arcane_missiles_ready = true
+    assert_false(strategies[15].matches(ctx2, state2), "scorch setting disabled -> no match")
+
+    -- ArcaneMissiles: use_arcane_missiles disabled -> no match
+    local ctx3 = make_context({})
+    ctx3.settings.leveling_arcane_missiles_use = false
+    local state3 = get_state(ctx3)
+    state3.arcane_missiles_ready = true
+    state3.frostbolt_ready = true
+    assert_false(strategies[16].matches(ctx3, state3), "arcanemissiles setting disabled -> no match")
+
+    -- Counterspell: use_interrupt disabled -> no match
+    local ctx4 = make_context({})
+    ctx4.settings.use_interrupt = false
+    ctx4.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        is_casting = function() return true end,
+    }
+    local state4 = get_state(ctx4)
+    state4.counterspell_ready = true
+    state4.frostbolt_ready = true
+    state4.arcane_missiles_ready = true
+    assert_false(strategies[6].matches(ctx4, state4), "counterspell interrupt disabled -> no match")
+end
+
+-- ============================================================================
+-- Edge case: FrostNova distance boundary
+-- ============================================================================
+do
+    local ctx = make_context({})
+    ctx.me = { is_valid = function() return true end, get_position = function() return { x = 0, y = 0, z = 0 } end }
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        get_distance = function(other) return 10 end,
+    }
+    local state = get_state(ctx)
+    state.frost_nova_ready = true
+    state.frostbolt_ready = true
+    state.arcane_missiles_ready = true
+    state.fire_blast_ready = true
+    state.scorch_ready = true
+    assert_true(strategies[9].matches(ctx, state), "frostnova dist=10 -> match (<=10)")
+
+    local ctx2 = make_context({})
+    ctx2.me = { is_valid = function() return true end, get_position = function() return { x = 0, y = 0, z = 0 } end }
+    ctx2.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        get_distance = function(other) return 11 end,
+    }
+    local state2 = get_state(ctx2)
+    state2.frost_nova_ready = true
+    assert_false(strategies[9].matches(ctx2, state2), "frostnova dist=11 -> no match (>10)")
+end
+
+-- ============================================================================
+-- API crash: NS.try_cast nil/throwing
+-- ============================================================================
+do
+    local saved = NS.try_cast
+    local ctx = make_context({})
+    local state = get_state(ctx)
+    state.ai_ready = true
+    state.frost_armor_ready = true
+    state.remove_curse_ready = true
+    state.polymorph_ready = true
+    state.counterspell_ready = true
+    state.mana_shield_ready = true
+    state.ice_barrier_ready = true
+    state.frost_nova_ready = true
+    state.cone_of_cold_ready = true
+    state.blink_ready = true
+    state.blizzard_ready = true
+    state.evocation_ready = true
+    state.fire_blast_ready = true
+    state.scorch_ready = true
+    state.arcane_missiles_ready = true
+    state.frostbolt_ready = true
+
+    -- NS.try_cast = nil -> execute should not crash
+    NS.try_cast = nil
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast=nil: strategy " .. i .. " execute did not crash")
+    end
+
+    -- NS.try_cast throws -> execute should not crash
+    NS.try_cast = function() error("simulated throw") end
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, "try_cast=throw: strategy " .. i .. " execute did not crash")
+    end
+
+    NS.try_cast = saved
+end
+
+-- ============================================================================
+-- Rotation crash: nil context for all execute functions
+-- ============================================================================
+do
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, nil)
+        assert_true(ok, "execute nil ctx: strategy " .. i .. " did not crash")
+    end
+end
+
+-- ============================================================================
+-- Rotation crash: no-arg execute for all functions
+-- ============================================================================
+do
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute)
+        assert_true(ok, "execute no-arg: strategy " .. i .. " did not crash")
+    end
+end
+
 -- Summary
 -- ============================================================================
 
