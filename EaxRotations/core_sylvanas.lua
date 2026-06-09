@@ -4495,6 +4495,15 @@ local visible, visible_last_ms = {}, -1000
 
 local _enemy_range_buffer = { n = 0 }
 
+-- Per-tick cache: GetEnemiesInRange is called 23+ times per rotation tick from
+-- middleware/spec match functions (priest middleware alone: 6x). Each call did
+-- 4 engine scans + O(n²) dedup + ~100 pcall. Cache the result by (tick, range)
+-- so redundant calls in the same tick return the already-computed list.
+-- The cache invalidates naturally when NS.time_now() advances (next tick).
+local _enemy_cache_tick = -1
+local _enemy_cache_range = -1
+local _enemy_cache_result = nil
+
 local _friends_range_buffer = { n = 0 }
 
 local function visible_unit_ok(obj)
@@ -4630,13 +4639,20 @@ function NS.GetEnemiesInRange(range)
 
     if not me then return EMPTY end
 
+    local limit = type(range) == "number" and range or 40
+
+    -- Per-tick cache hit: same tick + same range → return already-computed list.
+    -- Cuts 23+ redundant 4-scan enemy fetches per rotation tick to 1.
+    local now = NS.time_now()
+    if now == _enemy_cache_tick and limit == _enemy_cache_range and _enemy_cache_result then
+        return _enemy_cache_result
+    end
+
     for k in pairs(_enemy_range_buffer) do _enemy_range_buffer[k] = nil end
 
     _enemy_range_buffer.n = 0
 
     local out = _enemy_range_buffer
-
-    local limit = type(range) == "number" and range or 40
 
     local get_enemies_in_range = safe_field(me, "get_enemies_in_range")
 
@@ -4671,6 +4687,10 @@ function NS.GetEnemiesInRange(range)
         append_enemy_unique(out, me, units[i], limit)
 
     end
+
+    _enemy_cache_tick = now
+    _enemy_cache_range = limit
+    _enemy_cache_result = out
 
     return out
 
