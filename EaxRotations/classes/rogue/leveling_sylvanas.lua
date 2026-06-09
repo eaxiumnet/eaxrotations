@@ -51,7 +51,10 @@ local function has_buff(buff_ids)
     local me = (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
     if not me then return false end
     local ids = type(buff_ids) == "table" and buff_ids or { buff_ids }
-    if NS.buff_up then return NS.buff_up(me, ids) end
+    if NS.buff_up then
+        local ok, result = pcall(NS.buff_up, me, ids)
+        return ok and result
+    end
     return false
 end
 
