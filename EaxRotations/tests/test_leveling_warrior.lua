@@ -1632,6 +1632,642 @@ do -- edge_rotation_crash
 end
 -- Summary
 -- ============================================================================
+-- Deep dive: Bloodrage - exact rage 20/19 boundary
+-- ============================================================================
+do
+    -- Bloodrage: rage exactly 20 -> match (<= 20)
+    local saved = mock_player.get_power
+    mock_player.get_power = function() return 20 end
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.bloodrage_ready = true
+    assert_true(strategies[6].matches(ctx, state), "bloodrage rage=20 -> match (<= 20)")
+    mock_player.get_power = saved
+
+    -- Bloodrage: rage exactly 21 -> no match (> 20)
+    local saved2 = mock_player.get_power
+    mock_player.get_power = function() return 21 end
+    local ctx2 = make_context()
+    local state2 = get_state(ctx2)
+    state2.bloodrage_ready = true
+    assert_false(strategies[6].matches(ctx2, state2), "bloodrage rage=21 -> no match")
+    mock_player.get_power = saved2
+
+    -- Bloodrage: not ready -> no match
+    local ctx3 = make_context()
+    local state3 = get_state(ctx3)
+    state3.bloodrage_ready = false
+    assert_false(strategies[6].matches(ctx3, state3), "bloodrage not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Cleave - enemies 2/1 + rage 25/24 + guards
+-- ============================================================================
+do
+    -- Cleave: enemies 2, rage 25 -> match
+    local saved = mock_player.get_power
+    mock_player.get_power = function() return 25 end
+    local ctx = make_context({enemies_count = 2})
+    local state = get_state(ctx)
+    state.cleave_ready = true
+    state.enemies = 2
+    assert_true(strategies[16].matches(ctx, state), "cleave enemies=2 rage=25 -> match")
+    mock_player.get_power = saved
+
+    -- Cleave: enemies 1 -> no match (< 2)
+    local saved2 = mock_player.get_power
+    mock_player.get_power = function() return 50 end
+    local ctx2 = make_context({enemies_count = 1})
+    local state2 = get_state(ctx2)
+    state2.cleave_ready = true
+    state2.enemies = 1
+    assert_false(strategies[16].matches(ctx2, state2), "cleave enemies=1 -> no match")
+    mock_player.get_power = saved2
+
+    -- Cleave: rage 24 -> no match (< 25)
+    local saved3 = mock_player.get_power
+    mock_player.get_power = function() return 24 end
+    local ctx3 = make_context({enemies_count = 2})
+    local state3 = get_state(ctx3)
+    state3.cleave_ready = true
+    state3.enemies = 2
+    assert_false(strategies[16].matches(ctx3, state3), "cleave rage=24 -> no match")
+    mock_player.get_power = saved3
+
+    -- Cleave: OOC -> no match
+    local saved4 = mock_player.get_power
+    mock_player.get_power = function() return 50 end
+    local ctx4 = make_context({in_combat = false, enemies_count = 3})
+    local state4 = get_state(ctx4)
+    state4.cleave_ready = true
+    state4.in_combat = false
+    state4.enemies = 3
+    assert_false(strategies[16].matches(ctx4, state4), "cleave OOC -> no match")
+    mock_player.get_power = saved4
+
+    -- Cleave: no target -> no match
+    local saved5 = mock_player.get_power
+    mock_player.get_power = function() return 50 end
+    local ctx5 = make_context({in_combat = true, enemies_count = 2})
+    ctx5.target = nil
+    local state5 = get_state(ctx5)
+    state5.cleave_ready = true
+    state5.enemies = 2
+    state5.target = nil
+    assert_false(strategies[16].matches(ctx5, state5), "cleave no target -> no match")
+    mock_player.get_power = saved5
+
+    -- Cleave: not ready -> no match
+    local saved6 = mock_player.get_power
+    mock_player.get_power = function() return 50 end
+    local ctx6 = make_context({enemies_count = 3})
+    local state6 = get_state(ctx6)
+    state6.cleave_ready = false
+    state6.enemies = 3
+    assert_false(strategies[16].matches(ctx6, state6), "cleave not ready -> no match")
+    mock_player.get_power = saved6
+end
+
+-- ============================================================================
+-- Deep dive: Whirlwind - enemies 3/2 + guards
+-- ============================================================================
+do
+    -- Whirlwind: enemies 3 -> match
+    local ctx = make_context({enemies_count = 3})
+    local state = get_state(ctx)
+    state.whirlwind_ready = true
+    state.enemies = 3
+    assert_true(strategies[17].matches(ctx, state), "ww enemies=3 -> match (>= 3)")
+
+    -- Whirlwind: enemies 2 -> no match
+    local ctx2 = make_context({enemies_count = 2})
+    local state2 = get_state(ctx2)
+    state2.whirlwind_ready = true
+    state2.enemies = 2
+    assert_false(strategies[17].matches(ctx2, state2), "ww enemies=2 -> no match")
+
+    -- Whirlwind: OOC -> no match
+    local ctx3 = make_context({in_combat = false, enemies_count = 4})
+    local state3 = get_state(ctx3)
+    state3.whirlwind_ready = true
+    state3.in_combat = false
+    state3.enemies = 4
+    assert_false(strategies[17].matches(ctx3, state3), "ww OOC -> no match")
+
+    -- Whirlwind: no target -> no match
+    local ctx4 = make_context({in_combat = true, enemies_count = 4})
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.whirlwind_ready = true
+    state4.enemies = 4
+    state4.target = nil
+    assert_false(strategies[17].matches(ctx4, state4), "ww no target -> no match")
+
+    -- Whirlwind: not ready -> no match
+    local ctx5 = make_context({enemies_count = 4})
+    local state5 = get_state(ctx5)
+    state5.whirlwind_ready = false
+    state5.enemies = 4
+    assert_false(strategies[17].matches(ctx5, state5), "ww not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: ThunderClap - enemies 2/1 + setting + guards
+-- ============================================================================
+do
+    -- ThunderClap: enemies 2, enabled -> match
+    local ctx = make_context({enemies_count = 2})
+    local state = get_state(ctx)
+    state.thunder_clap_ready = true
+    state.use_thunder_clap = true
+    state.enemies = 2
+    assert_true(strategies[18].matches(ctx, state), "tc enemies=2 -> match (>= 2)")
+
+    -- ThunderClap: enemies 1 -> no match
+    local ctx2 = make_context({enemies_count = 1})
+    local state2 = get_state(ctx2)
+    state2.thunder_clap_ready = true
+    state2.use_thunder_clap = true
+    state2.enemies = 1
+    assert_false(strategies[18].matches(ctx2, state2), "tc enemies=1 -> no match")
+
+    -- ThunderClap: disabled -> no match
+    local ctx3 = make_context({enemies_count = 3})
+    local state3 = get_state(ctx3)
+    state3.thunder_clap_ready = true
+    state3.use_thunder_clap = false
+    state3.enemies = 3
+    assert_false(strategies[18].matches(ctx3, state3), "tc disabled -> no match")
+
+    -- ThunderClap: OOC -> no match
+    local ctx4 = make_context({in_combat = false, enemies_count = 3})
+    local state4 = get_state(ctx4)
+    state4.thunder_clap_ready = true
+    state4.use_thunder_clap = true
+    state4.in_combat = false
+    state4.enemies = 3
+    assert_false(strategies[18].matches(ctx4, state4), "tc OOC -> no match")
+
+    -- ThunderClap: not ready -> no match
+    local ctx5 = make_context({enemies_count = 3})
+    local state5 = get_state(ctx5)
+    state5.thunder_clap_ready = false
+    state5.use_thunder_clap = true
+    state5.enemies = 3
+    assert_false(strategies[18].matches(ctx5, state5), "tc not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Execute - exact HP 19/20 boundary
+-- ============================================================================
+do
+    -- Execute: target HP 20 (exec_hp default) -> match
+    local ctx = make_context()
+    ctx.target.get_health_percentage = function() return 20 end
+    local state = get_state(ctx)
+    state.execute_ready = true
+    state.use_execute = true
+    state.exec_hp = 20
+    assert_true(strategies[11].matches(ctx, state), "execute target hp=20 -> match (<= 20)")
+
+    -- Execute: target HP 21 -> no match
+    local ctx2 = make_context()
+    ctx2.target.get_health_percentage = function() return 21 end
+    local state2 = get_state(ctx2)
+    state2.execute_ready = true
+    state2.use_execute = true
+    state2.exec_hp = 20
+    assert_false(strategies[11].matches(ctx2, state2), "execute target hp=21 -> no match")
+
+    -- Execute: OOC -> no match
+    local ctx3 = make_context({in_combat = false})
+    ctx3.target.get_health_percentage = function() return 15 end
+    local state3 = get_state(ctx3)
+    state3.execute_ready = true
+    state3.use_execute = true
+    state3.exec_hp = 20
+    assert_false(strategies[11].matches(ctx3, state3), "execute OOC -> no match")
+
+    -- Execute: no target -> no match
+    local ctx4 = make_context({in_combat = true})
+    ctx4.target = nil
+    local state4 = get_state(ctx4)
+    state4.execute_ready = true
+    state4.use_execute = true
+    state4.exec_hp = 20
+    state4.target = nil
+    assert_false(strategies[11].matches(ctx4, state4), "execute no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Rend - debuff refresh boundary + guards
+-- ============================================================================
+do
+    -- Rend: debuff remains 4 -> match (<= 4, refresh)
+    local saved = NS.debuff_remains
+    NS.debuff_remains = function() return 4 end
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.rend_ready = true
+    state.use_rend = true
+    assert_true(strategies[14].matches(ctx, state), "rend remains=4 -> match (<= 4)")
+    NS.debuff_remains = saved
+
+    -- Rend: debuff remains 5 -> no match (> 4)
+    local saved2 = NS.debuff_remains
+    NS.debuff_remains = function() return 5 end
+    local ctx2 = make_context()
+    local state2 = get_state(ctx2)
+    state2.rend_ready = true
+    state2.use_rend = true
+    assert_false(strategies[14].matches(ctx2, state2), "rend remains=5 -> no match (> 4)")
+    NS.debuff_remains = saved2
+
+    -- Rend: disabled -> no match
+    local ctx3 = make_context()
+    local state3 = get_state(ctx3)
+    state3.rend_ready = true
+    state3.use_rend = false
+    assert_false(strategies[14].matches(ctx3, state3), "rend disabled -> no match")
+
+    -- Rend: OOC -> no match
+    local ctx4 = make_context({in_combat = false})
+    local state4 = get_state(ctx4)
+    state4.rend_ready = true
+    state4.use_rend = true
+    assert_false(strategies[14].matches(ctx4, state4), "rend OOC -> no match")
+
+    -- Rend: no target -> no match
+    local ctx5 = make_context()
+    ctx5.target = nil
+    local state5 = get_state(ctx5)
+    state5.rend_ready = true
+    state5.use_rend = true
+    state5.target = nil
+    assert_false(strategies[14].matches(ctx5, state5), "rend no target -> no match")
+
+    -- Rend: not ready -> no match
+    local ctx6 = make_context()
+    local state6 = get_state(ctx6)
+    state6.rend_ready = false
+    state6.use_rend = true
+    assert_false(strategies[14].matches(ctx6, state6), "rend not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: SpecFiller - MortalStrike/Bloodthirst priority + guards
+-- ============================================================================
+do
+    -- SpecFiller: MortalStrike ready -> match
+    local ctx = make_context()
+    local state = get_state(ctx)
+    state.mortal_strike_ready = true
+    state.bloodthirst_ready = false
+    assert_true(strategies[22].matches(ctx, state), "specfiller ms ready -> match")
+
+    -- SpecFiller: Bloodthirst ready -> match
+    local ctx2 = make_context()
+    local state2 = get_state(ctx2)
+    state2.mortal_strike_ready = false
+    state2.bloodthirst_ready = true
+    assert_true(strategies[22].matches(ctx2, state2), "specfiller bt ready -> match")
+
+    -- SpecFiller: neither ready -> no match
+    local ctx3 = make_context()
+    local state3 = get_state(ctx3)
+    state3.mortal_strike_ready = false
+    state3.bloodthirst_ready = false
+    assert_false(strategies[22].matches(ctx3, state3), "specfiller neither ready -> no match")
+
+    -- SpecFiller: OOC -> no match
+    local ctx4 = make_context({in_combat = false})
+    local state4 = get_state(ctx4)
+    state4.mortal_strike_ready = true
+    state4.bloodthirst_ready = true
+    assert_false(strategies[22].matches(ctx4, state4), "specfiller OOC -> no match")
+
+    -- SpecFiller: no target -> no match
+    local ctx5 = make_context()
+    ctx5.target = nil
+    local state5 = get_state(ctx5)
+    state5.mortal_strike_ready = true
+    state5.bloodthirst_ready = true
+    state5.target = nil
+    assert_false(strategies[22].matches(ctx5, state5), "specfiller no target -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: Disarm - PvP + melee + setting + class guards
+-- ============================================================================
+do
+    -- Ensure NS.is_spell_learned exists (not in base mock)
+    local saved_spell_learned = NS.is_spell_learned
+    NS.is_spell_learned = function() return true end
+
+    -- Disarm: PvP, melee, class ok, burst name set -> match
+    local ctx = make_context()
+    ctx.is_pvp = true
+    ctx.in_melee_range = true
+    ctx.settings.disarm_pvp_only = false  -- bypass player-only gate
+    ctx.settings.disarm_trigger = "always"  -- bypass burst name gate
+    local state = get_state(ctx)
+    state.disarm_ready = true
+    state.is_pvp = true
+    state.in_melee_range = true
+    state.disarm_class_ok = true
+    assert_true(strategies[4].matches(ctx, state), "disarm pvp melee -> match")
+
+    -- Disarm: not PvP -> no match
+    local ctx2 = make_context()
+    ctx2.is_pvp = false
+    ctx2.in_melee_range = true
+    ctx2.settings.disarm_pvp_only = false
+    ctx2.settings.disarm_trigger = "always"
+    local state2 = get_state(ctx2)
+    state2.disarm_ready = true
+    state2.is_pvp = false
+    state2.in_melee_range = true
+    state2.disarm_class_ok = true
+    assert_false(strategies[4].matches(ctx2, state2), "disarm not pvp -> no match")
+
+    -- Disarm: not melee -> no match
+    local ctx3 = make_context()
+    ctx3.is_pvp = true
+    ctx3.in_melee_range = false
+    ctx3.settings.disarm_pvp_only = false
+    ctx3.settings.disarm_trigger = "always"
+    local state3 = get_state(ctx3)
+    state3.disarm_ready = true
+    state3.is_pvp = true
+    state3.in_melee_range = false
+    state3.disarm_class_ok = true
+    assert_false(strategies[4].matches(ctx3, state3), "disarm not melee -> no match")
+
+    -- Disarm: disabled via settings -> no match
+    local ctx4 = make_context()
+    ctx4.is_pvp = true
+    ctx4.in_melee_range = true
+    ctx4.settings.disarm_pvp_only = false
+    ctx4.settings.disarm_trigger = "always"
+    ctx4.settings.use_disarm = false
+    local state4 = get_state(ctx4)
+    state4.disarm_ready = true
+    state4.is_pvp = true
+    state4.in_melee_range = true
+    state4.disarm_class_ok = true
+    assert_false(strategies[4].matches(ctx4, state4), "disarm disabled -> no match")
+
+    -- Disarm: class not ok -> no match
+    local ctx5 = make_context()
+    ctx5.is_pvp = true
+    ctx5.in_melee_range = true
+    ctx5.settings.disarm_pvp_only = false
+    ctx5.settings.disarm_trigger = "always"
+    local state5 = get_state(ctx5)
+    state5.disarm_ready = true
+    state5.is_pvp = true
+    state5.in_melee_range = true
+    state5.disarm_class_ok = false
+    assert_false(strategies[4].matches(ctx5, state5), "disarm invalid class -> no match")
+
+    NS.is_spell_learned = saved_spell_learned
+end
+
+-- ============================================================================
+-- ============================================================================
+-- Deep dive: ShieldSlamPurge - guard conditions (CCGateDB avoided)
+-- ============================================================================
+do
+    -- ShieldSlamPurge: not PvP -> no match (returns before CCGateDB)
+    local ctx = make_context()
+    ctx.is_pvp = false
+    ctx.settings.shield_slam_purge_pvp_only = false
+    local state = get_state(ctx)
+    state.shield_slam_ready = true
+    state.is_pvp = false
+    assert_false(strategies[3].matches(ctx, state), "purge not pvp -> no match")
+
+    -- ShieldSlamPurge: not melee -> no match
+    local ctx2 = make_context()
+    ctx2.is_pvp = true
+    ctx2.in_melee_range = false
+    ctx2.settings.shield_slam_purge_pvp_only = false
+    local state2 = get_state(ctx2)
+    state2.shield_slam_ready = true
+    state2.is_pvp = true
+    state2.in_melee_range = false
+    assert_false(strategies[3].matches(ctx2, state2), "purge not melee -> no match")
+
+    -- ShieldSlamPurge: not ready -> no match
+    local ctx3 = make_context()
+    ctx3.is_pvp = true
+    ctx3.settings.shield_slam_purge_pvp_only = false
+    local state3 = get_state(ctx3)
+    state3.shield_slam_ready = false
+    state3.is_pvp = true
+    assert_false(strategies[3].matches(ctx3, state3), "purge not ready -> no match")
+
+    -- ShieldSlamPurge: no target -> no match
+    local ctx4 = make_context()
+    ctx4.is_pvp = true
+    ctx4.target = nil
+    ctx4.settings.shield_slam_purge_pvp_only = false
+    local state4 = get_state(ctx4)
+    state4.shield_slam_ready = true
+    state4.target = nil
+    assert_false(strategies[3].matches(ctx4, state4), "purge no target -> no match")
+    CCGateDB = saved_ccgatedb
+end
+
+-- ============================================================================
+-- Deep dive: HealthPotion - HP 30/31 boundary
+-- ============================================================================
+do
+    -- HealthPotion needs NS.is_item_ready in mock
+    local saved_item_ready = NS.is_item_ready
+    NS.is_item_ready = function() return true end
+
+    -- HealthPotion: HP 30 -> match (<= 30)
+    local ctx = make_context({hp = 30})
+    local state = get_state(ctx)
+    state.hp = 30
+    assert_true(strategies[10].matches(ctx, state), "potion hp=30 -> match")
+
+    -- HealthPotion: HP 31 -> no match
+    local ctx2 = make_context({hp = 31})
+    local state2 = get_state(ctx2)
+    state2.hp = 31
+    assert_false(strategies[10].matches(ctx2, state2), "potion hp=31 -> no match")
+
+    -- HealthPotion: no items ready -> no match even at low HP
+    NS.is_item_ready = function() return false end
+    local ctx3 = make_context({hp = 20})
+    local state3 = get_state(ctx3)
+    state3.hp = 20
+    assert_false(strategies[10].matches(ctx3, state3), "potion hp=20 no item -> no match")
+
+    NS.is_item_ready = saved_item_ready
+end
+
+-- ============================================================================
+-- Deep dive: Hamstring - no target + OOC guards (HP 20/21 already covered)
+-- ============================================================================
+do
+    -- Hamstring: no target -> no match
+    local ctx = make_context()
+    ctx.target = nil
+    local state = get_state(ctx)
+    state.hamstring_ready = true
+    state.target = nil
+    assert_false(strategies[21].matches(ctx, state), "hamstring no target -> no match")
+
+    -- Hamstring: OOC -> no match
+    local ctx2 = make_context({in_combat = false})
+    local state2 = get_state(ctx2)
+    state2.hamstring_ready = true
+    assert_false(strategies[21].matches(ctx2, state2), "hamstring OOC -> no match")
+
+    -- Hamstring: not ready -> no match
+    local ctx3 = make_context()
+    local state3 = get_state(ctx3)
+    state3.hamstring_ready = false
+    assert_false(strategies[21].matches(ctx3, state3), "hamstring not ready -> no match")
+end
+
+-- ============================================================================
+-- Deep dive: DemoShout + SweepingStrikes - no target + OOC guards
+-- ============================================================================
+do
+    -- DemoShout: no target check (skip - demo_shout_matches doesn't check target)
+    
+    -- DemoShout: OOC -> no match
+    local ctx = make_context({in_combat = false, enemies_count = 3})
+    local state = get_state(ctx)
+    state.demoralizing_shout_ready = true
+    state.enemies = 3
+    assert_false(strategies[19].matches(ctx, state), "demoshout OOC -> no match")
+
+    -- SweepingStrikes: no target guard (doesn't check target - no test)
+    -- SweepingStrikes: OOC already covered by existing tests
+end
+
+-- ============================================================================
+-- Deep dive: Null target guards for all target-dependent strategies
+-- ============================================================================
+do
+    -- Mock CCGateDB for ShieldSlamPurge (strategy 3)
+    local saved_ccgatedb = CCGateDB
+    CCGateDB = { find_best_dispel_target = function() return nil end }
+    -- Strategies that check state.target:
+    -- 3=ShieldSlamPurge, 4=Disarm, 8=VictoryRush, 11=Execute,
+    -- 14=Rend, 16=Cleave, 17=Whirlwind,
+    -- 20=Rampage, 21=Hamstring, 22=SpecFiller, 23=Overpower,
+    -- 24=SunderArmor, 25=HeroicStrike
+    -- Note: SweepingStrikes(15) is a self-buff, doesn't check target
+    -- Note: Charge(5) also checks target but is OOC-only
+    -- Note: Pummel(2) checks target but is covered by existing tests
+    -- Note: ThunderClap(18) and DemoShout(19) do NOT check target
+    local target_dependent = {3, 4, 8, 11, 14, 16, 17, 21, 22, 23, 24, 25}
+    -- Note: SweepingStrikes(15) and Rampage(20) are excluded -- they don't check target
+    for _, idx in ipairs(target_dependent) do
+        local ctx = make_context()
+        ctx.target = nil
+        local state = get_state(ctx)
+        for k, v in pairs(state) do
+            if type(k) == "string" and k:match("_ready$") then
+                state[k] = true
+            end
+        end
+        state.enemies = 5
+        state.use_execute = true
+        state.use_rend = true
+        state.use_disarm = true
+        state.use_purge = true
+        state.hp = 50
+        state.rage = 100
+        state.target = nil
+        state.exec_hp = 20
+        state.sunder_stacks = 0
+        state.mortal_strike_ready = true
+        state.bloodthirst_ready = true
+        state.rampage_ready = true
+        state.has_rampage = false
+        state.disarm_ready = true
+        state.shield_slam_ready = true
+        state.shield_slam_purge_name = nil
+        local saved_power = mock_player.get_power
+        mock_player.get_power = function() return 100 end
+        local ok, result = pcall(strategies[idx].matches, ctx, state)
+        assert_false(result, strategies[idx].name .. " no target -> no match")
+        mock_player.get_power = saved_power
+    end
+    CCGateDB = saved_ccgatedb
+end
+
+-- ============================================================================
+-- Deep dive: OOC guards for all combat strategies
+-- ============================================================================
+do
+    -- All strategies that have in_combat as a requirement:
+    -- BattleShout(1) requires OOC - skip
+    -- Note: Charge(5) requires OOC - skip
+    -- Pummel(2), ShieldSlamPurge(3), Disarm(4), Bloodrage(6),
+    -- BerserkerRage(7), VictoryRush(8), ShieldWall(9), HealthPotion(10),
+    -- Execute(11), PvPCCGate(12), IntimidatingShout(13), Rend(14),
+    -- SweepingStrikes(15), Cleave(16), Whirlwind(17), ThunderClap(18),
+    -- DemoShout(19), Rampage(20), Hamstring(21), SpecFiller(22),
+    -- Overpower(23), SunderArmor(24), HeroicStrike(25)
+    local combat_strategies = {2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25}
+    for _, idx in ipairs(combat_strategies) do
+        local ctx = make_context({in_combat = false})
+        local state = get_state(ctx)
+        for k, v in pairs(state) do
+            if type(k) == "string" and k:match("_ready$") then
+                state[k] = true
+            end
+        end
+        state.enemies = 5
+        state.use_execute = true
+        state.use_rend = true
+        state.use_disarm = true
+        state.use_thunder_clap = true
+        state.use_purge = true
+        state.hp = 20
+        state.rage = 100
+        state.in_melee = true
+        state.is_pvp = true
+        state.in_combat = false
+        state.exec_hp = 20
+        state.sunder_stacks = 0
+        state.mortal_strike_ready = true
+        state.bloodthirst_ready = true
+        state.rampage_ready = true
+        state.has_rampage = false
+        state.shield_slam_ready = true
+        state.shield_slam_purge_name = nil  -- suppress purge
+        state.pvp_cc_gating = false  -- suppress PvPCCGate
+        local saved_power = mock_player.get_power
+        mock_player.get_power = function() return 100 end
+        local ok, result = pcall(strategies[idx].matches, ctx, state)
+        assert_false(result, strategies[idx].name .. " OOC -> no match")
+        mock_player.get_power = saved_power
+    end
+end
+
+-- ============================================================================
+-- Deep dive: Execute functions crash safety (NS.try_cast throwing)
+-- ============================================================================
+do
+    local saved = NS.try_cast
+    NS.try_cast = function() error('simulated throw') end
+    local ctx = make_context()
+    for i = 1, #strategies do
+        local ok, result = pcall(strategies[i].execute, ctx)
+        assert_true(ok, 'try_cast=throw: strategy ' .. i .. ' execute did not crash')
+    end
+    NS.try_cast = saved
+end
+-- ============================================================================
 
 print(string.format("\n=== Warrior Leveling Unit Tests: %d passed, %d failed (%d assertions) ===\n", passed, failed, assertions))
 if failed > 0 then
