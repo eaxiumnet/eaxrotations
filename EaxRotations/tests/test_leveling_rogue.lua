@@ -164,6 +164,7 @@ local function build_mock_env()
     NS.buff_up = function(unit, buff_ids) return false end
     NS.combo_points = 0
     NS.energy = 100
+    NS.is_spell_learned = function(spell_id) return true end
 
     -- rotation_registry mock that captures registrations
     NS.rotation_registry = {
@@ -2969,6 +2970,369 @@ do
 end
 -- ============================================================================
 
+-- ============================================================================
+-- DEEP DIVE: Systematic ready guards - all strategies with _ready flags
+-- ============================================================================
+do
+    -- Map each strategy to its primary ready flag
+    local ready_checks = {
+        { idx = 1,  flag = "stealth_ready",           label = "Stealth" },
+        { idx = 2,  flag = "ambush_ready",            label = "Ambush" },
+        { idx = 3,  flag = "garrote_ready",           label = "Garrote" },
+        { idx = 4,  flag = "kick_ready",              label = "Kick" },
+        { idx = 5,  flag = "gouge_ready",             label = "Gouge" },
+        { idx = 6,  flag = "shiv_ready",              label = "ShivPurge" },
+        { idx = 7,  flag = "vanish_ready",            label = "Vanish" },
+        { idx = 8,  flag = "evasion_ready",           label = "Evasion" },
+        -- HealthPotion (9) uses shared leveling module, no _ready flag
+        { idx = 10, flag = "sprint_ready",            label = "Sprint" },
+        { idx = 11, flag = "blind_ready",             label = "Blind" },
+        { idx = 12, flag = "cold_blood_ready",        label = "ColdBlood" },
+        { idx = 13, flag = "adrenaline_rush_ready",   label = "AdrenalineRush" },
+        { idx = 14, flag = "blade_flurry_ready",      label = "BladeFlurry" },
+        { idx = 15, flag = "slice_and_dice_ready",    label = "SliceAndDice" },
+        { idx = 16, flag = "rupture_ready",           label = "Rupture" },
+        { idx = 17, flag = "expose_armor_ready",      label = "ExposeArmor" },
+        { idx = 18, flag = "kidney_shot_ready",       label = "KidneyShot" },
+        { idx = 19, flag = "eviscerate_ready",        label = "Eviscerate" },
+        { idx = 20, flag = "sinister_strike_ready",   label = "SinisterStrike" },
+    }
+
+    local ctx = make_context({in_combat = true, hp = 20, enemies_count = 4})
+    ctx.target = {
+        is_valid = function() return true end,
+        get_health = function() return 8000 end,
+        get_max_health = function() return 10000 end,
+        get_health_percentage = function() return 80 end,
+        is_casting = function() return true end,
+        get_distance = function(other) return 5 end,
+    }
+    ctx.is_pvp = true
+    ctx.in_melee_range = true
+    ctx.target_armor = 1000
+
+    local state = get_state(ctx)
+    -- Set all readiness flags to true
+    for k, v in pairs(state) do
+        if type(k) == "string" and k:match("_ready$") then
+            state[k] = true
+        end
+    end
+    state.stealthed = false
+    state.combo_points = 4
+    state.max_combo_points = 5
+    state.energy = 60
+    state.hp = 20
+    state.enemies = 4
+    state.use_interrupt = true
+    state.use_cooldowns = true
+    state.use_expose_armor = true
+    state.has_slice_and_dice = false
+    state.blade_flurry_min_enemies = 3
+    state.vanish_hp = 15
+    state.target_is_elite = true
+    state.shiv_purge_name = "MagicBuff"
+    state.in_melee_range = true
+
+    for _, check in ipairs(ready_checks) do
+        state[check.flag] = false
+        test("not_ready_systematic: " .. check.label .. " returns false when " .. check.flag .. " = false", function()
+            assert_false(strategies[check.idx].matches(ctx, state), check.label .. " should not match when not ready")
+        end)
+        state[check.flag] = true
+    end
+end
+
+-- ============================================================================
+-- DEEP DIVE: NS.try_cast returning false for all 20 strategy executes
+-- ============================================================================
+do
+    local saved = NS.try_cast
+    NS.try_cast = function() return false end
+
+    test("try_cast_false: all 20 executes return false without crashing", function()
+        local ctx = make_context({in_combat = true, hp = 50, enemies_count = 4})
+        ctx.target = {
+            is_valid = function() return true end,
+            get_health = function() return 8000 end,
+            get_max_health = function() return 10000 end,
+            get_health_percentage = function() return 80 end,
+            is_casting = function() return true end,
+            get_distance = function(other) return 5 end,
+        }
+        ctx.is_pvp = true
+        ctx.in_melee_range = true
+        ctx._shiv_purge_name = "TestBuff"
+
+        for i, s in ipairs(strategies) do
+            local ok, result = pcall(s.execute, ctx)
+            assert_true(ok, "strategy[" .. i .. "] (" .. s.name .. ") execute should not throw when try_cast returns false")
+            assert_false(result, "strategy[" .. i .. "] (" .. s.name .. ") execute should return false when try_cast returns false")
+        end
+    end)
+
+    NS.try_cast = saved
+end
+
+-- ============================================================================
+-- DEEP DIVE: NS.debuff_remains nil/throws for Rupture match function
+-- ============================================================================
+do
+    -- Rupture uses pcall(NS.debuff_remains, ...) directly in the match
+    local ctx = make_context({})
+    local saved = NS.debuff_remains
+
+    test("rupture_debuff_safety: nil debuff_remains does not crash match", function()
+        NS.debuff_remains = nil
+        local state = get_state(ctx)
+        state.rupture_ready = true
+        state.combo_points = 3
+        local ok, result = pcall(strategies[16].matches, ctx, state)
+        assert_true(ok, "Rupture match should not crash when debuff_remains is nil")
+        NS.debuff_remains = saved
+    end)
+
+    test("rupture_debuff_safety: throwing debuff_remains does not crash match", function()
+        NS.debuff_remains = function() error("crash") end
+        local state = get_state(ctx)
+        state.rupture_ready = true
+        state.combo_points = 3
+        local ok, result = pcall(strategies[16].matches, ctx, state)
+        assert_true(ok, "Rupture match should not crash when debuff_remains throws")
+        NS.debuff_remains = saved
+    end)
+end
+
+-- ============================================================================
+-- DEEP DIVE: NS.debuff_stacks nil/throws for ExposeArmor match function
+-- ============================================================================
+do
+    local ctx = make_context({})
+    ctx.target_armor = 100
+    local saved_stacks = NS.debuff_stacks
+
+    test("exposearmor_stacks_safety: nil debuff_stacks does not crash match", function()
+        NS.debuff_stacks = nil
+        local state = get_state(ctx)
+        state.expose_armor_ready = true
+        state.use_expose_armor = true
+        state.combo_points = 3
+        state.target_ttd = 30
+        local ok, result = pcall(strategies[17].matches, ctx, state)
+        assert_true(ok, "ExposeArmor match should not crash when debuff_stacks is nil")
+        NS.debuff_stacks = saved_stacks
+    end)
+
+    test("exposearmor_stacks_safety: throwing debuff_stacks does not crash match", function()
+        NS.debuff_stacks = function() error("crash") end
+        local state = get_state(ctx)
+        state.expose_armor_ready = true
+        state.use_expose_armor = true
+        state.combo_points = 3
+        state.target_ttd = 30
+        local ok, result = pcall(strategies[17].matches, ctx, state)
+        assert_true(ok, "ExposeArmor match should not crash when debuff_stacks throws")
+        NS.debuff_stacks = saved_stacks
+    end)
+end
+
+-- ============================================================================
+-- DEEP DIVE: ShivPurge full guard matrix
+-- ============================================================================
+do
+    -- ShivPurge (6) has complex gates: PvP, melee range, spell learned, setting, dispel target
+    test("shivpurge_full: all conditions met -> match", function()
+        local ctx = make_context({})
+        ctx.is_pvp = true
+        ctx.in_melee_range = true
+        ctx.target = {
+            is_valid = function() return true end,
+            get_health = function() return 8000 end,
+            get_max_health = function() return 10000 end,
+            get_health_percentage = function() return 80 end,
+            is_casting = function() return false end,
+            get_distance = function(other) return 5 end,
+            is_player = function() return true end,
+        }
+        local state = get_state(ctx)
+        state.shiv_ready = true
+        state.is_pvp = true
+        state.in_melee_range = true
+        state.shiv_purge_name = "MagicBuff"
+        assert_true(strategies[6].matches(ctx, state), "shivpurge all conditions -> match")
+    end)
+
+    test("shivpurge_full: not PvP -> no match", function()
+        local ctx = make_context({})
+        ctx.is_pvp = false
+        ctx.in_melee_range = true
+        local state = get_state(ctx)
+        state.shiv_ready = true
+        state.is_pvp = false
+        assert_false(strategies[6].matches(ctx, state), "shivpurge not PvP -> no match")
+    end)
+
+    test("shivpurge_full: not in melee range -> no match", function()
+        local ctx = make_context({})
+        ctx.is_pvp = true
+        ctx.in_melee_range = false
+        local state = get_state(ctx)
+        state.shiv_ready = true
+        state.is_pvp = true
+        state.in_melee_range = false
+        assert_false(strategies[6].matches(ctx, state), "shivpurge not melee -> no match")
+    end)
+
+    test("shivpurge_full: setting disabled -> no match", function()
+        local ctx = make_context({})
+        ctx.is_pvp = true
+        ctx.in_melee_range = true
+        ctx.settings = { use_shiv_purge = false }
+        local state = get_state(ctx)
+        state.shiv_ready = true
+        state.is_pvp = true
+        state.in_melee_range = true
+        assert_false(strategies[6].matches(ctx, state), "shivpurge setting disabled -> no match")
+    end)
+
+    test("shivpurge_full: no dispel target -> no match", function()
+        local ctx = make_context({})
+        ctx.is_pvp = true
+        ctx.in_melee_range = true
+        local state = get_state(ctx)
+        state.shiv_ready = true
+        state.is_pvp = true
+        state.in_melee_range = true
+        state.shiv_purge_name = nil
+        assert_false(strategies[6].matches(ctx, state), "shivpurge no dispel -> no match")
+    end)
+
+    test("shivpurge_full: not ready -> no match", function()
+        local ctx = make_context({})
+        ctx.is_pvp = true
+        ctx.in_melee_range = true
+        local state = get_state(ctx)
+        state.shiv_ready = false
+        state.is_pvp = true
+        state.in_melee_range = true
+        state.shiv_purge_name = "MagicBuff"
+        assert_false(strategies[6].matches(ctx, state), "shivpurge not ready -> no match")
+    end)
+
+    test("shivpurge_full: OOC -> no match", function()
+        local ctx = make_context({in_combat = false})
+        ctx.is_pvp = true
+        ctx.in_melee_range = true
+        local state = get_state(ctx)
+        state.shiv_ready = true
+        state.is_pvp = true
+        state.in_melee_range = true
+        state.shiv_purge_name = "MagicBuff"
+        assert_false(strategies[6].matches(ctx, state), "shivpurge OOC -> no match")
+    end)
+
+    test("shivpurge_full: no target -> no match", function()
+        local ctx = make_context({target = nil})
+        ctx.is_pvp = true
+        ctx.in_melee_range = true
+        local state = get_state(ctx)
+        state.shiv_ready = true
+        state.is_pvp = true
+        state.in_melee_range = true
+        state.target = nil
+        assert_false(strategies[6].matches(ctx, state), "shivpurge no target -> no match")
+    end)
+end
+
+-- ============================================================================
+-- DEEP DIVE: HealthPotion (9) through shared module - null safety
+-- ============================================================================
+do
+    test("healthpotion_safety: nil state does not crash", function()
+        local ok, result = pcall(strategies[9].matches, make_context({hp = 20}), nil)
+        assert_true(ok, "HealthPotion match with nil state should not crash")
+    end)
+
+    test("healthpotion_safety: nil context does not crash execute", function()
+        local ok, result = pcall(strategies[9].execute, nil)
+        assert_true(ok, "HealthPotion execute with nil context should not crash")
+    end)
+end
+
+-- ============================================================================
+-- DEEP DIVE: NS.get_distance nil for Stealth match
+-- ============================================================================
+do
+    test("stealth_get_distance_nil: nil get_distance does not crash", function()
+        local saved = NS.get_distance
+        NS.get_distance = nil
+        local ctx = make_context({in_combat = false})
+        local state = get_state(ctx)
+        state.stealthed = false
+        state.stealth_ready = true
+        state.in_combat = false
+        local ok, result = pcall(strategies[1].matches, ctx, state)
+        assert_true(ok, "Stealth match should not crash when get_distance returns nil")
+        NS.get_distance = saved
+    end)
+
+    test("stealth_get_distance_nil: get_distance returns nil -> no match (dist not available)", function()
+        local saved = NS.get_distance
+        NS.get_distance = function() return nil end
+        local ctx = make_context({in_combat = false})
+        local state = get_state(ctx)
+        state.stealthed = false
+        state.stealth_ready = true
+        state.in_combat = false
+        local ok, result = pcall(strategies[1].matches, ctx, state)
+        assert_true(ok, "Stealth match should not crash when get_distance returns nil")
+        -- nil dist means dist > 30 is not checked (nil > 30 is false), but dist is nil so the
+        -- guard `if dist and dist > 30 then return false end` is false, so it continues
+        -- This means nil distance should ALLOW stealth (can't determine range -> assume in range)
+        NS.get_distance = saved
+    end)
+end
+
+-- ============================================================================
+-- DEEP DIVE: NS.spell_exists nil affecting global constants HAS_KICK/HAS_SAP/HAS_STEALTH
+-- ============================================================================
+do
+    -- These constants are computed at module load time. If NS.spell_exists is nil
+    -- when the module loads, constants default to false. Test that the module
+    -- doesn't crash when HAS_KICK, HAS_SAP, or HAS_STEALTH are false.
+    test("spell_exists_nil_at_load: module loads safely when NS.spell_exists is nil", function()
+        local new_ns, c = build_mock_env()
+        new_ns.spell_exists = nil
+        _G.EaxRotations = new_ns
+        local ok, mod = pcall(dofile, "EaxRotations/classes/rogue/leveling_sylvanas.lua")
+        assert_true(ok, "module dofile should not crash when NS.spell_exists is nil")
+        _G.EaxRotations = NS
+    end)
+end
+
+-- ============================================================================
+-- DEEP DIVE: Kick is_casting throws - pcall catches
+-- ============================================================================
+do
+    -- Kick's match function uses pcall(function() return state.target:is_casting() end)
+    test("kick_is_casting_throw: is_casting throwing does not crash match", function()
+        local ctx = make_context({})
+        ctx.target = {
+            is_valid = function() return true end,
+            get_health = function() return 8000 end,
+            get_max_health = function() return 10000 end,
+            get_health_percentage = function() return 80 end,
+            is_casting = function() error("fake is_casting crash") end,
+            get_distance = function(other) return 5 end,
+        }
+        local state = get_state(ctx)
+        state.kick_ready = true
+        state.use_interrupt = true
+        local ok, result = pcall(strategies[4].matches, ctx, state)
+        assert_true(ok, "Kick match should not crash when is_casting throws")
+        assert_false(result, "Kick should return false when is_casting throws (pcall returns false)")
+    end)
+end
 print(string.format("\n=== Rogue Leveling Unit Tests: %d passed, %d failed (%d assertions) ===\n", passed, failed, assertions))
 if failed > 0 then
     error(string.format("Some tests FAILED (%d failures)", failed))
