@@ -114,7 +114,17 @@ end
 
 local function context_or_default()
     local context = NS and NS.GetCurrentContext and NS.GetCurrentContext() or nil
-    if type(context) == "table" then return context end
+    if type(context) == "table" then
+        local me = get_player()
+        if me then
+            local is_in_combat = safe_field(me, "is_in_combat")
+            local live = is_in_combat and safe(is_in_combat, me)
+            if type(live) == "boolean" then
+                context.in_combat = live
+            end
+        end
+        return context
+    end
 
     local me = get_player()
     if not me then return nil end
@@ -208,6 +218,9 @@ function M.on_update()
 
     local me = context.me or get_player()
     if not me then return false end
+    local alive_ok, alive = pcall(function() return me:is_alive() end)
+    if alive_ok and alive == false then return false end
+
     local entry = RACIALS[get_race_id()]
     if not entry or not should_use(entry, context, me) then return false end
 
