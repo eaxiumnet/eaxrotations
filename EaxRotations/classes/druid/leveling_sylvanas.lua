@@ -247,10 +247,16 @@ local ravage_matches = function(_, state)
     return true
 end
 
+local function has_enemy_target(state)
+    if not state then return false end
+    if state.in_combat then return true end
+    return state.target ~= nil
+end
+
 --- Faerie Fire (Feral) - armor debuff
 local faerie_fire_feral_matches = function(_, state)
     if not state then return false end
-    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.target then return false end
     if not state.is_cat and not state.is_bear then return false end  -- Need a form
     if not state.faerie_fire_feral_ready then return false end
@@ -262,7 +268,7 @@ end
 local rake_matches = function(_, state)
     if not state then return false end
     if not state.is_cat then return false end
-    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.target then return false end
     if not state.rake_ready then return false end
     if (state.energy or 0) < 35 then return false end
@@ -276,7 +282,7 @@ end
 local mangle_cat_matches = function(_, state)
     if not state then return false end
     if not state.is_cat then return false end
-    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.target then return false end
     if not state.mangle_cat_ready then return false end
     if (state.energy or 0) < 40 then return false end
@@ -292,7 +298,7 @@ end
 local shred_matches = function(_, state)
     if not state then return false end
     if not state.is_cat then return false end
-    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.target then return false end
     if not state.shred_ready then return false end
     if (state.energy or 0) < 42 then return false end
@@ -306,7 +312,7 @@ end
 local rip_matches = function(_, state)
     if not state then return false end
     if not state.is_cat then return false end
-    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.target then return false end
     if not state.rip_ready then return false end
     if (state.energy or 0) < 30 then return false end
@@ -320,7 +326,7 @@ end
 local bite_matches = function(_, state)
     if not state then return false end
     if not state.is_cat then return false end
-    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.target then return false end
     if not state.bite_ready then return false end
     if (state.energy or 0) < 35 then return false end
@@ -334,7 +340,7 @@ end
 local claw_matches = function(_, state)
     if not state then return false end
     if not state.is_cat then return false end
-    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.target then return false end
     if not state.claw_ready then return false end
     if (state.combo_points or 0) >= 5 then return false end
@@ -350,7 +356,7 @@ end
 local mangle_bear_matches = function(_, state)
     if not state then return false end
     if not state.is_bear then return false end
-    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.target then return false end
     if not state.mangle_bear_ready then return false end
     if (state.rage or 0) < 15 then return false end
@@ -362,7 +368,7 @@ end
 local swipe_bear_matches = function(_, state)
     if not state then return false end
     if not state.is_bear then return false end
-    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.swipe_ready then return false end
     if (state.rage or 0) < 20 then return false end
     if (state.enemies or 0) < 2 then return false end
@@ -373,7 +379,7 @@ end
 local maul_matches = function(_, state)
     if not state then return false end
     if not state.is_bear then return false end
-    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.target then return false end
     if not state.maul_ready then return false end
     if (state.rage or 0) < 40 then return false end  -- Conservative; Maul is expensive
@@ -452,7 +458,7 @@ end
 --- Moonfire - DoT refresh
 local moonfire_matches = function(_, state)
 	    if not state then return false end
-	    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.moonfire_ready then return false end
     if not state.target then return false end
     -- Check DoT remaining
@@ -464,7 +470,7 @@ end
 --- Insect Swarm - DoT refresh
 local insect_swarm_matches = function(_, state)
 	    if not state then return false end
-	    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.insect_swarm_ready then return false end
     if not state.target then return false end
     -- Check DoT remaining
@@ -476,7 +482,7 @@ end
 --- Faerie Fire - armor debuff (refresh < 60s, apply once)
 local faerie_fire_matches = function(_, state)
 	    if not state then return false end
-	    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.faerie_fire_ready then return false end
     if not state.target then return false end
     -- Only apply if not already up
@@ -488,7 +494,7 @@ end
 --- Hurricane - AoE (3+ enemies, not moving)
 local hurricane_matches = function(_, state)
 	    if not state then return false end
-	    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.hurricane_ready then return false end
     if not state.target then return false end
     if (state.enemies or 0) < 3 then return false end
@@ -499,7 +505,7 @@ end
 --- Starfire - big cast (not moving)
 local starfire_matches = function(_, state)
 	    if not state then return false end
-	    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.starfire_ready then return false end
     if not state.target then return false end
     if state.is_moving then return false end
@@ -509,7 +515,7 @@ end
 --- Wrath - filler (can cast while moving)
 local wrath_matches = function(_, state)
 	    if not state then return false end
-	    if not state.in_combat then return false end
+    if not has_enemy_target(state) then return false end
     if not state.wrath_ready then return false end
     if not state.target then return false end
     return true

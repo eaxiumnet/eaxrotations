@@ -1008,7 +1008,7 @@ function M.on_rotation_update()
     if not context then
         return false
     end
-    if not (context.in_combat or context.has_valid_enemy_target) then
+    if not (context.in_combat or context.has_valid_enemy_target or context.target) then
         -- OOC: try OOC manager (handles class buff refresh, pet summon, food/flask)
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true
@@ -1070,7 +1070,7 @@ function M.on_rotation_update_unified()
     if not context then
         return false
     end
-    if not (context.in_combat or context.has_valid_enemy_target) then
+    if not (context.in_combat or context.has_valid_enemy_target or context.target) then
         -- OOC: try OOC manager (handles class buff refresh, pet summon, food/flask)
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true

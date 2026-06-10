@@ -2041,7 +2041,7 @@ local function player_level_fallback()
 
     end
 
-    return type(level) == "number" and level or 70
+    return type(level) == "number" and level or nil
 
 end
 
@@ -2061,7 +2061,19 @@ local function fallback_spell_id(spell, ids)
 
             local required_level = levels[i]
 
-            if type(required_level) == "number" and player_level >= required_level then
+            if type(required_level) == "number" and required_level > 0 and player_level and player_level >= required_level then
+
+                return ids[i]
+
+            end
+
+        end
+
+        for i = #ids, 1, -1 do
+
+            local required_level = levels[i]
+
+            if type(required_level) == "number" and required_level > 0 then
 
                 return ids[i]
 
