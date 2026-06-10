@@ -2055,6 +2055,14 @@ local function fallback_spell_id(spell, ids)
 
     if type(levels) == "table" and #levels > 0 then
 
+        -- Pad levels if shorter than ids: missing entries default to level 1
+        -- so the lowest rank (last in high-to-low array) is selectable.
+        if #levels < #ids then
+            for i = #levels + 1, #ids do
+                levels[i] = 1
+            end
+        end
+
         local player_level = player_level_fallback()
 
         for i = 1, #ids do
