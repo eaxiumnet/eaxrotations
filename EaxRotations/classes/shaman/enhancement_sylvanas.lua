@@ -197,7 +197,7 @@ local function build_state(context)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(LIGHTNING_SHIELD_ID, 3.0) or false
     if not skip_aura then
         enh_state.has_lightning_shield = me and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
-        enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and NS.get_buff_stacks(me, LIGHTNING_SHIELD_BUFF)) or 0
+        enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and type(me.get_buff_stacks) == "function" and me:get_buff_stacks(LIGHTNING_SHIELD_BUFF)) or 0
         enh_state.has_water_shield = me and NS.buff_up(me, WATER_SHIELD_BUFF) or false
         enh_state.has_shamanistic_rage = me and NS.buff_up(me, SHAMANISTIC_RAGE_BUFF) or false
         enh_state.has_bloodlust = me and NS.buff_up(me, BLOODLUST_BUFF_ID) or false
@@ -666,7 +666,19 @@ local function chain_lightning_matches(ctx)
     return true
 end
 
+local _enh_lb_count = 0
 local function lightning_bolt_matches(ctx)
+    _enh_lb_count = _enh_lb_count + 1
+    if _enh_lb_count <= 3 and NS.log then
+        NS.log(string.format(
+            "[ENHANCEMENT][LightningBolt] call #%d: ctx.in_combat=%s, ctx.has_valid_enemy_target=%s, ctx.target=%s, enh_state.lightning_bolt_ready=%s, enh_state.in_combat=%s",
+            _enh_lb_count,
+            tostring(ctx and ctx.in_combat),
+            tostring(ctx and ctx.has_valid_enemy_target),
+            tostring(ctx and ctx.target ~= nil),
+            tostring(enh_state and enh_state.lightning_bolt_ready),
+            tostring(enh_state and enh_state.in_combat)))
+    end
     if not enh_state.lightning_bolt_ready then return false end
     -- v1.1.5: OOC ranged pulls only — once in combat, commit to melee rotation
     if enh_state.in_combat then return false end

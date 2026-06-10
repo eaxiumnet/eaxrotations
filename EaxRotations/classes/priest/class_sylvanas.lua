@@ -452,7 +452,10 @@ local SPELLS = {
         power_type = "none",
         school = "arcane",
     }),
+    UnavailableClassicPriestHealA = nil,
+    UnavailableClassicPriestPet = nil,
 }
+
 NS.PriestSpells = SPELLS
 
 NS.PriestFLASH_HEAL_RANKS = { { spell = SPELLS.FlashHeal, label = "R9" } }

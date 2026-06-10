@@ -22,6 +22,16 @@ local SPELLS = {
         power_type = "none",
         school = "physical",
     }),
+    Recklessness = NS.spell_action({
+        name = "Recklessness",
+        ids = {1719},
+        levels = {50},
+        cast_time = 0,
+        cooldown = 1800,
+        power_cost = 0,
+        power_type = "none",
+        school = "physical",
+    }),
     BattleStance = NS.spell_action({
         name = "BattleStance",
         ids = {2457},

@@ -173,7 +173,7 @@ local function build_kebab_state(context)
     context.has_breakable_cc_nearby = has_breakable_cc_nearby(context)
     context.player_control_locked = player_control_locked()
     local player = NS.GetPlayer()
-    context.is_moving = safe_unit_call(player, "is_moving") or false
+    context.is_moving = context.is_moving or (safe_unit_call(player, "is_moving") or false)
     context.has_offhand = has_offhand_weapon()
     local settings = settings_for(context)
     kebab_state.general_use = settings.kebab_general_use == true

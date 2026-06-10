@@ -89,8 +89,6 @@ function M.scan_spells(st)
         end
     end
     st.pet_spells_scanned = true
-    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
-    if debug then NS.log("[Pet] growl=" .. tostring(st.growl_id) .. " dmg=" .. tostring(st.damage_id) .. " special=" .. tostring(st.special_id)) end
 end
 
 function M.on_update(me, target, spec)

@@ -598,7 +598,7 @@ local function challenging_roar_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat then return false end
     if (state.enemy_count or 0) < CHALLENGING_ROAR_ENEMY_COUNT and state.pack_loose < 2 then return false end
-    if state.pack_loose < 2 and state.hp > 45 then return false end
+    if state.pack_loose < 2 and state.hp < 45 then return false end
     return action_ready(context, action)
 end
 

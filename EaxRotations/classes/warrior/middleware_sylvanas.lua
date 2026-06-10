@@ -114,7 +114,6 @@ local strategies = {
             local settings = context.settings or {}
             if settings.use_self_buffs == false or settings.use_battle_shout == false then return false end
             if NS.has_player_buff(BATTLE_SHOUT_BUFFS) then return false end
-            if context.in_combat and NS.has_player_buff(BATTLE_SHOUT_BUFFS) then return false end
             -- Throttle on PS builds where aura API is broken and has_player_buff always returns false
             if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 10.0) then return false end
             return defensive_spell_ready(SPELLS.BattleShout, context)
@@ -166,9 +165,10 @@ local strategies = {
             local settings = context.settings or {}
             if settings.hs_trick == false then return false end
             if not context.has_valid_enemy_target then return false end
-            -- Only meaningful when dual-wielding (Fury with OH weapon)
-            if not context.has_offhand then return false end
-            -- Check if HeroicStrike or Cleave is currently queued
+            local me = context.me
+            if not me then return false end
+            local mh_until = NS.swing_time_until and NS.swing_time_until(me) or 999
+            if mh_until >= 1.5 then return false end
             if not NS.is_current_spell then return false end
             local hs_id = SPELLS.HeroicStrike and SPELLS.HeroicStrike.id and SPELLS.HeroicStrike:id() or nil
             local cleave_id = SPELLS.Cleave and SPELLS.Cleave.id and SPELLS.Cleave:id() or nil
@@ -178,26 +178,19 @@ local strategies = {
         execute = function(context)
             local should_dequeue = false
             local reason = ""
-            local mh_remaining = NS.get_time_until_swing()
+            local me = context.me
+            local mh_remaining = NS.swing_time_until and me and NS.swing_time_until(me) or 999
             local target = context.target
             local rage = context.rage or 0
 
-            -- Condition a: MH swing landing soon and not enough rage for HS cost
-            -- Keep queued if OH lands first (we want the yellow OH hit)
-            if mh_remaining and mh_remaining > 0 and mh_remaining <= 0.4 then
+            if mh_remaining > 0 and mh_remaining <= 0.4 then
                 local hs_cost = 15
                 if rage < hs_cost then
-                    local oh_remaining = context.oh_remain or 999
-                    if oh_remaining <= 0 then oh_remaining = 999 end
-                    -- Only dequeue if MH lands before OH (preserve yellow OH hit)
-                    if mh_remaining <= oh_remaining then
-                        should_dequeue = true
-                        reason = "Low rage (" .. tostring(rage) .. ")"
-                    end
+                    should_dequeue = true
+                    reason = "Low rage (" .. tostring(rage) .. ")"
                 end
             end
 
-            -- Condition b: Target casting a kickable spell — hold rage for Pummel
             if not should_dequeue and target then
                 local is_casting = NS.safe_field and NS.safe_field(target, "is_casting")
                 local cast_ok, casting = is_casting and pcall(is_casting, target) or false, false
@@ -215,7 +208,6 @@ local strategies = {
                 end
             end
 
-            -- Condition c: Target entered execute phase — Execute is better DPS
             if not should_dequeue then
                 local target_hp = context.target_hp or 100
                 if target_hp <= 20 then
@@ -232,8 +224,6 @@ local strategies = {
 
             if should_dequeue then
                 if NS.cancel_spells then NS.cancel_spells() end
-                local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
-                if debug then NS.log("[WARRIOR] HS Dequeue - " .. reason) end
                 return true
             end
 
@@ -346,30 +336,25 @@ local strategies = {
             end
             
             return false
-        end,
-        execute = function(context)
-            local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
-            
+        end,        execute = function(context)
             -- Try to cancel PW:S first
             for _, id in ipairs(PWS_IDS) do
                 if NS.has_buff and context.me and NS.has_buff(context.me, id) then
                     if NS.cancel_buff and NS.cancel_buff(id) then
-                        if debug then NS.log("[WARRIOR] Cancelled PW:S") end
                         return true
                     end
                 end
             end
-            
+
             -- Try to cancel BoP
             for _, id in ipairs(BOP_IDS) do
                 if NS.has_buff and context.me and NS.has_buff(context.me, id) then
                     if NS.cancel_buff and NS.cancel_buff(id) then
-                        if debug then NS.log("[WARRIOR] Cancelled BoP") end
                         return true
                     end
                 end
             end
-            
+
             return false
         end,
     },

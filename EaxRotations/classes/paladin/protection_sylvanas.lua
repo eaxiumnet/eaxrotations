@@ -186,7 +186,7 @@ local function build_state(context)
 end
 
 local function cooldowns_enabled(context)
-    return not context.settings or context.settings.use_cooldowns ~= false
+    return not context.settings or context.settings.use_cooldowns == true
 end
 
 -- ============================================================================

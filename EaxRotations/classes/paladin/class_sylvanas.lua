@@ -393,7 +393,7 @@ local SPELLS = {
         school = "holy",
     }),
     SealBlood = NS.spell_action({ 31892 }, "SealBlood"),
-    SealOfTheMartyr = NS.spell_action({ 348701, 348700 }, "SealOfTheMartyr"),
+    SealOfTheMartyr = NS.spell_action({ 348700 }, "SealOfTheMartyr"),
     SealCommand = NS.spell_action({ 27170, 20920, 20919, 20918, 20915, 20375 }, "SealCommand"),
     SealCommandRank1 = NS.spell_action({ 20375 }, "SealCommandRank1"),
     SealCrusader = NS.spell_action({ 27158, 20308, 20307, 20306, 20305, 21082, 20162 }, "SealCrusader"),
@@ -469,7 +469,11 @@ local SPELLS = {
         power_type = "none",
         school = "holy",
     }),
+    UnavailableClassicPaladinBurst = nil,
+    UnavailableClassicPaladinStrike = nil,
+    UnavailableClassicPaladinTaunt = nil,
 }
+
 NS.PaladinSpells = SPELLS
 
 NS.HOLY_LIGHT_RANKS = { { spell = SPELLS.HolyLight, label = "R11", base_min = 2196, base_max = 2446 } }
@@ -497,7 +501,5 @@ load_spec("protection")
 load_spec("retribution")
 -- Reset API health after a /reload so spell_book is re-probed fresh.
 if NS.reset_api_health then NS.reset_api_health() end
--- Dump known spells for debugging; run once at load.
-if NS.dump_class_spells then NS.dump_class_spells("Paladin") end
 NS.log("Paladin class module loaded")
 return config

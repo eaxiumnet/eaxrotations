@@ -44,6 +44,6 @@ assert_true(contains(dispatcher, "settings.damage_enabled == false"), "damage to
 assert_true(contains(dispatcher, "settings.use_cooldowns == false"), "cooldowns toggle should gate cooldown rows")
 assert_true(contains(dispatcher, '"is_casting", "is_casting_spell"'), "dispatcher should accept base API and IZI casting flags")
 
-assert_true(contains(core, "settings.aoe_enabled == false") and contains(core, "blocked: aoe_disabled"), "AoE toggle should gate action rows with enemy_count/is_aoe")
+assert_true(contains(core, "settings.aoe_enabled == false") and contains(core, "enemy_count or action.is_aoe"), "AoE toggle should gate action rows with enemy_count/is_aoe")
 
 print("PASS test_control_panel_quick_toggles")

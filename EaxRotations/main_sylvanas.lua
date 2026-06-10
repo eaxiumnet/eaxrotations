@@ -9,6 +9,9 @@ local was_in_combat = false
 local _combat_state_last_known = 0  -- timestamp when combat state was last confirmed by API
 local _last_target_guid = nil          -- Previous frame's target GUID for manual target change detection
 local _manual_target_lockout_until = 0 -- Timestamp when 3s manual target grace period expires
+local _pet_cache_data = nil
+local _pet_cache_timestamp = 0
+local _cached_inventory_time = 0
 local _ooc_ok, ooc_manager = pcall(require, "shared/ooc_manager_sylvanas")
 if not _ooc_ok then ooc_manager = nil end
 local _burst_ok, BurstLogic = pcall(require, "shared/burst_logic_sylvanas")
@@ -550,14 +553,12 @@ local function build_context()
     _context.combo_points = combo_points(me)
     _context.enemy_count = count
     _context.enemies_count = count
-    local _pet_cache = _context.pet
-    local _pet_cache_time = _context.pet_cache_time or 0
     local now_pet = NS.game_time_ms and NS.game_time_ms() or 0
-    if now_pet - _pet_cache_time > 500 then
-        _pet_cache = _get_pet and _get_pet()
-        _context.pet_cache_time = now_pet
+    if now_pet - _pet_cache_timestamp > 500 then
+        _pet_cache_data = _get_pet and _get_pet()
+        _pet_cache_timestamp = now_pet
     end
-    _context.pet = _pet_cache
+    _context.pet = _pet_cache_data
     _context.pet_dead = _pet_cache and not _pet_cache:is_alive() or false
     _context.stance = _get_player_stance() or 0
     _context.player_class = NS.player_class_id

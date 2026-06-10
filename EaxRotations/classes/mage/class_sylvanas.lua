@@ -403,6 +403,10 @@ local SPELLS = {
         power_type = "none",
         school = "frost",
     }),
+    UnavailableClassicMageArcane = nil,
+    UnavailableClassicMageFire = nil,
+    UnavailableClassicMageFrost = nil,
+    UnavailableClassicMagePet = nil,
 }
 NS.MageSpells = SPELLS
 

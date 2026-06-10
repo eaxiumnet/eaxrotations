@@ -180,12 +180,7 @@ function M.try_purge(context)
 
     -- Reaction delay: wait a random time before purging to look human
     local delay_remaining = get_dispel_delay_for_target(context.target)
-    if delay_remaining > 0 then
-        if NS.get_setting and NS.get_setting("debug_system", false) then
-            NS.log("[PURGE] Delayed by " .. string.format("%.2f", delay_remaining) .. "s (reaction simulation)")
-        end
-        return false
-    end
+    if delay_remaining > 0 then return false end
 
     -- Check if we have Purge learned and ready
     local purge_id = M.get_purge_spell_id()

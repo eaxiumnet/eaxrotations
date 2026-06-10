@@ -296,6 +296,31 @@ local SPELLS = {
         power_type = "mana",
         school = "physical",
     }),
+    ImmolationTrap = NS.spell_action({
+        name = "ImmolationTrap",
+        ids = {29906, 27023, 14299, 14298, 13795},
+        levels = {70, 60, 50, 40, 30},
+        cast_time = 0,
+        cooldown = 30,
+        power_cost = 0,
+        power_type = "mana",
+        school = "fire",
+    }),
+    MongooseBite = NS.spell_action({
+        name = "MongooseBite",
+        ids = {25285, 14271, 14270, 14269, 1495},
+        levels = {62, 50, 38, 26, 16},
+        cast_time = 0,
+        cooldown = 5,
+        power_cost = 0,
+        power_type = "none",
+        school = "physical",
+    }),
+    UnavailableClassicHunterShotA = nil,
+    UnavailableClassicHunterShotB = nil,
+    UnavailableClassicHunterAspect = nil,
+    UnavailableClassicHunterInterrupt = nil,
+    UnavailableClassicHunterThreat = nil,
 }
 NS.HunterSpells = SPELLS
 

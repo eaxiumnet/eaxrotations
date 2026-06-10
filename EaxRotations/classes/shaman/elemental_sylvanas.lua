@@ -8,40 +8,6 @@ local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { shaman = {} } } end
 local TBC_SHAMAN = (TBC.SPELLS and TBC.SPELLS.shaman) or {}
 
--- Fallback spell definitions for keys not yet in class_sylvanas.lua
--- These are overridden if class_sylvanas.lua defines them with higher priority
-if NS.spell_action and not SPELLS.TotemOfWrath then
-    SPELLS.TotemOfWrath = NS.spell_action({
-        name = "TotemOfWrath", ids = { 30706 }, levels = { 50 },
-        cast_time = 0, cooldown = 0, power_cost = 0, power_type = "mana", school = "nature",
-    })
-end
-if NS.spell_action and not SPELLS.WrathOfAirTotem then
-    -- DB2: spell ID 3738 (same as the buff ID); 25361 is Strength of Earth Totem rank 5
-    SPELLS.WrathOfAirTotem = NS.spell_action({
-        name = "WrathOfAirTotem", ids = { 3738 }, levels = { 64 },
-        cast_time = 0, cooldown = 0, power_cost = 0, power_type = "mana", school = "nature",
-    })
-end
-if NS.spell_action and not SPELLS.MagmaTotem then
-    -- DB2: 25552 (max, 65), 10587 (56), 10586 (46), 10585 (36), 8190 (26)
-    SPELLS.MagmaTotem = NS.spell_action({
-        name = "MagmaTotem", ids = { 25552, 10587, 10586, 10585, 8190 },
-        levels = { 65, 56, 46, 36, 26 },
-        cast_time = 0, cooldown = 0, power_cost = 0, power_type = "mana", school = "fire",
-    })
-end
--- LightningBolt rank 11 (25448) for mana conservation; max rank is 25449
-if NS.spell_action and not SPELLS.LightningBoltLowerRank then
-    SPELLS.LightningBoltLowerRank = NS.spell_action({
-        name = "LightningBoltLowerRank", ids = { 25448 }, levels = { 62 },
-        cast_time = 3.0, cooldown = 0, power_cost = 0, power_type = "mana", school = "nature",
-    })
-end
-if not SPELLS.LightningBoltLowerRank then
-    SPELLS.LightningBoltLowerRank = 25448
-end
-
 -- Debuff and buff ID tables
 local FLAME_SHOCK_DEBUFF = { 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
 local LIGHTNING_SHIELD_BUFF = TBC_SHAMAN.lightning_shield or { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
@@ -165,7 +131,22 @@ local function chain_lightning_matches_fn(context, state)
     return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ChainLightning, context.target) or false
 end
 
+local _el_lb_count = 0
 local function lightning_bolt_matches_fn(context, state)
+    _el_lb_count = _el_lb_count + 1
+    if _el_lb_count <= 3 and NS.log then
+        NS.log(string.format(
+            "[ELEMENTAL][LightningBolt] call #%d: state=%s, ctx.in_combat=%s, ctx.has_valid_enemy_target=%s, ctx.target=%s, state.target=%s, state.is_moving=%s, state.mana_emergency=%s, state.lightning_bolt_ready=%s",
+            _el_lb_count,
+            tostring(state ~= nil),
+            tostring(context and context.in_combat),
+            tostring(context and context.has_valid_enemy_target),
+            tostring(context and context.target ~= nil),
+            tostring(state and state.target ~= nil),
+            tostring(context and context.is_moving),
+            tostring(state and state.mana_emergency),
+            tostring(state and state.lightning_bolt_ready)))
+    end
     if context.is_moving then return false end
     if state.mana_emergency then return false end
     -- Threat safety: hold Lightning Bolt if threat > 90%

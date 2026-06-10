@@ -245,13 +245,11 @@ local strategies = {
         execute = function(context)
             local settings = context.settings or {}
             local stance = context.stance
-            local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
 
             -- Try healthstone first
             if settings.use_healthstone and context.hp and context.hp <= (settings.healthstone_hp or 30) then
                 if NS.is_item_ready and NS.is_item_ready(22103) then
                     if NS.use_item_by_id and NS.use_item_by_id(22103, context.me) then
-                        if debug then NS.log("[DRUID] Healthstone - HP: " .. tostring(math.floor(context.hp or 0)) .. "%") end
                         -- Reshift back to form if needed
                         if stance == STANCE_CAT or stance == STANCE_BEAR then
                             local form_spell = (stance == STANCE_CAT) and SPELLS.CatForm or SPELLS.BearForm
@@ -268,7 +266,6 @@ local strategies = {
             if settings.use_healing_potion and context.hp and context.hp <= (settings.healing_potion_hp or 35) then
                 if NS.is_item_ready and NS.is_item_ready(22829) then
                     if NS.use_item_by_id and NS.use_item_by_id(22829, context.me) then
-                        if debug then NS.log("[DRUID] Super Healing Potion - HP: " .. tostring(math.floor(context.hp or 0)) .. "%") end
                         -- Reshift back to form if needed
                         if stance == STANCE_CAT or stance == STANCE_BEAR then
                             local form_spell = (stance == STANCE_CAT) and SPELLS.CatForm or SPELLS.BearForm
@@ -281,7 +278,6 @@ local strategies = {
                 end
                 if NS.is_item_ready and NS.is_item_ready(22850) then
                     if NS.use_item_by_id and NS.use_item_by_id(22850, context.me) then
-                        if debug then NS.log("[DRUID] Super Rejuvenation Potion - HP: " .. tostring(math.floor(context.hp or 0)) .. "%") end
                         -- Reshift back to form if needed
                         if stance == STANCE_CAT or stance == STANCE_BEAR then
                             local form_spell = (stance == STANCE_CAT) and SPELLS.CatForm or SPELLS.BearForm
