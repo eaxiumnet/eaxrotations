@@ -104,6 +104,11 @@ local function safe(fn, ...)
     return nil
 end
 
+local function fast(fn, ...)
+    if type(fn) ~= "function" then return nil end
+    return fn(...)
+end
+
 -- ============================================================================
 -- Global Reaction Delay: simulates human reaction time for ALL classes.
 -- When active, blocks BOTH middleware and playstyle strategies.
@@ -172,7 +177,7 @@ end
 
 local function get_target(me)
     local fallback_get_target = NS.safe_field and NS.safe_field(me, "get_target") or nil
-    return NS.GetTarget and NS.GetTarget() or (fallback_get_target and safe(fallback_get_target, me) or nil)
+    return NS.GetTarget and NS.GetTarget() or (fallback_get_target and fast(fallback_get_target, me) or nil)
 end
 
 local function valid_enemy(me, target)
@@ -180,8 +185,9 @@ local function valid_enemy(me, target)
 end
 
 local function find_enemy_target(me, selected)
-    local selected_ok = valid_enemy(me, selected)
-    if selected_ok then
+    -- Always accept the player's manually selected target (even neutral/yellow NPCs).
+    -- The player explicitly chose to attack it. Hostility check is only for auto-acquisition.
+    if selected then
         return selected
     end
     -- During manual target grace period, skip all fallbacks — respect the player's choice
@@ -189,17 +195,15 @@ local function find_enemy_target(me, selected)
         return nil
     end
     -- IZI-selected target fallback (for scripts that use the IZI target helper)
-    if not selected then
-        local izi_target = NS.izi and NS.izi.target and NS.izi.target()
-        if izi_target then
-            local izi_ok = valid_enemy(me, izi_target)
-            if izi_ok then return izi_target end
-        end
+    local izi_target = NS.izi and NS.izi.target and NS.izi.target()
+    if izi_target then
+        local izi_ok = valid_enemy(me, izi_target)
+        if izi_ok then return izi_target end
     end
     local focus = NS.GetFocus and NS.GetFocus() or nil
     local focus_ok = valid_enemy(me, focus)
     if focus_ok then return focus end
-    return nil  -- Never auto-acquire enemies; only cast on selected or focus target
+    return nil  -- Never auto-acquire enemies without a valid target
 end
 
 local _cached_enemies, _cached_enemies_time = nil, -1
@@ -308,14 +312,13 @@ local function resolve_auto_aoe_playstyle(registry, active, enemy_count)
 end
 
 local function throttled_enemies()
-    -- Primary: target_selector platform module (pre-filtered, cached by engine)
-    if target_selector and type(target_selector.get_targets) == "function" then
-        return target_selector:get_targets(40)
-    end
-    -- Fallback: engine GetEnemiesInRange API
     local now = NS.game_time_ms and NS.game_time_ms() or 0
     if now - _cached_enemies_time > 100 then
-        _cached_enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(40) or nil
+        if target_selector and type(target_selector.get_targets) == "function" then
+            _cached_enemies = target_selector:get_targets(40)
+        else
+            _cached_enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(40) or nil
+        end
         _cached_enemies_time = now
     end
     return _cached_enemies
@@ -329,15 +332,15 @@ end
 
 local function combo_points(me)
     local combo_points_current = NS.safe_field and NS.safe_field(me, "combo_points_current") or nil
-    local v = combo_points_current and safe(combo_points_current, me) or nil
+    local v = combo_points_current and fast(combo_points_current, me) or nil
     local get_power = NS.safe_field and NS.safe_field(me, "get_power") or nil
-    if type(v) ~= "number" and get_power then v = safe(get_power, me, 4) end
+    if type(v) ~= "number" and get_power then v = fast(get_power, me, 4) end
     return type(v) == "number" and v or 0
 end
 
 local function target_time_to_die(target)
     local time_to_die = NS.safe_field and (NS.safe_field(target, "time_to_die") or NS.safe_field(target, "get_time_to_death")) or nil
-    local value = time_to_die and safe(time_to_die, target) or nil
+    local value = time_to_die and fast(time_to_die, target) or nil
     return type(value) == "number" and value > 0 and value or nil
 end
 
@@ -362,7 +365,7 @@ local function unit_bool(unit, ...)
     if not unit or not NS.safe_field then return false end
     for i = 1, select("#", ...) do
         local fn = NS.safe_field(unit, select(i, ...))
-        if fn and safe(fn, unit) == true then return true end
+        if fn and fast(fn, unit) == true then return true end
     end
     return false
 end
@@ -370,13 +373,13 @@ end
 local function unit_number(unit, field)
     if not unit or not NS.safe_field then return nil end
     local fn = NS.safe_field(unit, field)
-    local value = fn and safe(fn, unit) or nil
+    local value = fn and fast(fn, unit) or nil
     return type(value) == "number" and value or nil
 end
 
 local function core_string(field)
     local fn = core and core[field]
-    local value = type(fn) == "function" and safe(fn) or nil
+    local value = type(fn) == "function" and fast(fn) or nil
     return type(value) == "string" and value or nil
 end
 
@@ -405,7 +408,7 @@ local function build_context()
     end
     local target = find_enemy_target(me, selected_target)
     local is_in_combat = NS.safe_field and NS.safe_field(me, "is_in_combat") or nil
-    local raw_in_combat = is_in_combat and safe(is_in_combat, me) or nil
+    local raw_in_combat = is_in_combat and fast(is_in_combat, me) or nil
     local combat_state_known = type(raw_in_combat) == "boolean"
     local in_combat
     if combat_state_known then
@@ -423,8 +426,8 @@ local function build_context()
     if not _combat_start_time and me and in_combat then _combat_start_time = NS.time_now() end
     if _combat_start_time and me and combat_state_known and not in_combat then _combat_start_time = nil end
     local enemy_ok = valid_enemy(me, target)
-    local count = throttled_enemies_count()
     local _enemies_cache = throttled_enemies()
+    local count = (_enemies_cache and _enemies_cache.n) or (_enemies_cache and #_enemies_cache) or 0
     local engine_ttd = enemy_ok and target_time_to_die(target) or nil
     local instance_type = tostring(core_string("get_instance_type") or "none"):lower()
     local player_level = unit_number(me, "get_effective_level") or unit_number(me, "get_level") or 70
@@ -432,7 +435,7 @@ local function build_context()
     local target_classification = target and unit_number(target, "get_classification") or nil
     local expansion_max_level = _get_expansion_max_level and _get_expansion_max_level() or 70
     -- Compute boss/elite flag locally before _context is fully populated
-    local is_target_boss = target and NS.safe_field and NS.safe_field(target, "is_boss") and safe(target.is_boss, target) == true or false
+    local is_target_boss = target and NS.safe_field and NS.safe_field(target, "is_boss") and fast(target.is_boss, target) == true or false
     -- ============================================================================
     -- TTD (Time-To-Death) Fallback Chain
     -- ============================================================================
@@ -469,10 +472,13 @@ local function build_context()
     -- Strategies with require_ttd=true will be skipped when ttd_known is false
     -- (see NS.action_execute() in core_sylvanas.lua).
     -- ============================================================================
-    local ema_ttd = enemy_ok and get_ema_ttd(target) or nil
+    local ema_ttd = nil
     local regression_ttd = nil
-    if enemy_ok and not ema_ttd and (is_target_boss or (target_level and target_level > player_level)) then
-        regression_ttd = get_linear_regression_ttd(target, NS.settings)
+    if in_combat and enemy_ok then
+        ema_ttd = get_ema_ttd(target)
+        if not ema_ttd and (is_target_boss or (target_level and target_level > player_level)) then
+            regression_ttd = get_linear_regression_ttd(target, NS.settings)
+        end
     end
     -- Resolve TTD from the fallback chain: EMA → regression → engine → nil
     local ttd_source = "none"
@@ -489,6 +495,14 @@ local function build_context()
     end
     _context.me = me
     _context.target = target
+    _context.target_casting = target and (unit_bool(target, "is_casting") or unit_bool(target, "is_channeling") or false) or false
+    _context.target_ttd = ttd
+    _context.has_aggro = (target and me) and (function()
+        local get_threat = NS.safe_field and NS.safe_field(target, "get_threat_situation")
+        if not get_threat then return false end
+        local ok, result = pcall(get_threat, target, me)
+        return ok and type(result) == "number" and result >= 2
+    end)() or false
     _context.in_combat = in_combat
     _context.combat_state_known = combat_state_known
     _context.has_target = target ~= nil
@@ -536,10 +550,18 @@ local function build_context()
     _context.combo_points = combo_points(me)
     _context.enemy_count = count
     _context.enemies_count = count
-    -- Pet: used by hunter/warlock files
-    _context.pet = _get_pet and _get_pet()
-    _context.pet_dead = _context.pet and not _context.pet:is_alive() or false
-    _context.stance = _get_player_stance()
+    local _pet_cache = _context.pet
+    local _pet_cache_time = _context.pet_cache_time or 0
+    local now_pet = NS.game_time_ms and NS.game_time_ms() or 0
+    if now_pet - _pet_cache_time > 500 then
+        _pet_cache = _get_pet and _get_pet()
+        _context.pet_cache_time = now_pet
+    end
+    _context.pet = _pet_cache
+    _context.pet_dead = _pet_cache and not _pet_cache:is_alive() or false
+    _context.stance = _get_player_stance() or 0
+    _context.player_class = NS.player_class_id
+    _context.has_totems = _context.in_combat
     _context.is_moving = unit_bool(me, "is_moving")
     _context.is_casting = unit_bool(me, "is_casting", "is_casting_spell")
     _context.is_channeling = unit_bool(me, "is_channeling", "is_channelling_spell")
@@ -565,6 +587,10 @@ local function build_context()
     if _context.is_group then
         _party_members = NS.GetPartyMembers and NS.GetPartyMembers() or nil
     end
+    _context.party = _party_members
+    _context.party_members = _party_members
+    _context.group_members = _party_members
+    _context.party_count = (_party_members and #_party_members) or 0
     -- Combined party scan: tank_alive, group_injured, fear_nearby in a single ipairs pass.
     -- Replaces 3 separate loops (was: tank_alive 568-612, group_injured 679-690, fear_nearby 715-729).
     -- tank_alive detection is throttled to 500ms; other flags are per-frame but early-exit on first match.
@@ -621,6 +647,28 @@ local function build_context()
     end
     _cached_tank_alive = tank_alive
     _context.tank_alive = tank_alive
+    _context.lowest_unit = nil
+    _context.lowest_hp = 100
+    _context.lowest = { unit = nil, hp = 100 }
+    _context.lowest_ally_hp = 100
+    _context.lowest_group_hp = 100
+    if _context.is_group and _party_members then
+        local lowest_val, lowest_unit = 100, nil
+        for _, u in ipairs(_party_members) do
+            if u and _unit_alive(u) then
+                local hp = _unit_health_pct(u)
+                if hp and hp < lowest_val then
+                    lowest_val = hp
+                    lowest_unit = u
+                end
+            end
+        end
+        _context.lowest_unit = lowest_unit
+        _context.lowest_hp = lowest_val
+        _context.lowest = { unit = lowest_unit, hp = lowest_val }
+        _context.lowest_ally_hp = lowest_val
+        _context.lowest_group_hp = lowest_val
+    end
     _context.settings = NS.settings or {}
     _context.ttd = ttd or 999
     _context.ttd_source = ttd_source
@@ -633,7 +681,7 @@ local function build_context()
     _context.target_frost_immune = school_immunities.frost == true
     _context.target_shadow_immune = school_immunities.shadow == true
     _context.target_holy_immune = school_immunities.holy == true
-    _context.target_is_player = target and NS.safe_field and NS.safe_field(target, "is_player") and safe(target.is_player, target) == true or false
+    _context.target_is_player = target and NS.safe_field and NS.safe_field(target, "is_player") and fast(target.is_player, target) == true or false
     _context.target_is_boss = is_target_boss
     -- ============================================================================
     -- Derived context fields (for specs that consume nil-unsafe guards)
@@ -712,7 +760,7 @@ local function build_context()
     _context.enemy_healer = false
     if _context.is_pvp and target and NS.safe_field then
         local get_class = NS.safe_field and NS.safe_field(target, "get_class")
-        local class_id = get_class and safe(get_class, target) or nil
+        local class_id = get_class and fast(get_class, target) or nil
         if class_id and HEALER_CLASS_IDS[class_id] then
             _context.enemy_healer = true
         end
@@ -727,7 +775,7 @@ local function build_context()
                 local e = enemies[i]
                 if e and _unit_alive(e) then
                     local get_class = NS.safe_field and NS.safe_field(e, "get_class")
-                    local class_id = get_class and safe(get_class, e) or nil
+                    local class_id = get_class and fast(get_class, e) or nil
                     if class_id and MELEE_CLASS_IDS[class_id] then
                         local get_target_fn = NS.safe_field(e, "get_target")
                         if get_target_fn then
@@ -743,7 +791,7 @@ local function build_context()
         end
     end
     -- Is the player mounted? (guards OOC buffs, aspect switching)
-    _context.is_mounted = me and NS.safe_field and NS.safe_field(me, "is_mounted") and safe(me.is_mounted, me) == true or false
+    _context.is_mounted = me and NS.safe_field and NS.safe_field(me, "is_mounted") and fast(me.is_mounted, me) == true or false
     -- Is player control locked? (fear, charm, mind control — stop casting/gcd)
     _context.player_control_locked = _player_control_locked and _player_control_locked() or false
     if combat_forecast and type(combat_forecast.get_forecast_single) == "function" then
@@ -942,7 +990,7 @@ local function run_list(name, list, options, context)
                 local ok = true
                 if type(strategy.matches) == "function" then ok = strategy.matches(context, state) == true end
                 if ok then
-                    local executed = safe(strategy.execute, context, state) == true
+                    local executed = fast(strategy.execute, context, state) == true
                     if executed then
                         return true
                     end
@@ -960,10 +1008,12 @@ function M.on_rotation_update()
         return false
     end
     if not (context.in_combat or context.has_valid_enemy_target) then
-        -- Only run OOC manager when there's no valid enemy target
+        -- OOC: try OOC manager (handles class buff refresh, pet summon, food/flask)
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true
         end
+        -- OOC with no target and OOC manager has nothing to do: skip expensive
+        -- playstyle rotation evaluation. Strategies need a target to do damage.
         return false
     end
     -- GCD gate: while on global cooldown in combat, skip strategy evaluation entirely.
@@ -983,13 +1033,13 @@ function M.on_rotation_update()
     local active_source = (type(requested_playstyle) == "string" and requested_playstyle ~= "") and requested_playstyle
         or NS.get_setting("active_playstyle", config and config.default_playstyle)
     local active = normalize_playstyle(registry, active_source)
-    -- Auto-detect leveling/solo context: switch to leveling playstyle when no explicit playstyle is set
+    local auto_detected = false
     if (not requested_playstyle or requested_playstyle == "") and (context.is_leveling or context.is_solo) and registry and registry.playstyles and registry.playstyles.leveling then
         active = "leveling"
+        auto_detected = true
     end
-    -- Dynamic Auto-AoE: automatically switch to AoE playstyle when enemy_count >= threshold
     active = resolve_auto_aoe_playstyle(registry, active, context.enemy_count or 0)
-    if NS.set_setting and active ~= NS.get_setting("active_playstyle", nil) then
+    if not auto_detected and NS.set_setting and active ~= NS.get_setting("active_playstyle", nil) then
         NS.set_setting("active_playstyle", active)
     end
     context.active_playstyle = active
@@ -1020,11 +1070,24 @@ function M.on_rotation_update_unified()
         return false
     end
     if not (context.in_combat or context.has_valid_enemy_target) then
-        -- Only run OOC manager when there's no valid enemy target
+        -- OOC: try OOC manager (handles class buff refresh, pet summon, food/flask)
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true
         end
-        return false
+        -- Fall through to the playstyle rotation so OOC strategies
+        -- (WeaponImbue, LightningShield, WaterShield, GhostWolf, etc.) get a
+        -- chance to fire. Their matches() functions gate on state.in_combat ==
+        -- false, so they naturally no-op in combat. In OOC they cover what the
+        -- shared OOC manager doesn't: e.g., a level-1 Shaman has no Lightning
+        -- Shield or Water Shield entry the manager can refresh, but the leveling
+        -- playstyle's WeaponImbue strategy still applies RockbiterWeapon.
+        -- Bug fix: previously this branch returned false unconditionally when
+        -- the OOC manager had nothing to do, which meant a solo low-level
+        -- character sitting in a starter zone would never see the playstyle
+        -- rotation execute anything.
+    end
+    if context.on_gcd and context.in_combat then
+        return true
     end
     -- Global reaction delay: blocks ALL middleware + playstyle strategies.
     if reaction_delay_active(context) then
@@ -1036,13 +1099,13 @@ function M.on_rotation_update_unified()
     local active_source = (type(requested_playstyle) == "string" and requested_playstyle ~= "") and requested_playstyle
         or NS.get_setting("active_playstyle", config and config.default_playstyle)
     local active = normalize_playstyle(registry, active_source)
-    -- Auto-detect leveling/solo context: switch to leveling playstyle when no explicit playstyle is set
+    local auto_detected = false
     if (not requested_playstyle or requested_playstyle == "") and (context.is_leveling or context.is_solo) and registry and registry.playstyles and registry.playstyles.leveling then
         active = "leveling"
+        auto_detected = true
     end
-    -- Dynamic Auto-AoE: automatically switch to AoE playstyle when enemy_count >= threshold
     active = resolve_auto_aoe_playstyle(registry, active, context.enemy_count or 0)
-    if NS.set_setting and active ~= NS.get_setting("active_playstyle", nil) then
+    if not auto_detected and NS.set_setting and active ~= NS.get_setting("active_playstyle", nil) then
         NS.set_setting("active_playstyle", active)
     end
     context.active_playstyle = active

@@ -576,24 +576,56 @@ local function sync_quick_toggles()
     end
 end
 
+local _last_playstyle_combo_index = nil
+
 local function sync_playstyle_control()
     if not (framework_core and framework_core.set_setting and menu_elements.playstyle_combo) then return end
-    local ok, index = pcall(function() return menu_elements.playstyle_combo:get() end)
-    if not ok or type(index) ~= "number" then return end
-    local value = playstyle_keys[index] or playstyle_keys[index + 1] or playstyle_keys[1]
-    if type(value) ~= "string" or value == "" then return end
-    framework_core.set_setting("playstyle", value)
-    framework_core.set_setting("active_playstyle", value)
-    if _last_playstyle_log ~= value then
-        _last_playstyle_log = value
-        core.log("[EaxRotations] Active playstyle: " .. tostring(value))
+    local ok, combo_index = pcall(function() return menu_elements.playstyle_combo:get() end)
+    if not ok or type(combo_index) ~= "number" then return end
+
+    if _last_playstyle_combo_index == nil then
+        _last_playstyle_combo_index = combo_index
+        local value = playstyle_keys[combo_index]
+        if type(value) == "string" and value ~= "" then
+            framework_core.set_setting("playstyle", value)
+            if _last_playstyle_log ~= value then
+                _last_playstyle_log = value
+                core.log("[EaxRotations] Active playstyle: " .. tostring(value))
+            end
+        end
+        return
+    end
+
+    local current_playstyle = framework_core.get_setting and framework_core.get_setting("playstyle", nil)
+
+    -- Detect if user changed the combobox (index changed since last read)
+    if combo_index ~= _last_playstyle_combo_index then
+        -- User clicked the combobox — write selection to settings
+        local value = playstyle_keys[combo_index]
+        if type(value) == "string" and value ~= "" then
+            framework_core.set_setting("playstyle", value)
+            if _last_playstyle_log ~= value then
+                _last_playstyle_log = value
+                core.log("[EaxRotations] Active playstyle: " .. tostring(value))
+            end
+        end
+        _last_playstyle_combo_index = combo_index
+        return
+    end
+
+    if current_playstyle then
+        local setting_index = get_playstyle_index(current_playstyle)
+        if setting_index ~= combo_index then
+            pcall(function() menu_elements.playstyle_combo:set(setting_index) end)
+            _last_playstyle_combo_index = setting_index
+        end
     end
 end
 
 local function render_quick_toggles()
     menu_elements.quick_toggles_tree:render("Quick Toggles", function()
         if menu_elements.playstyle_combo and #playstyle_options > 0 then
-            menu_elements.playstyle_combo:render("Playstyle", playstyle_options, "Select active Warlock rotation.")
+            menu_elements.playstyle_combo:render("Playstyle", playstyle_options, "Select active " .. (class_config and class_config.class_name or "class") .. " rotation.")
         end
         for _, def in ipairs(quick_toggle_defs) do
             def.control:render(def.label, def.tooltip)
@@ -707,7 +739,41 @@ end
 -- UPDATE CALLBACK - Main Execution Loop
 -- ============================================================================
 
+local _on_update_tick_count = 0
+local _last_tick_log_s = 0
+local _on_update_first_print = false
+local _on_update_throttle_ms = 0
+local ON_UPDATE_INTERVAL_MS = 50
 local function on_update()
+    local now_ms = core.game_time and core.game_time() or 0
+    if now_ms - _on_update_throttle_ms < ON_UPDATE_INTERVAL_MS then
+        return
+    end
+    _on_update_throttle_ms = now_ms
+    if not _on_update_first_print then
+        _on_update_first_print = true
+        core.log("[EaxRotations:main] FIRST on_update CALL -- dispatcher is alive")
+    end
+    _on_update_tick_count = _on_update_tick_count + 1
+    -- Aggressive throttled log: every 3s confirms the dispatcher is alive
+    -- and shows key state (combat, target, active playstyle).
+    local _now_s = framework_core and framework_core.time_now and framework_core.time_now() or 0
+    if _now_s - _last_tick_log_s > 3 then
+        _last_tick_log_s = _now_s
+        local _player = core.object_manager and pcall(core.object_manager.get_local_player) and core.object_manager.get_local_player() or nil
+        local _alive = _player and pcall(function() return _player:is_alive() end) and (_player:is_alive() ~= false) or false
+        local _ps = framework_core and framework_core.get_setting and (framework_core.get_setting("playstyle", "none") or "none")
+        local _roten = framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) ~= false
+        local _t = _player and _player.get_target and pcall(function() return _player:get_target() end) and _player:get_target() or nil
+        core.log(string.format(
+            "[EaxRotations:main] TICK #%d (rate~%dHz): alive=%s target=%s playstyle=%s rotation_enabled=%s",
+            _on_update_tick_count,
+            (_on_update_tick_count > 6) and math.floor(_on_update_tick_count / 3) or 0,
+            tostring(_alive),
+            tostring(_t ~= nil),
+            tostring(_ps),
+            tostring(_roten)))
+    end
     -- One-shot heartbeat: logs exactly once to confirm this callback fires
     if not _on_update_heartbeat_logged then
         _on_update_heartbeat_logged = true
@@ -716,7 +782,8 @@ local function on_update()
     if framework_core.runtime_generation ~= runtime_generation then
         local now_s = NS and NS.time_now and NS.time_now() or 0
         if now_s - (_last_gen_mismatch_log or 0) > 3 then
-            core.log("[EaxRotations:main] EXIT: runtime_generation mismatch (local=" .. tostring(runtime_generation) .. " core=" .. tostring(framework_core.runtime_generation) .. ")")
+            print("[EaxRotations:main] EXIT: gen mismatch local=" .. tostring(runtime_generation) .. " core=" .. tostring(framework_core.runtime_generation))
+            core.log("[EaxRotations:main] EXIT: gen mismatch local=" .. tostring(runtime_generation) .. " core=" .. tostring(framework_core.runtime_generation))
             _last_gen_mismatch_log = now_s
         end
         return
@@ -783,12 +850,7 @@ local function on_update()
             end
         end
 
-        -- [#P1] Skip the bulk schema widget sync (~30-50 pcall) when rotation is disabled.
-        -- Quick toggles (keybind read) already ran above; nothing to push to settings.
         if rotation_enabled then
-            -- [#11] Only sync settings that actually changed since last frame.
-            -- Avoids 30-60+ redundant set_setting calls per frame for unchanged checkboxes/sliders.
-            -- Already at frame-skip rate (~20Hz).
             for key, widget in pairs(schema_widgets) do
                 local sync_ok, value = pcall(function()
                     return widget.sync and widget.sync() or nil
@@ -806,16 +868,6 @@ local function on_update()
                     if value ~= last_val then
                         schema_widget_last_values[key] = value
                         framework_core.set_setting(key, value)
-                    end
-                    if key == "playstyle" and type(value) == "string" then
-                        local active_value = framework_core.get_setting and framework_core.get_setting("active_playstyle", nil) or nil
-                        if active_value ~= value then
-                            framework_core.set_setting("active_playstyle", value)
-                        end
-                        if _last_playstyle_log ~= value then
-                            _last_playstyle_log = value
-                            core.log("[EaxRotations] Active playstyle: " .. tostring(value))
-                        end
                     end
                 end
             end
@@ -854,12 +906,12 @@ local function on_update()
         return -- Player object is garbage-collected / invalid
     end
 
-    -- DecisionCache invalidation is handled by main_sylvanas.lua:on_rotation_update()
-    -- which calls NS.DecisionCache:check_invalidation(context) with FULL context
-    -- (enemies, haste buffs, combat time, etc.). The removed duplicate here only
-    -- had partial fields. Running twice per frame is redundant AND lower quality.
+    local is_in_combat_fast = me and me.is_in_combat and pcall(function() return me:is_in_combat() end) and me:is_in_combat() or false
+    local has_target_fast = me and me.get_target and pcall(function() return me:get_target() end) and me:get_target() or nil
+    if not is_in_combat_fast and not has_target_fast then
+        return
+    end
 
-    -- Execute rotation via framework
     if not _post_guards_logged then
         _post_guards_logged = true
         core.log("[EaxRotations:main] ALL-GUARDS-PASSED: reached dispatcher block")
@@ -885,7 +937,15 @@ end
 -- to 1 for the whole plugin, removing the previous 60Hz no-op spam that
 -- caused measurable FPS drops on weak CPUs.
 if NS and NS.register_on_update_callback then
-    NS.register_on_update_callback(on_update)
+    local _reg_ok = NS.register_on_update_callback(on_update)
+    print("[EaxRotations:main] REGISTER result=" .. tostring(_reg_ok))
+    core.log("[EaxRotations:main] REGISTER result=" .. tostring(_reg_ok))
+    if not _reg_ok then
+        core.log_error("[EaxRotations:main] FAIL: NS.register_on_update_callback returned false -- on_update will NEVER fire")
+    end
+else
+    print("[EaxRotations:main] FAIL: NS.register_on_update_callback is nil -- PS build missing API")
+    core.log_error("[EaxRotations:main] FAIL: NS.register_on_update_callback is nil -- PS build missing API")
 end
 if type(core.register_on_render_menu_callback) == "function" then
     pcall(core.register_on_render_menu_callback, render_menu)
