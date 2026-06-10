@@ -1,18 +1,15 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Darken Vision",
-    "icon": "spell_shadow_fumble",
-    "range": 20,
-    "cast_time": 2,
-    "required_level": 5,
-    "description": "Reduces an enemy's chance to hit by 25% for 12 sec.",
-    "duration": 12,
-    "target_type": "hostile",
-    "has_buff": true,
-    "buff_duration": 12,
-    "buff_text": "Chance to hit reduced by 25%."
-  },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:17:38"
+  "name": "Darken Vision",
+  "icon": "spell_shadow_fumble",
+  "range": 20,
+  "cast_time": 2,
+  "required_level": 5,
+  "description": "Reduces an enemy's chance to hit by 25% for 12 sec.",
+  "duration": 12,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 12,
+  "buff_text": "Chance to hit reduced by 25%.",
+  "_id": 5514,
+  "_source": "wowhead"
 }

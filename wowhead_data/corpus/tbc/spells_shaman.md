@@ -1,6 +1,6 @@
 # Shaman Spells — TBC
 
-Total: 88 spells
+Total: 131 spells
 
 ---
 
@@ -56,6 +56,29 @@ Total: 88 spells
 
 ---
 
+## Purge [ID: 370]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 12
+- **Cast Time**: Instant
+- **Range**: 30 yd
+- **Description**: Purges the enemy target, removing 1 beneficial magic effect.
+
+---
+
+## Lightning Bolt [ID: 403]
+- **Class**: Shaman
+- **School**: Nature
+- **Required Level**: 1
+- **Spell Level**: 70
+- **Cast Time**: 1.5s
+- **Cost**: 15 mana
+- **Range**: 30 yd
+- **Description**: Casts a bolt of lightning at the target for 15 to 17 Nature damage.
+- **Damage**: 15-17 Nature
+
+---
+
 ## Chain Lightning [ID: 421]
 - **Class**: Shaman
 - **School**: Nature
@@ -71,6 +94,29 @@ Total: 88 spells
 
 ---
 
+## Cure Poison [ID: 526]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 16
+- **Cast Time**: Instant
+- **Range**: 40 yd
+- **Description**: Cures 1 poison effect on the target.
+
+---
+
+## Lightning Bolt [ID: 529]
+- **Class**: Shaman
+- **School**: Nature
+- **Required Level**: 8
+- **Spell Level**: 70
+- **Cast Time**: 2s
+- **Cost**: 25 mana
+- **Range**: 30 yd
+- **Description**: Casts a bolt of lightning at the target for 28 to 33 Nature damage.
+- **Damage**: 28-33 Nature
+
+---
+
 ## Healing Wave [ID: 547]
 - **Class**: Shaman
 - **School**: Unknown
@@ -81,6 +127,19 @@ Total: 88 spells
 - **Range**: 40 yd
 - **Description**: Heals a friendly target for 136 to 163.
 - **Tags**: heal
+
+---
+
+## Lightning Bolt [ID: 548]
+- **Class**: Shaman
+- **School**: Nature
+- **Required Level**: 14
+- **Spell Level**: 70
+- **Cast Time**: 2.5s
+- **Cost**: 40 mana
+- **Range**: 30 yd
+- **Description**: Casts a bolt of lightning at the target for 48 to 57 Nature damage.
+- **Damage**: 48-57 Nature
 
 ---
 
@@ -110,6 +169,19 @@ Total: 88 spells
 
 ---
 
+## Lightning Bolt [ID: 915]
+- **Class**: Shaman
+- **School**: Nature
+- **Required Level**: 20
+- **Spell Level**: 70
+- **Cast Time**: 2.5s
+- **Cost**: 70 mana
+- **Range**: 30 yd
+- **Description**: Casts a bolt of lightning at the target for 88 to 100 Nature damage.
+- **Damage**: 88-100 Nature
+
+---
+
 ## Chain Lightning [ID: 930]
 - **Class**: Shaman
 - **School**: Nature
@@ -135,6 +207,19 @@ Total: 88 spells
 - **Range**: 40 yd
 - **Description**: Heals a friendly target for 389 to 454.
 - **Tags**: heal
+
+---
+
+## Lightning Bolt [ID: 943]
+- **Class**: Shaman
+- **School**: Nature
+- **Required Level**: 26
+- **Spell Level**: 70
+- **Cast Time**: 2.5s
+- **Cost**: 95 mana
+- **Range**: 30 yd
+- **Description**: Casts a bolt of lightning at the target for 131 to 149 Nature damage.
+- **Damage**: 131-149 Nature
 
 ---
 
@@ -191,6 +276,33 @@ Total: 88 spells
 
 ---
 
+## Fire Nova Totem [ID: 1535]
+- **Class**: Shaman
+- **School**: Fire
+- **Required Level**: 12
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 95 mana
+- **Cooldown**: 15 sec cooldown
+- **Description**: Summons a Fire Nova Totem that has 5 health and lasts 5 sec.  Unless it is destroyed within 4 sec., the totem inflicts 53 to 62 fire damage to enemies within 10 yd.
+- **Damage**: 53-62 Fire
+- **Duration**: 5s
+- **Tags**: aoe
+
+---
+
+## Earthbind Totem [ID: 2484]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 6
+- **Cast Time**: Instant
+- **Cooldown**: 15 sec cooldown
+- **Description**: Summons an Earthbind Totem with 5 health at the feet of the caster for 45 sec that slows the movement speed of enemies within 10 yards.
+- **Duration**: 45s
+- **Tags**: aoe
+
+---
+
 ## Bloodlust [ID: 2825]
 - **Class**: Shaman
 - **School**: Unknown
@@ -220,6 +332,39 @@ Total: 88 spells
 
 ---
 
+## Cure Disease [ID: 2870]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 22
+- **Cast Time**: Instant
+- **Range**: 40 yd
+- **Description**: Cures 1 disease on the target.
+
+---
+
+## Searing Totem [ID: 3599]
+- **Class**: Shaman
+- **School**: Fire
+- **Required Level**: 10
+- **Cast Time**: Instant
+- **Cost**: 25 mana
+- **Description**: Summons a Searing Totem with 5 health at your feet for 30 sec that repeatedly attacks an enemy within 20 yards for 9 to 11 Fire damage.
+- **Damage**: 9-11 Fire
+- **Duration**: 30s
+
+---
+
+## Wrath of Air Totem [ID: 3738]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 64
+- **Cast Time**: Instant
+- **Cost**: 320 mana
+- **Description**: Summons a Wrath of Air Totem with 5 health at the feet of the caster.  Party members within 20 yards of the totem have their spell damage and healing increased by up to 101.  Lasts 2 min.
+- **Duration**: 120s
+
+---
+
 ## Mana Spring Totem [ID: 5675]
 - **Class**: Shaman
 - **School**: Unknown
@@ -227,6 +372,113 @@ Total: 88 spells
 - **Cast Time**: Instant
 - **Cost**: 40 mana
 - **Description**: Summons a Mana Spring Totem with 5 health at the feet of the caster for 2 min that restores 6 mana every 2 seconds to group members within 20 yards.
+
+---
+
+## Stoneclaw Totem [ID: 5730]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 8
+- **Cast Time**: Instant
+- **Cost**: 15 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Summons a Stoneclaw Totem with 50 health at the feet of the caster for 15 sec that taunts creatures within 8 yards to attack it.  Enemies attacking the Stoneclaw Totem have a 50% chance to be stunned for 3 sec.
+- **Duration**: 15s
+
+---
+
+## Lightning Bolt [ID: 6041]
+- **Class**: Shaman
+- **School**: Nature
+- **Required Level**: 32
+- **Spell Level**: 70
+- **Cast Time**: 2.5s
+- **Cost**: 125 mana
+- **Range**: 30 yd
+- **Description**: Casts a bolt of lightning at the target for 179 to 202 Nature damage.
+- **Damage**: 179-202 Nature
+
+---
+
+## Searing Totem [ID: 6363]
+- **Class**: Shaman
+- **School**: Fire
+- **Required Level**: 20
+- **Cast Time**: Instant
+- **Cost**: 45 mana
+- **Description**: Summons a Searing Totem with 5 health at your feet for 35 sec that repeatedly attacks an enemy within 20 yards for 13 to 17 Fire damage.
+- **Damage**: 13-17 Fire
+- **Duration**: 35s
+
+---
+
+## Searing Totem [ID: 6364]
+- **Class**: Shaman
+- **School**: Fire
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Cost**: 75 mana
+- **Description**: Summons a Searing Totem with 5 health at your feet for 40 sec that repeatedly attacks an enemy within 20 yards for 19 to 25 Fire damage.
+- **Damage**: 19-25 Fire
+- **Duration**: 40s
+
+---
+
+## Searing Totem [ID: 6365]
+- **Class**: Shaman
+- **School**: Fire
+- **Required Level**: 40
+- **Cast Time**: Instant
+- **Cost**: 110 mana
+- **Description**: Summons a Searing Totem with 5 health at your feet for 45 sec that repeatedly attacks an enemy within 20 yards for 26 to 34 Fire damage.
+- **Damage**: 26-34 Fire
+- **Duration**: 45s
+
+---
+
+## Healing Stream Totem [ID: 6375]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Cost**: 50 mana
+- **Description**: Summons a Healing Stream Totem with 5 health at the feet of the caster for 2 min that heals group members within 20 yards for 8 every 2 seconds.
+- **Tags**: heal
+
+---
+
+## Healing Stream Totem [ID: 6377]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 40
+- **Cast Time**: Instant
+- **Cost**: 60 mana
+- **Description**: Summons a Healing Stream Totem with 5 health at the feet of the caster for 2 min that heals group members within 20 yards for 10 every 2 seconds.
+- **Tags**: heal
+
+---
+
+## Stoneclaw Totem [ID: 6390]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 18
+- **Cast Time**: Instant
+- **Cost**: 30 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Summons a Stoneclaw Totem with 150 health at the feet of the caster for 15 sec that taunts creatures within 8 yards to attack it.  Enemies attacking the Stoneclaw Totem have a 50% chance to be stunned for 3 sec.
+- **Duration**: 15s
+
+---
+
+## Stoneclaw Totem [ID: 6391]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 28
+- **Cast Time**: Instant
+- **Cost**: 55 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Summons a Stoneclaw Totem with 220 health at the feet of the caster for 15 sec that taunts creatures within 8 yards to attack it.  Enemies attacking the Stoneclaw Totem have a 50% chance to be stunned for 3 sec.
+- **Duration**: 15s
 
 ---
 
@@ -279,6 +531,112 @@ Total: 88 spells
 - **Range**: 40 yd
 - **Description**: Heals a friendly target for 349 to 394.
 - **Tags**: heal
+
+---
+
+## Purge [ID: 8012]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 32
+- **Cast Time**: Instant
+- **Range**: 30 yd
+- **Description**: Purges the enemy target, removing 2 beneficial magic effects.
+
+---
+
+## Rockbiter Weapon [ID: 8017]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 1
+- **Cast Time**: Instant
+- **Cost**: 15 mana
+- **Description**: Imbue the Shaman's weapon, increasing its damage per second by 2.  Lasts 30 minutes.
+- **Duration**: 1800s
+
+---
+
+## Rockbiter Weapon [ID: 8018]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 8
+- **Cast Time**: Instant
+- **Cost**: 25 mana
+- **Description**: Imbue the Shaman's weapon, increasing its damage per second by 4.  Lasts 30 minutes.
+- **Duration**: 1800s
+
+---
+
+## Rockbiter Weapon [ID: 8019]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 16
+- **Cast Time**: Instant
+- **Cost**: 50 mana
+- **Description**: Imbue the Shaman's weapon, increasing its damage per second by 6.  Lasts 30 minutes.
+- **Duration**: 1800s
+
+---
+
+## Flametongue Weapon [ID: 8024]
+- **Class**: Shaman
+- **School**: Fire
+- **Required Level**: 10
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 30 mana
+- **Description**: Imbue the Shaman's weapon with fire.  Each hit causes 6 to 18 additional Fire damage, based on the speed of the weapon.  Slower weapons cause more fire damage per swing.  Lasts 30 minutes.
+- **Damage**: 6-18 Fire
+- **Duration**: 1800s
+
+---
+
+## Flametongue Weapon [ID: 8027]
+- **Class**: Shaman
+- **School**: Fire
+- **Required Level**: 18
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 55 mana
+- **Description**: Imbue the Shaman's weapon with fire.  Each hit causes 9 to 26 additional Fire damage, based on the speed of the weapon.  Slower weapons cause more fire damage per swing.  Lasts 30 minutes.
+- **Damage**: 9-26 Fire
+- **Duration**: 1800s
+
+---
+
+## Flametongue Weapon [ID: 8030]
+- **Class**: Shaman
+- **School**: Fire
+- **Required Level**: 26
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 80 mana
+- **Description**: Imbue the Shaman's weapon with fire.  Each hit causes 14 to 42 additional Fire damage, based on the speed of the weapon.  Slower weapons cause more fire damage per swing.  Lasts 30 minutes.
+- **Damage**: 14-42 Fire
+- **Duration**: 1800s
+
+---
+
+## Frostbrand Weapon [ID: 8033]
+- **Class**: Shaman
+- **School**: Frost
+- **Required Level**: 20
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 60 mana
+- **Description**: Imbue the Shaman's weapon with frost.  Each hit has a chance of causing 48 additional Frost damage and slowing the target's movement speed by 25% for 8 sec.  Lasts 30 minutes.
+- **Duration**: 1800s
+
+---
+
+## Frostbrand Weapon [ID: 8038]
+- **Class**: Shaman
+- **School**: Frost
+- **Required Level**: 28
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 85 mana
+- **Description**: Imbue the Shaman's weapon with frost.  Each hit has a chance of causing 77 additional Frost damage and slowing the target's movement speed by 25% for 8 sec.  Lasts 30 minutes.
+- **Duration**: 1800s
 
 ---
 
@@ -393,6 +751,51 @@ Total: 88 spells
 
 ---
 
+## Frost Shock [ID: 8056]
+- **Class**: Shaman
+- **School**: Frost
+- **Required Level**: 20
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 115 mana
+- **Range**: 20 yd
+- **Cooldown**: 6 sec cooldown
+- **Description**: Instantly shocks the target with frost, causing 95 to 101 Frost damage and slowing movement speed by 50%.  Lasts 8 sec.  Causes a high amount of threat.
+- **Damage**: 95-101 Frost
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: Movement slowed by 50%.
+
+---
+
+## Frost Shock [ID: 8058]
+- **Class**: Shaman
+- **School**: Frost
+- **Required Level**: 34
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 225 mana
+- **Range**: 20 yd
+- **Cooldown**: 6 sec cooldown
+- **Description**: Instantly shocks the target with frost, causing 215 to 230 Frost damage and slowing movement speed by 50%.  Lasts 8 sec.  Causes a high amount of threat.
+- **Damage**: 215-230 Frost
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: Movement slowed by 50%.
+
+---
+
+## Stoneskin Totem [ID: 8071]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 4
+- **Cast Time**: Instant
+- **Cost**: 30 mana
+- **Description**: Summons a Stoneskin Totem with 5 health at the feet of the caster.  The totem protects party members within 20 yards, reducing melee damage taken by 4.  Lasts 2 min.
+- **Duration**: 120s
+
+---
+
 ## Strength of Earth Totem [ID: 8075]
 - **Class**: Shaman
 - **School**: Unknown
@@ -417,6 +820,47 @@ Total: 88 spells
 
 ---
 
+## Tremor Totem [ID: 8143]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 18
+- **Cast Time**: Instant
+- **Cost**: 60 mana
+- **Description**: Summons a Tremor Totem with 5 health at the feet of the caster that shakes the ground around it, removing Fear, Charm and Sleep effects from party members within 30 yards.  Lasts 2 min.
+- **Duration**: 120s
+
+---
+
+## Tremor Totem Passive [ID: 8145]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 18
+- **Cast Time**: Instant
+
+---
+
+## Stoneskin Totem [ID: 8154]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 14
+- **Cast Time**: Instant
+- **Cost**: 60 mana
+- **Description**: Summons a Stoneskin Totem with 5 health at the feet of the caster.  The totem protects party members within 20 yards, reducing melee damage taken by 7.  Lasts 2 min.
+- **Duration**: 120s
+
+---
+
+## Stoneskin Totem [ID: 8155]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 24
+- **Cast Time**: Instant
+- **Cost**: 90 mana
+- **Description**: Summons a Stoneskin Totem with 5 health at the feet of the caster.  The totem protects party members within 20 yards, reducing melee damage taken by 11.  Lasts 2 min.
+- **Duration**: 120s
+
+---
+
 ## Strength of Earth Totem [ID: 8160]
 - **Class**: Shaman
 - **School**: Unknown
@@ -436,6 +880,62 @@ Total: 88 spells
 - **Cost**: 125 mana
 - **Description**: Summons a Strength of Earth Totem with 5 health at the feet of the caster.  The totem increases the strength of party members within 20 yards by 36.  Lasts 2 min.
 - **Duration**: 120s
+
+---
+
+## Poison Cleansing Totem [ID: 8166]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 22
+- **Cast Time**: Instant
+- **Description**: Summons a Poison Cleansing Totem with 5 health at the feet of the caster that attempts to remove 1 poison effect from party members within 20 yards every 5 seconds.  Lasts 2 min.
+- **Duration**: 120s
+
+---
+
+## Grounding Totem [ID: 8177]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Cooldown**: 15 sec cooldown
+- **Description**: Summons a Grounding Totem with 5 health at the feet of the caster that will redirect one harmful spell cast on a nearby party member to itself, destroying the totem.  Will not redirect area of effect spells.  Lasts 45 sec.
+- **Duration**: 45s
+
+---
+
+## Magma Totem [ID: 8190]
+- **Class**: Shaman
+- **School**: Fire
+- **Required Level**: 26
+- **Cast Time**: Instant
+- **Cost**: 230 mana
+- **Description**: Summons a Magma Totem with 5 health at the feet of the caster for 20 sec that causes 22 Fire damage to creatures within 8 yards every 2 seconds.
+- **Duration**: 20s
+
+---
+
+## Windfury Weapon [ID: 8232]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 30
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 90 mana
+- **Description**: Imbue the Shaman's weapon with wind.  Each hit has a 20% chance of dealing additional damage equal to two extra attacks with 104 extra attack power.  Lasts 30 minutes.
+- **Duration**: 1800s
+
+---
+
+## Windfury Weapon [ID: 8235]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 40
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 115 mana
+- **Description**: Imbue the Shaman's weapon with wind.  Each hit has a 20% chance of dealing additional damage equal to two extra attacks with 222 extra attack power.  Lasts 30 minutes.
+- **Duration**: 1800s
 
 ---
 
@@ -837,6 +1337,14 @@ Total: 88 spells
 - **Duration**: 600s
 - **Buff Duration**: 600s
 - **Buff**: 43 mana per 5 sec.  Attacks and spells used against you restore 182 mana.  3 charges.
+
+---
+
+## Spirit Totem [ID: 25001]
+- **Class**: Shaman
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: Instant
 
 ---
 

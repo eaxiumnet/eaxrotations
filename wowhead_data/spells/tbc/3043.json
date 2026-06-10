@@ -1,0 +1,20 @@
+{
+  "name": "Scorpid Sting",
+  "icon": "ability_hunter_criticalshot",
+  "cost": {
+    "type": "mana",
+    "percent": 9
+  },
+  "range": 35,
+  "required_class": "Hunter",
+  "required_level": 22,
+  "requires_weapon": "Ranged Weapon",
+  "description": "Stings the target, reducing chance to hit with melee and ranged attacks by 5% for 20 sec.  Only one Sting per Hunter can be active on any one target.",
+  "duration": 20,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 20,
+  "buff_text": "Chance to hit with melee and ranged attacks reduced by 5%.",
+  "_id": 3043,
+  "_source": "wowhead"
+}

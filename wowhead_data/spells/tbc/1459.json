@@ -1,0 +1,19 @@
+{
+  "name": "Arcane Intellect",
+  "icon": "spell_holy_magicalsentry",
+  "cost": {
+    "type": "mana",
+    "amount": 25
+  },
+  "range": 30,
+  "cast_time": 0,
+  "required_class": "Mage",
+  "required_level": 1,
+  "description": "Increases the target's Intellect by 2 for 30 min.",
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 1800,
+  "buff_text": "Increases Intellect by 2.",
+  "_id": 1459,
+  "_source": "wowhead"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Great Stamina",
+  "icon": "spell_nature_unyeildingstamina",
+  "range": 100,
+  "cast_time": 0,
+  "required_class": "Hunter",
+  "required_level": 18,
+  "description": "Stamina increased by 7.",
+  "_id": 4197,
+  "_source": "wowhead"
+}

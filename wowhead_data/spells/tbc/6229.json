@@ -1,23 +1,20 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Shadow Ward",
-    "icon": "spell_shadow_antishadow",
-    "cost": {
-      "type": "mana",
-      "amount": 135
-    },
-    "cast_time": 0,
-    "cooldown": "30 sec cooldown",
-    "required_class": "Warlock",
-    "required_level": 32,
-    "description": "Absorbs 290 shadow damage.  Lasts 30 sec.",
-    "school": "shadow",
-    "duration": 30,
-    "has_buff": true,
-    "buff_duration": 30,
-    "buff_text": "Absorbs Shadow damage."
+  "name": "Shadow Ward",
+  "icon": "spell_shadow_antishadow",
+  "cost": {
+    "type": "mana",
+    "amount": 135
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:17:48"
+  "cast_time": 0,
+  "cooldown": "30 sec cooldown",
+  "required_class": "Warlock",
+  "required_level": 32,
+  "description": "Absorbs 290 shadow damage.  Lasts 30 sec.",
+  "school": "shadow",
+  "duration": 30,
+  "has_buff": true,
+  "buff_duration": 30,
+  "buff_text": "Absorbs Shadow damage.",
+  "_id": 6229,
+  "_source": "wowhead"
 }

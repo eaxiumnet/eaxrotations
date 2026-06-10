@@ -162,23 +162,21 @@ end
 function M.on_combat_update(context, playstyle)
     if not context or not context.in_combat then return false end
 
-    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
-
     if playstyle == "elemental" then
-        if M.place_searing() then if debug then NS.log("[TOTEM] Searing Totem") end; return true end
-        if M.place_mana_spring() then if debug then NS.log("[TOTEM] Mana Spring") end; return true end
-        if M.place_windfury() then if debug then NS.log("[TOTEM] Windfury") end; return true end
+        if M.place_searing() then return true end
+        if M.place_mana_spring() then return true end
+        if M.place_windfury() then return true end
     elseif playstyle == "enhancement" then
-        if M.place_windfury() then if debug then NS.log("[TOTEM] Windfury") end; return true end
-        if M.place_strength() then if debug then NS.log("[TOTEM] Strength of Earth") end; return true end
-        if M.place_mana_spring() then if debug then NS.log("[TOTEM] Mana Spring") end; return true end
+        if M.place_windfury() then return true end
+        if M.place_strength() then return true end
+        if M.place_mana_spring() then return true end
     elseif playstyle == "restoration" then
-        if M.place_mana_spring() then if debug then NS.log("[TOTEM] Mana Spring") end; return true end
-        if M.place_healing_stream() then if debug then NS.log("[TOTEM] Healing Stream") end; return true end
-        if M.place_stoneclaw() then if debug then NS.log("[TOTEM] Stoneclaw") end; return true end
+        if M.place_mana_spring() then return true end
+        if M.place_healing_stream() then return true end
+        if M.place_stoneclaw() then return true end
     else
-        if M.place_windfury() then if debug then NS.log("[TOTEM] Windfury") end; return true end
-        if M.place_strength() then if debug then NS.log("[TOTEM] Strength of Earth") end; return true end
+        if M.place_windfury() then return true end
+        if M.place_strength() then return true end
     end
     return false
 end

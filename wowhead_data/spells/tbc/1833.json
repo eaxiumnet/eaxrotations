@@ -1,24 +1,21 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Cheap Shot",
-    "icon": "ability_cheapshot",
-    "cost": {
-      "type": "energy",
-      "amount": 60
-    },
-    "range": "melee",
-    "cast_time": 0,
-    "required_class": "Rogue",
-    "required_level": 26,
-    "requires_weapon": "Melee Weapon",
-    "description": "Stuns the target for 4 sec.  Must be stealthed.  Awards 2 combo points.",
-    "duration": 4,
-    "target_type": "hostile",
-    "has_buff": true,
-    "buff_duration": 4,
-    "buff_text": "Stunned."
+  "name": "Cheap Shot",
+  "icon": "ability_cheapshot",
+  "cost": {
+    "type": "energy",
+    "amount": 60
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:17:17"
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Rogue",
+  "required_level": 26,
+  "requires_weapon": "Melee Weapon",
+  "description": "Stuns the target for 4 sec.  Must be stealthed.  Awards 2 combo points.",
+  "duration": 4,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 4,
+  "buff_text": "Stunned.",
+  "_id": 1833,
+  "_source": "wowhead"
 }

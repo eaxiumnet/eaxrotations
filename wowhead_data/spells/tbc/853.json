@@ -1,24 +1,21 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Hammer of Justice",
-    "icon": "spell_holy_sealofmight",
-    "cost": {
-      "type": "mana",
-      "amount": 30
-    },
-    "range": 10,
-    "cast_time": 0,
-    "cooldown": "1 min cooldown",
-    "required_class": "Paladin",
-    "required_level": 8,
-    "description": "Stuns the target for 3 sec.",
-    "duration": 3,
-    "target_type": "hostile",
-    "has_buff": true,
-    "buff_duration": 3,
-    "buff_text": "Stunned."
+  "name": "Hammer of Justice",
+  "icon": "spell_holy_sealofmight",
+  "cost": {
+    "type": "mana",
+    "amount": 30
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:16:24"
+  "range": 10,
+  "cast_time": 0,
+  "cooldown": "1 min cooldown",
+  "required_class": "Paladin",
+  "required_level": 8,
+  "description": "Stuns the target for 3 sec.",
+  "duration": 3,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 3,
+  "buff_text": "Stunned.",
+  "_id": 853,
+  "_source": "wowhead"
 }

@@ -1,0 +1,18 @@
+{
+  "name": "Shield Bash",
+  "icon": "ability_warrior_shieldbash",
+  "cost": {
+    "type": "rage",
+    "amount": 10
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "cooldown": "12 sec cooldown",
+  "required_class": "Warrior",
+  "required_level": 32,
+  "description": "Bashes the target with your shield for 18 damage.  It also interrupts spellcasting and prevents any spell in that school from being cast for 6 sec.",
+  "duration": 6,
+  "target_type": "hostile",
+  "_id": 1671,
+  "_source": "wowhead"
+}

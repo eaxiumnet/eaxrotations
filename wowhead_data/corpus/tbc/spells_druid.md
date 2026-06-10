@@ -1,6 +1,6 @@
 # Druid Spells — TBC
 
-Total: 146 spells
+Total: 174 spells
 
 ---
 
@@ -19,6 +19,51 @@ Total: 146 spells
 
 ---
 
+## Entangling Roots [ID: 339]
+- **Class**: Druid
+- **School**: Nature
+- **Required Level**: 8
+- **Cast Time**: 1.5s
+- **Cost**: 50 mana
+- **Range**: 30 yd
+- **Description**: Roots the target in place and causes 20 Nature damage over 12 sec.  Damage caused may interrupt the effect.  Only useable outdoors.
+- **Periodic**: 5 Nature every 3s
+- **Duration**: 12s
+- **Buff Duration**: 12s
+- **Buff**: Rooted.  Causes 5 Nature damage every 3 seconds.
+
+---
+
+## Thorns [ID: 467]
+- **Class**: Druid
+- **School**: Nature
+- **Required Level**: 6
+- **Cast Time**: Instant
+- **Cost**: 35 mana
+- **Range**: 30 yd
+- **Description**: Thorns sprout from the friendly target causing 3 Nature damage to attackers when hit.  Lasts 10 min.
+- **Duration**: 600s
+- **Buff Duration**: 600s
+- **Buff**: Causes 3 Nature damage to attackers.
+
+---
+
+## Tranquility [ID: 740]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 30
+- **Spell Level**: 70
+- **Cast Time**: 8s
+- **Cost**: 525 mana
+- **Cooldown**: 10 min cooldown
+- **Description**: Heals all nearby group members for 365 every 2 seconds for 8 sec.  Druid must channel to maintain the spell.
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: Heals nearby party members for 365 every 2 seconds.
+- **Tags**: heal
+
+---
+
 ## Cat Form [ID: 768]
 - **Class**: Druid
 - **School**: Unknown
@@ -27,6 +72,18 @@ Total: 146 spells
 - **Description**: Shapeshift into cat form, increasing melee attack power by 40 plus Agility.  Also protects the caster from Polymorph effects and allows the use of various cat abilities.The act of shapeshifting frees the caster of Polymorph and Movement Impairing effects.
 - **Buff Duration**: ?s
 - **Buff**: Immunity to Polymorph effects.  Increases melee attack power by 40 plus Agility.
+
+---
+
+## Swipe [ID: 769]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 34
+- **Cast Time**: Instant
+- **Cost**: 20 rage
+- **Range**: melee yd
+- **Description**: Swipe 3 nearby enemies, inflicting 21 damage.  Damage increased by attack power.
+- **Tags**: aoe
 
 ---
 
@@ -85,6 +142,43 @@ Total: 146 spells
 
 ---
 
+## Swipe [ID: 780]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 24
+- **Cast Time**: Instant
+- **Cost**: 20 rage
+- **Range**: melee yd
+- **Description**: Swipe 3 nearby enemies, inflicting 14 damage.  Damage increased by attack power.
+- **Tags**: aoe
+
+---
+
+## Thorns [ID: 782]
+- **Class**: Druid
+- **School**: Nature
+- **Required Level**: 14
+- **Cast Time**: Instant
+- **Cost**: 60 mana
+- **Range**: 30 yd
+- **Description**: Thorns sprout from the friendly target causing 6 Nature damage to attackers when hit.  Lasts 10 min.
+- **Duration**: 600s
+- **Buff Duration**: 600s
+- **Buff**: Causes 6 Nature damage to attackers.
+
+---
+
+## Travel Form [ID: 783]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Description**: Shapeshift into travel form, increasing movement speed by 40%.  Also protects the caster from Polymorph effects.  Only useable outdoors.The act of shapeshifting frees the caster of Polymorph and Movement Impairing effects.
+- **Buff Duration**: ?s
+- **Buff**: Immune to Polymorph effects.  Movement speed increased by 40%.
+
+---
+
 ## Rejuvenation [ID: 1058]
 - **Class**: Druid
 - **School**: Unknown
@@ -97,6 +191,35 @@ Total: 146 spells
 - **Buff Duration**: 12s
 - **Buff**: Heals 14 damage every 3 seconds.
 - **Tags**: heal
+
+---
+
+## Entangling Roots [ID: 1062]
+- **Class**: Druid
+- **School**: Nature
+- **Required Level**: 18
+- **Cast Time**: 1.5s
+- **Cost**: 65 mana
+- **Range**: 30 yd
+- **Description**: Roots the target in place and causes 50 Nature damage over 15 sec.  Damage caused may interrupt the effect.  Only useable outdoors.
+- **Periodic**: 10 Nature every 3s
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: Rooted.  Causes 10 Nature damage every 3 seconds.
+
+---
+
+## Thorns [ID: 1075]
+- **Class**: Druid
+- **School**: Nature
+- **Required Level**: 24
+- **Cast Time**: Instant
+- **Cost**: 105 mana
+- **Range**: 30 yd
+- **Description**: Thorns sprout from the friendly target causing 9 Nature damage to attackers when hit.  Lasts 10 min.
+- **Duration**: 600s
+- **Buff Duration**: 600s
+- **Buff**: Causes 9 Nature damage to attackers.
 
 ---
 
@@ -122,6 +245,19 @@ Total: 146 spells
 - **Cost**: 45 energy
 - **Range**: melee yd
 - **Description**: Claw the enemy, causing 27 additional damage.  Awards 1 combo point.
+
+---
+
+## Mark of the Wild [ID: 1126]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 1
+- **Cast Time**: Instant
+- **Cost**: 20 mana
+- **Range**: 30 yd
+- **Description**: Increases the friendly target's armor by 25 for 30 min.
+- **Buff Duration**: 1800s
+- **Buff**: Increases armor by 25.
 
 ---
 
@@ -169,6 +305,47 @@ Total: 146 spells
 
 ---
 
+## Rake [ID: 1823]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 34
+- **Cast Time**: Instant
+- **Cost**: 40 energy
+- **Range**: melee yd
+- **Description**: Rake the target for (Attack Power / 100 + 26) bleed damage and an additional (15 * 3 + Attack Power * 0.06) damage over 9 sec.  Awards 1 combo point.
+- **Duration**: 9s
+- **Buff Duration**: 9s
+- **Buff**: Bleeding for 15 damage every 3 seconds.
+
+---
+
+## Rake [ID: 1824]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 44
+- **Cast Time**: Instant
+- **Cost**: 40 energy
+- **Range**: melee yd
+- **Description**: Rake the target for (Attack Power / 100 + 40) bleed damage and an additional (20 * 3 + Attack Power * 0.06) damage over 9 sec.  Awards 1 combo point.
+- **Duration**: 9s
+- **Buff Duration**: 9s
+- **Buff**: Bleeding for 20 damage every 3 seconds.
+
+---
+
+## Dash [ID: 1850]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 26
+- **Cast Time**: Instant
+- **Cooldown**: 5 min cooldown
+- **Description**: Increases movement speed by 50% for 15 sec.  Does not break prowling.
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: Increases movement speed by 50%.
+
+---
+
 ## Rejuvenation [ID: 2090]
 - **Class**: Druid
 - **School**: Unknown
@@ -199,6 +376,19 @@ Total: 146 spells
 
 ---
 
+## Abolish Poison [ID: 2893]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 26
+- **Cast Time**: Instant
+- **Range**: 40 yd
+- **Description**: Attempts to cure 1 poison effect on the target, and 1 more poison effect every 2 seconds for 8 sec.
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: Attempts to cure 1 poison every 2 seconds.
+
+---
+
 ## Starfire [ID: 2912]
 - **Class**: Druid
 - **School**: Arcane
@@ -209,6 +399,17 @@ Total: 146 spells
 - **Range**: 30 yd
 - **Description**: Causes 95 to 115 Arcane damage to the target.
 - **Damage**: 95-115 Arcane
+
+---
+
+## Claw [ID: 3029]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 28
+- **Cast Time**: Instant
+- **Cost**: 45 energy
+- **Range**: melee yd
+- **Description**: Claw the enemy, causing 39 additional damage.  Awards 1 combo point.
 
 ---
 
@@ -372,6 +573,21 @@ Total: 146 spells
 
 ---
 
+## Bash [ID: 5211]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 14
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Cooldown**: 1 min cooldown
+- **Description**: Stuns the target for 2 sec.
+- **Duration**: 2s
+- **Buff Duration**: 2s
+- **Buff**: Stunned.
+
+---
+
 ## Prowl [ID: 5215]
 - **Class**: Druid
 - **School**: Unknown
@@ -409,6 +625,56 @@ Total: 146 spells
 
 ---
 
+## Track Humanoids [ID: 5225]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 32
+- **Cast Time**: Instant
+- **Description**: Shows the location of all nearby humanoids on the minimap.  Only one type of thing can be tracked at a time.
+- **Buff Duration**: ?s
+- **Buff**: Tracking humanoids.
+
+---
+
+## Enrage [ID: 5229]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 12
+- **Cast Time**: Instant
+- **Cooldown**: 1 min cooldown
+- **Description**: Generates 20 rage over 10 sec, but reduces base armor by 27% in Bear Form and 16% in Dire Bear Form.
+- **Duration**: 10s
+- **Buff Duration**: 10s
+- **Buff**: Gain 2 rage per second.  Base armor reduced.
+
+---
+
+## Mark of the Wild [ID: 5232]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 10
+- **Cast Time**: Instant
+- **Cost**: 50 mana
+- **Range**: 30 yd
+- **Description**: Increases the friendly target's armor by 65 and all attributes by 2 for 30 min.
+- **Buff Duration**: 1800s
+- **Buff**: Increases armor by 65 and all attributes by 2.
+
+---
+
+## Mark of the Wild [ID: 5234]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Cost**: 160 mana
+- **Range**: 30 yd
+- **Description**: Increases the friendly target's armor by 150, all attributes by 6 and all resistances by 5 for 30 min.
+- **Buff Duration**: 1800s
+- **Buff**: Increases armor by 150, all attributes by 6 and all resistances by 5.
+
+---
+
 ## Bear Form [ID: 5487]
 - **Class**: Druid
 - **School**: Unknown
@@ -433,6 +699,19 @@ Total: 146 spells
 - **Duration**: 12s
 - **Buff Duration**: 12s
 - **Buff**: Chance to hit decreased by 2% and 18 Nature damage every 2 sec.
+
+---
+
+## Mark of the Wild [ID: 6756]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 20
+- **Cast Time**: Instant
+- **Cost**: 100 mana
+- **Range**: 30 yd
+- **Description**: Increases the friendly target's armor by 105 and all attributes by 4 for 30 min.
+- **Buff Duration**: 1800s
+- **Buff**: Increases armor by 105 and all attributes by 4.
 
 ---
 
@@ -482,6 +761,17 @@ Total: 146 spells
 - **Cost**: 60 energy
 - **Range**: melee yd
 - **Description**: Ravage the target, causing 385% damage plus 147 to the target.  Must be prowling and behind the target.  Awards 1 combo point.
+
+---
+
+## Ravage [ID: 6787]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 42
+- **Cast Time**: Instant
+- **Cost**: 60 energy
+- **Range**: melee yd
+- **Description**: Ravage the target, causing 385% damage plus 217 to the target.  Must be prowling and behind the target.  Awards 1 combo point.
 
 ---
 
@@ -544,6 +834,28 @@ Total: 146 spells
 - **Cost**: 15 rage
 - **Range**: melee yd
 - **Description**: Increases the druid's next attack by 18 damage.
+
+---
+
+## Maul [ID: 6808]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 18
+- **Cast Time**: Instant
+- **Cost**: 15 rage
+- **Range**: melee yd
+- **Description**: Increases the druid's next attack by 27 damage.
+
+---
+
+## Maul [ID: 6809]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 26
+- **Cast Time**: Instant
+- **Cost**: 15 rage
+- **Range**: melee yd
+- **Description**: Increases the druid's next attack by 37 damage.
 
 ---
 
@@ -1335,6 +1647,17 @@ Total: 146 spells
 
 ---
 
+## Clearcasting [ID: 16870]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 10
+- **Cast Time**: Instant
+- **Range**: 100 yd
+- **Buff Duration**: 15s
+- **Buff**: Your next damage or healing spell or offensive ability has its mana, rage or energy cost reduced by 100%.
+
+---
+
 ## Hurricane [ID: 16914]
 - **Class**: Druid
 - **School**: Nature
@@ -1349,6 +1672,15 @@ Total: 146 spells
 - **Buff Duration**: 10s
 - **Buff**: 72 damage every 1 seconds, and time between attacks increased by 25%.
 - **Tags**: aoe
+
+---
+
+## Savage Fury [ID: 16999]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 0
+- **Cast Time**: Instant
+- **Description**: Increases the damage caused by your Claw, Rake, and Mangle (Cat) abilities by 20%.
 
 ---
 
@@ -1788,6 +2120,19 @@ Total: 146 spells
 
 ---
 
+## Frenzied Regeneration [ID: 26999]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 65
+- **Cast Time**: Instant
+- **Cooldown**: 3 min cooldown
+- **Description**: Converts up to 10 rage per second into health for 10 sec.  Each point of rage is converted into 25 health.
+- **Duration**: 10s
+- **Buff Duration**: 10s
+- **Buff**: Converting rage into health.
+
+---
+
 ## Claw [ID: 27000]
 - **Class**: Druid
 - **School**: Unknown
@@ -1876,6 +2221,20 @@ Total: 146 spells
 - **Duration**: 12s
 - **Buff Duration**: 12s
 - **Buff**: Chance to hit decreased by 2% and 132 Nature damage every 2 sec.
+
+---
+
+## Innervate [ID: 29166]
+- **Class**: Druid
+- **School**: Unknown
+- **Required Level**: 40
+- **Cast Time**: Instant
+- **Range**: 30 yd
+- **Cooldown**: 6 min cooldown
+- **Description**: Increases the target's Spirit based mana regeneration by 400% and allows full mana regeneration while casting.  Lasts 20 sec.
+- **Duration**: 20s
+- **Buff Duration**: 20s
+- **Buff**: Spirit based mana regeneration increased by 400%.  Full mana regeneration while casting.
 
 ---
 

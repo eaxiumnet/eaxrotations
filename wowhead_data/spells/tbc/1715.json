@@ -1,0 +1,20 @@
+{
+  "name": "Hamstring",
+  "icon": "ability_shockwave",
+  "cost": {
+    "type": "rage",
+    "amount": 10
+  },
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Warrior",
+  "required_level": 8,
+  "requires_weapon": "Melee Weapon",
+  "description": "Maims the enemy, causing 5 damage and slowing the enemy's movement by 40% for 15 sec.",
+  "duration": 15,
+  "has_buff": true,
+  "buff_duration": 15,
+  "buff_text": "Movement slowed by 40%.",
+  "_id": 1715,
+  "_source": "wowhead"
+}

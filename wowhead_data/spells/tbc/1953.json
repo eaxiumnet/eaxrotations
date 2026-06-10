@@ -1,0 +1,19 @@
+{
+  "name": "Blink",
+  "icon": "spell_arcane_blink",
+  "cost": {
+    "type": "mana",
+    "percent": 21
+  },
+  "cast_time": 0,
+  "cooldown": "15 sec cooldown",
+  "required_class": "Mage",
+  "required_level": 20,
+  "description": "Teleports the caster 20 yards forward, unless something is in the way.  Also frees the caster from stuns and bonds.",
+  "target_type": "self",
+  "has_buff": true,
+  "buff_duration": 1,
+  "buff_text": "Blinking.",
+  "_id": 1953,
+  "_source": "wowhead"
+}

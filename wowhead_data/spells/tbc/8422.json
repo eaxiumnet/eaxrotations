@@ -1,34 +1,31 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Flamestrike",
-    "icon": "spell_fire_selfdestruct",
-    "cost": {
-      "type": "mana",
-      "amount": 490
-    },
-    "range": 30,
-    "cast_time": 3,
-    "spell_level": 70,
-    "required_class": "Mage",
-    "required_level": 32,
-    "description": "Calls down a pillar of fire, burning all enemies within the area for 159 to 197 Fire damage and an additional 140 Fire damage over 8 sec.",
-    "school": "fire",
-    "damage": {
-      "min": 159,
-      "max": 197
-    },
-    "duration": 8,
-    "aoe": true,
-    "has_buff": true,
-    "buff_duration": 8,
-    "periodic": {
-      "amount": 35,
-      "school": "fire",
-      "interval": 1
-    },
-    "buff_text": "35 Fire damage every 2."
+  "name": "Flamestrike",
+  "icon": "spell_fire_selfdestruct",
+  "cost": {
+    "type": "mana",
+    "amount": 490
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:18:20"
+  "range": 30,
+  "cast_time": 3,
+  "spell_level": 70,
+  "required_class": "Mage",
+  "required_level": 32,
+  "description": "Calls down a pillar of fire, burning all enemies within the area for 159 to 197 Fire damage and an additional 140 Fire damage over 8 sec.",
+  "school": "fire",
+  "damage": {
+    "min": 159,
+    "max": 197
+  },
+  "duration": 8,
+  "aoe": true,
+  "has_buff": true,
+  "buff_duration": 8,
+  "periodic": {
+    "amount": 35,
+    "school": "fire",
+    "interval": 1
+  },
+  "buff_text": "35 Fire damage every 2.",
+  "_id": 8422,
+  "_source": "wowhead"
 }

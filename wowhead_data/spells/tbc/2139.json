@@ -1,20 +1,17 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Counterspell",
-    "icon": "spell_frost_iceshock",
-    "cost": {
-      "type": "mana",
-      "amount": 100
-    },
-    "range": 30,
-    "cast_time": 0,
-    "cooldown": "24 sec cooldown",
-    "required_class": "Mage",
-    "required_level": 24,
-    "description": "Counters the enemy's spellcast, preventing any spell from that school of magic from being cast for 8 sec.  Generates a high amount of threat.",
-    "duration": 8
+  "name": "Counterspell",
+  "icon": "spell_frost_iceshock",
+  "cost": {
+    "type": "mana",
+    "amount": 100
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:17:21"
+  "range": 30,
+  "cast_time": 0,
+  "cooldown": "24 sec cooldown",
+  "required_class": "Mage",
+  "required_level": 24,
+  "description": "Counters the enemy's spellcast, preventing any spell from that school of magic from being cast for 8 sec.  Generates a high amount of threat.",
+  "duration": 8,
+  "_id": 2139,
+  "_source": "wowhead"
 }

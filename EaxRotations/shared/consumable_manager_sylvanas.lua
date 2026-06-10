@@ -130,12 +130,7 @@ local function use_item(item_id, target, log_msg)
     local target_unit = target or (NS.GetPlayer and NS.GetPlayer()) or nil
     if type(use_fn) ~= "function" then return false end
     local ok, result = pcall(use_fn, item_id, target_unit)
-    if ok and result ~= false then
-        local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
-        if debug and log_msg then NS.log("[Consumable] " .. log_msg) end
-        return true
-    end
-    return false
+    return ok and result ~= false
 end
 
 local function try_use_first(items, target, log_prefix)

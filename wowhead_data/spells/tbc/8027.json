@@ -1,0 +1,22 @@
+{
+  "name": "Flametongue Weapon",
+  "icon": "spell_fire_flametounge",
+  "cost": {
+    "type": "mana",
+    "amount": 55
+  },
+  "cast_time": 0,
+  "spell_level": 70,
+  "required_class": "Shaman",
+  "required_level": 18,
+  "requires_weapon": "Melee Weapon",
+  "description": "Imbue the Shaman's weapon with fire.  Each hit causes 9 to 26 additional Fire damage, based on the speed of the weapon.  Slower weapons cause more fire damage per swing.  Lasts 30 minutes.",
+  "school": "fire",
+  "damage": {
+    "min": 9,
+    "max": 26
+  },
+  "duration": 1800,
+  "_id": 8027,
+  "_source": "wowhead"
+}

@@ -1,21 +1,18 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Deadly Poison",
-    "icon": "ability_rogue_dualweild",
-    "range": "melee",
-    "cast_time": 0,
-    "required_class": "Rogue",
-    "required_level": 30,
-    "has_buff": true,
-    "buff_duration": 12,
-    "periodic": {
-      "amount": 9,
-      "school": "nature",
-      "interval": 3
-    },
-    "buff_text": "Target takes 9 Nature damage every 3 seconds."
+  "name": "Deadly Poison",
+  "icon": "ability_rogue_dualweild",
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Rogue",
+  "required_level": 30,
+  "has_buff": true,
+  "buff_duration": 12,
+  "periodic": {
+    "amount": 9,
+    "school": "nature",
+    "interval": 3
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:17:22"
+  "buff_text": "Target takes 9 Nature damage every 3 seconds.",
+  "_id": 2818,
+  "_source": "wowhead"
 }

@@ -191,7 +191,7 @@ local function build_state(context)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(LIGHTNING_SHIELD_ID, 3.0) or false
     if not skip_aura then
         enh_state.has_lightning_shield = me and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
-        enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and NS.get_buff_stacks(me, LIGHTNING_SHIELD_BUFF)) or 0
+        enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and type(me.get_buff_stacks) == "function" and me:get_buff_stacks(LIGHTNING_SHIELD_BUFF)) or 0
         enh_state.has_water_shield = me and NS.buff_up(me, WATER_SHIELD_BUFF) or false
         enh_state.has_shamanistic_rage = me and NS.buff_up(me, SHAMANISTIC_RAGE_BUFF) or false
         enh_state.has_bloodlust = false

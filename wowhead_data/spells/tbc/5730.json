@@ -1,21 +1,18 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Stoneclaw Totem",
-    "icon": "spell_nature_stoneclawtotem",
-    "cost": {
-      "type": "mana",
-      "amount": 15
-    },
-    "cast_time": 0,
-    "cooldown": "30 sec cooldown",
-    "required_class": "Shaman",
-    "required_level": 8,
-    "description": "Summons a Stoneclaw Totem with 50 health at the feet of the caster for 15 sec that taunts creatures within 8 yards to attack it.  Enemies attacking the Stoneclaw Totem have a 50% chance to be stunned for 3 sec.",
-    "duration": 15,
-    "radius": 8,
-    "target_type": "self"
+  "name": "Stoneclaw Totem",
+  "icon": "spell_nature_stoneclawtotem",
+  "cost": {
+    "type": "mana",
+    "amount": 15
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:17:42"
+  "cast_time": 0,
+  "cooldown": "30 sec cooldown",
+  "required_class": "Shaman",
+  "required_level": 8,
+  "description": "Summons a Stoneclaw Totem with 50 health at the feet of the caster for 15 sec that taunts creatures within 8 yards to attack it.  Enemies attacking the Stoneclaw Totem have a 50% chance to be stunned for 3 sec.",
+  "duration": 15,
+  "radius": 8,
+  "target_type": "self",
+  "_id": 5730,
+  "_source": "wowhead"
 }

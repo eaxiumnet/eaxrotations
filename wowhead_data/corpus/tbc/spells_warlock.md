@@ -1,6 +1,6 @@
 # Warlock Spells — TBC
 
-Total: 74 spells
+Total: 112 spells
 
 ---
 
@@ -62,6 +62,59 @@ Total: 74 spells
 
 ---
 
+## Demon Skin [ID: 687]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 1
+- **Cast Time**: Instant
+- **Cost**: 20 mana
+- **Description**: Protects the caster, increasing armor by 40 and restores 3 Health per 5 sec. for 30 min.
+- **Buff Duration**: 1800s
+- **Buff**: Increases armor by 40 and restores 3 Health per 5 sec.
+
+---
+
+## Summon Imp [ID: 688]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 1
+- **Cast Time**: 10s
+- **Description**: Summons an Imp under the command of the Warlock.
+
+---
+
+## Drain Life [ID: 689]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 14
+- **Cast Time**: 5s
+- **Cost**: 55 mana
+- **Range**: 30 yd
+- **Description**: Transfers 10 health every 1 sec from the target to the caster.  Lasts 5 sec.
+- **Duration**: 5s
+- **Buff Duration**: 5s
+- **Buff**: Drains 10 health every 1 sec to the caster.
+
+---
+
+## Summon Felhunter [ID: 691]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: 10s
+- **Description**: Summons a Felhunter under the command of the Warlock.
+
+---
+
+## Create Soulstone [ID: 693]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 18
+- **Cast Time**: 3s
+- **Description**: Creates a Minor Soulstone.  The Soulstone can be used to store one target's soul.  If the target dies while their soul is stored, they will be able to resurrect with 400 health and 700 mana.Conjured items disappear if logged out for more than 15 minutes.
+
+---
+
 ## Shadow Bolt [ID: 695]
 - **Class**: Warlock
 - **School**: Shadow
@@ -75,6 +128,42 @@ Total: 74 spells
 
 ---
 
+## Summon Voidwalker [ID: 697]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 10
+- **Cast Time**: 10s
+- **Description**: Summons a Voidwalker under the command of the Warlock.
+
+---
+
+## Drain Life [ID: 699]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 22
+- **Cast Time**: 5s
+- **Cost**: 85 mana
+- **Range**: 30 yd
+- **Description**: Transfers 17 health every 1 sec from the target to the caster.  Lasts 5 sec.
+- **Duration**: 5s
+- **Buff Duration**: 5s
+- **Buff**: Drains 17 health every 1 sec to the caster.
+
+---
+
+## Curse of Weakness [ID: 702]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 4
+- **Cast Time**: Instant
+- **Cost**: 20 mana
+- **Range**: 30 yd
+- **Description**: Target's melee attack power is reduced by 21 for 2 min.  Only one Curse per Warlock can be active on any one target.
+- **Buff Duration**: 120s
+- **Buff**: Melee attack power reduced by 21.
+
+---
+
 ## Shadow Bolt [ID: 705]
 - **Class**: Warlock
 - **School**: Shadow
@@ -85,6 +174,19 @@ Total: 74 spells
 - **Range**: 30 yd
 - **Description**: Sends a shadowy bolt at the enemy, causing 52 to 61 Shadow damage.
 - **Damage**: 52-61 Shadow
+
+---
+
+## Demon Armor [ID: 706]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 20
+- **Cast Time**: Instant
+- **Cost**: 110 mana
+- **Description**: Protects the caster, increasing armor by 210, Shadow resistance by 3 and restores 7 health every 5 sec.  Only one type of Armor spell can be active on the Warlock at any time.  Lasts 30 min.
+- **Duration**: 1800s
+- **Buff Duration**: 1800s
+- **Buff**: Increases armor by 210, Shadow resistance by 3 and restores 7 health every 5 sec.
 
 ---
 
@@ -104,6 +206,42 @@ Total: 74 spells
 
 ---
 
+## Drain Life [ID: 709]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: 5s
+- **Cost**: 135 mana
+- **Range**: 30 yd
+- **Description**: Transfers 29 health every 1 sec from the target to the caster.  Lasts 5 sec.
+- **Duration**: 5s
+- **Buff Duration**: 5s
+- **Buff**: Drains 29 health every 1 sec to the caster.
+
+---
+
+## Summon Succubus [ID: 712]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 20
+- **Cast Time**: 10s
+- **Description**: Summons a Succubus under the command of the Warlock.
+
+---
+
+## Health Funnel [ID: 755]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 12
+- **Cast Time**: 10s
+- **Range**: 20 yd
+- **Description**: Gives 12 health to the caster's pet every second for 10 sec as long as the caster channels.
+- **Duration**: 10s
+- **Buff Duration**: 10s
+- **Buff**: Transferring Life.
+
+---
+
 ## Curse of Agony [ID: 980]
 - **Class**: Warlock
 - **School**: Shadow
@@ -118,6 +256,19 @@ Total: 74 spells
 
 ---
 
+## Curse of Idiocy [ID: 1010]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 38
+- **Cast Time**: Instant
+- **Cost**: 110 mana
+- **Range**: 30 yd
+- **Description**: Curse the target with idiocy, reducing Intellect and Spirit by 6 every 3 seconds until each is reduced by a total of 90.  Only one Curse per Warlock can be active on any one target.
+- **Buff Duration**: 120s
+- **Buff**: Intellect and Spirit reduced.
+
+---
+
 ## Curse of Agony [ID: 1014]
 - **Class**: Warlock
 - **School**: Shadow
@@ -129,6 +280,19 @@ Total: 74 spells
 - **Duration**: 24s
 - **Buff Duration**: 24s
 - **Buff**: 180 Shadow damage over 24 sec.
+
+---
+
+## Demon Armor [ID: 1086]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Cost**: 208 mana
+- **Description**: Protects the caster, increasing armor by 300, Shadow resistance by 6 and restores 9 health every 5 sec.  Only one type of Armor spell can be active on the Warlock at any time.  Lasts 30 min.
+- **Duration**: 1800s
+- **Buff Duration**: 1800s
+- **Buff**: Increases armor by 300, Shadow resistance by 6 and restores 9 health every 5 sec.
 
 ---
 
@@ -174,6 +338,34 @@ Total: 74 spells
 
 ---
 
+## Curse of Weakness [ID: 1108]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 12
+- **Cast Time**: Instant
+- **Cost**: 35 mana
+- **Range**: 30 yd
+- **Description**: Target's melee attack power is reduced by 41 for 2 min.  Only one Curse per Warlock can be active on any one target.
+- **Buff Duration**: 120s
+- **Buff**: Melee attack power reduced by 41.
+
+---
+
+## Drain Soul [ID: 1120]
+- **Class**: Warlock
+- **School**: Shadow
+- **Required Level**: 10
+- **Cast Time**: 15s
+- **Cost**: 55 mana
+- **Range**: 30 yd
+- **Description**: Drains the soul of the target, causing 55 Shadow damage over 15 sec.  If the target dies while being drained, and yields experience or honor, the caster gains a Soul Shard.  Soul Shards are required for other spells.
+- **Periodic**: 11 Shadow every 3s
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: 11 Shadow damage every 3 seconds.
+
+---
+
 ## Life Tap [ID: 1454]
 - **Class**: Warlock
 - **School**: Unknown
@@ -204,6 +396,48 @@ Total: 74 spells
 
 ---
 
+## Curse of the Elements [ID: 1490]
+- **Class**: Warlock
+- **School**: Shadow
+- **Required Level**: 32
+- **Cast Time**: Instant
+- **Cost**: 100 mana
+- **Range**: 30 yd
+- **Description**: Curses the target for 5 min, reducing Arcane, Fire, Frost, and Shadow resistances by 45 and increasing Arcane, Fire,  Frost, and Shadow damage taken by 6%.  Only one Curse per Warlock can be active on any one target.
+- **Buff Duration**: 300s
+- **Buff**: Reduces Arcane, Fire, Frost, and Shadow resistances by 45.  Increases Arcane, Fire, Frost, and Shadow damage taken by 6%.
+
+---
+
+## Curse of Tongues [ID: 1714]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 26
+- **Cast Time**: Instant
+- **Cost**: 80 mana
+- **Range**: 30 yd
+- **Description**: Forces the target to speak in Demonic, increasing the casting time of all spells by 50%.  Only one Curse per Warlock can be active on any one target.  Lasts 30 sec.
+- **Duration**: 30s
+- **Buff Duration**: 30s
+- **Buff**: Speaking Demonic increasing casting time by 50%.
+
+---
+
+## Hellfire [ID: 1949]
+- **Class**: Warlock
+- **School**: Fire
+- **Required Level**: 30
+- **Spell Level**: 70
+- **Cast Time**: 15s
+- **Cost**: 645 mana
+- **Description**: Ignites the area surrounding the caster, causing 87 Fire damage to himself and 87 Fire damage to all nearby enemies every 1 sec.  Lasts 15 sec.
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: Damages self and all nearby enemies.
+- **Tags**: aoe
+
+---
+
 ## Immolate [ID: 2941]
 - **Class**: Warlock
 - **School**: Fire
@@ -217,6 +451,160 @@ Total: 74 spells
 - **Duration**: 15s
 - **Buff Duration**: 15s
 - **Buff**: 33 Fire damage every 3 seconds.
+
+---
+
+## Health Funnel [ID: 3698]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 20
+- **Cast Time**: 10s
+- **Range**: 20 yd
+- **Description**: Gives 24 health to the caster's pet every second for 10 sec as long as the caster channels.
+- **Duration**: 10s
+- **Buff Duration**: 10s
+- **Buff**: Transferring Life.
+
+---
+
+## Health Funnel [ID: 3699]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 28
+- **Cast Time**: 10s
+- **Range**: 20 yd
+- **Description**: Gives 43 health to the caster's pet every second for 10 sec as long as the caster channels.
+- **Duration**: 10s
+- **Buff Duration**: 10s
+- **Buff**: Transferring Life.
+
+---
+
+## Health Funnel [ID: 3700]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 36
+- **Cast Time**: 10s
+- **Range**: 20 yd
+- **Description**: Gives 64 health to the caster's pet every second for 10 sec as long as the caster channels.
+- **Duration**: 10s
+- **Buff Duration**: 10s
+- **Buff**: Transferring Life.
+
+---
+
+## Drain Mana [ID: 5138]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 24
+- **Cast Time**: 5s
+- **Cost**: 95 mana
+- **Range**: 30 yd
+- **Description**: Transfers 42 Mana every 1 sec from the target to the caster.  Lasts 5 sec.
+- **Duration**: 5s
+- **Buff Duration**: 5s
+- **Buff**: Drains 42 mana each second to the caster.
+
+---
+
+## Howl of Terror [ID: 5484]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 40
+- **Cast Time**: 1.5s
+- **Cost**: 150 mana
+- **Cooldown**: 40 sec cooldown
+- **Description**: Howl, causing 5 enemies within 10 yds to flee in terror for 6 sec.  Damage caused may interrupt the effect.
+- **Duration**: 6s
+- **Buff Duration**: 6s
+- **Buff**: Fleeing in terror.
+- **Tags**: aoe
+
+---
+
+## Searing Pain [ID: 5676]
+- **Class**: Warlock
+- **School**: Fire
+- **Required Level**: 18
+- **Spell Level**: 70
+- **Cast Time**: 1.5s
+- **Cost**: 45 mana
+- **Range**: 30 yd
+- **Description**: Inflict searing pain on the enemy target, causing 38 to 47 Fire damage.  Causes a high amount of threat.
+- **Damage**: 38-47 Fire
+
+---
+
+## Create Healthstone [ID: 5699]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 34
+- **Cast Time**: 3s
+- **Cost**: 475 mana
+- **Description**: Creates a Healthstone that can be used to instantly restore 500 health.Conjured items disappear if logged out for more than 15 minutes.
+
+---
+
+## Rain of Fire [ID: 5740]
+- **Class**: Warlock
+- **School**: Fire
+- **Required Level**: 20
+- **Spell Level**: 70
+- **Cast Time**: 8s
+- **Cost**: 295 mana
+- **Range**: 30 yd
+- **Description**: Calls down a fiery rain to burn enemies in the area of effect for (44 * 4) Fire damage over 8 sec.
+- **Periodic**: 44 Fire every 2s
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: 44 Fire damage every 2 seconds.
+
+---
+
+## Fear [ID: 5782]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 8
+- **Cast Time**: 1.5s
+- **Range**: 20 yd
+- **Description**: Strikes fear in the enemy, causing it to run in fear for up to 10 sec.  Damage caused may interrupt the effect.  Only 1 target can be feared at a time.
+- **Buff Duration**: 10s
+- **Buff**: Feared.
+
+---
+
+## Create Healthstone [ID: 6202]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 22
+- **Cast Time**: 3s
+- **Cost**: 240 mana
+- **Description**: Creates a Lesser Healthstone that can be used to instantly restore 250 health.Conjured items disappear if logged out for more than 15 minutes.
+
+---
+
+## Curse of Weakness [ID: 6205]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 22
+- **Cast Time**: Instant
+- **Cost**: 70 mana
+- **Range**: 30 yd
+- **Description**: Target's melee attack power is reduced by 64 for 2 min.  Only one Curse per Warlock can be active on any one target.
+- **Buff Duration**: 120s
+- **Buff**: Melee attack power reduced by 64.
+
+---
+
+## Fear [ID: 6213]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 32
+- **Cast Time**: 1.5s
+- **Range**: 20 yd
+- **Description**: Strikes fear in the enemy, causing it to run in fear for up to 15 sec.  Damage caused may interrupt the effect.  Only 1 target can be feared at a time.
+- **Buff Duration**: 15s
+- **Buff**: Feared.
 
 ---
 
@@ -264,6 +652,64 @@ Total: 74 spells
 
 ---
 
+## Drain Mana [ID: 6226]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 34
+- **Cast Time**: 5s
+- **Cost**: 155 mana
+- **Range**: 30 yd
+- **Description**: Transfers 68 Mana every 1 sec from the target to the caster.  Lasts 5 sec.
+- **Duration**: 5s
+- **Buff Duration**: 5s
+- **Buff**: Drains 68 mana each second to the caster.
+
+---
+
+## Shadow Ward [ID: 6229]
+- **Class**: Warlock
+- **School**: Shadow
+- **Required Level**: 32
+- **Cast Time**: Instant
+- **Cost**: 135 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Absorbs 290 shadow damage.  Lasts 30 sec.
+- **Duration**: 30s
+- **Buff Duration**: 30s
+- **Buff**: Absorbs Shadow damage.
+
+---
+
+## Soul Fire [ID: 6353]
+- **Class**: Warlock
+- **School**: Fire
+- **Required Level**: 48
+- **Spell Level**: 70
+- **Cast Time**: 6s
+- **Cost**: 170 mana
+- **Range**: 30 yd
+- **Cooldown**: 1 min cooldown
+- **Description**: Burn the enemy's soul, causing 640 to 801 Fire damage.
+- **Damage**: 640-801 Fire
+
+---
+
+## Death Coil [ID: 6789]
+- **Class**: Warlock
+- **School**: Shadow
+- **Required Level**: 42
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 365 mana
+- **Range**: 30 yd
+- **Cooldown**: 2 min cooldown
+- **Description**: Causes the enemy target to run in horror for 3 sec and causes 258 Shadow damage.  The caster gains 100% of the damage caused in health.
+- **Duration**: 3s
+- **Buff Duration**: 3s
+- **Buff**: Horrified.
+
+---
+
 ## Shadow Bolt [ID: 7641]
 - **Class**: Warlock
 - **School**: Shadow
@@ -289,6 +735,50 @@ Total: 74 spells
 - **Duration**: 18s
 - **Buff Duration**: 18s
 - **Buff**: 54 Shadow damage every 3 seconds.
+
+---
+
+## Drain Life [ID: 7651]
+- **Class**: Warlock
+- **School**: Unknown
+- **Required Level**: 38
+- **Cast Time**: 5s
+- **Cost**: 185 mana
+- **Range**: 30 yd
+- **Description**: Transfers 41 health every 1 sec from the target to the caster.  Lasts 5 sec.
+- **Duration**: 5s
+- **Buff Duration**: 5s
+- **Buff**: Drains 41 health every 1 sec to the caster.
+
+---
+
+## Drain Soul [ID: 8288]
+- **Class**: Warlock
+- **School**: Shadow
+- **Required Level**: 24
+- **Cast Time**: 15s
+- **Cost**: 125 mana
+- **Range**: 30 yd
+- **Description**: Drains the soul of the target, causing 155 Shadow damage over 15 sec.  If the target dies while being drained, and yields experience or honor, the caster gains a Soul Shard.  Soul Shards are required for other spells.
+- **Periodic**: 31 Shadow every 3s
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: 31 Shadow damage every 3 seconds.
+
+---
+
+## Drain Soul [ID: 8289]
+- **Class**: Warlock
+- **School**: Shadow
+- **Required Level**: 38
+- **Cast Time**: 15s
+- **Cost**: 210 mana
+- **Range**: 30 yd
+- **Description**: Drains the soul of the target, causing 295 Shadow damage over 15 sec.  If the target dies while being drained, and yields experience or honor, the caster gains a Soul Shard.  Soul Shards are required for other spells.
+- **Periodic**: 59 Shadow every 3s
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: 59 Shadow damage every 3 seconds.
 
 ---
 

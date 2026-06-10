@@ -1,6 +1,6 @@
 # Hunter Spells — TBC
 
-Total: 60 spells
+Total: 81 spells
 
 ---
 
@@ -50,6 +50,57 @@ Total: 60 spells
 
 ---
 
+## Mongoose Bite [ID: 1495]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 16
+- **Cast Time**: Instant
+- **Cost**: 30 mana
+- **Range**: melee yd
+- **Cooldown**: 5 sec cooldown
+- **Description**: Counterattack the enemy for (Attack Power * 0.2 + 25) damage.  Can only be performed after you dodge.
+
+---
+
+## Freezing Trap [ID: 1499]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 20
+- **Cast Time**: Instant
+- **Cost**: 50 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Place a frost trap that freezes the first enemy that approaches, preventing all action for up to 10 sec.  Any damage caused will break the ice.  Trap will exist for 1 min.  Only one trap can be active at a time.
+
+---
+
+## Volley [ID: 1510]
+- **Class**: Hunter
+- **School**: Arcane
+- **Required Level**: 40
+- **Cast Time**: Instant
+- **Cost**: 350 mana
+- **Range**: 35 yd
+- **Cooldown**: 1 min cooldown
+- **Description**: Continuously fires a volley of ammo at the target area, causing 50 Arcane damage to enemy targets within 8 yards every second for 6 sec.
+- **Duration**: 6s
+- **Tags**: aoe
+
+---
+
+## Scare Beast [ID: 1513]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 14
+- **Cast Time**: 1.5s
+- **Cost**: 35 mana
+- **Range**: 30 yd
+- **Cooldown**: 30 sec cooldown
+- **Description**: Scares a beast, causing it to run in fear for up to 10 sec.  Damage caused may interrupt the effect.  Only one beast can be feared at a time.
+- **Buff Duration**: 10s
+- **Buff**: Feared.
+
+---
+
 ## Serpent Sting [ID: 1978]
 - **Class**: Hunter
 - **School**: Nature
@@ -74,6 +125,46 @@ Total: 60 spells
 - **Range**: 35 yd
 - **Cooldown**: 10 sec cooldown
 - **Description**: Fires several missiles, hitting 3 targets.
+
+---
+
+## Raptor Strike [ID: 2973]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 1
+- **Cast Time**: Instant
+- **Cost**: 15 mana
+- **Range**: melee yd
+- **Cooldown**: 6 sec cooldown
+- **Description**: A strong attack that increases melee damage by 5.
+
+---
+
+## Viper Sting [ID: 3034]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 36
+- **Cast Time**: Instant
+- **Cost**: 135 mana
+- **Range**: 35 yd
+- **Cooldown**: 15 sec cooldown
+- **Description**: Stings the target, draining 616 mana over 8 sec.  Only one Sting per Hunter can be active on any one target.
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: Drains 154 mana every 2 seconds.
+
+---
+
+## Scorpid Sting [ID: 3043]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 22
+- **Cast Time**: Instant
+- **Range**: 35 yd
+- **Description**: Stings the target, reducing chance to hit with melee and ranged attacks by 5% for 20 sec.  Only one Sting per Hunter can be active on any one target.
+- **Duration**: 20s
+- **Buff Duration**: 20s
+- **Buff**: Chance to hit with melee and ranged attacks reduced by 5%.
 
 ---
 
@@ -145,6 +236,25 @@ Total: 60 spells
 - **Buff Duration**: 15s
 - **Buff**: Heals 140 every 3 sec.
 - **Tags**: heal
+
+---
+
+## Great Stamina [ID: 4197]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 18
+- **Cast Time**: Instant
+- **Range**: 100 yd
+- **Description**: Stamina increased by 7.
+
+---
+
+## Beast Training [ID: 5149]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 10
+- **Cast Time**: Instant
+- **Description**: Lets the Hunter train his pet with various abilities that he has learned.
 
 ---
 
@@ -311,6 +421,18 @@ Total: 60 spells
 
 ---
 
+## Immolation Trap [ID: 13795]
+- **Class**: Hunter
+- **School**: Fire
+- **Required Level**: 16
+- **Cast Time**: Instant
+- **Cost**: 50 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Place a fire trap that will burn the first enemy to approach for (Ranged Attack Power * 0.1 + 21 * 5) Fire damage over 15 sec.  Trap will exist for 1 min.  Only one trap can be active at a time.
+- **Duration**: 15s
+
+---
+
 ## Explosive Trap [ID: 13813]
 - **Class**: Hunter
 - **School**: Fire
@@ -321,6 +443,42 @@ Total: 60 spells
 - **Description**: Place a fire trap that explodes when an enemy approaches, causing (Ranged Attack Power * 0.1 + 100) to (Ranged Attack Power * 0.1 + 130) Fire damage and burning all enemies for 150 additional Fire damage over 20 sec to all within 10 yards.  Trap will exist for 1 min.  Only one trap can be active at a time.
 - **Duration**: 20s
 - **Tags**: aoe
+
+---
+
+## Mongoose Bite [ID: 14269]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Cost**: 40 mana
+- **Range**: melee yd
+- **Cooldown**: 5 sec cooldown
+- **Description**: Counterattack the enemy for (Attack Power * 0.2 + 45) damage.  Can only be performed after you dodge.
+
+---
+
+## Mongoose Bite [ID: 14270]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 44
+- **Cast Time**: Instant
+- **Cost**: 50 mana
+- **Range**: melee yd
+- **Cooldown**: 5 sec cooldown
+- **Description**: Counterattack the enemy for (Attack Power * 0.2 + 75) damage.  Can only be performed after you dodge.
+
+---
+
+## Mongoose Bite [ID: 14271]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 58
+- **Cast Time**: Instant
+- **Cost**: 65 mana
+- **Range**: melee yd
+- **Cooldown**: 5 sec cooldown
+- **Description**: Counterattack the enemy for (Attack Power * 0.2 + 115) damage.  Can only be performed after you dodge.
 
 ---
 
@@ -458,6 +616,42 @@ Total: 60 spells
 
 ---
 
+## Immolation Trap [ID: 14302]
+- **Class**: Hunter
+- **School**: Fire
+- **Required Level**: 26
+- **Cast Time**: Instant
+- **Cost**: 90 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Place a fire trap that will burn the first enemy to approach for (Ranged Attack Power * 0.1 + 43 * 5) Fire damage over 15 sec.  Trap will exist for 1 min.  Only one trap can be active at a time.
+- **Duration**: 15s
+
+---
+
+## Immolation Trap [ID: 14303]
+- **Class**: Hunter
+- **School**: Fire
+- **Required Level**: 36
+- **Cast Time**: Instant
+- **Cost**: 135 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Place a fire trap that will burn the first enemy to approach for (Ranged Attack Power * 0.1 + 68 * 5) Fire damage over 15 sec.  Trap will exist for 1 min.  Only one trap can be active at a time.
+- **Duration**: 15s
+
+---
+
+## Immolation Trap [ID: 14304]
+- **Class**: Hunter
+- **School**: Fire
+- **Required Level**: 46
+- **Cast Time**: Instant
+- **Cost**: 190 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Place a fire trap that will burn the first enemy to approach for (Ranged Attack Power * 0.1 + 102 * 5) Fire damage over 15 sec.  Trap will exist for 1 min.  Only one trap can be active at a time.
+- **Duration**: 15s
+
+---
+
 ## Explosive Trap Effect [ID: 14314]
 - **Class**: Hunter
 - **School**: Unknown
@@ -542,6 +736,16 @@ Total: 60 spells
 - **Description**: Places the Hunter's Mark on the target, increasing the ranged attack power of all attackers against that target by 110 and by an additional 11 each time they are struck by a ranged attack, up to a maximum of 440.  In addition, the target of this ability can always be seen by the hunter whether it stealths or turns invisible.  The target also appears on the mini-map.  Lasts for 2 min.
 - **Buff Duration**: 120s
 - **Buff**: All attackers gain 110 ranged attack power against this target.
+
+---
+
+## Throw [ID: 16000]
+- **Class**: Hunter
+- **School**: Physical
+- **Required Level**: 20
+- **Cast Time**: Instant
+- **Range**: 30 yd
+- **Description**: Throws a weapon at an enemy, inflicting Physical damage.
 
 ---
 
@@ -649,6 +853,16 @@ Total: 60 spells
 
 ---
 
+## Readiness [ID: 23989]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 0
+- **Cast Time**: Instant
+- **Cooldown**: 5 min cooldown
+- **Description**: When activated, this ability immediately finishes the cooldown on your other Hunter abilities.
+
+---
+
 ## Multi-Shot [ID: 25294]
 - **Class**: Hunter
 - **School**: Unknown
@@ -712,6 +926,30 @@ Total: 60 spells
 - **Range**: 35 yd
 - **Cooldown**: 10 sec cooldown
 - **Description**: Fires several missiles, hitting 3 targets for an additional 205 damage.
+
+---
+
+## Immolation Trap [ID: 27023]
+- **Class**: Hunter
+- **School**: Fire
+- **Required Level**: 65
+- **Cast Time**: Instant
+- **Cost**: 305 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Place a fire trap that will burn the first enemy to approach for (Ranged Attack Power * 0.1 + 197 * 5) Fire damage over 15 sec.  Trap will exist for 1 min.  Only one trap can be active at a time.
+- **Duration**: 15s
+
+---
+
+## Immolation Trap Effect [ID: 27024]
+- **Class**: Hunter
+- **School**: Unknown
+- **Required Level**: 65
+- **Cast Time**: Instant
+- **Range**: 10 yd
+- **Periodic**: 197 Fire every 3s
+- **Buff Duration**: 15s
+- **Buff**: 197 Fire damage every 3 seconds.
 
 ---
 
@@ -792,6 +1030,20 @@ Total: 60 spells
 - **Duration**: 30s
 - **Buff Duration**: 30s
 - **Buff**: Redirecting threat.
+
+---
+
+## Silencing Shot [ID: 34490]
+- **Class**: Hunter
+- **School**: Physical
+- **Required Level**: 0
+- **Cast Time**: Instant
+- **Range**: 35 yd
+- **Cooldown**: 20 sec cooldown
+- **Description**: A shot that deals 50% weapon damage and Silences the target for 3 sec.
+- **Duration**: 3s
+- **Buff Duration**: 3s
+- **Buff**: Silenced.
 
 ---
 

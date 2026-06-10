@@ -1,14 +1,11 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Open Wound",
-    "icon": "spell_shadow_vampiricaura",
-    "range": 100,
-    "cast_time": 0,
-    "description": "Allows a hunter to teach his tamed cat the Open Wound ability. Open Wound deals physical damage over time to an enemy as well as increasing damage received by physical attacks for a short time.Requires: Pet Level 36+",
-    "school": "physical",
-    "target_type": "hostile"
-  },
-  "source": "cache",
-  "cached_at": "2026-06-05 20:57:38"
+  "name": "Open Wound",
+  "icon": "spell_shadow_vampiricaura",
+  "range": 100,
+  "cast_time": 0,
+  "description": "Allows a hunter to teach his tamed cat the Open Wound ability. Open Wound deals physical damage over time to an enemy as well as increasing damage received by physical attacks for a short time.Requires: Pet Level 36+",
+  "school": "physical",
+  "target_type": "hostile",
+  "_id": 6000,
+  "_source": "wowhead"
 }

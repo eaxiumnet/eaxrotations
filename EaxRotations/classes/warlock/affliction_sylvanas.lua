@@ -180,8 +180,8 @@ local function build_state(context)
                 aff_state.pet_mana = 100
             end
             -- Amplify Curse readiness
-            aff_state.amplify_curse_ready = NS.spell_ready(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, { skip_range = true })	-- Current spell damage from NS (provided by middleware or character API)
-	    aff_state.spell_damage = context.spell_damage or 0
+            aff_state.amplify_curse_ready = NS.spell_ready(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, { skip_range = true })
+	    aff_state.spell_damage = context.spell_damage or 0  -- Current spell damage from NS (provided by middleware or character API)
 	    -- Bloodlust/Heroism buff — enables more aggressive snapshot upgrade threshold
 	    aff_state.has_bloodlust = context.me and NS.buff_up and NS.buff_up(context.me, BLOODLUST_BUFFS) or false
 	    -- Maintain snapshot state: reset snapshots if DoT expired (stale)

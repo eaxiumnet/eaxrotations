@@ -1,17 +1,14 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Summon Felhunter",
-    "icon": "spell_shadow_summonfelhunter",
-    "cost": {
-      "type": "mana",
-      "percent": 80
-    },
-    "cast_time": 10,
-    "required_class": "Warlock",
-    "required_level": 30,
-    "description": "Summons a Felhunter under the command of the Warlock."
+  "name": "Summon Felhunter",
+  "icon": "spell_shadow_summonfelhunter",
+  "cost": {
+    "type": "mana",
+    "percent": 80
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:16:18"
+  "cast_time": 10,
+  "required_class": "Warlock",
+  "required_level": 30,
+  "description": "Summons a Felhunter under the command of the Warlock.",
+  "_id": 691,
+  "_source": "wowhead"
 }

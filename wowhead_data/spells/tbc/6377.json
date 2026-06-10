@@ -1,0 +1,17 @@
+{
+  "name": "Healing Stream Totem",
+  "icon": "inv_spear_04",
+  "cost": {
+    "type": "mana",
+    "amount": 60
+  },
+  "cast_time": 0,
+  "required_class": "Shaman",
+  "required_level": 40,
+  "description": "Summons a Healing Stream Totem with 5 health at the feet of the caster for 2 min that heals group members within 20 yards for 10 every 2 seconds.",
+  "is_heal": true,
+  "radius": 20,
+  "target_type": "self",
+  "_id": 6377,
+  "_source": "wowhead"
+}

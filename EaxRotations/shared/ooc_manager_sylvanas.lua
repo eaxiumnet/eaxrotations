@@ -3,13 +3,22 @@
 -- ============================================================================
 -- What:     Automates pre-combat setup: class buff refreshes, pet summons, and
 --           food/flask consumption while out of combat.
--- When:     Every OOC tick (1s throttle via _last_check timer) when the
---           use_ooc_manager setting is enabled and not in combat.
+-- When:     Called by main_sylvanas.lua's on_rotation_update() ONLY when
+--           in_combat == false and has_valid_enemy_target == false. The 1s
+--           throttle via _last_check keeps the actual spell work at 1Hz even
+--           though the function entry happens at the dispatch rate.
 -- Why:      Prevents downtime from missing class buffs (e.g. Battle Shout,
 --           Arcane Intellect, Fel Armor), unsummoned pets, or missing
 --           food/flask when entering combat. The throttle chain prevents
 --           per-frame retry spam when spells fail due to GCD, cooldown, or
 --           broken spell-book APIs on private server builds.
+-- Decision: Historically this module self-registered into the shared
+--           NS.register_on_update_callback (20Hz) dispatcher AND was also
+--           called directly from main_sylvanas.lua's OOC branch. That
+--           double-fired the function entry at ~40Hz even though the
+--           internal 1s throttle kept the actual cast work at 1Hz. Now
+--           register_ooc_manager() is a no-op for backwards compat and the
+--           sole entry point is main_sylvanas.lua.
 -- Safety:   Five-layer throttle chain prevents infinite retry loops:
 --             1. on_update fires at most 1/s via _last_check timer
 --             2. GCD gate — skips entirely when gcd_remains > 0
@@ -38,14 +47,16 @@
 --   5. broken_api_throttled guard: if API is broken, skip for 10s per spell
 --   6. NS.try_cast with skip_range=true
 --
--- Throttle chain detail:
---   on_update (1s) -> GCD guard -> per-path logic:
---     try_pet_summon  -> broken_api_throttled(10s) -> NS.try_cast(cooldown)
---     try_self_buffs  -> healer mana floor -> for each entry:
---       should_handle_buff -> buff_remains <= threshold -> get_spell ->
---       broken_api_throttled(10s) -> NS.try_cast(skip_range)
---     try_buff_upgrades -> buff_rank position > 1 -> NS.try_cast (rank upgrade)
---     try_food_flask  -> broken_api_throttled(3s) -> NS.try_cast (numeric ID, no rank mismatch)
+-- Throttle chain detail (single entry point now: main_sylvanas.lua dispatch):
+--   main_sylvanas on_rotation_update (20Hz) -> not in_combat && no enemy
+--     -> M.on_update(context) -> 1s internal throttle -> GCD guard
+--     -> per-path logic:
+--       try_pet_summon  -> broken_api_throttled(10s) -> NS.try_cast(cooldown)
+--       try_self_buffs  -> healer mana floor -> for each entry:
+--         should_handle_buff -> buff_remains <= threshold -> get_spell ->
+--         broken_api_throttled(10s) -> NS.try_cast(skip_range)
+--       try_buff_upgrades -> buff_rank position > 1 -> NS.try_cast (rank upgrade)
+--       try_food_flask  -> broken_api_throttled(3s) -> NS.try_cast (numeric ID, no rank mismatch)
 -- ============================================================================
 
 local _G = _G
@@ -58,7 +69,6 @@ local EMPTY = {}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { BUFFS = {} } end
 
-local _registered = false
 local _last_check = -1000
 local _spell_cache = {}
 local _work_ids = { n = 0 }
@@ -125,7 +135,7 @@ local DEFAULT_BUFFS_BY_CLASS = {
             key = "lightning_shield",
             label = "Lightning Shield",
             buff = ALL_SHAMAN_SHIELDS,
-            spell = { name = "Lightning Shield", ids = { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }, levels = { 70, 62, 52, 44, 36, 28, 20, 14, 1 } },
+            spell = { name = "Lightning Shield", ids = { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }, levels = { 70, 63, 56, 48, 40, 32, 24, 16, 8 } },
             opt_in = true,
             default_below_level = 60,
         },
@@ -392,15 +402,15 @@ function M.on_update(context)
     return false
 end
 
+-- Backwards-compatible no-op. Historically this self-registered into the
+-- shared on_update dispatcher, which caused OOC work to fire TWICE per cycle
+-- (once from the shared 20Hz dispatcher, once from main_sylvanas.lua's OOC
+-- branch in on_rotation_update). Now main_sylvanas.lua owns the single entry
+-- point so we always know exactly who is calling on_update and at what rate.
+-- Kept as a no-op so any external callers (third-party plugins, custom user
+-- scripts) don't crash if they still invoke NS.register_ooc_manager().
 function M.register_ooc_manager()
-    if _registered then return true end
-    if not NS or type(NS.register_on_update_callback) ~= "function" then return false end
-    local ok = NS.register_on_update_callback(function()
-        local context = NS.GetCurrentContext and NS.GetCurrentContext() or nil
-        return M.on_update(context)
-    end)
-    _registered = ok ~= false
-    return _registered
+    return true
 end
 
 if NS then

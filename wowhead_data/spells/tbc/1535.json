@@ -1,27 +1,24 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Fire Nova Totem",
-    "icon": "spell_fire_sealoffire",
-    "cost": {
-      "type": "mana",
-      "amount": 95
-    },
-    "cast_time": 0,
-    "cooldown": "15 sec cooldown",
-    "spell_level": 70,
-    "required_class": "Shaman",
-    "required_level": 12,
-    "description": "Summons a Fire Nova Totem that has 5 health and lasts 5 sec.  Unless it is destroyed within 4 sec., the totem inflicts 53 to 62 fire damage to enemies within 10 yd.",
-    "school": "fire",
-    "damage": {
-      "min": 53,
-      "max": 62
-    },
-    "duration": 5,
-    "aoe": true,
-    "radius": 10
+  "name": "Fire Nova Totem",
+  "icon": "spell_fire_sealoffire",
+  "cost": {
+    "type": "mana",
+    "amount": 95
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:16:35"
+  "cast_time": 0,
+  "cooldown": "15 sec cooldown",
+  "spell_level": 70,
+  "required_class": "Shaman",
+  "required_level": 12,
+  "description": "Summons a Fire Nova Totem that has 5 health and lasts 5 sec.  Unless it is destroyed within 4 sec., the totem inflicts 53 to 62 fire damage to enemies within 10 yd.",
+  "school": "fire",
+  "damage": {
+    "min": 53,
+    "max": 62
+  },
+  "duration": 5,
+  "aoe": true,
+  "radius": 10,
+  "_id": 1535,
+  "_source": "wowhead"
 }

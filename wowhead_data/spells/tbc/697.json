@@ -1,0 +1,14 @@
+{
+  "name": "Summon Voidwalker",
+  "icon": "spell_shadow_summonvoidwalker",
+  "cost": {
+    "type": "mana",
+    "percent": 80
+  },
+  "cast_time": 10,
+  "required_class": "Warlock",
+  "required_level": 10,
+  "description": "Summons a Voidwalker under the command of the Warlock.",
+  "_id": 697,
+  "_source": "wowhead"
+}

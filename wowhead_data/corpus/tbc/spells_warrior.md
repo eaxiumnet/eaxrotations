@@ -1,6 +1,6 @@
 # Warrior Spells — TBC
 
-Total: 99 spells
+Total: 121 spells
 
 ---
 
@@ -14,6 +14,19 @@ Total: 99 spells
 
 ---
 
+## Shield Bash [ID: 72]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 12
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Cooldown**: 12 sec cooldown
+- **Description**: Bashes the target with your shield for 6 damage.  It also interrupts spellcasting and prevents any spell in that school from being cast for 6 sec.
+- **Duration**: 6s
+
+---
+
 ## Heroic Strike [ID: 78]
 - **Class**: Warrior
 - **School**: Unknown
@@ -22,6 +35,18 @@ Total: 99 spells
 - **Cost**: 15 rage
 - **Range**: melee yd
 - **Description**: A strong attack that increases melee damage by 11 and causes a high amount of threat.
+
+---
+
+## Charge [ID: 100]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 4
+- **Cast Time**: Instant
+- **Range**: 25 yd
+- **Cooldown**: 15 sec cooldown
+- **Description**: Charge an enemy, generate 9 rage, and stun it for 1 sec.  Cannot be used in combat.
+- **Duration**: 1s
 
 ---
 
@@ -71,6 +96,50 @@ Total: 99 spells
 
 ---
 
+## Disarm [ID: 676]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 18
+- **Cast Time**: Instant
+- **Cost**: 20 rage
+- **Range**: melee yd
+- **Cooldown**: 1 min cooldown
+- **Description**: Disarm the enemy's weapon for 10 sec.
+- **Duration**: 10s
+- **Buff Duration**: 10s
+- **Buff**: Disarmed!
+
+---
+
+## Mocking Blow [ID: 694]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 16
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Cooldown**: 2 min cooldown
+- **Description**: A mocking attack that causes 22 damage, a moderate amount of threat and forces the target to focus attacks on you for 6 sec.
+- **Duration**: 6s
+- **Buff Duration**: 6s
+- **Buff**: Taunted.
+
+---
+
+## Rend [ID: 772]
+- **Class**: Warrior
+- **School**: Physical
+- **Required Level**: 4
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Description**: Wounds the target causing them to bleed for 15 damage plus an additional [0.00743 * 3 * ((Mainhand weapon max base damage + Mainhand weapon min base damage) / 2 + Attack Power / 14 * Mainhand weapon max base speed)] (based on weapon damage) over 9 sec.
+- **Duration**: 9s
+- **Buff Duration**: 9s
+- **Buff**: Bleeding for 5 plus a percentage of weapon damage every 3 seconds.
+
+---
+
 ## Cleave [ID: 845]
 - **Class**: Warrior
 - **School**: Physical
@@ -110,6 +179,32 @@ Total: 99 spells
 
 ---
 
+## Challenging Shout [ID: 1161]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 26
+- **Cast Time**: Instant
+- **Cost**: 5 rage
+- **Cooldown**: 10 min cooldown
+- **Description**: Forces all enemies within 10 yards to focus attacks on you for 6 sec.
+- **Duration**: 6s
+- **Buff Duration**: 6s
+- **Buff**: Taunted.
+- **Tags**: aoe
+
+---
+
+## Slam [ID: 1464]
+- **Class**: Warrior
+- **School**: Physical
+- **Required Level**: 30
+- **Cast Time**: 1.5s
+- **Cost**: 15 rage
+- **Range**: melee yd
+- **Description**: Slams the opponent, causing weapon damage plus 32.
+
+---
+
 ## Heroic Strike [ID: 1608]
 - **Class**: Warrior
 - **School**: Unknown
@@ -118,6 +213,32 @@ Total: 99 spells
 - **Cost**: 15 rage
 - **Range**: melee yd
 - **Description**: A strong attack that increases melee damage by 44 and causes a high amount of threat.
+
+---
+
+## Shield Bash [ID: 1671]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 32
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Cooldown**: 12 sec cooldown
+- **Description**: Bashes the target with your shield for 18 damage.  It also interrupts spellcasting and prevents any spell in that school from being cast for 6 sec.
+- **Duration**: 6s
+
+---
+
+## Shield Bash [ID: 1672]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 52
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Cooldown**: 12 sec cooldown
+- **Description**: Bashes the target with your shield for 45 damage.  It also interrupts spellcasting and prevents any spell in that school from being cast for 6 sec.
+- **Duration**: 6s
 
 ---
 
@@ -130,6 +251,32 @@ Total: 99 spells
 - **Cooldown**: 10 sec cooldown
 - **Description**: In a whirlwind of steel you attack up to 4 enemies within 8 yards, causing weapon damage from both melee weapons to each enemy.
 - **Tags**: aoe
+
+---
+
+## Hamstring [ID: 1715]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 8
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Description**: Maims the enemy, causing 5 damage and slowing the enemy's movement by 40% for 15 sec.
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: Movement slowed by 40%.
+
+---
+
+## Recklessness [ID: 1719]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 50
+- **Cast Time**: Instant
+- **Cooldown**: 30 min cooldown
+- **Description**: The warrior will cause critical hits with most attacks and will be immune to Fear effects for the next 15 sec, but all damage taken is increased by 20%.
+- **Buff Duration**: 15s
+- **Buff**: Immune to Fear effects, most attacks do critical hits, but all damage taken is increased by 20%.
 
 ---
 
@@ -217,6 +364,18 @@ Total: 99 spells
 
 ---
 
+## Charge [ID: 6178]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 26
+- **Cast Time**: Instant
+- **Range**: 25 yd
+- **Cooldown**: 15 sec cooldown
+- **Description**: Charge an enemy, generate 12 rage, and stun it for 1 sec.  Cannot be used in combat.
+- **Duration**: 1s
+
+---
+
 ## Demoralizing Shout [ID: 6190]
 - **Class**: Warrior
 - **School**: Unknown
@@ -258,6 +417,60 @@ Total: 99 spells
 - **Buff Duration**: 10s
 - **Buff**: Time between attacks increased by 10%.
 - **Tags**: aoe
+
+---
+
+## Rend [ID: 6547]
+- **Class**: Warrior
+- **School**: Physical
+- **Required Level**: 20
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Description**: Wounds the target causing them to bleed for 45 damage plus an additional [0.00743 * 5 * ((Mainhand weapon max base damage + Mainhand weapon min base damage) / 2 + Attack Power / 14 * Mainhand weapon max base speed)] (based on weapon damage) over 15 sec.
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: Bleeding for 9 plus a percentage of weapon damage every 3 seconds.
+
+---
+
+## Rend [ID: 6548]
+- **Class**: Warrior
+- **School**: Physical
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Description**: Wounds the target causing them to bleed for 66 damage plus an additional [0.00743 * 6 * ((Mainhand weapon max base damage + Mainhand weapon min base damage) / 2 + Attack Power / 14 * Mainhand weapon max base speed)] (based on weapon damage) over 18 sec.
+- **Duration**: 18s
+- **Buff Duration**: 18s
+- **Buff**: Bleeding for 11 plus a percentage of weapon damage every 3 seconds.
+
+---
+
+## Pummel [ID: 6552]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 38
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Cooldown**: 10 sec cooldown
+- **Description**: Pummel the target for 20 damage.  It also interrupts spellcasting and prevents any spell in that school from being cast for 4 sec.
+- **Duration**: 4s
+
+---
+
+## Pummel [ID: 6554]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 58
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Cooldown**: 10 sec cooldown
+- **Description**: Pummel the target for 50 damage.  It also interrupts spellcasting and prevents any spell in that school from being cast for 4 sec.
+- **Duration**: 4s
 
 ---
 
@@ -312,6 +525,34 @@ Total: 99 spells
 
 ---
 
+## Hamstring [ID: 7372]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 32
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Description**: Maims the enemy, causing 18 damage and slowing the enemy's movement by 45% for 15 sec.
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: Movement slowed by 45%.
+
+---
+
+## Hamstring [ID: 7373]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 54
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Description**: Maims the enemy, causing 45 damage and slowing the enemy's movement by 50% for 15 sec.
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: Movement slowed by 50%.
+
+---
+
 ## Revenge [ID: 7379]
 - **Class**: Warrior
 - **School**: Unknown
@@ -322,6 +563,18 @@ Total: 99 spells
 - **Cooldown**: 5 sec cooldown
 - **Description**: Instantly counterattack an enemy for 107 to 129 damage and a high amount of threat.   Revenge must follow a block, dodge or parry.
 - **Damage**: 107-129 Unknown
+
+---
+
+## Overpower [ID: 7384]
+- **Class**: Warrior
+- **School**: Physical
+- **Required Level**: 12
+- **Cast Time**: Instant
+- **Cost**: 5 rage
+- **Range**: melee yd
+- **Cooldown**: 5 sec cooldown
+- **Description**: Instantly overpower the enemy, causing weapon damage plus 5.  Only useable after the target dodges.  The Overpower cannot be blocked, dodged or parried.
 
 ---
 
@@ -339,6 +592,21 @@ Total: 99 spells
 
 ---
 
+## Mocking Blow [ID: 7400]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 26
+- **Cast Time**: Instant
+- **Cost**: 10 rage
+- **Range**: melee yd
+- **Cooldown**: 2 min cooldown
+- **Description**: A mocking attack that causes 31 damage, a moderate amount of threat and forces the target to focus attacks on you for 6 sec.
+- **Duration**: 6s
+- **Buff Duration**: 6s
+- **Buff**: Taunted.
+
+---
+
 ## Sunder Armor [ID: 7405]
 - **Class**: Warrior
 - **School**: Unknown
@@ -350,6 +618,18 @@ Total: 99 spells
 - **Duration**: 30s
 - **Buff Duration**: 30s
 - **Buff**: Armor decreased by 180.
+
+---
+
+## Overpower [ID: 7887]
+- **Class**: Warrior
+- **School**: Physical
+- **Required Level**: 28
+- **Cast Time**: Instant
+- **Cost**: 5 rage
+- **Range**: melee yd
+- **Cooldown**: 5 sec cooldown
+- **Description**: Instantly overpower the enemy, causing weapon damage plus 15.  Only useable after the target dodges.  The Overpower cannot be blocked, dodged or parried.
 
 ---
 
@@ -1275,6 +1555,16 @@ Total: 99 spells
 - **Cooldown**: 5 sec cooldown
 - **Description**: Instantly counterattack an enemy for 414 to 506 damage and a high amount of threat.   Revenge must follow a block, dodge or parry.
 - **Damage**: 414-506 Unknown
+
+---
+
+## Victory Rush [ID: 34428]
+- **Class**: Warrior
+- **School**: Unknown
+- **Required Level**: 62
+- **Cast Time**: Instant
+- **Range**: melee yd
+- **Description**: Instantly attack the target causing (Attack Power * 45 / 100) damage.  Can only be used within 20 sec after you kill an enemy that yields experience or honor.  Damage is based on your attack power.
 
 ---
 

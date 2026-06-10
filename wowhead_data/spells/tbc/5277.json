@@ -1,0 +1,15 @@
+{
+  "name": "Evasion",
+  "icon": "spell_shadow_shadowward",
+  "cast_time": 0,
+  "cooldown": "5 min cooldown",
+  "required_class": "Rogue",
+  "required_level": 8,
+  "description": "The rogue's dodge chance will increase by 50% for 15 sec.",
+  "duration": 15,
+  "has_buff": true,
+  "buff_duration": 15,
+  "buff_text": "Increases dodge chance by 50%.",
+  "_id": 5277,
+  "_source": "wowhead"
+}

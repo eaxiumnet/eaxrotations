@@ -1,10 +1,7 @@
 {
-  "ok": true,
-  "data": {
-    "name": "[DND]Ripe Moonshine Credit",
-    "icon": "classic_temp",
-    "cast_time": 0
-  },
-  "source": "cache",
-  "cached_at": "2026-06-05 20:58:10"
+  "name": "[DND]Ripe Moonshine Credit",
+  "icon": "classic_temp",
+  "cast_time": 0,
+  "_id": 38997,
+  "_source": "wowhead"
 }

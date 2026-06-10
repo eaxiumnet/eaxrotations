@@ -1,0 +1,10 @@
+{
+  "name": "Cold Snap",
+  "icon": "spell_frost_wizardmark",
+  "cast_time": 0,
+  "cooldown": "8 min cooldown",
+  "required_class": "Mage",
+  "description": "When activated, this spell finishes the cooldown on all Frost spells you recently cast.",
+  "_id": 11958,
+  "_source": "wowhead"
+}

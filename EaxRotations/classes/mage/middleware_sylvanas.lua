@@ -317,12 +317,7 @@ local strategies = {
         execute = function(context)
             local item_id = first_ready_mana_gem()
             if not item_id or not NS.use_item_by_id then return false end
-            local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
-            if NS.use_item_by_id(item_id) then
-                if debug then NS.log("[MAGE] Mana Gem - Mana: " .. tostring(math.floor(context.mana_pct or 0)) .. "%") end
-                return true
-            end
-            return false
+            return NS.use_item_by_id(item_id) and true or false
         end,
     },
 

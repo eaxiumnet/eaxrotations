@@ -368,12 +368,61 @@ local chain_lightning_matches = function(context, state)
 end
 
 --- Lightning Bolt - primary filler
+-- Throttled diagnostic helper: logs WHY this match failed. Output is
+-- rate-limited to once per 2s per distinct reason so it does not flood
+-- the chat during long fights. Always-on (no debug_system gate) so the
+-- failure reason is visible without toggling settings.
+local _lb_log_last_ms = 0
+local _lb_log_last_reason = nil
+local _lb_call_count = 0
+local function _lb_debug(reason)
+    if not NS.log then return end
+    local now = now_ms()
+    if reason == _lb_log_last_reason and (now - _lb_log_last_ms) < 2000 then return end
+    _lb_log_last_ms = now
+    _lb_log_last_reason = reason
+    NS.log("[LEVELING][LightningBolt] match-fail: " .. tostring(reason))
+end
+
 local lightning_bolt_matches = function(context, state)
-    if not state then return false end
-    if not has_enemy_target(context, state) then return false end
-    if not state.lightning_bolt_ready then return false end
-    if not state.target then return false end
-    if state.is_moving then return false end
+    -- First 3 calls: always log the state snapshot so we can see EXACTLY
+    -- what the rotation thinks, regardless of throttle timing.
+    _lb_call_count = _lb_call_count + 1
+    if _lb_call_count <= 3 and NS.log then
+        NS.log(string.format(
+            "[LEVELING][LightningBolt] call #%d: state=%s, ctx.in_combat=%s, ctx.has_valid_enemy_target=%s, ctx.target=%s, state.target=%s, state.is_moving=%s, state.lightning_bolt_ready=%s",
+            _lb_call_count,
+            tostring(state ~= nil),
+            tostring(context and context.in_combat),
+            tostring(context and context.has_valid_enemy_target),
+            tostring(context and context.target ~= nil),
+            tostring(state and state.target ~= nil),
+            tostring(state and state.is_moving),
+            tostring(state and state.lightning_bolt_ready)))
+    end
+
+    if not state then
+        _lb_debug("no state")
+        return false
+    end
+    if not has_enemy_target(context, state) then
+        _lb_debug(string.format(
+            "no enemy target (in_combat=%s, has_valid_enemy_target=%s)",
+            tostring(state.in_combat), tostring(context.has_valid_enemy_target)))
+        return false
+    end
+    if not state.lightning_bolt_ready then
+        _lb_debug("spell not ready (lightning_bolt_ready=false)")
+        return false
+    end
+    if not state.target then
+        _lb_debug("no target (state.target is nil)")
+        return false
+    end
+    if state.is_moving then
+        _lb_debug("moving (is_moving=true)")
+        return false
+    end
     return true
 end
 
@@ -661,6 +710,21 @@ function shaman_leveling.on_update(context)
 
     local state = shaman_leveling.build_state(context)
     if not state then return false end
+
+    -- One-time diagnostic: confirms the dispatcher reached the leveling
+    -- rotation and reports what the dispatcher thinks about combat state.
+    if not _orc_logged and NS.log then
+        _orc_logged = true
+        NS.log(string.format(
+            "[LEVELING] on_update reached: ctx.in_combat=%s, ctx.has_valid_enemy_target=%s, ctx.target=%s, state.target=%s, hp=%s, mana_pct=%s, lightning_bolt_ready=%s",
+            tostring(context.in_combat),
+            tostring(context.has_valid_enemy_target),
+            tostring(context.target ~= nil),
+            tostring(state.target ~= nil),
+            tostring(state.hp),
+            tostring(state.mana_pct),
+            tostring(state.lightning_bolt_ready)))
+    end
 
     -- Evaluate strategies in priority order
     for i = 1, #strategies do

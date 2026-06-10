@@ -1,21 +1,18 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Magma Totem",
-    "icon": "spell_fire_selfdestruct",
-    "cost": {
-      "type": "mana",
-      "amount": 230
-    },
-    "cast_time": 0,
-    "required_class": "Shaman",
-    "required_level": 26,
-    "description": "Summons a Magma Totem with 5 health at the feet of the caster for 20 sec that causes 22 Fire damage to creatures within 8 yards every 2 seconds.",
-    "school": "fire",
-    "duration": 20,
-    "radius": 8,
-    "target_type": "self"
+  "name": "Magma Totem",
+  "icon": "spell_fire_selfdestruct",
+  "cost": {
+    "type": "mana",
+    "amount": 230
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:18:16"
+  "cast_time": 0,
+  "required_class": "Shaman",
+  "required_level": 26,
+  "description": "Summons a Magma Totem with 5 health at the feet of the caster for 20 sec that causes 22 Fire damage to creatures within 8 yards every 2 seconds.",
+  "school": "fire",
+  "duration": 20,
+  "radius": 8,
+  "target_type": "self",
+  "_id": 8190,
+  "_source": "wowhead"
 }

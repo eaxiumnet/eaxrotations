@@ -1,0 +1,8 @@
+{
+  "name": "Tremor Totem Passive",
+  "icon": "spell_nature_tremortotem",
+  "required_class": "Shaman",
+  "required_level": 18,
+  "_id": 8145,
+  "_source": "wowhead"
+}

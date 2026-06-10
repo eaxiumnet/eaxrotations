@@ -1,0 +1,13 @@
+{
+  "name": "Clearcasting",
+  "icon": "spell_shadow_manaburn",
+  "range": 100,
+  "cast_time": 0,
+  "required_class": "Druid",
+  "required_level": 10,
+  "has_buff": true,
+  "buff_duration": 15,
+  "buff_text": "Your next damage or healing spell or offensive ability has its mana, rage or energy cost reduced by 100%.",
+  "_id": 16870,
+  "_source": "wowhead"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Curse of Idiocy",
+  "icon": "spell_shadow_mindrot",
+  "cost": {
+    "type": "mana",
+    "amount": 110
+  },
+  "range": 30,
+  "cast_time": 0,
+  "required_class": "Warlock",
+  "required_level": 38,
+  "description": "Curse the target with idiocy, reducing Intellect and Spirit by 6 every 3 seconds until each is reduced by a total of 90.  Only one Curse per Warlock can be active on any one target.",
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 120,
+  "buff_text": "Intellect and Spirit reduced.",
+  "_id": 1010,
+  "_source": "wowhead"
+}

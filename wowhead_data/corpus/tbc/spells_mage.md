@@ -1,6 +1,6 @@
 # Mage Spells — TBC
 
-Total: 78 spells
+Total: 119 spells
 
 ---
 
@@ -21,6 +21,16 @@ Total: 78 spells
 
 ---
 
+## Frostbolt of Ages [ID: 11]
+- **Class**: Mage
+- **School**: Frost
+- **Required Level**: 1
+- **Cast Time**: Instant
+- **Range**: 100 yd
+- **Description**: Deals 1000 Frost damage to the target.
+
+---
+
 ## Frostbolt [ID: 116]
 - **Class**: Mage
 - **School**: Frost
@@ -34,6 +44,50 @@ Total: 78 spells
 - **Duration**: 5s
 - **Buff Duration**: 5s
 - **Buff**: Movement slowed by 40%.
+
+---
+
+## Polymorph [ID: 118]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 8
+- **Cast Time**: 1.5s
+- **Cost**: 60 mana
+- **Range**: 30 yd
+- **Description**: Transforms the enemy into a sheep, forcing it to wander around for up to 20 sec.  While wandering, the sheep cannot attack or cast spells but will regenerate very quickly.  Any damage will transform the target back into its normal form.  Only one target can be polymorphed at a time.  Only works on Beasts, Humanoids and Critters.
+- **Buff Duration**: 20s
+- **Buff**: Cannot attack or cast spells.  Increased regeneration.
+
+---
+
+## Cone of Cold [ID: 120]
+- **Class**: Mage
+- **School**: Frost
+- **Required Level**: 26
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 210 mana
+- **Cooldown**: 10 sec cooldown
+- **Description**: Targets in a cone in front of the caster take 102 to 112 Frost damage and are slowed by 50% for 8 sec.
+- **Damage**: 102-112 Frost
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: Movement slowed by 50%.
+
+---
+
+## Frost Nova [ID: 122]
+- **Class**: Mage
+- **School**: Frost
+- **Required Level**: 10
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 55 mana
+- **Cooldown**: 25 sec cooldown
+- **Description**: Blasts enemies near the caster for 21 to 24 Frost damage and freezes them in place for up to 8 sec.  Damage caused may interrupt the effect.
+- **Damage**: 21-24 Frost
+- **Buff Duration**: 8s
+- **Buff**: Frozen in place.
 
 ---
 
@@ -54,7 +108,7 @@ Total: 78 spells
 - **Effects**:
   - School Damage (Fire): 14 (SP mod:
   - Apply Aura: Periodic Damage: 1 every 2 seconds
-- **Modified by** (65 talents):
+- **Modified by** (62 talents):
   - Improved Fireball (ID: 11069)
   - Burning Soul (ID: 11083)
   - Flame Throwing (ID: 11100)
@@ -65,7 +119,7 @@ Total: 78 spells
   - Critical Mass (ID: 11367)
   - Critical Mass (ID: 11368)
   - Arcane Power (ID: 12042)
-  - ... and 55 more
+  - ... and 52 more
 - **See also**: Fireball, Fireball, Fireball, Fireball, Fireball
 - **Flags**: Cannot be used while shapeshifted
 
@@ -105,6 +159,19 @@ Total: 78 spells
 
 ---
 
+## Frost Armor [ID: 168]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 1
+- **Cast Time**: Instant
+- **Cost**: 60 mana
+- **Description**: Increases Armor by 30.  If an enemy strikes the caster, they may have their movement slowed by 30% and the time between their attacks increased by 25% for 5 sec.  Only one type of Armor spell can be active on the Mage at any time.  Lasts 30 min.
+- **Duration**: 1800s
+- **Buff Duration**: 1800s
+- **Buff**: Increases Armor by 30 and may slow attackers.
+
+---
+
 ## Frostbolt [ID: 205]
 - **Class**: Mage
 - **School**: Frost
@@ -118,6 +185,40 @@ Total: 78 spells
 - **Duration**: 6s
 - **Buff Duration**: 6s
 - **Buff**: Movement slowed by 40%.
+
+---
+
+## Remove Lesser Curse [ID: 475]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 18
+- **Cast Time**: Instant
+- **Range**: 40 yd
+- **Description**: Removes 1 Curse from a friendly target.
+
+---
+
+## Fire Ward [ID: 543]
+- **Class**: Mage
+- **School**: Fire
+- **Required Level**: 20
+- **Cast Time**: Instant
+- **Cost**: 85 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Absorbs 165 Fire damage.  Lasts 30 sec.
+- **Duration**: 30s
+- **Buff Duration**: 30s
+- **Buff**: Absorbs Fire damage.
+
+---
+
+## Conjure Mana Agate [ID: 759]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 28
+- **Cast Time**: 3s
+- **Cost**: 530 mana
+- **Description**: Conjures a mana agate that can be used to instantly restore 390 to 410 mana.Conjured items disappear if logged out for more than 15 minutes.
 
 ---
 
@@ -137,6 +238,72 @@ Total: 78 spells
 
 ---
 
+## Frost Nova [ID: 865]
+- **Class**: Mage
+- **School**: Frost
+- **Required Level**: 26
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 85 mana
+- **Cooldown**: 25 sec cooldown
+- **Description**: Blasts enemies near the caster for 35 to 40 Frost damage and freezes them in place for up to 8 sec.  Damage caused may interrupt the effect.
+- **Damage**: 35-40 Frost
+- **Buff Duration**: 8s
+- **Buff**: Frozen in place.
+
+---
+
+## Arcane Explosion [ID: 1449]
+- **Class**: Mage
+- **School**: Arcane
+- **Required Level**: 14
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 75 mana
+- **Description**: Causes an explosion of arcane magic around the caster, causing 34 to 38 Arcane damage to all targets within 10 yards.
+- **Damage**: 34-38 Arcane
+
+---
+
+## Arcane Intellect [ID: 1459]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 1
+- **Cast Time**: Instant
+- **Cost**: 25 mana
+- **Range**: 30 yd
+- **Description**: Increases the target's Intellect by 2 for 30 min.
+- **Buff Duration**: 1800s
+- **Buff**: Increases Intellect by 2.
+
+---
+
+## Arcane Intellect [ID: 1460]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 14
+- **Cast Time**: Instant
+- **Cost**: 100 mana
+- **Range**: 30 yd
+- **Description**: Increases the target's Intellect by 7 for 30 min.
+- **Buff Duration**: 1800s
+- **Buff**: Increases Intellect by 7.
+
+---
+
+## Arcane Intellect [ID: 1461]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 28
+- **Cast Time**: Instant
+- **Cost**: 250 mana
+- **Range**: 30 yd
+- **Description**: Increases the target's Intellect by 15 for 30 min.
+- **Buff Duration**: 1800s
+- **Buff**: Increases Intellect by 15.
+
+---
+
 ## Mana Shield [ID: 1463]
 - **Class**: Mage
 - **School**: Unknown
@@ -147,6 +314,54 @@ Total: 78 spells
 - **Duration**: 60s
 - **Buff Duration**: 60s
 - **Buff**: Absorbs damage, draining mana instead.
+
+---
+
+## Blink [ID: 1953]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 20
+- **Cast Time**: Instant
+- **Cooldown**: 15 sec cooldown
+- **Description**: Teleports the caster 20 yards forward, unless something is in the way.  Also frees the caster from stuns and bonds.
+- **Buff Duration**: 1s
+- **Buff**: Blinking.
+
+---
+
+## Flamestrike [ID: 2120]
+- **Class**: Mage
+- **School**: Fire
+- **Required Level**: 16
+- **Spell Level**: 70
+- **Cast Time**: 3s
+- **Cost**: 195 mana
+- **Range**: 30 yd
+- **Description**: Calls down a pillar of fire, burning all enemies within the area for 55 to 71 Fire damage and an additional 48 Fire damage over 8 sec.
+- **Damage**: 55-71 Fire
+- **Periodic**: 12 Fire every 2s
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: 12 Fire damage every 2 seconds.
+- **Tags**: aoe
+
+---
+
+## Flamestrike [ID: 2121]
+- **Class**: Mage
+- **School**: Fire
+- **Required Level**: 24
+- **Spell Level**: 70
+- **Cast Time**: 3s
+- **Cost**: 330 mana
+- **Range**: 30 yd
+- **Description**: Calls down a pillar of fire, burning all enemies within the area for 100 to 126 Fire damage and an additional 88 Fire damage over 8 sec.
+- **Damage**: 100-126 Fire
+- **Periodic**: 22 Fire every 1s
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: 22 Fire damage every 2.
+- **Tags**: aoe
 
 ---
 
@@ -192,6 +407,19 @@ Total: 78 spells
 
 ---
 
+## Counterspell [ID: 2139]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 24
+- **Cast Time**: Instant
+- **Cost**: 100 mana
+- **Range**: 30 yd
+- **Cooldown**: 24 sec cooldown
+- **Description**: Counters the enemy's spellcast, preventing any spell from that school of magic from being cast for 8 sec.  Generates a high amount of threat.
+- **Duration**: 8s
+
+---
+
 ## Scorch [ID: 2948]
 - **Class**: Mage
 - **School**: Fire
@@ -219,6 +447,16 @@ Total: 78 spells
 - **Duration**: 8s
 - **Buff Duration**: 8s
 - **Buff**: 3 Fire damage every 2 seconds.
+
+---
+
+## Conjure Mana Jade [ID: 3552]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 38
+- **Cast Time**: 3s
+- **Cost**: 800 mana
+- **Description**: Conjures a mana jade that can be used to instantly restore 585 to 615 mana.Conjured items disappear if logged out for more than 15 minutes.
 
 ---
 
@@ -261,6 +499,34 @@ Total: 78 spells
 
 ---
 
+## Mage Armor [ID: 6117]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 34
+- **Cast Time**: Instant
+- **Cost**: 270 mana
+- **Description**: Increases your resistance to all magic by 5 and allows 30% of your mana regeneration to continue while casting.  Only one type of Armor spell can be active on the Mage at any time.  Lasts 30 min.
+- **Duration**: 1800s
+- **Buff Duration**: 1800s
+- **Buff**: Resistance to all magic schools increased by 5 and allows 30% of your mana regeneration to continue while casting.
+
+---
+
+## Frost Nova [ID: 6131]
+- **Class**: Mage
+- **School**: Frost
+- **Required Level**: 40
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 115 mana
+- **Cooldown**: 25 sec cooldown
+- **Description**: Blasts enemies near the caster for 54 to 61 Frost damage and freezes them in place for up to 8 sec.  Damage caused may interrupt the effect.
+- **Damage**: 54-61 Frost
+- **Buff Duration**: 8s
+- **Buff**: Frozen in place.
+
+---
+
 ## Blizzard [ID: 6141]
 - **Class**: Mage
 - **School**: Frost
@@ -275,6 +541,72 @@ Total: 78 spells
 - **Buff Duration**: 8s
 - **Buff**: 45 Frost damage every 1 second.
 - **Tags**: aoe
+
+---
+
+## Frost Ward [ID: 6143]
+- **Class**: Mage
+- **School**: Frost
+- **Required Level**: 22
+- **Cast Time**: Instant
+- **Cost**: 85 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Absorbs 165 Frost damage.  Lasts 30 sec.
+- **Duration**: 30s
+- **Buff Duration**: 30s
+- **Buff**: Absorbs Frost damage.
+
+---
+
+## Frost Armor [ID: 7300]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 10
+- **Cast Time**: Instant
+- **Cost**: 110 mana
+- **Description**: Increases Armor by 110.  If an enemy strikes the caster, they may have their movement slowed by 30% and the time between their attacks increased by 25% for 5 sec.  Only one type of Armor spell can be active on the Mage at any time.  Lasts 30 min.
+- **Duration**: 1800s
+- **Buff Duration**: 1800s
+- **Buff**: Increases Armor by 110 and may slow attackers.
+
+---
+
+## Frost Armor [ID: 7301]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 20
+- **Cast Time**: Instant
+- **Cost**: 170 mana
+- **Description**: Increases Armor by 200.  If an enemy strikes the caster, they may have their movement slowed by 30% and the time between their attacks increased by 25% for 5 sec.  Only one type of Armor spell can be active on the Mage at any time.  Lasts 30 min.
+- **Duration**: 1800s
+- **Buff Duration**: 1800s
+- **Buff**: Increases Armor by 200 and may slow attackers.
+
+---
+
+## Ice Armor [ID: 7302]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Cost**: 240 mana
+- **Description**: Increases Armor by 290 and frost resistance by 6.   If an enemy strikes the caster, they may have their movement slowed by 30% and the time between their attacks increased by 25% for 5 sec.  Only one type of Armor spell can be active on the Mage at any time.  Lasts 30 min.
+- **Duration**: 1800s
+- **Buff Duration**: 1800s
+- **Buff**: Increases Armor by 290, Frost resistance by 6 and may slow attackers.
+
+---
+
+## Ice Armor [ID: 7320]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 40
+- **Cast Time**: Instant
+- **Cost**: 320 mana
+- **Description**: Increases Armor by 380 and frost resistance by 9.   If an enemy strikes the caster, they may have their movement slowed by 30% and the time between their attacks increased by 25% for 5 sec.  Only one type of Armor spell can be active on the Mage at any time.  Lasts 30 min.
+- **Duration**: 1800s
+- **Buff Duration**: 1800s
+- **Buff**: Increases Armor by 380, Frost resistance by 9 and may slow attackers.
 
 ---
 
@@ -447,6 +779,53 @@ Total: 78 spells
 
 ---
 
+## Arcane Missiles [ID: 8418]
+- **Class**: Mage
+- **School**: Arcane
+- **Required Level**: 40
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Range**: 30 yd
+- **Description**: Launches an Arcane Missile at the enemy, causing 118 Arcane damage.
+
+---
+
+## Flamestrike [ID: 8422]
+- **Class**: Mage
+- **School**: Fire
+- **Required Level**: 32
+- **Spell Level**: 70
+- **Cast Time**: 3s
+- **Cost**: 490 mana
+- **Range**: 30 yd
+- **Description**: Calls down a pillar of fire, burning all enemies within the area for 159 to 197 Fire damage and an additional 140 Fire damage over 8 sec.
+- **Damage**: 159-197 Fire
+- **Periodic**: 35 Fire every 1s
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: 35 Fire damage every 2.
+- **Tags**: aoe
+
+---
+
+## Flamestrike [ID: 8423]
+- **Class**: Mage
+- **School**: Fire
+- **Required Level**: 40
+- **Spell Level**: 70
+- **Cast Time**: 3s
+- **Cost**: 650 mana
+- **Range**: 30 yd
+- **Description**: Calls down a pillar of fire, burning all enemies within the area for 226 to 279 Fire damage and an additional 196 Fire damage over 8 sec.
+- **Damage**: 226-279 Fire
+- **Periodic**: 49 Fire every 1s
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: 49 Fire damage every 2.
+- **Tags**: aoe
+
+---
+
 ## Blizzard [ID: 8427]
 - **Class**: Mage
 - **School**: Frost
@@ -461,6 +840,42 @@ Total: 78 spells
 - **Buff Duration**: 8s
 - **Buff**: 66 Frost damage every 1 second.
 - **Tags**: aoe
+
+---
+
+## Arcane Explosion [ID: 8437]
+- **Class**: Mage
+- **School**: Arcane
+- **Required Level**: 22
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 120 mana
+- **Description**: Causes an explosion of arcane magic around the caster, causing 60 to 66 Arcane damage to all targets within 10 yards.
+- **Damage**: 60-66 Arcane
+
+---
+
+## Arcane Explosion [ID: 8438]
+- **Class**: Mage
+- **School**: Arcane
+- **Required Level**: 30
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 185 mana
+- **Description**: Causes an explosion of arcane magic around the caster, causing 101 to 110 Arcane damage to all targets within 10 yards.
+- **Damage**: 101-110 Arcane
+
+---
+
+## Arcane Explosion [ID: 8439]
+- **Class**: Mage
+- **School**: Arcane
+- **Required Level**: 38
+- **Spell Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 250 mana
+- **Description**: Causes an explosion of arcane magic around the caster, causing 143 to 156 Arcane damage to all targets within 10 yards.
+- **Damage**: 143-156 Arcane
 
 ---
 
@@ -500,6 +915,34 @@ Total: 78 spells
 - **Range**: 30 yd
 - **Description**: Scorch the enemy for 139 to 165 Fire damage.
 - **Damage**: 139-165 Fire
+
+---
+
+## Fire Ward [ID: 8457]
+- **Class**: Mage
+- **School**: Fire
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Cost**: 135 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Absorbs 290 Fire damage.  Lasts 30 sec.
+- **Duration**: 30s
+- **Buff Duration**: 30s
+- **Buff**: Absorbs Fire damage.
+
+---
+
+## Fire Ward [ID: 8458]
+- **Class**: Mage
+- **School**: Fire
+- **Required Level**: 40
+- **Cast Time**: Instant
+- **Cost**: 195 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: Absorbs 470 Fire damage.  Lasts 30 sec.
+- **Duration**: 30s
+- **Buff Duration**: 30s
+- **Buff**: Absorbs Fire damage.
 
 ---
 
@@ -838,6 +1281,16 @@ Total: 78 spells
 
 ---
 
+## Cold Snap [ID: 11958]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 0
+- **Cast Time**: Instant
+- **Cooldown**: 8 min cooldown
+- **Description**: When activated, this spell finishes the cooldown on all Frost spells you recently cast.
+
+---
+
 ## Arcane Power [ID: 12042]
 - **Class**: Mage
 - **School**: Unknown
@@ -1095,6 +1548,16 @@ Total: 78 spells
 
 ---
 
+## Spellsteal [ID: 30449]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 70
+- **Cast Time**: Instant
+- **Range**: 30 yd
+- **Description**: Steals a beneficial magic effect from the target.  This effect lasts a maximum of 2 min.
+
+---
+
 ## Arcane Blast [ID: 30451]
 - **Class**: Mage
 - **School**: Arcane
@@ -1122,6 +1585,32 @@ Total: 78 spells
 
 ---
 
+## Molten Armor [ID: 30482]
+- **Class**: Mage
+- **School**: Fire
+- **Required Level**: 62
+- **Cast Time**: Instant
+- **Cost**: 630 mana
+- **Description**: Causes 75 Fire damage when hit, increases your chance to critically hit with spells by 3%, and reduces the chance you are critically hit by 5%.  Only one type of Armor spell can be active on the Mage at any time.  Lasts 30 min.
+- **Duration**: 1800s
+- **Buff Duration**: 1800s
+- **Buff**: Causes 75 Fire damage to attackers.  Chance to receive a critical hit reduced by 5%.  Chance to critically strike with spells increased by 3%.
+
+---
+
+## Slow [ID: 31589]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 0
+- **Cast Time**: Instant
+- **Range**: 30 yd
+- **Description**: Reduces target's movement speed by 50%, increases the time between ranged attacks by 50% and increases casting time by 50%.  Lasts 15 sec.  Slow can only affect one target at a time.
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: Movement speed reduced by 50%.  Time between ranged attacks increased by 50%.  Casting time increased by 50%.
+
+---
+
 ## Summon Water Elemental [ID: 31687]
 - **Class**: Mage
 - **School**: Unknown
@@ -1130,6 +1619,18 @@ Total: 78 spells
 - **Cooldown**: 3 min cooldown
 - **Description**: Summon a Water Elemental to fight for the caster for 45 sec.
 - **Duration**: 45s
+
+---
+
+## Counterspell [ID: 31999]
+- **Class**: Mage
+- **School**: Unknown
+- **Required Level**: 24
+- **Cast Time**: 2s
+- **Cost**: 100 mana
+- **Range**: 30 yd
+- **Description**: Counters an enemy's spell, preventing the enemy from casting that spell again for 15 sec. Generates a high amount of threat.
+- **Duration**: 15s
 
 ---
 
@@ -1147,6 +1648,49 @@ Total: 78 spells
 - **Duration**: 12s
 - **Buff Duration**: 12s
 - **Buff**: 89 Fire damage every 3 seconds.
+
+---
+
+## Fireball [ID: 38692]
+- **Class**: Mage
+- **School**: Fire
+- **Required Level**: 70
+- **Spell Level**: 70
+- **Cast Time**: 3.5s
+- **Cost**: 465 mana
+- **Range**: 35 yd
+- **Description**: Hurls a fiery ball that causes 717 to 913 Fire damage and an additional 84 Fire damage over 8 sec.
+- **Damage**: 717-913 Fire
+- **Periodic**: 21 Fire every 2s
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: 21 Fire damage every 2 seconds.
+
+---
+
+## Arcane Missiles [ID: 38699]
+- **Class**: Mage
+- **School**: Arcane
+- **Required Level**: 69
+- **Spell Level**: 70
+- **Cast Time**: 5s
+- **Cost**: 740 mana
+- **Range**: 30 yd
+- **Description**: Launches Arcane Missiles at the enemy, causing 265 Arcane damage every 1 sec for 5 sec.
+- **Duration**: 5s
+
+---
+
+## Arcane Missiles [ID: 38704]
+- **Class**: Mage
+- **School**: Arcane
+- **Required Level**: 70
+- **Spell Level**: 70
+- **Cast Time**: 5s
+- **Cost**: 785 mana
+- **Range**: 30 yd
+- **Description**: Launches Arcane Missiles at the enemy, causing 286 Arcane damage every 1 sec for 5 sec.
+- **Duration**: 5s
 
 ---
 

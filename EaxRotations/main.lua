@@ -464,7 +464,6 @@ local menu_elements = {
     threat_drop_toggle = core.menu.keybind(7, true, "eax_threat_drop_enabled_keybind"),
     settings_tree = core.menu.tree_node(),
     diagnostics_tree = core.menu.tree_node(),
-    dashboard_check = core.menu.checkbox(false, "show_dashboard"),
     dump_spells_btn = core.menu.button("eax_dump_spells"),
     -- [#4] Pre-allocated header widgets — created ONCE, not every render frame.
     -- core.menu.header() returns a new widget each call; creating inside render_menu()
@@ -474,13 +473,7 @@ local menu_elements = {
 
 }
 
-local dashboard_module = nil
-local function load_optional_module(path, label)
-    local ok, module = pcall(require, path)
-    if ok and module then return module end
-    core.log_error("[EaxRotations] Failed to load " .. label .. ": " .. tostring(module))
-    return nil
-end
+
 
 -- section_headers is declared above (before initialize_schema_menu() call)
 
@@ -723,7 +716,6 @@ local function render_menu()
 
         -- [#5] Diagnostics subtree nested inside main_tree
         menu_elements.diagnostics_tree:render("Diagnostics", function()
-            menu_elements.dashboard_check:render("Show Dashboard", "Toggle the rotation dashboard window on/off")
             if menu_elements.dump_spells_btn:render("Dump Learned Spells", "Writes every known spell for this class to the console log") then
                 local raw = plugin_info.player_class_name
                 if raw and NS and NS.dump_class_spells then
@@ -755,25 +747,7 @@ local function on_update()
         core.log("[EaxRotations:main] FIRST on_update CALL -- dispatcher is alive")
     end
     _on_update_tick_count = _on_update_tick_count + 1
-    -- Aggressive throttled log: every 3s confirms the dispatcher is alive
-    -- and shows key state (combat, target, active playstyle).
-    local _now_s = framework_core and framework_core.time_now and framework_core.time_now() or 0
-    if _now_s - _last_tick_log_s > 3 then
-        _last_tick_log_s = _now_s
-        local _player = core.object_manager and pcall(core.object_manager.get_local_player) and core.object_manager.get_local_player() or nil
-        local _alive = _player and pcall(function() return _player:is_alive() end) and (_player:is_alive() ~= false) or false
-        local _ps = framework_core and framework_core.get_setting and (framework_core.get_setting("playstyle", "none") or "none")
-        local _roten = framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) ~= false
-        local _t = _player and _player.get_target and pcall(function() return _player:get_target() end) and _player:get_target() or nil
-        core.log(string.format(
-            "[EaxRotations:main] TICK #%d (rate~%dHz): alive=%s target=%s playstyle=%s rotation_enabled=%s",
-            _on_update_tick_count,
-            (_on_update_tick_count > 6) and math.floor(_on_update_tick_count / 3) or 0,
-            tostring(_alive),
-            tostring(_t ~= nil),
-            tostring(_ps),
-            tostring(_roten)))
-    end
+    -- Debug tick counter (no API calls to avoid overhead)
     -- One-shot heartbeat: logs exactly once to confirm this callback fires
     if not _on_update_heartbeat_logged then
         _on_update_heartbeat_logged = true
@@ -830,26 +804,10 @@ local function on_update()
         end
     end
 
-    -- Sync menu-backed settings even when rotation execution is disabled.
-    local show_dashboard = menu_elements.dashboard_check and menu_elements.dashboard_check:get_state() or false
-
     sync_quick_toggles()
     sync_playstyle_control()
 
     if framework_core and framework_core.set_setting then
-
-        -- Optional UI windows stay unloaded until explicitly enabled.
-        if show_dashboard and not dashboard_module then
-            dashboard_module = load_optional_module("dashboard_sylvanas", "dashboard")
-        end
-        if dashboard_module and dashboard_module.is_visible and dashboard_module.is_visible() ~= show_dashboard then
-            if show_dashboard and dashboard_module.show then
-                dashboard_module.show()
-            elseif not show_dashboard and dashboard_module.hide then
-                dashboard_module.hide()
-            end
-        end
-
         if rotation_enabled then
             for key, widget in pairs(schema_widgets) do
                 local sync_ok, value = pcall(function()

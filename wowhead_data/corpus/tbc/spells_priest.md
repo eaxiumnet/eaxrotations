@@ -1,6 +1,6 @@
 # Priest Spells — TBC
 
-Total: 131 spells
+Total: 151 spells
 
 ---
 
@@ -32,6 +32,39 @@ Total: 131 spells
 - **Buff Duration**: 15s
 - **Buff**: Healing 9 damage every 3 seconds.
 - **Tags**: heal
+
+---
+
+## Dispel Magic [ID: 527]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 18
+- **Cast Time**: Instant
+- **Range**: 30 yd
+- **Description**: Dispels magic on the target, removing 1 harmful spell from a friend or 1 beneficial spell from an enemy.
+
+---
+
+## Cure Disease [ID: 528]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 14
+- **Cast Time**: Instant
+- **Range**: 40 yd
+- **Description**: Removes 1 disease from the friendly target.
+
+---
+
+## Abolish Disease [ID: 552]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 32
+- **Cast Time**: Instant
+- **Range**: 40 yd
+- **Description**: Attempts to cure 1 disease effect on the target, and 1 more disease effect every 5 seconds for 20 sec.
+- **Duration**: 20s
+- **Buff Duration**: 20s
+- **Buff**: Attempts to dispel 1 disease every 5 seconds.
 
 ---
 
@@ -175,6 +208,32 @@ Total: 131 spells
 
 ---
 
+## Inner Fire [ID: 602]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Cost**: 105 mana
+- **Description**: A burst of Holy energy fills the caster, increasing armor by 720.  Each melee or ranged damage hit against the priest will remove one charge.  Lasts 10 min or until 20 charges are used.
+- **Duration**: 600s
+- **Buff Duration**: 600s
+- **Buff**: Increases armor by 720.
+
+---
+
+## Lightwell [ID: 724]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 0
+- **Cast Time**: 1.5s
+- **Cost**: 225 mana
+- **Range**: 40 yd
+- **Cooldown**: 6 min cooldown
+- **Description**: Creates a Holy Lightwell.  Members of your raid or party can click the Lightwell to restore 801 health over 6 sec.  Any damage taken will cancel the effect.  Lightwell lasts for 3 min or 5 charges.
+- **Duration**: 6s
+
+---
+
 ## Shadow Word: Pain [ID: 970]
 - **Class**: Priest
 - **School**: Shadow
@@ -200,6 +259,16 @@ Total: 131 spells
 - **Range**: 30 yd
 - **Description**: Smite an enemy for 97 to 112 Holy damage.
 - **Damage**: 97-112 Holy
+
+---
+
+## Dispel Magic [ID: 988]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 36
+- **Cast Time**: Instant
+- **Range**: 30 yd
+- **Description**: Dispels magic on the target, removing 2 harmful spells from a friend or 2 beneficial spells from an enemy.
 
 ---
 
@@ -243,6 +312,70 @@ Total: 131 spells
 
 ---
 
+## Inner Fire [ID: 1006]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 40
+- **Cast Time**: Instant
+- **Cost**: 165 mana
+- **Description**: A burst of Holy energy fills the caster, increasing armor by 945.  Each melee or ranged damage hit against the priest will remove one charge.  Lasts 10 min or until 20 charges are used.
+- **Duration**: 600s
+- **Buff Duration**: 600s
+- **Buff**: Increases armor by 945.
+
+---
+
+## Power Word: Fortitude [ID: 1243]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 1
+- **Cast Time**: Instant
+- **Cost**: 20 mana
+- **Range**: 30 yd
+- **Description**: Power infuses the target, increasing their Stamina by 3 for 30 min.
+- **Buff Duration**: 1800s
+- **Buff**: Increases Stamina by 3.
+
+---
+
+## Power Word: Fortitude [ID: 1244]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 12
+- **Cast Time**: Instant
+- **Cost**: 70 mana
+- **Range**: 30 yd
+- **Description**: Power infuses the target, increasing their Stamina by 8 for 30 min.
+- **Buff Duration**: 1800s
+- **Buff**: Increases Stamina by 8.
+
+---
+
+## Power Word: Fortitude [ID: 1245]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 24
+- **Cast Time**: Instant
+- **Cost**: 200 mana
+- **Range**: 30 yd
+- **Description**: Power infuses the target, increasing their Stamina by 20 for 30 min.
+- **Buff Duration**: 1800s
+- **Buff**: Increases Stamina by 20.
+
+---
+
+## Heal [ID: 2054]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 16
+- **Spell Level**: 70
+- **Cast Time**: 3s
+- **Cost**: 155 mana
+- **Range**: 40 yd
+- **Description**: Heal your target for 307 to 353.
+
+---
+
 ## Greater Heal [ID: 2060]
 - **Class**: Priest
 - **School**: Unknown
@@ -281,6 +414,19 @@ Total: 131 spells
 - **Duration**: 18s
 - **Buff Duration**: 18s
 - **Buff**: 61 Shadow damage every 3 seconds.
+
+---
+
+## Power Word: Fortitude [ID: 2791]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 36
+- **Cast Time**: Instant
+- **Cost**: 300 mana
+- **Range**: 30 yd
+- **Description**: Power infuses the target, increasing their Stamina by 32 for 30 min.
+- **Buff Duration**: 1800s
+- **Buff**: Increases Stamina by 32.
 
 ---
 
@@ -436,6 +582,20 @@ Total: 131 spells
 
 ---
 
+## Fear Ward [ID: 6346]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 20
+- **Cast Time**: Instant
+- **Range**: 30 yd
+- **Cooldown**: 3 min cooldown
+- **Description**: Wards the friendly target against Fear.  The next Fear effect used against the target will fail, using up the ward.  Lasts 3 min.
+- **Duration**: 180s
+- **Buff Duration**: 180s
+- **Buff**: Warded against Fear.
+
+---
+
 ## Weakened Soul [ID: 6788]
 - **Class**: Priest
 - **School**: Unknown
@@ -443,6 +603,19 @@ Total: 131 spells
 - **Cast Time**: Instant
 - **Buff Duration**: 15s
 - **Buff**: Cannot be affected by Power Word: Shield.
+
+---
+
+## Inner Fire [ID: 7128]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 20
+- **Cast Time**: Instant
+- **Cost**: 65 mana
+- **Description**: A burst of Holy energy fills the caster, increasing armor by 495.  Each melee or ranged damage hit against the priest will remove one charge.  Lasts 10 min or until 20 charges are used.
+- **Duration**: 600s
+- **Buff Duration**: 600s
+- **Buff**: Increases armor by 495.
 
 ---
 
@@ -527,6 +700,62 @@ Total: 131 spells
 - **Cooldown**: 8 sec cooldown
 - **Description**: Blasts the target for 288 to 307 Shadow damage.
 - **Damage**: 288-307 Shadow
+
+---
+
+## Psychic Scream [ID: 8122]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 14
+- **Cast Time**: Instant
+- **Cost**: 100 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: The caster lets out a psychic scream, causing 2 enemies within 8 yards to flee for 8 sec.  Damage caused may interrupt the effect.
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: Running in Fear.
+- **Tags**: aoe
+
+---
+
+## Psychic Scream [ID: 8124]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 28
+- **Cast Time**: Instant
+- **Cost**: 140 mana
+- **Cooldown**: 30 sec cooldown
+- **Description**: The caster lets out a psychic scream, causing 3 enemies within 8 yards to flee for 8 sec.  Damage caused may interrupt the effect.
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: Running in Fear.
+- **Tags**: aoe
+
+---
+
+## Mana Burn [ID: 8129]
+- **Class**: Priest
+- **School**: Shadow
+- **Required Level**: 24
+- **Spell Level**: 70
+- **Cast Time**: 3s
+- **Cost**: 95 mana
+- **Range**: 30 yd
+- **Description**: Destroy 198 to 211 mana from a target. For each mana destroyed in this way, the target takes 0.5 Shadow damage.
+- **Damage**: 198-211 Shadow
+
+---
+
+## Mana Burn [ID: 8131]
+- **Class**: Priest
+- **School**: Shadow
+- **Required Level**: 32
+- **Spell Level**: 70
+- **Cast Time**: 3s
+- **Cost**: 140 mana
+- **Range**: 30 yd
+- **Description**: Destroy 315 to 336 mana from a target. For each mana destroyed in this way, the target takes 0.5 Shadow damage.
+- **Damage**: 315-336 Shadow
 
 ---
 
@@ -1698,6 +1927,20 @@ Total: 131 spells
 
 ---
 
+## Pain Suppression [ID: 33206]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 0
+- **Cast Time**: Instant
+- **Range**: 40 yd
+- **Cooldown**: 2 min cooldown
+- **Description**: Instantly reduces a friendly target's threat by 5%, reduces all damage taken by 40% and increases resistance to Dispel mechanics by 65% for 8 sec.
+- **Duration**: 8s
+- **Buff Duration**: 8s
+- **Buff**: All damage taken reduced by 40% and resistance to Dispel mechanics increased by 65%.
+
+---
+
 ## Holy Concentration [ID: 34753]
 - **Class**: Priest
 - **School**: Unknown
@@ -1840,6 +2083,14 @@ Total: 131 spells
 - **Duration**: 15s
 - **Buff Duration**: 15s
 - **Buff**: Priest's party gains mana equal to 5% of Shadow spell damage caused by the priest.
+
+---
+
+## Blade's Edge Purple Beam (02) [ID: 36000]
+- **Class**: Priest
+- **School**: Unknown
+- **Required Level**: 1
+- **Cast Time**: 1.5s
 
 ---
 

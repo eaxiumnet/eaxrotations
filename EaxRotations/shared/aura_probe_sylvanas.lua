@@ -261,7 +261,6 @@ end
 
 if NS then
     NS.AuraProbe = M
-    NS.dump_player_auras = M.dump_player_auras
     NS.get_aura_probe_report = M.get_last_report
 end
 

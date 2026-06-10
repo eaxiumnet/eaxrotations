@@ -1,0 +1,16 @@
+{
+  "name": "Cure Poison",
+  "icon": "spell_nature_nullifypoison",
+  "cost": {
+    "type": "mana",
+    "percent": 7
+  },
+  "range": 40,
+  "cast_time": 0,
+  "required_class": "Shaman",
+  "required_level": 16,
+  "description": "Cures 1 poison effect on the target.",
+  "target_type": "hostile",
+  "_id": 526,
+  "_source": "wowhead"
+}

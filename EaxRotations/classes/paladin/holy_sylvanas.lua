@@ -378,14 +378,10 @@ end
 
 local function try_use_item(item_ids, reason)
     if not NS.use_item_by_id then return false end
-    local debug = NS.get_setting and NS.get_setting("debug_system", false) or false
     for i = 1, #item_ids do
         local item_id = item_ids[i]
-        if item_ready(item_id) then
-            if NS.use_item_by_id(item_id) then
-                if reason and debug then NS.log(reason) end
-                return true
-            end
+        if item_ready(item_id) and NS.use_item_by_id(item_id) then
+            return true
         end
     end
     return false

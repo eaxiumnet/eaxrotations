@@ -1,0 +1,14 @@
+{
+  "name": "Devotion Aura",
+  "icon": "spell_holy_devotionaura",
+  "cast_time": 0,
+  "required_class": "Paladin",
+  "required_level": 1,
+  "description": "Gives 55 additional armor to party members within 30 yards.  Players may only have one Aura on them per Paladin at any one time.",
+  "radius": 30,
+  "target_type": "friendly",
+  "has_buff": true,
+  "buff_text": "Increases armor by 55.",
+  "_id": 465,
+  "_source": "wowhead"
+}

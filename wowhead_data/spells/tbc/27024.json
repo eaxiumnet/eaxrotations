@@ -1,0 +1,18 @@
+{
+  "name": "Immolation Trap Effect",
+  "icon": "spell_fire_flameshock",
+  "range": 10,
+  "cast_time": 0,
+  "required_class": "Hunter",
+  "required_level": 65,
+  "has_buff": true,
+  "buff_duration": 15,
+  "periodic": {
+    "amount": 197,
+    "school": "fire",
+    "interval": 3
+  },
+  "buff_text": "197 Fire damage every 3 seconds.",
+  "_id": 27024,
+  "_source": "wowhead"
+}

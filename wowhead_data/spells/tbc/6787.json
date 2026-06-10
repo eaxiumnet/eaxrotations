@@ -1,19 +1,16 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Ravage",
-    "icon": "ability_druid_ravage",
-    "cost": {
-      "type": "energy",
-      "amount": 60
-    },
-    "range": "melee",
-    "cast_time": 0,
-    "required_class": "Druid",
-    "required_level": 42,
-    "description": "Ravage the target, causing 385% damage plus 217 to the target.  Must be prowling and behind the target.  Awards 1 combo point.",
-    "target_type": "hostile"
+  "name": "Ravage",
+  "icon": "ability_druid_ravage",
+  "cost": {
+    "type": "energy",
+    "amount": 60
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:17:56"
+  "range": "melee",
+  "cast_time": 0,
+  "required_class": "Druid",
+  "required_level": 42,
+  "description": "Ravage the target, causing 385% damage plus 217 to the target.  Must be prowling and behind the target.  Awards 1 combo point.",
+  "target_type": "hostile",
+  "_id": 6787,
+  "_source": "wowhead"
 }

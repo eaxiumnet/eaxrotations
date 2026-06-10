@@ -1,0 +1,15 @@
+{
+  "name": "Dash",
+  "icon": "ability_druid_dash",
+  "cast_time": 0,
+  "cooldown": "5 min cooldown",
+  "required_class": "Druid",
+  "required_level": 26,
+  "description": "Increases movement speed by 50% for 15 sec.  Does not break prowling.",
+  "duration": 15,
+  "has_buff": true,
+  "buff_duration": 15,
+  "buff_text": "Increases movement speed by 50%.",
+  "_id": 1850,
+  "_source": "wowhead"
+}

@@ -1,17 +1,14 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Charge",
-    "icon": "ability_warrior_charge",
-    "range": 25,
-    "cast_time": 0,
-    "cooldown": "15 sec cooldown",
-    "required_class": "Warrior",
-    "required_level": 4,
-    "description": "Charge an enemy, generate 9 rage, and stun it for 1 sec.  Cannot be used in combat.",
-    "duration": 1,
-    "target_type": "hostile"
-  },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:15:51"
+  "name": "Charge",
+  "icon": "ability_warrior_charge",
+  "range": 25,
+  "cast_time": 0,
+  "cooldown": "15 sec cooldown",
+  "required_class": "Warrior",
+  "required_level": 4,
+  "description": "Charge an enemy, generate 9 rage, and stun it for 1 sec.  Cannot be used in combat.",
+  "duration": 1,
+  "target_type": "hostile",
+  "_id": 100,
+  "_source": "wowhead"
 }

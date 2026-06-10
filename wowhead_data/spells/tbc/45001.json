@@ -1,13 +1,10 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Wild Magic",
-    "icon": "inv_misc_monsterscales_13",
-    "cast_time": 0,
-    "has_buff": true,
-    "buff_duration": 20,
-    "buff_text": "Casting time increased by 100%."
-  },
-  "source": "cache",
-  "cached_at": "2026-06-05 20:58:22"
+  "name": "Wild Magic",
+  "icon": "inv_misc_monsterscales_13",
+  "cast_time": 0,
+  "has_buff": true,
+  "buff_duration": 20,
+  "buff_text": "Casting time increased by 100%.",
+  "_id": 45001,
+  "_source": "wowhead"
 }

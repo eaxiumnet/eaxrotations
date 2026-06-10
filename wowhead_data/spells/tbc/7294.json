@@ -1,18 +1,15 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Retribution Aura",
-    "icon": "spell_holy_auraoflight",
-    "cast_time": 0,
-    "required_class": "Paladin",
-    "required_level": 16,
-    "description": "Causes 5 Holy damage to any creature that strikes a party member within 30 yards.  Players may only have one Aura on them per Paladin at any one time.",
-    "school": "holy",
-    "radius": 30,
-    "target_type": "friendly",
-    "has_buff": true,
-    "buff_text": "Does 5 Holy damage to anyone who strikes you."
-  },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:17:59"
+  "name": "Retribution Aura",
+  "icon": "spell_holy_auraoflight",
+  "cast_time": 0,
+  "required_class": "Paladin",
+  "required_level": 16,
+  "description": "Causes 5 Holy damage to any creature that strikes a party member within 30 yards.  Players may only have one Aura on them per Paladin at any one time.",
+  "school": "holy",
+  "radius": 30,
+  "target_type": "friendly",
+  "has_buff": true,
+  "buff_text": "Does 5 Holy damage to anyone who strikes you.",
+  "_id": 7294,
+  "_source": "wowhead"
 }

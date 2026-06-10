@@ -1,22 +1,19 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Demon Armor",
-    "icon": "spell_shadow_ragingscream",
-    "cost": {
-      "type": "mana",
-      "amount": 110
-    },
-    "cast_time": 0,
-    "required_class": "Warlock",
-    "required_level": 20,
-    "description": "Protects the caster, increasing armor by 210, Shadow resistance by 3 and restores 7 health every 5 sec.  Only one type of Armor spell can be active on the Warlock at any time.  Lasts 30 min.",
-    "duration": 1800,
-    "target_type": "self",
-    "has_buff": true,
-    "buff_duration": 1800,
-    "buff_text": "Increases armor by 210, Shadow resistance by 3 and restores 7 health every 5 sec."
+  "name": "Demon Armor",
+  "icon": "spell_shadow_ragingscream",
+  "cost": {
+    "type": "mana",
+    "amount": 110
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:16:20"
+  "cast_time": 0,
+  "required_class": "Warlock",
+  "required_level": 20,
+  "description": "Protects the caster, increasing armor by 210, Shadow resistance by 3 and restores 7 health every 5 sec.  Only one type of Armor spell can be active on the Warlock at any time.  Lasts 30 min.",
+  "duration": 1800,
+  "target_type": "self",
+  "has_buff": true,
+  "buff_duration": 1800,
+  "buff_text": "Increases armor by 210, Shadow resistance by 3 and restores 7 health every 5 sec.",
+  "_id": 706,
+  "_source": "wowhead"
 }

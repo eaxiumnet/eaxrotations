@@ -343,7 +343,13 @@ local SPELLS = {
         power_type = "none",
         school = "physical",
     }),
+    UnavailableClassicRogueBuilder = nil,
+    UnavailableClassicRogueDefensive = nil,
+    UnavailableClassicRogueFinisher = nil,
+    UnavailableClassicRogueThrow = nil,
+    UnavailableClassicRogueUtility = nil,
 }
+
 NS.RogueSpells = SPELLS
 
 local config = {

@@ -1,13 +1,10 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Rejuvenation Potion",
-    "icon": "classic_temp",
-    "cast_time": 0,
-    "cooldown": "1 min cooldown",
-    "required_level": 25,
-    "description": "Restores 180 to 300 mana and 180 to 300 health."
-  },
-  "source": "cache",
-  "cached_at": "2026-06-05 20:57:33"
+  "name": "Rejuvenation Potion",
+  "icon": "classic_temp",
+  "cast_time": 0,
+  "cooldown": "1 min cooldown",
+  "required_level": 25,
+  "description": "Restores 180 to 300 mana and 180 to 300 health.",
+  "_id": 2599,
+  "_source": "wowhead"
 }

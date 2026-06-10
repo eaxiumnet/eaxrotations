@@ -136,19 +136,7 @@ end
 local _ct_ok, _cooldown_tracker = pcall(require, "common/utility/cooldown_tracker")
 if not _ct_ok or type(_cooldown_tracker) ~= "table" then _cooldown_tracker = nil end
 
--- settings_manager: native settings persistence (replaces profile_manager)
-local _settings_ok, _settings_manager = pcall(require, "common/modules/settings_manager")
-if not _settings_ok or type(_settings_manager) ~= "table" then _settings_manager = nil end
-
--- Configure persistence filename so auto-save doesn't spam "File name not set"
-if _settings_manager and type(_settings_manager.set_file_name) == "function" then
-    local ok = pcall(_settings_manager.set_file_name, _settings_manager, "eaxrotations")
-    if ok and type(NS.log) == "function" then NS.log("Settings persistence configured: eaxrotations.txt") end
-    -- Bypass the "click to override" notification popup on save
-    if type(_settings_manager.save_int) == "function" then
-        _settings_manager.save = _settings_manager.save_int
-    end
-end
+local _settings_manager = nil
 
 -- spell_helper: native spell readiness checks (cooldown + range + resource + facing + LOS + learned)
 local _sh_ok, _spell_helper = pcall(require, "common/utility/spell_helper")
@@ -232,11 +220,27 @@ end
 -- (prevents tick-level retry spam for spells whose cooldowns aren't tracked).
 
 local _last_action_exec = {} -- action_name -> timestamp for min_interval gating
+local _last_action_exec_cleanup_time = 0
+local _ACTION_EXEC_CLEANUP_INTERVAL = 300 -- 5 minutes
+local _ACTION_EXEC_MAX_AGE = 600 -- 10 minutes
 
 local _last_spell_cast = {} -- spell_id -> timestamp for cast/cooldown diagnostics
-
+local _last_spell_cast_cleanup_time = 0
+local _SPELL_CAST_CLEANUP_INTERVAL = 300 -- 5 minutes
+local _SPELL_CAST_MAX_AGE = 600 -- 10 minutes
 
 local _last_gcd_log = 0 -- throttle for spell_ready GCD log spam
+
+local function cleanup_old_entries(cache, last_cleanup_time, cleanup_interval, max_age)
+    local now = NS.time_now and NS.time_now() or 0
+    if now - last_cleanup_time < cleanup_interval then return last_cleanup_time end
+    for key, timestamp in pairs(cache) do
+        if type(timestamp) == "number" and now - timestamp > max_age then
+            cache[key] = nil
+        end
+    end
+    return now
+end
 
 -- Spell ID resolver cache: avoids repeated is_spell_learned() calls.
 
@@ -570,8 +574,13 @@ function NS.dump_class_spells(class_name)
     local missing_count = 0
     for key, spell in pairs(tbl) do
         if type(spell) == "table" then
-            local ids = spell.ids or (spell[1] and { spell[1] }) or {}
-            local levels = spell.levels or {}
+            -- Read _meta.ids / _meta.levels as fallbacks before the
+            -- direct spell.ids / spell.levels fields. NS.spell_action
+            -- stores the rank arrays at spell._meta, so the dump must
+            -- look there first to see the real level / id lists.
+            local meta = spell._meta or spell
+            local ids = meta.ids or spell.ids or (spell[1] and { spell[1] }) or {}
+            local levels = meta.levels or spell.levels or {}
             local name = spell.name or tostring(key)
             local resolved = 0
 
@@ -1594,8 +1603,7 @@ function NS.register_on_update_callback(callback)
 
         local generation = NS.runtime_generation
 
-        -- Attempt registration — if this throws (nil return), clean up and fail
-        local ok = safe(fn, function(...)
+        local function _shared_dispatcher(...)
 
             if generation ~= NS.runtime_generation then return false end
 
@@ -1603,15 +1611,6 @@ function NS.register_on_update_callback(callback)
             _shared_frame_counter = _shared_frame_counter + 1
             if _shared_frame_counter < 3 then return false end
             _shared_frame_counter = 0
-
-            -- Skip the entire fan-out when rotation is disabled.
-            -- Quick toggles still gate rotation_enabled in main.lua, but the shared
-            -- callback dispatcher runs in its own core callback. Without this gate,
-            -- racial_manager / trinket_manager / ooc_manager keep building fallback
-            -- context (~10+ C->Lua crossings each) at ~20Hz even when rotation is off.
-            -- When user re-enables rotation, the next frame picks it up.
-            local _roten = NS.get_setting and NS.get_setting("rotation_enabled", true)
-            if _roten == false then return false end
 
             -- Fan out to all registered callbacks (all throttled together)
             for i = 1, #_shared_callbacks do
@@ -1622,11 +1621,78 @@ function NS.register_on_update_callback(callback)
             end
             return true
 
-        end)
+        end
 
-        -- safe() returns nil if pcall threw — framework registration failure
-        if ok == nil then
-            -- Pop the callback we just added since registration failed
+        local registered_ok, registered_result = pcall(fn, _shared_dispatcher)
+
+        -- safe() returns nil if pcall threw; ok == false means the engine
+        -- rejected the registration. Try 4 more tick sources (menu / control
+        -- panel / window / pre_tick) then 4 event sources (spell_cast /
+        -- legit_spell_cast / combat_start / combat_end) as a last resort.
+        -- Each attempt is logged via NS.log so we can see which one(s) the
+        -- engine actually accepts.
+        if not registered_ok or registered_result == false then
+            local function _make_tick_dispatcher()
+                return function(...)
+                    if generation ~= NS.runtime_generation then return false end
+                    _shared_frame_counter = _shared_frame_counter + 1
+                    if _shared_frame_counter < 3 then return false end
+                    _shared_frame_counter = 0
+                    for i = 1, #_shared_callbacks do
+                        local cb_ok, cb_err = pcall(_shared_callbacks[i], ...)
+                        if not cb_ok and NS.log_warning then
+                            NS.log_warning("[Callback] Shared callback #" .. tostring(i) .. " error: " .. tostring(cb_err))
+                        end
+                    end
+                    return true
+                end
+            end
+            local function _make_event_dispatcher()
+                return function(...)
+                    if generation ~= NS.runtime_generation then return false end
+                    for i = 1, #_shared_callbacks do
+                        local cb_ok, cb_err = pcall(_shared_callbacks[i], ...)
+                        if not cb_ok and NS.log_warning then
+                            NS.log_warning("[Callback] Shared event callback #" .. tostring(i) .. " error: " .. tostring(cb_err))
+                        end
+                    end
+                    return true
+                end
+            end
+
+            local more_sources = {
+                {"render_menu",          core and core.register_on_render_menu_callback,            "tick"},
+                {"render_control_panel", core and core.register_on_render_control_panel_callback,  "tick"},
+                {"render_window",        core and core.register_on_render_window_callback,         "tick"},
+                {"pre_tick",             core and core.register_on_pre_tick_callback,              "tick"},
+                {"spell_cast",           core and core.register_on_spell_cast_callback,            "event"},
+                {"legit_spell_cast",     core and core.register_on_legit_spell_cast_callback,      "event"},
+                {"combat_start",         core and core.register_on_combat_start_callback,          "event"},
+                {"combat_end",           core and core.register_on_combat_end_callback,            "event"},
+            }
+
+            local _ok_count = 0
+            for _, _src in ipairs(more_sources) do
+                local _name, _fn, _kind = _src[1], _src[2], _src[3]
+                if type(_fn) == "function" then
+                    local _maker = (_kind == "event") and _make_event_dispatcher or _make_tick_dispatcher
+                    local _ok2, _result2 = pcall(_fn, _maker())
+                    NS.log(string.format("[EaxRotations] %s-source fallback: %s=ok=%s", _kind, _name, tostring(_ok2 and _result2 ~= false)))
+                    if _ok2 and _result2 ~= false then
+                        _ok_count = _ok_count + 1
+                    end
+                else
+                    NS.log(string.format("[EaxRotations] %s-source fallback: %s=skipped (not a function)", _kind, _name))
+                end
+            end
+
+            if _ok_count > 0 then
+                NS.log(string.format("[EaxRotations] %d tick/event sources registered -- rotation is live", _ok_count))
+                _shared_dispatcher_registered = true
+                return true
+            end
+
+            -- All sources failed: pop the callback we just added since registration failed
             _shared_callbacks[#_shared_callbacks] = nil
             return false
         end
@@ -1677,6 +1743,26 @@ function NS.register_on_combat_start(callback)
 
 end
 
+function NS.unregister_on_combat_start(callback)
+
+    if type(callback) ~= "function" then return false end
+
+    for i = #combat_start_callbacks, 1, -1 do
+
+        if combat_start_callbacks[i] == callback then
+
+            table.remove(combat_start_callbacks, i)
+
+            return true
+
+        end
+
+    end
+
+    return false
+
+end
+
 function NS.register_on_combat_end(callback)
 
     if type(callback) ~= "function" then return false end
@@ -1684,6 +1770,26 @@ function NS.register_on_combat_end(callback)
     table.insert(combat_end_callbacks, callback)
 
     return true
+
+end
+
+function NS.unregister_on_combat_end(callback)
+
+    if type(callback) ~= "function" then return false end
+
+    for i = #combat_end_callbacks, 1, -1 do
+
+        if combat_end_callbacks[i] == callback then
+
+            table.remove(combat_end_callbacks, i)
+
+            return true
+
+        end
+
+    end
+
+    return false
 
 end
 
@@ -2385,6 +2491,24 @@ end
 
 NS.spell_in_range = NS.is_spell_in_range
 
+local function spell_helper_castable(id, target, opts)
+    local caster = NS.GetPlayer()
+    if not caster or not target then return false end
+    local ok, castable = pcall(
+        _spell_helper.is_spell_castable,
+        _spell_helper,
+        id,
+        caster,
+        target,
+        opts.skip_facing == true,
+        opts.skip_range == true,
+        opts.skip_usable == true,
+        opts.skip_controller == true,
+        opts.skip_learned == true
+    )
+    return ok and castable == true
+end
+
 function NS.spell_ready(spell, target, opts)
 
     opts = opts or EMPTY
@@ -2416,12 +2540,7 @@ function NS.spell_ready(spell, target, opts)
     -- Primary: spell_helper does cooldown + resource + range + facing + LOS in one call
     local id = NS.get_spell_id(spell)
     if id and _spell_helper and not _is_ps_build() then
-        if not target then return false end
-        local ok, castable = pcall(_spell_helper.is_spell_castable, _spell_helper, id, target, nil, nil)
-        if not ok or castable == false then
-            return false
-        end
-        return true
+        return spell_helper_castable(id, target, opts)
     end
 
     -- Fallback: manual cooldown + range checks
@@ -2439,9 +2558,8 @@ function NS.spell_ready(spell, target, opts)
 end
 
 local function mark_spell_cast(id)
+    _last_spell_cast_cleanup_time = cleanup_old_entries(_last_spell_cast, _last_spell_cast_cleanup_time, _SPELL_CAST_CLEANUP_INTERVAL, _SPELL_CAST_MAX_AGE)
     _last_spell_cast[id] = NS.time_now()
-    -- On PS builds the engine GCD API is broken; track a global GCD timestamp
-    -- so other spells without their own cooldown entry know the game is busy.
     if _api_health_broken then
         _last_spell_cast["_global_gcd"] = _last_spell_cast[id]
     end
@@ -2474,11 +2592,7 @@ function NS.evaluate_cast(spell, unit, reason, opts)
     local target = unit or NS.GetPlayer()
     -- 1. Primary: spell_helper native gate (cooldown + range + resource + facing + LOS + learned)
     if id and _spell_helper and not _is_ps_build() then
-        if not target then return false end
-        local ok, castable = pcall(_spell_helper.is_spell_castable, _spell_helper, id, target, nil, nil)
-        if not ok or castable ~= true then
-            return false
-        end
+        if not spell_helper_castable(id, target, opts) then return false end
     else
         -- Fallback: NS.spell_ready when spell_helper unavailable
         if not NS.spell_ready(spell, target, opts) then
@@ -5980,6 +6094,7 @@ function NS.action_matches(context, action)
 end
 
 function NS.action_execute(context, action, prefix)
+    _last_action_exec_cleanup_time = cleanup_old_entries(_last_action_exec, _last_action_exec_cleanup_time, _ACTION_EXEC_CLEANUP_INTERVAL, _ACTION_EXEC_MAX_AGE)
 
     local target = target_for(context, action)
 

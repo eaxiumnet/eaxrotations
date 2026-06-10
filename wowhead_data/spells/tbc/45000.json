@@ -1,12 +1,9 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Repair Effect",
-    "icon": "spell_lightning_lightningbolt01",
-    "cast_time": 0,
-    "description": "An electrical spark jumps to a random location, harming nearby enemies.",
-    "aoe": true
-  },
-  "source": "cache",
-  "cached_at": "2026-06-05 20:56:32"
+  "name": "Repair Effect",
+  "icon": "spell_lightning_lightningbolt01",
+  "cast_time": 0,
+  "description": "An electrical spark jumps to a random location, harming nearby enemies.",
+  "aoe": true,
+  "_id": 45000,
+  "_source": "wowhead"
 }

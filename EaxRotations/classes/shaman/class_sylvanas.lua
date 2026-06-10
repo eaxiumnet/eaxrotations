@@ -380,6 +380,36 @@ local SPELLS = {
         power_type = "mana",
         school = "physical",
     }),
+    TotemOfWrath = NS.spell_action({
+        name = "TotemOfWrath",
+        ids = {30706},
+        levels = {50},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "fire",
+    }),
+    WrathOfAirTotem = NS.spell_action({
+        name = "WrathOfAirTotem",
+        ids = {3738},
+        levels = {64},
+        cast_time = 0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "nature",
+    }),
+    LightningBoltLowerRank = NS.spell_action({
+        name = "LightningBoltLowerRank",
+        ids = {25448},
+        levels = {62},
+        cast_time = 3.0,
+        cooldown = 0,
+        power_cost = 0,
+        power_type = "mana",
+        school = "nature",
+    }),
     CurePoison = NS.spell_action({
         name = "CurePoison",
         ids = {526},
@@ -430,7 +460,13 @@ local SPELLS = {
         power_type = "mana",
         school = "fire",
     }),
+    UnavailableClassicShamanBurst = nil,
+    UnavailableClassicShamanResource = nil,
+    UnavailableClassicShamanShieldA = nil,
+    UnavailableClassicShamanShieldB = nil,
+    UnavailableClassicShamanTotem = nil,
 }
+
 NS.ShamanSpells = SPELLS
 
 local config = {
@@ -453,4 +489,6 @@ load_spec("elemental")
 load_spec("enhancement")
 load_spec("restoration")
 NS.log("Shaman class module loaded")
+-- Dump known spells for debugging; run once at load.
+if NS.dump_class_spells then NS.dump_class_spells("Shaman") end
 return config

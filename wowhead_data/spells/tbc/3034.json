@@ -1,24 +1,21 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Viper Sting",
-    "icon": "ability_hunter_aimedshot",
-    "cost": {
-      "type": "mana",
-      "amount": 135
-    },
-    "range": 35,
-    "cooldown": "15 sec cooldown",
-    "required_class": "Hunter",
-    "required_level": 36,
-    "requires_weapon": "Ranged Weapon",
-    "description": "Stings the target, draining 616 mana over 8 sec.  Only one Sting per Hunter can be active on any one target.",
-    "duration": 8,
-    "target_type": "hostile",
-    "has_buff": true,
-    "buff_duration": 8,
-    "buff_text": "Drains 154 mana every 2 seconds."
+  "name": "Viper Sting",
+  "icon": "ability_hunter_aimedshot",
+  "cost": {
+    "type": "mana",
+    "amount": 135
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:17:25"
+  "range": 35,
+  "cooldown": "15 sec cooldown",
+  "required_class": "Hunter",
+  "required_level": 36,
+  "requires_weapon": "Ranged Weapon",
+  "description": "Stings the target, draining 616 mana over 8 sec.  Only one Sting per Hunter can be active on any one target.",
+  "duration": 8,
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 8,
+  "buff_text": "Drains 154 mana every 2 seconds.",
+  "_id": 3034,
+  "_source": "wowhead"
 }

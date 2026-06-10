@@ -1,24 +1,21 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Howl of Terror",
-    "icon": "spell_shadow_deathscream",
-    "cost": {
-      "type": "mana",
-      "amount": 150
-    },
-    "cast_time": 1.5,
-    "cooldown": "40 sec cooldown",
-    "required_class": "Warlock",
-    "required_level": 40,
-    "description": "Howl, causing 5 enemies within 10 yds to flee in terror for 6 sec.  Damage caused may interrupt the effect.",
-    "duration": 6,
-    "aoe": true,
-    "radius": 10,
-    "has_buff": true,
-    "buff_duration": 6,
-    "buff_text": "Fleeing in terror."
+  "name": "Howl of Terror",
+  "icon": "spell_shadow_deathscream",
+  "cost": {
+    "type": "mana",
+    "amount": 150
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:17:37"
+  "cast_time": 1.5,
+  "cooldown": "40 sec cooldown",
+  "required_class": "Warlock",
+  "required_level": 40,
+  "description": "Howl, causing 5 enemies within 10 yds to flee in terror for 6 sec.  Damage caused may interrupt the effect.",
+  "duration": 6,
+  "aoe": true,
+  "radius": 10,
+  "has_buff": true,
+  "buff_duration": 6,
+  "buff_text": "Fleeing in terror.",
+  "_id": 5484,
+  "_source": "wowhead"
 }

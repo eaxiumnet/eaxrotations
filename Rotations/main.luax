@@ -1,0 +1,546 @@
+-- main.lua
+-- TBC Anniversary 2.5.5 Shaman Elemental Rotation
+-- IZI SDK callback pattern; single file (paired with header.lua)
+-- Modeled on tbc-warlock-affliction example.
+--
+-- IZI SDK findings (verified against apidocs/pages/dev/libraries/izi/*):
+--   * me:distance() / unit:distance() returns LINEAR yards (per
+--     izi-object-extensions.md:1249). Range checks use linear yards.
+--   * core.spell_book.get_spells() returns id-keyed table; we iterate via
+--     pairs and never mutate. (Per tbc-warlock example, both number-key
+--     and number-value forms are handled.)
+--   * unit:buff_up(spec) / unit:debuff_up(spec) accept single id or
+--     id-array (aura_spec per izi-object-extensions.md:599).
+--   * Widget methods: checkbox:get_state(), keybind:get_toggle_state(),
+--     widget:render(label, tooltip). No :get() or :get_value() (per
+--     tbc-warlock-affliction.md).
+--   * Spell methods: :is_learned(), :cooldown_up(), :is_castable(target?),
+--     :cast_safe(target, message, opts?) — 2-arg form per
+--     izi-spells.md:868.
+--
+-- TBC Anniversary note (per AGENTS.md):
+--   TBC Anniversary runs on the Wrath 3.3.5 client. The local
+--   wowhead_data/spells/tbc/ is 2.4.3 and lacks TBC 70-era IDs
+--   (Lava Burst 51505, Elemental Mastery 16166, Totem of Wrath 30706,
+--   Heroism 32182, Hex 51514, Feral Spirit 51533, Spirit Wolves 29264,
+--   etc.). These IDs are VALID for TBC Anniversary — we keep them in
+--   DEFS even though they have no local mirror entry.
+
+-- ---------------------------------------------------------------------------
+-- Module-level requires (cache at load; no require inside callbacks)
+-- ---------------------------------------------------------------------------
+local izi = require("common/izi_sdk")
+
+-- ---------------------------------------------------------------------------
+-- Spell definitions — base ranks that exist in the local TBC mirror.
+-- scan() will upgrade each to the highest known rank at runtime.
+-- TBC 70-era IDs (Lava Burst, Elemental Mastery, Totem of Wrath, Heroism,
+-- Hex) are included for TBC Anniversary — see header comment.
+-- ---------------------------------------------------------------------------
+local DEFS = {
+    -- Damage (TBC base rank 1 / 2 — these exist in local wowhead mirror)
+    LIGHTNING_BOLT   = 403,    -- base rank 1, max 25449
+    CHAIN_LIGHTNING  = 421,    -- base rank 1, max 25442
+    FLAME_SHOCK      = 8050,   -- base rank 1, max 25457
+    EARTH_SHOCK      = 8042,   -- base rank 1, max 25454
+    FROST_SHOCK      = 8056,   -- base rank 1, max 25464 (rank 1 in TBC mirror)
+    LAVA_BURST       = 51505,  -- TBC 70 (no local mirror; valid for TBC Anniversary)
+    -- Shields
+    LIGHTNING_SHIELD = 324,    -- base rank 1, max 25472
+    WATER_SHIELD     = 23575,  -- base rank 1, max 33736
+    -- Cooldowns
+    ELEMENTAL_MASTERY = 16166, -- TBC 70 (no local mirror; valid for TBC Anniversary)
+    BLOODLUST         = 2825,  -- base rank 1
+    HEROISM           = 32182, -- TBC 70 Alliance Bloodlust (no local mirror)
+    -- Totems
+    TOTEM_OF_WRATH    = 30706, -- TBC 70 (no local mirror; valid for TBC Anniversary)
+    WRATH_OF_AIR      = 3738,  -- base rank 1
+    MANA_SPRING       = 25570, -- base rank 1
+    MAGMA_TOTEM       = 8190,  -- base rank 1, max 25552
+    -- Utility
+    HEX               = 51514, -- TBC 70 (no local mirror)
+    PURGE             = 370,   -- base rank 1
+}
+
+-- Aura id tables (variadic into buff_up/debuff_up; we pass as table)
+local LIGHTNING_SHIELD_IDS = { 324, 325, 905, 945, 8134, 10431, 10432, 25469, 25472 }
+local WATER_SHIELD_IDS     = { 24398, 33736 }  -- 23575 is below 70 so we keep the rest
+local FLAME_SHOCK_IDS      = { 8050, 8052, 8053, 10447, 10448, 25457, 29228 }
+local EARTH_SHOCK_DEBUFFS  = { 8042, 8044, 8045, 8046, 10414, 25454 }
+
+-- Constants
+local MANA_LOW_DEFAULT    = 30
+local MANA_EMERGENCY      = 15
+local ENEMY_AOE_THRESHOLD = 3
+local _AOE_RADIUS         = 10  -- yards (linear; distance() returns linear)
+local _BENCH_RING_SIZE    = 100
+local _BENCH_REPORT_MS    = 5000
+local _LOG_THROTTLE_MS    = 250
+local _SCAN_INTERVAL_MS   = 2000
+
+-- ---------------------------------------------------------------------------
+-- Module-level state (all static — no per-tick allocation)
+-- ---------------------------------------------------------------------------
+local spell_ids    = {}     -- [DEFS key] = current id (highest known rank)
+local spells       = {}     -- [DEFS key] = izi.spell(id) handle
+local resolved     = {}     -- [DEFS key] = spell name (cached after first scan)
+local name_cache   = {}     -- [id] = spell name (cache for scan)
+local last_scan_ms = 0
+local last_bench_line = ""
+
+local _debug_log   = true
+local _last_log_ms = 0
+
+local _bench = {
+    samples_n        = 0,
+    samples_ms_total = 0,
+    samples_ms_max   = 0,
+    samples_ring     = {},
+    samples_ring_idx = 0,
+    last_report_ms   = 0,
+}
+
+-- ---------------------------------------------------------------------------
+-- Menu (all UIDs prefixed "eaxsham_tbc" for namespace isolation)
+-- ---------------------------------------------------------------------------
+local menu = {}
+local _PREFIX = "eaxsham_tbc"
+
+local function build_menu()
+    local cb = core.menu.checkbox
+    local si = core.menu.slider_int
+    local kb = core.menu.keybind
+
+    menu.master          = cb(true, _PREFIX .. "_master")
+    menu.toggle          = kb(0, false, _PREFIX .. "_toggle_keybind")
+
+    menu.spell_lb        = cb(true, _PREFIX .. "_spell_lightning_bolt")
+    menu.spell_cl        = cb(true, _PREFIX .. "_spell_chain_lightning")
+    menu.spell_fs        = cb(true, _PREFIX .. "_spell_flame_shock")
+    menu.spell_es        = cb(true, _PREFIX .. "_spell_earth_shock")
+    menu.spell_lava      = cb(true, _PREFIX .. "_spell_lava_burst")
+    menu.spell_ls        = cb(true, _PREFIX .. "_spell_lightning_shield")
+    menu.spell_ws        = cb(true, _PREFIX .. "_spell_water_shield")
+    menu.spell_em        = cb(true, _PREFIX .. "_spell_elemental_mastery")
+    menu.spell_bl        = cb(true, _PREFIX .. "_spell_bloodlust")
+    menu.spell_tow       = cb(true, _PREFIX .. "_spell_totem_of_wrath")
+    menu.spell_woa       = cb(true, _PREFIX .. "_spell_wrath_of_air")
+    menu.spell_ms        = cb(true, _PREFIX .. "_spell_mana_spring")
+    menu.spell_magma     = cb(true, _PREFIX .. "_spell_magma_totem")
+
+    menu.mana_low_pct    = si(0, 100, MANA_LOW_DEFAULT, _PREFIX .. "_mana_low_pct")
+    menu.mana_emerg_pct  = si(0, 100, MANA_EMERGENCY, _PREFIX .. "_mana_emergency_pct")
+
+    menu.debug_log       = cb(true, _PREFIX .. "_debug_log")
+    menu.bench_interval  = si(1000, 30000, _BENCH_REPORT_MS, _PREFIX .. "_bench_interval")
+end
+
+local function menu_on()
+    if menu.master and menu.master.get_state then
+        return menu.master:get_state() and menu.toggle:get_toggle_state()
+    end
+    return true
+end
+
+local function menu_spell(widget)
+    if widget and widget.get_state then return widget:get_state() end
+    return true
+end
+
+local function menu_mana_emerg()
+    if menu.mana_emerg_pct and menu.mana_emerg_pct.get_state then
+        local v = menu.mana_emerg_pct:get_state()
+        if type(v) == "number" then return v end
+    end
+    return MANA_EMERGENCY
+end
+
+-- ---------------------------------------------------------------------------
+-- Debug log (Layer A): 250ms throttle, gated by _debug_log master toggle
+-- ---------------------------------------------------------------------------
+local function dlog(msg)
+    if not _debug_log then return end
+    local now = izi.now_ms()
+    if now - _last_log_ms < _LOG_THROTTLE_MS then return end
+    _last_log_ms = now
+    core.log("[ShamanElemental] " .. tostring(msg))
+end
+
+-- ---------------------------------------------------------------------------
+-- In-tick bench (Layer B): static ring buffer, no per-tick allocation
+-- ---------------------------------------------------------------------------
+local function bench_reset_window()
+    _bench.samples_n = 0
+    _bench.samples_ms_total = 0
+    _bench.samples_ms_max = 0
+    for i = 1, _BENCH_RING_SIZE do _bench.samples_ring[i] = 0 end
+    _bench.samples_ring_idx = 0
+end
+
+local function bench_record(dt_ms)
+    _bench.samples_n = _bench.samples_n + 1
+    _bench.samples_ms_total = _bench.samples_ms_total + dt_ms
+    if dt_ms > _bench.samples_ms_max then _bench.samples_ms_max = dt_ms end
+    _bench.samples_ring_idx = (_bench.samples_ring_idx % _BENCH_RING_SIZE) + 1
+    _bench.samples_ring[_bench.samples_ring_idx] = dt_ms
+end
+
+local function bench_maybe_report()
+    local now = izi.now_ms()
+    if now - _bench.last_report_ms < _BENCH_REPORT_MS then return end
+    if _bench.samples_n == 0 then return end
+    local mean = _bench.samples_ms_total / _bench.samples_n
+    local ring_n, ring_sum = 0, 0
+    for i = 1, _BENCH_RING_SIZE do
+        local v = _bench.samples_ring[i]
+        if v > 0 then ring_n = ring_n + 1; ring_sum = ring_sum + v end
+    end
+    local ring_mean = ring_n > 0 and (ring_sum / ring_n) or 0
+    last_bench_line = string.format(
+        "BENCH 5s: n=%d mean=%.2fms max=%.2fms ring_mean=%.2fms",
+        _bench.samples_n, mean, _bench.samples_ms_max, ring_mean)
+    dlog(last_bench_line)
+    _bench.last_report_ms = now
+    bench_reset_window()
+end
+
+-- ---------------------------------------------------------------------------
+-- scan(): 2s throttled spellbook rank resolver (tbc-warlock example pattern)
+-- ---------------------------------------------------------------------------
+local function spell_name(id)
+    if name_cache[id] then return name_cache[id] end
+    local s = izi.spell(id)
+    if not s then return nil end
+    local n = s:name()
+    if n and n ~= "" then name_cache[id] = n; return n end
+    return nil
+end
+
+local function scan()
+    local now = izi.now_ms()
+    if now - last_scan_ms < _SCAN_INTERVAL_MS then return end
+    last_scan_ms = now
+
+    -- 1. Resolve base spell names from DEFS (once)
+    for k, id in pairs(DEFS) do
+        if not resolved[k] then
+            local n = spell_name(id)
+            if n then resolved[k] = n end
+        end
+    end
+
+    -- 2. Get the spellbook (handles both number-key and number-value shapes)
+    local known = core.spell_book.get_spells()
+    if not known then return end
+    local ids = {}
+    for k, v in pairs(known) do
+        if type(k) == "number" then ids[k] = true end
+        if type(v) == "number" then ids[v] = true end
+    end
+
+    -- 3. For each id, match by name to a DEFS key; collect ranks and pick highest
+    local best, ranks = {}, {}
+    for sid in pairs(ids) do
+        local n = spell_name(sid)
+        if n then
+            for def_k in pairs(DEFS) do
+                if resolved[def_k] and n == resolved[def_k] then
+                    ranks[def_k] = ranks[def_k] or {}
+                    table.insert(ranks[def_k], sid)
+                    if not best[def_k] or sid > best[def_k] then
+                        best[def_k] = sid
+                    end
+                end
+            end
+        end
+    end
+
+    -- 4. Update spell_ids and spells with the highest-rank id per DEFS key
+    for k, id in pairs(best) do
+        if spell_ids[k] ~= id then
+            spell_ids[k] = id
+            spells[k] = izi.spell(id)
+            dlog("rank resolved: " .. k .. " = " .. id)
+        end
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- try_cast: returns true on successful cast, false otherwise
+-- ---------------------------------------------------------------------------
+local function try_cast(spell_obj, target, label)
+    if not spell_obj or not target then return false end
+    if not spell_obj:is_learned() then
+        dlog("skip " .. label .. " not learned")
+        return false
+    end
+    if not spell_obj:cooldown_up() then return false end
+    if not spell_obj:is_castable() then return false end
+    if spell_obj:cast_safe(target, label) then
+        dlog("CAST " .. label .. " -> " .. (target:get_name() or "nil"))
+        return true
+    end
+    return false
+end
+
+-- ---------------------------------------------------------------------------
+-- Per-spell callbacks (SpellDebugger-style named functions)
+-- ---------------------------------------------------------------------------
+local spellCallbacks = {}
+
+-- Helper: me+target, with full early-return on any invalid state.
+-- Returns nil if no action is possible; otherwise returns me, target.
+local function actor()
+    local me = izi.me()
+    if not me then return nil end
+    local target = me:get_target()
+    if not target or not target:is_valid() or not target:is_valid_enemy() then return nil end
+    if not me:can_attack(target) then return nil end
+    return me, target
+end
+
+local function self_only()
+    local me = izi.me()
+    if not me then return nil end
+    return me, me
+end
+
+spellCallbacks.lightningBolt = function()
+    if not menu_spell(menu.spell_lb) then return false end
+    local _, target = actor(); if not target then return false end
+    return try_cast(spells.LIGHTNING_BOLT, target, "lightning_bolt")
+end
+
+spellCallbacks.chainLightning = function()
+    if not menu_spell(menu.spell_cl) then return false end
+    local _, target = actor(); if not target then return false end
+    return try_cast(spells.CHAIN_LIGHTNING, target, "chain_lightning")
+end
+
+spellCallbacks.flameShock = function()
+    if not menu_spell(menu.spell_fs) then return false end
+    local _, target = actor(); if not target then return false end
+    if target:debuff_up(FLAME_SHOCK_IDS) then return false end
+    return try_cast(spells.FLAME_SHOCK, target, "flame_shock")
+end
+
+spellCallbacks.earthShock = function()
+    if not menu_spell(menu.spell_es) then return false end
+    local _, target = actor(); if not target then return false end
+    if target:is_casting() and not target:is_silenced() then
+        return try_cast(spells.EARTH_SHOCK, target, "earth_shock(interrupt)")
+    end
+    if (target:get_health_percentage() or 100) < 30
+    and not target:debuff_up(EARTH_SHOCK_DEBUFFS) then
+        return try_cast(spells.EARTH_SHOCK, target, "earth_shock(execute)")
+    end
+    return false
+end
+
+spellCallbacks.lavaBurst = function()
+    if not menu_spell(menu.spell_lava) then return false end
+    local _, target = actor(); if not target then return false end
+    return try_cast(spells.LAVA_BURST, target, "lava_burst")
+end
+
+spellCallbacks.lightningShield = function()
+    if not menu_spell(menu.spell_ls) then return false end
+    local me = self_only(); if not me then return false end
+    if me:buff_up(WATER_SHIELD_IDS) then return false end
+    if not me:buff_down(LIGHTNING_SHIELD_IDS) then return false end
+    return try_cast(spells.LIGHTNING_SHIELD, me, "lightning_shield")
+end
+
+spellCallbacks.waterShield = function()
+    if not menu_spell(menu.spell_ws) then return false end
+    local me = self_only(); if not me then return false end
+    if me:buff_up(LIGHTNING_SHIELD_IDS) then return false end
+    if not me:buff_down(WATER_SHIELD_IDS) then return false end
+    return try_cast(spells.WATER_SHIELD, me, "water_shield")
+end
+
+spellCallbacks.elementalMastery = function()
+    if not menu_spell(menu.spell_em) then return false end
+    local me, target = actor(); if not me or not target then return false end
+    if (me:mana_pct() or 0) < 30 then return false end
+    if (target:get_health_percentage() or 100) < 50 then return false end
+    return try_cast(spells.ELEMENTAL_MASTERY, me, "elemental_mastery")
+end
+
+spellCallbacks.bloodlust = function()
+    if not menu_spell(menu.spell_bl) then return false end
+    local me = self_only(); if not me then return false end
+    if (me:mana_pct() or 0) < 50 then return false end
+    return try_cast(spells.BLOODLUST, me, "bloodlust")
+end
+
+spellCallbacks.totemOfWrath = function()
+    if not menu_spell(menu.spell_tow) then return false end
+    local me = self_only(); if not me then return false end
+    return try_cast(spells.TOTEM_OF_WRATH, me, "totem_of_wrath")
+end
+
+spellCallbacks.wrathOfAir = function()
+    if not menu_spell(menu.spell_woa) then return false end
+    local me = self_only(); if not me then return false end
+    return try_cast(spells.WRATH_OF_AIR, me, "wrath_of_air")
+end
+
+spellCallbacks.manaSpring = function()
+    if not menu_spell(menu.spell_ms) then return false end
+    local me = self_only(); if not me then return false end
+    return try_cast(spells.MANA_SPRING, me, "mana_spring")
+end
+
+spellCallbacks.magmaTotem = function()
+    if not menu_spell(menu.spell_magma) then return false end
+    local me = self_only(); if not me then return false end
+    return try_cast(spells.MAGMA_TOTEM, me, "magma_totem")
+end
+
+-- ---------------------------------------------------------------------------
+-- Action list waterfall (Phase 3.2 order: BURST → AOE → BUFFS → REACTIVE → FILLER)
+-- ---------------------------------------------------------------------------
+local actionList = {}
+actionList.burst = function()
+    if spellCallbacks.elementalMastery() then return true end
+    if spellCallbacks.bloodlust() then return true end
+    return false
+end
+actionList.aoe = function()
+    if spellCallbacks.chainLightning() then return true end
+    if spellCallbacks.magmaTotem() then return true end
+    return false
+end
+actionList.buffs = function()
+    if spellCallbacks.lightningShield() then return true end
+    if spellCallbacks.waterShield() then return true end
+    if spellCallbacks.totemOfWrath() then return true end
+    if spellCallbacks.wrathOfAir() then return true end
+    if spellCallbacks.manaSpring() then return true end
+    return false
+end
+actionList.reactive = function()
+    if spellCallbacks.flameShock() then return true end
+    if spellCallbacks.earthShock() then return true end
+    if spellCallbacks.lavaBurst() then return true end
+    return false
+end
+actionList.filler = function()
+    return spellCallbacks.lightningBolt() or false
+end
+
+-- ---------------------------------------------------------------------------
+-- on_update: early-return gates, bench window, action list waterfall
+-- ---------------------------------------------------------------------------
+core.register_on_update_callback(function()
+    scan()
+    if not menu_on() then return end
+
+    local me = izi.me()
+    if not me or not me:is_alive() then return end
+
+    local mana_emerg = menu_mana_emerg()
+    if (me:mana_pct() or 0) < mana_emerg then return end
+
+    local target = me:get_target()
+    if not target or not target:is_valid() then return end
+    if not target:is_valid_enemy() then return end
+    if not me:can_attack(target) then return end
+
+    -- BENCH START
+    local t0 = izi.now_ms()
+    dlog(string.format("tick: mana=%.0f%% tgt=%s hp=%.0f%%",
+        me:mana_pct() or 0,
+        target:get_name() or "?",
+        target:get_health_percentage() or 0))
+
+    -- REACTIVE: burst window
+    local cast_done = false
+    if actionList.burst() then cast_done = true end
+    -- AOE 3+ (uses linear yards — distance() returns linear)
+    if not cast_done then
+        local enemies = izi.enemies(_AOE_RADIUS) or {}
+        if #enemies >= ENEMY_AOE_THRESHOLD then
+            if actionList.aoe() then cast_done = true end
+        end
+    end
+    -- BUFFS
+    if not cast_done then
+        if actionList.buffs() then cast_done = true end
+    end
+    -- REACTIVE (DoT / execute / interrupt / Lava Burst proc)
+    if not cast_done then
+        if actionList.reactive() then cast_done = true end
+    end
+    -- FILLER
+    if not cast_done then actionList.filler() end
+
+    bench_record(izi.now_ms() - t0)
+    bench_maybe_report()
+end)
+
+-- ---------------------------------------------------------------------------
+-- HUD (on_render): status line + bench line
+-- ---------------------------------------------------------------------------
+core.register_on_render_callback(function()
+    if not menu_on() then
+        izi.printf("[Shaman Elemental] DISABLED")
+        return
+    end
+    local me = izi.me()
+    local mana_str = "?"
+    if me then mana_str = tostring(math.floor(me:mana_pct() or 0)) end
+    izi.printf("[Shaman Elemental] ENABLED | mana=%s%%", mana_str)
+    if last_bench_line ~= "" then
+        izi.printf("[Shaman Elemental] %s", last_bench_line)
+    end
+end)
+
+-- ---------------------------------------------------------------------------
+-- Menu render (on_render_menu_callback)
+-- ---------------------------------------------------------------------------
+core.register_on_render_menu_callback(function()
+    if core.menu.header then core.menu.header():render("TBC Shaman Elemental", izi.color.yellow(200)) end
+    if menu.master then menu.master:render("Enabled", "Master toggle") end
+    if not menu_on() then return end
+
+    if core.menu.tree_node then
+        core.menu.tree_node():render("Spells", function()
+            if menu.toggle then menu.toggle:render("Rotation Toggle", "Keybind to enable/disable rotation") end
+            if menu.spell_lb   then menu.spell_lb:render("Lightning Bolt") end
+            if menu.spell_cl   then menu.spell_cl:render("Chain Lightning (AoE)") end
+            if menu.spell_fs   then menu.spell_fs:render("Flame Shock") end
+            if menu.spell_es   then menu.spell_es:render("Earth Shock (interrupt/execute)") end
+            if menu.spell_lava then menu.spell_lava:render("Lava Burst") end
+            if menu.spell_ls   then menu.spell_ls:render("Lightning Shield") end
+            if menu.spell_ws   then menu.spell_ws:render("Water Shield") end
+            if menu.spell_em   then menu.spell_em:render("Elemental Mastery") end
+            if menu.spell_bl   then menu.spell_bl:render("Bloodlust / Heroism") end
+            if menu.spell_tow  then menu.spell_tow:render("Totem of Wrath") end
+            if menu.spell_woa  then menu.spell_woa:render("Wrath of Air") end
+            if menu.spell_ms   then menu.spell_ms:render("Mana Spring") end
+            if menu.spell_magma then menu.spell_magma:render("Magma Totem (AoE)") end
+        end)
+        core.menu.tree_node():render("Mana", function()
+            if menu.mana_low_pct   then menu.mana_low_pct:render("Mana Low %", "Switch to lower-rank Lightning Bolt below this") end
+            if menu.mana_emerg_pct then menu.mana_emerg_pct:render("Mana Emergency %", "Stop all casting below this") end
+        end)
+        core.menu.tree_node():render("Debug", function()
+            if menu.debug_log      then menu.debug_log:render("Enable core.log output") end
+            if menu.bench_interval then menu.bench_interval:render("Bench report interval (ms)") end
+        end)
+    end
+end)
+
+-- ---------------------------------------------------------------------------
+-- Boot
+-- ---------------------------------------------------------------------------
+build_menu()
+bench_reset_window()
+
+-- Optional SpellDebugger integration (modeled on tbc-warlock-affliction)
+local _ok, _fbr = pcall(require, "fbr_spell_debugger")
+if _ok and _fbr and _fbr.register_rotation then
+    _fbr.register_rotation("ShamanElemental", spellCallbacks)
+end

@@ -1,22 +1,19 @@
 {
-  "ok": true,
-  "data": {
-    "name": "Arcane Intellect",
-    "icon": "spell_holy_magicalsentry",
-    "cost": {
-      "type": "mana",
-      "amount": 100
-    },
-    "range": 30,
-    "cast_time": 0,
-    "required_class": "Mage",
-    "required_level": 14,
-    "description": "Increases the target's Intellect by 7 for 30 min.",
-    "target_type": "hostile",
-    "has_buff": true,
-    "buff_duration": 1800,
-    "buff_text": "Increases Intellect by 7."
+  "name": "Arcane Intellect",
+  "icon": "spell_holy_magicalsentry",
+  "cost": {
+    "type": "mana",
+    "amount": 100
   },
-  "source": "cache",
-  "cached_at": "2026-06-02 16:16:33"
+  "range": 30,
+  "cast_time": 0,
+  "required_class": "Mage",
+  "required_level": 14,
+  "description": "Increases the target's Intellect by 7 for 30 min.",
+  "target_type": "hostile",
+  "has_buff": true,
+  "buff_duration": 1800,
+  "buff_text": "Increases Intellect by 7.",
+  "_id": 1460,
+  "_source": "wowhead"
 }

@@ -1,6 +1,6 @@
 # Rogue Spells — TBC
 
-Total: 82 spells
+Total: 94 spells
 
 ---
 
@@ -12,6 +12,20 @@ Total: 82 spells
 - **Cost**: 60 energy
 - **Range**: melee yd
 - **Description**: Backstab the target, causing 150% weapon damage plus 15 to the target.  Must be behind the target.  Requires a dagger in the main hand.  Awards 1 combo point.
+
+---
+
+## Kidney Shot [ID: 408]
+- **Class**: Rogue
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Cost**: 25 energy
+- **Range**: melee yd
+- **Cooldown**: 20 sec cooldown
+- **Description**: Finishing move that stuns the target.  Lasts longer per combo point:   1 point  : 1 second   2 points: 2 seconds   3 points: 3 seconds   4 points: 4 seconds   5 points: 5 seconds
+- **Buff Duration**: ?s
+- **Buff**: Stunned.
 
 ---
 
@@ -147,6 +161,36 @@ Total: 82 spells
 
 ---
 
+## Gouge [ID: 1776]
+- **Class**: Rogue
+- **School**: Unknown
+- **Required Level**: 6
+- **Cast Time**: Instant
+- **Cost**: 45 energy
+- **Range**: melee yd
+- **Cooldown**: 10 sec cooldown
+- **Description**: Causes 10 damage, incapacitating the opponent for 4 sec, and turns off your attack.  Target must be facing you.  Any damage caused will revive the target.  Awards 1 combo point.
+- **Duration**: 4s
+- **Buff Duration**: 4s
+- **Buff**: Incapacitated.
+
+---
+
+## Gouge [ID: 1777]
+- **Class**: Rogue
+- **School**: Unknown
+- **Required Level**: 18
+- **Cast Time**: Instant
+- **Cost**: 45 energy
+- **Range**: melee yd
+- **Cooldown**: 10 sec cooldown
+- **Description**: Causes 20 damage, incapacitating the opponent for 4 sec, and turns off your attack.  Target must be facing you.  Any damage caused will revive the target.  Awards 1 combo point.
+- **Duration**: 4s
+- **Buff Duration**: 4s
+- **Buff**: Incapacitated.
+
+---
+
 ## Stealth [ID: 1784]
 - **Class**: Rogue
 - **School**: Unknown
@@ -192,6 +236,20 @@ Total: 82 spells
 - **Description**: Allows the rogue to sneak around, but reduces your speed by 30%.  Lasts until cancelled.
 - **Buff Duration**: ?s
 - **Buff**: Stealthed.  Movement slowed by 30%.
+
+---
+
+## Cheap Shot [ID: 1833]
+- **Class**: Rogue
+- **School**: Unknown
+- **Required Level**: 26
+- **Cast Time**: Instant
+- **Cost**: 60 energy
+- **Range**: melee yd
+- **Description**: Stuns the target for 4 sec.  Must be stealthed.  Awards 2 combo points.
+- **Duration**: 4s
+- **Buff Duration**: 4s
+- **Buff**: Stunned.
 
 ---
 
@@ -247,6 +305,20 @@ Total: 82 spells
 
 ---
 
+## Blind [ID: 2094]
+- **Class**: Rogue
+- **School**: Unknown
+- **Required Level**: 34
+- **Cast Time**: Instant
+- **Cost**: 30 energy
+- **Range**: 10 yd
+- **Cooldown**: 3 min cooldown
+- **Description**: Blinds the target, causing it to wander disoriented for up to 10 sec.  Any damage caused will remove the effect.
+- **Buff Duration**: 10s
+- **Buff**: Disoriented.
+
+---
+
 ## Eviscerate [ID: 2098]
 - **Class**: Rogue
 - **School**: Unknown
@@ -291,6 +363,41 @@ Total: 82 spells
 
 ---
 
+## Deadly Poison [ID: 2818]
+- **Class**: Rogue
+- **School**: Unknown
+- **Required Level**: 30
+- **Cast Time**: Instant
+- **Range**: melee yd
+- **Periodic**: 9 Nature every 3s
+- **Buff Duration**: 12s
+- **Buff**: Target takes 9 Nature damage every 3 seconds.
+
+---
+
+## Sprint [ID: 2983]
+- **Class**: Rogue
+- **School**: Unknown
+- **Required Level**: 10
+- **Cast Time**: Instant
+- **Cooldown**: 5 min cooldown
+- **Description**: Increases the rogue's movement speed by 50% for 15 sec.  Does not break stealth.
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: Movement speed increased by 50%.
+
+---
+
+## Crippling Poison [ID: 3408]
+- **Class**: Rogue
+- **School**: Unknown
+- **Required Level**: 20
+- **Cast Time**: 3s
+- **Description**: Coats a weapon with poison that lasts for 1 hour.Each strike has a 30% chance of poisoning the enemy, slowing their movement speed by 50% for 12 sec.
+- **Duration**: 12s
+
+---
+
 ## Slice and Dice [ID: 5171]
 - **Class**: Rogue
 - **School**: Unknown
@@ -301,6 +408,30 @@ Total: 82 spells
 - **Description**: Finishing move that increases melee attack speed by 20%.  Lasts longer per combo point:   1 point  : 9 seconds   2 points: 12 seconds   3 points: 15 seconds   4 points: 18 seconds   5 points: 21 seconds
 - **Buff Duration**: 6s
 - **Buff**: Melee attack speed increased by 20%.
+
+---
+
+## Evasion [ID: 5277]
+- **Class**: Rogue
+- **School**: Unknown
+- **Required Level**: 8
+- **Cast Time**: Instant
+- **Cooldown**: 5 min cooldown
+- **Description**: The rogue's dodge chance will increase by 50% for 15 sec.
+- **Duration**: 15s
+- **Buff Duration**: 15s
+- **Buff**: Increases dodge chance by 50%.
+
+---
+
+## Shiv [ID: 5938]
+- **Class**: Rogue
+- **School**: Unknown
+- **Required Level**: 70
+- **Cast Time**: Instant
+- **Cost**: 20 energy
+- **Range**: melee yd
+- **Description**: Performs an instant off-hand weapon attack that automatically applies the poison from your off-hand weapon to the target.  Slower weapons require more Energy.  Awards 1 combo point.
 
 ---
 
@@ -346,6 +477,19 @@ Total: 82 spells
 - **Range**: melee yd
 - **Cooldown**: 10 sec cooldown
 - **Description**: Performs a feint, causing no damage but lowering your threat by a medium amount, making the enemy less likely to attack you.
+
+---
+
+## Sap [ID: 6770]
+- **Class**: Rogue
+- **School**: Unknown
+- **Required Level**: 10
+- **Cast Time**: Instant
+- **Cost**: 65 energy
+- **Range**: melee yd
+- **Description**: Incapacitates the target for up to 25 sec.  Must be stealthed.  Only works on Humanoids that are not in combat.    Any damage caused will revive the target.  Only 1 target may be sapped at a time.
+- **Buff Duration**: 25s
+- **Buff**: Sapped.
 
 ---
 
@@ -978,6 +1122,21 @@ Total: 82 spells
 - **Cost**: 60 energy
 - **Range**: melee yd
 - **Description**: Instantly attacks with both weapons for an additional 101 with each weapon.  Damage is increased by 50% against Poisoned targets.  Must be behind the target.  Awards 2 combo points.
+
+---
+
+## Gouge [ID: 38764]
+- **Class**: Rogue
+- **School**: Unknown
+- **Required Level**: 67
+- **Cast Time**: Instant
+- **Cost**: 45 energy
+- **Range**: melee yd
+- **Cooldown**: 10 sec cooldown
+- **Description**: Causes 105 damage, incapacitating the opponent for 4 sec, and turns off your attack.  Target must be facing you.  Any damage caused will revive the target.  Awards 1 combo point.
+- **Duration**: 4s
+- **Buff Duration**: 4s
+- **Buff**: Incapacitated.
 
 ---
 

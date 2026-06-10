@@ -1,0 +1,11 @@
+{
+  "name": "Uppercut",
+  "icon": "inv_gauntlets_05",
+  "range": 10,
+  "cast_time": 0,
+  "required_level": 40,
+  "description": "Inflicts normal damage plus 250 to an enemy, knocking it back.",
+  "target_type": "hostile",
+  "_id": 34996,
+  "_source": "wowhead"
+}
