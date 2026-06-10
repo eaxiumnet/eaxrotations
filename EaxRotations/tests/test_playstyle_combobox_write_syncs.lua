@@ -35,16 +35,18 @@ local function sync_playstyle_control()
         local value = playstyle_keys[combo_index]
         if type(value) == "string" and value ~= "" then
             set_setting("playstyle", value)
+            set_setting("active_playstyle", value)
         end
         return
     end
 
-    local current_playstyle = get_setting("playstyle", nil)
+    local current_playstyle = get_setting("active_playstyle", nil)
 
     if combo_index ~= _last_playstyle_combo_index then
         local value = playstyle_keys[combo_index]
         if type(value) == "string" and value ~= "" then
             set_setting("playstyle", value)
+            set_setting("active_playstyle", value)
         end
         _last_playstyle_combo_index = combo_index
         return

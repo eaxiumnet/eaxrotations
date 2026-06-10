@@ -581,6 +581,7 @@ local function sync_playstyle_control()
         local value = playstyle_keys[combo_index]
         if type(value) == "string" and value ~= "" then
             framework_core.set_setting("playstyle", value)
+            framework_core.set_setting("active_playstyle", value)
             if _last_playstyle_log ~= value then
                 _last_playstyle_log = value
                 core.log("[EaxRotations] Active playstyle: " .. tostring(value))
@@ -589,7 +590,7 @@ local function sync_playstyle_control()
         return
     end
 
-    local current_playstyle = framework_core.get_setting and framework_core.get_setting("playstyle", nil)
+    local current_playstyle = framework_core.get_setting and framework_core.get_setting("active_playstyle", nil)
 
     -- Detect if user changed the combobox (index changed since last read)
     if combo_index ~= _last_playstyle_combo_index then
@@ -597,6 +598,7 @@ local function sync_playstyle_control()
         local value = playstyle_keys[combo_index]
         if type(value) == "string" and value ~= "" then
             framework_core.set_setting("playstyle", value)
+            framework_core.set_setting("active_playstyle", value)
             if _last_playstyle_log ~= value then
                 _last_playstyle_log = value
                 core.log("[EaxRotations] Active playstyle: " .. tostring(value))
