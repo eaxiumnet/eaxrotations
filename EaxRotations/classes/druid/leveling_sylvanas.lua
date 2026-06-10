@@ -704,6 +704,8 @@ end
 -- Rotation entry point
 -- ============================================================================
 
+local _orc_logged = false
+
 function druid_leveling.on_update(context)
     if not context then return false end
     if not is_leveling_context(context) then return false end
@@ -713,6 +715,22 @@ function druid_leveling.on_update(context)
 
     -- Stash state on context so executes can read it without rebuilding
     context._leveling_state = state
+
+    -- One-time diagnostic: confirms the dispatcher reached the leveling
+    -- rotation and reports what the dispatcher thinks about combat state.
+    if not _orc_logged and NS.log then
+        _orc_logged = true
+        NS.log(string.format(
+            "[LEVELING] Druid on_update reached: ctx.in_combat=%s, ctx.has_valid_enemy_target=%s, ctx.target=%s, state.target=%s, hp=%s, mana_pct=%s, wrath_ready=%s, moonfire_ready=%s",
+            tostring(context.in_combat),
+            tostring(context.has_valid_enemy_target),
+            tostring(context.target ~= nil),
+            tostring(state.target ~= nil),
+            tostring(state.hp),
+            tostring(state.mana_pct),
+            tostring(state.wrath_ready),
+            tostring(state.moonfire_ready)))
+    end
 
     -- Evaluate strategies in priority order
     for i = 1, #strategies do
