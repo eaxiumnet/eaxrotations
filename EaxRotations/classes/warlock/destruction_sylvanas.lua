@@ -177,6 +177,8 @@ local function incinerate_matches(context, action, state)
 end
 
 local function searing_pain_matches(context, action, state)
+    if not context.target then return false end
+    if not NS.spell_ready(action.spell, context.target) then return false end
     return true
 end
 
@@ -281,6 +283,8 @@ local function death_coil_matches(context, action, state)
 end
 
 local function fear_matches(context, action, state)
+    if not context.target then return false end
+    if not NS.spell_ready(action.spell, context.target) then return false end
     return true
 end
 

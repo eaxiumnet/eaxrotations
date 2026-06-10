@@ -1731,8 +1731,6 @@ local combat_start_callbacks = {}
 
 local combat_end_callbacks = {}
 
-local was_in_combat = false
-
 function NS.register_on_combat_start(callback)
 
     if type(callback) ~= "function" then return false end
@@ -4308,31 +4306,15 @@ function NS.is_current_spell(spell_id)
 
 end
 
-local auto_attack_helper = false
-
-local function get_auto_attack_helper()
-
-    if auto_attack_helper ~= false then return auto_attack_helper end
-
-    local ok, module = pcall(require, "common/utility/auto_attack_helper")
-
-    auto_attack_helper = ok and module or nil
-
-    return auto_attack_helper
-
-end
-
 function NS.get_time_until_swing()
 
     local player = NS.GetPlayer()
 
-    if not player then return nil end
-
-    local helper = get_auto_attack_helper()
+    if not player or not _auto_attack then return nil end
 
     local now = NS.time_now()
 
-    local next_core = helper and safe(safe_field(helper, "get_next_attack_core_time"), helper, player, 1) or nil
+    local next_core = safe(safe_field(_auto_attack, "get_next_attack_core_time"), _auto_attack, player, 1) or nil
 
     if type(next_core) == "number" and next_core > 0 then
 
@@ -4340,7 +4322,7 @@ function NS.get_time_until_swing()
 
     end
 
-    local next_game = helper and safe(safe_field(helper, "get_next_attack_game_time"), helper, player, 1) or nil
+    local next_game = safe(safe_field(_auto_attack, "get_next_attack_game_time"), _auto_attack, player, 1) or nil
 
     if type(next_game) == "number" and next_game > 0 then
 
@@ -4356,13 +4338,11 @@ function NS.get_time_until_oh_swing()
 
     local player = NS.GetPlayer()
 
-    if not player then return nil end
-
-    local helper = get_auto_attack_helper()
+    if not player or not _auto_attack then return nil end
 
     local now = NS.time_now()
 
-    local next_core = helper and safe(safe_field(helper, "get_next_attack_core_time"), helper, player, 2) or nil
+    local next_core = safe(safe_field(_auto_attack, "get_next_attack_core_time"), _auto_attack, player, 2) or nil
 
     if type(next_core) == "number" and next_core > 0 then
 
@@ -4370,7 +4350,7 @@ function NS.get_time_until_oh_swing()
 
     end
 
-    local next_game = helper and safe(safe_field(helper, "get_next_attack_game_time"), helper, player, 2) or nil
+    local next_game = safe(safe_field(_auto_attack, "get_next_attack_game_time"), _auto_attack, player, 2) or nil
 
     if type(next_game) == "number" and next_game > 0 then
 
