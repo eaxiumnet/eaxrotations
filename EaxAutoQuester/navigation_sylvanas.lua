@@ -211,7 +211,7 @@ function M.navigate_to(destination, callback)
         _is_fallback = true
         _state = "NAVIGATING"
 
-        local ok, err = pcall(function() _fallback_mover.move_to_position(destination) end)
+        local ok, err = pcall(function() _fallback_mover:move_to_position(destination) end)
         if not ok then
             _state = "FAILED"
             _destination = nil
@@ -268,7 +268,7 @@ function M.update()
 
     if _is_fallback and _fallback_mover then
         -- Process fallback movement each frame
-        pcall(function() _fallback_mover.process() end)
+        pcall(function() _fallback_mover:process() end)
 
         -- Check arrival by distance (simple_movement has no event system)
         local me = _get_local_player()
@@ -283,7 +283,7 @@ function M.update()
         end
 
         -- Check if movement stopped unexpectedly
-        local moving_ok, is_moving = pcall(function() return _fallback_mover.is_moving() end)
+        local moving_ok, is_moving = pcall(function() return _fallback_mover:is_moving() end)
         if moving_ok and not is_moving then
             _state = "FAILED"
             stop_internal()
