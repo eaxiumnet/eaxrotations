@@ -140,13 +140,7 @@ local function spell_ready(spell, target, opts)
     return NS.spell_ready and NS.spell_ready(spell, target, opts) or false
 end
 
-local function buff_up(unit, buff)
-    return unit ~= nil and NS.buff_up and NS.buff_up(unit, buff) or false
-end
 
-local function debuff_remains(unit, debuff)
-    return unit ~= nil and NS.debuff_remains and NS.debuff_remains(unit, debuff) or 0
-end
 
 local function get_attack_power(context, me)
     -- context.attack_power is now wired in build_context()
@@ -259,18 +253,18 @@ local function build_state(context)
         state.is_cat = context.stance == STANCE_CAT or context.stance == nil
     end
 
-    state.is_stealthed = buff_up(state.me, PROWL_BUFF)
-    state.clearcasting = buff_up(state.me, OMEN_OF_CLARITY_BUFF)
-    state.has_tigers_fury = buff_up(state.me, TIGERS_FURY_BUFF)
-    state.has_dash = buff_up(state.me, DASH_BUFF)
-    state.has_barkskin = buff_up(state.me, BARKSKIN_BUFF)
-    state.has_track_humanoids = buff_up(state.me, TRACK_HUMANOIDS_BUFF)
-    state.has_wolfshead = buff_up(state.me, WOLFSHEAD_BUFF)
+    state.is_stealthed = NS.buff_up(state.me, PROWL_BUFF) or false
+    state.clearcasting = NS.buff_up(state.me, OMEN_OF_CLARITY_BUFF) or false
+    state.has_tigers_fury = NS.buff_up(state.me, TIGERS_FURY_BUFF) or false
+    state.has_dash = NS.buff_up(state.me, DASH_BUFF) or false
+    state.has_barkskin = NS.buff_up(state.me, BARKSKIN_BUFF) or false
+    state.has_track_humanoids = NS.buff_up(state.me, TRACK_HUMANOIDS_BUFF) or false
+    state.has_wolfshead = NS.buff_up(state.me, WOLFSHEAD_BUFF) or false
 
-    state.rip_remains = debuff_remains(state.target, RIP_DEBUFF)
-    state.rake_remains = debuff_remains(state.target, RAKE_DEBUFF)
-    state.faerie_fire_remains = debuff_remains(state.target, FAERIE_FIRE_DEBUFF)
-    state.pounce_remains = debuff_remains(state.target, POUNCE_DEBUFF)
+    state.rip_remains = NS.debuff_remains(state.target, RIP_DEBUFF) or 0
+    state.rake_remains = NS.debuff_remains(state.target, RAKE_DEBUFF) or 0
+    state.faerie_fire_remains = NS.debuff_remains(state.target, FAERIE_FIRE_DEBUFF) or 0
+    state.pounce_remains = NS.debuff_remains(state.target, POUNCE_DEBUFF) or 0
 
     state.attack_power = get_attack_power(context, state.me)
     state.rip_ap = snapshot_state.rip_ap

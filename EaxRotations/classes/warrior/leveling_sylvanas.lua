@@ -7,6 +7,7 @@ if not NS then return nil end
 
 local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
+local L = require("shared/leveling_helpers_sylvanas")
 
 -- ============================================================================
 -- Module table
@@ -25,9 +26,9 @@ local SPELLS = NS.WarriorSpells or NS.SPELLS or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { DEFENSIVE = 2 }
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
-local BATTLE_SHOUT_BUFF = { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
+local BATTLE_SHOUT_BUFF = CONSTANTS.BATTLE_SHOUT_IDS or { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
 local RAMPAGE_BUFF = { 30033, 30032, 30030 }
-local SUNDER_DEBUFF = { 25225, 11597, 11596, 8380, 7405, 7386 }
+local SUNDER_DEBUFF = CONSTANTS.SUNDER_DEBUFF or { 25225, 11597, 11596, 8380, 7405, 7386 }
 local SHIELD_SLAM_CD = 6
 local DISARM_CD = 60
 local PVP_CC_RADIUS = 15
@@ -42,52 +43,7 @@ local WARRIOR_AOE_IDS = { 845, 1680, 12328 }  -- Cleave, Whirlwind, Sweeping Str
 -- Strategy helpers
 -- ============================================================================
 
-local function spell_ready(spell_action)
-    if not spell_action then return false end
-    return NS.spell_ready and NS.spell_ready(spell_action) or false
-end
 
-local function try_cast(spell_action, target, label, opts)
-    if not NS.try_cast then return false end
-    local ok, result = pcall(NS.try_cast, spell_action, target, label or "", opts)
-    return ok and result == true
-end
-
-local function get_player()
-    return (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
-end
-
-local function has_buff(buff_ids)
-    if not buff_ids then return false end
-    local me = get_player()
-    if not me then return false end
-    local ids = type(buff_ids) == "table" and buff_ids or { buff_ids }
-    if NS.buff_up then
-        local ok, result = pcall(NS.buff_up, me, ids)
-        return ok and result
-    end
-    return false
-end
-
-local function buff_remains(buff_ids)
-    local me = get_player()
-    if not me or not NS.buff_remains then return 0 end
-    local ok, remains = pcall(NS.buff_remains, me, buff_ids)
-    return (ok and remains) or 0
-end
-
-local function debuff_stacks(unit, ids)
-    if not unit then return 0 end
-    if NS.debuff_stacks then
-        local ok, stacks = pcall(NS.debuff_stacks, unit, ids)
-        return (ok and stacks) or 0
-    end
-    if NS.get_debuff_stacks then
-        local ok, stacks = pcall(NS.get_debuff_stacks, unit, ids)
-        return (ok and stacks) or 0
-    end
-    return 0
-end
 
 -- ============================================================================
 -- State builder
@@ -102,38 +58,38 @@ function warrior_leveling.build_state(context)
     leveling.build_common_state(context, state)
 
     -- Warrior-specific spell readiness
-    state.charge_ready = spell_ready(SPELLS.Charge)
-    state.rend_ready = spell_ready(SPELLS.Rend)
-    state.heroic_strike_ready = spell_ready(SPELLS.HeroicStrike)
-    state.overpower_ready = spell_ready(SPELLS.Overpower)
-    state.thunder_clap_ready = spell_ready(SPELLS.ThunderClap)
-    state.demoralizing_shout_ready = spell_ready(SPELLS.DemoralizingShout)
-    state.execute_ready = spell_ready(SPELLS.Execute)
-    state.victory_rush_ready = spell_ready(SPELLS.VictoryRush)
-    state.pummel_ready = spell_ready(SPELLS.Pummel)
-    state.battle_shout_ready = spell_ready(SPELLS.BattleShout)
-    state.bloodrage_ready = spell_ready(SPELLS.Bloodrage)
-    state.berserker_rage_ready = spell_ready(SPELLS.BerserkerRage)
-    state.cleave_ready = spell_ready(SPELLS.Cleave)
-    state.whirlwind_ready = spell_ready(SPELLS.Whirlwind)
-    state.sweeping_strikes_ready = spell_ready(SPELLS.SweepingStrikes)
-    state.mortal_strike_ready = spell_ready(SPELLS.MortalStrike)
-    state.bloodthirst_ready = spell_ready(SPELLS.Bloodthirst)
-    state.sunder_armor_ready = spell_ready(SPELLS.SunderArmor)
-    state.hamstring_ready = spell_ready(SPELLS.Hamstring)
-    state.slam_ready = spell_ready(SPELLS.Slam)
-    state.rampage_ready = spell_ready(SPELLS.Rampage)
-    state.disarm_ready = spell_ready(SPELLS.Disarm)
-    state.shield_bash_ready = spell_ready(SPELLS.ShieldBash)
-    state.shield_wall_ready = spell_ready(SPELLS.ShieldWall)
-    state.intimidating_shout_ready = spell_ready(SPELLS.IntimidatingShout)
+    state.charge_ready = L.spell_ready(SPELLS.Charge)
+    state.rend_ready = L.spell_ready(SPELLS.Rend)
+    state.heroic_strike_ready = L.spell_ready(SPELLS.HeroicStrike)
+    state.overpower_ready = L.spell_ready(SPELLS.Overpower)
+    state.thunder_clap_ready = L.spell_ready(SPELLS.ThunderClap)
+    state.demoralizing_shout_ready = L.spell_ready(SPELLS.DemoralizingShout)
+    state.execute_ready = L.spell_ready(SPELLS.Execute)
+    state.victory_rush_ready = L.spell_ready(SPELLS.VictoryRush)
+    state.pummel_ready = L.spell_ready(SPELLS.Pummel)
+    state.battle_shout_ready = L.spell_ready(SPELLS.BattleShout)
+    state.bloodrage_ready = L.spell_ready(SPELLS.Bloodrage)
+    state.berserker_rage_ready = L.spell_ready(SPELLS.BerserkerRage)
+    state.cleave_ready = L.spell_ready(SPELLS.Cleave)
+    state.whirlwind_ready = L.spell_ready(SPELLS.Whirlwind)
+    state.sweeping_strikes_ready = L.spell_ready(SPELLS.SweepingStrikes)
+    state.mortal_strike_ready = L.spell_ready(SPELLS.MortalStrike)
+    state.bloodthirst_ready = L.spell_ready(SPELLS.Bloodthirst)
+    state.sunder_armor_ready = L.spell_ready(SPELLS.SunderArmor)
+    state.hamstring_ready = L.spell_ready(SPELLS.Hamstring)
+    state.slam_ready = L.spell_ready(SPELLS.Slam)
+    state.rampage_ready = L.spell_ready(SPELLS.Rampage)
+    state.disarm_ready = L.spell_ready(SPELLS.Disarm)
+    state.shield_bash_ready = L.spell_ready(SPELLS.ShieldBash)
+    state.shield_wall_ready = L.spell_ready(SPELLS.ShieldWall)
+    state.intimidating_shout_ready = L.spell_ready(SPELLS.IntimidatingShout)
 
     -- PvP state
     state.is_pvp = context.is_pvp or false
     state.in_melee_range = context.in_melee_range or false
 
     -- Shield Slam readiness (for purge + leveling tanking)
-    state.shield_slam_ready = spell_ready(SPELLS.ShieldSlam)
+    state.shield_slam_ready = L.spell_ready(SPELLS.ShieldSlam)
 
     -- Disarm burst detection via offensive dispel priority DB
     state.disarm_class_ok = false
@@ -150,12 +106,12 @@ function warrior_leveling.build_state(context)
     end
 
     -- Buff checks
-    state.has_battle_shout = has_buff(BATTLE_SHOUT_BUFF)
-    state.has_rampage = has_buff(RAMPAGE_BUFF)
-    state.rampage_remains = buff_remains(RAMPAGE_BUFF)
+    state.has_battle_shout = L.has_buff(BATTLE_SHOUT_BUFF)
+    state.has_rampage = L.has_buff(RAMPAGE_BUFF)
+    state.rampage_remains = (NS.GetPlayer and NS.buff_remains(NS.GetPlayer(), RAMPAGE_BUFF)) or 0
 
     -- Debuffs on target
-    state.sunder_stacks = debuff_stacks(state.target, SUNDER_DEBUFF)
+    state.sunder_stacks = NS.debuff_stacks(state.target, SUNDER_DEBUFF) or 0
 
     -- Settings
     local settings = context.settings or {}
@@ -296,7 +252,7 @@ local rampage_matches = function(_, state)
     if not state.in_combat then return false end
     if not state.rampage_ready then return false end
     if state.has_rampage and (state.rampage_remains or 0) > 3 then return false end
-    local me = get_player()
+    local me = L.get_player()
     if not me then return false end
     local ok, rage = pcall(function() return me:get_power(1) end)
     if not ok or not rage or rage < 30 then return false end
@@ -313,7 +269,7 @@ local sunder_armor_matches = function(context, state)
     if (state.sunder_stacks or 0) >= 3 then return false end
     local ok, hp = pcall(function() return state.target:get_health_percentage() end)
     if ok and hp and hp < 40 then return false end
-    local me = get_player()
+    local me = L.get_player()
     if not me then return false end
     local ok_rage, rage = pcall(function() return me:get_power(1) end)
     if not ok_rage or not rage or rage < 25 then return false end
@@ -335,7 +291,7 @@ local heroic_strike_matches = function(_, state)
     if not state.in_combat then return false end
     if not state.heroic_strike_ready then return false end
     if not state.target then return false end
-    local me = get_player()
+    local me = L.get_player()
     if not me then return false end
     local ok, rage = pcall(function() return me:get_power(1) end)
     if not ok or not rage then return false end
@@ -484,72 +440,72 @@ local strategies = {
     -- OOC: Battle Shout
     { name = "BattleShout",
       matches = battle_shout_matches,
-      execute = function(context) return try_cast(SPELLS.BattleShout, (context and context.me) or get_player(), "[LEVELING] Battle Shout", { skip_range = true }) end },
+      execute = function(context) return L.try_cast(SPELLS.BattleShout, (context and context.me) or L.get_player(), "[LEVELING] Battle Shout", { skip_range = true }) end },
 
     -- Interrupt: Pummel
     { name = "Pummel",
       matches = pummel_matches,
-      execute = function(context) return try_cast(SPELLS.Pummel, context and context.target, "[LEVELING] Pummel") end },
+      execute = function(context) return L.try_cast(SPELLS.Pummel, context and context.target, "[LEVELING] Pummel") end },
 
     -- PvP: Shield Slam Purge (after interrupt, before AoE - same priority as main middleware)
     { name = "ShieldSlamPurge",
       matches = shield_slam_purge_matches,
       execute = function(context) if not context then return false end
-          if false then return try_cast(nil, nil, "[LEVELING] Scanner marker") end
+          if false then return L.try_cast(nil, nil, "[LEVELING] Scanner marker") end
           -- Shield Slam requires Defensive Stance — stance dance if needed
           if context.stance ~= STANCE.DEFENSIVE then
-              if spell_ready(SPELLS.DefensiveStance) then
-                  return try_cast(SPELLS.DefensiveStance, (context and context.me) or get_player(), "[LEVELING] Defensive Stance for purge", { skip_range = true })
+              if L.spell_ready(SPELLS.DefensiveStance) then
+                  return L.try_cast(SPELLS.DefensiveStance, (context and context.me) or L.get_player(), "[LEVELING] Defensive Stance for purge", { skip_range = true })
               end
               return false
           end
           local name = context._ss_purge_name or "buff"
-          return try_cast(SPELLS.ShieldSlam, context.target, "[LEVELING] Shield Slam purge → " .. name, { expected_cooldown = SHIELD_SLAM_CD })
+          return L.try_cast(SPELLS.ShieldSlam, context.target, "[LEVELING] Shield Slam purge → " .. name, { expected_cooldown = SHIELD_SLAM_CD })
       end },
 
     -- PvP: Disarm (after ShieldSlamPurge, before Charge - same priority as main middleware)
     { name = "Disarm",
       matches = disarm_matches,
       execute = function(context) if not context then return false end
-          if false then return try_cast(nil, nil, "[LEVELING] Scanner marker") end
+          if false then return L.try_cast(nil, nil, "[LEVELING] Scanner marker") end
           -- Disarm requires Defensive Stance — stance dance if rage-safe
           if context.stance ~= STANCE.DEFENSIVE then
               if (context.rage or 0) > 25 then return false end
-              if spell_ready(SPELLS.DefensiveStance) then
-                  return try_cast(SPELLS.DefensiveStance, (context and context.me) or get_player(), "[LEVELING] Defensive Stance for Disarm", { skip_range = true })
+              if L.spell_ready(SPELLS.DefensiveStance) then
+                  return L.try_cast(SPELLS.DefensiveStance, (context and context.me) or L.get_player(), "[LEVELING] Defensive Stance for Disarm", { skip_range = true })
               end
               return false
           end
           local label = context._disarm_burst_name
               and ("[LEVELING] Disarm → " .. context._disarm_burst_name)
               or "[LEVELING] Disarm"
-          return try_cast(SPELLS.Disarm, context.target, label, { expected_cooldown = DISARM_CD })
+          return L.try_cast(SPELLS.Disarm, context.target, label, { expected_cooldown = DISARM_CD })
       end },
 
     -- Opener: Charge
     { name = "Charge",
       matches = charge_matches,
-      execute = function(context) return try_cast(SPELLS.Charge, context and context.target, "[LEVELING] Charge") end },
+      execute = function(context) return L.try_cast(SPELLS.Charge, context and context.target, "[LEVELING] Charge") end },
 
     -- Rage: Bloodrage
     { name = "Bloodrage",
       matches = bloodrage_matches,
-      execute = function(context) return try_cast(SPELLS.Bloodrage, (context and context.me) or get_player(), "[LEVELING] Bloodrage", { skip_range = true }) end },
+      execute = function(context) return L.try_cast(SPELLS.Bloodrage, (context and context.me) or L.get_player(), "[LEVELING] Bloodrage", { skip_range = true }) end },
 
     -- Rage: Berserker Rage (fear immunity + rage generation)
     { name = "BerserkerRage",
       matches = berserker_rage_matches,
-      execute = function(context) return try_cast(SPELLS.BerserkerRage, (context and context.me) or get_player(), "[LEVELING] Berserker Rage", { skip_range = true }) end },
+      execute = function(context) return L.try_cast(SPELLS.BerserkerRage, (context and context.me) or L.get_player(), "[LEVELING] Berserker Rage", { skip_range = true }) end },
 
     -- Heal: Victory Rush
     { name = "VictoryRush",
       matches = victory_rush_matches,
-      execute = function(context) return try_cast(SPELLS.VictoryRush, context and context.target, "[LEVELING] Victory Rush") end },
+      execute = function(context) return L.try_cast(SPELLS.VictoryRush, context and context.target, "[LEVELING] Victory Rush") end },
 
     -- Defense: Shield Wall (50% damage reduction emergency)
     { name = "ShieldWall",
       matches = shield_wall_matches,
-      execute = function(context) return try_cast(SPELLS.ShieldWall, (context and context.me) or get_player(), "[LEVELING] Shield Wall", { skip_range = true }) end },
+      execute = function(context) return L.try_cast(SPELLS.ShieldWall, (context and context.me) or L.get_player(), "[LEVELING] Shield Wall", { skip_range = true }) end },
 
     -- Emergency: Health Potion
     { name = "HealthPotion",
@@ -559,69 +515,69 @@ local strategies = {
     -- Execute
     { name = "Execute",
       matches = execute_matches,
-      execute = function(context) return try_cast(SPELLS.Execute, context and context.target, "[LEVELING] Execute") end },
+      execute = function(context) return L.try_cast(SPELLS.Execute, context and context.target, "[LEVELING] Execute") end },
 
     -- PvP CC Gate: blocks AoE when nearby breakable CC (after all utilities, before AoE)
     { name = "PvPCCGate",
       matches = pvp_cc_gate_matches,
-      execute = function() if false then return try_cast(nil, nil, "[LEVELING] PvP CC Gate") end
+      execute = function() if false then return L.try_cast(nil, nil, "[LEVELING] PvP CC Gate") end
           return true
       end },  -- No-op: consume tick, block AoE
 
     -- CC: Intimidating Shout (AoE fear escape when overwhelmed)
     { name = "IntimidatingShout",
       matches = intimidating_shout_matches,
-      execute = function(context) return try_cast(SPELLS.IntimidatingShout, (context and context.me) or get_player(), "[LEVELING] Intimidating Shout", { skip_range = true }) end },
+      execute = function(context) return L.try_cast(SPELLS.IntimidatingShout, (context and context.me) or L.get_player(), "[LEVELING] Intimidating Shout", { skip_range = true }) end },
 
     -- DoT: Rend (bleed, good leveling opener)
     { name = "Rend",
       matches = rend_matches,
-      execute = function(context) return try_cast(SPELLS.Rend, context and context.target, "[LEVELING] Rend") end },
+      execute = function(context) return L.try_cast(SPELLS.Rend, context and context.target, "[LEVELING] Rend") end },
 
     -- AoE: Sweeping Strikes
     { name = "SweepingStrikes",
       matches = sweeping_strikes_matches,
-      execute = function(context) return try_cast(SPELLS.SweepingStrikes, (context and context.me) or get_player(), "[LEVELING] Sweeping Strikes", { skip_range = true }) end },
+      execute = function(context) return L.try_cast(SPELLS.SweepingStrikes, (context and context.me) or L.get_player(), "[LEVELING] Sweeping Strikes", { skip_range = true }) end },
 
     -- AoE: Cleave (2+ enemies)
     { name = "Cleave",
       matches = cleave_matches,
-      execute = function(context) return try_cast(SPELLS.Cleave, context and context.target, "[LEVELING] Cleave") end },
+      execute = function(context) return L.try_cast(SPELLS.Cleave, context and context.target, "[LEVELING] Cleave") end },
 
     -- AoE: Whirlwind
     { name = "Whirlwind",
       matches = whirlwind_matches,
-      execute = function(context) return try_cast(SPELLS.Whirlwind, (context and context.me) or get_player(), "[LEVELING] Whirlwind", { skip_range = true }) end },
+      execute = function(context) return L.try_cast(SPELLS.Whirlwind, (context and context.me) or L.get_player(), "[LEVELING] Whirlwind", { skip_range = true }) end },
 
     -- AoE: Thunder Clap
     { name = "ThunderClap",
       matches = thunder_clap_matches,
-      execute = function(context) return try_cast(SPELLS.ThunderClap, (context and context.me) or get_player(), "[LEVELING] Thunder Clap", { skip_range = true }) end },
+      execute = function(context) return L.try_cast(SPELLS.ThunderClap, (context and context.me) or L.get_player(), "[LEVELING] Thunder Clap", { skip_range = true }) end },
 
     -- Debuff: Demoralizing Shout (reduce enemy attack power)
     { name = "DemoralizingShout",
       matches = demo_shout_matches,
-      execute = function(context) return try_cast(SPELLS.DemoralizingShout, (context and context.me) or get_player(), "[LEVELING] Demoralizing Shout", { skip_range = true }) end },
+      execute = function(context) return L.try_cast(SPELLS.DemoralizingShout, (context and context.me) or L.get_player(), "[LEVELING] Demoralizing Shout", { skip_range = true }) end },
 
     -- Spec: Rampage (Fury only — self-buff + flurry strikes)
     { name = "Rampage",
       matches = rampage_matches,
-      execute = function(context) return try_cast(SPELLS.Rampage, (context and context.me) or get_player(), "[LEVELING] Rampage", { skip_range = true }) end },
+      execute = function(context) return L.try_cast(SPELLS.Rampage, (context and context.me) or L.get_player(), "[LEVELING] Rampage", { skip_range = true }) end },
 
     -- Utility: Hamstring (slow fleeing targets or kite)
     { name = "Hamstring",
       matches = hamstring_matches,
-      execute = function(context) return try_cast(SPELLS.Hamstring, context and context.target, "[LEVELING] Hamstring") end },
+      execute = function(context) return L.try_cast(SPELLS.Hamstring, context and context.target, "[LEVELING] Hamstring") end },
 
     -- Spec filler: Mortal Strike / Bloodthirst
     { name = "SpecFiller",
       matches = spec_filler_matches,
       execute = function(context) if not context then return false end
-          if false then return try_cast(nil, nil, "[LEVELING] Scanner marker") end
-          if spell_ready(SPELLS.MortalStrike) then
-              return try_cast(SPELLS.MortalStrike, context.target, "[LEVELING] Mortal Strike")
-          elseif spell_ready(SPELLS.Bloodthirst) then
-              return try_cast(SPELLS.Bloodthirst, context.target, "[LEVELING] Bloodthirst")
+          if false then return L.try_cast(nil, nil, "[LEVELING] Scanner marker") end
+          if L.spell_ready(SPELLS.MortalStrike) then
+              return L.try_cast(SPELLS.MortalStrike, context.target, "[LEVELING] Mortal Strike")
+          elseif L.spell_ready(SPELLS.Bloodthirst) then
+              return L.try_cast(SPELLS.Bloodthirst, context.target, "[LEVELING] Bloodthirst")
           end
           return false
       end },
@@ -629,17 +585,17 @@ local strategies = {
     -- Overpower
     { name = "Overpower",
       matches = overpower_matches,
-      execute = function(context) return try_cast(SPELLS.Overpower, context and context.target, "[LEVELING] Overpower") end },
+      execute = function(context) return L.try_cast(SPELLS.Overpower, context and context.target, "[LEVELING] Overpower") end },
 
     -- Debuff: Sunder Armor for durable targets before rage dumps
     { name = "SunderArmor",
       matches = sunder_armor_matches,
-      execute = function(context) return try_cast(SPELLS.SunderArmor, context and context.target, "[LEVELING] Sunder Armor") end },
+      execute = function(context) return L.try_cast(SPELLS.SunderArmor, context and context.target, "[LEVELING] Sunder Armor") end },
 
     -- Rage dump: Heroic Strike
     { name = "HeroicStrike",
       matches = heroic_strike_matches,
-      execute = function(context) return try_cast(SPELLS.HeroicStrike, context and context.target, "[LEVELING] Heroic Strike") end },
+      execute = function(context) return L.try_cast(SPELLS.HeroicStrike, context and context.target, "[LEVELING] Heroic Strike") end },
 }
 
 if NS.rotation_registry and NS.rotation_registry.register then

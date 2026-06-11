@@ -51,13 +51,15 @@ local MIN_RAKE_TTD = 6
 local function spell_ready(spell_action)
     if not spell_action then return false end
     if not NS.spell_ready then return false end
-    local ok, result = pcall(NS.spell_ready, spell_action)
+    -- Pass player as target so spell_helper_castable doesn't bail on nil target
+    local player = NS.GetPlayer and NS.GetPlayer()
+    local ok, result = pcall(NS.spell_ready, spell_action, player, { skip_range = true })
     return ok and result == true
 end
 
-local function try_cast(spell_action, target, label)
+local function try_cast(spell_action, target, label, opts)
     if not spell_action then return false end
-    local ok, result = pcall(NS.try_cast, spell_action, target, label or "")
+    local ok, result = pcall(NS.try_cast, spell_action, target, label or "", opts)
     return ok and result == true
 end
 
@@ -705,6 +707,7 @@ end
 -- ============================================================================
 
 local _orc_logged = false
+
 
 function druid_leveling.on_update(context)
     if not context then return false end

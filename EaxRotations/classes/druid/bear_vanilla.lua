@@ -150,17 +150,7 @@ local function spell_ready(spell, target, expected_cooldown)
     return true
 end
 
-local function buff_up(unit, buff)
-    return unit ~= nil and NS.buff_up and NS.buff_up(unit, buff) or false
-end
 
-local function buff_remains(unit, buff)
-    return unit ~= nil and NS.buff_remains and NS.buff_remains(unit, buff) or 0
-end
-
-local function debuff_remains(unit, debuff)
-    return unit ~= nil and NS.debuff_remains and NS.debuff_remains(unit, debuff) or 0
-end
 
 local function safe_method(unit, method, fallback)
     if not unit then return fallback end
@@ -279,7 +269,7 @@ local function scan_pack(state)
                 local unit_target = get_target_of(unit)
                 local targets_me = same_unit(unit_target, state.me)
                 local elite = safe_method(unit, "is_elite", false) == true or safe_method(unit, "is_boss", false) == true
-                local demo_remains = debuff_remains(unit, DEMO_ROAR_DEBUFF)
+                local demo_remains = NS.debuff_remains(unit, DEMO_ROAR_DEBUFF) or 0
                 local score = 0
 
                 if elite then state.pack_elites = state.pack_elites + 1 end
@@ -360,13 +350,13 @@ local function build_state(context)
 
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
     if not skip_aura then
-        state.has_clearcasting = buff_up(state.me, CLEARCASTING_BUFF)
-        state.has_barkskin = buff_up(state.me, BARKSKIN_BUFF)
-        state.has_frenzied_regen = buff_up(state.me, FRENZIED_REGEN_BUFF)
-        state.has_mark = buff_up(state.me, MARK_BUFF)
-        state.has_thorns = buff_remains(state.me, THORNS_BUFF) > THORNS_REFRESH
-        state.faerie_remains = debuff_remains(state.target, FAERIE_FIRE_DEBUFF)
-        state.demo_remains = debuff_remains(state.target, DEMO_ROAR_DEBUFF)
+        state.has_clearcasting = NS.buff_up(state.me, CLEARCASTING_BUFF) or false
+        state.has_barkskin = NS.buff_up(state.me, BARKSKIN_BUFF) or false
+        state.has_frenzied_regen = NS.buff_up(state.me, FRENZIED_REGEN_BUFF) or false
+        state.has_mark = NS.buff_up(state.me, MARK_BUFF) or false
+        state.has_thorns = (NS.buff_remains(state.me, THORNS_BUFF) or 0) > THORNS_REFRESH
+        state.faerie_remains = NS.debuff_remains(state.target, FAERIE_FIRE_DEBUFF) or 0
+        state.demo_remains = NS.debuff_remains(state.target, DEMO_ROAR_DEBUFF) or 0
     end
 
     state.swipe_ready = spell_ready(SPELLS.SwipeBear, state.me)
@@ -435,14 +425,14 @@ end
 local function mark_matches(context, action)
     local state = build_state(context)
     if state.in_combat then return false end
-    if buff_remains(state.me, MARK_BUFF) > MOTW_REFRESH then return false end
+    if (NS.buff_remains(state.me, MARK_BUFF) or 0) > MOTW_REFRESH then return false end
     return action_ready(context, action)
 end
 
 local function thorns_matches(context, action)
     local state = build_state(context)
     if state.in_combat then return false end
-    if buff_remains(state.me, THORNS_BUFF) > THORNS_REFRESH then return false end
+    if (NS.buff_remains(state.me, THORNS_BUFF) or 0) > THORNS_REFRESH then return false end
     return action_ready(context, action)
 end
 

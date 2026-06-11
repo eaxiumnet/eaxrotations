@@ -180,24 +180,7 @@ local function spell_ready(spell, target, expected_cooldown)
     return true
 end
 
-local function buff_up(unit, buff)
-    return unit ~= nil and NS.buff_up and NS.buff_up(unit, buff) or false
-end
 
-local function buff_remains(unit, buff)
-    return unit ~= nil and NS.buff_remains and NS.buff_remains(unit, buff) or 0
-end
-
-local function debuff_remains(unit, debuff)
-    return unit ~= nil and NS.debuff_remains and NS.debuff_remains(unit, debuff) or 0
-end
-
-local function debuff_stacks(unit, debuff)
-    if not unit then return 0 end
-    if NS.get_debuff_stacks then return NS.get_debuff_stacks(unit, debuff) or 0 end
-    if NS.debuff_stacks then return NS.debuff_stacks(unit, debuff) or 0 end
-    return 0
-end
 
 local function safe_method(unit, method, fallback)
     if not unit then return fallback end
@@ -323,8 +306,8 @@ local function scan_pack(state)
                 local unit_target = get_target_of(unit)
                 local targets_me = same_unit(unit_target, state.me)
                 local elite = unit_is_elite(unit)
-                local lacerate_stacks = debuff_stacks(unit, LACERATE_DEBUFF)
-                local demo_remains = debuff_remains(unit, DEMO_ROAR_DEBUFF)
+                local lacerate_stacks = NS.debuff_stacks(unit, LACERATE_DEBUFF) or 0
+                local demo_remains = NS.debuff_remains(unit, DEMO_ROAR_DEBUFF) or 0
                 local score = 0
 
                 if elite then state.pack_elites = state.pack_elites + 1 end
@@ -346,7 +329,7 @@ local function scan_pack(state)
                     best_score = score
                     state.off_target = unit
                     state.off_target_lacerate_stacks = lacerate_stacks
-                    state.off_target_lacerate_remains = debuff_remains(unit, LACERATE_DEBUFF)
+                    state.off_target_lacerate_remains = NS.debuff_remains(unit, LACERATE_DEBUFF) or 0
                     state.off_target_threat_low = not targets_me
                 end
             end
@@ -412,16 +395,16 @@ local function build_state(context)
     -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
     if not skip_aura then
-        state.has_clearcasting = buff_up(state.me, CLEARCASTING_BUFF)
-        state.has_barkskin = buff_up(state.me, BARKSKIN_BUFF)
-        state.has_frenzied_regen = buff_up(state.me, FRENZIED_REGEN_BUFF)
-        state.has_mark = buff_up(state.me, MARK_BUFF)
-        state.has_thorns = buff_remains(state.me, THORNS_BUFF) > THORNS_REFRESH
-        state.faerie_remains = debuff_remains(state.target, FAERIE_FIRE_DEBUFF)
-        state.lacerate_remains = debuff_remains(state.target, LACERATE_DEBUFF)
-        state.lacerate_stacks = debuff_stacks(state.target, LACERATE_DEBUFF)
-        state.mangle_remains = debuff_remains(state.target, MANGLE_DEBUFF)
-        state.demo_remains = debuff_remains(state.target, DEMO_ROAR_DEBUFF)
+        state.has_clearcasting = (NS.buff_up and NS.buff_up(state.me, CLEARCASTING_BUFF)) or false
+        state.has_barkskin = (NS.buff_up and NS.buff_up(state.me, BARKSKIN_BUFF)) or false
+        state.has_frenzied_regen = (NS.buff_up and NS.buff_up(state.me, FRENZIED_REGEN_BUFF)) or false
+        state.has_mark = (NS.buff_up and NS.buff_up(state.me, MARK_BUFF)) or false
+        state.has_thorns = (NS.buff_remains and NS.buff_remains(state.me, THORNS_BUFF) or 0) > THORNS_REFRESH
+        state.faerie_remains = NS.debuff_remains(state.target, FAERIE_FIRE_DEBUFF) or 0
+        state.lacerate_remains = NS.debuff_remains(state.target, LACERATE_DEBUFF) or 0
+        state.lacerate_stacks = (NS.get_debuff_stacks and NS.get_debuff_stacks(state.target, LACERATE_DEBUFF)) or (NS.debuff_stacks and NS.debuff_stacks(state.target, LACERATE_DEBUFF)) or 0
+        state.mangle_remains = NS.debuff_remains(state.target, MANGLE_DEBUFF) or 0
+        state.demo_remains = NS.debuff_remains(state.target, DEMO_ROAR_DEBUFF) or 0
     end
 
     state.mangle_ready = spell_ready(SPELLS.MangleBear, state.target)
@@ -433,7 +416,7 @@ local function build_state(context)
     state.barkskin_ready = spell_ready(SPELLS.Barkskin, state.me)
     state.frenzied_ready = spell_ready(SPELLS.FrenziedRegeneration, state.me)
     state.survival_instincts_ready = spell_ready(SPELLS.SurvivalInstincts, state.me)
-    state.has_survival_instincts = buff_up(state.me, SURVIVAL_INSTINCTS_BUFF)
+    state.has_survival_instincts = (NS.buff_up and NS.buff_up(state.me, SURVIVAL_INSTINCTS_BUFF)) or false
     state.charge_ready = spell_ready(FERAL_CHARGE, state.target)
     state.bash_ready = spell_ready(BASH, state.target)
     state.faerie_ready = spell_ready(SPELLS.FaerieFireFeral, state.target)
@@ -513,14 +496,14 @@ end
 local function mark_matches(context, action)
     local state = build_state(context)
     if state.in_combat then return false end
-    if buff_remains(state.me, MARK_BUFF) > MOTW_REFRESH then return false end
+    if (NS.buff_remains(state.me, MARK_BUFF) or 0) > MOTW_REFRESH then return false end
     return action_ready(context, action)
 end
 
 local function thorns_matches(context, action)
     local state = build_state(context)
     if state.in_combat then return false end
-    if buff_remains(state.me, THORNS_BUFF) > THORNS_REFRESH then return false end
+    if (NS.buff_remains(state.me, THORNS_BUFF) or 0) > THORNS_REFRESH then return false end
     return action_ready(context, action)
 end
 

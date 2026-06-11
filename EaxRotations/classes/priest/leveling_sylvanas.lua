@@ -32,7 +32,11 @@ local VT_REFRESH_WINDOW = 3
 
 local function spell_ready(spell)
     if not spell then return false end
-    local ok, result = pcall(NS.spell_ready, spell)
+    -- Pass player as target + skip_range=true so spell_helper_castable doesn't
+    -- bail on nil target (core_sylvanas.lua:2521). We only need to know the
+    -- spell is learned/available/off-cooldown, not whether it's in range.
+    local player = NS.GetPlayer and NS.GetPlayer()
+    local ok, result = pcall(NS.spell_ready, spell, player, { skip_range = true })
     return ok and result
 end
 

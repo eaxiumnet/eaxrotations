@@ -25,6 +25,7 @@ local NS = _G.EaxRotations
 
 -- Aspect of the Hawk spell IDs by rank (newest first, TBC rank 8 = 27044)
 local HAWK_IDS = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
+local _last_aspect_hawk_cast = 0  -- Throttle: WoW API buff detection delay (~1-2 frames)
 
 -- Aspect of the Viper spell ID (TBC-only, single rank)
 local VIPER_ID = 34074
@@ -58,6 +59,18 @@ function M.has_hawk()
         if NS.has_player_buff(id) then return true end
     end
     return false
+end
+
+--- Throttle check for Aspect of the Hawk casts.
+--- Prevents thrashing when WoW API buff detection lags 1-2 frames after a cast.
+--- @return boolean - true if 3+ seconds have elapsed since last successful cast
+function M.hawk_throttle_allowed()
+    return (NS.time_now() - _last_aspect_hawk_cast) >= 3
+end
+
+--- Record a successful Aspect of the Hawk cast for throttle tracking.
+function M.record_hawk_cast()
+    _last_aspect_hawk_cast = NS.time_now()
 end
 
 --- Check if player currently has Aspect of the Viper active.
@@ -213,6 +226,8 @@ function M.hawk_middleware_strategy(SPELLS)
             if recommended ~= "hawk" then return false end
             -- Skip if mounted
             if context.is_mounted then return false end
+            -- Throttle: prevent thrashing due to WoW API buff detection delay
+            if not M.hawk_throttle_allowed() then return false end
             return NS.action_matches(context, {
                 name = "AspectHawk",
                 spell = spell,
@@ -223,13 +238,15 @@ function M.hawk_middleware_strategy(SPELLS)
             })
         end,
         execute = function(context)
-            return NS.action_execute(context, {
+            local result = NS.action_execute(context, {
                 name = "AspectHawk",
                 spell = spell,
                 target = "self",
                 skip_range = true,
                 kind = "buff",
             }, "[HUNTER]")
+            if result then M.record_hawk_cast() end
+            return result
         end,
     }
 end

@@ -134,12 +134,8 @@ local arms_state = {
 
 local setting = NS.setting
 
-local function player_unit(context)
-    return context.me or (NS.GetPlayer and NS.GetPlayer()) or PLAYER_UNIT
-end
-
 local function player_target(context, action_row)
-    if action_row and action_row.target == "self" then return player_unit(context) end
+    if action_row and action_row.target == "self" then return context.me or NS.GetPlayer() end
     return context.target
 end
 
@@ -158,32 +154,6 @@ local function target_is_melee(target)
     if bool_call(target, "is_melee") then return true end
     if bool_call(target, "is_warrior") or bool_call(target, "is_rogue") then return true end
     return false
-end
-
-local function debuff_remains(unit, ids)
-    if NS.debuff_remains then return NS.debuff_remains(unit, ids) or 0 end
-    return 0
-end
-
-local function debuff_stacks(unit, ids)
-    if NS.debuff_stacks then return NS.debuff_stacks(unit, ids) or 0 end
-    if NS.get_debuff_stacks then return NS.get_debuff_stacks(unit, ids) or 0 end
-    return 0
-end
-
-local function buff_up(unit, ids)
-    if NS.buff_up then return NS.buff_up(unit, ids) or false end
-    return false
-end
-
-local function cooldown(spell_value, fallback)
-    if NS.cooldown_remains then return NS.cooldown_remains(spell_value, fallback) or 0 end
-    return 0
-end
-
-local function ready(spell_value, target, opts)
-    if NS.spell_ready then return NS.spell_ready(spell_value, target, opts) or false end
-    return true
 end
 
 local function execute_phase(context, state)
@@ -242,7 +212,7 @@ end
 
 local function build_state(context)
     local target = context.target
-    local me = player_unit(context)
+    local me = context.me or NS.GetPlayer()
 
     arms_state.rage = context.rage or 0
     arms_state.hp = context.hp or 100
@@ -260,42 +230,42 @@ local function build_state(context)
     arms_state.target_is_melee = target_is_melee(target)
     arms_state.target_in_combat = target and bool_call(target, "is_in_combat") or false
 
-    arms_state.has_battle_shout = buff_up(me, BATTLE_SHOUT_BUFF)
-    arms_state.has_berserker_rage = buff_up(me, BERSERKER_RAGE_BUFF)
-    arms_state.has_sweeping_strikes = buff_up(me, SWEEPING_STRIKES_BUFF)
+    arms_state.has_battle_shout = NS.buff_up(me, BATTLE_SHOUT_BUFF) or false
+    arms_state.has_berserker_rage = NS.buff_up(me, BERSERKER_RAGE_BUFF) or false
+    arms_state.has_sweeping_strikes = NS.buff_up(me, SWEEPING_STRIKES_BUFF) or false
 
-    arms_state.ms_remains = debuff_remains(target, MORTAL_STRIKE_DEBUFF)
-    arms_state.rend_remains = debuff_remains(target, REND_DEBUFF)
-    arms_state.hamstring_remains = debuff_remains(target, HAMSTRING_DEBUFF)
-    arms_state.demo_remains = debuff_remains(target, DEMO_SHOUT_DEBUFF)
-    arms_state.tclap_remains = debuff_remains(target, THUNDER_CLAP_DEBUFF)
-    arms_state.sunder_stacks = debuff_stacks(target, SUNDER_DEBUFF)
+    arms_state.ms_remains = NS.debuff_remains(target, MORTAL_STRIKE_DEBUFF) or 0
+    arms_state.rend_remains = NS.debuff_remains(target, REND_DEBUFF) or 0
+    arms_state.hamstring_remains = NS.debuff_remains(target, HAMSTRING_DEBUFF) or 0
+    arms_state.demo_remains = NS.debuff_remains(target, DEMO_SHOUT_DEBUFF) or 0
+    arms_state.tclap_remains = NS.debuff_remains(target, THUNDER_CLAP_DEBUFF) or 0
+    arms_state.sunder_stacks = NS.debuff_stacks(target, SUNDER_DEBUFF) or 0
 
-    arms_state.ms_cd = cooldown(ACTION.MortalStrike, 6)
-    arms_state.ww_cd = cooldown(ACTION.Whirlwind, 10)
-    arms_state.overpower_ready = ready(ACTION.Overpower, target)
-    arms_state.execute_ready = ready(ACTION.Execute, target)
-    arms_state.ms_ready = ready(ACTION.MortalStrike, target, { expected_cooldown = 6 })
-    arms_state.ww_ready = ready(ACTION.Whirlwind, target, { expected_cooldown = 10 })
-    arms_state.slam_ready = ready(ACTION.Slam, target)
-    arms_state.sweeping_ready = ready(ACTION.SweepingStrikes, me, { skip_range = true })
-    arms_state.ss_cd = cooldown(ACTION.SweepingStrikes, 30)
-    arms_state.heroic_ready = ready(ACTION.HeroicStrike, target)
-    arms_state.cleave_ready = ready(ACTION.Cleave, target)
-    arms_state.pummel_ready = ready(ACTION.Pummel, target)
-    arms_state.intercept_ready = ready(ACTION.Intercept, target)
-    arms_state.charge_ready = ready(ACTION.Charge, target)
-    arms_state.hamstring_ready = ready(ACTION.Hamstring, target)
-    arms_state.piercing_ready = ready(ACTION.PiercingHowl, me, { skip_range = true })
-    arms_state.disarm_ready = ready(ACTION.Disarm, target)
-    arms_state.intimidating_ready = ready(ACTION.IntimidatingShout, me, { skip_range = true })
-    arms_state.thunder_ready = ready(ACTION.ThunderClap, me, { skip_range = true, expected_cooldown = 4 })
-    arms_state.demo_ready = ready(ACTION.DemoralizingShout, me, { skip_range = true })
-    arms_state.bloodrage_ready = ready(ACTION.Bloodrage, me, { skip_range = true })
-    arms_state.death_wish_ready = ready(ACTION.DeathWish, me, { skip_range = true })
-    arms_state.recklessness_ready = ready(ACTION.Recklessness, me, { skip_range = true })
-    arms_state.retaliation_ready = ready(ACTION.Retaliation, me, { skip_range = true })
-    arms_state.shield_wall_ready = ready(ACTION.ShieldWall, me, { skip_range = true })
+    arms_state.ms_cd = NS.cooldown_remains(ACTION.MortalStrike, 6) or 0
+    arms_state.ww_cd = NS.cooldown_remains(ACTION.Whirlwind, 10) or 0
+    arms_state.overpower_ready = NS.spell_ready(ACTION.Overpower, target) or false
+    arms_state.execute_ready = NS.spell_ready(ACTION.Execute, target) or false
+    arms_state.ms_ready = NS.spell_ready(ACTION.MortalStrike, target, { expected_cooldown = 6 }) or false
+    arms_state.ww_ready = NS.spell_ready(ACTION.Whirlwind, target, { expected_cooldown = 10 }) or false
+    arms_state.slam_ready = NS.spell_ready(ACTION.Slam, target) or false
+    arms_state.sweeping_ready = NS.spell_ready(ACTION.SweepingStrikes, me, { skip_range = true }) or false
+    arms_state.ss_cd = NS.cooldown_remains(ACTION.SweepingStrikes, 30) or 0
+    arms_state.heroic_ready = NS.spell_ready(ACTION.HeroicStrike, target) or false
+    arms_state.cleave_ready = NS.spell_ready(ACTION.Cleave, target) or false
+    arms_state.pummel_ready = NS.spell_ready(ACTION.Pummel, target) or false
+    arms_state.intercept_ready = NS.spell_ready(ACTION.Intercept, target) or false
+    arms_state.charge_ready = NS.spell_ready(ACTION.Charge, target) or false
+    arms_state.hamstring_ready = NS.spell_ready(ACTION.Hamstring, target) or false
+    arms_state.piercing_ready = NS.spell_ready(ACTION.PiercingHowl, me, { skip_range = true }) or false
+    arms_state.disarm_ready = NS.spell_ready(ACTION.Disarm, target) or false
+    arms_state.intimidating_ready = NS.spell_ready(ACTION.IntimidatingShout, me, { skip_range = true }) or false
+    arms_state.thunder_ready = NS.spell_ready(ACTION.ThunderClap, me, { skip_range = true, expected_cooldown = 4 }) or false
+    arms_state.demo_ready = NS.spell_ready(ACTION.DemoralizingShout, me, { skip_range = true }) or false
+    arms_state.bloodrage_ready = NS.spell_ready(ACTION.Bloodrage, me, { skip_range = true }) or false
+    arms_state.death_wish_ready = NS.spell_ready(ACTION.DeathWish, me, { skip_range = true }) or false
+    arms_state.recklessness_ready = NS.spell_ready(ACTION.Recklessness, me, { skip_range = true }) or false
+    arms_state.retaliation_ready = NS.spell_ready(ACTION.Retaliation, me, { skip_range = true }) or false
+    arms_state.shield_wall_ready = NS.spell_ready(ACTION.ShieldWall, me, { skip_range = true }) or false
 
     arms_state.execute_phase = execute_phase(context, arms_state)
 
@@ -489,7 +459,7 @@ local function intercept_matches(context, state)
     if (state.target_distance or 0) < 8 or (state.target_distance or 0) > 25 then return false end
     local auto_charge = setting(context, "auto_charge", true)
     if not auto_charge then return false end
-    if not ready(ACTION.Intercept, context.target) then return false end
+    if not (NS.spell_ready(ACTION.Intercept, context.target) or false) then return false end
     return action(context, build_action("Intercept", ACTION.Intercept, { required_stance = STANCE.BERSERKER, min_rage = 10, cooldown = 30 }))
 end
 
@@ -500,7 +470,7 @@ local function charge_matches(context, state)
     if (state.target_distance or 0) < 8 or (state.target_distance or 0) > 25 then return false end
     local charge_only_ooc = setting(context, "charge_only_ooc", true)
     if charge_only_ooc and (context.target and bool_call(context.target, "is_in_combat")) then return false end
-    if not ready(ACTION.Charge, context.target) then return false end
+    if not (NS.spell_ready(ACTION.Charge, context.target) or false) then return false end
     return action(context, build_action("Charge", ACTION.Charge, { required_stance = STANCE.BATTLE, cooldown = 15 }))
 end
 

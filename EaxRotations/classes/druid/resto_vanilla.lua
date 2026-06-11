@@ -91,9 +91,7 @@ local resto_state = {
     insect_swarm_remains = 0,
 }
 
-local function buff_remains(unit, ids)
-    return unit and NS.buff_remains and NS.buff_remains(unit, ids) or 0
-end
+
 
 local function has_hot_for_swiftmend(entry)
     if not entry or not entry.unit then return false end
@@ -109,9 +107,7 @@ local function effective_deficit(entry)
     return entry.effective_deficit or entry.deficit or 0
 end
 
-local function debuff_remains(unit, ids)
-    return unit and NS.debuff_remains and NS.debuff_remains(unit, ids) or 0
-end
+
 
 local function unit_class_id(unit)
     if not unit or not NS.safe_field then return nil end
@@ -139,14 +135,14 @@ end
 local function needs_rejuvenation(entry, threshold)
     if not entry or not entry.unit then return false end
     if effective_hp(entry) > threshold then return false end
-    local remains = buff_remains(entry.unit, REJUVENATION_BUFF)
+    local remains = NS.buff_remains(entry.unit, REJUVENATION_BUFF) or 0
     return not entry.has_rejuvenation or remains <= REJUVENATION_REFRESH
 end
 
 local function needs_regrowth(entry)
     if not entry or not entry.unit then return false end
     if effective_hp(entry) > REGROWTH_SPOT_HP then return false end
-    local remains = buff_remains(entry.unit, REGROWTH_BUFF)
+    local remains = NS.buff_remains(entry.unit, REGROWTH_BUFF) or 0
     return not entry.has_regrowth or remains <= REGROWTH_REFRESH
 end
 
@@ -242,8 +238,8 @@ local function build_state(context)
     if not skip_aura then
         resto_state.has_natures_swiftness = NS.has_player_buff(NATURES_SWIFTNESS_BUFF)
         resto_state.has_clearcasting = NS.has_player_buff(CLEARCASTING_BUFF)
-        resto_state.moonfire_remains = context.target and debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
-        resto_state.insect_swarm_remains = context.target and debuff_remains(context.target, INSECT_SWARM_DEBUFF) or 0
+        resto_state.moonfire_remains = context.target and NS.debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
+        resto_state.insect_swarm_remains = context.target and NS.debuff_remains(context.target, INSECT_SWARM_DEBUFF) or 0
     end
     resto_state.mana_pct = context.mana_pct or context.player_mana_pct or 100
     local mana_conserve_pct = (settings.resto_mana_conserve_pct ~= nil and settings.resto_mana_conserve_pct) or MANA_CONSERVE_PCT

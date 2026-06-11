@@ -98,19 +98,6 @@ local fury_state = {
     target_count = 1,
 }
 
--- Nil-safe helpers
-local function buff_up(unit, ids)
-    if NS.buff_up then return NS.buff_up(unit, ids) or false end
-    return false
-end
-local function debuff_up(unit, ids)
-    if NS.debuff_up then return NS.debuff_up(unit, ids) or false end
-    return false
-end
-local function debuff_remains(unit, ids)
-    if NS.debuff_remains then return NS.debuff_remains(unit, ids) or 0 end
-    return 0
-end
 local function spell_ready(spell, target, opts)
     if NS.spell_ready then return NS.spell_ready(spell, target, opts) or false end
     return false
@@ -136,14 +123,14 @@ local function build_state(context)
     fury_state.target_count = context.enemies_count or 1
     fury_state.target_ttd = (context.ttd or 15)
     if me then
-        fury_state.has_battle_shout = buff_up(me, BATTLE_SHOUT_BUFF)
+        fury_state.has_battle_shout = NS.buff_up(me, BATTLE_SHOUT_BUFF) or false
     end
     if target then
-        fury_state.has_demo_shout = debuff_up(target, DEMO_SHOUT_DEBUFF)
-        fury_state.has_rend = debuff_up(target, REND_DEBUFF)
-        fury_state.has_sunder = debuff_up(target, SUNDER_DEBUFF)
-        fury_state.has_tclap = debuff_up(target, THUNDER_CLAP_DEBUFF)
-        fury_state.has_hamstring = debuff_up(target, HAMSTRING_DEBUFF)
+        fury_state.has_demo_shout = NS.debuff_up(target, DEMO_SHOUT_DEBUFF) or false
+        fury_state.has_rend = NS.debuff_up(target, REND_DEBUFF) or false
+        fury_state.has_sunder = NS.debuff_up(target, SUNDER_DEBUFF) or false
+        fury_state.has_tclap = NS.debuff_up(target, THUNDER_CLAP_DEBUFF) or false
+        fury_state.has_hamstring = NS.debuff_up(target, HAMSTRING_DEBUFF) or false
         local dodge_fn = target.get_dodge_chance
         local ok_dodge, dodge_val = false, 0
         if dodge_fn then ok_dodge, dodge_val = pcall(dodge_fn, target) end

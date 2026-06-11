@@ -38,7 +38,9 @@ local STEALTH_BUFF = { 1787, 1786, 1785, 1784 }
 local function spell_ready(spell_action)
     if not spell_action then return false end
     if not NS.spell_ready then return false end
-    local ok, result = pcall(NS.spell_ready, spell_action)
+    -- Pass player as target so spell_helper_castable doesn't bail on nil target
+    local player = NS.GetPlayer and NS.GetPlayer()
+    local ok, result = pcall(NS.spell_ready, spell_action, player, { skip_range = true })
     return ok and result == true
 end
 

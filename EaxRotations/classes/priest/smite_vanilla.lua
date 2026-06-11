@@ -151,11 +151,11 @@ local function group_is_stable(context)
 end
 
 local function can_take_smite_action(context)
-    if not context then return NS.match_fail("no_context") end
+    if not context then return false end
     context.settings = context.settings or EMPTY_SETTINGS
-    if not context.has_valid_enemy_target then return NS.match_fail("no_valid_target") end
-    if context.player_control_locked then return NS.match_fail("ctrl_locked") end
-    if context.target_phys_immune then return NS.match_fail("phys_immune") end
+    if not context.has_valid_enemy_target then return false end
+    if context.player_control_locked then return false end
+    if context.target_phys_immune then return false end
     return true
 end
 

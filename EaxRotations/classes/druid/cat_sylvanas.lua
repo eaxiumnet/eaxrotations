@@ -166,17 +166,7 @@ local function spell_ready(spell, target, opts)
     return NS.spell_ready and NS.spell_ready(spell, target, opts) or false
 end
 
-local function buff_up(unit, buff)
-    return unit ~= nil and NS.buff_up and NS.buff_up(unit, buff) or false
-end
 
-local function debuff_up(unit, debuff)
-    return unit ~= nil and NS.debuff_up and NS.debuff_up(unit, debuff) or false
-end
-
-local function debuff_remains(unit, debuff)
-    return unit ~= nil and NS.debuff_remains and NS.debuff_remains(unit, debuff) or 0
-end
 
 local function get_attack_power(context, me)
     -- context.attack_power is now wired in build_context()
@@ -407,20 +397,20 @@ function build_state(context)
     -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
     if not skip_aura then
-        state.is_stealthed = context.is_stealthed == true or buff_up(me, PROWL_BUFF)
-        state.clearcasting = buff_up(me, OMEN_OF_CLARITY_BUFF)
-        state.has_tigers_fury = buff_up(me, TIGERS_FURY_BUFF)
-        state.has_dash = buff_up(me, DASH_BUFF)
-        state.has_barkskin = buff_up(me, BARKSKIN_BUFF)
-        state.has_track_humanoids = buff_up(me, TRACK_HUMANOIDS_BUFF)
-        state.has_wolfshead = has_wolfshead_equipped(me) or buff_up(me, WOLFSHEAD_BUFF) or NS.setting_bool(settings, "cat_wolfshead_helm", false)
-        state.has_bloodlust = buff_up(me, BLOODLUST_BUFFS)
-        state.rip_remains = debuff_remains(target, RIP_DEBUFF)
-        state.rake_remains = debuff_remains(target, RAKE_DEBUFF)
-        state.mangle_remains = debuff_remains(target, MANGLE_DEBUFF)
-        state.faerie_fire_remains = debuff_remains(target, FAERIE_FIRE_DEBUFF)
-        state.pounce_remains = debuff_remains(target, POUNCE_DEBUFF)
-        state.maim_remains = debuff_remains(target, MAIM_DEBUFF)
+        state.is_stealthed = context.is_stealthed == true or NS.buff_up(me, PROWL_BUFF) or false
+        state.clearcasting = NS.buff_up(me, OMEN_OF_CLARITY_BUFF) or false
+        state.has_tigers_fury = NS.buff_up(me, TIGERS_FURY_BUFF) or false
+        state.has_dash = NS.buff_up(me, DASH_BUFF) or false
+        state.has_barkskin = NS.buff_up(me, BARKSKIN_BUFF) or false
+        state.has_track_humanoids = NS.buff_up(me, TRACK_HUMANOIDS_BUFF) or false
+        state.has_wolfshead = has_wolfshead_equipped(me) or NS.buff_up(me, WOLFSHEAD_BUFF) or NS.setting_bool(settings, "cat_wolfshead_helm", false)
+        state.has_bloodlust = NS.buff_up(me, BLOODLUST_BUFFS) or false
+        state.rip_remains = NS.debuff_remains(target, RIP_DEBUFF) or 0
+        state.rake_remains = NS.debuff_remains(target, RAKE_DEBUFF) or 0
+        state.mangle_remains = NS.debuff_remains(target, MANGLE_DEBUFF) or 0
+        state.faerie_fire_remains = NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
+        state.pounce_remains = NS.debuff_remains(target, POUNCE_DEBUFF) or 0
+        state.maim_remains = NS.debuff_remains(target, MAIM_DEBUFF) or 0
     end
     state.is_cat = NS.has_form and NS.has_form("cat") or context.stance == STANCE_CAT
     state.is_behind = is_behind_target(target, context, settings)

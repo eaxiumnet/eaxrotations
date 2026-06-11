@@ -846,8 +846,9 @@ local function on_update()
         return
     end
 
-    -- Let main_sylvanas own combat/target gating. The old IZI pre-gate could
-    -- reject a selected target before the dispatcher evaluated player:get_target().
+    -- Let main_sylvanas own all combat/target gating. The dispatcher's
+    -- OOC manager + unified fall-through handles OOC buffs, self-buffs,
+    -- and auto-target acquisition. No pre-gate needed here.
     local me = framework_core and framework_core.GetPlayer and framework_core.GetPlayer() or nil
     if not me then
         if not _guard5_logged then
@@ -864,12 +865,6 @@ local function on_update()
             core.log("[EaxRotations:main] GUARD-6: is_valid() returned false or failed -- BLOCKED")
         end
         return -- Player object is garbage-collected / invalid
-    end
-
-    local is_in_combat_fast = me and me.is_in_combat and pcall(function() return me:is_in_combat() end) and me:is_in_combat() or false
-    local has_target_fast = me and me.get_target and pcall(function() return me:get_target() end) and me:get_target() or nil
-    if not is_in_combat_fast and not has_target_fast then
-        return
     end
 
     if not _post_guards_logged then

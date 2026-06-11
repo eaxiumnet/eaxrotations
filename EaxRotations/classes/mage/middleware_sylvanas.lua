@@ -7,6 +7,7 @@ local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local SPELLS = NS.MageSpells or {}
+local _mana_gem_last = 0
 
 -- Spellsteal spell object (TBC: 30449, learned at level 68)
 local SPELLSTEAL_SPELL = SPELLS.Spellsteal or { id = { 30449 }, name = "Spellsteal" }
@@ -52,12 +53,8 @@ local ARCANE_INTELLECT_BUFFS = { 27126, 10157, 10156, 1461, 1460, 1459, 23028, 2
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }
 local CURSE_DEBUFFS = { 28282, 28271, 11719, 5116, 5115, 23426, 23427, 23230, 23229, 23364, 702, 703, 704, 11014, 11015, 11708, 13323, 13325, 13326, 18223, 18222, 18180, 18179, 17407, 1499, 1513, 1515 }
 
-local function player_unit(context)
-    return context.me or NS.GetPlayer()
-end
-
 local function self_spell_ready(spell, context)
-    local me = player_unit(context)
+    local me = context.me or NS.GetPlayer()
     if not NS.spell_ready then return false end
     return spell and me and NS.spell_ready(spell, me, { skip_range = true })
 end
@@ -206,10 +203,10 @@ local strategies = {
             local settings = context.settings or {}
             local mana_threshold = settings.mana_shield_mana_threshold or 50
             if settings.use_ice_block ~= false and self_spell_ready(SPELLS.IceBlock, context) then
-                return NS.try_cast(SPELLS.IceBlock, player_unit(context), "[MAGE] Ice Block", { skip_range = true }) == true
+                return NS.try_cast(SPELLS.IceBlock, (context.me or NS.GetPlayer()), "[MAGE] Ice Block", { skip_range = true }) == true
             end
             if settings.use_mana_shield ~= false and (context.mana_pct or 0) >= mana_threshold and not NS.has_player_buff(SPELLS.ManaShield) and self_spell_ready(SPELLS.ManaShield, context) then
-                return NS.try_cast(SPELLS.ManaShield, player_unit(context), "[MAGE] Mana Shield", { skip_range = true }) == true
+                return NS.try_cast(SPELLS.ManaShield, (context.me or NS.GetPlayer()), "[MAGE] Mana Shield", { skip_range = true }) == true
             end
             return false
         end,
@@ -230,11 +227,11 @@ local strategies = {
         end,
         execute = function(context)
             if not has_armor_buff() then
-                if self_spell_ready(SPELLS.MoltenArmor, context) and NS.try_cast(SPELLS.MoltenArmor, player_unit(context), "[MAGE] Molten Armor", { skip_range = true }) then return true end
-                if self_spell_ready(SPELLS.MageArmor, context) and NS.try_cast(SPELLS.MageArmor, player_unit(context), "[MAGE] Mage Armor", { skip_range = true }) then return true end
+                if self_spell_ready(SPELLS.MoltenArmor, context) and NS.try_cast(SPELLS.MoltenArmor, (context.me or NS.GetPlayer()), "[MAGE] Molten Armor", { skip_range = true }) then return true end
+                if self_spell_ready(SPELLS.MageArmor, context) and NS.try_cast(SPELLS.MageArmor, (context.me or NS.GetPlayer()), "[MAGE] Mage Armor", { skip_range = true }) then return true end
             end
             if not NS.has_player_buff(ARCANE_INTELLECT_BUFFS) and self_spell_ready(SPELLS.ArcaneIntellect, context) then
-                return NS.try_cast(SPELLS.ArcaneIntellect, player_unit(context), "[MAGE] Arcane Intellect", { skip_range = true }) == true
+                return NS.try_cast(SPELLS.ArcaneIntellect, (context.me or NS.GetPlayer()), "[MAGE] Arcane Intellect", { skip_range = true }) == true
             end
             return false
         end,
@@ -312,7 +309,11 @@ local strategies = {
             if not context.in_combat then return false end
             local threshold = settings.mana_gem_mana_pct or 70
             if (context.mana_pct or 0) > threshold then return false end
-            return first_ready_mana_gem() ~= nil
+            local now = NS.time_now and NS.time_now() or 0
+            if now - (_mana_gem_last or 0) < 30 then return false end
+            local gem = first_ready_mana_gem()
+            if gem then _mana_gem_last = now end
+            return gem ~= nil
         end,
         execute = function(context)
             local item_id = first_ready_mana_gem()

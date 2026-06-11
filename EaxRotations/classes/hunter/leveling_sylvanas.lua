@@ -20,6 +20,7 @@ local HUNTERS_MARK_IDS = { 14325, 14324, 14323, 1130 }
 
 local context_allowed = leveling.create_context_guard()
 local leveling_state = {}
+local _last_aspect_hawk_cast = 0  -- Throttle: prevent thrashing (WoW API buff detection delay)
 
 -- Safe wrappers for API resilience (pcall protection for tests)
 local function safe_buff_up(unit, ids)
@@ -102,7 +103,10 @@ local function aspect_hawk_matches(context, state)
     if not state then return false end
     if state.in_combat then return false end
     if state.has_aspect_hawk then return false end
-    return state.aspect_hawk_ready
+    if not state.aspect_hawk_ready then return false end
+    -- Throttle: WoW API buff detection can lag 1-2 frames; prevent thrashing
+    if NS.time_now ~= nil and (NS.time_now() - _last_aspect_hawk_cast) < 3 then return false end
+    return true
 end
 
 local function hunters_mark_matches(context, state)
@@ -131,6 +135,7 @@ local function mend_pet_matches(context, state)
     if not state.in_combat then return false end
     if not context.pet then return false end
     if (state.pet_hp or 100) > 60 then return false end
+    if state.low_mana then return false end  -- Preserve mana for emergency
     return state.mend_pet_ready
 end
 
@@ -139,6 +144,7 @@ local function concussive_shot_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
+    if state.low_mana then return false end  -- Preserve mana
     if (state.enemies or 0) < 2 and (state.hp or 100) > 40 then return false end  -- Only when threatened
     return state.concussive_shot_ready
 end
@@ -148,6 +154,7 @@ local function wing_clip_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
+    if state.low_mana then return false end  -- Preserve mana
     if not state.in_melee then return false end  -- Melee range only
     if (state.hp or 100) > 50 then return false end  -- Only when threatened
     return state.wing_clip_ready
@@ -183,6 +190,7 @@ local function aimed_shot_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
     if not state.target then return false end
+    if state.low_mana then return false end  -- Preserve mana
     if state.is_moving then return false end
     if not state.aimed_shot_ready then return false end
     return true
@@ -194,6 +202,7 @@ local function serpent_sting_matches(context, state)
     if not state.target then return false end
     if not state.serpent_sting_use then return false end
     if not state.in_combat then return false end
+    if state.low_mana then return false end  -- Preserve mana
     local remains = safe_debuff_remains(state.target, SERPENT_STING_IDS)
     if remains >= 4 then return false end
     return state.serpent_sting_ready
@@ -204,6 +213,7 @@ local function arcane_shot_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
+    if state.low_mana then return false end  -- Preserve mana
     return state.arcane_shot_ready
 end
 
@@ -212,6 +222,7 @@ local function multi_shot_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
+    if state.low_mana then return false end  -- Preserve mana
     if (state.enemies or 0) < 2 then return false end
     return state.multi_shot_ready
 end
@@ -221,6 +232,7 @@ local function steady_shot_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
+    if state.low_mana then return false end  -- Preserve mana
     if state.is_moving then return false end
     return state.steady_shot_ready
 end
@@ -230,7 +242,7 @@ local function feign_death_matches(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if (state.hp or 100) > 30 then return false end
-    return state.feign_death_ready
+    return state.feign_death_ready  -- Emergency: no mana gate
 end
 
 local function raptor_strike_matches(context, state)
@@ -238,6 +250,7 @@ local function raptor_strike_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
+    if state.low_mana then return false end  -- Preserve mana
     if not state.in_melee then return false end
     return state.raptor_strike_ready
 end
@@ -250,7 +263,11 @@ local strategies = {
     -- OOC prep
     { name = "AspectHawk",
       matches = aspect_hawk_matches,
-      execute = function() return try_cast(SPELLS.AspectOfTheHawk, NS.PLAYER_UNIT, "[LEVELING] Aspect of the Hawk") end },
+      execute = function()
+          local result = try_cast(SPELLS.AspectOfTheHawk, NS.PLAYER_UNIT, "[LEVELING] Aspect of the Hawk")
+          if result and NS.time_now then _last_aspect_hawk_cast = NS.time_now() end
+          return result
+      end },
 
     { name = "CallPet",
       matches = call_pet_matches,

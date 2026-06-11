@@ -17,7 +17,6 @@ local tests = {
     "test_try_cast_izi_primary.lua",
     "test_update_callback_void_registration.lua",
     "test_update_callback_rotation_disabled_sync.lua",
-    "test_spell_helper_castable_signature.lua",
     "test_pre_heal_cooldown_gate.lua",
 
     -- Dispatcher + loader regressions

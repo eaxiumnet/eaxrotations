@@ -108,6 +108,7 @@ local function build_state(context)
     state.use_scorch = settings.leveling_scorch_use ~= false
     state.use_interrupt = settings.use_interrupt ~= false
     state.use_fire_blast = settings.leveling_fire_blast_use ~= false
+    state.use_fireball = settings.leveling_fireball_use ~= false
 
     -- Mana gem state
     state.use_mana_gem = settings.use_mana_gem ~= false
@@ -134,6 +135,7 @@ local function build_state(context)
 
     -- Spell readiness (each returns false if spell not learned, errors caught via pcall)
     state.frostbolt_ready = spell_is_ready(SPELLS.Frostbolt, context.target)
+    state.fireball_ready = spell_is_ready(SPELLS.Fireball, context.target)
     state.fire_blast_ready = spell_is_ready(SPELLS.FireBlast, context.target)
     state.scorch_ready = spell_is_ready(SPELLS.Scorch, context.target)
     state.arcane_missiles_ready = spell_is_ready(SPELLS.ArcaneMissiles, context.target)
@@ -256,6 +258,16 @@ local function frostbolt_matches(context, state)
     if state.is_moving then return false end
     if (state.mana_pct or 100) < 10 then return false end
     return state.frostbolt_ready
+end
+
+local function fireball_matches(context, state)
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if state.is_moving then return false end
+    if not state.use_fireball then return false end
+    if (state.mana_pct or 100) < 10 then return false end
+    return state.fireball_ready
 end
 
 local function scorch_matches(context, state)
@@ -440,6 +452,10 @@ local strategies = {
     { name = "FireBlast",
       matches = fire_blast_matches,
       execute = function(context) if not context then return false end; return try_cast(SPELLS.FireBlast, context.target, "[LEVELING] Fire Blast") end },
+
+    { name = "Fireball",
+      matches = fireball_matches,
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.Fireball, context.target, "[LEVELING] Fireball") end },
 
     { name = "Scorch",
       matches = scorch_matches,
