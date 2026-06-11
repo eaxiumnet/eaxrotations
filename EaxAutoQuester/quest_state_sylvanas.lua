@@ -513,7 +513,24 @@ local function execute_goal_action(action_type, goal)
     end
 
     if action_type == "area" then
-        -- Area goal: try to find NPC from Zygor goal data (npc_id, target)
+        -- Area goal: at the waypoint — check if step advanced, else wait
+        local zygor = ensure_zygor()
+        if zygor then
+            -- Check if step is now complete (Zygor auto-advances on area enter)
+            local step = zygor.get_current_step_info()
+            if step and step.is_complete then
+                debug_log("DO_ACTION: area — step complete, re-evaluating")
+                return true
+            end
+            -- Check if step number changed (Zygor advanced)
+            if step and step.step_num and step.step_num ~= _last_step_num then
+                _last_step_num = step.step_num
+                debug_log("DO_ACTION: area — new step " .. tostring(step.step_num))
+                return true
+            end
+        end
+
+        -- Try to find NPC from goal data (npc_id, target_id, target name)
         local goal_npc_id = nil
         local goal_target = nil
         if type(goal) == "table" then
@@ -521,14 +538,14 @@ local function execute_goal_action(action_type, goal)
             goal_target = safe(goal.target, safe(goal.npc, nil))
         end
 
-        if npc then
-            -- Try by NPC ID from goal data first
+        if npc and (goal_npc_id or goal_target) then
+            -- Try by NPC ID
             if goal_npc_id then
                 local nearest = npc.find_nearest_npc({ goal_npc_id }, 15)
                 if nearest then
                     pcall(core.input.set_target, nearest)
                     pcall(core.input.interact_with_object, nearest)
-                    debug_log("DO_ACTION: area — targeted goal NPC " .. tostring(goal_npc_id))
+                    debug_log("DO_ACTION: area — targeted NPC " .. tostring(goal_npc_id))
                     return true
                 end
             end
@@ -542,20 +559,12 @@ local function execute_goal_action(action_type, goal)
                     return true
                 end
             end
-            -- Fallback: quest NPCs + interactable scan
-            local npc_ids = npc.find_quest_npcs()
-            if npc_ids then
-                local nearest = npc.find_nearest_npc(npc_ids, 15)
-                if nearest then
-                    pcall(core.input.set_target, nearest)
-                    debug_log("DO_ACTION: area — targeted quest NPC")
-                    return true
-                end
-            end
         end
-        -- No NPCs found: wait briefly then re-check
-        _area_wait_timer = _core_time() + 0.5
-        debug_log("DO_ACTION: area goal — no NPC found, waiting 0.5s")
+
+        -- Already at the waypoint — let Zygor detect the arrival
+        -- Wait longer so Zygor has time to register the player position
+        _area_wait_timer = _core_time() + 3.0
+        debug_log("DO_ACTION: area goal — waiting for Zygor to detect arrival")
         return true
     end
 
