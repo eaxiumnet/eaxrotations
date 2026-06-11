@@ -67,7 +67,7 @@ end
 
 local function ensure_utils()
     if not _utils then
-        local ok, u = pcall(require, "EaxAutoQuester.utils")
+        local ok, u = pcall(require, "utils_sylvanas")
         if ok then _utils = u end
     end
     return _utils
@@ -75,7 +75,7 @@ end
 
 local function ensure_menu()
     if not _menu then
-        local ok, m = pcall(require, "EaxAutoQuester.menu")
+        local ok, m = pcall(require, "menu_sylvanas")
         if ok then _menu = m end
     end
     return _menu
@@ -83,7 +83,7 @@ end
 
 local function ensure_zygor()
     if not _zygor_reader then
-        local ok, z = pcall(require, "EaxAutoQuester.zygor_reader")
+        local ok, z = pcall(require, "zygor_reader_sylvanas")
         if ok then _zygor_reader = z end
     end
     return _zygor_reader
@@ -91,7 +91,7 @@ end
 
 local function ensure_navigation()
     if not _navigation then
-        local ok, n = pcall(require, "EaxAutoQuester.navigation")
+        local ok, n = pcall(require, "navigation_sylvanas")
         if ok then _navigation = n end
     end
     return _navigation
@@ -99,7 +99,7 @@ end
 
 local function ensure_quest_interaction()
     if not _quest_interaction then
-        local ok, q = pcall(require, "EaxAutoQuester.quest_interaction")
+        local ok, q = pcall(require, "quest_interaction_sylvanas")
         if ok then _quest_interaction = q end
     end
     return _quest_interaction
@@ -107,7 +107,7 @@ end
 
 local function ensure_npc_manager()
     if not _npc_manager then
-        local ok, n = pcall(require, "EaxAutoQuester.npc_manager")
+        local ok, n = pcall(require, "npc_manager_sylvanas")
         if ok then _npc_manager = n end
     end
     return _npc_manager
@@ -115,7 +115,7 @@ end
 
 local function ensure_combat_helper()
     if not _combat_helper then
-        local ok, c = pcall(require, "EaxAutoQuester.combat_helper")
+        local ok, c = pcall(require, "combat_helper_sylvanas")
         if ok then _combat_helper = c end
     end
     return _combat_helper

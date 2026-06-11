@@ -16,7 +16,7 @@ local _get_visible_objs  = core.object_manager.get_visible_objects
 local _utils = nil
 local function ensure_utils()
     if not _utils then
-        local ok, u = pcall(require, "EaxAutoQuester.utils")
+        local ok, u = pcall(require, "utils_sylvanas")
         if ok then _utils = u end
     end
     return _utils

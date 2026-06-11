@@ -35,7 +35,7 @@ local _utils = nil
 
 local function ensure_utils()
     if _utils then return true end
-    local ok, mod = pcall(require, "EaxAutoQuester.utils")
+    local ok, mod = pcall(require, "utils_sylvanas")
     if ok and mod then
         _utils = mod
         return true

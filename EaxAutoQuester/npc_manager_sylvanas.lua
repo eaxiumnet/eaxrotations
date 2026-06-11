@@ -16,7 +16,7 @@ local _stack = { n = 0 }
 local _utils = nil
 local function ensure_utils()
     if not _utils then
-        local ok, u = pcall(require, "EaxAutoQuester.utils")
+        local ok, u = pcall(require, "utils_sylvanas")
         if ok then _utils = u end
     end
     return _utils
@@ -25,7 +25,7 @@ end
 local _questie_reader = nil
 local function ensure_questie()
     if not _questie_reader then
-        local ok, q = pcall(require, "EaxAutoQuester.questie_reader")
+        local ok, q = pcall(require, "questie_reader_sylvanas")
         if ok then _questie_reader = q end
     end
     return _questie_reader
@@ -34,7 +34,7 @@ end
 local _zygor_reader = nil
 local function ensure_zygor()
     if not _zygor_reader then
-        local ok, z = pcall(require, "EaxAutoQuester.zygor_reader")
+        local ok, z = pcall(require, "zygor_reader_sylvanas")
         if ok then _zygor_reader = z end
     end
     return _zygor_reader

@@ -39,21 +39,21 @@ local function init_modules()
     -- Clear static reuse table before building module list
     _t.n = 0
 
-    ok, _utils = pcall(require, "EaxAutoQuester.utils")
+    ok, _utils = pcall(require, "utils_sylvanas")
     if ok then
         _t.n = _t.n + 1; _t[_t.n] = "utils"
     else
         _utils = nil
     end
 
-    ok, _menu = pcall(require, "EaxAutoQuester.menu")
+    ok, _menu = pcall(require, "menu_sylvanas")
     if ok then
         _t.n = _t.n + 1; _t[_t.n] = "menu"
     else
         _menu = nil
     end
 
-    ok, _quest_state = pcall(require, "EaxAutoQuester.quest_state")
+    ok, _quest_state = pcall(require, "quest_state_sylvanas")
     if ok then
         _t.n = _t.n + 1; _t[_t.n] = "quest_state"
     else
