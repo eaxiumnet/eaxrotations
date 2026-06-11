@@ -277,6 +277,22 @@ local function state_idle()
     end
     _last_target_valid = false
 
+    -- Low HP pause: if out of combat and HP below 30%, wait until regen
+    if me then
+        local hp_ok, hp_pct = pcall(function()
+            local max_hp = me:get_max_health()
+            local cur_hp = me:get_health()
+            if max_hp and max_hp > 0 and cur_hp then
+                return (cur_hp / max_hp) * 100
+            end
+            return 100
+        end)
+        if hp_ok and hp_pct and hp_pct < 30 then
+            debug_log("IDLE: HP low (" .. math.floor(hp_pct) .. "%) — waiting for regen")
+            return "IDLE"
+        end
+    end
+
     -- Determine if player needs to move to goal position first
     local wp = zygor.get_current_waypoint_world()
 
