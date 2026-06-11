@@ -50,6 +50,7 @@ local _last_goal_type = nil          -- cached goal type for DO_ACTION state
 local _last_step_num = 0             -- last seen step number (detect step changes)
 local _debug = false                 -- cached debug flag from menu
 local _last_target_valid = false     -- combat tracking: was in combat last tick
+local _just_arrived = false          -- set true when NAV arrives, IDLE skips dist check
 
 -- ============================================================================
 -- Nil-Guard Helper (Pattern 14 from AGENTS.md) — safe default for any field
@@ -288,19 +289,20 @@ local function state_idle()
         _last_goal_type = action_type
 
         -- Check distance to waypoint using :get_position() (game_object has no .x/.y)
-        if wp and me then
+        -- Skip check if we just arrived (tolerance mismatch with navigator)
+        if not _just_arrived and wp and me then
             local utils = ensure_utils()
             local pos_ok, pos = pcall(function() return me:get_position() end)
             if pos_ok and pos and utils then
                 local dist_sq = utils.squared_distance(pos, wp)
-                -- 10 yards squared tolerance (= 10 yd range)
-                if dist_sq > 100 then
+                if dist_sq > 625 then  -- 25 yards squared — far enough to re-navigate
                     _nav_destination = wp
                     debug_log("IDLE: goal type=" .. action_type .. ", far from wp → NAV")
                     return "NAV"
                 end
             end
         end
+        _just_arrived = false
 
         -- Player at position (or no waypoint) — execute action
         _action_pause_timer = 0
@@ -358,6 +360,7 @@ local function state_nav()
         debug_log("NAV: arrived")
         _nav_destination = nil
         _nav_retries = 0
+        _just_arrived = true
         return "IDLE"
     end
 
