@@ -49,6 +49,7 @@ local _area_wait_timer = 0           -- core_time when area wait expires (2s)
 local _last_goal_type = nil          -- cached goal type for DO_ACTION state
 local _last_step_num = 0             -- last seen step number (detect step changes)
 local _debug = false                 -- cached debug flag from menu
+local _last_target_valid = false     -- combat tracking: was in combat last tick
 
 -- ============================================================================
 -- Nil-Guard Helper (Pattern 14 from AGENTS.md) — safe default for any field
@@ -244,6 +245,37 @@ local function state_idle()
         end
     end
 
+    -- Combat check: if in combat, stop navigation and let EaxRotations handle
+    local me = _get_local_player()
+    local in_combat = false
+    if me then
+        local ok, combat = pcall(function() return me:is_in_combat() end)
+        in_combat = ok and combat == true
+    end
+
+    if in_combat then
+        -- Stop any active navigation during combat
+        local nav = ensure_navigation()
+        if nav and nav.is_navigating and nav.is_navigating() then
+            nav.stop()
+            debug_log("IDLE: combat detected — stopped navigation")
+        end
+
+        -- Target nearest enemy if no target or invalid target
+        local combat_h = ensure_combat_helper()
+        if combat_h and not combat_h.is_current_target_valid() then
+            combat_h.target_and_tag_nearest(30)
+        end
+
+        -- Stay in IDLE during combat — EaxRotations handles rotation
+        if _last_target_valid ~= in_combat then
+            debug_log("IDLE: waiting for combat to end")
+        end
+        _last_target_valid = in_combat
+        return "IDLE"
+    end
+    _last_target_valid = false
+
     -- Determine if player needs to move to goal position first
     local wp = zygor.get_current_waypoint_world()
 
@@ -255,12 +287,12 @@ local function state_idle()
         end
         _last_goal_type = action_type
 
-        -- Check distance to waypoint — if far, navigate first
-        if wp then
+        -- Check distance to waypoint using :get_position() (game_object has no .x/.y)
+        if wp and me then
             local utils = ensure_utils()
-            local me = _get_local_player()
-            if utils and me then
-                local dist_sq = utils.squared_distance(me, wp)
+            local pos_ok, pos = pcall(function() return me:get_position() end)
+            if pos_ok and pos and utils then
+                local dist_sq = utils.squared_distance(pos, wp)
                 -- 10 yards squared tolerance (= 10 yd range)
                 if dist_sq > 100 then
                     _nav_destination = wp
@@ -623,6 +655,13 @@ end
 --- Render debug overlay when debug mode is enabled.
 --- Shows current state, nav retries, step number, destination, goal type.
 function M.render_debug()
+    -- Always render navigation visual marker (destination + path)
+    local nav = ensure_navigation()
+    if nav and nav.render_visual then
+        pcall(function() nav.render_visual() end)
+    end
+
+    -- Debug text overlay (only when debug log enabled)
     local menu = ensure_menu()
     local debug_enabled = menu and menu.get("debug") or false
     if not debug_enabled then return end

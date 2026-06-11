@@ -336,6 +336,60 @@ function M.update()
 end
 
 -- ============================================================================
+-- Visual Rendering — draw destination marker in 3D world
+-- ============================================================================
+
+--- Render navigation visual indicators (destination marker + path line).
+--- Called from quest_state's render_debug each frame when navigating.
+function M.render_visual()
+    if not _destination then return end
+
+    -- Lazy-init color module
+    local color_ok, color = pcall(require, "common/color")
+    if not color_ok then return end
+
+    local me = _get_local_player()
+    if not me then return end
+    local pos_ok, pos = pcall(function() return me:get_position() end)
+    if not pos_ok or not pos then return end
+
+    -- Destination fill circle (semi-transparent green)
+    core.graphics.circle_3d_filled(
+        _destination,
+        3.0,
+        color.green(60)
+    )
+
+    -- Destination outline (bright green)
+    core.graphics.circle_3d(
+        _destination,
+        3.0,
+        color.green(200),
+        2.0,
+        0.3
+    )
+
+    -- Inner pulse circle (slightly smaller, brighter)
+    core.graphics.circle_3d(
+        _destination,
+        2.0,
+        color.green(255),
+        1.5,
+        0.5
+    )
+
+    -- Path line from player to destination (thin green)
+    core.graphics.line_3d(
+        pos,
+        _destination,
+        color.green(150),
+        1.0,
+        0.5,
+        false
+    )
+end
+
+-- ============================================================================
 -- Exports
 -- ============================================================================
 
