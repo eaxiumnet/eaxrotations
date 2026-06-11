@@ -11,12 +11,8 @@ local STANCE = CONSTANTS.STANCE or { DEFENSIVE = 2 }
 local BATTLE_SHOUT_BUFFS = CONSTANTS.BATTLE_SHOUT_IDS or { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
 local HAMSTRING_DEBUFF = { 25212, 7373, 7372, 1715 }
 
-local function player_unit(context)
-    return context.me or NS.GetPlayer()
-end
-
 local function defensive_spell_ready(spell, context)
-    local me = player_unit(context)
+    local me = context.me or NS.GetPlayer()
     if not NS.spell_ready then return false end
     return spell and me and NS.spell_ready(spell, me, { skip_range = true }) == true
 end
@@ -34,13 +30,13 @@ end
 
 local function cast_defensive_stance(context)
     if context.stance == STANCE.DEFENSIVE then return false end
-    return NS.try_cast(SPELLS.DefensiveStance, player_unit(context), "[WARRIOR] Defensive Stance", { skip_range = true }) == true
+    return NS.try_cast(SPELLS.DefensiveStance, context.me or NS.GetPlayer(), "[WARRIOR] Defensive Stance", { skip_range = true }) == true
 end
 
 local function cast_warrior_defensive(context, spell, reason)
     if context.stance ~= STANCE.DEFENSIVE and cast_defensive_stance(context) then return true end
     if context.stance ~= STANCE.DEFENSIVE then return false end
-    return NS.try_cast(spell, player_unit(context), reason, { skip_range = true }) == true
+    return NS.try_cast(spell, context.me or NS.GetPlayer(), reason, { skip_range = true }) == true
 end
 
 local function unit_is_moving(unit)
@@ -119,7 +115,7 @@ local strategies = {
             return defensive_spell_ready(SPELLS.BattleShout, context)
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.BattleShout, player_unit(context), "[WARRIOR] Battle Shout", { skip_range = true }) == true
+            return NS.try_cast(SPELLS.BattleShout, context.me or NS.GetPlayer(), "[WARRIOR] Battle Shout", { skip_range = true }) == true
         end,
     },
 

@@ -303,6 +303,14 @@ local strategies = {
                     return false
                 end
             end
+            -- Don't match if player knows NO aura spells at all (e.g. level 1, no trainer)
+            if me then
+                local aura_known = (SPELLS.DevotionAura and NS.is_spell_learned and NS.is_spell_learned(SPELLS.DevotionAura))
+                    or (SPELLS.SanctityAura and NS.is_spell_learned and NS.is_spell_learned(SPELLS.SanctityAura))
+                    or (SPELLS.ConcentrationAura and NS.is_spell_learned and NS.is_spell_learned(SPELLS.ConcentrationAura))
+                    or (SPELLS.RetributionAura and NS.is_spell_learned and NS.is_spell_learned(SPELLS.RetributionAura))
+                if not aura_known then return false end
+            end
             return true
         end,
         execute = function(context)
@@ -354,6 +362,16 @@ local strategies = {
             local me = context.me
             if me and NS.buff_up(me, ALL_BLESSING_BUFFS) then
                 return false
+            end
+            -- Don't match if player knows NO blessing spells at all (e.g. level 1, no trainer)
+            if me then
+                local blessing_known = (SPELLS.BlessingOfMight and NS.is_spell_learned and NS.is_spell_learned(SPELLS.BlessingOfMight))
+                    or (SPELLS.BlessingOfWisdom and NS.is_spell_learned and NS.is_spell_learned(SPELLS.BlessingOfWisdom))
+                    or (SPELLS.BlessingOfKings and NS.is_spell_learned and NS.is_spell_learned(SPELLS.BlessingOfKings))
+                    or (SPELLS.BlessingOfSanctuary and NS.is_spell_learned and NS.is_spell_learned(SPELLS.BlessingOfSanctuary))
+                    or (SPELLS.BlessingOfLight and NS.is_spell_learned and NS.is_spell_learned(SPELLS.BlessingOfLight))
+                    or (SPELLS.BlessingOfSacrifice and NS.is_spell_learned and NS.is_spell_learned(SPELLS.BlessingOfSacrifice))
+                if not blessing_known then return false end
             end
             return true
         end,
@@ -671,7 +689,7 @@ local strategies = {
     },
 
     -- Auto-consumable usage
-    { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
+    { name = "AutoConsumable", matches = function(context) return context.in_combat and (context.player_level or 999) >= 10 end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("paladin", strategies)

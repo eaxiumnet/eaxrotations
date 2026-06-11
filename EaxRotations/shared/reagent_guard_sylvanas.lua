@@ -61,10 +61,6 @@ local REAGENT_MAP = {
     [20757] = { item = 6265, count = 1 }, -- Create Soulstone (Rank 5)
     [27238] = { item = 6265, count = 1 }, -- Create Soulstone (Rank 6)
     [29893] = { item = 6265, count = 2 }, -- Ritual of Souls (costs 2 shards)
-    [5175] = { item = 5175, count = 1 },
-    [5176] = { item = 5176, count = 1 },
-    [5177] = { item = 5177, count = 1 },
-    [5178] = { item = 5178, count = 1 },
 
     -- ========================================================================
     -- Priest — Sacred Candle (item 17030) / Holy Candle (item 17031)

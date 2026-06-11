@@ -697,7 +697,7 @@ test("scorch_matches: ready, enabled, not moving, enough mana -> true", function
     state.use_scorch = true
     state.is_moving = false
     state.mana_pct = 50
-    assert_true(strategies[15].matches(ctx, state), "should match when ready and stationary")
+    assert_true(strategies[16].matches(ctx, state), "should match when ready and stationary")
 end)
 
 test("scorch_matches: moving -> false", function()
@@ -706,7 +706,7 @@ test("scorch_matches: moving -> false", function()
     state.scorch_ready = true
     state.use_scorch = true
     state.is_moving = true
-    assert_false(strategies[15].matches(ctx, state), "moving should not match")
+    assert_false(strategies[16].matches(ctx, state), "moving should not match")
 end)
 
 test("scorch_matches: disabled -> false", function()
@@ -714,7 +714,7 @@ test("scorch_matches: disabled -> false", function()
     local state = get_state(ctx)
     state.scorch_ready = true
     state.use_scorch = false
-    assert_false(strategies[15].matches(ctx, state), "disabled should not match")
+    assert_false(strategies[16].matches(ctx, state), "disabled should not match")
 end)
 
 test("scorch_matches: low mana -> false", function()
@@ -724,7 +724,7 @@ test("scorch_matches: low mana -> false", function()
     state.use_scorch = true
     state.is_moving = false
     state.mana_pct = 5
-    assert_false(strategies[15].matches(ctx, state), "low mana should not match")
+    assert_false(strategies[16].matches(ctx, state), "low mana should not match")
 end)
 
 -- ============================================================================
@@ -738,7 +738,7 @@ test("arcane_missiles_matches: ready, enabled, not moving, enough mana -> true",
     state.use_arcane_missiles = true
     state.is_moving = false
     state.mana_pct = 50
-    assert_true(strategies[16].matches(ctx, state), "should match when ready and stationary")
+    assert_true(strategies[17].matches(ctx, state), "should match when ready and stationary")
 end)
 
 test("arcane_missiles_matches: moving -> false", function()
@@ -747,7 +747,7 @@ test("arcane_missiles_matches: moving -> false", function()
     state.arcane_missiles_ready = true
     state.use_arcane_missiles = true
     state.is_moving = true
-    assert_false(strategies[16].matches(ctx, state), "moving should not match")
+    assert_false(strategies[17].matches(ctx, state), "moving should not match")
 end)
 
 test("arcane_missiles_matches: low mana -> false", function()
@@ -756,7 +756,7 @@ test("arcane_missiles_matches: low mana -> false", function()
     state.arcane_missiles_ready = true
     state.use_arcane_missiles = true
     state.mana_pct = 10
-    assert_false(strategies[16].matches(ctx, state), "low mana should not match")
+    assert_false(strategies[17].matches(ctx, state), "low mana should not match")
 end)
 
 test("arcane_missiles_matches: disabled -> false", function()
@@ -765,7 +765,7 @@ test("arcane_missiles_matches: disabled -> false", function()
     state.arcane_missiles_ready = true
     state.use_arcane_missiles = false
     state.is_moving = false
-    assert_false(strategies[16].matches(ctx, state), "disabled should not match")
+    assert_false(strategies[17].matches(ctx, state), "disabled should not match")
 end)
 
 -- ============================================================================
@@ -778,7 +778,7 @@ test("frostbolt_matches: ready, not moving, enough mana -> true", function()
     state.frostbolt_ready = true
     state.is_moving = false
     state.mana_pct = 50
-    assert_true(strategies[17].matches(ctx, state), "should match when ready and stationary")
+    assert_true(strategies[18].matches(ctx, state), "should match when ready and stationary")
 end)
 
 test("frostbolt_matches: moving -> false", function()
@@ -786,7 +786,7 @@ test("frostbolt_matches: moving -> false", function()
     local state = get_state(ctx)
     state.frostbolt_ready = true
     state.is_moving = true
-    assert_false(strategies[17].matches(ctx, state), "moving should not match")
+    assert_false(strategies[18].matches(ctx, state), "moving should not match")
 end)
 
 test("frostbolt_matches: low mana -> false", function()
@@ -794,7 +794,7 @@ test("frostbolt_matches: low mana -> false", function()
     local state = get_state(ctx)
     state.frostbolt_ready = true
     state.mana_pct = 5
-    assert_false(strategies[17].matches(ctx, state), "low mana should not match")
+    assert_false(strategies[18].matches(ctx, state), "low mana should not match")
 end)
 
 test("frostbolt_matches: no target -> false", function()
@@ -802,7 +802,7 @@ test("frostbolt_matches: no target -> false", function()
     local state = get_state(ctx)
     state.frostbolt_ready = true
     state.target = nil
-    assert_false(strategies[17].matches(ctx, state), "no target should not match")
+    assert_false(strategies[18].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
@@ -815,7 +815,7 @@ test("wand_matches: low mana, in combat, has target -> true", function()
     state.mana_pct = 10
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_true(strategies[19].matches(ctx, state), "low mana should match")
+    assert_true(strategies[20].matches(ctx, state), "low mana should match")
 end)
 
 test("wand_matches: enough mana -> false", function()
@@ -824,7 +824,7 @@ test("wand_matches: enough mana -> false", function()
     state.mana_pct = 80
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_false(strategies[19].matches(ctx, state), "enough mana should not match")
+    assert_false(strategies[20].matches(ctx, state), "enough mana should not match")
 end)
 
 test("wand_matches: no target -> false", function()
@@ -833,7 +833,7 @@ test("wand_matches: no target -> false", function()
     state.mana_pct = 10
     state.target = nil
     state.wand_learned = true
-    assert_false(strategies[19].matches(ctx, state), "no target should not match")
+    assert_false(strategies[20].matches(ctx, state), "no target should not match")
 end)
 
 test("wand_matches: not in combat -> false", function()
@@ -843,7 +843,7 @@ test("wand_matches: not in combat -> false", function()
     state.wand_threshold = 30
     state.wand_learned = true
     state.in_combat = false
-    assert_true(strategies[19].matches(ctx, state), "Wand matches OOC when mana is below threshold")
+    assert_true(strategies[20].matches(ctx, state), "Wand matches OOC when mana is below threshold")
 end)
 
 test("wand_matches: wand not learned -> false", function()
@@ -851,7 +851,7 @@ test("wand_matches: wand not learned -> false", function()
     local state = get_state(ctx)
     state.mana_pct = 10
     state.wand_learned = false
-    assert_false(strategies[19].matches(ctx, state), "wand not learned should not match")
+    assert_false(strategies[20].matches(ctx, state), "wand not learned should not match")
 end)
 
 -- ============================================================================
@@ -874,19 +874,14 @@ test("strategies: 19 strategies in correct priority order", function()
         "Blizzard",
         "Evocation",
         "FireBlast",
+        "Fireball",
         "Scorch",
         "ArcaneMissiles",
         "Frostbolt",
         "UseManaGem",
         "Wand",
     }
-    assert_eq(#strategies, 19, "should have 19 strategies after adding FrostArmor, RemoveCurse, ConeOfCold, Blink")
-    for i, name in ipairs(expected) do
-        assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
-    end
-end)
-
-test("strategies: every strategy has name, matches, execute", function()
+    assert_eq(#strategies, 20, "should have 20 strategies after adding Fireball, FrostArmor, RemoveCurse, ConeOfCold, Blink")
     for i, s in ipairs(strategies) do
         assert_true(type(s.name) == "string", "strategy[" .. i .. "] should have string name")
         assert_true(type(s.matches) == "function", "strategy[" .. i .. "] matches should be function")
@@ -905,12 +900,12 @@ end)
 
 test("execute_Wand: does not crash with context", function()
     local ctx = make_context()
-    local ok, result = pcall(strategies[19].execute, ctx)
+    local ok, result = pcall(strategies[20].execute, ctx)
     assert_true(ok, "execute with context should not throw")
 end)
 
 test("execute_Wand: does not crash without context", function()
-    local ok, result = pcall(strategies[19].execute)
+    local ok, result = pcall(strategies[20].execute)
     assert_true(ok, "execute without context should not throw")
 end)
 
@@ -987,7 +982,7 @@ test("rotation: OOC scenario - only OOC buffs should match", function()
         assert_false(matched, "strategy[" .. i .. "] should not match OOC")
     end
     -- Wand can match OOC if mana is below threshold
-    local ok_wand, matched_wand = pcall(strategies[19].matches, ctx, state)
+    local ok_wand, matched_wand = pcall(strategies[20].matches, ctx, state)
     assert_true(ok_wand, "strategy[13] matches should not throw")
 end)
 
@@ -1021,7 +1016,7 @@ test("rotation: low mana scenario - wand should match", function()
     state.wand_learned = true
 
     -- Wand should match when mana below threshold
-    assert_true(strategies[19].matches(ctx, state), "Wand should match when mana below threshold")
+    assert_true(strategies[20].matches(ctx, state), "Wand should match when mana below threshold")
 end)
 
 -- ============================================================================
@@ -1270,7 +1265,7 @@ test("edge_movement: frostbolt while moving does not match", function()
     state.frostbolt_ready = true
     state.is_moving = true
     state.mana_pct = 80
-    assert_false(strategies[17].matches(ctx, state), "frostbolt while moving should not match")
+    assert_false(strategies[18].matches(ctx, state), "frostbolt while moving should not match")
 end)
 
 test("edge_movement: scorch while moving does not match", function()
@@ -1280,7 +1275,7 @@ test("edge_movement: scorch while moving does not match", function()
     state.use_scorch = true
     state.is_moving = true
     state.mana_pct = 80
-    assert_false(strategies[15].matches(ctx, state), "scorch while moving should not match")
+    assert_false(strategies[16].matches(ctx, state), "scorch while moving should not match")
 end)
 
 test("edge_movement: arcane missiles while moving does not match", function()
@@ -1290,7 +1285,7 @@ test("edge_movement: arcane missiles while moving does not match", function()
     state.use_arcane_missiles = true
     state.is_moving = true
     state.mana_pct = 80
-    assert_false(strategies[16].matches(ctx, state), "arcane missiles while moving should not match")
+    assert_false(strategies[17].matches(ctx, state), "arcane missiles while moving should not match")
 end)
 
 test("edge_movement: blizzard while moving does not match", function()
@@ -1321,7 +1316,7 @@ test("edge_wand: mana exactly at threshold (30) should not match", function()
     state.mana_pct = 30
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_false(strategies[19].matches(ctx, state), "mana exactly at threshold should not match (mana >= threshold)")
+    assert_false(strategies[20].matches(ctx, state), "mana exactly at threshold should not match (mana >= threshold)")
 end)
 
 test("edge_wand: wand not learned returns false even at low mana", function()
@@ -1330,7 +1325,7 @@ test("edge_wand: wand not learned returns false even at low mana", function()
     state.mana_pct = 10
     state.wand_threshold = 30
     state.wand_learned = false
-    assert_false(strategies[19].matches(ctx, state), "wand not learned should return false")
+    assert_false(strategies[20].matches(ctx, state), "wand not learned should return false")
 end)
 
 -- ============================================================================
@@ -1366,7 +1361,7 @@ test("edge_api: NS.try_cast nil does not crash execute", function()
     local saved = NS.try_cast
     NS.try_cast = nil
     local ctx = make_context()
-    local ok, result = pcall(strategies[17].execute, ctx)  -- Frostbolt execute
+    local ok, result = pcall(strategies[18].execute, ctx)  -- Frostbolt execute
     assert_true(ok, "NS.try_cast nil should not crash execute")
     NS.try_cast = saved
 end)
@@ -1374,7 +1369,7 @@ end)
 test("edge_api: NS.try_cast nil does not crash execute with nil context", function()
     local saved = NS.try_cast
     NS.try_cast = nil
-    local ok, result = pcall(strategies[17].execute, nil)  -- Frostbolt execute
+    local ok, result = pcall(strategies[18].execute, nil)  -- Frostbolt execute
     assert_true(ok, "NS.try_cast nil with nil context should not crash")
     NS.try_cast = saved
 end)
@@ -1428,13 +1423,13 @@ test("edge_all_disabled: all toggles off, only wand matches", function()
     assert_false(strategies[5].matches(ctx, state), "polymorph disabled OOC with low HP target")
     assert_false(strategies[6].matches(ctx, state), "counterspell disabled")
     assert_false(strategies[14].matches(ctx, state), "fire_blast disabled")
-    assert_false(strategies[15].matches(ctx, state), "scorch disabled")
-    assert_false(strategies[16].matches(ctx, state), "arcane_missiles disabled")
+    assert_false(strategies[16].matches(ctx, state), "scorch disabled")
+    assert_false(strategies[17].matches(ctx, state), "arcane_missiles disabled")
 
     -- But wand should still match (no toggle gate)
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_true(strategies[19].matches(ctx, state), "wand should still match when mana low")
+    assert_true(strategies[20].matches(ctx, state), "wand should still match when mana low")
 end)
 
 -- ============================================================================
@@ -1493,7 +1488,7 @@ test("edge_settings: custom wand_threshold=15 means 15% mana does not wand", fun
     state.mana_pct = 15
     state.wand_threshold = 15
     state.wand_learned = true
-    assert_false(strategies[19].matches(ctx, state), "wand at threshold 15 should not match (mana >= threshold)")
+    assert_false(strategies[20].matches(ctx, state), "wand at threshold 15 should not match (mana >= threshold)")
 end)
 
 test("edge_settings: custom wand_threshold=15 means 14% mana does wand", function()
@@ -1503,7 +1498,7 @@ test("edge_settings: custom wand_threshold=15 means 14% mana does wand", functio
     state.mana_pct = 14
     state.wand_threshold = 15
     state.wand_learned = true
-    assert_true(strategies[19].matches(ctx, state), "wand at 14 < 15 threshold should match")
+    assert_true(strategies[20].matches(ctx, state), "wand at 14 < 15 threshold should match")
 end)
 
 -- ============================================================================
@@ -1570,7 +1565,7 @@ test("edge_mana_gem_use: in combat, low mana, gem available -> true", function()
     state.mana_gem_available = true
     state.mana_pct = 50
     state.mana_gem_threshold = 70
-    assert_true(strategies[18].matches(ctx, state), "low mana with gem should match")
+    assert_true(strategies[19].matches(ctx, state), "low mana with gem should match")
     NS.is_item_ready = saved_ready
 end)
 
@@ -1583,7 +1578,7 @@ test("edge_mana_gem_use: mana above threshold -> false", function()
     state.mana_gem_available = true
     state.mana_pct = 80
     state.mana_gem_threshold = 70
-    assert_false(strategies[18].matches(ctx, state), "mana above threshold should not match")
+    assert_false(strategies[19].matches(ctx, state), "mana above threshold should not match")
     NS.is_item_ready = saved_ready
 end)
 
@@ -1594,7 +1589,7 @@ test("edge_mana_gem_use: OOC -> false", function()
     state.mana_gem_available = true
     state.mana_pct = 50
     state.mana_gem_threshold = 70
-    assert_false(strategies[18].matches(ctx, state), "OOC should not use gem")
+    assert_false(strategies[19].matches(ctx, state), "OOC should not use gem")
 end)
 
 test("edge_mana_gem_use: use_mana_gem disabled -> false", function()
@@ -1604,7 +1599,7 @@ test("edge_mana_gem_use: use_mana_gem disabled -> false", function()
     state.mana_gem_available = true
     state.mana_pct = 50
     state.mana_gem_threshold = 70
-    assert_false(strategies[18].matches(ctx, state), "disabled setting should not match")
+    assert_false(strategies[19].matches(ctx, state), "disabled setting should not match")
 end)
 
 test("edge_mana_gem_use: no gem available -> false", function()
@@ -1614,19 +1609,19 @@ test("edge_mana_gem_use: no gem available -> false", function()
     state.mana_gem_available = false
     state.mana_pct = 50
     state.mana_gem_threshold = 70
-    assert_false(strategies[18].matches(ctx, state), "no gem in inventory should not match")
+    assert_false(strategies[19].matches(ctx, state), "no gem in inventory should not match")
 end)
 
 test("edge_mana_gem_use: nil state does not crash", function()
     local ctx = make_context({mana_pct = 50, in_combat = true})
-    local ok, result = pcall(strategies[18].matches, ctx, nil)
+    local ok, result = pcall(strategies[19].matches, ctx, nil)
     assert_true(ok, "use gem with nil state should not crash")
 end)
 
 test("edge_mana_gem_use: execute with no items ready returns false", function()
     local saved_ready = NS.is_item_ready
     NS.is_item_ready = function(id) return false end
-    local ok, result = pcall(strategies[18].execute)
+    local ok, result = pcall(strategies[19].execute)
     assert_true(ok, "use gem execute with no items should not crash")
     NS.is_item_ready = saved_ready
 end)
@@ -1634,7 +1629,7 @@ end)
 test("edge_mana_gem_use: execute with nil NS.is_item_ready returns false", function()
     local saved_ready = NS.is_item_ready
     NS.is_item_ready = nil
-    local ok, result = pcall(strategies[18].execute)
+    local ok, result = pcall(strategies[19].execute)
     assert_true(ok, "use gem execute with nil NS.is_item_ready should not crash")
     NS.is_item_ready = saved_ready
 end)
@@ -1648,7 +1643,7 @@ test("edge_mana_gem_use: mana at exactly threshold should not match", function()
     state.mana_gem_available = true
     state.mana_pct = 70
     state.mana_gem_threshold = 70
-    assert_false(strategies[18].matches(ctx, state), "mana exactly at 70 threshold should not match (70 > 70 is false)")
+    assert_false(strategies[19].matches(ctx, state), "mana exactly at 70 threshold should not match (70 > 70 is false)")
     NS.is_item_ready = saved_ready
 end)
 
@@ -1709,13 +1704,13 @@ do
     state3.frostbolt_ready = true
     state3.fire_blast_ready = true
     state3.scorch_ready = true
-    assert_true(strategies[16].matches(ctx3, state3), "arcanemissiles mana=20 -> match (>=20)")
+    assert_true(strategies[17].matches(ctx3, state3), "arcanemissiles mana=20 -> match (>=20)")
 
     local ctx4 = make_context({ mana_pct = 19 })
     local state4 = get_state(ctx4)
     state4.arcane_missiles_ready = true
     state4.use_arcane_missiles = true
-    assert_false(strategies[16].matches(ctx4, state4), "arcanemissiles mana=19 -> no match (<20)")
+    assert_false(strategies[17].matches(ctx4, state4), "arcanemissiles mana=19 -> no match (<20)")
 
     -- Frostbolt: mana_pct >= 10 -> match; < 10 -> no match
     local ctx5 = make_context({ mana_pct = 10 })
@@ -1723,12 +1718,12 @@ do
     state5.frostbolt_ready = true
     state5.fire_blast_ready = true
     state5.scorch_ready = true
-    assert_true(strategies[17].matches(ctx5, state5), "frostbolt mana=10 -> match (>=10)")
+    assert_true(strategies[18].matches(ctx5, state5), "frostbolt mana=10 -> match (>=10)")
 
     local ctx6 = make_context({ mana_pct = 9 })
     local state6 = get_state(ctx6)
     state6.frostbolt_ready = true
-    assert_false(strategies[17].matches(ctx6, state6), "frostbolt mana=9 -> no match (<10)")
+    assert_false(strategies[18].matches(ctx6, state6), "frostbolt mana=9 -> no match (<10)")
 
     -- Scorch: mana_pct >= 10 -> match; < 10 -> no match
     local ctx7 = make_context({ mana_pct = 10 })
@@ -1736,13 +1731,13 @@ do
     state7.scorch_ready = true
     state7.use_scorch = true
     state7.fire_blast_ready = true
-    assert_true(strategies[15].matches(ctx7, state7), "scorch mana=10 -> match (>=10)")
+    assert_true(strategies[16].matches(ctx7, state7), "scorch mana=10 -> match (>=10)")
 
     local ctx8 = make_context({ mana_pct = 9 })
     local state8 = get_state(ctx8)
     state8.scorch_ready = true
     state8.use_scorch = true
-    assert_false(strategies[15].matches(ctx8, state8), "scorch mana=9 -> no match (<10)")
+    assert_false(strategies[16].matches(ctx8, state8), "scorch mana=9 -> no match (<10)")
 end
 
 -- ============================================================================
@@ -1756,7 +1751,7 @@ do
     state.wand_learned = true
     state.frostbolt_ready = true
     state.arcane_missiles_ready = true
-    assert_true(strategies[19].matches(ctx, state), "wand mana=29 -> match (<30)")
+    assert_true(strategies[20].matches(ctx, state), "wand mana=29 -> match (<30)")
 
     local ctx2 = make_context({ mana_pct = 30 })
     ctx2.wand_learned = true
@@ -1764,7 +1759,7 @@ do
     state2.wand_learned = true
     state2.frostbolt_ready = true
     state2.arcane_missiles_ready = true
-    assert_false(strategies[19].matches(ctx2, state2), "wand mana=30 -> no match (>=30)")
+    assert_false(strategies[20].matches(ctx2, state2), "wand mana=30 -> no match (>=30)")
 end
 
 -- ============================================================================
@@ -1781,14 +1776,14 @@ do
     state.arcane_missiles_ready = true
     state.fire_blast_ready = true
     state.scorch_ready = true
-    assert_true(strategies[18].matches(ctx, state), "usemanagem mana=69 -> match (<70)")
+    assert_true(strategies[19].matches(ctx, state), "usemanagem mana=69 -> match (<70)")
 
     local ctx2 = make_context({ mana_pct = 70 })
     ctx2.mana_gem_available = true
     local state2 = get_state(ctx2)
     state2.mana_gem_available = true
     state2.use_mana_gem = true
-    assert_false(strategies[18].matches(ctx2, state2), "usemanagem mana=70 -> no match (>=70)")
+    assert_false(strategies[19].matches(ctx2, state2), "usemanagem mana=70 -> no match (>=70)")
 
     -- UseManaGem: no gem available -> no match
     local ctx3 = make_context({ mana_pct = 50 })
@@ -1796,7 +1791,7 @@ do
     local state3 = get_state(ctx3)
     state3.mana_gem_available = false
     state3.use_mana_gem = true
-    assert_false(strategies[18].matches(ctx3, state3), "usemanagem no gem -> no match")
+    assert_false(strategies[19].matches(ctx3, state3), "usemanagem no gem -> no match")
 
     -- ConjureManaGem: gem already available -> no match
     local ctx4 = make_context({ in_combat = false })
@@ -1933,20 +1928,20 @@ do
     local state2 = get_state(ctx2)
     state2.arcane_missiles_ready = true
     state2.use_arcane_missiles = true
-    assert_false(strategies[16].matches(ctx2, state2), "arcanemissiles moving -> no match")
+    assert_false(strategies[17].matches(ctx2, state2), "arcanemissiles moving -> no match")
 
     -- Frostbolt: is_moving -> no match
     local ctx3 = make_context({ is_moving = true })
     local state3 = get_state(ctx3)
     state3.frostbolt_ready = true
-    assert_false(strategies[17].matches(ctx3, state3), "frostbolt moving -> no match")
+    assert_false(strategies[18].matches(ctx3, state3), "frostbolt moving -> no match")
 
     -- Scorch: is_moving -> no match
     local ctx4 = make_context({ is_moving = true })
     local state4 = get_state(ctx4)
     state4.scorch_ready = true
     state4.use_scorch = true
-    assert_false(strategies[15].matches(ctx4, state4), "scorch moving -> no match")
+    assert_false(strategies[16].matches(ctx4, state4), "scorch moving -> no match")
 end
 
 -- ============================================================================
@@ -2004,7 +1999,7 @@ do
     state2.scorch_ready = true
     state2.frostbolt_ready = true
     state2.arcane_missiles_ready = true
-    assert_false(strategies[15].matches(ctx2, state2), "scorch setting disabled -> no match")
+    assert_false(strategies[16].matches(ctx2, state2), "scorch setting disabled -> no match")
 
     -- ArcaneMissiles: use_arcane_missiles disabled -> no match
     local ctx3 = make_context({})
@@ -2012,7 +2007,7 @@ do
     local state3 = get_state(ctx3)
     state3.arcane_missiles_ready = true
     state3.frostbolt_ready = true
-    assert_false(strategies[16].matches(ctx3, state3), "arcanemissiles setting disabled -> no match")
+    assert_false(strategies[17].matches(ctx3, state3), "arcanemissiles setting disabled -> no match")
 
     -- Counterspell: use_interrupt disabled -> no match
     local ctx4 = make_context({})
@@ -2175,10 +2170,10 @@ end
 -- Deep dive: Nil target guard verification
 -- ============================================================================
 do
-    -- Target-dependent indices: {5,6,9,10,12,14,15,16,17,19}
+    -- Target-dependent indices: {5,6,9,10,12,14,15,16,17,18,20}
     -- These check `if not state.target then return false end`
-    -- Non-target: {1,2,3,4,7,8,11,13,18}
-    local target_dependent = {5, 6, 9, 10, 12, 14, 15, 16, 17, 19}
+    -- Non-target: {1,2,3,4,7,8,11,13,19}
+    local target_dependent = {5, 6, 9, 10, 12, 14, 15, 16, 17, 18, 20}
     local ctx = make_context({target = nil, in_combat = true, mana_pct = 80, hp = 50, enemies_count = 1, is_moving = false})
     -- ctx must have no target
     ctx.target = nil
@@ -2390,20 +2385,20 @@ do
     state15.scorch_ready = false
     state15.use_scorch = true
     state15.mana_pct = 50
-    assert_false(strategies[15].matches(ctx, state15), "scorch not ready -> no match")
+    assert_false(strategies[16].matches(ctx, state15), "scorch not ready -> no match")
 
     -- Strategy 16: ArcaneMissiles not ready
     local state16 = get_state(ctx)
     state16.arcane_missiles_ready = false
     state16.use_arcane_missiles = true
     state16.mana_pct = 50
-    assert_false(strategies[16].matches(ctx, state16), "arcanemissiles not ready -> no match")
+    assert_false(strategies[17].matches(ctx, state16), "arcanemissiles not ready -> no match")
 
     -- Strategy 17: Frostbolt not ready
     local state17 = get_state(ctx)
     state17.frostbolt_ready = false
     state17.mana_pct = 50
-    assert_false(strategies[17].matches(ctx, state17), "frostbolt not ready -> no match")
+    assert_false(strategies[18].matches(ctx, state17), "frostbolt not ready -> no match")
 end
 
 -- ============================================================================
@@ -2615,7 +2610,7 @@ do
     state.mana_gem_available = true
     state.mana_pct = 70
     state.mana_gem_threshold = 70
-    assert_false(strategies[18].matches(ctx, state), "usemanagem mana exactly 70 -> no match")
+    assert_false(strategies[19].matches(ctx, state), "usemanagem mana exactly 70 -> no match")
     NS.is_item_ready = saved_ready
 end
 
@@ -2629,7 +2624,7 @@ do
     state.mana_pct = 10
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_true(strategies[19].matches(ctx, state), "wand OOC low mana -> match (no combat gate)")
+    assert_true(strategies[20].matches(ctx, state), "wand OOC low mana -> match (no combat gate)")
 
     -- wand OOC with enough mana -> false
     local ctx2 = make_context({in_combat = false, mana_pct = 80})
@@ -2637,7 +2632,7 @@ do
     state2.mana_pct = 80
     state2.wand_threshold = 30
     state2.wand_learned = true
-    assert_false(strategies[19].matches(ctx2, state2), "wand OOC enough mana -> no match")
+    assert_false(strategies[20].matches(ctx2, state2), "wand OOC enough mana -> no match")
 end
 
 -- ============================================================================
@@ -2683,7 +2678,7 @@ do
     NS.is_item_ready = function(id) return false end
     local saved_use = NS.use_item_by_id
     NS.use_item_by_id = function(id) return false end
-    local ok, result = pcall(strategies[18].execute)
+    local ok, result = pcall(strategies[19].execute)
     assert_true(ok, "use mana gem execute with no items ready -> no crash")
     NS.is_item_ready = saved_ready
     NS.use_item_by_id = saved_use
@@ -3067,7 +3062,7 @@ do
         state.mana_gem_available = true
         state.mana_pct = 50
         state.mana_gem_threshold = 70
-        assert_true(strategies[18].matches(ctx, state), "usemanagem low mana with gem -> match")
+        assert_true(strategies[19].matches(ctx, state), "usemanagem low mana with gem -> match")
         NS.is_item_ready = saved_ready
     end)
 
@@ -3079,7 +3074,7 @@ do
         state.use_mana_gem = true
         state.mana_pct = 50
         state.mana_gem_threshold = 70
-        local ok, result = pcall(strategies[18].matches, ctx, state)
+        local ok, result = pcall(strategies[19].matches, ctx, state)
         assert_true(ok, "usemanagem match should not crash when is_item_ready nil")
         NS.is_item_ready = saved
     end)
@@ -3089,7 +3084,7 @@ do
         local saved_use = NS.use_item_by_id
         NS.is_item_ready = function(id) return true end
         NS.use_item_by_id = nil
-        local ok, result = pcall(strategies[18].execute)
+        local ok, result = pcall(strategies[19].execute)
         assert_true(ok, "usemanagem execute should not crash when use_item_by_id nil")
         NS.is_item_ready = saved_ready
         NS.use_item_by_id = saved_use
@@ -3330,3 +3325,4 @@ if failed > 0 then
 else
     print("All Mage leveling unit tests passed!")
 end
+

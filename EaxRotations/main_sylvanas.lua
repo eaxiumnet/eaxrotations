@@ -184,29 +184,29 @@ local function get_target(me)
 end
 
 local function valid_enemy(me, target)
+    if not target then return false end
+    -- Dead check: don't cast on dead units
+    local alive_ok, alive = pcall(function() return target:is_alive() end)
+    if alive_ok and alive == false then return false end
     return NS.is_hostile_unit and NS.is_hostile_unit(me, target) or false
 end
 
 local function find_enemy_target(me, selected)
-    -- Always accept the player's manually selected target (even neutral/yellow NPCs).
-    -- The player explicitly chose to attack it. Hostility check is only for auto-acquisition.
+    -- Always accept the player's manually selected target, but skip dead units.
     if selected then
+        local alive_ok, alive = pcall(function() return selected:is_alive() end)
+        if alive_ok and alive == false then return nil end
         return selected
     end
     -- During manual target grace period, skip all fallbacks — respect the player's choice
     if NS.time_now() < _manual_target_lockout_until then
         return nil
     end
-    -- IZI-selected target fallback (for scripts that use the IZI target helper)
-    local izi_target = NS.izi and NS.izi.target and NS.izi.target()
-    if izi_target then
-        local izi_ok = valid_enemy(me, izi_target)
-        if izi_ok then return izi_target end
-    end
+    -- Focus target: user-set /focus is intentional, not auto-acquisition
     local focus = NS.GetFocus and NS.GetFocus() or nil
     local focus_ok = valid_enemy(me, focus)
     if focus_ok then return focus end
-    return nil  -- Never auto-acquire enemies without a valid target
+    return nil
 end
 
 local _cached_enemies, _cached_enemies_time = nil, -1
@@ -832,14 +832,25 @@ local function build_context()
     end
     _context.now = NS.time_now()
     NS.current_context = _context
+    -- Trace context state (throttled to 2s in combat)
+    if in_combat then
+        local _now_trace = _time_now()
+        if _now_trace - (_trace_ctx_last or 0) > 2 then
+            _trace_ctx_last = _now_trace
+            local target_alive = target and type(_unit_alive) == "function" and _unit_alive(target) or false
+            NS.log("[EaxRotations:TRACE] ctx combat=" .. tostring(in_combat or false) .. ", target=" .. tostring(target_alive and "yes" or "no") .. ", enemies=" .. tostring(count or 0) .. ", hp=" .. tostring(math.floor((_context.hp or 100))) .. "%, mana=" .. tostring(math.floor((_context.mana_pct or 100))) .. "%")
+        end
+    end
     -- Fire combat start/end callbacks AFTER context is fully built so subscribers
     -- can safely read fields like settings, hp, mana_pct, ttd, enemy_count.
     if combat_state_known then
         if in_combat and not was_in_combat then
+            NS.log("[EaxRotations:TRACE] callback: combat_start")
             if NS._fire_combat_start then NS._fire_combat_start(_context) end
         elseif not in_combat and was_in_combat then
             _manual_target_lockout_until = 0
             _last_target_guid = nil
+            NS.log("[EaxRotations:TRACE] callback: combat_end")
             if NS._fire_combat_end then NS._fire_combat_end(_context) end
         end
     end
@@ -992,6 +1003,11 @@ local function run_list(name, list, options, context)
                 if type(strategy.matches) == "function" then ok = strategy.matches(context, state) == true end
                 if ok then
                     local executed = fast(strategy.execute, context, state) == true
+                    local _now_trace = _time_now()
+                    if _now_trace - (_trace_strat_last or 0) > 2 then
+                        _trace_strat_last = _now_trace
+                        NS.log("[EaxRotations:TRACE] " .. name .. ":" .. tostring(strategy.name or i) .. " matched=" .. tostring(ok) .. ", executed=" .. tostring(executed))
+                    end
                     if executed then
                         return true
                     end
@@ -1009,22 +1025,23 @@ function M.on_rotation_update()
         return false
     end
     if not (context.in_combat or context.has_valid_enemy_target or context.target) then
-        -- OOC: try OOC manager (handles class buff refresh, pet summon, food/flask)
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true
         end
-        -- OOC with no target and OOC manager has nothing to do: skip expensive
-        -- playstyle rotation evaluation. Strategies need a target to do damage.
-        return false
+        if not context.is_leveling then
+            return false
+        end
     end
-    -- GCD gate: while on global cooldown in combat, skip strategy evaluation entirely.
-    -- No spell can be cast during GCD; evaluating 20-40 strategies is wasted CPU.
-    -- OOC manager (lines 969-974) still fires — GCD gate only applies after OOC check.
     if context.on_gcd and context.in_combat then
         return true
     end
-    -- Global reaction delay: blocks ALL middleware + playstyle strategies for reaction_delay_ms after GCD ends.
-    -- Applies to all 9 classes. Bypassed during burst windows and out of combat.
+    -- Optimization: skip strategy evaluation while player is casting or channeling.
+    -- The evaluate_cast guard in try_cast already blocks re-casts, but this early exit
+    -- prevents running the entire strategy match/execute loop (saves CPU every frame
+    -- during cast-time spells and prevents OOC buff spam like Aspect of the Hawk).
+    if context.is_casting or context.is_channeling then
+        return true
+    end
     if reaction_delay_active(context) then
         return true
     end
@@ -1039,6 +1056,18 @@ function M.on_rotation_update()
         active = "leveling"
         auto_detected = true
     end
+    -- Talent-based spec auto-detection (when no manual playstyle selected, not leveling/solo)
+    if not auto_detected and (not requested_playstyle or requested_playstyle == "") and config and config.class_key then
+        local TI = NS.TalentInference
+        if TI and TI.infer_cached then
+            local inferred = TI.infer_cached(config.class_key)
+            if inferred and inferred.primary_tree and registry and registry.playstyles and registry.playstyles[inferred.primary_tree] then
+                active = inferred.primary_tree
+                auto_detected = true
+            end
+        end
+    end
+    local pre_aoe = active
     active = resolve_auto_aoe_playstyle(registry, active, context.enemy_count or 0)
     if not auto_detected and NS.set_setting and active ~= NS.get_setting("active_playstyle", nil) then
         NS.set_setting("active_playstyle", active)
@@ -1071,26 +1100,13 @@ function M.on_rotation_update_unified()
         return false
     end
     if not (context.in_combat or context.has_valid_enemy_target or context.target) then
-        -- OOC: try OOC manager (handles class buff refresh, pet summon, food/flask)
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true
         end
-        -- Fall through to the playstyle rotation so OOC strategies
-        -- (WeaponImbue, LightningShield, WaterShield, GhostWolf, etc.) get a
-        -- chance to fire. Their matches() functions gate on state.in_combat ==
-        -- false, so they naturally no-op in combat. In OOC they cover what the
-        -- shared OOC manager doesn't: e.g., a level-1 Shaman has no Lightning
-        -- Shield or Water Shield entry the manager can refresh, but the leveling
-        -- playstyle's WeaponImbue strategy still applies RockbiterWeapon.
-        -- Bug fix: previously this branch returned false unconditionally when
-        -- the OOC manager had nothing to do, which meant a solo low-level
-        -- character sitting in a starter zone would never see the playstyle
-        -- rotation execute anything.
     end
     if context.on_gcd and context.in_combat then
         return true
     end
-    -- Global reaction delay: blocks ALL middleware + playstyle strategies.
     if reaction_delay_active(context) then
         return true
     end
@@ -1105,6 +1121,18 @@ function M.on_rotation_update_unified()
         active = "leveling"
         auto_detected = true
     end
+    -- Talent-based spec auto-detection (when no manual playstyle selected, not leveling/solo)
+    if not auto_detected and (not requested_playstyle or requested_playstyle == "") and config and config.class_key then
+        local TI = NS.TalentInference
+        if TI and TI.infer_cached then
+            local inferred = TI.infer_cached(config.class_key)
+            if inferred and inferred.primary_tree and registry and registry.playstyles and registry.playstyles[inferred.primary_tree] then
+                active = inferred.primary_tree
+                auto_detected = true
+            end
+        end
+    end
+    local pre_aoe = active
     active = resolve_auto_aoe_playstyle(registry, active, context.enemy_count or 0)
     if not auto_detected and NS.set_setting and active ~= NS.get_setting("active_playstyle", nil) then
         NS.set_setting("active_playstyle", active)
@@ -1112,7 +1140,6 @@ function M.on_rotation_update_unified()
     context.active_playstyle = active
     log_expansion_once(config, active)
     local class_key = config and config.class_key
-    -- Run legacy class middleware first; new unified entries are in NS.unified_registry
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
         return true
     end

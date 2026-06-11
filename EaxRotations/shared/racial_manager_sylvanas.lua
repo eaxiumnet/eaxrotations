@@ -189,7 +189,7 @@ local function should_use_defensive(entry, context, me)
     if entry.kind == "cleanse" then return has_stoneform_clear(me) or hp <= threshold end
     if entry.kind == "heal" then return hp <= threshold end
     if entry.kind == "defensive_stun" then return context.in_combat and hp <= threshold and context.has_valid_enemy_target end
-    if entry.kind == "stealth_detect" then return context.in_combat and (context.is_pvp or context.settings and context.settings.pvp_enabled) == true end
+    if entry.kind == "stealth_detect" then return context.in_combat and context.is_pvp == true end
     if entry.kind == "threat_drop" then return should_drop_threat(context) end
     return false
 end

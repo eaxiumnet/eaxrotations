@@ -26,6 +26,7 @@ _G.EaxRotations = {
     debuff_up = function() return false end,
     buff_up = function() return false end,
     log = function() end,
+    time_now = function() return 100 end,
     rotation_registry = { register = function() end },
     HunterCore = {
         should_hawk = function(mana_pct) return mana_pct > 50 end,
@@ -40,7 +41,8 @@ local function find_strategy(strategies, name)
     return nil  -- strategy may not exist in all specs (e.g. BM has no LevelingArcaneShot)
 end
 
--- BM's match functions check should_hawk/should_viper and spell_ready, and return true directly
+-- BM's aspect management is handled by middleware (aspect_manager_sylvanas.lua).
+-- No spec-level aspect strategies in BM — only pet and utility strategies.
 local function check_bm(path)
     local strategies = dofile(path)
     local hawk = find_strategy(strategies, "AspectOfTheHawk")
@@ -48,18 +50,17 @@ local function check_bm(path)
     local mend_pet = find_strategy(strategies, "MendPet")
     local call_pet = find_strategy(strategies, "CallPet")
 
-    action_calls = 0
-    -- BM uses has_hawk (not has_aspect_hawk), checks aspect_mode, should_hawk(>50), and spell_ready
-    assert_true(hawk.matches({ settings = {} }, { has_hawk = false, call_pet_ready = false, aspect_mode = "auto", mana_pct = 60, is_mounted = false }), path .. " hawk should not require Call Pet")
+    -- Aspect strategies removed from BM spec (handled by middleware) — verify they don't exist
+    assert_true(hawk == nil, path .. " AspectOfTheHawk should be handled by middleware, not spec")
+    assert_true(viper == nil, path .. " AspectOfTheViper should be handled by middleware, not spec")
 
     action_calls = 0
-    assert_true(viper.matches({ settings = {} }, { has_viper = false, mana_pct = 20, call_pet_ready = false, aspect_mode = "auto", is_mounted = false }), path .. " viper should not require Call Pet")
-
-    action_calls = 0
+    assert_true(mend_pet ~= nil, path .. " MendPet should exist")
     assert_true(not mend_pet.matches({ settings = {} }, { pet_alive = false, pet_hp_pct = 20, mend_pet_ready = true }), path .. " Mend Pet should require live pet")
     assert_true(action_calls == 0, path .. " dead/missing pet should fail before action gate")
 
     action_calls = 0
+    assert_true(call_pet ~= nil, path .. " CallPet should exist")
     assert_true(call_pet.matches({ settings = {} }, { has_pet = false, has_pet_spell = true, in_combat = false, call_pet_ready = true, is_mounted = false }), path .. " Call Pet should match when pet missing OOC")
 end
 

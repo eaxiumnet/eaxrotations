@@ -1,5 +1,7 @@
 -- Regression: when Sylvanas spell-known APIs return false for every rank,
--- rich spell actions should fall back to the best rank allowed by player level.
+-- rich spell actions should return nil (PS build fallback removed in v2.1.x).
+-- On live TBC the spell_book APIs work, so the level-based fallback path
+-- (fallback_spell_id) was removed.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path
 
@@ -48,7 +50,9 @@ local ranked = NS.spell_action({
     levels = { 70, 60, 1 },
 })
 
-assert_eq(NS.get_spell_id(ranked), 200, "level 62 fallback should choose the level 60 rank")
-assert_eq(NS.get_spell_id({ 300, 200, 100 }), 300, "unannotated fallback should choose highest rank (convention: high-to-low)")
+-- Level-based fallback removed: on live retail, is_spell_learned determines spell IDs.
+-- get_spell_id returns nil when no IDs are confirmed learned (the test doesn't mock the API).
+assert_eq(NS.get_spell_id(ranked), nil, "no mock API — get_spell_id returns nil when none confirmed learned")
+assert_eq(NS.get_spell_id({ 300, 200, 100 }), nil, "no mock API — get_spell_id returns nil when none confirmed learned")
 
 print("PASS test_spell_rank_fallback")

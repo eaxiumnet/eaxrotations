@@ -292,27 +292,6 @@ local function mend_pet_matches(context, s)
     return true
 end
 
--- Aspect management (in combat — Viper if low mana)
-local function aspect_viper_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.AspectOfTheViper, 3.0) then return false end
-    if not mounted_bail(context, s) then return false end
-    if s.aspect_mode ~= "auto" then return false end
-    if s.has_viper then return false end
-    if not hunter_core.should_viper(s.mana_pct) then return false end
-    if not (NS.spell_ready and NS.spell_ready(SPELLS.AspectOfTheViper, context.me, { skip_range = true })) then return false end
-    return true
-end
-
--- Aspect back to Hawk when mana recovers
-local function aspect_hawk_matches(context, s)
-    if not mounted_bail(context, s) then return false end
-    if s.aspect_mode ~= "auto" then return false end
-    if s.has_hawk then return false end
-    if not hunter_core.should_hawk(s.mana_pct) then return false end
-    if not (NS.spell_ready and NS.spell_ready(SPELLS.AspectOfTheHawk, context.me, { skip_range = true })) then return false end
-    return true
-end
-
 -- Bestial Wrath
 local function bestial_wrath_matches(context, s)
     if not mounted_bail(context, s) then return false end
@@ -668,19 +647,7 @@ local strategies = {
             return result
         end,
     },
-    -- 6. Aspect of the Viper (low mana)
-    {
-        name = "AspectOfTheViper",
-        matches = aspect_viper_matches,
-        execute = function(context) return NS.try_cast(SPELLS.AspectOfTheViper, context.me, "[BEAST_MASTERY] AspectOfTheViper", { skip_range = true }) end,
-    },
-    -- 7. Aspect of the Hawk (mana recovered)
-    {
-        name = "AspectOfTheHawk",
-        matches = aspect_hawk_matches,
-        execute = function(context) return NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[BEAST_MASTERY] AspectOfTheHawk", { skip_range = true }) end,
-    },
-    -- 8. Hunter's Mark
+    -- 6. Hunter's Mark
     {
         name = "HuntersMark",
         matches = hunters_mark_matches,

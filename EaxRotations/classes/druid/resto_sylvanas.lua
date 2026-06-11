@@ -113,9 +113,7 @@ local resto_state = {
     insect_swarm_remains = 0,
 }
 
-local function buff_remains(unit, ids)
-    return unit and NS.buff_remains and NS.buff_remains(unit, ids) or 0
-end
+
 
 local function has_hot_for_swiftmend(entry)
     if not entry or not entry.unit then return false end
@@ -151,9 +149,7 @@ local function downrank_ht_overheal(entry, settings)
     return predictive_overheal("HealingTouch", entry, 2.5, settings, 35)
 end
 
-local function debuff_remains(unit, ids)
-    return unit and NS.debuff_remains and NS.debuff_remains(unit, ids) or 0
-end
+
 
 local function unit_class_id(unit)
     if not unit or not NS.safe_field then return nil end
@@ -188,7 +184,7 @@ end
 local function needs_lifebloom_refresh(entry, context, wanted_stacks)
     if not entry_can_receive_lifebloom(entry, context) then return false end
     local stacks = entry.lifebloom_stacks or 0
-    local remains = entry.lifebloom_remains or buff_remains(entry.unit, LIFEBLOOM_BUFF)
+    local remains = entry.lifebloom_remains or NS.buff_remains(entry.unit, LIFEBLOOM_BUFF) or 0
     if stacks <= 0 then return true end
     if stacks < wanted_stacks and remains > LIFEBLOOM_BLOOM_SOON then return true end
     return remains > 0 and remains <= LIFEBLOOM_REFRESH
@@ -207,14 +203,14 @@ end
 local function needs_rejuvenation(entry, threshold)
     if not entry or not entry.unit then return false end
     if effective_hp(entry) > threshold then return false end
-    local remains = buff_remains(entry.unit, REJUVENATION_BUFF)
+    local remains = NS.buff_remains(entry.unit, REJUVENATION_BUFF) or 0
     return not entry.has_rejuvenation or remains <= REJUVENATION_REFRESH
 end
 
 local function needs_regrowth(entry)
     if not entry or not entry.unit then return false end
     if effective_hp(entry) > REGROWTH_SPOT_HP then return false end
-    local remains = buff_remains(entry.unit, REGROWTH_BUFF)
+    local remains = NS.buff_remains(entry.unit, REGROWTH_BUFF) or 0
     return not entry.has_regrowth or remains <= REGROWTH_REFRESH
 end
 
@@ -335,8 +331,8 @@ local function build_state(context)
         resto_state.in_tree = context.stance == STANCE_TREE or NS.has_player_buff(TREE_OF_LIFE_BUFF)
         resto_state.has_natures_swiftness = NS.has_player_buff(NATURES_SWIFTNESS_BUFF)
         resto_state.has_clearcasting = NS.has_player_buff(CLEARCASTING_BUFF)
-        resto_state.moonfire_remains = context.target and debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
-        resto_state.insect_swarm_remains = context.target and debuff_remains(context.target, INSECT_SWARM_DEBUFF) or 0
+        resto_state.moonfire_remains = context.target and NS.debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
+        resto_state.insect_swarm_remains = context.target and NS.debuff_remains(context.target, INSECT_SWARM_DEBUFF) or 0
     end
     -- Tree of Life talent detection
     if NS.spell_book and NS.spell_book.is_spell_learned then

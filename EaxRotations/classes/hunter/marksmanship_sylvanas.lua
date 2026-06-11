@@ -42,6 +42,7 @@ local HUNTERS_MARK_DEBUFF = { 14325, 14324, 14323, 1130 }
 local SERPENT_STING_DEBUFF = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
 local ASPECT_HAWK_BUFF = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 local ASPECT_VIPER_BUFF = { 34074 }
+local _last_aspect_hawk_cast = 0  -- Throttle: WoW API buff detection delay (~1-2 frames)
 
 local MISDIRECTION_ID = 34477
 local WING_CLIP_DEBUFF = { 2974 }
@@ -225,6 +226,8 @@ local function aspect_hawk_matches(context, s)
         local viper_end = (context.settings and context.settings.mana_viper_end) or 30
         if (s.mana_pct or 100) <= viper_end then return false end
     end
+    -- Throttle: prevent thrashing due to WoW API buff detection delay
+    if (NS.time_now() - _last_aspect_hawk_cast) < 3 then return false end
     return true
 end
 
@@ -367,7 +370,7 @@ local strategies = {
           return true
       end,
       execute = function() return pet_manager.set_aggressive() end },
-    { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) return NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[MARKSMANSHIP] Aspect of the Hawk", { skip_range = true }) end },
+    { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) local r = NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[MARKSMANSHIP] Aspect of the Hawk", { skip_range = true }); if r then _last_aspect_hawk_cast = NS.time_now() end; return r end },
     { name = "AspectOfTheViper", matches = aspect_viper_matches, execute = function(context) return NS.try_cast(SPELLS.AspectOfTheViper, context.me, "[MARKSMANSHIP] Aspect of the Viper", { skip_range = true }) end },
     { name = "FreezingTrap", matches = freezing_trap_matches, execute = function(context) return NS.try_cast(SPELLS.FreezingTrap, context.me, "[MARKSMANSHIP] Freezing Trap", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return NS.try_cast(SPELLS.HuntersMark, context.target, "[MARKSMANSHIP] Hunter's Mark") end },

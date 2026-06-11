@@ -133,6 +133,7 @@ local function build_mock_env()
     }
 
     NS.PLAYER_UNIT = "player"
+    NS.time_now = function() return 100 end
     NS.log = function() end
     NS.log_warning = function() end
     NS.spell_ready = function(spell_action, target, opts)
@@ -889,6 +890,10 @@ test("rotation: no crashes when evaluating all strategies in sequence", function
 end)
 
 test("rotation: OOC scenario - only OOC buffs should match", function()
+    -- Reload module to reset throttled cast timers (previous test may have executed AspectHawk)
+    local ok, mod = pcall(dofile, "EaxRotations/classes/hunter/leveling_sylvanas.lua")
+    if not ok then error("Failed to reload leveling module for OOC test: " .. tostring(mod)) end
+    strategies = mod
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.has_aspect_hawk = false
@@ -1532,6 +1537,17 @@ end
 -- Edge case: Aspect management
 -- ============================================================================
 do
+    -- Reload module to reset `_last_aspect_hawk_cast` throttle (previous tests may have
+    -- called execute_AspectHawk, setting the throttle to a near-current timestamp).
+    local ok, mod = pcall(dofile, "EaxRotations/classes/hunter/leveling_sylvanas.lua")
+    if not ok then error("Failed to reload for aspect edge test: " .. tostring(mod)) end
+    strategies = mod
+    -- Refresh get_state from registry (reload sets up a new registration)
+    local reg = NS.rotation_registry._registrations["leveling"]
+    if reg and reg.opts and reg.opts.get_state then
+        get_state = reg.opts.get_state
+    end
+
     -- AspectHawk: already has buff -> no match
     local ctx = make_context({ in_combat = false, enemies_count = 0 })
     local state = get_state(ctx)
@@ -2245,6 +2261,15 @@ end
 local combat_gated = {4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 
 do
+    -- Reload module to reset `_last_aspect_hawk_cast` (AspectHawk throttle)
+    local ok, mod = pcall(dofile, "EaxRotations/classes/hunter/leveling_sylvanas.lua")
+    if not ok then error("Failed to reload for OOC guard test: " .. tostring(mod)) end
+    strategies = mod
+    local reg = NS.rotation_registry._registrations["leveling"]
+    if reg and reg.opts and reg.opts.get_state then
+        get_state = reg.opts.get_state
+    end
+
     local ctx = make_context({in_combat = false, enemies_count = 5, hp = 20})
     ctx.pet = { get_health_percentage = function() return 40 end }
     local state = get_state(ctx)

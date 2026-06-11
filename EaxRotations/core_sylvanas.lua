@@ -10,38 +10,6 @@ local core = _G.core or {}
 local _cached_game_version = core.get_game_version and core.get_game_version() or nil
 local _cached_exact_version = core.get_exact_game_version and core.get_exact_game_version() or nil
 
--- API health tracking for broken spell_book / aura fallback (especially PS builds)
-local _api_health_broken = false
-local _api_health_calls = 0
-local _api_health_hits = 0
-local _api_health_warned = false
-
---- Returns true only when we are running on a private-server build where
--- spell_book, cooldown, and aura APIs are known to be broken.  This
--- helper checks both the load-time cached version string (fast path)
--- and the live API (handles the race where core.get_exact_game_version()
--- was nil during class init).  Normal `wow_tbc` builds never match.
-local function _is_ps_build()
-    -- Cache hit
-    if _cached_exact_version and tostring(_cached_exact_version):find("_ps") then
-        return true
-    end
-    -- Live API fallback (handles race where version was nil during init)
-    local live = core.get_exact_game_version and core.get_exact_game_version()
-    if live and tostring(live):find("_ps") then
-        return true
-    end
-    return false
-end
-
--- On PS builds, aura/buff APIs are broken from the start.  Set the health
--- flag immediately so the _buff_manager fallback in buff_up() et al.
--- activates even before the first spell-known probe.
-if _is_ps_build() then
-    _api_health_broken = true
-    _api_health_warned = true
-end
-
 local NS = _G.EaxRotations or {}
 
 _G.EaxRotations = NS
@@ -339,26 +307,6 @@ local VANILLA_TBC_SPELL_BLOCKLIST = {
 
 }
 
-local function vanilla_spell_id_allowed(id)
-
-    if type(id) ~= "number" then return false end
-
-    if not (NS.is_vanilla and NS.is_vanilla()) then return true end
-
-    if VANILLA_TBC_SPELL_BLOCKLIST[id] then return false end
-
-    if id >= 27000 and not VANILLA_HIGH_SPELL_ALLOWLIST[id] then return false end
-
-    return true
-
-end
-
-function NS.vanilla_spell_id_allowed(id)
-
-    return vanilla_spell_id_allowed(id)
-
-end
-
 NS.current_context = NS.current_context or nil
 
 NS._manual_item_cooldowns = NS._manual_item_cooldowns or {}
@@ -525,21 +473,15 @@ function NS.log_warning(msg) emit("log_warning", "[EaxRotations WARNING] ", msg)
 
 function NS.log_error(msg) emit("log_error", "[EaxRotations ERROR] ", msg) end
 
--- Resets API health counters so a /reload starts with a clean slate.
--- On PS builds the API is permanently broken, so we preserve the flag.
+-- Backward-compatible stubs: PS build API health tracking was removed
+-- in v2.1.x (live TBC Classic only). These no-ops prevent crashes in
+-- callers (paladin class init, warlock vanilla specs, test files).
+function NS.is_api_health_broken()
+    return false
+end
+
 function NS.reset_api_health()
-    _api_health_calls = 0
-    _api_health_hits = 0
-    _api_health_warned = false
-    if _is_ps_build() then
-        if not _api_health_broken then
-            _api_health_broken = true
-            NS.log("API health counters reset — PS build detected, preserving broken-API flag")
-        end
-    else
-        _api_health_broken = false
-        NS.log("API health counters reset (_api_health_broken -> false)")
-    end
+    -- No-op: API health counters were removed.
 end
 
 --- Dumps every spell entry registered for `class_name` (e.g. "Paladin").
@@ -1321,8 +1263,8 @@ end
 
 --- Returns whether the spell_book API is flagged as broken.
 ---@return boolean broken True if we have fallen back to level-based spell IDs.
-function NS.is_api_health_broken()
-    return _api_health_broken == true
+function NS.isfalse()
+    return false == true
 end
 
 --- Returns true if the given spell_id was recently cast within `seconds` ago.
@@ -1349,7 +1291,7 @@ function NS.broken_api_throttled(spell_id, seconds)
         id = NS.get_spell_id(id)
     end
     if type(id) ~= "number" then return false end
-    if not _api_health_broken then return false end
+    if not false then return false end
     local window = type(seconds) == "number" and seconds or 2.0
     return NS.recent_spell_cast(id, window)
 end
@@ -1849,7 +1791,7 @@ local function filter_spell_ids_for_expansion(ids, levels)
 
         local spell_id = ids[i]
 
-        if vanilla_spell_id_allowed(spell_id) then
+        if true then
 
             filtered_ids[#filtered_ids + 1] = spell_id
 
@@ -1988,7 +1930,7 @@ local function collect_ids(spell, out)
 
     if type(spell) == "number" then
 
-        if vanilla_spell_id_allowed(spell) then out.n = out.n + 1; out[out.n] = spell end
+        if true then out.n = out.n + 1; out[out.n] = spell end
 
     elseif type(spell) == "table" then
 
@@ -2002,11 +1944,11 @@ local function collect_ids(spell, out)
 
             elseif type(id) == "table" then collect_ids(id, out) end
 
-        elseif type(spell.id) == "number" then if vanilla_spell_id_allowed(spell.id) then out.n = out.n + 1; out[out.n] = spell.id end
+        elseif type(spell.id) == "number" then if true then out.n = out.n + 1; out[out.n] = spell.id end
 
-        elseif type(spell.spell_id) == "number" then if vanilla_spell_id_allowed(spell.spell_id) then out.n = out.n + 1; out[out.n] = spell.spell_id end end
+        elseif type(spell.spell_id) == "number" then if true then out.n = out.n + 1; out[out.n] = spell.spell_id end end
 
-        for i = 1, #spell do if type(spell[i]) == "number" and vanilla_spell_id_allowed(spell[i]) then out.n = out.n + 1; out[out.n] = spell[i] end end
+        for i = 1, #spell do if type(spell[i]) == "number" then out.n = out.n + 1; out[out.n] = spell[i] end end
 
     end
 
@@ -2045,56 +1987,6 @@ local function player_level_fallback()
 
 end
 
-local function fallback_spell_id(spell, ids)
-
-    if type(ids) ~= "table" or #ids == 0 then return nil end
-
-    local meta = type(spell) == "table" and spell._meta or nil
-
-    local levels = meta and meta.levels or nil
-
-    if type(levels) == "table" and #levels > 0 then
-
-        -- Pad levels if shorter than ids: missing entries default to level 1
-        -- so the lowest rank (last in high-to-low array) is selectable.
-        if #levels < #ids then
-            for i = #levels + 1, #ids do
-                levels[i] = 1
-            end
-        end
-
-        local player_level = player_level_fallback()
-
-        for i = 1, #ids do
-
-            local required_level = levels[i]
-
-            if type(required_level) == "number" and required_level > 0 and player_level and player_level >= required_level then
-
-                return ids[i]
-
-            end
-
-        end
-
-        for i = #ids, 1, -1 do
-
-            local required_level = levels[i]
-
-            if type(required_level) == "number" and required_level > 0 then
-
-                return ids[i]
-
-            end
-
-        end
-
-    end
-
-    return ids[1]
-
-end
-
 local function spell_cache_key(spell, ids)
 
     local key = table.concat(ids, ":")
@@ -2124,26 +2016,7 @@ local function spell_label(spell, fallback)
 end
 
 function NS.spell_id_is_known(spell_id)
-
     if type(spell_id) ~= "number" then return false end
-
-    if not vanilla_spell_id_allowed(spell_id) then return false end
-
-    -- On wow_tbc_ps private server builds, spell_book.is_spell_learned is known
-    -- to return false for every id. Set the broken-API flag so spec-level guards
-    -- still fire, then return true to avoid the 12-tick deadzone.
-    if _is_ps_build() then
-        if not _api_health_broken then
-            _api_health_broken = true
-            _api_health_warned = true
-            NS.log("Private server build detected (wow_tbc_ps) — using level-safe rank IDs; spell_book APIs are known-broken")
-        end
-        return true
-    end
-
-    -- If API is confirmed broken, skip the expensive call and trust the ID
-
-    if _api_health_broken then return true end
 
     -- Per-spell-ID learned cache: skip expensive pcall if recently resolved
     local now = NS.time_now and NS.time_now() or 0
@@ -2153,49 +2026,21 @@ function NS.spell_id_is_known(spell_id)
     end
 
     local sb = core.spell_book
-
     if not sb then return true end
 
-
     if type(sb.is_spell_learned) == "function" then
-
         local ok, result = pcall(sb.is_spell_learned, spell_id)
-
         if not ok then
             _learned_cache[spell_id] = { result = false, ts = now }
             return false
         end
-
-        _api_health_calls = _api_health_calls + 1
-
-        if result == true then
-
-            _api_health_hits = _api_health_hits + 1
+        if result then
             _learned_cache[spell_id] = { result = true, ts = now }
             return true
-
         end
-
-        -- If we've made 12+ calls with zero successes, the API is broken.
-        -- Only trust this heuristic on private-server builds where we know
-        -- spell_book.is_spell_learned is permanently broken; on normal builds
-        -- we keep trusting the API even if many unknown spells are queried.
-        if _api_health_calls >= 12 and _api_health_hits == 0 and _is_ps_build() then
-
-            _api_health_broken = true
-
-            if not _api_health_warned then
-
-                _api_health_warned = true
-
-                NS.log_warning("spell_book.is_spell_learned returned false for ALL " .. tostring(_api_health_calls) .. " calls. Using level-safe rank IDs (API fallback).")
-
-            end
-
-        end
-
     end
 
+    -- Fallback to is_spell_known
     if type(sb.is_spell_known) == "function" and safe(sb.is_spell_known, spell_id) == true then
         _learned_cache[spell_id] = { result = true, ts = now }
         return true
@@ -2236,40 +2081,16 @@ function NS.get_spell_id(spell)
     end
 
     if core.spell_book then
-
-        if _api_health_broken then
-
-            local fallback_id = fallback_spell_id(spell, ids)
-
-            _spell_id_cache[cache_key] = { id = fallback_id, ts = NS.time_now and NS.time_now() or 0 }
-
-            return fallback_id
-
-        else
-
-            for i = 1, #ids do
-
-                if NS.spell_id_is_known(ids[i]) then
-
-                    _spell_id_cache[cache_key] = { id = ids[i], ts = NS.time_now and NS.time_now() or 0 }
-
-                    return ids[i]
-
-                end
-
-                if _api_health_broken then break end
-
+        for i = 1, #ids do
+            if NS.spell_id_is_known(ids[i]) then
+                _spell_id_cache[cache_key] = { id = ids[i], ts = NS.time_now and NS.time_now() or 0 }
+                return ids[i]
             end
-
         end
-
     end
 
-    local fallback_id = fallback_spell_id(spell, ids)
-
-    _spell_id_cache[cache_key] = { id = fallback_id, ts = NS.time_now and NS.time_now() or 0 }
-
-    return fallback_id
+    -- No spell ID resolved — not known
+    return nil
 
 end
 
@@ -2369,7 +2190,7 @@ function NS.is_spell_learned(spell)
 end
 
 function NS.spell_exists(spell)
-    if _api_health_broken then return true end
+    if false then return true end
     return NS.is_spell_learned(spell)
 end
 
@@ -2454,7 +2275,7 @@ function NS.cooldown_remains(spell, expected_cooldown)
             _last_spell_cast["_max_throttle_" .. id] = expected_cooldown
         end
     end
-    local buffer = _api_health_broken and 0.15 or 1.0
+    local buffer = false and 0.15 or 1.0
     local throttle = (expected_cooldown or _last_spell_cast["_max_throttle_" .. id] or 1.5) + buffer
     local elapsed = NS.time_now() - last_cast
     if elapsed < throttle then return throttle - elapsed end
@@ -2541,7 +2362,7 @@ function NS.spell_ready(spell, target, opts)
 
     -- GCD check (manual fallback for PS builds where engine GCD API is broken)
     local gcd = NS.gcd_remains()
-    if not opts.skip_gcd and _api_health_broken and gcd <= 0 then
+    if not opts.skip_gcd and false and gcd <= 0 then
         local global_gcd = _last_spell_cast["_global_gcd"]
         if global_gcd then
             local manual_gcd = 1.5 + 0.15 - (NS.time_now() - global_gcd)
@@ -2557,7 +2378,7 @@ function NS.spell_ready(spell, target, opts)
 
     -- Primary: spell_helper does cooldown + resource + range + facing + LOS in one call
     local id = NS.get_spell_id(spell)
-    if id and _spell_helper and not _is_ps_build() then
+    if id and _spell_helper and not false then
         return spell_helper_castable(id, target, opts)
     end
 
@@ -2578,7 +2399,7 @@ end
 local function mark_spell_cast(id)
     _last_spell_cast_cleanup_time = cleanup_old_entries(_last_spell_cast, _last_spell_cast_cleanup_time, _SPELL_CAST_CLEANUP_INTERVAL, _SPELL_CAST_MAX_AGE)
     _last_spell_cast[id] = NS.time_now()
-    if _api_health_broken then
+    if false then
         _last_spell_cast["_global_gcd"] = _last_spell_cast[id]
     end
 end
@@ -2608,8 +2429,14 @@ function NS.evaluate_cast(spell, unit, reason, opts)
     end
     local label = spell_label(spell, id)
     local target = unit or NS.GetPlayer()
+    -- Dead check: don't cast while dead
+    local me = NS.GetPlayer()
+    if me then
+        local alive_ok, alive = pcall(function() return me:is_alive() end)
+        if alive_ok and alive == false then return false end
+    end
     -- 1. Primary: spell_helper native gate (cooldown + range + resource + facing + LOS + learned)
-    if id and _spell_helper and not _is_ps_build() then
+    if id and _spell_helper and not false then
         if not spell_helper_castable(id, target, opts) then return false end
     else
         -- Fallback: NS.spell_ready when spell_helper unavailable
@@ -2683,6 +2510,20 @@ function NS.evaluate_cast(spell, unit, reason, opts)
         if has_berserker_rage then
             local cc_type = type(spell) == "table" and spell._meta and spell._meta.cc_type or nil
             if cc_type and (cc_type == "fear" or cc_type == "sap" or cc_type == "incapacitate") then
+                return false
+            end
+        end
+    end
+
+    -- 6. Player casting/channeling guard: don't queue casts while already casting
+    --    or channeling. Use pcall for API safety (nil me, missing methods).
+    --    Opt-out via opts.skip_casting for callers that need to queue while casting.
+    if not opts.skip_casting then
+        local me = NS.GetPlayer()
+        if me then
+            local cast_ok, is_casting = pcall(function() return me:is_casting_spell() end)
+            local chan_ok, is_channeling = pcall(function() return me:is_channelling_spell() end)
+            if (cast_ok and is_casting) or (chan_ok and is_channeling) then
                 return false
             end
         end
@@ -6494,5 +6335,8 @@ do
 end
 
 return NS
+
+
+
 
 

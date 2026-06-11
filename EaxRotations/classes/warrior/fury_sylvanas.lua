@@ -153,44 +153,10 @@ local setting = NS.setting or function(context, key, fallback)
     return fallback
 end
 
-local function player_unit(context)
-    return context.me or (NS.GetPlayer and NS.GetPlayer()) or PLAYER_UNIT
-end
-
 local function bool_call(unit, method)
     if not unit or type(unit[method]) ~= "function" then return false end
     local ok, value = pcall(unit[method], unit)
     return ok and value == true
-end
-
-local function debuff_remains(unit, ids)
-    if NS.debuff_remains then return NS.debuff_remains(unit, ids) or 0 end
-    return 0
-end
-
-local function debuff_stacks(unit, ids)
-    if NS.debuff_stacks then return NS.debuff_stacks(unit, ids) or 0 end
-    return 0
-end
-
-local function buff_up(unit, ids)
-    if NS.buff_up then return NS.buff_up(unit, ids) or false end
-    return false
-end
-
-local function buff_stacks(unit, ids)
-    if NS.buff_stacks then return NS.buff_stacks(unit, ids) or 0 end
-    return 0
-end
-
-local function cooldown(spell_value, fallback)
-    if NS.cooldown_remains then return NS.cooldown_remains(spell_value, fallback) or 0 end
-    return 0
-end
-
-local function ready(spell_value, target, opts)
-    if NS.spell_ready then return NS.spell_ready(spell_value, target, opts) or false end
-    return true
 end
 
 local function execute_phase(context, state)
@@ -260,7 +226,7 @@ end
 -- ============================================================================
 local function build_state(context)
     local target = context.target
-    local me = player_unit(context)
+    local me = context.me or NS.GetPlayer()
     local now = NS.time_now and NS.time_now() or 0
 
     fury_state.rage = context.rage or 0
@@ -277,28 +243,28 @@ local function build_state(context)
     fury_state.ttd = context.ttd or 999
 
     -- Buffs
-    fury_state.has_battle_shout = buff_up(me, BATTLE_SHOUT_BUFF)
-    fury_state.has_commanding_shout = buff_up(me, COMMANDING_SHOUT_BUFF)
-    fury_state.has_berserker_rage = buff_up(me, BERSERKER_RAGE_BUFF)
-    fury_state.has_sweeping_strikes = buff_up(me, SWEEPING_STRIKES_BUFF)
-    fury_state.has_rampage = buff_up(me, RAMPAGE_BUFF)
-    fury_state.rampage_stacks = buff_stacks(me, RAMPAGE_BUFF)
-    fury_state.victory_rush_ready = buff_up(me, VICTORY_RUSH_BUFF)
+    fury_state.has_battle_shout = NS.buff_up(me, BATTLE_SHOUT_BUFF) or false
+    fury_state.has_commanding_shout = NS.buff_up(me, COMMANDING_SHOUT_BUFF) or false
+    fury_state.has_berserker_rage = NS.buff_up(me, BERSERKER_RAGE_BUFF) or false
+    fury_state.has_sweeping_strikes = NS.buff_up(me, SWEEPING_STRIKES_BUFF) or false
+    fury_state.has_rampage = NS.buff_up(me, RAMPAGE_BUFF) or false
+    fury_state.rampage_stacks = NS.buff_stacks(me, RAMPAGE_BUFF) or 0
+    fury_state.victory_rush_ready = NS.buff_up(me, VICTORY_RUSH_BUFF) or false
 
     -- Debuffs on target
     if target then
-        fury_state.sunder_stacks = debuff_stacks(target, SUNDER_DEBUFF)
-        fury_state.rend_remains = debuff_remains(target, REND_DEBUFF)
-        fury_state.hamstring_remains = debuff_remains(target, HAMSTRING_DEBUFF)
-        fury_state.demo_remains = debuff_remains(target, DEMO_SHOUT_DEBUFF)
-        fury_state.tclap_remains = debuff_remains(target, THUNDER_CLAP_DEBUFF)
+        fury_state.sunder_stacks = NS.debuff_stacks(target, SUNDER_DEBUFF) or 0
+        fury_state.rend_remains = NS.debuff_remains(target, REND_DEBUFF) or 0
+        fury_state.hamstring_remains = NS.debuff_remains(target, HAMSTRING_DEBUFF) or 0
+        fury_state.demo_remains = NS.debuff_remains(target, DEMO_SHOUT_DEBUFF) or 0
+        fury_state.tclap_remains = NS.debuff_remains(target, THUNDER_CLAP_DEBUFF) or 0
     end
 
     -- Spell readiness
-    fury_state.bt_cd = cooldown(ACTION.Bloodthirst, 6)
-    fury_state.ww_cd = cooldown(ACTION.Whirlwind, 10)
-    fury_state.bt_ready = ready(ACTION.Bloodthirst, target, { expected_cooldown = 6 })
-    fury_state.ww_ready = ready(ACTION.Whirlwind, target, { expected_cooldown = 10 })
+    fury_state.bt_cd = NS.cooldown_remains(ACTION.Bloodthirst, 6) or 0
+    fury_state.ww_cd = NS.cooldown_remains(ACTION.Whirlwind, 10) or 0
+    fury_state.bt_ready = NS.spell_ready(ACTION.Bloodthirst, target, { expected_cooldown = 6 }) or false
+    fury_state.ww_ready = NS.spell_ready(ACTION.Whirlwind, target, { expected_cooldown = 10 }) or false
 
     -- Stance fallback: engine may return 0 intermittently; trust buff detection
     if fury_state.stance == 0 and NS.has_form then
@@ -307,24 +273,24 @@ local function build_state(context)
         elseif NS.has_form("defensive") then fury_state.stance = STANCE.DEFENSIVE
         end
     end
-    fury_state.execute_ready = ready(ACTION.Execute, target)
-    fury_state.slam_ready = ready(ACTION.Slam, target)
-    fury_state.sweeping_ready = ready(ACTION.SweepingStrikes, me, { skip_range = true })
-    fury_state.heroic_ready = ready(ACTION.HeroicStrike, target)
-    fury_state.cleave_ready = ready(ACTION.Cleave, target)
-    fury_state.pummel_ready = ready(ACTION.Pummel, target)
-    fury_state.intercept_ready = ready(ACTION.Intercept, target)
-    fury_state.charge_ready = ready(ACTION.Charge, target)
-    fury_state.hamstring_ready = ready(ACTION.Hamstring, target)
-    fury_state.overpower_ready = ready(ACTION.Overpower, target) and fury_state.stance == STANCE.BATTLE
-    fury_state.death_wish_ready = ready(ACTION.DeathWish, me, { skip_range = true })
-    fury_state.recklessness_ready = ready(ACTION.Recklessness, me, { skip_range = true })
-    fury_state.bloodrage_ready = ready(ACTION.Bloodrage, me, { skip_range = true })
-    fury_state.victory_ready = ready(ACTION.VictoryRush, target)
-    fury_state.sunder_ready = ready(ACTION.SunderArmor, target)
-    fury_state.rend_ready = ready(ACTION.Rend, target)
-    fury_state.demo_ready = ready(ACTION.DemoralizingShout, me, { skip_range = true })
-    fury_state.thunder_ready = ready(ACTION.ThunderClap, me, { skip_range = true, expected_cooldown = 4 })
+    fury_state.execute_ready = NS.spell_ready(ACTION.Execute, target) or false
+    fury_state.slam_ready = NS.spell_ready(ACTION.Slam, target) or false
+    fury_state.sweeping_ready = NS.spell_ready(ACTION.SweepingStrikes, me, { skip_range = true }) or false
+    fury_state.heroic_ready = NS.spell_ready(ACTION.HeroicStrike, target) or false
+    fury_state.cleave_ready = NS.spell_ready(ACTION.Cleave, target) or false
+    fury_state.pummel_ready = NS.spell_ready(ACTION.Pummel, target) or false
+    fury_state.intercept_ready = NS.spell_ready(ACTION.Intercept, target) or false
+    fury_state.charge_ready = NS.spell_ready(ACTION.Charge, target) or false
+    fury_state.hamstring_ready = NS.spell_ready(ACTION.Hamstring, target) or false
+    fury_state.overpower_ready = NS.spell_ready(ACTION.Overpower, target) and fury_state.stance == STANCE.BATTLE
+    fury_state.death_wish_ready = NS.spell_ready(ACTION.DeathWish, me, { skip_range = true }) or false
+    fury_state.recklessness_ready = NS.spell_ready(ACTION.Recklessness, me, { skip_range = true }) or false
+    fury_state.bloodrage_ready = NS.spell_ready(ACTION.Bloodrage, me, { skip_range = true }) or false
+    fury_state.victory_ready = NS.spell_ready(ACTION.VictoryRush, target) or false
+    fury_state.sunder_ready = NS.spell_ready(ACTION.SunderArmor, target) or false
+    fury_state.rend_ready = NS.spell_ready(ACTION.Rend, target) or false
+    fury_state.demo_ready = NS.spell_ready(ACTION.DemoralizingShout, me, { skip_range = true }) or false
+    fury_state.thunder_ready = NS.spell_ready(ACTION.ThunderClap, me, { skip_range = true, expected_cooldown = 4 }) or false
 
     fury_state.execute_phase = execute_phase(context, fury_state)
 
@@ -409,7 +375,7 @@ end
 
 -- Victory Rush: post-kill
 local function victory_rush_matches(context, state)
-    if not player_unit(context) then return false end
+    if not (context.me or NS.GetPlayer()) then return false end
     if not state.victory_rush_ready then return false end
     return action(context, build_action("VictoryRush", ACTION.VictoryRush, {}))
 end
@@ -589,7 +555,7 @@ local function intercept_matches(context, state)
     if not auto_charge then return false end
     if (state.target_distance or 0) < 8 or (state.target_distance or 0) > 25 then return false end
     -- v2.1.7 / v2.1.8: Charge opener protection — don't Intercept if we just Charged
-    if not ready(ACTION.Intercept, context.target) then return false end
+    if not (NS.spell_ready(ACTION.Intercept, context.target) or false) then return false end
     return action(context, build_action("Intercept", ACTION.Intercept, { required_stance = STANCE.BERSERKER, min_rage = 10, cooldown = 30 }))
 end
 

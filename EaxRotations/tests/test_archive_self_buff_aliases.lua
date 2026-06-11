@@ -23,7 +23,7 @@ contains(ooc, "demon_armor = { n = 8, 27260, 11735, 11734, 11733, 1086, 706, 687
 contains(ooc, "lightning_shield = { n = 9, 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }", "OOC Lightning Shield should include online TBC ranks")
 
 local warrior_leveling = read("EaxRotations/classes/warrior/leveling_sylvanas.lua")
-contains(warrior_leveling, "state.has_battle_shout = has_buff(BATTLE_SHOUT_BUFF)", "Warrior leveling should check full Battle Shout buff table")
+contains(warrior_leveling, "state.has_battle_shout = L.has_buff(BATTLE_SHOUT_BUFF)", "Warrior leveling should check full Battle Shout buff table")
 
 local druid_leveling = read("EaxRotations/classes/druid/leveling_sylvanas.lua")
 contains(druid_leveling, "state.has_mark_of_wild = has_buff(MARK_OF_THE_WILD_BUFF)", "Druid leveling should check full Mark/Gift buff table")
