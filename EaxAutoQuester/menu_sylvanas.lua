@@ -109,71 +109,70 @@ function M.render()
     -- Populate tree node label — clears children each frame
     _t.n = 0
 
-    -- Begin tree
-    local tree_ok = M.tree:render("EaxAutoQuester")
-    if not tree_ok then return end
-
-    -- Checkboxes — core features
-    if M.enable then
-        M.enable:render("Enable AutoQuester", "Master toggle — enables or disables the entire auto-questing system")
-    end
-
-    if M.auto_accept then
-        M.auto_accept:render("Auto-accept Quests", "Automatically accept quests from NPCs when in range and dialog is open")
-    end
-
-    if M.auto_turnin then
-        M.auto_turnin:render("Auto-turnin Quests", "Automatically turn in completed quests when interacting with quest NPCs")
-    end
-
-    if M.auto_loot then
-        M.auto_loot:render("Auto-loot", "Automatically loot quest-relevant items from corpses and objects")
-    end
-
-    if M.auto_repair then
-        M.auto_repair:render("Auto-repair", "Automatically repair equipment at vendors when durability is low")
-    end
-
-    if M.auto_vendor then
-        M.auto_vendor:render("Auto-vendor", "Automatically sell grey and low-quality items at vendors")
-    end
-
-    if M.auto_train then
-        M.auto_train:render("Auto-train", "Automatically train new spells and skills from class trainers")
-    end
-
-    if M.debug then
-        M.debug:render("Debug Logging", "Enable verbose debug output to the Sylvanas log console")
-    end
-
-    -- Combobox — vendor threshold
-    if M.vendor_threshold then
-        -- Build labels list from pre-defined options on every render
-        _combo_labels.n = 0
-        for i = 1, #VENDOR_OPTIONS do
-            _combo_labels.n = _combo_labels.n + 1
-            _combo_labels[_combo_labels.n] = VENDOR_OPTIONS[i]
+    -- Begin tree with callback
+    M.tree:render("EaxAutoQuester", function()
+        -- Checkboxes — core features
+        if M.enable then
+            M.enable:render("Enable AutoQuester", "Master toggle — enables or disables the entire auto-questing system")
         end
-        M.vendor_threshold:render(
-            "Vendor Sell Threshold",
-            _combo_labels,
-            "Minimum quality to auto-vendor. Grey = junk only, Blue = up to rare quality"
-        )
-    end
 
-    -- Sliders
-    if M.interact_range then
-        M.interact_range:render("Interaction Range", "Maximum distance (yards) to consider quest objects/NPCs as interactable")
-    end
+        if M.auto_accept then
+            M.auto_accept:render("Auto-accept Quests", "Automatically accept quests from NPCs when in range and dialog is open")
+        end
 
-    if M.nav_tolerance then
-        M.nav_tolerance:render("Nav Tolerance", "Distance (yards) from waypoint considered 'arrived' — lower = more precise")
-    end
+        if M.auto_turnin then
+            M.auto_turnin:render("Auto-turnin Quests", "Automatically turn in completed quests when interacting with quest NPCs")
+        end
 
-    -- Keybind
-    if M.toggle_keybind then
-        M.toggle_keybind:render("Toggle Plugin Keybind", "Keybind to enable/disable the auto-questing plugin on the fly")
-    end
+        if M.auto_loot then
+            M.auto_loot:render("Auto-loot", "Automatically loot quest-relevant items from corpses and objects")
+        end
+
+        if M.auto_repair then
+            M.auto_repair:render("Auto-repair", "Automatically repair equipment at vendors when durability is low")
+        end
+
+        if M.auto_vendor then
+            M.auto_vendor:render("Auto-vendor", "Automatically sell grey and low-quality items at vendors")
+        end
+
+        if M.auto_train then
+            M.auto_train:render("Auto-train", "Automatically train new spells and skills from class trainers")
+        end
+
+        if M.debug then
+            M.debug:render("Debug Logging", "Enable verbose debug output to the Sylvanas log console")
+        end
+
+        -- Combobox — vendor threshold
+        if M.vendor_threshold then
+            -- Build labels list from pre-defined options on every render
+            _combo_labels.n = 0
+            for i = 1, #VENDOR_OPTIONS do
+                _combo_labels.n = _combo_labels.n + 1
+                _combo_labels[_combo_labels.n] = VENDOR_OPTIONS[i]
+            end
+            M.vendor_threshold:render(
+                "Vendor Sell Threshold",
+                _combo_labels,
+                "Minimum quality to auto-vendor. Grey = junk only, Blue = up to rare quality"
+            )
+        end
+
+        -- Sliders
+        if M.interact_range then
+            M.interact_range:render("Interaction Range", "Maximum distance (yards) to consider quest objects/NPCs as interactable")
+        end
+
+        if M.nav_tolerance then
+            M.nav_tolerance:render("Nav Tolerance", "Distance (yards) from waypoint considered 'arrived' — lower = more precise")
+        end
+
+        -- Keybind
+        if M.toggle_keybind then
+            M.toggle_keybind:render("Toggle Plugin Keybind", "Keybind to enable/disable the auto-questing plugin on the fly")
+        end
+    end)
 end
 
 -- ============================================================================
