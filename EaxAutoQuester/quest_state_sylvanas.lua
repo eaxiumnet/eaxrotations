@@ -561,10 +561,11 @@ local function execute_goal_action(action_type, goal)
             end
         end
 
-        -- No NPC from goal data — scan all visible objects for any nearby unit
+        -- No NPC from goal data — scan all visible objects for any nearby NPC
         local me = _get_local_player()
         if me then
             local _, pos = pcall(function() return me:get_position() end)
+            local _, me_guid = pcall(function() return me:get_guid() end)
             if pos then
                 local _, objects = pcall(core.object_manager.get_visible_objects)
                 if objects and #objects > 0 then
@@ -572,22 +573,43 @@ local function execute_goal_action(action_type, goal)
                     local limit = #objects > 50 and 50 or #objects
                     for i = 1, limit do
                         local obj = objects[i]
-                        if obj then
+                        if not obj then break end
+                        local skip = false
+
+                        -- Skip self
+                        if me_guid then
+                            local _, guid = pcall(function() return obj:get_guid() end)
+                            if guid and guid == me_guid then skip = true end
+                        end
+
+                        -- Only units
+                        if not skip then
+                            local ok2, unit = pcall(function() return obj:is_unit() end)
+                            if not (ok2 and unit) then skip = true end
+                        end
+
+                        -- Skip players (only NPCs)
+                        if not skip then
+                            local ok5, is_player = pcall(function() return obj:is_player() end)
+                            if ok5 and is_player then skip = true end
+                        end
+
+                        -- Skip dead
+                        if not skip then
+                            local ok3, dead = pcall(function() return obj:is_dead() end)
+                            if ok3 and dead then skip = true end
+                        end
+
+                        if not skip then
                             local ok1, valid = pcall(function() return obj:is_valid() end)
                             if ok1 and valid then
-                                local ok2, unit = pcall(function() return obj:is_unit() end)
-                                if ok2 and unit then
-                                    local ok3, dead = pcall(function() return obj:is_dead() end)
-                                    if ok3 and not dead then
-                                        local ok4, opos = pcall(function() return obj:get_position() end)
-                                        if ok4 and opos then
-                                            local dx = (opos.x or 0) - (pos.x or 0)
-                                            local dy = (opos.y or 0) - (pos.y or 0)
-                                            local d_sq = dx * dx + dy * dy
-                                            if d_sq < best_sq and d_sq < 100 then
-                                                best, best_sq = obj, d_sq
-                                            end
-                                        end
+                                local ok4, opos = pcall(function() return obj:get_position() end)
+                                if ok4 and opos then
+                                    local dx = (opos.x or 0) - (pos.x or 0)
+                                    local dy = (opos.y or 0) - (pos.y or 0)
+                                    local d_sq = dx * dx + dy * dy
+                                    if d_sq < best_sq and d_sq < 100 then
+                                        best, best_sq = obj, d_sq
                                     end
                                 end
                             end
