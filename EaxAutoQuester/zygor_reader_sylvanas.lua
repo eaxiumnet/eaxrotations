@@ -16,11 +16,22 @@ local _get_objectives = core.addons.zygor.get_objectives
 local _get_wp         = core.addons.zygor.get_current_waypoint
 local _get_step_wps   = core.addons.zygor.get_step_waypoints
 
--- Attempt to load izi SDK for map_to_world coordinate conversion — optional
-local _izi_map_to_world = nil
+-- Coordinate conversion — try izi SDK first, fall back to core.game_ui
+local _convert_map_to_world = nil
 local _ok, _izi = pcall(require, "common/izi_sdk")
 if _ok and _izi and _izi.map_to_world then
-    _izi_map_to_world = _izi.map_to_world
+    _convert_map_to_world = _izi.map_to_world
+elseif core.game_ui and core.game_ui.get_world_pos_from_map_pos then
+    -- Fallback: use core API directly (returns vec2 without z — add z via terrain height)
+    _convert_map_to_world = function(map_id, pos)
+        local vec2 = core.game_ui.get_world_pos_from_map_pos(map_id, pos)
+        if not vec2 or not vec2.x or not vec2.y then return nil end
+        local z = 0
+        if core.get_height_for_position then
+            z = core.get_height_for_position({ x = vec2.x, y = vec2.y, z = 0 })
+        end
+        return { x = vec2.x, y = vec2.y, z = z }
+    end
 end
 
 -- ============================================================================
@@ -76,10 +87,10 @@ function M_get_current_waypoint_world()
     if not ok or not wp then return nil end
 
     -- Need izi SDK and valid map coords
-    if not _izi_map_to_world then return nil end
+    if not _convert_map_to_world then return nil end
     if not wp.map_id or not wp.x or not wp.y then return nil end
 
-    local wok, wpos = pcall(_izi_map_to_world, wp.map_id, wp.x, wp.y)
+    local wok, wpos = pcall(_convert_map_to_world, wp.map_id, { x = wp.x, y = wp.y })
     if not wok or not wpos then return nil end
 
     return wpos
@@ -89,7 +100,7 @@ end
 --- @return table[]|nil Array of vec3 { x, y, z } or nil if none
 function M_get_step_waypoints_world()
     if not zygor_loaded() then return nil end
-    if not _izi_map_to_world then return nil end
+    if not _convert_map_to_world then return nil end
 
     local ok, waypoints = pcall(_get_step_wps)
     if not ok or not waypoints or #waypoints == 0 then return nil end
@@ -98,7 +109,7 @@ function M_get_step_waypoints_world()
     for i = 1, #waypoints do
         local wp = waypoints[i]
         if wp and wp.map_id and wp.x and wp.y then
-            local wok, wpos = pcall(_izi_map_to_world, wp.map_id, wp.x, wp.y)
+            local wok, wpos = pcall(_convert_map_to_world, wp.map_id, { x = wp.x, y = wp.y })
             if wok and wpos then
                 _stack.n = _stack.n + 1
                 _stack[_stack.n] = wpos
