@@ -561,10 +561,50 @@ local function execute_goal_action(action_type, goal)
             end
         end
 
-        -- Already at the waypoint — let Zygor detect the arrival
-        -- Wait longer so Zygor has time to register the player position
+        -- No NPC from goal data — scan all visible objects for any nearby unit
+        local me = _get_local_player()
+        if me then
+            local _, pos = pcall(function() return me:get_position() end)
+            if pos then
+                local _, objects = pcall(core.object_manager.get_visible_objects)
+                if objects and #objects > 0 then
+                    local best, best_sq = nil, math.huge
+                    local limit = #objects > 50 and 50 or #objects
+                    for i = 1, limit do
+                        local obj = objects[i]
+                        if obj then
+                            local ok1, valid = pcall(function() return obj:is_valid() end)
+                            if ok1 and valid then
+                                local ok2, unit = pcall(function() return obj:is_unit() end)
+                                if ok2 and unit then
+                                    local ok3, dead = pcall(function() return obj:is_dead() end)
+                                    if ok3 and not dead then
+                                        local ok4, opos = pcall(function() return obj:get_position() end)
+                                        if ok4 and opos then
+                                            local dx = (opos.x or 0) - (pos.x or 0)
+                                            local dy = (opos.y or 0) - (pos.y or 0)
+                                            local d_sq = dx * dx + dy * dy
+                                            if d_sq < best_sq and d_sq < 100 then
+                                                best, best_sq = obj, d_sq
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if best then
+                        pcall(core.input.set_target, best)
+                        pcall(core.input.interact_with_object, best)
+                        debug_log("DO_ACTION: area — targeting nearest unit")
+                        return true
+                    end
+                end
+            end
+        end
+        -- No NPC found — wait for Zygor to detect arrival
         _area_wait_timer = _core_time() + 3.0
-        debug_log("DO_ACTION: area goal — waiting for Zygor to detect arrival")
+        debug_log("DO_ACTION: area goal — no NPC, waiting")
         return true
     end
 
