@@ -513,9 +513,28 @@ local function execute_goal_action(action_type, goal)
     end
 
     if action_type == "area" then
-        -- Area goal: wait 2s then re-check completion
-        _area_wait_timer = _core_time() + 2.0
-        debug_log("DO_ACTION: area goal — waiting 2s")
+        -- Area goal: first try to find quest NPCs nearby
+        if npc then
+            local npc_ids = npc.find_quest_npcs()
+            if npc_ids then
+                local nearest = npc.find_nearest_npc(npc_ids, 15)
+                if nearest then
+                    pcall(core.input.set_target, nearest)
+                    debug_log("DO_ACTION: area — targeted nearby quest NPC")
+                    return true
+                end
+            end
+            -- Also try interactable objects
+            local objects = npc.find_interactable_objects(nil)
+            if objects and #objects > 0 then
+                pcall(core.input.set_target, objects[1])
+                debug_log("DO_ACTION: area — targeted nearby interactable")
+                return true
+            end
+        end
+        -- No NPCs found: wait briefly then re-check
+        _area_wait_timer = _core_time() + 0.5
+        debug_log("DO_ACTION: area goal — waiting 0.5s")
         return true
     end
 
