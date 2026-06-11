@@ -689,6 +689,18 @@ local strategies = {
     },
 
     {
+        name = "ShadowEmbraceMaintenance",
+        matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            if (state.se_stacks or 0) >= 5 then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Shadow Embrace maintenance")
+        end,
+    },
+
+    {
         name = "ShadowBoltFiller",
         matches = function(context)
             if not context.has_valid_enemy_target then return false end

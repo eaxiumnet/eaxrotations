@@ -193,6 +193,7 @@ local function action(context, row)
     local target = (row.target == "self" or row.requires_target == false) and (context.me or NS.GetPlayer()) or context.target
     if not target then return false end
         if row.min_rage and context.rage and context.rage < row.min_rage then return false end
+    if row.required_stance and context.stance ~= row.required_stance then return false end
     local opts = {}
     if row.requires_target == false then opts.skip_range = true end
     if row.cooldown then opts.expected_cooldown = row.cooldown end
@@ -320,9 +321,20 @@ local function build_state(context)
         end
     end
 
-    -- Swing timer for Slam weave
+    -- Swing timer for Slam weave + HS trick
     fury_state.mh_until = (me and NS.swing_time_until and NS.swing_time_until(me)) or 999
     fury_state.mh_progress = (me and NS.swing_progress and NS.swing_progress(me)) or 0
+    fury_state.oh_until = (me and NS.swing_time_until and NS.swing_time_until(me, 2)) or 999
+
+    -- Sweeping Strikes cooldown
+    fury_state.ss_cd = NS.cooldown_remains(ACTION.SweepingStrikes, 30) or 0
+
+    -- Target casting state for interrupt reserve
+    fury_state.target_casting_interruptible = fury_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false) or false
+
+    -- Offhand check: swing timer returns >0 for OH slot → equipped
+    local oh_swing = me and NS.swing_time_until and NS.swing_time_until(me, 2) or 0
+    fury_state.has_offhand = oh_swing > 0
 
     return fury_state
 end
@@ -447,8 +459,44 @@ local function overpower_matches(context, state)
     return action(context, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = 5 }))
 end
 
+-- SS rage reservation: hold rage when SS coming off CD in AoE
+local SS_RESERVE_FLOOR = 60
+local SS_POOL_WINDOW = 2.0
+
+local function should_reserve_for_sweeping(context, state)
+    if (context.enemy_count or 0) < 2 then return false end
+    if state.has_sweeping_strikes then return false end
+    local ss_cd = state.ss_cd or 99
+    if ss_cd <= SS_POOL_WINDOW and (context.rage or 0) < SS_RESERVE_FLOOR then return true end
+    return false
+end
+
+-- HS/Cleave starvation: don't queue if it would starve BT or WW
+local function would_starve_core_fury(context, state, cost)
+    cost = cost or 15
+    local rage = context.rage or 0
+    local bt_cd = state.bt_cd or 99
+    if bt_cd >= 0 and bt_cd <= 1.5 then
+        if (rage - cost) < BLOODTHIRST_RESERVE then return true end
+    end
+    local ww_cd = state.ww_cd or 99
+    if ww_cd >= 0 and ww_cd <= 1.5 then
+        if (rage - cost) < WHIRLWIND_RESERVE then return true end
+    end
+    -- Interrupt reserve
+    if state.target_casting_interruptible and state.pummel_ready then
+        if (rage - cost) < 10 then return true end
+    end
+    return false
+end
+
 -- Bloodthirst: core Fury ability
 local function bt_matches(context, state)
+    -- WW priority: yield to Whirlwind when enough enemies nearby and WW is ready
+    local ww_prio = setting(context, "fury_ww_prio_count", 2)
+    if ww_prio > 0 and (state.enemy_count or 0) >= ww_prio and (context.rage or 0) >= 25 and state.ww_ready then
+        return false
+    end
     return action(context, build_action("Bloodthirst", ACTION.Bloodthirst, { required_stance = STANCE.BERSERKER, min_rage = 30, cooldown = 6 }))
 end
 
@@ -507,18 +555,43 @@ local function slam_matches(context, state)
     return action(context, build_action("Slam", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }))
 end
 
--- Heroic Strike: off-GCD rage dump
+-- Heroic Strike: off-GCD rage dump with HS trick + starvation + interrupt reserve
 local function heroic_strike_matches(context, state)
+    -- SS reservation
+    if should_reserve_for_sweeping(context, state) then return false end
+    -- Starvation + interrupt check
+    if would_starve_core_fury(context, state, 15) then return false end
+    -- HS Trick: proactively queue when OH swing is imminent (before rage threshold)
+    -- Dequeue middleware handles safety
+    local me = context.me or NS.GetPlayer()
+    local settings = context.settings or {}
+    if settings.hs_trick and me then
+        local oh_remaining = (me and NS.swing_time_until and NS.swing_time_until(me, 2)) or 999
+        local mh_remaining = (me and NS.swing_time_until and NS.swing_time_until(me)) or 999
+        if oh_remaining > 0 and oh_remaining <= 0.4 then
+            if mh_remaining > oh_remaining + 0.3 then
+                return action(context, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = 15 }))
+            end
+        end
+    end
+    -- Normal HS threshold
     local hs_rage = setting(context, "heroic_strike_rage", HEROIC_STRIKE_RAGE)
+    -- HS Trick lower threshold when dual-wielding (dequeue middleware handles safety)
+    if settings.hs_trick and state.has_offhand then
+        hs_rage = 30
+    end
     if (state.rage or 0) < hs_rage then return false end
     return action(context, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = hs_rage }))
 end
 
--- Cleave: AoE rage dump
+-- Cleave: AoE rage dump with starvation + SS reservation
 local function cleave_matches(context, state)
+    if should_reserve_for_sweeping(context, state) then return false end
     if (state.enemy_count or 0) < 2 then return false end
     local cleave_rage = setting(context, "cleave_rage", CLEAVE_RAGE)
-    if (state.rage or 0) < cleave_rage then return false end
+    local rage = state.rage or 0
+    if rage < cleave_rage then return false end
+    if would_starve_core_fury(context, state, 15) then return false end
     return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = cleave_rage, enemy_count = 2, is_aoe = true }))
 end
 
@@ -540,12 +613,58 @@ local function berserker_rage_matches(context, state)
     return action(context, build_action("BerserkerRage", ACTION.BerserkerRage, { target = "self", requires_target = false, cooldown = 30 }))
 end
 
--- Hamstring: PvP snare
+-- Hamstring: PvP snare + Sword Spec weave (high rage)
 local function hamstring_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
-    if not state.is_pvp then return false end
-    if (state.hamstring_remains or 0) > 3 then return false end
-    return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
+    -- PvP snare
+    if state.is_pvp then
+        if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
+        if (state.hamstring_remains or 0) > 3 then return false end
+        return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
+    end
+    -- Sword Spec weave: generate extra attacks when rage is high and BT/WW on CD
+    if setting(context, "fury_use_hamstring", false) then
+        local min_rage = setting(context, "fury_hamstring_rage", 50)
+        if (state.rage or 0) >= min_rage then
+            -- Only weave when core abilities are on CD
+            if (state.bt_cd or 99) > 1.5 and (state.ww_cd or 99) > 1.5 and not state.execute_phase then
+                return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10 }))
+            end
+        end
+    end
+    return false
+end
+
+-- Swing Desync: when dual-wielding with synced MH/OH swings, inject a Slam
+-- to offset timers, smoothing rage gen and helping Flurry/WF benefit both hands.
+local DESYNC_COOLDOWN = 10
+local DESYNC_SYNC_THRESHOLD = 0.3
+local DESYNC_SLAM_WINDOW = 1.6
+local desync_last_attempt = 0
+
+local function swing_desync_matches(context, state)
+    if not setting(context, "fury_swing_desync", false) then return false end
+    if state.is_moving then return false end
+    if not state.has_offhand then return false end
+    -- Cooldown between desync attempts
+    local now = NS.time_now and NS.time_now() or 0
+    if (now - desync_last_attempt) < DESYNC_COOLDOWN then return false end
+    -- Both hands must be actively swinging
+    local me = context.me or NS.GetPlayer()
+    if not me then return false end
+    local mh_remaining = (me and NS.swing_time_until and NS.swing_time_until(me)) or 0
+    local oh_remaining = (me and NS.swing_time_until and NS.swing_time_until(me, 2)) or 0
+    if mh_remaining <= 0 or oh_remaining <= 0 then return false end
+    -- Check if swings are synced (remaining times close together)
+    if math.abs(mh_remaining - oh_remaining) > DESYNC_SYNC_THRESHOLD then return false end
+    -- Need enough swing time for base Slam (1.5s) to land before next auto
+    if mh_remaining < DESYNC_SLAM_WINDOW then return false end
+    -- Don't starve BT/WW if they're coming off CD soon
+    if (state.bt_cd or 99) <= 1.0 and (state.rage or 0) < (BLOODTHIRST_RESERVE + SLAM_RAGE_COST) then return false end
+    if (state.ww_cd or 99) <= 1.0 and (state.rage or 0) < (WHIRLWIND_RESERVE + SLAM_RAGE_COST) then return false end
+    local rage = state.rage or 0
+    if rage < SLAM_RAGE_COST then return false end
+    if rage >= 90 then return false end  -- don't Slam at rage cap, use filler
+    return action(context, build_action("Slam", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }))
 end
 
 -- Intercept: in-combat gap closer (respects auto_charge toggle — v2.2.0 fix)
@@ -646,10 +765,11 @@ local STRATEGY_SPECS = {
     -- AoE
     { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false }) },
     -- Core rotation
+    { "Rampage", rampage_matches, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }) },
     { "Bloodthirst", bt_matches, build_action("Bloodthirst", ACTION.Bloodthirst, { required_stance = STANCE.BERSERKER, min_rage = 30, cooldown = 6 }) },
     { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
-    { "Rampage", rampage_matches, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }) },
     { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }) },
+    { "SwingDesync", swing_desync_matches, build_action("SwingDesync", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }) },
     { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { required_stance = STANCE.BERSERKER, min_rage = 15 }) },
     -- Overpower REMOVED from Fury: Arms-only in TBC
     { "SunderArmor", sunder_armor_matches, build_action("SunderArmor", ACTION.SunderArmor, { min_rage = 15, debuff = SUNDER_DEBUFF }) },

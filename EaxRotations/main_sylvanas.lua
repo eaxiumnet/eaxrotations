@@ -368,7 +368,7 @@ local function unit_bool(unit, ...)
     if not unit or not NS.safe_field then return false end
     for i = 1, select("#", ...) do
         local fn = NS.safe_field(unit, select(i, ...))
-        if fn and fast(fn, unit) == true then return true end
+        if fn then local ok, result = pcall(fast, fn, unit); if ok and result == true then return true end end
     end
     return false
 end
@@ -402,8 +402,11 @@ local function build_context()
             local ok, guid = pcall(get_guid, selected_target)
             if ok then current_guid = guid end
         end
-        if current_guid and _last_target_guid and current_guid ~= _last_target_guid then
-            _manual_target_lockout_until = (NS.time_now and NS.time_now() or 0) + 3.0
+        if current_guid and _last_target_guid then
+            local ok, diff = pcall(function() return current_guid ~= _last_target_guid end)
+            if ok and diff then
+                _manual_target_lockout_until = (NS.time_now and NS.time_now() or 0) + 3.0
+            end
         end
         _last_target_guid = current_guid
     else
@@ -559,7 +562,7 @@ local function build_context()
         _pet_cache_timestamp = now_pet
     end
     _context.pet = _pet_cache_data
-    _context.pet_dead = _pet_cache and not _pet_cache:is_alive() or false
+    _context.pet_dead = _pet_cache_data and not _pet_cache_data:is_alive() or false
     _context.stance = _get_player_stance() or 0
     _context.player_class = NS.player_class_id
     _context.has_totems = _context.in_combat
@@ -1032,7 +1035,7 @@ function M.on_rotation_update()
             return false
         end
     end
-    if context.on_gcd and context.in_combat then
+    if context.on_gcd and context.in_combat and context.is_casting then
         return true
     end
     -- Optimization: skip strategy evaluation while player is casting or channeling.
@@ -1104,7 +1107,7 @@ function M.on_rotation_update_unified()
             return true
         end
     end
-    if context.on_gcd and context.in_combat then
+    if context.on_gcd and context.in_combat and context.is_casting then
         return true
     end
     if reaction_delay_active(context) then

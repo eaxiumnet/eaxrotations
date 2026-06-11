@@ -101,11 +101,11 @@ end
 
 local execute = find_strategy("Execute")-- Target HP high -> should NOT match
 spell_ready_calls = {}
-assert_false(execute.matches({ target_hp = 30, rage = 50, target = {} }), "Execute should not match when target HP > 20%")
+assert_false(execute.matches({ target_hp = 30, rage = 50, target = {}, stance = 3 }), "Execute should not match when target HP > 20%")
 
 -- Target HP low -> should match
 spell_ready_calls = {}
-assert_true(execute.matches({ target_hp = 15, rage = 50, target = {} }), "Execute should match when target HP <= 20%")
+assert_true(execute.matches({ target_hp = 15, rage = 50, target = {}, stance = 3 }), "Execute should match when target HP <= 20%")
 
 -- ============================================================================
 -- Slam: only when not moving and rage-safe for upcoming core abilities
@@ -166,17 +166,17 @@ _G.EaxRotations.debuff_remains = function(target, debuff_list) return 0 end
 
 local intercept = find_strategy("Intercept")	-- Not PvP -> should NOT match
 	spell_ready_calls = {}
-	assert_false(intercept.matches({ is_pvp = false, target_distance = 15 }), "Intercept should not match when not PvP")
+	assert_false(intercept.matches({ is_pvp = false, target_distance = 15, stance = 3 }), "Intercept should not match when not PvP")
 
 -- Too close -> should NOT match
 spell_ready_calls = {}
-assert_false(intercept.matches({ is_pvp = true, target_distance = 5 }), "Intercept should not match when target < 8 yards")
+assert_false(intercept.matches({ is_pvp = true, target_distance = 5, stance = 3, me = {} }), "Intercept should not match when target < 8 yards")
 
 -- Too far -> should NOT match
 spell_ready_calls = {}
-assert_false(intercept.matches({ is_pvp = true, target_distance = 30 }), "Intercept should not match when target > 25 yards")-- Range OK -> should match
+assert_false(intercept.matches({ is_pvp = true, target_distance = 30, stance = 3, me = {} }), "Intercept should not match when target > 25 yards")-- Range OK -> should match
 	spell_ready_calls = {}		
-	assert_true(intercept.matches({ is_pvp = true, target_distance = 15, in_combat = true, target = {}, me = {} }), "Intercept should match at 8-25 yards")
+	assert_true(intercept.matches({ is_pvp = true, target_distance = 15, stance = 3, in_combat = true, target = {}, me = {} }), "Intercept should match at 8-25 yards")
 
 -- ============================================================================
 -- Pummel removed — handled by interrupt_manager middleware

@@ -144,7 +144,6 @@ local runtime = {
     last_lightning_shield_ms = -SHIELD_REFRESH_UNKNOWN_MS,
 }
 
----@diagnostic disable-next-line: duplicate-set-field
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
@@ -251,7 +250,8 @@ local function build_state(context)
     enh_state.target_has_flame_shock = target and NS.debuff_up(target, FLAME_SHOCK_DEBUFF) or false
     enh_state.flame_shock_remains = target and NS.debuff_remains(target, FLAME_SHOCK_DEBUFF) or 0
     if target and target.is_casting then
-        enh_state.target_is_casting = pcall(function() return target:is_casting() end) and target:is_casting() or false
+        local ok_casting, casting = pcall(function() return target:is_casting() end)
+        enh_state.target_is_casting = ok_casting and casting or false
         local ok, pct = pcall(function() return target:get_cast_pct() end)
         enh_state.target_cast_pct = ok and pct or 0
         local is_interruptible = NS.is_interruptible and NS.is_interruptible(target) or false
@@ -444,7 +444,7 @@ local function fire_nova_replacement_matches(ctx)
     local s = ctx.settings or {}
     if s.enhancement_fire_totem == "fire_weaving" then return false end
     
-    if ctx.target and NS.debuff_up and not NS.debuff_up(ctx.target, FLAME_SHOCK_DEBUFF) then
+    if ctx.target and NS.debuff_up and NS.debuff_up(ctx.target, FLAME_SHOCK_DEBUFF) then
         return can_drop_totem(ctx, SPELLS.MagmaTotem, 1, SPELLS.MagmaTotem)
     end
     return false
