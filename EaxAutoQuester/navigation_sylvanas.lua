@@ -273,7 +273,9 @@ function M.update()
         -- Check arrival by distance (simple_movement has no event system)
         local me = _get_local_player()
         if me then
-            local dist_sq = sq_distance(me, _destination)
+            local pos_ok, pos = pcall(function() return me:get_position() end)
+            if not pos_ok or not pos then return end
+            local dist_sq = sq_distance(pos, _destination)
             if dist_sq <= _nav_tolerance_sq then
                 _state = "ARRIVED"
                 stop_internal()
@@ -297,22 +299,24 @@ function M.update()
     local me = _get_local_player()
     if not me then return end
 
+    -- Get player position via :get_position() (game_object has no .x/.y — must use API)
+    local me_pos_ok, me_pos = pcall(function() return me:get_position() end)
+    if not me_pos_ok or not me_pos then return end
+
     if not _last_position then
-        _last_position = { x = me.x, y = me.y, z = me.z }
+        _last_position = { x = me_pos.x, y = me_pos.y, z = me_pos.z }
         _last_pos_time = now
         return
     end
 
     -- Check if player moved since last check
-    local dx = (me.x or 0) - (_last_position.x or 0)
-    local dy = (me.y or 0) - (_last_position.y or 0)
+    local dx = (me_pos.x or 0) - (_last_position.x or 0)
+    local dy = (me_pos.y or 0) - (_last_position.y or 0)
     local moved_sq = dx * dx + dy * dy
 
     if moved_sq > STUCK_MOVEMENT_THRESHOLD_SQ then
         -- Player moved: update last position, reset stuck timer
-        _last_position.x = me.x
-        _last_position.y = me.y
-        _last_position.z = me.z
+        _last_position = { x = me_pos.x, y = me_pos.y, z = me_pos.z }
         _last_pos_time = now
         _stuck_timer = 0
     else
