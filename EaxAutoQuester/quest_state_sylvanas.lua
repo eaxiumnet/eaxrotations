@@ -331,6 +331,18 @@ end
 --- Retries up to 3 times (2s pause on stuck, immediate retry on fail).
 --- @return string next_state
 local function state_nav()
+    -- Combat check: stop navigation and let EaxRotations handle
+    local me = _get_local_player()
+    if me then
+        local ok, combat = pcall(function() return me:is_in_combat() end)
+        if ok and combat then
+            local nav = ensure_navigation()
+            if nav then nav.stop() end
+            debug_log("NAV: combat detected — stopped navigation")
+            return "IDLE"
+        end
+    end
+
     local nav = ensure_navigation()
     if not nav then return "IDLE" end
 
