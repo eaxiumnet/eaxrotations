@@ -553,9 +553,33 @@ local function execute_goal_action(action_type, goal)
             goal_target = safe(goal.target, safe(goal.npc, nil))
         end
 
-        if npc and (goal_npc_id or goal_target) then
-            -- Try by NPC ID
-            if goal_npc_id then
+        if goal_npc_id then
+            -- Look up NPC spawn from database, navigate there
+            local npc_db_ok, npc_db = pcall(require, "npc_db_sylvanas")
+            if npc_db_ok and npc_db.find_npc_spawn then
+                local me = _get_local_player()
+                local map_id = nil
+                if me then
+                    local _, mid = pcall(function() return core.get_map_id() end)
+                    if mid then map_id = mid end
+                end
+                local spawn = npc_db.find_npc_spawn(goal_npc_id, map_id)
+                if spawn then
+                    local utils = ensure_utils()
+                    local _, pos = pcall(function() return me:get_position() end)
+                    if pos and utils then
+                        local dist_sq = utils.squared_distance(pos, spawn)
+                        if dist_sq > 100 then
+                            -- NPC is >10yd away — navigate to spawn
+                            _nav_destination = { x = spawn.x, y = spawn.y, z = spawn.z }
+                            debug_log("DO_ACTION: navigatng to NPC " .. tostring(goal_npc_id) .. " spawn")
+                            return false  -- false = not done yet, re-evaluate next cycle
+                        end
+                    end
+                end
+            end
+            -- At NPC spawn — find and interact
+            if npc then
                 local nearest = npc.find_nearest_npc({ goal_npc_id }, 15)
                 if nearest then
                     pcall(core.input.set_target, nearest)
@@ -564,15 +588,15 @@ local function execute_goal_action(action_type, goal)
                     return true
                 end
             end
-            -- Try by target name
-            if goal_target then
-                local objects = npc.find_interactable_objects(goal_target)
-                if objects and #objects > 0 then
-                    pcall(core.input.set_target, objects[1])
-                    pcall(core.input.interact_with_object, objects[1])
-                    debug_log("DO_ACTION: area — targeted '" .. tostring(goal_target) .. "'")
-                    return true
-                end
+        end
+
+        if npc and goal_target then
+            local objects = npc.find_interactable_objects(goal_target)
+            if objects and #objects > 0 then
+                pcall(core.input.set_target, objects[1])
+                pcall(core.input.interact_with_object, objects[1])
+                debug_log("DO_ACTION: area — targeted '" .. tostring(goal_target) .. "'")
+                return true
             end
         end
 
