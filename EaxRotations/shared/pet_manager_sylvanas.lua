@@ -101,7 +101,8 @@ function M.on_update(me, target, spec)
     M.scan_spells(st)
     local now = NS.time_now and NS.time_now() or 0
     if not target then st.state = STATE_IDLE; return end
-    local guid = pcall(function() return target:get_guid() end) and target:get_guid() or nil
+    local ok_guid, guid = pcall(function() return target:get_guid() end)
+    local guid = ok_guid and guid or nil
     if st.state == STATE_IDLE or st.last_target_guid ~= guid then
         local ok = pcall(function() core.input.pet_attack(target) end)
         if ok then st.state = STATE_ENGAGING; st.last_target_guid = guid end

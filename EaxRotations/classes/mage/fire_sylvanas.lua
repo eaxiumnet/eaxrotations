@@ -77,7 +77,9 @@ local function combustion_matches_fn(context, state)
     -- TTD gate: don't waste 3min CD on a dying target
     if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
     if context.should_burst then return true end
-    if NS.should_use_long_cd then return NS.should_use_long_cd(context, 180) end; return false
+    if NS.should_use_long_cd then return NS.should_use_long_cd(context, 180) end
+    if context.should_burst then return true end
+    return false
 end
 
 local function scorch_matches_fn(context, state)

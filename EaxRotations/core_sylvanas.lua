@@ -1291,7 +1291,6 @@ function NS.broken_api_throttled(spell_id, seconds)
         id = NS.get_spell_id(id)
     end
     if type(id) ~= "number" then return false end
-    if not false then return false end
     local window = type(seconds) == "number" and seconds or 2.0
     return NS.recent_spell_cast(id, window)
 end
@@ -2362,7 +2361,7 @@ function NS.spell_ready(spell, target, opts)
 
     -- GCD check (manual fallback for PS builds where engine GCD API is broken)
     local gcd = NS.gcd_remains()
-    if not opts.skip_gcd and false and gcd <= 0 then
+    if not opts.skip_gcd and gcd <= 0 then
         local global_gcd = _last_spell_cast["_global_gcd"]
         if global_gcd then
             local manual_gcd = 1.5 + 0.15 - (NS.time_now() - global_gcd)
@@ -2399,9 +2398,7 @@ end
 local function mark_spell_cast(id)
     _last_spell_cast_cleanup_time = cleanup_old_entries(_last_spell_cast, _last_spell_cast_cleanup_time, _SPELL_CAST_CLEANUP_INTERVAL, _SPELL_CAST_MAX_AGE)
     _last_spell_cast[id] = NS.time_now()
-    if false then
-        _last_spell_cast["_global_gcd"] = _last_spell_cast[id]
-    end
+    _last_spell_cast["_global_gcd"] = _last_spell_cast[id]
 end
 
 -- ============================================================================
@@ -3440,8 +3437,8 @@ function NS.buff_up(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local data = _buff_manager:get_buff_data(unit, list, 50)
-        if data and data.is_active ~= false then return true end
+        local ok, data = pcall(_buff_manager.get_buff_data, _buff_manager, unit, list, 50)
+        if ok and data and data.is_active ~= false then return true end
     end
 
     -- Fallback: direct unit API
@@ -3464,8 +3461,8 @@ function NS.debuff_up(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local data = _buff_manager:get_debuff_data(unit, list, 50)
-        if data and data.is_active ~= false then return true end
+        local ok, data = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, list, 50)
+        if ok and data and data.is_active ~= false then return true end
     end
 
     -- Fallback: direct unit API
@@ -3486,8 +3483,8 @@ function NS.buff_remains(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local data = _buff_manager:get_buff_data(unit, list, 50)
-        if data and data.is_active ~= false then
+        local ok, data = pcall(_buff_manager.get_buff_data, _buff_manager, unit, list, 50)
+        if ok and data and data.is_active ~= false then
             return data.remaining > 0 and (data.remaining / 1000) or 0
         end
     end
@@ -3506,6 +3503,7 @@ function NS.buff_remains(unit, ids)
     return 0
 end
 
+---
 --- Returns the points array from buff aura data for variable-value tracking.
 --- `buff.points` contains variable values from aura data (e.g. absorb remaining
 --- for Power Word: Shield, remaining charges for Holy Shield).
@@ -3520,8 +3518,8 @@ function NS.buff_points(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local data = _buff_manager:get_buff_data(unit, list, 50)
-        if data and data.is_active ~= false and type(data.points) == "table" then
+        local ok, data = pcall(_buff_manager.get_buff_data, _buff_manager, unit, list, 50)
+        if ok and data and data.is_active ~= false and type(data.points) == "table" then
             return data.points
         end
     end
@@ -3552,8 +3550,8 @@ function NS.buff_rank(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local data = _buff_manager:get_buff_data(unit, list, 50)
-        if data and data.is_active ~= false then
+        local ok, data = pcall(_buff_manager.get_buff_data, _buff_manager, unit, list, 50)
+        if ok and data and data.is_active ~= false then
             local active_id = data.buff_id
             if type(active_id) == "number" then
                 for i = 1, #list do
@@ -3585,8 +3583,8 @@ function NS.debuff_points(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local data = _buff_manager:get_debuff_data(unit, list, 50)
-        if data and data.is_active ~= false and type(data.points) == "table" then
+        local ok, data = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, list, 50)
+        if ok and data and data.is_active ~= false and type(data.points) == "table" then
             return data.points
         end
     end
@@ -3610,8 +3608,8 @@ function NS.debuff_remains(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local data = _buff_manager:get_debuff_data(unit, list, 50)
-        if data and data.is_active ~= false then
+        local ok, data = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, list, 50)
+        if ok and data and data.is_active ~= false then
             return data.remaining > 0 and (data.remaining / 1000) or 0
         end
     end
@@ -3637,8 +3635,8 @@ function NS.debuff_stacks(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local data = _buff_manager:get_debuff_data(unit, list, 50)
-        if data and data.is_active ~= false then
+        local ok, data = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, list, 50)
+        if ok and data and data.is_active ~= false then
             return data.count or data.stacks or 0
         end
     end
@@ -5462,6 +5460,8 @@ function NS.strategy_allowed(strategy, list_name, active, context)
 
     local is_healer = HEALING_PLAYSTYLES[tostring(active or ""):lower()] == true
 
+    if is_healer and category == "damage" then return false end
+
     if settings.utility_enabled == false and category == "utility" then return false end
 
     if settings.healing_enabled == false and (category == "healing" or (is_healer and category == "cooldown")) then return false end
@@ -6131,7 +6131,7 @@ else
 
 end
 
-NS.log("Core runtime loaded")
+NS.log("Core runtime loaded (core-v2: pcall buff_manager)")
 NS.log("GameVersion: " .. tostring(core.get_game_version and core.get_game_version() or "?"))
 NS.log("ExactVersion: " .. tostring(core.get_exact_game_version and core.get_exact_game_version() or "?"))
 
@@ -6182,9 +6182,11 @@ function NS.dump_player_info()
 
     NS.log("MapName: " .. tostring(core.get_map_name and core.get_map_name() or "?"))
 
-    NS.log("Zone: " .. tostring(pcall(core.get_zone_text) and core.get_zone_text() or "?"))
+    local ok_zone, zone_text = pcall(core.get_zone_text)
+    NS.log("Zone: " .. tostring(ok_zone and zone_text or "?"))
 
-    NS.log("SubZone: " .. tostring(pcall(core.get_subzone_text) and core.get_subzone_text() or "?"))
+    local ok_subzone, subzone_text = pcall(core.get_subzone_text)
+    NS.log("SubZone: " .. tostring(ok_subzone and subzone_text or "?"))
 
     NS.log("InCombat: " .. tostring(sf(me, "is_in_combat") and me:is_in_combat() or "?"))
 
@@ -6264,7 +6266,8 @@ function NS.dump_player_info()
 
             if count >= 50 then break end
 
-            local known = pcall(sb.is_spell_learned, common[i]) and sb.is_spell_learned(common[i]) or false
+            local ok_learned, learned = pcall(sb.is_spell_learned, common[i])
+            local known = ok_learned and learned or false
 
             NS.log("  SpellID " .. tostring(common[i]) .. ": " .. tostring(known))
 

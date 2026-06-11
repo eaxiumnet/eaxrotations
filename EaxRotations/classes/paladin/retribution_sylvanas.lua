@@ -299,7 +299,7 @@ add_strategy(strategies, "Ret_HealthstoneOrPotion", 970, function(context, state
 end, function(_, state) return use_item(state.healing_item) end)
 
 add_strategy(strategies, "Ret_BlessingProtection_FocusedAlly", 930, function(context, state)
-    state.utility_target = find_ally(context, function(unit) return unit ~= PLAYER and health_pct(unit, 100) <= 28 end)
+    state.utility_target = find_ally(context, function(unit) return unit ~= PLAYER and health_pct(unit, 100) <= 28 and not (NS.debuff_up and NS.debuff_up(unit, {25771})) end)
     return state.utility_target ~= nil and NS.spell_ready(BlessingProtection, state.utility_target, {}) or false
 end, function(_, state) return cast(BlessingProtection, state.utility_target, "[RET] Blessing of Protection ally") end)
 

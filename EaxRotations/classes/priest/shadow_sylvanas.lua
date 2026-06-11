@@ -444,6 +444,7 @@ local function inner_focus_matches(context, s)
     if not can_break_mind_flay(s) then return false end
     if not context.in_combat or not s.mb_ready then return false end
     if s.has_inner_focus then return false end
+    if s.mana_low then return false end  -- don't burn IF if MB is gated by mana
     -- TTD gate: don't burn 180s cooldown if combat ends within threshold
     if context.ttd_known and context.ttd > 0 and context.ttd < MIN_TTD_FOR_CD_INNER_FOCUS then return false end
     return true
