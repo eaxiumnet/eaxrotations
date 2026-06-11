@@ -513,28 +513,49 @@ local function execute_goal_action(action_type, goal)
     end
 
     if action_type == "area" then
-        -- Area goal: first try to find quest NPCs nearby
+        -- Area goal: try to find NPC from Zygor goal data (npc_id, target)
+        local goal_npc_id = nil
+        local goal_target = nil
+        if type(goal) == "table" then
+            goal_npc_id = safe(goal.npc_id, safe(goal.target_id, nil))
+            goal_target = safe(goal.target, safe(goal.npc, nil))
+        end
+
         if npc then
+            -- Try by NPC ID from goal data first
+            if goal_npc_id then
+                local nearest = npc.find_nearest_npc({ goal_npc_id }, 15)
+                if nearest then
+                    pcall(core.input.set_target, nearest)
+                    pcall(core.input.interact_with_object, nearest)
+                    debug_log("DO_ACTION: area — targeted goal NPC " .. tostring(goal_npc_id))
+                    return true
+                end
+            end
+            -- Try by target name
+            if goal_target then
+                local objects = npc.find_interactable_objects(goal_target)
+                if objects and #objects > 0 then
+                    pcall(core.input.set_target, objects[1])
+                    pcall(core.input.interact_with_object, objects[1])
+                    debug_log("DO_ACTION: area — targeted '" .. tostring(goal_target) .. "'")
+                    return true
+                end
+            end
+            -- Fallback: quest NPCs + interactable scan
             local npc_ids = npc.find_quest_npcs()
             if npc_ids then
                 local nearest = npc.find_nearest_npc(npc_ids, 15)
                 if nearest then
                     pcall(core.input.set_target, nearest)
-                    debug_log("DO_ACTION: area — targeted nearby quest NPC")
+                    debug_log("DO_ACTION: area — targeted quest NPC")
                     return true
                 end
-            end
-            -- Also try interactable objects
-            local objects = npc.find_interactable_objects(nil)
-            if objects and #objects > 0 then
-                pcall(core.input.set_target, objects[1])
-                debug_log("DO_ACTION: area — targeted nearby interactable")
-                return true
             end
         end
         -- No NPCs found: wait briefly then re-check
         _area_wait_timer = _core_time() + 0.5
-        debug_log("DO_ACTION: area goal — waiting 0.5s")
+        debug_log("DO_ACTION: area goal — no NPC found, waiting 0.5s")
         return true
     end
 
