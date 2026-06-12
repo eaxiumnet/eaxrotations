@@ -13,6 +13,7 @@ _G.EaxAutoQuester = NS
 -- Plugin state
 local state = {
     enabled = false,
+    paused = false,
     initialized = false,
     version = "1.0.0",
     warning_msg = nil,
@@ -78,6 +79,32 @@ local function check_enabled()
         end
     end
 
+    -- Handle control button clicks
+    if _menu then
+        if _menu.btn_start and _menu.btn_start:is_clicked() then
+            state.enabled = true
+            state.paused = false
+            if _menu.enable then pcall(function() _menu.enable:set(true) end) end
+        end
+        if _menu.btn_stop and _menu.btn_stop:is_clicked() then
+            state.enabled = false
+            state.paused = false
+            if _menu.enable then pcall(function() _menu.enable:set(false) end) end
+            if _quest_state and _quest_state.stop_navigation then
+                _quest_state.stop_navigation()
+            end
+        end
+        if _menu.btn_pause and _menu.btn_pause:is_clicked() then
+            state.paused = true
+            if _quest_state and _quest_state.stop_navigation then
+                _quest_state.stop_navigation()
+            end
+        end
+        if _menu.btn_resume and _menu.btn_resume:is_clicked() then
+            state.paused = false
+        end
+    end
+
     -- Hard stop: if transitioning from enabled to disabled, kill all navigation
     if _prev_enabled == true and not state.enabled then
         if _quest_state and _quest_state.stop_navigation then
@@ -129,6 +156,7 @@ local function on_pre_tick()
     if not _menu then init_modules() end
     check_enabled()
     if not state.enabled then return end
+    if state.paused then return end
     if not _quest_state then return end
     _quest_state.update()
 end

@@ -18,6 +18,10 @@ local _t = { n = 0 }
 local IDs = {
     tree            = "eaxaq_tree",
     enable          = "eaxaq_enable",
+    btn_start       = "eaxaq_btn_start",
+    btn_stop        = "eaxaq_btn_stop",
+    btn_pause       = "eaxaq_btn_pause",
+    btn_resume      = "eaxaq_btn_resume",
     auto_loot       = "eaxaq_auto_loot",
     auto_repair     = "eaxaq_auto_repair",
     auto_vendor     = "eaxaq_auto_vendor",
@@ -48,6 +52,10 @@ M.tree = _core_menu.tree_node()
 
 -- Checkboxes (default: enabled for core features)
 M.enable          = _core_menu.checkbox(true, IDs.enable)
+M.btn_start       = _core_menu.button(IDs.btn_start)
+M.btn_stop        = _core_menu.button(IDs.btn_stop)
+M.btn_pause       = _core_menu.button(IDs.btn_pause)
+M.btn_resume      = _core_menu.button(IDs.btn_resume)
 M.auto_loot       = _core_menu.checkbox(true, IDs.auto_loot)
 M.auto_repair     = _core_menu.checkbox(true, IDs.auto_repair)
 M.auto_vendor     = _core_menu.checkbox(true, IDs.auto_vendor)
@@ -115,6 +123,12 @@ function M.render()
         if M.enable then
             M.enable:render("Enable AutoQuester", "Master toggle — enables or disables the entire auto-questing system")
         end
+
+        -- Control buttons row
+        if M.btn_start then M.btn_start:render("Start", "Begin auto-questing") end
+        if M.btn_stop then M.btn_stop:render("Stop", "Stop all movement and disable") end
+        if M.btn_pause then M.btn_pause:render("Pause", "Pause navigation (keep enabled)") end
+        if M.btn_resume then M.btn_resume:render("Resume", "Resume after pause") end
 
         if M.auto_accept then
             M.auto_accept:render("Auto-accept Quests", "Automatically accept quests from NPCs when in range and dialog is open")
