@@ -293,12 +293,16 @@ local function state_idle()
             return 100
         end)
         if hp_ok and hp_pct and hp_pct < 80 then
-            debug_log("IDLE: HP low (" .. math.floor(hp_pct) .. "%) — waiting for regen")
-            if not _last_hp_warning or _last_hp_warning + 10.0 < _core_time() then
+            if not _last_hp_warning or _core_time() - _last_hp_warning > 5.0 then
                 _last_hp_warning = _core_time()
+                if hp_pct == 0 then
+                    debug_log("IDLE: player dead — waiting for resurrection")
+                else
+                    debug_log("IDLE: HP low (" .. math.floor(hp_pct) .. "%) — waiting for regen")
+                end
                 local ns = _G.EaxAutoQuester
                 if ns and ns.set_warning then
-                    ns.set_warning("HP low (" .. math.floor(hp_pct) .. "%) - waiting for regen", 4.0)
+                    ns.set_warning("HP low (" .. math.floor(hp_pct) .. "%) - waiting", 4.0)
                 end
             end
             return "IDLE"
