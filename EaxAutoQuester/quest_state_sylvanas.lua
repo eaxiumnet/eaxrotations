@@ -508,6 +508,13 @@ local function state_interact()
             _interact_start_time = _core_time()  -- reset timeout, we're making progress
             return "INTERACT"
         end
+        -- Permanently gave up on this frame — force exit with cooldown
+        if result == "quest_giveup" then
+            _interact_start_time = 0
+            _interact_cooldown = _core_time() + 10.0
+            debug_log("INTERACT: gave up on quest frame → IDLE (10s cooldown)")
+            return "IDLE"
+        end
 
         debug_log("INTERACT: handled (" .. tostring(result) .. ")")
 

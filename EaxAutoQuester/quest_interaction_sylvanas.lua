@@ -367,6 +367,19 @@ function M.handle_any_frame()
     if gossip_action then return gossip_action end
 
     -- Priority 3: Quest detail frame (accept/complete/reward)
+    -- If we've permanently given up, skip quest detail and signal state machine
+    -- Reset retry counter after 30s to allow one more attempt
+    if _quest_retry_count >= 3 and _core_time() - _last_quest_time > 30.0 then
+        _quest_retry_count = 0
+    end
+    if _quest_retry_count >= 3 then
+        local ok_link, link = pcall(function() return _quests.get_quest_item_link("choice", 1) end)
+        local ok_money, reward_money = pcall(function() return _quests.get_reward_money() end)
+        if (ok_link and link and link ~= "") or (ok_money and reward_money and reward_money > 0) then
+            return "quest_giveup"
+        end
+    end
+
     local quest_action = M.handle_quest_detail()
     if quest_action then return quest_action end
     -- If quest detail frame detected but throttled, signal stay in INTERACT
