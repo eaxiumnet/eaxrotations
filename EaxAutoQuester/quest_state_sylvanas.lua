@@ -300,7 +300,7 @@ local function state_idle()
             end
             return 100
         end)
-        if hp_ok and hp_pct and hp_pct < 30 then
+        if hp_ok and hp_pct and hp_pct < 80 then
             debug_log("IDLE: HP low (" .. math.floor(hp_pct) .. "%) — waiting for regen")
             if not _last_hp_warning or _last_hp_warning + 10.0 < _core_time() then
                 _last_hp_warning = _core_time()
