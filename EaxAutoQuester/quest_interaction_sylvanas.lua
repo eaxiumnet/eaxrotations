@@ -222,6 +222,11 @@ function M.handle_quest_detail()
     pcall(function() _quests.confirm_accept_quest() end)
     pcall(function() _quests.close_quest() end)
     pcall(function() _quests.complete_quest() end)
+    -- After accepting, gossip may reappear — close it too
+    local ok_g, gossip = pcall(function() return _quests.is_gossip_frame_shown() end)
+    if ok_g and gossip then
+        pcall(function() _quests.close_gossip() end)
+    end
     return "accept_quest"
 end
 
