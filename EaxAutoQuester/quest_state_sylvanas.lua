@@ -686,7 +686,11 @@ local function execute_goal_action(action_type, goal)
             end
         end
 
-        -- Brute-force scan for nearby NPCs
+        -- Brute-force scan for nearby NPCs (skip if permanently blocked)
+        if _area_fail_count >= 999 then
+            debug_log("DO_ACTION: area — brute-force blocked")
+            return true
+        else
         local me = _get_local_player()
         if me then
             local _, pos = pcall(function() return me:get_position() end)
@@ -743,7 +747,7 @@ local function execute_goal_action(action_type, goal)
                             _area_last_target_guid = best_guid
                         end
                         if _area_fail_count >= 5 then
-                            _area_fail_count = 0
+                            _area_fail_count = 999  -- permanent block
                             _area_last_target_guid = nil
                             core.log_warning("[EaxAutoQuester] Cannot interact with target - manual help required")
                             local ns = _G.EaxAutoQuester
@@ -770,6 +774,7 @@ local function execute_goal_action(action_type, goal)
         _area_wait_timer = _core_time() + 3.0
         debug_log("DO_ACTION: area goal — no NPC, waiting")
         return true
+    end
     end
 
     -- Unknown action type — skip
