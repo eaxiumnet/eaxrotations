@@ -54,6 +54,8 @@ local _just_arrived = false          -- set true when NAV arrives, IDLE skips di
 local _last_hp_warning = 0           -- throttle HP warnings to once per 10s
 local _area_fail_count = 0           -- consecutive area interaction failures
 local _area_last_target_guid = nil   -- GUID of last brute-force target (detect loops)
+local _interact_start_time = 0       -- when INTERACT state was entered (timeout safety net)
+local INTERACT_TIMEOUT = 15          -- max seconds in INTERACT before force-exit
 
 -- ============================================================================
 -- Nil-Guard Helper (Pattern 14 from AGENTS.md) — safe default for any field
@@ -468,8 +470,19 @@ end
 
 --- Process open UI frames via quest_interaction.handle_any_frame().
 --- Stays in INTERACT if frame remains open after handling.
+--- Force-exits after 15s to prevent infinite frame loops.
 --- @return string next_state
 local function state_interact()
+    -- Safety timeout: force exit INTERACT after 15 seconds
+    local now = _core_time()
+    if _interact_start_time == 0 then
+        _interact_start_time = now
+    elseif now - _interact_start_time > INTERACT_TIMEOUT then
+        _interact_start_time = 0
+        core.log_warning("[EaxAutoQuester] Frame stuck open for 15s - force exiting")
+        return "IDLE"
+    end
+
     local interaction = ensure_quest_interaction()
     if not interaction then return "IDLE" end
 
@@ -479,6 +492,7 @@ local function state_interact()
     if result then
         -- Throttled: frame still being processed, stay in INTERACT
         if result == "quest_throttled" then
+            _interact_start_time = _core_time()  -- reset timeout, we're making progress
             return "INTERACT"
         end
 
@@ -492,10 +506,12 @@ local function state_interact()
 
         -- Frame closed by handling
         debug_log("INTERACT: frame closed → IDLE")
+        _interact_start_time = 0
         return "IDLE"
     end
 
     -- No frame to handle
+    _interact_start_time = 0
     debug_log("INTERACT: no frame → IDLE")
     return "IDLE"
 end
