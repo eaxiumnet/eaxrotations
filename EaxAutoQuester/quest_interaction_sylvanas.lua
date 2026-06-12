@@ -178,6 +178,7 @@ end
 -- Throttle: prevent re-processing the same quest frame
 local _last_quest_time = 0
 local _last_quest_action = nil  -- "accept" or "complete"
+local _quest_retry_count = 0    -- consecutive failed attempts (permanent give-up after 3)
 
 -- ============================================================================
 -- handle_quest_detail: Accept or complete quest from quest detail frame
@@ -194,12 +195,21 @@ function M.handle_quest_detail()
     if now - _last_quest_time < 1.0 then return nil end
     _last_quest_time = now
 
+    -- After 3 failed attempts, permanently give up on this frame
+    if _quest_retry_count >= 3 then
+        core.log_warning("[EaxAutoQuester] Quest frame unhandled after 3 attempts - giving up")
+        return nil
+    end
+
     -- Probe: check if any quest frame is showing via reward link or reward money
     local ok_link, link = pcall(function() return _quests.get_quest_item_link("choice", 1) end)
     local ok_money, reward_money = pcall(function() return _quests.get_reward_money() end)
     local has_frame = (ok_link and link and link ~= "") or (ok_money and reward_money and reward_money > 0)
 
-    if not has_frame then return nil end
+    if not has_frame then
+        if _quest_retry_count > 0 then _quest_retry_count = 0 end
+        return nil
+    end
 
     -- Check if this is a reward frame (has reward choices or money)
     local has_rewards = is_reward or (ok_link and link and link ~= "")
@@ -218,6 +228,9 @@ function M.handle_quest_detail()
         end
         return "complete_quest"
     end
+
+    -- If we get here, this attempt failed — increment retry counter
+    _quest_retry_count = _quest_retry_count + 1
 
     -- No rewards visible — try complete_quest (turn-in without reward choices)
     _last_quest_action = "complete"
