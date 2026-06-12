@@ -201,22 +201,14 @@ function M.handle_quest_detail()
 
     if not has_frame then return nil end
 
-    -- Try complete_quest first (covers both turn-ins and accept-without-reward)
-    -- Some turn-in quests have no reward money/items, so reward detection fails
-    _last_quest_action = "complete"
-    pcall(function() _quests.complete_quest() end)
-    pcall(function() _quests.close_quest() end)
-    local reward_action = M.select_best_reward()
+    -- Check if this is a reward frame (has reward choices or money)
+    local has_rewards = is_reward or (ok_link and link and link ~= "")
 
-    -- Try accept_quest only if complete didn't resolve the frame
-    -- (check if frame is still detected after complete attempt)
-    local still_open = false
-    local ok2, link2 = pcall(function() return _quests.get_quest_item_link("choice", 1) end)
-    local ok2b, money2 = pcall(function() return _quests.get_reward_money() end)
-    if (ok2 and link2 and link2 ~= "") or (ok2b and money2 and money2 > 0) then
-        still_open = true
-    end
-    if not still_open then
+    if has_rewards then
+        -- Reward frame: select best reward (this also completes the quest per API docs)
+        _last_quest_action = "complete"
+        local reward_action = M.select_best_reward()
+        pcall(function() _quests.close_quest() end)
         local ok_g, gossip = pcall(function() return _quests.is_gossip_frame_shown() end)
         if ok_g and gossip then
             pcall(function() _quests.close_gossip() end)
@@ -227,14 +219,32 @@ function M.handle_quest_detail()
         return "complete_quest"
     end
 
-    -- Frame still open — try accept_quest
+    -- No rewards visible — try complete_quest (turn-in without reward choices)
+    _last_quest_action = "complete"
+    pcall(function() _quests.complete_quest() end)
+    pcall(function() _quests.close_quest() end)
+    local still_open = false
+    local ok2, link2 = pcall(function() return _quests.get_quest_item_link("choice", 1) end)
+    local ok2b, money2 = pcall(function() return _quests.get_reward_money() end)
+    if (ok2 and link2 and link2 ~= "") or (ok2b and money2 and money2 > 0) then
+        still_open = true
+    end
+    if not still_open then
+        local ok_g2, gossip2 = pcall(function() return _quests.is_gossip_frame_shown() end)
+        if ok_g2 and gossip2 then
+            pcall(function() _quests.close_gossip() end)
+        end
+        return "complete_quest"
+    end
+
+    -- Frame still open — try accept_quest (new quest offer)
     _last_quest_action = "accept"
     pcall(function() _quests.accept_quest() end)
     pcall(function() _quests.confirm_accept_quest() end)
     pcall(function() _quests.close_quest() end)
     pcall(function() _quests.complete_quest() end)
-    local ok_g2, gossip2 = pcall(function() return _quests.is_gossip_frame_shown() end)
-    if ok_g2 and gossip2 then
+    local ok_g3, gossip3 = pcall(function() return _quests.is_gossip_frame_shown() end)
+    if ok_g3 and gossip3 then
         pcall(function() _quests.close_gossip() end)
     end
     return "accept_quest"
