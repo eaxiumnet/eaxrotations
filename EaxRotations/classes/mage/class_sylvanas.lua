@@ -45,7 +45,7 @@ local SPELLS = {
     }),
     ArcaneMissiles = NS.spell_action({
         name = "ArcaneMissiles",
-        ids = {38699, 27075, 25345, 10212, 10211, 8418, 8417, 8416, 5145, 5144, 5143},  -- 38699=R7 TBC max rank (lev69), 8418=TBC rank5, 8417=Vanilla rank5 (lexxer-verified swap)
+        ids = {38699, 25345, 10212, 10211, 8418, 8417, 8416, 5145, 5144, 5143},  -- 38699=R7 TBC max rank (lev69), 8418=TBC rank5, 8417=Vanilla rank5 (lexxer-verified swap)
         levels = {70, 69, 63, 60, 56, 56, 48, 40, 32, 24},
         cast_time = 5.0,
         cooldown = 0,

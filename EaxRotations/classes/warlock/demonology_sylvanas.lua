@@ -47,7 +47,6 @@ local demo_state = {
     soulshatter_ready = false,
     incinerate_ready = false,
     soul_fire_ready = false,
-    demonic_empowerment_ready = false,
     fear_ready = false,
     rain_of_fire_ready = false,
     hellfire_ready = false,
@@ -94,7 +93,6 @@ local function build_state(context)
     demo_state.soulshatter_ready = me and NS.cooldown_remains(SPELLS.Soulshatter, 300) <= 0 and NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true }) or false
     demo_state.incinerate_ready = target and NS.spell_ready(SPELLS.Incinerate, target, { expected_cooldown = 2.5 }) or false
     demo_state.soul_fire_ready = target and NS.spell_ready(SPELLS.SoulFire, target, { expected_cooldown = 1.5 }) or false
-    demo_state.demonic_empowerment_ready = demo_state.has_pet and NS.spell_ready(SPELLS.DemonicEmpowerment, me, { skip_range = true, expected_cooldown = 60 }) or false
     demo_state.fear_ready = target and NS.spell_ready(SPELLS.Fear, target) or false
     demo_state.rain_of_fire_ready = target and NS.spell_ready(SPELLS.RainOfFire, target, { expected_cooldown = 1.5 }) or false
     demo_state.hellfire_ready = me and NS.spell_ready(SPELLS.Hellfire, me, { skip_range = true }) or false
@@ -276,13 +274,6 @@ local function soul_fire_matches(context, s)
     return true
 end
 
-local function demonic_empowerment_matches(context, s)
-    if not s then return false end
-    if not s.has_pet then return false end
-    if not s.demonic_empowerment_ready then return false end
-    return true
-end
-
 local function fear_matches(context, s)
     if not s then return false end
     if not context.in_combat then return false end
@@ -400,7 +391,6 @@ local strategies = {
     { name = "DrainSoul", matches = drain_soul_matches, execute = function(context) return NS.try_cast(SPELLS.DrainSoul, context.target, "[DEMONOLOGY] Drain Soul") end },
     { name = "RainOfFire", matches = rain_of_fire_matches, execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.RainOfFire), t, 8, 35); if pos then return NS.try_cast_position(SPELLS.RainOfFire, pos, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end; return NS.try_cast(SPELLS.RainOfFire, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end },
     { name = "Hellfire", matches = hellfire_matches, execute = function(context) return NS.try_cast(SPELLS.Hellfire, context.me, "[DEMONOLOGY] Hellfire", { skip_range = true }) end },
-    { name = "DemonicEmpowerment", matches = demonic_empowerment_matches, execute = function(context) return NS.try_cast(SPELLS.DemonicEmpowerment, context.me, "[DEMONOLOGY] Demonic Empowerment", { skip_range = true, expected_cooldown = 60 }) end },
     { name = "DeathCoil", matches = function(context, state) return death_coil_matches(context, { name = "DeathCoil", spell = SPELLS.DeathCoil }) end, execute = function(context) return NS.try_cast(SPELLS.DeathCoil, context.target, "[DEMONOLOGY] Death Coil", { expected_cooldown = 120 }) end },
     { name = "LifeTap", matches = life_tap_matches, execute = function(context) return NS.try_cast(SPELLS.LifeTap, context.me, "[DEMONOLOGY] Life Tap", { skip_range = true }) end },
     { name = "DarkPact", matches = dark_pact_matches, execute = function(context) return NS.try_cast(SPELLS.DarkPact, context.me, "[DEMONOLOGY] Dark Pact", { skip_range = true, expected_cooldown = 10 }) end },
