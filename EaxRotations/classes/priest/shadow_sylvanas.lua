@@ -93,6 +93,19 @@ local shadow_state = {
     mb_ready = false,
     swd_ready = false,
     has_shadowform = false,
+    shadowform_known = false,
+    shadowfiend_known = false,
+    vampiric_touch_known = false,
+    swp_known = false,
+    vampiric_embrace_known = false,
+    devouring_plague_known = false,
+    mind_flay_known = false,
+    inner_fire_known = false,
+    flash_heal_known = false,
+    berserking_known = false,
+    blood_fury_known = false,
+    arcane_torrent_known = false,
+    starshards_known = false,
     has_inner_focus = false,
     has_inner_fire = false,
     combat_mode = "auto",          -- "auto" | "st" | "cleave" | "aoe"
@@ -132,6 +145,13 @@ local shadow_state = {
     snapshot_dp_dmg = 0,
     has_bloodlust = false,               -- Bloodlust/Heroism buff — enables more aggressive snapshot upgrades
     snapshot_target = nil,
+    -- Wand/auto-attack state
+    wand_learned = false,             -- Shoot (5019) is learned (wand equipped)
+    is_wanding = false,               -- Currently auto-attacking with wand
+    -- Out-of-combat buffing
+    fortitude_ready = false,          -- Power Word: Fortitude is ready to cast
+    has_fortitude = false,            -- Self has Fortitude buff
+    is_group = false,                 -- Player is in a group
 }
 
 local function build_state(context)
@@ -165,6 +185,19 @@ local function build_state(context)
         shadow_state.swp_remaining
     )
     shadow_state.has_shadowform = me and NS.buff_up(me, SHADOWFORM_BUFF) or false
+    shadow_state.shadowform_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Shadowform) or false
+    shadow_state.shadowfiend_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Shadowfiend) or false
+    shadow_state.vampiric_touch_known = me and NS.spell_exists and NS.spell_exists(SPELLS.VampiricTouch) or false
+    shadow_state.swp_known = me and NS.spell_exists and NS.spell_exists(SPELLS.ShadowWordPain) or false
+    shadow_state.vampiric_embrace_known = me and NS.spell_exists and NS.spell_exists(SPELLS.VampiricEmbrace) or false
+    shadow_state.devouring_plague_known = me and NS.spell_exists and NS.spell_exists(SPELLS.DevouringPlague) or false
+    shadow_state.mind_flay_known = me and NS.spell_exists and NS.spell_exists(SPELLS.MindFlay) or false
+    shadow_state.inner_fire_known = me and NS.spell_exists and NS.spell_exists(SPELLS.InnerFire) or false
+    shadow_state.flash_heal_known = me and NS.spell_exists and NS.spell_exists(SPELLS.FlashHeal) or false
+    shadow_state.berserking_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Berserking) or false
+    shadow_state.blood_fury_known = me and NS.spell_exists and NS.spell_exists(SPELLS.BloodFury) or false
+    shadow_state.arcane_torrent_known = me and NS.spell_exists and NS.spell_exists(SPELLS.ArcaneTorrent) or false
+    shadow_state.starshards_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Starshards) or false
     shadow_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
     shadow_state.has_inner_fire = me and NS.buff_up(me, INNER_FIRE_BUFF) or false
     -- Combat mode: explicit setting or auto-detect
@@ -246,6 +279,16 @@ local function build_state(context)
     shadow_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
     shadow_state.target_casting = target and target.is_casting and target:is_casting() or false
     shadow_state.target_creature_type = target_creature_type(target)
+    
+    -- Wand readiness (Shoot spell - wand training)
+    shadow_state.wand_learned = NS.spell_exists and NS.spell_exists(5019) or false
+    shadow_state.is_wanding = shadow_state.wand_learned and NS.is_auto_attacking and NS.is_auto_attacking(context.me) or false
+    
+    -- Fortitude buff readiness
+    local me_unit = context.me or me
+    shadow_state.fortitude_ready = me_unit and NS.spell_ready and NS.spell_ready(SPELLS.PowerWordFortitude, me_unit, { skip_range = true }) or false
+    shadow_state.has_fortitude = me_unit and NS.buff_up and NS.buff_up(me_unit, { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }) or false
+    shadow_state.is_group = context.is_group or false
 
     -- Current spell damage from NS (provided by middleware or character API)
     shadow_state.spell_damage = context.spell_damage or 0
@@ -295,6 +338,7 @@ end
 local function shadowform_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Shadowform, 3.0) then return false end
     if s.has_shadowform then return false end
+    if not s.shadowform_known then return false end
     return true
 end
 
@@ -310,6 +354,7 @@ local function pre_combat_pull_matches(context, s)
 end
 
 local function shadowfiend_matches(context, s)
+    if not s.shadowfiend_known then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
     if (context.mana_pct or 100) > 45 then return false end
@@ -319,10 +364,11 @@ local function shadowfiend_matches(context, s)
 end
 
 local function shadow_swp_spread_matches(context, s)
+    if not s.swp_known then return false end
     if not can_break_mind_flay(s) then return false end
     -- Combat mode gate: only spread in cleave or aoe mode
     if s.combat_mode ~= "cleave" and s.combat_mode ~= "aoe" then return false end
-    if s.enemy_count < 3 then return false end
+    if (s.enemy_count or 0) < 3 then return false end
     if not context.has_valid_enemy_target then return false end
     -- Per-target lockout: prevent double-queuing SW:P to same target while in-flight
     if _is_locked("SWP") then return false end
@@ -334,10 +380,11 @@ local function shadow_swp_spread_matches(context, s)
 end
 
 local function shadow_vt_spread_matches(context, s)
+    if not s.vampiric_touch_known then return false end
     if not can_break_mind_flay(s) then return false end
     -- Combat mode gate: only spread in cleave or aoe mode
     if s.combat_mode ~= "cleave" and s.combat_mode ~= "aoe" then return false end
-    if s.enemy_count < 3 then return false end
+    if (s.enemy_count or 0) < 3 then return false end
     if not context.has_valid_enemy_target then return false end
     -- Per-target lockout: prevent double-queuing VT to same target while in-flight
     if _is_locked("VT") then return false end
@@ -349,6 +396,7 @@ local function shadow_vt_spread_matches(context, s)
 end
 
 local function inner_fire_matches(context, s)
+    if not s.inner_fire_known then return false end
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.InnerFire, 3.0) then return false end
     if s.has_inner_fire then return false end
     local settings = context.settings or {}
@@ -366,6 +414,7 @@ local function power_word_shield_matches(context, s)
 end
 
 local function flash_heal_matches(context, s)
+    if not s.flash_heal_known then return false end
     -- HP-gated self-heal
     if (context.hp or 100) > (s.flash_heal_hp or 25) then return false end
     if context.is_moving then return false end
@@ -376,7 +425,7 @@ local function holy_nova_aoe_matches(context, s)
     -- Combat mode gate: only AoE in aoe mode
     if s.combat_mode ~= "aoe" then return false end
     if context.is_moving then return false end
-    if s.enemy_count < 3 then return false end
+    if (s.enemy_count or 0) < 3 then return false end
     if not context.in_combat then return false end
     return NS.spell_ready and NS.spell_ready(SPELLS.HolyNova, context.target, nil)
 end
@@ -385,12 +434,14 @@ local function racial_matches(context, s)
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
     if not context.in_combat then return false end
+    if not s.berserking_known and not s.blood_fury_known and not s.arcane_torrent_known then return false end
     -- TTD gate: don't use racials if target is about to die
     if context.ttd_known and context.ttd > 0 and context.ttd < 8 then return false end
     return true
 end
 
 local function vampiric_touch_matches(context, s)
+    if not s.vampiric_touch_known then return false end
     if context.is_casting or context.is_channeling then return false end
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.VampiricTouch, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
@@ -407,6 +458,7 @@ local function vampiric_touch_matches(context, s)
 end
 
 local function shadow_word_pain_matches(context, s)
+    if not s.swp_known then return false end
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShadowWordPain, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
@@ -423,12 +475,14 @@ local function shadow_word_pain_matches(context, s)
 end
 
 local function vampiric_embrace_matches(context, s)
+    if not s.vampiric_embrace_known then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target or s.ve_remaining > 10 then return false end
     return true
 end
 
 local function devouring_plague_matches(context, s)
+    if not s.devouring_plague_known then return false end
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DevouringPlague, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target or s.dp_remaining > (s.dp_refresh_window or 3) then return false end
@@ -510,6 +564,7 @@ local function swd_cc_break_matches(context, s)
 end
 
 local function mind_flay_matches(context, s)
+    if not s.mind_flay_known then return false end
     if context.is_moving or context.is_casting or context.is_channeling then return false end
     if not context.has_valid_enemy_target then return false end
     -- Mana emergency: drop all spells (wand only)
@@ -530,7 +585,7 @@ end
 
 local function psychic_scream_matches(context, s)
     if not context.in_combat then return false end
-    if s.enemy_count < 3 then return false end
+    if (s.enemy_count or 0) < 3 then return false end
     if not s.psychic_scream_ready then return false end
     return true
 end
@@ -548,22 +603,37 @@ local function shackle_undead_matches(context, s)
     if not context.has_valid_enemy_target then return false end
     if s.target_creature_type ~= 6 then return false end
     if not s.shackle_undead_ready then return false end
+    if context.target and NS.debuff_up and NS.debuff_up(context.target, {9484, 9485, 10955}) then return false end
     return true
 end
 
 local function starshards_matches(context, s)
+    if not s.starshards_known then return false end
     if not context.has_valid_enemy_target then return false end
     if context.is_moving then return false end
     return true
 end
 
 -- ============================================================================
--- Wand / Auto-Attack (mana < 5% emergency)
+-- Wand / Auto-Attack (mana emergency — conserve_mana_floor)
 -- ============================================================================
-local function mana_below_5_wand_matches(context, s)
-    if (context.mana_pct or 100) >= 5 then return false end
+local function mana_emergency_wand_matches(context, s)
+    if not s.mana_emergency then return false end
     if not context.in_combat then return false end
     if not context.has_valid_enemy_target then return false end
+    if not s.wand_learned then return false end
+    -- Only start if not already wanding (let existing auto-attack run)
+    if NS.is_auto_attacking and NS.is_auto_attacking(context.me) then return true end
+    return true
+end
+
+-- ============================================================================
+-- Fortitude out-of-combat party buff
+-- ============================================================================
+local function fortitude_matches(context, s)
+    if context.in_combat then return false end
+    if s.has_fortitude then return false end
+    if not s.fortitude_ready then return false end
     return true
 end
 
@@ -571,14 +641,16 @@ end
 -- Strategies
 -- ============================================================================
 local strategies = {
+    -- Out-of-combat Fortitude buff
+    { name = "PowerWordFortitude", matches = fortitude_matches, execute = function(context) return NS.try_cast(SPELLS.PowerWordFortitude, NS.PLAYER_UNIT, "[SHADOW] PowerWordFortitude", { skip_range = true }) end },
     { name = "PreCombatPull", matches = pre_combat_pull_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] PreCombatPull") end },
     { name = "Shadowform", matches = shadowform_matches, execute = function(context) return NS.try_cast(SPELLS.Shadowform, NS.PLAYER_UNIT, "[SHADOW] Shadowform", { skip_range = true }) end },
     { name = "SWDCCBreak", matches = swd_cc_break_matches, execute = function(context, s) if s.mf_channeling then if NS.stop_casting then NS.stop_casting() end; if NS.cancel_current_cast then NS.cancel_current_cast() end end; return NS.try_cast(SPELLS.ShadowWordDeath, context.target, string.format("[SHADOW] SWD CC Break → %s", s.enemy_cc_spell_name or s.breakable_cc_name or "CC")) end },
-    { name = "ManaBelow5Wand", matches = mana_below_5_wand_matches, execute = function(context) if NS.start_attack then NS.start_attack() end; return true end },
     { name = "Shadowfiend", matches = shadowfiend_matches, execute = function(context) return NS.try_cast(SPELLS.Shadowfiend, context.target, "[SHADOW] Shadowfiend") end },
     { name = "VampiricTouch", matches = vampiric_touch_matches, execute = function(context) local ok = NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] VampiricTouch"); if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end; return ok end },
     { name = "ShadowWordPain", matches = shadow_word_pain_matches, execute = function(context) local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] ShadowWordPain"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
     { name = "MovingSWP", matches = function(context, s)
+        if not s.swp_known then return false end
         if not context.is_moving then return false end
         if not context.has_valid_enemy_target then return false end
         if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShadowWordPain, 2.0) then return false end
@@ -602,6 +674,8 @@ local strategies = {
     { name = "PowerWordShield", matches = power_word_shield_matches, execute = function(context) return NS.try_cast(SPELLS.PowerWordShield, NS.PLAYER_UNIT, "[SHADOW] PowerWordShield", { skip_range = true }) end },
     { name = "FlashHeal", matches = flash_heal_matches, execute = function(context) return NS.try_cast(SPELLS.FlashHeal, NS.PLAYER_UNIT, "[SHADOW] FlashHeal", { skip_range = true }) end },
     { name = "HolyNovaAoE", matches = holy_nova_aoe_matches, execute = function(context) return NS.try_cast(SPELLS.HolyNova, context.target, "[SHADOW] HolyNova") end },
+    -- Emergency wand fallback when mana below conserve floor (last resort)
+    { name = "ManaEmergencyWand", matches = mana_emergency_wand_matches, execute = function(context) if not context.target then return false end; if NS.is_auto_attacking and NS.is_auto_attacking(context.me) then return true end; return NS.start_auto_attack and NS.start_auto_attack(context.target, NS.AUTO_ATTACK_WAND) == true end },
     { name = "RacialBerserking", matches = racial_matches, execute = function(context) return NS.try_cast(SPELLS.Berserking, NS.PLAYER_UNIT, "[SHADOW] Berserking", { skip_range = true }) end },
     { name = "RacialBloodFury", matches = racial_matches, execute = function(context) return NS.try_cast(SPELLS.BloodFury, NS.PLAYER_UNIT, "[SHADOW] BloodFury", { skip_range = true }) end },
     { name = "RacialArcaneTorrent", matches = racial_matches, execute = function(context) return NS.try_cast(SPELLS.ArcaneTorrent, NS.PLAYER_UNIT, "[SHADOW] ArcaneTorrent", { skip_range = true }) end },
@@ -610,5 +684,21 @@ local strategies = {
 
 NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
 NS.log("Priest shadow rotation registered")
+
+-- Register combat start callback to fire one wand shot on combat entry
+if NS.register_on_combat_start then
+    NS.register_on_combat_start(function(context)
+        if not context or not context.target then return end
+        local me = NS.GetPlayer()
+        if not me then return end
+        -- Only start wand if we have a wand (Shoot learned) and not already auto-attacking
+        if not (NS.spell_exists and NS.spell_exists(5019)) then return end
+        if NS.is_auto_attacking and NS.is_auto_attacking(me) then return end
+        if NS.start_auto_attack then
+            NS.start_auto_attack(context.target, NS.AUTO_ATTACK_WAND)
+        end
+    end)
+end
+
 return strategies
 

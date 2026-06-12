@@ -266,6 +266,16 @@ local SPELLS = {
         power_type = "mana",
         school = "arcane",
     }),
+    ScatterShot = NS.spell_action({
+        name = "ScatterShot",
+        ids = {19503},
+        levels = {20},
+        cast_time = 0,
+        cooldown = 30,
+        power_cost = 0,
+        power_type = "mana",
+        school = "physical",
+    }),
     ScorpidSting = NS.spell_action({
         name = "ScorpidSting",
         ids = {3043},
@@ -382,6 +392,41 @@ register_auto_shot_callback()
 local hc_ok, hunter_core = pcall(require, "shared/hunter_core_sylvanas")
 if hc_ok and type(hunter_core) == "table" and type(hunter_core.init) == "function" then
     pcall(hunter_core.init)
+end
+-- Load adaptive rotation engine (wowsims-derived DPS optimizer)
+require("shared/hunter_adaptive_sylvanas")
+
+--- Adaptive rotation integration: returns a match function that can be inserted
+--- into any hunter spec's strategy table. When enabled, replaces threshold-based
+--- shot selection with DPS-math-optimal choices from the wowsims engine.
+--- Returns "(context) -> bool" suitable for a strategy table entry.
+function NS.create_adaptive_rotation_strategy(target_func)
+    return function(context)
+        if not NS.HunterAdaptive then return false end
+        if not NS.get_setting("use_adaptive_rotation", false) then return false end
+        if not context.in_combat then return false end
+        if not context.target then return false end
+        local target = (target_func and target_func(context)) or context.target
+        if not target then return false end
+        local s = context.settings or {}
+        local choice = NS.HunterAdaptive.ChooseAction(target, {
+            useMulti = s.multishot_mode and s.multishot_mode > 0,
+            useArcane = true,
+            manaSaveFloor = s.mana_save or 30,
+            arcaneManaFloor = 15,
+        })
+        if choice == NS.HunterAdaptive.OPT_SHOOT then
+            -- Auto Shot — handled by the engine, cast mechanism handles it
+            return false  -- fall through; auto-shot is passive
+        elseif choice == NS.HunterAdaptive.OPT_STEADY then
+            return NS.try_cast(NS.HunterSpells.SteadyShot, target, "[ADAPTIVE] Steady Shot")
+        elseif choice == NS.HunterAdaptive.OPT_MULTI then
+            return NS.try_cast(NS.HunterSpells.MultiShot, target, "[ADAPTIVE] Multi-Shot")
+        elseif choice == NS.HunterAdaptive.OPT_ARCANE then
+            return NS.try_cast(NS.HunterSpells.ArcaneShot, target, "[ADAPTIVE] Arcane Shot")
+        end
+        return false  -- adaptive chose "none", fall through
+    end
 end
 load_spec("beast_mastery")
 load_spec("marksmanship")

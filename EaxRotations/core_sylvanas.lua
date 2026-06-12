@@ -363,7 +363,7 @@ local PVP_BURST_BUFFS = {
 
 local PLAYER_DEFENSIVE_BUFFS = {
 
-    { 11958, 45438, 27619 }, -- Ice Block
+    { 45438 }, -- Ice Block (11958=ColdSnap not IceBlock; 27619 unverified)
 
     { 642, 1020 }, -- Divine Shield
 

@@ -14,7 +14,7 @@ local SPELLSTEAL_SPELL = SPELLS.Spellsteal or { id = { 30449 }, name = "Spellste
 
 -- CC Break spell objects
 local BLINK_SPELL = { id = { 1953 }, name = "Blink" }
-local ICE_BLOCK_IDS = { 11958, 45438, 27619 }  -- TBC Ice Block ranks
+local ICE_BLOCK_IDS = { 45438 }  -- 11958=ColdSnap not IceBlock; 27619 unverified
 
 -- ============================================================================
 -- Helper: scan nearby enemies for best Spellsteal target (per-tick caching)
@@ -345,7 +345,7 @@ local strategies = {
     },
 
     -- Auto-consumable usage
-    { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
+    { name = "AutoConsumable", matches = function(context) return consumable_manager.should_check(context) end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("mage", strategies)
