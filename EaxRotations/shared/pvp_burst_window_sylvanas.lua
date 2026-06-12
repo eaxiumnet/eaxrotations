@@ -22,7 +22,7 @@ local SCORE = {
 
 -- Defensive buffs that prevent burst
 local DEFENSIVE_BUFFS = {
-    [11958] = true,  -- Ice Block
+    [45438] = true,  -- Ice Block
     [642] = true,    -- Divine Shield
     [1022] = true,   -- Blessing of Protection
     [22812] = true,  -- Barkskin
