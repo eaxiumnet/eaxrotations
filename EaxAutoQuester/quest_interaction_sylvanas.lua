@@ -177,6 +177,7 @@ end
 
 -- Throttle: prevent re-processing the same quest frame
 local _last_quest_time = 0
+local _last_quest_action = nil  -- "accept" or "complete"
 
 -- ============================================================================
 -- handle_quest_detail: Accept or complete quest from quest detail frame
@@ -200,22 +201,34 @@ function M.handle_quest_detail()
 
     if not has_frame then return nil end
 
+    -- Determine action based on last attempt and frame type
+    local is_reward = ok_money and reward_money and reward_money > 0
+
+    if _last_quest_action == "accept" then
+        -- Already tried accept, frame still open — force complete to dismiss
+        _last_quest_action = "complete"
+        pcall(function() _quests.complete_quest() end)
+        pcall(function() _quests.close_quest() end)
+        if is_reward then
+            M.select_best_reward()
+        end
+        return "complete_quest"
+    end
+
     -- Try accept first (new quest offer)
     local accept_ok = pcall(function() _quests.accept_quest() end)
     if accept_ok then
-        -- Some quests auto-accept and need confirmation
+        _last_quest_action = "accept"
         pcall(function() _quests.confirm_accept_quest() end)
-        -- Dismiss the quest detail frame after accepting
         pcall(function() _quests.close_quest() end)
-        -- Also try complete_quest as fallback (some quests need it to dismiss the frame)
         pcall(function() _quests.complete_quest() end)
         return "accept_quest"
     end
 
     -- Try complete (turn-in)
+    _last_quest_action = "complete"
     local complete_ok = pcall(function() _quests.complete_quest() end)
     if complete_ok then
-        -- After completing, try selecting best reward
         local reward_action = M.select_best_reward()
         if reward_action then
             return "complete_quest+" .. reward_action
@@ -223,6 +236,7 @@ function M.handle_quest_detail()
         return "complete_quest"
     end
 
+    _last_quest_action = nil
     return nil
 end
 
@@ -328,6 +342,14 @@ function M.handle_any_frame()
     -- Priority 3: Quest detail frame (accept/complete/reward)
     local quest_action = M.handle_quest_detail()
     if quest_action then return quest_action end
+    -- If quest detail frame detected but throttled, signal stay in INTERACT
+    if _last_quest_time > 0 and _core_time() - _last_quest_time < 1.0 then
+        local ok_link, link = pcall(function() return _quests.get_quest_item_link("choice", 1) end)
+        local ok_money, reward_money = pcall(function() return _quests.get_reward_money() end)
+        if (ok_link and link and link ~= "") or (ok_money and reward_money and reward_money > 0) then
+            return "quest_throttled"
+        end
+    end
 
     -- Priority 4: Trainer frame
     local trainer_action = M.handle_trainer()

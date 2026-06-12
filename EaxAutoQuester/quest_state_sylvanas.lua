@@ -477,6 +477,11 @@ local function state_interact()
     local result = interaction.handle_any_frame()
 
     if result then
+        -- Throttled: frame still being processed, stay in INTERACT
+        if result == "quest_throttled" then
+            return "INTERACT"
+        end
+
         debug_log("INTERACT: handled (" .. tostring(result) .. ")")
 
         -- Recheck if frame still open
