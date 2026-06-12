@@ -51,6 +51,7 @@ local _last_step_num = 0             -- last seen step number (detect step chang
 local _debug = false                 -- cached debug flag from menu
 local _last_target_valid = false     -- combat tracking: was in combat last tick
 local _just_arrived = false          -- set true when NAV arrives, IDLE skips dist check
+local _last_hp_warning = 0           -- throttle HP warnings to once per 10s
 
 -- ============================================================================
 -- Nil-Guard Helper (Pattern 14 from AGENTS.md) — safe default for any field
@@ -289,6 +290,13 @@ local function state_idle()
         end)
         if hp_ok and hp_pct and hp_pct < 30 then
             debug_log("IDLE: HP low (" .. math.floor(hp_pct) .. "%) — waiting for regen")
+            if not _last_hp_warning or _last_hp_warning + 10.0 < _core_time() then
+                _last_hp_warning = _core_time()
+                local ns = _G.EaxAutoQuester
+                if ns and ns.set_warning then
+                    ns.set_warning("HP low (" .. math.floor(hp_pct) .. "%) - waiting for regen", 4.0)
+                end
+            end
             return "IDLE"
         end
     end
@@ -383,6 +391,17 @@ local function state_nav()
         return "NAV"
     end
 
+    -- Check for catastrophic navigation failure — warn and stop
+    if nav_state == "FAILED" and _nav_retries == 0 then
+        local nav_type = nav.get_nav_type and nav.get_nav_type() or "unknown"
+        if nav_type == "simple" or nav_type == nil then
+            local ns = _G.EaxAutoQuester
+            if ns and ns.set_warning then
+                ns.set_warning("Navigation unavailable - check SentinelNavClient", 8.0)
+            end
+        end
+    end
+
     -- Handle terminal navigation states
     if nav_state == "ARRIVED" then
         debug_log("NAV: arrived")
@@ -398,6 +417,10 @@ local function state_nav()
 
         if _nav_retries >= 3 then
             log("Navigation failed after 3 retries — giving up")
+            local ns = _G.EaxAutoQuester
+            if ns and ns.set_warning then
+                ns.set_warning("Navigation failed repeatedly - check path", 8.0)
+            end
             _nav_destination = nil
             _nav_retries = 0
             return "IDLE"
@@ -414,6 +437,10 @@ local function state_nav()
 
         if _nav_retries >= 3 then
             log("Navigation stuck after 3 retries — giving up")
+            local ns = _G.EaxAutoQuester
+            if ns and ns.set_warning then
+                ns.set_warning("Character stuck - manual input needed", 10.0)
+            end
             _nav_destination = nil
             _nav_retries = 0
             return "IDLE"

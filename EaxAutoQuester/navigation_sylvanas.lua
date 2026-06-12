@@ -232,6 +232,7 @@ end
 
 function M.is_navigating() return _state == "NAVIGATING" end
 function M.get_state() return _state end
+function M.get_nav_type() return _is_fallback and "simple" or (_client and "sentinel" or nil) end
 
 --- Get Sentinel's current path for visualization.
 function M.get_current_path()
