@@ -175,6 +175,9 @@ function M.select_best_reward()
     return nil
 end
 
+-- Throttle: prevent re-processing the same quest frame
+local _last_quest_time = 0
+
 -- ============================================================================
 -- handle_quest_detail: Accept or complete quest from quest detail frame
 -- ============================================================================
@@ -185,6 +188,11 @@ end
 --- After completion, attempts select_best_reward() for reward selection.
 --- @return string|nil Action description or nil if no quest frame
 function M.handle_quest_detail()
+    -- Throttle: only attempt once per second (pcall always succeeds even if API fails)
+    local now = _core_time()
+    if now - _last_quest_time < 1.0 then return nil end
+    _last_quest_time = now
+
     -- Probe: check if any quest frame is showing via reward link or reward money
     local ok_link, link = pcall(function() return _quests.get_quest_item_link("choice", 1) end)
     local ok_money, reward_money = pcall(function() return _quests.get_reward_money() end)
@@ -199,6 +207,8 @@ function M.handle_quest_detail()
         pcall(function() _quests.confirm_accept_quest() end)
         -- Dismiss the quest detail frame after accepting
         pcall(function() _quests.close_quest() end)
+        -- Also try complete_quest as fallback (some quests need it to dismiss the frame)
+        pcall(function() _quests.complete_quest() end)
         return "accept_quest"
     end
 
