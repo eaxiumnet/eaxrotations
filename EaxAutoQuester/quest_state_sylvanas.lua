@@ -52,6 +52,7 @@ local _debug = false                 -- cached debug flag from menu
 local _last_target_valid = false     -- combat tracking: was in combat last tick
 local _just_arrived = false          -- set true when NAV arrives, IDLE skips dist check
 local _last_hp_warning = 0           -- throttle HP warnings to once per 10s
+local _last_cooldown_log = 0         -- throttle cooldown log spam
 local _area_fail_count = 0           -- consecutive area interaction failures
 local _area_last_target_guid = nil   -- GUID of last brute-force target (detect loops)
 local _interact_start_time = 0       -- when INTERACT state was entered (timeout safety net)
@@ -208,11 +209,33 @@ local function state_idle()
         return "WAITING"
     end
 
+    -- Combat check first: if in combat, skip frame handling
+    local me = _get_local_player()
+    local in_combat = false
+    if me then
+        local ok, combat = pcall(function() return me:is_in_combat() end)
+        in_combat = ok and combat == true
+    end
+    if in_combat then
+        local nav = ensure_navigation()
+        if nav and nav.is_navigating and nav.is_navigating() then
+            nav.stop()
+            debug_log("IDLE: combat — stopped navigation")
+        end
+        _interact_cooldown = 0  -- reset cooldown during combat
+        return "IDLE"
+    end
+    _last_target_valid = false
+
     -- Open UI frame → INTERACT (detect without handling)
     -- Skip if cooldown active (prevents immediate re-entry after timeout)
     if _interact_cooldown > 0 then
         if _core_time() < _interact_cooldown then
-            debug_log("IDLE: frame detected but in cooldown")
+            -- throttle log to once per 5s
+            if not _last_cooldown_log or _core_time() - _last_cooldown_log > 5.0 then
+                _last_cooldown_log = _core_time()
+                debug_log("IDLE: frame cooldown active (" .. tostring(math.floor(_interact_cooldown - _core_time())) .. "s left)")
+            end
         else
             _interact_cooldown = 0
         end
@@ -259,38 +282,7 @@ local function state_idle()
         end
     end
 
-    -- Combat check: if in combat, stop navigation and let EaxRotations handle
-    local me = _get_local_player()
-    local in_combat = false
-    if me then
-        local ok, combat = pcall(function() return me:is_in_combat() end)
-        in_combat = ok and combat == true
-    end
-
-    if in_combat then
-        -- Stop any active navigation during combat
-        local nav = ensure_navigation()
-        if nav and nav.is_navigating and nav.is_navigating() then
-            nav.stop()
-            debug_log("IDLE: combat detected — stopped navigation")
-        end
-
-        -- Target nearest enemy if no target or invalid target
-        local combat_h = ensure_combat_helper()
-        if combat_h and not combat_h.is_current_target_valid() then
-            combat_h.target_and_tag_nearest(30)
-        end
-
-        -- Stay in IDLE during combat — EaxRotations handles rotation
-        if _last_target_valid ~= in_combat then
-            debug_log("IDLE: waiting for combat to end")
-        end
-        _last_target_valid = in_combat
-        return "IDLE"
-    end
-    _last_target_valid = false
-
-    -- Low HP pause: if out of combat and HP below 30%, wait until regen
+    -- Low HP pause: if out of combat and HP below 80%, wait until regen
     if me then
         local hp_ok, hp_pct = pcall(function()
             local max_hp = me:get_max_health()
