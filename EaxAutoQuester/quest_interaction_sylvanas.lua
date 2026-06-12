@@ -247,6 +247,10 @@ function M.handle_quest_detail()
     if ok_g3 and gossip3 then
         pcall(function() _quests.close_gossip() end)
     end
+    -- Aggressive fallback: close ALL possible frames
+    pcall(function() _quests.close_quest() end)
+    pcall(function() _quests.close_gossip() end)
+    pcall(function() _input.close_loot() end)
     return "accept_quest"
 end
 
