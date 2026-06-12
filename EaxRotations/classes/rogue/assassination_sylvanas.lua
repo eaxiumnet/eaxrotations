@@ -583,7 +583,7 @@ local strategies = {
             end
             -- AoE damage reduction: cast when taking AoE damage and HP low
             if (state.hp_pct or 100) > 60 then return false end
-            if not (context.aoe_damage_incoming or 0) then return false end
+            if not context.aoe_damage_incoming then return false end
             return NS.spell_ready(SPELLS.Feint, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()
