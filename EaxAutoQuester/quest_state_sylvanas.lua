@@ -311,6 +311,22 @@ local function state_idle()
             end
             return "IDLE"
         end
+
+        -- Mana check: wait until > 80% (use power type 0 = MANA)
+        if me then
+            local mana_ok, mana_pct = pcall(function()
+                local max_mp = me:get_max_power(0)
+                local cur_mp = me:get_power(0)
+                if max_mp and max_mp > 0 and cur_mp then
+                    return (cur_mp / max_mp) * 100
+                end
+                return nil
+            end)
+            if mana_ok and mana_pct and mana_pct < 80 then
+                debug_log("IDLE: Mana low (" .. math.floor(mana_pct) .. "%) — waiting for regen")
+                return "IDLE"
+            end
+        end
     end
 
     -- Determine if player needs to move to goal position first
