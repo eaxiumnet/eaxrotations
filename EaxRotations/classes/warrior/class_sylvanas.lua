@@ -344,8 +344,8 @@ local SPELLS = {
     }),
     ShieldBash = NS.spell_action({
         name = "ShieldBash",
-        ids = {1672, 1671, 72},
-        levels = {52, 32, 12},
+        ids = {29704, 1672, 1671, 72},
+        levels = {64, 52, 32, 12},
         cast_time = 0,
         cooldown = 12,
         power_cost = 0,
