@@ -56,6 +56,7 @@ local _area_fail_count = 0           -- consecutive area interaction failures
 local _area_last_target_guid = nil   -- GUID of last brute-force target (detect loops)
 local _interact_start_time = 0       -- when INTERACT state was entered (timeout safety net)
 local INTERACT_TIMEOUT = 15          -- max seconds in INTERACT before force-exit
+local _interact_cooldown = 0         -- don't re-enter INTERACT until this time
 
 -- ============================================================================
 -- Nil-Guard Helper (Pattern 14 from AGENTS.md) — safe default for any field
@@ -208,7 +209,14 @@ local function state_idle()
     end
 
     -- Open UI frame → INTERACT (detect without handling)
-    if detect_open_frame() then
+    -- Skip if cooldown active (prevents immediate re-entry after timeout)
+    if _interact_cooldown > 0 then
+        if _core_time() < _interact_cooldown then
+            debug_log("IDLE: frame detected but in cooldown")
+        else
+            _interact_cooldown = 0
+        end
+    elseif detect_open_frame() then
         debug_log("IDLE: open frame detected → INTERACT")
         return "INTERACT"
     end
@@ -479,7 +487,12 @@ local function state_interact()
         _interact_start_time = now
     elseif now - _interact_start_time > INTERACT_TIMEOUT then
         _interact_start_time = 0
-        core.log_warning("[EaxAutoQuester] Frame stuck open for 15s - force exiting")
+        _interact_cooldown = now + 5.0
+        -- Force close all frames before exiting
+        pcall(function() core.quests.close_quest() end)
+        pcall(function() core.quests.close_gossip() end)
+        pcall(core.input.close_loot)
+        core.log_warning("[EaxAutoQuester] Frame stuck - manual intervention may be needed")
         return "IDLE"
     end
 
