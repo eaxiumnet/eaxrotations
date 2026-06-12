@@ -17,7 +17,7 @@ local GARROTE_DEBUFF   = { 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }
 local COLD_BLOOD_BUFF = { 14177 }
 local DEADLY_POISON_DEBUFF = { 27187, 27186, 26968, 26967, 25349, 25347, 11354, 11356, 11353, 11355, 2819, 2837, 2818, 2835 }
 local CRIPPLING_POISON_DEBUFF = { 3408, 3409, 11201, 11202 }
-local WOUND_POISON_DEBUFF   = { 27283, 13230, 13229, 13228, 13220 }  -- Wound Poison (healing reduction, DB2-vetted)
+local WOUND_POISON_DEBUFF   = { 27283, 27189, 13230, 13229, 13228, 13220 }  -- Wound Poison (27189=R4 TBC max rank proc, DB2-vetted)
 local DOT_REFRESH_WINDOW = 3
 local SND_REFRESH_WINDOW = 3     -- Slice and Dice refresh when < 3s remains
 local ENERGY_TICK = 20           -- Energy gained per tick (2s)
