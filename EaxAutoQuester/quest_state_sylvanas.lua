@@ -757,6 +757,12 @@ local function execute_goal_action(action_type, goal)
                             debug_log("DO_ACTION: area — giving up after 5 failed attempts")
                             return true
                         end
+                        -- Verify object is still valid before interacting
+                        local _, valid = pcall(function() return best:is_valid() end)
+                        if not valid then
+                            debug_log("DO_ACTION: area — target became invalid")
+                            return true
+                        end
                         pcall(core.input.set_target, best)
                         pcall(core.input.interact_with_object, best)
                         debug_log("DO_ACTION: area — targeting nearest unit (attempt " .. _area_fail_count .. ")")
@@ -908,6 +914,19 @@ function M.update()
         debug_log("State: " .. _state .. " → " .. next_state)
         _state = next_state
     end
+end
+
+--- Hard stop: called from main.lua when plugin is disabled.
+--- Immediately stops all navigation and resets state.
+function M.stop_navigation()
+    local nav = ensure_navigation()
+    if nav then
+        nav.stop()
+        debug_log("Hard stop: navigation cancelled")
+    end
+    _nav_destination = nil
+    _nav_retries = 0
+    _nav_retry_timer = 0
 end
 
 --- Render debug overlay when debug mode is enabled.

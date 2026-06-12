@@ -52,7 +52,10 @@ local function set_warning(msg, duration)
     state.warning_timer = _core_time() + (duration or 5.0)
 end
 
+local _prev_enabled = nil  -- track transitions for hard stop
+
 --- Read menu checkbox for enabled state, handle keybind toggle.
+--- When disabled, immediately stop all navigation.
 local function check_enabled()
     if not _menu then return end
 
@@ -66,7 +69,6 @@ local function check_enabled()
         if ok then
             local prev = _menu._last_kb_toggle
             if prev ~= nil and toggle ~= prev then
-                -- Toggle changed: flip checkbox
                 state.enabled = toggle
                 if _menu.enable and _menu.enable.set then
                     pcall(function() _menu.enable:set(toggle) end)
@@ -75,6 +77,14 @@ local function check_enabled()
             _menu._last_kb_toggle = toggle
         end
     end
+
+    -- Hard stop: if transitioning from enabled to disabled, kill all navigation
+    if _prev_enabled == true and not state.enabled then
+        if _quest_state and _quest_state.stop_navigation then
+            _quest_state.stop_navigation()
+        end
+    end
+    _prev_enabled = state.enabled
 end
 
 --- Render warning overlay — always shows when warning is active.
