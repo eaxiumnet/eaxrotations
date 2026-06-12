@@ -52,6 +52,8 @@ local _debug = false                 -- cached debug flag from menu
 local _last_target_valid = false     -- combat tracking: was in combat last tick
 local _just_arrived = false          -- set true when NAV arrives, IDLE skips dist check
 local _last_hp_warning = 0           -- throttle HP warnings to once per 10s
+local _area_fail_count = 0           -- consecutive area interaction failures
+local _area_last_target_guid = nil   -- GUID of last brute-force target (detect loops)
 
 -- ============================================================================
 -- Nil-Guard Helper (Pattern 14 from AGENTS.md) — safe default for any field
@@ -643,7 +645,7 @@ local function execute_goal_action(action_type, goal)
             end
         end
 
-        -- No NPC from goal data — scan all visible objects for any nearby NPC
+        -- Brute-force scan for nearby NPCs
         local me = _get_local_player()
         if me then
             local _, pos = pcall(function() return me:get_position() end)
@@ -652,36 +654,28 @@ local function execute_goal_action(action_type, goal)
                 local _, objects = pcall(core.object_manager.get_visible_objects)
                 if objects and #objects > 0 then
                     local best, best_sq = nil, math.huge
+                    local best_guid = nil
                     local limit = #objects > 50 and 50 or #objects
                     for i = 1, limit do
                         local obj = objects[i]
                         if not obj then break end
                         local skip = false
-
-                        -- Skip self
                         if me_guid then
                             local _, guid = pcall(function() return obj:get_guid() end)
                             if guid and guid == me_guid then skip = true end
                         end
-
-                        -- Only units
                         if not skip then
                             local ok2, unit = pcall(function() return obj:is_unit() end)
                             if not (ok2 and unit) then skip = true end
                         end
-
-                        -- Skip players (only NPCs)
                         if not skip then
                             local ok5, is_player = pcall(function() return obj:is_player() end)
                             if ok5 and is_player then skip = true end
                         end
-
-                        -- Skip dead
                         if not skip then
                             local ok3, dead = pcall(function() return obj:is_dead() end)
                             if ok3 and dead then skip = true end
                         end
-
                         if not skip then
                             local ok1, valid = pcall(function() return obj:is_valid() end)
                             if ok1 and valid then
@@ -692,21 +686,46 @@ local function execute_goal_action(action_type, goal)
                                     local d_sq = dx * dx + dy * dy
                                     if d_sq < best_sq and d_sq < 100 then
                                         best, best_sq = obj, d_sq
+                                        local _, g = pcall(function() return obj:get_guid() end)
+                                        if g then best_guid = g end
                                     end
                                 end
                             end
                         end
                     end
                     if best then
+                        -- Track same-target loops: if we keep targeting the same unit without progress, halt
+                        if best_guid and best_guid == _area_last_target_guid then
+                            _area_fail_count = _area_fail_count + 1
+                        else
+                            _area_fail_count = 0
+                            _area_last_target_guid = best_guid
+                        end
+                        if _area_fail_count >= 5 then
+                            _area_fail_count = 0
+                            _area_last_target_guid = nil
+                            core.log_warning("[EaxAutoQuester] Cannot interact with target - manual help required")
+                            local ns = _G.EaxAutoQuester
+                            if ns and ns.set_warning then
+                                ns.set_warning("Stuck - cannot interact with NPC here", 0)
+                            end
+                            debug_log("DO_ACTION: area — giving up after 5 failed attempts")
+                            return true
+                        end
                         pcall(core.input.set_target, best)
                         pcall(core.input.interact_with_object, best)
-                        debug_log("DO_ACTION: area — targeting nearest unit")
+                        debug_log("DO_ACTION: area — targeting nearest unit (attempt " .. _area_fail_count .. ")")
                         return true
                     end
+                    -- No target found in scan — reset counter
+                    _area_fail_count = 0
+                    _area_last_target_guid = nil
                 end
             end
         end
-        -- No NPC found — wait for Zygor to detect arrival
+        -- Also reset if we fall through to here (no NPC at all)
+        _area_fail_count = 0
+        _area_last_target_guid = nil
         _area_wait_timer = _core_time() + 3.0
         debug_log("DO_ACTION: area goal — no NPC, waiting")
         return true
