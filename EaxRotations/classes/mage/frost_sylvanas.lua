@@ -5,6 +5,9 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.MageSpells or {}
 
+-- Root/snare debuff IDs (used by Blink escape)
+local COMMON_SNARES = { 122, 116, 120, 339, 5116, 3409, 3600, 12494, 13099 }
+
 local potion_helper = require("shared/potion_helper_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { mage = {} } } end
@@ -411,7 +414,7 @@ local strategies = {
     { name = "ArcaneIntellect", matches = arcane_intellect_matches, execute = function() return NS.try_cast(SPELLS.ArcaneIntellect, NS.PLAYER_UNIT, "[FROST] ArcaneIntellect", { skip_range = true }) end },
     { name = "IceBarrier", matches = ice_barrier_matches, execute = function() return NS.try_cast(SPELLS.IceBarrier, NS.PLAYER_UNIT, "[FROST] IceBarrier", { skip_range = true }) end },
     { name = "IceBlock", matches = ice_block_wrapper, execute = function() return NS.try_cast(SPELLS.IceBlock, NS.PLAYER_UNIT, "[FROST] IceBlock", { skip_range = true }) end },
-    { name = "Blink", matches = function(context, s) return s.in_combat and (s.is_rooted or s.is_snared) and NS.spell_ready(SPELLS.Blink) end, execute = function() return NS.try_cast(SPELLS.Blink, NS.PLAYER_UNIT, "[FROST] Blink", { skip_range = true }) end },
+    { name = "Blink", matches = function(context, s) return s.in_combat and (context.self_rooted_snared or (NS.has_player_debuff and NS.has_player_debuff(COMMON_SNARES) or false)) and NS.spell_ready(SPELLS.Blink) end, execute = function() return NS.try_cast(SPELLS.Blink, NS.PLAYER_UNIT, "[FROST] Blink", { skip_range = true }) end },
     { name = "ColdSnap", matches = cold_snap_wrapper, execute = function() return NS.try_cast(SPELLS.ColdSnap, NS.PLAYER_UNIT, "[FROST] ColdSnap", { skip_range = true }) end },
     { name = "IcyVeins", matches = icy_veins_matches, execute = function() return NS.try_cast(SPELLS.IcyVeins, NS.PLAYER_UNIT, "[FROST] IcyVeins", { skip_range = true, expected_cooldown = 180 }) end },
     { name = "WaterElemental", matches = water_elemental_matches, execute = function() return NS.try_cast(SPELLS.WaterElemental, NS.PLAYER_UNIT, "[FROST] WaterElemental", { skip_range = true, expected_cooldown = 180 }) end },

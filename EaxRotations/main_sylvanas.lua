@@ -419,7 +419,6 @@ local function build_context()
     local in_combat
     if combat_state_known then
         in_combat = raw_in_combat
-        was_in_combat = in_combat
         _combat_state_last_known = NS.time_now()
     else
         -- Decay: if API has been returning nil for > 1s, assume out of combat
@@ -511,6 +510,18 @@ local function build_context()
     end)() or false
     _context.in_combat = in_combat
     _context.combat_state_known = combat_state_known
+    -- OOC safety: refuse auto-selected targets when out of combat (any zone).
+    -- Prevents engine-level auto-targeting from triggering combat initiation
+    -- in PvP zones, Booty Bay, or anywhere the player hasn't manually engaged.
+    -- Player must start combat manually (tab/click/cast); then rotation takes over.
+    if target and not in_combat then
+        target = nil
+        _context.target = nil
+        _context.target_casting = false
+        _context.target_ttd = nil
+        _context.has_aggro = false
+        enemy_ok = false
+    end
     _context.has_target = target ~= nil
     _context.has_valid_enemy_target = enemy_ok
     _context.target_hp = enemy_ok and _unit_health_pct(target) or 100
@@ -856,6 +867,7 @@ local function build_context()
             NS.log("[EaxRotations:TRACE] callback: combat_end")
             if NS._fire_combat_end then NS._fire_combat_end(_context) end
         end
+        was_in_combat = in_combat
     end
     return _context
 end

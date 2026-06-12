@@ -44,6 +44,9 @@ local PHASE_BURN = "burn"
 local PHASE_CONSERVE = "conserve"
 local PHASE_EMERGENCY = "emergency"
 
+-- Root/snare debuff IDs (used by Blink escape)
+local COMMON_SNARES = { 122, 116, 120, 339, 5116, 3409, 3600, 12494, 13099 }
+
 -- ============================================================================
 -- Phase State Machine State
 -- ============================================================================
@@ -445,13 +448,13 @@ local strategies = {
       matches = ice_barrier_matches,
       execute = function(context) return NS.try_cast(SPELLS.IceBarrier, context.me, "[ARCANE] IceBarrier") end },
     { name = "IceBlock",
-      matches = function(context, s) return (s.hp or 100) <= 20 and NS.spell_ready(SPELLS.IceBlock) end,
+      matches = function(context, s) return (s.hp_pct or 100) <= 20 and NS.spell_ready(SPELLS.IceBlock) end,
       execute = function() return NS.try_cast(SPELLS.IceBlock, NS.PLAYER_UNIT, "[ARCANE] IceBlock", { skip_range = true }) end },
     { name = "ColdSnap",
-      matches = function(context, s) return (s.hp or 100) <= 35 and not NS.spell_ready(SPELLS.IceBlock) and NS.spell_ready(SPELLS.ColdSnap) end,
+      matches = function(context, s) return (s.hp_pct or 100) <= 35 and not NS.spell_ready(SPELLS.IceBlock) and NS.spell_ready(SPELLS.ColdSnap) end,
       execute = function() return NS.try_cast(SPELLS.ColdSnap, NS.PLAYER_UNIT, "[ARCANE] ColdSnap", { skip_range = true }) end },
     { name = "Blink",
-      matches = function(context, s) return s.in_combat and (s.is_rooted or s.is_snared) and NS.spell_ready(SPELLS.Blink) end,
+      matches = function(context, s) return s.in_combat and (context.self_rooted_snared or (NS.has_player_debuff and NS.has_player_debuff(COMMON_SNARES) or false)) and NS.spell_ready(SPELLS.Blink) end,
       execute = function() return NS.try_cast(SPELLS.Blink, NS.PLAYER_UNIT, "[ARCANE] Blink", { skip_range = true }) end },
     { name = "ManaShield",
       matches = mana_shield_matches,
@@ -489,7 +492,7 @@ local strategies = {
       matches = function(context, s)
           if not s.in_combat then return false end
           if not context.target then return false end
-          if s.burn_phase ~= true then return false end
+          if s.phase ~= "burn" then return false end
           if s.icy_veins_remains and s.icy_veins_remains > 0 then return false end
           return NS.spell_ready(SPELLS.IcyVeins, NS.PLAYER_UNIT, { skip_range = true })
       end,
@@ -499,7 +502,7 @@ local strategies = {
     { name = "ColdSnapIVReset",
       matches = function(context, s)
           if not s.in_combat then return false end
-          if s.burn_phase ~= true then return false end
+          if s.phase ~= "burn" then return false end
           if s.cold_snap_remains and s.cold_snap_remains > 0 then return false end
           if not (s.icy_veins_remains and s.icy_veins_remains > 3) then return false end
           return NS.spell_ready(SPELLS.ColdSnap, NS.PLAYER_UNIT, { skip_range = true })
