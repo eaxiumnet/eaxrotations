@@ -67,16 +67,6 @@ local SPELLS = {
     CurseTongues = NS.spell_action({ 11719, 1714 }, "CurseTongues"),
     CreateHealthstone = NS.spell_action({ 27230, 11730, 11729, 6202, 6201, 5699 }, "CreateHealthstone"),
     CreateSoulstone = NS.spell_action({ 27238, 20756, 20755, 20752, 693 }, "CreateSoulstone"),
-    DemonicEmpowerment = NS.spell_action({
-        name = "DemonicEmpowerment",
-        ids = {47193},
-        levels = {30},
-        cast_time = 0,
-        cooldown = 60,
-        power_cost = 0,
-        power_type = "mana",
-        school = "shadow",
-    }),
     DarkPact = NS.spell_action({
         name = "DarkPact",
         ids = {27265, 18938, 18937, 18220},
