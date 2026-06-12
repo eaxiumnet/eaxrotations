@@ -201,30 +201,40 @@ function M.handle_quest_detail()
 
     if not has_frame then return nil end
 
-    -- Detect if this is a turn-in/reward frame (has reward choices or money)
-    local is_turnin = is_reward or (ok_link and link and link ~= "")
+    -- Try complete_quest first (covers both turn-ins and accept-without-reward)
+    -- Some turn-in quests have no reward money/items, so reward detection fails
+    _last_quest_action = "complete"
+    pcall(function() _quests.complete_quest() end)
+    pcall(function() _quests.close_quest() end)
+    local reward_action = M.select_best_reward()
 
-    if is_turnin then
-        -- Turn-in frame: complete first, then select reward
-        _last_quest_action = "complete"
-        pcall(function() _quests.complete_quest() end)
-        local reward_action = M.select_best_reward()
-        pcall(function() _quests.close_quest() end)
+    -- Try accept_quest only if complete didn't resolve the frame
+    -- (check if frame is still detected after complete attempt)
+    local still_open = false
+    local ok2, link2 = pcall(function() return _quests.get_quest_item_link("choice", 1) end)
+    local ok2b, money2 = pcall(function() return _quests.get_reward_money() end)
+    if (ok2 and link2 and link2 ~= "") or (ok2b and money2 and money2 > 0) then
+        still_open = true
+    end
+    if not still_open then
+        local ok_g, gossip = pcall(function() return _quests.is_gossip_frame_shown() end)
+        if ok_g and gossip then
+            pcall(function() _quests.close_gossip() end)
+        end
         if reward_action then
             return "complete_quest+" .. reward_action
         end
         return "complete_quest"
     end
 
-    -- Accept frame: accept quest offer
+    -- Frame still open — try accept_quest
     _last_quest_action = "accept"
     pcall(function() _quests.accept_quest() end)
     pcall(function() _quests.confirm_accept_quest() end)
     pcall(function() _quests.close_quest() end)
     pcall(function() _quests.complete_quest() end)
-    -- After accepting, gossip may reappear — close it too
-    local ok_g, gossip = pcall(function() return _quests.is_gossip_frame_shown() end)
-    if ok_g and gossip then
+    local ok_g2, gossip2 = pcall(function() return _quests.is_gossip_frame_shown() end)
+    if ok_g2 and gossip2 then
         pcall(function() _quests.close_gossip() end)
     end
     return "accept_quest"
