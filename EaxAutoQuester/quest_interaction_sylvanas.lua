@@ -197,6 +197,8 @@ function M.handle_quest_detail()
     if accept_ok then
         -- Some quests auto-accept and need confirmation
         pcall(function() _quests.confirm_accept_quest() end)
+        -- Dismiss the quest detail frame after accepting
+        pcall(function() _quests.close_quest() end)
         return "accept_quest"
     end
 
