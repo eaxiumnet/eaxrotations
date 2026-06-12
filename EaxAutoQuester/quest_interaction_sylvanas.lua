@@ -201,43 +201,28 @@ function M.handle_quest_detail()
 
     if not has_frame then return nil end
 
-    -- Determine action based on last attempt and frame type
-    local is_reward = ok_money and reward_money and reward_money > 0
+    -- Detect if this is a turn-in/reward frame (has reward choices or money)
+    local is_turnin = is_reward or (ok_link and link and link ~= "")
 
-    if _last_quest_action == "accept" then
-        -- Already tried accept, frame still open — force complete to dismiss
+    if is_turnin then
+        -- Turn-in frame: complete first, then select reward
         _last_quest_action = "complete"
         pcall(function() _quests.complete_quest() end)
-        pcall(function() _quests.close_quest() end)
-        if is_reward then
-            M.select_best_reward()
-        end
-        return "complete_quest"
-    end
-
-    -- Try accept first (new quest offer)
-    local accept_ok = pcall(function() _quests.accept_quest() end)
-    if accept_ok then
-        _last_quest_action = "accept"
-        pcall(function() _quests.confirm_accept_quest() end)
-        pcall(function() _quests.close_quest() end)
-        pcall(function() _quests.complete_quest() end)
-        return "accept_quest"
-    end
-
-    -- Try complete (turn-in)
-    _last_quest_action = "complete"
-    local complete_ok = pcall(function() _quests.complete_quest() end)
-    if complete_ok then
         local reward_action = M.select_best_reward()
+        pcall(function() _quests.close_quest() end)
         if reward_action then
             return "complete_quest+" .. reward_action
         end
         return "complete_quest"
     end
 
-    _last_quest_action = nil
-    return nil
+    -- Accept frame: accept quest offer
+    _last_quest_action = "accept"
+    pcall(function() _quests.accept_quest() end)
+    pcall(function() _quests.confirm_accept_quest() end)
+    pcall(function() _quests.close_quest() end)
+    pcall(function() _quests.complete_quest() end)
+    return "accept_quest"
 end
 
 -- ============================================================================
