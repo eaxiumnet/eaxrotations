@@ -235,7 +235,7 @@ end
 
 local function premeditation_matches(context, state)
     if not state.stealth_up then return false end
-    if state.combo >= 3 then return false end
+    if (state.combo or 0) >= 3 then return false end
     return NS.spell_ready(SPELLS.Premeditation, context.target, { skip_range = true })
 end
 
@@ -331,13 +331,13 @@ local function shadowstep_gap_matches(context, state)
 end
 
 local function sprint_gap_matches(context, state)
-    if state.target_distance <= 12 or state.target_distance > 35 then return false end
+    if (state.target_distance or 40) <= 12 or (state.target_distance or 40) > 35 then return false end
     return NS.spell_ready(SPELLS.Sprint, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function vanish_burst_matches(context, state)
     if state.stealth_up then return false end
-    if state.hp <= setting(context, "rogue_vanish_hp", 20) and setting(context, "rogue_use_vanish_defensive", false) then
+    if (state.hp or 100) <= setting(context, "rogue_vanish_hp", 20) and setting(context, "rogue_use_vanish_defensive", false) then
         return NS.spell_ready(SPELLS.Vanish, NS.PLAYER_UNIT, { skip_range = true })
     end
     if not (context.should_burst) then return false end
@@ -347,10 +347,10 @@ end
 local function preparation_matches(context, state)
     local in_burst = context.should_burst or false
     if setting(context, "use_cooldowns", true) == false and not in_burst then return false end
-    if state.hp > setting(context, "subtlety_prep_hp", 40) then return false end
+    if (state.hp or 100) > setting(context, "subtlety_prep_hp", 40) then return false end
     -- Only use when at least one major cooldown is actually on cooldown
     if NS.get_spell_cd then
-        local has_cd_burned = state.vanish_cd > 0 or state.sprint_cd > 0 or state.evasion_cd > 0
+        local has_cd_burned = (state.vanish_cd or 0) > 0 or (state.sprint_cd or 0) > 0 or (state.evasion_cd or 0) > 0
         if not has_cd_burned then return false end
     end
     if not context.in_combat then return false end
@@ -358,8 +358,8 @@ local function preparation_matches(context, state)
 end
 
 local function kidney_shot_matches(context, state)
-    if state.combo < 3 or not enough_energy(state, ENERGY_KIDNEY) then return false end
-    if state.kidney_remains > 0 then return false end
+    if (state.combo or 0) < 3 or not enough_energy(state, ENERGY_KIDNEY) then return false end
+    if (state.kidney_remains or 0) > 0 then return false end
     if not is_pvp_target(context) and (state.target_hp or 100) > 35 then return false end
     return NS.spell_ready(SPELLS.KidneyShot, context.target)
 end
@@ -377,55 +377,55 @@ local function hemo_debuff_matches(context, state)
 end
 
 local function slice_matches(context, state)
-    if state.combo < 2 then return false end
-    if state.slice_remains > SND_REFRESH then return false end
+    if (state.combo or 0) < 2 then return false end
+    if (state.slice_remains or 0) > SND_REFRESH then return false end
     if state.energy_pool_finisher then return false end
     return NS.spell_ready(SPELLS.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function rupture_matches(context, state)
-    if state.combo < 4 then return false end
+    if (state.combo or 0) < 4 then return false end
     if state.energy_pool_finisher then return false end
     if (state.target_hp or 100) < 25 or (context.ttd or 999) < RUPTURE_TTD_FLOOR then return false end
-    if state.rupture_remains > RUPTURE_REFRESH then return false end
+    if (state.rupture_remains or 0) > RUPTURE_REFRESH then return false end
     return NS.spell_ready(SPELLS.Rupture, context.target)
 end
 
 local function expose_armor_matches(context, state)
-    if state.combo < 4 then return false end
+    if (state.combo or 0) < 4 then return false end
     if context.has_sunder then return false end
     -- Skip if target has no armor (API unavailable or already fully reduced)
     if (context.target_armor or 0) <= 0 then return false end
-    if state.expose_remains > 3 then return false end
+    if (state.expose_remains or 0) > 3 then return false end
     if not context.target_is_boss and (context.ttd or 999) < 20 then return false end
     return NS.spell_ready(SPELLS.ExposeArmor, context.target)
 end
 
 local function deadly_throw_matches(context, state)
-    if state.combo < 3 or not enough_energy(state, ENERGY_DEADLY_THROW) then return false end
-    if state.target_distance <= MELEE_RANGE or state.target_distance > 30 then return false end
+    if (state.combo or 0) < 3 or not enough_energy(state, ENERGY_DEADLY_THROW) then return false end
+    if (state.target_distance or 40) <= MELEE_RANGE or (state.target_distance or 40) > 30 then return false end
     return NS.spell_ready(SPELLS.UnavailableClassicRogueThrow, context.target)
 end
 
 local function eviscerate_kill_matches(context, state)
-    if state.combo < 4 then return false end
+    if (state.combo or 0) < 4 then return false end
     if state.energy_pool_finisher then return false end
-    if state.energy < ENERGY_FINISHER then return false end  -- hard floor
+    if (state.energy or 0) < ENERGY_FINISHER then return false end  -- hard floor
     if (state.target_hp or 100) > 30 and not state.shadowstep_buff then return false end
     return NS.spell_ready(SPELLS.Eviscerate, context.target)
 end
 
 local function eviscerate_matches(context, state)
-    if state.combo < 4 then return false end
+    if (state.combo or 0) < 4 then return false end
     if state.energy_pool_finisher then return false end
-    if state.energy < ENERGY_FINISHER then return false end  -- hard floor
+    if (state.energy or 0) < ENERGY_FINISHER then return false end  -- hard floor
     return NS.spell_ready(SPELLS.Eviscerate, context.target)
 end
 
 local function feint_matches(context, state)
     if not context.in_combat then return false end
     local feint_threat = setting(context, "subtlety_feint_threat", FEINT_THREAT_DEFAULT)
-    if state.threat_pct <= 0 or state.threat_pct < feint_threat then return false end
+    if (state.threat_pct or 0) <= 0 or (state.threat_pct or 0) < feint_threat then return false end
     if not enough_energy(state, ENERGY_FEINT) then return false end
     return NS.spell_ready(SPELLS.Feint, NS.PLAYER_UNIT, { skip_range = true })
 end
