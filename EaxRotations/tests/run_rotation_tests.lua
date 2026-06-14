@@ -182,6 +182,9 @@ local tests = {
     -- Auto-potion strategy tests
     "test_potion_helper_module.lua",
     "test_auto_potion_strategies.lua",
+
+    "test_bear_vanilla_nil_guards.lua",
+    "test_subtlety_vanilla_nil_guards.lua",
 }
 
 local function quote(path)
