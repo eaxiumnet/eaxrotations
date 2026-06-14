@@ -376,8 +376,8 @@ local function build_state(context)
     state.potion_ready = first_ready_item(HEALING_POTION_IDS)
 
     scan_pack(state)
-    state.group_pressure = state.enemy_count >= state.aoe_threshold or state.pack_loose > 0
-    state.heavy_damage = state.hp <= state.frenzied_regen_hp or (state.hp <= state.barkskin_hp and (state.enemy_count >= 2 or state.pack_elites > 0))
+    state.group_pressure = (state.enemy_count or 1) >= (state.aoe_threshold or 3) or (state.pack_loose or 0) > 0
+    state.heavy_damage = state.hp <= (state.frenzied_regen_hp or 35) or (state.hp <= (state.barkskin_hp or 55) and ((state.enemy_count or 1) >= 2 or (state.pack_elites or 0) > 0))
     state.emergency_damage = state.hp <= 30 and state.pack_loose > 0
 
     update_rage_tracking(state)
@@ -439,8 +439,8 @@ end
 local function pre_pull_enrage_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or state.in_combat then return false end
-    if state.rage >= RAGE_POOL_PULL then return false end
-    if state.rage > OOC_ENRAGE_RAGE_MAX then return false end
+    if (state.rage or 0) >= RAGE_POOL_PULL then return false end
+    if (state.rage or 0) > OOC_ENRAGE_RAGE_MAX then return false end
     return action_ready(context, action)
 end
 
@@ -450,8 +450,8 @@ local function faerie_fire_pull_matches(context, action)
     -- Skip if target has no armor (API unavailable or already fully reduced)
     if (context.target_armor or 0) <= 0 then return false end
     if state.in_melee then return false end
-    if state.target_range > 30 then return false end
-    if state.faerie_remains > 4 then return false end
+    if (state.target_range or 40) > 30 then return false end
+    if (state.faerie_remains or 0) > 4 then return false end
     return action_ready(context, action)
 end
 
@@ -491,8 +491,8 @@ end
 local function challenging_roar_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat then return false end
-    if (state.enemy_count or 0) < CHALLENGING_ROAR_ENEMY_COUNT and state.pack_loose < 2 then return false end
-    if state.pack_loose < 2 and state.hp < 45 then return false end
+    if (state.enemy_count or 0) < CHALLENGING_ROAR_ENEMY_COUNT and (state.pack_loose or 0) < 2 then return false end
+    if (state.pack_loose or 0) < 2 and (state.hp or 100) < 45 then return false end
     return action_ready(context, action)
 end
 
@@ -539,9 +539,9 @@ local function swipe_aoe_matches(context, action)
     local state = build_state(context)
     if not state.is_bear then return false end
     if not state.in_combat and NS.spell_ready then return false end
-    if state.enemy_count < state.aoe_threshold then return false end
+    if (state.enemy_count or 0) < (state.aoe_threshold or 3) then return false end
     if context.has_breakable_cc_nearby then return false end
-    if state.rage < RAGE_SWIPE then return false end
+    if (state.rage or 0) < RAGE_SWIPE then return false end
     return action_ready(context, action)
 end
 
@@ -551,15 +551,15 @@ local function swipe_cleave_matches(context, action)
     if not state.in_combat and NS.spell_ready then return false end
     if (state.enemy_count or 0) < 2 then return false end
     if context.has_breakable_cc_nearby then return false end
-    if state.rage < RAGE_SWIPE then return false end
+    if (state.rage or 0) < RAGE_SWIPE then return false end
     return action_ready(context, action)
 end
 
 local function maul_matches(context, action)
     local state = build_state(context)
     if not can_use_bear_ability(state) then return false end
-    if state.enemy_count >= state.aoe_threshold and state.rage < HIGH_RAGE then return false end
-    if state.rage < state.maul_rage then return false end
+    if (state.enemy_count or 0) >= (state.aoe_threshold or 3) and (state.rage or 0) < HIGH_RAGE then return false end
+    if (state.rage or 0) < (state.maul_rage or 40) then return false end
     return action_ready(context, action)
 end
 
@@ -575,9 +575,9 @@ local function ferocious_bite_matches(context, action)
     local state = build_state(context)
     if not can_use_bear_ability(state) then return false end
     if state.is_target_boss or state.is_target_player then return false end
-    if state.target_hp > EXECUTE_HP then return false end
-    if state.loose_target or state.pack_loose > 0 then return false end
-    if state.rage < RAGE_BITE + RAGE_SAFE_RESERVE then return false end
+    if (state.target_hp or 100) > EXECUTE_HP then return false end
+    if state.loose_target or (state.pack_loose or 0) > 0 then return false end
+    if (state.rage or 0) < RAGE_BITE + RAGE_SAFE_RESERVE then return false end
     return action_ready(context, action)
 end
 
