@@ -5,10 +5,10 @@ if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.RogueSpells or {}
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+local Stealth = require("shared/stealth_helper_sylvanas")
 
 local SND_BUFF = { 6774, 5171 }
 local RUPTURE_DEBUFF = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
-local STEALTH_BUFF = { 1787, 1786, 1785, 1784 }
 local BLADE_FLURRY_BUFF = { 13877 }
 local ADRENALINE_RUSH_BUFF = { 13750 }
 local KIDNEY_SHOT_DEBUFF = { 8643, 408 }
@@ -116,7 +116,7 @@ end
 -- State builder
 -- ============================================================================
 local combat_state = {
-    has_stealth = false,
+    is_stealthed = false,
     has_snd = false,
     has_blade_flurry = false,
     has_adrenaline_rush = false,
@@ -164,7 +164,7 @@ local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
 
-    combat_state.has_stealth = me and NS.buff_up(me, STEALTH_BUFF) or false
+    combat_state.is_stealthed = Stealth.is_stealthed_for_class("rogue")
     combat_state.has_snd = me and NS.buff_up(me, SND_BUFF) or false
     combat_state.has_blade_flurry = me and NS.buff_up(me, BLADE_FLURRY_BUFF) or false
     combat_state.has_adrenaline_rush = me and NS.buff_up(me, ADRENALINE_RUSH_BUFF) or false
@@ -229,8 +229,7 @@ end
 local function stealth_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Stealth, 3.0) then return false end
     if s.in_combat then return false end
-    if s.has_stealth then return false end
-    if not s.stealth_ready then return false end
+    if s.is_stealthed then return false end
     return true
 end
 
@@ -396,7 +395,7 @@ local function cloak_of_shadows_matches(context, s)
 end
 
 local function cheap_shot_matches(context, s)
-    if not s.has_stealth then return false end
+    if not s.is_stealthed then return false end
     if not context.target then return false end
     if not (context.in_melee_range or false) then return false end
     if not (NS.is_spell_learned and NS.is_spell_learned(1833)) then return false end
@@ -404,7 +403,7 @@ local function cheap_shot_matches(context, s)
 end
 
 local function garrote_matches(context, s)
-    if not s.has_stealth then return false end
+    if not s.is_stealthed then return false end
     if not context.target then return false end
     if not (context.in_melee_range or false) then return false end
     if not (NS.is_spell_learned and NS.is_spell_learned(703)) then return false end
@@ -457,7 +456,7 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
-    { name = "Stealth", matches = stealth_matches, execute = function(context) return NS.try_cast(SPELLS.Stealth, NS.PLAYER_UNIT, "[COMBAT] Stealth", { skip_range = true }) end },
+    { name = "Stealth", matches = stealth_matches, execute = function(context) return Stealth.try(context) end },
     { name = "SliceAndDice", matches = slice_and_dice_wrapper, execute = function(context) return NS.try_cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, "[COMBAT] SliceAndDice", { skip_range = true }) end },
     { name = "AdrenalineRush", matches = adrenaline_rush_wrapper, execute = function(context) return NS.try_cast(SPELLS.AdrenalineRush, NS.PLAYER_UNIT, "[COMBAT] AdrenalineRush", { skip_range = true }) end },
     { name = "BladeFlurry", matches = blade_flurry_wrapper, execute = function(context) return NS.try_cast(SPELLS.BladeFlurry, NS.PLAYER_UNIT, "[COMBAT] BladeFlurry", { skip_range = true }) end },

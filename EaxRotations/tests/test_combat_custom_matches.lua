@@ -163,17 +163,17 @@ local stealth = find_strategy("Stealth")
 
 -- In combat -> should NOT match
 assert_false(stealth.matches({}, {
-    in_combat = true, has_stealth = false, stealth_ready = true,
+    in_combat = true,     is_stealthed = false, stealth_ready = true,
 }), "Stealth should not match when in combat")
 
 -- Already stealthed -> should NOT match
 assert_false(stealth.matches({}, {
-    in_combat = false, has_stealth = true, stealth_ready = true,
+    in_combat = false,     is_stealthed = true, stealth_ready = true,
 }), "Stealth should not match when already stealthed")
 
 -- OOC, no stealth -> should match
 assert_true(stealth.matches({}, {
-    in_combat = false, has_stealth = false, stealth_ready = true,
+    in_combat = false,     is_stealthed = false, stealth_ready = true,
 }), "Stealth should match when OOC and not stealthed")
 
 -- ============================================================================
