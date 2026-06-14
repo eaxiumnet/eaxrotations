@@ -1,17 +1,5 @@
-local root = "EaxRotations"
-local mode = "normal"
-
-if arg then
-    for i = 1, #arg do
-        if arg[i] == "-v" or arg[i] == "--verbose" then
-            mode = "verbose"
-        elseif arg[i] == "-q" or arg[i] == "--quiet" then
-            mode = "quiet"
-        elseif arg[i] ~= "" then
-            root = arg[i]
-        end
-    end
-end
+local runner = require("EaxRotations/tests/test_runner_lib")
+local mode, root = runner.parse_args(arg, "EaxRotations")
 
 local tests = {
     "test_leveling_mage.lua",
@@ -27,36 +15,10 @@ local tests = {
     "test_leveling_shared.lua",
 }
 
-local function quote(path)
-    return '"' .. tostring(path):gsub('"', '\\"') .. '"'
-end
-
-local function read_command(command)
-    local pipe = io.popen(command .. " 2>&1")
-    if not pipe then return "", false end
-    local output = pipe:read("*a") or ""
-    local ok = pipe:close()
-    return output, ok == true
-end
-
-local function file_exists(path)
-    local f = io.open(path, "rb")
-    if not f then return false end
-    f:close()
-    return true
-end
-
 local function first_failure_line(output)
-    for line in output:gmatch("[^\r\n]+") do
-        local lower = line:lower()
-        if lower:find("fail", 1, true) or lower:find("error", 1, true) or lower:find("assert", 1, true) then
-            return line
-        end
-    end
-    return nil
+    return runner.first_failure_line(output)
 end
 
-local lua_bin = os.getenv("LUA") or "lua"
 local passed, failed = 0, 0
 local failed_names = {}
 
@@ -72,12 +34,12 @@ end
 for i = 1, #tests do
     local file = tests[i]
     local path = root .. "/tests/" .. file
-    if not file_exists(path) then
+    if not runner.file_exists(path) then
         failed = failed + 1
         failed_names[#failed_names + 1] = file .. " (missing)"
         if mode ~= "quiet" then print("  [ MISSING ] " .. file) end
     else
-        local output, ok = read_command(lua_bin .. " " .. quote(path))
+        local output, ok = runner.run_test(path)
         if mode == "verbose" then
             print("=== " .. file .. " ===")
             io.write(output)
