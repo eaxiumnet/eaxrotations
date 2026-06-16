@@ -83,6 +83,11 @@ local _same_unit = NS.same_unit
 local _gcd_remains = NS.gcd_remains
 local _get_setting = NS.get_setting
 
+-- Talent build detection: cached API reference (nil if unavailable at load time)
+local _get_talent_info = core.game_ui and core.game_ui.get_talent_info
+local _cached_talent_build = nil
+local _cached_talent_build_time = 0
+
 local _get_expansion_max_level = NS.get_expansion_max_level
 local _get_player = NS.GetPlayer
 
@@ -440,7 +445,7 @@ local function build_context()
     local target_classification = target and unit_number(target, "get_classification") or nil
     local expansion_max_level = _get_expansion_max_level and _get_expansion_max_level() or 70
     -- Compute boss/elite flag locally before _context is fully populated
-    local is_target_boss = target and NS.safe_field and NS.safe_field(target, "is_boss") and fast(target.is_boss, target) == true or false
+    local is_target_boss = target and NS.unit_is_boss and NS.unit_is_boss(target) or false
     -- ============================================================================
     -- TTD (Time-To-Death) Fallback Chain
     -- ============================================================================
@@ -514,7 +519,8 @@ local function build_context()
     -- Prevents engine-level auto-targeting from triggering combat initiation
     -- in PvP zones, Booty Bay, or anywhere the player hasn't manually engaged.
     -- Player must start combat manually (tab/click/cast); then rotation takes over.
-    if target and not in_combat then
+    -- Only clear auto-selected targets (selected_target nil); preserve manual targets.
+    if target and not in_combat and not selected_target then
         target = nil
         _context.target = nil
         _context.target_casting = false
@@ -574,6 +580,13 @@ local function build_context()
     end
     _context.pet = _pet_cache_data
     _context.pet_dead = _pet_cache_data and not _pet_cache_data:is_alive() or false
+    -- Pet happiness: 1=unhappy, 2=content, 3=happy (nil if no pet or API unavailable)
+    local ph_data = nil
+    if core.spell_book and core.spell_book.get_pet_happiness then
+        local ph_ok, ph_result = pcall(core.spell_book.get_pet_happiness)
+        if ph_ok then ph_data = ph_result end
+    end
+    _context.pet_happiness = ph_data and ph_data.happiness or nil
     _context.stance = _get_player_stance() or 0
     _context.player_class = NS.player_class_id
     _context.has_totems = _context.in_combat
@@ -843,6 +856,33 @@ local function build_context()
                 if c.is_food_or_drink then _context.has_food_or_drink = true end
             end
         end
+    end
+    -- Talent build: per-tree invested points from classic talent API.
+    -- Throttled: recomputed OOC (every 5s) or every 30s in combat.
+    -- Nil when API unavailable (backward compatible).
+    if _get_talent_info then
+        local now_tb = _time_now()
+        local tb_age = now_tb - (_cached_talent_build_time or 0)
+        local recompute = not _cached_talent_build or (not in_combat and tb_age > 5) or tb_age > 30
+        if recompute then
+            local tb = { tree1 = 0, tree2 = 0, tree3 = 0 }
+            local ok, info
+            for tab = 0, 2 do
+                local tab_points = 0
+                for idx = 0, 20 do
+                    ok, info = pcall(_get_talent_info, tab, idx, false)
+                    if ok and type(info) == "table" then
+                        tab_points = tab_points + (info.rank or 0)
+                    end
+                end
+                tb["tree" .. tostring(tab + 1)] = tab_points
+            end
+            _cached_talent_build = tb
+            _cached_talent_build_time = now_tb
+        end
+        _context.talent_build = _cached_talent_build
+    else
+        _context.talent_build = nil
     end
     _context.now = NS.time_now()
     NS.current_context = _context
