@@ -83,6 +83,14 @@ if not _buff_manager_ok or type(_buff_manager) ~= "table" then _buff_manager = n
 local _reagent_guard_ok, _reagent_guard = pcall(require, "shared/reagent_guard_sylvanas")
 if not _reagent_guard_ok or type(_reagent_guard) ~= "table" then _reagent_guard = nil end
 
+-- LOS guard: wraps unit:los_to() and core.graphics.is_line_of_sight() with
+-- pcall safety and 100ms cache. Exposed as NS.los_check(target) for use in
+-- NS.try_cast() — skipped when opts.skip_los is truthy.
+local _los_guard_ok, _los_guard = pcall(require, "shared/los_guard_sylvanas")
+if _los_guard_ok and type(_los_guard) == "table" and type(_los_guard.check) == "function" then
+    NS.los_check = _los_guard.check
+end
+
 local _spell_queue_ok, _spell_queue = pcall(require, "common/modules/spell_queue")
 if not _spell_queue_ok or type(_spell_queue) ~= "table" then _spell_queue = nil end
 
@@ -2243,8 +2251,10 @@ function NS.cooldown_remains(spell, expected_cooldown)
 
     -- Primary: spell_helper cooldown API
     if _spell_helper then
-        local cd_remaining = _spell_helper:get_spell_cooldown(id)
-        if type(cd_remaining) == "number" and cd_remaining > 0 then
+        local ok, cd_remaining = pcall(function()
+            return _spell_helper:get_spell_cooldown(id)
+        end)
+        if ok and type(cd_remaining) == "number" and cd_remaining > 0 then
             return cd_remaining
         end
     end
@@ -2321,8 +2331,10 @@ function NS.is_spell_in_range(spell, target)
     local id = NS.get_spell_id(spell)
     if not id then return true end
     if _spell_helper then
-        local in_range = _spell_helper:is_spell_in_range(id, target, nil, nil)
-        if in_range == true then return true end
+        local ok, in_range = pcall(function()
+            return _spell_helper:is_spell_in_range(id, target, nil, nil)
+        end)
+        if ok and in_range == true then return true end
     end
     -- Fallback: basic distance check
     local me = NS.GetPlayer()
@@ -2578,6 +2590,16 @@ function NS.try_cast(spell, unit, reason, opts)
     -- Central cast guard: cooldown + resource + range + anti-flicker + min_interval + reagent + immunity
     if not NS.evaluate_cast(spell, unit, reason, opts) then
         return false
+    end
+
+    -- LOS guard: skip cast when target is not in line of sight.
+    -- Opt-out via opts.skip_los for abilities that penetrate terrain
+    -- (e.g., Death Grip, Charge, boss mechanics through pillars).
+    if not opts.skip_los and NS.los_check then
+        local me = NS.GetPlayer()
+        if target ~= me and not NS.los_check(target) then
+            return false
+        end
     end
 
     NS.sticky_spell_should_override(id, reason or "unknown", 0)
