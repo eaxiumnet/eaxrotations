@@ -1,8 +1,0 @@
-{
-  "name": "Spirit Totem",
-  "icon": "spell_nature_natureresistancetotem",
-  "required_class": "Shaman",
-  "required_level": 30,
-  "_id": 25001,
-  "_source": "wowhead"
-}

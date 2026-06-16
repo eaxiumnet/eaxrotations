@@ -1,0 +1,1114 @@
+{
+  "1": [
+    {
+      "entry": 1,
+      "item": 10940,
+      "ChanceOrQuestChance": 80,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Strange Dust"
+    },
+    {
+      "entry": 1,
+      "item": 10938,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Lesser Magic Essence"
+    }
+  ],
+  "2": [
+    {
+      "entry": 2,
+      "item": 10940,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 3,
+      "condition_id": 0,
+      "comments": "Strange Dust"
+    },
+    {
+      "entry": 2,
+      "item": 10939,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Magic Essence"
+    },
+    {
+      "entry": 2,
+      "item": 10978,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Glimmering Shard"
+    }
+  ],
+  "3": [
+    {
+      "entry": 3,
+      "item": 10940,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 4,
+      "maxcount": 6,
+      "condition_id": 0,
+      "comments": "Strange Dust"
+    },
+    {
+      "entry": 3,
+      "item": 10998,
+      "ChanceOrQuestChance": 15,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Lesser Astral Essence"
+    },
+    {
+      "entry": 3,
+      "item": 10978,
+      "ChanceOrQuestChance": 10,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Glimmering Shard"
+    }
+  ],
+  "4": [
+    {
+      "entry": 4,
+      "item": 11083,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Soul Dust"
+    },
+    {
+      "entry": 4,
+      "item": 11082,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Astral Essence"
+    },
+    {
+      "entry": 4,
+      "item": 11084,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Glimmering Shard"
+    }
+  ],
+  "5": [
+    {
+      "entry": 5,
+      "item": 11083,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 5,
+      "condition_id": 0,
+      "comments": "Soul Dust"
+    },
+    {
+      "entry": 5,
+      "item": 11134,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Lesser Mystic Essence"
+    },
+    {
+      "entry": 5,
+      "item": 11138,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Glowing Shard"
+    }
+  ],
+  "6": [
+    {
+      "entry": 6,
+      "item": 11137,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Vision Dust"
+    },
+    {
+      "entry": 6,
+      "item": 11135,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Mystic Essence"
+    },
+    {
+      "entry": 6,
+      "item": 11139,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Glowing Shard"
+    }
+  ],
+  "7": [
+    {
+      "entry": 7,
+      "item": 11137,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 5,
+      "condition_id": 0,
+      "comments": "Vision Dust"
+    },
+    {
+      "entry": 7,
+      "item": 11174,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Lesser Nether Essence"
+    },
+    {
+      "entry": 7,
+      "item": 11177,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Radiant Shard"
+    }
+  ],
+  "8": [
+    {
+      "entry": 8,
+      "item": 11176,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Dream Dust"
+    },
+    {
+      "entry": 8,
+      "item": 11175,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Nether Essence"
+    },
+    {
+      "entry": 8,
+      "item": 11178,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Radiant Shard"
+    }
+  ],
+  "9": [
+    {
+      "entry": 9,
+      "item": 11176,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 5,
+      "condition_id": 0,
+      "comments": "Dream Dust"
+    },
+    {
+      "entry": 9,
+      "item": 16202,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Lesser Eternal Essence"
+    },
+    {
+      "entry": 9,
+      "item": 14343,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Brilliant Shard"
+    }
+  ],
+  "10": [
+    {
+      "entry": 10,
+      "item": 16204,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Illusion Dust"
+    },
+    {
+      "entry": 10,
+      "item": 16203,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Eternal Essence"
+    },
+    {
+      "entry": 10,
+      "item": 14344,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Brilliant Shard"
+    }
+  ],
+  "11": [
+    {
+      "entry": 11,
+      "item": 16204,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 5,
+      "condition_id": 0,
+      "comments": "Illusion Dust"
+    },
+    {
+      "entry": 11,
+      "item": 16203,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Eternal Essence"
+    },
+    {
+      "entry": 11,
+      "item": 14344,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Brilliant Shard"
+    }
+  ],
+  "12": [
+    {
+      "entry": 12,
+      "item": 22445,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 3,
+      "condition_id": 0,
+      "comments": "Arcane Dust"
+    },
+    {
+      "entry": 12,
+      "item": 22447,
+      "ChanceOrQuestChance": 22,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 3,
+      "condition_id": 0,
+      "comments": "Lesser Planar Essence"
+    },
+    {
+      "entry": 12,
+      "item": 22448,
+      "ChanceOrQuestChance": 3,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Prismatic Shard"
+    }
+  ],
+  "13": [
+    {
+      "entry": 13,
+      "item": 22445,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 3,
+      "condition_id": 0,
+      "comments": "Arcane Dust"
+    },
+    {
+      "entry": 13,
+      "item": 22447,
+      "ChanceOrQuestChance": 22,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 3,
+      "condition_id": 0,
+      "comments": "Lesser Planar Essence"
+    },
+    {
+      "entry": 13,
+      "item": 22448,
+      "ChanceOrQuestChance": 3,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Prismatic Shard"
+    }
+  ],
+  "14": [
+    {
+      "entry": 14,
+      "item": 22445,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 5,
+      "condition_id": 0,
+      "comments": "Arcane Dust"
+    },
+    {
+      "entry": 14,
+      "item": 22446,
+      "ChanceOrQuestChance": 22,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Planar Essence"
+    },
+    {
+      "entry": 14,
+      "item": 22449,
+      "ChanceOrQuestChance": 3,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Prismatic Shard"
+    }
+  ],
+  "21": [
+    {
+      "entry": 21,
+      "item": 10940,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Strange Dust"
+    },
+    {
+      "entry": 21,
+      "item": 10938,
+      "ChanceOrQuestChance": 80,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Lesser Magic Essence"
+    }
+  ],
+  "22": [
+    {
+      "entry": 22,
+      "item": 10940,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 3,
+      "condition_id": 0,
+      "comments": "Strange Dust"
+    },
+    {
+      "entry": 22,
+      "item": 10939,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Magic Essence"
+    },
+    {
+      "entry": 22,
+      "item": 10978,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Glimmering Shard"
+    }
+  ],
+  "23": [
+    {
+      "entry": 23,
+      "item": 10940,
+      "ChanceOrQuestChance": 15,
+      "groupid": 1,
+      "mincountOrRef": 4,
+      "maxcount": 6,
+      "condition_id": 0,
+      "comments": "Strange Dust"
+    },
+    {
+      "entry": 23,
+      "item": 10998,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Lesser Astral Essence"
+    },
+    {
+      "entry": 23,
+      "item": 10978,
+      "ChanceOrQuestChance": 10,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Glimmering Shard"
+    }
+  ],
+  "24": [
+    {
+      "entry": 24,
+      "item": 11083,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Soul Dust"
+    },
+    {
+      "entry": 24,
+      "item": 11082,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Astral Essence"
+    },
+    {
+      "entry": 24,
+      "item": 11084,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Glimmering Shard"
+    }
+  ],
+  "25": [
+    {
+      "entry": 25,
+      "item": 11083,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 5,
+      "condition_id": 0,
+      "comments": "Soul Dust"
+    },
+    {
+      "entry": 25,
+      "item": 11134,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Lesser Mystic Essence"
+    },
+    {
+      "entry": 25,
+      "item": 11138,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Glowing Shard"
+    }
+  ],
+  "26": [
+    {
+      "entry": 26,
+      "item": 11137,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Vision Dust"
+    },
+    {
+      "entry": 26,
+      "item": 11135,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Mystic Essence"
+    },
+    {
+      "entry": 26,
+      "item": 11139,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Glowing Shard"
+    }
+  ],
+  "27": [
+    {
+      "entry": 27,
+      "item": 11137,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 5,
+      "condition_id": 0,
+      "comments": "Vision Dust"
+    },
+    {
+      "entry": 27,
+      "item": 11174,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Lesser Nether Essence"
+    },
+    {
+      "entry": 27,
+      "item": 11177,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Radiant Shard"
+    }
+  ],
+  "28": [
+    {
+      "entry": 28,
+      "item": 11176,
+      "ChanceOrQuestChance": 20,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Dream Dust"
+    },
+    {
+      "entry": 28,
+      "item": 11175,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Nether Essence"
+    },
+    {
+      "entry": 28,
+      "item": 11178,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Radiant Shard"
+    }
+  ],
+  "29": [
+    {
+      "entry": 29,
+      "item": 11176,
+      "ChanceOrQuestChance": 22,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 5,
+      "condition_id": 0,
+      "comments": "Dream Dust"
+    },
+    {
+      "entry": 29,
+      "item": 16202,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Lesser Eternal Essence"
+    },
+    {
+      "entry": 29,
+      "item": 14343,
+      "ChanceOrQuestChance": 3,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Brilliant Shard"
+    }
+  ],
+  "30": [
+    {
+      "entry": 30,
+      "item": 16204,
+      "ChanceOrQuestChance": 22,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Illusion Dust"
+    },
+    {
+      "entry": 30,
+      "item": 16203,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Eternal Essence"
+    },
+    {
+      "entry": 30,
+      "item": 14344,
+      "ChanceOrQuestChance": 3,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Brilliant Shard"
+    }
+  ],
+  "31": [
+    {
+      "entry": 31,
+      "item": 16204,
+      "ChanceOrQuestChance": 22,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 5,
+      "condition_id": 0,
+      "comments": "Illusion Dust"
+    },
+    {
+      "entry": 31,
+      "item": 16203,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Eternal Essence"
+    },
+    {
+      "entry": 31,
+      "item": 14344,
+      "ChanceOrQuestChance": 3,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Brilliant Shard"
+    }
+  ],
+  "32": [
+    {
+      "entry": 32,
+      "item": 22445,
+      "ChanceOrQuestChance": 22,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 3,
+      "condition_id": 0,
+      "comments": "Arcane Dust"
+    },
+    {
+      "entry": 32,
+      "item": 22447,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 3,
+      "condition_id": 0,
+      "comments": "Lesser Planar Essence"
+    },
+    {
+      "entry": 32,
+      "item": 22448,
+      "ChanceOrQuestChance": 3,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Prismatic Shard"
+    }
+  ],
+  "33": [
+    {
+      "entry": 33,
+      "item": 22445,
+      "ChanceOrQuestChance": 22,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 5,
+      "condition_id": 0,
+      "comments": "Arcane Dust"
+    },
+    {
+      "entry": 33,
+      "item": 22446,
+      "ChanceOrQuestChance": 75,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Greater Planar Essence"
+    },
+    {
+      "entry": 33,
+      "item": 22449,
+      "ChanceOrQuestChance": 3,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Prismatic Shard"
+    }
+  ],
+  "41": [
+    {
+      "entry": 41,
+      "item": 10978,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Glimmering Shard"
+    }
+  ],
+  "42": [
+    {
+      "entry": 42,
+      "item": 11084,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Glimmering Shard"
+    }
+  ],
+  "43": [
+    {
+      "entry": 43,
+      "item": 11138,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Glowing Shard"
+    }
+  ],
+  "44": [
+    {
+      "entry": 44,
+      "item": 11139,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Glowing Shard"
+    }
+  ],
+  "45": [
+    {
+      "entry": 45,
+      "item": 11177,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Radiant Shard"
+    }
+  ],
+  "46": [
+    {
+      "entry": 46,
+      "item": 11178,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Radiant Shard"
+    }
+  ],
+  "47": [
+    {
+      "entry": 47,
+      "item": 14343,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Brilliant Shard"
+    }
+  ],
+  "48": [
+    {
+      "entry": 48,
+      "item": 14344,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Brilliant Shard"
+    }
+  ],
+  "49": [
+    {
+      "entry": 49,
+      "item": 14344,
+      "ChanceOrQuestChance": 99.5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Brilliant Shard"
+    },
+    {
+      "entry": 49,
+      "item": 20725,
+      "ChanceOrQuestChance": 0.5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Nexus Crystal"
+    }
+  ],
+  "50": [
+    {
+      "entry": 50,
+      "item": 22448,
+      "ChanceOrQuestChance": 99.5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Prismatic Shard"
+    },
+    {
+      "entry": 50,
+      "item": 20725,
+      "ChanceOrQuestChance": 0.5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Nexus Crystal"
+    }
+  ],
+  "51": [
+    {
+      "entry": 51,
+      "item": 22448,
+      "ChanceOrQuestChance": 99.5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Small Prismatic Shard"
+    },
+    {
+      "entry": 51,
+      "item": 20725,
+      "ChanceOrQuestChance": 0.5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Nexus Crystal"
+    }
+  ],
+  "52": [
+    {
+      "entry": 52,
+      "item": 22449,
+      "ChanceOrQuestChance": 99.5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Prismatic Shard"
+    },
+    {
+      "entry": 52,
+      "item": 22450,
+      "ChanceOrQuestChance": 0.5,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Void Crystal"
+    }
+  ],
+  "61": [
+    {
+      "entry": 61,
+      "item": 11177,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 4,
+      "condition_id": 0,
+      "comments": "Small Radiant Shard"
+    }
+  ],
+  "62": [
+    {
+      "entry": 62,
+      "item": 11178,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 4,
+      "condition_id": 0,
+      "comments": "Large Radiant Shard"
+    }
+  ],
+  "63": [
+    {
+      "entry": 63,
+      "item": 14343,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 2,
+      "maxcount": 4,
+      "condition_id": 0,
+      "comments": "Small Brilliant Shard"
+    }
+  ],
+  "64": [
+    {
+      "entry": 64,
+      "item": 20725,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Nexus Crystal"
+    }
+  ],
+  "65": [
+    {
+      "entry": 65,
+      "item": 20725,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Nexus Crystal"
+    }
+  ],
+  "66": [
+    {
+      "entry": 66,
+      "item": 22450,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Void Crystal"
+    }
+  ],
+  "67": [
+    {
+      "entry": 67,
+      "item": 22450,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Void Crystal"
+    }
+  ]
+}

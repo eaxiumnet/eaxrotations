@@ -1,0 +1,406 @@
+{
+  "2770": [
+    {
+      "entry": 2770,
+      "item": 1210,
+      "ChanceOrQuestChance": 10,
+      "groupid": 2,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Shadowgem"
+    },
+    {
+      "entry": 2770,
+      "item": 818,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Tigerseye"
+    },
+    {
+      "entry": 2770,
+      "item": 774,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Malachite"
+    },
+    {
+      "entry": 2770,
+      "item": 24186,
+      "ChanceOrQuestChance": 100,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Copper Powder"
+    }
+  ],
+  "2771": [
+    {
+      "entry": 2771,
+      "item": 7909,
+      "ChanceOrQuestChance": 3.33,
+      "groupid": 2,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Aquamarine"
+    },
+    {
+      "entry": 2771,
+      "item": 3864,
+      "ChanceOrQuestChance": 3.33,
+      "groupid": 2,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Citrine"
+    },
+    {
+      "entry": 2771,
+      "item": 1529,
+      "ChanceOrQuestChance": 3.33,
+      "groupid": 2,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Jade"
+    },
+    {
+      "entry": 2771,
+      "item": 1705,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Lesser Moonstone"
+    },
+    {
+      "entry": 2771,
+      "item": 1210,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Shadowgem"
+    },
+    {
+      "entry": 2771,
+      "item": 1206,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Moss Agate"
+    },
+    {
+      "entry": 2771,
+      "item": 24188,
+      "ChanceOrQuestChance": 100,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Tin Powder"
+    }
+  ],
+  "2772": [
+    {
+      "entry": 2772,
+      "item": 7910,
+      "ChanceOrQuestChance": 5,
+      "groupid": 2,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Star Ruby"
+    },
+    {
+      "entry": 2772,
+      "item": 7909,
+      "ChanceOrQuestChance": 5,
+      "groupid": 2,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Aquamarine"
+    },
+    {
+      "entry": 2772,
+      "item": 3864,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Citrine"
+    },
+    {
+      "entry": 2772,
+      "item": 1705,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Lesser Moonstone"
+    },
+    {
+      "entry": 2772,
+      "item": 1529,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Jade"
+    },
+    {
+      "entry": 2772,
+      "item": 24190,
+      "ChanceOrQuestChance": 100,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Iron Powder"
+    }
+  ],
+  "3858": [
+    {
+      "entry": 3858,
+      "item": 12800,
+      "ChanceOrQuestChance": 2.5,
+      "groupid": 2,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Azerothian Diamond"
+    },
+    {
+      "entry": 3858,
+      "item": 12799,
+      "ChanceOrQuestChance": 2.5,
+      "groupid": 2,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Large Opal"
+    },
+    {
+      "entry": 3858,
+      "item": 12364,
+      "ChanceOrQuestChance": 2.5,
+      "groupid": 2,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Huge Emerald"
+    },
+    {
+      "entry": 3858,
+      "item": 12361,
+      "ChanceOrQuestChance": 2.5,
+      "groupid": 2,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Blue Sapphire"
+    },
+    {
+      "entry": 3858,
+      "item": 7910,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Star Ruby"
+    },
+    {
+      "entry": 3858,
+      "item": 7909,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Aquamarine"
+    },
+    {
+      "entry": 3858,
+      "item": 3864,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Citrine"
+    },
+    {
+      "entry": 3858,
+      "item": 24234,
+      "ChanceOrQuestChance": 100,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Mithril Powder"
+    }
+  ],
+  "10620": [
+    {
+      "entry": 10620,
+      "item": 12800,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Azerothian Diamond"
+    },
+    {
+      "entry": 10620,
+      "item": 12799,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Large Opal"
+    },
+    {
+      "entry": 10620,
+      "item": 12364,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Huge Emerald"
+    },
+    {
+      "entry": 10620,
+      "item": 12361,
+      "ChanceOrQuestChance": 0,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Blue Sapphire"
+    },
+    {
+      "entry": 10620,
+      "item": 7910,
+      "ChanceOrQuestChance": 12,
+      "groupid": 1,
+      "mincountOrRef": 1,
+      "maxcount": 2,
+      "condition_id": 0,
+      "comments": "Star Ruby"
+    },
+    {
+      "entry": 10620,
+      "item": 24235,
+      "ChanceOrQuestChance": 100,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Thorium Powder"
+    }
+  ],
+  "23424": [
+    {
+      "entry": 23424,
+      "item": 13002,
+      "ChanceOrQuestChance": 7.2,
+      "groupid": 1,
+      "mincountOrRef": -13002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "TBC Rare Quality GEM"
+    },
+    {
+      "entry": 23424,
+      "item": 1,
+      "ChanceOrQuestChance": 5,
+      "groupid": 1,
+      "mincountOrRef": -13001,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "TBC Uncommon Quality GEM"
+    },
+    {
+      "entry": 23424,
+      "item": 13001,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -13001,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "TBC Uncommon Quality GEM"
+    },
+    {
+      "entry": 23424,
+      "item": 24242,
+      "ChanceOrQuestChance": 100,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Fel Iron Powder"
+    }
+  ],
+  "23425": [
+    {
+      "entry": 23425,
+      "item": 13002,
+      "ChanceOrQuestChance": 24,
+      "groupid": 1,
+      "mincountOrRef": -13002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "TBC Rare Quality GEM"
+    },
+    {
+      "entry": 23425,
+      "item": 1,
+      "ChanceOrQuestChance": 15,
+      "groupid": 1,
+      "mincountOrRef": -13001,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "TBC Uncommon Quality GEM"
+    },
+    {
+      "entry": 23425,
+      "item": 13001,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -13001,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "TBC Uncommon Quality GEM"
+    },
+    {
+      "entry": 23425,
+      "item": 24243,
+      "ChanceOrQuestChance": 100,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Adamantite Powder"
+    }
+  ]
+}

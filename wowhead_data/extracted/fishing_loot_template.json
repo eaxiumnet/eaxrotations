@@ -1,0 +1,2348 @@
+{
+  "1": [
+    {
+      "entry": 1,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2": [
+    {
+      "entry": 2,
+      "item": 11003,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11003,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "8": [
+    {
+      "entry": 8,
+      "item": 11006,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11006,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "10": [
+    {
+      "entry": 10,
+      "item": 11004,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11004,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "11": [
+    {
+      "entry": 11,
+      "item": 11004,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11004,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "12": [
+    {
+      "entry": 12,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "14": [
+    {
+      "entry": 14,
+      "item": 11001,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11001,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "15": [
+    {
+      "entry": 15,
+      "item": 11006,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11006,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "16": [
+    {
+      "entry": 16,
+      "item": 11008,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11008,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "17": [
+    {
+      "entry": 17,
+      "item": 11003,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11003,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "28": [
+    {
+      "entry": 28,
+      "item": 11008,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11008,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "33": [
+    {
+      "entry": 33,
+      "item": 11006,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11006,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "35": [
+    {
+      "entry": 35,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "36": [
+    {
+      "entry": 36,
+      "item": 11006,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11006,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "38": [
+    {
+      "entry": 38,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 38,
+      "item": 6317,
+      "ChanceOrQuestChance": 25,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Raw Loch Frenzy"
+    }
+  ],
+  "40": [
+    {
+      "entry": 40,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "41": [
+    {
+      "entry": 41,
+      "item": 11017,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11017,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "43": [
+    {
+      "entry": 43,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "44": [
+    {
+      "entry": 44,
+      "item": 11004,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11004,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 44,
+      "item": 1467,
+      "ChanceOrQuestChance": -100,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Spotted Sunfish"
+    }
+  ],
+  "45": [
+    {
+      "entry": 45,
+      "item": 11006,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11006,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "46": [
+    {
+      "entry": 46,
+      "item": 11010,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11010,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "47": [
+    {
+      "entry": 47,
+      "item": 11008,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11008,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "85": [
+    {
+      "entry": 85,
+      "item": 11099,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11099,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "104": [
+    {
+      "entry": 104,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "115": [
+    {
+      "entry": 115,
+      "item": 11003,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11003,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "117": [
+    {
+      "entry": 117,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "122": [
+    {
+      "entry": 122,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "130": [
+    {
+      "entry": 130,
+      "item": 11099,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11099,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "139": [
+    {
+      "entry": 139,
+      "item": 11010,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11010,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "141": [
+    {
+      "entry": 141,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "148": [
+    {
+      "entry": 148,
+      "item": 11104,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11104,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "150": [
+    {
+      "entry": 150,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "168": [
+    {
+      "entry": 168,
+      "item": 11001,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11001,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "169": [
+    {
+      "entry": 169,
+      "item": 11001,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11001,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "215": [
+    {
+      "entry": 215,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "226": [
+    {
+      "entry": 226,
+      "item": 11003,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11003,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "267": [
+    {
+      "entry": 267,
+      "item": 11004,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11004,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "271": [
+    {
+      "entry": 271,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "294": [
+    {
+      "entry": 294,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "295": [
+    {
+      "entry": 295,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "297": [
+    {
+      "entry": 297,
+      "item": 11009,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11009,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "298": [
+    {
+      "entry": 298,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "299": [
+    {
+      "entry": 299,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "300": [
+    {
+      "entry": 300,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 300,
+      "item": 16970,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Misty Reed Mahi Mahi"
+    }
+  ],
+  "301": [
+    {
+      "entry": 301,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 301,
+      "item": 16969,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Savage Coast Blue Sailfin"
+    }
+  ],
+  "302": [
+    {
+      "entry": 302,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "305": [
+    {
+      "entry": 305,
+      "item": 11003,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11003,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "306": [
+    {
+      "entry": 306,
+      "item": 11003,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11003,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "307": [
+    {
+      "entry": 307,
+      "item": 11009,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11009,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "311": [
+    {
+      "entry": 311,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "312": [
+    {
+      "entry": 312,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "327": [
+    {
+      "entry": 327,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "328": [
+    {
+      "entry": 328,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "331": [
+    {
+      "entry": 331,
+      "item": 11004,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11004,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "357": [
+    {
+      "entry": 357,
+      "item": 11008,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11008,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "361": [
+    {
+      "entry": 361,
+      "item": 11008,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11008,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "367": [
+    {
+      "entry": 367,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "382": [
+    {
+      "entry": 382,
+      "item": 11101,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11101,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 382,
+      "item": 6651,
+      "ChanceOrQuestChance": 0.1,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Broken Wine Bottle"
+    }
+  ],
+  "384": [
+    {
+      "entry": 384,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "386": [
+    {
+      "entry": 386,
+      "item": 11102,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11102,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "387": [
+    {
+      "entry": 387,
+      "item": 11102,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11102,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "388": [
+    {
+      "entry": 388,
+      "item": 11102,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11102,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "400": [
+    {
+      "entry": 400,
+      "item": 11006,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11006,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "405": [
+    {
+      "entry": 405,
+      "item": 11006,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11006,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "406": [
+    {
+      "entry": 406,
+      "item": 11004,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11004,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "414": [
+    {
+      "entry": 414,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "440": [
+    {
+      "entry": 440,
+      "item": 11009,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11009,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "443": [
+    {
+      "entry": 443,
+      "item": 11103,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11103,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "445": [
+    {
+      "entry": 445,
+      "item": 11103,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11103,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 445,
+      "item": 6718,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Electropeller"
+    }
+  ],
+  "448": [
+    {
+      "entry": 448,
+      "item": 11103,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11103,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 448,
+      "item": 6718,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Electropeller"
+    }
+  ],
+  "454": [
+    {
+      "entry": 454,
+      "item": 11103,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11103,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 454,
+      "item": 6718,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Electropeller"
+    }
+  ],
+  "456": [
+    {
+      "entry": 456,
+      "item": 11103,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11103,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 456,
+      "item": 6718,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Electropeller"
+    }
+  ],
+  "457": [
+    {
+      "entry": 457,
+      "item": 11003,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11003,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "463": [
+    {
+      "entry": 463,
+      "item": 11101,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11101,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "490": [
+    {
+      "entry": 490,
+      "item": 11008,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11008,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "493": [
+    {
+      "entry": 493,
+      "item": 11008,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11008,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "513": [
+    {
+      "entry": 513,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "516": [
+    {
+      "entry": 516,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "517": [
+    {
+      "entry": 517,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "518": [
+    {
+      "entry": 518,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "537": [
+    {
+      "entry": 537,
+      "item": 11106,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11106,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "598": [
+    {
+      "entry": 598,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 598,
+      "item": 16968,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Sar'theris Striker"
+    }
+  ],
+  "618": [
+    {
+      "entry": 618,
+      "item": 11010,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11010,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "636": [
+    {
+      "entry": 636,
+      "item": 11101,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11101,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "702": [
+    {
+      "entry": 702,
+      "item": 11001,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11001,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "718": [
+    {
+      "entry": 718,
+      "item": 11102,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11102,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "719": [
+    {
+      "entry": 719,
+      "item": 11099,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11099,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "796": [
+    {
+      "entry": 796,
+      "item": 11006,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11006,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "814": [
+    {
+      "entry": 814,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "815": [
+    {
+      "entry": 815,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1039": [
+    {
+      "entry": 1039,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1108": [
+    {
+      "entry": 1108,
+      "item": 11009,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11009,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1112": [
+    {
+      "entry": 1112,
+      "item": 11010,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11010,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1156": [
+    {
+      "entry": 1156,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1222": [
+    {
+      "entry": 1222,
+      "item": 11105,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11105,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1226": [
+    {
+      "entry": 1226,
+      "item": 11009,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11009,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1227": [
+    {
+      "entry": 1227,
+      "item": 11105,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11105,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1228": [
+    {
+      "entry": 1228,
+      "item": 11009,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11009,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1229": [
+    {
+      "entry": 1229,
+      "item": 11009,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11009,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1230": [
+    {
+      "entry": 1230,
+      "item": 11009,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11009,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1231": [
+    {
+      "entry": 1231,
+      "item": 11009,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11009,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1256": [
+    {
+      "entry": 1256,
+      "item": 11009,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11009,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1377": [
+    {
+      "entry": 1377,
+      "item": 11010,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11010,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1417": [
+    {
+      "entry": 1417,
+      "item": 11008,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11008,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1497": [
+    {
+      "entry": 1497,
+      "item": 11100,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11100,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1519": [
+    {
+      "entry": 1519,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 1519,
+      "item": 34864,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Baby Crocolisk"
+    }
+  ],
+  "1537": [
+    {
+      "entry": 1537,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 1537,
+      "item": 34484,
+      "ChanceOrQuestChance": 0.1,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Old Ironjaw"
+    }
+  ],
+  "1577": [
+    {
+      "entry": 1577,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1578": [
+    {
+      "entry": 1578,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 1578,
+      "item": 16969,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Savage Coast Blue Sailfin"
+    }
+  ],
+  "1581": [
+    {
+      "entry": 1581,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1637": [
+    {
+      "entry": 1637,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 1637,
+      "item": 34486,
+      "ChanceOrQuestChance": 0.1,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Old Crafty"
+    },
+    {
+      "entry": 1637,
+      "item": 34864,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Baby Crocolisk"
+    }
+  ],
+  "1638": [
+    {
+      "entry": 1638,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1657": [
+    {
+      "entry": 1657,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1701": [
+    {
+      "entry": 1701,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1739": [
+    {
+      "entry": 1739,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1797": [
+    {
+      "entry": 1797,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "1977": [
+    {
+      "entry": 1977,
+      "item": 11010,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11010,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2017": [
+    {
+      "entry": 2017,
+      "item": 11010,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11010,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2057": [
+    {
+      "entry": 2057,
+      "item": 11010,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11010,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2077": [
+    {
+      "entry": 2077,
+      "item": 11103,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11103,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2079": [
+    {
+      "entry": 2079,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2100": [
+    {
+      "entry": 2100,
+      "item": 11008,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11008,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2104": [
+    {
+      "entry": 2104,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2322": [
+    {
+      "entry": 2322,
+      "item": 11001,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11001,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2324": [
+    {
+      "entry": 2324,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2325": [
+    {
+      "entry": 2325,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2339": [
+    {
+      "entry": 2339,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2365": [
+    {
+      "entry": 2365,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2397": [
+    {
+      "entry": 2397,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2398": [
+    {
+      "entry": 2398,
+      "item": 11003,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11003,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2399": [
+    {
+      "entry": 2399,
+      "item": 11001,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11001,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2402": [
+    {
+      "entry": 2402,
+      "item": 11005,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11005,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2403": [
+    {
+      "entry": 2403,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2405": [
+    {
+      "entry": 2405,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2406": [
+    {
+      "entry": 2406,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2408": [
+    {
+      "entry": 2408,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "2521": [
+    {
+      "entry": 2521,
+      "item": 11008,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11008,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 2521,
+      "item": 16967,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Feralas Ahi"
+    }
+  ],
+  "2979": [
+    {
+      "entry": 2979,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3140": [
+    {
+      "entry": 3140,
+      "item": 11105,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11105,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3317": [
+    {
+      "entry": 3317,
+      "item": 11009,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11009,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3357": [
+    {
+      "entry": 3357,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3430": [
+    {
+      "entry": 3430,
+      "item": 11001,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11001,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3433": [
+    {
+      "entry": 3433,
+      "item": 11003,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11003,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3470": [
+    {
+      "entry": 3470,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3473": [
+    {
+      "entry": 3473,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3475": [
+    {
+      "entry": 3475,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3479": [
+    {
+      "entry": 3479,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3482": [
+    {
+      "entry": 3482,
+      "item": 11003,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11003,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3483": [
+    {
+      "entry": 3483,
+      "item": 11011,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11011,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 3483,
+      "item": 34867,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Monstrous Felblood Snapper"
+    }
+  ],
+  "3489": [
+    {
+      "entry": 3489,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3496": [
+    {
+      "entry": 3496,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3506": [
+    {
+      "entry": 3506,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3507": [
+    {
+      "entry": 3507,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3508": [
+    {
+      "entry": 3508,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3515": [
+    {
+      "entry": 3515,
+      "item": 11002,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11002,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3518": [
+    {
+      "entry": 3518,
+      "item": 11014,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11014,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3519": [
+    {
+      "entry": 3519,
+      "item": 11013,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11013,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 3519,
+      "item": 34865,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Blackfin Darter"
+    }
+  ],
+  "3520": [
+    {
+      "entry": 3520,
+      "item": 11015,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11015,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 3520,
+      "item": 34867,
+      "ChanceOrQuestChance": -20,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "Monstrous Felblood Snapper"
+    }
+  ],
+  "3521": [
+    {
+      "entry": 3521,
+      "item": 11012,
+      "ChanceOrQuestChance": 100,
+      "groupid": 0,
+      "mincountOrRef": -11012,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3523": [
+    {
+      "entry": 3523,
+      "item": 11014,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11014,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3524": [
+    {
+      "entry": 3524,
+      "item": 11001,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11001,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3525": [
+    {
+      "entry": 3525,
+      "item": 11003,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11003,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3526": [
+    {
+      "entry": 3526,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3527": [
+    {
+      "entry": 3527,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3528": [
+    {
+      "entry": 3528,
+      "item": 11000,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11000,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3595": [
+    {
+      "entry": 3595,
+      "item": 11101,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11101,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3607": [
+    {
+      "entry": 3607,
+      "item": 11012,
+      "ChanceOrQuestChance": 100,
+      "groupid": 0,
+      "mincountOrRef": -11012,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3614": [
+    {
+      "entry": 3614,
+      "item": 11014,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11014,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 3614,
+      "item": 34868,
+      "ChanceOrQuestChance": -33,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "World's Largest Mudfish"
+    }
+  ],
+  "3621": [
+    {
+      "entry": 3621,
+      "item": 11014,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11014,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    },
+    {
+      "entry": 3621,
+      "item": 34868,
+      "ChanceOrQuestChance": -33,
+      "groupid": 0,
+      "mincountOrRef": 1,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": "World's Largest Mudfish"
+    }
+  ],
+  "3625": [
+    {
+      "entry": 3625,
+      "item": 11011,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11011,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3684": [
+    {
+      "entry": 3684,
+      "item": 11013,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11013,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3690": [
+    {
+      "entry": 3690,
+      "item": 11013,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11013,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3691": [
+    {
+      "entry": 3691,
+      "item": 11013,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11013,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3716": [
+    {
+      "entry": 3716,
+      "item": 11012,
+      "ChanceOrQuestChance": 100,
+      "groupid": 0,
+      "mincountOrRef": -11012,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3805": [
+    {
+      "entry": 3805,
+      "item": 11017,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11017,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "3859": [
+    {
+      "entry": 3859,
+      "item": 11013,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11013,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "4047": [
+    {
+      "entry": 4047,
+      "item": 11007,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11007,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ],
+  "4080": [
+    {
+      "entry": 4080,
+      "item": 11016,
+      "ChanceOrQuestChance": 100,
+      "groupid": 1,
+      "mincountOrRef": -11016,
+      "maxcount": 1,
+      "condition_id": 0,
+      "comments": ""
+    }
+  ]
+}

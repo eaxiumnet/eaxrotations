@@ -1,0 +1,3548 @@
+{
+  "2485": [
+    {
+      "entry": 2485,
+      "spell": 3561,
+      "spellcost": 2000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 20,
+      "condition_id": 0
+    },
+    {
+      "entry": 2485,
+      "spell": 10059,
+      "spellcost": 15000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 40,
+      "condition_id": 0
+    }
+  ],
+  "2489": [
+    {
+      "entry": 2489,
+      "spell": 3562,
+      "spellcost": 2000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 20,
+      "condition_id": 0
+    },
+    {
+      "entry": 2489,
+      "spell": 11416,
+      "spellcost": 15000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 40,
+      "condition_id": 0
+    }
+  ],
+  "2492": [
+    {
+      "entry": 2492,
+      "spell": 3563,
+      "spellcost": 2000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 20,
+      "condition_id": 0
+    },
+    {
+      "entry": 2492,
+      "spell": 11418,
+      "spellcost": 15000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 40,
+      "condition_id": 0
+    }
+  ],
+  "2704": [
+    {
+      "entry": 2704,
+      "spell": 2567,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 2704,
+      "spell": 264,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 2704,
+      "spell": 197,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 2704,
+      "spell": 227,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 2704,
+      "spell": 196,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "2818": [
+    {
+      "entry": 2818,
+      "spell": 4094,
+      "spellcost": 500,
+      "reqskill": 185,
+      "reqskillvalue": 175,
+      "reqlevel": 1,
+      "condition_id": 0
+    }
+  ],
+  "2880": [
+    {
+      "entry": 2880,
+      "spell": 2795,
+      "spellcost": 240,
+      "reqskill": 185,
+      "reqskillvalue": 25,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "2942": [
+    {
+      "entry": 2942,
+      "spell": 2549,
+      "spellcost": 1600,
+      "reqskill": 185,
+      "reqskillvalue": 100,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 2942,
+      "spell": 15853,
+      "spellcost": 1600,
+      "reqskill": 185,
+      "reqskillvalue": 125,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 2942,
+      "spell": 15856,
+      "spellcost": 5000,
+      "reqskill": 185,
+      "reqskillvalue": 175,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 2942,
+      "spell": 22480,
+      "spellcost": 12000,
+      "reqskill": 185,
+      "reqskillvalue": 225,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "4165": [
+    {
+      "entry": 4165,
+      "spell": 11419,
+      "spellcost": 32000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 50,
+      "condition_id": 0
+    },
+    {
+      "entry": 4165,
+      "spell": 3565,
+      "spellcost": 8000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 30,
+      "condition_id": 0
+    }
+  ],
+  "5032": [
+    {
+      "entry": 5032,
+      "spell": 17573,
+      "spellcost": 20000,
+      "reqskill": 171,
+      "reqskillvalue": 285,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 17572,
+      "spellcost": 20000,
+      "reqskill": 171,
+      "reqskillvalue": 285,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 17557,
+      "spellcost": 20000,
+      "reqskill": 171,
+      "reqskillvalue": 275,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 17556,
+      "spellcost": 20000,
+      "reqskill": 171,
+      "reqskillvalue": 275,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 17555,
+      "spellcost": 15000,
+      "reqskill": 171,
+      "reqskillvalue": 270,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 17553,
+      "spellcost": 15000,
+      "reqskill": 171,
+      "reqskillvalue": 260,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 17552,
+      "spellcost": 15000,
+      "reqskill": 171,
+      "reqskillvalue": 255,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 11478,
+      "spellcost": 14000,
+      "reqskill": 171,
+      "reqskillvalue": 250,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 17551,
+      "spellcost": 15000,
+      "reqskill": 171,
+      "reqskillvalue": 250,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 11467,
+      "spellcost": 12000,
+      "reqskill": 171,
+      "reqskillvalue": 240,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 11461,
+      "spellcost": 10000,
+      "reqskill": 171,
+      "reqskillvalue": 235,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 11465,
+      "spellcost": 12000,
+      "reqskill": 171,
+      "reqskillvalue": 235,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 15833,
+      "spellcost": 10000,
+      "reqskill": 171,
+      "reqskillvalue": 230,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 11460,
+      "spellcost": 5000,
+      "reqskill": 171,
+      "reqskillvalue": 230,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 11457,
+      "spellcost": 10000,
+      "reqskill": 171,
+      "reqskillvalue": 215,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 22808,
+      "spellcost": 10000,
+      "reqskill": 171,
+      "reqskillvalue": 215,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 11451,
+      "spellcost": 8000,
+      "reqskill": 171,
+      "reqskillvalue": 205,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 11448,
+      "spellcost": 9000,
+      "reqskill": 171,
+      "reqskillvalue": 205,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 11611,
+      "spellcost": 50000,
+      "reqskill": 171,
+      "reqskillvalue": 200,
+      "reqlevel": 35,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 12609,
+      "spellcost": 8000,
+      "reqskill": 171,
+      "reqskillvalue": 200,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 11450,
+      "spellcost": 7500,
+      "reqskill": 171,
+      "reqskillvalue": 195,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 11449,
+      "spellcost": 6500,
+      "reqskill": 171,
+      "reqskillvalue": 185,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 3450,
+      "spellcost": 6000,
+      "reqskill": 171,
+      "reqskillvalue": 175,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 3448,
+      "spellcost": 5000,
+      "reqskill": 171,
+      "reqskillvalue": 165,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 3452,
+      "spellcost": 5000,
+      "reqskill": 171,
+      "reqskillvalue": 160,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 7181,
+      "spellcost": 5000,
+      "reqskill": 171,
+      "reqskillvalue": 155,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 7845,
+      "spellcost": 3000,
+      "reqskill": 171,
+      "reqskillvalue": 140,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 7837,
+      "spellcost": 1000,
+      "reqskill": 171,
+      "reqskillvalue": 130,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 3177,
+      "spellcost": 2000,
+      "reqskill": 171,
+      "reqskillvalue": 130,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 3176,
+      "spellcost": 1500,
+      "reqskill": 171,
+      "reqskillvalue": 125,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 3464,
+      "spellcost": 5000,
+      "reqskill": 171,
+      "reqskillvalue": 125,
+      "reqlevel": 20,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 3173,
+      "spellcost": 1500,
+      "reqskill": 171,
+      "reqskillvalue": 120,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 3447,
+      "spellcost": 4000,
+      "reqskill": 171,
+      "reqskillvalue": 110,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 7841,
+      "spellcost": 1000,
+      "reqskill": 171,
+      "reqskillvalue": 100,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 7179,
+      "spellcost": 450,
+      "reqskill": 171,
+      "reqskillvalue": 90,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 3171,
+      "spellcost": 500,
+      "reqskill": 171,
+      "reqskillvalue": 90,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 7836,
+      "spellcost": 250,
+      "reqskill": 171,
+      "reqskillvalue": 80,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 2337,
+      "spellcost": 1000,
+      "reqskill": 171,
+      "reqskillvalue": 55,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 3101,
+      "spellcost": 500,
+      "reqskill": 171,
+      "reqskillvalue": 50,
+      "reqlevel": 10,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 2334,
+      "spellcost": 250,
+      "reqskill": 171,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 2332,
+      "spellcost": 150,
+      "reqskill": 171,
+      "reqskillvalue": 40,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 2331,
+      "spellcost": 100,
+      "reqskill": 171,
+      "reqskillvalue": 25,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 3170,
+      "spellcost": 50,
+      "reqskill": 171,
+      "reqskillvalue": 15,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5032,
+      "spell": 2259,
+      "spellcost": 10,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 5,
+      "condition_id": 0
+    }
+  ],
+  "5038": [
+    {
+      "entry": 5038,
+      "spell": 20023,
+      "spellcost": 20000,
+      "reqskill": 333,
+      "reqskillvalue": 295,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 20013,
+      "spellcost": 20000,
+      "reqskill": 333,
+      "reqskillvalue": 295,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 20028,
+      "spellcost": 15000,
+      "reqskill": 333,
+      "reqskillvalue": 290,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 20016,
+      "spellcost": 15000,
+      "reqskill": 333,
+      "reqskillvalue": 280,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 20012,
+      "spellcost": 10000,
+      "reqskill": 333,
+      "reqskillvalue": 270,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 20014,
+      "spellcost": 10000,
+      "reqskill": 333,
+      "reqskillvalue": 265,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 20008,
+      "spellcost": 10000,
+      "reqskill": 333,
+      "reqskillvalue": 255,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 17181,
+      "spellcost": 10000,
+      "reqskill": 333,
+      "reqskillvalue": 250,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 17180,
+      "spellcost": 10000,
+      "reqskill": 333,
+      "reqskillvalue": 250,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13948,
+      "spellcost": 6500,
+      "reqskill": 333,
+      "reqskillvalue": 250,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13941,
+      "spellcost": 6200,
+      "reqskill": 333,
+      "reqskillvalue": 245,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13943,
+      "spellcost": 6200,
+      "reqskill": 333,
+      "reqskillvalue": 245,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13937,
+      "spellcost": 6200,
+      "reqskill": 333,
+      "reqskillvalue": 240,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13939,
+      "spellcost": 6200,
+      "reqskill": 333,
+      "reqskillvalue": 240,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13935,
+      "spellcost": 5800,
+      "reqskill": 333,
+      "reqskillvalue": 235,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13917,
+      "spellcost": 5400,
+      "reqskill": 333,
+      "reqskillvalue": 230,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13905,
+      "spellcost": 5400,
+      "reqskill": 333,
+      "reqskillvalue": 230,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13890,
+      "spellcost": 5000,
+      "reqskill": 333,
+      "reqskillvalue": 225,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13887,
+      "spellcost": 5000,
+      "reqskill": 333,
+      "reqskillvalue": 225,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13858,
+      "spellcost": 4800,
+      "reqskill": 333,
+      "reqskillvalue": 220,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13836,
+      "spellcost": 4600,
+      "reqskill": 333,
+      "reqskillvalue": 215,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13815,
+      "spellcost": 4400,
+      "reqskill": 333,
+      "reqskillvalue": 210,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13822,
+      "spellcost": 4400,
+      "reqskill": 333,
+      "reqskillvalue": 210,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13794,
+      "spellcost": 4200,
+      "reqskill": 333,
+      "reqskillvalue": 205,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13746,
+      "spellcost": 4200,
+      "reqskill": 333,
+      "reqskillvalue": 205,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13702,
+      "spellcost": 4000,
+      "reqskill": 333,
+      "reqskillvalue": 200,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13700,
+      "spellcost": 4000,
+      "reqskill": 333,
+      "reqskillvalue": 200,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13695,
+      "spellcost": 4000,
+      "reqskill": 333,
+      "reqskillvalue": 200,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13920,
+      "spellcost": 50000,
+      "reqskill": 333,
+      "reqskillvalue": 200,
+      "reqlevel": 35,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13693,
+      "spellcost": 4000,
+      "reqskill": 333,
+      "reqskillvalue": 195,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13663,
+      "spellcost": 3800,
+      "reqskill": 333,
+      "reqskillvalue": 185,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13659,
+      "spellcost": 3200,
+      "reqskill": 333,
+      "reqskillvalue": 180,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13661,
+      "spellcost": 3600,
+      "reqskill": 333,
+      "reqskillvalue": 180,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 14810,
+      "spellcost": 3000,
+      "reqskill": 333,
+      "reqskillvalue": 175,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13657,
+      "spellcost": 3000,
+      "reqskill": 333,
+      "reqskillvalue": 175,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13648,
+      "spellcost": 2800,
+      "reqskill": 333,
+      "reqskillvalue": 170,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13644,
+      "spellcost": 2800,
+      "reqskill": 333,
+      "reqskillvalue": 170,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13642,
+      "spellcost": 2800,
+      "reqskill": 333,
+      "reqskillvalue": 165,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13637,
+      "spellcost": 2800,
+      "reqskill": 333,
+      "reqskillvalue": 160,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13640,
+      "spellcost": 2700,
+      "reqskill": 333,
+      "reqskillvalue": 160,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 14809,
+      "spellcost": 2600,
+      "reqskill": 333,
+      "reqskillvalue": 155,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13635,
+      "spellcost": 2600,
+      "reqskill": 333,
+      "reqskillvalue": 155,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13631,
+      "spellcost": 2600,
+      "reqskill": 333,
+      "reqskillvalue": 155,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13622,
+      "spellcost": 2500,
+      "reqskill": 333,
+      "reqskillvalue": 150,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13626,
+      "spellcost": 2500,
+      "reqskill": 333,
+      "reqskillvalue": 150,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13628,
+      "spellcost": 2500,
+      "reqskill": 333,
+      "reqskillvalue": 150,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13607,
+      "spellcost": 2400,
+      "reqskill": 333,
+      "reqskillvalue": 145,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13529,
+      "spellcost": 2400,
+      "reqskill": 333,
+      "reqskillvalue": 145,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13538,
+      "spellcost": 2500,
+      "reqskill": 333,
+      "reqskillvalue": 140,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13503,
+      "spellcost": 2000,
+      "reqskill": 333,
+      "reqskillvalue": 140,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13485,
+      "spellcost": 1500,
+      "reqskill": 333,
+      "reqskillvalue": 130,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13501,
+      "spellcost": 1500,
+      "reqskill": 333,
+      "reqskillvalue": 130,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7863,
+      "spellcost": 1400,
+      "reqskill": 333,
+      "reqskillvalue": 125,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7413,
+      "spellcost": 5000,
+      "reqskill": 333,
+      "reqskillvalue": 125,
+      "reqlevel": 20,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7861,
+      "spellcost": 1250,
+      "reqskill": 333,
+      "reqskillvalue": 125,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7857,
+      "spellcost": 1000,
+      "reqskill": 333,
+      "reqskillvalue": 120,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13421,
+      "spellcost": 800,
+      "reqskill": 333,
+      "reqskillvalue": 115,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 13378,
+      "spellcost": 600,
+      "reqskill": 333,
+      "reqskillvalue": 105,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7795,
+      "spellcost": 1000,
+      "reqskill": 333,
+      "reqskillvalue": 100,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7745,
+      "spellcost": 500,
+      "reqskill": 333,
+      "reqskillvalue": 100,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7788,
+      "spellcost": 500,
+      "reqskill": 333,
+      "reqskillvalue": 90,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7779,
+      "spellcost": 400,
+      "reqskill": 333,
+      "reqskillvalue": 80,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7771,
+      "spellcost": 200,
+      "reqskill": 333,
+      "reqskillvalue": 70,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 14807,
+      "spellcost": 200,
+      "reqskill": 333,
+      "reqskillvalue": 70,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7748,
+      "spellcost": 250,
+      "reqskill": 333,
+      "reqskillvalue": 60,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7457,
+      "spellcost": 250,
+      "reqskill": 333,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7412,
+      "spellcost": 500,
+      "reqskill": 333,
+      "reqskillvalue": 50,
+      "reqlevel": 10,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7454,
+      "spellcost": 100,
+      "reqskill": 333,
+      "reqskillvalue": 45,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7426,
+      "spellcost": 100,
+      "reqskill": 333,
+      "reqskillvalue": 40,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7420,
+      "spellcost": 50,
+      "reqskill": 333,
+      "reqskillvalue": 15,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 14293,
+      "spellcost": 50,
+      "reqskill": 333,
+      "reqskillvalue": 10,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5038,
+      "spell": 7411,
+      "spellcost": 10,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 5,
+      "condition_id": 0
+    }
+  ],
+  "5040": [
+    {
+      "entry": 5040,
+      "spell": 2108,
+      "spellcost": 10,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 5,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 2153,
+      "spellcost": 50,
+      "reqskill": 165,
+      "reqskillvalue": 15,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3753,
+      "spellcost": 75,
+      "reqskill": 165,
+      "reqskillvalue": 25,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 9060,
+      "spellcost": 100,
+      "reqskill": 165,
+      "reqskillvalue": 30,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 9062,
+      "spellcost": 100,
+      "reqskill": 165,
+      "reqskillvalue": 30,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3816,
+      "spellcost": 50,
+      "reqskill": 165,
+      "reqskillvalue": 35,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 2160,
+      "spellcost": 100,
+      "reqskill": 165,
+      "reqskillvalue": 40,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 2154,
+      "spellcost": 500,
+      "reqskill": 165,
+      "reqskillvalue": 50,
+      "reqlevel": 10,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3756,
+      "spellcost": 150,
+      "reqskill": 165,
+      "reqskillvalue": 55,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 2161,
+      "spellcost": 100,
+      "reqskill": 165,
+      "reqskillvalue": 55,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 2162,
+      "spellcost": 100,
+      "reqskill": 165,
+      "reqskillvalue": 60,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 9065,
+      "spellcost": 150,
+      "reqskill": 165,
+      "reqskillvalue": 70,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3759,
+      "spellcost": 200,
+      "reqskill": 165,
+      "reqskillvalue": 75,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3763,
+      "spellcost": 300,
+      "reqskill": 165,
+      "reqskillvalue": 80,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3761,
+      "spellcost": 350,
+      "reqskill": 165,
+      "reqskillvalue": 85,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 2159,
+      "spellcost": 250,
+      "reqskill": 165,
+      "reqskillvalue": 85,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 9068,
+      "spellcost": 400,
+      "reqskill": 165,
+      "reqskillvalue": 95,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 20648,
+      "spellcost": 500,
+      "reqskill": 165,
+      "reqskillvalue": 100,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3817,
+      "spellcost": 200,
+      "reqskill": 165,
+      "reqskillvalue": 100,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 2167,
+      "spellcost": 350,
+      "reqskill": 165,
+      "reqskillvalue": 100,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 2165,
+      "spellcost": 250,
+      "reqskill": 165,
+      "reqskillvalue": 100,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 2168,
+      "spellcost": 350,
+      "reqskill": 165,
+      "reqskillvalue": 110,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 7135,
+      "spellcost": 400,
+      "reqskill": 165,
+      "reqskillvalue": 115,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 9074,
+      "spellcost": 500,
+      "reqskill": 165,
+      "reqskillvalue": 120,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 2166,
+      "spellcost": 450,
+      "reqskill": 165,
+      "reqskillvalue": 120,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 9145,
+      "spellcost": 500,
+      "reqskill": 165,
+      "reqskillvalue": 125,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3811,
+      "spellcost": 5000,
+      "reqskill": 165,
+      "reqskillvalue": 125,
+      "reqlevel": 20,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3766,
+      "spellcost": 400,
+      "reqskill": 165,
+      "reqskillvalue": 125,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3768,
+      "spellcost": 500,
+      "reqskill": 165,
+      "reqskillvalue": 130,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3770,
+      "spellcost": 500,
+      "reqskill": 165,
+      "reqskillvalue": 135,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3764,
+      "spellcost": 500,
+      "reqskill": 165,
+      "reqskillvalue": 145,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 9194,
+      "spellcost": 500,
+      "reqskill": 165,
+      "reqskillvalue": 150,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 9193,
+      "spellcost": 500,
+      "reqskill": 165,
+      "reqskillvalue": 150,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 20649,
+      "spellcost": 1000,
+      "reqskill": 165,
+      "reqskillvalue": 150,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3780,
+      "spellcost": 750,
+      "reqskill": 165,
+      "reqskillvalue": 150,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3760,
+      "spellcost": 600,
+      "reqskill": 165,
+      "reqskillvalue": 150,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3818,
+      "spellcost": 500,
+      "reqskill": 165,
+      "reqskillvalue": 150,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3774,
+      "spellcost": 1000,
+      "reqskill": 165,
+      "reqskillvalue": 160,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 7147,
+      "spellcost": 1000,
+      "reqskill": 165,
+      "reqskillvalue": 160,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 9196,
+      "spellcost": 1500,
+      "reqskill": 165,
+      "reqskillvalue": 175,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 7151,
+      "spellcost": 1200,
+      "reqskill": 165,
+      "reqskillvalue": 175,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 3776,
+      "spellcost": 1200,
+      "reqskill": 165,
+      "reqskillvalue": 180,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 9198,
+      "spellcost": 2000,
+      "reqskill": 165,
+      "reqskillvalue": 180,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 9201,
+      "spellcost": 2000,
+      "reqskill": 165,
+      "reqskillvalue": 185,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 7156,
+      "spellcost": 2400,
+      "reqskill": 165,
+      "reqskillvalue": 190,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 6661,
+      "spellcost": 2000,
+      "reqskill": 165,
+      "reqskillvalue": 190,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 9206,
+      "spellcost": 2500,
+      "reqskill": 165,
+      "reqskillvalue": 195,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 20650,
+      "spellcost": 4000,
+      "reqskill": 165,
+      "reqskillvalue": 200,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 10662,
+      "spellcost": 50000,
+      "reqskill": 165,
+      "reqskillvalue": 200,
+      "reqlevel": 35,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 10487,
+      "spellcost": 2000,
+      "reqskill": 165,
+      "reqskillvalue": 200,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 10482,
+      "spellcost": 2000,
+      "reqskill": 165,
+      "reqskillvalue": 200,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 10499,
+      "spellcost": 3000,
+      "reqskill": 165,
+      "reqskillvalue": 205,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 10507,
+      "spellcost": 3000,
+      "reqskill": 165,
+      "reqskillvalue": 205,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 10511,
+      "spellcost": 3000,
+      "reqskill": 165,
+      "reqskillvalue": 210,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 10518,
+      "spellcost": 3500,
+      "reqskill": 165,
+      "reqskillvalue": 210,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 14930,
+      "spellcost": 3600,
+      "reqskill": 165,
+      "reqskillvalue": 225,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 14932,
+      "spellcost": 3600,
+      "reqskill": 165,
+      "reqskillvalue": 225,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 10548,
+      "spellcost": 4000,
+      "reqskill": 165,
+      "reqskillvalue": 230,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 10552,
+      "spellcost": 4000,
+      "reqskill": 165,
+      "reqskillvalue": 230,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 10558,
+      "spellcost": 4500,
+      "reqskill": 165,
+      "reqskillvalue": 235,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 10556,
+      "spellcost": 4500,
+      "reqskill": 165,
+      "reqskillvalue": 235,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 22331,
+      "spellcost": 5000,
+      "reqskill": 165,
+      "reqskillvalue": 250,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19047,
+      "spellcost": 5000,
+      "reqskill": 165,
+      "reqskillvalue": 250,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19058,
+      "spellcost": 5000,
+      "reqskill": 165,
+      "reqskillvalue": 250,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19052,
+      "spellcost": 10000,
+      "reqskill": 165,
+      "reqskillvalue": 265,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19055,
+      "spellcost": 10000,
+      "reqskill": 165,
+      "reqskillvalue": 270,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19065,
+      "spellcost": 10000,
+      "reqskill": 165,
+      "reqskillvalue": 275,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19071,
+      "spellcost": 10000,
+      "reqskill": 165,
+      "reqskillvalue": 280,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19072,
+      "spellcost": 10000,
+      "reqskill": 165,
+      "reqskillvalue": 280,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19083,
+      "spellcost": 15000,
+      "reqskill": 165,
+      "reqskillvalue": 290,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19082,
+      "spellcost": 15000,
+      "reqskill": 165,
+      "reqskillvalue": 290,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19102,
+      "spellcost": 15000,
+      "reqskill": 165,
+      "reqskillvalue": 300,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19103,
+      "spellcost": 15000,
+      "reqskill": 165,
+      "reqskillvalue": 300,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19092,
+      "spellcost": 15000,
+      "reqskill": 165,
+      "reqskillvalue": 300,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19091,
+      "spellcost": 15000,
+      "reqskill": 165,
+      "reqskillvalue": 300,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 5040,
+      "spell": 19098,
+      "spellcost": 15000,
+      "reqskill": 165,
+      "reqskillvalue": 300,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "5957": [
+    {
+      "entry": 5957,
+      "spell": 3566,
+      "spellcost": 8000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 30,
+      "condition_id": 0
+    },
+    {
+      "entry": 5957,
+      "spell": 11420,
+      "spellcost": 32000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 50,
+      "condition_id": 0
+    }
+  ],
+  "5958": [
+    {
+      "entry": 5958,
+      "spell": 11417,
+      "spellcost": 15000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 40,
+      "condition_id": 0
+    },
+    {
+      "entry": 5958,
+      "spell": 3567,
+      "spellcost": 2000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 20,
+      "condition_id": 0
+    }
+  ],
+  "7954": [
+    {
+      "entry": 7954,
+      "spell": 33388,
+      "spellcost": 350000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 30,
+      "condition_id": 0
+    },
+    {
+      "entry": 7954,
+      "spell": 33391,
+      "spellcost": 6000000,
+      "reqskill": 762,
+      "reqskillvalue": 0,
+      "reqlevel": 60,
+      "condition_id": 0
+    }
+  ],
+  "10370": [
+    {
+      "entry": 10370,
+      "spell": 197,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "11865": [
+    {
+      "entry": 11865,
+      "spell": 266,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11865,
+      "spell": 199,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11865,
+      "spell": 15590,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11865,
+      "spell": 198,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11865,
+      "spell": 197,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11865,
+      "spell": 196,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "11866": [
+    {
+      "entry": 11866,
+      "spell": 15590,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11866,
+      "spell": 1180,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11866,
+      "spell": 2567,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11866,
+      "spell": 264,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11866,
+      "spell": 227,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "11868": [
+    {
+      "entry": 11868,
+      "spell": 15590,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11868,
+      "spell": 2567,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11868,
+      "spell": 264,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11868,
+      "spell": 196,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11868,
+      "spell": 197,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11868,
+      "spell": 1180,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "11869": [
+    {
+      "entry": 11869,
+      "spell": 227,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11869,
+      "spell": 198,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11869,
+      "spell": 266,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 11869,
+      "spell": 199,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "13084": [
+    {
+      "entry": 13084,
+      "spell": 2567,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 13084,
+      "spell": 5011,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 13084,
+      "spell": 1180,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "16621": [
+    {
+      "entry": 16621,
+      "spell": 2567,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16621,
+      "spell": 264,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16621,
+      "spell": 1180,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16621,
+      "spell": 200,
+      "spellcost": 10000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 20,
+      "condition_id": 0
+    },
+    {
+      "entry": 16621,
+      "spell": 202,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16621,
+      "spell": 201,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "16654": [
+    {
+      "entry": 16654,
+      "spell": 32267,
+      "spellcost": 15000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 40,
+      "condition_id": 0
+    },
+    {
+      "entry": 16654,
+      "spell": 32272,
+      "spellcost": 2000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 20,
+      "condition_id": 0
+    }
+  ],
+  "16702": [
+    {
+      "entry": 16702,
+      "spell": 25284,
+      "spellcost": 400,
+      "reqskill": 755,
+      "reqskillvalue": 60,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16702,
+      "spell": 25287,
+      "spellcost": 400,
+      "reqskill": 755,
+      "reqskillvalue": 70,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16702,
+      "spell": 25305,
+      "spellcost": 1000,
+      "reqskill": 755,
+      "reqskillvalue": 90,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16702,
+      "spell": 25317,
+      "spellcost": 600,
+      "reqskill": 755,
+      "reqskillvalue": 80,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16702,
+      "spell": 25318,
+      "spellcost": 800,
+      "reqskill": 755,
+      "reqskillvalue": 100,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16702,
+      "spell": 25321,
+      "spellcost": 1500,
+      "reqskill": 755,
+      "reqskillvalue": 120,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16702,
+      "spell": 25498,
+      "spellcost": 600,
+      "reqskill": 755,
+      "reqskillvalue": 110,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16702,
+      "spell": 25613,
+      "spellcost": 1200,
+      "reqskill": 755,
+      "reqskillvalue": 135,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16702,
+      "spell": 32807,
+      "spellcost": 600,
+      "reqskill": 755,
+      "reqskillvalue": 110,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16702,
+      "spell": 36523,
+      "spellcost": 600,
+      "reqskill": 755,
+      "reqskillvalue": 75,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16702,
+      "spell": 36524,
+      "spellcost": 800,
+      "reqskill": 755,
+      "reqskillvalue": 105,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16702,
+      "spell": 37818,
+      "spellcost": 500,
+      "reqskill": 755,
+      "reqskillvalue": 65,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16702,
+      "spell": 38175,
+      "spellcost": 650,
+      "reqskill": 755,
+      "reqskillvalue": 80,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "16727": [
+    {
+      "entry": 16727,
+      "spell": 25245,
+      "spellcost": 100,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 5,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 25283,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 30,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 25284,
+      "spellcost": 400,
+      "reqskill": 755,
+      "reqskillvalue": 60,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 25287,
+      "spellcost": 400,
+      "reqskill": 755,
+      "reqskillvalue": 70,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 25278,
+      "spellcost": 200,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 25490,
+      "spellcost": 300,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 25280,
+      "spellcost": 200,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 26926,
+      "spellcost": 50,
+      "reqskill": 755,
+      "reqskillvalue": 5,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 26927,
+      "spellcost": 300,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 26928,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 30,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 31252,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 20,
+      "reqlevel": 5,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 32179,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 20,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 32178,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 20,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16727,
+      "spell": 32801,
+      "spellcost": 200,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "16744": [
+    {
+      "entry": 16744,
+      "spell": 25245,
+      "spellcost": 100,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 5,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 25283,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 30,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 25284,
+      "spellcost": 400,
+      "reqskill": 755,
+      "reqskillvalue": 60,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 25287,
+      "spellcost": 400,
+      "reqskill": 755,
+      "reqskillvalue": 70,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 25278,
+      "spellcost": 200,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 25490,
+      "spellcost": 300,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 25280,
+      "spellcost": 200,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 26926,
+      "spellcost": 50,
+      "reqskill": 755,
+      "reqskillvalue": 20,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 26927,
+      "spellcost": 300,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 26928,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 30,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 31252,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 20,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 32179,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 20,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 32178,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 20,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16744,
+      "spell": 32801,
+      "spellcost": 200,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "16755": [
+    {
+      "entry": 16755,
+      "spell": 32266,
+      "spellcost": 15000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 40,
+      "condition_id": 0
+    },
+    {
+      "entry": 16755,
+      "spell": 32271,
+      "spellcost": 2000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 20,
+      "condition_id": 0
+    }
+  ],
+  "16773": [
+    {
+      "entry": 16773,
+      "spell": 1180,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16773,
+      "spell": 202,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16773,
+      "spell": 201,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16773,
+      "spell": 199,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16773,
+      "spell": 198,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 16773,
+      "spell": 5011,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "17005": [
+    {
+      "entry": 17005,
+      "spell": 200,
+      "spellcost": 10000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 20,
+      "condition_id": 0
+    },
+    {
+      "entry": 17005,
+      "spell": 201,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 17005,
+      "spell": 202,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 17005,
+      "spell": 264,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 17005,
+      "spell": 1180,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 17005,
+      "spell": 2567,
+      "spellcost": 1000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "19186": [
+    {
+      "entry": 19186,
+      "spell": 42296,
+      "spellcost": 42000,
+      "reqskill": 185,
+      "reqskillvalue": 320,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19186,
+      "spell": 42302,
+      "spellcost": 60000,
+      "reqskill": 185,
+      "reqskillvalue": 350,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19186,
+      "spell": 42305,
+      "spellcost": 60000,
+      "reqskill": 185,
+      "reqskillvalue": 350,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "19774": [
+    {
+      "entry": 19774,
+      "spell": 25613,
+      "spellcost": 1200,
+      "reqskill": 755,
+      "reqskillvalue": 135,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19774,
+      "spell": 25615,
+      "spellcost": 1500,
+      "reqskill": 755,
+      "reqskillvalue": 150,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19774,
+      "spell": 25620,
+      "spellcost": 2000,
+      "reqskill": 755,
+      "reqskillvalue": 170,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19774,
+      "spell": 25621,
+      "spellcost": 2000,
+      "reqskill": 755,
+      "reqskillvalue": 180,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19774,
+      "spell": 26872,
+      "spellcost": 2500,
+      "reqskill": 755,
+      "reqskillvalue": 200,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19774,
+      "spell": 32808,
+      "spellcost": 2000,
+      "reqskill": 755,
+      "reqskillvalue": 175,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19774,
+      "spell": 34955,
+      "spellcost": 2500,
+      "reqskill": 755,
+      "reqskillvalue": 180,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19774,
+      "spell": 34959,
+      "spellcost": 3000,
+      "reqskill": 755,
+      "reqskillvalue": 200,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "19777": [
+    {
+      "entry": 19777,
+      "spell": 25245,
+      "spellcost": 100,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 5,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25230,
+      "spellcost": 500,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 10,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25283,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 30,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25284,
+      "spellcost": 400,
+      "reqskill": 755,
+      "reqskillvalue": 60,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25287,
+      "spellcost": 400,
+      "reqskill": 755,
+      "reqskillvalue": 70,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25305,
+      "spellcost": 1000,
+      "reqskill": 755,
+      "reqskillvalue": 90,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25317,
+      "spellcost": 600,
+      "reqskill": 755,
+      "reqskillvalue": 80,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25318,
+      "spellcost": 800,
+      "reqskill": 755,
+      "reqskillvalue": 100,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25321,
+      "spellcost": 1500,
+      "reqskill": 755,
+      "reqskillvalue": 120,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25278,
+      "spellcost": 200,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25490,
+      "spellcost": 300,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25498,
+      "spellcost": 600,
+      "reqskill": 755,
+      "reqskillvalue": 110,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25613,
+      "spellcost": 1200,
+      "reqskill": 755,
+      "reqskillvalue": 135,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25615,
+      "spellcost": 1500,
+      "reqskill": 755,
+      "reqskillvalue": 150,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25620,
+      "spellcost": 2000,
+      "reqskill": 755,
+      "reqskillvalue": 170,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25621,
+      "spellcost": 2000,
+      "reqskill": 755,
+      "reqskillvalue": 180,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 25280,
+      "spellcost": 200,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26926,
+      "spellcost": 50,
+      "reqskill": 755,
+      "reqskillvalue": 5,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26927,
+      "spellcost": 300,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26928,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 30,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26872,
+      "spellcost": 2500,
+      "reqskill": 755,
+      "reqskillvalue": 200,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26874,
+      "spellcost": 5000,
+      "reqskill": 755,
+      "reqskillvalue": 210,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26876,
+      "spellcost": 3000,
+      "reqskill": 755,
+      "reqskillvalue": 220,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26880,
+      "spellcost": 3500,
+      "reqskill": 755,
+      "reqskillvalue": 225,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26883,
+      "spellcost": 4000,
+      "reqskill": 755,
+      "reqskillvalue": 235,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26885,
+      "spellcost": 5000,
+      "reqskill": 755,
+      "reqskillvalue": 240,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26902,
+      "spellcost": 10000,
+      "reqskill": 755,
+      "reqskillvalue": 260,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26903,
+      "spellcost": 10000,
+      "reqskill": 755,
+      "reqskillvalue": 275,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26907,
+      "spellcost": 10000,
+      "reqskill": 755,
+      "reqskillvalue": 280,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26908,
+      "spellcost": 12000,
+      "reqskill": 755,
+      "reqskillvalue": 280,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26911,
+      "spellcost": 15000,
+      "reqskill": 755,
+      "reqskillvalue": 290,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 26916,
+      "spellcost": 20000,
+      "reqskill": 755,
+      "reqskillvalue": 310,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 28894,
+      "spellcost": 5000,
+      "reqskill": 755,
+      "reqskillvalue": 125,
+      "reqlevel": 20,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 28895,
+      "spellcost": 50000,
+      "reqskill": 755,
+      "reqskillvalue": 200,
+      "reqlevel": 35,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 28897,
+      "spellcost": 100000,
+      "reqskill": 755,
+      "reqskillvalue": 275,
+      "reqlevel": 50,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 31048,
+      "spellcost": 20000,
+      "reqskill": 755,
+      "reqskillvalue": 310,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 31049,
+      "spellcost": 20000,
+      "reqskill": 755,
+      "reqskillvalue": 310,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 31050,
+      "spellcost": 25000,
+      "reqskill": 755,
+      "reqskillvalue": 320,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 31051,
+      "spellcost": 30000,
+      "reqskill": 755,
+      "reqskillvalue": 335,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 31052,
+      "spellcost": 30000,
+      "reqskill": 755,
+      "reqskillvalue": 335,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 31252,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 20,
+      "reqlevel": 5,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 32179,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 20,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 32178,
+      "spellcost": 100,
+      "reqskill": 755,
+      "reqskillvalue": 20,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 32801,
+      "spellcost": 200,
+      "reqskill": 755,
+      "reqskillvalue": 50,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 32807,
+      "spellcost": 600,
+      "reqskill": 755,
+      "reqskillvalue": 110,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 32808,
+      "spellcost": 2000,
+      "reqskill": 755,
+      "reqskillvalue": 175,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 32809,
+      "spellcost": 3500,
+      "reqskill": 755,
+      "reqskillvalue": 225,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 34955,
+      "spellcost": 2500,
+      "reqskill": 755,
+      "reqskillvalue": 180,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 34959,
+      "spellcost": 3000,
+      "reqskill": 755,
+      "reqskillvalue": 200,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 34960,
+      "spellcost": 10000,
+      "reqskill": 755,
+      "reqskillvalue": 280,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 34961,
+      "spellcost": 10000,
+      "reqskill": 755,
+      "reqskillvalue": 290,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 36523,
+      "spellcost": 600,
+      "reqskill": 755,
+      "reqskillvalue": 75,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 36524,
+      "spellcost": 800,
+      "reqskill": 755,
+      "reqskillvalue": 105,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 36525,
+      "spellcost": 4000,
+      "reqskill": 755,
+      "reqskillvalue": 230,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 36526,
+      "spellcost": 10000,
+      "reqskill": 755,
+      "reqskillvalue": 265,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 37818,
+      "spellcost": 500,
+      "reqskill": 755,
+      "reqskillvalue": 65,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 38068,
+      "spellcost": 20000,
+      "reqskill": 755,
+      "reqskillvalue": 325,
+      "reqlevel": 0,
+      "condition_id": 0
+    },
+    {
+      "entry": 19777,
+      "spell": 38175,
+      "spellcost": 650,
+      "reqskill": 755,
+      "reqskillvalue": 80,
+      "reqlevel": 0,
+      "condition_id": 0
+    }
+  ],
+  "22005": [
+    {
+      "entry": 22005,
+      "spell": 1752,
+      "spellcost": 100,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 6,
+      "condition_id": 0
+    },
+    {
+      "entry": 22005,
+      "spell": 1776,
+      "spellcost": 100,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 6,
+      "condition_id": 0
+    },
+    {
+      "entry": 22005,
+      "spell": 1784,
+      "spellcost": 10,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 1,
+      "condition_id": 0
+    },
+    {
+      "entry": 22005,
+      "spell": 53,
+      "spellcost": 100,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 4,
+      "condition_id": 0
+    }
+  ],
+  "24868": [
+    {
+      "entry": 24868,
+      "spell": 44157,
+      "spellcost": 200000,
+      "reqskill": 202,
+      "reqskillvalue": 375,
+      "reqlevel": 70,
+      "condition_id": 0
+    },
+    {
+      "entry": 24868,
+      "spell": 44155,
+      "spellcost": 120000,
+      "reqskill": 202,
+      "reqskillvalue": 350,
+      "reqlevel": 70,
+      "condition_id": 0
+    }
+  ],
+  "25099": [
+    {
+      "entry": 25099,
+      "spell": 44157,
+      "spellcost": 200000,
+      "reqskill": 202,
+      "reqskillvalue": 375,
+      "reqlevel": 70,
+      "condition_id": 0
+    },
+    {
+      "entry": 25099,
+      "spell": 44155,
+      "spellcost": 120000,
+      "reqskill": 202,
+      "reqskillvalue": 350,
+      "reqlevel": 70,
+      "condition_id": 0
+    }
+  ],
+  "27703": [
+    {
+      "entry": 27703,
+      "spell": 49359,
+      "spellcost": 2000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 35,
+      "condition_id": 0
+    },
+    {
+      "entry": 27703,
+      "spell": 49360,
+      "spellcost": 15000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 35,
+      "condition_id": 0
+    }
+  ],
+  "27705": [
+    {
+      "entry": 27705,
+      "spell": 49361,
+      "spellcost": 15000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 35,
+      "condition_id": 0
+    },
+    {
+      "entry": 27705,
+      "spell": 49358,
+      "spellcost": 2000,
+      "reqskill": 0,
+      "reqskillvalue": 0,
+      "reqlevel": 35,
+      "condition_id": 0
+    }
+  ]
+}

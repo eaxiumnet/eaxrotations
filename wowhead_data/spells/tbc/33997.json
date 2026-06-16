@@ -1,9 +1,0 @@
-{
-  "name": "Enchant Gloves - Major Spellpower",
-  "icon": "spell_holy_greaterheal",
-  "cast_time": 5,
-  "required_level": 35,
-  "description": "Permanently enchant gloves to increase damage and healing by up to 20.  Requires a level 35 or higher item.",
-  "_id": 33997,
-  "_source": "wowhead"
-}

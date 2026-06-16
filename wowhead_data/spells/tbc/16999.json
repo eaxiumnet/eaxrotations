@@ -1,8 +1,0 @@
-{
-  "name": "Savage Fury",
-  "icon": "ability_druid_ravage",
-  "required_class": "Druid",
-  "description": "Increases the damage caused by your Claw, Rake, and Mangle (Cat) abilities by 20%.",
-  "_id": 16999,
-  "_source": "wowhead"
-}
