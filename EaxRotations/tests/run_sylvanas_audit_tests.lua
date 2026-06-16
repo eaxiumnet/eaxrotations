@@ -40,17 +40,16 @@ end
 local HAS_ITEM_INDEX = (item_count > 0)
 
 -- ---------------------------------------------------------------------------
--- File list: every spec/levelning/class file for TBC Anniversary
+-- File list: every spec/leveling/class file for TBC Anniversary
+--             + shared/ modules that contain spell IDs
 -- ---------------------------------------------------------------------------
 local SYLVANAS_FILES = {}
 for _, class in ipairs({
     "druid", "hunter", "mage", "paladin", "priest",
     "rogue", "shaman", "warlock", "warrior",
 }) do
-    -- class file + leveling file
     SYLVANAS_FILES[#SYLVANAS_FILES + 1] = "classes/" .. class .. "/class_sylvanas.lua"
     SYLVANAS_FILES[#SYLVANAS_FILES + 1] = "classes/" .. class .. "/leveling_sylvanas.lua"
-    -- TBC spec files (bear_sylvanas, balance_sylvanas, etc.)
     for _, suffix in ipairs({
         "balance", "bear", "cat", "caster", "resto",
         "beast_mastery", "marksmanship", "survival",
@@ -62,9 +61,23 @@ for _, class in ipairs({
         "affliction", "demonology", "destruction",
         "arms", "fury", "kebab",
     }) do
-        local f = "classes/" .. class .. "/" .. suffix .. "_sylvanas.lua"
-        SYLVANAS_FILES[#SYLVANAS_FILES + 1] = f
+        SYLVANAS_FILES[#SYLVANAS_FILES + 1] = "classes/" .. class .. "/" .. suffix .. "_sylvanas.lua"
     end
+end
+
+-- Shared modules known to contain spell IDs (buffs, debuffs, talents, consumables)
+local SHARED_FILES_WITH_IDS = {
+    "shared/buff_upgrade_sylvanas.lua",
+    "shared/cast_bar_overlay_sylvanas.lua",
+    "shared/consumable_manager_sylvanas.lua",
+    "shared/hot_tick_tracker_sylvanas.lua",
+    "shared/ooc_manager_sylvanas.lua",
+    "shared/talent_inference_sylvanas.lua",
+    "shared/tbc_data_sylvanas.lua",
+    "shared/weapon_imbue_sylvanas.lua",
+}
+for _, f in ipairs(SHARED_FILES_WITH_IDS) do
+    SYLVANAS_FILES[#SYLVANAS_FILES + 1] = f
 end
 
 local root = "EaxRotations"
@@ -86,42 +99,33 @@ local function file_exists(path)
     return false
 end
 
--- Patterns we scan for spell IDs (skip 1-999 = not spell IDs, skip 100000+ = test/huge)
+-- Patterns we scan for spell IDs:
 --  - `ids = { N, N, ... }` inside spell_action calls
+--  - `spell_ids = { N, N, ... }` in hot tick trackers
+--  - `{ ids = { N, N, ... } }` in talent/buff tables (nested)
 --  - Standalone BUFF/DEBUFF/SPELL arrays like `local X_BUFF = { N, N }`
+-- Skip plain counters like `local _work_ids = { n = 0 }` — only match arrays
+-- whose *contents* are dense numeric literals (not field assignments).
 local function extract_ids_from_line(line)
     local ids = {}
-    -- Pattern 1: `ids = { N, N, N }` — spell definitions
-    local ids_block = line:match("ids%s*=%s*%b{}")
-    if ids_block then
-        for n in ids_block:gmatch("(%d+)") do
-            ids[#ids + 1] = tonumber(n)
-        end
-        return ids
-    end
-    -- Pattern 2: Array literal of multi-digit numbers (likely buff/debuff arrays)
-    local arr_block = line:match("^%s*[%w_]+%s*=%s*%b{}")
-    if arr_block then
-        local has_only_ints = true
-        local found_any = false
-        for tok in arr_block:gmatch("[^,%s{}]+") do
-            if not tok:match("^%d+$") then
-                if tok:match("^%d") or tok:match("^%-") then
-                    has_only_ints = false
-                end
-                -- skip non-numeric tokens (variable refs, nil, etc.)
-            else
-                local n = tonumber(tok)
-                if n >= 1000 and n <= 99999 then  -- plausible spell ID range
-                    ids[#ids + 1] = n
-                    found_any = true
-                end
+    local function collect(block)
+        if block:find("=") then return end
+        for n in block:gmatch("(%d+)") do
+            local v = tonumber(n)
+            if v >= 1000 and v <= 99999 then
+                ids[#ids + 1] = v
             end
         end
-        if found_any and has_only_ints then
-            return ids
-        end
     end
+    -- `%b{}` captures the braces only; strip them so `=` check is content-only.
+    local inner = line:match("[%w_]*ids%s*=%s*(%b{})")
+    if inner then
+        local body = inner:sub(2, -2)
+        collect(body)
+        if #ids > 0 then return ids end
+    end
+    local arr_inner = line:match("^%s*[%w_]+%s*=%s*(%b{})")
+    if arr_inner then collect(arr_inner:sub(2, -2)) end
     return ids
 end
 

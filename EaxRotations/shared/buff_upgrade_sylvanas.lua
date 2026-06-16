@@ -17,7 +17,7 @@ local CLASS = NS.CLASS_ID or {
 local PARTY_BUFFS_BY_CLASS = {
     [CLASS.PRIEST] = {
         { ids = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }, key = "fort" },
-        { ids = { 25433, 10958, 10957, 10956, 10955, 976 },       key = "shadow_prot" },
+        { ids = { 25433, 10958, 10957, 976 },                     key = "shadow_prot" },
     },
     [CLASS.MAGE] = {
         { ids = { 27126, 10157, 10156, 1461, 1460, 1459 }, key = "ai" },
