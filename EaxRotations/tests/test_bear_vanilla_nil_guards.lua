@@ -49,7 +49,6 @@ _G.EaxRotations = {
         BearForm = 5487,
         FrenziedRegeneration = 22842,
         Barkskin = 22812,
-        SurvivalInstincts = 61336,
         FerociousBite = 22568,
         MarkOfTheWild = 1126,
         GiftOfTheWild = 21849,

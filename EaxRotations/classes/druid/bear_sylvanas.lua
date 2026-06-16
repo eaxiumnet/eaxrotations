@@ -62,7 +62,6 @@ local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
 local CLEARCASTING_BUFF = { 16870 }
 local BARKSKIN_BUFF = { 22812 }
 local FRENZIED_REGEN_BUFF = { 22842 }
-local SURVIVAL_INSTINCTS_BUFF = { 61336 }
 
 local HEALTHSTONE_IDS = TBC_ITEMS.healthstones or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local HEALING_POTION_IDS = {
@@ -113,7 +112,6 @@ local bear_state = {
     has_clearcasting = false,
     has_barkskin = false,
     has_frenzied_regen = false,
-    has_survival_instincts = false,
     has_mark = false,
     has_thorns = false,
     faerie_remains = 0,
@@ -129,7 +127,6 @@ local bear_state = {
     challenging_ready = false,
     barkskin_ready = false,
     frenzied_ready = false,
-    survival_instincts_ready = false,
     charge_ready = false,
     bash_ready = false,
     faerie_ready = false,
@@ -415,8 +412,6 @@ local function build_state(context)
     state.challenging_ready = spell_ready(SPELLS.ChallengingRoar, state.me)
     state.barkskin_ready = spell_ready(SPELLS.Barkskin, state.me)
     state.frenzied_ready = spell_ready(SPELLS.FrenziedRegeneration, state.me)
-    state.survival_instincts_ready = spell_ready(SPELLS.SurvivalInstincts, state.me)
-    state.has_survival_instincts = (NS.buff_up and NS.buff_up(state.me, SURVIVAL_INSTINCTS_BUFF)) or false
     state.charge_ready = spell_ready(FERAL_CHARGE, state.target)
     state.bash_ready = spell_ready(BASH, state.target)
     state.faerie_ready = spell_ready(SPELLS.FaerieFireFeral, state.target)
@@ -470,7 +465,7 @@ local function would_starve_mangle(state, rage_cost)
     if state.rage - rage_cost >= RAGE_MANGLE_RESERVE then return false end
     if state.mangle_ready then return (state.rage or 0) < RAGE_MANGLE_RESERVE + rage_cost end
     if state.mangle_cd > MANGLE_HOLD_WINDOW then return false end
-    if state.rage_per_second > 8 and (state.rage or 0) >= rage_cost + 5 then return false end
+    if (state.rage_per_second or 0) > 8 and (state.rage or 0) >= rage_cost + 5 then return false end
     return true
 end
 
@@ -529,8 +524,8 @@ local function faerie_fire_pull_matches(context, action)
     -- Skip if target has no armor (API unavailable or already fully reduced)
     if (context.target_armor or 0) <= 0 then return false end
     if state.in_melee then return false end
-    if state.target_range > 30 then return false end
-    if state.faerie_remains > FAERIE_FIRE_REFRESH then return false end
+    if (state.target_range or 40) > 30 then return false end
+    if (state.faerie_remains or 0) > FAERIE_FIRE_REFRESH then return false end
     return action_ready(context, action)
 end
 
@@ -538,13 +533,13 @@ local function healthstone_matches(context)
     local state = build_state(context)
     if not state.in_combat then return false end
     if (state.hp or 100) > 28 then return false end
-    return state.healthstone_ready > 0
+    return (state.healthstone_ready or 0) > 0
 end
 
 local function potion_matches(context)
     local state = build_state(context)
     if not state.in_combat then return false end
-    if state.healthstone_ready > 0 and (state.hp or 100) <= 28 then return false end
+    if (state.healthstone_ready or 0) > 0 and (state.hp or 100) <= 28 then return false end
     if (state.hp or 100) > 32 then return false end
     return state.potion_ready > 0
 end
@@ -558,13 +553,7 @@ local function frenzied_regen_matches(context, action)
     return action_ready(context, action)
 end
 
-local function survival_instincts_matches(context, action)
-    local state = build_state(context)
-    if not state.is_bear or not state.in_combat then return false end
-    if state.has_survival_instincts then return false end
-    if (state.hp or 100) > 25 then return false end
-    return action_ready(context, action)
-end
+
 
 local function barkskin_matches(context, action)
     local state = build_state(context)
@@ -581,7 +570,7 @@ local function challenging_roar_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat then return false end
     if (state.enemy_count or 0) < CHALLENGING_ROAR_ENEMY_COUNT and state.pack_loose < 2 then return false end
-    if state.pack_loose < 2 and state.hp < 45 then return false end
+    if (state.pack_loose or 0) < 2 and (state.hp or 100) < 45 then return false end
     return action_ready(context, action)
 end
 
@@ -611,7 +600,7 @@ local function demo_roar_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat or not state.demo_roar_enabled then return false end
     if (state.enemy_count or 0) <= 0 then return false end
-    if state.demo_remains > DEMO_ROAR_REFRESH and not state.pack_needs_demo then return false end
+    if (state.demo_remains or 0) > DEMO_ROAR_REFRESH and not state.pack_needs_demo then return false end
     if (state.enemy_count or 0) < 2 and not state.is_target_boss and state.target_ttd < 10 then return false end
     return action_ready(context, action)
 end
@@ -619,8 +608,8 @@ end
 local function mangle_opener_matches(context, action)
     local state = build_state(context)
     if not can_use_bear_ability(state) then return false end
-    if state.enemy_count >= state.aoe_threshold and state.pack_loose > 1 then return false end
-    if state.mangle_remains > MANGLE_DEBUFF_REFRESH and state.lacerate_stacks >= LACERATE_MAX_STACKS then return false end
+    if (state.enemy_count or 0) >= (state.aoe_threshold or 3) and (state.pack_loose or 0) > 1 then return false end
+    if (state.mangle_remains or 0) > MANGLE_DEBUFF_REFRESH and (state.lacerate_stacks or 0) >= LACERATE_MAX_STACKS then return false end
     return action_ready(context, action)
 end
 
@@ -628,9 +617,9 @@ local function lacerate_matches(context, action)
     local state = build_state(context)
     if not state.target then return false end
     if not can_use_bear_ability(state) then return false end
-    if state.enemy_count >= state.aoe_threshold and state.pack_loose > 1 and state.lacerate_stacks >= 3 then return false end
-    if state.lacerate_stacks < LACERATE_MAX_STACKS then return action_ready(context, action) end
-    if state.lacerate_remains <= LACERATE_REFRESH_WINDOW then return action_ready(context, action) end
+    if (state.enemy_count or 0) >= (state.aoe_threshold or 3) and (state.pack_loose or 0) > 1 and (state.lacerate_stacks or 0) >= 3 then return false end
+    if (state.lacerate_stacks or 0) < LACERATE_MAX_STACKS then return action_ready(context, action) end
+    if (state.lacerate_remains or 0) <= LACERATE_REFRESH_WINDOW then return action_ready(context, action) end
     return false
 end
 
@@ -640,7 +629,7 @@ local function off_target_lacerate_matches(context, action)
     if not state.off_target then return false end
     if (state.enemy_count or 0) < 2 then return false end
     if not state.off_target_threat_low and state.off_target_lacerate_stacks >= 3 then return false end
-    if state.off_target_lacerate_stacks >= LACERATE_MAX_STACKS and state.off_target_lacerate_remains > LACERATE_REFRESH_WINDOW then return false end
+    if (state.off_target_lacerate_stacks or 0) >= LACERATE_MAX_STACKS and (state.off_target_lacerate_remains or 0) > LACERATE_REFRESH_WINDOW then return false end
     action.unit = state.off_target
     return action_ready(context, action)
 end
@@ -649,7 +638,7 @@ local function swipe_aoe_matches(context, action)
     local state = build_state(context)
     if not state.is_bear then return false end
     if not state.in_combat and NS.spell_ready then return false end
-    if state.enemy_count < state.aoe_threshold then return false end
+    if (state.enemy_count or 0) < (state.aoe_threshold or 3) then return false end
     if context.has_breakable_cc_nearby then return false end
     if not rage_allows_filler(state, RAGE_SWIPE) then return false end
     return action_ready(context, action)
@@ -683,17 +672,17 @@ local function clearcasting_lacerate_matches(context, action)
     local state = build_state(context)
     if not can_use_bear_ability(state) then return false end
     if not state.has_clearcasting then return false end
-    if state.lacerate_stacks >= LACERATE_MAX_STACKS and state.lacerate_remains > LACERATE_REFRESH_WINDOW then return false end
+    if (state.lacerate_stacks or 0) >= LACERATE_MAX_STACKS and (state.lacerate_remains or 0) > LACERATE_REFRESH_WINDOW then return false end
     return action_ready(context, action)
 end
 
 local function maul_matches(context, action)
     local state = build_state(context)
     if not can_use_bear_ability(state) then return false end
-    if state.enemy_count >= state.aoe_threshold and state.rage < HIGH_RAGE then return false end
+    if (state.enemy_count or 0) >= (state.aoe_threshold or 3) and (state.rage or 0) < HIGH_RAGE then return false end
     if state.rage < state.maul_rage then return false end
     if not state.target and NS.spell_ready == nil then return action_ready(context, action) end
-    if state.lacerate_stacks < LACERATE_MAX_STACKS and state.target_ttd > 8 then return false end
+    if (state.lacerate_stacks or 0) < LACERATE_MAX_STACKS and (state.target_ttd or 999) > 8 then return false end
     if would_starve_mangle(state, RAGE_MAUL) then return false end
     return action_ready(context, action)
 end
@@ -704,7 +693,7 @@ local function enrage_combat_matches(context, action)
     if (state.rage or 0) > RAGE_LOW then return false end
     if (state.hp or 100) < 60 and (state.enemy_count or 0) >= 2 then return false end
     if state.mangle_ready and state.rage < RAGE_MANGLE then return action_ready(context, action) end
-    if state.lacerate_stacks < LACERATE_MAX_STACKS and state.rage < RAGE_LACERATE then return action_ready(context, action) end
+    if (state.lacerate_stacks or 0) < LACERATE_MAX_STACKS and (state.rage or 0) < RAGE_LACERATE then return action_ready(context, action) end
     return false
 end
 
@@ -712,10 +701,10 @@ local function ferocious_bite_matches(context, action)
     local state = build_state(context)
     if not can_use_bear_ability(state) then return false end
     if state.is_target_boss or state.is_target_player then return false end
-    if state.target_hp > EXECUTE_HP then return false end
+    if (state.target_hp or 100) > EXECUTE_HP then return false end
     if state.loose_target or state.pack_loose > 0 then return false end
-    if state.lacerate_stacks < LACERATE_MAX_STACKS and state.target_ttd > 5 then return false end
-    if state.rage < RAGE_BITE + RAGE_SAFE_RESERVE then return false end
+    if (state.lacerate_stacks or 0) < LACERATE_MAX_STACKS and (state.target_ttd or 999) > 5 then return false end
+    if (state.rage or 0) < RAGE_BITE + RAGE_SAFE_RESERVE then return false end
     return action_ready(context, action)
 end
 
@@ -751,7 +740,6 @@ local ACTIONS = {
     { name = "Healthstone", target = "self", requires_target = false, matches = healthstone_matches, execute = function(context) return execute_item(context, build_state(context).healthstone_ready, "Healthstone") end },
     { name = "HealingPotion", target = "self", requires_target = false, matches = potion_matches, execute = function(context) return execute_item(context, build_state(context).potion_ready, "Healing Potion") end },
     { name = "FrenziedRegeneration", spell = SPELLS.FrenziedRegeneration, target = "self", required_form = "bear", min_rage = RAGE_FRENZIED_REGEN, requires_target = false, matches = frenzied_regen_matches },
-    { name = "SurvivalInstincts", spell = SPELLS.SurvivalInstincts, target = "self", required_form = "bear", requires_target = false, matches = survival_instincts_matches },
     { name = "Barkskin", spell = SPELLS.Barkskin, target = "self", requires_target = false, matches = barkskin_matches },
 
     { name = "ChallengingRoar", spell = SPELLS.ChallengingRoar, target = "self", required_form = "bear", min_rage = RAGE_CHALLENGING_ROAR, requires_target = false, matches = challenging_roar_matches, execute = taunt_execute },
