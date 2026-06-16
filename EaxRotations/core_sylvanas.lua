@@ -104,7 +104,10 @@ end
 local _ct_ok, _cooldown_tracker = pcall(require, "common/utility/cooldown_tracker")
 if not _ct_ok or type(_cooldown_tracker) ~= "table" then _cooldown_tracker = nil end
 
-local _settings_manager = nil
+local _sm_ok, _settings_manager = pcall(require, "common/modules/settings_manager")
+if not _sm_ok or type(_settings_manager) ~= "table" then _settings_manager = nil end
+-- Disabled: file-save feature causes "File name not set" spam on script reload.
+_settings_manager = nil
 
 -- spell_helper: native spell readiness checks (cooldown + range + resource + facing + LOS + learned)
 local _sh_ok, _spell_helper = pcall(require, "common/utility/spell_helper")
@@ -1184,12 +1187,17 @@ end
 
 function NS.set_setting(key, value)
 
+    local last = _settings_cache[key]
+
     NS.settings[key] = value
 
     _settings_cache[key] = value
 
-    if _settings_manager then
-        _settings_manager:set(key, value)
+    if _settings_manager and value ~= last then
+        local ok, err = pcall(function() _settings_manager:set(key, value) end)
+        if not ok and err then
+            -- Silently ignore file-save errors from settings_manager (filename not configured)
+        end
     end
 
 end
@@ -2235,7 +2243,7 @@ function NS.cooldown_remains(spell, expected_cooldown)
 
     -- Primary: spell_helper cooldown API
     if _spell_helper then
-        local ok_cd, cd_remaining = pcall(_spell_helper.get_spell_cooldown, _spell_helper, id)
+        local cd_remaining = _spell_helper:get_spell_cooldown(id)
         if type(cd_remaining) == "number" and cd_remaining > 0 then
             return cd_remaining
         end
@@ -2313,8 +2321,8 @@ function NS.is_spell_in_range(spell, target)
     local id = NS.get_spell_id(spell)
     if not id then return true end
     if _spell_helper then
-        local ok_range, in_range = pcall(_spell_helper.is_spell_in_range, _spell_helper, id, target, nil, nil)
-        if ok_range and in_range == true then return true end
+        local in_range = _spell_helper:is_spell_in_range(id, target, nil, nil)
+        if in_range == true then return true end
     end
     -- Fallback: basic distance check
     local me = NS.GetPlayer()
@@ -2329,11 +2337,26 @@ end
 
 NS.spell_in_range = NS.is_spell_in_range
 
+-- Cache spell_book.get_spell_range_data at module load
+local _get_spell_range_data = core.spell_book and core.spell_book.get_spell_range_data
+
+--- Retrieve min/max range data for a spell. Returns {min=number, max=number}
+--- or nil if the API is unavailable, the spell has no range data, or spell_id is nil.
+---@param spell_id integer|nil
+---@return table|nil
+function NS.get_spell_range(spell_id)
+    if not spell_id then return nil end
+    if not _get_spell_range_data then return nil end
+    local ok, result = pcall(_get_spell_range_data, spell_id)
+    if not ok or type(result) ~= "table" then return nil end
+    if result.min == nil or result.max == nil then return nil end
+    return { min = result.min, max = result.max }
+end
+
 local function spell_helper_castable(id, target, opts)
     local caster = NS.GetPlayer()
     if not caster or not target then return false end
-    local ok, castable = pcall(
-        _spell_helper.is_spell_castable,
+    local castable = _spell_helper.is_spell_castable(
         _spell_helper,
         id,
         caster,
@@ -2344,7 +2367,7 @@ local function spell_helper_castable(id, target, opts)
         opts.skip_controller == true,
         opts.skip_learned == true
     )
-    return ok and castable == true
+    return castable == true
 end
 
 function NS.spell_ready(spell, target, opts)
@@ -3426,9 +3449,19 @@ function NS.mana_pct(unit)
 
 end
 
-
-
-
+local function _build_aura_lookup(unit, getter_name)
+    local getter = safe_field(unit, getter_name)
+    if not getter then return nil end
+    local ok, auras = pcall(getter, unit)
+    if not ok or type(auras) ~= "table" then return nil end
+    local lookup = {}
+    for _, aura in ipairs(auras) do
+        if type(aura) == "table" and aura.buff_id then
+            lookup[aura.buff_id] = aura
+        end
+    end
+    return lookup
+end
 
 function NS.buff_up(unit, ids)
     if not unit then return false end
@@ -3437,16 +3470,25 @@ function NS.buff_up(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local ok, data = pcall(_buff_manager.get_buff_data, _buff_manager, unit, list, 50)
-        if ok and data and data.is_active ~= false then return true end
+        local data = _buff_manager:get_buff_data(unit, list, 50)
+        if data and data.is_active ~= false then return true end
     end
 
     -- Fallback: direct unit API
-    for i = 1, #list do
-        local id = list[i]
-        if safe(safe_field(unit, "has_buff"), unit, id) or safe(safe_field(unit, "buff_up"), unit, id) then return true end
-        local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
-        if fd and fd.is_active ~= false then return true end
+    if #list > 3 then
+        local lookup = _build_aura_lookup(unit, "get_buffs")
+        if lookup then
+            for i = 1, #list do
+                if lookup[list[i]] then return true end
+            end
+        end
+    else
+        for i = 1, #list do
+            local id = list[i]
+            if safe(safe_field(unit, "has_buff"), unit, id) or safe(safe_field(unit, "buff_up"), unit, id) then return true end
+            local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
+            if fd and fd.is_active ~= false then return true end
+        end
     end
 
     return false
@@ -3461,16 +3503,25 @@ function NS.debuff_up(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local ok, data = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, list, 50)
-        if ok and data and data.is_active ~= false then return true end
+        local data = _buff_manager:get_debuff_data(unit, list, 50)
+        if data and data.is_active ~= false then return true end
     end
 
     -- Fallback: direct unit API
-    for i = 1, #list do
-        local id = list[i]
-        if safe(safe_field(unit, "has_debuff"), unit, id) or safe(safe_field(unit, "debuff_up"), unit, id) then return true end
-        local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
-        if fd and fd.is_active ~= false then return true end
+    if #list > 3 then
+        local lookup = _build_aura_lookup(unit, "get_debuffs")
+        if lookup then
+            for i = 1, #list do
+                if lookup[list[i]] then return true end
+            end
+        end
+    else
+        for i = 1, #list do
+            local id = list[i]
+            if safe(safe_field(unit, "has_debuff"), unit, id) or safe(safe_field(unit, "debuff_up"), unit, id) then return true end
+            local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
+            if fd and fd.is_active ~= false then return true end
+        end
     end
 
     return false
@@ -3483,20 +3534,33 @@ function NS.buff_remains(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local ok, data = pcall(_buff_manager.get_buff_data, _buff_manager, unit, list, 50)
-        if ok and data and data.is_active ~= false then
+        local data = _buff_manager:get_buff_data(unit, list, 50)
+        if data and data.is_active ~= false then
             return data.remaining > 0 and (data.remaining / 1000) or 0
         end
     end
 
     -- Fallback: direct unit API
-    for i = 1, #list do
-        local id = list[i]
-        local v = safe(safe_field(unit, "buff_remains"), unit, id)
-        if type(v) == "number" and v > 0 then return v end
-        local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
-        if fd and fd.is_active ~= false then
-            return fd.remaining > 0 and (fd.remaining / 1000) or 0
+    if #list > 3 then
+        local lookup = _build_aura_lookup(unit, "get_buffs")
+        if lookup then
+            for i = 1, #list do
+                local aura = lookup[list[i]]
+                if aura then
+                    local remaining = aura.expire_time and (aura.expire_time - (NS.game_time_ms() or 0)) / 1000 or 0
+                    if remaining > 0 then return remaining end
+                end
+            end
+        end
+    else
+        for i = 1, #list do
+            local id = list[i]
+            local v = safe(safe_field(unit, "buff_remains"), unit, id)
+            if type(v) == "number" and v > 0 then return v end
+            local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
+            if fd and fd.is_active ~= false then
+                return fd.remaining > 0 and (fd.remaining / 1000) or 0
+            end
         end
     end
 
@@ -3518,8 +3582,8 @@ function NS.buff_points(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local ok, data = pcall(_buff_manager.get_buff_data, _buff_manager, unit, list, 50)
-        if ok and data and data.is_active ~= false and type(data.points) == "table" then
+        local data = _buff_manager:get_buff_data(unit, list, 50)
+        if data and data.is_active ~= false and type(data.points) == "table" then
             return data.points
         end
     end
@@ -3550,8 +3614,8 @@ function NS.buff_rank(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local ok, data = pcall(_buff_manager.get_buff_data, _buff_manager, unit, list, 50)
-        if ok and data and data.is_active ~= false then
+        local data = _buff_manager:get_buff_data(unit, list, 50)
+        if data and data.is_active ~= false then
             local active_id = data.buff_id
             if type(active_id) == "number" then
                 for i = 1, #list do
@@ -3583,8 +3647,8 @@ function NS.debuff_points(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local ok, data = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, list, 50)
-        if ok and data and data.is_active ~= false and type(data.points) == "table" then
+        local data = _buff_manager:get_debuff_data(unit, list, 50)
+        if data and data.is_active ~= false and type(data.points) == "table" then
             return data.points
         end
     end
@@ -3608,20 +3672,33 @@ function NS.debuff_remains(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local ok, data = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, list, 50)
-        if ok and data and data.is_active ~= false then
+        local data = _buff_manager:get_debuff_data(unit, list, 50)
+        if data and data.is_active ~= false then
             return data.remaining > 0 and (data.remaining / 1000) or 0
         end
     end
 
     -- Fallback: direct unit API
-    for i = 1, #list do
-        local id = list[i]
-        local v = safe(safe_field(unit, "debuff_remains"), unit, id)
-        if type(v) == "number" and v > 0 then return v end
-        local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
-        if fd and fd.is_active ~= false then
-            return fd.remaining > 0 and (fd.remaining / 1000) or 0
+    if #list > 3 then
+        local lookup = _build_aura_lookup(unit, "get_debuffs")
+        if lookup then
+            for i = 1, #list do
+                local aura = lookup[list[i]]
+                if aura then
+                    local remaining = aura.expire_time and (aura.expire_time - (NS.game_time_ms() or 0)) / 1000 or 0
+                    if remaining > 0 then return remaining end
+                end
+            end
+        end
+    else
+        for i = 1, #list do
+            local id = list[i]
+            local v = safe(safe_field(unit, "debuff_remains"), unit, id)
+            if type(v) == "number" and v > 0 then return v end
+            local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
+            if fd and fd.is_active ~= false then
+                return fd.remaining > 0 and (fd.remaining / 1000) or 0
+            end
         end
     end
 
@@ -3635,20 +3712,33 @@ function NS.debuff_stacks(unit, ids)
 
     -- Primary path: buff_manager with 50ms cache
     if _buff_manager then
-        local ok, data = pcall(_buff_manager.get_debuff_data, _buff_manager, unit, list, 50)
-        if ok and data and data.is_active ~= false then
+        local data = _buff_manager:get_debuff_data(unit, list, 50)
+        if data and data.is_active ~= false then
             return data.count or data.stacks or 0
         end
     end
 
     -- Fallback: direct unit API
-    for i = 1, #list do
-        local id = list[i]
-        local v = safe(safe_field(unit, "get_debuff_stacks"), unit, id)
-        if type(v) == "number" and v > 0 then return v end
-        local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
-        if fd and fd.is_active ~= false then
-            return fd.count or fd.stacks or 0
+    if #list > 3 then
+        local lookup = _build_aura_lookup(unit, "get_debuffs")
+        if lookup then
+            for i = 1, #list do
+                local aura = lookup[list[i]]
+                if aura then
+                    local stacks = aura.count or aura.stacks or 0
+                    if stacks > 0 then return stacks end
+                end
+            end
+        end
+    else
+        for i = 1, #list do
+            local id = list[i]
+            local v = safe(safe_field(unit, "get_debuff_stacks"), unit, id)
+            if type(v) == "number" and v > 0 then return v end
+            local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
+            if fd and fd.is_active ~= false then
+                return fd.count or fd.stacks or 0
+            end
         end
     end
 
@@ -6277,35 +6367,9 @@ function NS.dump_player_info()
 
     end
 
-    -- Talents (if available)
+    -- Talents (now exposed via context.talent_build in main_sylvanas.lua build_context())
 
-    NS.log("--- Talents ---")
-
-    if type(sb.get_talent_info) == "function" then
-
-        local ok2, talents = pcall(sb.get_talent_info)
-
-        if ok2 and type(talents) == "table" then
-
-            for i = 1, math.min(#talents, 20) do
-
-                local t = talents[i]
-
-                if t then
-
-                    NS.log("  Talent: " .. tostring(t.name or t.id or "?") .. " rank " .. tostring(t.rank or t.currentRank or "?"))
-
-                end
-
-            end
-
-        end
-
-    else
-
-        NS.log("  (talent API unavailable)")
-
-    end
+    NS.log("--- Talents (see context.talent_build) ---")
 
     NS.log("=== END DUMP ===")
 

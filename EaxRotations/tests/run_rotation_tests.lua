@@ -23,6 +23,7 @@ local tests = {
 
     -- Hunter tests
     "test_hunter_aspect_matches.lua",
+    "test_pet_happiness.lua",
 
     -- Priest tests
     "test_priest_holy_custom_matches.lua",
@@ -35,8 +36,10 @@ local tests = {
 
     -- Core/shared infrastructure tests
     "test_aura_probe_sylvanas.lua",
+    "test_missile_tracker.lua",
     "test_trinket_manager.lua",
     "test_spell_resolver_cache.lua",
+    "test_boss_count.lua",
     "test_tbc_consumable_data.lua",
     "test_cooldown_registry.lua",
     "test_runtime_compat_aliases.lua",
@@ -160,6 +163,9 @@ local tests = {
     -- Context field wiring regression (June 2026)
     "test_context_wired_fields_2026_06.lua",
 
+    -- Talent build detection
+    "test_talent_context.lua",
+
     -- reset_api_health integration tests
     "test_reset_api_health_aspect_manager.lua",
 
@@ -173,6 +179,14 @@ local tests = {
 
     "test_bear_vanilla_nil_guards.lua",
     "test_subtlety_vanilla_nil_guards.lua",
+
+    -- Orphaned tests (previously not registered)
+    "test_paladin_holy_custom_matches.lua",
+    "test_playstyle_combobox_write_syncs.lua",
+    "test_state_field_nil_guards_2026_06.lua",
+    "test_warrior_middleware_nil_guard.lua",
+    "test_healer_deficit.lua",
+    "test_spell_id_table.lua",
 }
 
 local function first_failure_line(output)
