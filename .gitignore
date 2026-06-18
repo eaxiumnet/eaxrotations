@@ -61,7 +61,8 @@ node_modules/
 *.py
 *.txt
 *.md.original.md
-AGENTS.md
+# NOTE: AGENTS.md is intentionally TRACKED — it is the canonical agent-instruction
+# file (single source of truth). Do not re-add it here. See START_HERE.md.
 DASHBOARD_HANDOVER.md
 FLUX_EAX_TANKING_HANDOVER.md
 HANDOVER.md
@@ -80,7 +81,8 @@ package-lock.json
 
 # ---- EaxRotations internal (not customer-facing) ----
 EaxRotations/**/AGENTS.md
-EaxRotations/**/CLAUDE.md
+# NOTE: EaxRotations/**/CLAUDE.md is intentionally TRACKED — it is a pointer to
+# the root AGENTS.md. Do not re-add it here.
 EaxRotations/**/CHANGELOG.md
 EaxRotations/**/debug_*.lua
 EaxRotations/**/debugui_*.lua
