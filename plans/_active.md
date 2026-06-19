@@ -9,7 +9,8 @@ abandoned, move the plan file to `plans/_archive/` and remove its row.
 | `api-integration-2026-06.md` | stale — review | 8 API integration tasks. Verify which are already landed before resuming. |
 | `eaxrotations-cross-class-robustness-sweep.md` | stale — review | Cross-class robustness work; check git log for completion. |
 
-## Likely complete (verify, then archive)
+## Archived (moved to `plans/_archive/` on 2026-06-19)
+All 9 likely-complete plans verified against git log and archived:
 - `01-performance-optimization.md` (Jun 9 — old)
 - `02-shaman-tbc-rotation.md` (Jun 10 — old)
 - `apl_lua_diff_2026_06_13.md`, `apl_to_lua_mapping_2026_06_13.md`
@@ -19,6 +20,3 @@ abandoned, move the plan file to `plans/_archive/` and remove its row.
 - `rake-claw-pve-builder.md`
 - `remaining-gaps-2026-06.md`
 - `tier1-simplification.md`
-
-These are dated and probably already landed. A future session should `git log`
-each one, confirm, and move completed ones to `plans/_archive/`.
