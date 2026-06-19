@@ -37,6 +37,16 @@ _G.EaxRotations = {
     rotation_registry = {
         register = function() end,
     },
+    same_unit = function(a, b)
+        if a == nil or b == nil then return false end
+        if a == b then return true end
+        if a.get_guid and b.get_guid then
+            local ok_a, guid_a = pcall(a.get_guid, a)
+            local ok_b, guid_b = pcall(b.get_guid, b)
+            if ok_a and ok_b and guid_a and guid_b then return guid_a == guid_b end
+        end
+        return false
+    end,
 }
 
 local strategies = dofile("EaxRotations/classes/druid/bear_sylvanas.lua")
@@ -122,26 +132,32 @@ action_calls = {}
 assert_true(swipe.matches({ enemy_count = 3 }), "Swipe should match with >= 2 enemies")
 
 -- ============================================================================
--- Maul: only when rage >= 35 and lacerate at 5 stacks
+-- Maul: pure rage dump (TBC community consensus)
 -- ============================================================================
 
 local maul = find_strategy("Maul")
 
--- Low rage -> should NOT match
 action_calls = {}
 assert_false(maul.matches({ rage = 20, target = { _debuff_stacks = 5 } }), "Maul should not match when rage < 35")
 assert_eq(#action_calls, 0, "action_matches should not be called when rage < 35")
 
--- High rage but lacerate < 5 -> should NOT match
-action_calls = {}
-assert_false(maul.matches({ rage = 50, target = { _debuff_stacks = 3 } }), "Maul should not match when lacerate < 5")
-assert_eq(#action_calls, 0, "action_matches should not be called when lacerate < 5")
-
--- High rage, lacerate at 5 -> should match
 action_calls = {}
 assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 5 } }), "Maul should match when rage >= 35 and lacerate at 5")
 
--- No target -> spec falls through to action_matches (which handles target validation in real framework); mock returns true
+action_calls = {}
+assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 12 }), "Maul should match as rage dump when rage >= 35, even with low lacerate")
+
+action_calls = {}
+assert_false(maul.matches({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 1 }), "Maul should not match when target_ttd < 3 (GCD waste)")
+
 assert_true(maul.matches({ rage = 50 }), "Maul without target falls through to action_matches (mock returns true)")
+
+local demo_idx, ff_idx
+for i, s in ipairs(strategies) do
+    if s.name == "DemoralizingRoar" then demo_idx = i end
+    if s.name == "FaerieFireFeral" then ff_idx = i end
+end
+assert_true(demo_idx and ff_idx, "Both DemoRoar and FF Feral must be registered")
+assert_true(demo_idx < ff_idx, "DemoralizingRoar must be registered BEFORE FaerieFireFeral (TBC tanking priority)")
 
 print("PASS test_bear_custom_matches")
