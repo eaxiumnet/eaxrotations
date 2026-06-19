@@ -193,6 +193,7 @@ end
 local function seal_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
+    if not state.in_combat then return false end
     if not state.target then return false end
     if state.has_any_seal then return false end
     -- Prefer Seal of Command (or Blood) when available, fall back to Righteousness
