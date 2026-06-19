@@ -138,6 +138,15 @@ if not _sh_ok or type(_spell_helper) ~= "table" then _spell_helper = nil end
 local _find_dead_ok, _find_dead_scan = pcall(require, "shared/find_dead_party_ally_sylvanas")
 if not _find_dead_ok or type(_find_dead_scan) ~= "table" then _find_dead_scan = nil end
 
+-- Settings: M.install registers all NS.get_setting / NS.set_setting / etc
+-- onto NS. Source of truth now lives in EaxRotations/core/settings.lua; the
+-- remaining variables below retain legacy compatibility for any indirect
+-- readers inside core_sylvanas.lua.
+local _settings_cache = {}
+local _settings_cache_last_update = 0
+local _SETTINGS_CACHE_TTL = 0.20 -- 200ms throttle (was 50ms)
+local _settings_cache_time
+
 -- auto_attack_helper: native swing-timer prediction for all melee specs.
 -- Replaces the manual Player:GetSwingStart()/GetSwing() polling in swing_timer_sylvanas.lua.
 -- Provides per-frame-cached core_time / game_time attack prediction from the engine.
@@ -1167,123 +1176,17 @@ end
 
 _settings_cache_time = NS.time_now
 
--- DEPRECATED: was a no-op passthrough with no caching. Use NS.get_setting() directly.
--- Retained as nil-safe alias for any external callers.
-function NS.get_setting_cached(key, default)
-    return NS.get_setting(key, default)
-end
-
-function NS.register_izi_buff_events()
-    -- No-op: buff_manager handles caching internally
-    return true
-end
-
-function NS.get_setting(key, default)
-
-    -- Primary path: settings_manager with engine-level caching
-    if _settings_manager then
-        local v = _settings_manager:get(key)
-        if v ~= nil then return v end
-    end
-
-    -- Fallback: manual cache from NS.settings table
-    local now = _settings_cache_time()
-
-    if now - _settings_cache_last_update > _SETTINGS_CACHE_TTL then
-
-        _settings_cache = {}
-
-        for k, v in pairs(NS.settings) do _settings_cache[k] = v end
-
-        _settings_cache_last_update = now
-
-    end
-
-    local value = _settings_cache[key]
-
-    if value == nil then return default end
-
-    return value
-
-end
-
-function NS.set_setting(key, value)
-
-    local last = _settings_cache[key]
-
-    NS.settings[key] = value
-
-    _settings_cache[key] = value
-
-    if _settings_manager and value ~= last then
-        local ok, err = pcall(function() _settings_manager:set(key, value) end)
-        if not ok and err then
-            -- Silently ignore file-save errors from settings_manager (filename not configured)
-        end
-    end
-
-end
-
---- Centralized helper for safe setting access from spec files.
--- Checks context.settings first, then NS.get_setting, then fallback.
--- Replaces the copy-pasted local function setting(...) in each spec.
---@param context table  Current rotation context (may be nil in tests).
---@param key     string Setting key to look up.
---@param default any    Fallback value when key is missing.
---@return any The resolved setting value.
-function NS.setting(context, key, default)
-    local settings = context and context.settings
-    if settings and settings[key] ~= nil then return settings[key] end
-    if NS.get_setting then return NS.get_setting(key, default) end
-end
-
---- Safe number setting access. Returns the value if it's a number, otherwise the default.
---- Replaces copy-pasted local setting_number(...) functions in spec files.
----@param settings table The settings table (e.g., context.settings).
----@param key     string Setting key to look up.
----@param default number Fallback value when key is missing or value is not a number.
----@return number The resolved numeric setting value.
-function NS.setting_number(settings, key, default)
-    local value = settings and settings[key]
-    return type(value) == "number" and value or default
-end
-
---- Safe boolean setting access. Returns default when nil, otherwise treats non-false as true.
---- Replaces copy-pasted local setting_bool(...) functions in spec files.
----@param settings table The settings table (e.g., context.settings).
----@param key     string Setting key to look up.
----@param default boolean Fallback value when key is missing.
----@return boolean The resolved boolean setting value.
-function NS.setting_bool(settings, key, default)
-    local value = settings and settings[key]
-    if value == nil then return default end
-    return value ~= false
-end
-
---- Looks up a setting by primary key, falling back to secondary key, then hardcoded fallback.
---- Returns the first non-nil value found, or the fallback.
----@param context   table Current rotation context.
----@param primary   string Primary setting key.
----@param secondary string Secondary setting key (fallback).
----@param fallback  any    Hardcoded default when neither key is present.
----@return any The resolved setting value.
-function NS.get_any_setting(context, primary, secondary, fallback)
-    local settings = context.settings or {}
-    if settings[primary] ~= nil then return settings[primary] end
-    if settings[secondary] ~= nil then return settings[secondary] end
-    return fallback
-end
-function NS.refresh_settings_cache()
-
-    _settings_cache = {}
-
-    for k, v in pairs(NS.settings) do _settings_cache[k] = v end
-
-    _settings_cache_last_update = _settings_cache_time()
-
-    return true
-
-end
+-- Install settings domain (extracted to EaxRotations/core/settings.lua).
+-- Wires NS.get_setting / set_setting / setting / setting_number /
+-- setting_bool / get_any_setting / refresh_settings_cache onto NS.
+pcall(function()
+    local settings_domain = require("EaxRotations/core/settings")
+    settings_domain.install(NS, {
+        time_now = _settings_cache_time,
+        settings_manager = _settings_manager,
+        settings = NS.settings,
+    })
+end)
 
 function NS.GetCurrentContext()
 
