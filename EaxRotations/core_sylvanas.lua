@@ -105,6 +105,18 @@ if _los_guard_ok and type(_los_guard) == "table" and type(_los_guard.check) == "
     NS.los_check = _los_guard.check
 end
 
+-- Missile tracker: in-flight projectile detection for PvP pre-immune.
+-- Self-registers NS.MissileTracker on load.
+local _mt_ok = pcall(require, "shared/missile_tracker_sylvanas")
+
+-- Spell resolver: talent-modified spell ID override resolution.
+-- Self-registers NS.resolve_talent_spell and NS.get_base_spell_id on load.
+local _sr_ok = pcall(require, "shared/spell_resolver_sylvanas")
+
+-- Match helpers: boolean gate helpers for strategy match functions.
+-- Self-registers NS.match_helpers on load.
+local _mh_ok = pcall(require, "shared/match_helpers_sylvanas")
+
 local _spell_queue_ok, _spell_queue = pcall(require, "common/modules/spell_queue")
 if not _spell_queue_ok or type(_spell_queue) ~= "table" then _spell_queue = nil end
 
