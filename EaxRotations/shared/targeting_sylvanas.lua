@@ -288,6 +288,34 @@ function M.count_melee_enemies(center)
 end
 
 -- ============================================================================
+-- Boss fight detection
+-- ============================================================================
+
+function M.is_boss_fight()
+    if core and core.object_manager then
+        local count_fn = core.object_manager.get_boss_count
+        if type(count_fn) == "function" then
+            local ok, count = pcall(count_fn)
+            if ok and type(count) == "number" then
+                return count >= 1
+            end
+        end
+    end
+
+    if core and core.object_manager then
+        local frames_fn = core.object_manager.get_boss_frames
+        if type(frames_fn) == "function" then
+            local ok, frames = pcall(frames_fn)
+            if ok and type(frames) == "table" then
+                return #frames >= 1
+            end
+        end
+    end
+
+    return false
+end
+
+-- ============================================================================
 -- Target resolution
 -- ============================================================================
 
