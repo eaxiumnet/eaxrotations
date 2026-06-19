@@ -316,6 +316,20 @@ function M.is_boss_fight()
 end
 
 -- ============================================================================
+-- Tap-denied check (leveling mob filtering)
+-- ============================================================================
+
+--- Check if a mob is tapped by another player (gray health bar).
+---@param unit game_object|nil
+---@return boolean
+function M.is_tapped(unit)
+    if not unit then return false end
+    if type(unit.is_tap_denied) ~= "function" then return false end
+    local ok, result = pcall(unit.is_tap_denied, unit)
+    return ok and result and result ~=  0 and result ~= false
+end
+
+-- ============================================================================
 -- Target resolution
 -- ============================================================================
 
@@ -385,10 +399,15 @@ function M.resolve_target(ctx, opts)
     for i = 1, enemy_count do
         local enemy = enemies[i]
         if enemy and enemy:is_valid() and enemy:is_alive() and enemy:can_attack(me) then
-            local dist = me:get_distance(enemy)
-            if dist and dist < best_dist then
-                best_dist = dist
-                best = enemy
+            -- Leveling context: skip tap-denied (gray-bar) mobs
+            if ctx.is_leveling and M.is_tapped(enemy) then
+                -- Skip tapped mob in leveling
+            else
+                local dist = me:get_distance(enemy)
+                if dist and dist < best_dist then
+                    best_dist = dist
+                    best = enemy
+                end
             end
         end
     end
