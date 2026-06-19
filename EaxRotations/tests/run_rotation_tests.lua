@@ -112,6 +112,7 @@ local tests = {
 
     -- Paladin
     "test_paladin_tbc_seals.lua",
+    "test_paladin_throttle_regression.lua",
 
     -- Mage
     "test_arcane_custom_matches.lua",
