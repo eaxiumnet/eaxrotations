@@ -67,7 +67,7 @@ function M.face_for_cast(target, cast_time)
 
     -- Anti-spam: don't re-trigger if we just locked facing to the same target
     local now = NS.time_now and NS.time_now() or 0
-    if _last_face_target == target and (now - _last_face_time) < FACE_COOLDOWN then
+    if NS.same_unit(_last_face_target, target) and (now - _last_face_time) < FACE_COOLDOWN then
         return true -- Already active for this target
     end
 

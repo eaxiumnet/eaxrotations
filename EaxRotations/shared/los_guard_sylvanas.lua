@@ -75,7 +75,7 @@ function M.check(target)
     if not caster then return true end
 
     -- Self-cast is always in LOS.
-    if caster == target then return true end
+    if NS.same_unit(caster, target) then return true end
 
     local now = _time()
     local key = _cache_key(caster, target)
