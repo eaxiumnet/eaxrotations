@@ -1,3 +1,11 @@
+-- balance_sylvanas.lua — Druid Balance (moonkin) rotation for TBC Anniversary (2.5.5).
+-- WHAT:  ranged DPS rotation (Moonfire + Insect Swarm up, Starfire / Wrath filler, Eclipse-aware).
+-- WHEN:  combat, in caster form, mana and target are valid.
+-- WHY:   mirrors priority APL
+--          (Moonfire > Insect Swarm > Eclipse proc Starfire > Starfire > Wrath)
+--          with mana-aware fallback to wand / potions.
+-- SAFETY: every state.* read is nil-guarded per Pattern 14.
+--          no on_update() allocs (static _t reused per tick).
 
 local _G_E = rawget(_G, "EaxRotations")
 if not _G_E then return nil end

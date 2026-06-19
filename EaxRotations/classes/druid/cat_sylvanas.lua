@@ -1,4 +1,12 @@
--- Druid Cat priority list for TBC melee DPS.
+-- cat_sylvanas.lua — Druid Feral Cat (melee DPS) rotation for TBC Anniversary (2.5.5).
+-- WHAT:  cat-form DPS rotation (Rake / Shred builders, Rip FB bite-window gating,
+--         Mangle + SR cycle, Berserk / Tiger's Fury cooldowns, Powershift).
+-- WHEN:  combat, in cat form, energy and target valid.
+-- WHY:   TBC feral cat consensus: maintain Mangle + SR debuffs, pool energy
+--         for FB when Rip is up at 5 CP, otherwise Shred > Rake as builders.
+--         Bite gates on CP >= 5 and target HP < 25%.
+-- SAFETY: pattern 14 nil-guards. Energy / CP default to 0 to avoid bite skipping.
+--          snapshot_sylvanas handles Rip / Rake snapshot capture.
 
 
 local NS = _G.EaxRotations

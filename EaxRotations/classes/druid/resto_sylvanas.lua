@@ -1,4 +1,12 @@
--- TBC Restoration Druid priority list for group healing, HoT rolling, dispels, mana, forms, and light PvP.
+-- resto_sylvanas.lua — Druid Restoration (group healer) rotation for TBC Anniversary (2.5.5).
+-- WHAT:  group healing, HoT rolling (Rejuvenation + Lifebloom + Regrowth),
+--         Swiftmend, Nature's Swiftness on burst, mana regen trinkets,
+--         Tree of Life form swap, light PvP dispels.
+-- WHEN:  combat OR group (is_group), with valid healing targets; OOC for buff upkeep.
+-- WHY:   TBC resto consensus: keep Rejuv rolling, refresh LB at the absorb shell,
+--         save Swiftmend + NS for emergency spike; Tree of Life for sustained mana.
+-- SAFETY: pattern 14 nil-guards. Healing targets come from healing_sylvanas scan.
+--          Defensive cooldowns only fire below configurable HP thresholds.
 
 
 local NS = _G.EaxRotations

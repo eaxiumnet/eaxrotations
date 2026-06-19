@@ -1,4 +1,11 @@
--- Druid Bearpriority list for TBC tanking.
+-- bear_sylvanas.lua — Druid Bear (Feral tank) rotation for TBC Anniversary (2.5.5).
+-- WHAT:  bear-form tank rotation (Lacerate stack to 5, Mangle spam, Demo Roar for
+--         threat, Faerie Fire for debuff, Maul as rage dump, FR / Barkskin defensives).
+-- WHEN:  in bear form, in combat, with valid target.
+-- WHY:   TBC feral tank consensus: Lacerate > Mangle > Demo Roar (AoE threat)
+--         > Faerie Fire > Maul only as rage dump (high HP, ground to use).
+-- SAFETY: pattern 14 nil-guards. state.target_ttd dual-sourced (context.ttd OR
+--          context.target_ttd). Maul gated on target_ttd < 3 (GCD waste guard).
 
 
 local NS = _G.EaxRotations
