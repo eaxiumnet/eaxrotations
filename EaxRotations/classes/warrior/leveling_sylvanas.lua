@@ -146,7 +146,7 @@ local bloodrage_matches = function(_, state)
     if not state.bloodrage_ready then return false end
     local me = (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
     if not me then return false end
-    local ok, rage = pcall(function() return me:get_power(1) end)
+    local ok, rage = pcall(function() return me:get_power(NS.POWER_RAGE or 1) end)
     if ok and rage and rage > 20 then return false end  -- Enough rage already
     return true
 end
@@ -202,7 +202,7 @@ local cleave_matches = function(_, state)
     if (state.enemies or 0) < 2 then return false end
     local me = (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
     if not me then return false end
-    local ok, rage = pcall(function() return me:get_power(1) end)
+    local ok, rage = pcall(function() return me:get_power(NS.POWER_RAGE or 1) end)
     if not ok or not rage or rage < 25 then return false end
     return true
 end
@@ -257,7 +257,7 @@ local rampage_matches = function(_, state)
     if state.has_rampage and (state.rampage_remains or 0) > 3 then return false end
     local me = L.get_player()
     if not me then return false end
-    local ok, rage = pcall(function() return me:get_power(1) end)
+    local ok, rage = pcall(function() return me:get_power(NS.POWER_RAGE or 1) end)
     if not ok or not rage or rage < 30 then return false end
     return true
 end
@@ -274,7 +274,7 @@ local sunder_armor_matches = function(context, state)
     if ok and hp and hp < 40 then return false end
     local me = L.get_player()
     if not me then return false end
-    local ok_rage, rage = pcall(function() return me:get_power(1) end)
+    local ok_rage, rage = pcall(function() return me:get_power(NS.POWER_RAGE or 1) end)
     if not ok_rage or not rage or rage < 25 then return false end
     return true
 end
@@ -296,7 +296,7 @@ local heroic_strike_matches = function(_, state)
     if not state.target then return false end
     local me = L.get_player()
     if not me then return false end
-    local ok, rage = pcall(function() return me:get_power(1) end)
+    local ok, rage = pcall(function() return me:get_power(NS.POWER_RAGE or 1) end)
     if not ok or not rage then return false end
     if rage < 50 then return false end  -- Save rage for other abilities
     return true
