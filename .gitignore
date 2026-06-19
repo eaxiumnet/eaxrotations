@@ -81,6 +81,9 @@ package-lock.json
 
 # ---- EaxRotations internal (not customer-facing) ----
 EaxRotations/**/AGENTS.md
+
+# ---- Generated data indices (derived from wowhead_data_bridge_sylvanas.lua) ----
+EaxRotations/shared/wowhead_data_bridge_*_index_*.lua
 # NOTE: EaxRotations/**/CLAUDE.md is intentionally TRACKED — it is a pointer to
 # the root AGENTS.md. Do not re-add it here.
 EaxRotations/**/CHANGELOG.md
