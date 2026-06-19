@@ -169,7 +169,7 @@ local function build_state(context)
     if context.in_combat and entries and count and count > 0 then
         for i = 1, count do
             local entry = entries[i]
-            if entry and entry.unit and entry.unit ~= me then
+            if entry and entry.unit and NS.not_same_unit(entry.unit, me) then
                 local ok, cls = pcall(function() return entry.unit:get_class() end)
                 if ok and cls and CASTER_CLASS_IDS[cls] then
                     disc_state.pi_target = entry.unit
