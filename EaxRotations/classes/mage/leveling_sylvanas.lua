@@ -243,6 +243,7 @@ end
 
 local function arcane_missiles_matches(context, state)
     if not state then return false end
+    if not state.frostbolt_ready then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
     if state.is_moving then return false end
@@ -262,6 +263,7 @@ end
 
 local function fireball_matches(context, state)
     if not state then return false end
+    if not state.scorch_ready then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
     if state.is_moving then return false end
@@ -272,6 +274,7 @@ end
 
 local function scorch_matches(context, state)
     if not state then return false end
+    if not state.arcane_missiles_ready then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
     if not state.use_scorch then return false end
