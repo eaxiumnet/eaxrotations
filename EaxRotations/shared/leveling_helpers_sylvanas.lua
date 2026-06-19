@@ -22,13 +22,29 @@ function M.has_buff(buff_ids)
     return false
 end
 
---- Check if a spell_action is ready to cast.
+--- Check if a spell_action or spell id-array is ready to cast.
 ---@param spell_action table|nil
 ---@return boolean
 function M.spell_ready(spell_action)
     if not spell_action then return false end
-    local ok, result = pcall(function() return spell_action:is_ready() and spell_action:get_cooldown_remaining() == 0 end)
-    return ok and result or false
+
+    if type(spell_action.is_ready) == "function"
+        and type(spell_action.get_cooldown_remaining) == "function" then
+        local ok, result = pcall(function()
+            return spell_action:is_ready()
+                and spell_action:get_cooldown_remaining() == 0
+        end)
+        return ok and result or false
+    end
+
+    local NS = _G.EaxRotations or {}
+    if type(NS.spell_ready) == "function" then
+        local ok, result = pcall(NS.spell_ready, spell_action)
+        if ok and result ~= nil then return result == true end
+        return false
+    end
+
+    return false
 end
 
 --- Try to cast a spell action.
