@@ -165,7 +165,7 @@ local function build_state(context)
     if type(allies) == "table" and #allies > 0 then
         for i = 1, #allies do
             local ally = allies[i]
-            if ally and ally ~= me then
+            if ally and NS.not_same_unit(ally, me) then
                 local ally_hp = ally.get_health_percentage and ally:get_health_percentage() or 100
                 if ally_hp <= 35 and not prot_state.low_hp_ally then
                     prot_state.low_hp_ally = ally
@@ -183,7 +183,7 @@ local function build_state(context)
     if enemies and target then
         for i = 1, #enemies do
             local enemy = enemies[i]
-            if enemy and enemy ~= target then
+            if enemy and NS.not_same_unit(enemy, target) then
                 for j = 1, #CC_DEBUFFS do
                     if NS.debuff_up(enemy, {CC_DEBUFFS[j]}) then
                         local dx = (enemy.x or 0) - (target.x or 0)
