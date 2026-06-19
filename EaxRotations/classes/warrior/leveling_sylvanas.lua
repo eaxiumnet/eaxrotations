@@ -58,7 +58,7 @@ function warrior_leveling.build_state(context)
     leveling.build_common_state(context, state)
 
     -- Warrior-specific spell readiness
-    state.charge_ready = L.spell_ready(SPELLS.Charge)
+    state.charge_ready = NS.spell_ready and NS.spell_ready(SPELLS.Charge) or false
     state.rend_ready = L.spell_ready(SPELLS.Rend)
     state.heroic_strike_ready = L.spell_ready(SPELLS.HeroicStrike)
     state.overpower_ready = L.spell_ready(SPELLS.Overpower)
