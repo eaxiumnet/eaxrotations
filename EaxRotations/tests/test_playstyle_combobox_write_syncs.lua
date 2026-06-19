@@ -40,8 +40,6 @@ local function sync_playstyle_control()
         return
     end
 
-    local current_playstyle = get_setting("active_playstyle", nil)
-
     if combo_index ~= _last_playstyle_combo_index then
         local value = playstyle_keys[combo_index]
         if type(value) == "string" and value ~= "" then
@@ -52,8 +50,19 @@ local function sync_playstyle_control()
         return
     end
 
-    if current_playstyle then
-        local setting_index = get_playstyle_index(current_playstyle)
+    local settings_playstyle = get_setting("playstyle", nil)
+    if settings_playstyle then
+        local setting_index = get_playstyle_index(settings_playstyle)
+        if setting_index ~= combo_index then
+            combobox:set(setting_index)
+            _last_playstyle_combo_index = setting_index
+            return
+        end
+    end
+
+    local active_playstyle = get_setting("active_playstyle", nil)
+    if active_playstyle then
+        local setting_index = get_playstyle_index(active_playstyle)
         if setting_index ~= combo_index then
             combobox:set(setting_index)
             _last_playstyle_combo_index = setting_index
