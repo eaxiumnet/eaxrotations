@@ -1,4 +1,11 @@
 -- Mage Fire priority list.
+-- WHAT:  caster DPS via Fireball / Fire Blast instant-proc / Pyroblast
+--         with ignite stacking, scorch for execute-range mana,
+--         Living Bomb combustion, Combustion burst.
+-- WHEN:  combat, mage alive, target in range, Living Bomb debuff ready.
+-- WHY:   TBC fire consensus: keep Scorch + Fireball weave for crit procs;
+--         ignite rolling. Combustion on CD during high ignite stacks.
+-- SAFETY: pattern 14 nil-guards. Combustion only fires with ignite >= 5.
 
 
 local NS = _G.EaxRotations

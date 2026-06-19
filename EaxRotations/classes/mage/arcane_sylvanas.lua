@@ -1,4 +1,12 @@
 -- Mage Arcane priority list with burn/conserve phase state machine.
+-- WHAT:  caster DPS with explicit burn / conserve phase management
+--         (burn when mana > 80%, conserve under 30%, Arcane Power + trinket
+--         burst, Arcane Blast chain, mana gem + Evocation recovery).
+-- WHEN:  combat, in caster form, mana and target valid.
+-- WHY:   TBC arcane consensus: stack Arcane Blast on 1 charge + Trinket
+--         + Arcane Power mirror burn; conserve by skipping Blast at low mana.
+-- SAFETY: pattern 14 nil-guards. Mana reads default to 100 to avoid
+--          burst-phase false-fire when context is bootstrapping.
 
 
 --
