@@ -460,6 +460,7 @@ end
 --- Moonfire - DoT refresh
 local moonfire_matches = function(_, state)
 	    if not state then return false end
+    if not state.in_combat then return false end
     if not has_enemy_target(state) then return false end
     if not state.moonfire_ready then return false end
     if not state.target then return false end
@@ -472,6 +473,7 @@ end
 --- Insect Swarm - DoT refresh
 local insect_swarm_matches = function(_, state)
 	    if not state then return false end
+    if not state.in_combat then return false end
     if not has_enemy_target(state) then return false end
     if not state.insect_swarm_ready then return false end
     if not state.target then return false end
@@ -484,6 +486,7 @@ end
 --- Faerie Fire - armor debuff (refresh < 60s, apply once)
 local faerie_fire_matches = function(_, state)
 	    if not state then return false end
+    if not state.in_combat then return false end
     if not has_enemy_target(state) then return false end
     if not state.faerie_fire_ready then return false end
     if not state.target then return false end
@@ -496,6 +499,7 @@ end
 --- Hurricane - AoE (3+ enemies, not moving)
 local hurricane_matches = function(_, state)
 	    if not state then return false end
+    if not state.in_combat then return false end
     if not has_enemy_target(state) then return false end
     if not state.hurricane_ready then return false end
     if not state.target then return false end
@@ -507,6 +511,7 @@ end
 --- Starfire - big cast (not moving)
 local starfire_matches = function(_, state)
 	    if not state then return false end
+    if not state.in_combat then return false end
     if not has_enemy_target(state) then return false end
     if not state.starfire_ready then return false end
     if not state.target then return false end
@@ -517,6 +522,7 @@ end
 --- Wrath - filler (can cast while moving)
 local wrath_matches = function(_, state)
 	    if not state then return false end
+    if not state.in_combat then return false end
     if not has_enemy_target(state) then return false end
     if not state.wrath_ready then return false end
     if not state.target then return false end
