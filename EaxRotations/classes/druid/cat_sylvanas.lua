@@ -11,6 +11,8 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local _same_unit = NS.same_unit or function(a, b) return a == b end
+local _not_same_unit = NS.not_same_unit or function(a, b) return a ~= b end
 local potion_helper = require("shared/potion_helper_sylvanas")
 
 local BASE_SPELLS = NS.DruidSpells or {}
@@ -423,8 +425,8 @@ function build_state(context)
     state.is_cat = NS.has_form and NS.has_form("cat") or context.stance == STANCE_CAT
     state.is_behind = is_behind_target(target, context, settings)
     state.attack_power = get_attack_power(context, me)
-    if snapshot_state.rip_target ~= target or state.rip_remains <= 0 then snapshot_state.rip_ap = 0 end
-    if snapshot_state.rake_target ~= target or state.rake_remains <= 0 then snapshot_state.rake_ap = 0 end
+    if _not_same_unit(snapshot_state.rip_target, target) or state.rip_remains <= 0 then snapshot_state.rip_ap = 0 end
+    if _not_same_unit(snapshot_state.rake_target, target) or state.rake_remains <= 0 then snapshot_state.rake_ap = 0 end
     state.rip_ap = snapshot_state.rip_ap
     state.rake_ap = snapshot_state.rake_ap
     state.has_high_ap_window = state.has_bloodlust or (state.attack_power > 0 and state.rip_ap > 0 and state.attack_power >= state.rip_ap * AP_UPGRADE_RATIO) or (state.attack_power > 0 and state.rake_ap > 0 and state.attack_power >= state.rake_ap * AP_UPGRADE_RATIO)
