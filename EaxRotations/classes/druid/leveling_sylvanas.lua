@@ -285,6 +285,7 @@ end
 --- Mangle (Cat) - debuff application + combo builder
 local mangle_cat_matches = function(_, state)
     if not state then return false end
+    if not state.in_combat then return false end
     if not state.is_cat then return false end
     if not has_enemy_target(state) then return false end
     if not state.target then return false end
