@@ -263,6 +263,36 @@ local strategies = {
     },
 
     -- ========================================================================
+    -- FEED PET (Out-of-combat — auto-feed pet if happiness below happy)
+    -- ========================================================================
+    {
+        name = "FeedPet",
+        priority = 380,
+        is_defensive = true,
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.auto_feed_pet == false then return false end
+            if context.in_combat then return false end
+            local happiness = context.pet_happiness
+            if happiness == nil then return false end
+            if happiness > 2 then return false end
+            local pet = context.pet or (NS.get_pet and NS.get_pet())
+            if not pet then return false end
+            if pet.is_alive == false then return false end
+            if type(pet.is_alive) == "function" then
+                local ok, alive = pcall(pet.is_alive)
+                if not ok or alive == false then return false end
+            end
+            return NS.spell_ready and NS.spell_ready(1539, context.me, { skip_range = true })
+        end,
+        execute = function(context)
+            local pet = context.pet or (NS.get_pet and NS.get_pet())
+            if not pet then return false end
+            return NS.try_cast(1539, pet, "[HUNTER] Feed Pet", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
     -- HUNTER'S MARK (Debuff maintenance — apply to target if missing)
     -- ========================================================================
     {
