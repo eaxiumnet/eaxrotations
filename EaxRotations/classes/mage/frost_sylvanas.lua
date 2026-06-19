@@ -1,4 +1,11 @@
 -- Mage Frost priority list.
+-- WHAT:  control-oriented DPS (Frostbolt stack, Ice Lance frozen-target crit,
+--         Cold Snap reset, Icy Veins burst, Water Elemental sustained DPS,
+--         Frost Nova / Cone of Cold for kiting / interrupts).
+-- WHEN:  combat, target in range (frozen targets get Ice Lance window).
+-- WHY:   TBC frost consensus: deep Frostbolt for shatter combos;
+--         Icy Veins + trinket mirror burst; Cold Snap refresh + Icy Veins.
+-- SAFETY: pattern 14 nil-guards. Water Elemental may be missing in solo/petless.
 
 
 local NS = _G.EaxRotations
