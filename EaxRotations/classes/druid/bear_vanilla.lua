@@ -37,6 +37,7 @@ local CHARGE_MIN_RANGE = 8
 local CHARGE_MAX_RANGE = 25
 local AOE_SCAN_RANGE = 8
 local PACK_SCAN_RANGE = 10
+local SCAN_INTERVAL = 0.2
 local TAUNT_COOLDOWN_WINDOW = 8
 local CHALLENGING_ROAR_ENEMY_COUNT = 3
 local OOC_ENRAGE_RAGE_MAX = 20
@@ -126,7 +127,8 @@ local bear_state = {
     last_rage = 0,
     last_rage_time = 0,
     rage_delta = 0,
-    rage_per_second = 0,
+    rage_per_second = 1,
+    last_scan_time = 1,
 }
 
 local off_target_buffer = { n = 0 }
@@ -290,6 +292,14 @@ local function scan_pack(state)
                 end
             end
         end
+    end
+end
+
+local function lazy_scan_pack(state)
+    if not state.now then return end
+    if state.now - (state.last_scan_time or 0) >= SCAN_INTERVAL then
+        scan_pack(state)
+        state.last_scan_time = state.now
     end
 end
 

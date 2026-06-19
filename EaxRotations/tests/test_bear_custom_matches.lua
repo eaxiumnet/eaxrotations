@@ -137,20 +137,36 @@ assert_true(swipe.matches({ enemy_count = 3 }), "Swipe should match with >= 2 en
 
 local maul = find_strategy("Maul")
 
-action_calls = {}
-assert_false(maul.matches({ rage = 20, target = { _debuff_stacks = 5 } }), "Maul should not match when rage < 35")
-assert_eq(#action_calls, 0, "action_matches should not be called when rage < 35")
+local maul_settings = { bear_maul_rage = 50 }
 
 action_calls = {}
-assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 5 } }), "Maul should match when rage >= 35 and lacerate at 5")
+assert_false(maul.matches({ rage = 20, target = { _debuff_stacks = 5 }, settings = maul_settings }), "Maul should not match when rage < maul_rage")
+assert_eq(#action_calls, 0, "action_matches should not be called when rage < maul_rage")
 
 action_calls = {}
-assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 12 }), "Maul should match as rage dump when rage >= 35, even with low lacerate")
+assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 5 }, settings = maul_settings }), "Maul should match when rage >= maul_rage and lacerate at 5")
 
 action_calls = {}
-assert_false(maul.matches({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 1 }), "Maul should not match when target_ttd < 3 (GCD waste)")
+assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 12, settings = maul_settings }), "Maul should match as rage dump when rage >= maul_rage, even with low lacerate")
 
-assert_true(maul.matches({ rage = 50 }), "Maul without target falls through to action_matches (mock returns true)")
+action_calls = {}
+assert_false(maul.matches({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 1, settings = maul_settings }), "Maul should not match when target_ttd < 3 (on-next-swing rage waste)")
+
+assert_true(maul.matches({ rage = 50, settings = maul_settings }), "Maul without target falls through to action_matches (mock returns true)")
+
+-- Boss bypass: Maul should match even at target_ttd=1 when target_is_boss=true
+action_calls = {}
+assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 1, target_is_boss = true, settings = maul_settings }), "Maul should match on boss even with target_ttd < 3")
+
+-- AoE suppression: 3+ enemies with rage < HIGH_RAGE (75) should NOT match
+action_calls = {}
+assert_false(maul.matches({ rage = 50, target = { _debuff_stacks = 5 }, enemy_count = 4, settings = maul_settings }), "Maul should not match in AoE (3+ enemies) with rage < 75")
+
+-- Exact threshold: rage = maul_rage (50) should match; rage = 49 should not
+action_calls = {}
+assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 5 }, settings = maul_settings }), "Maul should match at exactly maul_rage threshold")
+action_calls = {}
+assert_false(maul.matches({ rage = 49, target = { _debuff_stacks = 5 }, settings = maul_settings }), "Maul should not match just below maul_rage threshold")
 
 local demo_idx, ff_idx
 for i, s in ipairs(strategies) do

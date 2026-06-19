@@ -5,7 +5,7 @@
 -- WHY:   TBC feral tank consensus: Lacerate > Mangle > Demo Roar (AoE threat)
 --         > Faerie Fire > Maul only as rage dump (high HP, ground to use).
 -- SAFETY: pattern 14 nil-guards. state.target_ttd dual-sourced (context.ttd OR
---          context.target_ttd). Maul gated on target_ttd < 3 (GCD waste guard).
+--          context.target_ttd). Maul gated on target_ttd < 3 (on-next-swing rage waste guard).
 
 
 local NS = _G.EaxRotations
@@ -162,6 +162,7 @@ local bear_state = {
     rage_delta = 0,
     rage_per_second = 0,
     mangle_cd = 0,
+    last_scan_time = 0,
 }
 
 local off_target_buffer = { n = 0 }
@@ -344,8 +345,9 @@ end
 
 local function lazy_scan_pack(state)
     if not state.now then return end
-    if state.now - (state.last_scan_time or 1) >= SCAN_INTERVAL then
+    if state.now - (state.last_scan_time or 0) >= SCAN_INTERVAL then
         scan_pack(state)
+        state.last_scan_time = state.now
     end
 end
 
@@ -572,6 +574,7 @@ end
 local function barkskin_matches(context, action)
     local state = build_state(context)
     if not state.in_combat then return false end
+    if not state.is_bear then return false end
     if state.has_barkskin then return false end
 
     if (state.hp or 100) > state.barkskin_hp then return false end
@@ -700,7 +703,7 @@ local function maul_matches(context, action)
     if state.rage < state.maul_rage then return false end
     if not state.target and NS.spell_ready == nil then return action_ready(context, action) end
     if would_starve_mangle(state, RAGE_MAUL) then return false end
-    -- Avoid GCD waste: skip Maul on a target about to die (TTD < 3s) unless it's a boss.
+    -- Maul is on-next-swing (not GCD). Skip if target dies before swing lands (TTD < 3s) unless it's a boss.
     if not state.is_target_boss and (state.target_ttd or 999) < 3 then return false end
     return action_ready(context, action)
 end
@@ -708,6 +711,7 @@ end
 local function enrage_combat_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat then return false end
+    if state.is_target_boss then return false end
     if (state.rage or 0) > RAGE_LOW then return false end
     if (state.hp or 100) < 60 and (state.enemy_count or 0) >= 2 then return false end
     if state.mangle_ready and state.rage < RAGE_MANGLE then return action_ready(context, action) end
