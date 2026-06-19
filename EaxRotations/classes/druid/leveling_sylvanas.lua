@@ -258,6 +258,7 @@ end
 --- Faerie Fire (Feral) - armor debuff
 local faerie_fire_feral_matches = function(_, state)
     if not state then return false end
+    if not state.in_combat then return false end  -- OOC: no Faerie Fire
     if not has_enemy_target(state) then return false end
     if not state.target then return false end
     if not state.is_cat and not state.is_bear then return false end  -- Need a form
