@@ -626,90 +626,12 @@ function NS.dump_class_spells(class_name)
     NS.log("=== END DUMP: " .. tostring(known_count) .. " known, " .. tostring(available_count) .. " available at level, " .. tostring(missing_count) .. " above level ===")
 end
 
--- Per-tick player cache: same NS.time_now() value → return cached unit without pcall(is_valid).
--- Reduces ~15 pcall+is_valid calls per frame to ~1. Invalidation happens naturally each tick.
-local _player_cache_tick = -1
-
-function NS.GetPlayer()
-
-    -- Per-tick short-circuit: if we already fetched the player this tick, return cached
-    local now = NS.time_now()
-    if now == _player_cache_tick and NS.PLAYER_UNIT then
-        return NS.PLAYER_UNIT
-    end
-    _player_cache_tick = now
-
-    -- If we have a cached player, check that it's still valid (not garbage-collected)
-
-    if NS.PLAYER_UNIT then
-
-        local ok = pcall(function() return NS.PLAYER_UNIT:is_valid() end)
-
-        if not ok then
-
-            NS.PLAYER_UNIT = nil  -- Stale object, force refresh
-
-        end
-
-    end
-
-    -- Try to get a fresh player from the object manager
-
-    local om = core.object_manager
-
-    if om then
-
-        local ok, fresh = pcall(om.get_local_player, om)
-
-        if ok and fresh then
-
-            local valid = pcall(function() return fresh:is_valid() end)
-
-            if valid then
-
-                NS.PLAYER_UNIT = fresh
-
-                return fresh
-
-            end
-
-        end
-
-    end
-
-    return NS.PLAYER_UNIT  -- Return cached (nil if never set)
-
-end
-
-function NS.GetPet()
-
-    local player = NS.GetPlayer()
-
-    local get_pet = safe_field(player, "get_pet")
-
-    local pet = get_pet and safe(get_pet, player) or nil
-
-    if pet and NS.unit_alive and NS.unit_alive(pet) then return pet end
-
-    return nil
-
-end
-
-NS.get_pet = NS.GetPet
-
-function NS.has_pet()
-
-    return NS.GetPet() ~= nil
-
-end
-
-function NS.get_pet_hp()
-
-    local pet = NS.GetPet()
-
-    return pet and NS.unit_health_pct(pet) or 100
-
-end
+-- Install units domain (extracted to EaxRotations/core/units.lua).
+-- Wires GetPlayer / GetPet / get_pet / has_pet / get_pet_hp onto NS.
+pcall(function()
+    local units_domain = require("EaxRotations/core/units")
+    units_domain.install(NS)
+end)
 
 NS.EQUIPMENT_SLOTS = NS.EQUIPMENT_SLOTS or {
 
