@@ -110,8 +110,11 @@ function warrior_leveling.build_state(context)
     state.has_rampage = L.has_buff(RAMPAGE_BUFF)
     state.rampage_remains = (NS.GetPlayer and NS.buff_remains(NS.GetPlayer(), RAMPAGE_BUFF)) or 0
 
-    -- Debuffs on target
-    state.sunder_stacks = NS.debuff_stacks(state.target, SUNDER_DEBUFF) or 0
+    -- Debuffs on target (Pattern 14: nil-guard API call before numeric read)
+    local _sunder_ok, _sunder_stacks = pcall(function()
+        return NS.debuff_stacks and NS.debuff_stacks(state.target, SUNDER_DEBUFF)
+    end)
+    state.sunder_stacks = (_sunder_ok and type(_sunder_stacks) == "number") and _sunder_stacks or 0
 
     -- Settings
     local settings = context.settings or {}
