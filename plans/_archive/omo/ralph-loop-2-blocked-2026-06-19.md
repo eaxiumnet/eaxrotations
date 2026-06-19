@@ -72,24 +72,43 @@ Oracle's skeptical verification (session
 | 3 | `d8349455` | feat(hunter): FeedPet middleware — Track A.2.2 | test_pet_happiness FAIL → PASS |
 | 4 | `d746efee` | docs(plans): update ralph-loop-2 note with source citation + STATE | none (docs) |
 | 5 | `a346128f` | fix(test): sync_playstyle_control detects external playstyle changes (test-only) | test_playstyle_combobox_write_syncs FAIL → PASS |
-| 6 | `0aea2eae` | fix(mage-leveling): reorder damage strategies (Field marshal) — Track C.1.N | test_leveling_mage FAIL → PASS (182/182) |
+| 6 | `0aea2eae` | fix(mage-leveling): reorder damage strategies — Track C.1.M | test_leveling_mage FAIL → PASS (182/182) |
 | 7 | `4ba3fa75` | fix(shaman-leveling): nil-context guard on LightningBolt (Pattern 14) — Track C.2.S | test_leveling_shaman FAIL → PASS (105/105) |
-| 8 | `ca5cbe52` | fix(warrior-leveling): charge_ready routed through NS.spell_ready — Track C.3.W | test_leveling_warrior charge_ready FAIL → PASS; rend_ready remains (sibling bug, iteration 9) |
-| 9 | `05979b0f` | fix(druid-leveling): in_combat guard on FaerieFireFeral (Pattern 14) — Track C.4.D | test_leveling_druid FaerieFireFeral OOC FAIL → PASS; manglebear OOC remains (sibling bug, iteration 10) |
+| 8 | `ca5cbe52` | fix(warrior-leveling): charge_ready routed through NS.spell_ready — Track C.3.W | test_leveling_warrior charge_ready FAIL → PASS |
+| 9 | `05979b0f` | fix(druid-leveling): in_combat guard on FaerieFireFeral (Pattern 14) — Track C.4.D | test_leveling_druid FaerieFireFeral OOC FAIL → PASS |
+| 10 | `8ce633ea` | docs(plans): note iteration 3-9 progress + 2 sibling bugs | none (docs) |
+| 11 | `85df1e95` | fix(warrior-leveling): rend_ready routed through NS.spell_ready (sibling fix) | rend_ready FAIL → PASS |
+| 12 | `0eee2a50` | fix(druid-leveling): in_combat guard on MangleBear (Pattern 14) | FaerieFireFeral-paired-sibling FAIL → PASS |
+| 13 | `38a413cd` | fix(shared-leveling-helpers): L.spell_ready handles 3 readiness shapes | warrior readiness cascade 121/1 → 122/122 |
+| 14 | `4b475d69` | fix(druid-leveling): in_combat guard on Rake (cat-form bleed) | Rake OOC FAIL → PASS |
+| 15 | `97d8e9ae` | fix(druid-leveling): in_combat guard on MangleCat (Pattern 14) | MangleCat OOC FAIL → PASS |
 
-After iteration 9: **rotation 133/133 PASS**, **leveling 9/11 PASS**.
+After iteration 15: **rotation 133/133 PASS** + **leveling 11/11 PASS** — clean parity.
 
-Pre-iteration-1 baseline (Oracle session `ses_12230bb6fffeLWWdOiLg0Nw7vp`):
+Pre-iteration-1 baseline (Oracle session `ses_12230bb6fffeLWWdOiLg0Ow7vp`):
 rotation 130/133 (3 fails); leveling 7/11 (4 fails).
 
 Net change vs baseline:
 - rotation: +3 flips (test_boss_count, test_pet_happiness,
   test_playstyle_combobox_write_syncs) → **133/133 clean parity**.
-- leveling: +2 clean flips (test_leveling_mage, test_leveling_shaman)
-  + 2 partial flips (warrior charge_ready, druid FaerieFireFeral OOC) →
-  **9/11 with 2 sibling bugs each tied to a separate atomic commit
-  the same subagent flagged but did not bundle** (one concern per
-  commit, guardrail 1).
+- leveling: +4 flips (test_leveling_mage, test_leveling_shaman,
+  test_leveling_warrior charge_ready+rend_ready via shared-module
+  cascade, test_leveling_druid FaerieFireFeral+MangleBear+Rake+MangleCat
+  via 4 Pattern-14 commits) → **11/11 clean parity**.
+
+Branch state: `master`, ahead of `origin/master`. Iteration counter
+on `.omo/ralph-loop.local.md` did NOT advance between iteration 3
+and iteration 4 (still iteration: 2, max_iterations: 500 per the
+file's metadata at lines 3-4); the directive metadata is owned by
+the orchestrator loop driver, not by `[internal]` continuation
+signals. The loop driver decides when to monotonically increment.
+
+Total: 15 commits across iterations 1-15; 0 bundles; each commit
+gated by `luac -p` + `lua EaxRotations/tests/run_rotation_tests.lua`
+per directive guardrail 2. Two cross-class robustness suites and one
+shared-module fix rotated the entire leveling test surface to clean
+parity without touching the test files (per Agent Contract rule
+"do NOT modify test file").
 
 ---
 
