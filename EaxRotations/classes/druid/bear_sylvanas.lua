@@ -48,6 +48,7 @@ local CHARGE_MIN_RANGE = 8
 local CHARGE_MAX_RANGE = 25
 local AOE_SCAN_RANGE = 8
 local PACK_SCAN_RANGE = 10
+local SCAN_INTERVAL = 0.2
 local TAUNT_COOLDOWN_WINDOW = 8
 local CHALLENGING_ROAR_ENEMY_COUNT = 3
 local OOC_ENRAGE_RAGE_MAX = 20
@@ -334,6 +335,13 @@ local function scan_pack(state)
     end
 end
 
+local function lazy_scan_pack(state)
+    if not state.now then return end
+    if state.now - (state.last_scan_time or 1) >= SCAN_INTERVAL then
+        scan_pack(state)
+    end
+end
+
 local function update_rage_tracking(state)
     local now = state.now
     local elapsed = now - (state.last_rage_time or 0)
@@ -361,7 +369,7 @@ local function build_state(context)
     state.in_combat = context.in_combat == true
     state.combat_time = context.combat_time or 0
     state.target_hp = context.target_hp or 100
-    state.target_ttd = context.ttd or 999
+    state.target_ttd = context.ttd or context.target_ttd or 999
     state.target_range = context.target_range or context.target_distance or 40
     state.in_melee = context.in_melee_range == true or state.target_range <= MELEE_RANGE
     state.enemy_count = context.enemy_count or context.enemies_count or 1
@@ -424,10 +432,9 @@ local function build_state(context)
     state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
     state.potion_ready = first_ready_item(HEALING_POTION_IDS)
 
-    scan_pack(state)
-    state.group_pressure = state.enemy_count >= state.aoe_threshold or state.pack_loose > 0
-    state.heavy_damage = state.hp <= state.frenzied_regen_hp or (state.hp <= state.barkskin_hp and (state.enemy_count >= 2 or state.pack_elites > 0))
-    state.emergency_damage = state.hp <= 30 and state.pack_loose > 0
+    state.group_pressure = state.enemy_count >= state.aoe_threshold
+    state.heavy_damage = state.hp <= state.frenzied_regen_hp or (state.hp <= state.barkskin_hp and state.enemy_count >= 2)
+    state.emergency_damage = state.hp <= 30
 
     update_rage_tracking(state)
     return state
@@ -521,8 +528,8 @@ end
 local function faerie_fire_pull_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.has_valid_target then return false end
-    -- Skip if target has no armor (API unavailable or already fully reduced)
-    if (context.target_armor or 0) <= 0 then return false end
+    -- Skip only if API explicitly says "no armor" (sentinel 1). Most mobs have armor; FF is a raid DPS boost.
+    if (context.target_armor or 0) == 1 then return false end
     if state.in_melee then return false end
     if (state.target_range or 40) > 30 then return false end
     if (state.faerie_remains or 0) > FAERIE_FIRE_REFRESH then return false end
@@ -568,6 +575,7 @@ end
 
 local function challenging_roar_matches(context, action)
     local state = build_state(context)
+    lazy_scan_pack(state)
     if not state.is_bear or not state.in_combat then return false end
     if (state.enemy_count or 0) < CHALLENGING_ROAR_ENEMY_COUNT and state.pack_loose < 2 then return false end
     if (state.pack_loose or 0) < 2 and (state.hp or 100) < 45 then return false end
@@ -590,14 +598,15 @@ local function faerie_fire_matches(context, action)
     local state = build_state(context)
     if not state.target then return false end
     if not can_use_bear_ability(state) then return false end
-    -- Skip if target has no armor (API unavailable or already fully reduced)
-    if (context.target_armor or 0) <= 0 then return false end
+    -- Skip only if API explicitly says "no armor" (sentinel 1). Most mobs have armor; FF is a raid DPS boost.
+    if (context.target_armor or 0) == 1 then return false end
     if state.faerie_remains > FAERIE_FIRE_REFRESH then return false end
     return action_ready(context, action)
 end
 
 local function demo_roar_matches(context, action)
     local state = build_state(context)
+    lazy_scan_pack(state)
     if not state.is_bear or not state.in_combat or not state.demo_roar_enabled then return false end
     if (state.enemy_count or 0) <= 0 then return false end
     if (state.demo_remains or 0) > DEMO_ROAR_REFRESH and not state.pack_needs_demo then return false end
@@ -625,6 +634,7 @@ end
 
 local function off_target_lacerate_matches(context, action)
     local state = build_state(context)
+    lazy_scan_pack(state)
     if not state.is_bear or not state.in_combat then return false end
     if not state.off_target then return false end
     if (state.enemy_count or 0) < 2 then return false end
@@ -682,8 +692,9 @@ local function maul_matches(context, action)
     if (state.enemy_count or 0) >= (state.aoe_threshold or 3) and (state.rage or 0) < HIGH_RAGE then return false end
     if state.rage < state.maul_rage then return false end
     if not state.target and NS.spell_ready == nil then return action_ready(context, action) end
-    if (state.lacerate_stacks or 0) < LACERATE_MAX_STACKS and (state.target_ttd or 999) > 8 then return false end
     if would_starve_mangle(state, RAGE_MAUL) then return false end
+    -- Avoid GCD waste: skip Maul on a target about to die (TTD < 3s) unless it's a boss.
+    if not state.is_target_boss and (state.target_ttd or 999) < 3 then return false end
     return action_ready(context, action)
 end
 
@@ -699,6 +710,7 @@ end
 
 local function ferocious_bite_matches(context, action)
     local state = build_state(context)
+    lazy_scan_pack(state)
     if not can_use_bear_ability(state) then return false end
     if state.is_target_boss or state.is_target_player then return false end
     if (state.target_hp or 100) > EXECUTE_HP then return false end
@@ -744,8 +756,8 @@ local ACTIONS = {
 
     { name = "ChallengingRoar", spell = SPELLS.ChallengingRoar, target = "self", required_form = "bear", min_rage = RAGE_CHALLENGING_ROAR, requires_target = false, matches = challenging_roar_matches, execute = taunt_execute },
     { name = "Growl", spell = SPELLS.Growl, required_form = "bear", matches = growl_matches, execute = taunt_execute },
-    { name = "FaerieFireFeral", spell = SPELLS.FaerieFireFeral, required_form = "bear", debuff = FAERIE_FIRE_DEBUFF, refresh = FAERIE_FIRE_REFRESH, matches = faerie_fire_matches },
     { name = "DemoralizingRoar", spell = SPELLS.DemoralizingRoar, target = "self", required_form = "bear", min_rage = RAGE_DEMO_ROAR, cooldown = 25, requires_target = false, matches = demo_roar_matches },
+    { name = "FaerieFireFeral", spell = SPELLS.FaerieFireFeral, required_form = "bear", debuff = FAERIE_FIRE_DEBUFF, refresh = FAERIE_FIRE_REFRESH, matches = faerie_fire_matches },
     { name = "MangleOpener", spell = SPELLS.MangleBear, required_form = "bear", min_rage = RAGE_MANGLE, debuff = MANGLE_DEBUFF, refresh = MANGLE_DEBUFF_REFRESH, matches = mangle_opener_matches },
     { name = "Lacerate", spell = SPELLS.Lacerate, required_form = "bear", min_rage = RAGE_LACERATE, debuff = LACERATE_DEBUFF, min_debuff_stacks = 5, max_enemy_count = 2, refresh = LACERATE_REFRESH_WINDOW, matches = lacerate_matches },
     { name = "LacerateOffTarget", spell = SPELLS.Lacerate, required_form = "bear", min_rage = RAGE_LACERATE, matches = off_target_lacerate_matches },
