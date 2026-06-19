@@ -343,6 +343,7 @@ end
 local function multi_shot_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
+    if s.in_dead_zone then return false end
     if s.multishot_mode == 0 then return false end
     if (s.enemy_count or 0) < (s.multishot_mode or 2) then return false end
     if not s.multi_shot_ready then return false end
@@ -402,6 +403,7 @@ end
 local function arcane_shot_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
+    if s.in_dead_zone then return false end
     if not s.arcane_shot_ready then return false end
     -- Mana gate: suppress Arcane Shot below 20% mana (Research Angle 4)
     if (s.mana_pct or 100) < ARCANE_SHOT_MANA_FLOOR then return false end
@@ -414,6 +416,7 @@ end
 local function steady_shot_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
+    if s.in_dead_zone then return false end
     if not s.steady_shot_ready then return false end
     -- Check auto-shot clipping for steady
     if not hunter_core.can_cast_steady(s.shot_buffer) then return false end
