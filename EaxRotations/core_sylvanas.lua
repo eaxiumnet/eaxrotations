@@ -20,6 +20,13 @@ pcall(function()
     local ph = require("shared/player_helpers_sylvanas")
     if ph and type(ph.install) == "function" then ph.install(NS) end
 end)
+-- Install shared/safe_helpers_sylvanas (safe, safe_field, safe_method) so
+-- shared modules can call NS.safe() / NS.safe_field() instead of re-rolling
+-- the same 12-line pair in each file.
+pcall(function()
+    local sh = require("shared/safe_helpers_sylvanas")
+    if sh and type(sh.install) == "function" then sh.install(NS) end
+end)
 
 NS.core = core
 
