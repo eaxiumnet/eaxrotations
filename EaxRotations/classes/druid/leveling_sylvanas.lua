@@ -358,6 +358,7 @@ end
 --- Mangle (Bear) - rage dump when in bear form
 local mangle_bear_matches = function(_, state)
     if not state then return false end
+    if not state.in_combat then return false end
     if not state.is_bear then return false end
     if not has_enemy_target(state) then return false end
     if not state.target then return false end
