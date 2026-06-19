@@ -1,4 +1,11 @@
 -- TBC Retribution Paladin priority module for the Sylvanas dispatcher.
+-- WHAT:  melee DPS spec (Crusader Strike spam, Judgement of Wisdom / Blood,
+--         Consecration AoE, Seal of Command / Blood rotation, Divine Storm
+--         on multi-target, Avenging Wrath cooldown).
+-- WHEN:  in combat, in melee range (Consecration requires proximity).
+-- WHY:   TBC ret consensus: CStrike on CD > Judgement on CD > DS on multi-target;
+--         SoC / SoBlood swap by pack size; AvW windows damage burst.
+-- SAFETY: pattern 14 nil-guards. Seal-up check prevents double-seal cast.
 
 
 local NS = _G.EaxRotations

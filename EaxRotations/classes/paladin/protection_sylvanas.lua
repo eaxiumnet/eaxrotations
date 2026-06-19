@@ -1,4 +1,11 @@
 -- Paladin Protection priority list with holy threat, uncrushable logic, and seal/aura management.
+-- WHAT:  tank spec (Righteous Defense / Avenger's Shield threat, Holy Shield
+--         for block value, Consecration AoE, Seal of Righteousness / Vigil aura
+--         management, Redoubt + Holy Shield for uncrushable calc).
+-- WHEN:  in combat with valid target, holding aggro.
+-- WHY:   TBC prot consensus: SoR / Vigil + Consecration for threat, Holy Shield
+--         for block stacks to maintain 102.4% avoidance against bosses.
+-- SAFETY: pattern 14 nil-guards for shield charges / spell blocks.
 
 
 local NS = _G.EaxRotations
@@ -192,8 +199,15 @@ end
 -- ============================================================================
 -- Match functions
 -- ============================================================================
+-- Anti-loop throttle: when matches() accepts, we immediately claim a 3s slot.
+-- This defeats the same anti-flicker / buff-cache-stale pattern that ate DevotionAura
+-- and SelfBuffKings. Buff lasts ~30 min so re-cast is invisible at runtime.
+local _last_righteous_fury_match_time = 0
 local function righteous_fury_matches(context, state)
     if state.has_righteous_fury then return false end
+    local now = NS.time_now and NS.time_now() or 0
+    if (now - _last_righteous_fury_match_time) < 3.0 then return false end
+    _last_righteous_fury_match_time = now
     return true
 end
 
@@ -248,19 +262,36 @@ local function judgement_matches(context, state)
     return true
 end
 
+-- Anti-loop throttle: belt-and-suspenders to RighteousFury + BlessingOfSanctuary.
+-- state.has_seal is derived from NS.buff_up which can lag up to ~50ms after a successful
+-- cast (especially if the buff-state API is stalled or broken on private servers).
+-- During that stale window, matches() returns true every tick while anti-flicker
+-- keeps rejecting try_cast — emitting "matched=true, executed=false" spam in
+-- [EaxRotations:TRACE]. 3s guard at matches-end eliminates the cycle.
+local _last_seal_righteousness_match_time = 0
 local function seal_righteousness_matches(context, state)
     if not get_setting(context, "prot_seal_of_righteousness", true) then return false end
     if state.has_seal then return false end
     if state.has_seal_command then return false end
+    local now = NS.time_now and NS.time_now() or 0
+    if (now - _last_seal_righteousness_match_time) < 3.0 then return false end
+    _last_seal_righteousness_match_time = now
     return true
 end
 
+local _last_seal_command_aoe_match_time = 0
+local _last_divine_protection_prot_match_time = 0
+local _last_lay_on_hands_prot_match_time = 0
 local function seal_command_aoe_matches(context, state)
     if not get_setting(context, "prot_seal_of_command", false) then return false end
     if not has_combat_target(context) then return false end
     if (state.enemy_count or 0) < 3 then return false end
     if state.has_seal or state.has_seal_command then return false end
-    return NS.spell_ready(SPELLS.SealCommand, context.me, { skip_range = true })
+    if not NS.spell_ready(SPELLS.SealCommand, context.me, { skip_range = true }) then return false end
+    local now = NS.time_now and NS.time_now() or 0
+    if (now - _last_seal_command_aoe_match_time) < 3.0 then return false end
+    _last_seal_command_aoe_match_time = now
+    return true
 end
 
 local function hammer_of_wrath_matches(context, state)
@@ -308,6 +339,9 @@ local function divine_protection_matches(context, state)
     if state.has_forbearance then return false end
     if state.has_divine_shield then return false end
     if not state.divine_protection_ready then return false end
+    local now = NS.time_now and NS.time_now() or 0
+    if (now - _last_divine_protection_prot_match_time) < 3.0 then return false end
+    _last_divine_protection_prot_match_time = now
     return true
 end
 
@@ -324,6 +358,9 @@ local function lay_on_hands_matches(context, state)
     local threshold = get_setting(context, "prot_lay_on_hands_hp", 10)
     if (state.hp_pct or 100) > threshold then return false end
     if not state.lay_on_hands_ready then return false end
+    local now = NS.time_now and NS.time_now() or 0
+    if (now - _last_lay_on_hands_prot_match_time) < 3.0 then return false end
+    _last_lay_on_hands_prot_match_time = now
     return true
 end
 
@@ -370,6 +407,7 @@ local function seal_of_wisdom_matches(context, state)
     return true
 end
 
+local _last_devotion_aura_prot_match_time = 0
 local function devotion_aura_matches(context, state)
     if not get_setting(context, "prot_devotion_aura", true) then return false end
     -- Don't block combat rotation with aura maintenance when in combat
@@ -379,9 +417,15 @@ local function devotion_aura_matches(context, state)
         local remains = NS.buff_remains(context.me, DEVOTION_AURA_BUFF) or 0
         if remains > 0 then return false end
     end
+    local now = NS.time_now and NS.time_now() or 0
+    if (now - _last_devotion_aura_prot_match_time) < 3.0 then return false end
+    _last_devotion_aura_prot_match_time = now
     return true
 end
 
+-- Anti-loop throttle for OOC blessing (prevents matched=true / executed=false cycle
+-- when buff state lags behind matches calls). 3s is invisible vs 30min blessing duration.
+local _last_blessing_sanctuary_match_time = 0
 local function blessing_of_sanctuary_matches(context, state)
     if not get_setting(context, "prot_blessing_sanctuary", true) then return false end
     -- Don't block combat rotation with blessing maintenance when in combat
@@ -391,6 +435,9 @@ local function blessing_of_sanctuary_matches(context, state)
         local remains = NS.buff_remains(context.me, BLESSING_OF_SANCTUARY_BUFF) or 0
         if remains > 0 then return false end
     end
+    local now = NS.time_now and NS.time_now() or 0
+    if (now - _last_blessing_sanctuary_match_time) < 3.0 then return false end
+    _last_blessing_sanctuary_match_time = now
     return true
 end
 

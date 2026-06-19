@@ -20,6 +20,71 @@ local OTHER_BLESSINGS_FOR_WISDOM = { 25898, 20217, 27141, 27140, 25916, 25782, 2
 local OTHER_BLESSINGS_FOR_KINGS = { 27143, 27142, 25918, 25894, 25290, 19854, 19853, 19852, 19850, 19742, 27141, 27140, 25916, 25782, 25291, 19838, 19837, 19836, 19835, 19834, 19740, 27168, 20914, 20913, 20912, 20911 }
 local ALL_BLESSING_BUFFS = { 25898, 20217, 27143, 27142, 25918, 25894, 25290, 19854, 19853, 19852, 19850, 19742, 27141, 27140, 25916, 25782, 25291, 19838, 19837, 19836, 19835, 19834, 19740, 27168, 20914, 20913, 20912, 20911 }
 
+-- Auto-build ALL_AURA_BUFFS from SPELLS table — covers ALL ranks of every paladin aura.
+-- Pre-fix: middleware only checked rank-1 IDs {465,7294,19746,20218} which missed any
+-- higher-rank aura on the player → caused infinite re-cast loop when rank 2+ was active.
+-- Production NS.spell_action returns a table {id=fn, IsReady=fn, ..., _meta={ids={...}, levels={...}}} —
+-- the rank ID list lives at spell._meta.ids. We read both paths for robustness against
+-- any future refactor that flattens the spell shape.
+local ALL_AURA_BUFFS = {}
+local ALL_AURA_BUFFS_SOURCE = {}
+local function resolve_id_list(spell)
+    if type(spell) ~= "table" then return nil end
+    if type(spell._meta) == "table" and type(spell._meta.ids) == "table" then return spell._meta.ids end
+    if type(spell.ids) == "table" then return spell.ids end
+    return nil
+end
+do
+    local aura_spell_keys = {
+        "DevotionAura", "RetributionAura", "ConcentrationAura", "SanctityAura",
+        "FireResistanceAura", "FrostResistanceAura", "ShadowResistanceAura",
+    }
+    local seen = {}
+    for _, key in ipairs(aura_spell_keys) do
+        local ids = resolve_id_list(SPELLS[key])
+        if ids then
+            ALL_AURA_BUFFS_SOURCE[#ALL_AURA_BUFFS_SOURCE + 1] = key
+            for _, id in ipairs(ids) do
+                if not seen[id] then
+                    seen[id] = true
+                    ALL_AURA_BUFFS[#ALL_AURA_BUFFS + 1] = id
+                end
+            end
+        end
+    end
+end
+-- Defensive: surface a clearly-named warning if the auto-build silently produced
+-- too few IDs. Expected = 28 (8 Devotion + 6 Retribution + 1 Concentration + 1 Sanctity
+-- + 4 Fire + 4 Frost + 4 Shadow). Anything substantially below that means a SPELLS
+-- key was renamed or NS.spell_action changed shape and the auto-build needs updating.
+if NS.log_warning and #ALL_AURA_BUFFS < 28 then
+    NS.log_warning("[paladin middleware] ALL_AURA_BUFFS auto-build only collected " .. tostring(#ALL_AURA_BUFFS) ..
+        " ids from " .. tostring(#ALL_AURA_BUFFS_SOURCE) .. " of 7 auras; expected >= 28 (8 Devotion + 6 Retribution + 1 Concentration + 1 Sanctity + 4 Fire + 4 Frost + 4 Shadow)")
+end
+
+-- Throttle: skip aura re-match within 3s of last successful cast (anti-loop defense).
+-- Auras last 30+ minutes, so 3s guard is invisible at runtime.
+local _last_aura_cast_time = 0
+
+-- Throttle slot for Paladin_SelfBuffKings (OOC blessing refresh). Same defense-in-depth
+-- pattern as _last_aura_cast_time: claimed at end of matches() so anti-flicker rejection
+-- in execute() still consume the 3s window.
+local _last_kings_match_time = 0
+
+-- Throttle slot for AutoConsumable. The inner consumable_manager.on_update() already
+-- has its own 3s throttle on _last_check (see consumable_manager_sylvanas.lua:338),
+-- so the consume-decision cadence is unchanged whether we throttle here or not.
+-- What changes: matches() stops re-returning true every tick when execute returns
+-- false, killing the traceLog spam observed in logs while preserving emergency
+-- consumable activation (healthstone at hp<=50, mana pot at mana<=40%) at the same 3s.
+local _last_auto_consumable_match_time = 0
+local _last_self_buff_blessing_match_time = 0
+local _last_combat_kings_refresh_match_time = 0
+local _last_combat_wisdom_refresh_match_time = 0
+local _last_group_bless_kings_match_time = 0
+local _last_divine_shield_emergency_match_time = 0
+local _last_lay_on_hands_emergency_match_time = 0
+
 -- Root/snare debuffs that Blessing of Freedom removes
 local ROOT_SNARE_DEBUFFS = {
     339, 5195, 5196, 9852, 9853, 19970, 19972, 19973, 19974, 19975, 26989, 27010,  -- Entangling Roots
@@ -58,9 +123,11 @@ local strategies = {
             local threshold = settings.divine_shield_hp or 0
             if threshold <= 0 then return false end
             if (context.hp or 100) <= threshold then
-                -- Check Forbearance debuff (25771)
                 local me = context.me
                 if me and NS.debuff_remains(me, {25771}) > 0 then return false end
+                local now = NS.time_now and NS.time_now() or 0
+                if (now - _last_divine_shield_emergency_match_time) < 3.0 then return false end
+                _last_divine_shield_emergency_match_time = now
                 return true
             end
             return false
@@ -87,9 +154,11 @@ local strategies = {
             local threshold = settings.lay_on_hands_hp or 0
             if threshold <= 0 then return false end
             if (context.hp or 100) <= threshold then
-                -- Check Forbearance debuff (25771)
                 local me = context.me
                 if me and NS.debuff_remains(me, {25771}) > 0 then return false end
+                local now = NS.time_now and NS.time_now() or 0
+                if (now - _last_lay_on_hands_emergency_match_time) < 3.0 then return false end
+                _last_lay_on_hands_emergency_match_time = now
                 return true
             end
             return false
@@ -296,10 +365,15 @@ local strategies = {
         matches = function(context)
             if context.in_combat then return false end
             if (context.is_mounted or false) then return false end
-            -- Check if any aura is active (skip if already has one)
+            -- Throttle: skip match within 3s of our last attempt (anti-loop).
+            -- Engage from matches() — not from execute() success — so a try_cast blocked
+            -- by anti-flicker / GCD / queue rejection still consumes the throttle window.
+            local now = NS.time_now and NS.time_now() or 0
+            if (now - _last_aura_cast_time) < 3.0 then return false end
+            -- Check if any aura is active across all ranks (skip if already has one)
             local me = context.me
             if me then
-                if NS.buff_up(me, {465, 7294, 19746, 20218}) then
+                if NS.buff_up(me, ALL_AURA_BUFFS) then
                     return false
                 end
             end
@@ -311,6 +385,10 @@ local strategies = {
                     or (SPELLS.RetributionAura and NS.is_spell_learned and NS.is_spell_learned(SPELLS.RetributionAura))
                 if not aura_known then return false end
             end
+            -- Claim the throttle slot before execute() runs. This is the critical
+            -- anti-loop hardening: even if try_cast returns false (anti-flicker,
+            -- GCD, queue full), re-matches within 3s are blocked.
+            _last_aura_cast_time = now
             return true
         end,
         execute = function(context)
@@ -319,7 +397,6 @@ local strategies = {
 
             -- Ret: Sanctity Aura if known, else Devotion
             if playstyle == "retribution" then
-                -- Try Sanctity Aura first (31892 = Seal of Blood, 20218 = Sanctity Aura)
                 if SPELLS.SanctityAura and NS.spell_ready and NS.spell_ready(SPELLS.SanctityAura, context.me, {}) then
                     return NS.try_cast(SPELLS.SanctityAura, context.me, "[PALADIN] Sanctity Aura")
                 end
@@ -345,6 +422,21 @@ local strategies = {
                 end
             end
 
+            -- Leveling: Retribution Aura (damage reflect) preferred; Devotion fallback.
+            -- INVARIANT: this branch MUST stay present. Without it, the matcher still
+            -- returns true (matches() claims the 3s throttle slot pre-execute) while the
+            -- executor falls through to `return false`, producing an infinite "matched=true,
+            -- executed=false" trace loop every dispatch tick. The behavior is intentional
+            -- for ret/prot/holy but the leveling playstyle was originally omitted by mistake.
+            if playstyle == "leveling" then
+                if SPELLS.RetributionAura and NS.spell_ready and NS.spell_ready(SPELLS.RetributionAura, context.me, {}) then
+                    return NS.try_cast(SPELLS.RetributionAura, context.me, "[PALADIN] Retribution Aura (leveling)")
+                end
+                if SPELLS.DevotionAura and NS.spell_ready and NS.spell_ready(SPELLS.DevotionAura, context.me, {}) then
+                    return NS.try_cast(SPELLS.DevotionAura, context.me, "[PALADIN] Devotion Aura (leveling fallback)")
+                end
+            end
+
             return false
         end,
     },
@@ -358,12 +450,10 @@ local strategies = {
         matches = function(context)
             if context.in_combat then return false end
             if (context.is_mounted or false) then return false end
-            -- Check if any blessing is active
             local me = context.me
             if me and NS.buff_up(me, ALL_BLESSING_BUFFS) then
                 return false
             end
-            -- Don't match if player knows NO blessing spells at all (e.g. level 1, no trainer)
             if me then
                 local blessing_known = (SPELLS.BlessingOfMight and NS.is_spell_learned and NS.is_spell_learned(SPELLS.BlessingOfMight))
                     or (SPELLS.BlessingOfWisdom and NS.is_spell_learned and NS.is_spell_learned(SPELLS.BlessingOfWisdom))
@@ -373,6 +463,9 @@ local strategies = {
                     or (SPELLS.BlessingOfSacrifice and NS.is_spell_learned and NS.is_spell_learned(SPELLS.BlessingOfSacrifice))
                 if not blessing_known then return false end
             end
+            local now = NS.time_now and NS.time_now() or 0
+            if (now - _last_self_buff_blessing_match_time) < 3.0 then return false end
+            _last_self_buff_blessing_match_time = now
             return true
         end,
         execute = function(context)
@@ -410,6 +503,8 @@ local strategies = {
     -- ============================================================================
     -- SELF-BUFF: KINGS (Out of combat - refresh)
     -- ============================================================================
+    -- Anti-loop throttle: same defense-in-depth as Paladin_SelfBuffAura. Claimed at
+    -- end of matches(), so anti-flicker / GCD rejections still consume a 3s slot.
     {
         name = "Paladin_SelfBuffKings",
         priority = 75,
@@ -425,6 +520,9 @@ local strategies = {
             local kingsRemains = NS.buff_remains(me, BLESSING_KINGS_BUFF) or 0
             if kingsRemains > 120 then return false end
             if not SPELLS.BlessingOfKings then return false end
+            local now = NS.time_now and NS.time_now() or 0
+            if (now - _last_kings_match_time) < 3.0 then return false end
+            _last_kings_match_time = now
             return true
         end,
         execute = function(context)
@@ -457,12 +555,14 @@ local strategies = {
             if not me or not NS.buff_remains then return false end
             local manaPct = context.mana_pct or 100
             if manaPct < (settings.combat_kings_refresh_mana or 30) then return false end
-            -- nil-guard: if both buff_remains return nil or 0, API is unavailable
             local kingsRemains = NS.buff_remains(me, BLESSING_KINGS_BUFF) or 0
             if kingsRemains == 0 then return false end
             local threshold = settings.combat_kings_refresh_threshold or 60
             if kingsRemains > threshold then return false end
             if not SPELLS.BlessingOfKings then return false end
+            local now = NS.time_now and NS.time_now() or 0
+            if (now - _last_combat_kings_refresh_match_time) < 3.0 then return false end
+            _last_combat_kings_refresh_match_time = now
             return true
         end,
         execute = function(context)
@@ -487,18 +587,17 @@ local strategies = {
             local settings = context.settings or {}
             local manaPct = context.mana_pct or 100
             if manaPct < (settings.combat_wisdom_refresh_mana or 30) then return false end
-            -- Playstyle gate: combat wisdom refresh is intended for holy only
             local playstyle = settings.playstyle or settings.active_playstyle or ""
             if playstyle ~= "holy" then return false end
-            -- Blessing detection: don't overwrite Kings/Might/Sanctuary (safety net)
             if NS.buff_up and NS.buff_up(me, OTHER_BLESSINGS_FOR_WISDOM) then return false end
             local threshold = settings.combat_wisdom_refresh_threshold or 120
-            -- Check self first
             local wisdomRemains = NS.buff_remains(me, BLESSING_WISDOM_BUFF) or 0
             if wisdomRemains <= threshold and SPELLS.BlessingOfWisdom then
+                local now = NS.time_now and NS.time_now() or 0
+                if (now - _last_combat_wisdom_refresh_match_time) < 3.0 then return false end
+                _last_combat_wisdom_refresh_match_time = now
                 return true
             end
-            -- Check party members
             local useGreater = false
             if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25894) and NS.has_item then
                 if NS.has_item(REAGENT_SYMBOL_OF_WISDOM) then useGreater = true end
@@ -510,6 +609,9 @@ local strategies = {
                         local mRemains = NS.buff_remains(member, BLESSING_WISDOM_BUFF) or 0
                         if mRemains <= threshold then
                             if (useGreater and SPELLS.GreaterBlessingOfWisdom) or SPELLS.BlessingOfWisdom then
+                                local now = NS.time_now and NS.time_now() or 0
+                                if (now - _last_combat_wisdom_refresh_match_time) < 3.0 then return false end
+                                _last_combat_wisdom_refresh_match_time = now
                                 return true
                             end
                         end
@@ -575,6 +677,9 @@ local strategies = {
                         local mRemains = NS.buff_remains(member, BLESSING_KINGS_BUFF) or 0
                         if mRemains <= (settings.combat_kings_refresh_threshold or 60) then
                             if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
+                                local now = NS.time_now and NS.time_now() or 0
+                                if (now - _last_group_bless_kings_match_time) < 3.0 then return false end
+                                _last_group_bless_kings_match_time = now
                                 return true
                             end
                         end
@@ -628,10 +733,12 @@ local strategies = {
                 for _, member in ipairs(members or {}) do
                     if member and NS.buff_remains then
                         local mRemains = NS.buff_remains(member, BLESSING_KINGS_BUFF) or 0
-                        -- Skip if they have another blessing type (don't overwrite)
                         local hasOther = NS.buff_up and NS.buff_up(member, OTHER_BLESSINGS_FOR_KINGS)
                         if not hasOther and mRemains <= 0 then
                             if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
+                                local now = NS.time_now and NS.time_now() or 0
+                                if (now - _last_group_bless_kings_match_time) < 3.0 then return false end
+                                _last_group_bless_kings_match_time = now
                                 return true
                             end
                         end
@@ -688,8 +795,17 @@ local strategies = {
         execute = function() return true end,
     },
 
-    -- Auto-consumable usage
-    { name = "AutoConsumable", matches = function(context) return context.in_combat and (context.player_level or 999) >= 10 end, execute = function(context) return consumable_manager.on_update(context) end },
+    -- Auto-consumable usage (throttled at matches()-end; inner on_update has its own 3s)
+    { name = "AutoConsumable",
+      matches = function(context)
+          if not context.in_combat then return false end
+          if (context.player_level or 999) < 10 then return false end
+          local now = NS.time_now and NS.time_now() or 0
+          if (now - _last_auto_consumable_match_time) < 3.0 then return false end
+          _last_auto_consumable_match_time = now
+          return true
+      end,
+      execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("paladin", strategies)
