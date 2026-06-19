@@ -98,8 +98,9 @@ Oracle's skeptical verification (session
 | 29 | `8bc61b48` | fix(warrior-protection): raw unit comparisons → NS.same_unit/not_same_unit | Oracle gap-4 close (4 sites) |
 | 30 | `0f7bb1c9` | fix(paladin-protection): raw unit comparisons → NS.not_same_unit | Oracle gap-4 close (2 sites) |
 | 31 | `1697bf2e` | chore(plans): remove archived plan duplicates from root | Oracle gap-3 close (11 files) |
+| 32 | `cfe015be` | fix(paladin-protection-vanilla): raw unit comparisons → NS.not_same_unit | Oracle gap-6 close (2 vanilla sites) |
 
-After iteration 31: **rotation 129/129 PASS** + **leveling 11/11 PASS** — clean parity.
+After iteration 32: **rotation 129/129 PASS** + **leveling 11/11 PASS** — clean parity.
 (Note: rotation suite count is 129 because the 5 paladin test suites
 are working-tree-only pre-existing artifacts. The 129 count reflects
 committed-state parity.)
