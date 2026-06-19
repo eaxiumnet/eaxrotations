@@ -1,5 +1,11 @@
 -- ============================================================================
 -- Priest Smite DPS Rotation
+-- WHAT:  caster DPS spec (Smite filler, Holy Fire burst, SW:P for filler dot,
+--         Psychic Scream / Mind Flay emergency, Smite + Solace-style port).
+-- WHEN:  combat, caster form (NO Shadowform), target in range.
+-- WHY:   TBC smite consensus: stack Solace to spam Smite; Holy Fire burst.
+-- SAFETY: pattern 14 nil-guards on spell IDs at load time.
+-- ============================================================================
 -- Holy DPS with Shadow Weaving/Misery utility via SW:P
 -- Holy Fire Weave optimization, Surge of Light procs
 -- ============================================================================

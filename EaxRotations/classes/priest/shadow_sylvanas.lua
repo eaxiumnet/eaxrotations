@@ -1,4 +1,11 @@
 -- Priest Shadow priority list with Mind Flay channel clipping control.
+-- WHAT:  Shadowform lock-in caster DPS (Mind Blast on proc, SW:P dot,
+--         Vampiric Touch on debuff, Mind Flay channel with clip-handling
+--         to avoid tick loss, Shadowfiend burst).
+-- WHEN:  combat, target in range; Shadowform gate before most spells.
+-- WHY:   TBC shadow consensus: SW:P / VT always up, MB on proc, MF for
+--         filler while waiting on procs. Channel clip avoids 0.5s tick loss.
+-- SAFETY: pattern 14 nil-guards. Shadowform check gates offensive spells.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
