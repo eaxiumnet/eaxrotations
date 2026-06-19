@@ -109,7 +109,7 @@ function M.score_kill_target(unit, context)
     local score = 0
     local class = get_unit_class(unit)
     local hp_pct = get_unit_hp_pct(unit)
-    local is_current = (context and context.target == unit)
+    local is_current = (context and context.target and unit and NS.same_unit(context.target, unit))
     
     -- Low HP bonus (100 at 0 HP, 0 at 100 HP)
     local hp_bonus = WEIGHTS.LOW_HP * (1 - hp_pct / 100)
