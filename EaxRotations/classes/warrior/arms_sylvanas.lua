@@ -2,52 +2,48 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
 local PLAYER_UNIT = NS.PLAYER_UNIT
 
-
-local function spell(field, ids, label)
-    if SPELLS[field] ~= nil then return SPELLS[field] end
-    if NS.spell_action then return NS.spell_action(ids, label or field) end
-    if type(ids) == "table" then return ids[1] end
-    return ids
-end
+-- Centralized spell resolver via spec_kit (replaces the per-spec spell() helper).
+local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
-    BattleShout = spell("BattleShout", { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
-    BattleStance = spell("BattleStance", 2457, "BattleStance"),
-    BerserkerRage = spell("BerserkerRage", 18499, "BerserkerRage"),
-    BerserkerStance = spell("BerserkerStance", 2458, "BerserkerStance"),
-    Bloodrage = spell("Bloodrage", 2687, "Bloodrage"),
-    Charge = spell("Charge", { 11578, 6178, 100 }, "Charge"),
-    Cleave = spell("Cleave", { 25231, 20569, 11609, 11608, 7369, 845 }, "Cleave"),
-    CommandingShout = spell("CommandingShout", 469, "CommandingShout"),
+    BattleShout = define("BattleShout", { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
+    BattleStance = define("BattleStance", 2457, "BattleStance"),
+    BerserkerRage = define("BerserkerRage", 18499, "BerserkerRage"),
+    BerserkerStance = define("BerserkerStance", 2458, "BerserkerStance"),
+    Bloodrage = define("Bloodrage", 2687, "Bloodrage"),
+    Charge = define("Charge", { 11578, 6178, 100 }, "Charge"),
+    Cleave = define("Cleave", { 25231, 20569, 11609, 11608, 7369, 845 }, "Cleave"),
+    CommandingShout = define("CommandingShout", 469, "CommandingShout"),
     DeathWish = SPELLS.DeathWish,  -- uses expansion-aware IDs from class_sylvanas.lua
-    DefensiveStance = spell("DefensiveStance", 71, "DefensiveStance"),
-    DemoralizingShout = spell("DemoralizingShout", { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }, "DemoralizingShout"),
-    Disarm = spell("Disarm", 676, "Disarm"),
-    Execute = spell("Execute", { 25236, 25234, 20662, 20661, 20660, 20658, 5308 }, "Execute"),
-    Hamstring = spell("Hamstring", { 25212, 7373, 7372, 1715 }, "Hamstring"),
-    HeroicStrike = spell("HeroicStrike", { 30324, 29707, 25286, 11567, 11566, 11565, 11564, 1608, 285, 284, 78 }, "HeroicStrike"),
-    Intercept = spell("Intercept", { 25275, 20617, 20616, 20252 }, "Intercept"),
-    IntimidatingShout = spell("IntimidatingShout", 5246, "IntimidatingShout"),
-    MortalStrike = spell("MortalStrike", { 30330, 25248, 21553, 21552, 21551, 12294 }, "MortalStrike"),
-    Overpower = spell("Overpower", { 11585, 7887, 7384 }, "Overpower"),
-    PiercingHowl = spell("PiercingHowl", 12323, "PiercingHowl"),
+    DefensiveStance = define("DefensiveStance", 71, "DefensiveStance"),
+    DemoralizingShout = define("DemoralizingShout", { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }, "DemoralizingShout"),
+    Disarm = define("Disarm", 676, "Disarm"),
+    Execute = define("Execute", { 25236, 25234, 20662, 20661, 20660, 20658, 5308 }, "Execute"),
+    Hamstring = define("Hamstring", { 25212, 7373, 7372, 1715 }, "Hamstring"),
+    HeroicStrike = define("HeroicStrike", { 30324, 29707, 25286, 11567, 11566, 11565, 11564, 1608, 285, 284, 78 }, "HeroicStrike"),
+    Intercept = define("Intercept", { 25275, 20617, 20616, 20252 }, "Intercept"),
+    IntimidatingShout = define("IntimidatingShout", 5246, "IntimidatingShout"),
+    MortalStrike = define("MortalStrike", { 30330, 25248, 21553, 21552, 21551, 12294 }, "MortalStrike"),
+    Overpower = define("Overpower", { 11585, 7887, 7384 }, "Overpower"),
+    PiercingHowl = define("PiercingHowl", 12323, "PiercingHowl"),
     Pummel = NS.spell_action and NS.spell_action({ 6554, 6552 }, "Pummel") or 6554,
-    Recklessness = spell("Recklessness", 1719, "Recklessness"),
-    Rend = spell("Rend", { 25208, 11574, 11573, 6548, 6547, 772 }, "Rend"),
-    Retaliation = spell("Retaliation", 20230, "Retaliation"),
-    ShieldWall = spell("ShieldWall", 871, "ShieldWall"),
-    Slam = spell("Slam", { 25242, 25241, 11605, 11604, 8820, 1464 }, "Slam"),
-    SpellReflection = spell("SpellReflection", 23920, "SpellReflection"),
-    SunderArmor = spell("SunderArmor", { 25225, 11597, 11596, 8380, 7405, 7386 }, "SunderArmor"),
+    Recklessness = define("Recklessness", 1719, "Recklessness"),
+    Rend = define("Rend", { 25208, 11574, 11573, 6548, 6547, 772 }, "Rend"),
+    Retaliation = define("Retaliation", 20230, "Retaliation"),
+    ShieldWall = define("ShieldWall", 871, "ShieldWall"),
+    Slam = define("Slam", { 25242, 25241, 11605, 11604, 8820, 1464 }, "Slam"),
+    SpellReflection = define("SpellReflection", 23920, "SpellReflection"),
+    SunderArmor = define("SunderArmor", { 25225, 11597, 11596, 8380, 7405, 7386 }, "SunderArmor"),
     SweepingStrikes = SPELLS.SweepingStrikes,  -- uses expansion-aware IDs from class_sylvanas.lua
-    ThunderClap = spell("ThunderClap", { 25264, 11581, 11580, 8205, 8204, 8198, 6343 }, "ThunderClap"),
-    VictoryRush = spell("VictoryRush", 34428, "VictoryRush"),
-    Whirlwind = spell("Whirlwind", 1680, "Whirlwind"),
+    ThunderClap = define("ThunderClap", { 25264, 11581, 11580, 8205, 8204, 8198, 6343 }, "ThunderClap"),
+    VictoryRush = define("VictoryRush", 34428, "VictoryRush"),
+    Whirlwind = define("Whirlwind", 1680, "Whirlwind"),
 }
 
 local BATTLE_SHOUT_BUFF = { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
