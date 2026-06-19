@@ -1,5 +1,13 @@
 -- Hunter Beast Mastery — parity Parity (1-70)
 -- Auto-shot timer, pet mgmt, dynamic aspects, stings, threat, pull modes, melee, AoE
+-- WHAT: pet-focused DPS spec (Kill Command + Bestial Wrath cooldowns, Mend Pet,
+--         pet happiness auto-feed via pet_happiness, Aspect of the Viper for mana,
+--         Aspect of the Hawk for DPS, steady/Multi-shot filler, Serpent Sting up).
+-- WHEN:  combat, hunter + pet alive, target in range.
+-- WHY:   TBC BM consensus: keep Kill Command / Bestial Wrath rolling, pet
+--         happiness >= 2 (avoid damage penalty), Aspect swap driven by mana.
+-- SAFETY: pattern 14 nil-guards. Pet APIs may be nil when solo no pet;
+--         Target range checked with squared distance (per AGENTS.md rules).
 
 local NS = _G.EaxRotations
 if not NS then return nil end

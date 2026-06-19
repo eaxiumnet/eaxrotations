@@ -1,4 +1,11 @@
 -- Hunter Survival priority list.
+-- WHAT:  melee/ranged hybrid spec (Raptor Strike, Mongoose Bite, Steady Shot,
+--         Explosive / Immo / Snake Trap, Readiness reset of cooldowns).
+-- WHEN:  combat, target in range; defensive utility think Black Arrow /
+--         Misdirection / Feign Death.
+-- WHY:   TBC Survival consensus: Mongoose Bite swing timer > Raptor Strike > Steady
+--         when at range; traps for utility; Aspect swap for sustained DPS.
+-- SAFETY: pattern 14 nil-guards. Pet management same as BM.
 
 
 local NS = _G.EaxRotations

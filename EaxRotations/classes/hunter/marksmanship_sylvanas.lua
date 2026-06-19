@@ -1,4 +1,12 @@
 -- Hunter Marksmanship priority list.
+-- WHAT:  ranged DPS prioritising Steady Shot filler + aimed burst via
+--         Rapid Fire + silences/CC, Hunter's Mark for tracking,
+--         dead-zone auto-switch to melee/raptor (via get_spell_range_data).
+-- WHEN:  combat, target in range (or in dead-zone at <5yd for melee).
+-- WHY:   TBC MM consensus: steady shot filler > multishot for AoE > aimed
+--         when possible; Aspect of the Hawk in combat for +damage.
+-- SAFETY: pattern 14 nil-guards. Dead-zone distance check uses squared
+--          comparison (per AGENTS.md Pattern 3).
 
 
 local NS = _G.EaxRotations
