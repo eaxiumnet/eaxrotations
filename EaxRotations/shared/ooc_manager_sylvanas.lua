@@ -171,18 +171,27 @@ local HEALING_PLAYSTYLES = {
     resto = true,
 }
 
-local function safe(fn, ...)
-    if type(fn) ~= "function" then return nil end
-    local ok, a, b = pcall(fn, ...)
-    if ok then return a, b end
-    return nil
+-- Pull safe / safe_field from NS (installed by core_sylvanas.lua via
+-- shared/safe_helpers_sylvanas). Local fallbacks for tests whose NS
+-- mock does not supply the helpers. Use pcall to handle NS=nil at load
+-- (some tests dofile this shared/ before setting _G.EaxRotations).
+local safe
+pcall(function() safe = NS and NS.safe end)
+if type(safe) ~= "function" then
+    safe = function(fn, ...)
+        if type(fn) ~= "function" then return nil end
+        local ok, a, b = pcall(fn, ...)
+        return ok and a or nil, ok and b or nil
+    end
 end
-
-local function safe_field(obj, key)
-    if NS and NS.safe_field then return NS.safe_field(obj, key) end
-    if not obj then return nil end
-    local ok, value = pcall(function() return obj[key] end)
-    return ok and value or nil
+local safe_field
+pcall(function() safe_field = NS and NS.safe_field end)
+if type(safe_field) ~= "function" then
+    safe_field = function(obj, key)
+        if obj == nil then return nil end
+        local ok, value = pcall(function() return obj[key] end)
+        return ok and value or nil
+    end
 end
 
 local function get_setting(settings, key, default)
