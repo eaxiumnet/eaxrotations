@@ -297,7 +297,7 @@ local function fade_matches(context, state)
     for _, enemy in ipairs(enemies) do
         if enemy and enemy.is_valid and enemy:is_valid() and enemy.is_alive and enemy:is_alive() then
             local ok, target = pcall(function() return enemy:get_target() end)
-            if ok and target and context.me and target == context.me then
+            if ok and target and context.me and NS.same_unit(target, context.me) then
                 return true
             end
         end
