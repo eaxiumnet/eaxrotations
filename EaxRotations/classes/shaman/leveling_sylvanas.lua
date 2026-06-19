@@ -401,6 +401,10 @@ local lightning_bolt_matches = function(context, state)
             tostring(state and state.lightning_bolt_ready)))
     end
 
+    if not context then
+        _lb_debug("no context")
+        return false
+    end
     if not state then
         _lb_debug("no state")
         return false
