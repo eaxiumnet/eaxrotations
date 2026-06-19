@@ -84,7 +84,7 @@ local function get_threat_targets(context, me, target)
     local tab_range = setting(context, "prot_tab_range", 20)
     local range_sq = (tab_range or 20) * (tab_range or 20)
     for _, obj in ipairs(visible_objects) do
-        if obj and obj ~= target then
+        if obj and NS.not_same_unit(obj, target) then
             -- Filter: must be enemy to player
             local ok_enemy, is_enemy = pcall(function() return obj:is_enemy_with(me) end)
             if ok_enemy and is_enemy then
@@ -259,7 +259,7 @@ local function build_state(context)
                     if enemy.get_target then return enemy:get_target() end
                     return nil
                 end)
-                if ok_t and enemy_target ~= me then
+                if ok_t and NS.not_same_unit(enemy_target, me) then
                     -- HP gate: don't taunt a target at <5% HP (waste of CD)
                     local ok_hp, enemy_hp = pcall(function()
                         return NS.unit_health_pct(enemy)
@@ -304,7 +304,7 @@ local function build_state(context)
             local best_hp = 101
             local best_dist_sq = 999999
             for _, member in ipairs(members) do
-                if member and member ~= me then
+                if member and NS.not_same_unit(member, me) then
                     local ok_hp, hp = pcall(function() return NS.unit_health_pct(member) end)
                     if ok_hp and hp and hp < best_hp then
                         local ok_pos, ax, ay = pcall(function()
@@ -466,7 +466,7 @@ local function taunt_matches_fn(context, state)
             if target.get_target then return target:get_target() end
             return nil
         end)
-        if ok and enemy_target == me then return false end
+        if ok and NS.same_unit(enemy_target, me) then return false end
     end
     -- Threat-level gate: only Taunt if target is NOT already being tanked by us
     if me and target.get_threat_situation then
