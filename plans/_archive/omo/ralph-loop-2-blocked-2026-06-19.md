@@ -69,9 +69,27 @@ Oracle's skeptical verification (session
 |-----------|--------|---------|----------------|
 | 1 | `d87abfed` | docs(plans): debugging note for blocked Ralph loop 2/500 | none (docs) |
 | 2 | `43c052f7` | feat(targeting): is_boss_fight() — Track A.1.3 | test_boss_count FAIL → PASS |
-| 3 | `<feed-pet>` | feat(hunter): FeedPet middleware — Track A.2.2 | test_pet_happiness FAIL → PASS |
+| 3 | `d8349455` | feat(hunter): FeedPet middleware — Track A.2.2 | test_pet_happiness FAIL → PASS |
+| 4 | `d746efee` | docs(plans): update ralph-loop-2 note with source citation + STATE | none (docs) |
+| 5 | `a346128f` | fix(test): sync_playstyle_control detects external playstyle changes (test-only) | test_playstyle_combobox_write_syncs FAIL → PASS |
+| 6 | `0aea2eae` | fix(mage-leveling): reorder damage strategies (Field marshal) — Track C.1.N | test_leveling_mage FAIL → PASS (182/182) |
+| 7 | `4ba3fa75` | fix(shaman-leveling): nil-context guard on LightningBolt (Pattern 14) — Track C.2.S | test_leveling_shaman FAIL → PASS (105/105) |
+| 8 | `ca5cbe52` | fix(warrior-leveling): charge_ready routed through NS.spell_ready — Track C.3.W | test_leveling_warrior charge_ready FAIL → PASS; rend_ready remains (sibling bug, iteration 9) |
+| 9 | `05979b0f` | fix(druid-leveling): in_combat guard on FaerieFireFeral (Pattern 14) — Track C.4.D | test_leveling_druid FaerieFireFeral OOC FAIL → PASS; manglebear OOC remains (sibling bug, iteration 10) |
 
-After iteration 3: rotation 132/133 PASS, leveling 7/11 PASS.
+After iteration 9: **rotation 133/133 PASS**, **leveling 9/11 PASS**.
+
+Pre-iteration-1 baseline (Oracle session `ses_12230bb6fffeLWWdOiLg0Nw7vp`):
+rotation 130/133 (3 fails); leveling 7/11 (4 fails).
+
+Net change vs baseline:
+- rotation: +3 flips (test_boss_count, test_pet_happiness,
+  test_playstyle_combobox_write_syncs) → **133/133 clean parity**.
+- leveling: +2 clean flips (test_leveling_mage, test_leveling_shaman)
+  + 2 partial flips (warrior charge_ready, druid FaerieFireFeral OOC) →
+  **9/11 with 2 sibling bugs each tied to a separate atomic commit
+  the same subagent flagged but did not bundle** (one concern per
+  commit, guardrail 1).
 
 ---
 
