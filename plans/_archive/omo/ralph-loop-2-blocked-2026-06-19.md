@@ -95,40 +95,48 @@ Oracle's skeptical verification (session
 | 26 | `517b1144` | fix(discipline): use NS.not_same_unit + fix(paladin): heal_helper power enum | discipline raw-compare + heal_helper enum |
 | 27 | `f16dca69` | feat(targeting): is_tapped + tap-denied filtering for leveling context | test_tap_denied FAIL → PASS |
 | 28 | `377afa70` | fix(hunter): in_dead_zone guard on Arcane/Multi/Steady Shot matches | test_hunter_dead_zone FAIL → PASS |
+| 29 | `8bc61b48` | fix(warrior-protection): raw unit comparisons → NS.same_unit/not_same_unit | Oracle gap-4 close (4 sites) |
+| 30 | `0f7bb1c9` | fix(paladin-protection): raw unit comparisons → NS.not_same_unit | Oracle gap-4 close (2 sites) |
+| 31 | `1697bf2e` | chore(plans): remove archived plan duplicates from root | Oracle gap-3 close (11 files) |
 
-After iteration 28: **rotation 128/128 PASS** + **leveling 11/11 PASS** — clean parity.
-(Note: rotation suite count dropped from 133 to 128 because the 5
-paladin test suites are working-tree-only pre-existing artifacts, not
-committed in this iteration. The 128 count reflects committed-state
-parity.)
+After iteration 31: **rotation 129/129 PASS** + **leveling 11/11 PASS** — clean parity.
+(Note: rotation suite count is 129 because the 5 paladin test suites
+are working-tree-only pre-existing artifacts. The 129 count reflects
+committed-state parity.)
 
 Pre-iteration-1 baseline (Oracle session `ses_12230bb6fffeLWWdOiLg0Ow7vp`):
 rotation 130/133 (3 fails); leveling 7/11 (4 fails).
 
 Net change vs baseline:
-- rotation: +5 flips (test_boss_count, test_pet_happiness,
+- rotation: +6 flips (test_boss_count, test_pet_happiness,
   test_playstyle_combobox_write_syncs, test_tap_denied,
-  test_hunter_dead_zone) → **128/128 clean parity**.
+  test_hunter_dead_zone, bear_test Maul alignment) → **129/129 clean parity**.
 - leveling: +4 flips (test_leveling_mage, test_leveling_shaman,
   test_leveling_warrior charge_ready+rend_ready via shared-module
   cascade, test_leveling_druid FaerieFireFeral+MangleBear+Rake+MangleCat
   via 4 Pattern-14 commits) → **11/11 clean parity**.
 
-Branch state: `master`, ahead of `origin/master`. Iteration counter
-on `.omo/ralph-loop.local.md` did NOT advance between iteration 3
-and iteration 4 (still iteration: 2, max_iterations: 500 per the
-file's metadata at lines 3-4); the directive metadata is owned by
-the orchestrator loop driver, not by `[internal]` continuation
-signals. The loop driver decides when to monotonically increment.
+Branch state: `master`, **109 commits ahead** of origin/master
+(Oracle verified; note previously had 104, off-by-5 due to late-
+arriving commits after Oracle round 4).
 
-Total: 28 commits across iterations 1-28; 1 bundle (iter 26:
+Total: 31 commits across iterations 1-31; 1 bundle (iter 26:
 `517b1144` combined discipline + heal_helper in one commit with
 discipline-only message — bundle violation of guardrail 1, flagged
 by Oracle round 4); all other commits single-concern. Each commit
 gated by `luac -p` + `lua EaxRotations/tests/run_rotation_tests.lua`
-per directive guardrail 2. The bundle was NOT fixed (reverting
-would have required 2+ commits to recreate the same state); instead
-it is documented in this note as a known violation.
+per directive guardrail 2.
+
+### Oracle round-5 gaps (ses_121ba9477ffeF5JzStBJ6qmF2c) and closures
+
+| Gap | Description | Status | Commit |
+|-----|-------------|--------|--------|
+| 1 | Bear test 127/128 at HEAD | CLOSED | `2587456c` |
+| 2 | Duplicate plan files in root `plans/` | CLOSED | `1697bf2e` |
+| 3 | Raw unit comparisons in warrior/protection (4 sites) | CLOSED | `8bc61b48` |
+| 4 | Raw unit comparisons in paladin/protection (2 sites) | CLOSED | `0f7bb1c9` |
+| 5 | Branch counter off by 1 | CLOSED | Note updated |
+| 6 | Track B (refactor Phase 2/3/4) skipped | DEFERRED | Out of iter scope; requires spec_kit prove-on-arms |
 
 ---
 
