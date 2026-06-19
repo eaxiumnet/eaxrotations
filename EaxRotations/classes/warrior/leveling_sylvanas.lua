@@ -59,7 +59,7 @@ function warrior_leveling.build_state(context)
 
     -- Warrior-specific spell readiness
     state.charge_ready = NS.spell_ready and NS.spell_ready(SPELLS.Charge) or false
-    state.rend_ready = L.spell_ready(SPELLS.Rend)
+    state.rend_ready = NS.spell_ready and NS.spell_ready(SPELLS.Rend) or false
     state.heroic_strike_ready = L.spell_ready(SPELLS.HeroicStrike)
     state.overpower_ready = L.spell_ready(SPELLS.Overpower)
     state.thunder_clap_ready = L.spell_ready(SPELLS.ThunderClap)
