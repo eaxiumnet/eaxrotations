@@ -1,4 +1,12 @@
 -- Rogue Combat priority list.
+-- WHAT:  dual-wield sword combat DPS (Sinister Strike / Backstab builders,
+--         Slice and Dice always rolling, Blade Flurry for cleave, Revealing
+--         Strike debuff uptime, Adrenaline Rush energy injection).
+-- WHEN:  in combat, in melee range, dual-wielding.
+-- WHY:   TBC combat consensus: SnD rolling > Evis at 4-5 CP > RS debuff
+--         (talented) > Blade Flurry AoE > Adrenaline Rush sustain.
+-- SAFETY: pattern 14 nil-guards. Energy / CP reads default to 0 to avoid
+--          finisher-skipped-false-positives.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
