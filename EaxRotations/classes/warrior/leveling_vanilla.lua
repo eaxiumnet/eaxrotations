@@ -138,7 +138,7 @@ local bloodrage_matches = function(context, state)
     if not state.bloodrage_ready then return false end
     local me = (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
     if not me then return false end
-    local ok, rage = pcall(function() return me:get_power(1) end)
+    local ok, rage = pcall(function() return me:get_power(NS.POWER_RAGE or 1) end)
     if ok and rage and rage > 20 then return false end  -- Enough rage already
     return true
 end
@@ -236,7 +236,7 @@ local heroic_strike_matches = function(context, state)
     if not state.target then return false end
     local me = (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
     if not me then return false end
-    local ok, rage = pcall(function() return me:get_power(1) end)
+    local ok, rage = pcall(function() return me:get_power(NS.POWER_RAGE or 1) end)
     if not ok or not rage then return false end
     if rage < 50 then return false end  -- Save rage for other abilities
     return true
