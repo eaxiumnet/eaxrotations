@@ -1,3 +1,12 @@
+-- Priest Holy group-healing priority list.
+-- WHAT:  raid-tier healer (Greater Heal ranks, Heal crit heals, Renew
+--         rolling, Circle of Healing + Binding Heal aoe heal, Prayer of
+--         Healing, light HoT overheal gate via absorb prediction).
+-- WHEN:  combat in group context with mana; OOC for buff maintenance.
+-- WHY:   TBC holy consensus: heal-rank chooser by mana/HP, Renew on the tank,
+--         CoH on 3+ injured, Prayer of Healing for group chip damage.
+-- SAFETY: pattern 14 nil-guards. heal-rank overlay (combat / OOC) per spec.
+
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end

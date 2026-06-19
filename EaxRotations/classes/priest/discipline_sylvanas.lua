@@ -1,4 +1,12 @@
 -- Priest Discipline group-healing priority list.
+-- WHAT:  PW:S shield rolling + Greater PW:S renew + Binding Heal / Penance
+--         for tank and party healing, Mana Burn emergency, offensive Penance
+--         / Smite for damage with borrowed time.
+-- WHEN:  combat with valid group; shield tracking from healing_sylvanas.
+-- WHY:   TBC disc consensus: keep PW:S up 100% on the tank, spot-heal Penance,
+--         Binding Heal when whole group clustered, mana tap vs damage trade.
+-- SAFETY: pattern 14 nil-guards. PW:S absorb points from NS.buff_points
+--          checked before overwriting (per AGENTS.md Pattern 11).
 
 local NS = _G.EaxRotations
 if not NS then return nil end
