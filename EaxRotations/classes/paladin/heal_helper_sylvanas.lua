@@ -152,7 +152,7 @@ local function is_rank_castable(spell_action)
         if player.mana_current then
             current_mana = player:mana_current() or 0
         elseif player.get_power then
-            current_mana = player:get_power(0) or 0  -- power_type 0 = Mana
+            current_mana = player:get_power(NS.POWER_MANA or 0) or 1
         end
         if current_mana < cost then return false end
     end
