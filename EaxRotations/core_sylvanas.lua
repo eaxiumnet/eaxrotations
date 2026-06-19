@@ -14,6 +14,13 @@ local NS = _G.EaxRotations or {}
 
 _G.EaxRotations = NS
 
+-- Install shared/player_helpers_sylvanas onto NS so shared modules can call
+-- NS.get_player() without re-rolling the NS.GetPlayer pcall wrapper.
+pcall(function()
+    local ph = require("shared/player_helpers_sylvanas")
+    if ph and type(ph.install) == "function" then ph.install(NS) end
+end)
+
 NS.core = core
 
 -- Expansion helpers (dual-version support for TBC and Classic)

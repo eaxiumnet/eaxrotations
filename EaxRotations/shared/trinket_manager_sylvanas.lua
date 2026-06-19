@@ -76,6 +76,7 @@ local function now_ms()
 end
 
 local function get_player()
+    if NS and type(NS.get_player) == "function" then return NS.get_player() end
     return NS and NS.GetPlayer and NS.GetPlayer() or nil
 end
 
