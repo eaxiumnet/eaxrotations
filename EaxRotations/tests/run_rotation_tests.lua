@@ -24,6 +24,7 @@ local tests = {
     -- Hunter tests
     "test_hunter_aspect_matches.lua",
     "test_pet_happiness.lua",
+    "test_hunter_pet_manager_wiring.lua",
 
     -- Priest tests
     "test_priest_holy_custom_matches.lua",
