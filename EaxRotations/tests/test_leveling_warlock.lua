@@ -1716,6 +1716,27 @@ do
     local state2 = get_state(ctx2)
     state2.summon_felguard_ready = true
     assert_false(strategies[6].matches(ctx2, state2), "summonpet OOC -> no match")
+
+    -- SummonPet: OOC, no shards, Imp ready -> true (Imp is free for leveling)
+    local ctx3 = make_context({in_combat = false})
+    ctx3.pet = nil
+    local state3 = get_state(ctx3)
+    state3.summon_imp_ready = true
+    state3.summon_felguard_ready = true
+    local saved_has_item = NS.has_item
+    NS.has_item = function(id) return false end
+    assert_true(strategies[6].matches(ctx3, state3), "summonpet OOC Imp ready no shards -> match (Imp is free)")
+    NS.has_item = saved_has_item
+
+    -- SummonPet: OOC, no shards, only Felguard ready -> false (shard pet blocked)
+    local ctx4 = make_context({in_combat = false})
+    ctx4.pet = nil
+    local state4 = get_state(ctx4)
+    state4.summon_imp_ready = false
+    state4.summon_felguard_ready = true
+    NS.has_item = function(id) return false end
+    assert_false(strategies[6].matches(ctx4, state4), "summonpet OOC felguard no shards -> no match")
+    NS.has_item = saved_has_item
 end
 
 -- ============================================================================
