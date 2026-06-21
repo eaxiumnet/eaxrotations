@@ -174,15 +174,16 @@ local function summon_pet_matches(context, state)
     if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if context.pet then return false end
-    -- Allow OOC summon (pet died after last fight) or combat resummon
+    -- Leveling: Imp is free (no shard) and gives Blood Pact stamina buff — prefer it first
+    if state.summon_imp_ready then return true end
+    -- Shard-costing pets (VW, Succubus, Felhunter, Felguard): require Soul Shard (6265) when OOC
     if not state.in_combat and not NS.has_item then return false end
     if not state.in_combat and NS.has_item and not NS.has_item(6265) then return false end
-    -- Try highest-level summon first
-    if state.summon_felguard_ready then return true end
-    if state.summon_felhunter_ready then return true end
-    if state.summon_succubus_ready then return true end
+    -- Try remaining pets in order of leveling usefulness
     if state.summon_voidwalker_ready then return true end
-    if state.summon_imp_ready then return true end
+    if state.summon_succubus_ready then return true end
+    if state.summon_felhunter_ready then return true end
+    if state.summon_felguard_ready then return true end
     return false
 end
 
@@ -382,24 +383,24 @@ local strategies = {
       matches = health_funnel_matches,
       execute = function(context) if not context then return false end; return try_cast(SPELLS.HealthFunnel, context.pet, "[LEVELING] Health Funnel") end },
 
-    -- Pet resummon: try highest-level summon available (combat only, requires enemy target)
+    -- Pet resummon: try Imp first (free, stamina buff), then shard pets by leveling usefulness
     { name = "SummonPet", matches = summon_pet_matches,
       execute = function(context)
         if not context then return false end
-        if SPELLS.SummonFelguard and safe_is_spell_ready(SPELLS.SummonFelguard, nil, { skip_range = true }) then
-            return try_cast(SPELLS.SummonFelguard, NS.PLAYER_UNIT, "[LEVELING] Summon Felguard", { skip_range = true })
-        end
-        if SPELLS.SummonFelhunter and safe_is_spell_ready(SPELLS.SummonFelhunter, nil, { skip_range = true }) then
-            return try_cast(SPELLS.SummonFelhunter, NS.PLAYER_UNIT, "[LEVELING] Summon Felhunter", { skip_range = true })
-        end
-        if SPELLS.SummonSuccubus and safe_is_spell_ready(SPELLS.SummonSuccubus, nil, { skip_range = true }) then
-            return try_cast(SPELLS.SummonSuccubus, NS.PLAYER_UNIT, "[LEVELING] Summon Succubus", { skip_range = true })
+        if SPELLS.SummonImp and safe_is_spell_ready(SPELLS.SummonImp, nil, { skip_range = true }) then
+            return try_cast(SPELLS.SummonImp, NS.PLAYER_UNIT, "[LEVELING] Summon Imp", { skip_range = true })
         end
         if SPELLS.SummonVoidwalker and safe_is_spell_ready(SPELLS.SummonVoidwalker, nil, { skip_range = true }) then
             return try_cast(SPELLS.SummonVoidwalker, NS.PLAYER_UNIT, "[LEVELING] Summon Voidwalker", { skip_range = true })
         end
-        if SPELLS.SummonImp and safe_is_spell_ready(SPELLS.SummonImp, nil, { skip_range = true }) then
-            return try_cast(SPELLS.SummonImp, NS.PLAYER_UNIT, "[LEVELING] Summon Imp", { skip_range = true })
+        if SPELLS.SummonSuccubus and safe_is_spell_ready(SPELLS.SummonSuccubus, nil, { skip_range = true }) then
+            return try_cast(SPELLS.SummonSuccubus, NS.PLAYER_UNIT, "[LEVELING] Summon Succubus", { skip_range = true })
+        end
+        if SPELLS.SummonFelhunter and safe_is_spell_ready(SPELLS.SummonFelhunter, nil, { skip_range = true }) then
+            return try_cast(SPELLS.SummonFelhunter, NS.PLAYER_UNIT, "[LEVELING] Summon Felhunter", { skip_range = true })
+        end
+        if SPELLS.SummonFelguard and safe_is_spell_ready(SPELLS.SummonFelguard, nil, { skip_range = true }) then
+            return try_cast(SPELLS.SummonFelguard, NS.PLAYER_UNIT, "[LEVELING] Summon Felguard", { skip_range = true })
         end
         return false
       end },
