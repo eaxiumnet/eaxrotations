@@ -110,6 +110,56 @@ assert_true(cold_snap.matches(ctx_cs_low_hp), "ColdSnap should match when HP <= 
 assert_false(cold_snap.matches({}), "ColdSnap should not match when me is nil")
 
 -- ============================================================================
+-- Water Elemental: should NOT match when pet already active
+-- ============================================================================
+
+local water_ele = find_strategy("WaterElemental")
+
+-- Pet already active -> should NOT match
+action_calls = {}
+assert_false(water_ele.matches({
+    in_combat = true, ttd_known = true, ttd = 60, settings = { use_cooldowns = true },
+}, {
+    has_water_elemental = true, water_elemental_ready = true, in_combat = true,
+}), "WaterElemental should not match when pet already active")
+
+-- No pet, in combat, TTD sufficient -> should match
+action_calls = {}
+assert_true(water_ele.matches({
+    in_combat = true, ttd_known = true, ttd = 60, settings = { use_cooldowns = true },
+}, {
+    has_water_elemental = false, water_elemental_ready = true, in_combat = true,
+}), "WaterElemental should match when no pet and in combat")
+
+-- ============================================================================
+-- Cold Snap: DPS path (double-pet / double-IV)
+-- ============================================================================
+
+-- DPS: no pet, WE on CD -> should match (even with high HP)
+action_calls = {}
+local ctx_cs_dps_pet = {
+    me = { get_health_percentage = function() return 80 end },
+}
+assert_true(cold_snap.matches(ctx_cs_dps_pet, {
+    in_combat = true, has_water_elemental = false, water_elemental_ready = false, icy_veins_ready = true,
+}), "ColdSnap should match for DPS double-pet even at high HP")
+
+-- DPS: IV on CD -> should match (even with high HP)
+action_calls = {}
+local ctx_cs_dps_iv = {
+    me = { get_health_percentage = function() return 80 end },
+}
+assert_true(cold_snap.matches(ctx_cs_dps_iv, {
+    in_combat = true, has_water_elemental = true, water_elemental_ready = true, icy_veins_ready = false,
+}), "ColdSnap should match for DPS double-IV even at high HP")
+
+-- DPS: not in combat -> should NOT match
+action_calls = {}
+assert_false(cold_snap.matches(ctx_cs_dps_pet, {
+    in_combat = false, has_water_elemental = false, water_elemental_ready = false, icy_veins_ready = true,
+}), "ColdSnap should not match DPS path when not in combat")
+
+-- ============================================================================
 -- Frost Nova: only when target is not rooted and within 10 yards
 -- ============================================================================
 
