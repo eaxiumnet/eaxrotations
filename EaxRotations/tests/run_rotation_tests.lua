@@ -140,6 +140,9 @@ local tests = {
     "test_combat_custom_matches.lua",
     "test_assassination_dagger_requirement.lua",
 
+    -- Shaman
+    "test_elemental_clearcast_priority.lua",
+
     -- FrostByte gap coverage tests
     "test_balance_faerie_fire.lua",
     "test_balance_war_stomp.lua",
