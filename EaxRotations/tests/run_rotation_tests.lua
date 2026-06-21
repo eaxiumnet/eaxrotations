@@ -119,6 +119,7 @@ local tests = {
     "test_paladin_tbc_seals.lua",
     "test_paladin_throttle_regression.lua",
     "test_paladin_consecration_downrank.lua",
+    "test_paladin_avenger_shield_opener.lua",
 
     -- Mage
     "test_arcane_custom_matches.lua",

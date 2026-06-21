@@ -93,6 +93,7 @@ return {
                     { key = "prot_consecration_targets", type = "slider", label = "Consecration Min Targets", min = 1, max = 6, default = 3, tooltip = "Minimum enemies to cast Consecration in combat" },
                     { key = "prot_consecration_min_mana", type = "slider", label = "Consecration Min Mana %", min = 0, max = 100, default = 35, tooltip = "Minimum mana to cast Consecration" },
                     { key = "prot_avenger_shield", type = "checkbox", label = "Avenger's Shield", default = true, tooltip = "Use Avenger's Shield for pulling and threat" },
+                    { key = "prot_avenger_opener", type = "checkbox", label = "Avenger's Shield Pre-Pull", default = true, tooltip = "Cast Avenger's Shield before combat as an opener" },
                     { key = "prot_holy_wrath", type = "checkbox", label = "Holy Wrath", default = true, tooltip = "Use Holy Wrath on undead/demon AoE pulls" },
                 },
             },

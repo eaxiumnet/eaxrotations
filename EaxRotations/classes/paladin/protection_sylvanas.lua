@@ -268,10 +268,16 @@ end
 
 local function avenger_shield_matches(context, state)
     if not get_setting(context, "prot_avenger_shield", true) then return false end
-    if not has_combat_target(context) then return false end
     if not state.avenger_ready then return false end
     -- Skip Avenger's Shield near CC'd mobs (bouncing breaks CC)
     if state.cc_nearby then return false end
+    -- Opener mode: pre-pull when target exists but not yet in combat
+    local is_opener = get_setting(context, "prot_avenger_opener", true)
+        and context.has_valid_enemy_target
+        and not context.in_combat
+    -- Normal mode: in combat with valid target
+    local in_combat = context.has_valid_enemy_target and context.in_combat
+    if not (is_opener or in_combat) then return false end
     return true
 end
 
