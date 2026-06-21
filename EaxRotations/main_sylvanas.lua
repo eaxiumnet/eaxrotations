@@ -1130,6 +1130,16 @@ function M.on_rotation_update()
     context.active_playstyle = active
     log_expansion_once(config, active)
     local class_key = config and config.class_key
+
+    -- Pet manager update (hunter only): runs every frame to keep pet attacking target
+    -- and casting pet abilities (Growl, Claw, Bite, etc.) on cooldown.
+    if class_key == "hunter" and context.me then
+        local _pm_ok, pet_manager = pcall(require, "shared/pet_manager_sylvanas")
+        if _pm_ok and pet_manager and pet_manager.on_update then
+            pet_manager.on_update(context.me, context.target, active)
+        end
+    end
+
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
         return true
     end
@@ -1195,6 +1205,16 @@ function M.on_rotation_update_unified()
     context.active_playstyle = active
     log_expansion_once(config, active)
     local class_key = config and config.class_key
+
+    -- Pet manager update (hunter only): runs every frame to keep pet attacking target
+    -- and casting pet abilities (Growl, Claw, Bite, etc.) on cooldown.
+    if class_key == "hunter" and context.me then
+        local _pm_ok, pet_manager = pcall(require, "shared/pet_manager_sylvanas")
+        if _pm_ok and pet_manager and pet_manager.on_update then
+            pet_manager.on_update(context.me, context.target, active)
+        end
+    end
+
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
         return true
     end
