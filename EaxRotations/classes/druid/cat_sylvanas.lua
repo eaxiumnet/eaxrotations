@@ -179,8 +179,12 @@ end
 
 
 local function get_attack_power(context, me)
-    -- context.attack_power is now wired in build_context()
     if context and type(context.attack_power) == "number" then return context.attack_power end
+    -- Defensive fallback: query the unit object directly if context didn't provide it
+    if me and type(me.get_attack_power) == "function" then
+        local ok, ap = pcall(function() return me:get_attack_power() end)
+        if ok and type(ap) == "number" then return ap end
+    end
     return 0
 end
 
