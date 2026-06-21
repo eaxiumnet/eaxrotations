@@ -138,6 +138,7 @@ local tests = {
 
     -- Rogue
     "test_combat_custom_matches.lua",
+    "test_assassination_dagger_requirement.lua",
 
     -- FrostByte gap coverage tests
     "test_balance_faerie_fire.lua",
