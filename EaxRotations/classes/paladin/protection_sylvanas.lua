@@ -31,6 +31,27 @@ local CONSECRATION_MIN_MANA = 35
 local CONSECRATION_AOE_THRESHOLD = 3
 
 -- ============================================================================
+-- Consecration downrank table: { min_mana_pct, spell_id }
+-- Ordered from highest rank to lowest. Pick first entry where mana >= threshold.
+-- ============================================================================
+local CONSECRATION_DOWNRANK = {
+    { 60, 27173 },  -- R6 (lvl 70)
+    { 50, 20924 },  -- R5 (lvl 60)
+    { 40, 20923 },  -- R4 (lvl 50)
+    { 35, 20922 },  -- R3 (lvl 40)
+}
+
+local function get_consecration_id_for_mana(mana_pct)
+    mana_pct = mana_pct or 100
+    for i = 1, #CONSECRATION_DOWNRANK do
+        if mana_pct >= CONSECRATION_DOWNRANK[i][1] then
+            return CONSECRATION_DOWNRANK[i][2]
+        end
+    end
+    return nil  -- Below minimum floor, don't cast
+end
+
+-- ============================================================================
 -- Settings helper
 -- ============================================================================
 local get_setting = NS.setting
@@ -460,7 +481,14 @@ local strategies = {
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
     -- Buff maintenance (no target needed, check once)
 { name = "RighteousFury", matches = righteous_fury_matches, execute = function(context) return NS.try_cast(SPELLS.RighteousFury, context.me, "[PROTECTION] RighteousFury") end },
-    { name = "Consecration", matches = consecration_matches, execute = function(context) return NS.try_cast(SPELLS.Consecration, context.me, "[PROTECTION] Consecration") end },
+    { name = "Consecration", matches = consecration_matches, execute = function(context)
+        local mana_pct = context.mana_pct or (context.me and NS.unit_mana_pct and NS.unit_mana_pct(context.me)) or 100
+        local downrank_id = get_consecration_id_for_mana(mana_pct)
+        if downrank_id then
+            return NS.try_cast(downrank_id, context.me, "[PROTECTION] Consecration (downranked)")
+        end
+        return NS.try_cast(SPELLS.Consecration, context.me, "[PROTECTION] Consecration")
+    end },
     { name = "HolyShield", matches = holy_shield_matches, execute = function(context) return NS.try_cast(SPELLS.HolyShield, context.me, "[PROTECTION] HolyShield") end },
     { name = "AvengerShield", matches = avenger_shield_matches, execute = function(context) return NS.try_cast(SPELLS.AvengerShield, context.target, "[PROTECTION] AvengerShield") end },
     { name = "Judgement", matches = judgement_matches, execute = function(context) return NS.try_cast(SPELLS.Judgement, context.target, "[PROTECTION] Judgement") end },
