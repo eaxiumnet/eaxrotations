@@ -113,6 +113,8 @@ local function needs_felguard(context, action)
     if not me then return false end
     if not NS.is_spell_learned or not NS.is_spell_learned(30146) then return false end
     if context.in_combat then return false end
+    -- Do NOT summon if Demonic Sacrifice aura is already active
+    if NS.buff_up and NS.buff_up(me, {18789, 18790, 18791, 18792, 35701}) then return false end
     local ok, has_pet = pcall(function() return me:has_pet() end)
     if not ok then
         if _G.izi and _G.izi.pet then
@@ -127,6 +129,25 @@ local function needs_felguard(context, action)
         return true
     end
     return false
+end
+
+local function needs_imp_fallback(context)
+    local me = context.me
+    if not me then return false end
+    if context.in_combat then return false end
+    if NS.is_spell_learned and NS.is_spell_learned(30146) then return false end
+    -- Do NOT re-summon if Demonic Sacrifice aura is already active
+    if NS.buff_up and NS.buff_up(me, {18789, 18790, 18791, 18792, 35701}) then return false end
+    local ok, has_pet = pcall(function() return me:has_pet() end)
+    if not ok then
+        if _G.izi and _G.izi.pet then
+            local pet = _G.izi.pet()
+            if pet and pet:is_valid() then return false end
+        end
+    elseif has_pet then
+        return false
+    end
+    return NS.is_spell_learned and NS.is_spell_learned(688)
 end
 
 local function pet_needs_healing(context)
@@ -378,6 +399,7 @@ local strategies = {
       execute = function() return pet_manager.set_aggressive() end },
     { name = "FelArmor", matches = fel_armor_matches, execute = function(context) return NS.try_cast(SPELLS.FelArmor, context.me, "[DEMONOLOGY] Fel Armor", { skip_range = true }) end },
     { name = "SummonFelguard", matches = function(context) return needs_felguard(context, { name = "SummonFelguard", spell = SPELLS.SummonFelguard }) end, execute = function(context) return NS.try_cast(SPELLS.SummonFelguard, context.me, "[DEMONOLOGY] Summon Felguard", { skip_range = true }) end },
+    { name = "SummonImp", matches = function(context) return needs_imp_fallback(context) end, execute = function(context) return NS.try_cast(SPELLS.SummonImp, context.me, "[DEMONOLOGY] Summon Imp", { skip_range = true }) end },
     { name = "FelDomination", matches = fel_domination_matches, execute = function(context) return NS.try_cast(SPELLS.FelDomination, context.me, "[DEMONOLOGY] Fel Domination", { skip_range = true, expected_cooldown = 900 }) end },
     { name = "HealthFunnel", matches = health_funnel_matches, execute = function(context) return NS.try_cast(SPELLS.HealthFunnel, context.pet or context.me, "[DEMONOLOGY] Health Funnel") end },
     { name = "CurseOfDoom", matches = curse_of_doom_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfDoom, context.target, "[DEMONOLOGY] Curse of Doom", { expected_cooldown = 60 }) end },

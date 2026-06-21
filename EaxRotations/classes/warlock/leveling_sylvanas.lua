@@ -173,9 +173,10 @@ end
 local function summon_pet_matches(context, state)
     if not leveling_context_allowed(context) then return false end
     if not state then return false end
-    if not state.in_combat then return false end
-    if not state.target then return false end  -- Must have an enemy to fight
-    if context.pet then return false end  -- Pet is alive, no need to summon
+    if context.pet then return false end
+    -- Allow OOC summon (pet died after last fight) or combat resummon
+    if not state.in_combat and not NS.has_item then return false end
+    if not state.in_combat and NS.has_item and not NS.has_item(6265) then return false end
     -- Try highest-level summon first
     if state.summon_felguard_ready then return true end
     if state.summon_felhunter_ready then return true end

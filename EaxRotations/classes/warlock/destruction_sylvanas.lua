@@ -14,6 +14,7 @@ local BACKLASH_BUFF = { 34936, 34935 }
 local FEL_ARMOR_BUFF = { 28189, 28176 }
 local DEMON_ARMOR_BUFF = { 27260, 11735, 11734, 11733, 1086, 706, 687, 696 }
 local SHADOW_WARD_BUFF = { 28610, 11740, 11739, 6229 }
+local DEMONIC_SACRIFICE_AURA_ALL = { 18789, 18790, 18791, 18792, 35701 }
 
 -- Local spell actions for spells not exposed in NS.WarlockSpells
 local DemonArmorSpell = NS.spell_action({ 27260, 11735, 11734, 11733, 1086, 706, 687 }, "DemonArmor")
@@ -28,6 +29,7 @@ local RainOfFire = NS.spell_action({ 27212, 17954, 17953, 5740 }, "RainOfFire")
 local Hellfire = NS.spell_action({ 27213, 11684, 11683, 1949 }, "Hellfire")
 local SeedOfCorruption = NS.spell_action({ 27243 }, "SeedOfCorruption")
 local CreateHealthstone = NS.spell_action({ 27230, 11730, 11729, 6202, 6201, 5699 }, "CreateHealthstone")
+local DemonicSacrifice = NS.spell_action({ 18788 }, "DemonicSacrifice")
 local SummonImp = NS.spell_action({ 688 }, "SummonImp")
 local SummonVoidwalker = NS.spell_action({ 697 }, "SummonVoidwalker")
 local SummonSuccubus = NS.spell_action({ 712 }, "SummonSuccubus")
@@ -55,10 +57,13 @@ local function build_state(context)
         cod_remains = target and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF) or 0,
         coa_remains = target and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF) or 0,
         has_backlash = me and NS.buff_up(me, BACKLASH_BUFF) or false,
+        -- Backdraft (Conflagrate instant-followup proc) is a Wrath-era talent;
+        -- not present in TBC Classic Anniversary 2.5.5 DBC. Kept as false for compatibility.
         has_backdraft = false,
         has_fel_armor = me and NS.buff_up(me, FEL_ARMOR_BUFF) or false,
         has_demon_armor = me and NS.buff_up(me, DEMON_ARMOR_BUFF) or false,
         has_shadow_ward = me and NS.buff_up(me, SHADOW_WARD_BUFF) or false,
+        has_demonic_sacrifice = me and NS.buff_up(me, DEMONIC_SACRIFICE_AURA_ALL) or false,
         hp = context.hp or 100,
         mana_pct = context.mana_pct or 100,
         mana_gem_id = nil,
@@ -111,6 +116,7 @@ local ACTIONS = {
     -- CC / Emergency
     { name = "DeathCoil", spell = SPELLS.DeathCoil, max_hp = 35, cooldown = 120 },
     { name = "Fear", spell = Fear, cooldown = 15, target_not_player = true },
+    { name = "DemonicSacrifice", spell = DemonicSacrifice, target = "self", ooc = true, requires_target = false },
     -- Pet summons
     { name = "SummonImp", spell = SummonImp, target = "self", ooc = true, requires_target = false },
     { name = "SummonVoidwalker", spell = SummonVoidwalker, target = "self", ooc = true, requires_target = false },
@@ -270,9 +276,21 @@ end
 local function summon_pet_matches(context, action, state)
     if context.in_combat then return false end
     if context.has_valid_enemy_target then return false end
+    -- Do NOT re-summon if Demonic Sacrifice aura is already active
+    if state and state.has_demonic_sacrifice then return false end
     local pet = NS.GetPet()
     if pet and NS.unit_alive(pet) then return false end
     return true
+end
+
+local function demonic_sacrifice_imp_matches(context, action, state)
+    if context.in_combat then return false end
+    if context.has_valid_enemy_target then return false end
+    -- Only sac when we have a pet alive and no DS aura yet
+    if state and state.has_demonic_sacrifice then return false end
+    local pet = NS.GetPet()
+    if not pet or not NS.unit_alive(pet) then return false end
+    return NS.spell_ready(DemonicSacrifice, context.me, { skip_range = true })
 end
 
 local function death_coil_matches(context, action, state)
@@ -340,6 +358,8 @@ for i = 1, #ACTIONS do
         custom_matches = function(context, state) return death_coil_matches(context, action, state) end
     elseif action.name == "Fear" then
         custom_matches = function(context, state) return fear_matches(context, action, state) end
+    elseif action.name == "DemonicSacrifice" then
+        custom_matches = function(context, state) return demonic_sacrifice_imp_matches(context, action, state) end
     elseif action.name == "SummonImp" or action.name == "SummonVoidwalker" or action.name == "SummonSuccubus" or action.name == "SummonFelhunter" or action.name == "SummonFelguard" then
         custom_matches = function(context, state) return summon_pet_matches(context, action, state) end
     elseif action.enemy_count then

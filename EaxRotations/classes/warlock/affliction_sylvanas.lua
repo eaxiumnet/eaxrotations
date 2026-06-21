@@ -179,6 +179,8 @@ local function build_state(context)
                 aff_state.pet_health = 100
                 aff_state.pet_mana = 100
             end
+            aff_state.has_pet = aff_state.pet_alive
+            aff_state.has_demonic_sacrifice = context.me and NS.buff_up and NS.buff_up(context.me, {18789, 18790, 18791, 18792, 35701}) or false
             -- Amplify Curse readiness
             aff_state.amplify_curse_ready = NS.spell_ready(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, { skip_range = true })
 	    aff_state.spell_damage = context.spell_damage or 0  -- Current spell damage from NS (provided by middleware or character API)
@@ -898,6 +900,21 @@ local strategies = {
         end,
         execute = function()
             return NS.try_cast(LOCAL_SPELLS.CreateSoulstone, NS.PLAYER_UNIT, "[AFFL] Create Soulstone (self-buff)")
+        end,
+    },
+
+    {
+        name = "SummonFelhunter",
+        matches = function(context, state)
+            if context.in_combat then return false end
+            if context.has_valid_enemy_target then return false end
+            if state and state.has_pet then return false end
+            -- Do NOT re-summon if Demonic Sacrifice aura is already active
+            if state and state.has_demonic_sacrifice then return false end
+            return NS.is_spell_learned and NS.is_spell_learned(691)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.SummonFelhunter, NS.PLAYER_UNIT, "[AFFL] Summon Felhunter", { skip_range = true })
         end,
     },
 
