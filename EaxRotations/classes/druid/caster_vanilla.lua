@@ -117,6 +117,6 @@ local strategies = {
       execute = function(context) return NS.try_cast(SPELLS.Wrath, context.target, "[CASTER] Wrath") end },
 }
 
-NS.rotation_registry:register("druid_caster_vanilla", strategies, { get_state = build_state })
+NS.rotation_registry:register("caster", strategies, { get_state = build_state })
 if NS.log then NS.log("Druid caster vanilla rotation registered") end
 return strategies
