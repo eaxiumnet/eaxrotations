@@ -14,6 +14,7 @@ local CURSE_OF_DOOM_DEBUFF = { 30910, 603 }
 local CORRUPTION_DEBUFF = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
 local IMMOLATE_DEBUFF = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local FEL_ARMOR_BUFF = { 28189, 28176 }
+local SOUL_LINK_BUFF = { 25228 }
 local CURSE_OF_AGONY_DEBUFF = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
 local PET_LOW_HP = 30
@@ -54,6 +55,8 @@ local demo_state = {
     curse_of_elements_ready = false,
     dark_pact_ready = false,
     drain_soul_ready = false,
+    soul_link_ready = false,
+    has_soul_link = false,
     target_hp_pct = 100,
 }
 
@@ -100,6 +103,8 @@ local function build_state(context)
     demo_state.curse_of_elements_ready = target and NS.spell_ready(SPELLS.CurseElements, target) or false
     demo_state.dark_pact_ready = me and NS.spell_ready(SPELLS.DarkPact, me, { skip_range = true, expected_cooldown = 10 }) or false
     demo_state.drain_soul_ready = target and NS.spell_ready(SPELLS.DrainSoul, target) or false
+    demo_state.soul_link_ready = me and NS.spell_ready(25228, me, { skip_range = true }) or false
+    demo_state.has_soul_link = me and NS.buff_up and NS.buff_up(me, SOUL_LINK_BUFF) or false
     demo_state.target_hp_pct = target and target.get_health_percentage and target:get_health_percentage() or 100
 
     return demo_state
@@ -356,6 +361,16 @@ local function drain_soul_matches(context, s)
     return true
 end
 
+local function soul_link_matches(context, s)
+    if not s then return false end
+    -- Only maintain Soul Link when a pet is present
+    if not s.has_pet then return false end
+    -- Don't recast if already active
+    if s.has_soul_link then return false end
+    if not s.soul_link_ready then return false end
+    return true
+end
+
 -- ============================================================================
 -- Strategies
 -- ============================================================================
@@ -398,6 +413,7 @@ local strategies = {
       end,
       execute = function() return pet_manager.set_aggressive() end },
     { name = "FelArmor", matches = fel_armor_matches, execute = function(context) return NS.try_cast(SPELLS.FelArmor, context.me, "[DEMONOLOGY] Fel Armor", { skip_range = true }) end },
+    { name = "SoulLink", matches = soul_link_matches, execute = function(context) return NS.try_cast(25228, context.me, "[DEMONOLOGY] Soul Link", { skip_range = true }) end },
     { name = "SummonFelguard", matches = function(context) return needs_felguard(context, { name = "SummonFelguard", spell = SPELLS.SummonFelguard }) end, execute = function(context) return NS.try_cast(SPELLS.SummonFelguard, context.me, "[DEMONOLOGY] Summon Felguard", { skip_range = true }) end },
     { name = "SummonImp", matches = function(context) return needs_imp_fallback(context) end, execute = function(context) return NS.try_cast(SPELLS.SummonImp, context.me, "[DEMONOLOGY] Summon Imp", { skip_range = true }) end },
     { name = "FelDomination", matches = fel_domination_matches, execute = function(context) return NS.try_cast(SPELLS.FelDomination, context.me, "[DEMONOLOGY] Fel Domination", { skip_range = true, expected_cooldown = 900 }) end },
