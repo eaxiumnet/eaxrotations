@@ -49,13 +49,25 @@ local function ice_block_matches(context)
     return true
 end
 
-local function cold_snap_matches(context)
+local function cold_snap_matches(context, s)
+    s = s or {}
     local me = context.me
     if not me then return false end
-    if me and NS.spell_ready(SPELLS.IceBlock, me) then return false end
-    local hp = me.get_health_percentage and me:get_health_percentage() or 100
-    if hp > 35 then return false end
-    return true
+    -- Defensive path: Ice Block on cooldown, low HP
+    if not (me and NS.spell_ready(SPELLS.IceBlock, me)) then
+        local hp = me.get_health_percentage and me:get_health_percentage() or 100
+        if hp <= 35 then return true end
+    end
+    -- DPS path: double-pet or double-IV
+    if s.in_combat then
+        if not s.has_water_elemental and not s.water_elemental_ready then
+            return true
+        end
+        if not s.icy_veins_ready then
+            return true
+        end
+    end
+    return false
 end
 
 local function frost_nova_matches(context)
@@ -206,7 +218,14 @@ local function build_state(context)
     frost_state.frostbite_active = target and NS.debuff_up and NS.debuff_up(target, FROSTBITE_DEBUFF) or false
     local target_rooted = target and NS.debuff_up and NS.debuff_up(target, FROST_NOVA_ROOTS) or false
     frost_state.target_frozen = frost_state.frostbite_active or target_rooted
-    frost_state.mana_gem_available = first_ready_mana_gem() ~= nil
+    frost_state.has_water_elemental = false
+    if me and me.has_pet then
+        local ok_pet, pet = pcall(function() return me:get_pet() end)
+        if ok_pet and pet and pet.is_valid then
+            local ok_valid, valid = pcall(function() return pet:is_valid() end)
+            frost_state.has_water_elemental = ok_valid and valid or false
+        end
+    end
     frost_state.ice_barrier_remains = me and (NS.buff_remains and NS.buff_remains(me, ICE_BARRIER_BUFF)) or 999
 
     return frost_state
@@ -229,8 +248,8 @@ local function ice_block_wrapper(context)
     return ice_block_matches(context)
 end
 
-local function cold_snap_wrapper(context)
-    return cold_snap_matches(context)
+local function cold_snap_wrapper(context, s)
+    return cold_snap_matches(context, s)
 end
 
 local function icy_veins_matches(context, s)
@@ -246,6 +265,7 @@ end
 local function water_elemental_matches(context, s)
     if context.settings and context.settings.use_cooldowns == false then return false end
     if not s.in_combat then return false end
+    if s.has_water_elemental then return false end
     if not s.water_elemental_ready then return false end
     -- TTD gate: don't waste 3min CD on a dying target
     if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
