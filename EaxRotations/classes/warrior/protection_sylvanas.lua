@@ -75,6 +75,8 @@ end
 -- Static tables reused every frame — zero garbage
 local _threat_enemies = {}
 local _threat_enemy_count = 0
+local _last_threat_scan = 0
+local _threat_scan_interval = 0.2  -- Throttle: max 5 scans/sec
 
 local function get_threat_targets(context, me, target)
     _threat_enemy_count = 0
@@ -247,36 +249,40 @@ local function build_state(context)
 
     -- Threat tab targeting: scan nearby enemies for Taunt/MockingBlow cycling
     if prot_state.in_combat and setting(context, "prot_tab_targeting", true) then
-        local nearby, nearby_count = get_threat_targets(context, me, target)
-        prot_state.nearby_enemies = nearby
-        prot_state.nearby_count = nearby_count
-        -- Find first enemy not targeting us (has no aggro on tank)
-        prot_state.no_threat_target = nil
-        for i = 1, nearby_count do
-            local enemy = nearby[i]
-            if enemy then
-                local ok_t, enemy_target = pcall(function()
-                    if enemy.get_target then return enemy:get_target() end
-                    return nil
-                end)
-                if ok_t and NS.not_same_unit(enemy_target, me) then
-                    -- HP gate: don't taunt a target at <5% HP (waste of CD)
-                    local ok_hp, enemy_hp = pcall(function()
-                        return NS.unit_health_pct(enemy)
+        local now = (core and core.time and core.time()) or 0
+        if now - _last_threat_scan >= _threat_scan_interval then
+            _last_threat_scan = now
+            local nearby, nearby_count = get_threat_targets(context, me, target)
+            prot_state.nearby_enemies = nearby
+            prot_state.nearby_count = nearby_count
+            -- Find first enemy not targeting us (has no aggro on tank)
+            prot_state.no_threat_target = nil
+            for i = 1, nearby_count do
+                local enemy = nearby[i]
+                if enemy then
+                    local ok_t, enemy_target = pcall(function()
+                        if enemy.get_target then return enemy:get_target() end
+                        return nil
                     end)
-                    if ok_hp and (enemy_hp or 100) < 5 then
-                        -- Skip low-HP targets — they'll die before taunt matters
-                    else
-                        -- TTD gate: don't taunt a target about to die
-                        local ttd_ok = true
-                        if context.ttd_known == false then
-                            -- No TTD data, safe to taunt
-                        elseif (context.ttd or 999) < 8 then
-                            ttd_ok = false
-                        end
-                        if ttd_ok then
-                            prot_state.no_threat_target = enemy
-                            break
+                    if ok_t and NS.not_same_unit(enemy_target, me) then
+                        -- HP gate: don't taunt a target at <5% HP (waste of CD)
+                        local ok_hp, enemy_hp = pcall(function()
+                            return NS.unit_health_pct(enemy)
+                        end)
+                        if ok_hp and (enemy_hp or 100) < 5 then
+                            -- Skip low-HP targets — they'll die before taunt matters
+                        else
+                            -- TTD gate: don't taunt a target about to die
+                            local ttd_ok = true
+                            if context.ttd_known == false then
+                                -- No TTD data, safe to taunt
+                            elseif (context.ttd or 999) < 8 then
+                                ttd_ok = false
+                            end
+                            if ttd_ok then
+                                prot_state.no_threat_target = enemy
+                                break
+                            end
                         end
                     end
                 end
