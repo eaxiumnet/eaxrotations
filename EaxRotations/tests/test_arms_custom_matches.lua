@@ -123,14 +123,25 @@ spell_ready_calls = {}
 assert_true(ms.matches({ target = {}, stance = 1, rage = 30 }), "MortalStrike should always delegate to spell_ready")
 assert_true(#spell_ready_calls > 0, "spell_ready should be called for MortalStrike (build_state + match)")
 
--- ============================================================================
--- Heroic Strike: delegates to action_matches (no custom gate)
--- ============================================================================
+-- ============================================================================-- Heroic Strike: rage threshold and starvation logic-- ============================================================================
 
 local hs = find_strategy("HeroicStrike")
+
+-- Below 70-rage threshold -> should NOT match
 action_calls = {}
 spell_ready_calls = {}
-assert_true(hs.matches({ target = {}, rage = 60, me = {} }), "HeroicStrike should always delegate to spell_ready")
-assert_true(#spell_ready_calls > 0, "spell_ready should be called for HeroicStrike (build_state + match)")
+assert_false(hs.matches({ target = {}, rage = 65, me = {} }), "HeroicStrike should not match below 70 rage")
+
+-- At threshold -> should match
+action_calls = {}
+spell_ready_calls = {}
+assert_true(hs.matches({ target = {}, rage = 75, me = {} }), "HeroicStrike should match at 75 rage")
+
+-- Starvation guard wired: MS imminent with 70 rage is safe -> should match
+action_calls = {}
+spell_ready_calls = {}
+_G.EaxRotations.cooldown_remains = function(spell, fallback) return 0.5 end
+assert_true(hs.matches({ target = {}, rage = 75, me = {} }), "HeroicStrike should match at 75 rage even when MS imminent")
+_G.EaxRotations.cooldown_remains = function(spell, fallback) return 0 end
 
 print("PASS test_arms_custom_matches")
