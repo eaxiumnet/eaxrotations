@@ -59,6 +59,7 @@ local assassin_state = {
     find_weakness_active = false,
     has_cold_blood = false,
     healing_item_id = nil,
+    has_daggers = false,
     -- Shiv Purge (PvP buff dispel via Wound Poison)
     shiv_ready = false,
     shiv_purge_name = nil,
@@ -134,6 +135,13 @@ local function build_state(context)
             break
         end
     end
+    -- Dagger check: Mutilate requires weapons in BOTH hands (TBC requirement)
+    local main_id, off_id
+    if NS.get_equipped_item_id and NS.EQUIPMENT_SLOTS then
+        main_id = NS.get_equipped_item_id(NS.EQUIPMENT_SLOTS.MAIN_HAND)
+        off_id  = NS.get_equipped_item_id(NS.EQUIPMENT_SLOTS.OFF_HAND)
+    end
+    assassin_state.has_daggers = (main_id ~= nil and main_id ~= 0) and (off_id ~= nil and off_id ~= 0)
     return assassin_state
 end
 
@@ -425,9 +433,8 @@ local strategies = {
     {
         name = "Mutilate",
         matches = function(context, state)
-            if state.energy_low then return false end  -- pool energy below 40
-            -- TBC Mutilate works from any position (no behind-target requirement)
-            -- Must have poison on target for +50% damage bonus
+            if state.energy_low then return false end
+            if not state.has_daggers then return false end
             if not state.target_poisoned then return false end
             return NS.spell_ready(SPELLS.Mutilate, context.target)
         end,
@@ -446,12 +453,11 @@ local strategies = {
     {
         name = "SinisterStrikeFallback",
         matches = function(context, state)
-            -- Only active when Mutilate is learned but can't be used
             local level = context.player_level or 70
             if level < 50 or not (NS.spell_exists and NS.spell_exists(SPELLS.Mutilate)) then return false end
-            -- Only as fallback — skip if Mutilate CAN be used (poisoned target, TBC Mutilate works from any position)
-            if state.target_poisoned then return false end
-            if state.energy_low then return false end  -- pool energy below 40
+            -- Fallback when Mutilate can't be used: no daggers OR target unpoisoned
+            if state.has_daggers and state.target_poisoned then return false end
+            if state.energy_low then return false end
             return NS.spell_ready(SPELLS.SinisterStrike, context.target)
         end,
         execute = function(context)
