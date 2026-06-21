@@ -144,6 +144,7 @@ local tests = {
     "test_balance_war_stomp.lua",
     "test_destruction_shadowburn.lua",
     "test_destruction_mana_gem.lua",
+    "test_destruction_demonic_sacrifice.lua",
     "test_affliction_life_tap.lua",
     "test_elemental_weapon_buffs.lua",
     "test_restoration_healing_way.lua",
