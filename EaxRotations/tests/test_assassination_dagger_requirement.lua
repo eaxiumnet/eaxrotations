@@ -176,15 +176,16 @@ end
 print("  [ PASS ] SinisterStrikeFallback: daggers + poisoned → no match")
 
 -- ============================================================================
--- Contract 6: SinisterStrikeFallback — daggers present, NOT poisoned → match
+-- Contract 6: SinisterStrikeFallback — daggers present, NOT poisoned → NO match
+-- (Mutilate fires on unpoisoned targets too, just without the +50% bonus)
 -- ============================================================================
 do
     _equipped_ids = { [16] = 12345, [17] = 12346 }
     local s = default_state(); s.has_daggers = true; s.target_poisoned = false
-    assert_true(ssf.matches(default_context(), s),
-        "SinisterStrikeFallback should match when daggers present but target unpoisoned")
+    assert_false(ssf.matches(default_context(), s),
+        "SinisterStrikeFallback should NOT match when daggers present — Mutilate handles unpoisoned targets")
 end
-print("  [ PASS ] SinisterStrikeFallback: daggers + unpoisoned → match")
+print("  [ PASS ] SinisterStrikeFallback: daggers + unpoisoned → no match (Mutilate covers)")
 
 -- ============================================================================
 -- Contract 7: Pattern 14 — nil has_daggers must not crash Mutilate matcher

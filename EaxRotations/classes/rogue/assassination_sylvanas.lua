@@ -33,7 +33,9 @@ local ENERGY_FINISHER_COST = 35  -- Envenom/Eviscerate cost
 local ENERGY_LOW_BUILDER = 40    -- Pool energy below 40 instead of builder
 local ENERGY_LOW_FINISHER = 25   -- Pool energy below 25 instead of finisher
 
-
+-- Dagger set for Mutilate eligibility check
+local _dagger_set_ok, dagger_set = pcall(require, "shared/dagger_set_sylvanas")
+if not _dagger_set_ok then dagger_set = nil end
 
 -- Healthstone / health potion IDs
 local HEALING_ITEM_IDS = { 22829, 22793, 13447, 22105, 22104, 22103, 5512, 5511, 118, 858 }
@@ -135,13 +137,15 @@ local function build_state(context)
             break
         end
     end
-    -- Dagger check: Mutilate requires weapons in BOTH hands (TBC requirement)
+    -- Dagger check: Mutilate requires daggers in BOTH hands (TBC requirement)
     local main_id, off_id
     if NS.get_equipped_item_id and NS.EQUIPMENT_SLOTS then
         main_id = NS.get_equipped_item_id(NS.EQUIPMENT_SLOTS.MAIN_HAND)
         off_id  = NS.get_equipped_item_id(NS.EQUIPMENT_SLOTS.OFF_HAND)
     end
-    assassin_state.has_daggers = (main_id ~= nil and main_id ~= 0) and (off_id ~= nil and off_id ~= 0)
+    local is_dagger = dagger_set and dagger_set.is_dagger or {}
+    assassin_state.has_daggers = (main_id and main_id ~= 0 and is_dagger[main_id])
+        and (off_id and off_id ~= 0 and is_dagger[off_id])
     return assassin_state
 end
 
@@ -436,7 +440,6 @@ local strategies = {
         matches = function(context, state)
             if state.energy_low then return false end
             if not state.has_daggers then return false end
-            if not state.target_poisoned then return false end
             return NS.spell_ready(SPELLS.Mutilate, context.target)
         end,
         execute = function(context, state)
@@ -456,8 +459,8 @@ local strategies = {
         matches = function(context, state)
             local level = context.player_level or 70
             if level < 50 or not (NS.spell_exists and NS.spell_exists(SPELLS.Mutilate)) then return false end
-            -- Fallback when Mutilate can't be used: no daggers OR target unpoisoned
-            if state.has_daggers and state.target_poisoned then return false end
+            -- Fallback when Mutilate can't be used: no daggers equipped
+            if state.has_daggers then return false end
             if state.energy_low then return false end
             return NS.spell_ready(SPELLS.SinisterStrike, context.target)
         end,
