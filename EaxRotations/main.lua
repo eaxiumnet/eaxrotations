@@ -98,6 +98,7 @@ load_modules({
     "shared/ttd_ema_tracker_sylvanas",
     "shared/incoming_heal_predictor_sylvanas",
     "shared/healer_deficit_sylvanas",
+    "shared/triage_sylvanas",
     "shared/hot_tick_tracker_sylvanas",
 })
 

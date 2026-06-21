@@ -153,6 +153,12 @@ local tests = {
     "test_holy_priest_feature_gaps.lua",
     "test_discipline_feature_gaps.lua",
     "test_protection_feature_gaps.lua",
+
+    -- Healer triage + AoE cluster targeting (HE1 fix)
+    "test_triage_rank.lua",
+    "test_aoe_heal_best_target.lua",
+    "test_triage_loaded.lua",
+
     "test_arena_priority.lua",
     "test_benchmark.lua",
     "test_burst_window.lua",
