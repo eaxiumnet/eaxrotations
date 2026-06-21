@@ -281,7 +281,28 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 6. Cold Blood + Envenom (burst finisher)
+    -- 6. Slice and Dice (100% uptime, refresh when < 3s remains)
+    -- Research: "Must maintain Slice and Dice at 100% uptime; re-cast when < 3s remains."
+    -- PRIORITY: SnD is the FIRST finisher — never let Envenom/Rupture fire before it.
+    -- ------------------------------------------------------------------------
+    {
+        name = "SliceAndDice",
+        matches = function(context, state)
+            -- Refresh when about to drop (< 3s) even if active
+            if state.slice_dice_active and not state.snd_needs_refresh then return false end
+            if (state.combo or 0) < 2 then return false end
+            return NS.spell_ready(SPELLS.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
+        end,
+        execute = function(context, state)
+            local tag = state.slice_dice_active
+                and string.format("[ASSASS] Slice and Dice refresh (%.1fs)", state.snd_remains)
+                or "[ASSASS] Slice and Dice"
+            return NS.try_cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, tag, { skip_range = true })
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 7. Cold Blood + Envenom (burst finisher)
     -- ------------------------------------------------------------------------
     {
         name = "ColdBloodEnvenom",
@@ -306,7 +327,7 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 7. Envenom (finisher — DP stacks consumed)
+    -- 8. Envenom (finisher — DP stacks consumed)
     -- ------------------------------------------------------------------------
     {
         name = "EnvenomFinisher",
@@ -322,26 +343,6 @@ local strategies = {
         execute = function(context)
             return NS.try_cast(SPELLS.Envenom, context.target,
                 string.format("[ASSASS] Envenom at %d CP / %d DP stacks", context.combo_points or context.combo or 0, assassin_state.dp_stacks or 0))
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 8. Slice and Dice (100% uptime, refresh when < 3s remains)
-    -- Research: "Must maintain Slice and Dice at 100% uptime; re-cast when < 3s remains."
-    -- ------------------------------------------------------------------------
-    {
-        name = "SliceAndDice",
-        matches = function(context, state)
-            -- Refresh when about to drop (< 3s) even if active
-            if state.slice_dice_active and not state.snd_needs_refresh then return false end
-            if (state.combo or 0) < 2 then return false end
-            return NS.spell_ready(SPELLS.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
-        end,
-        execute = function(context, state)
-            local tag = state.slice_dice_active
-                and string.format("[ASSASS] Slice and Dice refresh (%.1fs)", state.snd_remains)
-                or "[ASSASS] Slice and Dice"
-            return NS.try_cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, tag, { skip_range = true })
         end,
     },
 
