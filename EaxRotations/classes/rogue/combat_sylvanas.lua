@@ -465,6 +465,8 @@ local strategies = {
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
     { name = "Stealth", matches = stealth_matches, execute = function(context) return Stealth.try(context) end },
+    { name = "CheapShot", matches = cheap_shot_matches, execute = function(context) return NS.try_cast(SPELLS.CheapShot, context.target, "[COMBAT] Cheap Shot") end },
+    { name = "Garrote", matches = garrote_matches, execute = function(context) return NS.try_cast(SPELLS.Garrote, context.target, "[COMBAT] Garrote") end },
     { name = "SliceAndDice", matches = slice_and_dice_wrapper, execute = function(context) return NS.try_cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, "[COMBAT] SliceAndDice", { skip_range = true }) end },
     { name = "AdrenalineRush", matches = adrenaline_rush_wrapper, execute = function(context) return NS.try_cast(SPELLS.AdrenalineRush, NS.PLAYER_UNIT, "[COMBAT] AdrenalineRush", { skip_range = true }) end },
     { name = "BladeFlurry", matches = blade_flurry_wrapper, execute = function(context) return NS.try_cast(SPELLS.BladeFlurry, NS.PLAYER_UNIT, "[COMBAT] BladeFlurry", { skip_range = true }) end },
