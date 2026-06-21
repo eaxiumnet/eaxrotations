@@ -79,6 +79,12 @@ return {
                 },
             },
             {
+                header = "Pre-Pull",
+                settings = {
+                    { key = "disc_prepull_pom", type = "checkbox", label = "Pre-Pull Prayer of Mending", default = true },
+                },
+            },
+            {
                 header = "Self Survival",
                 settings = {
                     { key = "discipline_healthstone_hp", type = "slider", label = "Healthstone HP (%)", min = 10, max = 60, default = 35 },

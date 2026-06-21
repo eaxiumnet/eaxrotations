@@ -297,7 +297,8 @@ local function pws_lowest_matches(context, s)
 end
 
 local function pom_tank_matches(context, s)
-    if not context.in_combat then return false end
+    local settings = context.settings or EMPTY_SETTINGS
+    if not context.in_combat and settings.disc_prepull_pom == false then return false end
     local target = s.tank or s.lowest
     if not target then return false end
     if not s.pom_ready then return false end

@@ -100,19 +100,27 @@ action_calls = {}
 assert_false(pws.matches({}, { lowest = nil }), "EmergencyPWS should not match without lowest")
 
 -- ============================================================================
--- PrayerOfMendingTank: only in combat
+-- PrayerOfMendingTank: pre-pull enabled by disc_prepull_pom setting
 -- ============================================================================
 
 local pom = find_strategy("PrayerOfMendingTank")
 
--- Not in combat -> should NOT match
+-- OOC + disc_prepull_pom default (true) -> SHOULD match
 action_calls = {}
 local ctx_pom_ooc = {
     in_combat = false,
     settings = {},
 }
-assert_false(pom.matches(ctx_pom_ooc, { tank = { unit = {} }, lowest = { unit = {} }, pom_ready = true }), "PrayerOfMendingTank should not match when OOC")
-assert_eq(#action_calls, 0, "action_matches should not be called when OOC")
+assert_true(pom.matches(ctx_pom_ooc, { tank = { unit = {} }, lowest = { unit = {} }, pom_ready = true }), "PrayerOfMendingTank should match OOC when disc_prepull_pom defaults to true")
+assert_eq(#action_calls, 0, "action_matches should not be called")
+
+-- OOC + disc_prepull_pom=false -> should NOT match
+action_calls = {}
+local ctx_pom_ooc_off = {
+    in_combat = false,
+    settings = { disc_prepull_pom = false },
+}
+assert_false(pom.matches(ctx_pom_ooc_off, { tank = { unit = {} }, lowest = { unit = {} }, pom_ready = true }), "PrayerOfMendingTank should not match OOC when disc_prepull_pom=false")
 
 -- In combat -> should match
 action_calls = {}
