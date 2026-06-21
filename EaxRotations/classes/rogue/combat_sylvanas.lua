@@ -39,9 +39,11 @@ end
 local SND_REFRESH_WINDOW = 3
 local RUPTURE_REFRESH_WINDOW = 3
 
--- Energy / resource thresholds (Research: Resource Floor Thresholds)
-local ENERGY_LOW_BUILDER = 45
+-- Energy / resource thresholds (Research: wowsims canPoolEnergy)
+-- wowsims: pool at <= 50 energy when fight >= 6s, not during AR unless <= 30
+local ENERGY_LOW_BUILDER = 50
 local ENERGY_LOW_FINISHER = 25
+local ENERGY_POOL_TTD_FLOOR = 6
 local RUPTURE_TTD_FLOOR = 12
 -- Bloodlust / Heroism buff IDs (Research: avoid energy capping AR during heroism)
 local HEROISM_BUFF = { 2825, 32182 }
@@ -207,8 +209,22 @@ local function build_state(context)
     combat_state.kidney_shot_ready = target and NS.spell_ready(SPELLS.KidneyShot, target, { expected_cooldown = 20 }) or false
     combat_state.expose_armor_ready = target and NS.spell_ready(SPELLS.ExposeArmor, target) or false
 
-    -- Research: energy pooling gates
-    combat_state.energy_low = combat_state.energy < ENERGY_LOW_BUILDER
+    -- Research: energy pooling gates (wowsims canPoolEnergy)
+    -- Pool at <= 50 energy when fight >= 6s; during AR, pool only if <= 30
+    do
+        local energy = combat_state.energy
+        local ttd_known = context.ttd_known or false
+        local ttd = context.ttd or 999
+        local should_pool = false
+        if (not ttd_known or ttd >= ENERGY_POOL_TTD_FLOOR) and energy <= ENERGY_LOW_BUILDER then
+            if combat_state.has_adrenaline_rush then
+                should_pool = energy <= 30
+            else
+                should_pool = true
+            end
+        end
+        combat_state.energy_low = should_pool
+    end
     combat_state.energy_pool_finisher = combat_state.energy < ENERGY_LOW_FINISHER
     combat_state.target_count = context.enemy_count or 1
     combat_state.heroism_active = me and NS.buff_up(me, HEROISM_BUFF) or false
