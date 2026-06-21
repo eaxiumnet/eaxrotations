@@ -65,7 +65,7 @@ local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 2211
 
 local HEALTHSTONE_HP_THRESHOLD = 35
 local EXECUTE_DEFAULT_RAGE = 25
-local HEROIC_STRIKE_RAGE = 60
+local HEROIC_STRIKE_RAGE = 70
 local CLEAVE_RAGE = 55
 local MORTAL_STRIKE_RAGE = 30
 local OVERPOWER_RAGE = 5
@@ -442,8 +442,31 @@ local function should_reserve_for_sweeping(context, state)
     return false
 end
 
+-- HS/Cleave starvation: don't queue if it would starve MS, Overpower, Execute, or Slam
+local function would_starve_arms(context, state, cost)
+    cost = cost or 15
+    local rage = state.rage or 0
+    local ms_cd = state.ms_cd or 99
+    if ms_cd >= 0 and ms_cd <= 1.5 then
+        if (rage - cost) < MORTAL_STRIKE_RAGE then return true end
+    end
+    if state.overpower_ready then
+        if (rage - cost) < OVERPOWER_RAGE then return true end
+    end
+    if state.execute_phase then
+        local execute_min = setting(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
+        if (rage - cost) < execute_min then return true end
+    end
+    local mh_until = state.mh_until or 999
+    if mh_until <= 1.5 then
+        if (rage - cost) < SLAM_RAGE then return true end
+    end
+    return false
+end
+
 local function heroic_strike_matches(context, state)
     if state and should_reserve_for_sweeping(context, state) then return false end
+    if would_starve_arms(context, state, 15) then return false end
     return action(context, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = HEROIC_STRIKE_RAGE }))
 end
 
