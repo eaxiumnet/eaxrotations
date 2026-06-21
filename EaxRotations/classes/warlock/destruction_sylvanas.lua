@@ -8,6 +8,7 @@ local SPELLS = NS.WarlockSpells or {}
 -- Debuff and buff ID lists for state queries
 local CURSE_OF_DOOM_DEBUFF = { 30910, 603 }
 local CURSE_OF_AGONY_DEBUFF = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
+local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
 local IMMOLATE_DEBUFF = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local CORRUPTION_DEBUFF = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
 local BACKLASH_BUFF = { 34936, 34935 }
@@ -56,6 +57,7 @@ local function build_state(context)
         corruption_remains = target and NS.debuff_remains(target, CORRUPTION_DEBUFF) or 0,
         cod_remains = target and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF) or 0,
         coa_remains = target and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF) or 0,
+        coe_remains = target and NS.debuff_remains(target, CURSE_OF_ELEMENTS_DEBUFF) or 0,
         has_backlash = me and NS.buff_up(me, BACKLASH_BUFF) or false,
         -- Backdraft (Conflagrate instant-followup proc) is a Wrath-era talent;
         -- not present in TBC Classic Anniversary 2.5.5 DBC. Kept as false for compatibility.
@@ -96,6 +98,9 @@ local ACTIONS = {
     { name = "HealthFunnel", spell = HealthFunnel, target = "pet", not_moving = true, min_hp = 60, requires_target = false },
     -- Curses (CurseOfDoom before Immolate per regression test)
     { name = "CurseOfDoom", spell = SPELLS.CurseOfDoom, debuff = CURSE_OF_DOOM_DEBUFF, refresh = 5, cooldown = 60, min_ttd = 62, require_ttd = true, target_not_player = true },
+    { name = "CurseOfAgony", spell = SPELLS.CurseOfAgony, debuff = CURSE_OF_AGONY_DEBUFF, refresh = 3 },
+    -- Curses
+    { name = "CurseOfElements", spell = SPELLS.CurseElements, debuff = CURSE_OF_ELEMENTS_DEBUFF, refresh = 3, group_only = true },
     { name = "CurseOfAgony", spell = SPELLS.CurseOfAgony, debuff = CURSE_OF_AGONY_DEBUFF, refresh = 3 },
     -- DoTs
     { name = "Corruption", spell = SPELLS.Corruption, debuff = CORRUPTION_DEBUFF, refresh = 3 },
@@ -207,6 +212,17 @@ local function curse_of_agony_matches(context, action, state)
     if not state then return false end
     state = state or {}
     if (state.coa_remains or 0) > 3 then return false end
+    if (state.cod_remains or 0) > 0 then return false end
+    return NS.spell_ready(action.spell, context.target)
+end
+
+local function curse_of_elements_matches(context, action, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseElements, 2.0) then return false end
+    if not state then return false end
+    state = state or {}
+    -- Only apply in group/raid content where the debuff benefits the whole group
+    if not (context.is_group or (context.party_size and context.party_size > 1)) then return false end
+    if (state.coe_remains or 0) > 3 then return false end
     if (state.cod_remains or 0) > 0 then return false end
     return NS.spell_ready(action.spell, context.target)
 end
@@ -338,6 +354,8 @@ for i = 1, #ACTIONS do
         custom_matches = function(context, state) return corruption_matches(context, action, state) end
     elseif action.name == "CurseOfAgony" then
         custom_matches = function(context, state) return curse_of_agony_matches(context, action, state) end
+    elseif action.name == "CurseOfElements" then
+        custom_matches = function(context, state) return curse_of_elements_matches(context, action, state) end
     elseif action.name == "DrainLife" then
         custom_matches = function(context, state) return drain_life_matches(context, action, state) end
     elseif action.name == "HealthFunnel" then
