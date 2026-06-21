@@ -22,6 +22,8 @@ local _NATURES_BUFF = { 16880 }
 local _BARKSKIN_BUFF = { 22812 }
 local _MOTW_BUFF = { 26991, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }
 local _HEALER_IDS = { [2]=true, [5]=true, [7]=true, [11]=true }
+local _INNERVATE_SCAN_INTERVAL = 2.0
+local _last_innervate_scan_time = 0
 
 local _LOCAL_SPELLS = {
     Innervate    = _G_E.spell_action({ 29166 }, "Innervate"),
@@ -74,25 +76,29 @@ local function _build_state(ctx)
     _state.spell_damage = ctx.spell_damage or 0
     _state.innervate_target = nil
     local floor_mana = (ctx.settings and ctx.settings.balance_innervate_mana) or 30
-    if ctx.in_combat and ctx.is_group and ctx.me and _G_E.GetPartyMembers then
-        local party = _G_E.GetPartyMembers()
-        if party and type(party)=="table" then
-            for _, u in ipairs(party) do
-                if u then
-                    local is_self = _G_E.same_unit and _G_E.same_unit(u, ctx.me)
-                    if not is_self then
-                        local class_id = nil
-                        if _G_E.safe_field then
-                            local getter = _G_E.safe_field(u, "get_class")
-                            if getter then
-                                local ok, val = pcall(getter, u)
-                                if ok and type(val)=="number" then class_id = val end
+    local now = _G_E.time_now and _G_E.time_now() or 0
+    if now - _last_innervate_scan_time >= _INNERVATE_SCAN_INTERVAL then
+        _last_innervate_scan_time = now
+        if ctx.in_combat and ctx.is_group and ctx.me and _G_E.GetPartyMembers then
+            local party = _G_E.GetPartyMembers()
+            if party and type(party)=="table" then
+                for _, u in ipairs(party) do
+                    if u then
+                        local is_self = _G_E.same_unit and _G_E.same_unit(u, ctx.me)
+                        if not is_self then
+                            local class_id = nil
+                            if _G_E.safe_field then
+                                local getter = _G_E.safe_field(u, "get_class")
+                                if getter then
+                                    local ok, val = pcall(getter, u)
+                                    if ok and type(val)=="number" then class_id = val end
+                                end
                             end
-                        end
-                        if class_id and _HEALER_IDS[class_id] and _G_E.mana_pct then
-                            if _G_E.mana_pct(u) <= (floor_mana+5) then
-                                _state.innervate_target = u
-                                break
+                            if class_id and _HEALER_IDS[class_id] and _G_E.mana_pct then
+                                if _G_E.mana_pct(u) <= (floor_mana+5) then
+                                    _state.innervate_target = u
+                                    break
+                                end
                             end
                         end
                     end
