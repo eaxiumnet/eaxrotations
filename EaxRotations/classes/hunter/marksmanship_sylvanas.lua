@@ -93,6 +93,8 @@ local mm_state = {
     freezing_trap_ready = false,
     viper_sting_ready = false,
     readiness_ready = false,
+    trueshot_aura_ready = false,
+    trueshot_aura_active = false,
     raptor_strike_ready = false,
     concussive_shot_ready = false,
     volley_ready = false,
@@ -143,6 +145,8 @@ local function build_state(context)
     mm_state.freezing_trap_ready = me and NS.spell_ready(SPELLS.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     mm_state.viper_sting_ready = target and NS.spell_ready(SPELLS.ViperSting, target, { expected_cooldown = 8 }) or false
     mm_state.readiness_ready = me and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
+    mm_state.trueshot_aura_ready = me and NS.spell_ready(SPELLS.TrueshotAura, me, { skip_range = true, expected_cooldown = 120 }) or false
+    mm_state.trueshot_aura_active = me and NS.buff_up(me, { 19506, 20905, 20906 }) or false
     mm_state.raptor_strike_ready = target and NS.spell_ready(RAPTOR_STRIKE_IDS, target) or false
     mm_state.concussive_shot_ready = target and NS.spell_ready(CONCUSSIVE_SHOT_IDS, target) or false
     mm_state.volley_ready = target and NS.spell_ready(VOLLEY_IDS, target) or false
@@ -307,6 +311,16 @@ local function readiness_matches(context, s)
     return true
 end
 
+local function trueshot_aura_matches(context, s)
+    if not cooldowns_enabled(context) then return false end
+    if not s.in_combat then return false end
+    if s.trueshot_aura_active then return false end
+    if not s.trueshot_aura_ready then return false end
+    -- TTD gate: don't waste 2min CD on a dying target
+    if context.ttd_known and context.ttd < 10 then return false end
+    return true
+end
+
 local function leveling_arcane_shot_matches(context, s)
     if not s.pre_steady_leveling then return false end
     if not s.arcane_shot_ready then return false end
@@ -383,6 +397,7 @@ local strategies = {
     { name = "FreezingTrap", matches = freezing_trap_matches, execute = function(context) return NS.try_cast(SPELLS.FreezingTrap, context.me, "[MARKSMANSHIP] Freezing Trap", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return NS.try_cast(SPELLS.HuntersMark, context.target, "[MARKSMANSHIP] Hunter's Mark") end },
     { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[MARKSMANSHIP] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
+    { name = "TrueshotAura", matches = trueshot_aura_matches, execute = function(context) return NS.try_cast(SPELLS.TrueshotAura, context.me, "[MARKSMANSHIP] Trueshot Aura", { skip_range = true, expected_cooldown = 120 }) end },
     { name = "BestialWrath", matches = bestial_wrath_matches, execute = function(context) local pet = context.pet or (NS.GetPet and NS.GetPet()) or context.me; return NS.try_cast(SPELLS.BestialWrath, pet, "[MARKSMANSHIP] Bestial Wrath", { skip_range = true, expected_cooldown = 120 }) end },
     { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[MARKSMANSHIP] Readiness", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "InCombatAimedShot", matches = in_combat_aimed_shot_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },

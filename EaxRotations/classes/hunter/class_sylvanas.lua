@@ -153,7 +153,8 @@ local SPELLS = {
         school = "physical",
     }),
     RapidFire = NS.spell_action({ 3045 }, "RapidFire"),
-	    Readiness = NS.spell_action({ 23989 }, "Readiness"),
+    Readiness = NS.spell_action({ 23989 }, "Readiness"),
+    TrueshotAura = NS.spell_action({ 19506, 20905, 20906 }, "TrueshotAura"),
     RevivePet = NS.spell_action({
         name = "RevivePet",
         ids = {982},
