@@ -20,6 +20,7 @@ local tests = {
     "test_arms_custom_matches.lua",
     "test_arms_hamstring_tactician.lua",
     "test_arms_rage_gating.lua",
+    "test_warrior_defensive_threshold_wiring.lua",
 
     -- Hunter tests
     "test_hunter_aspect_matches.lua",

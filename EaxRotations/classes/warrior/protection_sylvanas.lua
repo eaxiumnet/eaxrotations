@@ -11,7 +11,6 @@ local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvan
 local SUNDER_WINDOW = 3
 local SUNDER_MAX_STACKS = 5
 local HEROIC_STRIKE_RAGE_DUMP = 70
-local LOW_HP_LIMIT = 35
 local THUNDERCLAP_CD = 4
 local SHIELD_BLOCK_CD = 5
 local SHIELD_SLAM_CD = 6
@@ -424,14 +423,20 @@ end
 
 local function shield_wall_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShieldWall, 3.0) then return false end
-    if (state.hp or 100) > LOW_HP_LIMIT then return false end
+    local settings = context.settings or {}
+    if settings.use_shield_wall == false then return false end
+    local threshold = settings.defensive_hp_threshold or 35
+    if (state.hp or 100) > threshold then return false end
     if state.has_shield_wall then return false end
     return true
 end
 
 local function last_stand_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.LastStand, 3.0) then return false end
-    if (state.hp or 100) > LOW_HP_LIMIT then return false end
+    local settings = context.settings or {}
+    if settings.use_last_stand == false then return false end
+    local threshold = settings.defensive_hp_threshold or 35
+    if (state.hp or 100) > threshold then return false end
     if state.has_last_stand then return false end
     return true
 end
