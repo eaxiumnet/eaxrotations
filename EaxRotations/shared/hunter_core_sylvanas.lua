@@ -130,15 +130,29 @@ function M.ms_until_auto()
     return math.max(0, remaining)
 end
 
---- Can cast a non-instant shot (like Steady Shot) without clipping auto-shot?
+--- Can cast Steady Shot without clipping auto-shot?
+-- TBC Hunter shot-weave rules:
+--   1. If no auto pending → safe to cast.
+--   2. If window fits Steady + buffer + 500ms safety → safe to cast.
+--   3. High-haste (weapon speed too fast to fit): still cast Steady (1:1
+--      rotation intentionally delays the auto), but NEVER during the 500ms
+--      auto-shot wind-up window.
 function M.can_cast_steady(buffer_ms)
-    buffer_ms = buffer_ms or 150  -- Default latency buffer
+    buffer_ms = buffer_ms or 150
+    M.get_weapon_speed()  -- refresh cached speed before ms_until_auto uses it
     local remain = M.ms_until_auto()
     local steady_cast_ms = M.get_steady_cast_ms()
-    -- [ARTISTRY] Improved: use dynamic haste-adjusted steady cast time.
-    -- Account for the 500ms "Auto-Shot window" in TBC where casting blocks the auto.
-    local needed = steady_cast_ms + buffer_ms
-    return remain == 0 or remain > (needed + 500)
+    -- Case 1: no auto-shot pending (just fired or not yet synced)
+    if remain == 0 then return true end
+    -- Case 2: normal weave — enough time to fit Steady before next auto
+    local needed = steady_cast_ms + buffer_ms + 500
+    if remain > needed then return true end
+    -- Case 3: high haste — weapon speed is shorter than Steady cast time.
+    -- In TBC the optimal play is the 1:1 rotation (one Steady per auto),
+    -- which intentionally delays the auto. We only avoid the 500ms wind-up.
+    local weapon_speed_ms = M.get_weapon_speed() * 1000
+    if weapon_speed_ms <= needed and remain > 500 then return true end
+    return false
 end
 
 --- Can cast an instant shot (Arcane/Multi/Sting) without clipping auto-shot?
