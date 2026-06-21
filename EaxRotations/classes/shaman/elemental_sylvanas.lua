@@ -14,6 +14,7 @@ local LIGHTNING_SHIELD_BUFF = TBC_SHAMAN.lightning_shield or { 25472, 25469, 104
 local TOTEM_OF_WRATH_BUFF = { 30708 }
 local WRATH_OF_AIR_BUFF = { 3738 }
 local MANA_SPRING_BUFF = { 25570, 10491, 10490, 5676 }  -- Mana Spring Totem aura ranks
+local CLEARCAST_BUFF = { 12536 }  -- Clearcasting from Elemental Focus talent
 local SHIELD_REFRESH_UNKNOWN_MS = 30000
 local WEAPON_BUFF_REFRESH_MS = 1500000  -- 25 minutes
 local HEALING_WAVE_HP_PCT = 40
@@ -56,6 +57,7 @@ local ele_state = {
     has_rockbiter = false,
     now_ms = 0,
     spell_damage = 0,
+    clearcast_active = false,
 }
 
 local function build_state(context)
@@ -83,6 +85,7 @@ local function build_state(context)
     ele_state.has_flametongue = (ele_state.now_ms - runtime.last_flametongue_ms) < WEAPON_BUFF_REFRESH_MS
     ele_state.has_windfury = (ele_state.now_ms - runtime.last_windfury_ms) < WEAPON_BUFF_REFRESH_MS
     ele_state.has_rockbiter = (ele_state.now_ms - runtime.last_rockbiter_ms) < WEAPON_BUFF_REFRESH_MS
+    ele_state.clearcast_active = NS.has_player_buff and NS.has_player_buff(CLEARCAST_BUFF) or false
     return ele_state
 end
 
@@ -124,6 +127,10 @@ local function chain_lightning_matches_fn(context, state)
     if context.cc_safe == false then return false end
     -- Threat safety: skip Chain Lightning if threat is high (multi-target pulls threat)
     if context.threat_pct and context.threat_pct > 80 then return false end
+    -- Clearcast priority: always cast CL when Clearcast is active to consume the proc
+    if state.clearcast_active then
+        return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ChainLightning, context.target) or false
+    end
     -- Research: CL only at 3+ targets; configurable via schema
     local s = context.settings or {}
     local min_targets = s.elemental_cl_min_targets or CL_MIN_TARGETS
