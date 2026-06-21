@@ -1,3 +1,9 @@
+-- enhancement_sylvanas -- shaman enhancement_sylvanas rotation for TBC Anniversary (2.5.5).
+-- WHAT:  priority-list strategies for enhancement_sylvanas gameplay.
+-- WHEN:  combat with valid enemy target (or healing context for healers).
+-- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
+-- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+
 -- Shaman Enhancement rotation - parity feature port v2.0.
 -- Features: per-slot weapon buffs, smart shield auto-swap, totem twisting
 -- with Fire Nova cycle, shock priority, randomized interrupts, Ghost Wolf OOC
