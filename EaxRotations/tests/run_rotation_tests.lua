@@ -26,6 +26,7 @@ local tests = {
     "test_pet_happiness.lua",
     "test_hunter_pet_manager_wiring.lua",
     "test_hunter_steady_shot_weave.lua",
+    "test_mm_trueshot_aura.lua",
 
     -- Priest tests
     "test_priest_holy_custom_matches.lua",
