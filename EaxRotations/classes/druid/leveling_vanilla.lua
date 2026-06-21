@@ -114,6 +114,7 @@ function druid_leveling.build_state(context)
     state.heal_hp = settings.leveling_heal_hp or 40
     state.bear_hp = settings.leveling_bear_hp or 40
     state.use_feral = settings.leveling_use_feral ~= false
+    state.wand_threshold = settings.leveling_wand_threshold or 30
 
     return state
 end
