@@ -1,6 +1,6 @@
 -- leveling_sylvanas -- warlock leveling_sylvanas rotation for TBC Anniversary (2.5.5).
 -- WHAT:  priority-list strategies for leveling_sylvanas gameplay.
--- WHEN:  combat with valid enemy target (or healing context for healers).
+-- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
 -- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
 
@@ -30,6 +30,7 @@ local HEALTH_FUNNEL_IDS = { 27259, 11695, 11694, 11693, 755, 3699, 3700 }
 local DRAIN_LIFE_IDS = { 27220, 27219, 11700, 11699, 7651, 709, 699, 689 }
 
 local WAND_SPELL_ID = leveling.WAND_SPELL_ID or 5019
+local DEMONIC_SACRIFICE_AURA_ALL = { 18789, 18790, 18791, 18792, 35701 }
 
 local EMPTY_SETTINGS = {}
 
@@ -180,6 +181,9 @@ local function summon_pet_matches(context, state)
     if not leveling_context_allowed(context) then return false end
     if not state then return false end
     if context.pet then return false end
+    -- Do NOT summon if Demonic Sacrifice aura is already active
+    local me = context.me
+    if me and NS.buff_up and NS.buff_up(me, DEMONIC_SACRIFICE_AURA_ALL) then return false end
     -- Leveling: Imp is free (no shard) and gives Blood Pact stamina buff — prefer it first
     if state.summon_imp_ready then return true end
     -- Shard-costing pets (VW, Succubus, Felhunter, Felguard): require Soul Shard (6265) when OOC

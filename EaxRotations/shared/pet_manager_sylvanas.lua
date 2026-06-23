@@ -1,5 +1,5 @@
 -- ============================================================================
--- Shared Helper: Pet Manager (Hunter)
+-- Shared Helper: Pet Manager (Hunter + Warlock)
 -- ============================================================================
 -- Ported from archive EAXHunterBeastMastery pet_manager.lua
 -- State machine: IDLE -> ENGAGING -> FIGHTING -> RETREATING
