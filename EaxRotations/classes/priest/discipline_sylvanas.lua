@@ -12,6 +12,8 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PriestSpells or {}
 local Healing = NS.PriestHealing or require("classes/priest/healing_sylvanas")
+-- Preemptive heal module (Sonah-style predictive healing)
+local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
 local EMPTY_SETTINGS = {}
 local _reagent_guard_ok, _reagent_guard = pcall(require, "shared/reagent_guard_sylvanas")
 if not _reagent_guard_ok then _reagent_guard = nil end
@@ -421,7 +423,7 @@ end
 
 local function symbol_of_hope_matches(context, s)
     if not s.symbol_of_hope_ready then return false end
-    if not s.is_group then return false end
+    if not context.is_group then return false end
     if _buff_on_cooldown(SPELLS.SymbolOfHope) then return false end
     return _safe_buff_in_combat(context, s)
 end
@@ -637,6 +639,18 @@ local healing_strategies = {
     { name = "PowerWordShieldLowest", matches = pws_lowest_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.lowest.unit, string.format("[DISCIPLINE] PW:S %.0f%%", s.lowest.effective_hp or 0)) end },
     { name = "PrayerOfMendingTank", matches = pom_tank_matches, execute = function(context, s) return NS.try_cast(SPELLS.PrayerofMending, (s.tank and s.tank.unit) or (s.lowest and s.lowest.unit), "[DISCIPLINE] Prayer of Mending") end },
     { name = "EmergencyFlashHeal", matches = flash_heal_matches, execute = function(context, s) return NS.try_cast(SPELLS.FlashHeal, s.lowest.unit, string.format("[DISCIPLINE] Flash Heal %.0f%%", s.lowest.effective_hp or 0)) end },
+    { name = "PreemptiveGreaterHeal", matches = function(context, s)
+        if not context.in_combat then return false end
+        if context.is_moving then return false end
+        local threshold = (context.settings and context.settings.discipline_preemptive_threshold) or PreemptiveHeal.DEFAULT_THRESHOLD
+        if not PreemptiveHeal.match(context, s, threshold, 2.5) then return false end
+        if not s.greater_heal_ready then return false end
+        return true
+    end, execute = function(context, s)
+        local target_entry = s._preemptive_target
+        if not target_entry or not target_entry.unit then return false end
+        return PreemptiveHeal.execute(context, s, SPELLS.GreaterHeal, string.format("[DISCIPLINE] Preemptive GH %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.5, heal_size = 3500 })
+    end },
     { name = "GreaterHeal", matches = greater_heal_matches, execute = function(context, s)
         local mana_pct = s.mana_pct or context.mana_pct or 100
         local spell_id

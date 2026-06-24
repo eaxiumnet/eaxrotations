@@ -11,7 +11,7 @@ local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end
 
-local load_player = NS.GetPlayer()
+local load_player = NS.GetPlayer and NS.GetPlayer()
 
 local _ok_enums, enums = pcall(require, "common/enums")
 if not _ok_enums or type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
@@ -34,6 +34,8 @@ local function load_healing_helpers()
 end
 
 local Healing = load_healing_helpers()
+-- Preemptive heal module (Sonah-style predictive healing)
+local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
 
 local format = string.format
 -- ipairs unused in holy (no ipairs iteration needed)
@@ -376,6 +378,24 @@ local strategies = {
                 return try_cast(SPELLS.PowerWordShield, state.tank.unit, format("[HOLY] Emergency PW:S Tank %.0f%%", state.tank.effective_hp or 0))
             end
             return try_cast(SPELLS.PowerWordShield, state.lowest.unit, format("[HOLY] Emergency PW:S %.0f%%", state.lowest.effective_hp or 0))
+        end,
+    },
+    {
+        name = "PreemptiveGreaterHeal",
+        matches = function(context, state)
+            if not context.in_combat then return false end
+            if context.player_control_locked or context.is_moving then return false end
+            local threshold = (context.settings and context.settings.holy_preemptive_threshold) or PreemptiveHeal.DEFAULT_THRESHOLD
+            if not PreemptiveHeal.match(context, state, threshold, 2.5) then return false end
+            if not spell_exists(SPELLS.GreaterHeal) or not spell_ready(SPELLS.GreaterHeal, state._preemptive_target.unit) then return false end
+            return true
+        end,
+        execute = function(context, state)
+            local target = state._preemptive_target
+            if not target or not target.unit then return false end
+            local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target.unit, context, "Preemptive GH", HOLY_OPTS_GH)
+            if not chosen_spell then return false end
+            return PreemptiveHeal.execute(context, state, chosen_spell, format("[HOLY] %s %.0f%%", spell_label, target.effective_hp or 0), { cast_time = 2.5, heal_size = 3500 })
         end,
     },
     {

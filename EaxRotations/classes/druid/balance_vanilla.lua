@@ -38,6 +38,7 @@ local _state = {
     insect_remains=0, moonfire_remains=0, ff_remains=0, natures_grace_active=false,
     barkskin_active=false, mana_pct=100,
     enemy_count=1, target_ttd=999, innervate_target=nil, spell_damage=0,
+    target_range=40, wand_threshold=30,
 }
 
 local function _build_state(ctx)
@@ -61,6 +62,8 @@ local function _build_state(ctx)
     _state.enemy_count = ctx.enemy_count or 1
     _state.target_ttd = ctx.ttd or ctx.target_ttd or 999
     _state.spell_damage = ctx.spell_damage or 0
+    _state.target_range = ctx.target_distance or 40
+    _state.wand_threshold = (ctx.settings and ctx.settings.balance_wand_threshold) or 30
     _state.innervate_target = nil
     local floor_mana = (ctx.settings and ctx.settings.balance_innervate_mana) or 30
     if ctx.in_combat and ctx.is_group and ctx.me and NS.GetPartyMembers then

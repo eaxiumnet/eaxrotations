@@ -11,6 +11,8 @@ if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 local Healing = NS.ShamanHealing or require("classes/shaman/healing_sylvanas")
+-- Preemptive heal module (Sonah-style predictive healing)
+local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { shaman = {} } } end
 local TBC_SHAMAN = (TBC.SPELLS and TBC.SPELLS.shaman) or {}
@@ -550,6 +552,18 @@ local healing_strategies = {
         return NS.try_cast(SPELLS.Bloodlust, NS.PLAYER_UNIT, "[RESTO] Bloodlust", { expected_cooldown = 600 })
     end },
     { name = "HealingWay", matches = healing_way_matches, execute = healing_way_execute },
+    { name = "PreemptiveChainHeal", matches = function(context, state)
+        if not state.in_combat then return false end
+        if context.is_moving then return false end
+        if not state.chain_heal_ready then return false end
+        local threshold = (context.settings and context.settings.restoration_preemptive_threshold) or PreemptiveHeal.DEFAULT_THRESHOLD
+        if not PreemptiveHeal.match(context, state, threshold, 2.5) then return false end
+        return true
+    end, execute = function(context, state)
+        local target_entry = state._preemptive_target
+        if not target_entry or not target_entry.unit then return false end
+        return PreemptiveHeal.execute(context, state, SPELLS.ChainHeal, string.format("[RESTO] Preemptive CH %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.5, heal_size = 1800 })
+    end },
     { name = "ChainHeal", matches = chain_heal_matches, execute = chain_heal_execute },
     { name = "SmartHeal", matches = smart_heal_matches, execute = function(context, state)
         local heal = (context._shaman_heal or false) or Healing.select_heal(context, state, state.lowest)

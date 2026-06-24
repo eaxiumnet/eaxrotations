@@ -1,5 +1,5 @@
 -- Shaman leveling rotation (Classic/Vanilla 1.12).
--- Stripped of TBC-only abilities: Shamanistic Rage, Water Shield.
+-- Stripped of TBC-only abilities: Shamanistic Rage, Water Shield, Stormstrike.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -127,7 +127,6 @@ function shaman_leveling.build_state(context)
     state.frost_shock_ready = spell_ready(SPELLS.FrostShock, state.target)
     state.chain_lightning_ready = spell_ready(SPELLS.ChainLightning, state.target)
     state.lightning_shield_ready = spell_ready(SPELLS.LightningShield, me, { skip_range = true })
-    state.stormstrike_ready = spell_ready(SPELLS.Stormstrike, state.target, { expected_cooldown = 10 })
     state.healing_wave_ready = spell_ready(SPELLS.HealingWave, me, { skip_range = true })
     state.lesser_healing_wave_ready = spell_ready(SPELLS.LesserHealingWave, me, { skip_range = true })
     state.ghost_wolf_ready = spell_ready(SPELLS.GhostWolf, me, { skip_range = true })
@@ -160,7 +159,7 @@ function shaman_leveling.build_state(context)
     state.use_searing_totem = settings.leveling_use_searing_totem ~= false
     state.use_strength_totem = settings.leveling_use_strength_totem ~= false
     state.use_water_totem = settings.leveling_use_water_totem ~= false
-    state.use_stormstrike = settings.leveling_use_stormstrike ~= false
+    state.wand_threshold = settings.leveling_wand_threshold or 30
 
     return state
 end
@@ -296,17 +295,6 @@ local earthbind_totem_matches = function(context, state)
     return true
 end
 
-local stormstrike_matches = function(context, state)
-    if not state then return false end
-    if not state.in_combat then return false end
-    if not state.use_stormstrike then return false end
-    if not state.stormstrike_ready then return false end
-    if not state.target then return false end
-    if not state.in_melee_range then return false end
-    if (state.mana_pct or 100) < 10 then return false end
-    return true
-end
-
 local lesser_healing_wave_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
@@ -395,8 +383,6 @@ local strategies = {
       execute = function(context) return try_cast(SPELLS.GroundingTotem, nil, "[LEVELING] Grounding Totem", { skip_range = true }) end },
     { name = "TremorTotem", matches = tremor_totem_matches,
       execute = function(context) return try_cast(SPELLS.TremorTotem, nil, "[LEVELING] Tremor Totem", { skip_range = true }) end },
-    { name = "Stormstrike", matches = stormstrike_matches,
-      execute = function(context) if not context then return false end return try_cast(SPELLS.Stormstrike, context.target, "[LEVELING] Stormstrike") end },
     { name = "ChainLightning", matches = chain_lightning_matches,
       execute = function(context) if not context then return false end return try_cast(SPELLS.ChainLightning, context.target, "[LEVELING] Chain Lightning") end },
     { name = "FlameShock", matches = flame_shock_matches,

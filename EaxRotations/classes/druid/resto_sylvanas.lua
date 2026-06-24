@@ -14,6 +14,8 @@ if not NS then return nil end
 local SPELLS = NS.DruidSpells or {}
 local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.DruidHealing or require("classes/druid/healing_sylvanas")
+-- Preemptive heal module (Sonah-style predictive healing)
+local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
@@ -117,6 +119,7 @@ local resto_state = {
     can_tree = false,
     should_dance_caster = false,
     should_move_form = false,
+    tree_dance_cooldown = 0,
     moonfire_remains = 0,
     insect_swarm_remains = 0,
 }
@@ -381,6 +384,8 @@ local function build_state(context)
     local ns_hp = settings.resto_ns_hp or 30
     local tranquility_hp = settings.resto_tranquility_hp or 25
     local auto_dispel = settings.resto_auto_dispel ~= false
+    local tank_rejuv_hp = settings.resto_rejuv_hp_tank or TANK_REJUV_HP
+    local raid_rejuv_hp = settings.resto_rejuv_hp_raid or RAID_REJUV_HP
 
     for i = 1, count do
         local entry = entries[i]
@@ -393,7 +398,7 @@ local function build_state(context)
             if hp <= ns_hp then resto_state.ns_target = choose_better(resto_state.ns_target, entry) end
             if hp <= HEALING_TOUCH_HP and not predictive_overheal("HealingTouch", entry, 2.5, settings, 25) then resto_state.ht_target = choose_better(resto_state.ht_target, entry) end
             if needs_regrowth(entry) and not predictive_overheal("Regrowth", entry, 2.0, settings, 35) then resto_state.regrowth_target = choose_better(resto_state.regrowth_target, entry) end
-            if needs_rejuvenation(entry, entry.is_tank and TANK_REJUV_HP or RAID_REJUV_HP) then resto_state.rejuv_target = choose_better(resto_state.rejuv_target, entry) end
+            if needs_rejuvenation(entry, entry.is_tank and tank_rejuv_hp or raid_rejuv_hp) then resto_state.rejuv_target = choose_better(resto_state.rejuv_target, entry) end
             if should_let_lifebloom_bloom(entry, context) then resto_state.lifebloom_bloom = choose_better(resto_state.lifebloom_bloom, entry) end
             if auto_dispel and not resto_state.cursed_target and NS.has_dispel_type_debuff and NS.has_dispel_type_debuff(entry.unit, "Curse") then resto_state.cursed_target = entry end
             if auto_dispel and not resto_state.poison_target and NS.has_dispel_type_debuff and NS.has_dispel_type_debuff(entry.unit, "Poison") and not NS.buff_up(entry.unit, ABOLISH_POISON_BUFF) then resto_state.poison_target = entry end
@@ -420,7 +425,7 @@ local function build_state(context)
 
     resto_state.swiftmend_target = choose_swiftmend_target(entries, count, swiftmend_hp)
     resto_state.innervate_target = find_priority_innervate(entries, count, context)
-    if context.is_moving and (context.target_distance or 0) >= REPOSITION_RANGE then resto_state.should_move_form = true end
+    if context.is_moving and not context.in_combat and (context.target_distance or 0) >= REPOSITION_RANGE then resto_state.should_move_form = true end
     scan_pvp_pressure(context, resto_state)
     if resto_state.in_tree and (resto_state.ns_target or resto_state.ht_target or resto_state.enemy_healer or resto_state.root_target) then resto_state.should_dance_caster = true end
     return resto_state
@@ -466,10 +471,22 @@ local strategies = {
     { name = "InnervateHealer", matches = function(context, state) return state.innervate_target and not NS.same_unit(state.innervate_target, context.me) and NS.spell_ready(LOCAL_SPELLS.Innervate, state.innervate_target, INNERVATE_OPTS) end, execute = function(_, state) return NS.try_cast(LOCAL_SPELLS.Innervate, state.innervate_target, "[RESTO] Innervate healer", INNERVATE_OPTS) end },
     { name = "RebirthBattleRez", matches = function(context) return context.in_combat and (NS.is_in_party and NS.is_in_party() or NS.is_in_raid and NS.is_in_raid()) and NS.spell_ready(LOCAL_SPELLS.Rebirth, PLAYER_UNIT, { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD }) end, execute = function() return NS.try_cast(LOCAL_SPELLS.Rebirth, PLAYER_UNIT, "[RESTO] Rebirth battle rez", { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD }) end },
     { name = "SwiftmendEmergency", matches = function(_, state) return state.swiftmend_target and NS.spell_ready(SPELLS.Swiftmend, state.swiftmend_target.unit, SWIFTMEND_OPTS) end, execute = function(_, state) return NS.try_cast(SPELLS.Swiftmend, state.swiftmend_target.unit, "[RESTO] Swiftmend triage") end },
+    { name = "PreemptiveRegrowth", matches = function(context, state)
+        if not context.in_combat then return false end
+        if context.is_moving then return false end
+        local threshold = (context.settings and context.settings.resto_preemptive_threshold) or PreemptiveHeal.DEFAULT_THRESHOLD
+        if not PreemptiveHeal.match(context, state, threshold, 2.0) then return false end
+        if not NS.spell_ready(SPELLS.Regrowth, state._preemptive_target.unit) then return false end
+        return true
+    end, execute = function(context, state)
+        local target_entry = state._preemptive_target
+        if not target_entry or not target_entry.unit then return false end
+        return PreemptiveHeal.execute(context, state, SPELLS.Regrowth, string.format("[RESTO] Preemptive Regrowth %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.0, heal_size = 1500 })
+    end },
     { name = "NaturesSwiftness", matches = function(_, state) return state.ns_target and not state.has_natures_swiftness and (state.ns_target.time_to_die or 999) <= 3.5 and NS.spell_ready(SPELLS.NaturesSwiftness, PLAYER_UNIT, NS_OPTS) end, execute = function() return NS.try_cast(SPELLS.NaturesSwiftness, PLAYER_UNIT, "[RESTO] Nature's Swiftness", NS_OPTS) end },
     { name = "NaturesSwiftnessHealingTouch", matches = function(context, state) return state.ns_target and state.has_natures_swiftness and NS.spell_ready(SPELLS.HealingTouch, state.ns_target.unit) and not predictive_overheal("HealingTouch", state.ns_target, 1.5, context.settings, 25) end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.ns_target.unit, "[RESTO] NS Healing Touch") end },
     { name = "TranquilityEmergency", matches = function(context, state) local needed = (context.settings and context.settings.resto_tranquility_count) or 3; if state.tranquility_count < needed then return false end; if NS.threat_status and NS.threat_status(context.me, context.target) >= 2 then return false end; return NS.spell_ready(LOCAL_SPELLS.Tranquility, PLAYER_UNIT, TRANQUILITY_OPTS) end, execute = function() return NS.try_cast(LOCAL_SPELLS.Tranquility, PLAYER_UNIT, "[RESTO] Tranquility emergency", TRANQUILITY_OPTS) end },
-    { name = "LeaveTreeForDirectHeal", matches = function(_, state) return state.should_dance_caster and state.in_tree and NS.spell_ready(LOCAL_SPELLS.TreeOfLifeForm, PLAYER_UNIT, TREE_OPTS) end, execute = function() return NS.try_cast(LOCAL_SPELLS.TreeOfLifeForm, PLAYER_UNIT, "[RESTO] Leave Tree for direct spell", TREE_OPTS) end },
+    { name = "LeaveTreeForDirectHeal", matches = function(_, state) return state.should_dance_caster and state.in_tree and NS.spell_ready(LOCAL_SPELLS.TreeOfLifeForm, PLAYER_UNIT, TREE_OPTS) end, execute = function(_, state) state.should_dance_caster = false return NS.try_cast(LOCAL_SPELLS.TreeOfLifeForm, PLAYER_UNIT, "[RESTO] Leave Tree for direct spell", TREE_OPTS) end },
     { name = "HealingTouchMaxEmergency", matches = function(context, state)
         if context.is_moving or not state.ht_target then return false end
         if not NS.spell_ready(SPELLS.HealingTouch, state.ht_target.unit) then return false end

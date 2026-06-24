@@ -7,7 +7,7 @@ local cl = require("shared/class_loader_sylvanas")
 local load_child = cl.create_loader("hunter", "Hunter")
 local load_spec = cl.create_expansion_loader("hunter", "Hunter")
 local enums = cl.get_enums()
-local player = NS.GetPlayer()
+local player = NS.GetPlayer and NS.GetPlayer()
 local ok_cls, cls_id = pcall(function() return player and player:get_class() end)
 if not ok_cls or cls_id ~= enums.class_id.HUNTER then return nil end
 
@@ -360,7 +360,7 @@ local function register_auto_shot_callback()
 
         local caster = type(data) == "table" and data.caster or nil
         if caster then
-            local player = NS.GetPlayer and NS.GetPlayer() or nil
+            local player = NS.GetPlayer and NS.GetPlayer()
             if player then
                 if caster ~= player then
                     local caster_name, player_name
