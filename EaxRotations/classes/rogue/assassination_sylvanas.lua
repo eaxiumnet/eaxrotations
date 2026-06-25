@@ -331,27 +331,7 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 8. Envenom (finisher — DP stacks consumed)
-    -- ------------------------------------------------------------------------
-    {
-        name = "EnvenomFinisher",
-        matches = function(context, state)
-            if state.energy_pool_finisher then return false end  -- pool energy below 25
-            if not state.slice_dice_active or state.snd_needs_refresh then return false end
-            if (state.combo or 0) < 4 then return false end
-            local min_stacks = context.settings and context.settings.assassin_envenom_stacks or 3
-            if (state.dp_stacks or 0) < min_stacks then return false end
-            -- If Cold Blood is up, use it with Envenom
-            return NS.spell_ready(SPELLS.Envenom, context.target)
-        end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.Envenom, context.target,
-                string.format("[ASSASS] Envenom at %d CP / %d DP stacks", context.combo_points or context.combo or 0, assassin_state.dp_stacks or 0))
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 9. Rupture (bleed finisher — only on long-lived targets)
+    -- 8. Rupture (bleed finisher — only on long-lived targets)
     -- Research: "Use only when TTD > 12s."
     -- ------------------------------------------------------------------------
     {
@@ -372,7 +352,23 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 10. Kidney Shot (CC / interrupt)
+    -- 9. Envenom (finisher — DP stacks consumed, after Rupture is up)
+    -- ------------------------------------------------------------------------
+    {
+        name = "EnvenomFinisher",
+        matches = function(context, state)
+            if state.energy_pool_finisher then return false end
+            if not state.slice_dice_active or state.snd_needs_refresh then return false end
+            if (state.combo or 0) < 4 then return false end
+            local min_stacks = context.settings and context.settings.assassin_envenom_stacks or 3
+            if (state.dp_stacks or 0) < min_stacks then return false end
+            return NS.spell_ready(SPELLS.Envenom, context.target)
+        end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.Envenom, context.target,
+                string.format("[ASSASS] Envenom at %d CP / %d DP stacks", context.combo_points or context.combo or 0, assassin_state.dp_stacks or 0))
+        end,
+    },
     -- ------------------------------------------------------------------------
     {
         name = "KidneyShotCC",
