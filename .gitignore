@@ -103,3 +103,32 @@ EaxRotations/api_probe_sylvanas.lua
 EaxRotations/explain_helpers_sylvanas.lua
 EaxRotations/sim_constants_sylvanas.lua
 EaxRotations/load_order_sylvanas.lua
+
+# ---- External reference clones (local-only inspiration; out of scope per AGENTS.md) ----
+# These are other bot platforms mined for strategy ideas only. NEVER commit them.
+tbc-main/
+tbc-new/
+Sonah/
+HealPredict/
+LibHealComm-4.0.lua
+NAG/
+NextActionTBC/
+_flux_tbc_explore/
+eax_refactor/
+EaxESP/
+EaxProfessions/
+
+# ---- Data pipeline / scraper artifacts (regenerable from DBC; large) ----
+wowheadScrape/
+scraped_docs/
+scraped_docs_md/
+scripts_data/
+build_tools/__pycache__/
+
+# ---- Local agent / tooling state ----
+.agents/
+.openclaude/
+.playwright-mcp/
+__pycache__/
+ext_lib_sentinel_nav
+API_COMPLIANCE_REFERENCE.md
