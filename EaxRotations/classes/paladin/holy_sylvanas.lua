@@ -641,6 +641,36 @@ local strategies = {
             return cast_on(s.holy_light_spell, s.lowest, format("[HOLY] %s guaranteed crit %.0f%%", s.holy_light_label, hp_of(s.lowest)))
         end,
     },
+    -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
+    -- Placed after the emergency direct-heal tier (HolyShock / HolyLightEmergency /
+    -- DivineFavorHolyLightFollowup) so life-critical saves win, but before the
+    -- buff/utility/routine tier so a manual friendly target wins over auto-
+    -- lowest-scan for routine healing. Emergency override: skip when the auto-
+    -- scanned lowest is in the emergency range (hp <= 55, per HolyLightEmergency).
+    -- Opt out via holy_use_friendly_target = false; threshold slider
+    -- holy_friendly_target_threshold (default 90).
+    {
+        name = "FriendlyTarget",
+        matches = function(context, s)
+            if not context.in_combat then return false end
+            if safe_setting(context, "holy_use_friendly_target", true) == false then return false end
+            if can_help(s.lowest) and hp_of(s.lowest) <= 55 then return false end
+            local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
+            if not ft or not can_help(ft) then return false end
+            if hp_of(ft) >= safe_setting(context, "holy_friendly_target_threshold", 90) then return false end
+            s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, ft)
+            if not (NS.spell_ready and NS.spell_ready(s.holy_light_spell, ft.unit, EMPTY_OPTS)) then return false end
+            if NS.gate_overheal("HolyLight", ft.unit, 2.5, context.settings) then return false end
+            return true
+        end,
+        execute = function(context, s)
+            local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
+            if not ft or not ft.unit then return false end
+            local spell = s.holy_light_spell or HolyLightRank7
+            local label = s.holy_light_label or "Holy Light"
+            return cast_on(spell, ft, format("[HOLY] %s (friendly target) %.0f%%", label, hp_of(ft)))
+        end,
+    },
     {
         name = "BlessingOfSacrificeTank",
         matches = function(_, s)
