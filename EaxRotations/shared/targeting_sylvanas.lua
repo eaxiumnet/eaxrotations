@@ -181,7 +181,8 @@ function M.sort_by_marker_priority(enemies)
 
     -- Build scored table
     local scored = {}
-    for i = 1, #enemies do
+    local cap = math.min(#enemies, 50)
+    for i = 1, cap do
         local unit = enemies[i]
         local marker = get_marker_index(unit)
         local priority = MARKER_PRIORITY[marker] or 999
