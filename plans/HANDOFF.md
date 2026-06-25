@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-06-25** (HEAD `16c3d05d`).
+> up to date after every work session. Last updated: **2026-06-25** (HEAD `9216b06b`).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/finish-what-i-started.md` — read it
@@ -20,12 +20,15 @@ have to context-switch.
   `https://github.com/eaxiumnet/eaxrotations`. Work dir: `C:\newbot\scripts`.
 - **Baseline is GREEN:** 171 rotation suites + 11 leveling suites pass on
   **Lua 5.1**. Don't break this.
-- **What's done:** Tracks A (in-flight cleanup), B1–B6 (native-API features
+- **What's done:** Tracks A (cleanup + gate fixes), B1–B6 (native-API features
   incl. friendly-target healing for ALL 5 healers + vanilla variants),
   C1–C3 (core refactor), D1 (generator DEBUG filter), D2 (spell 28176 doc fix),
-  A4 (PvP stubs documented). All committed & pushed. 3 GitHub releases exist.
-- **What's next:** B6.2 (per-spec predictive threshold sliders), opportunistic
-  polish, and EaxAutoQuester verification. See "WHAT'S NEXT" below.
+  A4 (PvP stubs documented), scan-cap perf fix, README audit, 29 Pattern 15
+  headers added, cleanup inventory created. All committed & pushed.
+  4 GitHub releases exist.
+- **What's next:** B6.2 (per-spec predictive threshold sliders), APL optimization
+  of all 29 specs (plan at `plans/apl-guide-optimization-2026-06.md`),
+  opportunistic polish, EaxAutoQuester verification.
 - **Golden rule:** one concern per commit; run `EaxRotations\validate.cmd`
   before marking anything done; if a task loops >2 attempts, STOP and write a
   debugging note in `plans/` instead of retrying.
