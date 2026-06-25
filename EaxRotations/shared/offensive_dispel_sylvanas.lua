@@ -101,8 +101,11 @@ M.MEDIUM_DISPEL_BUFFS = {
     [27127] = { name = "Mage Armor",          priority = M.PRIORITY_MEDIUM },
     [27125] = { name = "Ice Armor",           priority = M.PRIORITY_MEDIUM },
     -- Demon Armor
-    -- NOTE: Fel Armor (28176) conflicts with Spellstone (28176) in HIGH tier;
-    -- Spellstone takes priority. Fel Armor is not separately tracked.
+    -- NOTE: 28176 is Fel Armor (Rank 1), DBC-verified — NOT Spellstone. An
+    -- earlier comment here claimed a 28176 ID conflict between Fel Armor and
+    -- Spellstone; that was incorrect (DBC description for 28176 is the Fel
+    -- Armor aura). Fel Armor is tracked in HIGH_DISPEL_BUFFS above; Demon
+    -- Armor (28189) is tracked here in MEDIUM.
     [28189] = { name = "Demon Armor",         priority = M.PRIORITY_MEDIUM },
     -- Aspect of the Hawk / Aspect of the Wild / Aspect of the Viper
     [27044] = { name = "Aspect of the Hawk",  priority = M.PRIORITY_MEDIUM },
