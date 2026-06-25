@@ -1,3 +1,9 @@
+-- test_update_callback_void_registration.lua — Validate safe registration when rotation module is nil.
+-- WHAT:  mocks a missing spec module and confirms the callback registers a no-op instead of crashing.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   missing modules should degrade gracefully, not error on every frame.
+-- SAFETY: fully mocked registry and callback; no casting.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local now = 0

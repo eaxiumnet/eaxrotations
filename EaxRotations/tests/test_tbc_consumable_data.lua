@@ -1,3 +1,9 @@
+-- test_tbc_consumable_data.lua — Validate TBC consumable item IDs and cooldown mappings.
+-- WHAT:  reads tbc_data_sylvanas and checks that potions, healthstones, and buff foods have valid entries.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   stale item IDs cause silent consumable failures in combat.
+-- SAFETY: pure data validation; no casting.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path
 
 local function assert_eq(actual, expected, label)

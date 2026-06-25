@@ -1,3 +1,9 @@
+-- test_rotation_static_compliance.lua — Static analysis of spec files for banned patterns.
+-- WHAT:  reads all _sylvanas.lua files and checks for math.sqrt, unguarded menu access, etc.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   catches anti-patterns that unit tests miss (e.g., distance sqrt in tight loops).
+-- SAFETY: pure file-read test; no casting or side effects.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local function read_file(path)

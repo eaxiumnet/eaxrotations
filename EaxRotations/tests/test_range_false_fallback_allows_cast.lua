@@ -1,3 +1,9 @@
+-- test_range_false_fallback_allows_cast.lua — Validate range-check fallback behavior.
+-- WHAT:  mocks units with/without get_distance to confirm that missing range info does not block casts.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   some units lack range data; a hard failure would freeze the rotation.
+-- SAFETY: fully mocked; no real spell casting.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local izi_casts = 0

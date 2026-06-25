@@ -1,3 +1,9 @@
+-- test_izi_target_fallback_fires.lua — Validate IZI SDK target fallback chain.
+-- WHAT:  mocks get_target, get_focus, and enemy scan to verify fallback priority (target > focus > scan).
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   incorrect fallback order causes casts on wrong units or missed opportunities.
+-- SAFETY: fully mocked unit objects; no real target selection.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local casts = {}

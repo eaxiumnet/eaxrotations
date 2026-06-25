@@ -1,3 +1,9 @@
+-- test_aura_probe_sylvanas.lua — Unit tests for aura probe shared module.
+-- WHAT:  mocks core API and validates aura query helpers (has_buff, buff_remains, etc.).
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   aura_probe is a low-level shared dependency; regressions break many specs.
+-- SAFETY: fully mocked; no real unit or spell interaction.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path
 
 local logs = {}

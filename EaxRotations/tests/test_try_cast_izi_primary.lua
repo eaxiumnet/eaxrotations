@@ -1,3 +1,9 @@
+-- test_try_cast_izi_primary.lua — Validate try_cast with IZI primary spell path.
+-- WHAT:  mocks player, target, and spell book to verify cast success/failure paths through IZI wrapper.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   IZI is the primary casting abstraction; regressions affect every spec.
+-- SAFETY: fully mocked spell objects; no real casting.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local core_casts = 0

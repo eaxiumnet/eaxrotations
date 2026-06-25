@@ -1,3 +1,9 @@
+-- test_classic_remaining_specs.lua — Verify expansion loader for all non-druid classes.
+-- WHAT:  iterates hunter/mage/paladin/priest/rogue/shaman/warlock/warrior specs and checks suffix selection.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   broad coverage of the expansion-loader matrix beyond the druid spot-check.
+-- SAFETY: fully mocked; no real spec logic executed.
+
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 local function assert_eq(a, b, label) if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end end
 
