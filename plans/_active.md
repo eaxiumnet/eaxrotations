@@ -3,8 +3,9 @@
 **Rule:** One active plan per effort. Update status here. When complete or
 abandoned, move the plan file to `plans/_archive/` and remove its row.
 
-**Canonical active plan:** `plans/finish-what-i-started.md` — reconciles all prior
-scattered plans against the verified working tree. Read it first.
+**Canonical handoff (read first, always current):** `plans/HANDOFF.md` —
+self-contained state + what's-next for any fresh agent (kept up to date
+after every session). Then `plans/finish-what-i-started.md` for the full task matrix.
 
 | Plan | Status | Next step |
 |------|--------|-----------|
