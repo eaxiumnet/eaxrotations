@@ -152,9 +152,10 @@ For each spec:
   - Acceptance: PW:S priority, Penance (if Wrath-backported), Power Infusion
   - Verify: `luac -p`, gate, `test_discipline_*`
 
-- [ ] **P6.3** Shadow — compare against Wowhead Shadow Priest TBC guide  *(PENDING — DPS spec with a clear APL VT>SW:P>MB>MF + Shadow Weaving; not researched this session — next candidate.)*
+- [x] **P6.3** Shadow — compare against Wowhead Shadow Priest TBC guide
   - Files: `EaxRotations/classes/priest/shadow_sylvanas.lua`
   - Acceptance: VT > SW:P > MB > MF priority, shadow weaving
+  - **VERIFIED:** TBC Spriest consensus: VT > SW:P > Mind Blast (on CD) > Mind Flay (filler), SW:D woven, Shadow Weaving via shadow spells. Current: VampiricTouch > ShadowWordPain > MovingSWP > VampiricEmbrace > DevouringPlague > InnerFocusMindBlast > MindBlast > ShadowWordDeath > MindFlay(filler). DoTs high, Mind Blast above filler, SW:D above filler, MindFlay last — all correct. VE/DP/InnerFocus as keep-up buff / racial / burst CD above Mind Blast is fine (one-shot/CD, don't compete with filler). Header documents the consensus. No Wrath Spriest spells present. No change.
   - Verify: `luac -p`, gate
 
 - [x] **P6.4** Smite — compare against Wowhead Holy DPS Priest TBC guide

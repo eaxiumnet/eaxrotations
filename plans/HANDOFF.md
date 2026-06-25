@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-06-25** (HEAD `9216b06b`).
+> up to date after every work session. Last updated: **2026-06-25** (APL session; last code fix `cddd6393`).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/finish-what-i-started.md` — read it
@@ -25,10 +25,20 @@ have to context-switch.
   C1–C3 (core refactor), D1 (generator DEBUG filter), D2 (spell 28176 doc fix),
   A4 (PvP stubs documented), scan-cap perf fix, README audit, 29 Pattern 15
   headers added, cleanup inventory created. All committed & pushed.
-  4 GitHub releases exist.
-- **What's next:** B6.2 (per-spec predictive threshold sliders), APL optimization
-  of all 29 specs (plan at `plans/apl-guide-optimization-2026-06.md`),
-  opportunistic polish, EaxAutoQuester verification.
+  APL optimization in progress: **5 guide-based fixes** committed (Fury `014e81c7`,
+  Destruction `f9b8a60f`, Elemental `6c88a6d8`, Assassination `23e5496d`,
+  Demonology `cddd6393`) + **16 specs VERIFIED** no-change (Arms, BM, MM, Arcane,
+  Fire, Frost, Combat, Enhancement, Smite, Shadow, Balance, Cat, Bear, Subtlety,
+  Survival, Retribution) + Affliction ordering-OK (DrainSoul caveat).
+  See `plans/apl-guide-optimization-2026-06.md`. **6 GitHub releases** exist
+  (latest v2026-06-25.23e5496d).
+- **What's next:** APL optimization — DPS specs done (fixed/verified). Remaining:
+  5 healers (reactive → DEFERRED to a separate healing-priority review) +
+  Prot Paladin (SKIPPED, threat). Drain Soul sub-25% "execute" is a Wrath
+  mechanic bug (Affliction + Demonology) → deferred, see
+  `plans/deferred_drain_soul_execute.md`. Then B6.2 (predictive threshold
+  sliders), opportunistic polish, EaxAutoQuester verification. Cut a release
+  zip after the next batch of fixes.
 - **Golden rule:** one concern per commit; run `validate.cmd` (at repo root)
   before marking anything done; if a task loops >2 attempts, STOP and write a
   debugging note in `plans/` instead of retrying.
@@ -141,9 +151,9 @@ For one test standalone: `"/c/Program Files (x86)/Lua/5.1/lua.exe" EaxRotations/
 
 ---
 
-## CURRENT STATE (verified 2026-06-25, HEAD 66148ae5)
+## CURRENT STATE (verified 2026-06-25, HEAD cddd6393)
 
-**Baseline:** 161 rotation + 11 leveling suites PASS / 0 fail on Lua 5.1.5.
+**Baseline:** 171 rotation + 11 leveling suites PASS / 0 fail on Lua 5.1.5.
 Spell audit PASS. `validate.cmd` green.
 
 ### Done this effort (commits live on GitHub master)
@@ -168,6 +178,8 @@ Spell audit PASS. `validate.cmd` green.
 | — | gitignore external repos | `5d2a2fed` | prevents accidental mass-commit |
 | — | delete 10 dead modules + 7 orphan tests | `b60d2fe6` | post-audit Task 1.3 |
 | — | EaxAutoQuester persisted (separate product, ungated) | `f6d93cb9` | luac clean; run own suite |
+| APL | Demonology: Corruption before Immolate (guide fix #5) | `cddd6393` | APL order swap; match fns unchanged |
+| APL | 16 DPS specs VERIFIED vs guides (no change) | `9c0fd382` | Arms/BM/MM/Arcane/Fire/Frost/Combat/Enhancement/Smite/Shadow/Balance/Cat/Bear/Subtlety/Survival/Ret; Affliction order-OK (DrainSoul caveat) |
 
 ### Deferred / out of scope (with reasons — don't relitigate)
 - **C4 (extract core/casting.lua):** the 8 casting functions span lines

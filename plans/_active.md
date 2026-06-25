@@ -21,9 +21,19 @@
 ## Completed
 - [x] Fury Warrior — Execute repositioned below BT/WW (`014e81c7`)
 - [x] Arms Warrior — verified correct (no changes)
+- [x] Destruction / Elemental / Assassination — prior-session guide fixes (`f9b8a60f`/`6c88a6d8`/`23e5496d`)
+- [x] Demonology — Corruption before Immolate (`cddd6393`) [this session]
+- [x] 16 DPS specs VERIFIED vs guides, no change: Arms, BM, MM, Arcane, Fire, Frost, Combat (prior) + Enhancement, Smite, Shadow, Balance, Cat, Bear, Subtlety, Survival, Retribution (this session)
+- [x] Affliction — ordering verified; DrainSoul execute caveat deferred
+- [x] G1–G4 research agents (4 parallel, all completed)
 
 ## In Progress
-- [ ] G1-G4 research agents
+- (none active)
+
+## Deferred
+- [ ] 5 healers (Holy Paladin, Holy Priest, Disc, Resto Druid, Resto Shaman) — reactive; separate healing-priority review
+- [ ] Prot Paladin — tank threat, skipped (same rationale as Prot Warrior)
+- [ ] Drain Soul sub-25% "execute" (Affliction + Demonology) — Wrath mechanic, not TBC; see `plans/deferred_drain_soul_execute.md`
 
 ## Rules
 - One concern per commit
