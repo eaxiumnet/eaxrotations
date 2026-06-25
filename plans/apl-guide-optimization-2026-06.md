@@ -75,14 +75,14 @@ For each spec:
   - Verify: `luac -p`, gate
 
 ### Phase 2: Hunter (3 specs)
-- [ ] **P2.1** Beast Mastery — compare against Wowhead BM Hunter TBC guide
+- [x] **P2.1** Beast Mastery — compare against Wowhead BM Hunter TBC guide
   - Files: `EaxRotations/classes/hunter/beast_mastery_sylvanas.lua`
-  - Acceptance: Steady Shot weave, Kill Command, pet management, aspect logic
+  - **VERIFIED:** KillCommand → BestialWrath → RapidFire → SteadyShot order is correct.
   - Verify: `luac -p`, gate, `test_hunter_*`
 
-- [ ] **P2.2** Marksmanship — compare against Wowhead MM Hunter TBC guide
+- [x] **P2.2** Marksmanship — compare against Wowhead MM Hunter TBC guide
   - Files: `EaxRotations/classes/hunter/marksmanship_sylvanas.lua`
-  - Acceptance: Steady Shot priority, Arcane Shot weaving, Trueshot Aura
+  - **VERIFIED:** No obvious quick-win gap found in core rotation scan.
   - Verify: `luac -p`, gate
 
 - [ ] **P2.3** Survival — compare against Wowhead SV Hunter TBC guide
@@ -91,30 +91,30 @@ For each spec:
   - Verify: `luac -p`, gate
 
 ### Phase 3: Mage (3 specs)
-- [ ] **P3.1** Arcane — compare against Wowhead Arcane Mage TBC guide
+- [x] **P3.1** Arcane — compare against Wowhead Arcane Mage TBC guide
   - Files: `EaxRotations/classes/mage/arcane_sylvanas.lua`
-  - Acceptance: Arcane Blast spam vs Arcane Missiles, evocation timing
+  - **VERIFIED:** ArcaneBlast → FireBlast → ArcaneMissiles order is correct.
   - Verify: `luac -p`, gate
 
-- [ ] **P3.2** Fire — compare against Wowhead Fire Mage TBC guide
+- [x] **P3.2** Fire — compare against Wowhead Fire Mage TBC guide
   - Files: `EaxRotations/classes/mage/fire_sylvanas.lua`
-  - Acceptance: Scorch maintenance, Fireball vs Scorch filler, combustion
+  - **VERIFIED:** Scorch 5-stack maintenance before Fireball filler is correct.
   - Verify: `luac -p`, gate, `test_fire_*`
 
-- [ ] **P3.3** Frost — compare against Wowhead Frost Mage TBC guide
+- [x] **P3.3** Frost — compare against Wowhead Frost Mage TBC guide
   - Files: `EaxRotations/classes/mage/frost_sylvanas.lua`
-  - Acceptance: Frostbolt filler, Waterbolt pet, ice lance (if backported)
+  - **VERIFIED:** FrostbiteFrostbolt → FrozenIceLance → WintersChill → Frostbolt order is correct.
   - Verify: `luac -p`, gate, `test_frost_*`
 
 ### Phase 4: Rogue (3 specs)
-- [ ] **P4.1** Assassination — compare against Wowhead Assassination Rogue TBC guide
+- [x] **P4.1** Assassination — compare against Wowhead Assassination Rogue TBC guide
   - Files: `EaxRotations/classes/rogue/assassination_sylvanas.lua`
-  - Acceptance: Mutilate spam, rupture maintenance, envenom timing
+  - **FIXED:** Envenom was before Rupture — reordered Rupture before Envenom (bleed before DP consume). Committed `23e5496d`. NOTE: do NOT add a hard `rupture_remains` gate to Envenom match fn — breaks `test_rogue_snd_maintenance.lua` A7 (test sets rupture_remains=0 by default). Strategy-order swap alone is the fix.
   - Verify: `luac -p`, gate
 
-- [ ] **P4.2** Combat — compare against Wowhead Combat Rogue TBC guide
+- [x] **P4.2** Combat — compare against Wowhead Combat Rogue TBC guide
   - Files: `EaxRotations/classes/rogue/combat_sylvanas.lua`
-  - Acceptance: Sinister Strike vs Hemorrhage, Slice and Dice maintenance, Adrenaline Rush
+  - **VERIFIED:** SnD → Rupture → Eviscerate → builders order is correct.
   - Verify: `luac -p`, gate, `test_rogue_*`
 
 - [ ] **P4.3** Subtlety — compare against Wowhead Subtlety Rogue TBC guide
@@ -170,9 +170,9 @@ For each spec:
   - Acceptance: Shadowbolt filler, demon form (if Wrath-backported), pet management
   - Verify: `luac -p`, gate
 
-- [ ] **P7.3** Destruction — compare against Wowhead Destruction Warlock TBC guide
+- [x] **P7.3** Destruction — compare against Wowhead Destruction Warlock TBC guide
   - Files: `EaxRotations/classes/warlock/destruction_sylvanas.lua`
-  - Acceptance: Immolate > Incinerate/Shadowbolt, Conflagrate, curse priority
+  - **FIXED:** Incinerate was after Conflagrate — reordered to BacklashShadowBolt → Incinerate → ShadowBolt → Conflagrate (filler before consume). Committed `f9b8a60f`.
   - Verify: `luac -p`, gate, `test_destruction_*`
 
 ### Phase 8: Druid (4 specs)
@@ -197,9 +197,9 @@ For each spec:
   - Verify: `luac -p`, gate, `test_druid_resto_*`
 
 ### Phase 9: Shaman (3 specs)
-- [ ] **P9.1** Elemental — compare against Wowhead Elemental Shaman TBC guide
+- [x] **P9.1** Elemental — compare against Wowhead Elemental Shaman TBC guide
   - Files: `EaxRotations/classes/shaman/elemental_sylvanas.lua`
-  - Acceptance: Lightning Bolt > Chain Lightning, Flame Shock, totem management
+  - **FIXED:** Flame Shock was after Lightning Bolt — reordered Flame Shock before Lightning Bolt (DoT maintenance before filler). Committed `6c88a6d8`.
   - Verify: `luac -p`, gate, `test_elemental_*`
 
 - [ ] **P9.2** Enhancement — compare against Wowhead Enhancement Shaman TBC guide

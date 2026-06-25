@@ -29,7 +29,7 @@ have to context-switch.
 - **What's next:** B6.2 (per-spec predictive threshold sliders), APL optimization
   of all 29 specs (plan at `plans/apl-guide-optimization-2026-06.md`),
   opportunistic polish, EaxAutoQuester verification.
-- **Golden rule:** one concern per commit; run `EaxRotations\validate.cmd`
+- **Golden rule:** one concern per commit; run `validate.cmd` (at repo root)
   before marking anything done; if a task loops >2 attempts, STOP and write a
   debugging note in `plans/` instead of retrying.
 
@@ -43,8 +43,11 @@ have to context-switch.
    - CORRECT: `C:\Program Files (x86)\Lua\5.1\lua.exe` → **Lua 5.1.5**. This is
      the project's runtime. Use this for all test runs.
    - `luac` (PATH) IS the 5.1 compiler — fine for `luac -p` syntax checks.
-   - `EaxRotations\validate.cmd` is already pinned to Lua 5.1 (see below) —
-     prefer running the gate over hand-invoking `lua`.
+   - `validate.cmd` was **moved to the repo root** (`C:\newbot\scripts\validate.cmd`)
+     during the repo-cleanup session. Run it as `cmd.exe //c "validate.cmd"` from
+     the repo root. It is gitignored (local-only); release zips ship clean.
+     `EaxRotations\validate.cmd` no longer exists — use the root one. It is pinned
+     to Lua 5.1 — prefer running the gate over hand-invoking `lua`.
 
 2. **`validate.cmd` parens bug (already fixed, don't reintroduce).** The Lua
    5.1 path contains `(x86)` parens that **break multi-line `if (...) else (...)`
@@ -127,7 +130,7 @@ exist: `v2026.06.25-f6d93cb9` and `v2026.06.25.fcd858d2`.
 
 ```bash
 cd /c/newbot/scripts
-cmd.exe //c "EaxRotations\validate.cmd"
+cmd.exe //c "validate.cmd"
 ```
 Expected output ends with `ALL CHECKS PASSED`. It runs: `luac -p` on modified
 files → rotation suite (161) → leveling suite (11) → spell audit. All on Lua
@@ -217,7 +220,7 @@ at some point to see its real status. Sibling product — its own concern.
    source of truth for agent instructions.** Ignore stale `CLAUDE.md`/cursorrules.
 3. `plans/finish-what-i-started.md` — full task matrix with done/in-flight/out-of-scope.
 4. The target file(s) for your task + relevant `apidocs/pages/dev/api/*.md`.
-5. Run `EaxRotations\validate.cmd` to confirm green before starting.
+5. Run `validate.cmd` to confirm green before starting.
 
 ## KEY FILES
 - `EaxRotations/core_sylvanas.lua` — main NS namespace (5857 lines; 5 domains
@@ -238,7 +241,7 @@ at some point to see its real status. Sibling product — its own concern.
 2. Plans live in `plans/`; one active plan per effort; check `plans/_active.md`.
 3. **One concern per commit.** Never bundle unrelated changes.
 4. **Before marking any task complete:** `luac -p` on changed files AND
-   `EaxRotations\validate.cmd`. Both must pass.
+   `validate.cmd`. Both must pass.
 5. **If a task loops >2 attempts, STOP.** Write a debugging note in `plans/`
    describing the failure instead of retrying. Looping is the failure mode
    this contract exists to prevent.
