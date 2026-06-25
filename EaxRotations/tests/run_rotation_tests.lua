@@ -33,6 +33,8 @@ local tests = {
     "test_priest_holy_friendly_target.lua",
     "test_discipline_friendly_target.lua",
     "test_paladin_holy_friendly_target.lua",
+    "test_druid_resto_friendly_target.lua",
+    "test_shaman_resto_friendly_target.lua",
 
     -- Druid tests
     "test_balance_custom_matches.lua",

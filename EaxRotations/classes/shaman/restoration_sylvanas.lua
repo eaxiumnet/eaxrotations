@@ -551,6 +551,31 @@ local healing_strategies = {
     { name = "Bloodlust", matches = bloodlust_matches, execute = function()
         return NS.try_cast(SPELLS.Bloodlust, NS.PLAYER_UNIT, "[RESTO] Bloodlust", { expected_cooldown = 600 })
     end },
+    -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
+    -- Placed after the cooldown/utility tier (EarthShield / NaturesSwiftness /
+    -- ManaTide / Bloodlust) so emergencies + raid cooldowns win, but before the
+    -- direct-heal tier (HealingWay / ChainHeal / SmartHeal) so a manual friendly
+    -- target wins over auto-lowest-scan for routine healing. Emergency override:
+    -- skip when the auto-scanned lowest is at effective_hp <= restoration_emergency_hp
+    -- (default 50). Opt out via restoration_use_friendly_target = false; threshold
+    -- slider restoration_friendly_target_threshold (default 90).
+    { name = "FriendlyTarget", matches = function(context, state)
+        if not context.in_combat then return false end
+        if context.is_moving then return false end
+        if context.settings.restoration_use_friendly_target == false then return false end
+        if state.lowest and (state.lowest.effective_hp or 100) <= (context.settings.restoration_emergency_hp or 50) then return false end
+        local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
+        if not ft then return false end
+        if (ft.effective_hp or ft.hp_pct or 100) >= (context.settings.restoration_friendly_target_threshold or 90) then return false end
+        if not state.healing_wave_ready then return false end
+        if not (NS.spell_ready and NS.spell_ready(SPELLS.HealingWave, ft.unit, { skip_range = true })) then return false end
+        if NS.gate_overheal and NS.gate_overheal("HealingWave", ft.unit, 2.5, context.settings) then return false end
+        return true
+    end, execute = function(context, state)
+        local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
+        if not ft or not ft.unit then return false end
+        return NS.try_cast(SPELLS.HealingWave, ft.unit, string.format("[RESTO] Healing Wave (friendly target) %.0f%%", ft.effective_hp or ft.hp_pct or 0))
+    end },
     { name = "HealingWay", matches = healing_way_matches, execute = healing_way_execute },
     { name = "PreemptiveChainHeal", matches = function(context, state)
         if not state.in_combat then return false end
