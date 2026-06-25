@@ -175,6 +175,8 @@ EaxAutoQuester/
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| v2026.06.25.23e5496d | 2026-06-25 | APL fixes: Fury, Destro, Ele, Assassination + repo cleanup |
+| v2026.06.25.b2abdecf | 2026-06-25 | Repo cleanup (176 files removed), new README |
 | v2026.06.25.f78f33fd | 2026-06-25 | Vanilla healers B6 + DEBUG filter |
 | v2026.06.25.46d06a6b | 2026-06-25 | Friendly-target healing (all 5 healers) |
 | v2026.06.25.014e81c7 | 2026-06-25 | Fury APL fix + repo cleanup |
