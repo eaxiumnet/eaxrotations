@@ -493,6 +493,31 @@ local strategies = {
         if predictive_overheal("HealingTouch", state.ht_target, 2.5, context.settings, 25) then return false end
         return true
     end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.ht_target.unit, "[RESTO] Healing Touch emergency") end },
+    -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
+    -- Placed after the emergency tier (Swiftmend / NS / NS+HT / Tranquility /
+    -- HealingTouchMaxEmergency) so life-critical saves win, but before routine
+    -- spot heals (RegrowthSpotHeal / Lifebloom / Rejuvenation / DownrankHT) so a
+    -- manual friendly target wins over auto-lowest-scan for routine healing.
+    -- Emergency override: skip when the auto-scanned lowest is at effective_hp
+    -- <= resto_emergency_hp (default 35, matching Regrowth's predictive gate).
+    -- Opt out via resto_use_friendly_target = false; threshold slider
+    -- resto_friendly_target_threshold (default 90).
+    { name = "FriendlyTarget", matches = function(context, state)
+        if not context.in_combat then return false end
+        if context.is_moving then return false end
+        if context.settings.resto_use_friendly_target == false then return false end
+        if state.lowest and effective_hp(state.lowest) <= (context.settings.resto_emergency_hp or 35) then return false end
+        local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
+        if not ft then return false end
+        if effective_hp(ft) >= (context.settings.resto_friendly_target_threshold or 90) then return false end
+        if not NS.spell_ready(SPELLS.Regrowth, ft.unit) then return false end
+        if predictive_overheal("Regrowth", ft, 2.0, context.settings, 35) then return false end
+        return true
+    end, execute = function(context, state)
+        local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
+        if not ft or not ft.unit then return false end
+        return NS.try_cast(SPELLS.Regrowth, ft.unit, string.format("[RESTO] Regrowth (friendly target) %.0f%%", effective_hp(ft)))
+    end },
     { name = "RegrowthSpotHeal", matches = function(context, state)
         if context.is_moving or not state.regrowth_target or state.mana_conserve then return false end
         if not NS.spell_ready(SPELLS.Regrowth, state.regrowth_target.unit) then return false end
