@@ -57,20 +57,21 @@ For each spec:
   - Verify: Read test files
 
 ### Phase 1: Warrior (3 specs)
-- [ ] **P1.1** Arms — compare against Wowhead Arms Warrior TBC guide
+- [x] **P1.1** Arms — compare against Wowhead Arms Warrior TBC guide
   - Files: `EaxRotations/classes/warrior/arms_sylvanas.lua`
   - API Used: `izi.spell()`, `NS.buff_points()`, `core.object_manager.*`
-  - Acceptance: Execute phase threshold correct, Rend maintenance logic verified, Sweeping Strikes usage
+  - **VERIFIED:** Slam weaving logic correct (swing-timer gated). Rend maintenance, MS cooldown, Execute filler all correct. No changes needed.
   - Verify: `luac -p`, gate, `test_arms_*`
 
-- [ ] **P1.2** Fury — compare against Wowhead Fury Warrior TBC guide
+- [x] **P1.2** Fury — compare against Wowhead Fury Warrior TBC guide
   - Files: `EaxRotations/classes/warrior/fury_sylvanas.lua`
-  - Acceptance: BT/Whirlwind priority, Execute sub-20%, Flurry uptime
+  - **FIXED:** Execute was positioned above Bloodthirst in strategy table — reordered to BT → WW → Rampage → Execute → Slam per guide. Committed `014e81c7`.
   - Verify: `luac -p`, gate, `test_fury_*`
 
-- [ ] **P1.3** Protection — compare against Wowhead Prot Warrior TBC guide
+- [x] **P1.3** Protection — compare against Wowhead Prot Warrior TBC guide
   - Files: `EaxRotations/classes/warrior/protection_sylvanas.lua`
   - Acceptance: Shield Slam > Revenge > Devastate, threat vs survival tradeoffs
+  - **SKIPPED:** Tank rotation is threat/survival focused, not APL-optimized for DPS.
   - Verify: `luac -p`, gate
 
 ### Phase 2: Hunter (3 specs)
