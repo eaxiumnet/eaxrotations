@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-06-25** (HEAD `931cd9ee`).
+> up to date after every work session. Last updated: **2026-06-25** (HEAD `16c3d05d`).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/finish-what-i-started.md` — read it
@@ -21,12 +21,11 @@ have to context-switch.
 - **Baseline is GREEN:** 171 rotation suites + 11 leveling suites pass on
   **Lua 5.1**. Don't break this.
 - **What's done:** Tracks A (in-flight cleanup), B1–B6 (native-API features
-  incl. friendly-target healing for ALL 5 healers + their vanilla variants),
-  C1–C3 (core refactor), D2 (spell 28176 doc fix), A4 (PvP stubs documented).
-  All committed & pushed. 3 GitHub releases exist with zips.
-- **What's next:** D1 (generator filter for DEBUG data — build_tools scope),
-  B6.2 (per-spec predictive threshold sliders), and opportunistic polish.
-  See "WHAT'S NEXT" below.
+  incl. friendly-target healing for ALL 5 healers + vanilla variants),
+  C1–C3 (core refactor), D1 (generator DEBUG filter), D2 (spell 28176 doc fix),
+  A4 (PvP stubs documented). All committed & pushed. 3 GitHub releases exist.
+- **What's next:** B6.2 (per-spec predictive threshold sliders), opportunistic
+  polish, and EaxAutoQuester verification. See "WHAT'S NEXT" below.
 - **Golden rule:** one concern per commit; run `EaxRotations\validate.cmd`
   before marking anything done; if a task loops >2 attempts, STOP and write a
   debugging note in `plans/` instead of retrying.
@@ -153,7 +152,8 @@ Spell audit PASS. `validate.cmd` green.
 | B4 | "others' heals" via native `get_incoming_heals()` | — (already done + tested) | `test_healer_deficit_overheal` T7 |
 | B5 | pvp_burst dangling `reasons` ref fixed | `f487c7ce` | `M.reason()` now populated |
 | B6 | friendly-target healing ALL 5 healers | `c4f535df`+`de8d9145`+`3181e7a9` | manual-target control, emergency-safe |
-| B6v | vanilla healer variants (5 specs) | `931cd9ee` | port of B6 to Vanilla Anniversary |
+| B6v | vanilla healer variants (5 specs) | `931cd9ee`+`818707a8` | port of B6 to Vanilla Anniversary |
+| D1 | generator DEBUG filter | `16c3d05d` | 54 DEBUG spells removed from bridge |
 | C1 | core/ttd | — (already in `shared/ttd_tracker_sylvanas.lua`) | nothing to move |
 | C2 | core/talents | — (already in `shared/spell_resolver_sylvanas.lua`) | nothing to move |
 | C3 | core/diagnostics.lua extracted | `80128541` | core_sylvanas 5965→5857 lines |
@@ -185,23 +185,14 @@ Spell audit PASS. `validate.cmd` green.
 
 ## WHAT'S NEXT (prioritized)
 
-### 1. D1 — Generator filter for DEBUG data (build_tools scope)
-**Goal:** stop emitting DEBUG/QA/placeholder spells into the data bridge.
-**File:** `build_tools/json_to_lua_data.py` — add a name filter excluding
-`DEBUG`/`QA Debug`/`XXXX`/`ALEX BUG` patterns during spell emission, then
-regenerate the bridge. This is a **Python** change + a regeneration run, not
-a Lua edit. The DEBUG spells are real Blizzard QA spells in the DBC; no
-rotation code references them. Verify the regenerated `wowhead_data_bridge_sylvanas.lua`
-still loads (a test consumes it). **Lower priority.**
-
-### 2. B6.2 — Per-spec predictive threshold sliders
+### 1. B6.2 — Per-spec predictive threshold sliders
 The B6 friendly_target_threshold sliders are HP-based. A separate predictive
 (damage-rate-aware) threshold layer (post-audit 3.2) would use
 `HealerDeficit.predicted_deficit` to fire FriendlyTarget when damage is
 incoming even if current HP is above the static threshold. Smaller, tuning-
 level work. Design first — don't over-engineer.
 
-### 3. Opportunistic polish (only when already editing a file)
+### 2. Opportunistic polish (only when already editing a file)
 - Migrate specs to `spec_kit.safe_state` (AGENTS Pattern 16) — `arms_sylvanas.lua`
   is the proof (done). Convert a spec only when already editing it; never
   schedule a "convert all 29" effort (that's what causes loops).
@@ -210,7 +201,7 @@ level work. Design first — don't over-engineer.
 - C4 (extract core/casting.lua) remains deferred — 8 functions scattered across
   a 4200-line span, loop-trap. Revisit only as part of a whole-file reorg.
 
-### 4. Verify the EaxAutoQuester suite (separate product)
+### 3. Verify the EaxAutoQuester suite (separate product)
 `EaxAutoQuester/` is committed but NOT covered by the rotation gate. Run
 `"/c/Program Files (x86)/Lua/5.1/lua.exe" EaxAutoQuester/tests/run_quester_tests.lua`
 at some point to see its real status. Sibling product — its own concern.
