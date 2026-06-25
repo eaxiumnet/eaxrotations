@@ -306,7 +306,11 @@ function M.is_any_nearby_enemy_under_cc(ns, range)
     if not ns or not ns.GetEnemiesInRange then return false, nil end
     local enemies = ns.GetEnemiesInRange(range)
     if not enemies then return false, nil end
+    local scanned = 0
+    local MAX_SCAN = 50
     for _, enemy in ipairs(enemies) do
+        scanned = scanned + 1
+        if scanned > MAX_SCAN then break end
         if enemy then
             local is_ccd, cc_name = M.is_breakable_cc_active(enemy, ns)
             if is_ccd then return true, cc_name end
