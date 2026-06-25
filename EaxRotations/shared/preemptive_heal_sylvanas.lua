@@ -105,6 +105,81 @@ M.HEAL_BASE_TBC = {
 }
 
 -- ---------------------------------------------------------------------------
+-- HealPredict Shield Absorb Data (TBC Anniversary 2.5.5)
+-- Base values verified against wowheadScrape/dbc_extract/lua/spell_db.lua
+-- (Effect#0 EffectBasePoints). Coefficients are TBC spell-power multipliers
+-- applied after the DirectCoefficient (cast_time/3.5) rule.
+-- ---------------------------------------------------------------------------
+
+-- PWS_BUFFS — array of all known PW:S spell IDs. Used by buff_points queries
+-- and to gate shield-aware decisions in downstream specs.
+M.PWS_BUFFS = {
+    17, 592, 600, 3747, 6065, 6066, 10898, 10899, 10900, 10901, 25217, 25218,
+}
+
+M.SHIELD_DATA = {
+    -- Power Word: Shield ranks 1-12 — coeff 0.2, school HEAL (2)
+    -- Base absorb from DBC EffectBasePoints (Effect#0 = absorb aura).
+    [17]    = { coeff = 0.2, school = 2,  base = 43   },
+    [592]   = { coeff = 0.2, school = 2,  base = 87   },
+    [600]   = { coeff = 0.2, school = 2,  base = 157  },
+    [3747]  = { coeff = 0.2, school = 2,  base = 233  },
+    [6065]  = { coeff = 0.2, school = 2,  base = 300  },
+    [6066]  = { coeff = 0.2, school = 2,  base = 380  },
+    [10898] = { coeff = 0.2, school = 2,  base = 483  },
+    [10899] = { coeff = 0.2, school = 2,  base = 604  },
+    [10900] = { coeff = 0.2, school = 2,  base = 762  },
+    [10901] = { coeff = 0.2, school = 2,  base = 941  },
+    [25217] = { coeff = 0.2, school = 2,  base = 1124 },
+    [25218] = { coeff = 0.2, school = 2,  base = 1264 },
+    -- Ice Barrier ranks 1-6 — coeff 0.1, school FROST (16)
+    [11426] = { coeff = 0.1, school = 16, base = 437 },
+    [13031] = { coeff = 0.1, school = 16, base = 548 },
+    [13032] = { coeff = 0.1, school = 16, base = 677 },
+    [13033] = { coeff = 0.1, school = 16, base = 817 },
+    [27131] = { coeff = 0.1, school = 16, base = 924, _note = "shared id with Mana Shield Rank 7" },
+    [33405] = { coeff = 0.1, school = 16, base = 1074 },
+    -- Mana Shield ranks 1-7 — coeff 0.5 (encodes 50% mana→absorpt conversion),
+    -- school ARCANE (64).
+    [1463]  = { coeff = 0.5, school = 64, base = 119 },
+    [8494]  = { coeff = 0.5, school = 64, base = 209 },
+    [8495]  = { coeff = 0.5, school = 64, base = 299 },
+    [10191] = { coeff = 0.5, school = 64, base = 389 },
+    [10192] = { coeff = 0.5, school = 64, base = 479 },
+    [10193] = { coeff = 0.5, school = 64, base = 569 },
+    [27131] = { coeff = 0.5, school = 64, base = 714, _note = "Rank 7; collides with Ice Barrier — caller resolves by class" },
+}
+
+-- ---------------------------------------------------------------------------
+-- HealPredict: Shield Absorb Helpers
+-- ---------------------------------------------------------------------------
+
+--- Compute expected absorb for a shield spell given caster spell_power.
+--- Returns the base absorb when spell_power is nil/0 (cheap predictor gate);
+--- otherwise returns floor(coeff * spell_power).
+---@param spell_id number      Shield spell ID (PW:S, Ice Barrier, Mana Shield)
+---@param spell_power number|nil  Caster's +spell_power stat (may be nil)
+---@return integer absorb      Predicted absorb amount (>= 0)
+function M.calc_shield_absorb(spell_id, spell_power)
+    local data = M.SHIELD_DATA[spell_id]
+    if not data then return 0 end
+    if not spell_power or spell_power <= 0 then
+        return data.base or 0
+    end
+    return math.floor((data.coeff or 0) * spell_power)
+end
+
+--- Read current PW:S absorb remaining on a unit via NS.buff_points.
+--- All rank IDs (1-12) are queried in a single buff_points call.
+---@param unit table  game_object unit (from NS.object_manager or izi)
+---@return integer absorb   Absorb remaining (0 if no shield active)
+function M.get_pws_absorb(unit)
+    if not unit then return 0 end
+    local pts = NS.buff_points(unit, M.PWS_BUFFS)
+    return (pts and pts[1]) or 0
+end
+
+-- ---------------------------------------------------------------------------
 -- Public API
 -- ---------------------------------------------------------------------------
 

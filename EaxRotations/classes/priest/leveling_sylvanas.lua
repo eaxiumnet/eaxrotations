@@ -26,11 +26,19 @@ local RENEW_BUFF = { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076,
 local SHADOWFORM_BUFF = { 15473 }
 local VAMPIRIC_TOUCH_DEBUFF = { 34917, 34916, 34914 }
 local SHADOW_WORD_PAIN_DEBUFF = { 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
-local HOLY_FIRE_DOT_DEBUFF = { 25384, 15261, 15267, 15266, 15265, 15264, 15263, 15262, 14914 }
+local VAMPIRIC_EMBRACE_BUFF = { 15286 }
+local VAMPIRIC_EMBRACE_DEBUFF = { 15286 }
+local INNER_FOCUS_BUFF = { 14751 }
 -- Mind Flay mana gate: don't channel if mana is critically low (wand instead)
 local MF_MANA_GATE = 12
 -- Vampiric Touch refresh window: reapply when debuff has <= this many seconds left
 local VT_REFRESH_WINDOW = 3
+-- Shadowfiend default mana threshold (overridden by settings.shadowfiend_mana_threshold)
+local SHADOWFIEND_MANA_DEFAULT = 30
+-- Desperate Prayer default HP threshold (overridden by settings.leveling_desp_prayer_hp)
+local DESPERATE_PRAYER_HP_DEFAULT = 35
+-- VE resume window: re-cast Vampiric Embrace when target debuff is below this many seconds
+local VE_RESUME_WINDOW = 5
 
 -- ============================================================================
 -- Helper functions
@@ -103,8 +111,8 @@ function build_state(context)
     state.flash_heal_ready = spell_ready(SPELLS.FlashHeal)
     state.swp_ready = spell_ready(SPELLS.ShadowWordPain)
     state.smite_ready = spell_ready(SPELLS.Smite)
-    state.holy_fire_ready = spell_ready(SPELLS.HolyFire)
     state.mind_blast_ready = spell_ready(SPELLS.MindBlast)
+    state.desperate_prayer_ready = spell_ready(SPELLS.DesperatePrayer)
     state.swd_ready = spell_ready(SPELLS.ShadowWordDeath)
     state.holy_nova_ready = spell_ready(SPELLS.HolyNova)
     state.scream_ready = spell_ready(SPELLS.PsychicScream)
@@ -117,6 +125,8 @@ function build_state(context)
     state.shadowform_ready = spell_ready(SPELLS.Shadowform)
     state.vt_ready = spell_ready(SPELLS.VampiricTouch)
     state.mf_ready = spell_ready(SPELLS.MindFlay)
+    state.shadowfiend_ready = spell_ready(SPELLS.Shadowfiend)
+    state.vampiric_embrace_ready = spell_ready(SPELLS.VampiricEmbrace)
 
     -- Buff/Debuff checks
     state.has_fortitude = has_buff(POWER_WORD_FORTITUDE_BUFF)
@@ -133,12 +143,30 @@ function build_state(context)
         if ok then state.vt_remaining = r or 0 end
     end
 
+    -- Target HP tracking (for SW:D execute gate)
+    state.target_hp_pct = 100
+    if state.target then
+        local ok, pct = pcall(function() return state.target:get_health_percentage() end)
+        if ok and type(pct) == "number" then state.target_hp_pct = pct end
+    end
+
+    -- Vampiric Embrace self-buff tracking + target debuff tracking
+    state.has_vampiric_embrace = has_buff(VAMPIRIC_EMBRACE_BUFF)
+    state.ve_remaining = 0
+    if state.target then
+        local ok, r = pcall(function() return NS.debuff_remains(state.target, VAMPIRIC_EMBRACE_DEBUFF) end)
+        if ok then state.ve_remaining = r or 0 end
+    end
+
+    -- Inner Focus buff tracking
+    state.has_inner_focus = has_buff(INNER_FOCUS_BUFF)
+
     -- Channeling state (prevent Mind Flay during another channel)
     state.is_channeling = (context.is_channeling or context.is_casting) or false
 
     -- Configured thresholds
     state.heal_hp = (context.settings and context.settings.leveling_heal_hp) or 60
-    state.wand_threshold = (context.settings and context.settings.leveling_wand_threshold) or 20
+    state.wand_threshold = (context.settings and context.settings.leveling_wand_threshold) or 30
 
     -- Count nearby enemies
     state.enemies = context.enemies_count or 0
@@ -150,6 +178,14 @@ function build_state(context)
 
     -- Shadowform toggle setting (default: true = auto-enter Shadowform when available)
     state.use_shadowform = (context.settings and context.settings.leveling_use_shadowform) ~= false
+
+    -- Shadowfiend settings (schema_sylvanas.lua lines 31-32)
+    state.use_shadowfiend = (context.settings and context.settings.use_shadowfiend) ~= false
+    state.shadowfiend_mana_threshold = (context.settings and context.settings.shadowfiend_mana_threshold) or SHADOWFIEND_MANA_DEFAULT
+
+    -- Desperate Prayer settings (schema_sylvanas.lua lines 103-104)
+    state.use_desperate_prayer = (context.settings and context.settings.leveling_use_desperate_prayer) ~= false
+    state.desp_prayer_hp = (context.settings and context.settings.leveling_desp_prayer_hp) or DESPERATE_PRAYER_HP_DEFAULT
 
     return state
 end
@@ -200,12 +236,24 @@ local function heal_matches(context, state)
     return state.greater_heal_ready and (state.hp or 100) < state.heal_hp
 end
 
-local function inner_focus_matches(context, state)
+local function inner_focus_heal_matches(context, state)
     if not state then return false end
     if not state.inner_focus_ready then return false end
-    -- Use Inner Focus before big heals or mind blast for free cast + crit
     if not state.in_combat then return false end
-    if (state.hp or 100) > 50 then return false end  -- Save for when healing is needed
+    if state.has_inner_focus then return false end
+    -- Use before big heals when self HP is low
+    if (state.hp or 100) > 50 then return false end
+    return state.greater_heal_ready or state.flash_heal_ready
+end
+
+local function inner_focus_mind_blast_matches(context, state)
+    if not state then return false end
+    if not state.inner_focus_ready then return false end
+    if not state.in_combat then return false end
+    if state.has_inner_focus then return false end
+    if not state.mind_blast_ready then return false end
+    -- Don't burn IF if mana is too low for MB to fire
+    if (state.mana_pct or 100) < state.wand_threshold then return false end
     return true
 end
 
@@ -232,10 +280,22 @@ local function shackle_matches(context, state)
     return is_undead_type(target_creature_type(context, state))
 end
 
+local function desperate_prayer_matches(context, state)
+    if not state then return false end
+    if not state.desperate_prayer_ready then return false end
+    if not state.use_desperate_prayer then return false end
+    if not state.in_combat then return false end
+    -- Panic-button self heal: fire only when HP is critical (threshold from settings)
+    return (state.hp or 100) < (state.desp_prayer_hp or DESPERATE_PRAYER_HP_DEFAULT)
+end
+
 local function swp_matches(context, state)
     if not state then return false end
+    if not state.in_combat then return false end
     if not state.target then return false end
     if not state.swp_ready then return false end
+    -- Mana gate: don't cast SW:P below wand threshold (wand instead)
+    if (state.mana_pct or 100) < state.wand_threshold then return false end
 
     -- Refresh if not on target or running out
     local remains = 0
@@ -244,30 +304,21 @@ local function swp_matches(context, state)
     return remains < 4
 end
 
-local function holy_fire_matches(context, state)
-    if not state then return false end
-    if not state.target then return false end
-    if not state.holy_fire_ready then return false end
-    if state.is_moving then return false end
-
-    -- Use on cooldown if not already active
-    local remains = 0
-    local ok, r = pcall(function() return NS.debuff_remains(state.target, HOLY_FIRE_DOT_DEBUFF) end)
-    if ok then remains = r or 0 end
-    return remains < 4
-end
-
 local function mind_blast_matches(context, state)
     if not state then return false end
     if not state.target then return false end
-    return state.mind_blast_ready
+    if not state.mind_blast_ready then return false end
+    -- Mana gate: drop MB below wand threshold (matches Shadow spec shadow_mb_mana_floor pattern)
+    if (state.mana_pct or 100) < state.wand_threshold then return false end
+    return true
 end
 
 local function swd_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.swd_ready then return false end
-    return (state.hp or 100) > 60
+    if (state.hp or 100) <= 60 then return false end
+    return (state.target_hp_pct or 100) <= 25
 end
 
 local function holy_nova_matches(context, state)
@@ -275,6 +326,7 @@ local function holy_nova_matches(context, state)
     if not state.target then return false end
     if not state.holy_nova_ready then return false end
     if state.is_moving then return false end
+    if state.has_shadowform then return false end
     return (state.enemies or 0) >= 3
 end
 
@@ -283,6 +335,7 @@ local function smite_matches(context, state)
     if not state.target then return false end
     if not state.smite_ready then return false end
     if state.is_moving then return false end
+    if state.has_shadowform then return false end
     return (state.mana_pct or 100) >= state.wand_threshold
 end
 
@@ -298,6 +351,8 @@ local function vampiric_touch_matches(context, state)
     if not state.target then return false end
     if not state.vt_ready then return false end
     if state.is_channeling then return false end
+    -- Mana gate: don't reapply VT below wand threshold (wand instead)
+    if (state.mana_pct or 100) < state.wand_threshold then return false end
     -- Refresh if debuff is expiring within the refresh window
     return state.vt_remaining <= VT_REFRESH_WINDOW
 end
@@ -310,6 +365,25 @@ local function mind_flay_matches(context, state)
     if state.is_channeling then return false end
     -- Mana gate: don't channel Mind Flay below MF_MANA_GATE % (wand instead)
     return (state.mana_pct or 100) >= MF_MANA_GATE
+end
+
+local function vampiric_embrace_matches(context, state)
+    if not state then return false end
+    if not state.target then return false end
+    if not state.vampiric_embrace_ready then return false end
+    -- Cast if self-buff missing OR target debuff is expiring within resume window
+    if not state.has_vampiric_embrace then return true end
+    return state.ve_remaining <= VE_RESUME_WINDOW
+end
+
+local function shadowfiend_matches(context, state)
+    if not state then return false end
+    if not state.target then return false end
+    if not state.shadowfiend_ready then return false end
+    if not state.use_shadowfiend then return false end
+    if state.is_channeling then return false end
+    -- Mana gate: summon Shadowfiend when below configured threshold (default 30%)
+    return (state.mana_pct or 100) <= state.shadowfiend_mana_threshold
 end
 
 local function wand_matches_fn(context, state)
@@ -354,9 +428,9 @@ local strategies = {
         execute = function() return try_cast(SPELLS.FlashHeal, nil, "[LEVELING] Flash Heal") end,
     },
     {
-        name = "InnerFocus",
-        matches = inner_focus_matches,
-        execute = function() return try_cast(SPELLS.InnerFocus, nil, "[LEVELING] Inner Focus") end,
+        name = "InnerFocusHeal",
+        matches = inner_focus_heal_matches,
+        execute = function() return try_cast(SPELLS.InnerFocus, nil, "[LEVELING] Inner Focus (heal)") end,
     },
     {
         name = "GreaterHeal",
@@ -406,12 +480,30 @@ local strategies = {
         end,
     },
     {
-        name = "HolyFire",
-        matches = holy_fire_matches,
+        name = "DesperatePrayer",
+        matches = desperate_prayer_matches,
+        execute = function() return try_cast(SPELLS.DesperatePrayer, nil, "[LEVELING] Desperate Prayer") end,
+    },
+    {
+        name = "VampiricEmbrace",
+        matches = vampiric_embrace_matches,
         execute = function(context)
             if not context then return false end
-            return try_cast(SPELLS.HolyFire, context.target, "[LEVELING] Holy Fire")
+            return try_cast(SPELLS.VampiricEmbrace, context.target, "[LEVELING] Vampiric Embrace")
         end,
+    },
+    {
+        name = "Shadowfiend",
+        matches = shadowfiend_matches,
+        execute = function(context)
+            if not context then return false end
+            return try_cast(SPELLS.Shadowfiend, context.target, "[LEVELING] Shadowfiend")
+        end,
+    },
+    {
+        name = "InnerFocusMindBlast",
+        matches = inner_focus_mind_blast_matches,
+        execute = function() return try_cast(SPELLS.InnerFocus, nil, "[LEVELING] Inner Focus (MB)") end,
     },
     {
         name = "MindBlast",

@@ -100,6 +100,8 @@ return {
                 settings = {
                     { key = "leveling_wand_threshold", type = "slider", label = "Wand Mana %", min = 0, max = 100, default = 30 },
                     { key = "leveling_heal_hp", type = "slider", label = "Heal HP %", min = 0, max = 100, default = 50 },
+                    { key = "leveling_use_desperate_prayer", type = "checkbox", label = "Desperate Prayer (panic button)", default = true, tooltip = "Self-heal when HP drops below threshold. Race-gated (Human/Dwarf/Draenei/Dark Iron all learn at L10-66)." },
+                    { key = "leveling_desp_prayer_hp", type = "slider", label = "Desperate Prayer HP %", min = 5, max = 60, default = 35 },
                 },
             },
         },

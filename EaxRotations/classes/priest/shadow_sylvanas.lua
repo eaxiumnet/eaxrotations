@@ -337,6 +337,17 @@ local function can_break_mind_flay(s)
     return not s.mf_channeling or s.should_clip_mf
 end
 
+local function _engaged_with_player(context)
+    local target = context.target
+    local me = context.me
+    if not target or not me then return true end
+    if (context.target_hp or 100) < 100 then return true end
+    local ok, enemy_target = pcall(function() return target:get_target() end)
+    if not ok or not enemy_target then return false end
+    if NS.same_unit and NS.same_unit(enemy_target, me) then return true end
+    return false
+end
+
 
 
 -- ============================================================================
@@ -461,6 +472,7 @@ local function vampiric_touch_matches(context, s)
     -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
     local ratio = s.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
     if s.vt_remaining > 0 and not should_snapshot_upgrade(s.spell_damage, s.snapshot_vt_dmg, s.vt_remaining, 3, ratio) then return false end
+    if (s.vt_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
     return true
 end
 
@@ -471,6 +483,7 @@ local function shadow_word_pain_matches(context, s)
     if not context.has_valid_enemy_target then return false end
     -- Mana emergency: drop all spells (wand only)
     if s.mana_emergency then return false end
+    if (s.swp_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
     -- Shadow Weaving maintenance: extend refresh window from 3s to 5s when stacks < 5
     local sw_window = s.swp_refresh_window or 3
     local effective_window = (s.weaving_stacks > 0 and s.weaving_stacks < 5) and 5 or sw_window
@@ -485,6 +498,7 @@ local function vampiric_embrace_matches(context, s)
     if not s.vampiric_embrace_known then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target or s.ve_remaining > 10 then return false end
+    if (s.ve_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
     return true
 end
 
@@ -498,6 +512,7 @@ local function devouring_plague_matches(context, s)
     -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
     local ratio = s.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
     if s.dp_remaining > 0 and not should_snapshot_upgrade(s.spell_damage, s.snapshot_dp_dmg, s.dp_remaining, 3, ratio) then return false end
+    if (s.dp_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
     return true
 end
 
@@ -521,6 +536,7 @@ local function mind_blast_matches(context, s)
     if s.mana_low then return false end
     -- Threat safety: hold MB if tank threat lead insufficient
     if not s.threat_safe then return false end
+    if not _engaged_with_player(context) then return false end
     return true
 end
 
@@ -539,6 +555,7 @@ local function shadow_word_death_matches(context, s)
     local in_execute = target_hp <= 25
     local safety_floor = in_execute and 60 or (s.swd_safety_hp or 80)
     if (context.hp or 100) < safety_floor then return false end
+    if not _engaged_with_player(context) then return false end
     return true
 end
 
@@ -618,6 +635,7 @@ local function starshards_matches(context, s)
     if not s.starshards_known then return false end
     if not context.has_valid_enemy_target then return false end
     if context.is_moving then return false end
+    if not _engaged_with_player(context) then return false end
     return true
 end
 
@@ -663,6 +681,7 @@ local strategies = {
         if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShadowWordPain, 2.0) then return false end
         if (s.swp_remaining or 0) > 3 then return false end
         if s.mana_emergency then return false end
+        if (s.swp_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
         return true
     end, execute = function(context) local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] SWP (moving)"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
     { name = "VampiricEmbrace", matches = vampiric_embrace_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricEmbrace, context.target, "[SHADOW] VampiricEmbrace") end },

@@ -14,6 +14,8 @@ local _pet_cache_timestamp = 0
 local _cached_inventory_time = 0
 local _ooc_ok, ooc_manager = pcall(require, "shared/ooc_manager_sylvanas")
 if not _ooc_ok then ooc_manager = nil end
+local _hyst_ok, EnemyCountHysteresis = pcall(require, "shared/enemy_count_hysteresis_sylvanas")
+if not _hyst_ok or type(EnemyCountHysteresis) ~= "table" then EnemyCountHysteresis = { update = function() end, smoothed_count = function() return 0 end } end
 local _burst_ok, BurstLogic = pcall(require, "shared/burst_logic_sylvanas")
 if not _burst_ok or type(BurstLogic) ~= "table" then BurstLogic = { should_auto_burst = function() return nil end } end
 local _forecast_gate_ok = pcall(require, "shared/combat_forecast_gate_sylvanas")
@@ -35,8 +37,6 @@ local _ttd_ema_ok, ttd_ema = pcall(require, "shared/ttd_ema_tracker_sylvanas")
 if not _ttd_ema_ok or type(ttd_ema) ~= "table" then ttd_ema = nil end
 local _tick_profiler_ok, tick_profiler = pcall(require, "shared/tick_profiler_sylvanas")
 if not _tick_profiler_ok then tick_profiler = nil end
--- PvP trinket tracker: self-registers NS.PvPTrinket + spell cast + update callbacks
-pcall(require, "shared/pvp_trinket_tracker_sylvanas")
 local _buff_db_ok, buffs = pcall(require, "common/buff_db")
 if not _buff_db_ok or type(buffs) ~= "table" then buffs = {} end
 local BLOODLUST_IDS = buffs.BLOODLUST or { 2825, 32182 }
@@ -89,7 +89,22 @@ local _cached_talent_build = nil
 local _cached_talent_build_time = 0
 
 local _get_expansion_max_level = NS.get_expansion_max_level
-local _get_player = NS.GetPlayer
+local function _get_player()
+    local p = NS.GetPlayer and NS.GetPlayer()
+    if p then return p end
+    local c = rawget(_G, "core")
+    if c and c.object_manager and type(c.object_manager.get_local_player) == "function" then
+        local ok, fresh = pcall(c.object_manager.get_local_player, c.object_manager)
+        if ok and fresh then
+            local valid = pcall(function() return fresh:is_valid() end)
+            if valid then
+                NS.PLAYER_UNIT = fresh
+                return fresh
+            end
+        end
+    end
+    return nil
+end
 
 local _cached_tank_alive, _cached_tank_alive_time = true, -1
 
@@ -573,6 +588,20 @@ local function build_context()
     _context.combo_points = combo_points(me)
     _context.enemy_count = count
     _context.enemies_count = count
+    -- Tune hysteresis from player settings if available; defaults remain 500/2000ms.
+    local _hyst_settings = _settings and _settings.hysteresis or nil
+    if type(_hyst_settings) == "table" then
+        EnemyCountHysteresis.configure({
+            rise_hold_ms = _hyst_settings.rise_hold_ms,
+            drop_hold_ms = _hyst_settings.drop_hold_ms,
+        })
+    end
+    -- Feed raw enemy count into the hysteresis smoother; specs opt in via enemy_count_smoothed.
+    local _now_ms = NS.game_time_ms and NS.game_time_ms() or 0
+    EnemyCountHysteresis.update(count, _now_ms)
+    _context.enemy_count_smoothed = EnemyCountHysteresis.smoothed_count()
+    -- Reset hysteresis when leaving combat to avoid bleed-over from prior pulls.
+    if not in_combat then EnemyCountHysteresis.reset() end
     local now_pet = NS.game_time_ms and NS.game_time_ms() or 0
     if now_pet - _pet_cache_timestamp > 500 then
         _pet_cache_data = _get_pet and _get_pet()

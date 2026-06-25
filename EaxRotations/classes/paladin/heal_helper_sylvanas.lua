@@ -11,7 +11,7 @@ end
 
 local _ok_enums, enums = pcall(require, "common/enums")
 if not _ok_enums or type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
-local load_player = NS.GetPlayer()
+local load_player = NS.GetPlayer and NS.GetPlayer()
 local ok_cls, cls_id = pcall(function() return load_player and load_player:get_class() end)
 if not ok_cls or cls_id ~= enums.class_id.PALADIN then return end
 

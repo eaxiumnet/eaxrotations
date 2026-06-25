@@ -301,6 +301,7 @@ end
 
 local function readiness_matches(context, s)
     if not cooldowns_enabled(context) then return false end
+    if context.settings and context.settings.use_readiness == false then return false end
     if not s.in_combat then return false end
     if not s.readiness_ready then return false end
     -- TTD gate: don't waste 5min CD on a dying target

@@ -16,6 +16,7 @@ local POWER_WORD_FORTITUDE_BUFF = { 10938, 10937, 2791, 1245, 1244, 1243 }
 local POWER_WORD_SHIELD_BUFF = { 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }
 local RENEW_BUFF = { 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
 local SHADOWFORM_BUFF = { 15473 }
+local INNER_FOCUS_BUFF = { 14751 }
 local SHADOW_WORD_PAIN_DEBUFF = { 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
 local HOLY_FIRE_DOT_DEBUFF = { 15261, 15267, 15266, 15265, 15264, 15263, 15262, 14914 }
 local MF_MANA_GATE = 12
@@ -98,6 +99,7 @@ function build_state(context)
     state.has_shadowform = has_buff(SHADOWFORM_BUFF)
     state.has_shield = has_buff(POWER_WORD_SHIELD_BUFF)
     state.has_renew = has_buff(RENEW_BUFF)
+    state.has_inner_focus = has_buff(INNER_FOCUS_BUFF)
     state.target_creature_type = target_creature_type(context, state)
 
     state.is_channeling = (context.is_channeling or context.is_casting) or false
@@ -158,6 +160,7 @@ end
 local function inner_focus_matches(context, state)
     if not state then return false end
     if not state.inner_focus_ready then return false end
+    if state.has_inner_focus then return false end
     if not state.in_combat then return false end
     if (state.hp or 100) > 50 then return false end
     return true

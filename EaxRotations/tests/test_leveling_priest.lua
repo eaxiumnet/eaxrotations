@@ -62,7 +62,6 @@ local MOCK_PRIEST_SPELLS = {
     Heal = { 25213 },
     FlashHeal = { 25235 },
     GreaterHeal = { 25213 },
-    HolyFire = { 25233 },
     HolyNova = { 15237 },
     MindBlast = { 25375 },
     ShadowWordDeath = { 32379 },
@@ -72,6 +71,12 @@ local MOCK_PRIEST_SPELLS = {
     InnerFocus = { 14751 },
     Smite = { 25364 },
     Shoot = { 5019 },
+    Shadowform = { 15473 },
+    VampiricTouch = { 34917 },
+    MindFlay = { 25387 },
+    Shadowfiend = { 34433 },
+    VampiricEmbrace = { 15286 },
+    DesperatePrayer = { 25437 },
 }
 
 --- Create a fresh mock environment. Returns (NS, core, mock_player, mock_target).
@@ -208,6 +213,8 @@ local function make_context(overrides, state_overrides)
             use_interrupt = true,
             leveling_wand_threshold = 30,
             leveling_heal_hp = 40,
+            leveling_use_desperate_prayer = true,
+            leveling_desp_prayer_hp = 35,
         },
         state = {
             enemy_count = 1,
@@ -310,8 +317,8 @@ test("build_state: spells readiness fields populated", function()
     assert_true(state.greater_heal_ready, "greater_heal_ready should be true")
     assert_true(state.swp_ready, "swp_ready should be true")
     assert_true(state.smite_ready, "smite_ready should be true")
-    assert_true(state.holy_fire_ready, "holy_fire_ready should be true")
     assert_true(state.mind_blast_ready, "mind_blast_ready should be true")
+    assert_true(state.desperate_prayer_ready, "desperate_prayer_ready should be true")
     assert_true(state.swd_ready, "swd_ready should be true")
     assert_true(state.scream_ready, "scream_ready should be true")
     assert_true(state.shackle_ready, "shackle_ready should be true")
@@ -332,7 +339,7 @@ test("build_state: missing settings uses defaults", function()
     local ctx = make_context({settings = {}})
     local state = get_state(ctx)
     assert_eq(state.heal_hp, 60, "default heal_hp = 60")
-    assert_eq(state.wand_threshold, 20, "default wand_threshold = 20")
+    assert_eq(state.wand_threshold, 30, "default wand_threshold = 30")
 end)
 
 -- ============================================================================
@@ -603,45 +610,16 @@ test("swp_matches: not ready → false", function()
 end)
 
 -- ============================================================================
--- Test: holy_fire_matches (strategy #15, HF is after SWD)
--- ============================================================================
-
-test("holy_fire_matches: ready, not moving, debuff expired → true", function()
-    local ctx = make_context({}, {is_moving = false})
-    local state = get_state(ctx)
-    NS.debuff_remains = function(target, ids) return 0 end
-    state.holy_fire_ready = true
-    state.is_moving = false
-    assert_true(strategies[15].matches(ctx, state), "should match when not moving and debuff expired")
-end)
-
-test("holy_fire_matches: moving → false", function()
-    local ctx = make_context({}, {is_moving = true})
-    local state = get_state(ctx)
-    NS.debuff_remains = function(target, ids) return 0 end
-    state.holy_fire_ready = true
-    state.is_moving = true
-    assert_false(strategies[15].matches(ctx, state), "moving should not match")
-end)
-
-test("holy_fire_matches: debuff still up → false", function()
-    local ctx = make_context({}, {is_moving = false})
-    local state = get_state(ctx)
-    NS.debuff_remains = function(target, ids) return 8 end
-    state.holy_fire_ready = true
-    state.is_moving = false
-    assert_false(strategies[15].matches(ctx, state), "fresh Holy Fire debuff should not match")
-end)
-
--- ============================================================================
 -- Test: mind_blast_matches (strategy #16)
 -- ============================================================================
 
-test("mind_blast_matches: ready, has target → true", function()
+test("mind_blast_matches: ready, has target, mana >= threshold → true", function()
     local ctx = make_context()
     local state = get_state(ctx)
     state.mind_blast_ready = true
-    assert_true(strategies[16].matches(ctx, state), "ready with target should match")
+    state.mana_pct = 80
+    state.wand_threshold = 20
+    assert_true(strategies[22].matches(ctx, state), "ready with target should match when mana above threshold")
 end)
 
 test("mind_blast_matches: no target → false", function()
@@ -649,19 +627,20 @@ test("mind_blast_matches: no target → false", function()
     local state = get_state(ctx)
     state.mind_blast_ready = true
     state.target = nil
-    assert_false(strategies[16].matches(ctx, state), "no target should return false")
+    assert_false(strategies[19].matches(ctx, state), "no target should return false")
 end)
 
 -- ============================================================================
 -- Test: swd_matches (ShadowWordDeath, strategy #14, before HF)
 -- ============================================================================
 
-test("swd_matches: ready, HP > 60% -> true", function()
+test("swd_matches: ready, HP > 60%, target execute range -> true", function()
     local ctx = make_context({}, {hp_pct = 80})
     local state = get_state(ctx)
     state.swd_ready = true
     state.hp = 80
-    assert_true(strategies[14].matches(ctx, state), "SWD should match only when self HP is safe")
+    state.target_hp_pct = 20
+    assert_true(strategies[14].matches(ctx, state), "SWD should match when self HP safe and target in execute")
 end)
 
 test("swd_matches: HP <= 60% -> false", function()
@@ -690,7 +669,7 @@ test("holy_nova_matches: ready, 3+ enemies, not moving → true", function()
     state.holy_nova_ready = true
     state.enemies = 3
     state.is_moving = false
-    assert_true(strategies[18].matches(ctx, state), "3 enemies stationary should match")
+    assert_true(strategies[21].matches(ctx, state), "3 enemies stationary should match")
 end)
 
 test("holy_nova_matches: 1 enemy → false", function()
@@ -698,7 +677,7 @@ test("holy_nova_matches: 1 enemy → false", function()
     local state = get_state(ctx)
     state.holy_nova_ready = true
     state.enemies = 1
-    assert_false(strategies[18].matches(ctx, state), "1 enemy should not match")
+    assert_false(strategies[21].matches(ctx, state), "1 enemy should not match")
 end)
 
 test("holy_nova_matches: moving → false", function()
@@ -707,7 +686,7 @@ test("holy_nova_matches: moving → false", function()
     state.holy_nova_ready = true
     state.enemies = 3
     state.is_moving = true
-    assert_false(strategies[18].matches(ctx, state), "moving should not match")
+    assert_false(strategies[21].matches(ctx, state), "moving should not match")
 end)
 
 test("holy_nova_matches: not ready → false", function()
@@ -715,7 +694,7 @@ test("holy_nova_matches: not ready → false", function()
     local state = get_state(ctx)
     state.holy_nova_ready = false
     state.enemies = 3
-    assert_false(strategies[18].matches(ctx, state), "holy nova not ready")
+    assert_false(strategies[21].matches(ctx, state), "holy nova not ready")
 end)
 
 -- ============================================================================
@@ -729,7 +708,7 @@ test("smite_matches: ready, not moving, enough mana → true", function()
     state.mana_pct = 80
     state.wand_threshold = 20
     state.is_moving = false
-    assert_true(strategies[19].matches(ctx, state), "enough mana stationary should match")
+    assert_true(strategies[22].matches(ctx, state), "enough mana stationary should match")
 end)
 
 test("smite_matches: moving → false", function()
@@ -738,7 +717,7 @@ test("smite_matches: moving → false", function()
     state.smite_ready = true
     state.mana_pct = 80
     state.is_moving = true
-    assert_false(strategies[19].matches(ctx, state), "moving should not match")
+    assert_false(strategies[22].matches(ctx, state), "moving should not match")
 end)
 
 test("smite_matches: low mana → false", function()
@@ -748,7 +727,7 @@ test("smite_matches: low mana → false", function()
     state.mana_pct = 10
     state.wand_threshold = 20
     state.is_moving = false
-    assert_false(strategies[19].matches(ctx, state), "low mana should not match")
+    assert_false(strategies[22].matches(ctx, state), "low mana should not match")
 end)
 
 test("smite_matches: not ready → false", function()
@@ -757,7 +736,7 @@ test("smite_matches: not ready → false", function()
     state.smite_ready = false
     state.mana_pct = 80
     state.is_moving = false
-    assert_false(strategies[19].matches(ctx, state), "smite not ready")
+    assert_false(strategies[22].matches(ctx, state), "smite not ready")
 end)
 
 -- ============================================================================
@@ -769,7 +748,7 @@ test("wand_matches: low mana, has target → true", function()
     local state = get_state(ctx)
     state.mana_pct = 10
     state.wand_threshold = 20
-    assert_true(strategies[20].matches(ctx, state), "low mana should match")
+    assert_true(strategies[23].matches(ctx, state), "low mana should match")
 end)
 
 test("wand_matches: enough mana → false", function()
@@ -777,7 +756,7 @@ test("wand_matches: enough mana → false", function()
     local state = get_state(ctx)
     state.mana_pct = 80
     state.wand_threshold = 20
-    assert_false(strategies[20].matches(ctx, state), "enough mana should not match")
+    assert_false(strategies[23].matches(ctx, state), "enough mana should not match")
 end)
 
 test("wand_matches: no target → false", function()
@@ -785,14 +764,14 @@ test("wand_matches: no target → false", function()
     local state = get_state(ctx)
     state.mana_pct = 10
     state.target = nil
-    assert_false(strategies[20].matches(ctx, state), "no target should not match")
+    assert_false(strategies[23].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
 -- Test: Strategy priority ordering
 -- ============================================================================
 
-test("strategies: 21 strategies in correct priority order", function()
+test("strategies: 24 strategies in correct priority order", function()
     local expected = {
         "PowerWordFortitude",
         "InnerFire",
@@ -800,7 +779,7 @@ test("strategies: 21 strategies in correct priority order", function()
         "PowerWordShield",
         "Renew",
         "FlashHeal",
-        "InnerFocus",
+        "InnerFocusHeal",
         "GreaterHeal",
         "PsychicScream",
         "Fade",
@@ -808,7 +787,10 @@ test("strategies: 21 strategies in correct priority order", function()
         "ShadowWordPain",
         "VampiricTouch",
         "ShadowWordDeath",
-        "HolyFire",
+        "DesperatePrayer",
+        "VampiricEmbrace",
+        "Shadowfiend",
+        "InnerFocusMindBlast",
         "MindBlast",
         "MindFlay",
         "HolyNova",
@@ -816,7 +798,7 @@ test("strategies: 21 strategies in correct priority order", function()
         "Wand",
         "SymbolOfHope",
     }
-    assert_eq(#strategies, 21, "should have 21 strategies after adding Shadowform, FlashHeal, InnerFocus, VT, MindFlay, SymbolOfHope")
+    assert_eq(#strategies, 24, "should have 24 strategies after adding VampiricEmbrace, Shadowfiend, InnerFocusMindBlast, DesperatePrayer")
     for i, name in ipairs(expected) do
         assert_eq(strategies[i].name, name, "strategy[" .. i .. "] should be " .. name)
     end
@@ -842,12 +824,12 @@ end)
 
 test("execute_Wand: does not crash with context", function()
     local ctx = make_context()
-    local ok, result = pcall(strategies[20].execute, ctx)
+    local ok, result = pcall(strategies[23].execute, ctx)
     assert_true(ok, "execute with context should not throw")
 end)
 
 test("execute_Wand: does not crash without context", function()
-    local ok, result = pcall(strategies[20].execute)
+    local ok, result = pcall(strategies[23].execute)
     assert_true(ok, "execute without context should not throw")
 end)
 
@@ -919,7 +901,7 @@ test("rotation: OOC scenario - only OOC buffs should match", function()
     assert_false(strategies[12].matches(ctx, state), "SWP should not match OOC without target")
 
     -- wand should not match (no target OOC)
-    assert_false(strategies[20].matches(ctx, state), "wand should not match OOC")
+    assert_false(strategies[23].matches(ctx, state), "wand should not match OOC")
 end)
 
 test("rotation: low HP scenario - heal/shield should match", function()
@@ -940,20 +922,21 @@ test("rotation: low HP scenario - heal/shield should match", function()
     assert_true(strategies[8].matches(ctx, state), "greater heal should match when low HP")
 end)
 
-test("rotation: safe HP scenario - SWD should match when HP > 60%", function()
+test("rotation: safe HP scenario - SWD should match when HP > 60% and target execute", function()
     local ctx = make_context({state = {enemy_count = 1, hp_pct = 80, mana_pct = 80, is_moving = false, threat_status = 0, target_creature_type = "humanoid"}})
     local state = get_state(ctx)
     state.swd_ready = true
     state.hp = 80
+    state.target_hp_pct = 20
 
-    assert_true(strategies[14].matches(ctx, state), "SWD should match only when self HP is safe")
+    assert_true(strategies[14].matches(ctx, state), "SWD should match when self HP safe and target in execute")
 
     -- Priority is determined by array index, not match functions.
     -- SWD (index 14) has higher priority than Smite (index 19) because
     -- the rotation registry iterates strategies in order and picks the
     -- first one that matches. Smite may also match (enough mana) but that's
     -- independent — the registry handles priority.
-    local smite_matches_ok, smite_match = pcall(strategies[19].matches, ctx, state)
+    local smite_matches_ok, smite_match = pcall(strategies[22].matches, ctx, state)
     assert_true(smite_matches_ok, "smite matches should not throw")
     -- Whether smite matches depends on mana - it's fine either way
 end)
@@ -1192,12 +1175,13 @@ end
 -- ============================================================================
 
 do -- edge_swd
-    test("edge_swd: SWD matches when player HP is 61", function()
+    test("edge_swd: SWD matches when player HP is 61 and target execute", function()
         local ctx = make_context()
         local state = get_state(ctx)
         state.swd_ready = true
         state.hp = 61
-        assert_true(strategies[14].matches(ctx, state), "SWD should match above 60 HP")
+        state.target_hp_pct = 20
+        assert_true(strategies[14].matches(ctx, state), "SWD should match above 60 HP with target in execute")
     end)
 
     test("edge_swd: SWD does not match when player HP is exactly 60", function()
@@ -1227,45 +1211,6 @@ do -- edge_swd
 end
 
 -- ============================================================================
--- Edge Case Tests: Holy Fire (strategy 11)
--- ============================================================================
-
-do -- edge_holy_fire
-    test("edge_holy_fire: Holy Fire matches when debuff remains 0, not moving", function()
-        local ctx = make_context()
-        local state = get_state(ctx)
-        state.holy_fire_ready = true
-        state.is_moving = false
-        local saved_remains = NS.debuff_remains
-        NS.debuff_remains = function(target, ids) return 0 end
-        assert_true(strategies[15].matches(ctx, state), "Holy Fire should match when debuff at 0")
-        NS.debuff_remains = saved_remains
-    end)
-
-    test("edge_holy_fire: Holy Fire does not match when moving", function()
-        local ctx = make_context()
-        local state = get_state(ctx)
-        state.holy_fire_ready = true
-        state.is_moving = true
-        local saved_remains = NS.debuff_remains
-        NS.debuff_remains = function(target, ids) return 0 end
-        assert_false(strategies[15].matches(ctx, state), "Holy Fire should not match while moving")
-        NS.debuff_remains = saved_remains
-    end)
-
-    test("edge_holy_fire: Holy Fire does not match when debuff remains at 4", function()
-        local ctx = make_context()
-        local state = get_state(ctx)
-        state.holy_fire_ready = true
-        state.is_moving = false
-        local saved_remains = NS.debuff_remains
-        NS.debuff_remains = function(target, ids) return 4 end
-        assert_false(strategies[15].matches(ctx, state), "Holy Fire should not match when remains >= 4")
-        NS.debuff_remains = saved_remains
-    end)
-end
-
--- ============================================================================
 -- Edge Case Tests: Mind Blast (strategy 12)
 -- ============================================================================
 
@@ -1274,14 +1219,14 @@ do -- edge_mind_blast
         local ctx = make_context()
         local state = get_state(ctx)
         state.mind_blast_ready = true
-        assert_true(strategies[16].matches(ctx, state), "Mind Blast should match when ready")
+        assert_true(strategies[19].matches(ctx, state), "Mind Blast should match when ready")
     end)
 
     test("edge_mind_blast: Mind Blast does not match when not ready", function()
         local ctx = make_context()
         local state = get_state(ctx)
         state.mind_blast_ready = false
-        assert_false(strategies[16].matches(ctx, state), "Mind Blast should not match when not ready")
+        assert_false(strategies[19].matches(ctx, state), "Mind Blast should not match when not ready")
     end)
 
     test("edge_mind_blast: Mind Blast does not match when no target", function()
@@ -1289,7 +1234,7 @@ do -- edge_mind_blast
         local state = get_state(ctx)
         state.mind_blast_ready = true
         state.target = nil
-        assert_false(strategies[16].matches(ctx, state), "Mind Blast should not match with no target")
+        assert_false(strategies[19].matches(ctx, state), "Mind Blast should not match with no target")
     end)
 end
 
@@ -1304,7 +1249,7 @@ do -- edge_holy_nova
         state.holy_nova_ready = true
         state.enemies = 3
         state.is_moving = false
-        assert_true(strategies[18].matches(ctx, state), "Holy Nova should match at 3 enemies")
+        assert_true(strategies[21].matches(ctx, state), "Holy Nova should match at 3 enemies")
     end)
 
     test("edge_holy_nova: Holy Nova does not match when enemy count exactly 2", function()
@@ -1313,7 +1258,7 @@ do -- edge_holy_nova
         state.holy_nova_ready = true
         state.enemies = 2
         state.is_moving = false
-        assert_false(strategies[18].matches(ctx, state), "Holy Nova should not match at 2 enemies")
+        assert_false(strategies[21].matches(ctx, state), "Holy Nova should not match at 2 enemies")
     end)
 
     test("edge_holy_nova: Holy Nova does not match while moving", function()
@@ -1322,7 +1267,7 @@ do -- edge_holy_nova
         state.holy_nova_ready = true
         state.enemies = 3
         state.is_moving = true
-        assert_false(strategies[18].matches(ctx, state), "Holy Nova should not match while moving")
+        assert_false(strategies[21].matches(ctx, state), "Holy Nova should not match while moving")
     end)
 end
 
@@ -1337,7 +1282,7 @@ do -- edge_smite
         state.smite_ready = true
         state.mana_pct = 30
         state.is_moving = false
-        assert_true(strategies[19].matches(ctx, state), "smite should match at mana_pct 30 (at threshold)")
+        assert_true(strategies[22].matches(ctx, state), "smite should match at mana_pct 30 (at threshold)")
     end)
 
     test("edge_smite: smite does not match when mana_pct below threshold (19)", function()
@@ -1346,7 +1291,7 @@ do -- edge_smite
         state.smite_ready = true
         state.mana_pct = 29
         state.is_moving = false
-        assert_false(strategies[19].matches(ctx, state), "smite should not match at mana_pct 29")
+        assert_false(strategies[22].matches(ctx, state), "smite should not match at mana_pct 29")
     end)
 
     test("edge_smite: smite does not match while moving", function()
@@ -1355,7 +1300,7 @@ do -- edge_smite
         state.smite_ready = true
         state.mana_pct = 50
         state.is_moving = true
-        assert_false(strategies[19].matches(ctx, state), "smite should not match while moving")
+        assert_false(strategies[22].matches(ctx, state), "smite should not match while moving")
     end)
 
     test("edge_smite: smite does not match when not ready", function()
@@ -1364,7 +1309,7 @@ do -- edge_smite
         state.smite_ready = false
         state.mana_pct = 50
         state.is_moving = false
-        assert_false(strategies[19].matches(ctx, state), "smite should not match when not ready")
+        assert_false(strategies[22].matches(ctx, state), "smite should not match when not ready")
     end)
 
     test("edge_smite: smite does not match when no target", function()
@@ -1374,7 +1319,27 @@ do -- edge_smite
         state.mana_pct = 50
         state.is_moving = false
         state.target = nil
-        assert_false(strategies[19].matches(ctx, state), "smite should not match with no target")
+        assert_false(strategies[22].matches(ctx, state), "smite should not match with no target")
+    end)
+
+    test("edge_smite: smite blocked when has_shadowform=true (Holy school, no SF bonus)", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.smite_ready = true
+        state.mana_pct = 80
+        state.is_moving = false
+        state.has_shadowform = true
+        assert_false(strategies[22].matches(ctx, state), "smite must not fire while in Shadowform")
+    end)
+
+    test("edge_smite: smite matches when has_shadowform=false (pre-40 preferred filler)", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.smite_ready = true
+        state.mana_pct = 80
+        state.is_moving = false
+        state.has_shadowform = false
+        assert_true(strategies[22].matches(ctx, state), "smite is the pre-40 preferred filler per Icy-Veins")
     end)
 end
 
@@ -1387,14 +1352,14 @@ do -- edge_wand
         local ctx = make_context()
         local state = get_state(ctx)
         state.mana_pct = 10
-        assert_true(strategies[20].matches(ctx, state), "wand should match at low mana")
+        assert_true(strategies[23].matches(ctx, state), "wand should match at low mana")
     end)
 
     test("edge_wand: wand does not match when mana_pct exactly at threshold (20)", function()
         local ctx = make_context()
         local state = get_state(ctx)
         state.mana_pct = 30
-        assert_false(strategies[20].matches(ctx, state), "wand should not match at mana_pct 30 (at threshold)")
+        assert_false(strategies[23].matches(ctx, state), "wand should not match at mana_pct 30 (at threshold)")
     end)
 
     test("edge_wand: wand does not match when no target", function()
@@ -1402,7 +1367,7 @@ do -- edge_wand
         local state = get_state(ctx)
         state.mana_pct = 10
         state.target = nil
-        assert_false(strategies[20].matches(ctx, state), "wand should not match with no target")
+        assert_false(strategies[23].matches(ctx, state), "wand should not match with no target")
     end)
 end
 
@@ -1593,17 +1558,19 @@ do
     state12.is_moving = false
     assert_false(strategies[8].matches(ctx12, state12), "greaterheal hp=60 -> no match (>=60)")
 
-    -- SWD: HP > 60 -> match; <= 60 -> no match
+    -- SWD: HP > 60 and target execute -> match; HP <= 60 -> no match
     local ctx13 = make_context({}, {hp_pct = 61})
     local state13 = get_state(ctx13)
     state13.swd_ready = true
     state13.hp = 61
-    assert_true(strategies[14].matches(ctx13, state13), "swd hp=61 -> match (>60)")
+    state13.target_hp_pct = 20
+    assert_true(strategies[14].matches(ctx13, state13), "swd hp=61, target execute -> match")
 
     local ctx14 = make_context({}, {hp_pct = 60})
     local state14 = get_state(ctx14)
     state14.swd_ready = true
     state14.hp = 60
+    state14.target_hp_pct = 20
     assert_false(strategies[14].matches(ctx14, state14), "swd hp=60 -> no match (<=60)")
 end
 
@@ -1618,7 +1585,7 @@ do
     state.mana_pct = 20
     state.wand_threshold = 20
     state.is_moving = false
-    assert_true(strategies[19].matches(ctx, state), "smite mana=20 -> match (>=20)")
+    assert_true(strategies[22].matches(ctx, state), "smite mana=20 -> match (>=20)")
 
     local ctx2 = make_context({}, {mana_pct = 19, is_moving = false})
     local state2 = get_state(ctx2)
@@ -1626,35 +1593,37 @@ do
     state2.mana_pct = 19
     state2.wand_threshold = 20
     state2.is_moving = false
-    assert_false(strategies[19].matches(ctx2, state2), "smite mana=19 -> no match (<20)")
+    assert_false(strategies[22].matches(ctx2, state2), "smite mana=19 -> no match (<20)")
 
     -- Wand: mana_pct < wand_threshold (20) -> match; >= -> no match
     local ctx3 = make_context({}, {mana_pct = 19})
     local state3 = get_state(ctx3)
     state3.mana_pct = 19
     state3.wand_threshold = 20
-    assert_true(strategies[20].matches(ctx3, state3), "wand mana=19 -> match (<20)")
+    assert_true(strategies[23].matches(ctx3, state3), "wand mana=19 -> match (<20)")
 
     local ctx4 = make_context({}, {mana_pct = 20})
     local state4 = get_state(ctx4)
     state4.mana_pct = 20
     state4.wand_threshold = 20
-    assert_false(strategies[20].matches(ctx4, state4), "wand mana=20 -> no match (>=20)")
+    assert_false(strategies[23].matches(ctx4, state4), "wand mana=20 -> no match (>=20)")
 
-    -- MindFlay: mana_pct >= 12 -> match; < 12 -> no match
+    -- MindFlay: mana_pct >= 12 -> match; < 12 -> no match (requires Shadowform)
     local ctx5 = make_context({}, {mana_pct = 12, is_moving = false})
     local state5 = get_state(ctx5)
     state5.mf_ready = true
     state5.mana_pct = 12
     state5.is_moving = false
-    assert_true(strategies[17].matches(ctx5, state5), "mindflay mana=12 -> match (>=12)")
+    state5.has_shadowform = true
+    assert_true(strategies[20].matches(ctx5, state5), "mindflay mana=12 -> match (>=12)")
 
     local ctx6 = make_context({}, {mana_pct = 11, is_moving = false})
     local state6 = get_state(ctx6)
     state6.mf_ready = true
     state6.mana_pct = 11
     state6.is_moving = false
-    assert_false(strategies[17].matches(ctx6, state6), "mindflay mana=11 -> no match (<12)")
+    state6.has_shadowform = true
+    assert_false(strategies[20].matches(ctx6, state6), "mindflay mana=11 -> no match (<12)")
 end
 
 -- ============================================================================
@@ -1680,14 +1649,14 @@ do
     state3.holy_nova_ready = true
     state3.enemies = 3
     state3.is_moving = false
-    assert_true(strategies[18].matches(ctx3, state3), "holynova enemies=3 -> match (>=3)")
+    assert_true(strategies[21].matches(ctx3, state3), "holynova enemies=3 -> match (>=3)")
 
     local ctx4 = make_context({}, {enemy_count = 2, is_moving = false})
     local state4 = get_state(ctx4)
     state4.holy_nova_ready = true
     state4.enemies = 2
     state4.is_moving = false
-    assert_false(strategies[18].matches(ctx4, state4), "holynova enemies=2 -> no match (<3)")
+    assert_false(strategies[21].matches(ctx4, state4), "holynova enemies=2 -> no match (<3)")
 end
 
 -- ============================================================================
@@ -1702,32 +1671,34 @@ do
     state.is_moving = true
     assert_false(strategies[8].matches(ctx, state), "greaterheal moving -> no match")
 
-    local ctx2 = make_context({}, {is_moving = true})
+    local ctx2 = make_context({in_combat = false}, {is_moving = true})
     local state2 = get_state(ctx2)
-    state2.holy_fire_ready = true
+    state2.desperate_prayer_ready = true
     state2.is_moving = true
-    assert_false(strategies[15].matches(ctx2, state2), "holyfire moving -> no match")
+    state2.in_combat = false
+    state2.hp = 20
+    assert_false(strategies[15].matches(ctx2, state2), "desperate prayer OOC gate -> no match (OOC blocks even at 20% HP)")
 
     local ctx3 = make_context({}, {is_moving = true})
     local state3 = get_state(ctx3)
     state3.mf_ready = true
     state3.mana_pct = 50
     state3.is_moving = true
-    assert_false(strategies[17].matches(ctx3, state3), "mindflay moving -> no match")
+    assert_false(strategies[20].matches(ctx3, state3), "mindflay moving -> no match")
 
     local ctx4 = make_context({}, {enemy_count = 3, is_moving = true})
     local state4 = get_state(ctx4)
     state4.holy_nova_ready = true
     state4.enemies = 3
     state4.is_moving = true
-    assert_false(strategies[18].matches(ctx4, state4), "holynova moving -> no match")
+    assert_false(strategies[21].matches(ctx4, state4), "holynova moving -> no match")
 
     local ctx5 = make_context({}, {mana_pct = 50, is_moving = true})
     local state5 = get_state(ctx5)
     state5.smite_ready = true
     state5.mana_pct = 50
     state5.is_moving = true
-    assert_false(strategies[19].matches(ctx5, state5), "smite moving -> no match")
+    assert_false(strategies[22].matches(ctx5, state5), "smite moving -> no match")
 end
 
 -- ============================================================================
@@ -1749,7 +1720,7 @@ do
     state2.mana_pct = 50
     state2.is_channeling = true
     state2.is_moving = false
-    assert_false(strategies[17].matches(ctx2, state2), "mindflay channeling -> no match")
+    assert_false(strategies[20].matches(ctx2, state2), "mindflay channeling -> no match")
 end
 
 -- ============================================================================
@@ -1773,36 +1744,41 @@ do
     assert_false(strategies[12].matches(ctx2, state2), "swp remains=4 -> no match (>=4)")
     NS.debuff_remains = saved2
 
-    -- HolyFire: remains < 4 -> match; >= 4 -> no match
-    local ctx3 = make_context({}, {is_moving = false})
+    -- DesperatePrayer: HP < 35 in combat -> match; HP >= 35 -> no match
+    local ctx3 = make_context({}, {hp = 20})
     local state3 = get_state(ctx3)
-    state3.holy_fire_ready = true
-    state3.is_moving = false
-    local saved3 = NS.debuff_remains
-    NS.debuff_remains = function(target, ids) return 3 end
-    assert_true(strategies[15].matches(ctx3, state3), "holyfire remains=3 -> match (<4)")
-    NS.debuff_remains = saved3
+    state3.desperate_prayer_ready = true
+    state3.in_combat = true
+    state3.hp = 20
+    assert_true(strategies[15].matches(ctx3, state3), "desperate prayer HP=20 -> match (<35)")
 
-    local ctx4 = make_context({}, {is_moving = false})
+    local ctx4 = make_context({}, {hp = 50})
     local state4 = get_state(ctx4)
-    state4.holy_fire_ready = true
-    state4.is_moving = false
-    local saved4 = NS.debuff_remains
-    NS.debuff_remains = function(target, ids) return 4 end
-    assert_false(strategies[15].matches(ctx4, state4), "holyfire remains=4 -> no match (>=4)")
-    NS.debuff_remains = saved4
+    state4.desperate_prayer_ready = true
+    state4.in_combat = true
+    state4.hp = 50
+    assert_false(strategies[15].matches(ctx4, state4), "desperate prayer HP=50 -> no match (>=35)")
 
-    -- VT: vt_remaining <= 3 -> match; > 3 -> no match
+    local ctx4b = make_context({}, {hp = 35})
+    local state4b = get_state(ctx4b)
+    state4b.desperate_prayer_ready = true
+    state4b.in_combat = true
+    state4b.hp = 35
+    assert_false(strategies[15].matches(ctx4b, state4b), "desperate prayer HP=35 -> no match (boundary not <35)")
+
+    -- VT: vt_remaining <= 3 -> match; > 3 -> no match (requires Shadowform)
     local ctx5 = make_context({})
     local state5 = get_state(ctx5)
     state5.vt_ready = true
     state5.vt_remaining = 3
+    state5.has_shadowform = true
     assert_true(strategies[13].matches(ctx5, state5), "vt remaining=3 -> match (<=3)")
 
     local ctx6 = make_context({})
     local state6 = get_state(ctx6)
     state6.vt_ready = true
     state6.vt_remaining = 4
+    state6.has_shadowform = true
     assert_false(strategies[13].matches(ctx6, state6), "vt remaining=4 -> no match (>3)")
 end
 
@@ -1846,13 +1822,13 @@ do
     ctx2.is_group = true
     local state2 = get_state(ctx2)
     state2.symbol_of_hope_ready = true
-    assert_false(strategies[21].matches(ctx2, state2), "symbolofhope setting disabled -> no match")
+    assert_false(strategies[24].matches(ctx2, state2), "symbolofhope setting disabled -> no match")
 
     local ctx3 = make_context({})
     ctx3.is_group = false
     local state3 = get_state(ctx3)
     state3.symbol_of_hope_ready = true
-    assert_false(strategies[21].matches(ctx3, state3), "symbolofhope not group -> no match")
+    assert_false(strategies[24].matches(ctx3, state3), "symbolofhope not group -> no match")
 
     -- SymbolOfHope: in combat, mana < 20 -> no match; mana >= 20 -> match
     local ctx4 = make_context({})
@@ -1860,14 +1836,14 @@ do
     local state4 = get_state(ctx4)
     state4.symbol_of_hope_ready = true
     state4.mana_pct = 20
-    assert_true(strategies[21].matches(ctx4, state4), "symbolofhope combat mana=20 -> match (>=20)")
+    assert_true(strategies[24].matches(ctx4, state4), "symbolofhope combat mana=20 -> match (>=20)")
 
     local ctx5 = make_context({})
     ctx5.is_group = true
     local state5 = get_state(ctx5)
     state5.symbol_of_hope_ready = true
     state5.mana_pct = 19
-    assert_false(strategies[21].matches(ctx5, state5), "symbolofhope combat mana=19 -> no match (<20)")
+    assert_false(strategies[24].matches(ctx5, state5), "symbolofhope combat mana=19 -> no match (<20)")
 end
 
 -- ============================================================================
@@ -2174,7 +2150,7 @@ do
     state17.mana_pct = 50
     state17.is_moving = false
     state17.is_channeling = false
-    assert_false(strategies[17].matches(ctx, state17), "mindflay not ready -> no match")
+    assert_false(strategies[20].matches(ctx, state17), "mindflay not ready -> no match")
 
     -- Strategy 17: MindFlay is_channeling -> no match
     local state17b = get_state(ctx)
@@ -2182,19 +2158,19 @@ do
     state17b.mana_pct = 50
     state17b.is_moving = false
     state17b.is_channeling = true
-    assert_false(strategies[17].matches(ctx, state17b), "mindflay channeling -> no match")
+    assert_false(strategies[20].matches(ctx, state17b), "mindflay channeling -> no match")
 
     -- Strategy 21: SymbolOfHope not ready
     local state21 = get_state(ctx)
     state21.symbol_of_hope_ready = false
-    assert_false(strategies[21].matches(ctx, state21), "symbolofhope not ready -> no match")
+    assert_false(strategies[24].matches(ctx, state21), "symbolofhope not ready -> no match")
 
     -- Strategy 21: SymbolOfHope not group -> no match
     local ctx21b = make_context({})
     ctx21b.is_group = false
     local state21b = get_state(ctx21b)
     state21b.symbol_of_hope_ready = true
-    assert_false(strategies[21].matches(ctx21b, state21b), "symbolofhope not group -> no match")
+    assert_false(strategies[24].matches(ctx21b, state21b), "symbolofhope not group -> no match")
 
     -- Strategy 21: SymbolOfHope setting disabled -> no match
     local ctx21c = make_context({})
@@ -2203,7 +2179,7 @@ do
     local state21c = get_state(ctx21c)
     state21c.symbol_of_hope_ready = true
     state21c.use_symbol_of_hope = false
-    assert_false(strategies[21].matches(ctx21c, state21c), "symbolofhope setting disabled -> no match")
+    assert_false(strategies[24].matches(ctx21c, state21c), "symbolofhope setting disabled -> no match")
 end
 
 -- ============================================================================
@@ -2240,19 +2216,107 @@ do
 end
 
 -- ============================================================================
--- Deep dive: HolyFire NS.debuff_remains throws
+-- Deep dive: Desperate Prayer panic-button edge cases
 -- ============================================================================
 do
-    local ctx = make_context({}, {is_moving = false})
+    -- HP nil defaults to 100 -> should NOT fire (not a panic)
+    local ctx = make_context({})
     local state = get_state(ctx)
-    state.holy_fire_ready = true
-    state.is_moving = false
-    local saved = NS.debuff_remains
-    NS.debuff_remains = function() error("simulated debuff remains throw") end
-    local ok, result = pcall(strategies[15].matches, ctx, state)
-    assert_true(ok, "holyfire debuff_remains throws -> pcall catches")
-    assert_true(result, "holyfire debuff_remains throws -> falls back to 0 (<4), match fires")
-    NS.debuff_remains = saved
+    state.desperate_prayer_ready = true
+    state.in_combat = true
+    state.hp = nil
+    assert_false(strategies[15].matches(ctx, state), "desperate prayer nil HP -> safe default no fire")
+
+    -- HP exactly 35 -> boundary, must NOT fire (gate is strictly <)
+    local ctx2 = make_context({}, {hp = 35})
+    local state2 = get_state(ctx2)
+    state2.desperate_prayer_ready = true
+    state2.in_combat = true
+    state2.hp = 35
+    assert_false(strategies[15].matches(ctx2, state2), "desperate prayer HP=35 boundary -> no fire")
+
+    -- HP 34 -> 1 below threshold, must fire
+    local ctx3 = make_context({}, {hp = 34})
+    local state3 = get_state(ctx3)
+    state3.desperate_prayer_ready = true
+    state3.in_combat = true
+    state3.hp = 34
+    assert_true(strategies[15].matches(ctx3, state3), "desperate prayer HP=34 -> fire (<35)")
+
+    -- OOC with low HP -> must NOT fire (panic-only-in-combat)
+    local ctx4 = make_context({}, {in_combat = false, hp = 10})
+    local state4 = get_state(ctx4)
+    state4.desperate_prayer_ready = true
+    state4.in_combat = false
+    state4.hp = 10
+    assert_false(strategies[15].matches(ctx4, state4), "desperate prayer OOC -> no fire regardless of HP")
+
+    -- Not learned (NS.spell_ready returns false by default in mock) -> must NOT fire
+    local ctx5 = make_context({}, {hp = 10})
+    local state5 = get_state(ctx5)
+    state5.desperate_prayer_ready = false
+    state5.in_combat = true
+    state5.hp = 10
+    assert_false(strategies[15].matches(ctx5, state5), "desperate prayer not learned -> no fire")
+end
+
+-- ============================================================================
+-- Desperate Prayer schema toggle (leveling_use_desperate_prayer)
+-- ============================================================================
+do -- dp_schema_toggle
+    test("dp_schema: blocked when leveling_use_desperate_prayer=false even at HP=10", function()
+        local ctx = make_context({settings_override = {leveling_use_desperate_prayer = false}})
+        ctx.settings.leveling_use_desperate_prayer = false
+        local state = get_state(ctx)
+        state.desperate_prayer_ready = true
+        state.in_combat = true
+        state.hp = 10
+        assert_false(strategies[15].matches(ctx, state), "DP toggle OFF must block even at 10% HP")
+    end)
+
+    test("dp_schema: matches when leveling_use_desperate_prayer=true (default) at HP=34", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.desperate_prayer_ready = true
+        state.in_combat = true
+        state.hp = 34
+        assert_true(strategies[15].matches(ctx, state), "DP toggle ON, HP<35 -> fire")
+    end)
+end
+
+-- ============================================================================
+-- Desperate Prayer HP threshold knob (leveling_desp_prayer_hp)
+-- ============================================================================
+do -- dp_schema_threshold
+    test("dp_threshold: matches at HP=34 with knob=50 (raised threshold)", function()
+        local ctx = make_context({settings_override = {leveling_desp_prayer_hp = 50}})
+        ctx.settings.leveling_desp_prayer_hp = 50
+        local state = get_state(ctx)
+        state.desperate_prayer_ready = true
+        state.in_combat = true
+        state.hp = 34
+        assert_true(strategies[15].matches(ctx, state), "DP knob=50, HP=34 -> fire (<50)")
+    end)
+
+    test("dp_threshold: does NOT match at HP=34 with knob=20 (lowered threshold)", function()
+        local ctx = make_context({settings_override = {leveling_desp_prayer_hp = 20}})
+        ctx.settings.leveling_desp_prayer_hp = 20
+        local state = get_state(ctx)
+        state.desperate_prayer_ready = true
+        state.in_combat = true
+        state.hp = 34
+        assert_false(strategies[15].matches(ctx, state), "DP knob=20, HP=34 -> no fire (>=20)")
+    end)
+
+    test("dp_threshold: matches at HP=15 with knob=20 (just below)", function()
+        local ctx = make_context({settings_override = {leveling_desp_prayer_hp = 20}})
+        ctx.settings.leveling_desp_prayer_hp = 20
+        local state = get_state(ctx)
+        state.desperate_prayer_ready = true
+        state.in_combat = true
+        state.hp = 15
+        assert_true(strategies[15].matches(ctx, state), "DP knob=20, HP=15 -> fire (<20)")
+    end)
 end
 
 -- ============================================================================
@@ -2278,20 +2342,20 @@ do
     local state = get_state(ctx)
     state.mana_pct = 19
     state.wand_threshold = 20
-    assert_true(strategies[20].matches(ctx, state), "wand OOC mana=19 -> match (<20, no combat gate)")
+    assert_true(strategies[23].matches(ctx, state), "wand OOC mana=19 -> match (<20, no combat gate)")
 
     local ctx2 = make_context({in_combat = false, mana_pct = 20})
     local state2 = get_state(ctx2)
     state2.mana_pct = 20
     state2.wand_threshold = 20
-    assert_false(strategies[20].matches(ctx2, state2), "wand OOC mana=20 -> no match (>=20)")
+    assert_false(strategies[23].matches(ctx2, state2), "wand OOC mana=20 -> no match (>=20)")
 
     -- Wand with no target -> false
     local ctx3 = make_context({target = nil, mana_pct = 10})
     local state3 = get_state(ctx3)
     state3.mana_pct = 10
     state3.target = nil
-    assert_false(strategies[20].matches(ctx3, state3), "wand no target -> no match")
+    assert_false(strategies[23].matches(ctx3, state3), "wand no target -> no match")
 end
 
 -- ============================================================================
@@ -2304,7 +2368,7 @@ do
     state.mana_pct = 20
     state.wand_threshold = 20
     state.is_moving = false
-    assert_true(strategies[19].matches(ctx, state), "smite mana=20 stationary -> match (>=20)")
+    assert_true(strategies[22].matches(ctx, state), "smite mana=20 stationary -> match (>=20)")
 
     -- Smite mana=19 -> no match
     local ctx2 = make_context({}, {mana_pct = 19, is_moving = false})
@@ -2313,7 +2377,7 @@ do
     state2.mana_pct = 19
     state2.wand_threshold = 20
     state2.is_moving = false
-    assert_false(strategies[19].matches(ctx2, state2), "smite mana=19 -> no match (<20)")
+    assert_false(strategies[22].matches(ctx2, state2), "smite mana=19 -> no match (<20)")
 
     -- Smite no target -> false
     local ctx3 = make_context({target = nil}, {mana_pct = 50, is_moving = false})
@@ -2321,7 +2385,7 @@ do
     state3.smite_ready = true
     state3.mana_pct = 50
     state3.target = nil
-    assert_false(strategies[19].matches(ctx3, state3), "smite no target -> no match")
+    assert_false(strategies[22].matches(ctx3, state3), "smite no target -> no match")
 end
 
 -- ============================================================================
@@ -2334,7 +2398,7 @@ do
     local state = get_state(ctx)
     state.symbol_of_hope_ready = true
     state.mana_pct = 20
-    assert_true(strategies[21].matches(ctx, state), "symbolofhope combat mana=20 -> match (>=20)")
+    assert_true(strategies[24].matches(ctx, state), "symbolofhope combat mana=20 -> match (>=20)")
 
     -- SymbolOfHope: in combat, mana < 20 -> no match
     local ctx2 = make_context({})
@@ -2342,7 +2406,7 @@ do
     local state2 = get_state(ctx2)
     state2.symbol_of_hope_ready = true
     state2.mana_pct = 19
-    assert_false(strategies[21].matches(ctx2, state2), "symbolofhope combat mana=19 -> no match (<20)")
+    assert_false(strategies[24].matches(ctx2, state2), "symbolofhope combat mana=19 -> no match (<20)")
 
     -- SymbolOfHope: OOC, group, ready -> match regardless of mana
     local ctx3 = make_context({in_combat = false})
@@ -2350,7 +2414,7 @@ do
     local state3 = get_state(ctx3)
     state3.symbol_of_hope_ready = true
     state3.mana_pct = 10
-    assert_true(strategies[21].matches(ctx3, state3), "symbolofhope OOC group -> match regardless of mana")
+    assert_true(strategies[24].matches(ctx3, state3), "symbolofhope OOC group -> match regardless of mana")
 end
 
 -- ============================================================================
@@ -2425,7 +2489,7 @@ do
     state.holy_nova_ready = true
     state.target = nil
     state.enemies = 3
-    assert_false(strategies[18].matches(ctx, state), "holynova no target -> no match")
+    assert_false(strategies[21].matches(ctx, state), "holynova no target -> no match")
 
     -- HolyNova: enemies=3 not moving -> match
     local ctx2 = make_context({enemies_count = 3, is_moving = false})
@@ -2433,7 +2497,7 @@ do
     state2.holy_nova_ready = true
     state2.enemies = 3
     state2.is_moving = false
-    assert_true(strategies[18].matches(ctx2, state2), "holynova enemies=3 stationary -> match")
+    assert_true(strategies[21].matches(ctx2, state2), "holynova enemies=3 stationary -> match")
 
     -- HolyNova: enemies=2 -> no match
     local ctx3 = make_context({enemies_count = 2, is_moving = false})
@@ -2441,7 +2505,7 @@ do
     state3.holy_nova_ready = true
     state3.enemies = 2
     state3.is_moving = false
-    assert_false(strategies[18].matches(ctx3, state3), "holynova enemies=2 -> no match")
+    assert_false(strategies[21].matches(ctx3, state3), "holynova enemies=2 -> no match")
 end
 
 -- ============================================================================
@@ -2453,7 +2517,7 @@ do
     local state = get_state(ctx)
     state.mind_blast_ready = true
     state.target = nil
-    assert_false(strategies[16].matches(ctx, state), "mindblast no target -> no match")
+    assert_false(strategies[19].matches(ctx, state), "mindblast no target -> no match")
 end
 
 -- ============================================================================
@@ -2535,6 +2599,7 @@ do
         assert_eq(state.vt_remaining, 0, "vt_remaining default 0 when debuff_remains nil")
         state.vt_ready = true
         state.is_channeling = false
+        state.has_shadowform = true
         -- With vt_remaining=0 <= 3, VT should match
         assert_true(strategies[13].matches(ctx, state), "vt matches when vt_remaining=0 from nil debuff_remains")
         NS.debuff_remains = saved
@@ -2704,7 +2769,7 @@ do
         state.holy_nova_ready = true
         state.enemies = 0
         state.is_moving = false
-        assert_false(strategies[18].matches(ctx, state), "holynova enemies=0 -> no match (<3)")
+        assert_false(strategies[21].matches(ctx, state), "holynova enemies=0 -> no match (<3)")
     end)
 end
 
@@ -2720,9 +2785,9 @@ do
         state.smite_ready = true
         state.wand_threshold = 20
         state.is_moving = false
-        assert_false(strategies[19].matches(ctx, state), "smite mana=0 -> no match (<20)")
+        assert_false(strategies[22].matches(ctx, state), "smite mana=0 -> no match (<20)")
         -- Wand should match (0 < 20)
-        assert_true(strategies[20].matches(ctx, state), "wand mana=0 -> match (<20)")
+        assert_true(strategies[23].matches(ctx, state), "wand mana=0 -> match (<20)")
     end)
 
     test("build_state_mana_100: mana_pct=100 produces safe state", function()
@@ -2733,9 +2798,9 @@ do
         state.smite_ready = true
         state.wand_threshold = 20
         state.is_moving = false
-        assert_true(strategies[19].matches(ctx, state), "smite mana=100 -> match (>=20)")
+        assert_true(strategies[22].matches(ctx, state), "smite mana=100 -> match (>=20)")
         -- Wand should not match (100 >= 20)
-        assert_false(strategies[20].matches(ctx, state), "wand mana=100 -> no match (>=20)")
+        assert_false(strategies[23].matches(ctx, state), "wand mana=100 -> no match (>=20)")
     end)
 end
 
@@ -2825,6 +2890,7 @@ do
         state.vt_ready = true
         state.vt_remaining = 3
         state.is_channeling = false
+        state.has_shadowform = true
         assert_true(strategies[13].matches(ctx, state), "vt remaining=3 -> match (<=3)")
     end)
 
@@ -2834,6 +2900,7 @@ do
         state.vt_ready = true
         state.vt_remaining = 4
         state.is_channeling = false
+        state.has_shadowform = true
         assert_false(strategies[13].matches(ctx, state), "vt remaining=4 -> no match (>3)")
     end)
 
@@ -2843,6 +2910,7 @@ do
         state.vt_ready = true
         state.vt_remaining = 0
         state.is_channeling = false
+        state.has_shadowform = true
         assert_true(strategies[13].matches(ctx, state), "vt remaining=0 -> match")
     end)
 end
@@ -2893,6 +2961,275 @@ do
         assert_true(strategies[8].matches(ctx, state), "greaterheal stationary -> match")
     end)
 end
+
+-- ============================================================================
+-- Shadowform Branch Tests (new)
+-- ============================================================================
+
+do -- shadowform_branch_desperate_prayer
+    test("shadowform_branch: Desperate Prayer fires regardless of Shadowform (panic button)", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.desperate_prayer_ready = true
+        state.has_shadowform = true
+        state.in_combat = true
+        state.hp = 20
+        assert_true(strategies[15].matches(ctx, state), "DP should fire in Shadowform at critical HP")
+    end)
+
+    test("shadowform_branch: Desperate Prayer fires out of Shadowform too", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.desperate_prayer_ready = true
+        state.has_shadowform = false
+        state.in_combat = true
+        state.hp = 20
+        assert_true(strategies[15].matches(ctx, state), "DP should fire pre-40 / non-SF at critical HP")
+    end)
+end
+
+do -- shadowform_branch_smite
+    test("shadowform_branch: Smite blocked when has_shadowform=true", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.smite_ready = true
+        state.has_shadowform = true
+        state.mana_pct = 80
+        state.wand_threshold = 20
+        state.is_moving = false
+        assert_false(strategies[22].matches(ctx, state), "Smite should not match in Shadowform")
+    end)
+
+    test("shadowform_branch: Smite matches when has_shadowform=false", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.smite_ready = true
+        state.has_shadowform = false
+        state.mana_pct = 80
+        state.wand_threshold = 20
+        state.is_moving = false
+        assert_true(strategies[22].matches(ctx, state), "Smite should match without Shadowform")
+    end)
+end
+
+do -- shadowform_branch_holy_nova
+    test("shadowform_branch: Holy Nova blocked when has_shadowform=true", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.holy_nova_ready = true
+        state.has_shadowform = true
+        state.enemies = 3
+        state.is_moving = false
+        assert_false(strategies[21].matches(ctx, state), "Holy Nova should not match in Shadowform")
+    end)
+
+    test("shadowform_branch: Holy Nova matches when has_shadowform=false", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.holy_nova_ready = true
+        state.has_shadowform = false
+        state.enemies = 3
+        state.is_moving = false
+        assert_true(strategies[21].matches(ctx, state), "Holy Nova should match without Shadowform")
+    end)
+end
+
+do -- shadowform_branch_vampiric_touch
+    test("shadowform_branch: VT matches when has_shadowform=false (usable pre-40 and post-40)", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.vt_ready = true
+        state.has_shadowform = false
+        state.vt_remaining = 0
+        state.is_channeling = false
+        state.mana_pct = 80
+        state.wand_threshold = 30
+        assert_true(strategies[13].matches(ctx, state), "VT should match without Shadowform as primary Shadow-path DoT")
+    end)
+
+    test("shadowform_branch: VT matches when has_shadowform=true", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.vt_ready = true
+        state.has_shadowform = true
+        state.vt_remaining = 0
+        state.is_channeling = false
+        state.mana_pct = 80
+        state.wand_threshold = 30
+        assert_true(strategies[13].matches(ctx, state), "VT should match with Shadowform")
+    end)
+
+    test("shadowform_branch: VT blocked when mana below wand threshold", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.vt_ready = true
+        state.has_shadowform = true
+        state.vt_remaining = 0
+        state.is_channeling = false
+        state.mana_pct = 20
+        state.wand_threshold = 30
+        assert_false(strategies[13].matches(ctx, state), "VT should not match below wand threshold")
+    end)
+end
+
+do -- shadowform_branch_mind_flay
+    test("shadowform_branch: Mind Flay matches when has_shadowform=false (pre-40 primary filler)", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.mf_ready = true
+        state.has_shadowform = false
+        state.is_moving = false
+        state.is_channeling = false
+        state.mana_pct = 80
+        assert_true(strategies[20].matches(ctx, state), "MF should match without Shadowform as primary pre-40 filler")
+    end)
+
+    test("shadowform_branch: Mind Flay matches when has_shadowform=true", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.mf_ready = true
+        state.has_shadowform = true
+        state.is_moving = false
+        state.is_channeling = false
+        state.mana_pct = 80
+        assert_true(strategies[20].matches(ctx, state), "MF should match with Shadowform")
+    end)
+
+    test("shadowform_branch: Mind Flay blocked when mana below 12", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.mf_ready = true
+        state.has_shadowform = false
+        state.is_moving = false
+        state.is_channeling = false
+        state.mana_pct = 11
+        assert_false(strategies[20].matches(ctx, state), "MF should not match below mana gate")
+    end)
+end
+
+do -- swd_execute_boundary
+    test("swd_execute: SWD matches at exactly target_hp_pct=25", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.swd_ready = true
+        state.hp = 80
+        state.target_hp_pct = 25
+        assert_true(strategies[14].matches(ctx, state), "SWD should match at 25% target HP")
+    end)
+
+    test("swd_execute: SWD blocked at target_hp_pct=26", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.swd_ready = true
+        state.hp = 80
+        state.target_hp_pct = 26
+        assert_false(strategies[14].matches(ctx, state), "SWD should not match at 26% target HP")
+    end)
+end
+
+-- ============================================================================
+-- Vampiric Embrace strategy tests
+-- ============================================================================
+
+do -- vampiric_embrace
+    test("vampiric_embrace: matches when ready and self-buff missing", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.vampiric_embrace_ready = true
+        state.has_vampiric_embrace = false
+        assert_true(strategies[16].matches(ctx, state), "VE should match when self-buff missing")
+    end)
+
+    test("vampiric_embrace: matches when target debuff is expiring within resume window", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.vampiric_embrace_ready = true
+        state.has_vampiric_embrace = true
+        state.ve_remaining = 3
+        assert_true(strategies[16].matches(ctx, state), "VE should match when target debuff < 5s")
+    end)
+
+    test("vampiric_embrace: blocked when no target", function()
+        local ctx = make_context({target = nil})
+        local state = get_state(ctx)
+        state.vampiric_embrace_ready = true
+        state.has_vampiric_embrace = false
+        state.target = nil
+        assert_false(strategies[16].matches(ctx, state), "VE should not match without target")
+    end)
+
+    test("vampiric_embrace: blocked when self-buff present and target debuff fresh", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.vampiric_embrace_ready = true
+        state.has_vampiric_embrace = true
+        state.ve_remaining = 20
+        assert_false(strategies[16].matches(ctx, state), "VE should not match when fully active")
+    end)
+end
+
+-- ============================================================================
+-- Shadowfiend strategy tests
+-- ============================================================================
+
+do -- shadowfiend
+    test("shadowfiend: matches when mana below threshold (default 30)", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.shadowfiend_ready = true
+        state.mana_pct = 25
+        state.shadowfiend_mana_threshold = 30
+        assert_true(strategies[17].matches(ctx, state), "Shadowfiend should fire when mana below threshold")
+    end)
+
+    test("shadowfiend: blocked when mana above threshold", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.shadowfiend_ready = true
+        state.mana_pct = 50
+        state.shadowfiend_mana_threshold = 30
+        assert_false(strategies[17].matches(ctx, state), "Shadowfiend should NOT fire when mana healthy")
+    end)
+
+    test("shadowfiend: blocked when use_shadowfiend setting disabled", function()
+        local ctx = make_context({settings = {use_shadowfiend = false}})
+        local state = get_state(ctx)
+        state.shadowfiend_ready = true
+        state.mana_pct = 10
+        state.shadowfiend_mana_threshold = 30
+        state.use_shadowfiend = false
+        assert_false(strategies[17].matches(ctx, state), "Shadowfiend should respect use_shadowfiend setting")
+    end)
+end
+
+-- ============================================================================
+-- Inner Focus Mind Blast pairing tests
+-- ============================================================================
+
+do -- inner_focus_mind_blast
+    test("inner_focus_mind_blast: matches when MB ready, mana healthy, no IF buff", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.inner_focus_ready = true
+        state.has_inner_focus = false
+        state.mind_blast_ready = true
+        state.mana_pct = 80
+        state.wand_threshold = 30
+        assert_true(strategies[18].matches(ctx, state), "InnerFocusMindBlast should match")
+    end)
+
+    test("inner_focus_mind_blast: blocked when mana below wand threshold (don't waste IF)", function()
+        local ctx = make_context()
+        local state = get_state(ctx)
+        state.inner_focus_ready = true
+        state.has_inner_focus = false
+        state.mind_blast_ready = true
+        state.mana_pct = 20
+        state.wand_threshold = 30
+        assert_false(strategies[18].matches(ctx, state), "InnerFocusMindBlast blocked below mana threshold")
+    end)
+end
+
 -- ============================================================================
 
 print(string.format("\\n=== Priest Leveling Unit Tests: %d passed, %d failed (%d assertions) ===\\n", passed, failed, assertions))

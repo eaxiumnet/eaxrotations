@@ -6,7 +6,7 @@ local cl = require("shared/class_loader_sylvanas")
 local load_child = cl.create_loader("rogue", "Rogue")
 local load_spec = cl.create_expansion_loader("rogue", "Rogue")
 local enums = cl.get_enums()
-local player = NS.GetPlayer()
+local player = NS.GetPlayer and NS.GetPlayer()
 local ok_cls, cls_id = pcall(function() return player and player:get_class() end)
 if not ok_cls or cls_id ~= enums.class_id.ROGUE then return nil end
 
@@ -174,7 +174,7 @@ local SPELLS = {
     Gouge = NS.spell_action({
         name = "Gouge",
         ids = {11286, 11285, 8629, 1777, 1776},
-        levels = {67, 60, 46, 32, 18, 6},
+        levels = {60, 46, 32, 18, 6},
         cast_time = 0,
         cooldown = 10,
         power_cost = 45,

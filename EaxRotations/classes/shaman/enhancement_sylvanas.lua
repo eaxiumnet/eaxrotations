@@ -1,6 +1,6 @@
 -- enhancement_sylvanas -- shaman enhancement_sylvanas rotation for TBC Anniversary (2.5.5).
 -- WHAT:  priority-list strategies for enhancement_sylvanas gameplay.
--- WHEN:  combat with valid enemy target (or healing context for healers).
+-- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
 -- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
 

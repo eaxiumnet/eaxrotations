@@ -36,18 +36,52 @@ local _G, math = _G, math
 local math_max, math_huge = math.max, math.huge
 local floor = math.floor
 
--- Raw WoW API bindings (available in-game via Sylvanas)
-local UnitRangedAttackPower = _G.UnitRangedAttackPower
-local UnitRangedDamage = _G.UnitRangedDamage
-local GetRangedCritChance = _G.GetRangedCritChance
-local UnitBuff = _G.UnitBuff
-local UnitGUID = _G.UnitGUID
-local GetTime = _G.GetTime
-local GetCVar = _G.GetCVar
-local CombatLogGetCurrentEventInfo = _G.CombatLogGetCurrentEventInfo
-local GetTalentInfo = _G.GetTalentInfo
-local date = _G.date
-local time = _G.time
+local function safe_call(name, fallback, nreturns)
+    nreturns = nreturns or 1
+    local function fallback_args(...)
+        if type(fallback) == "function" then
+            return fallback(...)
+        end
+        local r = fallback
+        local out = { r }
+        for _ = 2, nreturns do out[#out + 1] = nil end
+        return unpack(out)
+    end
+    local fn = _G[name]
+    if type(fn) ~= "function" then
+        return function(...) return fallback_args(...) end
+    end
+    return function(...)
+        local ok, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10 =
+            pcall(fn, ...)
+        if not ok then return fallback_args(...) end
+        local out = { r1, r2, r3, r4, r5, r6, r7, r8, r9, r10 }
+        for _ = #out + 1, nreturns do out[#out + 1] = nil end
+        return unpack(out)
+    end
+end
+
+local UnitRangedAttackPower = safe_call("UnitRangedAttackPower",
+    function() return 0, 0, 0 end, 3)
+local UnitRangedDamage     = safe_call("UnitRangedDamage",
+    function() return 2.8, 0, 0, 0, 0, 1 end, 6)
+local GetRangedCritChance  = safe_call("GetRangedCritChance",
+    function() return 0 end, 1)
+local UnitBuff             = safe_call("UnitBuff",
+    function(unit, i) return nil end, 11)
+local UnitGUID             = safe_call("UnitGUID",
+    function() return "" end, 1)
+local GetTime              = safe_call("GetTime",
+    function() return os and os.clock() or 0 end, 1)
+local GetCVar              = safe_call("GetCVar",
+    function() return "" end, 1)
+local CombatLogGetCurrentEventInfo = safe_call("CombatLogGetCurrentEventInfo",
+    function() end, 20)
+local GetTalentInfo        = safe_call("GetTalentInfo",
+    function() return nil, nil, nil, nil, 0, nil end, 6)
+
+local date = os.date
+local time = os.time
 
 -- Sylvanas API bindings
 local SwingTimer = NS.SwingTimer or {}

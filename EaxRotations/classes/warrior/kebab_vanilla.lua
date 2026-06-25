@@ -6,7 +6,7 @@ if not NS then return nil end
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 
-local load_player = NS.GetPlayer()
+local load_player = NS.GetPlayer and NS.GetPlayer()
 
 local _ok_enums, enums = pcall(require, "common/enums")
 if not _ok_enums or type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end

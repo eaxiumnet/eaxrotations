@@ -94,7 +94,6 @@ local fury_state = {
     has_hamstring = false,
     overpower_window = false,
     target_ttd = 15,
-    swing_timer_ok = false,
     target_count = 1,
 }
 

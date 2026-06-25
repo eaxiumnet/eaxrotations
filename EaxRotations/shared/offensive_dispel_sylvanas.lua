@@ -60,9 +60,8 @@ M.HIGH_DISPEL_BUFFS = {
     [26669] = { name = "Evasion",             priority = M.PRIORITY_HIGH },
     -- Barkskin (-20% dmg)
     [22812] = { name = "Barkskin",            priority = M.PRIORITY_HIGH },
-    -- Spellstone (warlock spell absorb)
-    [28176] = { name = "Spellstone (Greater)", priority = M.PRIORITY_HIGH },
-    [28177] = { name = "Spellstone (Master)",  priority = M.PRIORITY_HIGH },
+    -- Fel Armor (warlock spell power + health generation buff — DBC verified: spell 28176 = Fel Armor Rank 1)
+    [28176] = { name = "Fel Armor",            priority = M.PRIORITY_HIGH },
 }
 
 -- ============================================================================

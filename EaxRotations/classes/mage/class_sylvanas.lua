@@ -8,7 +8,7 @@ local spell_id_table = require("shared/spell_id_table_sylvanas")
 local load_child = cl.create_loader("mage", "Mage")
 local load_spec = cl.create_expansion_loader("mage", "Mage")
 local enums = cl.get_enums()
-local player = NS.GetPlayer()
+local player = NS.GetPlayer and NS.GetPlayer()
 local ok_cls, cls_id = pcall(function() return player and player:get_class() end)
 if not ok_cls or cls_id ~= enums.class_id.MAGE then return nil end
 
@@ -206,7 +206,7 @@ local SPELLS = {
     Fireball = NS.spell_action({
         name = "Fireball",
         ids = {27070, 25306, 10151, 10150, 10149, 10148, 8402, 8401, 8400, 3140, 145, 143, 133},
-        levels = {70, 66, 60, 54, 48, 42, 36, 30, 24, 18, 12, 6, 3, 1},
+        levels = {66, 60, 60, 54, 48, 42, 36, 30, 24, 18, 12, 6, 1},
         cast_time = 3.0,
         cooldown = 0,
         power_cost = 0,

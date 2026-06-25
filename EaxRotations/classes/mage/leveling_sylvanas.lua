@@ -1,6 +1,6 @@
 -- leveling_sylvanas -- mage leveling_sylvanas rotation for TBC Anniversary (2.5.5).
 -- WHAT:  priority-list strategies for leveling_sylvanas gameplay.
--- WHEN:  combat with valid enemy target (or healing context for healers).
+-- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
 -- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
 
@@ -24,7 +24,7 @@ local SPELLS = NS.MageSpells or {}
 local ARCANE_INTELLECT_BUFF = { 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 }
 local FROST_ARMOR_BUFF = { 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168 }
 local MAGE_ARMOR_BUFF = { 27125, 22783, 22782, 6117 }
-local ICE_BARRIER_BUFF = { 27134, 13033, 13032, 13031, 11426 }
+local ICE_BARRIER_BUFF = { 33405, 27134, 13033, 13032, 13031, 11426 }
 local MANA_SHIELD_BUFF = { 27131, 10193, 10192, 10191, 8495, 8494, 1463 }
 local POLYMORPH_IDS = { 12826, 12825, 12824, 118 }
 

@@ -6,7 +6,7 @@ local cl = require("shared/class_loader_sylvanas")
 local load_child = cl.create_loader("shaman", "Shaman")
 local load_spec = cl.create_expansion_loader("shaman", "Shaman")
 local enums = cl.get_enums()
-local player = NS.GetPlayer()
+local player = NS.GetPlayer and NS.GetPlayer()
 local ok_cls, cls_id = pcall(function() return player and player:get_class() end)
 if not ok_cls or cls_id ~= enums.class_id.SHAMAN then return nil end
 
