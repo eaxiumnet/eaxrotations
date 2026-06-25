@@ -226,7 +226,7 @@ at some point to see its real status. Sibling product — its own concern.
   aura_cache, enemy_count_hysteresis, pvp_burst_window, offensive_dispel, …).
 - `EaxRotations/tests/run_rotation_tests.lua` — rotation suite runner (161 suites).
 - `EaxRotations/tests/run_leveling_tests.lua` — leveling suite runner (11 suites).
-- `EaxRotations/validate.cmd` — the gate (Lua 5.1 pinned).
+- `validate.cmd` — the gate (Lua 5.1 pinned).
 - `apidocs/pages/dev/api/` — API docs (game-object.md, buffs.md, spellbook.md, …).
 - `wowheadScrape/dbc_extract/wowsims.db` — DBC (authoritative spell IDs).
 
