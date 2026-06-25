@@ -175,7 +175,7 @@ for _, gap_name in ipairs(parity_gaps) do
 end
 
 -- All 4 FrostByte gaps + 3 ClassResearchTBC enhancements are now implemented.
-assert_eq(#strategies, 31, "expected 31 strategies (PreemptiveHeal added), got " .. #strategies)
+assert_eq(#strategies, 32, "expected 32 strategies (PreemptiveHeal + FriendlyTarget added), got " .. #strategies)
 
 print("PASS test_discipline_feature_gaps (gap audit: " .. #strategies .. " strategies present, " .. present_gaps .. "/4 parity gaps closed)")
 
