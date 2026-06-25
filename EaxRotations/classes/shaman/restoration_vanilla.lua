@@ -490,6 +490,22 @@ local healing_strategies = {
     { name = "UnavailableClassicShamanBurst", matches = bloodlust_matches, execute = function()
         return NS.try_cast(SPELLS.UnavailableClassicShamanBurst, NS.PLAYER_UNIT, "[RESTO] UnavailableClassicShamanBurst", { expected_cooldown = 600 })
     end },
+    { name = "FriendlyTarget", matches = function(context, state)
+        if not context.in_combat then return false end
+        if context.is_moving then return false end
+        if context.settings.restoration_use_friendly_target == false then return false end
+        local threshold = (context.settings and context.settings.restoration_friendly_target_threshold) or 90
+        local ft = NS.get_friendly_target_entry(context)
+        if not ft or not ft.unit then return false end
+        if (ft.hp_pct or 100) >= threshold then return false end
+        if state.lowest and (state.lowest.effective_hp or 100) <= 50 then return false end
+        if not state.healing_wave_ready then return false end
+        return true
+    end, execute = function(context, state)
+        local ft = NS.get_friendly_target_entry(context)
+        if not ft then return false end
+        return NS.try_cast(SPELLS.HealingWave, ft.unit, string.format("[RESTO] HealingWave ft %.0f%%", ft.effective_hp or 0))
+    end },
     { name = "HealingWay", matches = healing_way_matches, execute = healing_way_execute },
     { name = "ChainHeal", matches = chain_heal_matches, execute = chain_heal_execute },
     { name = "SmartHeal", matches = smart_heal_matches, execute = function(context, state)
