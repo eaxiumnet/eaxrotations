@@ -1,3 +1,8 @@
+-- bear_vanilla.lua — Druid Bear (feral tank) rotation for Vanilla/Classic Era.
+-- WHAT:  tank rotation (Maul, Swipe, Bash, demo roar, defensive CDs).
+-- WHEN:  combat, in bear form, when NS.is_vanilla() is true.
+-- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
+-- SAFETY: nil-guards on NS, SPELLS, and TBC data fallback.
 
 local NS = _G.EaxRotations
 if not NS then return nil end

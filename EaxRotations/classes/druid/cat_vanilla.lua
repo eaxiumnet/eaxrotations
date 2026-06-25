@@ -1,3 +1,8 @@
+-- cat_vanilla.lua — Druid Feral Cat rotation for Vanilla/Classic Era.
+-- WHAT:  melee DPS rotation (Shred, Rip, FB, powershift-aware).
+-- WHEN:  combat, in cat form, when NS.is_vanilla() is true.
+-- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
+-- SAFETY: nil-guards on NS, SPELLS, and energy tick tracker.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
