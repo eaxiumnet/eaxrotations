@@ -1,3 +1,8 @@
+-- balance_vanilla.lua — Druid Balance rotation for Vanilla/Classic Era.
+-- WHAT:  ranged DPS rotation (Moonfire, Insect Swarm, Starfire, Wrath).
+-- WHEN:  combat, in caster form, when NS.is_vanilla() is true.
+-- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
+-- SAFETY: nil-guards on NS, SPELLS, and potion helper; falls back safely.
 
 local NS = rawget(_G, "EaxRotations")
 if not NS then return nil end

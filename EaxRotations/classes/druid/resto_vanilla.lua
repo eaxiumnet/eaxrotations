@@ -1,3 +1,8 @@
+-- resto_vanilla.lua — Druid Restoration healing rotation for Vanilla/Classic Era.
+-- WHAT:  healing rotation (Rejuvenation, Regrowth, Healing Touch, Swiftmend).
+-- WHEN:  combat or pre-hot, when NS.is_vanilla() is true.
+-- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
+-- SAFETY: nil-guards on NS, SPELLS, Healing helpers, and TBC data fallback.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
