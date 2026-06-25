@@ -113,13 +113,14 @@ local ACTIONS = {
     { name = "Immolate", spell = SPELLS.Immolate, debuff = IMMOLATE_DEBUFF, refresh = 3, not_moving = true },
     -- Burst / Procs
     { name = "BacklashShadowBolt", spell = SPELLS.ShadowBolt, priority = 100 },
+    -- Filler (Incinerate before Conflagrate — fill GCDs, then consume)
+    { name = "Incinerate", spell = SPELLS.Incinerate, not_moving = true },
+    { name = "ShadowBolt", spell = SPELLS.ShadowBolt, not_moving = true },
+    -- Consume / Execute
     { name = "Conflagrate", spell = SPELLS.Conflagrate, moving = true, cooldown = 10 },
     { name = "SoulFire", spell = SoulFire, not_moving = true },
     { name = "Shadowburn", spell = SPELLS.Shadowburn, cooldown = 15 },
     { name = "SearingPain", spell = SearingPain, moving = true },
-    -- Filler
-    { name = "Incinerate", spell = SPELLS.Incinerate, not_moving = true },
-    { name = "ShadowBolt", spell = SPELLS.ShadowBolt, not_moving = true },
     -- AoE
     { name = "SeedOfCorruption", spell = SeedOfCorruption, enemy_count = 3 },
     { name = "RainOfFire", spell = RainOfFire, position = "target", enemy_count = 4, not_moving = true },
