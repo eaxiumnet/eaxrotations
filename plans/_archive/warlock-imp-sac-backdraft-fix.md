@@ -333,25 +333,40 @@ After all phases complete:
 
 ---
 
-## Final Plan Output — Confirmed IDs (Phase 1 inbox)
+## Confirmed IDs — Phase 1 Verified (2026-06-23)
 
-| Effect | IDs (Phase 0 / 1 verified) |
-|--------|----------------------------|
-| `Summon Imp` | `688` |
-| `Summon Voidwalker` | `697` |
-| `Summon Succubus` | `712` |
-| `Summon Felhunter` | `691` |
-| `Summon Felguard` | `30146` |
-| `Fel Domination` | `18708` |
-| **Demonic Sacrifice (castable)** | `18788` *(single spell — pet-sacrifice dispatch is engine-side)* |
-| DS Imp aura (Burning Wish) | `18789` *(aura only — not castable)* |
-| DS Voidwalker aura (Fel Stamina) | `18790` *(aura only)* |
-| DS Succubus aura | `18791` *(verify in Phase 1 — may be nil for TBC)* |
-| DS Felhunter aura | `18792` *(verify in Phase 1 — may be nil for TBC)* |
-| DS Felguard aura | `35701` *(verify in Phase 1 — may be nil for TBC Classic)* |
-| Backdraft proc | `???` *(MUST verify in Phase 1 Task 1.1 — candidates `47271 / 35346 / 61082`)* |
+| Effect | IDs | DBC Status |
+|--------|-----|-----------|
+| `Summon Imp` | `688` | ✅ In class_sylvanas.lua:239, bridge confirmed |
+| `Summon Voidwalker` | `697` | ✅ In class_sylvanas.lua:240, bridge confirmed |
+| `Summon Succubus` | `712` | ✅ In class_sylvanas.lua:241, bridge confirmed |
+| `Summon Felhunter` | `691` | ✅ In class_sylvanas.lua:242, bridge confirmed |
+| `Summon Felguard` | `30146` | ✅ In class_sylvanas.lua:243, bridge confirmed |
+| `Fel Domination` | `18708` | ✅ In class_sylvanas.lua, bridge confirmed |
+| **Demonic Sacrifice (castable)** | `18788` | ✅ Single castable spell |
+| DS — Imp aura (Burning Wish) | `18789` | ✅ DBC, School=4(fire), DurationIndex=30 |
+| DS — Voidwalker aura (Fel Stamina) | `18790` | ✅ DBC, School=32(shadow), DurationIndex=30 |
+| DS — Succubus aura (Touch of Shadow) | `18791` | ✅ DBC, School=32(shadow), DurationIndex=30 |
+| DS — Felhunter aura (Fel Energy) | `18792` | ✅ Present in bridge at line 8932 |
+| DS — Felguard aura (Touch of Shadow) | `35701` | ✅ Present in bridge at line 20172 |
+| Backdraft proc | **N/A** | ❌ **Backdraft is a Wrath talent — NOT in TBC DBC at all.** No candidates found for 47271, 35346, or 61082. Already documented in destruction_sylvanas.lua line 68-70. **Do NOT implement Backdraft strategies for TBC.** |
 
-If Phase 1 reveals new/different IDs, the implementer updates this section and the Phase 2 tasks before editing code.
+### Phase 1 → Phase 2 Impact
+
+| Plan task | Status | Action |
+|-----------|--------|--------|
+| 2.1 (constants) | ✅ Already declared | `DEMONIC_SACRIFICE_AURA_ALL` at line 24, all 5 actions at lines 27-45 |
+| 2.2 (state.has_backdraft) | ✅ Already there | Hardcoded `false` at line 70 — correct for TBC |
+| 2.3 (BackdraftSoulBolt) | 🛑 **Skip — not in TBC** | No Backdraft talent exists |
+| 2.4 (fix summon predicate) | ✅ DS gate present | `summon_pet_matches` line 302 already blocks on DS aura |
+| 2.5 (SummonPet strategy) | ⚠️ 5 separate summons still | All 5 share same predicate (line 387-388). Functional but inelegant |
+| 2.6 (destruction_vanilla.lua) | ✅ `has_backdraft` already at line 80 | No change needed |
+
+**Revised scope**: The remaining gaps are:
+- **Summon loop**: 5 separate SummonX actions all use same predicate — no actual loop bug (only the first match wins), but consolidate if desired
+- **Phase 3** (middleware per-pet DS dispatch): verify middleware already handles correctly
+- **Phase 4** (affliction/demo/leveling): verify OOC summon existence
+- **Phase 5** (tests): add test coverage for DS and summon behavior
 
 ---
 
