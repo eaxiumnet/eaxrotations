@@ -457,14 +457,14 @@ local strategies = {
     { name = "ChainLightning", spell = SPELLS.ChainLightning, not_moving = true, cooldown = 6,
       matches = chain_lightning_matches_fn,
       execute = function(context) return NS.try_cast(SPELLS.ChainLightning, context.target, "[ELEMENTAL] Chain Lightning") end },
+    -- Flame Shock DoT maintenance (before filler to keep it up)
+    { name = "FlameShock",
+      matches = flame_shock_matches_fn,
+      execute = function(context) return NS.try_cast(SPELLS.FlameShock, context.target, "[ELEMENTAL] Flame Shock") end },
     -- Lightning Bolt main nuke
     { name = "LightningBolt",
       matches = lightning_bolt_matches_fn,
       execute = function(context) return NS.try_cast(SPELLS.LightningBolt, context.target, "[ELEMENTAL] Lightning Bolt") end },
-    -- Flame Shock DoT maintenance
-    { name = "FlameShock",
-      matches = flame_shock_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.FlameShock, context.target, "[ELEMENTAL] Flame Shock") end },
     -- Chain Heal emergency
     { name = "ChainHeal",
       matches = chain_heal_matches_fn,
