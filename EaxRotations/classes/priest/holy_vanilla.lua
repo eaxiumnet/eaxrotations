@@ -374,6 +374,29 @@ local strategies = {
             return try_cast(chosen_spell, target, format("[HOLY] %s %.0f%%", spell_label, state.lowest.effective_hp or 0))
         end,
     },
+    {
+        name = "FriendlyTarget",
+        matches = function(context, state)
+            if not context.in_combat then return false end
+            if context.player_control_locked or context.is_moving then return false end
+            if not _check_pushback(context) then return false end
+            if context.settings.holy_use_friendly_target == false then return false end
+            local threshold = (context.settings and context.settings.holy_friendly_target_threshold) or 90
+            local ft = NS.get_friendly_target_entry(context)
+            if not ft or not ft.unit then return false end
+            if (ft.hp_pct or 100) >= threshold then return false end
+            if not state.lowest or (state.lowest.effective_hp or 100) <= (context.settings.holy_emergency_hp or 30) then return false end
+            return true
+        end,
+        execute = function(context, state)
+            local ft = NS.get_friendly_target_entry(context)
+            if not ft then return false end
+            local target = ft.unit
+            local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target, context, "Friendly GH", HOLY_OPTS_GH)
+            if not chosen_spell then return false end
+            return try_cast(chosen_spell, target, format("[HOLY] %s ft=%.0f%%", spell_label, ft.effective_hp or 0))
+        end,
+    },
 
     {
         name = "UnavailableClassicPriestHealA",
