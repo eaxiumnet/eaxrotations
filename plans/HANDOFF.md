@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-06-25** (HEAD `66148ae5`).
+> up to date after every work session. Last updated: **2026-06-25** (HEAD `3181e7a9`).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/finish-what-i-started.md` — read it
@@ -18,14 +18,15 @@ have to context-switch.
 - **Project:** 29 WoW TBC Classic Anniversary (2.5.5.x) + Vanilla Anniversary
   rotation plugins for **Project Sylvanas**, in Lua 5.1/LuaJIT. Repo:
   `https://github.com/eaxiumnet/eaxrotations`. Work dir: `C:\newbot\scripts`.
-- **Baseline is GREEN:** 161 rotation suites + 11 leveling suites pass on
+- **Baseline is GREEN:** 166 rotation suites + 11 leveling suites pass on
   **Lua 5.1**. Don't break this.
-- **What's done:** Tracks A (in-flight cleanup), B1–B5 (native-API features),
-  C1–C3 (core refactor), D2 (spell 28176 doc fix), A4 (PvP stubs documented).
-  All committed & pushed. 2 GitHub releases exist with zips.
-- **What's next:** B6 (friendly-target healing — the main remaining feature),
-  D1 (generator filter for DEBUG data — build_tools scope), and opportunistic
-  polish. See "WHAT'S NEXT" below.
+- **What's done:** Tracks A (in-flight cleanup), B1–B6 (native-API features
+  incl. friendly-target healing for ALL 5 healers), C1–C3 (core refactor),
+  D2 (spell 28176 doc fix), A4 (PvP stubs documented). All committed & pushed.
+  3 GitHub releases exist with zips.
+- **What's next:** D1 (generator filter for DEBUG data — build_tools scope),
+  B6.2 (per-spec predictive threshold sliders), vanilla healer variants of B6,
+  and opportunistic polish. See "WHAT'S NEXT" below.
 - **Golden rule:** one concern per commit; run `EaxRotations\validate.cmd`
   before marking anything done; if a task loops >2 attempts, STOP and write a
   debugging note in `plans/` instead of retrying.
@@ -151,6 +152,7 @@ Spell audit PASS. `validate.cmd` green.
 | B3 | heal shield absorb via native `get_total_shield()` | — (already done + tested) | `healer_deficit` + `preemptive_heal` |
 | B4 | "others' heals" via native `get_incoming_heals()` | — (already done + tested) | `test_healer_deficit_overheal` T7 |
 | B5 | pvp_burst dangling `reasons` ref fixed | `f487c7ce` | `M.reason()` now populated |
+| B6 | friendly-target healing ALL 5 healers | `c4f535df`+`de8d9145`+`3181e7a9` | manual-target control, emergency-safe |
 | C1 | core/ttd | — (already in `shared/ttd_tracker_sylvanas.lua`) | nothing to move |
 | C2 | core/talents | — (already in `shared/spell_resolver_sylvanas.lua`) | nothing to move |
 | C3 | core/diagnostics.lua extracted | `80128541` | core_sylvanas 5965→5857 lines |
@@ -182,55 +184,42 @@ Spell audit PASS. `validate.cmd` green.
 
 ## WHAT'S NEXT (prioritized)
 
-### 1. B6 — Friendly-target healing (main remaining feature)
-**Goal:** healers cast on an explicitly-friendly-targeted ally (not just
-lowest-HP scan) when that ally is below a per-spec threshold. Post-audit
-Tasks 3.1/3.2.
-
-**Design (from `plans/post-audit-improvements.md` Wave 3):**
-- Add to `core_sylvanas.lua`: `NS.has_friendly_target()` and
-  `NS.get_friendly_target_entry(context)` using `api/game_object.lua` signatures.
-- Add a `FriendlyTarget` strategy as **top priority** in all 5 healer specs:
-  holy priest (GreaterHeal), discipline (PW:S→FlashHeal), holy paladin
-  (HolyLight), resto druid (Regrowth), resto shaman (LHW/HW).
-- Add a schema slider per spec: `friendly_target_threshold` (default 90).
-- All threshold reads use the Pattern 8/14 nil-guard: `(context.settings and
-  context.settings.friendly_target_threshold) or 90`.
-
-**Verify:** `luac -p` on 6 files (core + 5 specs); `validate.cmd` green;
-add a `test_friendly_target_healing.lua` if none covers it (check
-`EaxRotations/tests/` first — `test_discipline_healer_mode.lua`,
-`test_healer_solo_fallback_matches.lua` may already cover adjacent behavior).
-
-**Approach:** this is the largest remaining change. Do it ONE healer at a
-time (priest holy first), gate after each, so a regression isolates to one
-spec. Do NOT big-bang all 5 in one commit.
-
-**Check first:** read `apidocs/pages/dev/api/game-object.md` for the friendly-
-target unit methods, and grep existing healers for how they acquire the
-lowest ally (`shared/preemptive_heal_sylvanas.lua` `get_lowest` / `find_dead_party_ally`).
-
-### 2. D1 — Generator filter for DEBUG data (build_tools scope)
+### 1. D1 — Generator filter for DEBUG data (build_tools scope)
 **Goal:** stop emitting DEBUG/QA/placeholder spells into the data bridge.
 **File:** `build_tools/json_to_lua_data.py` — add a name filter excluding
 `DEBUG`/`QA Debug`/`XXXX`/`ALEX BUG` patterns during spell emission, then
 regenerate the bridge. This is a **Python** change + a regeneration run, not
-a Lua edit. Verify the regenerated `wowhead_data_bridge_sylvanas.lua` still
-loads (a test consumes it). **Lower priority than B6.**
+a Lua edit. The DEBUG spells are real Blizzard QA spells in the DBC; no
+rotation code references them. Verify the regenerated `wowhead_data_bridge_sylvanas.lua`
+still loads (a test consumes it). **Lower priority.**
 
-### 3. Opportunistic polish (only when already editing a file)
+### 2. B6.2 — Per-spec predictive threshold sliders
+The B6 friendly_target_threshold sliders are HP-based. A separate predictive
+(damage-rate-aware) threshold layer (post-audit 3.2) would use
+`HealerDeficit.predicted_deficit` to fire FriendlyTarget when damage is
+incoming even if current HP is above the static threshold. Smaller, tuning-
+level work. Design first — don't over-engineer.
+
+### 3. Vanilla healer variants of B6
+B6 was scoped to TBC/sylvanas healer specs. The `_vanilla.lua` healer variants
+(`priest/holy_vanilla`, `priest/discipline_vanilla`, `druid/resto_vanilla`,
+`shaman/restoration_vanilla`, `paladin/holy_vanilla`) do NOT have FriendlyTarget.
+Port the same pattern if Vanilla Anniversary healing needs manual-target control.
+One healer at a time, gated.
+
+### 4. Opportunistic polish (only when already editing a file)
 - Migrate specs to `spec_kit.safe_state` (AGENTS Pattern 16) — `arms_sylvanas.lua`
-  is the proof (done). Convert a spec only when you're already editing it; never
+  is the proof (done). Convert a spec only when already editing it; never
   schedule a "convert all 29" effort (that's what causes loops).
-- Per-spec predictive threshold sliders (post-audit 3.2) — fold into B6.
 - The `test_fury_custom_matches.lua` has a stale `package.preload["shared/swing_timer_sylvanas"]`
   mock (tab-indented, harmless). Prune only if already editing that test.
+- C4 (extract core/casting.lua) remains deferred — 8 functions scattered across
+  a 4200-line span, loop-trap. Revisit only as part of a whole-file reorg.
 
-### 4. Verify the EaxAutoQuester suite (separate product)
-`EaxAutoQuester/` was committed (commit `f6d93cb9`) but is NOT covered by the
-rotation gate. Run `"/c/Program Files (x86)/Lua/5.1/lua.exe" EaxAutoQuester/tests/run_quester_tests.lua`
-at some point to see its real status. It's a sibling product — treat as its
-own concern.
+### 5. Verify the EaxAutoQuester suite (separate product)
+`EaxAutoQuester/` is committed but NOT covered by the rotation gate. Run
+`"/c/Program Files (x86)/Lua/5.1/lua.exe" EaxAutoQuester/tests/run_quester_tests.lua`
+at some point to see its real status. Sibling product — its own concern.
 
 ---
 
