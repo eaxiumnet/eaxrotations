@@ -1,3 +1,9 @@
+-- test_discipline_healer_mode.lua — Validate discipline healer-mode strategy paths.
+-- WHAT:  mocks a priest player and validates that healer-mode strategies fire under expected conditions.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   discipline has dual DPS/healer paths; tests ensure the healer branch is reachable.
+-- SAFETY: fully mocked player/target/context; no casting.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end

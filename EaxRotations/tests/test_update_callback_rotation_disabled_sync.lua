@@ -1,3 +1,9 @@
+-- test_update_callback_rotation_disabled_sync.lua — Validate on_update disables rotation when toggled off.
+-- WHAT:  mocks menu toggle and verifies update callback skips strategy evaluation when disabled.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   a sticky enabled state would keep casting after the user turns the rotation off.
+-- SAFETY: fully mocked menu and callback; no casting.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local now = 0

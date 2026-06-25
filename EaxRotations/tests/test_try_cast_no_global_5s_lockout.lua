@@ -1,3 +1,9 @@
+-- test_try_cast_no_global_5s_lockout.lua — Validate 5-second rule lockout gating.
+-- WHAT:  mocks spell cooldown state to confirm casts are blocked during the 5s no-global window.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   prevents accidental casts that waste the GCD during critical lockout periods.
+-- SAFETY: fully mocked cooldown state; no real casting.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local now = 0

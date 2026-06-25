@@ -1,3 +1,9 @@
+-- test_archive_self_buff_aliases.lua — Verify self-buff alias mappings against spell data.
+-- WHAT:  reads spell_id_table and validates that self-buff aliases resolve to real spell IDs.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   prevents stale aliases from breaking buff tracking in specs.
+-- SAFETY: pure file-read test; no casting or side effects.
+
 local function read(path)
     local f = assert(io.open(path, "r"))
     local s = f:read("*a")

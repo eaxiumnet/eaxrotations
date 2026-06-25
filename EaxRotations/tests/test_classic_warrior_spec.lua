@@ -1,3 +1,9 @@
+-- test_classic_warrior_spec.lua — Verify expansion loader picks correct warrior spec suffixes.
+-- WHAT:  mocks require() to confirm _sylvanas vs _vanilla selection for Arms and Fury.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   warrior has stance/form complexity; warrants dedicated loader verification.
+-- SAFETY: fully mocked; no real spec logic executed.
+
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 local function assert_eq(a, b, label) if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end end
 

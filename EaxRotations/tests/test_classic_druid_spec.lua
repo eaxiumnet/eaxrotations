@@ -1,3 +1,9 @@
+-- test_classic_druid_spec.lua — Verify expansion loader picks correct druid spec suffixes.
+-- WHAT:  mocks require() to confirm _sylvanas vs _vanilla selection for Balance and Bear.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   prevents Classic-era players from accidentally loading TBC spell tables.
+-- SAFETY: fully mocked; no real spec logic executed.
+
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 local function assert_eq(a, b, label) if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end end
 

@@ -1,3 +1,9 @@
+-- test_can_attack_false_enemy_with_fires.lua — Validate can_attack false still fires enemy_with strategies.
+-- WHAT:  mocks a unit where can_attack returns false but is_enemy_with returns true.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   ensures defensive/utility spells (e.g., Fear on CC-immune target) are not wrongly skipped.
+-- SAFETY: fully mocked; no real unit interaction.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local casts = {}

@@ -1,3 +1,9 @@
+-- test_dispatcher_role_mode.lua — Validate dispatcher role selection and mode gating.
+-- WHAT:  mocks player class/role and verifies the dispatcher routes to the correct rotation module.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   dispatcher bugs affect every spec; role mis-routing is a total rotation failure.
+-- SAFETY: fully mocked; exercises dispatch table lookups only.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end

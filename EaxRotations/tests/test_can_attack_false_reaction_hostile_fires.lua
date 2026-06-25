@@ -1,3 +1,9 @@
+-- test_can_attack_false_reaction_hostile_fires.lua — Validate reaction hostile triggers without can_attack.
+-- WHAT:  mocks a unit with hostile reaction but can_attack=false (e.g., out of range).
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   some actions (dots, buffs) should still be considered when reaction is hostile.
+-- SAFETY: fully mocked; no real unit interaction.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local casts = {}

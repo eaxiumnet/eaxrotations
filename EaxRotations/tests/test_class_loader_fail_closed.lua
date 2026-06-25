@@ -1,3 +1,9 @@
+-- test_class_loader_fail_closed.lua — Verify class loader fails safely on bad inputs.
+-- WHAT:  tests create_loader and create_expansion_loader with missing modules and wrong class IDs.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   a fail-open loader would silently skip rotations and leave the player idle.
+-- SAFETY: fully mocked; exercises pcall paths and error handling only.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end

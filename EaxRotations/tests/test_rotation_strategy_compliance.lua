@@ -1,3 +1,9 @@
+-- test_rotation_strategy_compliance.lua — Validate strategy table structure in all specs.
+-- WHAT:  loads spec modules and verifies each strategy has name, match, and execute fields.
+-- WHEN:  run as a standalone test or via test runner.
+-- WHY:   malformed strategy tables crash the dispatcher or silently skip actions.
+-- SAFETY: loads modules in isolated mock environment; no real casting.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local function read_file(path)
