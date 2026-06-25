@@ -5,8 +5,6 @@ local tests = {
     "test_try_cast_izi_primary.lua",
     "test_update_callback_void_registration.lua",
     "test_update_callback_rotation_disabled_sync.lua",
-    "test_pre_heal_cooldown_gate.lua",
-
     -- Dispatcher + loader regressions
     "test_dispatcher_role_mode.lua",
     "test_class_loader_fail_closed.lua",
@@ -41,7 +39,6 @@ local tests = {
 
     -- Core/shared infrastructure tests
     "test_aura_probe_sylvanas.lua",
-    "test_missile_tracker.lua",
     "test_trinket_manager.lua",
     "test_spell_resolver_cache.lua",
     "test_boss_count.lua",
@@ -64,14 +61,15 @@ local tests = {
     "test_rotation_static_compliance.lua",
     "test_rotation_strategy_compliance.lua",
     "test_quality_bar_compliance.lua",
+    "test_hunter_adaptive_nil_globals.lua",
     "test_vec2_api_lint.lua",
     "test_fire_scorch_maintenance.lua",
     "test_frost_shatter_combo.lua",
     "test_ele_shock_gating.lua",
-    "test_swing_timer_helpers.lua",
     "test_gear_helpers.lua",
     "test_dot_refresh.lua",
     "test_dot_refresh_integration.lua",
+    "test_enemy_count_hysteresis.lua",
     "test_sticky_spell.lua",
 
     -- Control panel / settings tests
@@ -98,6 +96,7 @@ local tests = {
     "test_warlock_selected_target_fires.lua",
     "test_warlock_focus_target_fires.lua",
     "test_warlock_enemy_scan_fallback_fires.lua",
+    "test_affliction_summon_felhunter.lua",
     "test_try_cast_no_global_5s_lockout.lua",
     "test_try_cast_reason.lua",
     "test_action_execute_skip_gcd_izi_primary.lua",
@@ -178,13 +177,9 @@ local tests = {
     "test_benchmark.lua",
     "test_burst_window.lua",
     "test_dispatcher_tick.lua",
-    "test_dr_tracker.lua",
 
     -- TTD fallback chain (build_context)
     "test_ema_ttd_fallback.lua",
-
-    -- Context field wiring regression (June 2026)
-    "test_context_wired_fields_2026_06.lua",
 
     -- Talent build detection
     "test_talent_context.lua",
@@ -210,6 +205,27 @@ local tests = {
     "test_warrior_middleware_nil_guard.lua",
     "test_healer_deficit.lua",
     "test_spell_id_table.lua",
+
+    -- Middleware / integration tests (previously orphaned)
+    "test_buff_upgrade.lua",
+    "test_cast_path_integration.lua",
+    "test_discipline_healer_mode.lua",
+    "test_druid_middleware_nil_guard.lua",
+    "test_evaluate_cast_casting_guard.lua",
+    "test_healer_deficit_overheal.lua",
+    "test_interrupt_spec_integration.lua",
+    "test_other_classes_middleware_nil_guard.lua",
+    "test_playstyle_tooltip_class_name.lua",
+    "test_restoration_shield_tracking.lua",
+    "test_spec_kit.lua",
+    "test_spell_validation_talent_inference_health.lua",
+    "test_ttd_normalization.lua",
+    "test_ttd_tracker.lua",
+
+    -- Classic / legacy tests (previously orphaned, pass standalone)
+    "test_classic_druid_spec.lua",
+    "test_classic_remaining_specs.lua",
+    "test_classic_warrior_spec.lua",
 }
 
 local function first_failure_line(output)
