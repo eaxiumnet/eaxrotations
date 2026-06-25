@@ -85,9 +85,10 @@ For each spec:
   - **VERIFIED:** No obvious quick-win gap found in core rotation scan.
   - Verify: `luac -p`, gate
 
-- [ ] **P2.3** Survival — compare against Wowhead SV Hunter TBC guide
+- [x] **P2.3** Survival — compare against Wowhead SV Hunter TBC guide
   - Files: `EaxRotations/classes/hunter/survival_sylvanas.lua`
   - Acceptance: Explosive Shot (if TBC-era), trap weaving, serpent sting
+  - **VERIFIED:** Research (Icy-Veins, re-reviewed for TBC Anniversary Dec 2025 + wowtbc.gg): KC > Multi-Shot > Steady Shot (filler) > Arcane Shot > Serpent Sting (movement-only/optional, NOT a maintained DoT). Current code matches: KillCommand > MultiShot > SteadyShot > ArcaneShot > SerpentSting(last). SerpentSting positioned last = low-priority, consistent with guide's "optional" framing. No Wrath spells (Explosive Shot/Black Arrow/Lock & Load/Kill Shot) present. No change.
   - Verify: `luac -p`, gate
 
 ### Phase 3: Mage (3 specs)
@@ -117,58 +118,65 @@ For each spec:
   - **VERIFIED:** SnD → Rupture → Eviscerate → builders order is correct.
   - Verify: `luac -p`, gate, `test_rogue_*`
 
-- [ ] **P4.3** Subtlety — compare against Wowhead Subtlety Rogue TBC guide
+- [x] **P4.3** Subtlety — compare against Wowhead Subtlety Rogue TBC guide
   - Files: `EaxRotations/classes/rogue/subtlety_sylvanas.lua`
   - Acceptance: Backstab/Ambush priority, hemorrhage maintenance, Premeditation
+  - **VERIFIED:** Research (Warcraft Tavern + wowtbc.gg + Wowhead 2.5.5): Opener Premed→Shadowstep→Garrote; sustain Hemo (builder+debuff) > SnD (never expire) > Rupture (5CP) > Eviscerate (surplus). Current code: Premeditation > ShadowstepOpener > [openers] > HemorrhageDebuff > SliceAndDice > ExposeArmor > Rupture > EviscerateKill > Eviscerate > Backstab > Hemorrhage. Ordering defensible (SnD/Rupture/Eviscerate cycle correct; Backstab gated to dagger+behind so Hemo build uses Hemorrhage). Minor nuance: SnD-vs-HemoDebuff order is debatable, not a clear bug. No Wrath spells (Shadow Dance/Honor Among Thieves) present. No change.
   - Verify: `luac -p`, gate
 
 ### Phase 5: Paladin (3 specs)
-- [ ] **P5.1** Holy — compare against Wowhead Holy Paladin TBC guide
+- [ ] **P5.1** Holy — compare against Wowhead Holy Paladin TBC guide  *(DEFERRED — reactive healer; healing-priority logic, not a DPS APL reorder. Separate review.)*
   - Files: `EaxRotations/classes/paladin/holy_sylvanas.lua`
   - Acceptance: Holy Light vs Flash of Light, downranking, Divine Favor
   - Verify: `luac -p`, gate, `test_paladin_holy_*`
 
-- [ ] **P5.2** Protection — compare against Wowhead Prot Paladin TBC guide
+- [ ] **P5.2** Protection — compare against Wowhead Prot Paladin TBC guide  *(SKIPPED — tank threat/survival rotation, not DPS APL-optimized; same rationale as Prot Warrior P1.3.)*
   - Files: `EaxRotations/classes/paladin/protection_sylvanas.lua`
   - Acceptance: Avenger's Shield opener, consecration, Holy Shield uptime
   - Verify: `luac -p`, gate
 
-- [ ] **P5.3** Retribution — compare against Wowhead Ret Paladin TBC guide
+- [x] **P5.3** Retribution — compare against Wowhead Ret Paladin TBC guide
   - Files: `EaxRotations/classes/paladin/retribution_sylvanas.lua`
   - Acceptance: Seal twisting, Judgement priority, Crusader Strike, Avenging Wrath
+  - **VERIFIED:** Per session guidance — seal-twist mechanics are subtle; current twist logic (suppress off-GCD near imminent swing) is native-backed + tested (9 contracts in `test_paladin_tbc_seals`). Don't change without strong in-game evidence. No change.
   - Verify: `luac -p`, gate, `test_paladin_tbc_seals`
 
 ### Phase 6: Priest (4 specs)
-- [ ] **P6.1** Holy — compare against Wowhead Holy Priest TBC guide
+- [ ] **P6.1** Holy — compare against Wowhead Holy Priest TBC guide  *(DEFERRED — reactive healer; separate review.)*
   - Files: `EaxRotations/classes/priest/holy_sylvanas.lua`
   - Acceptance: Greater Heal vs Flash Heal, Renew maintenance, CoH usage
   - Verify: `luac -p`, gate, `test_priest_holy_*`
 
-- [ ] **P6.2** Discipline — compare against Wowhead Disc Priest TBC guide
+- [ ] **P6.2** Discipline — compare against Wowhead Disc Priest TBC guide  *(DEFERRED — reactive healer/shielder; separate review.)*
   - Files: `EaxRotations/classes/priest/discipline_sylvanas.lua`
   - Acceptance: PW:S priority, Penance (if Wrath-backported), Power Infusion
   - Verify: `luac -p`, gate, `test_discipline_*`
 
-- [ ] **P6.3** Shadow — compare against Wowhead Shadow Priest TBC guide
+- [ ] **P6.3** Shadow — compare against Wowhead Shadow Priest TBC guide  *(PENDING — DPS spec with a clear APL VT>SW:P>MB>MF + Shadow Weaving; not researched this session — next candidate.)*
   - Files: `EaxRotations/classes/priest/shadow_sylvanas.lua`
   - Acceptance: VT > SW:P > MB > MF priority, shadow weaving
   - Verify: `luac -p`, gate
 
-- [ ] **P6.4** Smite — compare against Wowhead Holy DPS Priest TBC guide
+- [x] **P6.4** Smite — compare against Wowhead Holy DPS Priest TBC guide
   - Files: `EaxRotations/classes/priest/smite_sylvanas.lua`
   - Acceptance: Smite spam, Holy Fire, SW:P maintenance
+  - **VERIFIED:** Order is `HolyFire > SurgeOfLightSmite > SW:P > PowerInfusion > InnerFocus > racials > MindBlast > SW:D > HolyNova > SmiteFiller`. HolyFire-over-SurgeOfLight is a steady-state DPS wash (Surge proc lasts ~15s, both get cast regardless); author's "HF = highest nuke, Surge consumed next" is defensible. SW:P conservatively included (mana + ttd gated). Test `test_smite_solo_matches.lua` only asserts solo/defensive rows by name-lookup, so damage order is unconstrained. No change.
   - Verify: `luac -p`, gate
 
 ### Phase 7: Warlock (3 specs)
-- [ ] **P7.1** Affliction — compare against Wowhead Affliction Warlock TBC guide
+- [x] **P7.1** Affliction — compare against Wowhead Affliction Warlock TBC guide
   - Files: `EaxRotations/classes/warlock/affliction_sylvanas.lua`
   - Acceptance: UA > Corruption > CoA > Siphon Life > Drain Life priority
+  - **VERIFIED (ordering):** Research (Icy-Veins + Warcraft Tavern, reviewed for 2.5.5): CoE/CoD > UA > Corruption > Siphon Life > Immolate > Shadow Bolt filler; Nightfall proc → instant SB. Current: NightfallProc > Corruption > UA > SiphonLife > CoD/CoE/CoA > Immolate > SB filler — all DoTs/curse above filler, defensible (curse-after-DoT is a 1-GCD pull nuance, not a bug). NightfallProc high (correct).
+  - **CAVEAT (deferred — see `plans/deferred_drain_soul_execute.md`):** `DrainSoulExecute` uses `EXECUTE_HP=25` (sub-25% execute). The Drain Soul sub-25% 4× execute is a **Wrath mechanic** — does NOT exist in TBC (Drain Soul ~62 dps vs Shadow Bolt ~250 dps → channeling at 25% is a large DPS loss). TBC-correct = shard-capture only (mob about to die). Same bug in Demonology (`EXECUTE_THRESHOLD=25`). Fix needs threshold/mechanic change + test update (`test_affliction_custom_matches.lua` asserts the 25% behavior) across 2 specs → deferred as a separate mechanic-correctness concern, not an APL reorder.
   - Verify: `luac -p`, gate, `test_affliction_*`
 
-- [ ] **P7.2** Demonology — compare against Wowhead Demonology Warlock TBC guide
+- [x] **P7.2** Demonology — compare against Wowhead Demonology Warlock TBC guide
   - Files: `EaxRotations/classes/warlock/demonology_sylvanas.lua`
   - Acceptance: Shadowbolt filler, demon form (if Wrath-backported), pet management
-  - Verify: `luac -p`, gate
+  - **FIXED:** Immolate was above Corruption — reordered Corruption before Immolate per TBC guide (Icy-Veins + Warcraft Tavern, reviewed for 2.5.5): CoD > Corruption > Immolate > SB filler. Corruption has higher DPCT/longer DoT. Match fns unchanged (symmetric refresh gates) — order swap only. Committed `cddd6393`. SoulFire/Incinerate kept (gated, talented/fallback). No Wrath Demo spells (Metamorphosis/Decimation/Molten Core) present.
+  - **CAVEAT (deferred — see `plans/deferred_drain_soul_execute.md`):** `DrainSoul` uses `EXECUTE_THRESHOLD=25` (sub-25% execute) — Wrath mechanic, not TBC. Same as Affliction P7.1. Deferred to a separate shard-capture concern.
+  - Verify: `luac -p`, gate, `test_demonology_*`
 
 - [x] **P7.3** Destruction — compare against Wowhead Destruction Warlock TBC guide
   - Files: `EaxRotations/classes/warlock/destruction_sylvanas.lua`
@@ -176,22 +184,25 @@ For each spec:
   - Verify: `luac -p`, gate, `test_destruction_*`
 
 ### Phase 8: Druid (4 specs)
-- [ ] **P8.1** Balance — compare against Wowhead Boomkin TBC guide
+- [x] **P8.1** Balance — compare against Wowhead Boomkin TBC guide
   - Files: `EaxRotations/classes/druid/balance_sylvanas.lua`
   - Acceptance: Moonfire > Starfire > Wrath, insect swarm, eclipse (if Wrath-backported)
+  - **VERIFIED:** Research (Icy-Veins + Warcraft Tavern + wowtbc.gg, reviewed for 2.5.5): Faerie Fire > Moonfire (keep up, let expire) > Force of Nature > Starfire (primary filler) > Insect Swarm (Icy-Veins: movement-only refresh) > Wrath (mana-inefficient fallback). Current: ForceOfNature > MoonkinForm > InnervateSelf > HurricaneAoE > FaerieFireDebuff > InsectSwarmDoT > MoonfireDoT > MovingMoonfire > StarfirePrimary > WrathFiller. FaerieFire/Moonfire/Starfire/Wrath ordering matches. **Debated point (no change):** Icy-Veins treats Insect Swarm as movement-only, but TBC theorycraft is split — many EJ-era boomkins maintain both Moonfire+IS as DoTs. Current code maintains IS (defensible school); changing it is debatable + test-risk for no clear gain → conservative VERIFIED. No Wrath spells (Eclipse/Typhoon/Starfall) present.
   - Verify: `luac -p`, gate, `test_balance_*`
 
-- [ ] **P8.2** Feral Cat — compare against Wowhead Feral Cat TBC guide
+- [x] **P8.2** Feral Cat — compare against Wowhead Feral Cat TBC guide
   - Files: `EaxRotations/classes/druid/cat_sylvanas.lua`
   - Acceptance: Mangle > Rip > Rake > Ferocious Bite, SR cycle, powershifting
+  - **VERIFIED:** Research (Icy-Veins + Warcraft Tavern powershifting + wowtbc.gg): bite-weave default — Rip (4+CP, no Rip up, target lives full duration) > Ferocious Bite (5CP when Rip up, ~35 energy) > Mangle (debuff) > Shred filler > Powershift. **Rake NOT in single-target raid priority** per sources (Shred outperforms). Current: MangleDebuff > RipSnapshot/Rip > FerociousBiteExecute/Ttd > MaimControl > TigersFury > Powershift > RakeSnapshot/RakeTab/Rake > ShredOmen/Shred > MangleFiller > ClawFallback. MangleDebuff-above-Rip is correct (need debuff up for +30% Rip). Finishers above builders (correct). **Debated point (no change):** Rake-in-rotation — sources say skip, but Rake-with-Mangle is a legitimate TBC school; current keeps it (gated). Conservative VERIFIED. No Wrath spells (Savage Roar/Berserk) present.
   - Verify: `luac -p`, gate, `test_cat_*`
 
-- [ ] **P8.3** Feral Bear — compare against Wowhead Feral Bear TBC guide
+- [x] **P8.3** Feral Bear — compare against Wowhead Feral Bear TBC guide
   - Files: `EaxRotations/classes/druid/bear_sylvanas.lua`
   - Acceptance: Mangle > Lacerate > Swipe, demo roar, survival priorities
+  - **VERIFIED:** Research (Wowhead 2.5.5 + Icy-Veins + wowtbc.gg): Demo Roar + Faerie Fire (maintain) > Mangle (Bear) on CD (highest threat, +30% bleed) > Lacerate 5-stack > Swipe (spare GCDs) > Maul (rage dump); reserve ≥15 rage for Mangle. Current: DemoralizingRoar > FaerieFireFeral > MangleOpener > Lacerate > LacerateOffTarget > SwipeAoE > MangleBear > Clearcasting* > Swipe > Maul. **Mangle-on-CD-correctness:** `mangle_opener_matches` (above Lacerate) fires Mangle whenever off-CD UNLESS (debuff fresh AND Lacerate 5-stacked) — so when Lacerate<5 + Mangle off-CD, MangleOpener fires Mangle FIRST (beats Lacerate stacking, per guide). `MangleBear` (below Lacerate) only handles the debuff-fresh+Lacerate-stacked case where Lacerate doesn't match anyway. Design is correct. Test asserts DemoRoar-before-FF (holds). No Wrath spells (Survival Instincts/Berserk) present. No change.
   - Verify: `luac -p`, gate, `test_bear_*`
 
-- [ ] **P8.4** Restoration — compare against Wowhead Resto Druid TBC guide
+- [ ] **P8.4** Restoration — compare against Wowhead Resto Druid TBC guide  *(DEFERRED — reactive healer; separate review.)*
   - Files: `EaxRotations/classes/druid/resto_sylvanas.lua`
   - Acceptance: Lifebloom stacking, Rejuvenation, Regrowth, Swiftmend
   - Verify: `luac -p`, gate, `test_druid_resto_*`
@@ -202,12 +213,13 @@ For each spec:
   - **FIXED:** Flame Shock was after Lightning Bolt — reordered Flame Shock before Lightning Bolt (DoT maintenance before filler). Committed `6c88a6d8`.
   - Verify: `luac -p`, gate, `test_elemental_*`
 
-- [ ] **P9.2** Enhancement — compare against Wowhead Enhancement Shaman TBC guide
+- [x] **P9.2** Enhancement — compare against Wowhead Enhancement Shaman TBC guide
   - Files: `EaxRotations/classes/shaman/enhancement_sylvanas.lua`
   - Acceptance: Stormstrike > Earth Shock > Flame Shock, totem twisting, WF/FT
+  - **VERIFIED:** Research (Icy-Veins + Warcraft Tavern + wowtbc.gg, reviewed for 2.5.5) says TBC Enh priority is Stormstrike > **Flame Shock (maintain DoT)** > Earth Shock (when Flame Shock doesn't need refresh) — NOT "Earth > Flame". Current code already has `Stormstrike > FlameShock > EarthShock > FrostShock`, which MATCHES the guide. (The original acceptance criterion above was wrong.) Totem twisting (Windfury/GraceOfAir) already implemented. No Wrath Enh spells (Maelstrom Weapon/Feral Spirits/Lava Lash) present. No change.
   - Verify: `luac -p`, gate
 
-- [ ] **P9.3** Restoration — compare against Wowhead Resto Shaman TBC guide
+- [ ] **P9.3** Restoration — compare against Wowhead Resto Shaman TBC guide  *(DEFERRED — reactive healer; separate review.)*
   - Files: `EaxRotations/classes/shaman/restoration_sylvanas.lua`
   - Acceptance: Healing Wave rank selection, Chain Heal, Earth Shield, Riptide (if Wrath)
   - Verify: `luac -p`, gate, `test_shaman_resto_*`
