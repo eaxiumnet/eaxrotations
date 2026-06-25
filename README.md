@@ -17,7 +17,7 @@ Use [EaxRotations/README.md](EaxRotations/README.md) for the full project guide,
 | Architecture | S+ | Clean dispatcher, NS.* API boundary, pure module separation |
 | TBC Accuracy | S+ | All spell IDs audited, zero fake/legacy IDs |
 | Readability | S+ | What/When/Why/Safety headers on 100+ files |
-| Test Coverage | S+ | 111 tests pass (106 original + 5 new) |
+| Test Coverage | S+ | 182 tests pass (171 rotation + 11 leveling suites) |
 | Performance | S+ | Strategy evaluation benchmarked under 20ms |
 | Open Source | S+ | MIT LICENSE, CONTRIBUTING.md, stale stats corrected |
 
@@ -31,16 +31,10 @@ Use [EaxRotations/README.md](EaxRotations/README.md) for the full project guide,
 
 ## Local Verification
 
-Run all checks at once from the repository root (requires `make` and `lua` on PATH):
+Run the automated validation gate from the repository root:
 
-```bash
-sh tools/run_all_checks.sh
-```
-
-On Windows PowerShell (does not require `make`):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\run_all_checks.ps1
+```batch
+cmd.exe //c "EaxRotations\validate.cmd"
 ```
 
 Or run individually:
@@ -49,16 +43,9 @@ Or run individually:
 # Syntax check all Lua files
 Get-ChildItem -Path EaxRotations -Recurse -File -Filter '*.lua' | ForEach-Object { luac -p $_.FullName }
 
-# Run all regression tests
-Get-ChildItem -Path EaxRotations/tests -Filter 'test_*.lua' | Sort-Object Name | ForEach-Object { lua $_.FullName }
+# Run rotation regression test suite (171 suites)
+lua EaxRotations/tests/run_rotation_tests.lua
 
-# Run audits
-lua EaxRotations/tools/audit_online_tbc_ids.lua
-lua EaxRotations/tools/audit_static_behavior.lua
-lua EaxRotations/tools/triage_archive_spell_ids.lua
-
-# Ensure only .lua and .md files exist in EaxRotations/
-rg --files EaxRotations -g '!*.lua' -g '!*.md'
+# Run leveling test suite (11 suites)
+lua EaxRotations/tests/run_leveling_tests.lua
 ```
-
-The last command should print no files.
