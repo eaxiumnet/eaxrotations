@@ -533,6 +533,32 @@ local healing_strategies = {
     { name = "EmergencyPowerWordShield", matches = pws_lowest_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.lowest.unit, string.format("[DISCIPLINE] PW:S %.0f%%", s.lowest.effective_hp or 0)) end },
     { name = "PowerWordShieldLowest", matches = pws_lowest_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.lowest.unit, string.format("[DISCIPLINE] PW:S %.0f%%", s.lowest.effective_hp or 0)) end },
     { name = "EmergencyFlashHeal", matches = flash_heal_matches, execute = function(context, s) return NS.try_cast(SPELLS.FlashHeal, s.lowest.unit, string.format("[DISCIPLINE] Flash Heal %.0f%%", s.lowest.effective_hp or 0)) end },
+    { name = "FriendlyTarget", matches = function(context, s)
+        if not context.in_combat then return false end
+        if context.player_control_locked or context.is_moving then return false end
+        if not _check_pushback(context) then return false end
+        if context.settings.disc_use_friendly_target == false then return false end
+        local threshold = (context.settings and context.settings.disc_friendly_target_threshold) or 90
+        local ft = NS.get_friendly_target_entry(context)
+        if not ft or not ft.unit then return false end
+        if (ft.hp_pct or 100) >= threshold then return false end
+        if not s.lowest or (s.lowest.effective_hp or 100) <= (context.settings.discipline_flash_hp or 55) then return false end
+        if not s.greater_heal_ready then return false end
+        return true
+    end, execute = function(context, s)
+        local ft = NS.get_friendly_target_entry(context)
+        if not ft then return false end
+        local mana_pct = s.mana_pct or context.mana_pct or 100
+        local spell_id
+        if mana_pct > 30 then
+            spell_id = GREATER_HEAL_MAX
+        elseif mana_pct > 15 then
+            spell_id = GREATER_HEAL_CONSERVE
+        else
+            spell_id = GREATER_HEAL_EFFICIENT
+        end
+        return NS.try_cast(spell_id, ft.unit, string.format("[DISCIPLINE] Greater Heal ft %.0f%% (rank %s)", ft.effective_hp or 0, mana_pct > 30 and "5" or (mana_pct > 15 and "4" or "3")))
+    end },
     { name = "GreaterHeal", matches = greater_heal_matches, execute = function(context, s)
         local mana_pct = s.mana_pct or context.mana_pct or 100
         local spell_id

@@ -202,6 +202,11 @@ local tests = {
 
     "test_bear_vanilla_nil_guards.lua",
     "test_subtlety_vanilla_nil_guards.lua",
+    "test_priest_holy_vanilla_friendly_target.lua",
+    "test_priest_discipline_vanilla_friendly_target.lua",
+    "test_paladin_holy_vanilla_friendly_target.lua",
+    "test_druid_resto_vanilla_friendly_target.lua",
+    "test_shaman_resto_vanilla_friendly_target.lua",
 
     -- Orphaned tests (previously not registered)
     "test_paladin_holy_custom_matches.lua",

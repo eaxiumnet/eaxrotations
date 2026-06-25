@@ -302,6 +302,21 @@ local strategies = {
     { name = "NaturesSwiftnessHealingTouch", matches = function(_, state) return state.ns_target and state.has_natures_swiftness and NS.spell_ready(SPELLS.HealingTouch, state.ns_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.ns_target.unit, "[RESTO] NS Healing Touch") end },
     { name = "TranquilityEmergency", matches = function(context, state) local needed = (context.settings and context.settings.resto_tranquility_count) or 3; if state.tranquility_count < needed then return false end; if NS.threat_status and NS.threat_status(context.me, context.target) >= 2 then return false end; return NS.spell_ready(LOCAL_SPELLS.Tranquility, PLAYER_UNIT, TRANQUILITY_OPTS) end, execute = function() return NS.try_cast(LOCAL_SPELLS.Tranquility, PLAYER_UNIT, "[RESTO] Tranquility emergency", TRANQUILITY_OPTS) end },
     { name = "HealingTouchMaxEmergency", matches = function(context, state) return not context.is_moving and state.ht_target and NS.spell_ready(SPELLS.HealingTouch, state.ht_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.HealingTouch, state.ht_target.unit, "[RESTO] Healing Touch emergency") end },
+    { name = "FriendlyTarget", matches = function(context, state)
+        if not context.in_combat then return false end
+        if context.is_moving then return false end
+        if context.settings.resto_use_friendly_target == false then return false end
+        local threshold = (context.settings and context.settings.resto_friendly_target_threshold) or 90
+        local ft = NS.get_friendly_target_entry(context)
+        if not ft or not ft.unit then return false end
+        if (ft.hp_pct or 100) >= threshold then return false end
+        if state.lowest and effective_hp(state.lowest) <= 35 then return false end
+        return NS.spell_ready(SPELLS.Regrowth, ft.unit)
+    end, execute = function(context, state)
+        local ft = NS.get_friendly_target_entry(context)
+        if not ft then return false end
+        return NS.try_cast(SPELLS.Regrowth, ft.unit, string.format("[RESTO] Regrowth ft %.0f%%", ft.effective_hp or 0))
+    end },
     { name = "RegrowthSpotHeal", matches = function(context, state) return not context.is_moving and state.regrowth_target and not state.mana_conserve and NS.spell_ready(SPELLS.Regrowth, state.regrowth_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.Regrowth, state.regrowth_target.unit, "[RESTO] Regrowth spot heal") end },
     { name = "ClearcastRegrowth", matches = function(_, state) return state.has_clearcasting and state.regrowth_target and NS.spell_ready(SPELLS.Regrowth, state.regrowth_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.Regrowth, state.regrowth_target.unit, "[RESTO] Clearcast Regrowth") end },
     { name = "MovingRejuvenation", matches = function(context, state) return context.is_moving and state.rejuv_target and not state.mana_emergency and NS.spell_ready(SPELLS.Rejuvenation, state.rejuv_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.Rejuvenation, state.rejuv_target.unit, "[RESTO] Moving Rejuvenation") end },

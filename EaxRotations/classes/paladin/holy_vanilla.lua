@@ -563,6 +563,26 @@ local strategies = {
         end,
     },
     {
+        name = "FriendlyTarget",
+        matches = function(context, s)
+            if not context.in_combat then return false end
+            if context.is_moving then return false end
+            if context.settings.holy_use_friendly_target == false then return false end
+            local threshold = (context.settings and context.settings.holy_friendly_target_threshold) or 90
+            local ft = NS.get_friendly_target_entry(context)
+            if not ft or not ft.unit then return false end
+            if (ft.hp_pct or 100) >= threshold then return false end
+            if not can_help(s.lowest) or hp_of(s.lowest) <= EMERGENCY_HP then return false end
+            s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, ft)
+            return can_cast_on(s.holy_light_spell, ft)
+        end,
+        execute = function(context, s)
+            local ft = NS.get_friendly_target_entry(context)
+            if not ft then return false end
+            return cast_on(s.holy_light_spell, ft, format("[HOLY] %s ft %.0f%%", s.holy_light_label, hp_of(ft)))
+        end,
+    },
+    {
         name = "BlessingOfSacrificeTank",
         matches = function(_, s)
             if not can_help(s.sacrifice_target) then return false end
