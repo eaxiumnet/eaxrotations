@@ -1,3 +1,9 @@
+-- holy_vanilla.lua — Priest Holy healing rotation for Vanilla/Classic Era.
+-- WHAT:  healing rotation (Renew, Flash Heal, Greater Heal, Prayer of Healing).
+-- WHEN:  combat or pre-hot, when NS.is_vanilla() is true.
+-- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
+-- SAFETY: nil-guards on NS, SPELLS, and player class check; early return if not priest.
+
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end
