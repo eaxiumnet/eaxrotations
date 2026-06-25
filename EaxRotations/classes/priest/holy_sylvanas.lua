@@ -413,6 +413,38 @@ local strategies = {
             return try_cast(chosen_spell, target, format("[HOLY] %s %.0f%%", spell_label, state.lowest.effective_hp or 0))
         end,
     },
+    -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
+    -- Placed AFTER EmergencyPWS / PreemptiveGreaterHeal / EmergencyFlashHeal so
+    -- life-critical saves still win, but BEFORE routine heals (PoM / CoH / GH /
+    -- FH / Renew) so a manual friendly target wins over auto-lowest-scan for
+    -- routine healing. Gated on no active emergency (lowest_hp >= emergency
+    -- threshold) so a critically-low ally is never skipped in favor of a manual
+    -- target. Opt out via setting holy_use_friendly_target = false.
+    {
+        name = "FriendlyTarget",
+        matches = function(context, state)
+            if not context.in_combat then return false end
+            if context.player_control_locked or context.is_moving then return false end
+            if context.settings.holy_use_friendly_target == false then return false end
+            -- Never override a critical emergency on the auto-scanned lowest ally.
+            if state.lowest and state.lowest_hp < (context.settings.holy_emergency_hp or 30) then return false end
+            local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
+            if not ft then return false end
+            if ft.hp_pct >= (context.settings.holy_friendly_target_threshold or 90) then return false end
+            -- Same conservations as GreaterHeal: mana floor + pushback + overheal gate.
+            if context.mana_pct < (context.settings.holy_gh_mana_floor or 30) then return false end
+            if _check_pushback(context) then return false end
+            if NS.gate_overheal and NS.gate_overheal("GreaterHeal", ft.unit, 2.5, context.settings) then return false end
+            return spell_exists(SPELLS.GreaterHeal) and spell_ready(SPELLS.GreaterHeal, ft.unit)
+        end,
+        execute = function(context, state)
+            local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
+            if not ft or not ft.unit then return false end
+            local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, ft.unit, context, "FriendlyTarget GH", HOLY_OPTS_GH)
+            if not chosen_spell then return false end
+            return try_cast(chosen_spell, ft.unit, format("[HOLY] %s (friendly target) %.0f%%", spell_label, ft.hp_pct or 0))
+        end,
+    },
     {
         name = "PrayerOfMending",
         matches = function(context, state)

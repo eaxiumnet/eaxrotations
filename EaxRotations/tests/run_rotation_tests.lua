@@ -30,6 +30,7 @@ local tests = {
 
     -- Priest tests
     "test_priest_holy_custom_matches.lua",
+    "test_priest_holy_friendly_target.lua",
 
     -- Druid tests
     "test_balance_custom_matches.lua",

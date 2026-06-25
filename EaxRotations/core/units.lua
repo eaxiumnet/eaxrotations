@@ -77,6 +77,39 @@ function M.GetPet(NS)
     return nil
 end
 
+function M.has_friendly_target(NS)
+    local me = NS.GetPlayer and NS.GetPlayer()
+    if not me then return false end
+    local target = NS.GetTarget and NS.GetTarget()
+    if not target then return false end
+    -- No native is_friendly(); "friendly" = alive and not hostile (can_attack /
+    -- is_enemy_with). NS.is_hostile_unit is defined in core_sylvanas and resolved
+    -- at CALL time, so install order here is safe.
+    if NS.is_hostile_unit and NS.is_hostile_unit(me, target) then return false end
+    return true
+end
+
+--- Returns { unit, hp_pct, effective_hp, is_player } for the player's current
+--- friendly target, or nil if target is missing/hostile/dead. effective_hp
+--- falls back to hp_pct (no triage ranking for a manually-selected target).
+--- Used by healer FriendlyTarget strategies (B6) for manual-target control.
+function M.get_friendly_target_entry(NS, context)
+    local me = (context and context.me) or (NS.GetPlayer and NS.GetPlayer())
+    if not me then return nil end
+    local target = NS.GetTarget and NS.GetTarget()
+    if not target then return nil end
+    if NS.is_hostile_unit and NS.is_hostile_unit(me, target) then return nil end
+    -- NS.GetTarget already filters to alive, but double-check defensively.
+    if NS.unit_alive and not NS.unit_alive(target) then return nil end
+    local hp_pct = (NS.unit_health_pct and NS.unit_health_pct(target)) or 100
+    local is_player = false
+    if target.is_player then
+        local ok, p = pcall(target.is_player, target)
+        if ok then is_player = p == true end
+    end
+    return { unit = target, hp_pct = hp_pct, effective_hp = hp_pct, is_player = is_player }
+end
+
 function M.install(NS)
     function NS.GetPlayer() return M.GetPlayer(NS) end
     function NS.GetPet() return M.GetPet(NS) end
@@ -86,6 +119,8 @@ function M.install(NS)
         local pet = NS.GetPet()
         return pet and NS.unit_health_pct and NS.unit_health_pct(pet) or 100
     end
+    function NS.has_friendly_target() return M.has_friendly_target(NS) end
+    function NS.get_friendly_target_entry(context) return M.get_friendly_target_entry(NS, context) end
 end
 
 return M
