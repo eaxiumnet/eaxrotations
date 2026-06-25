@@ -1,3 +1,9 @@
+-- heal_helper_sylvanas.lua — Paladin healing spell registry and helper functions.
+-- WHAT:  defines paladin healing spells (Flash of Light, Holy Light, Holy Shock) and cast helpers.
+-- WHEN:  loaded by healing_sylvanas.lua and holy_sylvanas.lua at runtime.
+-- WHY:   separates healing spell definitions from rotation logic for reuse across specs.
+-- SAFETY: nil-guard on NS; graceful fallback if enums module is missing.
+
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then
