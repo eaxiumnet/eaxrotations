@@ -324,6 +324,7 @@ end
 local function readiness_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not cooldowns_allowed(context) then return false end
+    if context.settings and context.settings.use_readiness == false then return false end
     if not s.readiness_ready then return false end
     -- Only use if Bestial Wrath is on cooldown (already used)
     if s.bestial_wrath_ready then return false end

@@ -7,7 +7,7 @@ local spell_id_table = require("shared/spell_id_table_sylvanas")
 local load_child = cl.create_loader("warrior", "Warrior")
 local load_spec = cl.create_expansion_loader("warrior", "Warrior")
 local enums = cl.get_enums()
-local player = NS.GetPlayer()
+local player = NS.GetPlayer and NS.GetPlayer()
 local ok_cls, cls_id = pcall(function() return player and player:get_class() end)
 if not ok_cls or cls_id ~= enums.class_id.WARRIOR then return nil end
 

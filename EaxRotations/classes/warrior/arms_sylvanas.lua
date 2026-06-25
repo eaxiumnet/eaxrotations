@@ -1,8 +1,8 @@
 -- arms_sylvanas -- warrior arms_sylvanas rotation for TBC Anniversary (2.5.5).
 -- WHAT:  priority-list strategies for arms_sylvanas gameplay.
--- WHEN:  combat with valid enemy target (or healing context for healers).
+-- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update() allocs.
 
 -- Warrior Arms priority list for TBC Sylvanas rotations.
 local NS = _G.EaxRotations
@@ -186,9 +186,9 @@ end
 
 local function execute_phase(context, state)
     if NS.is_execute_phase then return NS.is_execute_phase(context.target_hp, 20) end
-    if (state.target_hp or context.target_hp or 100) <= 20 then return true end
+    if state.target_hp <= 20 then return true end
     -- TTD awareness: treat as execute phase if target is dying soon
-    if (state.ttd or 0) > 0 and (state.ttd or 0) < 15 then return true end
+    if state.ttd > 0 and state.ttd < 15 then return true end
     return false
 end
 
@@ -208,7 +208,7 @@ end
 local function stance_swap_safe(state, cost)
     local effective_cost = math.min(cost or 0, 15)
     if state.stance == nil then return true end
-    return preserved_rage_after_swap(state.rage or 0) >= effective_cost
+    return preserved_rage_after_swapstate.rage >= effective_cost
 end
 
 local function action(context, row)
@@ -325,8 +325,68 @@ local function build_state(context)
     arms_state.mh_until = (me and NS.swing_time_until and NS.swing_time_until(me)) or 999
     arms_state.mh_progress = (me and NS.swing_progress and NS.swing_progress(me)) or 0
 
-    return arms_state
+    -- safe_state proxy: structural nil-guard elimination (Pattern 14)
+    -- Once wrapped, all match() functions can read state.X without nil-guards.
+    return spec_kit.safe_state(arms_state, ARMS_SCHEMA)
 end
+
+-- Schema for safe_state: mirrors arms_state defaults. Fields NOT listed here
+-- use spec_kit.SAFE_STATE_DEFAULTS (rage→0, hp→100, enemy_count→0, etc.).
+-- Custom defaults (e.g. enemy_count=1, stance=BATTLE, mh_until=999) override the kit defaults.
+local ARMS_SCHEMA = {
+    stance = STANCE.BATTLE,
+    enemy_count = 1,
+    is_pvp = false,
+    in_combat = false,
+    is_moving = false,
+    target_is_player = false,
+    target_is_pet = false,
+    target_is_casting = false,
+    target_casting_interruptible = false,
+    target_is_melee = false,
+    target_in_combat = false,
+    has_battle_shout = false,
+    has_berserker_rage = false,
+    has_commanding_shout = false,
+    has_sweeping_strikes = false,
+    victory_rush_ready = false,
+    ms_remains = 0,
+    rend_remains = 0,
+    hamstring_remains = 0,
+    demo_remains = 0,
+    tclap_remains = 0,
+    sunder_stacks = 0,
+    ms_cd = 99,
+    ww_cd = 99,
+    ss_cd = 99,
+    overpower_ready = false,
+    execute_ready = false,
+    ms_ready = false,
+    ww_ready = false,
+    slam_ready = false,
+    sweeping_ready = false,
+    heroic_ready = false,
+    cleave_ready = false,
+    pummel_ready = false,
+    intercept_ready = false,
+    charge_ready = false,
+    hamstring_ready = false,
+    piercing_ready = false,
+    spell_reflect_ready = false,
+    disarm_ready = false,
+    intimidating_ready = false,
+    thunder_ready = false,
+    demo_ready = false,
+    bloodrage_ready = false,
+    death_wish_ready = false,
+    recklessness_ready = false,
+    retaliation_ready = false,
+    shield_wall_ready = false,
+    execute_phase = false,
+    mh_until = 999,
+    mh_progress = 0,
+    healthstone_ready = false,
+}
 
 local function battle_stance_action()
     return build_action("BattleStance", ACTION.BattleStance, { target = "self", kind = "form", form = "battle", requires_target = false })
@@ -355,13 +415,13 @@ end
 local function execute_matches(context, state)
     if not execute_phase(context, state) then return false end
     local min_rage = setting(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
-    if context.rage ~= nil and (state.rage or 0) < min_rage then return false end
+    if context.rage ~= nil and state.rage < min_rage then return false end
     return action(context, build_action("Execute", ACTION.Execute, { min_rage = 15 }))
 end
 
 local function mortal_strike_matches(context, state)
     -- Rage cap: bypass min_rage gate to prevent rage waste when capped
-    if (state.rage or 0) >= RAGE_CAP then return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 })) end
+    if state.rage >= RAGE_CAP then return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 })) end
     return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }))
 end
 
@@ -369,17 +429,17 @@ local function overpower_matches(context, state)
     if not state.overpower_ready then return false end
     -- Rage protection: skip Overpower if MS is imminent and rage is too low for both
     local ms_cd = state.ms_cd or 99
-    if ms_cd <= 1.5 and (state.rage or 0) < MORTAL_STRIKE_RAGE then return false end
+    if ms_cd <= 1.5 and state.rage < MORTAL_STRIKE_RAGE then return false end
     return action(context, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }))
 end
 
 local function rend_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rend, 2.0) then return false end
     if execute_phase(context, state) then return false end
-    if (state.rend_remains or 0) > 3 then return false end
-    if (state.target_hp or 100) < 25 then return false end
+    if state.rend_remains > 3 then return false end
+    if state.target_hp < 25 then return false end
     -- TTD gate: skip Rend if target dying soon (bleed won't tick enough)
-    if (state.ttd or 0) > 0 and (state.ttd or 0) < 15 then return false end
+    if state.ttd > 0 and state.ttd < 15 then return false end
     -- Skip Rend on bleed-immune creature types (Elemental, Undead, Mechanical)
     local target = context.target
     if target and target.get_creature_type then
@@ -396,19 +456,19 @@ local function slam_matches(context, state)
     if rage < SLAM_RAGE then return false end
     -- Rage cap: bypass swing timer and MS/Overpower timing to dump rage
     if rage >= RAGE_CAP then return action(context, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true })) end
-    if (state.ms_cd or 99) <= 1.0 or state.overpower_ready then return false end
-    if (state.mh_until or 999) <= SLAM_CAST_TIME + SLAM_SAFETY then return false end
-    if (state.mh_until or 999) > 1.5 then return false end
+    if state.ms_cd <= 1.0 or state.overpower_ready then return false end
+    if state.mh_until <= SLAM_CAST_TIME + SLAM_SAFETY then return false end
+    if state.mh_until > 1.5 then return false end
     return action(context, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true }))
 end
 
 local function sweeping_strikes_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SweepingStrikes, 3.0) then return false end
     local min_count = setting(context, "sweeping_strikes_count", SWEEPING_STRIKES_COUNT)
-    if (state.enemy_count or 0) < min_count then return false end
+    if state.enemy_count < min_count then return false end
     if state.has_sweeping_strikes then return false end
     -- TTD gate: don't waste AoE CD if target is about to die
-    if (state.ttd or 0) > 0 and (state.ttd or 0) < 5 then return false end
+    if state.ttd > 0 and state.ttd < 5 then return false end
     return action(context, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false, enemy_count = min_count, cooldown = 30 }))
 end
 
@@ -416,7 +476,7 @@ local function commanding_shout_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CommandingShout, 3.0) then return false end
     if not setting(context, "use_commanding_shout", false) then return false end
     if state.has_commanding_shout then return false end
-    if (state.rage or 0) < 10 then return false end
+    if state.rage < 10 then return false end
     return action(context, build_action("CommandingShout", ACTION.CommandingShout, { target = "self", kind = "buff", buff = COMMANDING_SHOUT_BUFF, requires_target = false, min_rage = 10 }))
 end
 
@@ -424,8 +484,8 @@ local function sunder_armor_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
     if (context.target_armor or 0) <= 0 then return false end
     if not setting(context, "use_sunder_armor", false) then return false end
-    if (state.sunder_stacks or 0) >= 5 then return false end
-    if (state.rage or 0) < 15 then return false end
+    if state.sunder_stacks >= 5 then return false end
+    if state.rage < 15 then return false end
     if state.execute_phase then return false end
     return action(context, build_action("SunderArmor", ACTION.SunderArmor, { required_stance = STANCE.DEFENSIVE, min_rage = 15, debuff = SUNDER_DEBUFF, refresh = 28 }))
 end
@@ -435,7 +495,7 @@ local function whirlwind_matches(context, state)
     local rage = state.rage or 0
     -- Rage cap: bypass enemy count gate to prevent rage waste
     if rage >= RAGE_CAP then return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 })) end
-    if (state.enemy_count or 0) < 2 and rage < 45 then return false end
+    if state.enemy_count < 2 and rage < 45 then return false end
     return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
 end
 
@@ -478,8 +538,8 @@ end
 
 local function cleave_matches(context, state)
     if state and should_reserve_for_sweeping(context, state) then return false end
-    if (state.enemy_count or 0) < 2 then return false end
-    if (state.rage or 0) < CLEAVE_RAGE then return false end
+    if state.enemy_count < 2 then return false end
+    if state.rage < CLEAVE_RAGE then return false end
     return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true }))
 end
 
@@ -487,17 +547,17 @@ local function hamstring_matches(context, state)
     -- PvP snare maintenance (highest priority in PvP)
     if state.is_pvp then
         if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
-        if (state.hamstring_remains or 0) > 3 then return false end
+        if state.hamstring_remains > 3 then return false end
         return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
     end
     -- Tactician fishing — spam Hamstring when MS is on CD and rage is high
     local tactician_enabled = setting(context, "hamstring_tactician_weave", true)
     local weave_rage = setting(context, "hamstring_weave_rage", HAMSTRING_SPAM_RAGE)
-    if tactician_enabled and not state.execute_phase and (state.rage or 0) >= weave_rage and (state.ms_cd or 99) > 1.5 then
+    if tactician_enabled and not state.execute_phase and state.rage >= weave_rage and state.ms_cd > 1.5 then
         return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10 }))
     end
     -- Fleeing mobs (snare utility)
-    if setting(context, "hamstring_fleeing_mobs", true) and (state.hamstring_remains or 0) <= 3 then
+    if setting(context, "hamstring_fleeing_mobs", true) and state.hamstring_remains <= 3 then
         if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
         return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
     end
@@ -505,22 +565,22 @@ local function hamstring_matches(context, state)
 end
 
 local function piercing_howl_matches(context, state)
-    if not state.is_pvp and (state.enemy_count or 0) < 3 then return false end
-    if (state.rage or 0) < 10 then return false end
+    if not state.is_pvp and state.enemy_count < 3 then return false end
+    if state.rage < 10 then return false end
     return action(context, build_action("PiercingHowl", ACTION.PiercingHowl, { target = "self", min_rage = 10, requires_target = false, enemy_count = 2, is_aoe = true }))
 end
 
 local function demo_shout_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
-    if (state.demo_remains or 0) > 5 then return false end
-    if not state.is_pvp and (state.enemy_count or 0) < 2 and (state.hp or 100) > 70 then return false end
+    if state.demo_remains > 5 then return false end
+    if not state.is_pvp and state.enemy_count < 2 and state.hp > 70 then return false end
     return action(context, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false, debuff = DEMO_SHOUT_DEBUFF, refresh = 5 }))
 end
 
 local function thunder_clap_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
-    if (state.tclap_remains or 0) > 5 then return false end
-    if not state.is_pvp and (state.hp or 100) > 65 and (state.enemy_count or 0) < 2 then return false end
+    if state.tclap_remains > 5 then return false end
+    if not state.is_pvp and state.hp > 65 and state.enemy_count < 2 then return false end
     return action(context, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, debuff = THUNDER_CLAP_DEBUFF, refresh = 5, cooldown = 4 }))
 end
 
@@ -537,7 +597,7 @@ local function disarm_matches(context, state)
 end
 
 local function intercept_matches(context, state)
-    if (state.target_distance or 0) < 8 or (state.target_distance or 0) > 25 then return false end
+    if state.target_distance < 8 or state.target_distance > 25 then return false end
     -- Respect auto_charge toggle (When auto_charge is off, Intercept is disabled)
     local auto_charge = setting(context, "auto_charge", true)
     if not auto_charge then return false end
@@ -550,7 +610,7 @@ local function charge_matches(context, state)
     local auto_charge = setting(context, "auto_charge", true)
     if not auto_charge then return false end
     if state.in_combat then return false end
-    if (state.target_distance or 0) < 8 or (state.target_distance or 0) > 25 then return false end
+    if state.target_distance < 8 or state.target_distance > 25 then return false end
     -- Charge Only OOC Mobs: skip if target is already in combat with someone else
     local charge_only_ooc = setting(context, "charge_only_ooc", true)
     if charge_only_ooc and (context.target and bool_call(context.target, "is_in_combat")) then return false end
@@ -559,7 +619,7 @@ local function charge_matches(context, state)
 end
 
 local function intimidating_shout_matches(context, state)
-    if not state.is_pvp and (state.hp or 100) > 35 and (state.enemy_count or 0) < 3 then return false end
+    if not state.is_pvp and state.hp > 35 and state.enemy_count < 3 then return false end
     return action(context, build_action("IntimidatingShout", ACTION.IntimidatingShout, { target = "self", min_rage = 25, requires_target = false, cooldown = 180 }))
 end
 
@@ -569,7 +629,7 @@ local function battle_stance_matches(context, state)
     if NS.has_form and NS.has_form("battle") then return false end
     if desired_stance(context) == STANCE.BATTLE then return action(context, battle_stance_action()) end
     if state.overpower_ready and stance_swap_safe(state, OVERPOWER_RAGE) then return action(context, battle_stance_action()) end
-    if (state.ms_cd or 99) <= 0.3 and stance_swap_safe(state, MORTAL_STRIKE_RAGE) then return action(context, battle_stance_action()) end
+    if state.ms_cd <= 0.3 and stance_swap_safe(state, MORTAL_STRIKE_RAGE) then return action(context, battle_stance_action()) end
     return false
 end
 
@@ -579,11 +639,11 @@ local function berserker_stance_matches(context, state)
     if NS.has_form and NS.has_form("berserker") then return false end
     if desired_stance(context) == STANCE.BERSERKER then return action(context, berserker_stance_action()) end
     -- Execute requires Berserker Stance in TBC — swap if execute is ready and we have rage to use it
-    if state.execute_phase and (state.rage or 0) >= 15 and stance_swap_safe(state, 15) then
+    if state.execute_phase and state.rage >= 15 and stance_swap_safe(state, 15) then
         return action(context, berserker_stance_action())
     end
-    if state.ww_ready and stance_swap_safe(state, 25) and ((state.enemy_count or 0) >= 2 or (state.rage or 0) >= 45) then return action(context, berserker_stance_action()) end
-    if state.is_pvp and (state.target_distance or 0) >= 8 and stance_swap_safe(state, 10) then return action(context, berserker_stance_action()) end
+    if state.ww_ready and stance_swap_safe(state, 25) and (state.enemy_count >= 2 or state.rage >= 45) then return action(context, berserker_stance_action()) end
+    if state.is_pvp and state.target_distance >= 8 and stance_swap_safe(state, 10) then return action(context, berserker_stance_action()) end
     return false
 end
 
@@ -592,7 +652,7 @@ local function defensive_stance_matches(context, state)
     if stance_lockout_active() then return false end
     if NS.has_form and NS.has_form("defensive") then return false end
     if desired_stance(context) == STANCE.DEFENSIVE then return action(context, defensive_stance_action()) end
-    if (state.hp or 100) <= 30 and stance_swap_safe(state, 0) then return action(context, defensive_stance_action()) end
+    if state.hp <= 30 and stance_swap_safe(state, 0) then return action(context, defensive_stance_action()) end
     if state.is_pvp and state.target_is_casting and stance_swap_safe(state, 15) then return action(context, defensive_stance_action()) end
     if state.is_pvp and state.target_is_melee and stance_swap_safe(state, 20) then return action(context, defensive_stance_action()) end
     return false
@@ -605,8 +665,8 @@ local function cooldowns_allowed(context, state)
 end
 
 local function bloodrage_matches(context, state)
-    if (state.rage or 0) >= 20 then return false end
-    if not state.in_combat and (state.hp or 100) < 90 then return false end
+    if state.rage >= 20 then return false end
+    if not state.in_combat and state.hp < 90 then return false end
     if not cooldowns_allowed(context, state) then return false end
     return action(context, build_action("Bloodrage", ACTION.Bloodrage, { target = "self", requires_target = false, skip_gcd = true, cooldown = 60 }))
 end
@@ -614,29 +674,29 @@ end
 local function death_wish_matches(context, state)
     if not cooldowns_allowed(context, state) then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
-    if (state.hp or 100) < 45 then return false end
+    if state.hp < 45 then return false end
     -- TTD gate: don't waste burst CD if target is about to die
-    if (state.ttd or 0) > 0 and (state.ttd or 0) < 10 then return false end
-    if (state.target_hp or 100) < 20 and (state.rage or 0) < 25 then return false end
+    if state.ttd > 0 and state.ttd < 10 then return false end
+    if state.target_hp < 20 and state.rage < 25 then return false end
     return action(context, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false, cooldown = 180 }))
 end
 
 local function recklessness_matches(context, state)
     if not cooldowns_allowed(context, state) then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
-    if (state.hp or 100) < 50 then return false end
-    if not execute_phase(context, state) and (state.target_hp or 100) > 35 then return false end
+    if state.hp < 50 then return false end
+    if not execute_phase(context, state) and state.target_hp > 35 then return false end
     return action(context, build_action("Recklessness", ACTION.Recklessness, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false, cooldown = 1800 }))
 end
 
 local function retaliation_matches(context, state)
-    if (state.hp or 100) > 45 and (state.enemy_count or 0) < 2 then return false end
+    if state.hp > 45 and state.enemy_count < 2 then return false end
     if not cooldowns_allowed(context, state) then return false end
     return action(context, build_action("Retaliation", ACTION.Retaliation, { target = "self", required_stance = STANCE.BATTLE, requires_target = false, cooldown = 1800 }))
 end
 
 local function shield_wall_matches(context, state)
-    if (state.hp or 100) > 25 then return false end
+    if state.hp > 25 then return false end
     return action(context, build_action("ShieldWall", ACTION.ShieldWall, { target = "self", required_stance = STANCE.DEFENSIVE, requires_target = false, cooldown = 1800 }))
 end
 
@@ -644,10 +704,10 @@ end
 local function healthstone_matches(context, state)
     if not state.healthstone_ready then return false end
     if state.in_combat then return false end
-    if (state.hp or 100) > HEALTHSTONE_HP_THRESHOLD then return false end
+    if state.hp > HEALTHSTONE_HP_THRESHOLD then return false end
     -- Respect menu setting
     local hs_hp = setting(context, "healthstone_hp", HEALTHSTONE_HP_THRESHOLD)
-    if (state.hp or 100) > hs_hp then return false end
+    if state.hp > hs_hp then return false end
     return true
 end
 

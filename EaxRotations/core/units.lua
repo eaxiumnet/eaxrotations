@@ -34,11 +34,18 @@ function M.GetPlayer(NS)
     -- Stale-object guard.
     if NS.PLAYER_UNIT then
         local ok = pcall(function() return NS.PLAYER_UNIT:is_valid() end)
-        if not ok then NS.PLAYER_UNIT = nil end
+        if not ok then
+            NS.PLAYER_UNIT = nil
+            local lg = NS.log or (NS.core and NS.core.log)
+            if lg then pcall(lg, "[EaxRotations:units] GetPlayer: stale guard nil'd PLAYER_UNIT") end
+        end
     end
 
     local om = NS.core and NS.core.object_manager
-    if om and type(om.get_local_player) == "function" then
+    if not om then
+        local lg = NS.log or (NS.core and NS.core.log)
+        if lg then pcall(lg, "[EaxRotations:units] GetPlayer: NS.core or NS.core.object_manager is nil") end
+    elseif type(om.get_local_player) == "function" then
         local ok, fresh = pcall(om.get_local_player, om)
         if ok and fresh then
             local valid = pcall(function() return fresh:is_valid() end)
@@ -47,6 +54,12 @@ function M.GetPlayer(NS)
                 return fresh
             end
         end
+        local lg = NS.log or (NS.core and NS.core.log)
+        if lg then pcall(lg, "[EaxRotations:units] GetPlayer: OM.get_local_player returned ok=" .. tostring(ok) .. " fresh=" .. tostring(fresh) .. " valid=" .. tostring(valid)) end
+    end
+    if not NS.PLAYER_UNIT then
+        local lg = NS.log or (NS.core and NS.core.log)
+        if lg then pcall(lg, "[EaxRotations:units] GetPlayer: returning nil — no cached player and OM unreachable") end
     end
     return NS.PLAYER_UNIT
 end

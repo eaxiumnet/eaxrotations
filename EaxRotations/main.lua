@@ -82,7 +82,6 @@ load_modules({
     "shared/dot_refresh_sylvanas",
 
     -- PvP support
-    "shared/dr_tracker_sylvanas",
     "shared/arena_priority_sylvanas",
     "shared/pvp_burst_window_sylvanas",
 
@@ -90,7 +89,6 @@ load_modules({
     -- Metrics and utility support
     "shared/combat_stats_sylvanas",
     "shared/gear_score_sylvanas",
-    -- "shared/swing_timer_sylvanas", -- Lazy-loaded by warrior specs that need it
     "shared/weapon_imbue_sylvanas",
     "shared/spell_validation_sylvanas",
     "shared/talent_inference_sylvanas",
@@ -684,7 +682,7 @@ local function render_menu()
     -- [#5] All subtrees rendered INSIDE main_tree so they appear as children,
     -- not orphaned top-level trees floating independently.
     menu_elements.main_tree:render("EaxRotations", function()
-        local active_playstyle = framework_core and framework_core.get_setting and framework_core.get_setting("active_playstyle") or "unknown"
+        local active_playstyle = framework_core and framework_core.get_setting and framework_core.get_setting("active_playstyle") or playstyle_options[1] or "unknown"
 
         -- [#4] Use pre-allocated header instead of core.menu.header() per frame
         local rotation_state = framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) ~= false
@@ -782,6 +780,46 @@ local function on_update()
         return
     end
 
+    -- ========================================================================
+    -- RETRY DEFERRED CLASS MODULE LOADING
+    -- If class module failed to load at boot (login screen, race condition),
+    -- retry now that we have a confirmed alive, valid player object.
+    -- ========================================================================
+    if not class_module_loaded then
+        local retry_name = class_name
+        if not retry_name then
+            local CLASS_ID_TO_NAME = {
+                [1] = "warrior", [2] = "paladin", [3] = "hunter", [4] = "rogue",
+                [5] = "priest", [7] = "shaman", [8] = "mage", [9] = "warlock", [11] = "druid",
+            }
+            local cls_ok, cls_id = pcall(function() return player:get_class() end)
+            if cls_ok and type(cls_id) == "number" then
+                retry_name = CLASS_ID_TO_NAME[cls_id]
+            end
+        end
+        if retry_name and KNOWN_CLASSES[retry_name] then
+            local mod_ok, mod_val = pcall(require, "classes/" .. retry_name .. "/class_sylvanas")
+            if mod_ok and mod_val then
+                class_module_loaded = true
+                class_name = retry_name
+                if plugin_info then
+                    plugin_info.player_class_name = retry_name:upper()
+                end
+                if NS then
+                    NS.player_class_name = retry_name:upper()
+                end
+                local schema_ok, schema_val = pcall(require, "classes/" .. retry_name .. "/schema_sylvanas")
+                if schema_ok then
+                    class_schema = schema_val
+                end
+                initialize_schema_menu()
+                core.log("[EaxRotations] Deferred class module loaded: " .. retry_name:upper())
+            else
+                core.log("[EaxRotations] Retrying class module load (" .. retry_name .. ") — still pending")
+            end
+        end
+    end
+
     -- We're now inside the shared ~20Hz dispatcher (see header comment).
     -- The cheap runtime_generation + is_alive guards above run at 20Hz.
     -- Everything below (widget sync, build_context, dispatch) runs at 20Hz.
@@ -854,9 +892,22 @@ local function on_update()
     if not me then
         if not _guard5_logged then
             _guard5_logged = true
-            core.log("[EaxRotations:main] GUARD-5: GetPlayer returned nil -- BLOCKED")
+            core.log("[EaxRotations:main] GUARD-5: GetPlayer nil -- PROBING ns.core=" .. tostring(NS and NS.core) .. " ns.player_unit=" .. tostring(NS and NS.PLAYER_UNIT) .. " om=" .. tostring(core and core.object_manager) .. " flogs=" .. tostring(framework_core and framework_core.log and "yes" or "no"))
+            if NS and NS.core then
+                local om_ok, om_fresh = pcall(core.object_manager.get_local_player, core.object_manager)
+                core.log("[EaxRotations:main] GUARD-5: direct OM probe => ok=" .. tostring(om_ok) .. " fresh=" .. tostring(om_fresh) .. " valid=" .. tostring(om_fresh and pcall(function() return om_fresh:is_valid() end)))
+            else
+                core.log("[EaxRotations:main] GUARD-5: NS.core is nil - units.lua GetPlayer can never reach OM")
+            end
         end
-        return -- No player unit available
+        -- Workaround: fall back to direct OM if GetPlayer caches nothing
+        local fallback_ok, fallback_me = pcall(core.object_manager.get_local_player, core.object_manager)
+        if fallback_ok and fallback_me then
+            me = fallback_me
+            core.log("[EaxRotations:main] WORKAROUND: fell back to direct OM for GetPlayer")
+        else
+            return -- No player unit available
+        end
     end
     -- Guard against stale/invalid player objects (loading screens, death, zone transitions)
     local pcall_ok, player_valid = pcall(function() return me:is_valid() end)

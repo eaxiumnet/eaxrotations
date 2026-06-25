@@ -94,8 +94,6 @@ local _buff_manager_ok, _buff_manager = pcall(require, "common/modules/buff_mana
 if not _buff_manager_ok or type(_buff_manager) ~= "table" then _buff_manager = nil end
 
 -- Cache lazy-loaded shared helpers at module load time to avoid repeated pcall(require) overhead in hot paths
-local _reagent_guard_ok, _reagent_guard = pcall(require, "shared/reagent_guard_sylvanas")
-if not _reagent_guard_ok or type(_reagent_guard) ~= "table" then _reagent_guard = nil end
 
 -- LOS guard: wraps unit:los_to() and core.graphics.is_line_of_sight() with
 -- pcall safety and 100ms cache. Exposed as NS.los_check(target) for use in
@@ -104,10 +102,6 @@ local _los_guard_ok, _los_guard = pcall(require, "shared/los_guard_sylvanas")
 if _los_guard_ok and type(_los_guard) == "table" and type(_los_guard.check) == "function" then
     NS.los_check = _los_guard.check
 end
-
--- Missile tracker: in-flight projectile detection for PvP pre-immune.
--- Self-registers NS.MissileTracker on load.
-local _mt_ok = pcall(require, "shared/missile_tracker_sylvanas")
 
 -- Spell resolver: talent-modified spell ID override resolution.
 -- Self-registers NS.resolve_talent_spell and NS.get_base_spell_id on load.
@@ -197,10 +191,9 @@ if _srr_ok and type(_spell_rank_resolver) == "table" then NS.SpellRankResolver =
 local _sc_ok, _spell_corpus = pcall(require, "shared/spell_corpus_sylvanas")
 if _sc_ok and type(_spell_corpus) == "table" then NS.SpellCorpus = _spell_corpus end
 
--- SpellFlagChecker: form-aware casting checks from wowhead_data + hardcoded TBC table
--- Exports NS.can_cast_in_form, NS.get_spell_flags, NS.is_form_restricted, NS.get_required_form
-local _sfc_ok, _spell_flag_checker = pcall(require, "shared/spell_flag_checker_sylvanas")
-if _sfc_ok and type(_spell_flag_checker) == "table" then NS.SpellFlagChecker = _spell_flag_checker end
+-- AuraCache: per-frame unit aura snapshot cache (avoids repeated UnitBuff/UnitDebuff calls)
+local _ac_ok, _aura_cache = pcall(require, "shared/aura_cache_sylvanas")
+if _ac_ok and type(_aura_cache) == "table" then NS.AuraCache = _aura_cache end
 
 -- EnemyCDTracker adapter: preserves API compatibility while delegating to native cooldown_tracker
 -- Replaces EaxRotations/shared/enemy_cd_tracker_sylvanas.lua (deleted)
@@ -640,23 +633,35 @@ end
 
 -- Install units domain (extracted to EaxRotations/core/units.lua).
 -- Wires GetPlayer / GetPet / get_pet / has_pet / get_pet_hp onto NS.
-pcall(function()
-    local units_domain = require("EaxRotations/core/units")
-    units_domain.install(NS)
-end)
+do
+    local ok, units_domain = pcall(require, "core/units")
+    if not ok then ok, units_domain = pcall(require, "EaxRotations/core/units") end
+    if ok and type(units_domain) == "table" and type(units_domain.install) == "function" then
+        units_domain.install(NS)
+        NS.log("[EaxRotations] units domain installed — GetPlayer=" .. tostring(NS.GetPlayer) .. " GetPet=" .. tostring(NS.GetPet))
+    else
+        if core and type(core.log_warning) == "function" then
+            core.log_warning("[EaxRotations] units domain install FAILED: " .. tostring(units_domain))
+        end
+    end
+end
 
 -- Install items domain (extracted to EaxRotations/core/items.lua).
 -- Wires EQUIPMENT_SLOTS, get_equipped_item_id(s), is_item_equipped,
 -- is_item_ready, register_item_manual_cooldown, use_item_by_id(+alias),
 -- has_item, count_equipped_set, has_set_bonus onto NS.
 pcall(function()
-    local items_domain = require("EaxRotations/core/items")
-    items_domain.install(NS)
+    local ok, items_domain = pcall(require, "core/items")
+    if not ok then ok, items_domain = pcall(require, "EaxRotations/core/items") end
+    if ok and type(items_domain) == "table" and type(items_domain.install) == "function" then
+        items_domain.install(NS)
+    end
 end)
 
 function NS.GetTarget()
 
-    local player = NS.GetPlayer()
+    local player = (NS.GetPlayer and NS.GetPlayer()) or nil
+    if not player then return nil end
 
     local get_target = safe_field(player, "get_target")
 
@@ -900,14 +905,17 @@ _settings_cache_time = NS.time_now
 -- Install settings domain (extracted to EaxRotations/core/settings.lua).
 -- Wires NS.get_setting / set_setting / setting / setting_number /
 -- setting_bool / get_any_setting / refresh_settings_cache onto NS.
-pcall(function()
-    local settings_domain = require("EaxRotations/core/settings")
-    settings_domain.install(NS, {
-        time_now = _settings_cache_time,
-        settings_manager = _settings_manager,
-        settings = NS.settings,
-    })
-end)
+do
+    local ok, settings_domain = pcall(require, "core/settings")
+    if not ok then ok, settings_domain = pcall(require, "EaxRotations/core/settings") end
+    if ok and type(settings_domain) == "table" and type(settings_domain.install) == "function" then
+        settings_domain.install(NS, {
+            time_now = _settings_cache_time,
+            settings_manager = _settings_manager,
+            settings = NS.settings,
+        })
+    end
+end
 
 function NS.GetCurrentContext()
 
@@ -1048,8 +1056,11 @@ end
 -- get_cooldown_suggestions / get_best_offensive_cooldown /
 -- get_best_defensive_cooldown / clear_cooldown_registry onto NS.
 pcall(function()
-    local cooldowns_domain = require("EaxRotations/core/cooldowns")
-    cooldowns_domain.install(NS)
+    local ok, cooldowns_domain = pcall(require, "core/cooldowns")
+    if not ok then ok, cooldowns_domain = pcall(require, "EaxRotations/core/cooldowns") end
+    if ok and type(cooldowns_domain) == "table" and type(cooldowns_domain.install) == "function" then
+        cooldowns_domain.install(NS)
+    end
 end)
 
 -- Shared callback batcher: all shared modules (racial_manager, trinket_manager, ooc_manager,
@@ -1089,6 +1100,13 @@ function NS.register_on_update_callback(callback)
             _shared_frame_counter = _shared_frame_counter + 1
             if _shared_frame_counter < 3 then return false end
             _shared_frame_counter = 0
+
+            -- Player-exists gate: skip all callbacks if player is not yet
+            -- available (login screen, loading, zoning). Prevents GUARD-2/5
+            -- messages and silent pcall errors in shared modules.
+            local _om = core and core.object_manager
+            if not (_om and _om.get_local_player) then return false end
+            if not _om.get_local_player() then return false end
 
             -- Fan out to all registered callbacks (all throttled together)
             for i = 1, #_shared_callbacks do
@@ -2017,14 +2035,6 @@ function NS.evaluate_cast(spell, unit, reason, opts)
         end
     end
 
-    -- 4. Reagent guard (Eax-specific module)
-    local reagent_guard = _reagent_guard
-    if reagent_guard and reagent_guard.check_reagent then
-        if not reagent_guard.check_reagent(id) then
-            return false
-        end
-    end
-
     -- 5. Target immunity gating (Divine Shield, Ice Block, Blessing of Protection)
     if not opts.skip_immunity_check and target and NS.not_same_unit(target, NS.GetPlayer()) then
         local has_divine_shield = NS.buff_up(target, {642, 1020})
@@ -2145,11 +2155,14 @@ function NS.try_cast(spell, unit, reason, opts)
                 mark_spell_cast(id)
                 return true
             end
+            -- cast_safe returned false (GCD, OOR, resource) — fall through to raw fallback for off-GCD/exceptions
+        else
+            -- IZI spell not registered — fail closed, no raw fallback
+            return false
         end
-        -- IZI returned nil/false — fall through to raw core.input.cast_target_spell
     end
 
-    -- Fallback: direct core.input.cast_target_spell
+    -- Fallback: direct core.input.cast_target_spell (for off-GCD abilities where cast_safe is overly conservative)
     local cast = core.input and core.input.cast_target_spell
     if type(cast) == "function" then
         if safe(cast, id, target) == false then

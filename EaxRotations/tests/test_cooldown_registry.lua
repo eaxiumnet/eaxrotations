@@ -20,6 +20,10 @@ local NS = {
 }
 _G.EaxRotations = NS
 
+-- Add EaxRotations/ to package.path so require("core/cooldowns") resolves
+-- inside core_sylvanas.lua's pcall-block.
+package.path = package.path .. ";EaxRotations/?.lua;EaxRotations/?/init.lua"
+
 dofile("EaxRotations/core_sylvanas.lua")
 
 -- Ensure spell_id_is_known treats all IDs as known in this test harness

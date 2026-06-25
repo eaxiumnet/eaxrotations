@@ -362,6 +362,11 @@ local strategies = {
         return try_cast(SPELLS.HammerOfJustice, context.target, "[LEVELING] Hammer of Justice")
       end },
 
+    -- Seal (apply BEFORE Judgement — Seal needs to be active for Judgement to consume it)
+    { name = "Seal",
+       matches = seal_matches,
+      execute = function(_, state) return try_cast(state and state.selected_seal or SPELLS.SealRighteousness, NS.PLAYER_UNIT, "[LEVELING] Seal") end },
+
     -- Damage
     { name = "Judgement",
       matches = judgement_matches,
@@ -398,10 +403,6 @@ local strategies = {
         return try_cast(SPELLS.Consecration, context.me, "[LEVELING] Consecration", { skip_range = true, expected_cooldown = 8 })
       end },
 
-    -- Seal (lowest priority - always keep up)
-    { name = "Seal",
-       matches = seal_matches,
-      execute = function(_, state) return try_cast(state and state.selected_seal or SPELLS.SealRighteousness, NS.PLAYER_UNIT, "[LEVELING] Seal") end },
 }
 
 NS.rotation_registry:register("leveling", strategies, { get_state = build_state })

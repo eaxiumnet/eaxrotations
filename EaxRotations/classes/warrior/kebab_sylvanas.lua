@@ -1,6 +1,6 @@
 -- kebab_sylvanas -- warrior kebab_sylvanas rotation for TBC Anniversary (2.5.5).
 -- WHAT:  priority-list strategies for kebab_sylvanas gameplay.
--- WHEN:  combat with valid enemy target (or healing context for healers).
+-- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
 -- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
 
@@ -33,7 +33,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
 
-local load_player = NS.GetPlayer()
+local load_player = NS.GetPlayer and NS.GetPlayer()
 
 local _ok_enums, enums = pcall(require, "common/enums")
 if not _ok_enums or type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end

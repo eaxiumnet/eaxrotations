@@ -1,6 +1,6 @@
 -- leveling_sylvanas -- hunter leveling_sylvanas rotation for TBC Anniversary (2.5.5).
 -- WHAT:  priority-list strategies for leveling_sylvanas gameplay.
--- WHEN:  combat with valid enemy target (or healing context for healers).
+-- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
 -- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
 
@@ -96,6 +96,9 @@ local function build_state(context)
     else
         leveling_state.pet_hp = 100
     end
+
+    -- Low mana gate: conserve mana below wand threshold for emergency spells
+    leveling_state.low_mana = (leveling_state.mana_pct or 100) < (leveling_state.wand_threshold or 30)
 
     return leveling_state
 end

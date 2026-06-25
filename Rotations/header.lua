@@ -9,7 +9,7 @@ plugin["version"] = "1.0.0"
 plugin["author"] = "EaxRotations"
 plugin["load"] = true
 
-local local_player = core.object_manager.get_local_player()
+local local_player = core.object_manager and core.object_manager.get_local_player and core.object_manager.get_local_player()
 if not local_player then
     plugin["load"] = false
     return plugin

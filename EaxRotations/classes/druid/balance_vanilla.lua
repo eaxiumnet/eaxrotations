@@ -6,6 +6,9 @@ local _potion_helper = require("shared/potion_helper_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local _TBC_P = (TBC.ITEMS and TBC.ITEMS.potions) or {}
+local _fnd_mod = require("shared/find_dead_party_ally_sylvanas")
+local _find_dead_helper = _fnd_mod and _fnd_mod.find_dead_party_ally or nil
+local _find_dead = NS.find_dead_party_ally or _find_dead_helper
 
 local _INSECT_DEBUFF = { 24977, 24976, 24975, 24974, 5570 }
 local _MOONFIRE_DEBUFF = { 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
@@ -150,7 +153,7 @@ local _strategies = {
         name="RebirthBattleRez",
         matches=function(ctx)
             if not ctx.in_combat then return false end
-            local find_dead = NS.find_dead_party_ally or (require("shared/find_dead_party_ally_sylvanas").find_dead_party_ally)
+            local find_dead = _find_dead
             local dead = find_dead and find_dead() or nil
             if not dead then return false end
             if not (dead.is_player and dead:is_player()) then return false end
@@ -158,7 +161,7 @@ local _strategies = {
             return NS.spell_ready(_LOCAL_SPELLS.Rebirth, dead)
         end,
         execute=function(ctx)
-            local find_dead = NS.find_dead_party_ally or (require("shared/find_dead_party_ally_sylvanas").find_dead_party_ally)
+            local find_dead = _find_dead
             local dead = find_dead and find_dead() or nil
             if dead then
                 return NS.try_cast(_LOCAL_SPELLS.Rebirth, dead, "[BALANCE] Rebirth battle rez")

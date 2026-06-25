@@ -356,6 +356,7 @@ When migrating a spec to `spec_kit` (opportunistic, one at a time — never big-
 |------|-------------|---------|
 | Checkbox | `core.menu.checkbox(true, id)` | `menu.use_bt` |
 | Slider | `core.menu.slider_int(min, max, default, id)` | `menu.hp_threshold` |
+| Slider (float) | `core.menu.slider_float(min, max, default, id)` | `menu.max_distance` |
 | Combobox | `core.menu.combobox(1, id)` | `menu.mode` (1=Auto, 2=PVE, 3=PVP) |
 | Keybind | `core.menu.keybind(key, shift, id)` | `menu.toggle` |
 

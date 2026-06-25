@@ -5,8 +5,6 @@ if not NS then return nil end
 local SPELLS = NS.PriestSpells or {}
 local Healing = NS.PriestHealing or require("classes/priest/healing_sylvanas")
 local EMPTY_SETTINGS = {}
-local _reagent_guard_ok, _reagent_guard = pcall(require, "shared/reagent_guard_sylvanas")
-if not _reagent_guard_ok then _reagent_guard = nil end
 
 -- ============================================================================
 -- Buff & Debuff ID tables
@@ -367,11 +365,6 @@ local function divine_spirit_matches(context, s)
     if s.has_divine_spirit then return false end
     if not s.divine_spirit_ready then return false end
     if _buff_on_cooldown(SPELLS.DivineSpirit) then return false end
-    local reagent = NS.ReagentGuard or _reagent_guard
-    if reagent and reagent.check_reagent then
-        local spell_id = SPELLS.DivineSpirit and SPELLS.DivineSpirit.id and SPELLS.DivineSpirit:id()
-        if spell_id and not reagent.check_reagent(spell_id) then return false end
-    end
     return _safe_buff_in_combat(context, s)
 end
 

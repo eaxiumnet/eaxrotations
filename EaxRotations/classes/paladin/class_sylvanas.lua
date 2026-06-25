@@ -7,7 +7,7 @@ local cl = require("shared/class_loader_sylvanas")
 local load_child = cl.create_loader("paladin", "Paladin")
 local load_spec = cl.create_expansion_loader("paladin", "Paladin")
 local enums = cl.get_enums()
-local player = NS.GetPlayer()
+local player = NS.GetPlayer and NS.GetPlayer()
 local ok_cls, cls_id = pcall(function() return player and player:get_class() end)
 if not ok_cls or cls_id ~= enums.class_id.PALADIN then return nil end
 
@@ -355,7 +355,7 @@ local SPELLS = {
     Repentance = NS.spell_action({
         name = "Repentance",
         ids = {20066, 5164},
-        levels = {56},
+        levels = {20, 1},
         cast_time = 0,
         cooldown = 60,
         power_cost = 0,
