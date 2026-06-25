@@ -427,8 +427,9 @@ local strategies = {
     { name = "CurseOfDoom", matches = curse_of_doom_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfDoom, context.target, "[DEMONOLOGY] Curse of Doom", { expected_cooldown = 60 }) end },
     { name = "CurseOfElements", matches = curse_of_elements_matches, execute = function(context) return NS.try_cast(SPELLS.CurseElements, context.target, "[DEMONOLOGY] Curse of Elements") end },
     { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfAgony, context.target, "[DEMONOLOGY] Curse of Agony") end },
-    { name = "Immolate", matches = immolate_matches, execute = function(context) return NS.try_cast(SPELLS.Immolate, context.target, "[DEMONOLOGY] Immolate") end },
+    -- TBC guide order: Corruption > Immolate (higher DPCT, longer DoT) — apply Corruption first when both need refresh.
     { name = "Corruption", matches = corruption_matches, execute = function(context) return NS.try_cast(SPELLS.Corruption, context.target, "[DEMONOLOGY] Corruption") end },
+    { name = "Immolate", matches = immolate_matches, execute = function(context) return NS.try_cast(SPELLS.Immolate, context.target, "[DEMONOLOGY] Immolate") end },
     { name = "SiphonLife", matches = siphon_life_matches, execute = function(context) return NS.try_cast(SPELLS.SiphonLife, context.target, "[DEMONOLOGY] Siphon Life") end },
     { name = "SeedOfCorruption", matches = seed_of_corruption_matches, execute = function(context) return NS.try_cast(SPELLS.SeedOfCorruption, context.target, "[DEMONOLOGY] Seed of Corruption") end },
     { name = "SoulFire", matches = soul_fire_matches, execute = function(context) return NS.try_cast(SPELLS.SoulFire, context.target, "[DEMONOLOGY] Soul Fire", { expected_cooldown = 1.5 }) end },
