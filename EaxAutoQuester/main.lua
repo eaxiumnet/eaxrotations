@@ -7,6 +7,18 @@ local _core_time = core.time
 local _core_log = core.log
 local _get_local_player = core.object_manager.get_local_player
 
+-- Helper: check if local player exists (login-screen / loading-screen guard)
+local function has_local_player()
+    local c = rawget(_G, "core")
+    if type(c) ~= "table" or type(c.object_manager) ~= "table"
+       or type(c.object_manager.get_local_player) ~= "function" then
+        return false
+    end
+    local ok, me = pcall(c.object_manager.get_local_player)
+    if not ok then return false end
+    return me ~= nil
+end
+
 local NS = {}
 _G.EaxAutoQuester = NS
 
@@ -153,6 +165,7 @@ end
 -- Callbacks
 -- ============================================================================
 local function on_pre_tick()
+    if not has_local_player() then return end
     if not _menu then init_modules() end
     check_enabled()
     if not state.enabled then return end
@@ -162,6 +175,7 @@ local function on_pre_tick()
 end
 
 local function on_render()
+    if not has_local_player() then return end
     render_warnings()
     if not state.enabled then return end
     if not _quest_state then return end
@@ -169,6 +183,7 @@ local function on_render()
 end
 
 local function on_render_menu()
+    if not has_local_player() then return end
     if not _menu then init_modules() end
     if _menu then _menu.render() end
 end
