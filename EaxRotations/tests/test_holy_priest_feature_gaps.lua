@@ -180,7 +180,7 @@ for _, gap_name in ipairs(parity_gaps) do
     end
 end
 
- local expected_count = 31
+ local expected_count = 32
 assert_eq(#strategies, expected_count, "expected " .. expected_count .. " strategies, got " .. #strategies)
 
 print("PASS test_holy_priest_feature_gaps (gap audit: " .. #strategies .. " strategies present, " .. present_gaps .. "/6 parity gaps closed)")
