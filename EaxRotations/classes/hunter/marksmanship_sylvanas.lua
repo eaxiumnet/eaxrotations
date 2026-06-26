@@ -77,6 +77,7 @@ local mm_state = {
     mend_pet_ready = false,
     hunters_mark_ready = false,
     rapid_fire_ready = false,
+    rapid_fire_cd = 0,
     aimed_shot_prepull_ready = false,
     aimed_shot_ready = false,
     silencing_shot_ready = false,
@@ -129,6 +130,7 @@ local function build_state(context)
     mm_state.mend_pet_ready = me and NS.spell_ready(SPELLS.MendPet, me, { skip_range = true }) or false
     mm_state.hunters_mark_ready = target and NS.spell_ready(SPELLS.HuntersMark, target) or false
     mm_state.rapid_fire_ready = me and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
+    mm_state.rapid_fire_cd = NS.cooldown_remains and NS.cooldown_remains(SPELLS.RapidFire) or 0
     mm_state.aimed_shot_prepull_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
     mm_state.aimed_shot_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
     mm_state.silencing_shot_ready = target and NS.spell_ready(SPELLS.SilencingShot, target, { expected_cooldown = 20 }) or false
@@ -307,8 +309,8 @@ local function readiness_matches(context, s)
     -- TTD gate: don't waste 5min CD on a dying target
     if context.ttd_known and context.ttd < 20 then return false end
     -- Use after Rapid Fire has been used (on CD) to reset it for a 2nd burst window
-    -- MM does not have Bestial Wrath; only gate on Rapid Fire
-    if s.rapid_fire_ready then return false end
+    -- MM does not have Bestial Wrath; only gate on Rapid Fire CD remaining
+    if (s.rapid_fire_cd or 0) < 60 then return false end
     return true
 end
 
