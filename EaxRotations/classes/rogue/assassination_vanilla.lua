@@ -25,8 +25,8 @@ local WOUND_POISON_DEBUFF   = { 13230, 13229, 13228, 13220 }  -- Wound Poison (h
 local DOT_REFRESH_WINDOW = 3
 local SND_REFRESH_WINDOW = 3     -- Slice and Dice refresh when < 3s remains
 local ENERGY_TICK = 20           -- Energy gained per tick (2s)
-local ENERGY_MUTILATE_COST = 60  -- UnavailableClassicRogueBuilder base cost
-local ENERGY_FINISHER_COST = 35  -- UnavailableClassicRogueFinisher/Eviscerate cost
+local ENERGY_BACKSTAB_COST = 60  -- Backstab base cost
+local ENERGY_EVISCERATE_COST = 35  -- Eviscerate cost
 local ENERGY_LOW_BUILDER = 40    -- Pool energy below 40 instead of builder
 local ENERGY_LOW_FINISHER = 25   -- Pool energy below 25 instead of finisher
 
@@ -56,9 +56,6 @@ local assassin_state = {
     find_weakness_active = false,
     has_cold_blood = false,
     healing_item_id = nil,
-    -- UnavailableClassicRogueUtility Purge (PvP buff dispel via Wound Poison)
-    shiv_ready = false,
-    shiv_purge_name = nil,
 }
 
 local function build_state(context)
@@ -122,13 +119,6 @@ local function build_state(context)
     assassin_state.energy_low = assassin_state.energy < ENERGY_LOW_BUILDER
     assassin_state.energy_pool_finisher = assassin_state.energy < ENERGY_LOW_FINISHER
     assassin_state.hp_pct = context.hp or 100
-    -- UnavailableClassicRogueUtility Purge (PvP buff dispel via Wound Poison)
-    assassin_state.shiv_ready = target and NS.spell_ready(SPELLS.UnavailableClassicRogueUtility, target, { expected_cooldown = 10 }) or false
-    assassin_state.shiv_purge_name = nil
-    if context.in_combat and (context.is_pvp or false) and target and CCGateDB and CCGateDB.find_best_dispel_target then
-        local best_id, _, best_name = CCGateDB.find_best_dispel_target(target, NS)
-        if best_id then assassin_state.shiv_purge_name = best_name end
-    end
 
     -- Healing item
     assassin_state.healing_item_id = nil
@@ -141,29 +131,12 @@ local function build_state(context)
     return assassin_state
 end
 
-local function shiv_purge_matches(context, state)
-    local settings = context.settings or {}
-    if settings.use_shiv_purge == false then return false end
-    if not context.in_combat then return false end
-    if not (context.is_pvp or false) then return false end
-    if not context.target then return false end
-    if not (context.in_melee_range or false) then return false end
-    if not state.shiv_ready then return false end
-    if not state.shiv_purge_name then return false end
-    if settings.shiv_purge_pvp_only ~= false then
-        local ok, is_player = pcall(function() return context.target:is_player() end)
-        if not (ok and is_player) then return false end
-    end
-    return true
-end
-
 local function assassination_leveling_builder_matches(context, state)
     local target = context.target
     if not target then return false end
     if (state.energy or 0) < 45 then return false end
     local level = context.player_level or 70
     if not context.is_leveling and level >= 50 then return false end
-    if level >= 50 and NS.spell_exists and NS.spell_exists(SPELLS.UnavailableClassicRogueBuilder) then return false end
     return NS.spell_ready(SPELLS.SinisterStrike, target)
 end
 
@@ -206,22 +179,7 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 2. Cloak of Shadows (magic oh-shit)
-    -- ------------------------------------------------------------------------
-    {
-        name = "UnavailableClassicRogueDefensive",
-        matches = function(context)
-            local hp = context.settings and context.settings.assassin_clos_hp or 30
-            if (context.hp or 100) > hp then return false end
-            return NS.spell_ready(SPELLS.UnavailableClassicRogueDefensive, NS.PLAYER_UNIT, { skip_range = true })
-        end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.UnavailableClassicRogueDefensive, NS.PLAYER_UNIT, "[ASSASS] Cloak of Shadows")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 3. Healing Item
+    -- 2. Healing Item
     -- ------------------------------------------------------------------------
     {
         name = "HealingItem",
@@ -267,61 +225,30 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- PvP: UnavailableClassicRogueUtility Purge ? dispel 1 magic buff via Wound Poison (BoP, PW:S, etc.)
-    -- Ported from middleware/combat/subtlety UnavailableClassicRogueUtilityPurge pattern.
+    -- 6. Cold Blood + Eviscerate (burst finisher)
     -- ------------------------------------------------------------------------
     {
-        name = "AssassinationUnavailableClassicRogueUtilityPurge",
-        matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end,
-        execute = function(context)
-            local name = context._shiv_purge_name or "buff"
-            return NS.try_cast(SPELLS.UnavailableClassicRogueUtility, context.target, "[ASSASS] UnavailableClassicRogueUtility purge ? " .. name, { expected_cooldown = 10 })
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 6. Cold Blood + UnavailableClassicRogueFinisher (burst finisher)
-    -- ------------------------------------------------------------------------
-    {
-        name = "ColdBloodUnavailableClassicRogueFinisher",
+        name = "ColdBloodEviscerate",
         matches = function(context, state)
             if not (context.settings and context.settings.assassin_cold_blood_auto) then return false end
             if state.energy_pool_finisher then return false end  -- pool energy below 25
             if state.combo < 5 then return false end
-            local min_stacks = context.settings and context.settings.assassin_envenom_stacks or 3
-            if state.dp_stacks < min_stacks then return false end
             if state.has_cold_blood then return false end  -- already active
             -- Cold Blood first (off-GCD, use SPELLS table)
             if not NS.spell_ready(SPELLS.ColdBlood, NS.PLAYER_UNIT, { skip_range = true }) then return false end
-            return NS.spell_ready(SPELLS.UnavailableClassicRogueFinisher, context.target)
+            return NS.spell_ready(SPELLS.Eviscerate, context.target)
         end,
         execute = function(context)
-            if NS.try_cast(SPELLS.ColdBlood, NS.PLAYER_UNIT, "[ASSASS] Cold Blood pre-UnavailableClassicRogueFinisher") then
-                return true  -- cast CB this GCD, UnavailableClassicRogueFinisher next
+            if NS.try_cast(SPELLS.ColdBlood, NS.PLAYER_UNIT, "[ASSASS] Cold Blood pre-Eviscerate") then
+                return true  -- cast CB this GCD, Eviscerate next
             end
             return false
         end,
     },
 
     -- ------------------------------------------------------------------------
-    -- 7. UnavailableClassicRogueFinisher (finisher ? DP stacks consumed)
+    -- 7. Eviscerate (primary finisher)
     -- ------------------------------------------------------------------------
-    {
-        name = "UnavailableClassicRogueFinisherFinisher",
-        matches = function(context, state)
-            if state.energy_pool_finisher then return false end  -- pool energy below 25
-            if state.combo < 4 then return false end
-            local min_stacks = context.settings and context.settings.assassin_envenom_stacks or 3
-            if state.dp_stacks < min_stacks then return false end
-            -- If Cold Blood is up, use it with UnavailableClassicRogueFinisher
-            return NS.spell_ready(SPELLS.UnavailableClassicRogueFinisher, context.target)
-        end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.UnavailableClassicRogueFinisher, context.target,
-                string.format("[ASSASS] UnavailableClassicRogueFinisher at %d CP / %d DP stacks", context.combo or 0, assassin_state.dp_stacks))
-        end,
-    },
-
     -- ------------------------------------------------------------------------
     -- 8. Slice and Dice (100% uptime, refresh when < 3s remains)
     -- Research: "Must maintain Slice and Dice at 100% uptime; re-cast when < 3s remains."
@@ -397,28 +324,7 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 12. UnavailableClassicRogueUtility (Deadly Poison refresh ? energy-gated)
-    -- ------------------------------------------------------------------------
-    {
-        name = "UnavailableClassicRogueUtilityRefresh",
-        matches = function(context, state)
-            local target = context.target
-            if not target then return false end
-            if state.energy_low then return false end  -- pool energy instead
-            -- Only UnavailableClassicRogueUtility if DP is about to drop and we care about stacks
-            if state.dp_remains > 3 then return false end
-            if state.dp_stacks >= 5 then return false end  -- already max
-            return NS.spell_ready(SPELLS.UnavailableClassicRogueUtility, target, { expected_cooldown = 10 })
-        end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.UnavailableClassicRogueUtility, context.target, "[ASSASS] UnavailableClassicRogueUtility (DP refresh)", { expected_cooldown = 10 })
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 13. UnavailableClassicRogueBuilder (primary CP builder ? requires poison + behind target)
-    -- Research: "+50% damage against poisoned targets, behind-target requirement."
-    -- Energy gate: pool below 40 energy (Research floor).
+    -- 12. Sinister Strike (primary CP builder)
     -- ------------------------------------------------------------------------
     {
         name = "LevelingSinisterStrike",
@@ -427,53 +333,16 @@ local strategies = {
             return NS.try_cast(SPELLS.SinisterStrike, context.target, "[ASSASS] Sinister Strike leveling")
         end,
     },
-    {
-        name = "UnavailableClassicRogueBuilder",
-        matches = function(context, state)
-            if state.energy_low then return false end  -- pool energy below 40
-            -- Must be behind target
-            if NS.is_behind_target and not NS.is_behind_target(context.target) then return false end
-            -- Must have poison on target for +50% damage bonus
-            if not state.target_poisoned then return false end
-            return NS.spell_ready(SPELLS.UnavailableClassicRogueBuilder, context.target)
-        end,
-        execute = function(context, state)
-            local tag = state.target_poisoned
-                and "[ASSASS] UnavailableClassicRogueBuilder (poisoned)"
-                or "[ASSASS] UnavailableClassicRogueBuilder"
-            return NS.try_cast(SPELLS.UnavailableClassicRogueBuilder, context.target, tag)
-        end,
-    },
 
     -- ------------------------------------------------------------------------
-    -- 13b. Sinister Strike (fallback when UnavailableClassicRogueBuilder isn't usable)
-    -- Triggers when: poison-immune target, can't get behind, or target unpoisoned
-    -- ------------------------------------------------------------------------
-    {
-        name = "SinisterStrikeFallback",
-        matches = function(context, state)
-            -- Only active when UnavailableClassicRogueBuilder is learned but can't be used
-            local level = context.player_level or 70
-            if level < 50 or not (NS.spell_exists and NS.spell_exists(SPELLS.UnavailableClassicRogueBuilder)) then return false end
-            -- Only as fallback ? skip if UnavailableClassicRogueBuilder CAN be used (poisoned + behind)
-            if state.target_poisoned and (not NS.is_behind_target or NS.is_behind_target(context.target)) then return false end
-            if state.energy_low then return false end  -- pool energy below 40
-            return NS.spell_ready(SPELLS.SinisterStrike, context.target)
-        end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.SinisterStrike, context.target, "[ASSASS] Sinister Strike (UnavailableClassicRogueBuilder fallback)")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 14. Eviscerate (fallback finisher)
+    -- 13. Eviscerate (fallback finisher)
     -- ------------------------------------------------------------------------
     {
         name = "EviscerateFallback",
         matches = function(context, state)
             if state.energy_pool_finisher then return false end  -- pool energy below 25
             if state.combo < 5 then return false end
-            -- Only eviscerate if we can't UnavailableClassicRogueFinisher or Rupture
+            -- Primary finisher when Rupture isn't optimal
             return NS.spell_ready(SPELLS.Eviscerate, context.target)
         end,
         execute = function(context)
@@ -497,21 +366,6 @@ local strategies = {
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.ExposeArmor, context.target, "[ASSASS] Expose Armor")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 16. Deadly Throw (ranged finisher)
-    -- ------------------------------------------------------------------------
-    {
-        name = "UnavailableClassicRogueThrow",
-        matches = function(context, state)
-            if state.combo < 3 then return false end
-            -- Use when target is fleeing or at range
-            return NS.spell_ready(SPELLS.UnavailableClassicRogueThrow, context.target)
-        end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.UnavailableClassicRogueThrow, context.target, "[ASSASS] Deadly Throw")
         end,
     },
 

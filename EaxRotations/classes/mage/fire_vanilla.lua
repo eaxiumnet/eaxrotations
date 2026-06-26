@@ -189,23 +189,6 @@ local function counterspell_matches_fn(context, state)
     return NS.spell_ready(SPELLS.Counterspell, context.target)
 end
 
-local function blast_wave_matches_fn(context, state)
-    if (context.enemy_count or 1) < 2 then return false end
-    return NS.spell_ready(SPELLS.BlastWave, context.target)
-end
-
-local function dragons_breath_matches_fn(context, state)
-    if (context.enemy_count or 1) < 2 then return false end
-    -- Talent gate: must have Dragon's Breath learned (fire talent, not baseline)
-    if not (SPELLS.UnavailableClassicMageFire and NS.spell_ready(SPELLS.UnavailableClassicMageFire, context.target, { skip_range = true })) then
-        -- Fall back to BlastWave if Dragon's Breath not talented
-
-        return NS.spell_ready(SPELLS.BlastWave, context.target)
-    end
-
-    return true
-end
-
 local function polymorph_matches_fn(context, state)
     if not context.is_pvp then return false end
     if not context.cc_target then return false end
@@ -304,18 +287,6 @@ local strategies = {
     { name = "Blizzard",
       matches = blizzard_matches_fn,
       execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, 8, 35); if pos then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[FIRE] Blizzard") end; return NS.try_cast(SPELLS.Blizzard, t, "[FIRE] Blizzard") end },
-    -- AoE burst
-    { name = "BlastWave",
-      matches = blast_wave_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.BlastWave, context.target, "[FIRE] Blast Wave") end },
-    { name = "UnavailableClassicMageFire",
-      matches = dragons_breath_matches_fn,
-      execute = function(context)
-           if SPELLS.UnavailableClassicMageFire and NS.spell_ready(SPELLS.UnavailableClassicMageFire, context.target, { skip_range = true }) then
-              return NS.try_cast(SPELLS.UnavailableClassicMageFire, context.target, "[FIRE] Dragon's Breath")
-          end
-          return NS.try_cast(SPELLS.BlastWave, context.target, "[FIRE] Dragon's Breath fallback")
-      end },
     -- CC
     { name = "Polymorph",
       matches = polymorph_matches_fn,
