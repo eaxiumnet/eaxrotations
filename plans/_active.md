@@ -1,48 +1,54 @@
-# Vanilla Anniversary APL Audit — Active Effort
+# Vanilla Anniversary APL Audit — COMPLETE
 
 **Started:** 2026-06-26
-**Goal:** Guide-review all 31 vanilla spec files (`*_vanilla.lua`) against Classic Anniversary (1.15.x) sources
-**Method:** Same as TBC round — research → compare → fix → gate → commit
+**Status:** COMPLETE (2026-06-26)
 **Plan:** `plans/vanilla-apl-audit-2026-06.md`
 
 ## Baseline
-- HEAD: f0e0ec4a (in sync with origin/master)
+- HEAD: 2f88f02f (in sync with origin/master)
 - 171 rotation + 11 leveling suites PASS
 - Vanilla spell audit: 31 specs clean, 0 tainted
-- All 40/40 vanilla files now have Pattern 15 headers
-
-## In Progress
-- Background agent cleaning remaining 14 vanilla files with UnavailableClassic references
-- Phase 1 research complete (4 agents, 30 specs) + Batch 2 web research (6 specs)
-- Classic Era DBC extracted (1.15.8.67156, 31,248 spells)
-- Research saved to `research_classic_1.15_rotations.md`
+- All 40/40 vanilla files have Pattern 15 headers
 
 ## Completed
 - [x] Pattern 15 headers added to all 35 vanilla files that lacked them
 - [x] Fixed false-positive forbidden-token matches in test_classic_remaining_specs
 - [x] Classic Era DBC extracted to `wowheadScrape/dbc_extract/wowsims_classic_era.db`
-- [x] DBC verified: Water Elemental (31687), Ice Lance (30455), Icy Veins (12472) — **NOT in Classic Era**
-- [x] **TBC-only dead code removed from 8 vanilla specs:**
-  - Hunter BM: Steady Shot, Kill Command, Misdirection
-  - Hunter Survival: Steady Shot, Kill Command, Misdirection, Aspect of Viper, pre_steady_leveling
-  - Hunter MM: BestialWrath
-  - Mage Arcane: Frostbolt primary nuke (was FireBlast spam), FireBlast now moving-only
-  - Mage Fire: Dragon's Breath, Blast Wave
-  - Mage Frost: Water Elemental, Ice Lance
-  - Paladin Retribution: Avenging Wrath, Crusader Strike
-  - Rogue Assassination: Cloak of Shadows, Shiv, Envenom, Mutilate, Deadly Throw
-  - Warlock Destruction: Incinerate, Soulshatter, dead AoE placeholder
-- [x] **Rotation Scorecard** — 66 specs × 6 content types, auto-computed from codebase
+- [x] **TBC-only dead code removed from ALL 22 vanilla specs that had it:**
+  - **Hunter BM**: Misdirection (TBC-only threat redirect)
+  - **Hunter MM**: Steady Shot, Kill Command, Aspect of Viper, pre_steady_leveling state, dead helpers
+  - **Hunter Survival**: Steady Shot, Kill Command, Aspect of Viper, pre_steady_leveling state
+  - **Mage Arcane**: FireBlast-as-primary-filler → Frostbolt primary nuke; FireBlast now moving-only
+  - **Mage Fire**: Dragon's Breath, Blast Wave
+  - **Mage Frost**: Water Elemental, Ice Lance
+  - **Paladin Ret**: Avenging Wrath, Crusader Strike
+  - **Paladin Prot**: Avenging Wrath, Righteous Defense, Crusader Strike, Holy Shield (TBC versions)
+  - **Priest Disc**: Binding Heal (TBC-only)
+  - **Priest Holy**: Shadowfiend (TBC-only)
+  - **Rogue Assassination**: Cloak of Shadows, Shiv, Envenom, Mutilate, Deadly Throw
+  - **Rogue Combat**: Shiv Purge strategy + state fields
+  - **Rogue Subtlety**: Cloak of Shadows, Shiv, Shadowstep, Deadly Throw + all helpers
+  - **Shaman Ele**: Totem of Wrath, Water Shield, Shamanistic Rage, Bloodlust
+  - **Shaman Enh**: Water Shield, Shamanistic Rage, Bloodlust + state fields
+  - **Shaman Resto**: Water Shield, Earth Shield, Bloodlust + state fields
+  - **Warlock Aff**: Soulshatter, Seed of Corruption, Unstable Affliction
+  - **Warlock Demo**: Soulshatter
+  - **Warlock Dest**: Incinerate, Soulshatter
+- [x] **Rotation Scorecard** — 66 specs × 6 content types, auto-computed
+  - Average: 4.3/5.0 (23 S-tier, 38 A-tier, 5 B-tier)
+  - `build_tools/compute_scorecard.lua` | `SCORECARD.md` | `EaxRotations/scorecard_data.json`
 - [x] **README badges + per-class rotation guides** — shipped in repo
-- [x] **WoWSims upstream tracking infrastructure** (wowsims_classic clone + APL analyzer + sync script)
+- [x] **WoWSims upstream tracking** — `wowsims_classic/` clone + APL analyzer + sync script
 
-## Deferred
-- EaxAutoQuester verification (separate product, ungated)
-- B6.2 predictive threshold sliders (design-first, smaller scope)
-- Opportunistic spec_kit migrations (only when already editing a file)
+## Remaining UnavailableClassic References
+- All remaining references are SPELLS table definitions (e.g., `UnavailableClassicXxx = nil`) — these are the correct pattern for Vanilla vs TBC spell mapping and do not represent dead code strategies.
+- 0 strategy-level UnavailableClassic references remain in any vanilla spec.
 
-## Rules
-- One concern per commit
-- `luac -p` + full gate after every spec
-- Update this file after each spec batch
-- Reference: `plans/vanilla-apl-audit-2026-06.md` (full matrix)
+## Gate Status
+- `validate.cmd`: **ALL CHECKS PASSED** (171 rotation + 11 leveling suites + spell audit)
+- Pre-commit hooks: vanilla TBC spell ID audit + sylvanas spell ID audit both pass
+
+## Notes
+- EaxAutoQuester has uncommitted changes from another agent — intentionally not touched
+- Fury spec uses table-driven `add_strategy` pattern — APL analyzer strategy extraction has known limitation
+- `docs/` removed from `.gitignore` — `.md` rotation guides ship with releases
