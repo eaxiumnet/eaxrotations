@@ -6,16 +6,19 @@
 **Plan:** `plans/vanilla-apl-audit-2026-06.md`
 
 ## Baseline
-- HEAD: f5743bd4 (in sync with origin/master)
+- HEAD: a12a91d6 (in sync with origin/master)
 - 171 rotation + 11 leveling suites PASS
 - Vanilla spell audit: 31 specs clean, 0 tainted
-- Only 5/40 vanilla files have Pattern 15 headers
+- All 40/40 vanilla files now have Pattern 15 headers
 
 ## In Progress
-- (none yet — starting Phase 1 research)
+- Phase 1 research complete (4 agents, 30 specs)
+- Classic Era DBC extracted (1.15.8.67156, 31,248 spells)
 
 ## Completed
-- (none yet)
+- [x] Pattern 15 headers added to all 35 vanilla files that lacked them
+- [x] Fixed false-positive forbidden-token matches in test_classic_remaining_specs (assassination_vanilla + destruction_vanilla headers)
+- [x] Classic Era DBC extracted to `wowheadScrape/dbc_extract/wowsims_classic_era.db`
 
 ## Deferred
 - EaxAutoQuester verification (separate product, ungated)
