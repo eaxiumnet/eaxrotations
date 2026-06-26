@@ -122,10 +122,8 @@ local ACTIONS = {
     { name = "Shadowburn", spell = SPELLS.Shadowburn, cooldown = 15 },
     { name = "SearingPain", spell = SearingPain, moving = true },
     -- Filler
-    { name = "UnavailableClassicWarlockNuke", spell = SPELLS.UnavailableClassicWarlockNuke, not_moving = true },
     { name = "ShadowBolt", spell = SPELLS.ShadowBolt, not_moving = true },
     -- AoE
-    { name = "UnavailableClassicWarlockAoe", spell = UnavailableClassicWarlockAoe, enemy_count = 3 },
     { name = "RainOfFire", spell = RainOfFire, position = "target", enemy_count = 4, not_moving = true },
     { name = "Hellfire", spell = Hellfire, position = "self", enemy_count = 4, not_moving = true },
     -- CC / Emergency
@@ -182,13 +180,6 @@ local function backlash_matches(context, action, state)
     state = state or {}
     if not state.has_backlash then return false end
     return true
-end
-
-local function incinerate_matches(context, action, state)
-    if not state then return false end
-    state = state or {}
-    if (state.immolate_remains or 0) <= 0 then return false end
-    return NS.spell_ready(action.spell, context.target)
 end
 
 local function searing_pain_matches(context, action, state)
@@ -310,8 +301,6 @@ for i = 1, #ACTIONS do
         custom_matches = function(context, state) return curse_of_doom_matches(context, action, state) end
     elseif action.name == "BacklashShadowBolt" then
         custom_matches = function(context, state) return backlash_matches(context, action, state) end
-    elseif action.name == "UnavailableClassicWarlockNuke" or action.name == "UnavailableClassicWarlockAoe" then
-        custom_matches = function() return false end
     elseif action.name == "SearingPain" then
         custom_matches = function(context, state) return searing_pain_matches(context, action, state) end
     elseif action.name == "SoulFire" then
@@ -389,24 +378,6 @@ table.insert(strategies, 7, {
             return true
         end
         return false
-    end,
-})
-
--- UnavailableClassicWarlockThreat: threat dump
--- Insert at position 24 (after Hellfire=22 shift by ManaGem=1, before DeathCoil=23 shift by ManaGem=1)
--- Original position after AoE (UnavailableClassicWarlockAoe=20, RainOfFire=21, Hellfire=22), before emergency (DeathCoil=23, Fear=24)
-table.insert(strategies, 24, {
-    name = "UnavailableClassicWarlockThreat",
-    matches = function(context, state)
-        if not context.in_combat then return false end
-        local me = context.me or (NS.GetPlayer and NS.GetPlayer())
-        if not me then return false end
-        if NS.cooldown_remains(SPELLS.UnavailableClassicWarlockThreat, 300) > 0 then return false end
-        return NS.spell_ready(SPELLS.UnavailableClassicWarlockThreat, me, { skip_range = true })
-    end,
-    execute = function(context)
-        local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
-        return NS.try_cast(SPELLS.UnavailableClassicWarlockThreat, me, "[DESTRUCTION] UnavailableClassicWarlockThreat", { skip_range = true })
     end,
 })
 
