@@ -8,7 +8,6 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.RogueSpells or {}
-local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
 local SND_BUFF = { 6774, 5171 }
 local RUPTURE_DEBUFF = { 11275, 11274, 11273, 8640, 8639, 1943 }
@@ -147,9 +146,6 @@ local combat_state = {
     ghostly_strike_ready = false,
     kidney_shot_ready = false,
     expose_armor_ready = false,
-    -- UnavailableClassicRogueUtility Purge (PvP buff dispel via Wound Poison)
-    shiv_ready = false,
-    shiv_purge_name = nil,
 }
 
 local function build_state(context)
@@ -194,14 +190,6 @@ local function build_state(context)
     combat_state.threat_pct = context.threat_pct or 0
     combat_state.snd_needs_refresh = combat_state.has_snd and combat_state.snd_remains <= SND_REFRESH_WINDOW
     combat_state.expose_assigned = context.settings and context.settings.combat_expose_assigned or false
-
-    -- UnavailableClassicRogueUtility Purge (PvP buff dispel via Wound Poison)
-    combat_state.shiv_ready = target and NS.spell_ready(SPELLS.UnavailableClassicRogueUtility, target, { expected_cooldown = 10 }) or false
-    combat_state.shiv_purge_name = nil
-    if combat_state.in_combat and (context.is_pvp or false) and target and CCGateDB.find_best_dispel_target then
-        local best_id, _, best_name = CCGateDB.find_best_dispel_target(target, NS)
-        if best_id then combat_state.shiv_purge_name = best_name end
-    end
 
     return combat_state
 end
@@ -279,23 +267,6 @@ local function sinister_strike_wrapper(context, s)
     local energy = context.energy or 0
     if energy < 85 then
         if not should_spend_energy(context, 45) then return false end
-    end
-    return true
-end
-
-local function shiv_purge_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.UnavailableClassicRogueUtility, 2.0) then return false end
-    local settings = context.settings or {}
-    if settings.use_shiv_purge == false then return false end
-    if not s.in_combat then return false end
-    if not (context.is_pvp or false) then return false end
-    if not context.target then return false end
-    if not (context.in_melee_range or false) then return false end
-    if not s.shiv_ready then return false end
-    if not s.shiv_purge_name then return false end
-    if settings.shiv_purge_pvp_only ~= false then
-        local ok, is_player = pcall(function() return context.target:is_player() end)
-        if not (ok and is_player) then return false end
     end
     return true
 end
@@ -393,7 +364,6 @@ local strategies = {
     { name = "Rupture", matches = rupture_wrapper, execute = function(context) return NS.try_cast(SPELLS.Rupture, context.target, "[COMBAT] Rupture") end },
     { name = "Eviscerate", matches = eviscerate_matches, execute = function(context) return NS.try_cast(SPELLS.Eviscerate, context.target, "[COMBAT] Eviscerate") end },
     { name = "Kick", matches = kick_matches, execute = function(context) return NS.try_cast(SPELLS.Kick, context.target, "[COMBAT] Kick") end },
-    { name = "UnavailableClassicRogueUtilityPurge", matches = function(context, s) if shiv_purge_matches(context, s) then context._shiv_purge_name = s.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return NS.try_cast(SPELLS.UnavailableClassicRogueUtility, context.target, "[COMBAT] UnavailableClassicRogueUtility purge ? " .. name, { expected_cooldown = 10 }) end },
     { name = "Gouge", matches = gouge_matches, execute = function(context) return NS.try_cast(SPELLS.Gouge, context.target, "[COMBAT] Gouge") end },
     { name = "Sprint", matches = sprint_matches, execute = function(context) return NS.try_cast(SPELLS.Sprint, NS.PLAYER_UNIT, "[COMBAT] Sprint", { skip_range = true }) end },
     { name = "Vanish", matches = vanish_matches, execute = function(context) return NS.try_cast(SPELLS.Vanish, NS.PLAYER_UNIT, "[COMBAT] Vanish", { skip_range = true }) end },

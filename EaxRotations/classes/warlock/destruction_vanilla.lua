@@ -50,7 +50,6 @@ local SearingPain = NS.spell_action({ 17923, 17922, 17921, 17920, 17919, 5676 },
 local Fear = NS.spell_action({ 5782, 6213, 6215 }, "Fear")
 local RainOfFire = NS.spell_action({ 17954, 17953, 5740 }, "RainOfFire")
 local Hellfire = NS.spell_action({ 11684, 11683, 1949 }, "Hellfire")
-local UnavailableClassicWarlockAoe = nil
 local CreateHealthstone = NS.spell_action({ 11730, 11729, 6202, 6201, 5699 }, "CreateHealthstone")
 local SummonImp = NS.spell_action({ 688 }, "SummonImp")
 local SummonVoidwalker = NS.spell_action({ 697 }, "SummonVoidwalker")

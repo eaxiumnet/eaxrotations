@@ -47,7 +47,6 @@ local IMMOLATE_DEBUFF        = { 25309, 11668, 11667, 11665, 2941, 1094, 707, 34
 local CURSE_OF_ELEMENTS_DEBUFF = { 11722, 11721, 1490 }
 local SEED_OF_CORRUPTION_DEBUFF = { }  -- Seed is TBC-only; empty in Classic
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
-local THREAT_REDUCTION_BUFF   = { }  -- UnavailableClassicWarlockThreat is TBC-only; empty in Classic
 local FEL_ARMOR_BUFF         = { }  -- Fel Armor is TBC-only; empty in Classic
 local DEMON_ARMOR_BUFF       = { 11735, 11734, 11733, 1086, 706 }
 
@@ -57,8 +56,7 @@ local LIFE_TAP_SAFETY_HP = 35   -- don't Life Tap below this HP%
 
 -- Snapshot-aware refresh constants
 local SPELL_DMG_UPGRADE_RATIO = 1.08    -- Refresh only if 8%+ spell damage upgrade
-local REFRESH_EXTRA_WINDOW = 1.5         -- Extra seconds past pandemic window for upgrade refresh    -- Local anti-spam: UnavailableClassicWarlockThreat has 5min CD, use local timer as fallback for broken API
-    local _last_soulshatter = 0
+local REFRESH_EXTRA_WINDOW = 1.5         -- Extra seconds past pandemic window for upgrade refresh
 
 local LOCAL_SPELLS = {
     DrainLife       = NS.spell_action({ 11700, 11699, 7651, 709, 699, 689 }, "DrainLife"),
@@ -345,22 +343,6 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 3. UnavailableClassicWarlockThreat (threat reduction)
-    -- ------------------------------------------------------------------------
-    {
-        name = "UnavailableClassicWarlockThreat",
-        matches = function(context, state)
-            return false
-        end,
-        execute = function(context)
-            local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
-            local ok = NS.try_cast(SPELLS.UnavailableClassicWarlockThreat, me, "[AFFL] UnavailableClassicWarlockThreat", { skip_range = true })
-            if ok then _last_soulshatter = NS.time_now() end
-            return ok
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
     -- 4. Nightfall proc — instant Shadow Bolt
     -- ------------------------------------------------------------------------
     {
@@ -385,21 +367,6 @@ local strategies = {
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.DrainLife, context.target, "[AFFL] Drain Life sustain")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 5. Unstable Affliction (primary DoT — dispel protection)
-    -- ------------------------------------------------------------------------
-    {
-        name = "UnavailableClassicWarlockDot",
-        matches = function(context, state)
-            return false
-        end,
-        execute = function(context)
-            local ok = NS.try_cast(SPELLS.UnavailableClassicWarlockDot, context.target, "[AFFL] Unstable Affliction")
-            if ok then aff_state.snapshot_ua_dmg = aff_state.spell_damage end
-            return ok
         end,
     },
 
@@ -527,19 +494,6 @@ local strategies = {
         end,
         execute = function()
             return NS.try_cast(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, "[AFFL] Amplify Curse", { skip_range = true })
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 10. Seed of Corruption (AoE 3+ targets)
-    -- ------------------------------------------------------------------------
-    {
-        name = "UnavailableClassicWarlockAoe",
-        matches = function(context, state)
-            return false
-        end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.UnavailableClassicWarlockAoe, context.target, "[AFFL] Seed of Corruption")
         end,
     },
 

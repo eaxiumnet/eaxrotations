@@ -338,42 +338,6 @@ local function mana_gem_matches(context, s)
     return false
 end
 
---- Arcane Blast: primary nuke, stack management per phase
-local function arcane_blast_matches(context, s)
-    if s.is_moving then return false end
-    if not context.target then return false end
-
-    -- Phase-based stack limits
-    local max_stacks
-    if s.phase == PHASE_BURN then
-        max_stacks = get_setting_num(context, "arcane_burn_max_stacks", 3)
-    else
-        max_stacks = get_setting_num(context, "arcane_conserve_max_stacks", 0)
-        -- Emergency: always 0 stacks
-        if s.phase == PHASE_EMERGENCY then max_stacks = 0 end
-    end
-
-    -- Zero-stack mode: never cast AB
-    if max_stacks == 0 then return false end
-
-    -- If we're already at max stacks for our phase, only cast AB to maintain them
-    if (s.ab_stacks or 0) >= max_stacks then
-        if (s.ab_remains or 0) > 1.5 then return false end  -- Not about to drop
-    end
-
-    -- Don't build stacks if mana is critically low
-    -- Clearcasting: always consume on AB (highest mana cost) per research Angle 5
-    if s.has_clearcasting then return true end
-
-    if (s.mana_pct or 100) < 15 then
-        if (s.ab_stacks or 0) >= max_stacks then return false end
-        -- Allow building to 1 stack max when below 15% mana
-        if max_stacks > 0 and (s.ab_stacks or 0) >= 1 then return false end
-    end
-
-    return NS.spell_ready(SPELLS.UnavailableClassicMageArcane, context.target)
-end
-
 --- Fire Blast: instant filler, use only while moving in Vanilla
 local function fire_blast_matches(context, s)
     if not context.target then return false end
@@ -464,11 +428,6 @@ local strategies = {
     { name = "ManaGem",
       matches = mana_gem_matches,
       execute = function() return use_mana_gem() end },
-
-    -- Primary nuke: Arcane Blast (stack management)
-    { name = "UnavailableClassicMageArcane",
-      matches = arcane_blast_matches,
-      execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicMageArcane, context.target, "[ARCANE] UnavailableClassicMageArcane") end },
 
     -- Instant filler (moving only in Vanilla)
     { name = "FireBlast",

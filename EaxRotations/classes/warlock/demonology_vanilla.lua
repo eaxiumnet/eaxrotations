@@ -373,16 +373,6 @@ local strategies = {
             return false
         end,
     },
-    -- Threat reduction placeholder (TBC-only)
-    {
-        name = "ThreatDrop",
-        matches = function(context, state)
-            return false  -- UnavailableClassicWarlockThreat placeholder
-        end,
-        execute = function(context)
-            return false
-        end,
-    },
     -- Corruption (instant DoT)
     {
         name = "CorruptionDoT",

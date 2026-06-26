@@ -97,7 +97,6 @@ local disc_state = {
     flash_heal_ready = false,
     greater_heal_ready = false,
     renew_ready = false,
-    binding_heal_ready = false,
     circle_of_healing_ready = false,
     prayer_of_healing_ready = false,
     prayer_of_mending_ready = false,
@@ -167,7 +166,6 @@ local function build_state(context)
     disc_state.flash_heal_ready = me and NS.spell_ready(SPELLS.FlashHeal, me, { skip_range = true }) or false
     disc_state.greater_heal_ready = me and NS.spell_ready(SPELLS.GreaterHeal, me, { skip_range = true }) or false
     disc_state.renew_ready = me and NS.spell_ready(SPELLS.Renew, me, { skip_range = true }) or false
-    disc_state.binding_heal_ready = me and NS.spell_ready(SPELLS.UnavailableClassicPriestHealA, me, { skip_range = true }) or false
     disc_state.circle_of_healing_ready = false  -- Circle of Healing is TBC-only
     disc_state.prayer_of_healing_ready = me and NS.spell_ready(SPELLS.PrayerOfHealing, me, { skip_range = true }) or false
     disc_state.prayer_of_mending_ready = false  -- Prayer of Mending is TBC-only

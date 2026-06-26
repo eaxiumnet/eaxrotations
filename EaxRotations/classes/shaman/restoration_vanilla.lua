@@ -10,15 +10,12 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 local Healing = NS.ShamanHealing or require("classes/shaman/healing_sylvanas")
 
-local WATER_SHIELD_SPELL = SPELLS.UnavailableClassicShamanShieldB or nil
 local LIGHTNING_SHIELD_SPELL = SPELLS.LightningShield or nil
 
 -- ============================================================================
 -- Buff & Debuff ID tables
 -- ============================================================================
-local WATER_SHIELD_BUFF = {}
 local LIGHTNING_SHIELD_BUFF = { 10432, 10431, 8134, 945, 905, 325, 324 }
-local EARTH_SHIELD_BUFF = {}
 local FLAME_SHOCK_DEBUFF = { 10448, 10447, 8053, 8052, 8050 }
 local NATURES_SWIFTNESS_BUFF = { 16188 }
 local HEALING_WAY_BUFF = { }
@@ -37,8 +34,6 @@ end
 local MANA_LOW_DEFAULT = 30
 local MANA_CONSERVE_DEFAULT = 15
 local MANA_EMERGENCY_DEFAULT = 5
--- Earth Shield charge refresh threshold
-local EARTH_SHIELD_CHARGE_DEFAULT = 2
 
 -- ============================================================================
 -- State builder
@@ -47,14 +42,8 @@ local resto_state = {
     lowest = nil,
     tank = nil,
     natures_swiftness_active = false,
-    has_water_shield = false,
     has_lightning_shield = false,
-    water_shield_ready = false,
     lightning_shield_ready = false,
-    earth_shield_ready = false,
-    earth_shield_charges = 0,
-    earth_shield_remains = 0,
-    water_shield_charges = 0,
     chain_heal_ready = false,
     healing_wave_ready = false,
     lesser_healing_wave_ready = false,
@@ -103,22 +92,8 @@ local function build_state(context)
     resto_state.tank = NS.healing_get_tank(entries, count) or resto_state.lowest
     local s = context.settings or {}
     resto_state.natures_swiftness_active = _ns_is_active()
-    resto_state.has_water_shield = me and NS.buff_up and NS.buff_up(me, WATER_SHIELD_BUFF) or false
     resto_state.has_lightning_shield = me and NS.buff_up and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
-    resto_state.water_shield_ready = me and NS.spell_ready(WATER_SHIELD_SPELL, me, { skip_range = true }) or false
     resto_state.lightning_shield_ready = me and NS.spell_ready(LIGHTNING_SHIELD_SPELL, me, { skip_range = true }) or false
-    resto_state.earth_shield_ready = me and NS.spell_ready(SPELLS.UnavailableClassicShamanShieldA, me, { skip_range = true }) or false
-    -- Earth Shield charge/remains tracking (for tank)
-    local es_target = resto_state.tank and resto_state.tank.unit
-    if es_target then
-        resto_state.earth_shield_charges = NS.buff_stacks and NS.buff_stacks(es_target, EARTH_SHIELD_BUFF) or 0
-        resto_state.earth_shield_remains = NS.buff_remains and NS.buff_remains(es_target, EARTH_SHIELD_BUFF) or 0
-    else
-        resto_state.earth_shield_charges = 0
-        resto_state.earth_shield_remains = 0
-    end
-    -- Water Shield charge tracking (self)
-    resto_state.water_shield_charges = (me and NS.buff_stacks and NS.buff_stacks(me, WATER_SHIELD_BUFF)) or 0
     resto_state.chain_heal_ready = me and NS.spell_ready(SPELLS.ChainHeal, me, { skip_range = true }) or false
     resto_state.healing_wave_ready = me and NS.spell_ready(SPELLS.HealingWave, me, { skip_range = true }) or false
     resto_state.lesser_healing_wave_ready = me and NS.spell_ready(SPELLS.LesserHealingWave, me, { skip_range = true }) or false
@@ -176,25 +151,6 @@ end
 -- ============================================================================
 -- Match functions
 -- ============================================================================
-local function water_shield_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.UnavailableClassicShamanShieldB, 3.0) then return false end
-    local shield_type = (context.settings and context.settings.restoration_shield_type) or "water"
-    if shield_type ~= "water" then return false end
-    -- Water Shield costs 0 mana and returns mana ? allow even during conserve
-    -- Only block during mana emergency (ManaEmergencyWand catches it first)
-    if state.mana_emergency then return false end
-    if not state.water_shield_ready then return false end
-    -- Refresh if Water Shield is missing
-    if not state.has_water_shield then
-        return true
-    end
-    -- Refresh if Water Shield charges are depleted (0 charges remaining)
-    if (state.water_shield_charges or 0) <= 0 then
-        return true
-    end
-    return false
-end
-
 local function lightning_shield_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.LightningShield, 3.0) then return false end
     local shield_type = (context.settings and context.settings.restoration_shield_type) or "water"
@@ -202,23 +158,6 @@ local function lightning_shield_matches(context, state)
     if state.has_lightning_shield then return false end
     if not state.lightning_shield_ready then return false end
     if (state.enemy_count or 0) < 1 then return false end
-    return true
-end
-
-local function earth_shield_tank_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.UnavailableClassicShamanShieldA, 3.0) then return false end
-    if state.mana_emergency then return false end
-    if not state.tank then return false end
-    local target = state.tank.unit or NS.PLAYER_UNIT
-    if not target then return false end
-    if not state.earth_shield_ready then return false end
-    -- Refresh when charges are low (configurable threshold, default ? 2)
-    local charge_threshold = (context.settings and context.settings.restoration_earth_shield_charge_threshold) or EARTH_SHIELD_CHARGE_DEFAULT
-    if NS.buff_up(target, EARTH_SHIELD_BUFF) then
-        if (state.earth_shield_charges or 0) > charge_threshold then return false end
-        -- Earth Shield is expiring soon and charges are low
-        if (state.earth_shield_remains or 0) > 5 and (state.earth_shield_charges or 0) >= 1 then return false end
-    end
     return true
 end
 
@@ -482,9 +421,7 @@ local healing_strategies = {
             return true  -- Claim priority, block all other strategies
         end
     },
-    { name = "UnavailableClassicShamanShieldB", matches = water_shield_matches, execute = function() return NS.try_cast(WATER_SHIELD_SPELL, NS.PLAYER_UNIT, "[RESTO] UnavailableClassicShamanShieldB") end },
     { name = "LightningShield", matches = lightning_shield_matches, execute = function() return NS.try_cast(LIGHTNING_SHIELD_SPELL, NS.PLAYER_UNIT, "[RESTO] LightningShield") end },
-    { name = "UnavailableClassicShamanShieldATank", matches = earth_shield_tank_matches, execute = function() return NS.try_cast(SPELLS.UnavailableClassicShamanShieldA, NS.PLAYER_UNIT, "[RESTO] UnavailableClassicShamanShieldATank") end },
     { name = "NaturesSwiftness", matches = natures_swiftness_matches, execute = function()
         return NS.try_cast(SPELLS.NaturesSwiftness, NS.PLAYER_UNIT, "[RESTO] NaturesSwiftness")
     end },
