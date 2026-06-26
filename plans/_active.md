@@ -23,17 +23,24 @@
 - [x] Arms Warrior — verified correct (no changes)
 - [x] Destruction / Elemental / Assassination — prior-session guide fixes (`f9b8a60f`/`6c88a6d8`/`23e5496d`)
 - [x] Demonology — Corruption before Immolate (`cddd6393`) [this session]
-- [x] 16 DPS specs VERIFIED vs guides, no change: Arms, BM, MM, Arcane, Fire, Frost, Combat (prior) + Enhancement, Smite, Shadow, Balance, Cat, Bear, Subtlety, Survival, Retribution (this session)
-- [x] Affliction — ordering verified; DrainSoul execute caveat deferred
-- [x] G1–G4 research agents (4 parallel, all completed)
+- [x] Drain Soul TBC shard-capture (Affliction + Demonology) — not a Wrath sub-25% execute (`c3565364`)
+- [x] Prot Paladin — Holy Shield above Consecration (crush-cap survival > threat) (`6b1ec84b`)
+- [x] Disc Priest — Pattern 15 header fixed (Wrath Penance/Borrowed refs removed; code was TBC-correct) (`df1c7ed6`)
+- [x] ALL 22 remaining specs VERIFIED vs guides, no change (DPS: Arms/BM/MM/Arcane/Fire/Frost/Combat/Enhancement/Smite/Shadow/Balance/Cat/Bear/Subtlety/Survival/Ret; healers: Holy Paladin/Holy Priest/Resto Druid/Resto Shaman/Disc-code)
+- [x] G1–G4 DPS research + healer/tank research agents (7 parallel, all completed)
+- [x] Release cut: v2026-06-26.442b0ac6 (APL DPS round, 6 fixes)
+
+## APL ROUND COMPLETE — all 29 TBC specs reviewed (7 fixes + 22 verified)
 
 ## In Progress
 - (none active)
 
-## Deferred
-- [ ] 5 healers (Holy Paladin, Holy Priest, Disc, Resto Druid, Resto Shaman) — reactive; separate healing-priority review
-- [ ] Prot Paladin — tank threat, skipped (same rationale as Prot Warrior)
-- [ ] Drain Soul sub-25% "execute" (Affliction + Demonology) — Wrath mechanic, not TBC; see `plans/deferred_drain_soul_execute.md`
+## Deferred / Next
+- [ ] Vanilla Anniversary variant audit (`*_vanilla.lua`, lower priority)
+- [ ] Optional new-spell gaps (e.g. Holy Paladin Avenging Wrath) — deferred (new-spell risk per Rule 5)
+- [ ] B6.2 per-spec predictive threshold sliders
+- [ ] EaxAutoQuester verification (separate product)
+- [ ] Cut next release after healer/tank round (Prot Paladin + Disc header)
 
 ## Rules
 - One concern per commit

@@ -125,14 +125,16 @@ For each spec:
   - Verify: `luac -p`, gate
 
 ### Phase 5: Paladin (3 specs)
-- [ ] **P5.1** Holy — compare against Wowhead Holy Paladin TBC guide  *(DEFERRED — reactive healer; healing-priority logic, not a DPS APL reorder. Separate review.)*
+- [x] **P5.1** Holy — compare against Wowhead Holy Paladin TBC guide
   - Files: `EaxRotations/classes/paladin/holy_sylvanas.lua`
   - Acceptance: Holy Light vs Flash of Light, downranking, Divine Favor
+  - **VERIFIED:** Research (Icy-Veins + Wowhead 2.5.5 + Warcraft Tavern): FoL spam (R6 save / R7 throughput) + downranked HL for Light's Grace + max-rank HL/Divine Favor burst + Holy Shock emergency + LoH last resort + Blessing of Light on tank + Divine Illumination. Current: LoHLastResort > DivineShield > BoP > Cleanse* > DivineFavor(+HolyShockCombo) > HolyShock > HolyLightEmergency > DivineFavorHolyLightFollowup > FriendlyTarget > BoSacrifice > ManaPotion/DarkRune > Aura > BlessingRefresh > BlessingOfLightTank > TankPreHeal > SmartHeal > FlashOfLightEfficientTopoff > Seal/Judgement of Wisdom/Light. Order defensible (emergency/burst high, FoL efficient topoff as filler, BoL on tank). No Wrath spells (Beacon/Sacred Shield/Infusion of Light) present. **Minor optional gap (not added):** Avenging Wrath (+20% healing too, valid TBC) has no Holy strategy — adding a new spell risks loops per Rule 5; deferred. No change.
   - Verify: `luac -p`, gate, `test_paladin_holy_*`
 
-- [ ] **P5.2** Protection — compare against Wowhead Prot Paladin TBC guide  *(SKIPPED — tank threat/survival rotation, not DPS APL-optimized; same rationale as Prot Warrior P1.3.)*
+- [x] **P5.2** Protection — compare against Wowhead Prot Paladin TBC guide
   - Files: `EaxRotations/classes/paladin/protection_sylvanas.lua`
   - Acceptance: Avenger's Shield opener, consecration, Holy Shield uptime
+  - **FIXED:** Wowhead 2.5.5 guide says Holy Shield is #1 (100% uptime for 102.4% CTC crush cap; survival > threat) > Consecration #2. Previous order had Consecration above Holy Shield -> when both refreshed at once, Consecration fired first and Holy Shield waited a GCD -> crushing-blow exposure. Reordered Holy Shield above Consecration. `holy_shield_matches` refreshes on charges (crush-cap uptime); match fns unchanged. Committed `6b1ec84b`. No Wrath spells (Hammer of the Righteous/Shield of the Righteous/Divine Plea) present.
   - Verify: `luac -p`, gate
 
 - [x] **P5.3** Retribution — compare against Wowhead Ret Paladin TBC guide
@@ -142,14 +144,16 @@ For each spec:
   - Verify: `luac -p`, gate, `test_paladin_tbc_seals`
 
 ### Phase 6: Priest (4 specs)
-- [ ] **P6.1** Holy — compare against Wowhead Holy Priest TBC guide  *(DEFERRED — reactive healer; separate review.)*
+- [x] **P6.1** Holy — compare against Wowhead Holy Priest TBC guide
   - Files: `EaxRotations/classes/priest/holy_sylvanas.lua`
   - Acceptance: Greater Heal vs Flash Heal, Renew maintenance, CoH usage
+  - **VERIFIED:** Research (Wowhead + Icy-Veins + Warcraft Tavern): PoM on CD (pre-cast every pull), CoH when ≥3 hurt, Binding Heal (self+other), Flash Heal emergency, GH max for big hits, Renew on tanks, GH downranked sustain, PW:S emergency only, Inner Focus+PoH, Lightwell, Shadowfiend, 5SR dancing. Current: EmergencyPWS > PreemptiveGreaterHeal > EmergencyFlashHeal > FriendlyTarget > PrayerOfMending > CircleOfHealing > BindingHeal > PrayerOfHealing > ClearcastingGreaterHeal > InnerFocus > Lightwell > GreaterHeal > FlashHeal > DesperatePrayer > Shadowfiend > Dispel/Cure/Abolish > RenewTank > RenewSpread > SurgeOfLightSmite (idle). Order defensible (emergency/PoM/CoH high, Renew as HoT filler lower). No Wrath spells (Guardian Spirit/Serendipity/Body and Soul) present. No change.
   - Verify: `luac -p`, gate, `test_priest_holy_*`
 
-- [ ] **P6.2** Discipline — compare against Wowhead Disc Priest TBC guide  *(DEFERRED — reactive healer/shielder; separate review.)*
+- [x] **P6.2** Discipline — compare against Wowhead Disc Priest TBC guide
   - Files: `EaxRotations/classes/priest/discipline_sylvanas.lua`
-  - Acceptance: PW:S priority, Penance (if Wrath-backported), Power Infusion
+  - Acceptance: PW:S priority, Power Infusion
+  - **VERIFIED (code) + header fixed:** Research (Warcraft Tavern + Wowhead + Icy-Veins): TBC Disc is a support/hybrid healer (NOT the Wrath shield-healer); PW:S emergency-only (don't pre-shield tanks — starves rage), PoM on tank, PoH ≥3 hurt, Binding Heal, Flash Heal, GH, Renew; Power Infusion on a caster DPS (or self), Pain Suppression tank save. Code is TBC-correct: `pws_tank_matches` fires only below `discipline_pws_hp=35` + Weakened Soul + existing-absorb guards (emergency, NOT a rage-starving 100% pre-shield). Header was misleading (referenced Wrath Penance/Borrowed Time + claimed 'PW:S 100% uptime') — rewritten to Pattern 15 accuracy, committed `df1c7ed6`. No Wrath spells (Penance/Grace/Borrowed Time/Divine Aegis) in code.
   - Verify: `luac -p`, gate, `test_discipline_*`
 
 - [x] **P6.3** Shadow — compare against Wowhead Shadow Priest TBC guide
@@ -203,9 +207,10 @@ For each spec:
   - **VERIFIED:** Research (Wowhead 2.5.5 + Icy-Veins + wowtbc.gg): Demo Roar + Faerie Fire (maintain) > Mangle (Bear) on CD (highest threat, +30% bleed) > Lacerate 5-stack > Swipe (spare GCDs) > Maul (rage dump); reserve ≥15 rage for Mangle. Current: DemoralizingRoar > FaerieFireFeral > MangleOpener > Lacerate > LacerateOffTarget > SwipeAoE > MangleBear > Clearcasting* > Swipe > Maul. **Mangle-on-CD-correctness:** `mangle_opener_matches` (above Lacerate) fires Mangle whenever off-CD UNLESS (debuff fresh AND Lacerate 5-stacked) — so when Lacerate<5 + Mangle off-CD, MangleOpener fires Mangle FIRST (beats Lacerate stacking, per guide). `MangleBear` (below Lacerate) only handles the debuff-fresh+Lacerate-stacked case where Lacerate doesn't match anyway. Design is correct. Test asserts DemoRoar-before-FF (holds). No Wrath spells (Survival Instincts/Berserk) present. No change.
   - Verify: `luac -p`, gate, `test_bear_*`
 
-- [ ] **P8.4** Restoration — compare against Wowhead Resto Druid TBC guide  *(DEFERRED — reactive healer; separate review.)*
+- [x] **P8.4** Restoration — compare against Wowhead Resto Druid TBC guide
   - Files: `EaxRotations/classes/druid/resto_sylvanas.lua`
   - Acceptance: Lifebloom stacking, Rejuvenation, Regrowth, Swiftmend
+  - **VERIFIED:** Research (Icy-Veins + Warcraft Tavern + wowtbc.gg): defining mechanic = Lifebloom 3-stack rolling on tank (base ~7s, refresh within window); Rejuvenation on tanks; Regrowth (direct+HoT for spikes); Swiftmend (consumes a Rejuv/Regrowth HoT) on spikes; HT downranked (R10/R13); NS+HT emergency; Tranquility emergency; Innervate on others; Tree of Life form. Current: SwiftmendEmergency > PreemptiveRegrowth > NS+HT > TranquilityEmergency > HealingTouchMaxEmergency > RegrowthSpotHeal > LifebloomLetBloom > TankLifebloomStack > ClearcastRegrowth > RaidLifebloomCoverage(+2nd) > Moving(LB/Rejuv) > PriorityRejuvenation > DownrankHealingTouch > TreeOfLifeMaintain. Lifebloom logic is sophisticated + TBC-correct: `needs_lifebloom_refresh` builds to 3 stacks + refreshes when remains ≤ LIFEBLOOM_REFRESH(2.5s); `should_let_lifebloom_bloom` lets it bloom at full HP / low mana (avoids waste) — reads actual `lifebloom_remains` (no hardcoded duration). No Wrath spells (Wild Growth/Nourish/Revitalize) present. No change.
   - Verify: `luac -p`, gate, `test_druid_resto_*`
 
 ### Phase 9: Shaman (3 specs)
@@ -220,9 +225,10 @@ For each spec:
   - **VERIFIED:** Research (Icy-Veins + Warcraft Tavern + wowtbc.gg, reviewed for 2.5.5) says TBC Enh priority is Stormstrike > **Flame Shock (maintain DoT)** > Earth Shock (when Flame Shock doesn't need refresh) — NOT "Earth > Flame". Current code already has `Stormstrike > FlameShock > EarthShock > FrostShock`, which MATCHES the guide. (The original acceptance criterion above was wrong.) Totem twisting (Windfury/GraceOfAir) already implemented. No Wrath Enh spells (Maelstrom Weapon/Feral Spirits/Lava Lash) present. No change.
   - Verify: `luac -p`, gate
 
-- [ ] **P9.3** Restoration — compare against Wowhead Resto Shaman TBC guide  *(DEFERRED — reactive healer; separate review.)*
+- [x] **P9.3** Restoration — compare against Wowhead Resto Shaman TBC guide
   - Files: `EaxRotations/classes/shaman/restoration_sylvanas.lua`
-  - Acceptance: Healing Wave rank selection, Chain Heal, Earth Shield, Riptide (if Wrath)
+  - Acceptance: Healing Wave rank selection, Chain Heal, Earth Shield
+  - **VERIFIED:** Research (Icy-Veins + Warcraft Tavern + wowtbc.gg): Earth Shield on tank always (Resto 41pt, 6 charges), Chain Heal bread-and-butter (≥2 injured), HW downranked (R5/R10/R12) + Healing Way stacks, LHW emergency fast heal, Mana Tide, Nature's Swiftness, Bloodlust, totems. Current: EarthShieldTank (high) > NaturesSwiftness > ManaTideTotem > Bloodlust > FriendlyTarget > HealingWay (HW on tank for stacks, overheal-gated) > PreemptiveChainHeal > ChainHeal > SmartHeal > totems. `smart_heal_matches` delegates to shared `Healing.select_heal` which picks HW/LHW/CH — so **Lesser Healing Wave IS cast** (via the chooser) for emergency, plus FriendlyTarget casts HW. No Wrath spells (Riptide/Tidal Waves/Earthliving) present. No change.
   - Verify: `luac -p`, gate, `test_shaman_resto_*`
 
 ### Phase 10: Vanilla Variants (Lower Priority)
