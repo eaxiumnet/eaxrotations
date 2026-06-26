@@ -6,35 +6,35 @@
 **Plan:** `plans/vanilla-apl-audit-2026-06.md`
 
 ## Baseline
-- HEAD: a12a91d6 (in sync with origin/master)
+- HEAD: f0e0ec4a (in sync with origin/master)
 - 171 rotation + 11 leveling suites PASS
 - Vanilla spell audit: 31 specs clean, 0 tainted
 - All 40/40 vanilla files now have Pattern 15 headers
 
 ## In Progress
-- Phase 1 research complete (4 agents, 30 specs) + Batch 2 web research (6 specs: Hunter BM/MM/Survival, Mage Arcane/Fire/Frost)
+- Background agent cleaning remaining 14 vanilla files with UnavailableClassic references
+- Phase 1 research complete (4 agents, 30 specs) + Batch 2 web research (6 specs)
 - Classic Era DBC extracted (1.15.8.67156, 31,248 spells)
 - Research saved to `research_classic_1.15_rotations.md`
 
 ## Completed
 - [x] Pattern 15 headers added to all 35 vanilla files that lacked them
-- [x] Fixed false-positive forbidden-token matches in test_classic_remaining_specs (assassination_vanilla + destruction_vanilla headers)
+- [x] Fixed false-positive forbidden-token matches in test_classic_remaining_specs
 - [x] Classic Era DBC extracted to `wowheadScrape/dbc_extract/wowsims_classic_era.db`
-- [x] DBC verified: Water Elemental (31687), Ice Lance (30455), Icy Veins (12472) — **NOT in Classic Era** (removals confirmed correct)
+- [x] DBC verified: Water Elemental (31687), Ice Lance (30455), Icy Veins (12472) — **NOT in Classic Era**
+- [x] **TBC-only dead code removed from 8 vanilla specs:**
+  - Hunter BM: Steady Shot, Kill Command, Misdirection
+  - Hunter Survival: Steady Shot, Kill Command, Misdirection, Aspect of Viper, pre_steady_leveling
+  - Hunter MM: BestialWrath
+  - Mage Arcane: Frostbolt primary nuke (was FireBlast spam), FireBlast now moving-only
+  - Mage Fire: Dragon's Breath, Blast Wave
+  - Mage Frost: Water Elemental, Ice Lance
+  - Paladin Retribution: Avenging Wrath, Crusader Strike
+  - Rogue Assassination: Cloak of Shadows, Shiv, Envenom, Mutilate, Deadly Throw
+  - Warlock Destruction: Incinerate, Soulshatter, dead AoE placeholder
 - [x] **Rotation Scorecard** — 66 specs × 6 content types, auto-computed from codebase
-  - `build_tools/compute_scorecard.lua` — scoring engine
-  - `SCORECARD.md` — human-readable report (23 S-tier, 38 A-tier, 5 B-tier)
-  - `EaxRotations/scorecard_data.json` — machine-readable for CI/integration
-  - 5 dimensions: APL, Tests, Features, Content, Spell Validity
-  - Content types: Solo, Dungeon, Raid, Arena, Battleground, Leveling
 - [x] **README badges + per-class rotation guides** — shipped in repo
-  - README shows scorecard summary + links to SCORECARD.md + docs/rotations/
-  - 9 auto-generated class guides (TBC + Vanilla priorities, features, content types)
-  - `docs/rotations/` no longer gitignored — ships with every release
-- [x] **WoWSims upstream tracking infrastructure**
-  - `wowsims_classic/` — cloned from https://github.com/wowsims/classic (27 APL JSON files)
-  - `build_tools/analyze_wowsims_apl.lua` — parses APL JSON, compares to our rotations
-  - `build_tools/sync_tbc_new.sh` — upstream sync script for `tbc-new` (preserves `appsettings.classic_era.json`)
+- [x] **WoWSims upstream tracking infrastructure** (wowsims_classic clone + APL analyzer + sync script)
 
 ## Deferred
 - EaxAutoQuester verification (separate product, ungated)
