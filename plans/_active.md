@@ -20,6 +20,7 @@
 - [x] Pattern 15 headers added to all 35 vanilla files that lacked them
 - [x] Fixed false-positive forbidden-token matches in test_classic_remaining_specs (assassination_vanilla + destruction_vanilla headers)
 - [x] Classic Era DBC extracted to `wowheadScrape/dbc_extract/wowsims_classic_era.db`
+- [x] DBC verified: Water Elemental (31687), Ice Lance (30455), Icy Veins (12472) — **NOT in Classic Era** (removals confirmed correct)
 - [x] **Rotation Scorecard** — 66 specs × 6 content types, auto-computed from codebase
   - `build_tools/compute_scorecard.lua` — scoring engine
   - `SCORECARD.md` — human-readable report (23 S-tier, 38 A-tier, 5 B-tier)
