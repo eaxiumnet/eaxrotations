@@ -26,13 +26,14 @@
 - [x] Drain Soul TBC shard-capture (Affliction + Demonology) — not a Wrath sub-25% execute (`c3565364`)
 - [x] Prot Paladin — Holy Shield above Consecration (crush-cap survival > threat) (`6b1ec84b`)
 - [x] Prot Warrior — Demo Shout + Thunder Clap above Devastate (survival debuff uptime) (`a31d1fe5`)
+- [x] Holy Paladin — Avenging Wrath burst CD added (heavy-healing window; the one missing-spell gap research surfaced) (`9b14c93e`)
 - [x] Disc Priest — Pattern 15 header fixed (Wrath Penance/Borrowed refs removed; code was TBC-correct) (`df1c7ed6`)
 - [x] ALL 3 tanks addressed: Prot Paladin fixed, Bear verified, Prot Warrior fixed
 - [x] ALL 21 remaining specs VERIFIED vs guides, no change (DPS: Arms/BM/MM/Arcane/Fire/Frost/Combat/Enhancement/Smite/Shadow/Balance/Cat/Bear/Subtlety/Survival/Ret; healers: Holy Paladin/Holy Priest/Resto Druid/Resto Shaman/Disc-code)
 - [x] G1–G4 DPS research + healer/tank research + Prot Warrior research agents (8 parallel, all completed)
 - [x] Releases cut: v2026-06-26.442b0ac6 (DPS round) + v2026-06-26.aa67f8df (healer/tank round)
 
-## APL ROUND COMPLETE — all 29 TBC specs reviewed (8 fixes + 21 verified)
+## APL ROUND COMPLETE — all 29 TBC specs reviewed (8 fixes + 1 gap-fill + 21 verified)
 
 ## In Progress
 - (none active)

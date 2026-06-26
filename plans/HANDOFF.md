@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-06-26** (APL round COMPLETE incl. all 3 tanks; last fix `a31d1fe5`).
+> up to date after every work session. Last updated: **2026-06-26** (APL round complete + Holy Paladin Avenging Wrath gap fix; last commit `9b14c93e`).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/finish-what-i-started.md` — read it
@@ -29,10 +29,12 @@ have to context-switch.
   (Fury `014e81c7`, Destruction `f9b8a60f`, Elemental `6c88a6d8`, Assassination
   `23e5496d`, Demonology `cddd6393`, Drain Soul shard-capture `c3565364`,
   Prot Paladin Holy Shield>Consecration `6b1ec84b`, Prot Warrior Demo+TC>Devastate
-  `a31d1fe5`) + Disc header fix `df1c7ed6` + **all 21 remaining specs VERIFIED**
-  no-change vs guides (incl. all 5 healers + Bear tank). See
-  `plans/apl-guide-optimization-2026-06.md`. **8 GitHub releases** exist
-  (latest v2026-06-26.aa67f8df).
+  `a31d1fe5`) + Disc header fix `df1c7ed6` + **Holy Paladin Avenging Wrath gap
+  fix `9b14c93e`** (the one missing-spell gap the research surfaced) + **all 21
+  remaining specs VERIFIED** no-change vs guides (incl. all 5 healers + Bear tank).
+  See `plans/apl-guide-optimization-2026-06.md`. **9 GitHub releases** exist
+  (latest v2026-06-26.3656e064 — tanking round; Avenging Wrath staged for next
+  release).
 - **What's next:** APL optimization COMPLETE for all 29 TBC specs (fixed/verified).
   Remaining: (1) Vanilla Anniversary variant audit (`*_vanilla.lua`, lower
   priority). (2) Optional new-spell gaps noted but not added (Holy Paladin
@@ -151,7 +153,7 @@ For one test standalone: `"/c/Program Files (x86)/Lua/5.1/lua.exe" EaxRotations/
 
 ---
 
-## CURRENT STATE (verified 2026-06-26, HEAD a31d1fe5)
+## CURRENT STATE (verified 2026-06-26, HEAD 9b14c93e)
 
 **Baseline:** 171 rotation + 11 leveling suites PASS / 0 fail on Lua 5.1.5.
 Spell audit PASS. `validate.cmd` green.
@@ -183,6 +185,7 @@ Spell audit PASS. `validate.cmd` green.
 | APL | Prot Paladin: Holy Shield above Consecration (crush-cap) | `6b1ec84b` | survival > threat per Wowhead 2.5.5 |
 | APL | Disc Priest Pattern 15 header fixed (Wrath refs removed) | `df1c7ed6` | code was already TBC-correct; header only |
 | APL | Prot Warrior: Demo+TC above Devastate (survival debuff uptime) | `a31d1fe5` | guide: Demo/TC 'always up' > filler |
+| APL | Holy Paladin: Avenging Wrath burst CD added (heavy-healing window) | `9b14c93e` | guide-noted missing-spell gap; +20% healing; test added |
 | APL | 21 remaining specs VERIFIED vs guides (no change) | `9c0fd382`+`d90b602d`+later | all 5 healers + Balance/Cat/Bear/Subtlety/Survival/Ret/Enhancement/Smite/Shadow + Arms/BM/MM/Arcane/Fire/Frost/Combat |
 
 ### Deferred / out of scope (with reasons — don't relitigate)
