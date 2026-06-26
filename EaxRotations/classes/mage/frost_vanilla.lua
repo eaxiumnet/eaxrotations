@@ -1,4 +1,8 @@
--- Mage Frost priority list.
+-- frost_vanilla.lua — Mage Frost for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  frost DPS (Frostbolt spam, Winter's Chill, Frost Nova + Cone of Cold).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 
 local NS = _G.EaxRotations

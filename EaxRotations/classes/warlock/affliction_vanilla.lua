@@ -1,8 +1,9 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Affliction Warlock rotation
--- =========================================================================
+-- affliction_vanilla.lua — Warlock Affliction for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  DoT DPS (Corruption, Siphon Life, Curse, Shadow Bolt filler).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   Vanilla has no Unstable Affliction or Haunt; SM/Ruin is common.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+
 local __eax_file = "classes/warlock/affliction_vanilla.lua"
 local __eax_version = "1.1.1"
 local __eax_modified = "2026-05-28"

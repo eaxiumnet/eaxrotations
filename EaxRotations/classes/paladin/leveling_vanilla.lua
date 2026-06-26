@@ -1,5 +1,8 @@
--- Paladin leveling rotation (Classic/Vanilla 1.12).
--- Stripped of TBC-only abilities: Holy Shield.
+-- leveling_vanilla.lua — Paladin Leveling rotation for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  adaptive leveling rotation (seal, judgement, healing, buffs).
+-- WHEN:  any combat while leveling, when NS.is_vanilla() is true.
+-- WHY:   handles sub-60 content and mana efficiency.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
 if not NS then return nil end

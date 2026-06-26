@@ -1,4 +1,9 @@
--- Warrior Protection priority list ? Classic Vanilla
+-- protection_vanilla.lua — Warrior Protection tank for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  tank (Sunder Armor, Shield Slam, Revenge, Shield Block).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarriorSpells or {}

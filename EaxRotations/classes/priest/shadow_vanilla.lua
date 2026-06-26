@@ -1,8 +1,9 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Shadow Priest rotation
--- =========================================================================
+-- shadow_vanilla.lua — Priest Shadow for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  shadow DPS (SW:P, Mind Blast, Mind Flay, Shadow Weaving).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   Vanilla Shadow has no Vampiric Touch; VT is TBC-only.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+
 local __eax_file = "classes/priest/shadow_vanilla.lua"
 local __eax_version = "1.1.1"
 local __eax_modified = "2026-05-28"

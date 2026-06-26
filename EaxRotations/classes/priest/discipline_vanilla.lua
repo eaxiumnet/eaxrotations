@@ -1,4 +1,8 @@
--- Priest Discipline group-healing priority list.
+-- discipline_vanilla.lua — Priest Discipline for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  support/utility healer (Power Infusion, PW:S emergency, Inner Focus).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   Vanilla Disc is not a primary raid healer; PI + emergency shields.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
 if not NS then return nil end

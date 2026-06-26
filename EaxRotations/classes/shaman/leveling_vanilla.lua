@@ -1,5 +1,8 @@
--- Shaman leveling rotation (Classic/Vanilla 1.12).
--- Stripped of TBC-only abilities: Shamanistic Rage, Water Shield, Stormstrike.
+-- leveling_vanilla.lua — Shaman Leveling rotation for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  adaptive leveling (lightning bolt, shocks, healing, totems).
+-- WHEN:  any combat while leveling, when NS.is_vanilla() is true.
+-- WHY:   handles sub-60 content and mana conservation.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
 if not NS then return nil end

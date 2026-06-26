@@ -1,4 +1,8 @@
--- Mage Arcane priority list with burn/conserve phase state machine.
+-- arcane_vanilla.lua — Mage Arcane for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  Arcane Power Frost hybrid (Frostbolt primary, AP/PoM cooldowns).
+-- WHEN:  combat, in caster form, when NS.is_vanilla() is true.
+-- WHY:   Vanilla has no Arcane Blast; this spec is AP-boosted Frostbolt.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 
 --

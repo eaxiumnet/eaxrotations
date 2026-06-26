@@ -1,4 +1,9 @@
--- Warrior Fury priority list ? Classic Vanilla
+-- fury_vanilla.lua — Warrior Fury for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  dual-wield/2H DPS (Bloodthirst, Whirlwind, Execute, Heroic Strike).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   top Vanilla PvE DPS spec; expansion-aware loader selects _vanilla suffix.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")

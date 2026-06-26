@@ -1,8 +1,9 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Destruction Warlock rotation
--- =========================================================================
+-- destruction_vanilla.lua — Warlock Destruction for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  shadow/fire nuke DPS (Shadow Bolt, Immolate, Conflagrate).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   Vanilla Destro uses Shadow Bolt/Immolate; Ruin-crit build common.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+
 local __eax_file = "classes/warlock/destruction_vanilla.lua"
 local __eax_version = "1.1.1"
 local __eax_modified = "2026-05-28"

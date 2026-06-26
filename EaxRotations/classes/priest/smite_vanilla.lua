@@ -1,10 +1,9 @@
--- ============================================================================
--- Priest Smite DPS Rotation (Vanilla 1.12)
--- Holy DPS with Shadow Weaving utility via SW:P
--- Stripped of TBC-only abilities: Shadow Word: Death
--- Uses Classic spell ID ranks only (no TBC ranks >= 27000)
--- Holy Fire Weave optimization, Surge of Light procs
--- ============================================================================
+-- smite_vanilla.lua — Priest Holy DPS for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  holy DPS (Smite, Holy Fire, Mind Blast, Power Infusion).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   niche spec; expansion-aware loader selects _vanilla suffix.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end

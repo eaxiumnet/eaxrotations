@@ -1,5 +1,8 @@
--- Hunter leveling rotation (Classic/Vanilla 1.12).
--- All abilities in this file are Classic-era spells.
+-- leveling_vanilla.lua — Hunter Leveling rotation for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  adaptive leveling rotation (pet, auto shot, arcane shot, serpent sting).
+-- WHEN:  any combat while leveling, when NS.is_vanilla() is true.
+-- WHY:   handles sub-60 content and pet survival.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
 if not NS then return nil end

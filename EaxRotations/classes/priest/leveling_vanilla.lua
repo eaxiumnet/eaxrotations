@@ -1,7 +1,8 @@
--- Priest leveling rotation (Classic/Vanilla 1.12).
--- Handles unlearned spells gracefully via NS.spell_ready checks.
--- Uses wand/Shoot as fallback when out of mana.
--- Stripped of TBC-only abilities: Vampiric Touch.
+-- leveling_vanilla.lua — Priest Leveling rotation for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  adaptive leveling (wand, smite, shadow word: pain, healing).
+-- WHEN:  any combat while leveling, when NS.is_vanilla() is true.
+-- WHY:   handles sub-60 content and wand specialization.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
 if not NS then return nil end

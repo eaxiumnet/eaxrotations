@@ -1,4 +1,8 @@
--- Rogue Combat priority list.
+-- combat_vanilla.lua — Rogue Combat for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  sword/dagger DPS (Sinister Strike/Backstab, SnD, Eviscerate).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   top Vanilla PvE spec; expansion-aware loader selects _vanilla suffix.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
