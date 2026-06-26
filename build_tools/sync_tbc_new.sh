@@ -24,9 +24,13 @@ for f in "${CUSTOM_FILES[@]}"; do
   fi
 done
 
-# Reset all CRLF noise (keep our untracked files)
-echo "  Resetting tracked files to HEAD..."
-git checkout -- .
+# Remove stale untracked files that upstream now tracks (prevents merge conflicts)
+rm -f ui/druid/balance/gear_sets/p5.gear.json
+rm -f ui/priest/dps/gear_sets/p3.gear.json
+rm -f ui/shaman/elemental/gear_sets/p5.gear.json
+rm -f ui/warrior/dps/gear_sets/p5_arms.gear.json
+rm -f ui/warrior/dps/gear_sets/p5_fury.gear.json
+rm -f ui/warrior/protection/gear_sets/p5_bis.gear.json
 
 # Fetch and pull upstream
 echo "  Fetching upstream..."
