@@ -103,9 +103,7 @@ local frost_state = {
     ice_barrier_ready = false,
     ice_block_ready = false,
     cold_snap_ready = false,
-    water_elemental_ready = false,
     frost_nova_ready = false,
-    ice_lance_ready = false,
     cone_of_cold_ready = false,
     blizzard_ready = false,
     frostbolt_ready = false,
@@ -162,9 +160,7 @@ local function build_state(context)
     frost_state.ice_barrier_ready = me and NS.spell_ready(SPELLS.IceBarrier, me, { skip_range = true }) or false
     frost_state.ice_block_ready = me and NS.spell_ready(SPELLS.IceBlock, me, { skip_range = true }) or false
     frost_state.cold_snap_ready = me and NS.spell_ready(SPELLS.ColdSnap, me, { skip_range = true, expected_cooldown = 480 }) or false
-    frost_state.water_elemental_ready = me and NS.spell_ready(SPELLS.UnavailableClassicMagePet, me, { skip_range = true, expected_cooldown = 180 }) or false
     frost_state.frost_nova_ready = me and NS.spell_ready(SPELLS.FrostNova, me, { skip_range = true, expected_cooldown = 25 }) or false
-    frost_state.ice_lance_ready = target and NS.spell_ready(SPELLS.UnavailableClassicMageFrost, target) or false
     frost_state.cone_of_cold_ready = me and NS.spell_ready(SPELLS.ConeOfCold, me, { expected_cooldown = 10 }) or false
     frost_state.blizzard_ready = me and NS.spell_ready(SPELLS.Blizzard, me, { expected_cooldown = 8, skip_range = true }) or false
     frost_state.frostbolt_ready = target and NS.spell_ready(SPELLS.Frostbolt, target, { expected_cooldown = 3 }) or false
@@ -208,21 +204,8 @@ local function cold_snap_wrapper(context)
     return cold_snap_matches(context)
 end
 
-local function water_elemental_matches(context, s)
-    if context.settings and context.settings.use_cooldowns == false then return false end
-    if not s.in_combat then return false end
-    if not s.water_elemental_ready then return false end
-    return true
-end
-
 local function frost_nova_wrapper(context)
     return frost_nova_matches(context)
-end
-
-local function ice_lance_matches(context, s)
-    if not context.target then return false end
-    if not s.ice_lance_ready then return false end
-    return true
 end
 
 local function cone_of_cold_wrapper(context)
@@ -379,7 +362,6 @@ local strategies = {
     { name = "IceBarrier", matches = ice_barrier_matches, execute = function() return NS.try_cast(SPELLS.IceBarrier, NS.PLAYER_UNIT, "[FROST] IceBarrier", { skip_range = true }) end },
     { name = "IceBlock", matches = ice_block_wrapper, execute = function() return NS.try_cast(SPELLS.IceBlock, NS.PLAYER_UNIT, "[FROST] IceBlock", { skip_range = true }) end },
     { name = "ColdSnap", matches = cold_snap_wrapper, execute = function() return NS.try_cast(SPELLS.ColdSnap, NS.PLAYER_UNIT, "[FROST] ColdSnap", { skip_range = true }) end },
-    { name = "UnavailableClassicMagePet", matches = water_elemental_matches, execute = function() return NS.try_cast(SPELLS.UnavailableClassicMagePet, NS.PLAYER_UNIT, "[FROST] UnavailableClassicMagePet", { skip_range = true, expected_cooldown = 180 }) end },
     { name = "FrostbiteFrostbolt", matches = frostbite_fb_matches, execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[FROST] Frostbite FB") end },
     { name = "PresenceOfMind", matches = presence_of_mind_matches, execute = function() return NS.try_cast(SPELLS.PresenceOfMind, NS.PLAYER_UNIT, "[FROST] PresenceOfMind", { skip_range = true }) end },
     { name = "Evocation", matches = evocation_matches, execute = function() return NS.try_cast(SPELLS.Evocation, NS.PLAYER_UNIT, "[FROST] Evocation", { skip_range = true }) end },
@@ -397,7 +379,6 @@ local strategies = {
     { name = "Blizzard", matches = blizzard_matches, execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, 8, 35); if pos then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[FROST] Blizzard") end; return NS.try_cast(SPELLS.Blizzard, t, "[FROST] Blizzard") end },
     { name = "FireBlast", matches = fire_blast_matches, execute = function(context) return NS.try_cast(SPELLS.FireBlast, context.target, "[FROST] FireBlast") end },
     { name = "Scorch", matches = scorch_matches, execute = function(context) return NS.try_cast(SPELLS.Scorch, context.target, "[FROST] Scorch") end },
-    { name = "UnavailableClassicMageFrost", matches = ice_lance_matches, execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicMageFrost, context.target, "[FROST] UnavailableClassicMageFrost") end },
     { name = "ArcaneMissiles", matches = arcane_missiles_matches, execute = function(context) return NS.try_cast(SPELLS.ArcaneMissiles, context.target, "[FROST] ArcaneMissiles") end },
     { name = "Frostbolt", matches = frostbolt_matches, execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[FROST] Frostbolt") end },
 }

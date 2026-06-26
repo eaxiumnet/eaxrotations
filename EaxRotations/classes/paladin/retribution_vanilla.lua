@@ -342,13 +342,6 @@ add_strategy(strategies, "Ret_HammerWrath_FleeingPvP", 790, function(context, st
     return context.is_pvp and state.target_fleeing and (state.target_hp_pct or 100) < 25 and NS.spell_ready(HammerWrath, context.target, { expected_cooldown = 6 }) or false
 end, function(context) return cast(HammerWrath, context.target, "[RET PvP] Hammer of Wrath fleeing target", { expected_cooldown = 6 }) end)
 
-add_strategy(strategies, "Ret_UnavailableClassicPaladinBurst_Burst", 780, function(context, state)
-    if not get_setting(context, "use_avenging_wrath", get_setting(context, "retri_aw_enabled", true)) then return false end
-    if state.has_forbearance then return false end
-    if not (NS.spell_ready(SPELLS.UnavailableClassicPaladinBurst, PLAYER, { skip_range = true, expected_cooldown = 180 }) or false) then return false end
-    return true
-end, function() return cast(SPELLS.UnavailableClassicPaladinBurst, PLAYER, "[RET] Avenging Wrath burst", { skip_range = true, expected_cooldown = 180 }) end, 180)
-
 strategies[#strategies + 1] = {
     name = "SealTwistPrepCommand",
     priority = 750,
@@ -364,10 +357,6 @@ strategies[#strategies + 1] = {
     end,
 }
 
-add_strategy(strategies, "Ret_UnavailableClassicPaladinStrike_AfterJudgement", 730, function(context, state)
-    return state.in_melee and not state.has_damage_seal and NS.spell_ready(SPELLS.UnavailableClassicPaladinStrike, context.target, { expected_cooldown = 6 }) or false
-end, function(context) return cast(SPELLS.UnavailableClassicPaladinStrike, context.target, "[RET] Crusader Strike after Judgement", { expected_cooldown = 6 }) end)
-
 add_strategy(strategies, "Ret_JudgeCrusader", 720, function(context, state)
     return not state.target_has_crusader and state.has_crusader and NS.spell_ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 }) or false
 end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Seal of the Crusader", { expected_cooldown = 10 }) end)
@@ -375,18 +364,6 @@ end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judg
 add_strategy(strategies, "Ret_ApplyCrusaderSeal", 710, function(_, state)
     return not state.target_has_crusader and not state.has_crusader and not state.has_damage_seal and NS.spell_ready(SealCrusader, PLAYER, { skip_range = true }) or false
 end, function() return cast(SealCrusader, PLAYER, "[RET] Seal of the Crusader", { skip_range = true }) end)
-
-strategies[#strategies + 1] = {
-    name = "UnavailableClassicPaladinStrike",
-    priority = 700,
-    cooldown = 6,
-    matches = function(context, state)
-        return state.in_melee and NS.spell_ready(SPELLS.UnavailableClassicPaladinStrike, context.target, { expected_cooldown = 6 }) or false
-    end,
-    execute = function(context)
-        return cast(SPELLS.UnavailableClassicPaladinStrike, context.target, "[RET] Crusader Strike", { expected_cooldown = 6 })
-    end,
-}
 
 add_strategy(strategies, "Ret_JudgeDamageSeal", 690, function(context, state)
     return state.has_damage_seal and (state.mana_pct or 100) >= 12 and NS.spell_ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 }) or false
