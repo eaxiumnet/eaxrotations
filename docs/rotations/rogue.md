@@ -57,22 +57,20 @@ Gated for: raid, pvp, leveling
 4. HealingItem
 5. VanishReopen
 6. KickInterrupt
-7. AssassinationUnavailableClassicRogueUtilityPurge
-8. ColdBloodUnavailableClassicRogueFinisher
-9. SliceAndDice
-10. RuptureBleed
-11. KidneyShotCC
-12. ThistleTea
-13. LevelingSinisterStrike
-14. SinisterStrikeFallback
-15. EviscerateFallback
-16. ExposeArmor
-17. PvP_Blind
-18. PvP_SprintGapClose
-19. PvP_CheapShotOpen
-20. Stealth
-21. GarroteOpen
-22. FeintAoE
+7. ColdBloodEviscerate
+8. SliceAndDice
+9. RuptureBleed
+10. KidneyShotCC
+11. ThistleTea
+12. LevelingSinisterStrike
+13. EviscerateFallback
+14. ExposeArmor
+15. PvP_Blind
+16. PvP_SprintGapClose
+17. PvP_CheapShotOpen
+18. Stealth
+19. GarroteOpen
+20. FeintAoE
 
 ### Features
 

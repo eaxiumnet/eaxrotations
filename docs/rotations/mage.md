@@ -130,12 +130,11 @@ Gated for: dungeon, raid, pvp
 12. FlamestrikeRank6
 13. ArcaneExplosion
 14. Blizzard
-15. BlastWave
-16. Polymorph
-17. RemoveCurse
-18. ManaGemConjure
-19. ManaGem
-20. Evocation
+15. Polymorph
+16. RemoveCurse
+17. ManaGemConjure
+18. ManaGem
+19. Evocation
 
 ### Features
 
