@@ -19,6 +19,7 @@ _G.EaxRotations = {
         HolyShock = 20473,
         FlashOfLight = 19750,
         HolyLight = 635,
+        AvengingWrath = 31884,
     },
     PLAYER_UNIT = {},
     action_matches = function(ctx, act)
@@ -141,5 +142,27 @@ local ctx_sh = {
     settings = {},
 }
 assert_true(smart_heal.matches(ctx_sh, { lowest = { effective_hp = 50, unit = {} } }), "SmartHeal should match when lowest exists and heal selected")
+
+-- ============================================================================
+-- AvengingWrathHeavyHealing: +20% healing burst (3-min CD). Only in combat + a
+-- heavy-healing window + setting enabled + target not about to die.
+-- ============================================================================
+
+local aw = find_strategy("AvengingWrathHeavyHealing")
+
+-- Setting disabled -> should NOT match
+assert_false(aw.matches({ in_combat = true, settings = { holy_avenging_wrath = false } }, { heavy_healing = true }), "AvengingWrath should not match when setting disabled")
+
+-- Out of combat -> should NOT match (even with heavy_healing)
+assert_false(aw.matches({ in_combat = false, settings = {} }, { heavy_healing = true }), "AvengingWrath should not match out of combat")
+
+-- In combat but no heavy-healing window -> should NOT match
+assert_false(aw.matches({ in_combat = true, settings = {} }, { heavy_healing = false }), "AvengingWrath should not match without a heavy-healing window")
+
+-- In combat + heavy_healing + setting default + no ttd -> should match
+assert_true(aw.matches({ in_combat = true, settings = {} }, { heavy_healing = true }), "AvengingWrath should match in combat + heavy_healing (setting default true)")
+
+-- Target about to die (ttd < 15) -> should NOT match (don't waste 3-min CD)
+assert_false(aw.matches({ in_combat = true, settings = {}, ttd_known = true, ttd = 10 }, { heavy_healing = true }), "AvengingWrath should not match when ttd < 15")
 
 print("PASS test_paladin_holy_custom_matches")

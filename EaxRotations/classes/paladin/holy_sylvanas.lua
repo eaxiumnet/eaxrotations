@@ -598,6 +598,23 @@ local strategies = {
             return NS.try_cast(SPELLS.DivineIllumination, NS.PLAYER_UNIT, format("[HOLY] Divine Illumination mana %.0f%%", s.mana_pct), SELF_OPTS)
         end,
     },
+    -- Avenging Wrath: +20% healing (and damage) for 20s on a 3-min CD. Valid TBC
+    -- baseline (spell 31884; already used by Ret + Prot). Fire during a heavy-
+    -- healing window for max HPS value; gate on a setting + TTD so it isn't wasted.
+    {
+        name = "AvengingWrathHeavyHealing",
+        matches = function(context, s)
+            if not safe_setting(context, "holy_avenging_wrath", true) then return false end
+            if not (context and context.in_combat) then return false end
+            if not s.heavy_healing then return false end
+            -- Don't waste a 3-min burst CD on a target about to die.
+            if context.ttd_known and context.ttd and context.ttd > 0 and context.ttd < 15 then return false end
+            return NS.spell_ready(SPELLS.AvengingWrath, NS.PLAYER_UNIT, SELF_OPTS)
+        end,
+        execute = function()
+            return NS.try_cast(SPELLS.AvengingWrath, NS.PLAYER_UNIT, "[HOLY] Avenging Wrath +20% healing (heavy window)", SELF_OPTS)
+        end,
+    },
     {
         name = "HolyShock",
         matches = function(context, s)
