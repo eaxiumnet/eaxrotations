@@ -9,11 +9,8 @@ local function setup_asserts()
     assert_eq = function(a, b, label) if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end end
     assert_false = function(v, label) if v then error(label or "assert_false failed", 2) end end
 end
-setup_asserts()	-- Preload SwingTimer module so fury module's require() gets our mock
-	package.preload["shared/swing_timer_sylvanas"] = function()
-	    return { get_mh_time_until = function() return 1.0 end, get_mh_progress = function() return 0 end }
-	end
-	
+setup_asserts()
+
 	-- Mock NS namespace
 	local action_calls = {}
 	local spell_ready_calls = {}

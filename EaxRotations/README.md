@@ -95,10 +95,8 @@ EaxRotations/
     consumable_manager_sylvanas.lua
     racial_manager_sylvanas.lua
     trinket_manager_sylvanas.lua
-    swing_timer_sylvanas.lua
     dot_refresh_sylvanas.lua
     burst_logic_sylvanas.lua
-    dr_tracker_sylvanas.lua
     arena_priority_sylvanas.lua
     ... (50+ modules)
 

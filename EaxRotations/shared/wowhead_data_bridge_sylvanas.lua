@@ -3,7 +3,7 @@
 -- ============================================================================
 -- What:   Pre-extracted spell, item, and NPC data converted from wowhead JSON.
 -- When:   Module load (cached). Used by spell_rank_resolver, spell_corpus,
---         dot_refresh, and spell_flag_checker.
+--         and dot_refresh.
 -- Why:    Ship constraint — only .lua files allowed in EaxRotations.
 --         All data embedded as Lua tables; no io.open or JSON parsing needed.
 -- Safety: Read-only. All data is static at module load time.

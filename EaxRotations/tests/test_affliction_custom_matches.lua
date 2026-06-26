@@ -53,7 +53,6 @@ local orig_pcall = _G.pcall
 _G.pcall = function(fn, path, ...)
     if type(path) == "string" then
         if path:find("tbc_data_sylvanas") then return true, { ITEMS = { potions = {} } } end
-        if path:find("reagent_guard") then return true, nil end
         if path:find("izi_sdk") then return false, nil end
     end
     return orig_pcall(fn, path, ...)
@@ -65,7 +64,6 @@ _G.require = function(path)
     if type(path) == "string" then
         if path:find("tbc_data_sylvanas") then return { ITEMS = { potions = {} } } end
         if path:find("offensive_dispel") then return {} end
-        if path:find("reagent_guard") then return nil end
         if path:find("izi_sdk") then return nil end
     end
     return orig_require(path)

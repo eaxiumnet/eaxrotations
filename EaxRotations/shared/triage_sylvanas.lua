@@ -2,8 +2,7 @@
 -- WHAT:  NS.Triage.rank (tank-priority + predicted-deficit-aware sort) and
 --        NS.AoEHeal.best_target (cluster finder for Tranq/CoH/Chain Heal).
 -- WHEN:  Loaded at startup by main.lua; used by all 5 healer specs.
--- WHY:   Prior healer_engine_sylvanas.lua was deprecated; this replaces the
---        missing NS.Triage + NS.AoEHeal that 5 specs reference with nil-guards.
+-- WHY:   Consolidates NS.Triage + NS.AoEHeal that 5 healer specs reference with nil-guards.
 -- SAFETY: All reads nil-guarded; returns empty table/nil on invalid input.
 -- Decision: Keep rank() and best_target() in one module because both are small
 --           and share the same load lifecycle (must be present before any

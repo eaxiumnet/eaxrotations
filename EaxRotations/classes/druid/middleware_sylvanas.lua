@@ -19,7 +19,7 @@ local STANCE_CAT = 3
 local STANCE_BEAR = 1
 local STANCE_CASTER = 0
 
--- Form IDs for spell_flag_checker (match FORM_RESTRICTIONS table)
+-- Form IDs for native form-restriction checks
 local FORM_ID_HUMANOID = 0
 local FORM_ID_BEAR = 1
 local FORM_ID_CAT = 2
@@ -47,7 +47,6 @@ local function can_use_items(stance)
 end
 
 -- Check if a spell can be cast in the druid's current form.
--- Uses spell_flag_checker FORM_RESTRICTIONS for Bear/Cat form restrictions.
 -- Moonkin/Tree/Humanoid always return true (rotation logic handles spell selection).
 local function can_cast_in_current_form(spell_id)
     if not spell_id then return true end
