@@ -25,6 +25,7 @@ local CURSE_OF_AGONY_DEBUFF = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
 local PET_LOW_HP = 30
 local EXECUTE_THRESHOLD = 25
+local SOUL_SHARD_CAPTURE_TTD = 5  -- TBC: Drain Soul is shard-capture only (mob about to die); sub-25% execute is Wrath, not TBC
 
 local DOT_REFRESH_WINDOW = 1.5
 
@@ -362,7 +363,11 @@ end
 local function drain_soul_matches(context, s)
     if not s then return false end
     if not context.target then return false end
-    if (s.target_hp_pct or 100) > EXECUTE_THRESHOLD then return false end
+    -- TBC: Drain Soul is NOT a DPS execute (that is a Wrath mechanic).
+    -- Channel it only when the mob is about to die so it dies during the
+    -- channel and yields a Soul Shard. Drain Soul ~62 dps vs Shadow Bolt
+    -- ~250 dps, so channeling it for DPS is a large loss.
+    if not (context.ttd_known and context.ttd and context.ttd > 0 and context.ttd <= SOUL_SHARD_CAPTURE_TTD) then return false end
     if not s.drain_soul_ready then return false end
     return true
 end
