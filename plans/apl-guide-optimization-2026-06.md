@@ -71,7 +71,7 @@ For each spec:
 - [x] **P1.3** Protection — compare against Wowhead Prot Warrior TBC guide
   - Files: `EaxRotations/classes/warrior/protection_sylvanas.lua`
   - Acceptance: Shield Slam > Revenge > Devastate, threat vs survival tradeoffs
-  - **SKIPPED:** Tank rotation is threat/survival focused, not APL-optimized for DPS.
+  - **FIXED:** Research (Icy-Veins, reviewed for TBC Anniversary + Wowhead + Warcraft Tavern): single-target priority is SS > Revenge > **Demo Shout > Thunder Clap** ("always up": ~18% melee cut + ~20% atk-speed slow) > Devastate filler > Heroic Strike (rage dump). Previous order had Devastate ABOVE Demo/TC, so the filler preempted survival-debuff refresh. Reordered Demo+TC above Devastate (below ShieldBlock, which stays higher for crush-cap). Core SS>Rev>Dev (devastate fires only when SS+Rev on CD), ShieldBlock 2s-refresh-buffer, and Heroic Strike rage≥70 dump gate all verified correct. Execute left preempted by Devastate (defensible: guide's PRIMARY loop is SS>Rev>Dev; Execute is stance-risky in Defensive stance). Committed `a31d1fe5`.
   - Verify: `luac -p`, gate
 
 ### Phase 2: Hunter (3 specs)

@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-06-26** (APL DPS+healer/tank round; last fix `6b1ec84b`).
+> up to date after every work session. Last updated: **2026-06-26** (APL round COMPLETE incl. all 3 tanks; last fix `a31d1fe5`).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/finish-what-i-started.md` — read it
@@ -25,13 +25,14 @@ have to context-switch.
   C1–C3 (core refactor), D1 (generator DEBUG filter), D2 (spell 28176 doc fix),
   A4 (PvP stubs documented), scan-cap perf fix, README audit, 29 Pattern 15
   headers added, cleanup inventory created. All committed & pushed.
-  APL optimization COMPLETE for all 29 specs: **7 guide-based fixes** committed
+  APL optimization COMPLETE for all 29 specs: **8 guide-based fixes** committed
   (Fury `014e81c7`, Destruction `f9b8a60f`, Elemental `6c88a6d8`, Assassination
   `23e5496d`, Demonology `cddd6393`, Drain Soul shard-capture `c3565364`,
-  Prot Paladin Holy Shield>Consecration `6b1ec84b`) + Disc header fix `df1c7ed6`
-  + **all 22 remaining specs VERIFIED** no-change vs guides. See
-  `plans/apl-guide-optimization-2026-06.md`. **7 GitHub releases** exist
-  (latest v2026-06-26.442b0ac6 — APL DPS round).
+  Prot Paladin Holy Shield>Consecration `6b1ec84b`, Prot Warrior Demo+TC>Devastate
+  `a31d1fe5`) + Disc header fix `df1c7ed6` + **all 21 remaining specs VERIFIED**
+  no-change vs guides (incl. all 5 healers + Bear tank). See
+  `plans/apl-guide-optimization-2026-06.md`. **8 GitHub releases** exist
+  (latest v2026-06-26.aa67f8df).
 - **What's next:** APL optimization COMPLETE for all 29 TBC specs (fixed/verified).
   Remaining: (1) Vanilla Anniversary variant audit (`*_vanilla.lua`, lower
   priority). (2) Optional new-spell gaps noted but not added (Holy Paladin
@@ -150,7 +151,7 @@ For one test standalone: `"/c/Program Files (x86)/Lua/5.1/lua.exe" EaxRotations/
 
 ---
 
-## CURRENT STATE (verified 2026-06-26, HEAD 6b1ec84b)
+## CURRENT STATE (verified 2026-06-26, HEAD a31d1fe5)
 
 **Baseline:** 171 rotation + 11 leveling suites PASS / 0 fail on Lua 5.1.5.
 Spell audit PASS. `validate.cmd` green.
@@ -181,7 +182,8 @@ Spell audit PASS. `validate.cmd` green.
 | APL | Drain Soul TBC shard-capture (Affliction + Demonology) | `c3565364` | TTD-gated, not a Wrath sub-25% execute; tests rewritten |
 | APL | Prot Paladin: Holy Shield above Consecration (crush-cap) | `6b1ec84b` | survival > threat per Wowhead 2.5.5 |
 | APL | Disc Priest Pattern 15 header fixed (Wrath refs removed) | `df1c7ed6` | code was already TBC-correct; header only |
-| APL | 22 remaining specs VERIFIED vs guides (no change) | `9c0fd382`+`d90b602d`+later | all 5 healers + Balance/Cat/Bear/Subtlety/Survival/Ret/Enhancement/Smite/Shadow + Arms/BM/MM/Arcane/Fire/Frost/Combat |
+| APL | Prot Warrior: Demo+TC above Devastate (survival debuff uptime) | `a31d1fe5` | guide: Demo/TC 'always up' > filler |
+| APL | 21 remaining specs VERIFIED vs guides (no change) | `9c0fd382`+`d90b602d`+later | all 5 healers + Balance/Cat/Bear/Subtlety/Survival/Ret/Enhancement/Smite/Shadow + Arms/BM/MM/Arcane/Fire/Frost/Combat |
 
 ### Deferred / out of scope (with reasons — don't relitigate)
 - **C4 (extract core/casting.lua):** the 8 casting functions span lines

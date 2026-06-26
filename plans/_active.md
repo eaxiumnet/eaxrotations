@@ -25,12 +25,14 @@
 - [x] Demonology — Corruption before Immolate (`cddd6393`) [this session]
 - [x] Drain Soul TBC shard-capture (Affliction + Demonology) — not a Wrath sub-25% execute (`c3565364`)
 - [x] Prot Paladin — Holy Shield above Consecration (crush-cap survival > threat) (`6b1ec84b`)
+- [x] Prot Warrior — Demo Shout + Thunder Clap above Devastate (survival debuff uptime) (`a31d1fe5`)
 - [x] Disc Priest — Pattern 15 header fixed (Wrath Penance/Borrowed refs removed; code was TBC-correct) (`df1c7ed6`)
-- [x] ALL 22 remaining specs VERIFIED vs guides, no change (DPS: Arms/BM/MM/Arcane/Fire/Frost/Combat/Enhancement/Smite/Shadow/Balance/Cat/Bear/Subtlety/Survival/Ret; healers: Holy Paladin/Holy Priest/Resto Druid/Resto Shaman/Disc-code)
-- [x] G1–G4 DPS research + healer/tank research agents (7 parallel, all completed)
-- [x] Release cut: v2026-06-26.442b0ac6 (APL DPS round, 6 fixes)
+- [x] ALL 3 tanks addressed: Prot Paladin fixed, Bear verified, Prot Warrior fixed
+- [x] ALL 21 remaining specs VERIFIED vs guides, no change (DPS: Arms/BM/MM/Arcane/Fire/Frost/Combat/Enhancement/Smite/Shadow/Balance/Cat/Bear/Subtlety/Survival/Ret; healers: Holy Paladin/Holy Priest/Resto Druid/Resto Shaman/Disc-code)
+- [x] G1–G4 DPS research + healer/tank research + Prot Warrior research agents (8 parallel, all completed)
+- [x] Releases cut: v2026-06-26.442b0ac6 (DPS round) + v2026-06-26.aa67f8df (healer/tank round)
 
-## APL ROUND COMPLETE — all 29 TBC specs reviewed (7 fixes + 22 verified)
+## APL ROUND COMPLETE — all 29 TBC specs reviewed (8 fixes + 21 verified)
 
 ## In Progress
 - (none active)
@@ -40,7 +42,7 @@
 - [ ] Optional new-spell gaps (e.g. Holy Paladin Avenging Wrath) — deferred (new-spell risk per Rule 5)
 - [ ] B6.2 per-spec predictive threshold sliders
 - [ ] EaxAutoQuester verification (separate product)
-- [ ] Cut next release after healer/tank round (Prot Paladin + Disc header)
+- [ ] Cut next release after tanking round (Prot Paladin + Prot Warrior fixes)
 
 ## Rules
 - One concern per commit
