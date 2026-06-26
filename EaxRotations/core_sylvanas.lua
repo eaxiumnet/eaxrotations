@@ -154,14 +154,12 @@ local _SETTINGS_CACHE_TTL = 0.20 -- 200ms throttle (was 50ms)
 local _settings_cache_time
 
 -- auto_attack_helper: native swing-timer prediction for all melee specs.
--- Replaces the manual Player:GetSwingStart()/GetSwing() polling in swing_timer_sylvanas.lua.
 -- Provides per-frame-cached core_time / game_time attack prediction from the engine.
 local _aa_ok, _auto_attack = pcall(require, "common/utility/auto_attack_helper")
 if not _aa_ok or type(_auto_attack) ~= "table" then _auto_attack = nil end
 
 
 -- pvp_helper: native PvP utilities (DR tracking, trinket detection, burst detection, CC queries).
--- Replaces the manual spell-cast-based pvp_trinket_tracker_sylvanas.lua and dr_tracker_sylvanas.lua.
 -- Uses engine-level buff observation for DR/trinket/burst tracking with per-frame caching.
 local _pvp_ok, _pvp_helper = pcall(require, "common/utility/pvp_helper")
 if not _pvp_ok or type(_pvp_helper) ~= "table" then _pvp_helper = nil end
@@ -956,7 +954,7 @@ pcall(function()
 end)
 
 -- Shared callback batcher: all shared modules (racial_manager, trinket_manager, ooc_manager,
--- dr_tracker, pvp_trinket_tracker, etc.) register through this function. Instead of creating
+-- etc.) register through this function. Instead of creating
 -- N separate core.register_on_update_callback calls (each a 60fps C->Lua entry point), this
 -- batches them into a SINGLE core callback that fans out to all registered callbacks at ~20Hz.
 --
