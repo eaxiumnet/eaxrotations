@@ -153,4 +153,57 @@ local ctx_hf_none = {
 }
 assert_false(health_funnel.matches(ctx_hf_none), "HealthFunnel should not match when no pet")
 
+-- ============================================================================
+-- Drain Soul: TBC shard-capture only -- channel as the mob dies (ttd <= window),
+-- NOT a sub-25% DPS execute (that is a Wrath mechanic).
+-- ============================================================================
+
+local drain_soul = find_strategy("DrainSoul")
+
+-- No ttd known -> should NOT match (can't reliably capture a shard)
+assert_false(drain_soul.matches({
+    target = {},
+}, {
+    drain_soul_ready = true,
+    target_hp_pct = 20,
+}), "DrainSoul should not match when ttd is unknown (even at low HP)")
+
+-- ttd known but mob not dying soon -> should NOT match
+assert_false(drain_soul.matches({
+    target = {},
+    ttd_known = true,
+    ttd = 10,
+}, {
+    drain_soul_ready = true,
+    target_hp_pct = 20,
+}), "DrainSoul should not match when ttd > capture window")
+
+-- ttd known and mob about to die -> should match (shard capture)
+assert_true(drain_soul.matches({
+    target = {},
+    ttd_known = true,
+    ttd = 4,
+}, {
+    drain_soul_ready = true,
+    target_hp_pct = 20,
+}), "DrainSoul should match when ttd <= capture window (shard capture)")
+
+-- ttd in window but not ready -> should NOT match
+assert_false(drain_soul.matches({
+    target = {},
+    ttd_known = true,
+    ttd = 4,
+}, {
+    drain_soul_ready = false,
+    target_hp_pct = 20,
+}), "DrainSoul should not match when not ready")
+
+-- No target -> should NOT match
+assert_false(drain_soul.matches({
+    ttd_known = true,
+    ttd = 4,
+}, {
+    drain_soul_ready = true,
+}), "DrainSoul should not match without target")
+
 print("PASS test_demonology_custom_matches")

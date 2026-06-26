@@ -280,34 +280,54 @@ assert_true(seed.matches({
 }), "SeedOfCorruption should match with >=3 enemies")
 
 -- ============================================================================
--- DrainSoul execute: only when target <= 25% HP, not channeling
+-- DrainSoul: TBC shard-capture only -- channel as the mob dies (ttd <= window),
+-- NOT a sub-25% DPS execute (that is a Wrath mechanic). Never when channeling.
 -- ============================================================================
 
 local drain_soul = find_strategy("DrainSoulExecute")
 
--- High HP -> should NOT match
+-- No ttd known -> should NOT match (can't reliably capture a shard)
 spell_ready_calls = {}
 assert_false(drain_soul.matches({
     has_valid_enemy_target = true,
     is_channeling = false,
+    target = {},
 }, {
-    target_hp = 50,
-}), "DrainSoul should not match when target HP > 25%")
+    target_hp = 20,
+}), "DrainSoul should not match when ttd is unknown (even at low HP)")
 
--- Low HP execute range -> should match
+-- ttd known but mob not dying soon -> should NOT match
+spell_ready_calls = {}
+assert_false(drain_soul.matches({
+    has_valid_enemy_target = true,
+    is_channeling = false,
+    ttd_known = true,
+    ttd = 10,
+    target = {},
+}, {
+    target_hp = 20,
+}), "DrainSoul should not match when ttd > capture window")
+
+-- ttd known and mob about to die -> should match (shard capture)
 spell_ready_calls = {}
 assert_true(drain_soul.matches({
     has_valid_enemy_target = true,
     is_channeling = false,
+    ttd_known = true,
+    ttd = 4,
+    target = {},
 }, {
     target_hp = 20,
-}), "DrainSoul should match when target HP <= 25%")
+}), "DrainSoul should match when ttd <= capture window (shard capture)")
 
--- Low HP but channeling -> should NOT match
+-- ttd in window but already channeling -> should NOT match
 spell_ready_calls = {}
 assert_false(drain_soul.matches({
     has_valid_enemy_target = true,
     is_channeling = true,
+    ttd_known = true,
+    ttd = 4,
+    target = {},
 }, {
     target_hp = 15,
 }), "DrainSoul should not match when already channeling")
