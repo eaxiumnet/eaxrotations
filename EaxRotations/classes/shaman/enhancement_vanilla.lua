@@ -23,7 +23,6 @@ local TOTEM_CALL_DISTANCE = 20           -- yards
 local TOTEM_CALL_MAGMA_DISTANCE = 8      -- yards (tighter for Magma)
 
 local LIGHTNING_SHIELD_BUFF = { 10432, 10431, 8134, 945, 905, 325, 324 }
-local WATER_SHIELD_BUFF = {}
 local SHIELD_REFRESH_UNKNOWN_MS = 30 * 1000
 local FLAME_SHOCK_DEBUFF = { 10448, 10447, 8053, 8052, 8050 }
 local WINDFURY_WEAPON_SPELLS = { 16362, 10486, 8235, 8232 }
@@ -35,7 +34,6 @@ local FROST_RESIST_TOTEM = { 10542, 8185, 8184, 8182 }
 local NATURE_RESIST_TOTEM = { 10548 }
 local GHOST_WOLF_SPELL = { 2645 }
 local TREMOR_TOTEM_SPELL = { 8143 }
-local SHAMANISTIC_RAGE_BUFF = { }
 
 -- ============================================================================
 -- Totem state
@@ -60,13 +58,10 @@ local enh_state = {
     now_ms = 0,
     -- Buffs
     has_lightning_shield = false,
-    has_water_shield = false,
     has_windfury_weapon = false,
     has_flametongue_weapon = false,
     has_rockbiter_weapon = false,
     has_frostbrand_weapon = false,
-    has_shamanistic_rage = false,
-    has_bloodlust = false,
     has_ghost_wolf = false,
     -- OH weapon imbue (distinct from MH fields)
     oh_has_windfury_weapon = false,
@@ -88,7 +83,6 @@ local enh_state = {
     -- Spell readiness
     lightning_shield_ready = false,
     lightning_shield_charges = 0,
-    water_shield_ready = false,
     stormstrike_ready = false,
     flame_shock_ready = false,
     earth_shock_ready = false,
@@ -111,7 +105,6 @@ local enh_state = {
     tremor_totem_ready = false,
     grounding_totem_ready = false,
     ghost_wolf_ready = false,
-    bloodlust_ready = false,
     -- Target debuffs
     target_has_flame_shock = false,
     flame_shock_remains = 0,
@@ -194,9 +187,6 @@ local function build_state(context)
     if not skip_aura then
         enh_state.has_lightning_shield = me and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
         enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and type(me.get_buff_stacks) == "function" and me:get_buff_stacks(LIGHTNING_SHIELD_BUFF)) or 0
-        enh_state.has_water_shield = me and NS.buff_up(me, WATER_SHIELD_BUFF) or false
-        enh_state.has_shamanistic_rage = me and NS.buff_up(me, SHAMANISTIC_RAGE_BUFF) or false
-        enh_state.has_bloodlust = false
         enh_state.has_ghost_wolf = me and NS.buff_up(me, GHOST_WOLF_SPELL) or false
     end
 
@@ -260,7 +250,6 @@ local function build_state(context)
 
     -- -- Spell readiness
     enh_state.lightning_shield_ready = me and NS.spell_ready(SPELLS.LightningShield, me, { skip_range = true }) or false
-    enh_state.water_shield_ready = me and NS.spell_ready(SPELLS.UnavailableClassicShamanShieldB, me, { skip_range = true }) or false
     enh_state.stormstrike_ready = target and NS.spell_ready(SPELLS.Stormstrike, target, { expected_cooldown = 10 }) or false
     enh_state.flame_shock_ready = target and NS.spell_ready(SPELLS.FlameShock, target, { expected_cooldown = 6 }) or false
     enh_state.earth_shock_ready = target and NS.spell_ready(SPELLS.EarthShock, target, { expected_cooldown = 6 }) or false
@@ -284,7 +273,6 @@ local function build_state(context)
     enh_state.tremor_totem_ready = me and NS.spell_ready(TREMOR_TOTEM_SPELL, me, { skip_range = true }) or false
     enh_state.grounding_totem_ready = me and NS.spell_ready(SPELLS.GroundingTotem, me, { skip_range = true }) or false
     enh_state.ghost_wolf_ready = me and NS.spell_ready(GHOST_WOLF_SPELL, me, { skip_range = true }) or false
-    enh_state.bloodlust_ready = me and NS.spell_ready(SPELLS.UnavailableClassicShamanBurst, me, { skip_range = true, expected_cooldown = 600 }) or false
     enh_state.totemic_call_ready = me and NS.spell_ready(SPELLS.TotemicCall, me, { skip_range = true, expected_cooldown = 120 }) or false
     enh_state.gift_of_the_naaru_ready = me and NS.spell_ready(SPELLS.GiftOfTheNaaru, me, { skip_range = true, expected_cooldown = 120 }) or false
 
@@ -495,20 +483,6 @@ local function lightning_shield_execute(ctx)
     return false
 end
 
-local function water_shield_matches(ctx)
-    if enh_state.shield_type == "lightning" then return false end
-    if enh_state.has_water_shield then return false end
-    if not enh_state.water_shield_ready then return false end
-    if NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, WATER_SHIELD_BUFF) > 2 then return false end
-    -- Auto mode: switch to Water Shield when mana is low
-    if enh_state.shield_type == "auto" and (enh_state.mana_pct or 100) >= (enh_state.water_shield_mana or 100) then return false end
-    return true
-end
-
-local function water_shield_execute(ctx)
-    return NS.try_cast(SPELLS.UnavailableClassicShamanShieldB, NS.PLAYER_UNIT, "[ENHANCEMENT] Water Shield", { skip_range = true }) or false
-end
-
 -- ============================================================================
 -- Weapon buff match functions (per-slot)
 -- ============================================================================
@@ -547,32 +521,6 @@ end
 -- ============================================================================
 -- Spell match functions
 -- ============================================================================
-local function shamanistic_rage_matches(ctx)
-    if not enh_state.in_combat then return false end
-    if enh_state.has_shamanistic_rage then return false end
-    if not enh_state.shamanistic_rage_ready then return false end
-    -- v1.2.1: per-CD toggle
-    if ctx.settings and ctx.settings.enhancement_cd_shamanistic_rage == false then return false end
-    -- Gate: use when mana is low (Research) or during defensive need (hp < 40%); skip at high mana + high hp
-    if (enh_state.mana_pct or 100) > 40 and (enh_state.hp_pct or 100) > 40 then return false end
-    -- v1.2.4: SR melee range check ? only fire if target within 8 yd
-    if enh_state.sr_melee_only then
-        local target = ctx.target
-        if not target then return false end
-        local dist = target.get_distance and target:get_distance(NS.PLAYER_UNIT or ctx.me)
-        if dist and dist > 8 then return false end
-    end
-    return true
-end
-
-local function bloodlust_matches(ctx)
-    if not cooldowns_enabled(ctx) then return false end
-    if ctx.settings and ctx.settings.enhancement_cd_bloodlust == false then return false end
-    if not enh_state.in_combat then return false end
-    if not enh_state.bloodlust_ready then return false end
-    return true
-end
-
 local function mana_tide_totem_matches(ctx)
     if not cooldowns_enabled(ctx) then return false end
     if ctx.settings and ctx.settings.enhancement_cd_mana_tide == false then return false end
@@ -989,12 +937,9 @@ local strategies = {
     { name = "OHWeaponBuff", matches = oh_weapon_matches, execute = oh_weapon_execute },
 
     -- 6. Shields (smart auto-swap)
-    { name = "UnavailableClassicShamanShieldB", matches = water_shield_matches, execute = water_shield_execute },
     { name = "LightningShield", matches = lightning_shield_matches, execute = lightning_shield_execute },
 
     -- 7. Cooldowns
-    { name = "UnavailableClassicShamanResource", matches = shamanistic_rage_matches, execute = function(ctx) return NS.try_cast(SPELLS.UnavailableClassicShamanResource, NS.PLAYER_UNIT, "[ENHANCEMENT] Shamanistic Rage", { skip_range = true }) end },
-    { name = "UnavailableClassicShamanBurst", matches = bloodlust_matches, execute = function(ctx) return NS.try_cast(SPELLS.UnavailableClassicShamanBurst, NS.PLAYER_UNIT, "[ENHANCEMENT] UnavailableClassicShamanBurst", { skip_range = true }) end },
     { name = "ManaTideTotem", matches = mana_tide_totem_matches, execute = function(ctx) return NS.try_cast(SPELLS.ManaTideTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Mana Tide Totem", { skip_range = true }) end },
     { name = "NaturesSwiftness", matches = natures_swiftness_matches, execute = function(ctx) return NS.try_cast(SPELLS.NaturesSwiftness, NS.PLAYER_UNIT, "[ENHANCEMENT] Nature's Swiftness", { skip_range = true }) end },
 

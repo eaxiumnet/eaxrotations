@@ -9,7 +9,6 @@ if not NS then return nil end
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 local BASE_SPELLS = NS.RogueSpells or {}
-local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
 local function spell(ids, label)
     return NS.spell_action(ids, label)
@@ -47,8 +46,7 @@ local SPELLS = {
 
 local STEALTH_BUFF = { 1787, 1786, 1785, 1784 }
 local SLICE_AND_DICE_BUFF = { 6774, 5171 }
-local SHADOWSTEP_BUFF = { }
-local MASTER_OF_SUBTLETY_BUFF = { }
+
 local RUPTURE_DEBUFF = { 11275, 11274, 11273, 8640, 8639, 1943 }
 local HEMORRHAGE_DEBUFF = { 17348, 17347, 16511 }
 local GARROTE_DEBUFF = { 11290, 11289, 8633, 8632, 8631, 703 }
@@ -65,13 +63,11 @@ local ENERGY_BACKSTAB = 60
 local ENERGY_GHOSTLY = 40
 local ENERGY_KIDNEY = 25
 local ENERGY_FINISHER = 35
-local ENERGY_DEADLY_THROW = 35
 local ENERGY_EXPOSE = 25
 local ENERGY_FEINT = 20
 local ENERGY_KICK = 25
 local MELEE_RANGE = 5
-local SHADOWSTEP_MIN_RANGE = 10
-local SHADOWSTEP_MAX_RANGE = 25
+
 local HEMO_REFRESH = 3
 local RUPTURE_REFRESH = 3
 local SND_REFRESH = 3
@@ -106,9 +102,6 @@ local subtlety_state = {
     vanish_cd = 0,
     sprint_cd = 0,
     evasion_cd = 0,
-    -- UnavailableClassicRogueUtility Purge (PvP buff dispel via Wound Poison)
-    shiv_ready = false,
-    shiv_purge_name = nil,
 }
 
 local function player_buff_up(ids)
@@ -147,8 +140,6 @@ local function build_state(context)
         subtlety_state.garrote_remains = target_debuff_remains(target, GARROTE_DEBUFF)
         subtlety_state.cheap_shot_remains = target_debuff_remains(target, CHEAP_SHOT_DEBUFF)
         subtlety_state.kidney_remains = target_debuff_remains(target, KIDNEY_SHOT_DEBUFF)
-        subtlety_state.shadowstep_buff = player_buff_up(SHADOWSTEP_BUFF)
-        subtlety_state.master_of_subtlety = player_buff_up(MASTER_OF_SUBTLETY_BUFF)
         subtlety_state.control_active = target_debuff_remains(target, CONTROL_DEBUFFS) > 0
     end
     subtlety_state.combo = context.combo_points or context.combo or 0
@@ -165,13 +156,6 @@ local function build_state(context)
     subtlety_state.vanish_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Vanish) or 0
     subtlety_state.sprint_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Sprint) or 0
     subtlety_state.evasion_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Evasion) or 0
-    -- UnavailableClassicRogueUtility Purge (PvP buff dispel via Wound Poison)
-    subtlety_state.shiv_ready = context.target and NS.spell_ready(SPELLS.UnavailableClassicRogueUtility, context.target, { expected_cooldown = 10 }) or false
-    subtlety_state.shiv_purge_name = nil
-    if context.in_combat and (context.is_pvp or false) and context.target and CCGateDB.find_best_dispel_target then
-        local best_id, _, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
-        if best_id then subtlety_state.shiv_purge_name = best_name end
-    end
     return subtlety_state
 end
 
@@ -187,20 +171,8 @@ local function in_melee(state)
     return (state.target_distance or 40) <= MELEE_RANGE + 1
 end
 
-local function in_shadowstep_range(context, state)
-    local dist = state.target_distance or 40
-    local min_range = setting(context, "shadowstep_min_range", SHADOWSTEP_MIN_RANGE)
-    return dist > min_range and dist <= SHADOWSTEP_MAX_RANGE
-end
-
 local function is_pvp_target(context)
     return context.is_pvp == true or context.target_is_player == true
-end
-
-local function use_shadowstep_now(context)
-    local usage = option(context, "shadowstep_usage", "always")
-    if usage == "burst_only" then return context.should_burst == true or false end
-    return usage ~= "off" and usage ~= false
 end
 
 local function opener_preference(context, state)
@@ -243,17 +215,10 @@ local function premeditation_matches(context, state)
     return NS.spell_ready(SPELLS.Premeditation, context.target, { skip_range = true })
 end
 
-local function shadowstep_opener_matches(context, state)
-    if not state.stealth_up then return false end
-    if not use_shadowstep_now(context) then return false end
-    if not in_shadowstep_range(context, state) and not state.is_behind then return false end
-    return NS.spell_ready(SPELLS.UnavailableClassicRogueMobility, context.target)
-end
-
 local function ambush_opener_matches(context, state)
     if not state.stealth_up then return false end
     local opener = opener_preference(context, state)
-    if opener ~= "ambush" and not state.shadowstep_buff then return false end
+    if opener ~= "ambush" then return false end
     if not enough_energy(state, ENERGY_AMBUSH) then return false end
     return NS.spell_ready(SPELLS.Ambush, context.target)
 end
@@ -280,28 +245,6 @@ local function kick_matches(context, state)
     return NS.spell_ready(SPELLS.Kick, context.target)
 end
 
-local function shiv_purge_matches(context, state)
-    local settings = context.settings or {}
-    if settings.use_shiv_purge == false then return false end
-    if not context.in_combat then return false end
-    if not (context.is_pvp or false) then return false end
-    if not context.target then return false end
-    if not (context.in_melee_range or false) then return false end
-    if not state.shiv_ready then return false end
-    if not state.shiv_purge_name then return false end
-    if settings.shiv_purge_pvp_only ~= false then
-        local ok, is_player = pcall(function() return context.target:is_player() end)
-        if not (ok and is_player) then return false end
-    end
-    return true
-end
-
-local function cloak_matches(context, state)
-    if setting(context, "rogue_use_cloak", true) == false then return false end
-    if (state.hp or 100) > setting(context, "rogue_cloak_hp", 45) and not state.is_caster_target then return false end
-    return NS.spell_ready(SPELLS.UnavailableClassicRogueDefensive, NS.PLAYER_UNIT, { skip_range = true })
-end
-
 local function evasion_matches(context, state)
     if setting(context, "rogue_use_evasion", true) == false then return false end
     if (state.hp or 100) > setting(context, "rogue_evasion_hp", 35) then return false end
@@ -326,12 +269,6 @@ local function gouge_matches(context, state)
     if state.control_active then return false end
     if not in_melee(state) or (state.energy or 0) < 45 then return false end
     return NS.spell_ready(SPELLS.Gouge, context.target)
-end
-
-local function shadowstep_gap_matches(context, state)
-    if not use_shadowstep_now(context) then return false end
-    if not in_shadowstep_range(context, state) then return false end
-    return NS.spell_ready(SPELLS.UnavailableClassicRogueMobility, context.target)
 end
 
 local function sprint_gap_matches(context, state)
@@ -368,12 +305,6 @@ local function kidney_shot_matches(context, state)
     return NS.spell_ready(SPELLS.KidneyShot, context.target)
 end
 
-local function shadowstep_hemo_matches(context, state)
-    if not state.shadowstep_buff then return false end
-    if not enough_energy(state, ENERGY_HEMORRHAGE) then return false end
-    return NS.spell_ready(SPELLS.Hemorrhage, context.target)
-end
-
 local function hemo_debuff_matches(context, state)
     if not hemo_refresh_needed(context, state) then return false end
     if not enough_energy(state, ENERGY_HEMORRHAGE) then return false end
@@ -403,12 +334,6 @@ local function expose_armor_matches(context, state)
     if (state.expose_remains or 0) > 3 then return false end
     if not context.target_is_boss and (context.ttd or 999) < 20 then return false end
     return NS.spell_ready(SPELLS.ExposeArmor, context.target)
-end
-
-local function deadly_throw_matches(context, state)
-    if (state.combo or 0) < 3 or not enough_energy(state, ENERGY_DEADLY_THROW) then return false end
-    if (state.target_distance or 40) <= MELEE_RANGE or (state.target_distance or 40) > 30 then return false end
-    return NS.spell_ready(SPELLS.UnavailableClassicRogueThrow, context.target)
 end
 
 local function eviscerate_kill_matches(context, state)
@@ -476,8 +401,7 @@ local strategies = {
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
     { name = "Kick", matches = kick_matches, execute = function(context) return cast(SPELLS.Kick, context.target, "[SUBTLETY] Kick") end },
-    { name = "UnavailableClassicRogueUtilityPurge", matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return cast(SPELLS.UnavailableClassicRogueUtility, context.target, "[SUBTLETY] UnavailableClassicRogueUtility purge ? " .. name, { expected_cooldown = 10 }) end },
-    { name = "UnavailableClassicRogueDefensive", matches = cloak_matches, execute = function() return cast(SPELLS.UnavailableClassicRogueDefensive, NS.PLAYER_UNIT, "[SUBTLETY] Cloak of Shadows", { skip_range = true }) end },
+
     { name = "Evasion", matches = evasion_matches, execute = function() return cast(SPELLS.Evasion, NS.PLAYER_UNIT, "[SUBTLETY] Evasion", { skip_range = true }) end },
     { name = "GhostlyStrike", matches = ghostly_strike_matches, execute = function(context) return cast(SPELLS.GhostlyStrike, context.target, "[SUBTLETY] Ghostly Strike") end },
     { name = "Blind", matches = blind_matches, execute = function(context) return cast(SPELLS.Blind, context.target, "[SUBTLETY] Blind") end },
@@ -485,21 +409,17 @@ local strategies = {
     { name = "Stealth", matches = stealth_matches, execute = function() return cast(SPELLS.Stealth, NS.PLAYER_UNIT, "[SUBTLETY] Stealth", { skip_range = true }) end },
     { name = "Sap", matches = sap_matches, execute = function(context) return cast(SPELLS.Sap, context.target, "[SUBTLETY] Sap") end },
     { name = "Premeditation", matches = premeditation_matches, execute = function(context) return cast(SPELLS.Premeditation, context.target, "[SUBTLETY] Premeditation", { skip_range = true }) end },
-    { name = "UnavailableClassicRogueMobilityOpener", matches = shadowstep_opener_matches, is_burst = true, execute = function(context) return cast(SPELLS.UnavailableClassicRogueMobility, context.target, "[SUBTLETY] UnavailableClassicRogueMobility opener") end },
     { name = "Ambush", spell = SPELLS.Ambush, requires_buff = { 1787, 1786, 1785, 1784 }, requires_behind = true, min_energy = ENERGY_AMBUSH, matches = ambush_opener_matches, execute = function(context) return cast(SPELLS.Ambush, context.target, "[SUBTLETY] Ambush") end },
     { name = "Garrote", matches = garrote_opener_matches, execute = function(context) return cast(SPELLS.Garrote, context.target, "[SUBTLETY] Garrote caster opener") end },
     { name = "CheapShot", matches = cheap_shot_opener_matches, execute = function(context) return cast(SPELLS.CheapShot, context.target, "[SUBTLETY] Cheap Shot opener") end },
     { name = "Vanish", matches = vanish_burst_matches, is_burst = true, execute = function() return cast(SPELLS.Vanish, NS.PLAYER_UNIT, "[SUBTLETY] Vanish reopen", { skip_range = true }) end },
     { name = "Preparation", matches = preparation_matches, is_burst = true, execute = function() return cast(SPELLS.Preparation, NS.PLAYER_UNIT, "[SUBTLETY] Preparation reset", { skip_range = true }) end },
     { name = "Sprint", matches = sprint_gap_matches, execute = function() return cast(SPELLS.Sprint, NS.PLAYER_UNIT, "[SUBTLETY] Sprint gap close", { skip_range = true }) end },
-    { name = "UnavailableClassicRogueMobility", matches = shadowstep_gap_matches, is_burst = true, execute = function(context) return cast(SPELLS.UnavailableClassicRogueMobility, context.target, "[SUBTLETY] UnavailableClassicRogueMobility") end },
     { name = "KidneyShot", matches = kidney_shot_matches, execute = function(context) return cast(SPELLS.KidneyShot, context.target, "[SUBTLETY] Kidney Shot stun chain") end },
-    { name = "UnavailableClassicRogueMobilityHemorrhage", matches = shadowstep_hemo_matches, execute = function(context) return cast(SPELLS.Hemorrhage, context.target, "[SUBTLETY] UnavailableClassicRogueMobility Hemorrhage") end },
     { name = "HemorrhageDebuff", matches = hemo_debuff_matches, execute = function(context) return cast(SPELLS.Hemorrhage, context.target, "[SUBTLETY] Hemorrhage debuff") end },
     { name = "SliceAndDice", matches = slice_matches, execute = function() return cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, "[SUBTLETY] Slice and Dice", { skip_range = true }) end },
     { name = "ExposeArmor", matches = expose_armor_matches, execute = function(context) return cast(SPELLS.ExposeArmor, context.target, "[SUBTLETY] Expose Armor") end },
     { name = "Rupture", matches = rupture_matches, execute = function(context) return cast(SPELLS.Rupture, context.target, "[SUBTLETY] Rupture") end },
-    { name = "UnavailableClassicRogueThrow", matches = deadly_throw_matches, execute = function(context) return cast(SPELLS.UnavailableClassicRogueThrow, context.target, "[SUBTLETY] Deadly Throw") end },
     { name = "EviscerateKill", matches = eviscerate_kill_matches, execute = function(context) return cast(SPELLS.Eviscerate, context.target, "[SUBTLETY] Eviscerate kill") end },
     { name = "Eviscerate", matches = eviscerate_matches, execute = function(context) return cast(SPELLS.Eviscerate, context.target, "[SUBTLETY] Eviscerate") end },
     { name = "Feint", matches = feint_matches, execute = function() return cast(SPELLS.Feint, NS.PLAYER_UNIT, "[SUBTLETY] Feint AoE reduction", { skip_range = true }) end },
@@ -509,5 +429,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("subtlety", strategies, { get_state = build_state })
-NS.log("Rogue subtlety rotation registered (UnavailableClassicRogueMobility control enhanced)")
+NS.log("Rogue subtlety rotation registered (Vanilla PvP/stealth)")
 return strategies

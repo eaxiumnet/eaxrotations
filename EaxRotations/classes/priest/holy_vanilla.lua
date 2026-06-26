@@ -115,7 +115,6 @@ local holy_state = {
     fade_ready = false,
     encounter_id = 0,
     lightwell_ready = false,
-    shadowfiend_ready = false,
     dispel_magic_ready = false,
     cure_disease_ready = false,
     abolish_disease_ready = false,
@@ -210,7 +209,6 @@ local function build_holy_state(context)
         holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0
     end
     holy_state.lightwell_ready = spell_exists(SPELLS.Lightwell) and spell_ready(SPELLS.Lightwell, NS.PLAYER_UNIT)
-    holy_state.shadowfiend_ready = spell_exists(SPELLS.UnavailableClassicPriestPet) and spell_ready(SPELLS.UnavailableClassicPriestPet, NS.PLAYER_UNIT)
     holy_state.dispel_magic_ready = spell_exists(SPELLS.DispelMagic) and spell_ready(SPELLS.DispelMagic, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
     holy_state.cure_disease_ready = spell_exists(SPELLS.CureDisease) and spell_ready(SPELLS.CureDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
     holy_state.abolish_disease_ready = spell_exists(SPELLS.AbolishDisease) and spell_ready(SPELLS.AbolishDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
@@ -533,24 +531,6 @@ local strategies = {
         end,
         execute = function()
             return try_cast(SPELLS.DesperatePrayer, NS.PLAYER_UNIT, "[HOLY] Desperate Prayer")
-        end,
-    },
-    {
-        name = "UnavailableClassicPriestPet",
-        is_gcd_gated = false,
-        is_burst = true,
-        matches = function(context, state)
-            if not context.in_combat then return false end
-            if context.player_control_locked then return false end
-            if not context.settings.use_shadowfiend then
-                if context.settings.use_shadowfiend == nil and context.settings.use_cooldowns == false then return false end
-            end
-            if not state.shadowfiend_ready then return false end
-            -- Mana floor gate: only use UnavailableClassicPriestPet when mana is actually low
-            return context.mana_pct < (context.settings.shadowfiend_mana_threshold or 30)
-        end,
-        execute = function()
-            return try_cast(SPELLS.UnavailableClassicPriestPet, nil, "[HOLY] UnavailableClassicPriestPet (mana regen)", { skip_range = true })
         end,
     },
     {

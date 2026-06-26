@@ -16,14 +16,6 @@ local AUTO_SHOT_BUFFER_MS = 100
 local MULTI_SHOT_CAST_MS = 500
 local AIMED_SHOT_CAST_MS = 3000
 
-local function can_cast_steady()
-    local tracker = NS.HunterClipTracker
-    if tracker and type(tracker.can_cast_steady) == "function" then
-        return tracker.can_cast_steady() ~= false
-    end
-    return true
-end
-
 local function can_cast_before_auto(cast_ms)
     local tracker = NS.HunterClipTracker
     if tracker and type(tracker.ms_until_auto) == "function" then
@@ -70,10 +62,8 @@ local mm_state = {
     rapid_fire_ready = false,
     aimed_shot_prepull_ready = false,
     aimed_shot_ready = false,
-    silencing_shot_ready = false,
     target_is_casting = false,
     target_interruptible = false,
-    kill_command_ready = false,
     multi_shot_ready = false,
     steady_shot_ready = false,
     arcane_shot_ready = false,
@@ -114,10 +104,8 @@ local function build_state(context)
     mm_state.rapid_fire_ready = me and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
     mm_state.aimed_shot_prepull_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
     mm_state.aimed_shot_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
-    mm_state.silencing_shot_ready = target and NS.spell_ready(SPELLS.UnavailableClassicHunterInterrupt, target, { expected_cooldown = 20 }) or false
     mm_state.target_is_casting = target and ((target.is_casting and target:is_casting()) or false)
     mm_state.target_interruptible = mm_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
-    mm_state.kill_command_ready = target and NS.spell_ready(SPELLS.UnavailableClassicHunterShotB, target, { expected_cooldown = 5 }) or false
     mm_state.multi_shot_ready = target and NS.spell_ready(SPELLS.MultiShot, target, { expected_cooldown = 10 }) or false
     mm_state.steady_shot_ready = target and NS.spell_ready(SPELLS.UnavailableClassicHunterShotA, target) or false
     mm_state.arcane_shot_ready = target and NS.spell_ready(SPELLS.ArcaneShot, target, { expected_cooldown = 6 }) or false
@@ -171,24 +159,11 @@ local function aimed_shot_prepull_matches(context, s)
     return true
 end
 
-local function kill_command_matches(context, s)
-    if not s.in_combat then return false end
-    if not s.pet_alive then return false end
-    if not s.kill_command_ready then return false end
-    return true
-end
-
 local function multi_shot_matches(context, s)
     if not s.multi_shot_ready then return false end
     if context.has_breakable_cc_nearby then return false end
     if (s.mana_pct or 100) < 15 then return false end
     if not can_cast_before_auto(MULTI_SHOT_CAST_MS) then return false end
-    return true
-end
-
-local function steady_shot_matches(context, s)
-    if not s.steady_shot_ready then return false end
-    if not can_cast_steady() then return false end
     return true
 end
 
@@ -214,10 +189,6 @@ local function aspect_hawk_matches(context, s)
     -- Throttle: WoW API buff detection lags 1-2 frames — prevent thrashing
     if (NS.time_now() - _last_aspect_hawk_cast) < 3 then return false end
     return true
-end
-
-local function aspect_viper_matches(context, s)
-    return false
 end
 
 local function call_pet_matches(context, s)
@@ -282,11 +253,6 @@ local function leveling_sting_matches(context, s)
     return true
 end
 
-local function silencing_shot_matches(context, s)
-    -- Silencing Shot does not exist in Classic — always skip
-    return false
-end
-
 -- ============================================================================
 -- Strategies
 -- ============================================================================
@@ -345,20 +311,16 @@ local strategies = {
       end,
       execute = function() return pet_manager.set_aggressive() end },
     { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) local r = NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[MARKSMANSHIP] Aspect of the Hawk", { skip_range = true }); if r then _last_aspect_hawk_cast = NS.time_now() end; return r end },
-    { name = "UnavailableClassicHunterAspect", matches = aspect_viper_matches, execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicHunterAspect, context.me, "[MARKSMANSHIP] Aspect of the Viper", { skip_range = true }) end },
     { name = "FreezingTrap", matches = freezing_trap_matches, execute = function(context) return NS.try_cast(SPELLS.FreezingTrap, context.me, "[MARKSMANSHIP] Freezing Trap", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return NS.try_cast(SPELLS.HuntersMark, context.target, "[MARKSMANSHIP] Hunter's Mark") end },
     { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[MARKSMANSHIP] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
     -- BestialWrath removed: TBC-only BM 31pt talent, not available in Vanilla MM
-    { name = "UnavailableClassicHunterInterrupt", matches = silencing_shot_matches, execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicHunterInterrupt, context.target, "[MARKSMANSHIP] Silencing Shot", { expected_cooldown = 20 }) end },
     { name = "InCombatAimedShot", matches = in_combat_aimed_shot_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "AimedShotPrepull", matches = aimed_shot_prepull_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot (prepull)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
-    { name = "UnavailableClassicHunterShotB", matches = kill_command_matches, execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicHunterShotB, context.target, "[MARKSMANSHIP] Kill Command", { expected_cooldown = 5, skip_gcd = true }) end },
     { name = "FeignDeath", matches = feign_death_matches, execute = function(context) return NS.try_cast(SPELLS.FeignDeath, context.me, "[MARKSMANSHIP] Feign Death", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "LevelingArcaneShot", matches = leveling_arcane_shot_matches, execute = function(context) if NS.try_cast(SPELLS.ArcaneShot, context.target, "[MARKSMANSHIP] Arcane Shot (leveling)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "LevelingSting", matches = leveling_sting_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting (leveling)") end },
     { name = "MultiShot", matches = multi_shot_matches, execute = function(context) if NS.try_cast(SPELLS.MultiShot, context.target, "[MARKSMANSHIP] Multi-Shot", { expected_cooldown = 10 }) then record_manual_shot() return true end return false end },
-    { name = "UnavailableClassicHunterShotA", matches = steady_shot_matches, execute = function(context) if NS.try_cast(SPELLS.UnavailableClassicHunterShotA, context.target, "[MARKSMANSHIP] Steady Shot") then record_manual_shot() return true end return false end },
     { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(context) if NS.try_cast(SPELLS.ArcaneShot, context.target, "[MARKSMANSHIP] Arcane Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(SPELLS.ViperSting, context.target, "[MARKSMANSHIP] Viper Sting", { expected_cooldown = 8 }) end },
     { name = "SerpentSting", matches = serpent_sting_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting") end },

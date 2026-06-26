@@ -265,7 +265,7 @@ local function hunters_mark_matches(context, s)
     return true
 end
 
--- UnavailableClassicHunterThreat (pull window)
+-- ThreatRedirect (TBC-only, pull window)
 local function misdirection_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.use_misdirection then return false end
@@ -488,7 +488,7 @@ local function execute_misdirection(context)
         target = context.me
     end
     if target then
-        return NS.try_cast(MISDIRECTION_ID, target, prefix .. " UnavailableClassicHunterThreat", { skip_range = true })
+        return NS.try_cast(MISDIRECTION_ID, target, prefix .. " ThreatRedirect", { skip_range = true })
     end
     return false
 end

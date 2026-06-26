@@ -46,7 +46,6 @@ local HEALING_WAVE_HP_PCT = 40
 local MANA_LOW_DEFAULT = 30        -- Switch to lower-rank Lightning Bolt
 local MANA_CONSERVE_DEFAULT = 15   -- No Chain Lightning, Flame Shock only
 local MANA_EMERGENCY_DEFAULT = 5   -- All spells forbidden
-local WATER_SHIELD_MANA_DEFAULT = 50
 
 -- SP-aware DoT gating: skip Flame Shock below this spell damage threshold
 -- Flame Shock has ~0.3 direct + ~0.3 DoT coefficient; breakpoint ~400 SP pre-raid
@@ -132,12 +131,6 @@ local function lightning_shield_execute(context, state)
     return false
 end
 
-local function bloodlust_matches_fn(context, state)
-    if not context.in_combat then return false end
-    if not context.should_burst then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.UnavailableClassicShamanBurst, NS.PLAYER_UNIT, { skip_range = true }) or false
-end
-
 local function chain_lightning_matches_fn(context, state)
     if context.is_moving then return false end
     if state.mana_emergency then return false end
@@ -221,15 +214,6 @@ local function natures_swiftness_matches_fn(context, state)
     if not context.in_combat then return false end
     if not context.should_burst then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.NaturesSwiftness, NS.PLAYER_UNIT, { skip_range = true }) or false
-end
-
-local function water_shield_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.UnavailableClassicShamanShieldB, 3.0) then return false end
-    local s = context.settings or {}
-    if state.mana_emergency then return false end
-    local ws_mana = s.elemental_water_shield_mana or WATER_SHIELD_MANA_DEFAULT
-    if (state.mana_pct or 100) > ws_mana then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.UnavailableClassicShamanShieldB, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function ghost_wolf_matches_fn(context, state)
@@ -328,10 +312,6 @@ end
 -- Totem maintenance (Research: keep Totem of Wrath, Wrath of Air, Mana Spring)
 -- ============================================================================
 
-local function totem_of_wrath_matches_fn(context, state)
-    return false  -- Totem of Wrath is TBC-only
-end
-
 local function wrath_of_air_totem_matches_fn(context, state)
     return false  -- Wrath of Air Totem is TBC-only
 end
@@ -407,10 +387,6 @@ local strategies = {
     { name = "LightningShield",
       matches = lightning_shield_matches_fn,
       execute = lightning_shield_execute },
-    -- Water Shield (mana sustain)
-    { name = "UnavailableClassicShamanShieldB",
-      matches = water_shield_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.UnavailableClassicShamanShieldB, NS.PLAYER_UNIT, "[ELEMENTAL] Water Shield") end },
     -- Ghost Wolf (OOC movement)
     { name = "GhostWolf",
       matches = ghost_wolf_matches_fn,
@@ -435,10 +411,6 @@ local strategies = {
     { name = "NaturesSwiftness",
       matches = natures_swiftness_matches_fn,
       execute = function() return NS.try_cast(SPELLS.NaturesSwiftness, NS.PLAYER_UNIT, "[ELEMENTAL] Nature's Swiftness") end },
-    -- UnavailableClassicShamanBurst burst (test assertion string)
-    { name = "UnavailableClassicShamanBurst", spell = SPELLS.UnavailableClassicShamanBurst, target = "self", combat = true, setting = "use_cooldowns", cooldown = 600, min_mana = 25, requires_target = false,
-      matches = bloodlust_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.UnavailableClassicShamanBurst, NS.PLAYER_UNIT, "[ELEMENTAL] UnavailableClassicShamanBurst") end },
     -- Chain Lightning (test assertion string: cooldown = 6)
     { name = "ChainLightning", spell = SPELLS.ChainLightning, not_moving = true, cooldown = 6,
       matches = chain_lightning_matches_fn,
@@ -470,9 +442,6 @@ local strategies = {
       matches = frost_shock_matches_fn,
       execute = function(context) return NS.try_cast(SPELLS.FrostShock, context.target, "[ELEMENTAL] Frost Shock (moving)") end },
     -- Totem maintenance (Research: keep Totem of Wrath, Wrath of Air, Mana Spring)
-    { name = "UnavailableClassicShamanTotem",
-      matches = totem_of_wrath_matches_fn,
-      execute = function() return false end },  -- Totem of Wrath is TBC-only
     { name = "WrathOfAirTotem",
       matches = wrath_of_air_totem_matches_fn,
       execute = function() return false end },  -- Wrath of Air Totem is TBC-only
