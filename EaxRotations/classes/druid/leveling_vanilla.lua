@@ -1,6 +1,8 @@
--- Druid leveling rotation (Classic/Vanilla 1.12).
--- Supports both Feral (Bear/Cat) and Caster-form leveling.
--- Stripped of TBC-only abilities: Mangle (Cat/Bear), Lacerate, Lifebloom, Tree of Life.
+-- leveling_vanilla.lua — Druid Leveling rotation for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  adaptive leveling rotation (wrath, moonfire, healing, bear form).
+-- WHEN:  any combat while leveling, when NS.is_vanilla() is true.
+-- WHY:   handles sub-60 talent tree and mixed solo/group content.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
 if not NS then return nil end

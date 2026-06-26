@@ -1,8 +1,9 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Protection Paladin rotation
--- =========================================================================
+-- protection_vanilla.lua — Paladin Protection tank for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  AoE tank (Consecration, Holy Shield, Seal of Righteousness).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   Vanilla Prot Paladin has no taunt; relies on threat generation.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+
 local __eax_file = "classes/paladin/protection_vanilla.lua"
 local __eax_version = "1.1.1"
 local __eax_modified = "2026-05-28"

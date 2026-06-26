@@ -1,4 +1,8 @@
--- Mage Fire priority list.
+-- fire_vanilla.lua — Mage Fire for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  fire DPS (Scorch 5-stack, Fireball, Combustion, Pyroblast).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 
 local NS = _G.EaxRotations

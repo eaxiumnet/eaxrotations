@@ -1,5 +1,9 @@
--- Rogue Subtlety priority list: Classic Vanilla UnavailableClassicRogueMobility burst, Hemorrhage upkeep, and PvP control chains.
--- Order is intentional: survival/interrupts, stealth setup, burst/control, finishers, builders.
+-- subtlety_vanilla.lua — Rogue Subtlety for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  PvP/stealth spec (Ambush, Cheap Shot, Hemorrhage, Preparation).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   not a raid spec; Hemorrhage wastes debuff slots in Classic.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 

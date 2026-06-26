@@ -1,8 +1,9 @@
--- =========================================================================
--- EaxRotations File Version: 1.1.1
--- Last Modified: 2026-05-28
--- Change: Classic Vanilla Elemental Shaman rotation
--- =========================================================================
+-- elemental_vanilla.lua — Shaman Elemental for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  ranged spell DPS (Lightning Bolt, Chain Lightning, Earth Shock).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+
 local __eax_file = "classes/shaman/elemental_vanilla.lua"
 local __eax_version = "1.1.1"
 local __eax_modified = "2026-05-28"

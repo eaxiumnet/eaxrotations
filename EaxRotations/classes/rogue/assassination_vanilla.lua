@@ -1,4 +1,8 @@
--- Classic Vanilla Rogue Assassination priority list with UnavailableClassicRogueBuilder CP building,
+-- assassination_vanilla.lua — Rogue Assassination for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  dagger DPS (Backstab, Ambush, Seal Fate, Slice and Dice).
+-- WHEN:  combat, with daggers, when NS.is_vanilla() is true.
+-- WHY:   Vanilla Assassination uses Backstab/Ambush; Seal Fate is the 31pt talent.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
 if not NS then return nil end

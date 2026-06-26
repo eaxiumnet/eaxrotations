@@ -1,5 +1,9 @@
--- Warlock Demonology priority list ? Classic Vanilla
--- S+ tier: Full DoT cycling, pet management, snapshot tracking, PvP/raid utility
+-- demonology_vanilla.lua — Warlock Demonology for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  DS/Ruin or pet-active (Demonic Sacrifice, Corruption, Shadow Bolt).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   Vanilla has no Felguard or Metamorphosis; DS/Ruin is raid meta.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarlockSpells or {}

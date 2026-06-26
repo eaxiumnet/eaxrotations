@@ -1,4 +1,9 @@
--- Warrior Arms priority list ? Classic Vanilla
+-- arms_vanilla.lua — Warrior Arms for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  PvP/leveling DPS (Mortal Strike, Overpower, Whirlwind, Rend).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   non-meta PvE in Vanilla; viable for PvP and leveling.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
+
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")

@@ -1,4 +1,8 @@
--- Shaman Restoration group-healing playstyle.
+-- restoration_vanilla.lua — Shaman Restoration for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  raid/tank healing (Chain Heal, Healing Wave, Lesser Healing Wave).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   Vanilla Resto has no Earth Shield or Riptide; Chain Heal is king.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
 if not NS then return nil end

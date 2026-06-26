@@ -1,5 +1,8 @@
--- ============================================================================
--- Kebab Warrior Rotation ? Classic Vanilla
+-- kebab_vanilla.lua — Warrior "Kebab" (1H Fury/DW Arms) for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  dual-wield 1H hybrid (same rotation as Fury DW).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   meme/community spec; uses Fury rotation with 1H weapons.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
 if not NS then return nil end

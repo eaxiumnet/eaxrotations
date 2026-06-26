@@ -1,6 +1,8 @@
--- Shaman Enhancement rotation - parity feature port v2.0.
--- Features: per-slot weapon buffs, smart shield auto-swap, totem twisting
--- with Fire Nova cycle, shock priority, randomized interrupts, Ghost Wolf OOC
+-- enhancement_vanilla.lua — Shaman Enhancement for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  melee DPS/support (Stormstrike, Windfury Weapon, totem twisting).
+-- WHEN:  combat, when NS.is_vanilla() is true.
+-- WHY:   Vanilla Enhancement has no Maelstrom Weapon or Feral Spirit.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
 if not NS then return nil end

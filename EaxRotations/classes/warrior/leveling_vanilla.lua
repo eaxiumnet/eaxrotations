@@ -1,7 +1,8 @@
--- Warrior leveling rotation (Classic/Vanilla 1.12).
--- Auto-activates in solo/leveling context or when playstyle = "leveling".
--- Uses shared leveling module for context guard and common helpers.
--- Stripped of TBC-only abilities: Victory Rush, Bloodthirst, Shield Slam, Rampage, Commanding Shout.
+-- leveling_vanilla.lua — Warrior Leveling rotation for Vanilla/Classic Anniversary (1.15.x).
+-- WHAT:  adaptive leveling (heroic strike, rend, overpower, charge).
+-- WHEN:  any combat while leveling, when NS.is_vanilla() is true.
+-- WHY:   handles sub-60 content and rage generation.
+-- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
