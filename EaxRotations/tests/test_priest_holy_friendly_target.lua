@@ -130,7 +130,7 @@ local function make_context(overrides)
     return c
 end
 local function base_state(overrides)
-    local s = { lowest = nil, lowest_hp = 100, tank = nil, tank_hp = 100 }
+    local s = { lowest = nil, lowest_hp = 100, tank = nil, tank_hp = 100, friendly_target_ready = false, friendly_target = nil }
     if overrides then for k, v in pairs(overrides) do s[k] = v end end
     return s
 end
@@ -141,21 +141,31 @@ print("--- Holy priest FriendlyTarget (B6) ---")
 
 -- C1: friendly target 75% (below default 90), no emergency -> matches; execute casts GH on friendly unit
 reset_ft(); _ft_hp = 75
-assert_true(ft.matches(make_context(), base_state({ lowest = { effective_hp = 80, unit = {} }, lowest_hp = 80 })),
+assert_true(ft.matches(make_context(), base_state({
+    lowest = { effective_hp = 80, unit = {} },
+    lowest_hp = 80,
+    friendly_target_ready = true,
+    friendly_target = { unit = _ft_unit, hp_pct = 75 },
+})),
     "C1: friendly 75% + lowest 80% (no emergency) -> should match")
 _last_cast = nil
-assert_true(ft.execute(make_context(), base_state()), "C1: execute should return true")
+assert_true(ft.execute(make_context(), base_state({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C1: execute should return true")
 assert_eq(_last_cast.spell, 2060, "C1: execute casts GreaterHeal")
 assert_eq(_last_cast.target, _ft_unit, "C1: execute targets the friendly unit")
 print("  [ PASS ] C1: matches + casts GreaterHeal on friendly target")
 
 -- C2: friendly target 95% (above threshold) -> no match
 reset_ft(); _ft_hp = 95
-assert_false(ft.matches(make_context(), base_state({ lowest = { effective_hp = 96, unit = {} }, lowest_hp = 96 })),
+assert_false(ft.matches(make_context(), base_state({
+    lowest = { effective_hp = 96, unit = {} },
+    lowest_hp = 96,
+    friendly_target_ready = true,
+    friendly_target = { unit = _ft_unit, hp_pct = 95 },
+})),
     "C2: friendly 95% (>= 90 threshold) -> should NOT match")
 print("  [ PASS ] C2: above-threshold friendly target does not match")
 
--- C3: hostile target -> get_friendly_target_entry returns nil -> no match
+-- C3: hostile target -> friendly_target_ready = false -> no match
 reset_ft(); _ft_hostile = true
 assert_false(ft.matches(make_context(), base_state()), "C3: hostile target -> should NOT match")
 print("  [ PASS ] C3: hostile target does not match")
@@ -165,38 +175,39 @@ reset_ft(); _ft_present = false
 assert_false(ft.matches(make_context(), base_state()), "C4: no target -> should NOT match")
 print("  [ PASS ] C4: no target does not match")
 
--- C5: lowest ally in emergency (20%) -> emergency override -> no match (let EmergencyFlashHeal save them)
+-- C5: emergency on lowest ally does NOT block FriendlyTarget (top priority, unconditional)
 reset_ft(); _ft_hp = 75
-assert_false(ft.matches(make_context({ settings = { holy_emergency_hp = 30 } }),
-    base_state({ lowest = { effective_hp = 20, unit = {} }, lowest_hp = 20 })),
-    "C5: lowest 20% (emergency) -> should NOT match (emergency override)")
-print("  [ PASS ] C5: emergency override skips manual target")
+assert_true(ft.matches(make_context({ settings = { holy_emergency_hp = 30 } }),
+    base_state({ lowest = { effective_hp = 20, unit = {} }, lowest_hp = 20,
+                 friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })),
+    "C5: friendly 75% despite lowest 20% emergency -> SHOULD match (top priority)")
+print("  [ PASS ] C5: friendly target wins even during emergency")
 
--- C6: opt-out setting holy_use_friendly_target = false -> no match
-reset_ft(); _ft_hp = 75
-assert_false(ft.matches(make_context({ settings = { holy_use_friendly_target = false } }), base_state()),
-    "C6: holy_use_friendly_target=false -> should NOT match")
-print("  [ PASS ] C6: opt-out setting respected")
+-- C6: removed — old opt-out setting (holy_use_friendly_target) no longer exists
+print("  [ SKIP ] C6: opt-out setting removed in refactor")
 
--- C7: not in combat -> no match (heals are combat-gated; OOC buffing is separate)
+-- C7: out of combat -> SHOULD match (FriendlyTarget is unconditional, works OOC)
 reset_ft(); _ft_hp = 75
-assert_false(ft.matches(make_context({ in_combat = false }), base_state()),
-    "C7: out of combat -> should NOT match")
-print("  [ PASS ] C7: combat-gated")
+assert_true(ft.matches(make_context({ in_combat = false }),
+    base_state({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })),
+    "C7: out of combat -> SHOULD match")
+print("  [ PASS ] C7: works out of combat")
 
--- C8: low mana (below holy_gh_mana_floor) -> no match (conservation)
+-- C8: low mana still matches (no mana-floor gate on FriendlyTarget)
 reset_ft(); _ft_hp = 75
-assert_false(ft.matches(make_context({ mana_pct = 20 }), base_state()),
-    "C8: mana 20% (< 30 floor) -> should NOT match")
-print("  [ PASS ] C8: mana-floor conservation respected")
+assert_true(ft.matches(make_context({ mana_pct = 20 }),
+    base_state({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })),
+    "C8: mana 20% -> should STILL match")
+print("  [ PASS ] C8: no mana-floor conservation on FriendlyTarget")
 
 -- C9: custom threshold 60 — friendly at 70% should NOT match (above custom threshold)
 reset_ft(); _ft_hp = 70
-assert_false(ft.matches(make_context({ settings = { holy_friendly_target_threshold = 60 } }), base_state()),
+assert_false(ft.matches(make_context({ settings = { holy_friendly_target_threshold = 60 } }),
+    base_state({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 70 } })),
     "C9: friendly 70% with threshold 60 -> should NOT match")
 print("  [ PASS ] C9: custom threshold respected")
 
--- C10: strategy ordering — FriendlyTarget is after the 3 emergency strategies, before PrayerOfMending
+-- C10: strategy ordering — FriendlyTarget is FIRST (index 1), before all other heals
 local ft_idx, pom_idx, efh_idx
 for i = 1, #strategies do
     if strategies[i].name == "FriendlyTarget" then ft_idx = i end
@@ -204,8 +215,9 @@ for i = 1, #strategies do
     if strategies[i].name == "EmergencyFlashHeal" then efh_idx = i end
 end
 assert_true(ft_idx and pom_idx and efh_idx, "C10: expected strategies present")
-assert_true(efh_idx < ft_idx, "C10: FriendlyTarget must come AFTER EmergencyFlashHeal")
+assert_true(ft_idx == 1, "C10: FriendlyTarget must be FIRST strategy")
+assert_true(ft_idx < efh_idx, "C10: FriendlyTarget must come BEFORE EmergencyFlashHeal")
 assert_true(ft_idx < pom_idx, "C10: FriendlyTarget must come BEFORE PrayerOfMending")
-print("  [ PASS ] C10: strategy ordering (after emergencies, before routine heals)")
+print("  [ PASS ] C10: strategy ordering (first, before all other heals)")
 
 print("PASS test_priest_holy_friendly_target")

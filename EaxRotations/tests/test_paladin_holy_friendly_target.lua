@@ -1,7 +1,10 @@
--- test_paladin_holy_friendly_target.lua — B6 FriendlyTarget for Holy paladin.
--- Focused on paladin-specific bits: choose_holy_light_rank rank selection,
--- the hp<=55 emergency-override gate, and holy_ settings. Shared
--- NS.get_friendly_target_entry semantics covered by test_priest_holy_friendly_target.
+-- test_paladin_holy_friendly_target.lua — Step 0 FriendlyTarget for Holy paladin.
+-- WHAT:  verifies the manual-friendly-target heal is TOP priority (index 1),
+--        works in and out of combat, and is gated only by threshold + readiness.
+-- WHEN:  regression guard for the FriendlyTarget strategy in holy_sylvanas.lua.
+-- WHY:   Step 0 gives healers immediate manual-target control; no emergency
+--        override because life-critical saves (LayOnHands / DivineShield) follow after.
+-- SAFETY: bypasses build_state by passing crafted state; mocks NS minimally.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
@@ -43,55 +46,46 @@ local ft = find("FriendlyTarget")
 assert_true(ft, "FriendlyTarget strategy should exist")
 
 local function ctx(o) local c = { in_combat = true, is_moving = false, mana_pct = 100, hp = 100, settings = {}, me = { _mock = true } } if o then for k,v in pairs(o) do c[k]=v end end return c end
-local function st(o) local s = { lowest = nil, tank = nil, mana_pct = 100, moving = false, has_divine_favor = false } if o then for k,v in pairs(o) do s[k]=v end end return s end
+local function st(o) local s = { lowest = nil, tank = nil, mana_pct = 100, moving = false, has_divine_favor = false, friendly_target_ready = false, friendly_target = nil } if o then for k,v in pairs(o) do s[k]=v end end return s end
 local function reset() _ft_present = true; _ft_hostile = false; _ft_hp = 75; _last_cast = nil end
 
-print("--- Holy paladin FriendlyTarget (B6) ---")
+print("--- Holy paladin FriendlyTarget (Step 0) ---")
 
 -- C1: friendly 75%, no emergency -> matches; execute casts a HolyLight rank on friendly unit
 reset()
-assert_true(ft.matches(ctx(), st({ lowest = { effective_hp = 80, unit = {} } })), "C1: should match")
+assert_true(ft.matches(ctx(), st({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C1: should match")
 _last_cast = nil
-assert_true(ft.execute(ctx(), st()), "C1: execute returns true")
+assert_true(ft.execute(ctx(), st({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C1: execute returns true")
 assert_eq(_last_cast.target, _ft_unit, "C1: targets friendly unit")
 assert_true(_last_cast.spell ~= nil, "C1: a HolyLight-rank spell id is cast")
 print("  [ PASS ] C1: matches + casts HolyLight rank on friendly target")
 
--- C2: lowest in emergency (50% <= 55) -> emergency override -> no match
-reset()
-assert_false(ft.matches(ctx(), st({ lowest = { effective_hp = 50, unit = {} } })), "C2: lowest 50% (<=55) -> emergency override, no match")
-print("  [ PASS ] C2: emergency override (hp<=55 gate)")
-
--- C3: friendly above threshold (95%) -> no match
+-- C2: friendly above threshold (95%) -> no match
 reset(); _ft_hp = 95
-assert_false(ft.matches(ctx(), st({ lowest = { effective_hp = 96, unit = {} } })), "C3: friendly 95% (>=90) -> no match")
-print("  [ PASS ] C3: above-threshold friendly target does not match")
+assert_false(ft.matches(ctx(), st({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 95 } })), "C2: friendly 95% (>=90) -> no match")
+print("  [ PASS ] C2: above-threshold friendly target does not match")
 
--- C4: opt-out holy_use_friendly_target = false -> no match
-reset()
-assert_false(ft.matches(ctx({ settings = { holy_use_friendly_target = false } }), st()), "C4: opt-out respected")
-print("  [ PASS ] C4: opt-out setting respected")
-
--- C5: hostile target -> no match
+-- C3: hostile target -> no match
 reset(); _ft_hostile = true
-assert_false(ft.matches(ctx(), st()), "C5: hostile target -> no match")
-print("  [ PASS ] C5: hostile target does not match")
+assert_false(ft.matches(ctx(), st()), "C3: hostile target -> no match")
+print("  [ PASS ] C3: hostile target does not match")
 
--- C6: out of combat -> no match
+-- C4: out of combat -> SHOULD match (Step 0 is unconditional)
 reset()
-assert_false(ft.matches(ctx({ in_combat = false }), st()), "C6: OOC -> no match")
-print("  [ PASS ] C6: combat-gated")
+assert_true(ft.matches(ctx({ in_combat = false }), st({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C4: OOC -> should match")
+print("  [ PASS ] C4: works out of combat")
 
--- C7: strategy ordering — after DivineFavorHolyLightFollowup, before BlessingOfSacrificeTank
-local ft_idx, df_idx, bos_idx
+-- C5: strategy ordering — FriendlyTarget is FIRST (index 1)
+local ft_idx, loh_idx, df_idx
 for i = 1, #strategies do
     if strategies[i].name == "FriendlyTarget" then ft_idx = i end
-    if strategies[i].name == "DivineFavorHolyLightFollowup" then df_idx = i end
-    if strategies[i].name == "BlessingOfSacrificeTank" then bos_idx = i end
+    if strategies[i].name == "LayOnHandsLastResort" then loh_idx = i end
+    if strategies[i].name == "DivineFavor" then df_idx = i end
 end
-assert_true(ft_idx and df_idx and bos_idx, "C7: expected strategies present")
-assert_true(df_idx < ft_idx, "C7: FriendlyTarget after DivineFavorHolyLightFollowup")
-assert_true(ft_idx < bos_idx, "C7: FriendlyTarget before BlessingOfSacrificeTank")
-print("  [ PASS ] C7: strategy ordering (after emergency direct heals)")
+assert_true(ft_idx and loh_idx and df_idx, "C5: expected strategies present")
+assert_true(ft_idx == 1, "C5: FriendlyTarget must be FIRST strategy")
+assert_true(ft_idx < loh_idx, "C5: FriendlyTarget before LayOnHandsLastResort")
+assert_true(ft_idx < df_idx, "C5: FriendlyTarget before DivineFavor")
+print("  [ PASS ] C5: strategy ordering (first, before all other heals)")
 
 print("PASS test_paladin_holy_friendly_target")

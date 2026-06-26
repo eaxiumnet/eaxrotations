@@ -144,6 +144,8 @@ local disc_state = {
     inner_fire_ready = false,
     fear_ward_ready = false,
     power_word_fortitude_ready = false,
+    friendly_target = nil,
+    friendly_target_ready = false,
 }
 
 local function build_state(context)
@@ -243,6 +245,9 @@ local function build_state(context)
     -- parity: Fade state
     disc_state.has_fade_buff = me and NS.buff_up(me, FADE_BUFF) or false
     disc_state.fade_ready = me and NS.spell_ready(SPELLS.Fade, me, { skip_range = true }) or false
+    local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
+    disc_state.friendly_target = ft
+    disc_state.friendly_target_ready = ft ~= nil
 
     return disc_state
 end
@@ -627,6 +632,30 @@ end
 -- Strategies
 -- ============================================================================
 local healing_strategies = {
+    -- FriendlyTarget (Step 0): honor the player's manually-selected friendly target.
+    -- TOP priority: works in and out of combat. Threshold-gated so full-health
+    -- targets are ignored. State is populated in build_state().
+    { name = "FriendlyTarget", matches = function(context, s)
+        if not s.friendly_target_ready then return false end
+        local ft = s.friendly_target
+        if not ft then return false end
+        if (ft.hp_pct or 100) >= (context.settings.disc_friendly_target_threshold or 90) then return false end
+        if context.is_moving then return false end
+        if context.player_control_locked then return false end
+        if not s.greater_heal_ready then return false end
+        if _check_pushback(context) then return false end
+        if NS.gate_overheal and NS.gate_overheal("GreaterHeal", ft.unit, 2.5, context.settings) then return false end
+        return true
+    end, execute = function(context, s)
+        local ft = s.friendly_target
+        if not ft or not ft.unit then return false end
+        local mana_pct = s.mana_pct or context.mana_pct or 100
+        local spell_id
+        if mana_pct > 30 then spell_id = GREATER_HEAL_MAX
+        elseif mana_pct > 15 then spell_id = GREATER_HEAL_CONSERVE
+        else spell_id = GREATER_HEAL_EFFICIENT end
+        return NS.try_cast(spell_id, ft.unit, string.format("[DISCIPLINE] Greater Heal (friendly target) %.0f%%", ft.hp_pct or 0))
+    end },
     { name = "PowerWordShieldTank", matches = pws_tank_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.tank.unit, string.format("[DISCIPLINE] PW:S tank %.0f%%", s.tank.effective_hp or 0)) end },
     { name = "EmergencyPowerWordShield", matches = pws_lowest_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.lowest.unit, string.format("[DISCIPLINE] PW:S %.0f%%", s.lowest.effective_hp or 0)) end },
     { name = "PowerWordShieldLowest", matches = pws_lowest_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordShield, s.lowest.unit, string.format("[DISCIPLINE] PW:S %.0f%%", s.lowest.effective_hp or 0)) end },
@@ -643,36 +672,6 @@ local healing_strategies = {
         local target_entry = s._preemptive_target
         if not target_entry or not target_entry.unit then return false end
         return PreemptiveHeal.execute(context, s, SPELLS.GreaterHeal, string.format("[DISCIPLINE] Preemptive GH %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.5, heal_size = 3500 })
-    end },
-    -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
-    -- Placed after the emergency/preemptive tier (PW:S / PoM / EmergencyFlashHeal /
-    -- PreemptiveGreaterHeal) so life-critical saves still win, but before routine
-    -- GreaterHeal / BindingHeal / CoH so a manual friendly target wins over
-    -- auto-lowest-scan for routine healing. Gated on no active emergency on the
-    -- auto-scanned lowest (lowest effective_hp >= discipline_flash_hp). Opt out
-    -- via disc_use_friendly_target = false.
-    { name = "FriendlyTarget", matches = function(context, s)
-        if not context.in_combat then return false end
-        if context.is_moving then return false end
-        if context.settings.disc_use_friendly_target == false then return false end
-        local lowest_hp = s.lowest and (s.lowest.effective_hp or 100) or 100
-        if lowest_hp < (context.settings.discipline_flash_hp or 55) then return false end
-        local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
-        if not ft then return false end
-        if ft.hp_pct >= (context.settings.disc_friendly_target_threshold or 90) then return false end
-        if not s.greater_heal_ready then return false end
-        if _check_pushback(context) then return false end
-        if NS.gate_overheal and NS.gate_overheal("GreaterHeal", ft.unit, 2.5, context.settings) then return false end
-        return true
-    end, execute = function(context, s)
-        local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
-        if not ft or not ft.unit then return false end
-        local mana_pct = s.mana_pct or context.mana_pct or 100
-        local spell_id
-        if mana_pct > 30 then spell_id = GREATER_HEAL_MAX
-        elseif mana_pct > 15 then spell_id = GREATER_HEAL_CONSERVE
-        else spell_id = GREATER_HEAL_EFFICIENT end
-        return NS.try_cast(spell_id, ft.unit, string.format("[DISCIPLINE] Greater Heal (friendly target) %.0f%%", ft.hp_pct or 0))
     end },
     { name = "GreaterHeal", matches = greater_heal_matches, execute = function(context, s)
         local mana_pct = s.mana_pct or context.mana_pct or 100

@@ -1,7 +1,10 @@
--- test_shaman_resto_friendly_target.lua — B6 FriendlyTarget for Resto shaman.
--- Focused on shaman-specific bits: HealingWave + healing_wave_ready gate,
--- the restoration_emergency_hp override, and restoration_ settings. Shared
--- helper semantics covered by test_priest_holy_friendly_target.
+-- test_shaman_resto_friendly_target.lua — Step 0 FriendlyTarget for Resto shaman.
+-- WHAT:  verifies the manual-friendly-target heal is TOP priority (index 1),
+--        works in and out of combat, and is gated only by threshold + readiness.
+-- WHEN:  regression guard for the FriendlyTarget strategy in restoration_sylvanas.lua.
+-- WHY:   Step 0 gives healers immediate manual-target control; no emergency
+--        override because life-critical saves (NaturesSwiftness / ManaTide) follow after.
+-- SAFETY: bypasses build_state by passing crafted state; mocks NS minimally.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
@@ -57,50 +60,51 @@ local ft = find("FriendlyTarget")
 assert_true(ft, "FriendlyTarget strategy should exist")
 
 local function ctx(o) local c = { in_combat = true, is_moving = false, mana_pct = 100, hp = 100, settings = {}, me = { _mock = true }, is_pvp = false, target = nil } if o then for k,v in pairs(o) do c[k]=v end end return c end
-local function st(o) local s = { lowest = nil, tank = nil, mana_pct = 100, healing_wave_ready = true, lesser_healing_wave_ready = true, chain_heal_ready = false, healing_way_stacks = 0 } if o then for k,v in pairs(o) do s[k]=v end end return s end
+local function st(o) local s = { lowest = nil, tank = nil, mana_pct = 100, healing_wave_ready = true, lesser_healing_wave_ready = true, chain_heal_ready = false, healing_way_stacks = 0, friendly_target_ready = false, friendly_target = nil } if o then for k,v in pairs(o) do s[k]=v end end return s end
 local function reset() _ft_present = true; _ft_hostile = false; _ft_hp = 75; _last_cast = nil end
 
-print("--- Resto shaman FriendlyTarget (B6) ---")
+print("--- Resto shaman FriendlyTarget (Step 0) ---")
 
 -- C1: friendly 75%, no emergency -> matches; execute casts HealingWave on friendly unit
 reset()
-assert_true(ft.matches(ctx(), st({ lowest = { effective_hp = 80, unit = {} } })), "C1: should match")
+assert_true(ft.matches(ctx(), st({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C1: should match")
 _last_cast = nil
-assert_true(ft.execute(ctx(), st()), "C1: execute returns true")
+assert_true(ft.execute(ctx(), st({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C1: execute returns true")
 assert_eq(_last_cast.target, _ft_unit, "C1: targets friendly unit")
 assert_true(_last_cast.spell ~= nil, "C1: a HealingWave spell is cast")
 print("  [ PASS ] C1: matches + casts HealingWave on friendly target")
 
--- C2: lowest in emergency (40% <= 50) -> emergency override -> no match
+-- C2: healing_wave_ready false -> no match
 reset()
-assert_false(ft.matches(ctx(), st({ lowest = { effective_hp = 40, unit = {} } })), "C2: lowest 40% (<=50) -> emergency override")
-print("  [ PASS ] C2: emergency override (restoration_emergency_hp gate)")
+assert_false(ft.matches(ctx(), st({ healing_wave_ready = false, friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C2: HW not ready -> no match")
+print("  [ PASS ] C2: healing_wave_ready gate respected")
 
--- C3: healing_wave_ready false -> no match
+-- C3: moving -> no match (HealingWave is a cast)
 reset()
-assert_false(ft.matches(ctx(), st({ healing_wave_ready = false })), "C3: HW not ready -> no match")
-print("  [ PASS ] C3: healing_wave_ready gate respected")
+assert_false(ft.matches(ctx({ is_moving = true }), st({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C3: moving -> no match")
+print("  [ PASS ] C3: moving-gated")
 
--- C4: opt-out restoration_use_friendly_target = false -> no match
+-- C4: hostile target -> no match
+reset(); _ft_hostile = true
+assert_false(ft.matches(ctx(), st()), "C4: hostile target -> no match")
+print("  [ PASS ] C4: hostile target does not match")
+
+-- C5: out of combat -> SHOULD match (Step 0 is unconditional)
 reset()
-assert_false(ft.matches(ctx({ settings = { restoration_use_friendly_target = false } }), st()), "C4: opt-out respected")
-print("  [ PASS ] C4: opt-out setting respected")
+assert_true(ft.matches(ctx({ in_combat = false }), st({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C5: OOC -> should match")
+print("  [ PASS ] C5: works out of combat")
 
--- C5: moving -> no match (HealingWave is a cast)
-reset()
-assert_false(ft.matches(ctx({ is_moving = true }), st()), "C5: moving -> no match")
-print("  [ PASS ] C5: moving-gated")
-
--- C6: strategy ordering — after Bloodlust, before HealingWay
-local ft_idx, bl_idx, hw_idx
+-- C6: strategy ordering — FriendlyTarget is FIRST (index 1)
+local ft_idx, es_idx, ns_idx
 for i = 1, #strategies do
     if strategies[i].name == "FriendlyTarget" then ft_idx = i end
-    if strategies[i].name == "Bloodlust" then bl_idx = i end
-    if strategies[i].name == "HealingWay" then hw_idx = i end
+    if strategies[i].name == "EarthShieldTank" then es_idx = i end
+    if strategies[i].name == "NaturesSwiftness" then ns_idx = i end
 end
-assert_true(ft_idx and bl_idx and hw_idx, "C6: expected strategies present")
-assert_true(bl_idx < ft_idx, "C6: FriendlyTarget after Bloodlust")
-assert_true(ft_idx < hw_idx, "C6: FriendlyTarget before HealingWay")
-print("  [ PASS ] C6: strategy ordering (after cooldowns, before direct heals)")
+assert_true(ft_idx and es_idx and ns_idx, "C6: expected strategies present")
+assert_true(ft_idx == 1, "C6: FriendlyTarget must be FIRST strategy")
+assert_true(ft_idx < es_idx, "C6: FriendlyTarget before EarthShieldTank")
+assert_true(ft_idx < ns_idx, "C6: FriendlyTarget before NaturesSwiftness")
+print("  [ PASS ] C6: strategy ordering (first, before all other heals)")
 
 print("PASS test_shaman_resto_friendly_target")
