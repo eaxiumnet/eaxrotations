@@ -1,19 +1,24 @@
 # EAX Rotation Scorecard
 
-> Auto-generated quality scores for all specs. Run `lua EaxRotations/tools/compute_scorecard.lua` to regenerate.
+> Auto-generated quality scores for all specs. Run `lua build_tools/compute_scorecard.lua` to regenerate.
 
 **Overall Average:** 4.3 / 5.0  |  **66 specs scored**
 
 ## Grade Distribution
 
-| Grade | Count | TBC | Vanilla | Meaning |
-|-------|-------|-----|---------|---------|
-| ★★★★★ S (5/5) | 23 | 23 | 0 | Excellent — guide-verified APL, full features, tested |
-| ★★★★☆ A (4/5) | 38 | 9 | 29 | Good — functional, some gaps (usually tests) |
-| ★★★☆☆ B (3/5) | 5 | 3 | 2 | Fair — works but minimal (shared healers, leveling specs) |
-| ★★☆☆☆ C (2/5) | 0 | 0 | 0 | — |
-| ★☆☆☆☆ D (1/5) | 0 | 0 | 0 | — |
-| ☆☆☆☆☆ F (0/5) | 0 | 0 | 0 | — |
+| Grade | Count | Meaning |
+|-------|-------|---------|
+| ★★★★★ S (5/5) | 23 | Excellent — guide-verified APL, full features, tested |
+| ★★★★☆ A (4/5) | 38 | Good — functional, some gaps (usually tests) |
+| ★★★☆☆ B (3/5) | 5 | Fair — works but minimal (shared healers, leveling specs) |
+| ★★☆☆☆ C (2/5) | 0 | — |
+| ★☆☆☆☆ D (1/5) | 0 | — |
+| ☆☆☆☆☆ F (0/5) | 0 | — |
+
+## Expansion Averages
+
+- **TBC:** 4.6/5 (35 specs)
+- **Vanilla:** 3.9/5 (31 specs)
 
 ## Content Type Averages
 

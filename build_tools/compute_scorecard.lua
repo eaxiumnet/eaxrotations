@@ -264,9 +264,45 @@ local avg = count > 0 and (total_score / count) or 0
 -- Write Markdown report
 local md = io.open("SCORECARD.md", "w")
 if md then
+  -- Grade distribution
+  local grades = { s = 0, a = 0, b = 0, c = 0, d = 0, f = 0 }
+  local tbc_avg, tbc_count, van_avg, van_count = 0, 0, 0, 0
+  local content_sums = { solo = 0, dungeon = 0, raid = 0, arena = 0, battleground = 0, leveling = 0 }
+  for _, r in ipairs(results) do
+    local ov = r.scores.overall
+    if ov >= 5 then grades.s = grades.s + 1
+    elseif ov >= 4 then grades.a = grades.a + 1
+    elseif ov >= 3 then grades.b = grades.b + 1
+    elseif ov >= 2 then grades.c = grades.c + 1
+    elseif ov >= 1 then grades.d = grades.d + 1
+    else grades.f = grades.f + 1 end
+    if r.expansion == "tbc" then tbc_avg = tbc_avg + ov; tbc_count = tbc_count + 1
+    else van_avg = van_avg + ov; van_count = van_count + 1 end
+    for k, v in pairs(r.scores.content) do content_sums[k] = content_sums[k] + v end
+  end
+
   md:write("# EAX Rotation Scorecard\n\n")
-  md:write("> Auto-generated quality scores for all specs. Run `lua EaxRotations/tools/compute_scorecard.lua` to regenerate.\n\n")
-  md:write(string.format("**Overall Average:** %.1f / 5.0\n\n", avg))
+  md:write("> Auto-generated quality scores for all specs. Run `lua build_tools/compute_scorecard.lua` to regenerate.\n\n")
+  md:write(string.format("**Overall Average:** %.1f / 5.0  |  **%d specs scored**\n\n", avg, count))
+  md:write("## Grade Distribution\n\n")
+  md:write("| Grade | Count | Meaning |\n")
+  md:write("|-------|-------|---------|\n")
+  md:write(string.format("| ★★★★★ S (5/5) | %d | Excellent — guide-verified APL, full features, tested |\n", grades.s))
+  md:write(string.format("| ★★★★☆ A (4/5) | %d | Good — functional, some gaps (usually tests) |\n", grades.a))
+  md:write(string.format("| ★★★☆☆ B (3/5) | %d | Fair — works but minimal (shared healers, leveling specs) |\n", grades.b))
+  md:write(string.format("| ★★☆☆☆ C (2/5) | %d | — |\n", grades.c))
+  md:write(string.format("| ★☆☆☆☆ D (1/5) | %d | — |\n", grades.d))
+  md:write(string.format("| ☆☆☆☆☆ F (0/5) | %d | — |\n\n", grades.f))
+  md:write("## Expansion Averages\n\n")
+  md:write(string.format("- **TBC:** %.1f/5 (%d specs)\n", tbc_count > 0 and tbc_avg/tbc_count or 0, tbc_count))
+  md:write(string.format("- **Vanilla:** %.1f/5 (%d specs)\n\n", van_count > 0 and van_avg/van_count or 0, van_count))
+  md:write("## Content Type Averages\n\n")
+  md:write("| Solo | Dungeon | Raid | Arena | Battleground | Leveling |\n")
+  md:write("|------|---------|------|-------|--------------|----------|\n")
+  md:write(string.format("| %.1f | %.1f | %.1f | %.1f | %.1f | %.1f |\n\n",
+    content_sums.solo/count, content_sums.dungeon/count, content_sums.raid/count,
+    content_sums.arena/count, content_sums.battleground/count, content_sums.leveling/count))
+  md:write("## Full Score Table\n\n")
   md:write("| Class | Spec | Expansion | APL | Tests | Features | Solo | Dungeon | Raid | Arena | BG | Level | Overall |\n")
   md:write("|-------|------|-----------|-----|-------|----------|------|---------|------|-------|----|-------|---------|\n")
 

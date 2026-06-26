@@ -4,6 +4,15 @@
 > Targeting **TBC Classic Anniversary (2.5.5.x)** and **Vanilla Anniversary (1.15.x)**  
 > Lua 5.1 / LuaJIT — 171 rotation test suites, 11 leveling suites, all green.
 
+| Quality | TBC | Vanilla | Overall |
+|---------|-----|---------|---------|
+| **Score** | 4.6/5 (35 specs) | 3.9/5 (31 specs) | **4.3/5** |
+| **S-Tier** | 23 | 0 | 23 |
+| **A-Tier** | 9 | 29 | 38 |
+| **B-Tier** | 3 | 2 | 5 |
+
+> 📊 [Full Scorecard](SCORECARD.md) | 📖 [Rotation Guides](docs/rotations/README.md)
+
 ---
 
 ## 📦 What's in This Repo
@@ -30,17 +39,17 @@ EaxRotations is a **priority-list rotation engine** for World of Warcraft: The B
 
 ### Supported Classes & Specs
 
-| Class | Specs (TBC) | Vanilla Variants |
-|-------|-------------|------------------|
-| **Warrior** | Arms, Fury, Protection | Arms, Fury, Protection |
-| **Paladin** | Holy, Protection, Retribution | Holy, Protection, Retribution |
-| **Hunter** | Beast Mastery, Marksmanship, Survival | Beast Mastery, Marksmanship, Survival |
-| **Rogue** | Assassination, Combat, Subtlety | Assassination, Combat, Subtlety |
-| **Priest** | Holy, Discipline, Shadow, Smite | Holy, Discipline, Shadow, Smite |
-| **Mage** | Arcane, Fire, Frost | Arcane, Fire, Frost |
-| **Warlock** | Affliction, Demonology, Destruction | Affliction, Demonology, Destruction |
-| **Druid** | Balance, Feral Cat, Feral Bear, Restoration | Balance, Feral Cat, Feral Bear, Restoration |
-| **Shaman** | Elemental, Enhancement, Restoration | Elemental, Enhancement, Restoration |
+| Class | Specs (TBC) | Vanilla Variants | Guide |
+|-------|-------------|------------------|-------|
+| **Warrior** | Arms, Fury, Protection, Kebab | Arms, Fury, Protection, Kebab | [📖 Warrior](docs/rotations/warrior.md) |
+| **Paladin** | Holy, Protection, Retribution | Holy, Protection, Retribution | [📖 Paladin](docs/rotations/paladin.md) |
+| **Hunter** | Beast Mastery, Marksmanship, Survival | Beast Mastery, Marksmanship, Survival | [📖 Hunter](docs/rotations/hunter.md) |
+| **Rogue** | Assassination, Combat, Subtlety | Assassination, Combat, Subtlety | [📖 Rogue](docs/rotations/rogue.md) |
+| **Priest** | Holy, Discipline, Shadow, Smite | Holy, Discipline, Shadow, Smite | [📖 Priest](docs/rotations/priest.md) |
+| **Mage** | Arcane, Fire, Frost | Arcane, Fire, Frost | [📖 Mage](docs/rotations/mage.md) |
+| **Warlock** | Affliction, Demonology, Destruction | Affliction, Demonology, Destruction | [📖 Warlock](docs/rotations/warlock.md) |
+| **Druid** | Balance, Feral Cat, Feral Bear, Restoration | Balance, Feral Cat, Feral Bear, Restoration | [📖 Druid](docs/rotations/druid.md) |
+| **Shaman** | Elemental, Enhancement, Restoration | Elemental, Enhancement, Restoration | [📖 Shaman](docs/rotations/shaman.md) |
 
 **Total: 29 TBC specs + 24 vanilla variants**
 
