@@ -46,7 +46,6 @@ local SERPENT_STING_DEBUFF = { 25295, 13555, 13554, 13553, 13552, 13551, 13550, 
 local SCORPID_STING_DEBUFF = { 3043 }
 local WING_CLIP_DEBUFF = { 2974 }
 local ASPECT_HAWK_BUFF = { 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
-local ASPECT_VIPER_BUFF = { }
 local _last_aspect_hawk_cast = 0  -- Throttle: WoW API buff detection delay
 
 -- ============================================================================
@@ -56,19 +55,15 @@ local sv_state = {
     has_pet = false,
     pet_alive = false,
     pet_dead = false,
-    pre_steady_leveling = false,
     pet_hp_pct = 100,
     has_hunters_mark = false,
     has_serpent_sting = false,
     has_aspect_hawk = false,
-    has_aspect_viper = false,
     mend_pet_ready = false,
     hunters_mark_ready = false,
     rapid_fire_ready = false,
     explosive_trap_ready = false,
-    kill_command_ready = false,
     multi_shot_ready = false,
-    steady_shot_ready = false,
     arcane_shot_ready = false,
     serpent_sting_ready = false,
     call_pet_ready = false,
@@ -105,15 +100,12 @@ local function build_state(context)
         sv_state.has_scorpid_sting = target and NS.debuff_up(target, SCORPID_STING_DEBUFF) or false
         sv_state.wing_clip_active = target and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
         sv_state.has_aspect_hawk = me and NS.buff_up(me, ASPECT_HAWK_BUFF) or false
-        sv_state.has_aspect_viper = me and NS.buff_up(me, ASPECT_VIPER_BUFF) or false
     end
     sv_state.mend_pet_ready = me and NS.spell_ready(SPELLS.MendPet, me, { skip_range = true }) or false
     sv_state.hunters_mark_ready = target and NS.spell_ready(SPELLS.HuntersMark, target) or false
     sv_state.rapid_fire_ready = me and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
     sv_state.explosive_trap_ready = me and NS.spell_ready(SPELLS.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
-    sv_state.kill_command_ready = target and NS.spell_ready(SPELLS.UnavailableClassicHunterShotB, target, { expected_cooldown = 5 }) or false
     sv_state.multi_shot_ready = target and NS.spell_ready(SPELLS.MultiShot, target, { expected_cooldown = 10 }) or false
-    sv_state.steady_shot_ready = target and NS.spell_ready(SPELLS.UnavailableClassicHunterShotA, target) or false
     sv_state.arcane_shot_ready = target and NS.spell_ready(SPELLS.ArcaneShot, target, { expected_cooldown = 6 }) or false
     sv_state.serpent_sting_ready = target and NS.spell_ready(SPELLS.SerpentSting, target) or false
     sv_state.call_pet_ready = me and NS.spell_ready(SPELLS.CallPet, me, { skip_range = true }) or false
@@ -128,7 +120,7 @@ local function build_state(context)
     sv_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     sv_state.in_combat = context.in_combat or false
     sv_state.enemy_count = context.enemy_count or context.enemies_count or 1
-    sv_state.pre_steady_leveling = ((context.player_level or 70) < 62) or (context.is_leveling == true and not sv_state.steady_shot_ready)
+    sv_state.pre_steady_leveling = (context.player_level or 70) < 62
 
     return sv_state
 end
@@ -166,24 +158,11 @@ local function explosive_trap_matches(context, s)
     return true
 end
 
-local function kill_command_matches(context, s)
-    if not s.in_combat then return false end
-    if not s.pet_alive then return false end
-    if not s.kill_command_ready then return false end
-    return true
-end
-
 local function multi_shot_matches(context, s)
     if not s.multi_shot_ready then return false end
     if context.has_breakable_cc_nearby then return false end
     if (s.mana_pct or 100) < 15 then return false end
     if not can_cast_before_auto(MULTI_SHOT_CAST_MS) then return false end
-    return true
-end
-
-local function steady_shot_matches(context, s)
-    if not s.steady_shot_ready then return false end
-    if not can_cast_steady() then return false end
     return true
 end
 
@@ -204,10 +183,6 @@ local function aspect_hawk_matches(context, s)
     -- Throttle: WoW API buff detection lags 1-2 frames — prevent thrashing
     if (NS.time_now() - _last_aspect_hawk_cast) < 3 then return false end
     return true
-end
-
-local function aspect_viper_matches(context, s)
-    return false
 end
 
 local function call_pet_matches(context, s)
@@ -243,13 +218,11 @@ local function viper_sting_matches(context, s)
 end
 
 local function leveling_arcane_shot_matches(context, s)
-    if not s.pre_steady_leveling then return false end
     if not s.arcane_shot_ready then return false end
     return true
 end
 
 local function leveling_sting_matches(context, s)
-    if not s.pre_steady_leveling then return false end
     if s.has_serpent_sting then return false end
     if (s.mana_pct or 100) < 25 then return false end
     if not s.serpent_sting_ready then return false end
@@ -264,19 +237,6 @@ local function concussive_shot_matches(context, s)
     local target_dist = target.get_distance and target:get_distance(context.me) or 20
     if target_dist > 30 then return false end
     return true
-end
-
--- UnavailableClassicHunterThreat: redirect threat to pet
-local function misdirection_matches(context, s)
-    if not s.in_combat then return false end
-    if not s.pet_alive then return false end
-    return NS.spell_ready(SPELLS.UnavailableClassicHunterThreat, context.me or NS.PLAYER_UNIT, { skip_range = true, expected_cooldown = 120 })
-end
-
-local function misdirection_execute(context, s)
-    local pet = context.pet or (NS.GetPet and NS.GetPet()) or nil
-    if not pet then return false end
-    return NS.try_cast(SPELLS.UnavailableClassicHunterThreat, pet, "[SURVIVAL] UnavailableClassicHunterThreat")
 end
 
 -- Scorpid Sting: debuff reducing target's chance to hit
@@ -373,14 +333,11 @@ local strategies = {
     { name = "CallPet", matches = call_pet_matches, execute = function(context) return NS.try_cast(SPELLS.CallPet, context.me, "[SURVIVAL] Call Pet", { skip_range = true }) end },
     { name = "RevivePet", matches = revive_pet_matches, execute = function(context) return NS.try_cast(SPELLS.RevivePet, context.me, "[SURVIVAL] Revive Pet", { skip_range = true }) end },
     { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) local r = NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[SURVIVAL] Aspect of the Hawk", { skip_range = true }); if r then _last_aspect_hawk_cast = NS.time_now() end; return r end },
-    { name = "UnavailableClassicHunterAspect", matches = aspect_viper_matches, execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicHunterAspect, context.me, "[SURVIVAL] Aspect of the Viper", { skip_range = true }) end },
     { name = "FreezingTrap", matches = freezing_trap_matches, execute = function(context) return NS.try_cast(SPELLS.FreezingTrap, context.me, "[SURVIVAL] Freezing Trap", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return NS.try_cast(SPELLS.HuntersMark, context.target, "[SURVIVAL] Hunter's Mark") end },
     { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[SURVIVAL] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "ExplosiveTrap", matches = explosive_trap_matches, execute = function(context) return NS.try_cast(SPELLS.ExplosiveTrap, context.me, "[SURVIVAL] Explosive Trap", { skip_range = true, expected_cooldown = 30 }) end },
-    { name = "UnavailableClassicHunterShotB", matches = kill_command_matches, execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicHunterShotB, context.target, "[SURVIVAL] Kill Command", { expected_cooldown = 5, skip_gcd = true }) end },
     { name = "FeignDeath", matches = feign_death_matches, execute = function(context) return NS.try_cast(SPELLS.FeignDeath, context.me, "[SURVIVAL] Feign Death", { skip_range = true, expected_cooldown = 30 }) end },
-    { name = "UnavailableClassicHunterThreat", matches = misdirection_matches, execute = misdirection_execute },
     { name = "ConcussiveShot", matches = concussive_shot_matches, execute = function(context) return NS.try_cast(SPELLS.ConcussiveShot, context.target, "[SURVIVAL] Concussive Shot") end },
     { name = "ScorpidSting", matches = scorpid_sting_matches, execute = function(context) return NS.try_cast(SPELLS.ScorpidSting, context.target, "[SURVIVAL] Scorpid Sting") end },
     { name = "Volley", matches = volley_matches, execute = function(context) return NS.try_cast(SPELLS.Volley, context.target, "[SURVIVAL] Volley") end },
@@ -389,7 +346,6 @@ local strategies = {
     { name = "LevelingArcaneShot", matches = leveling_arcane_shot_matches, execute = function(context) if NS.try_cast(SPELLS.ArcaneShot, context.target, "[SURVIVAL] Arcane Shot (leveling)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "LevelingSting", matches = leveling_sting_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[SURVIVAL] Serpent Sting (leveling)") end },
     { name = "MultiShot", matches = multi_shot_matches, execute = function(context) if NS.try_cast(SPELLS.MultiShot, context.target, "[SURVIVAL] Multi-Shot", { expected_cooldown = 10 }) then record_manual_shot() return true end return false end },
-    { name = "UnavailableClassicHunterShotA", matches = steady_shot_matches, execute = function(context) if NS.try_cast(SPELLS.UnavailableClassicHunterShotA, context.target, "[SURVIVAL] Steady Shot") then record_manual_shot() return true end return false end },
     { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(context) if NS.try_cast(SPELLS.ArcaneShot, context.target, "[SURVIVAL] Arcane Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(SPELLS.ViperSting, context.target, "[SURVIVAL] Viper Sting", { expected_cooldown = 8 }) end },
     { name = "SerpentSting", matches = serpent_sting_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[SURVIVAL] Serpent Sting") end },

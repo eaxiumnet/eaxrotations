@@ -42,8 +42,8 @@ local state = {
     has_hawk = false, has_viper = false, has_cheetah = false,
     has_hunters_mark = false, has_serpent_sting = false,
     has_scorpid_sting = false, has_viper_sting = false,
-    steady_shot_ready = false, arcane_shot_ready = false,
-    multi_shot_ready = false, kill_command_ready = false,
+    arcane_shot_ready = false,
+    multi_shot_ready = false,
     bestial_wrath_ready = false, rapid_fire_ready = false,
     feign_death_ready = false, mend_pet_ready = false,
     call_pet_ready = false, revive_pet_ready = false,
@@ -118,9 +118,7 @@ local function build_state(context)
     state.hunters_mark_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.HuntersMark, target) or false
     state.serpent_sting_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.SerpentSting, target) or false
     state.arcane_shot_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.ArcaneShot, target) or false
-    state.steady_shot_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.UnavailableClassicHunterShotA, target) or false
     state.multi_shot_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.MultiShot, target) or false
-    state.kill_command_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.UnavailableClassicHunterShotB, target) or false
     state.bestial_wrath_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.BestialWrath, me, { skip_range = true }) or false
     state.rapid_fire_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true }) or false
     state.feign_death_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.FeignDeath, me, { skip_range = true }) or false
@@ -311,15 +309,6 @@ local function rapid_fire_matches(context, s)
     return true
 end
 
--- Kill Command (off-GCD, high priority)
-local function kill_command_matches(context, s)
-    if not mounted_bail(context, s) then return false end
-    if not s.in_combat then return false end
-    if not s.pet_alive then return false end
-    if not s.kill_command_ready then return false end
-    return true
-end
-
 -- Multi-Shot (configurable threshold, CC-safe and mana-gated)
 local function multi_shot_matches(context, s)
     if not mounted_bail(context, s) then return false end
@@ -388,18 +377,6 @@ local function arcane_shot_matches(context, s)
     if (s.mana_pct or 100) < ARCANE_SHOT_MANA_FLOOR then return false end
     -- Check auto-shot clipping for instant
     if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
-    return true
-end
-
--- Steady Shot (primary filler, 62+)
-local function steady_shot_matches(context, s)
-    if not mounted_bail(context, s) then return false end
-    if not s.in_combat then return false end
-    if not s.steady_shot_ready then return false end
-    -- Check auto-shot clipping for steady
-    if not hunter_core.can_cast_steady(s.shot_buffer) then return false end
-    -- Not while moving (steady requires standing still)
-    if context.is_moving then return false end
     return true
 end
 
@@ -616,13 +593,7 @@ local strategies = {
         matches = ooc_aspect_matches,
         execute = ooc_aspect_execute,
     },
-    -- 4. UnavailableClassicHunterThreat (pull window)
-    {
-        name = "UnavailableClassicHunterThreat",
-        matches = misdirection_matches,
-        execute = execute_misdirection,
-    },
-    -- 5. Mend Pet
+    -- 4. Mend Pet
     {
         name = "MendPet",
         matches = mend_pet_matches,
@@ -662,13 +633,7 @@ local strategies = {
         matches = rapid_fire_matches,
         execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[BEAST_MASTERY] RapidFire", { skip_range = true }) end,
     },
-    -- 12. Kill Command (off-GCD, highest DPS)
-    {
-        name = "UnavailableClassicHunterShotB",
-        matches = kill_command_matches,
-        execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicHunterShotB, context.target, "[BEAST_MASTERY] UnavailableClassicHunterShotB") end,
-    },
-    -- 14. Feign Death (threat management)
+    -- 12. Feign Death (threat management)
     {
         name = "FeignDeath",
         matches = feign_death_matches,
@@ -697,16 +662,6 @@ local strategies = {
         execute = function(context)
             local result = NS.try_cast(SPELLS.ArcaneShot, context.target, "[BEAST_MASTERY] ArcaneShot")
             if result then hunter_core.record_instant_shot() end
-            return result
-        end,
-    },
-    -- 19. Steady Shot (primary filler, 62+)
-    {
-        name = "UnavailableClassicHunterShotA",
-        matches = steady_shot_matches,
-        execute = function(context)
-            local result = NS.try_cast(SPELLS.UnavailableClassicHunterShotA, context.target, "[BEAST_MASTERY] UnavailableClassicHunterShotA")
-            if result then hunter_core.record_steady_start() end
             return result
         end,
     },
