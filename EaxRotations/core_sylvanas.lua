@@ -536,6 +536,35 @@ do
     end
 end
 
+-- Fallback friendly-target helpers (defensive: available even if core/units fails to load).
+if not NS.has_friendly_target then
+    function NS.has_friendly_target()
+        local me = NS.GetPlayer and NS.GetPlayer()
+        if not me then return false end
+        local target = NS.GetTarget and NS.GetTarget()
+        if not target then return false end
+        if NS.is_hostile_unit and NS.is_hostile_unit(me, target) then return false end
+        return true
+    end
+end
+if not NS.get_friendly_target_entry then
+    function NS.get_friendly_target_entry(context)
+        local me = (context and context.me) or (NS.GetPlayer and NS.GetPlayer())
+        if not me then return nil end
+        local target = NS.GetTarget and NS.GetTarget()
+        if not target then return nil end
+        if NS.is_hostile_unit and NS.is_hostile_unit(me, target) then return nil end
+        if NS.unit_alive and not NS.unit_alive(target) then return nil end
+        local hp_pct = (NS.unit_health_pct and NS.unit_health_pct(target)) or 100
+        local is_player = false
+        if target.is_player then
+            local ok, p = pcall(target.is_player, target)
+            if ok then is_player = p == true end
+        end
+        return { unit = target, hp_pct = hp_pct, effective_hp = hp_pct, is_player = is_player }
+    end
+end
+
 -- Install items domain (extracted to EaxRotations/core/items.lua).
 -- Wires EQUIPMENT_SLOTS, get_equipped_item_id(s), is_item_equipped,
 -- is_item_ready, register_item_manual_cooldown, use_item_by_id(+alias),
