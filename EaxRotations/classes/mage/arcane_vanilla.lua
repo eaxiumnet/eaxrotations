@@ -374,18 +374,20 @@ local function arcane_blast_matches(context, s)
     return NS.spell_ready(SPELLS.UnavailableClassicMageArcane, context.target)
 end
 
---- Fire Blast: instant filler, use on cooldown or while moving
+--- Fire Blast: instant filler, use only while moving in Vanilla
 local function fire_blast_matches(context, s)
     if not context.target then return false end
-    -- Priority while moving (instant cast)
+    -- In Vanilla Arcane (AP Frost), Fire Blast is only used while moving
+    -- Frostbolt is the primary nuke; never spam Fire Blast as filler
     if s.is_moving then return true end
-    -- Priority when AB is at max stacks (weave instant between AB casts)
-    local max_stacks = s.phase == PHASE_BURN
-        and get_setting_num(context, "arcane_burn_max_stacks", 3)
-        or get_setting_num(context, "arcane_conserve_max_stacks", 0)
-    if (s.ab_stacks or 0) >= max_stacks then return true end
-    -- Otherwise fire blast as filler
-    return true
+    return false
+end
+
+--- Frostbolt: primary nuke for Vanilla Arcane (AP Frost hybrid)
+local function frostbolt_matches(context, s)
+    if s.is_moving then return false end
+    if not context.target then return false end
+    return NS.spell_ready(SPELLS.Frostbolt, context.target)
 end
 
 --- Arcane Missiles: filler that doesn't stack AB
@@ -468,10 +470,15 @@ local strategies = {
       matches = arcane_blast_matches,
       execute = function(context) return NS.try_cast(SPELLS.UnavailableClassicMageArcane, context.target, "[ARCANE] UnavailableClassicMageArcane") end },
 
-    -- Instant filler
+    -- Instant filler (moving only in Vanilla)
     { name = "FireBlast",
       matches = fire_blast_matches,
       execute = function(context) return NS.try_cast(SPELLS.FireBlast, context.target, "[ARCANE] FireBlast") end },
+
+    -- Primary nuke: Frostbolt (Vanilla Arcane = AP-boosted Frostbolt)
+    { name = "Frostbolt",
+      matches = frostbolt_matches,
+      execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[ARCANE] Frostbolt") end },
 
     -- Filler (non-stacking)
     { name = "ArcaneMissiles",
