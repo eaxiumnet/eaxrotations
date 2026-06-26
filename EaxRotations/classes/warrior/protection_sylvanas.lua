@@ -768,6 +768,22 @@ local strategies = {
         end,
         execute = function(context) return NS.try_cast(SPELLS.ShieldBlock, context.me or NS.GetPlayer(), "[PROT] ShieldBlock", { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) end,
     },
+    -- 4b) Survival debuff upkeep (TBC guide: Demo Shout + Thunder Clap "always
+    -- up", placed above Devastate filler -- ~18% dmg cut + ~20% atk-speed slow).
+    {
+        name = "DemoralizingShout",
+        matches = function(context, state) return demo_shout_matches_fn(context, state) end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.DemoralizingShout, context.me or NS.GetPlayer(), "[PROT] DemoShout", { skip_range = true, expected_cooldown = DEMO_SHOUT_CD })
+        end,
+    },
+    {
+        name = "ThunderClap",
+        matches = function(context, state) return thunderclap_matches_fn(context, state) end,
+        execute = function(context)
+            return NS.try_cast(SPELLS.ThunderClap, context.me or NS.GetPlayer(), "[PROT] ThunderClap", { skip_range = true, expected_cooldown = THUNDERCLAP_CD })
+        end,
+    },
     -- 5) Sunder / Devastate stack maintenance
     {
         name = "Devastate",
@@ -791,23 +807,7 @@ local strategies = {
             return NS.try_cast(SPELLS.Execute, context.target, "[PROT] Execute")
         end,
     },
-    -- 6) AoE tanking
-    {
-        name = "ThunderClap",
-        matches = function(context, state) return thunderclap_matches_fn(context, state) end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.ThunderClap, context.me or NS.GetPlayer(), "[PROT] ThunderClap", { skip_range = true, expected_cooldown = THUNDERCLAP_CD })
-        end,
-    },
-    -- 7) Debuff maintenance
-    {
-        name = "DemoralizingShout",
-        matches = function(context, state) return demo_shout_matches_fn(context, state) end,
-        execute = function(context)
-            return NS.try_cast(SPELLS.DemoralizingShout, context.me or NS.GetPlayer(), "[PROT] DemoShout", { skip_range = true, expected_cooldown = DEMO_SHOUT_CD })
-        end,
-    },
-    -- 8) Buffs / Shouts
+    -- 6) Buffs / Shouts
     {
         name = "BattleShout",
         matches = function(context, state) return battle_shout_matches_fn(context, state) end,
