@@ -1,10 +1,21 @@
 # Deferred Concern: Drain Soul "execute" uses Wrath mechanic (not TBC)
 
 **Raised:** 2026-06-25 (APL optimization session, HEAD after `cddd6393`)
-**Status:** DEFERRED — mechanic-correctness fix, not an APL reorder. Needs a focused effort.
+**Status:** RESOLVED 2026-06-25 — fixed in commit `c3565364` (see below). Kept for history.
 **Affects:** `EaxRotations/classes/warlock/affliction_sylvanas.lua`, `EaxRotations/classes/warlock/demonology_sylvanas.lua`
 
-## The problem
+## Resolution (2026-06-25, commit `c3565364`)
+
+Fixed exactly along the lines below. Both specs now gate Drain Soul on a TTD window
+(`SOUL_SHARD_CAPTURE_TTD = 5`): channel only when the mob is about to die so it dies
+during the channel and yields a shard. If `ttd` is unknown, do not cast (avoids
+channeling a low-DPS spell for 15s on a boss whose low HP% is still a long fight).
+Affliction renamed `EXECUTE_HP`→`SOUL_SHARD_CAPTURE_TTD`; Demonology added the new
+constant (kept `EXECUTE_THRESHOLD=25` — still used by `curse_of_agony_matches` to
+skip CoA on a dying mob). Both tests rewritten to assert the shard-capture behavior.
+Gate green: 171 rotation + 11 leveling suites, 0 fail.
+
+## The problem (historical)
 
 Both Warlock DPS specs cast Drain Soul as a **sub-25% "execute"**:
 

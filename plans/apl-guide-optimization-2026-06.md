@@ -169,14 +169,14 @@ For each spec:
   - Files: `EaxRotations/classes/warlock/affliction_sylvanas.lua`
   - Acceptance: UA > Corruption > CoA > Siphon Life > Drain Life priority
   - **VERIFIED (ordering):** Research (Icy-Veins + Warcraft Tavern, reviewed for 2.5.5): CoE/CoD > UA > Corruption > Siphon Life > Immolate > Shadow Bolt filler; Nightfall proc → instant SB. Current: NightfallProc > Corruption > UA > SiphonLife > CoD/CoE/CoA > Immolate > SB filler — all DoTs/curse above filler, defensible (curse-after-DoT is a 1-GCD pull nuance, not a bug). NightfallProc high (correct).
-  - **CAVEAT (deferred — see `plans/deferred_drain_soul_execute.md`):** `DrainSoulExecute` uses `EXECUTE_HP=25` (sub-25% execute). The Drain Soul sub-25% 4× execute is a **Wrath mechanic** — does NOT exist in TBC (Drain Soul ~62 dps vs Shadow Bolt ~250 dps → channeling at 25% is a large DPS loss). TBC-correct = shard-capture only (mob about to die). Same bug in Demonology (`EXECUTE_THRESHOLD=25`). Fix needs threshold/mechanic change + test update (`test_affliction_custom_matches.lua` asserts the 25% behavior) across 2 specs → deferred as a separate mechanic-correctness concern, not an APL reorder.
+  - **CAVEAT (deferred — see `plans/deferred_drain_soul_execute.md`):** `DrainSoulExecute` uses `EXECUTE_HP=25` (sub-25% execute). The Drain Soul sub-25% 4× execute is a **Wrath mechanic** — does NOT exist in TBC (Drain Soul ~62 dps vs Shadow Bolt ~250 dps → channeling at 25% is a large DPS loss). TBC-correct = shard-capture only (mob about to die). Same bug in Demonology (`EXECUTE_THRESHOLD=25`). **RESOLVED 2026-06-25 commit `c3565364`**: both specs now gate on TTD (`SOUL_SHARD_CAPTURE_TTD=5`), tests rewritten. See deferred note.
   - Verify: `luac -p`, gate, `test_affliction_*`
 
 - [x] **P7.2** Demonology — compare against Wowhead Demonology Warlock TBC guide
   - Files: `EaxRotations/classes/warlock/demonology_sylvanas.lua`
   - Acceptance: Shadowbolt filler, demon form (if Wrath-backported), pet management
   - **FIXED:** Immolate was above Corruption — reordered Corruption before Immolate per TBC guide (Icy-Veins + Warcraft Tavern, reviewed for 2.5.5): CoD > Corruption > Immolate > SB filler. Corruption has higher DPCT/longer DoT. Match fns unchanged (symmetric refresh gates) — order swap only. Committed `cddd6393`. SoulFire/Incinerate kept (gated, talented/fallback). No Wrath Demo spells (Metamorphosis/Decimation/Molten Core) present.
-  - **CAVEAT (deferred — see `plans/deferred_drain_soul_execute.md`):** `DrainSoul` uses `EXECUTE_THRESHOLD=25` (sub-25% execute) — Wrath mechanic, not TBC. Same as Affliction P7.1. Deferred to a separate shard-capture concern.
+  - **CAVEAT (deferred — see `plans/deferred_drain_soul_execute.md`):** `DrainSoul` uses `EXECUTE_THRESHOLD=25` (sub-25% execute) — Wrath mechanic, not TBC. Same as Affliction P7.1. **RESOLVED 2026-06-25 commit `c3565364`** — now TTD-gated shard capture.
   - Verify: `luac -p`, gate, `test_demonology_*`
 
 - [x] **P7.3** Destruction — compare against Wowhead Destruction Warlock TBC guide
