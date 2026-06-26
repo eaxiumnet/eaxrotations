@@ -48,10 +48,10 @@ EaxRotations is a **priority-list rotation engine** for World of Warcraft: The B
 | **Priest** | Holy, Discipline, Shadow, Smite | Holy, Discipline, Shadow, Smite | [📖 Priest](docs/rotations/priest.md) |
 | **Mage** | Arcane, Fire, Frost | Arcane, Fire, Frost | [📖 Mage](docs/rotations/mage.md) |
 | **Warlock** | Affliction, Demonology, Destruction | Affliction, Demonology, Destruction | [📖 Warlock](docs/rotations/warlock.md) |
-| **Druid** | Balance, Feral Cat, Feral Bear, Restoration | Balance, Feral Cat, Feral Bear, Restoration | [📖 Druid](docs/rotations/druid.md) |
+| **Druid** | Balance, Feral Cat, Feral Bear, Restoration | Balance, Feral Cat, Feral Bear, Restoration, Caster | [📖 Druid](docs/rotations/druid.md) |
 | **Shaman** | Elemental, Enhancement, Restoration | Elemental, Enhancement, Restoration | [📖 Shaman](docs/rotations/shaman.md) |
 
-**Total: 29 TBC specs + 24 vanilla variants**
+**Total: 29 TBC specs + 31 vanilla variants**
 
 ### Architecture
 
