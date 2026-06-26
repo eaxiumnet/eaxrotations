@@ -42,7 +42,7 @@
     {"class":"rogue","spec":"combat","expansion":"tbc","overall":5,"apl":5,"tests":5,"features":5,"spell_validity":5,"content":{"solo":4,"dungeon":5,"raid":5,"arena":5,"battleground":5,"leveling":4}},
     {"class":"rogue","spec":"subtlety","expansion":"tbc","overall":5,"apl":5,"tests":3,"features":5,"spell_validity":5,"content":{"solo":4,"dungeon":5,"raid":5,"arena":5,"battleground":5,"leveling":4}},
     {"class":"rogue","spec":"assassination","expansion":"vanilla","overall":4,"apl":5,"tests":0,"features":5,"spell_validity":5,"content":{"solo":4,"dungeon":4,"raid":5,"arena":5,"battleground":5,"leveling":5}},
-    {"class":"rogue","spec":"combat","expansion":"vanilla","overall":4,"apl":5,"tests":0,"features":5,"spell_validity":5,"content":{"solo":4,"dungeon":5,"raid":5,"arena":5,"battleground":5,"leveling":4}},
+    {"class":"rogue","spec":"combat","expansion":"vanilla","overall":4,"apl":5,"tests":0,"features":5,"spell_validity":5,"content":{"solo":4,"dungeon":5,"raid":5,"arena":4,"battleground":5,"leveling":4}},
     {"class":"rogue","spec":"subtlety","expansion":"vanilla","overall":4,"apl":5,"tests":1,"features":4,"spell_validity":5,"content":{"solo":4,"dungeon":5,"raid":5,"arena":5,"battleground":5,"leveling":4}},
     {"class":"shaman","spec":"elemental","expansion":"tbc","overall":5,"apl":5,"tests":5,"features":4,"spell_validity":5,"content":{"solo":4,"dungeon":5,"raid":5,"arena":5,"battleground":5,"leveling":4}},
     {"class":"shaman","spec":"enhancement","expansion":"tbc","overall":5,"apl":5,"tests":5,"features":4,"spell_validity":5,"content":{"solo":4,"dungeon":5,"raid":5,"arena":5,"battleground":5,"leveling":4}},

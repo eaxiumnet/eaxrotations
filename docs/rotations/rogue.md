@@ -157,7 +157,7 @@ Gated for: dungeon, raid, pvp
 
 ### Content Types
 
-Gated for: dungeon, raid, pvp
+Gated for: dungeon, raid
 
 ## Subtlety (TBC)
 
