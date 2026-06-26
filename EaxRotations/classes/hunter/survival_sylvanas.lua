@@ -68,6 +68,7 @@ local sv_state = {
     mend_pet_ready = false,
     hunters_mark_ready = false,
     rapid_fire_ready = false,
+    rapid_fire_cd = 0,
     explosive_trap_ready = false,
     immolation_trap_ready = false,
     mongoose_bite_ready = false,
@@ -117,6 +118,7 @@ local function build_state(context)
     sv_state.mend_pet_ready = me and NS.spell_ready(SPELLS.MendPet, me, { skip_range = true }) or false
     sv_state.hunters_mark_ready = target and NS.spell_ready(SPELLS.HuntersMark, target) or false
     sv_state.rapid_fire_ready = me and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
+    sv_state.rapid_fire_cd = NS.cooldown_remains and NS.cooldown_remains(SPELLS.RapidFire) or 0
     sv_state.explosive_trap_ready = me and NS.spell_ready(SPELLS.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     sv_state.immolation_trap_ready = me and NS.spell_ready(SPELLS.ImmolationTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     sv_state.mongoose_bite_ready = target and NS.spell_ready(SPELLS.MongooseBite, target) or false
@@ -294,8 +296,8 @@ local function readiness_matches(context, s)
     if context.settings and context.settings.use_readiness == false then return false end
     if not s.in_combat then return false end
     if not s.readiness_ready then return false end
-    -- Use after Rapid Fire has been used to reset it for 2nd burst window
-    if s.rapid_fire_ready then return false end
+    -- Use after Rapid Fire has been used (on CD with >= 60 s remaining) to reset it for 2nd burst window
+    if (s.rapid_fire_cd or 0) < 60 then return false end
     return true
 end
 

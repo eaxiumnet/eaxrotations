@@ -48,7 +48,7 @@ local state = {
     has_scorpid_sting = false, has_viper_sting = false,
     steady_shot_ready = false, arcane_shot_ready = false,
     multi_shot_ready = false, kill_command_ready = false,
-    bestial_wrath_ready = false, rapid_fire_ready = false,
+    bestial_wrath_ready = false, rapid_fire_ready = false, rapid_fire_cd = 0,
     feign_death_ready = false, mend_pet_ready = false,
     call_pet_ready = false, revive_pet_ready = false,
     hunters_mark_ready = false, serpent_sting_ready = false,
@@ -128,6 +128,7 @@ local function build_state(context)
     state.kill_command_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.KillCommand, target) or false
     state.bestial_wrath_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.BestialWrath, me, { skip_range = true }) or false
     state.rapid_fire_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true }) or false
+    state.rapid_fire_cd = NS.cooldown_remains and NS.cooldown_remains(SPELLS.RapidFire) or 0
     state.feign_death_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.FeignDeath, me, { skip_range = true }) or false
     state.mend_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.MendPet, me, { skip_range = true }) or false
     state.call_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.CallPet, me, { skip_range = true }) or false
@@ -320,14 +321,14 @@ local function rapid_fire_matches(context, s)
     return true
 end
 
--- Readiness (reset Bestial Wrath / Rapid Fire after they expire)
+-- Readiness (reset Rapid Fire after it has been used and has substantial cooldown remaining)
 local function readiness_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not cooldowns_allowed(context) then return false end
     if context.settings and context.settings.use_readiness == false then return false end
     if not s.readiness_ready then return false end
-    -- Only use if Bestial Wrath is on cooldown (already used)
-    if s.bestial_wrath_ready then return false end
+    -- Only use if Rapid Fire is on cooldown with >= 60 s remaining
+    if (s.rapid_fire_cd or 0) < 60 then return false end
     return true
 end
 
