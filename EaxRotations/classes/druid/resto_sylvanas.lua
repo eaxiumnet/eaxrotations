@@ -122,6 +122,8 @@ local resto_state = {
     tree_dance_cooldown = 0,
     moonfire_remains = 0,
     insect_swarm_remains = 0,
+    friendly_target = nil,
+    friendly_target_ready = false,
 }
 
 
@@ -428,6 +430,9 @@ local function build_state(context)
     if context.is_moving and not context.in_combat and (context.target_distance or 0) >= REPOSITION_RANGE then resto_state.should_move_form = true end
     scan_pvp_pressure(context, resto_state)
     if resto_state.in_tree and (resto_state.ns_target or resto_state.ht_target or resto_state.enemy_healer or resto_state.root_target) then resto_state.should_dance_caster = true end
+    local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
+    resto_state.friendly_target = ft
+    resto_state.friendly_target_ready = ft ~= nil
     return resto_state
 end
 
@@ -461,6 +466,24 @@ end
 -- [28-29] Movement form support for repositioning.
 -- [30]    Fallback direct heal when all higher-value options are unavailable.
 local strategies = {
+    -- FriendlyTarget (Step 0): honor the player's manually-selected friendly target.
+    -- TOP priority: works in and out of combat. Threshold-gated so full-health
+    -- targets are ignored. State is populated in build_state().
+    { name = "FriendlyTarget", matches = function(context, state)
+        if not state.friendly_target_ready then return false end
+        local ft = state.friendly_target
+        if not ft then return false end
+        if (ft.hp_pct or 100) >= (context.settings.resto_friendly_target_threshold or 90) then return false end
+        if context.is_moving then return false end
+        if context.player_control_locked then return false end
+        if not NS.spell_ready(SPELLS.Regrowth, ft.unit) then return false end
+        if predictive_overheal("Regrowth", ft, 2.0, context.settings, 35) then return false end
+        return true
+    end, execute = function(context, state)
+        local ft = state.friendly_target
+        if not ft or not ft.unit then return false end
+        return NS.try_cast(SPELLS.Regrowth, ft.unit, string.format("[RESTO] Regrowth (friendly target) %.0f%%", effective_hp(ft)))
+    end },
     { name = "BarkskinSelfPreservation", matches = function(context) return (context.hp or 100) <= 55 and NS.spell_ready(SPELLS.Barkskin, PLAYER_UNIT, BARKSKIN_OPTS) end, execute = function() return NS.try_cast(SPELLS.Barkskin, PLAYER_UNIT, "[RESTO] Barkskin self", BARKSKIN_OPTS) end },
     { name = "BearFormFocusedByMelee", matches = function(context, state) return context.is_pvp and (context.hp or 100) <= 35 and state.melee_pressure_count > 0 and context.stance ~= STANCE_BEAR and NS.spell_ready(SPELLS.BearForm, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(SPELLS.BearForm, PLAYER_UNIT, "[RESTO] Bear Form under melee focus", SKIP_RANGE) end },
     { name = "NaturesGraspMelee", matches = function(context, state) return context.is_pvp and state.melee_pressure_count > 0 and not NS.has_player_buff(NATURES_GRASP_BUFF) and NS.spell_ready(LOCAL_SPELLS.NaturesGrasp, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(LOCAL_SPELLS.NaturesGrasp, PLAYER_UNIT, "[RESTO] Nature's Grasp melee peel", SKIP_RANGE) end },
@@ -497,27 +520,7 @@ local strategies = {
     -- Placed after the emergency tier (Swiftmend / NS / NS+HT / Tranquility /
     -- HealingTouchMaxEmergency) so life-critical saves win, but before routine
     -- spot heals (RegrowthSpotHeal / Lifebloom / Rejuvenation / DownrankHT) so a
-    -- manual friendly target wins over auto-lowest-scan for routine healing.
-    -- Emergency override: skip when the auto-scanned lowest is at effective_hp
-    -- <= resto_emergency_hp (default 35, matching Regrowth's predictive gate).
-    -- Opt out via resto_use_friendly_target = false; threshold slider
-    -- resto_friendly_target_threshold (default 90).
-    { name = "FriendlyTarget", matches = function(context, state)
-        if not context.in_combat then return false end
-        if context.is_moving then return false end
-        if context.settings.resto_use_friendly_target == false then return false end
-        if state.lowest and effective_hp(state.lowest) <= (context.settings.resto_emergency_hp or 35) then return false end
-        local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
-        if not ft then return false end
-        if effective_hp(ft) >= (context.settings.resto_friendly_target_threshold or 90) then return false end
-        if not NS.spell_ready(SPELLS.Regrowth, ft.unit) then return false end
-        if predictive_overheal("Regrowth", ft, 2.0, context.settings, 35) then return false end
-        return true
-    end, execute = function(context, state)
-        local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
-        if not ft or not ft.unit then return false end
-        return NS.try_cast(SPELLS.Regrowth, ft.unit, string.format("[RESTO] Regrowth (friendly target) %.0f%%", effective_hp(ft)))
-    end },
+
     { name = "RegrowthSpotHeal", matches = function(context, state)
         if context.is_moving or not state.regrowth_target or state.mana_conserve then return false end
         if not NS.spell_ready(SPELLS.Regrowth, state.regrowth_target.unit) then return false end

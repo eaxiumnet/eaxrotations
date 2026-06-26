@@ -1,8 +1,10 @@
--- test_discipline_friendly_target.lua — B6 FriendlyTarget for Discipline priest.
--- Focused on discipline-specific bits: GREATER_HEAL rank selection in execute,
--- the discipline_flash_hp emergency-override gate, and disc_ settings.
--- The shared NS.get_friendly_target_entry semantics are covered by
--- test_priest_holy_friendly_target.lua; this test guards the discipline wiring.
+-- test_discipline_friendly_target.lua — Step 0 FriendlyTarget for Discipline priest.
+-- WHAT:  verifies the manual-friendly-target heal is TOP priority (index 1),
+--        works in and out of combat, and is gated only by threshold + readiness.
+-- WHEN:  regression guard for the FriendlyTarget strategy in discipline_sylvanas.lua.
+-- WHY:   Step 0 gives healers immediate manual-target control; no emergency
+--        override because life-critical saves (PW:S / FlashHeal) follow after.
+-- SAFETY: bypasses build_state by passing crafted state; mocks NS minimally.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
@@ -51,40 +53,50 @@ local ft = find("FriendlyTarget")
 assert_true(ft, "FriendlyTarget strategy should exist")
 
 local function ctx(o) local c = { in_combat = true, is_moving = false, mana_pct = 100, hp = 100, settings = {}, me = { _mock = true }, target = nil } if o then for k,v in pairs(o) do c[k]=v end end return c end
-local function st(o) local s = { lowest = nil, lowest_hp = 100, tank = nil, tank_hp = 100, greater_heal_ready = true, mana_pct = 100 } if o then for k,v in pairs(o) do s[k]=v end end return s end
+local function st(o) local s = { lowest = nil, lowest_hp = 100, tank = nil, tank_hp = 100, greater_heal_ready = true, mana_pct = 100, friendly_target_ready = false, friendly_target = nil } if o then for k,v in pairs(o) do s[k]=v end end return s end
 local function reset() _ft_present = true; _ft_hostile = false; _ft_hp = 75; _last_cast = nil end
 
-print("--- Discipline priest FriendlyTarget (B6) ---")
+print("--- Discipline priest FriendlyTarget (Step 0) ---")
 
 -- C1: friendly 75%, no emergency -> matches; execute casts GreaterHeal (rank by mana)
 reset()
-assert_true(ft.matches(ctx(), st({ lowest = { effective_hp = 80, unit = {} } })), "C1: should match")
+assert_true(ft.matches(ctx(), st({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C1: should match")
 _last_cast = nil
-assert_true(ft.execute(ctx({ mana_pct = 100 }), st({ mana_pct = 100 })), "C1: execute returns true")
+assert_true(ft.execute(ctx({ mana_pct = 100 }), st({ mana_pct = 100, friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C1: execute returns true")
 assert_eq(_last_cast.target, _ft_unit, "C1: targets friendly unit")
 assert_true(_last_cast.spell ~= nil, "C1: a GreaterHeal-rank spell id is cast")
 print("  [ PASS ] C1: matches + casts GreaterHeal rank on friendly target")
 
--- C2: lowest in emergency (50% < discipline_flash_hp 55) -> emergency override -> no match
+-- C2: greater_heal_ready false -> no match (readiness gate)
 reset()
-assert_false(ft.matches(ctx({ settings = { discipline_flash_hp = 55 } }), st({ lowest = { effective_hp = 50, unit = {} } })),
-    "C2: lowest 50% (< flash 55) -> emergency override, no match")
-print("  [ PASS ] C2: emergency override (discipline_flash_hp gate)")
+assert_false(ft.matches(ctx(), st({ greater_heal_ready = false, friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C2: GH not ready -> no match")
+print("  [ PASS ] C2: greater_heal_ready gate respected")
 
--- C3: opt-out disc_use_friendly_target = false -> no match
+-- C3: low mana (<=15) -> execute picks GREATER_HEAL_EFFICIENT (still casts; rank differs)
 reset()
-assert_false(ft.matches(ctx({ settings = { disc_use_friendly_target = false } }), st()), "C3: opt-out respected")
-print("  [ PASS ] C3: opt-out setting respected")
+ft.execute(ctx({ mana_pct = 10 }), st({ mana_pct = 10, friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } }))
+assert_eq(_last_cast.target, _ft_unit, "C3: low-mana execute still targets friendly unit")
+print("  [ PASS ] C3: low-mana rank selection still targets friendly unit")
 
--- C4: greater_heal_ready false -> no match (conservation/readiness)
-reset(); 
-assert_false(ft.matches(ctx(), st({ greater_heal_ready = false })), "C4: GH not ready -> no match")
-print("  [ PASS ] C4: greater_heal_ready gate respected")
+-- C4: hostile target -> friendly_target_ready = false -> no match
+reset(); _ft_hostile = true
+assert_false(ft.matches(ctx(), st()), "C4: hostile target -> no match")
+print("  [ PASS ] C4: hostile target does not match")
 
--- C5: low mana (<=15) -> execute picks GREATER_HEAL_EFFICIENT (still casts; rank differs)
-reset()
-ft.execute(ctx({ mana_pct = 10 }), st({ mana_pct = 10 }))
-assert_eq(_last_cast.target, _ft_unit, "C5: low-mana execute still targets friendly unit")
-print("  [ PASS ] C5: low-mana rank selection still targets friendly unit")
+-- C5: out of combat -> SHOULD match (Step 0 is unconditional)
+reset(); _ft_hp = 75
+assert_true(ft.matches(ctx({ in_combat = false }), st({ friendly_target_ready = true, friendly_target = { unit = _ft_unit, hp_pct = 75 } })), "C5: OOC -> should match")
+print("  [ PASS ] C5: works out of combat")
+
+-- C6: strategy ordering — FriendlyTarget is FIRST (index 1)
+local ft_idx, pws_idx
+for i = 1, #strategies do
+    if strategies[i].name == "FriendlyTarget" then ft_idx = i end
+    if strategies[i].name == "PowerWordShieldTank" then pws_idx = i end
+end
+assert_true(ft_idx and pws_idx, "C6: expected strategies present")
+assert_true(ft_idx == 1, "C6: FriendlyTarget must be FIRST strategy")
+assert_true(ft_idx < pws_idx, "C6: FriendlyTarget before PowerWordShieldTank")
+print("  [ PASS ] C6: strategy ordering (first, before all other heals)")
 
 print("PASS test_discipline_friendly_target")
