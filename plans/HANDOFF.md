@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-06-26** (APL round complete + Holy Paladin Avenging Wrath gap fix; last commit `9b14c93e`).
+> up to date after every work session. Last updated: **2026-06-26** (APL round COMPLETE + shipped; last commit `f5c95e4f`, HEAD in sync with origin).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/finish-what-i-started.md` — read it
@@ -32,15 +32,17 @@ have to context-switch.
   `a31d1fe5`) + Disc header fix `df1c7ed6` + **Holy Paladin Avenging Wrath gap
   fix `9b14c93e`** (the one missing-spell gap the research surfaced) + **all 21
   remaining specs VERIFIED** no-change vs guides (incl. all 5 healers + Bear tank).
-  See `plans/apl-guide-optimization-2026-06.md`. **9 GitHub releases** exist
-  (latest v2026-06-26.3656e064 — tanking round; Avenging Wrath staged for next
-  release).
-- **What's next:** APL optimization COMPLETE for all 29 TBC specs (fixed/verified).
-  Remaining: (1) Vanilla Anniversary variant audit (`*_vanilla.lua`, lower
-  priority). (2) Optional new-spell gaps noted but not added (Holy Paladin
-  Avenging Wrath) — adding new spells risks loops per Rule 5; deferred.
-  (3) B6.2 (per-spec predictive threshold sliders), opportunistic polish,
-  EaxAutoQuester verification. Cut a release after the healer/tank round.
+  See `plans/apl-guide-optimization-2026-06.md`. **10 GitHub releases** exist
+  (latest v2026-06-26.f5c95e4f — Holy Paladin Avenging Wrath; APL round fully shipped).
+- **What's next:** APL optimization COMPLETE + shipped for all 29 TBC specs.
+  Remaining (all lower priority / new scope): (1) Vanilla Anniversary variant
+  audit (`*_vanilla.lua` — different game version 1.15.x; the vanilla
+  spell-contamination audit already passes, but the APL *priorities* haven't
+  been guide-reviewed for Vanilla). (2) B6.2 (per-spec predictive threshold
+  sliders — design-first, don't over-engineer). (3) Opportunistic polish
+  (migrate specs to `spec_kit.safe_state` only when already editing them).
+  (4) EaxAutoQuester verification (separate product, NOT covered by the rotation
+  gate; last known 21/28 tests pass / 7 fail).
 - **Golden rule:** one concern per commit; run `validate.cmd` (at repo root)
   before marking anything done; if a task loops >2 attempts, STOP and write a
   debugging note in `plans/` instead of retrying.
@@ -133,8 +135,10 @@ git archive --format=zip --add-file=VERSION.txt -o "$zipname" HEAD -- EaxRotatio
 # no external-repo leak, VERSION.txt + new files present)
 gh release create "v${date}.${sha}" "$zipname" --title "..." --notes "..."
 ```
-`*.zip` is gitignored, so the zip won't pollute the repo. Two releases already
-exist: `v2026.06.25-f6d93cb9` and `v2026.06.25.fcd858d2`.
+`*.zip` is gitignored, so the zip won't pollute the repo. **10 releases** exist
+(latest `v2026-06-26.f5c95e4f`). NOTE: include `EaxAutoQuester/` in the archive
+path too (the rotation product ships both): `git archive ... HEAD -- EaxRotations/ EaxAutoQuester/`. Verify the zip with a python zipfile check that no entry is
+outside `.lua`/`.md`/`VERSION.txt` and no external-repo dir leaked in.
 
 ---
 
@@ -145,7 +149,7 @@ cd /c/newbot/scripts
 cmd.exe //c "validate.cmd"
 ```
 Expected output ends with `ALL CHECKS PASSED`. It runs: `luac -p` on modified
-files → rotation suite (161) → leveling suite (11) → spell audit. All on Lua
+files → rotation suite (171) → leveling suite (11) → spell audit. All on Lua
 5.1. If it says `VALIDATION FAILED`, read the FAIL line and fix it.
 
 For a quick single-file syntax check: `luac -p <file>` (uses the 5.1 luac).
@@ -249,7 +253,7 @@ at some point to see its real status. Sibling product — its own concern.
 - `EaxRotations/classes/<class>/<spec>_sylvanas.lua` — 29 spec files (flat).
 - `EaxRotations/shared/` — ~50 shared modules (healer_deficit, preemptive_heal,
   aura_cache, enemy_count_hysteresis, pvp_burst_window, offensive_dispel, …).
-- `EaxRotations/tests/run_rotation_tests.lua` — rotation suite runner (161 suites).
+- `EaxRotations/tests/run_rotation_tests.lua` — rotation suite runner (171 suites).
 - `EaxRotations/tests/run_leveling_tests.lua` — leveling suite runner (11 suites).
 - `validate.cmd` — the gate (Lua 5.1 pinned).
 - `apidocs/pages/dev/api/` — API docs (game-object.md, buffs.md, spellbook.md, …).
