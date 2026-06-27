@@ -1,12 +1,8 @@
--- TBC Rogue Assassination priority list with Mutilate CP building,
--- WHAT:  dual-wield assassination DPS (Mutilate mainhand+offhand strike for
---         CP, Rupture on 4-5 CP, Hunger for Blood burst, Cold Blood crit
---         finisher, Blade Flurry for cleave, anesthetic poison management).
--- WHEN:  in combat, in melee range, behind the target (positional bonus).
--- WHY:   TBC assn consensus: Mutilate > SnD > Rupture at 4-5 CP >
---         HfB on cooldown > evis at finisher; positional bonus preserved.
--- SAFETY: pattern 14 nil-guards. SnD and Rupture refresh timers checked.
-
+-- assassination_sylvanas.lua -- Rogue Assassination DPS for TBC Anniversary (2.5.5).
+-- WHAT:  dagger DPS spec (Mutilate, Shiv, Envenom, Rupture, Slice and Dice).
+-- WHEN:  combat, with valid enemy target and daggers equipped.
+-- WHY:   mirrors wowsims APL: SnD > Rupture > Envenom > Mutilate builder.
+-- SAFETY: Mutilate dagger check present; all state fields nil-guarded.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.RogueSpells or {}

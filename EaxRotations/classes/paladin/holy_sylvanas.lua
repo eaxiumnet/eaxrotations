@@ -1,14 +1,8 @@
--- Paladin Holy group-healing playstyle with TBC healing, blessings, dispels, mana, and PvP utility.
--- WHAT:  group healer (Holy Light / Flash of Light heal-chooser with overheal gate,
---         Holy Shock burst, Beacon-style mana-aware rank selection, Blessing
---         refresh on tank / party, Cleanse / Purify dispels, Divine Favor + LoH).
--- WHEN:  combat with damage intake OR group context, mana available.
--- WHY:   TBC holy consensus: keep Blessing timer-book, save LoH for emergency,
---         Divine Favor + crit Holy Light for spike saves, Holy Shock on the move.
--- SAFETY: pattern 14 nil-guards via local safe_setting(context, key, default).
---          DoT prediction in healing_sylvanas handles incoming-heal lookahead.
-
-
+-- holy_sylvanas.lua -- Paladin Holy healing for TBC Anniversary (2.5.5).
+-- WHAT:  single-target healer (Flash of Light, Holy Light, Divine Favor, Holy Shock).
+-- WHEN:  combat or pre-combat, with valid friendly targets.
+-- WHY:   TBC holy pally = FoL spam + downranked HL + Divine Favor burst.
+-- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}

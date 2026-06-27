@@ -1,13 +1,8 @@
--- Paladin Protection priority list with holy threat, uncrushable logic, and seal/aura management.
--- WHAT:  tank spec (Righteous Defense / Avenger's Shield threat, Holy Shield
---         for block value, Consecration AoE, Seal of Righteousness / Vigil aura
---         management, Redoubt + Holy Shield for uncrushable calc).
--- WHEN:  in combat with valid target, holding aggro.
--- WHY:   TBC prot consensus: SoR / Vigil + Consecration for threat, Holy Shield
---         for block stacks to maintain 102.4% avoidance against bosses.
--- SAFETY: pattern 14 nil-guards for shield charges / spell blocks.
-
-
+-- protection_sylvanas.lua -- Paladin Protection tank for TBC Anniversary (2.5.5).
+-- WHAT:  tank spec (Holy Shield, Consecration, Avenger's Shield, seal twisting).
+-- WHEN:  combat, with valid enemy target.
+-- WHY:   mirrors wowsims APL: Holy Shield (100% uptime) > Consecration > Judgement.
+-- SAFETY: Holy Shield charge tracking via buff_points (Pattern 11); all state nil-guarded.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")

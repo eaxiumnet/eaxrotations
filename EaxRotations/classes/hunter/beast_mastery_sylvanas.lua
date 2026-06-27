@@ -1,14 +1,8 @@
--- Hunter Beast Mastery — parity Parity (1-70)
--- Auto-shot timer, pet mgmt, dynamic aspects, stings, threat, pull modes, melee, AoE
--- WHAT: pet-focused DPS spec (Kill Command + Bestial Wrath cooldowns, Mend Pet,
---         pet happiness auto-feed via pet_happiness, Aspect of the Viper for mana,
---         Aspect of the Hawk for DPS, steady/Multi-shot filler, Serpent Sting up).
--- WHEN:  combat, hunter + pet alive, target in range.
--- WHY:   TBC BM consensus: keep Kill Command / Bestial Wrath rolling, pet
---         happiness >= 2 (avoid damage penalty), Aspect swap driven by mana.
--- SAFETY: pattern 14 nil-guards. Pet APIs may be nil when solo no pet;
---         Target range checked with squared distance (per AGENTS.md rules).
-
+-- beast_mastery_sylvanas.lua -- Hunter Beast Mastery rotation for TBC Anniversary (2.5.5).
+-- WHAT:  pet-focused DPS spec (Kill Command + Bestial Wrath, Mend Pet, Steady Shot weave).
+-- WHEN:  combat, with valid enemy target and active pet.
+-- WHY:   mirrors wowsims APL: KC > BW > Multi-Shot > Steady Shot filler.
+-- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}

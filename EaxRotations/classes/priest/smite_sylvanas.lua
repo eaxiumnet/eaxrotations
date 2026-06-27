@@ -1,14 +1,8 @@
--- ============================================================================
--- Priest Smite DPS Rotation
--- WHAT:  caster DPS spec (Smite filler, Holy Fire burst, SW:P for filler dot,
---         Psychic Scream / Mind Flay emergency, Smite + Solace-style port).
--- WHEN:  combat, caster form (NO Shadowform), target in range.
--- WHY:   TBC smite consensus: stack Solace to spam Smite; Holy Fire burst.
--- SAFETY: pattern 14 nil-guards on spell IDs at load time.
--- ============================================================================
--- Holy DPS with Shadow Weaving/Misery utility via SW:P
--- Holy Fire Weave optimization, Surge of Light procs
--- ============================================================================
+-- smite_sylvanas.lua -- Priest Holy DPS for TBC Anniversary (2.5.5).
+-- WHAT:  holy damage spec (Holy Fire, Smite, Surge of Light, Power Infusion).
+-- WHEN:  combat, with valid enemy target.
+-- WHY:   niche TBC build: Holy Fire > Surge-of-Light Smite > SW:P > Mind Blast.
+-- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end

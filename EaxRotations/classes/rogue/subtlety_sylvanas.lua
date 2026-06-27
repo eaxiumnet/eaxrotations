@@ -1,14 +1,8 @@
--- Rogue Subtlety priority list: TBC Shadowstep burst, Hemorrhage upkeep, and PvP control chains.
--- Order is intentional: survival/interrupts, stealth setup, burst/control, finishers, builders.
--- WHAT:  ambush-spam PvP DPS spec (Premeditation + Hemorrhage builders,
---         Shadow Dance / Shadowstep burst, Cheap Shot / Kidney Shot
---         chain, Cold Blood + Eviscerate crit window, Preparation reset).
--- WHEN:  in combat with stealth; opener fires from stealth for Ambush.
--- WHY:   TBC sub consensus: opener from stealth → Ambush / Cheap Shot →
---         SS work; Cold Blood window should beat trinket for burst.
--- SAFETY: pattern 14 nil-guards. Cooldown gating prevents waste.
-
-
+-- subtlety_sylvanas.lua -- Rogue Subtlety DPS for TBC Anniversary (2.5.5).
+-- WHAT:  burst DPS spec (Hemorrhage, Premeditation, Shadowstep, stealth openers).
+-- WHEN:  combat, with valid enemy target.
+-- WHY:   mirrors wowsims APL: Premed > Shadowstep > Garrote > Hemo > SnD > Rupture.
+-- SAFETY: Backstab gated to dagger+behind; all state fields nil-guarded.
 local NS = _G.EaxRotations
 if not NS then return nil end
 
