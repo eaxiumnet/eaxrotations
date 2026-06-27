@@ -312,7 +312,7 @@ local function fear_matches(context, s)
     if not context.in_combat then return false end
     if not context.target then return false end
     if not s.fear_ready then return false end
-    if not context.is_pvp then return false end
+    if not (context.is_pvp or context.is_group) then return false end
     return true
 end
 
