@@ -167,9 +167,9 @@ local kebab_state = {
 }
 
 local function build_kebab_state(context)
-    local is_group = context.is_group or false
     if context._kebab_valid then return kebab_state end
     context._kebab_valid = true
+    kebab_state.is_group = context.is_group or false
     context.settings = context.settings or EMPTY_SETTINGS
 
     local target = context.target

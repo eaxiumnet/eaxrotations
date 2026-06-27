@@ -392,11 +392,11 @@ local function try_use_item(item_ids, reason)
 end
 
 local function build_state(context)
-    local is_group = context.is_group or false
     -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(20216, 3.0) or false
     local entries, count = Healing.scan_healing_targets()
     state.entries = entries
+    state.is_group = context.is_group or false
     state.count = count or 0
     state.lowest = NS.healing_get_lowest_hp(entries, count, DEFAULT_SCAN_HP)
     state.tank = NS.healing_get_tank(entries, count)
