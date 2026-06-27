@@ -1,13 +1,8 @@
--- Mage Frost priority list.
--- WHAT:  control-oriented DPS (Frostbolt stack, Ice Lance frozen-target crit,
---         Cold Snap reset, Icy Veins burst, Water Elemental sustained DPS,
---         Frost Nova / Cone of Cold for kiting / interrupts).
--- WHEN:  combat, target in range (frozen targets get Ice Lance window).
--- WHY:   TBC frost consensus: deep Frostbolt for shatter combos;
---         Icy Veins + trinket mirror burst; Cold Snap refresh + Icy Veins.
--- SAFETY: pattern 14 nil-guards. Water Elemental may be missing in solo/petless.
-
-
+-- frost_sylvanas.lua -- Mage Frost rotation for TBC Anniversary (2.5.5).
+-- WHAT:  frost DPS spec (Frostbolt spam, Water Elemental, Ice Lance frozen shatter).
+-- WHEN:  combat, with valid enemy target.
+-- WHY:   mirrors wowsims APL: Frostbolt > WE > Cold Snap double-pet > Ice Lance (frozen).
+-- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.MageSpells or {}

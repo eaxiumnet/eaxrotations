@@ -1,13 +1,8 @@
--- Mage Fire priority list.
--- WHAT:  caster DPS via Fireball / Fire Blast instant-proc / Pyroblast
---         with ignite stacking, scorch for execute-range mana,
---         Living Bomb combustion, Combustion burst.
--- WHEN:  combat, mage alive, target in range, Living Bomb debuff ready.
--- WHY:   TBC fire consensus: keep Scorch + Fireball weave for crit procs;
---         ignite rolling. Combustion on CD during high ignite stacks.
--- SAFETY: pattern 14 nil-guards. Combustion only fires with ignite >= 5.
-
-
+-- fire_sylvanas.lua -- Mage Fire rotation for TBC Anniversary (2.5.5).
+-- WHAT:  fire DPS spec (Scorch 5-stack maintenance, Fireball filler, Combustion burst).
+-- WHEN:  combat, with valid enemy target.
+-- WHY:   mirrors wowsims APL: Scorch (5-stack) > Fireball > Fire Blast (moving).
+-- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.MageSpells or {}

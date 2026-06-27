@@ -1,13 +1,8 @@
--- Rogue Combat priority list.
--- WHAT:  dual-wield sword combat DPS (Sinister Strike / Backstab builders,
---         Slice and Dice always rolling, Blade Flurry for cleave, Revealing
---         Strike debuff uptime, Adrenaline Rush energy injection).
--- WHEN:  in combat, in melee range, dual-wielding.
--- WHY:   TBC combat consensus: SnD rolling > Evis at 4-5 CP > RS debuff
---         (talented) > Blade Flurry AoE > Adrenaline Rush sustain.
--- SAFETY: pattern 14 nil-guards. Energy / CP reads default to 0 to avoid
---          finisher-skipped-false-positives.
-
+-- combat_sylvanas.lua -- Rogue Combat DPS for TBC Anniversary (2.5.5).
+-- WHAT:  sword/fist DPS spec (Sinister Strike, SnD, Rupture, Blade Flurry, AR).
+-- WHEN:  combat, with valid enemy target.
+-- WHY:   mirrors wowsims APL: SnD > Rupture > Eviscerate > SS builder.
+-- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")

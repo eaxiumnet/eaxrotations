@@ -1,18 +1,8 @@
--- Priest Discipline group-healing priority list (TBC Anniversary 2.5.5).
--- WHAT:  TBC Disc support/hybrid healer -- emergency PW:S (HP-gated, not a
---         rage-starving pre-shield), Prayer of Mending on tank, Greater Heal /
---         Flash Heal / Binding Heal / Renew spot healing, Prayer of Healing
---         AoE; Power Infusion on a caster DPS (or self), Pain Suppression tank
---         save. Note: Penance / Borrowed Time / Grace are Wrath (3.3.5) and are
---         NOT used here -- TBC Disc is not the Wrath shield-healer.
--- WHEN:  combat with valid group; shield tracking from healing_sylvanas.
--- WHY:   TBC disc consensus: PW:S is emergency-only (target about to die -- it
---         starves tank rage if spammed), PoM on CD, spot-heal with the GH/FH/
---         Binding/Renew kit, PI on a mage/lock, Pain Suppression on tank burst.
--- SAFETY: pattern 14 nil-guards. PW:S absorb points from NS.buff_points
---          checked before overwriting (per AGENTS.md Pattern 11); Weakened Soul
---          gate prevents re-shield spam.
-
+-- discipline_sylvanas.lua -- Priest Discipline healing for TBC Anniversary (2.5.5).
+-- WHAT:  support/hybrid healer (emergency PW:S, PoM, Greater Heal, Power Infusion).
+-- WHEN:  combat or pre-combat, with valid friendly targets.
+-- WHY:   TBC Disc = PI bot + emergency shields (NOT Wrath shield-healer).
+-- SAFETY: PW:S gated to emergency HP threshold; all state fields nil-guarded.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PriestSpells or {}

@@ -1,14 +1,8 @@
--- Hunter Marksmanship priority list.
--- WHAT:  ranged DPS prioritising Steady Shot filler + aimed burst via
---         Rapid Fire + silences/CC, Hunter's Mark for tracking,
---         dead-zone auto-switch to melee/raptor (via get_spell_range_data).
--- WHEN:  combat, target in range (or in dead-zone at <5yd for melee).
--- WHY:   TBC MM consensus: steady shot filler > multishot for AoE > aimed
---         when possible; Aspect of the Hawk in combat for +damage.
--- SAFETY: pattern 14 nil-guards. Dead-zone distance check uses squared
---          comparison (per AGENTS.md Pattern 3).
-
-
+-- marksmanship_sylvanas.lua -- Hunter Marksmanship rotation for TBC Anniversary (2.5.5).
+-- WHAT:  ranged DPS spec (Aimed Shot, Trueshot Aura, Rapid Fire, Steady Shot weave).
+-- WHEN:  combat, with valid enemy target.
+-- WHY:   mirrors wowsims APL: Aimed Shot > Multi-Shot > Steady Shot filler.
+-- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
