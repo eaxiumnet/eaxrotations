@@ -82,6 +82,7 @@ local smite_state = {
 }
 
 local function build_smite_state(context)
+    local is_group = context.is_group or false
     context.settings = context.settings or EMPTY_SETTINGS
     local target = context.target
     local player = NS.GetPlayer()

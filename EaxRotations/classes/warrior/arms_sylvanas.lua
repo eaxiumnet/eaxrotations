@@ -246,6 +246,7 @@ local function build_action(name, spell_value, opts)
 end
 
 local function build_state(context)
+    local is_group = context.is_group or false
     local target = context.target
     local me = context.me or NS.GetPlayer()
 

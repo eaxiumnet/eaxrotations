@@ -366,6 +366,7 @@ local function update_rage_tracking(state)
 end
 
 local function build_state(context)
+    local is_group = context.is_group or false
     local state = bear_state
     local settings = context.settings or NS.settings or {}
     state.now = NS.time_now and NS.time_now() or 0
