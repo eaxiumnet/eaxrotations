@@ -207,14 +207,16 @@ From `plans/wowsims-apl-cross-reference.md` (2026-06-23):
 
 ## Task List (Prioritized)
 
-### Phase A: Code Quality (Immediate)
-- [ ] **A1.** Add Pattern 15 headers to all 30 missing spec files
-- [ ] **A2.** Fix nil-guard issues in 7 flagged specs
-- [ ] **A3.** Run full `validate.cmd` gate
-- [ ] **A4.** Verify all 171 rotation + 11 leveling tests pass
+### Phase A: Code Quality (Immediate) ✅ COMPLETE
+- [x] **A1.** Add Pattern 15 headers to 17 missing spec files — `6cbbd6ff`
+- [x] **A2.** Nil-guard audit — all structurally guarded via build_state() defaults; regex false positives only
+- [x] **A3.** Run full `validate.cmd` gate — ALL CHECKS PASSED (171 + 11 + spell audit)
+- [x] **A4.** Verify all 171 rotation + 11 leveling tests pass — ✅ PASS
 
-### Phase B: Content Coverage (Next)
-- [ ] **B1.** Add dungeon-aware strategies to 20 specs missing dungeon logic
+### Phase B: Content Coverage (In Progress)
+- [x] **B1.** Dungeon CC for mage specs — Polymorph/FrostNova now fire in `is_group` — `606323d7`
+- [x] **B1b.** Dungeon CC for rogue specs — Blind/KidneyShot now fire in `is_group` — `02e70579`
+- [x] **B1c.** Dungeon CC for warlock specs — Fear/HowlOfTerror now fire in `is_group` — `07cf57e7`
 - [ ] **B2.** Add raid-aware strategies to 25 specs missing raid logic
 - [ ] **B3.** Review PvP strategies in 26 specs for accuracy vs TBC Anniversary meta
 - [ ] **B4.** Cross-reference hunter rotation with tbc-main's detailed cliptracker/meleeweave

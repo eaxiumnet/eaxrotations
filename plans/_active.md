@@ -8,9 +8,11 @@
 **Scope:** 36 TBC specs + 18 leveling + 64 shared + 197 tests + external repos
 
 ### Immediate Next Steps
-1. Phase A1: Add Pattern 15 headers to 30 missing spec files
-2. Phase A2: Fix nil-guard issues in 7 flagged specs
-3. Phase B1-B2: Add dungeon/raid awareness to 20+ specs
+1. ✅ Phase A1-A4: Headers + nil-guard audit + full gate — ALL COMPLETE
+2. ✅ Phase B1 (mage/rogue/warlock CC): Dungeon CC expansion — 3 commits delivered
+3. Phase B2: Raid-aware strategies (25 specs missing)
+4. Phase C1-C3: Vanilla leveling audit
+5. Phase D1-D3: External repo APL comparison
 
 ### Baseline
 - 171 rotation tests: PASS
