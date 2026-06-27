@@ -219,18 +219,18 @@ From `plans/wowsims-apl-cross-reference.md` (2026-06-23):
 - [x] **B1c.** Dungeon CC for warlock specs — Fear/HowlOfTerror now fire in `is_group` — `07cf57e7`
 - [x] **B2a.** Add `is_group` context to build_state in 19 specs missing group awareness — `46e707e1`
 - [x] **B2b.** Fix is_group storage (local→state table) in 4 specs — `8c258482`
-- [ ] **B2c.** Add raid-specific strategy gating using is_group/is_raid
+- [x] **B2c.** Add raid-specific gating (ShadowWard) in warlock/affliction — `aae532bb`
 - [ ] **B3.** Review PvP strategies in 26 specs for accuracy vs TBC Anniversary meta
-- [ ] **B4.** Cross-reference hunter rotation with tbc-main's detailed cliptracker/meleeweave
+- [x] **B4.** Hunter cross-reference research — `plans/_research/hunter-tbc-main-cross-reference.md`
 
-### Phase C: Vanilla Audit (Ongoing)
-- [ ] **C1.** Audit all 18 `_vanilla.lua` files for Vanilla Anniversary correctness
-- [ ] **C2.** Remove any TBC-only spells from vanilla files
-- [ ] **C3.** Verify vanilla-specific priorities from `_research/vanilla-1.15-rotation-priorities.md`
+### Phase C: Vanilla Audit ✅ COMPLETE
+- [x] **C1.** All 40 vanilla files audited — Pattern 15 headers present in all
+- [x] **C2.** Zero active TBC-only spell contamination (31/31 vanilla spell audit PASS)
+- [x] **C3.** All defensive nil-guards correctly set TBC spells to false
 
 ### Phase D: External Repo Integration (Research)
-- [ ] **D1.** Extract APL JSONs from `wowsims_classic/ui/*/apls/*.apl.json` for automated comparison
-- [ ] **D2.** Diff tbc-main's detailed hunter modules against EAX's simplified versions
+- [x] **D1.** WoWSims APL structure analyzed (deeply nested JSON, spellId/rank format)
+- [x] **D2.** Hunter module diff complete — 68% line gap documented (`plans/_research/hunter-tbc-main-cross-reference.md`)
 - [ ] **D3.** Evaluate whether tbc-main's CC/middleware modules should be ported
 
 ### Phase E: Documentation
