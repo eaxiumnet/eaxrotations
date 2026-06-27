@@ -794,25 +794,25 @@ local strategies = {
     -- PvP Section
     -- ------------------------------------------------------------------------
     {
-        name = "PvP_Fear",
+        name = "CC_Fear",
         matches = function(context)
-            if not context.is_pvp then return false end
+            if not (context.is_pvp or context.is_group) then return false end
             if not context.target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.Fear, context.target) or false
         end,
         execute = function(context)
-            return NS.try_cast(LOCAL_SPELLS.Fear, context.target, "[AFFL PvP] Fear")
+            return NS.try_cast(LOCAL_SPELLS.Fear, context.target, "[AFFL] Fear")
         end,
     },
     {
-        name = "PvP_HowlOfTerror",
+        name = "CC_HowlOfTerror",
         matches = function(context)
-            if not context.is_pvp then return false end
+            if not (context.is_pvp or context.is_group) then return false end
             if not context.melee_on_you then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.HowlOfTerror, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
         execute = function()
-            return NS.try_cast(LOCAL_SPELLS.HowlOfTerror, NS.PLAYER_UNIT, "[AFFL PvP] Howl of Terror")
+            return NS.try_cast(LOCAL_SPELLS.HowlOfTerror, NS.PLAYER_UNIT, "[AFFL] Howl of Terror")
         end,
     },
     {
