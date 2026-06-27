@@ -134,6 +134,7 @@ local function target_is_casting(target)
 end
 
 local function build_state(context)
+    local is_group = context.is_group or false
     local target = context.target
     -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(1787, 3.0) or false

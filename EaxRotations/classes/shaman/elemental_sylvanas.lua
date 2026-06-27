@@ -67,6 +67,7 @@ local ele_state = {
 }
 
 local function build_state(context)
+    local is_group = context.is_group or false
     local target = context.target
     if target then
         ele_state.flame_remains = NS.debuff_remains and NS.debuff_remains(target, FLAME_SHOCK_DEBUFF) or 0

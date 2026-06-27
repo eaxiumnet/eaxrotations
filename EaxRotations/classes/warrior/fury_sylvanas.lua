@@ -232,6 +232,7 @@ end
 -- State builder
 -- ============================================================================
 local function build_state(context)
+    local is_group = context.is_group or false
     local target = context.target
     local me = context.me or NS.GetPlayer()
     local now = NS.time_now and NS.time_now() or 0

@@ -103,6 +103,7 @@ local mm_state = {
 }
 
 local function build_state(context)
+    local is_group = context.is_group or false
     local me = context.me or NS.GetPlayer()
     local target = context.target
     local pet = context.pet or (NS.GetPet and NS.GetPet()) or nil
