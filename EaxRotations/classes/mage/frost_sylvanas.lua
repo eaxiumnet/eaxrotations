@@ -353,6 +353,7 @@ local function frost_ward_matches(context, s)
 end
 
 local function polymorph_matches(context, s)
+    if not (context.is_pvp or context.is_group) then return false end
     if not context.target then return false end
     if not s.polymorph_ready then return false end
     return true
