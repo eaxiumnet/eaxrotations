@@ -881,7 +881,7 @@ local strategies = {
     {
         name = "ShadowWard",
         matches = function(context)
-            if not context.is_pvp then return false end
+            if not (context.is_pvp or context.is_group) then return false end
             if not context.enemy_shadow_caster then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.ShadowWard, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
