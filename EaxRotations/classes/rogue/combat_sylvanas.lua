@@ -445,7 +445,7 @@ end
 local function blind_matches(context, s)
     if not s.in_combat then return false end
     if not context.target then return false end
-    if not (context.is_pvp or false) then return false end
+    if not (context.is_pvp or context.is_group or false) then return false end
     if not (NS.is_spell_learned and NS.is_spell_learned(2094)) then return false end
     local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(SPELLS.Blind) or 0
     if cd > 0 then return false end
