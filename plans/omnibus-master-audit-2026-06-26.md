@@ -217,7 +217,9 @@ From `plans/wowsims-apl-cross-reference.md` (2026-06-23):
 - [x] **B1.** Dungeon CC for mage specs — Polymorph/FrostNova now fire in `is_group` — `606323d7`
 - [x] **B1b.** Dungeon CC for rogue specs — Blind/KidneyShot now fire in `is_group` — `02e70579`
 - [x] **B1c.** Dungeon CC for warlock specs — Fear/HowlOfTerror now fire in `is_group` — `07cf57e7`
-- [ ] **B2.** Add raid-aware strategies to 25 specs missing raid logic
+- [x] **B2a.** Add `is_group` context to build_state in 19 specs missing group awareness — `46e707e1`
+- [x] **B2b.** Fix is_group storage (local→state table) in 4 specs — `8c258482`
+- [ ] **B2c.** Add raid-specific strategy gating using is_group/is_raid
 - [ ] **B3.** Review PvP strategies in 26 specs for accuracy vs TBC Anniversary meta
 - [ ] **B4.** Cross-reference hunter rotation with tbc-main's detailed cliptracker/meleeweave
 
