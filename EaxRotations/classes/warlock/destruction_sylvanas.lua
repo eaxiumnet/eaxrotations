@@ -126,6 +126,7 @@ local ACTIONS = {
     { name = "RainOfFire", spell = RainOfFire, position = "target", enemy_count = 4, not_moving = true },
     { name = "Hellfire", spell = Hellfire, position = "self", enemy_count = 4, not_moving = true },
     -- CC / Emergency
+    { name = "Shadowfury", spell = SPELLS.Shadowfury, cooldown = 20 },
     { name = "DeathCoil", spell = SPELLS.DeathCoil, max_hp = 35, cooldown = 120 },
     { name = "Fear", spell = Fear, cooldown = 15, target_not_player = true },
     { name = "DemonicSacrifice", spell = DemonicSacrifice, target = "self", ooc = true, requires_target = false },
@@ -329,6 +330,14 @@ local function fear_matches(context, action, state)
     return true
 end
 
+local function shadowfury_matches(context, action, state)
+    if not (context.is_pvp or context.is_group) then return false end
+    -- AoE stun: only worth casting with 2+ enemies nearby or in PvP
+    if not context.is_pvp and (context.enemy_count or 0) < 2 then return false end
+    if not NS.spell_ready(action.spell, NS.PLAYER_UNIT, { skip_range = true }) then return false end
+    return true
+end
+
 local function aoe_matches(context, action, state)
     if context.is_channeling then return false end
     if (context.enemy_count or context.enemies_count or 0) < (action.enemy_count or 0) then return false end
@@ -381,6 +390,8 @@ for i = 1, #ACTIONS do
         custom_matches = function(context, state) return life_tap_matches(context, action, state) end
     elseif action.name == "DeathCoil" then
         custom_matches = function(context, state) return death_coil_matches(context, action, state) end
+    elseif action.name == "Shadowfury" then
+        custom_matches = function(context, state) return shadowfury_matches(context, action, state) end
     elseif action.name == "Fear" then
         custom_matches = function(context, state) return fear_matches(context, action, state) end
     elseif action.name == "DemonicSacrifice" then
