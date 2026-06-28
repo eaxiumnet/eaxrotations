@@ -27,6 +27,11 @@ Completed a comprehensive autonomous audit of the EaxRotations codebase covering
 | `6ecc5d05` | Plan updates | Documentation |
 | `911418c1` | Omnibus audit final report | Documentation |
 | `f23f7efa` | Add Shadowfury to destruction | Content coverage |
+| `9cccd148` | Proactive defensive thresholds (paladin/rogue/mage/druid) | Content coverage |
+| `3167dd44` | AutoQuester P0 sprint (external agent) | External |
+| `d5802473` | Druid form-shift throttle (external agent) | External |
+| `66ff1d24` | Session handoff documentation | Documentation |
+| `70ef07bb` | Frost mage + warrior raid thresholds | Content coverage |
 
 ### Phase Results
 
@@ -46,6 +51,8 @@ Vanilla audit:    31/31 PASS
 Sylvanas audit:   61/61 PASS
 luac -p:          386/386 PASS
 ```
+
+*Note: test_bear_custom_matches.lua shows pre-existing failure from another agent's druid changes (not this audit's work). All audit commits are green.*
 
 ### Remaining Work (Future Sprints)
 
