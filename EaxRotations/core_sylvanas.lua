@@ -2157,15 +2157,21 @@ NS.cast_position = NS.try_cast_position
 ---@param target game_object The target unit (reference position + range check).
 ---@param radius number The spell's AoE radius in yards (e.g., 8 for Blizzard).
 ---@param max_range number The spell's maximum cast range in yards (default 35).
----@return vec3|nil position The optimal cast position, or nil if unavailable.
-function NS.get_aoe_cast_position(spell_id, target, radius, max_range)
-    if not spell_id or not target then return nil end
+---@param min_hits number? Minimum target count required to return a position (default 1).
+---@return vec3|nil position The optimal cast position, or nil if unavailable / below min_hits.
+---@return number hit_count The number of targets the position would hit (0 if no prediction).
+function NS.get_aoe_cast_position(spell_id, target, radius, max_range, min_hits)
+    if not spell_id or not target then return nil, 0 end
     local spell_prediction = NS.GetAPIModule and NS.GetAPIModule("spell_prediction") or nil
     if not spell_prediction then
         local get_position = target.get_position
-        return get_position and target:get_position() or nil
+        if get_position then
+            local pos = target:get_position()
+            if pos then return pos, 1 end
+        end
+        return nil, 0
     end
-    local ok, pos = pcall(function()
+    local ok, pos, hits = pcall(function()
         local pred = spell_prediction.prediction_type
         local geom = spell_prediction.geometry_type
         local spell_data = spell_prediction:new_spell_data(
@@ -2180,17 +2186,29 @@ function NS.get_aoe_cast_position(spell_id, target, radius, max_range)
         )
         local get_pos = target.get_position
         local target_pos = get_pos and target:get_position() or nil
-        if not target_pos then return nil end
+        if not target_pos then return nil, 0 end
         local result = spell_prediction:get_most_hits_position(
             target_pos,
             spell_data,
             target
         )
-        return result and result.cast_position or nil
+        if not result then return nil, 0 end
+        local hit_count = type(result.amount_of_hits) == "number" and result.amount_of_hits or 0
+        return result.cast_position, hit_count
     end)
-    if ok and pos then return pos end
+    if ok and pos and type(hits) == "number" then
+        if hits >= (min_hits or 1) then
+            return pos, hits
+        end
+        return nil, hits
+    end
+    if ok and pos then return pos, 1 end
     local get_position = target.get_position
-    return get_position and target:get_position() or nil
+    if get_position then
+        local pos = target:get_position()
+        if pos then return pos, 1 end
+    end
+    return nil, 0
 end
 
 function NS.cancel_spells()
@@ -3784,6 +3802,27 @@ function NS.get_time_until_oh_swing()
 
     return nil
 
+end
+
+-- Platform game_object shield / heal wrappers (native engine API).
+-- These are thin pcall-guarded accessors so specs do not inline raw pcalls.
+
+function NS.get_total_shield(unit)
+    if not unit then return 0 end
+    local ok, val = pcall(function() return unit.get_total_shield and unit:get_total_shield() end)
+    return (ok and type(val) == "number" and val) or 0
+end
+
+function NS.get_incoming_heals(unit)
+    if not unit then return 0 end
+    local ok, val = pcall(function() return unit.get_incoming_heals and unit:get_incoming_heals() end)
+    return (ok and type(val) == "number" and val) or 0
+end
+
+function NS.get_incoming_heals_from(unit, source)
+    if not unit or not source then return 0 end
+    local ok, val = pcall(function() return unit.get_incoming_heals_from and unit:get_incoming_heals_from(source) end)
+    return (ok and type(val) == "number" and val) or 0
 end
 
 local FORMS = {
