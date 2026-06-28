@@ -449,10 +449,16 @@ local strategies = {
       matches = ice_barrier_matches,
       execute = function(context) return NS.try_cast(SPELLS.IceBarrier, context.me, "[ARCANE] IceBarrier") end },
     { name = "IceBlock",
-      matches = function(context, s) return (s.hp_pct or 100) <= 20 and NS.spell_ready(SPELLS.IceBlock) end,
+      matches = function(context, s)
+          local threshold = s.is_group and 30 or 20
+          return (s.hp_pct or 100) <= threshold and NS.spell_ready(SPELLS.IceBlock)
+      end,
       execute = function() return NS.try_cast(SPELLS.IceBlock, NS.PLAYER_UNIT, "[ARCANE] IceBlock", { skip_range = true }) end },
     { name = "ColdSnap",
-      matches = function(context, s) return (s.hp_pct or 100) <= 35 and not NS.spell_ready(SPELLS.IceBlock) and NS.spell_ready(SPELLS.ColdSnap) end,
+      matches = function(context, s)
+          local threshold = s.is_group and 45 or 35
+          return (s.hp_pct or 100) <= threshold and not NS.spell_ready(SPELLS.IceBlock) and NS.spell_ready(SPELLS.ColdSnap)
+      end,
       execute = function() return NS.try_cast(SPELLS.ColdSnap, NS.PLAYER_UNIT, "[ARCANE] ColdSnap", { skip_range = true }) end },
     { name = "Blink",
       matches = function(context, s) return s.in_combat and (context.self_rooted_snared or (NS.has_player_debuff and NS.has_player_debuff(COMMON_SNARES) or false)) and NS.spell_ready(SPELLS.Blink) end,
