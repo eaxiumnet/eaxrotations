@@ -21,6 +21,9 @@ local EXPECTED_300S = { expected_cooldown = 300, skip_range = true }
 local EXPECTED_LOH = { expected_cooldown = 3600, skip_range = true }
 local EXPECTED_CONSECRATION_SELF = { skip_range = true, expected_cooldown = 8 }
 
+local _last_aura_cast = -100
+local AURA_SWITCH_COOLDOWN = 3.0
+
 local function spell_action(ids, label)
     if NS.spell_action then return NS.spell_action(ids, label) end
     return type(ids) == "table" and ids[1] or ids
@@ -138,6 +141,7 @@ local state = {
     has_frost_aura = false,
     has_shadow_aura = false,
     has_lights_grace = false,
+    lights_grace_remains = 0,
     target_has_jol = false,
     target_has_jow = false,
     friendly_target = nil,
@@ -273,7 +277,8 @@ local function choose_smart_heal(context, s, entry)
         return SPELLS.HolyShock
     end
     -- Light's Grace reduces Holy Light cast time to 2.0s, making it more efficient
-    local hl_hp_threshold = s.has_lights_grace and 80 or 70
+    local hl_base_threshold = safe_setting(context, "holy_light_hp", 70)
+    local hl_hp_threshold = s.has_lights_grace and (hl_base_threshold + 10) or hl_base_threshold
     if (hp <= hl_hp_threshold or deficit >= LIGHT_HEAL_DEFICIT) and (s.mana_pct or 100) >= LOW_MANA_PCT then
         -- Predictive overheal gate for Holy Light
         if NS.gate_overheal("HolyLight", entry.unit, 2.5, context.settings) then
@@ -433,6 +438,7 @@ local function build_state(context)
         state.has_frost_aura = NS.has_player_buff(BUFF_FROST_RESIST_AURA)
         state.has_shadow_aura = NS.has_player_buff(BUFF_SHADOW_RESIST_AURA)
         state.has_lights_grace = NS.has_player_buff(BUFF_LIGHTS_GRACE)
+        state.lights_grace_remains = NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, BUFF_LIGHTS_GRACE) or 0
         state.target_has_jol = context and context.target and has_debuff(context.target, DEBUFF_JUDGEMENT_LIGHT) or false
         state.target_has_jow = context and context.target and has_debuff(context.target, DEBUFF_JUDGEMENT_WISDOM) or false
     end
@@ -683,6 +689,30 @@ local strategies = {
             return cast_on(s.holy_light_spell, s.lowest, format("[HOLY] %s guaranteed crit %.0f%%", s.holy_light_label, hp_of(s.lowest)))
         end,
     },
+    -- Light's Grace Chaining: when LG is active but about to expire (< 3s),
+    -- cast a cheap Holy Light Rank 4 to refresh it. Only during active combat
+    -- when there's a healable target that isn't in critical HP (avoids wasting
+    -- a cast on a target that's about to get emergency healing anyway).
+    -- This maintains the 2.0s cast time for future Holy Lights.
+    {
+        name = "LightsGraceChaining",
+        matches = function(context, s)
+            if not safe_setting(context, "holy_lights_grace_chaining", true) then return false end
+            if not s.has_lights_grace then return false end
+            if (s.lights_grace_remains or 0) > 3 then return false end
+            if not (context and context.in_combat) then return false end
+            local target = s.heal_target or s.lowest or s.tank
+            if not can_help(target) then return false end
+            -- Don't chain if someone is in critical range (let emergency heals fire)
+            if can_help(s.lowest) and hp_of(s.lowest) <= 40 then return false end
+            if NS.gate_overheal("HolyLight", target.unit, 2.5, context.settings) then return false end
+            return NS.spell_ready(HolyLightRank4, target.unit, EMPTY_OPTS)
+        end,
+        execute = function(_, s)
+            local target = s.heal_target or s.lowest or s.tank
+            return cast_on(HolyLightRank4, target, format("[HOLY] Holy Light R4 (Light's Grace refresh %.1fs)", s.lights_grace_remains or 0))
+        end,
+    },
     -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
     -- Placed after the emergency direct-heal tier (HolyShock / HolyLightEmergency /
     -- DivineFavorHolyLightFollowup) so life-critical saves win, but before the
@@ -719,10 +749,14 @@ local strategies = {
     {
         name = "AuraManagement",
         matches = function(_, s)
+            local now = NS.time_now and NS.time_now() or 0
+            if now - _last_aura_cast < AURA_SWITCH_COOLDOWN then return false end
             return s.aura_spell and NS.spell_ready(s.aura_spell, NS.PLAYER_UNIT, SELF_OPTS)
         end,
         execute = function(_, s)
-            return NS.try_cast(s.aura_spell, NS.PLAYER_UNIT, "[HOLY] " .. s.aura_label, SELF_OPTS)
+            local ok = NS.try_cast(s.aura_spell, NS.PLAYER_UNIT, "[HOLY] " .. s.aura_label, SELF_OPTS)
+            if ok then _last_aura_cast = NS.time_now and NS.time_now() or 0 end
+            return ok
         end,
     },
     {
