@@ -105,6 +105,13 @@ local function build_state(context)
         leveling_state.has_any_seal = safe_buff_up(context.me, ANY_SEAL_BUFF)
     end
 
+    -- Player level for death-zone-aware thresholds
+    local me = context.me
+    if me and me.get_level then
+        local ok, lvl = pcall(me.get_level, me)
+        if ok then leveling_state.level = lvl end
+    end
+
     -- Spell readiness
     leveling_state.blessing_might_ready = spell_is_ready(SPELLS.BlessingOfMight, nil, { skip_range = true })
     leveling_state.blessing_wisdom_ready = spell_is_ready(SPELLS.BlessingOfWisdom, nil, { skip_range = true })
@@ -156,7 +163,10 @@ local function holy_light_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
-    if (state.hp or 100) > 35 then return false end
+    -- Death zone fix: more aggressive healing at low levels (level 1-20: threshold 50, 21+: 35)
+    local level = state.level or 1
+    local threshold = level <= 20 and 50 or 35
+    if (state.hp or 100) > threshold then return false end
     return state.holy_light_ready
 end
 
@@ -286,7 +296,10 @@ local function flash_light_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
-    if (state.hp or 100) > 60 then return false end
+    -- Death zone fix: more aggressive healing at low levels (level 1-20: threshold 75, 21+: 60)
+    local level = state.level or 1
+    local threshold = level <= 20 and 75 or 60
+    if (state.hp or 100) > threshold then return false end
     return state.flash_light_ready
 end
 

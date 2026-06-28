@@ -294,7 +294,7 @@ local overpower_matches = function(_, state)
     return true
 end
 
---- Heroic Strike - rage dump
+--- Heroic Strike - rage dump (level-aware threshold: 15 at level 1, scales to 50 by 60)
 local heroic_strike_matches = function(_, state)
     if not state then return false end
     if not state.in_combat then return false end
@@ -304,7 +304,11 @@ local heroic_strike_matches = function(_, state)
     if not me then return false end
     local ok, rage = pcall(function() return me:get_power(NS.POWER_RAGE or 1) end)
     if not ok or not rage then return false end
-    if rage < 50 then return false end  -- Save rage for other abilities
+    -- Death zone fix: at low levels, warriors can't generate 50 rage easily
+    local level = 1
+    pcall(function() level = me:get_level() or 1 end)
+    local threshold = math.min(50, math.max(15, 15 + level))
+    if rage < threshold then return false end
     return true
 end
 

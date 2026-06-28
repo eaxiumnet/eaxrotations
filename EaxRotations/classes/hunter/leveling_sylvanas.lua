@@ -98,7 +98,14 @@ local function build_state(context)
     end
 
     -- Low mana gate: conserve mana below wand threshold for emergency spells
-    leveling_state.low_mana = (leveling_state.mana_pct or 100) < (leveling_state.wand_threshold or 30)
+    -- Death zone fix: at low levels (1-20), hunters have very limited mana pool
+    local level = 1
+    if context.me and context.me.get_level then
+        local ok, lvl = pcall(context.me.get_level, context.me)
+        if ok then level = lvl end
+    end
+    local base_threshold = level <= 20 and 15 or (leveling_state.wand_threshold or 30)
+    leveling_state.low_mana = (leveling_state.mana_pct or 100) < base_threshold
 
     return leveling_state
 end
