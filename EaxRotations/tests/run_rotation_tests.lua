@@ -14,6 +14,13 @@ local tests = {
     "test_arms_healthstone.lua",
     "test_hunter_bm_melee_aoe_trinket.lua",
 
+    -- FrostByte Supremacy Phase 1 tests
+    "test_stopcast_engine.lua",
+    "test_pet_heal.lua",
+    "test_triage_tank_bias.lua",
+    "test_snap_threat.lua",
+    "test_combat_mode.lua",
+
     -- Arms warrior tests
     "test_arms_custom_matches.lua",
     "test_arms_hamstring_tactician.lua",

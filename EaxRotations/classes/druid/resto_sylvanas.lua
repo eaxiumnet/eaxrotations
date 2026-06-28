@@ -349,7 +349,7 @@ local function build_state(context)
     end
     -- Wire NS.Triage for intelligent target ranking (if available)
     if NS.Triage and NS.Triage.rank and count > 0 then
-        local ranked = NS.Triage.rank(entries, count)
+        local ranked = NS.Triage.rank(entries, count, context.settings)
         if ranked and ranked[1] then
             resto_state.lowest = ranked[1]
         end
@@ -428,6 +428,13 @@ local function build_state(context)
     local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
     resto_state.friendly_target = ft
     resto_state.friendly_target_ready = ft ~= nil
+
+    -- FrostByte parity: Smart Stop-Cast — cancel overhealing casts mid-flight
+    local me = context.me or NS.GetPlayer and NS.GetPlayer() or nil
+    if me and NS.StopCast and type(NS.StopCast.update) == "function" then
+        NS.StopCast.update(me, context.settings)
+    end
+
     return resto_state
 end
 

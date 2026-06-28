@@ -113,7 +113,7 @@ local function build_state(context)
 
     -- Triage ranking: sort entries by urgency (HP + TTD + role + debuffs)
     if NS.Triage and NS.Triage.rank then
-        resto_state.triage_ranked = NS.Triage.rank(entries, count)
+        resto_state.triage_ranked = NS.Triage.rank(entries, count, context.settings)
     else
         resto_state.triage_ranked = nil
     end
@@ -203,6 +203,11 @@ local function build_state(context)
     local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
     resto_state.friendly_target = ft
     resto_state.friendly_target_ready = ft ~= nil
+
+    -- FrostByte parity: Smart Stop-Cast — cancel overhealing casts mid-flight
+    if NS.StopCast and type(NS.StopCast.update) == "function" then
+        NS.StopCast.update(me, context.settings)
+    end
 
     return resto_state
 end

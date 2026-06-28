@@ -49,6 +49,16 @@ return {
                 },
             },
             {
+                header = "Smart Casting",
+                settings = {
+                    { key = "stopcast_enabled", type = "checkbox", label = "Smart Stop-Cast", default = true, tooltip = "Cancel in-flight heals if target recovers above threshold during cast" },
+                    { key = "stopcast_threshold", type = "slider", label = "Stop-Cast Threshold (%)", min = 80, max = 100, default = 95, tooltip = "Cancel cast if target would end above this HP%" },
+                    { key = "tank_hp_bias", type = "slider", label = "Tank HP Bias (%)", min = 0, max = 30, default = 15, tooltip = "Treat tanks as if they have this much less HP for triage scoring" },
+                    { key = "heal_pets", type = "checkbox", label = "Heal Pets", default = true, tooltip = "Include Hunter/Warlock pets in healing target scan" },
+                    { key = "pet_weight", type = "slider", label = "Pet Triage Weight", min = 0.1, max = 1.0, default = 0.6, tooltip = "Lower = pets are less urgent than players" },
+                },
+            },
+            {
                 header = "Cooldowns",
                 settings = {
                     { key = "discipline_pain_suppression_hp", type = "slider", label = "Pain Suppression HP (%)", min = 10, max = 50, default = 25 },
@@ -138,6 +148,16 @@ return {
                     { key = "holy_emergency_hp", type = "slider", label = "Emergency Heal HP (%)", min = 10, max = 60, default = 30 },
                     { key = "holy_flash_heal_hp", type = "slider", label = "Flash Heal HP (%)", min = 20, max = 80, default = 50 },
                     { key = "holy_renew_hp", type = "slider", label = "Renew HP (%)", min = 50, max = 100, default = 90 },
+                },
+            },
+            {
+                header = "Smart Casting",
+                settings = {
+                    { key = "stopcast_enabled", type = "checkbox", label = "Smart Stop-Cast", default = true, tooltip = "Cancel in-flight heals if target recovers above threshold during cast" },
+                    { key = "stopcast_threshold", type = "slider", label = "Stop-Cast Threshold (%)", min = 80, max = 100, default = 95, tooltip = "Cancel cast if target would end above this HP%" },
+                    { key = "tank_hp_bias", type = "slider", label = "Tank HP Bias (%)", min = 0, max = 30, default = 15, tooltip = "Treat tanks as if they have this much less HP for triage scoring" },
+                    { key = "heal_pets", type = "checkbox", label = "Heal Pets", default = true, tooltip = "Include Hunter/Warlock pets in healing target scan" },
+                    { key = "pet_weight", type = "slider", label = "Pet Triage Weight", min = 0.1, max = 1.0, default = 0.6, tooltip = "Lower = pets are less urgent than players" },
                 },
             },
             {

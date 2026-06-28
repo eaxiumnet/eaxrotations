@@ -4681,6 +4681,7 @@ function NS.build_healing_entries(out, decorate)
     end
 
     local n = 0
+    local focus_unit = NS.GetFocus and NS.GetFocus() or nil
 
     for i = 1, count do
 
@@ -4737,12 +4738,19 @@ function NS.build_healing_entries(out, decorate)
 
                 is_tank = is_tank_unit(u),
 
+                is_focus = focus_unit and NS.same_unit(u, focus_unit) or false,
+
             }
 
             if decorate then pcall(decorate, out[n], u) end
 
         end
 
+    end
+
+    -- Append party/raid pets to healing entries (if PetHeal module available)
+    if NS.PetHeal and type(NS.PetHeal.append_entries) == "function" then
+        n = NS.PetHeal.append_entries(out, n, me, NS.settings)
     end
 
     sort(out, function(a, b) return (a.effective_hp or 100) < (b.effective_hp or 100) end)

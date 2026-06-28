@@ -15,7 +15,8 @@ local ABOLISH_DISEASE_IDS = { 552, 552, 552 }  -- Same ID in TBC
 
 -- Throttle shared state for expensive enemy scans
 local _last_priest_md_scan = 0
-local _last_priest_fade_scan = 0
+local _last_priest_threat_fade_scan = 0
+local _last_priest_enhanced_fade_scan = 0
 
 -- Check if debuff is magic type
 local function has_magic_debuff_on_unit(unit)
@@ -265,8 +266,8 @@ local strategies = {
             if context.me and NS.has_buff and NS.has_buff(context.me, SPELLS.Fade) then return false end
             -- Throttle: expensive enemy iteration
             local now = NS.time_now and NS.time_now() or 0
-            if now - _last_priest_fade_scan < 0.5 then return false end
-            _last_priest_fade_scan = now
+            if now - _last_priest_threat_fade_scan < 0.5 then return false end
+            _last_priest_threat_fade_scan = now
             local enemies = (NS.GetEnemiesInRange and NS.GetEnemiesInRange(20)) or {}
             for _, enemy in ipairs(enemies) do
                 if enemy then
@@ -477,8 +478,8 @@ local strategies = {
             -- This is a simplified check - in practice might need more sophisticated threat detection
             -- Throttle: expensive enemy iteration
             local now2 = NS.time_now and NS.time_now() or 0
-            if now2 - _last_priest_fade_scan < 0.5 then return false end
-            _last_priest_fade_scan = now2
+            if now2 - _last_priest_enhanced_fade_scan < 0.5 then return false end
+            _last_priest_enhanced_fade_scan = now2
             local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(40) or {}
             for _, enemy in ipairs(enemies) do
                 if enemy then

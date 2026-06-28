@@ -22,6 +22,12 @@ NS.Triage = M
 NS.AoEHeal = M
 
 -- ---------------------------------------------------------------------------
+-- Defaults
+-- ---------------------------------------------------------------------------
+local DEFAULT_TANK_HP_BIAS = 15   -- Default tank bias: treat tank as 15% lower HP
+local DEFAULT_FOCUS_BIAS = 10     -- Focus target gets 10% bias
+
+-- ---------------------------------------------------------------------------
 -- Helpers
 -- ---------------------------------------------------------------------------
 
@@ -33,13 +39,32 @@ end
 --- Compute a composite urgency score for a healing entry.
 -- Lower score = higher urgency (sorted ascending).
 -- Tank under 60% gets a large boost so they outrank anyone above them.
-local function urgency_score(entry)
+-- Tank HP bias: subtract bias_pct from effective HP so tanks outrank DPS at same HP.
+-- @param entry     healing entry table
+-- @param settings  table|nil  Context settings (tank_hp_bias, focus_hp_bias)
+local function urgency_score(entry, settings)
     local hp = safe_number(entry.effective_hp, entry.hp, 100)
     local is_tank = entry.is_tank == true
+    local is_focus = entry.is_focus == true
     local max_hp = safe_number(entry.max_hp, 1)
     local deficit = safe_number(entry.effective_deficit, entry.deficit, 0)
 
-    -- Base score: effective HP % (primary)
+    settings = settings or (NS.settings or {})
+
+    -- Apply configurable tank HP bias (default 15%)
+    -- e.g. tank at 70% effective HP is treated as 55% for scoring
+    local tank_bias = safe_number(settings.tank_hp_bias, DEFAULT_TANK_HP_BIAS)
+    if is_tank and tank_bias > 0 then
+        hp = hp - tank_bias
+    end
+
+    -- Apply focus target bias (default 10%)
+    local focus_bias = safe_number(settings.focus_hp_bias, DEFAULT_FOCUS_BIAS)
+    if is_focus and focus_bias > 0 then
+        hp = hp - focus_bias
+    end
+
+    -- Base score: biased effective HP % (primary)
     local score = hp
 
     -- Tank priority: if tank is under 60%, subtract a large penalty
@@ -66,8 +91,9 @@ end
 --- Rank healing entries by urgency: tank-priority when low, then predicted deficit.
 -- @param entries  array of { unit, hp, effective_hp, is_tank, max_hp, deficit, ... }
 -- @param count    number of valid entries (may be nil; we use #entries)
+-- @param settings table|nil  Context settings (tank_hp_bias, focus_hp_bias)
 -- @return table   new sorted array, worst-first (most urgent at index 1)
-function M.rank(entries, count)
+function M.rank(entries, count, settings)
     if type(entries) ~= "table" then
         return {}
     end
@@ -92,7 +118,7 @@ function M.rank(entries, count)
     end
 
     table_sort(out, function(a, b)
-        return urgency_score(a) < urgency_score(b)
+        return urgency_score(a, settings) < urgency_score(b, settings)
     end)
 
     return out

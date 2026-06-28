@@ -152,7 +152,7 @@ local function build_state(context)
 
     -- Triage-ranked target selection: smarter than naive lowest-HP
     if NS.Triage and NS.Triage.rank and count and count > 0 then
-        local ranked = NS.Triage.rank(entries, count)
+        local ranked = NS.Triage.rank(entries, count, context.settings)
         disc_state.lowest = ranked[1] or NS.healing_get_lowest_hp(entries, count, 92)
     else
         disc_state.lowest = NS.healing_get_lowest_hp(entries, count, 92)
@@ -238,6 +238,11 @@ local function build_state(context)
     local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
     disc_state.friendly_target = ft
     disc_state.friendly_target_ready = ft ~= nil
+
+    -- FrostByte parity: Smart Stop-Cast — cancel overhealing casts mid-flight
+    if NS.StopCast and type(NS.StopCast.update) == "function" then
+        NS.StopCast.update(me, context.settings)
+    end
 
     return disc_state
 end

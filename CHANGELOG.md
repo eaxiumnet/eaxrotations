@@ -1,106 +1,71 @@
 # Changelog
 
-All notable changes to EaxRotations will be documented in this file.
+All notable changes to the EAX TBC Classic Rotations project.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-
-## [1.1.2] - 2026-06-28
+## [Unreleased] — FrostByte Supremacy Phase 1 (2026-06-28)
 
 ### Added
-- Platform API adoption: `NS.get_aoe_cast_position(spell_id, target, radius, max_range, min_hits)` — dual-return with hit count gating for AoE spells (Blizzard, Volley, Rain of Fire, Hurricane)
-- Platform API adoption: `NS.get_total_shield(unit)`, `NS.get_incoming_heals(unit)`, `NS.get_incoming_heals_from(unit, source)` — pcall-guarded native game_object wrappers
-- Platform API adoption: `NS.health_prediction` exposure for spec consumption (tank detection, PvP detection, incoming damage)
-- Paladin Holy: `holy_light_hp` slider (40-100%, default 70%) — prefer Holy Light over Flash below this threshold
-- Paladin Holy: `holy_lights_grace_chaining` checkbox (default true) — cast cheap R4 Holy Light to refresh Light's Grace before expiry
-- Paladin Holy: aura switch 3s throttle to prevent debuff-pulse flip-flop
-- Test: `test_paladin_holy_custom_matches.lua` for aura throttle coverage
 
-### Performance
-- Frame-level `build_state` caching in 5 vanilla specs (Druid Bear, Warrior Arms/Fury/Prot) — prevents N× per-frame CPU burn using `context.now` timestamp guard
-- Middleware CC-break scan throttling (0.3s intervals) across Mage, Rogue, Warlock, Paladin, Priest
-- Priest middleware: fade scan throttled to 0.5s, mass dispel to 0.3s, SW:D preemptive scan to 0.3s
+#### Stop-Cast Engine (`shared/stopcast_sylvanas.lua`)
+- **WHAT**: Cancels in-flight direct heals when the target's HP recovers above a configurable threshold during the cast.
+- **WHY**: Prevents massive overheal waste (e.g., Greater Heal landing on a target topped off by a HoT tick).
+- **HOW**: Monitors cast progress at 25%, 50%, 75% checkpoints; cancels via `NS.cancel_spells()` if target HP + expected heal exceeds threshold.
+- **Settings**: `stopcast_enabled` (default true), `stopcast_threshold` (default 95%).
+- **Wired into**: Holy Priest, Discipline Priest, Resto Shaman, Resto Druid, Holy Paladin.
 
-### Fixed
-- **Priest ManaBurn**: Fixed non-existent `NS.unit_mana_pct` → raw `get_power`/`get_max_power` pcall
-- **Paladin Forbearance**: Removed invalid `me.debuff_remains` guard (always nil, silently skipped check)
-- **Hunter ViperSting**: pcall-wrapped `target:get_power_type()` / `get_class()` to prevent nil crash
-- **Hunter FeedPet**: Fixed `pcall(pet.is_alive)` missing `self` argument
-- **Warrior SmartHSDequeue**: Fixed pcall unpacking bug (got boolean instead of spell_id)
-- **Shared pet_manager**: Nil-guarded `core.spell_book` / `core.input` accesses to prevent startup crash
-- **Shared auto_tremor**: Fixed `NS.get_party_members` → `NS.GetPartyMembers` capitalization (Tremor Totem now drops for allies)
-- **Shared consumable_manager**: Fixed role classification for Enhancement Shaman and Feral Druid (were "caster", now "melee")
-- **Core**: Store `is_group` in state table for 12 specs to enable group-aware defensive thresholds
+#### Pet Healing (`shared/pet_heal_sylvanas.lua`)
+- **WHAT**: Includes party/raid pets in the healing target scan.
+- **WHY**: Hunters and warlocks expect their pets to be healed in dungeons/raids.
+- **HOW**: Extends `NS.build_healing_entries()` to append pet entries with configurable weight penalty.
+- **Settings**: `heal_pets` (default true), `pet_weight` (default 0.6x).
+- **Wired into**: All healer specs via `core_sylvanas.lua` `build_healing_entries()`.
 
-### Changed
-- `main_sylvanas.lua`: expose `NS.health_prediction` following `NS.spell_queue` pattern
+#### Tank HP Bias (`shared/triage_sylvanas.lua` enhancement)
+- **WHAT**: Applies configurable HP bias to tanks and focus targets in triage scoring.
+- **WHY**: Tanks should be healed earlier than DPS at the same HP%.
+- **HOW**: `effective_hp = actual_hp - tank_bias` in urgency score calculation. Auto-detects tanks via role; focus target gets separate bias.
+- **Settings**: `tank_hp_bias` (default 15%), `focus_hp_bias` (default 10%).
+- **Wired into**: All 5 healer specs (Triage.rank now accepts settings param).
 
-## [1.1.1] - 2026-05-28
+#### Snap Threat on Combat Start (`shared/snap_threat_sylvanas.lua`)
+- **WHAT**: Fires an immediate high-threat ability on combat entry.
+- **WHY**: Establishes threat before DPS opens up.
+- **HOW**: Hooks combat-start detection; 3s cooldown between snaps to prevent spam.
+- **Settings**: `snap_threat_enabled` (default true).
+- **Wired into**: Prot Paladin (Judgement → Avenger's Shield fallback), Prot Warrior (Shield Slam → Revenge fallback).
 
-### Added
-- APL (Action Priority List) parser for configurable rotation logic
-- Expansion-aware class loaders for Classic vanilla rotations
-- Control panel quick toggles for runtime settings changes
-- Vanilla-era Warrior spec files (Arms, Fury, Kebab, Protection)
-- NS.get_any_setting, NS.setting_number, NS.setting_bool helpers
-- Broken API throttling and PS detection
-- SP-aware DoT gating for Druid Balance, Warlock Destruction, Shaman Elemental
-- ShivPurge and Disarm ported to all 5 Rogue specs
+#### Combat Mode Override (`shared/combat_mode_sylvanas.lua`)
+- **WHAT**: Allows users to force Single Target, AoE, or Auto-detect mode.
+- **WHY**: Users want control — e.g., "force ST on boss even with adds nearby".
+- **HOW**: Pure read-only helper; specs query `NS.CombatMode.is_aoe()` instead of raw enemy count.
+- **Settings**: `combat_mode` dropdown (1=Auto, 2=Single Target, 3=AoE).
+- **Schema updates**: Paladin Protection, Warrior Protection (all DPS specs can opt-in).
 
-### Changed
-- Migrated get_setting to centralized NS.setting() across all shared modules
-- Pre-cached hot-path modules for improved performance
-- Tank-alive check throttled for performance
-- Debug log output rate-limited to prevent spam
+### Schema Updates
+- **Priest**: Added Smart Casting section (stopcast, tank bias, pet healing) to Holy and Discipline tabs.
+- **Shaman**: Added Smart Casting section to Restoration tab.
+- **Druid**: Added Smart Casting section to Restoration tab.
+- **Paladin**: Added Smart Casting section to Holy tab; Threat & Utility section to Protection tab.
+- **Warrior**: Added Threat & Combat Mode section to Protection tab.
 
-### Fixed
-- Nil-guard numeric state fields across all 29 spec match functions
-- Nil-guard numeric state fields across all 9 leveling files
-- Soul Shard reagent check for Warlock Shadowburn and CreateHealthstone
-- Mutual exclusion toggle for Warlock armors and Shaman shields
-- Fel Armor and Summon Imp cast spam
-- Mana bypass issues across multiple specs
-- Dashboard crash on load
+### Tests
+- Added 5 new test suites (176 total rotation suites):
+  - `test_stopcast_engine.lua`
+  - `test_pet_heal.lua`
+  - `test_triage_tank_bias.lua`
+  - `test_snap_threat.lua`
+  - `test_combat_mode.lua`
+- All 176 rotation suites pass.
+- All 11 leveling suites pass.
 
-## [1.1.0] - 2026-04-15
+### Files Changed
+- **New shared modules**: `stopcast_sylvanas.lua`, `pet_heal_sylvanas.lua`, `snap_threat_sylvanas.lua`, `combat_mode_sylvanas.lua`
+- **Modified shared**: `triage_sylvanas.lua`, `core_sylvanas.lua`
+- **Modified specs**: `holy_sylvanas.lua` (priest), `discipline_sylvanas.lua`, `restoration_sylvanas.lua` (shaman), `resto_sylvanas.lua` (druid), `holy_sylvanas.lua` (paladin), `protection_sylvanas.lua` (paladin), `protection_sylvanas.lua` (warrior)
+- **Modified schemas**: `priest/schema_sylvanas.lua`, `shaman/schema_sylvanas.lua`, `druid/schema_sylvanas.lua`, `paladin/schema_sylvanas.lua`, `warrior/schema_sylvanas.lua`
+- **Modified tests**: `run_rotation_tests.lua`
+- **Docs**: `README.md`, `CHANGELOG.md`
 
-### Added
-- Unified dispatcher with context building and strategy iteration
-- Middleware framework for class-wide behavior
-- Defensive middleware for automatic healthstones, potions, and cooldowns
-- Interrupt manager with target-aware casting
-- Consumable manager for automatic item usage
-- Racial ability manager
-- Trinket manager with equip/use tracking
-- Swing timer for melee spec optimization
-- DoT refresh timing module
-- Burst logic for cooldown alignment
-- OOC (out-of-combat) manager
-- Targeting and threat management
-- Dashboard HUD overlay
-- Schema-based settings UI for all specs
+## Previous Releases
 
-### Changed
-- All 9 class modules rewritten with consistent structure
-- Settings moved to schema files with menu widget definitions
-
-## [1.0.3] - 2026-03-20
-
-### Fixed
-- Immolate debuff IDs corrected (removed 3 non-Immolate spells, added 2 missing ranks)
-- Drain Life spell IDs corrected (Drain Soul IDs replaced with correct Drain Life IDs)
-- Protection Warrior Demo Shout and Thunder Clap debuff IDs corrected
-- Fury Warrior Battle Shout buff detection expanded from 3 ranks to all 8 TBC ranks
-- All spell IDs cross-validated against class registry
-
-## [1.0.2] - 2026-03-10
-
-### Fixed
-- Hunter Aspect of the Hawk rank IDs to prevent repeated recasts
-
-## [1.0.0] - 2026-03-01
-
-### Added
-- Initial release
-- Rotation framework with shared combat engine
-- 29 playstyles across 9 classes
-- Basic spell casting, buff/debuff management, and resource tracking
+See [GitHub Releases](https://github.com/eaxiumnet/eaxrotations/releases) for full history.

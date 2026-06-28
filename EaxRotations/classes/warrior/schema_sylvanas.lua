@@ -54,6 +54,17 @@ return {
                 },
             },
             {
+                header = "Threat & Combat Mode",
+                settings = {
+                    { key = "snap_threat_enabled", type = "checkbox", label = "Snap Threat on Combat Start", default = true, tooltip = "Fire Shield Slam immediately when entering combat to establish threat" },
+                    { key = "combat_mode", type = "dropdown", label = "Combat Mode", default = "auto", options = {
+                        { text = "Auto", value = "auto" },
+                        { text = "Single Target", value = "single" },
+                        { text = "AoE", value = "aoe" },
+                    }, tooltip = "Force rotation mode: Auto uses enemy count, ST/AoE override" },
+                },
+            },
+            {
                 header = "Tactician (Arms)",
                 settings = {
                     { key = "hamstring_tactician_weave", type = "checkbox", label = "Hamstring Tactician Weave", default = true, description = "Spam Hamstring when MS on CD to fish for Tactician procs (~5% DPS gain)" },

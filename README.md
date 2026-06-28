@@ -2,7 +2,7 @@
 
 > **Rotation engine + questing automation for Project Sylvanas**  
 > Targeting **TBC Classic Anniversary (2.5.5.x)** and **Vanilla Anniversary (1.15.x)**  
-> Lua 5.1 / LuaJIT — 171 rotation test suites, 11 leveling suites, all green.
+> Lua 5.1 / LuaJIT — 176 rotation test suites, 11 leveling suites, all green.
 
 | Quality | TBC | Vanilla | Overall |
 |---------|-----|---------|---------|
@@ -67,12 +67,16 @@ EaxRotations/
 │   └── units.lua              # Unit queries (friendly target, etc.)
 ├── classes/<class>/           # One spec file per specialization
 │   └── <spec>_sylvanas.lua    # Flat file: spells → state → strategies → register
-├── shared/                    # ~50 reusable modules
+├── shared/                    # ~55 reusable modules
 │   ├── healer_deficit_sylvanas.lua      # Predictive deficit tracker
 │   ├── interrupt_manager_sylvanas.lua   # Interrupt + school lockout
 │   ├── trinket_manager_sylvanas.lua     # Trinket usage
 │   ├── pvp_burst_window_sylvanas.lua    # Burst detection
 │   ├── enemy_count_hysteresis_sylvanas.lua  # Smooth enemy count
+│   ├── stopcast_sylvanas.lua            # Smart in-flight cast cancellation
+│   ├── pet_heal_sylvanas.lua            # Party/raid pet healing target scan
+│   ├── snap_threat_sylvanas.lua         # Immediate threat on combat entry
+│   ├── combat_mode_sylvanas.lua         # Force ST/AoE/Auto rotation mode
 │   └── ...
 └── tests/                     # 171 rotation suites + 11 leveling suites
     ├── run_rotation_tests.lua
@@ -84,6 +88,11 @@ EaxRotations/
 - **Slam Weaving** — Arms Warrior: swing-timer-aware Slam casting (0.5s cast, resets swing)
 - **Seal Twisting** — Retribution Paladin: Blood/Martyr seal twist window tracking
 - **Predictive Healing** — All healers: `HealerDeficit` estimates future HP using per-unit damage-rate sampling
+- **Smart Stop-Cast** — Cancel in-flight heals when target recovers above threshold (all 5 healers)
+- **Pet Healing** — Include Hunter/Warlock pets in healing target scan with configurable weight
+- **Tank HP Bias** — Configurable triage priority for tanks and focus targets
+- **Snap Threat** — Immediate Judgement/Shield Slam on combat entry (Prot Pally/Prot Warrior)
+- **Combat Mode Override** — Force Single Target, AoE, or Auto-detect mode
 - **Friendly-Target Healing** — All 5 healers: manual friendly target override with emergency-safe gating
 - **Overheal Protection** — `gate_overheal` skips heals when incoming heals + shields cover deficit
 - **AuraCache** — 50ms TTL buff/debuff cache to avoid per-frame API thrash
@@ -103,7 +112,7 @@ validate.cmd
 ```
 
 **Current status:**
-- 171 rotation suites: **PASS**
+- 176 rotation suites: **PASS**
 - 11 leveling suites: **PASS**
 - Spell audit (all IDs verified against DBC): **PASS**
 
@@ -184,6 +193,7 @@ EaxAutoQuester/
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| v2026.06.28 | 2026-06-28 | FrostByte Supremacy Phase 1: Stop-Cast, Pet Healing, Tank Bias, Snap Threat, Combat Mode |
 | v2026.06.25.23e5496d | 2026-06-25 | APL fixes: Fury, Destro, Ele, Assassination + repo cleanup |
 | v2026.06.25.b2abdecf | 2026-06-25 | Repo cleanup (176 files removed), new README |
 | v2026.06.25.f78f33fd | 2026-06-25 | Vanilla healers B6 + DEBUG filter |

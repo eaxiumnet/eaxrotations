@@ -157,7 +157,7 @@ local function build_holy_state(context)
         if entries and count and count > 0 then
             -- Triage-ranked target selection: smarter than naive lowest-HP
             if NS.Triage and NS.Triage.rank then
-                local ranked = NS.Triage.rank(entries, count)
+                local ranked = NS.Triage.rank(entries, count, context.settings)
                 lowest_entry = ranked[1] or entries[1]
             else
                 lowest_entry = entries[1]
@@ -230,6 +230,11 @@ local function build_holy_state(context)
     local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
     holy_state.friendly_target = ft
     holy_state.friendly_target_ready = ft ~= nil
+
+    -- FrostByte parity: Smart Stop-Cast — cancel overhealing casts mid-flight
+    if NS.StopCast and type(NS.StopCast.update) == "function" then
+        NS.StopCast.update(player, context.settings)
+    end
 
     return holy_state
 end
