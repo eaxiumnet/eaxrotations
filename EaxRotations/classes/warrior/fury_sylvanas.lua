@@ -8,6 +8,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
@@ -82,9 +83,14 @@ local HEROIC_STRIKE_RAGE = 60
 local CLEAVE_RAGE = 55
 local STANCE_CAST_LOCKOUT = 2.0
 local TACTICAL_MASTERY_CAP = 25
-local last_stance_cast_at = 0
+local last_stance_cast_at = 0  -- fallback only; WH tracks its own copy when loaded
 
-local function stance_lockout_active()
+-- Configure shared module with spec-specific constants
+WH.CAST_TAG = "[FURY]"
+WH.TACTICAL_MASTERY_CAP = TACTICAL_MASTERY_CAP
+WH.STANCE_CAST_LOCKOUT = STANCE_CAST_LOCKOUT
+
+local stance_lockout_active = WH.stance_lockout_active or function()
     return (NS.time_now and NS.time_now() or 0) < last_stance_cast_at + STANCE_CAST_LOCKOUT
 end
 
@@ -150,21 +156,21 @@ local fury_state = {
     health_potion_id = nil,
 }
 
--- Helper functions
-local setting = NS.setting or function(context, key, fallback)
+-- Helper functions (extracted to shared_helpers_sylvanas; fallbacks kept if module missing)
+local setting = NS.setting or WH.setting or function(context, key, fallback)
     local settings = context and context.settings
     if settings and settings[key] ~= nil then return settings[key] end
     if NS.get_setting then return NS.get_setting(key, fallback) end
     return fallback
 end
 
-local function bool_call(unit, method)
+local bool_call = WH.bool_call or function(unit, method)
     if not unit or type(unit[method]) ~= "function" then return false end
     local ok, value = pcall(unit[method], unit)
     return ok and value == true
 end
 
-local function execute_phase(context, state)
+local execute_phase = WH.execute_phase or function(context, state)
     if NS.is_execute_phase then return NS.is_execute_phase(context.target_hp, 20) end
     if (state.target_hp or context.target_hp or 100) <= 20 then return true end
     -- TTD awareness: treat as execute phase if target is dying soon
@@ -172,19 +178,19 @@ local function execute_phase(context, state)
     return false
 end
 
-local function preserved_rage_after_swap(rage)
+local preserved_rage_after_swap = WH.preserved_rage_after_swap or function(rage)
     if NS.get_tactical_mastery_cap then return NS.get_tactical_mastery_cap() end
     local cap = TACTICAL_MASTERY_CAP or 25
     return (rage or 0) < cap and (rage or 0) or cap
 end
 
-local function stance_swap_safe(state, cost)
+local stance_swap_safe = WH.stance_swap_safe or function(state, cost)
     local effective_cost = math.min(cost or 0, 15)
     if state.stance == nil then return true end
     return preserved_rage_after_swap(state.rage or 0) >= effective_cost
 end
 
-local function desired_stance(context)
+local desired_stance = WH.desired_stance or function(context)
     local preference = setting(context, "stance_preference", "auto")
     if preference == "battle" or preference == STANCE.BATTLE then return STANCE.BATTLE end
     if preference == "defensive" or preference == STANCE.DEFENSIVE then return STANCE.DEFENSIVE end
@@ -192,7 +198,7 @@ local function desired_stance(context)
     return nil
 end
 
-local function action(context, row)
+local action = WH.action or function(context, row)
     if not context or not row then return false end
     if not row.spell then return true end
     local target = (row.target == "self" or row.requires_target == false) and (context.me or NS.GetPlayer()) or context.target
@@ -205,7 +211,7 @@ local function action(context, row)
     return NS.spell_ready(row.spell, target, opts)
 end
 
-local function cast(context, row)
+local cast = WH.cast or function(context, row)
     if not context or not row then return false end
     if not row.spell then return false end
     local target = (row.target == "self" or row.requires_target == false) and (context.me or NS.GetPlayer()) or context.target
@@ -220,7 +226,7 @@ local function cast(context, row)
     return ok
 end
 
-local function build_action(name, spell_value, opts)
+local build_action = WH.build_action or function(name, spell_value, opts)
     local row = opts or {}
     row.name = name
     row.spell = spell_value
