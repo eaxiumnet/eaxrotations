@@ -186,6 +186,7 @@ local function build_state(context)
         prot_state.demo_remains = 0
         prot_state.tclap_remains = 0
     end
+    prot_state.is_group = context.is_group or false
     prot_state.hp = context.hp or 100
     prot_state.rage = context.rage or 0
     prot_state.stance = context.stance or 2
@@ -431,7 +432,8 @@ local function shield_wall_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShieldWall, 3.0) then return false end
     local settings = context.settings or {}
     if settings.use_shield_wall == false then return false end
-    local threshold = settings.defensive_hp_threshold or 35
+    local default_threshold = state.is_group and 50 or 35
+    local threshold = settings.defensive_hp_threshold or default_threshold
     if (state.hp or 100) > threshold then return false end
     if state.has_shield_wall then return false end
     return true
@@ -441,7 +443,8 @@ local function last_stand_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.LastStand, 3.0) then return false end
     local settings = context.settings or {}
     if settings.use_last_stand == false then return false end
-    local threshold = settings.defensive_hp_threshold or 35
+    local default_threshold = state.is_group and 50 or 35
+    local threshold = settings.defensive_hp_threshold or default_threshold
     if (state.hp or 100) > threshold then return false end
     if state.has_last_stand then return false end
     return true
