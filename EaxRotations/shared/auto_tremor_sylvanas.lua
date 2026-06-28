@@ -64,8 +64,8 @@ end
 --- Check if any nearby friendly unit is affected by fear/charm/sleep.
 -- @return boolean - true if a fear-like CC is detected on a nearby ally
 function M.detect_fear_on_ally()
-    if not NS or not NS.get_party_members then return false end
-    local party = NS.get_party_members()
+    if not NS or not NS.GetPartyMembers then return false end
+    local party = NS.GetPartyMembers()
     if not party then return false end
     -- Fear/charm/sleep debuff IDs (common TBC CC)
     local FEAR_DEBUFFS = {

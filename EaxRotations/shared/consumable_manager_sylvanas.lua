@@ -60,13 +60,22 @@ function M.get_role(class_id, active_playstyle)
     elseif class_id == ENUMS.PRIEST then
         return "caster"
     elseif class_id == ENUMS.SHAMAN then
-        return "caster" -- elemental/enhancement
+        if active_playstyle and active_playstyle:lower() == "enhancement" then
+            return "melee"
+        end
+        return "caster" -- elemental/restoration
     elseif class_id == ENUMS.MAGE then
         return "caster"
     elseif class_id == ENUMS.WARLOCK then
         return "caster"
     elseif class_id == ENUMS.DRUID then
-        return "caster" -- balance/feral/resto
+        if active_playstyle then
+            local ap = active_playstyle:lower()
+            if ap == "cat" or ap == "bear" or ap == "feral" then
+                return "melee"
+            end
+        end
+        return "caster" -- balance/resto
     end
     return "caster"
 end

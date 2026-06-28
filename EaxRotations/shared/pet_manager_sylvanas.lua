@@ -61,11 +61,15 @@ end
 function M.try_cast(spell_id, target)
     if not spell_id then return false end
     local cd = 0
-    local ok, cd_val = pcall(core.spell_book.get_spell_cooldown, spell_id)
+    local ok, cd_val = pcall(function()
+        return core and core.spell_book and core.spell_book.get_spell_cooldown and core.spell_book.get_spell_cooldown(spell_id)
+    end)
     if ok and cd_val then cd = cd_val end
     if cd > 0 then return false end
     if not target then return false end
-    local ok2 = pcall(function() core.input.pet_cast_target_spell(spell_id, target) end)
+    local ok2 = pcall(function()
+        return core and core.input and core.input.pet_cast_target_spell and core.input.pet_cast_target_spell(spell_id, target)
+    end)
     return ok2
 end
 
@@ -104,7 +108,9 @@ function M.on_update(me, target, spec)
     local ok_guid, guid = pcall(function() return target:get_guid() end)
     local guid = ok_guid and guid or nil
     if st.state == STATE_IDLE or st.last_target_guid ~= guid then
-        local ok = pcall(function() core.input.pet_attack(target) end)
+        local ok = pcall(function()
+            return core and core.input and core.input.pet_attack and core.input.pet_attack(target)
+        end)
         if ok then st.state = STATE_ENGAGING; st.last_target_guid = guid end
         return
     end
