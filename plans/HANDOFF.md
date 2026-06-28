@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-06-26** (APL round COMPLETE + shipped; last commit `f5c95e4f`, HEAD in sync with origin).
+> up to date after every work session. Last updated: **2026-06-27** (EaxAutoQuester P0 sprint complete + Druid perf fixes; HEAD `3167dd44`, pushed to origin).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/finish-what-i-started.md` — read it
@@ -20,11 +20,10 @@ have to context-switch.
   `https://github.com/eaxiumnet/eaxrotations`. Work dir: `C:\newbot\scripts`.
 - **Baseline is GREEN:** 171 rotation suites + 11 leveling suites pass on
   **Lua 5.1**. Don't break this.
-- **What's done:** Tracks A (cleanup + gate fixes), B1–B6 (native-API features
-  incl. friendly-target healing for ALL 5 healers + vanilla variants),
-  C1–C3 (core refactor), D1 (generator DEBUG filter), D2 (spell 28176 doc fix),
-  A4 (PvP stubs documented), scan-cap perf fix, README audit, 29 Pattern 15
-  headers added, cleanup inventory created. All committed & pushed.
+- **What's done:** Tracks A–D (cleanup + native-API features + core refactor +
+  data cleanup), B1–B6 (friendly-target healing for ALL 5 healers + vanilla),
+  APL optimization COMPLETE for all 29 specs, EaxAutoQuester P0 sprint.
+  All committed & pushed to origin.
   APL optimization COMPLETE for all 29 specs: **8 guide-based fixes** committed
   (Fury `014e81c7`, Destruction `f9b8a60f`, Elemental `6c88a6d8`, Assassination
   `23e5496d`, Demonology `cddd6393`, Drain Soul shard-capture `c3565364`,

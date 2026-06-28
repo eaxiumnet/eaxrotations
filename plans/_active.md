@@ -10,11 +10,12 @@
 ### Immediate Next Steps
 1. ✅ Phase A1-A4: Headers + nil-guard audit + full gate — ALL COMPLETE
 2. ✅ Phase B1 (mage/rogue/warlock CC): Dungeon CC expansion — 3 commits delivered
-3. Phase B2: Raid-aware strategies (25 specs missing)
-4. Phase C1-C3: Vanilla leveling audit
-5. Phase D1-D3: External repo APL comparison
+3. Phase B2: Raid-aware strategies (25 specs missing) — DEAD is_group locals REVERTED
+4. ✅ EaxAutoQuester P0 sprint: 10 new modules + test fixes — 38/38 pass
+5. ✅ Druid performance: form-shift throttle + state caching + debuff scan throttling
 
 ### Baseline
 - 171 rotation tests: PASS
 - 11 leveling tests: PASS
+- 38 EaxAutoQuester tests: PASS
 - All 29 specs aligned with WoWSims APL
