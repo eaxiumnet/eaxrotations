@@ -40,7 +40,8 @@ local function ice_block_matches(context)
     local me = context.me
     if not me then return false end
     local hp = me.get_health_percentage and me:get_health_percentage() or 100
-    if hp > 20 then return false end
+    local threshold = (context.is_group or false) and 30 or 20
+    if hp > threshold then return false end
     return true
 end
 
@@ -51,7 +52,8 @@ local function cold_snap_matches(context, s)
     -- Defensive path: Ice Block on cooldown, low HP
     if not (me and NS.spell_ready(SPELLS.IceBlock, me)) then
         local hp = me.get_health_percentage and me:get_health_percentage() or 100
-        if hp <= 35 then return true end
+        local threshold = (context.is_group or false) and 45 or 35
+        if hp <= threshold then return true end
     end
     -- DPS path: double-pet or double-IV
     if s.in_combat then
@@ -171,6 +173,7 @@ end
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
+    frost_state.is_group = context.is_group or false
 
     frost_state.has_ice_barrier = me and NS.buff_up(me, ICE_BARRIER_BUFF) or false
     frost_state.has_mana_shield = me and NS.buff_up(me, MANA_SHIELD_BUFF) or false
