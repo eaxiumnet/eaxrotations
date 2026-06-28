@@ -4,6 +4,36 @@ All notable changes to EaxRotations will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.2] - 2026-06-28
+
+### Added
+- Platform API adoption: `NS.get_aoe_cast_position(spell_id, target, radius, max_range, min_hits)` — dual-return with hit count gating for AoE spells (Blizzard, Volley, Rain of Fire, Hurricane)
+- Platform API adoption: `NS.get_total_shield(unit)`, `NS.get_incoming_heals(unit)`, `NS.get_incoming_heals_from(unit, source)` — pcall-guarded native game_object wrappers
+- Platform API adoption: `NS.health_prediction` exposure for spec consumption (tank detection, PvP detection, incoming damage)
+- Paladin Holy: `holy_light_hp` slider (40-100%, default 70%) — prefer Holy Light over Flash below this threshold
+- Paladin Holy: `holy_lights_grace_chaining` checkbox (default true) — cast cheap R4 Holy Light to refresh Light's Grace before expiry
+- Paladin Holy: aura switch 3s throttle to prevent debuff-pulse flip-flop
+- Test: `test_paladin_holy_custom_matches.lua` for aura throttle coverage
+
+### Performance
+- Frame-level `build_state` caching in 5 vanilla specs (Druid Bear, Warrior Arms/Fury/Prot) — prevents N× per-frame CPU burn using `context.now` timestamp guard
+- Middleware CC-break scan throttling (0.3s intervals) across Mage, Rogue, Warlock, Paladin, Priest
+- Priest middleware: fade scan throttled to 0.5s, mass dispel to 0.3s, SW:D preemptive scan to 0.3s
+
+### Fixed
+- **Priest ManaBurn**: Fixed non-existent `NS.unit_mana_pct` → raw `get_power`/`get_max_power` pcall
+- **Paladin Forbearance**: Removed invalid `me.debuff_remains` guard (always nil, silently skipped check)
+- **Hunter ViperSting**: pcall-wrapped `target:get_power_type()` / `get_class()` to prevent nil crash
+- **Hunter FeedPet**: Fixed `pcall(pet.is_alive)` missing `self` argument
+- **Warrior SmartHSDequeue**: Fixed pcall unpacking bug (got boolean instead of spell_id)
+- **Shared pet_manager**: Nil-guarded `core.spell_book` / `core.input` accesses to prevent startup crash
+- **Shared auto_tremor**: Fixed `NS.get_party_members` → `NS.GetPartyMembers` capitalization (Tremor Totem now drops for allies)
+- **Shared consumable_manager**: Fixed role classification for Enhancement Shaman and Feral Druid (were "caster", now "melee")
+- **Core**: Store `is_group` in state table for 12 specs to enable group-aware defensive thresholds
+
+### Changed
+- `main_sylvanas.lua`: expose `NS.health_prediction` following `NS.spell_queue` pattern
+
 ## [1.1.1] - 2026-05-28
 
 ### Added
