@@ -502,6 +502,77 @@ local strategies = {
         end,
     },
 
+    -- ========================================================================
+    -- POWER WORD: SHIELD (Combat defensive — self-shield when HP low)
+    -- ========================================================================
+    {
+        name = "Priest_PWShield",
+        priority = 850,
+        is_defensive = true,
+        matches = function(context)
+            local settings = context.settings or {}
+            if not context.in_combat then return false end
+            local threshold = settings.pws_hp or 0
+            if threshold <= 0 then return false end
+            if (context.hp or 100) <= threshold then
+                -- Check if Weakened Soul debuff present (can't re-shield)
+                local ws_debuffs = { 6788 }
+                if NS.has_debuff and context.me and NS.has_debuff(context.me, ws_debuffs) then return false end
+                local spell = SPELLS.PowerWordShield or { id = { 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }, name = "PowerWordShield" }
+                if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.PowerWordShield or { id = { 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }, name = "PowerWordShield" }
+            return NS.try_cast(spell, context.me, "[PRIEST] Power Word: Shield", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- INNER FIRE (OOC self-buff — maintain armor/spirit buff)
+    -- ========================================================================
+    {
+        name = "InnerFire",
+        priority = 450,
+        matches = function(context)
+            local settings = context.settings or {}
+            if context.in_combat then return false end
+            if settings.auto_inner_fire == false then return false end
+            local if_buffs = { 25431, 10952, 10951, 1006, 602, 7128, 588 }
+            if NS.has_player_buff and NS.has_player_buff(if_buffs) then return false end
+            local spell = SPELLS.InnerFire or { id = if_buffs, name = "InnerFire" }
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.InnerFire or { id = { 25431, 10952, 10951, 1006, 602, 7128, 588 }, name = "InnerFire" }
+            return NS.try_cast(spell, context.me, "[PRIEST] Inner Fire", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- POWER WORD: FORTITUDE (OOC self-buff — maintain stamina buff)
+    -- ========================================================================
+    {
+        name = "PowerWordFortitude",
+        priority = 440,
+        matches = function(context)
+            local settings = context.settings or {}
+            if context.in_combat then return false end
+            if settings.auto_fortitude == false then return false end
+            local fort_buffs = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
+            if NS.has_player_buff and NS.has_player_buff(fort_buffs) then return false end
+            local spell = SPELLS.PowerWordFortitude or { id = fort_buffs, name = "PowerWordFortitude" }
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.PowerWordFortitude or { id = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }, name = "PowerWordFortitude" }
+            return NS.try_cast(spell, context.me, "[PRIEST] Power Word: Fortitude", { skip_range = true })
+        end,
+    },
+
     -- Auto-consumable usage
     { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
 

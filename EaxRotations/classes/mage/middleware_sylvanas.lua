@@ -8,6 +8,8 @@ local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local SPELLS = NS.MageSpells or {}
 local _mana_gem_last = 0
+local _last_conjure_water = 0
+local _last_conjure_food = 0
 
 -- Spellsteal spell object (TBC: 30449, learned at level 68)
 local SPELLSTEAL_SPELL = SPELLS.Spellsteal or { id = { 30449 }, name = "Spellsteal" }
@@ -350,6 +352,80 @@ local strategies = {
                 end
             end
             return false
+        end,
+    },
+
+    -- ========================================================================
+    -- CONJURE WATER (OOC — ensure water supply)
+    -- ========================================================================
+    {
+        name = "ConjureWater",
+        priority = 450,
+        matches = function(context)
+            local settings = context.settings or {}
+            if context.in_combat then return false end
+            if settings.auto_conjure_water == false then return false end
+            -- Throttle: don't spam conjure
+            local now = NS.time_now and NS.time_now() or 0
+            if (now - (_last_conjure_water or 0)) < 10 then return false end
+            local spell = SPELLS.ConjureWater or { id = { 27090, 10140, 10139, 10138, 5505, 5504, 587 }, name = "ConjureWater" }
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
+        end,
+        execute = function(context)
+            _last_conjure_water = NS.time_now and NS.time_now() or 0
+            local spell = SPELLS.ConjureWater or { id = { 27090, 10140, 10139, 10138, 5505, 5504, 587 }, name = "ConjureWater" }
+            return NS.try_cast(spell, context.me, "[MAGE] Conjure Water", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- CONJURE FOOD (OOC — ensure food supply)
+    -- ========================================================================
+    {
+        name = "ConjureFood",
+        priority = 440,
+        matches = function(context)
+            local settings = context.settings or {}
+            if context.in_combat then return false end
+            if settings.auto_conjure_food == false then return false end
+            local now = NS.time_now and NS.time_now() or 0
+            if (now - (_last_conjure_food or 0)) < 10 then return false end
+            local spell = SPELLS.ConjureFood or { id = { 27091, 10145, 10144, 10143, 5506, 587 }, name = "ConjureFood" }
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
+        end,
+        execute = function(context)
+            _last_conjure_food = NS.time_now and NS.time_now() or 0
+            local spell = SPELLS.ConjureFood or { id = { 27091, 10145, 10144, 10143, 5506, 587 }, name = "ConjureFood" }
+            return NS.try_cast(spell, context.me, "[MAGE] Conjure Food", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- HEALTHSTONE / POTION (Combat emergency heal)
+    -- ========================================================================
+    {
+        name = "Mage_Healthstone",
+        priority = 850,
+        is_defensive = true,
+        matches = function(context)
+            local settings = context.settings or {}
+            if not context.in_combat then return false end
+            local threshold = settings.healthstone_hp or 0
+            if threshold <= 0 then return false end
+            if (context.hp or 100) <= threshold then return true end
+            return false
+        end,
+        execute = function(context)
+            local HEALING_POTION_ITEMS = { 21877, 13446, 3928, 1710, 929, 858, 118 }
+            local used_item = false
+            if NS.use_item and context.me then
+                for _, item_id in ipairs(HEALING_POTION_ITEMS) do
+                    if NS.use_item(item_id, context.me) then used_item = true; break end
+                end
+            end
+            return used_item
         end,
     },
 

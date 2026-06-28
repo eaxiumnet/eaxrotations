@@ -193,6 +193,54 @@ local strategies = {
     },
 
     -- ========================================================================
+    -- RAPID FIRE (Offensive cooldown — burst haste on valid target)
+    -- ========================================================================
+    {
+        name = "RapidFire",
+        priority = 780,
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_rapid_fire == false then return false end
+            if not context.in_combat then return false end
+            if not context.has_valid_enemy_target then return false end
+            local spell = SPELLS.RapidFire or { id = { 3045 }, name = "RapidFire" }
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.RapidFire or { id = { 3045 }, name = "RapidFire" }
+            return NS.try_cast(spell, context.me, "[HUNTER] Rapid Fire", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- HEALTHSTONE / POTION (Combat emergency heal)
+    -- ========================================================================
+    {
+        name = "Hunter_Healthstone",
+        priority = 850,
+        is_defensive = true,
+        matches = function(context)
+            local settings = context.settings or {}
+            if not context.in_combat then return false end
+            local threshold = settings.healthstone_hp or 0
+            if threshold <= 0 then return false end
+            if (context.hp or 100) <= threshold then return true end
+            return false
+        end,
+        execute = function(context)
+            local HEALING_POTION_ITEMS = { 21877, 13446, 3928, 1710, 929, 858, 118 }
+            local used_item = false
+            if NS.use_item and context.me then
+                for _, item_id in ipairs(HEALING_POTION_ITEMS) do
+                    if NS.use_item(item_id, context.me) then used_item = true; break end
+                end
+            end
+            return used_item
+        end,
+    },
+
+    -- ========================================================================
     -- MEND PET (Heal pet during combat — maintain pet HP above threshold)
     -- ========================================================================
     {

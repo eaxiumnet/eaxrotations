@@ -404,7 +404,7 @@ local strategies = {
                 has_shard = NS.has_item(SOUL_SHARD_ITEM)
             end
             -- Bag scan fallback for has_item being unavailable
-            if not has_shard and NS.core and NS.core.inventory then
+            if not has_shard and NS.core and NS.core.inventory and NS.core.inventory.get_item_count then
                 local ok_shard, count = pcall(NS.core.inventory.get_item_count, SOUL_SHARD_ITEM)
                 has_shard = ok_shard and (count or 0) > 0
             end
@@ -449,6 +449,35 @@ local strategies = {
         end,
         execute = function(context)
             return NS.try_cast({ id = { 27238, 20756, 20755, 20752, 693 }, name = "CreateSoulstone" }, context.me, "[WARLOCK] Create Soulstone", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- DEMON ARMOR / FEL ARMOR (OOC self-buff — maintain armor buff)
+    -- ========================================================================
+    {
+        name = "Warlock_DemonArmor",
+        priority = 480,
+        is_defensive = true,
+        matches = function(context)
+            local settings = context.settings or {}
+            if context.in_combat then return false end
+            if settings.auto_demon_armor == false then return false end
+            -- Prefer Fel Armor (TBC level 62+) if learned; fall back to Demon Armor
+            local fel_armor_ids = { 28189, 28176 }
+            local demon_armor_ids = { 27260, 11735, 11734, 11733, 1086, 706 }
+            local has_fel = NS.is_spell_learned and NS.is_spell_learned(fel_armor_ids[1])
+            if has_fel and NS.has_player_buff and NS.has_player_buff(fel_armor_ids) then return false end
+            if not has_fel and NS.has_player_buff and NS.has_player_buff(demon_armor_ids) then return false end
+            local spell = has_fel and { id = fel_armor_ids, name = "FelArmor" } or { id = demon_armor_ids, name = "DemonArmor" }
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
+        end,
+        execute = function(context)
+            local fel_armor_ids = { 28189, 28176 }
+            local has_fel = NS.is_spell_learned and NS.is_spell_learned(fel_armor_ids[1])
+            local spell = has_fel and { id = fel_armor_ids, name = "FelArmor" } or { id = { 27260, 11735, 11734, 11733, 1086, 706 }, name = "DemonArmor" }
+            return NS.try_cast(spell, context.me, "[WARLOCK] " .. (has_fel and "Fel Armor" or "Demon Armor"), { skip_range = true })
         end,
     },
 
