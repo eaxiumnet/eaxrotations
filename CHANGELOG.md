@@ -4,6 +4,30 @@ All notable changes to the EAX TBC Classic Rotations project.
 
 ## [Unreleased] — FrostByte Supremacy Phase 2 (2026-06-28)
 
+### Fixed
+
+#### Middleware Critical Bugs
+- **Warlock**: Registered `SpellLock` with `interrupt_manager` (was completely missing).
+- **Paladin Cleanse**: Rewrote from self-only to party-wide scan — dispels self then all party members.
+- **Paladin GroupBlessKings**: Now refreshes expiring Kings even if target has another blessing (was: never refreshed).
+- **Paladin AutoConsumable**: Moved throttle set from `matches()` to inside `execute()` — only throttles on *successful* use (was: consumed 3s cooldown even on failed execute → 6s total lockout).
+- **Mage ManaGem**: Moved `_mana_gem_last` set from `matches()` to inside `execute()` — only throttles on successful gem use (was: 30s lockout on failed use).
+- **Warlock CreateHealthstone**: Added nil-guard on `NS.core.inventory.get_item_count`.
+- **main_sylvanas.lua**: Fixed `_context.lowest` subtable being nil'd by `build_context()` reset loop, causing downstream crashes.
+
+#### Middleware Feature Parity (All 9 Classes)
+- **Warlock**: Demon/Fel Armor OOC self-buff maintenance (priority 480).
+- **Hunter**: Rapid Fire offensive cooldown (priority 780); combat healthstone/potion emergency heal (priority 850).
+- **Shaman**: Lightning Shield OOC buff (priority 450); Bloodlust combat cooldown (priority 750); Lesser Healing Wave self-heal (priority 850).
+- **Priest**: PW:Shield combat defensive (priority 850); Inner Fire OOC buff (priority 450); PW:Fortitude OOC buff (priority 440).
+- **Druid**: Barkskin combat defensive (priority 850); Innervate smart-targeting (healer > self, priority 750); Rebirth combat resurrection (priority 1000).
+- **Mage**: Conjure Water/Food OOC (priority 450/440); combat healthstone/potion emergency heal (priority 850).
+
+#### Leveling Death Zone Fixes
+- **Warrior**: Heroic Strike rage threshold now level-aware (`math.min(50, math.max(15, 15 + level))`). Level 1 dumps at 15 rage, scaling to 50 by 60. Prevents total rage starvation at 1-10.
+- **Paladin**: Healing thresholds more aggressive at low levels — Flash of Light 75% HP at ≤20 (was 60%), Holy Light 50% at ≤20 (was 35%). Prevents death spiral at 1-11.
+- **Hunter**: Low-mana threshold 15% at ≤20 (was 30%). Prevents mana starvation causing no-damage loops at 1-9.
+
 ### Added
 
 #### Prot Paladin: Mana Emergency Swap (JoW)
