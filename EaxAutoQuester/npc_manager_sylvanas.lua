@@ -79,18 +79,22 @@ local function find_nearest_npc(ids, range)
 
     for i = 1, limit do
         local obj = objects[i]
-        if not obj then break end
-
-        local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
-        if unit_ok and is_unit then
-            local id_ok, npc_id = pcall(function() return obj:get_npc_id() end)
-            if id_ok and npc_id and id_set[npc_id] then
-                local pos_ok, pos = pcall(function() return obj:get_position() end)
-                if pos_ok and pos then
-                    local dist_sq = utils and utils.squared_distance(me, pos) or 0
-                    if dist_sq < best_dist_sq then
-                        best_dist_sq = dist_sq
-                        best = obj
+        if obj then
+            local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
+            if unit_ok and is_unit then
+                -- Exclude the local player — targeting self causes infinite loops
+                local player_ok, is_player = pcall(function() return obj:is_player() end)
+                if not (player_ok and is_player) then
+                    local id_ok, npc_id = pcall(function() return obj:get_npc_id() end)
+                    if id_ok and npc_id and id_set[npc_id] then
+                        local pos_ok, pos = pcall(function() return obj:get_position() end)
+                        if pos_ok and pos then
+                            local dist_sq = utils and utils.squared_distance(me, pos) or 0
+                            if dist_sq < best_dist_sq then
+                                best_dist_sq = dist_sq
+                                best = obj
+                            end
+                        end
                     end
                 end
             end
@@ -118,15 +122,15 @@ local function find_interactable_objects(name_filter)
 
     for i = 1, limit do
         local obj = objects[i]
-        if not obj then break end
-
-        local name_ok, name = pcall(function() return obj:get_name() end)
-        if name_ok and name then
-            local lower_ok, lower_name = pcall(function() return name:lower() end)
-            if lower_ok and lower_name then
-                if lower_name:find(filter_lower, 1, true) then
-                    _stack.n = _stack.n + 1
-                    _stack[_stack.n] = obj
+        if obj then
+            local name_ok, name = pcall(function() return obj:get_name() end)
+            if name_ok and name then
+                local lower_ok, lower_name = pcall(function() return name:lower() end)
+                if lower_ok and lower_name then
+                    if lower_name:find(filter_lower, 1, true) then
+                        _stack.n = _stack.n + 1
+                        _stack[_stack.n] = obj
+                    end
                 end
             end
         end
@@ -212,21 +216,88 @@ local function get_nearest_enemy(range)
 
     for i = 1, limit do
         local obj = objects[i]
-        if not obj then break end
+        if obj then
+            local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
+            if unit_ok and is_unit then
+                local dead_ok, is_dead = pcall(function() return obj:is_dead() end)
+                if dead_ok and not is_dead then
+                    local attack_ok, can_attack = pcall(function() return obj:can_attack(me) end)
+                    local enemy_ok, is_enemy   = pcall(function() return obj:is_enemy_with(me) end)
+                    if attack_ok and can_attack and enemy_ok and is_enemy then
+                        local pos_ok, pos = pcall(function() return obj:get_position() end)
+                        if pos_ok and pos then
+                            local dist_sq = utils and utils.squared_distance(me, pos) or 0
+                            if dist_sq < best_dist_sq then
+                                best_dist_sq = dist_sq
+                                best = obj
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
 
-        local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
-        if unit_ok and is_unit then
-            local dead_ok, is_dead = pcall(function() return obj:is_dead() end)
-            if dead_ok and not is_dead then
-                local attack_ok, can_attack = pcall(function() return obj:can_attack(me) end)
-                local enemy_ok, is_enemy   = pcall(function() return obj:is_enemy_with(me) end)
-                if attack_ok and can_attack and enemy_ok and is_enemy then
-                    local pos_ok, pos = pcall(function() return obj:get_position() end)
-                    if pos_ok and pos then
-                        local dist_sq = utils and utils.squared_distance(me, pos) or 0
-                        if dist_sq < best_dist_sq then
-                            best_dist_sq = dist_sq
-                            best = obj
+    return best
+end
+
+--- Find nearest visible unit flagged as a quest unit (is_quest_unit == true).
+--- This is the most reliable way to find quest NPCs without relying on
+--- Questie/Zygor data or name matching. Uses the game engine's own quest flag.
+--- @param range number|nil Max search yards (default 50)
+--- @param exclude_dead boolean|nil If true, skip dead units (default true)
+--- @return game_object|nil Closest quest unit, or nil
+local function find_nearest_quest_unit(range, exclude_dead)
+    range = range or 50
+    exclude_dead = (exclude_dead ~= false)  -- default true
+    local range_sq = range * range
+
+    local ok, objects = pcall(_get_visible_objs)
+    if not ok or not objects or #objects == 0 then return nil end
+
+    local utils = ensure_utils()
+    local me = _get_local_player()
+    if not me then return nil end
+
+    local best = nil
+    local best_dist_sq = range_sq
+
+    local limit = #objects
+    if limit > MAX_SCAN then limit = MAX_SCAN end
+
+    for i = 1, limit do
+        local obj = objects[i]
+        if obj then
+            local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
+            if unit_ok and is_unit then
+                -- Exclude player
+                local player_ok, is_player = pcall(function() return obj:is_player() end)
+                if not (player_ok and is_player) then
+                    local quest_ok, is_quest = pcall(function() return obj:is_quest_unit() end)
+                    if quest_ok and is_quest then
+                        if exclude_dead then
+                            local dead_ok, is_dead = pcall(function() return obj:is_dead() end)
+                            if dead_ok and is_dead then
+                                -- skip dead quest unit
+                            else
+                                local pos_ok, pos = pcall(function() return obj:get_position() end)
+                                if pos_ok and pos then
+                                    local dist_sq = utils and utils.squared_distance(me, pos) or 0
+                                    if dist_sq < best_dist_sq then
+                                        best_dist_sq = dist_sq
+                                        best = obj
+                                    end
+                                end
+                            end
+                        else
+                            local pos_ok, pos = pcall(function() return obj:get_position() end)
+                            if pos_ok and pos then
+                                local dist_sq = utils and utils.squared_distance(me, pos) or 0
+                                if dist_sq < best_dist_sq then
+                                    best_dist_sq = dist_sq
+                                    best = obj
+                                end
+                            end
                         end
                     end
                 end
@@ -261,6 +332,7 @@ local M = {
     find_nearest_npc          = find_nearest_npc,
     find_interactable_objects = find_interactable_objects,
     find_quest_npcs           = find_quest_npcs,
+    find_nearest_quest_unit   = find_nearest_quest_unit,
     get_nearest_enemy         = get_nearest_enemy,
     get_interact_distance     = get_interact_distance,
 }

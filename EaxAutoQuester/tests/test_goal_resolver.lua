@@ -36,15 +36,17 @@ _G.EaxAutoQuester.npc_db = {
     end,
 }
 
--- Questie: add extra functions to the mock's questie table
-core.addons.questie.get_quest_log_title = function(idx)
-    local entry = _mock_questie_log[idx]
-    if entry then return entry.title, entry.id end
-    return nil
-end
-core.addons.questie.get_quest_locations = function(quest_id)
-    return _mock_questie_locs[quest_id] or {}
-end
+-- Mock questie_reader module (new dependency of goal_resolver)
+local mock_questie_reader = {
+    get_quest_locations = function(quest_id)
+        return _mock_questie_locs[quest_id] or {}
+    end,
+    get_quest_objectives = function(quest_id)
+        return {}
+    end,
+    is_loaded = function() return true end,
+}
+package.loaded["questie_reader_sylvanas"] = mock_questie_reader
 
 -- Load module under test (load-time caching will capture our mock references)
 local goal_resolver = require("EaxAutoQuester/goal_resolver_sylvanas")
@@ -135,16 +137,16 @@ do
     _mock_questie_log = {}
     _mock_questie_locs = {}
 
-    -- Set up Questie to return a matching quest
-    _mock_questie_log[1] = { title = "Gilded Brass Armor", id = 100 }
+    -- Set up quest log mock for find_quest_id_by_title
+    mock._quest_log[1] = { title = "Gilded Brass Armor", quest_id = 100 }
     _mock_questie_locs[100] = { { x = 100.5, y = 200.3, z = 30.1 } }
 
     local result = goal_resolver.resolve_goal(
         { npc_id = 0, text = "Gilded Brass Armor" },
         1, nil, nil
     )
-    assert(result.source == "questie",
-        "S4 FAIL: source should be 'questie' (got: " .. tostring(result.source) .. ")")
+    assert(result.source == "questie_locations",
+        "S4 FAIL: source should be 'questie_locations' (got: " .. tostring(result.source) .. ")")
     assert(result.position ~= nil,
         "S4 FAIL: position should not be nil")
     assert(result.position.x == 100.5,

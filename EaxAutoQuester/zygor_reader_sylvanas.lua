@@ -16,21 +16,42 @@ local _get_objectives = core.addons.zygor.get_objectives
 local _get_wp         = core.addons.zygor.get_current_waypoint
 local _get_step_wps   = core.addons.zygor.get_step_waypoints
 
--- Coordinate conversion — try izi SDK first, fall back to core.game_ui
+-- Coordinate conversion — try waypoint_fixer (terrain-height aware) first,
+-- then izi SDK, then core.game_ui as last resort.
 local _convert_map_to_world = nil
-local _ok, _izi = pcall(require, "common/izi_sdk")
-if _ok and _izi and _izi.map_to_world then
-    _convert_map_to_world = _izi.map_to_world
-elseif core.game_ui and core.game_ui.get_world_pos_from_map_pos then
-    -- Fallback: use core API directly (returns vec2 without z — add z via terrain height)
+local _waypoint_fixer = nil
+
+local _wf_ok, _wf = pcall(require, "waypoint_fixer_sylvanas")
+if _wf_ok and _wf and _wf.map_to_world_fixed then
+    _waypoint_fixer = _wf
     _convert_map_to_world = function(map_id, pos)
-        local vec2 = core.game_ui.get_world_pos_from_map_pos(map_id, pos)
-        if not vec2 or not vec2.x or not vec2.y then return nil end
-        local z = 0
-        if core.get_height_for_position then
-            z = core.get_height_for_position({ x = vec2.x, y = vec2.y, z = 0 })
+        local fixed = _wf.map_to_world_fixed(map_id, pos)
+        if fixed then return fixed end
+        -- waypoint_fixer failed — try legacy paths below
+        return nil
+    end
+end
+
+if not _convert_map_to_world then
+    local _ok, _izi = pcall(require, "common/izi_sdk")
+    if _ok and _izi and _izi.map_to_world then
+        _convert_map_to_world = function(map_id, pos)
+            local wpos = _izi.map_to_world(map_id, pos)
+            if wpos and _waypoint_fixer and _waypoint_fixer.fix_z then
+                wpos = _waypoint_fixer.fix_z(wpos)
+            end
+            return wpos
         end
-        return { x = vec2.x, y = vec2.y, z = z }
+    elseif core.game_ui and core.game_ui.get_world_pos_from_map_pos then
+        _convert_map_to_world = function(map_id, pos)
+            local vec2 = core.game_ui.get_world_pos_from_map_pos(map_id, pos)
+            if not vec2 or not vec2.x or not vec2.y then return nil end
+            local wpos = { x = vec2.x, y = vec2.y, z = 0 }
+            if _waypoint_fixer and _waypoint_fixer.fix_z then
+                wpos = _waypoint_fixer.fix_z(wpos)
+            end
+            return wpos
+        end
     end
 end
 
@@ -216,6 +237,36 @@ function M_is_loaded()
     return zygor_loaded()
 end
 
+--- Get the next waypoint within the current step for lookahead pre-navigation.
+--- Returns the second waypoint if the current step has multiple waypoints.
+--- Falls back to nil if only one waypoint exists.
+--- @return table|nil vec3 { x, y, z } or nil
+function M_get_next_waypoint_world()
+    if not zygor_loaded() then return nil end
+    if not _convert_map_to_world then return nil end
+
+    -- Try step waypoints first — if there are 2+, return waypoint[2]
+    local ok, waypoints = pcall(_get_step_wps)
+    if ok and waypoints and #waypoints >= 2 then
+        local wp = waypoints[2]
+        if wp and wp.map_id and wp.x and wp.y then
+            local wok, wpos = pcall(_convert_map_to_world, wp.map_id, { x = wp.x, y = wp.y })
+            if wok and wpos then return wpos end
+        end
+    end
+
+    -- Fallback: probe core.addons.zygor.get_next_waypoint if it exists
+    if core.addons.zygor and core.addons.zygor.get_next_waypoint then
+        local ok, wp = pcall(core.addons.zygor.get_next_waypoint)
+        if ok and wp and wp.map_id and wp.x and wp.y then
+            local wok, wpos = pcall(_convert_map_to_world, wp.map_id, { x = wp.x, y = wp.y })
+            if wok and wpos then return wpos end
+        end
+    end
+
+    return nil
+end
+
 -- ============================================================================
 -- Exports
 -- ============================================================================
@@ -223,6 +274,7 @@ end
 local M = {
     get_current_step_info       = M_get_current_step_info,
     get_current_waypoint_world  = M_get_current_waypoint_world,
+    get_next_waypoint_world     = M_get_next_waypoint_world,
     get_step_waypoints_world    = M_get_step_waypoints_world,
     get_current_waypoint_raw    = M_get_current_waypoint_raw,
     get_current_objectives      = M_get_current_objectives,

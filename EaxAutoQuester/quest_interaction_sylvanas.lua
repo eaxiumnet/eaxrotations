@@ -181,6 +181,58 @@ local _last_quest_action = nil  -- "accept" or "complete"
 local _quest_retry_count = 0    -- consecutive failed attempts (permanent give-up after 3)
 
 -- ============================================================================
+-- auto_equip_best_reward: Equip the selected reward if it's an upgrade
+-- ============================================================================
+
+--- After selecting a quest reward, auto-equip it if better than current gear.
+--- Uses equipment_compare_sylvanas.lua for slot classification and quality comparison.
+function M.auto_equip_best_reward()
+    local eq_ok, eq = pcall(require, "equipment_compare_sylvanas")
+    if not eq_ok or not eq then return end
+
+    local me = _get_local_player()
+    if not me then return end
+
+    -- Get equipped items: returns [{object=game_object, slot_id=integer}]
+    local ok_eq_items, eq_items = pcall(function() return me:get_equipped_items() end)
+    if not ok_eq_items or not eq_items then return end
+
+    -- Build equipped item list for comparison
+    local equipped_list = {}
+    for _, entry in ipairs(eq_items) do
+        if entry and entry.object then
+            local ok_name, name = pcall(function() return entry.object:get_name() end)
+            local ok_id, item_id = pcall(function() return entry.object:get_item_id() end)
+            if ok_name and ok_id and item_id then
+                local ok_info, info = pcall(function() return _get_item_info(item_id) end)
+                local quality = (ok_info and info and info.quality) or 0
+                local slot = eq.classify_slot(name)
+                if slot then
+                    table.insert(equipped_list, { slot = slot, name = name, quality = quality })
+                end
+            end
+        end
+    end
+
+    -- Scan reward choices and equip the first upgrade
+    for i = 1, 6 do
+        local ok_link, link = pcall(function() return _quests.get_quest_item_link("choice", i) end)
+        if not ok_link or not link or link == "" then break end
+
+        local ok_info, info = pcall(function() return _quests.get_item_info(link) end)
+        if ok_info and info then
+            local should, slot = eq.should_equip(info.name, info.quality or 0, equipped_list)
+            if should then
+                pcall(function() _quests.get_quest_reward(i) end)
+                -- Try to equip via use_container_item if item lands in bags
+                -- (The exact bag/slot is unknown at this moment; we'll scan on next tick)
+                break
+            end
+        end
+    end
+end
+
+-- ============================================================================
 -- handle_quest_detail: Accept or complete quest from quest detail frame
 -- ============================================================================
 
@@ -212,12 +264,14 @@ function M.handle_quest_detail()
     end
 
     -- Check if this is a reward frame (has reward choices or money)
-    local has_rewards = is_reward or (ok_link and link and link ~= "")
+    local has_rewards = (ok_link and link and link ~= "")
 
     if has_rewards then
         -- Reward frame: select best reward (this also completes the quest per API docs)
         _last_quest_action = "complete"
         local reward_action = M.select_best_reward()
+        -- Auto-equip the chosen reward if it's better than current gear
+        M.auto_equip_best_reward()
         pcall(function() _quests.close_quest() end)
         local ok_g, gossip = pcall(function() return _quests.is_gossip_frame_shown() end)
         if ok_g and gossip then
@@ -275,22 +329,40 @@ end
 --- Priority order:
 ---   1. Turn in complete active quests (turn_in_completable)
 ---   2. Accept available quests (accept_all_available)
----   3. If nothing queued, close gossip
+---   3. Service gossip (inn, bank, repair) if indicated by step text
+---   4. If nothing queued, close gossip
+--- @param step_text string|nil Current Zygor step text for service detection.
 --- @return string|nil Action description or nil if gossip not shown
-function M.handle_gossip()
+function M.handle_gossip(step_text)
     -- Check if gossip frame is actually shown
     local ok, is_shown = pcall(function() return _quests.is_gossip_frame_shown() end)
     if not ok or not is_shown then return nil end
+
+    -- Priority 0: Pre-accept all available quests on turn-in NPCs
+    -- When at a quest giver that has both turn-ins and new quests,
+    -- accept all available first so we don't have to come back.
+    local pre_accept = M.accept_all_available()
+    if pre_accept then
+        -- After accepting, return to let the frame transition
+        return "pre_accept:" .. pre_accept
+    end
 
     -- Priority 1: Turn-in completable quests
     local turnin_action = M.turn_in_completable()
     if turnin_action then return turnin_action end
 
-    -- Priority 2: Accept available quests
+    -- Priority 2: Accept available quests (secondary pass after turn-in)
     local accept_action = M.accept_all_available()
     if accept_action then return accept_action end
 
-    -- Priority 3: Nothing to do — close gossip
+    -- Priority 3: Service gossip (innkeeper hearth, bank, repair)
+    local svc_ok, svc = pcall(require, "service_gossip_sylvanas")
+    if svc_ok and svc then
+        local svc_result = svc.handle_service_gossip(step_text)
+        if svc_result then return svc_result end
+    end
+
+    -- Priority 4: Nothing to do — close gossip
     local close_ok = pcall(function() _quests.close_gossip() end)
     if close_ok then
         return "close_gossip"
@@ -349,8 +421,9 @@ end
 
 --- Detect any open UI frame and dispatch to the appropriate handler.
 --- Priority order: loot → gossip → quest_detail → trainer → vendor
+--- @param step_text string|nil Current Zygor step text for service gossip detection.
 --- @return string|nil Action description or nil if no frame handled
-function M.handle_any_frame()
+function M.handle_any_frame(step_text)
     -- Priority 1: Loot frame — auto-loot all
     local ok_loot, loot_count = pcall(function() return _game_ui.get_loot_item_count() end)
     if ok_loot and loot_count and loot_count > 0 then
@@ -362,8 +435,8 @@ function M.handle_any_frame()
         return "loot:" .. tostring(loot_count) .. "items"
     end
 
-    -- Priority 2: Gossip frame (quest interaction)
-    local gossip_action = M.handle_gossip()
+    -- Priority 2: Gossip frame (quest interaction + service gossip)
+    local gossip_action = M.handle_gossip(step_text)
     if gossip_action then return gossip_action end
 
     -- Priority 3: Quest detail frame (accept/complete/reward)
@@ -395,10 +468,13 @@ function M.handle_any_frame()
     local trainer_action = M.handle_trainer()
     if trainer_action then return trainer_action end
 
-    -- Priority 5: Vendor frame — close if nothing else to do
-    -- (No auto-vendor logic in scope; just close to prevent blocking)
+    -- Priority 5: Vendor frame — auto-repair, sell junk, buy quest items
     local ok_vendor, vendor_count = pcall(function() return _game_ui.get_vendor_item_count() end)
     if ok_vendor and vendor_count and vendor_count > 0 then
+        local vm_ok, vm = pcall(require, "vendor_manager_sylvanas")
+        if vm_ok and vm and vm.handle_vendor then
+            vm.handle_vendor()
+        end
         return "vendor_open"
     end
 

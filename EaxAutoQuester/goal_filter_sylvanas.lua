@@ -145,7 +145,16 @@ function M.passes(goal, me, core_proxy)
     end
 
     -- ========================================================================
-    -- 5. Passes all checks
+    -- 5. Dungeon quest check
+    -- ========================================================================
+    local dd_ok, dd = pcall(require, "dungeon_detector_sylvanas")
+    if dd_ok and dd and dd.should_skip then
+        local skip = dd.should_skip(goal, nil)
+        if skip then return false, "dungeon" end
+    end
+
+    -- ========================================================================
+    -- 6. Passes all checks
     -- ========================================================================
     return true, nil
 end

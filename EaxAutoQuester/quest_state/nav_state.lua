@@ -43,6 +43,14 @@ function M.run(shared, ctx)
     -- Per-tick update for stuck detection (Pattern 5 from AGENTS.md)
     nav.update()
 
+    -- Mount management: mount when far, dismount when close
+    do
+        local mm_ok, mm = pcall(require, "mount_manager_sylvanas")
+        if mm_ok and mm and mm.update then
+            mm.update(ctx.me, shared._nav_destination)
+        end
+    end
+
     local nav_state_val = nav.get_state()
 
     -- Check if retry timer is active and waiting
@@ -54,6 +62,24 @@ function M.run(shared, ctx)
     if shared._nav_retry_timer > 0 and ctx.now >= shared._nav_retry_timer then
         shared._nav_retry_timer = 0
         if shared._nav_destination then
+            -- Z-adjustment on retry: if destination Z differs wildly from
+            -- player Z (indicating wrong floor/underground), try player Z
+            -- as fallback. Only after 2+ failures to avoid adjusting on
+            -- temporary navmesh hiccups.
+            if shared._nav_retries >= 2 then
+                local dest = shared._nav_destination
+                if ctx.me and dest then
+                    local pos_ok, pos = pcall(function() return ctx.me:get_position() end)
+                    if pos_ok and pos and pos.z then
+                        local z_diff = math.abs((dest.z or 0) - pos.z)
+                        local xy_dist_sq = ((dest.x or 0) - pos.x)^2 + ((dest.y or 0) - pos.y)^2
+                        if z_diff > 30 and xy_dist_sq < 100000 then
+                            shared._nav_destination = { x = dest.x, y = dest.y, z = pos.z }
+                            ctx.debug_log("NAV: retrying with adjusted Z (player Z fallback)")
+                        end
+                    end
+                end
+            end
             ctx.debug_log("NAV: retrying navigation")
             nav.navigate_to(shared._nav_destination, nil)
         end

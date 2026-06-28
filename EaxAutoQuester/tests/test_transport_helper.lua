@@ -1,79 +1,72 @@
 -- What: Unit tests for npc_db_sylvanas.lua find_transport_npc function
 -- When: Run via `lua EaxAutoQuester/tests/run_quester_tests.lua`
--- Why: Verify transport NPC lookup by zone with keyword matching and kind classification
-
--- Preload mock spawn module with 3 transport NPCs
-local mock_spawns_db = {
-    { npc_id = 3155, name = "Boat Officer", map_id = 1, x = -100, y = 200, z = 30 },
-    { npc_id = 3626, name = "Zeppelin Master", map_id = 0, x = -500, y = -300, z = 40 },
-    { npc_id = 3310, name = "Gryphon Master (Orgrimmar)", map_id = 1, x = 1570, y = -4400, z = 15 },
-}
-
-local mock_spawn_module = {
-    find_npc_spawn = function() return nil end,  -- needed for ensure_spawn_module() check
-    search_npc_by_name = function(search)
-        if not search or search == "" then return {} end
-        local search_lower = string.lower(search)
-        local results = {}
-        for _, entry in ipairs(mock_spawns_db) do
-            if string.find(string.lower(entry.name or ""), search_lower, 1, true) then
-                results[#results + 1] = entry
-            end
-        end
-        return results
-    end,
-}
-package.loaded["EaxAutoQuester.npc_spawns"] = mock_spawn_module
+-- Why: Verify transport NPC lookup by type with keyword matching
 
 local mock = require("EaxAutoQuester/tests/mock_core")
 mock.install()
 mock.reset()
 
+-- Override read_data_file with tiny mock dataset (avoids Lua 5.1 constant-table overflow)
+core.read_data_file = function(path)
+    if path == "tbc_db/creature_spawn_index.json" then
+        return '{"by_entry":{'
+            .. '"3155":{"name":"Boat Officer","maps":[{"map_id":1,"x":-100,"y":200,"z":30}]},'
+            .. '"3626":{"name":"Zeppelin Master","maps":[{"map_id":0,"x":-500,"y":-300,"z":40}]},'
+            .. '"3310":{"name":"Gryphon Master (Orgrimmar)","maps":[{"map_id":1,"x":1570,"y":-4400,"z":15}]},'
+            .. '"6929":{"name":"Innkeeper Gryshka","maps":[{"map_id":1,"x":1620,"y":-4300,"z":20}]},'
+            .. '"5517":{"name":"Blacksmith Trainer","maps":[{"map_id":0,"x":-1000,"y":-500,"z":10}]},'
+            .. '"8403":{"name":"General Goods Merchant","maps":[{"map_id":0,"x":-2000,"y":-1000,"z":5}]}}}'
+    end
+    return nil
+end
+
 local npc_db = require("EaxAutoQuester/npc_db_sylvanas")
 
--- S1: zone_hint "Ratchet" → returns boat NPC (map 1, kind="boat")
-do
-    local r = npc_db.find_transport_npc("Ratchet")
-    assert(r ~= nil, "S1 FAIL: Ratchet should return a transport NPC")
-    assert(r.kind == "boat", "S1 FAIL: Ratchet kind should be boat, got " .. tostring(r.kind))
-    assert(r.npc_id == 3155, "S1 FAIL: Ratchet NPC id should be 3155, got " .. tostring(r.npc_id))
-    assert(r.map_id == 1, "S1 FAIL: Ratchet map_id should be 1, got " .. tostring(r.map_id))
-    print("  S1 PASS: Ratchet → boat NPC (id=3155)")
-end
+-- S1: type_hint "flight" → returns flight master
+local r1 = npc_db.find_transport_npc("flight", 1)
+assert(r1 ~= nil, "S1 FAIL: flight on map 1 should return a flight master")
+assert(r1.npc_id == 3310, "S1 FAIL: flight NPC id should be 3310, got " .. tostring(r1.npc_id))
+print("  S1 PASS: flight → Gryphon Master (id=3310)")
 
--- S2: zone_hint "Stranglethorn" → returns zeppelin NPC (map 0, kind="zeppelin")
-do
-    local r = npc_db.find_transport_npc("Stranglethorn")
-    assert(r ~= nil, "S2 FAIL: Stranglethorn should return a transport NPC")
-    assert(r.kind == "zeppelin", "S2 FAIL: Stranglethorn kind should be zeppelin, got " .. tostring(r.kind))
-    assert(r.npc_id == 3626, "S2 FAIL: Stranglethorn NPC id should be 3626, got " .. tostring(r.npc_id))
-    print("  S2 PASS: Stranglethorn → zeppelin NPC (id=3626)")
-end
+-- S2: type_hint "inn" → returns innkeeper
+local r2 = npc_db.find_transport_npc("inn", 1)
+assert(r2 ~= nil, "S2 FAIL: inn on map 1 should return an innkeeper")
+assert(r2.npc_id == 6929, "S2 FAIL: inn NPC id should be 6929, got " .. tostring(r2.npc_id))
+print("  S2 PASS: inn → Innkeeper Gryshka (id=6929)")
 
--- S3: zone_hint "Orgrimmar" → returns flight master (map 1, kind="flight")
-do
-    local r = npc_db.find_transport_npc("Orgrimmar")
-    assert(r ~= nil, "S3 FAIL: Orgrimmar should return a transport NPC")
-    assert(r.kind == "flight", "S3 FAIL: Orgrimmar kind should be flight, got " .. tostring(r.kind))
-    assert(r.npc_id == 3310, "S3 FAIL: Orgrimmar NPC id should be 3310, got " .. tostring(r.npc_id))
-    print("  S3 PASS: Orgrimmar → flight NPC (id=3310)")
-end
+-- S3: type_hint "repair" → returns blacksmith
+local r3 = npc_db.find_transport_npc("repair", 0)
+assert(r3 ~= nil, "S3 FAIL: repair on map 0 should return a blacksmith")
+assert(r3.npc_id == 5517, "S3 FAIL: repair NPC id should be 5517, got " .. tostring(r3.npc_id))
+print("  S3 PASS: repair → Blacksmith Trainer (id=5517)")
 
--- S4: zone_hint "Unknown Zone" → returns nil
-do
-    local r = npc_db.find_transport_npc("Unknown Zone")
-    assert(r == nil, "S4 FAIL: Unknown Zone should return nil, got " .. tostring(r and r.name))
-    print("  S4 PASS: Unknown Zone → nil")
-end
+-- S4: type_hint "vendor" → returns merchant
+local r4 = npc_db.find_transport_npc("vendor", 0)
+assert(r4 ~= nil, "S4 FAIL: vendor on map 0 should return a merchant")
+assert(r4.npc_id == 8403, "S4 FAIL: vendor NPC id should be 8403, got " .. tostring(r4.npc_id))
+print("  S4 PASS: vendor → General Goods Merchant (id=8403)")
 
--- S5: case-insensitive: "ratchet" lowercase → same as S1
-do
-    local r = npc_db.find_transport_npc("ratchet")
-    assert(r ~= nil, "S5 FAIL: lowercase 'ratchet' should return a transport NPC")
-    assert(r.kind == "boat", "S5 FAIL: 'ratchet' kind should be boat, got " .. tostring(r.kind))
-    assert(r.npc_id == 3155, "S5 FAIL: 'ratchet' NPC id should be 3155, got " .. tostring(r.npc_id))
-    print("  S5 PASS: 'ratchet' lowercase → boat NPC (case-insensitive match)")
-end
+-- S5: case-insensitive type_hint
+local r5 = npc_db.find_transport_npc("FLIGHT", 1)
+assert(r5 ~= nil, "S5 FAIL: uppercase 'FLIGHT' should match")
+assert(r5.npc_id == 3310, "S5 FAIL: uppercase flight should return 3310")
+print("  S5 PASS: case-insensitive type hint works")
+
+-- S6: unknown type → returns nil
+local r6 = npc_db.find_transport_npc("unknown_type")
+assert(r6 == nil, "S6 FAIL: unknown type should return nil")
+print("  S6 PASS: unknown type returns nil")
+
+-- S7: nil type_hint → returns nil
+local r7 = npc_db.find_transport_npc(nil)
+assert(r7 == nil, "S7 FAIL: nil type_hint should return nil")
+print("  S7 PASS: nil type_hint returns nil")
+
+-- S8: no match on wrong map → cross-map fallback returns first match (current behavior)
+local r8 = npc_db.find_transport_npc("flight", 99)
+assert(r8 ~= nil, "S8 FAIL: flight on non-existent map should return cross-map fallback")
+assert(r8.npc_id == 3310, "S8 FAIL: cross-map fallback should return first match (3310)")
+print("  S8 PASS: cross-map fallback returns first match (id=3310)")
 
 print("PASS test_transport_helper")
 os.exit(0)

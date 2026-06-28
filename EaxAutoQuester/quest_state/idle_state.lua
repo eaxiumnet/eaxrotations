@@ -191,6 +191,14 @@ function M.run(shared, ctx)
     end
     shared._last_target_valid = false
 
+    -- Quest log maintenance: auto-abandon grey quests when log is bloated
+    do
+        local qm_ok, qm = pcall(require, "quest_log_manager_sylvanas")
+        if qm_ok and qm and qm.maintenance_check then
+            pcall(qm.maintenance_check)
+        end
+    end
+
     -- Check for an active quest goal early — determines autoloot behavior.
     -- When a quest is active, the bot should only loot corpses it passes by
     -- (within 5yd), not chase distant corpses. Chasing distant corpses while a
@@ -254,6 +262,8 @@ function M.run(shared, ctx)
 
     -- Step already complete → WAITING (wait for next step)
     if step.is_complete then
+        shared._respawn_wait_until = 0
+        shared._respawn_target_name = nil
         ctx.debug_log("IDLE: step complete → WAITING")
         return "WAITING"
     end
@@ -267,6 +277,13 @@ function M.run(shared, ctx)
         shared._area_fail_count = 0
         shared._area_last_target_guid = nil
         shared._visited_waypoints = {}
+        shared._respawn_wait_until = 0
+        shared._respawn_target_name = nil
+        -- Reset progress tracking on step change
+        do
+            local pt_ok, pt = pcall(require, "progress_tracker_sylvanas")
+            if pt_ok and pt and pt.clear_all then pt.clear_all() end
+        end
         ctx.debug_log("IDLE: new step " .. tostring(step_num))
     end
 
@@ -372,8 +389,96 @@ function M.run(shared, ctx)
         return "IDLE"
     end
 
+    -- Flight path step detection: if step says "Fly to X", find nearest
+    -- flight master and navigate there instead of the normal waypoint.
+    do
+        local fp_ok, fp = pcall(require, "flight_path_sylvanas")
+        if fp_ok and fp and step and step.text then
+            local dest = fp.extract_destination(step.text)
+            if dest then
+                local npc_db_ok, npc_db = pcall(require, "npc_db_sylvanas")
+                if npc_db_ok and npc_db and npc_db.find_transport_npc then
+                    local map_id = 0
+                    local ok_map, mid = pcall(core.get_map_id)
+                    if ok_map then map_id = mid or 0 end
+                    local fm = npc_db.find_transport_npc("flight", map_id)
+                    if fm then
+                        local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
+                        if wf_ok and wf and wf.fix_z then
+                            fm = wf.fix_z(fm) or fm
+                        end
+                        wp = fm
+                        ctx.debug_log("IDLE: flight step to " .. dest .. " → NAV to flight master " .. tostring(fm.name or "?"))
+                        shared._nav_destination = wp
+                        return "NAV"
+                    end
+                end
+            end
+        end
+    end
+
+    -- Hearth-set step detection: if step says "Set your Hearthstone to X",
+    -- find nearest innkeeper and navigate there.
+    do
+        local svc_ok, svc = pcall(require, "service_gossip_sylvanas")
+        if svc_ok and svc and step and step.text and svc.step_requires_hearth(step.text) then
+            local npc_db_ok, npc_db = pcall(require, "npc_db_sylvanas")
+            if npc_db_ok and npc_db and npc_db.find_transport_npc then
+                local map_id = 0
+                local ok_map, mid = pcall(core.get_map_id)
+                if ok_map then map_id = mid or 0 end
+                local inn = npc_db.find_transport_npc("inn", map_id)
+                if inn then
+                    local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
+                    if wf_ok and wf and wf.fix_z then
+                        inn = wf.fix_z(inn) or inn
+                    end
+                    wp = inn
+                    ctx.debug_log("IDLE: hearth-set step → NAV to innkeeper " .. tostring(inn.name or "?"))
+                    shared._nav_destination = wp
+                    return "NAV"
+                end
+            end
+        end
+    end
+
+    -- Respawn wait: if DO_ACTION set a respawn timer, stay near the spawn
+    -- point and periodically scan.  Prevents 100fps spam-scans and stuck loops.
+    if shared._respawn_wait_until > ctx.now then
+        -- Scan every 5 seconds for early respawn
+        if ctx.now - (shared._respawn_last_scan or 0) >= 5.0 then
+            shared._respawn_last_scan = ctx.now
+            local npc = ctx.npc_manager
+            if npc and npc.get_nearest_enemy then
+                local enemy = npc.get_nearest_enemy(50, ctx.object_scanner)
+                if enemy then
+                    shared._respawn_wait_until = 0
+                    shared._respawn_target_name = nil
+                    ctx.debug_log("IDLE: respawn detected — resuming")
+                    return "DO_ACTION"
+                end
+            end
+        end
+        ctx.debug_log("IDLE: waiting for respawn" .. (shared._respawn_target_name and " (" .. shared._respawn_target_name .. ")" or ""))
+        return "IDLE"
+    elseif shared._respawn_wait_until > 0 and shared._respawn_wait_until <= ctx.now then
+        -- Timer expired — retry
+        shared._respawn_wait_until = 0
+        shared._respawn_target_name = nil
+        ctx.debug_log("IDLE: respawn wait expired — retrying objective")
+    end
+
     -- Determine if player needs to move to goal position first
     local wp = zygor.get_current_waypoint_world()
+
+    -- Fix Z on waypoint: map→world conversion often returns z=0 (underground).
+    -- Use waypoint_fixer to raycast the real terrain height.
+    if wp then
+        local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
+        if wf_ok and wf and wf.fix_z then
+            wp = wf.fix_z(wp) or wp
+        end
+    end
 
     -- Item A: goal_resolver integration - use NPC DB position if available
     if current_goal and goal_resolver_ok and goal_resolver and goal_resolver.resolve_goal then
@@ -381,6 +486,21 @@ function M.run(shared, ctx)
         if ok and res and res.position then
             wp = res.position
             ctx.debug_log("IDLE: using resolved position from " .. tostring(res.source))
+        end
+    end
+
+    -- Z sanity check: if destination Z is 0 (likely underground) and player is
+    -- at a non-zero Z, the waypoint is probably broken. Use player Z as fallback.
+    -- This is a last-chance guard before navigation; waypoint_fixer already
+    -- attempted terrain-height correction, but raycasts can still return 0.
+    if wp and (wp.z or 0) == 0 then
+        local me_ok, me = pcall(core.object_manager.get_local_player)
+        if me_ok and me then
+            local pos_ok, me_pos = pcall(me.get_position, me)
+            if pos_ok and me_pos and me_pos.z and math.abs(me_pos.z) > 5 then
+                wp = { x = wp.x, y = wp.y, z = me_pos.z }
+                ctx.debug_log("IDLE: waypoint Z was 0, using player Z fallback")
+            end
         end
     end
 
@@ -505,6 +625,13 @@ function M.run(shared, ctx)
     -- No uncompleted goal found — navigate to waypoint if available
     if wp then
         shared._nav_destination = wp
+        -- Attempt to mount before long-distance travel
+        do
+            local mm_ok, mm = pcall(require, "mount_manager_sylvanas")
+            if mm_ok and mm and mm.try_mount then
+                mm.try_mount(ctx.me, wp)
+            end
+        end
         ctx.debug_log("IDLE: nav to wp → NAV")
         return "NAV"
     end

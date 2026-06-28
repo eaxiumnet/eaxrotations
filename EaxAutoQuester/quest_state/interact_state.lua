@@ -25,7 +25,57 @@ local M = {}
 --- @param shared table Shared state variables
 --- @param ctx table Per-tick context with submodules, me, helpers
 --- @return string next_state
+-- Lazy-load optional handlers
+local _static_popup = nil
+local function ensure_static_popup()
+    if _static_popup then return _static_popup end
+    local ok, sp = pcall(require, "static_popup_sylvanas")
+    if ok and sp then _static_popup = sp end
+    return _static_popup
+end
+
+local _flight_path = nil
+local function ensure_flight_path()
+    if _flight_path then return _flight_path end
+    local ok, fp = pcall(require, "flight_path_sylvanas")
+    if ok and fp then _flight_path = fp end
+    return _flight_path
+end
+
 function M.run(shared, ctx)
+    -- Check for detectable popups first (dungeon proposals, battlefield ports)
+    -- These can appear while other frames are open and block interaction
+    local sp = ensure_static_popup()
+    if sp then
+        local popup_result = sp.handle_any_popup()
+        if popup_result then
+            ctx.debug_log("INTERACT: handled popup (" .. tostring(popup_result) .. ")")
+        end
+    end
+
+    -- Flight path gossip: auto-select destination if gossip frame is from flight master
+    local fp = ensure_flight_path()
+    if fp then
+        local step_text = nil
+        if ctx.zygor and ctx.zygor.get_current_step_info then
+            local ok, st = pcall(ctx.zygor.get_current_step_info)
+            if ok and st then step_text = st.text end
+        end
+        local npc_name = nil
+        if ctx.me and ctx.me.get_target then
+            local t = ctx.me:get_target()
+            if t and t.get_name then npc_name = t:get_name() end
+        end
+        local fp_result = fp.handle_flight_gossip(step_text, npc_name)
+        if fp_result then
+            ctx.debug_log("INTERACT: flight path handled (" .. tostring(fp_result) .. ")")
+            -- Gossip option selected; flight taxi will appear after server round-trip
+            -- Stay in INTERACT briefly, then frame will close naturally
+            shared._interact_start_time = ctx.now
+            return "INTERACT"
+        end
+    end
+
     -- Safety timeout: force exit INTERACT after 15 seconds
     if shared._interact_start_time == 0 then
         shared._interact_start_time = ctx.now
@@ -43,8 +93,13 @@ function M.run(shared, ctx)
     local interaction = ctx.quest_interaction
     if not interaction then return "IDLE" end
 
-    -- Handle open frames
-    local result = interaction.handle_any_frame()
+    -- Handle open frames (pass step text for service gossip detection)
+    local step_text = nil
+    if ctx.zygor and ctx.zygor.get_current_step_info then
+        local ok, st = pcall(ctx.zygor.get_current_step_info)
+        if ok and st then step_text = st.text end
+    end
+    local result = interaction.handle_any_frame(step_text)
 
     if result then
         -- Throttled: frame still being processed, stay in INTERACT

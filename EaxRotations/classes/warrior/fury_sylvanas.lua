@@ -233,6 +233,7 @@ end
 -- ============================================================================
 local function build_state(context)
     local is_group = context.is_group or false
+    fury_state.is_group = is_group
     local target = context.target
     local me = context.me or NS.GetPlayer()
     local now = NS.time_now and NS.time_now() or 0

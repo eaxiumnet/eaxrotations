@@ -89,6 +89,27 @@ function M.try_loot()
 end
 
 -- ============================================================================
+-- Internal: compute bag fullness percentage (0-100)
+-- ============================================================================
+
+local function get_bag_fullness_pct()
+    local total_slots = 0
+    local used_slots = 0
+    for bag_id = 0, 4 do
+        local ok, slots = pcall(core.inventory.get_num_bag_slots, bag_id)
+        if ok and slots then
+            total_slots = total_slots + slots
+            local ok_items, items = pcall(core.inventory.get_items_in_bag, bag_id)
+            if ok_items and items then
+                used_slots = used_slots + #items
+            end
+        end
+    end
+    if total_slots <= 0 then return 0 end
+    return math.floor((used_slots / total_slots) * 100)
+end
+
+-- ============================================================================
 -- auto_loot_all — find and loot all nearby lootable objects
 -- ============================================================================
 
@@ -146,6 +167,16 @@ function M.auto_loot_all(range)
         if loot_ok then
             -- Process the loot window contents
             M.try_loot()
+        end
+    end
+
+    -- Bag-fullness check: if bags >= 80% full after looting, trigger vendor run
+    local fullness = get_bag_fullness_pct()
+    if fullness >= 80 then
+        local ns = _G.EaxAutoQuester
+        if ns then
+            ns._force_vendor_soon = true
+            _core_log("[EaxAutoQuester] Bags " .. tostring(fullness) .. "% full — forcing vendor visit")
         end
     end
 

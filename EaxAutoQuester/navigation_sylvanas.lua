@@ -28,6 +28,11 @@ local _nav_tolerance_sq = 9       -- 3 yards
 local STUCK_TIMEOUT = 3.0
 local STUCK_THRESHOLD_SQ = 1.0
 
+-- Stuck-recovery state
+local _stuck_level = 0            -- 0=none, 1=jump+strafe, 2=turn+move, 3=dismount, 4=hearth
+local _stuck_recovery_timer = 0   -- core_time when current recovery phase ends
+local _stuck_attempts = 0         -- consecutive stuck events on same destination
+
 -- Color (lazy)
 local _color = nil
 local function get_color()
@@ -241,8 +246,84 @@ function M.get_current_path()
     return (ok and path) or nil
 end
 
---- Per-frame update — only for simple_movement fallback.
+-- ============================================================================
+-- Stuck Recovery — escalating routine
+-- ============================================================================
+
+local function stuck_recovery()
+    if _stuck_level == 0 then return false end
+    if _core_time() < _stuck_recovery_timer then return true end  -- still in recovery phase
+
+    if _stuck_level == 1 then
+        -- Jump + random strafe
+        pcall(core.input.jump)
+        local dir = (math.random() > 0.5) and "left" or "right"
+        pcall(core.input.strafe, dir, 1.0)
+        _stuck_recovery_timer = _core_time() + 1.0
+        _core_log("[EaxAutoQuester] Stuck recovery L1: jump + " .. dir)
+        return true
+    elseif _stuck_level == 2 then
+        -- Turn 45-90° randomly + move forward 3-5 yards
+        local angle = (math.random() > 0.5 and 1 or -1) * math.rad(45 + math.random() * 45)
+        pcall(core.input.turn, angle)
+        pcall(core.input.move_forward, 3.0 + math.random() * 2.0)
+        _stuck_recovery_timer = _core_time() + 2.0
+        _core_log("[EaxAutoQuester] Stuck recovery L2: turn + move")
+        return true
+    elseif _stuck_level == 3 then
+        -- Dismount if mounted
+        pcall(core.input.dismount)
+        _stuck_recovery_timer = _core_time() + 1.5
+        _core_log("[EaxAutoQuester] Stuck recovery L3: dismount")
+        return true
+    elseif _stuck_level == 4 then
+        -- Hearthstone
+        pcall(function()
+            for bag = 0, 4 do
+                local ok_items, items = pcall(core.inventory.get_items_in_bag, bag)
+                if ok_items and items then
+                    for _, item in ipairs(items) do
+                        if item and item.object and item.object.get_item_id then
+                            local iid = item.object:get_item_id()
+                            if iid == 6948 then
+                                pcall(core.input.use_container_item, bag, item.slot_id)
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+        _stuck_recovery_timer = _core_time() + 8.0
+        _core_log("[EaxAutoQuester] Stuck recovery L4: hearthstone")
+        return true
+    end
+    return false
+end
+
 function M.update()
+    -- Handle stuck recovery first
+    if _state == "STUCK" then
+        if not stuck_recovery() then
+            -- Recovery exhausted or done — try to resume
+            if _destination then
+                _stuck_timer = 0
+                _last_position = nil
+                _last_pos_time = 0
+                _state = "NAVIGATING"
+                if _is_fallback and _fallback_mover then
+                    pcall(function() _fallback_mover:move_to_position(_destination) end)
+                elseif _client then
+                    pcall(function() _client:move_to(_destination) end)
+                end
+            else
+                _state = "FAILED"
+                fire_callback(false, "stuck_no_dest")
+            end
+        end
+        return
+    end
+
     if _state ~= "NAVIGATING" or not _destination then
         if _state == "NAVIGATING" then M.stop() end; return
     end
@@ -278,7 +359,14 @@ function M.update()
         if _last_pos_time > 0 then _stuck_timer = _stuck_timer + (now - _last_pos_time) end
         _last_pos_time = now
         if _stuck_timer >= STUCK_TIMEOUT then
-            _state = "STUCK"; stop_internal(); fire_callback(false, "stuck_timeout")
+            _stuck_attempts = _stuck_attempts + 1
+            if _stuck_attempts >= 3 then
+                _stuck_level = math.min(_stuck_level + 1, 4)
+                _stuck_attempts = 0
+            end
+            _stuck_recovery_timer = 0
+            _state = "STUCK"
+            fire_callback(false, "stuck_timeout")
         end
     end
 end

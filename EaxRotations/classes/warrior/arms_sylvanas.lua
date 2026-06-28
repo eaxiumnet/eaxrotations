@@ -250,6 +250,7 @@ local function build_state(context)
     local target = context.target
     local me = context.me or NS.GetPlayer()
 
+    arms_state.is_group = is_group
     arms_state.rage = context.rage or 0
     arms_state.hp = context.hp or 100
     arms_state.target_hp = context.target_hp or 100
@@ -697,7 +698,8 @@ local function retaliation_matches(context, state)
 end
 
 local function shield_wall_matches(context, state)
-    if state.hp > 25 then return false end
+    local threshold = state.is_group and 40 or 25
+    if state.hp > threshold then return false end
     return action(context, build_action("ShieldWall", ACTION.ShieldWall, { target = "self", required_stance = STANCE.DEFENSIVE, requires_target = false, cooldown = 1800 }))
 end
 

@@ -48,6 +48,16 @@ else
         "test_integration_death_flow.lua",
         "test_auto_equip.lua",
         "test_quest_blacklist.lua",
+        "test_waypoint_fixer.lua",
+        "test_static_popup.lua",
+        "test_flight_path.lua",
+        "test_respawn_wait.lua",
+        "test_quest_log_manager.lua",
+        "test_service_gossip.lua",
+        "test_progress_tracker.lua",
+        "test_dungeon_detector.lua",
+        "test_mount_manager.lua",
+        "test_diagnostic_dump.lua",
     }
     for _, file in ipairs(known_tests) do
         local path = root .. "/" .. file

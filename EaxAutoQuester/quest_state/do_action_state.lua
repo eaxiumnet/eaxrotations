@@ -28,13 +28,22 @@ local function execute_goal_action(shared, ctx, action_type, goal)
     local combat = ctx.combat_helper
 
     if action_type == "loot" or action_type == "click" or action_type == "use" then
-        -- Quest item usage: if goal has quest_item_id, use it on target
-        if type(goal) == "table" and goal.quest_item_id and combat then
-            local target = ctx.me and ctx.me:get_target()
-            if target then
-                local used = combat.use_quest_item_on_target(goal.quest_item_id)
+        -- Quest item usage: match inventory item to goal text, then use it
+        local goal_text = (type(goal) == "table" and (goal.text or goal.name)) or nil
+        if goal_text then
+            local qim_ok, qim = pcall(require, "quest_item_manager_sylvanas")
+            if qim_ok and qim and qim.handle_goal_item then
+                local target = nil
+                local position = nil
+                if ctx.me then
+                    local t_ok, t = pcall(function() return ctx.me:get_target() end)
+                    if t_ok then target = t end
+                    local p_ok, p = pcall(function() return ctx.me:get_position() end)
+                    if p_ok then position = p end
+                end
+                local used = qim.handle_goal_item(goal_text, target, position)
                 if used then
-                    ctx.debug_log("DO_ACTION: used quest item " .. tostring(goal.quest_item_id))
+                    ctx.debug_log("DO_ACTION: used quest item for goal '" .. tostring(goal_text) .. "'")
                     return true
                 end
             end
@@ -80,6 +89,9 @@ local function execute_goal_action(shared, ctx, action_type, goal)
         if npc then
             local enemy = npc.get_nearest_enemy(50, ctx.object_scanner)
             if enemy then
+                -- Enemy found — clear any respawn wait and engage
+                shared._respawn_wait_until = 0
+                shared._respawn_target_name = nil
                 if ctx.me then
                     local _, me_pos = pcall(function() return ctx.me:get_position() end)
                     local _, enemy_pos = pcall(function() return enemy:get_position() end)
@@ -112,7 +124,16 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                 end
             end
         end
-        ctx.debug_log("DO_ACTION: no enemy to tag")
+        -- No enemy found — enter respawn wait mode
+        if (shared._respawn_wait_until or 0) == 0 then
+            shared._respawn_wait_until = ctx.now + 180  -- 3 minute respawn wait
+            local target_name = nil
+            if type(goal) == "table" then
+                target_name = goal.target or goal.npc or goal.name
+            end
+            shared._respawn_target_name = target_name
+            ctx.debug_log("DO_ACTION: no enemy — entering respawn wait (3 min)" .. (target_name and " for " .. target_name or ""))
+        end
         return true
     end
 
@@ -185,6 +206,40 @@ local function execute_goal_action(shared, ctx, action_type, goal)
 
         ctx.debug_log("DO_ACTION: area goal — npc_id=" .. tostring(goal_npc_id or "nil") .. " target=" .. tostring(goal_target or "nil"))
 
+        -- Fast path: use game_object:is_quest_unit() to find the nearest quest-related unit.
+        -- This is more reliable than Questie name matching because it uses the engine's own
+        -- quest flag. Fires before Questie fallback so we prefer what's actually visible.
+        if not goal_npc_id and not (goal_target and goal_target ~= "") and npc and npc.find_nearest_quest_unit then
+            if shared._questie_fallback_time and ctx.now - shared._questie_fallback_time < 5.0 then
+                return true
+            end
+            local nearest_quest = npc.find_nearest_quest_unit(80, true)
+            if nearest_quest then
+                local _, npos = pcall(function() return nearest_quest:get_position() end)
+                local _, nname = pcall(function() return nearest_quest:get_name() end)
+                local _, nguid = pcall(function() return nearest_quest:get_guid() end)
+                if npos and ctx.me then
+                    local _, me_pos = pcall(function() return ctx.me:get_position() end)
+                    if me_pos and ctx.utils then
+                        local dist_sq = ctx.utils.squared_distance(me_pos, npos)
+                        if dist_sq > 25 then
+                            shared._nav_destination = npos
+                            shared._questie_fallback_time = ctx.now
+                            shared._questie_last_guid = nguid
+                            ctx.debug_log("DO_ACTION: area — navigating to quest unit '" .. tostring(nname or "unknown") .. "' (" .. tostring(math.floor(math.sqrt(dist_sq))) .. "yd) [is_quest_unit]")
+                            return false
+                        end
+                    end
+                end
+                pcall(core.input.set_target, nearest_quest)
+                pcall(core.input.interact_with_object, nearest_quest)
+                shared._questie_fallback_time = ctx.now
+                shared._questie_last_guid = nguid
+                ctx.debug_log("DO_ACTION: area — targeted quest unit '" .. tostring(nname or "unknown") .. "' [is_quest_unit]")
+                return true
+            end
+        end
+
         -- Questgiver fallback: when Zygor gave us a goal with no NPC identity
         -- (npc_id=0 and target="" — common for "turn in here" / "accept here" steps),
         -- query Questie via the existing npc_manager helper which unions Questie's
@@ -243,6 +298,11 @@ local function execute_goal_action(shared, ctx, action_type, goal)
             end
         end
 
+        -- Lazy-load waypoint_fixer for Z correction on spawn positions
+        local waypoint_fixer = nil
+        local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
+        if wf_ok and wf then waypoint_fixer = wf end
+
         if goal_npc_id then
             local npc_db_ok, npc_db = pcall(require, "npc_db_sylvanas")
             if npc_db_ok and npc_db.find_npc_spawn then
@@ -255,10 +315,14 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                 if spawn then
                     local _, pos = pcall(function() return ctx.me:get_position() end)
                     if pos and ctx.utils then
-                        local dist_sq = ctx.utils.squared_distance(pos, spawn)
+                        local spawn_pos = { x = spawn.x, y = spawn.y, z = spawn.z or 0 }
+                        if waypoint_fixer and waypoint_fixer.fix_z then
+                            spawn_pos = waypoint_fixer.fix_z(spawn_pos) or spawn_pos
+                        end
+                        local dist_sq = ctx.utils.squared_distance(pos, spawn_pos)
                         if dist_sq > 100 then
-                            shared._nav_destination = { x = spawn.x, y = spawn.y, z = spawn.z }
-                            ctx.debug_log("DO_ACTION: area — navigating to NPC spawn")
+                            shared._nav_destination = spawn_pos
+                            ctx.debug_log("DO_ACTION: area — navigating to NPC spawn (Z fixed)")
                             return false
                         end
                     end
@@ -757,6 +821,20 @@ function M.run(shared, ctx)
     local action_type = ctx.safe(shared._last_goal_type, "area")
     if type(current_goal) == "table" then
         action_type = ctx.safe(current_goal.type, ctx.safe(current_goal.action_type, action_type))
+    end
+
+    -- Progress tracking: check if this quest is making progress
+    do
+        local pt_ok, pt = pcall(require, "progress_tracker_sylvanas")
+        if pt_ok and pt and current_goal and current_goal.quest_id then
+            local status = pt.check_progress(current_goal.quest_id, action_type)
+            if status == "blacklisted" then
+                ctx.debug_log("DO_ACTION: quest " .. tostring(current_goal.quest_id) .. " blacklisted — skipping")
+                -- Reset and let idle_state pick a different goal
+                shared._respawn_wait_until = 0
+                return "IDLE"
+            end
+        end
     end
 
     execute_goal_action(shared, ctx, action_type, current_goal)

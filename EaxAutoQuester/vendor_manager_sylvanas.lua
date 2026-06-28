@@ -25,6 +25,8 @@ local BAG_IDS = { 0, 1, 2, 3, 4 }
 
 -- Grey item quality = 0 (Poor)
 local QUALITY_GREY = 0
+local QUALITY_WHITE = 1
+local QUALITY_GREEN = 2
 
 -- ============================================================================
 -- should_repair: Check if any equipped items need repair
@@ -42,9 +44,15 @@ end
 -- should_sell_junk: Check inventory for grey quality items
 -- ============================================================================
 
---- Check if any bag contains grey (Poor quality, quality=0) items.
+--- Check if any bag contains junk items.
+--- Normal mode: grey (Poor quality, quality=0) only.
+--- Aggressive mode: when _force_vendor_soon is true, sells up to green (quality=2).
 --- @return boolean true if junk items found, false otherwise
 local function should_sell_junk()
+    local ns = _G.EaxAutoQuester
+    local force = ns and ns._force_vendor_soon
+    local max_quality = force and QUALITY_GREEN or QUALITY_GREY
+
     for _, bag_id in ipairs(BAG_IDS) do
         local ok, items = pcall(_get_items_in_bag, bag_id)
         if ok and items then
@@ -53,7 +61,7 @@ local function should_sell_junk()
                     local item_id = item.object:get_item_id()
                     if item_id and item_id > 0 then
                         local info_ok, info = pcall(_get_item_info, item_id)
-                        if info_ok and info and (info.quality or 0) == QUALITY_GREY then
+                        if info_ok and info and (info.quality or 0) <= max_quality then
                             return true
                         end
                     end
@@ -68,10 +76,15 @@ end
 -- sell_junk: Sell all grey quality items in bags
 -- ============================================================================
 
---- Sell all grey (Poor quality) items in inventory to the open vendor.
+--- Sell junk items in inventory to the open vendor.
+--- Normal mode: grey only. Aggressive mode (force flag): up to green.
 --- Uses use_container_item which sells items when vendor frame is open.
 --- @return number count Number of items sold
 local function sell_junk()
+    local ns = _G.EaxAutoQuester
+    local force = ns and ns._force_vendor_soon
+    local max_quality = force and QUALITY_GREEN or QUALITY_GREY
+
     local count = 0
     for _, bag_id in ipairs(BAG_IDS) do
         local ok, items = pcall(_get_items_in_bag, bag_id)
@@ -81,7 +94,7 @@ local function sell_junk()
                     local item_id = item.object:get_item_id()
                     if item_id and item_id > 0 then
                         local info_ok, info = pcall(_get_item_info, item_id)
-                        if info_ok and info and (info.quality or 0) == QUALITY_GREY then
+                        if info_ok and info and (info.quality or 0) <= max_quality then
                             local sell_ok = pcall(_use_container_item, bag_id, item.slot_id)
                             if sell_ok then
                                 count = count + 1
@@ -180,6 +193,12 @@ local function handle_vendor(quest_items)
             _core_log("[EaxAutoQuester] Sold " .. tostring(sold) .. " junk items")
             actions_taken = true
         end
+    end
+
+    -- Clear force-vendor flag after handling vendor
+    local ns = _G.EaxAutoQuester
+    if ns and ns._force_vendor_soon then
+        ns._force_vendor_soon = nil
     end
 
     -- 3. Buy quest items from vendor

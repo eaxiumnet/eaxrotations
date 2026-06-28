@@ -46,6 +46,7 @@ function M.reset()
     M._trainer_services = {}
     M._gossip_available = {}
     M._gossip_active = {}
+    M._gossip_options = {}
     M._quest_rewards = {}
     M._quest_money = 0
     M._gold = 0
@@ -61,6 +62,10 @@ function M.reset()
     M._graphics_calls = {}
     M._input_calls = {}
     M._player_buffs = {}
+    M._dungeon_proposal = false
+    M._battlefield_status = {}
+    M._quest_log = {}
+    M._battlefield_status = {}
 end
 
 function M.get_time() return _mock_time end
@@ -127,6 +132,7 @@ function M.create_player(opts)
         if p._max_mana > 0 then return (p._mana / p._max_mana) * 100 end
         return 100
     end
+    function p:get_level() return opts.get_level or 60 end
     -- Alias x/y/z for squared_distance compatibility
     p.x = p._pos.x
     p.y = p._pos.y
@@ -231,6 +237,21 @@ M.input = {
     use_item_target = function(item_id, target)
         M._input_calls[#M._input_calls + 1] = { "use_item_target", item_id, target }
     end,
+    use_item = function(item_id)
+        M._input_calls[#M._input_calls + 1] = { "use_item", item_id }
+    end,
+    use_item_position = function(item_id, position)
+        M._input_calls[#M._input_calls + 1] = { "use_item_position", item_id, position }
+    end,
+    has_dungeon_proposal = function()
+        return M._dungeon_proposal
+    end,
+    accept_dungeon_proposal = function(is_accept)
+        M._input_calls[#M._input_calls + 1] = { "accept_dungeon_proposal", is_accept }
+    end,
+    accept_battlefield_port = function(index, is_accept)
+        M._input_calls[#M._input_calls + 1] = { "accept_battlefield_port", index, is_accept }
+    end,
 }
 
 M.game_ui = {
@@ -244,17 +265,26 @@ M.game_ui = {
     get_world_pos_from_map_pos = function(map_id, pos)
         return { x = pos.x * 100, y = pos.y * 100 }
     end,
+    get_battlefield_status = function(index)
+        return M._battlefield_status[index] or "none"
+    end,
 }
 
 M.quests = {
     get_gossip_available_quests = function() return M._gossip_available end,
     get_gossip_active_quests = function() return M._gossip_active end,
+    get_gossip_options = function() return M._gossip_options or {} end,
+    select_gossip_option = function(id)
+        M._input_calls[#M._input_calls + 1] = { "select_gossip_option", id }
+    end,
     select_gossip_available_quest = function(id)
         M._frames.gossip_selected = id
     end,
     select_gossip_active_quest = function(id)
         M._frames.gossip_selected = id
     end,
+    is_gossip_frame_shown = function() return M._frames.gossip ~= nil end,
+    close_gossip = function() M._frames.gossip = nil end,
     get_quest_item_link = function(type, index)
         local r = M._quest_rewards[index]
         return r and r.link or nil
@@ -280,6 +310,14 @@ M.quests = {
     end,
     is_gossip_frame_shown = function() return M._frames.gossip ~= nil end,
     get_num_trainer_services = function() return #M._trainer_services end,
+    get_num_quest_log_entries = function() return #M._quest_log end,
+    get_quest_log_title = function(index) return M._quest_log[index] or nil end,
+    set_abandon_quest = function(index)
+        M._input_calls[#M._input_calls + 1] = { "set_abandon_quest", index }
+    end,
+    abandon_quest = function()
+        M._input_calls[#M._input_calls + 1] = { "abandon_quest" }
+    end,
     get_trainer_service_info = function(index) return M._trainer_services[index] or nil end,
     get_trainer_service_cost = function(index)
         local s = M._trainer_services[index]
@@ -291,6 +329,11 @@ M.quests = {
     get_item_info = function(id)
         return { quality = 0, sell_price = 1 }
     end,
+}
+
+M.spell_book = {
+    get_mount_count = function() return 0 end,
+    get_mount_info = function(index) return nil end,
 }
 
 M._bag_slots = { [0] = 16, [1] = 0, [2] = 0, [3] = 0, [4] = 0 }  -- backpack 16, others default 0 (no bag equipped)

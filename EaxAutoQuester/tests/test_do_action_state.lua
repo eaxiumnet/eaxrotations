@@ -183,6 +183,22 @@ do
         -- Goal HAS a valid npc_id — must use the existing fast path, not Questie
         goals = { { type = "area", npc_id = 5500, text = nil, target = "" } },
     }
+    -- Mock npc_db with a predictable spawn for NPC 5500 so the test
+    -- doesn't depend on real creature_spawn_index.json data.
+    -- do_action_state requires "npc_db_sylvanas" (not the EaxAutoQuester prefix).
+    local mock_npc_db = {
+        find_npc_spawn = function(npc_id, map_id)
+            if npc_id == 5500 then
+                return { x = 500, y = 600, z = 0, map_id = map_id or 0, name = "Test NPC 5500", npc_id = 5500 }
+            end
+            return nil
+        end,
+        search_npc_by_name = function() return {} end,
+        find_transport_npc = function() return nil end,
+    }
+    package.loaded["npc_db_sylvanas"] = mock_npc_db
+    package.loaded["EaxAutoQuester/npc_db_sylvanas"] = mock_npc_db
+
     local ctx = build_ctx(step, { 9999 }, {})  -- Questie lists 9999, no local 5500 NPC
     local do_action = require("EaxAutoQuester/quest_state/do_action_state")
     local shared = {

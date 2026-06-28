@@ -109,6 +109,9 @@ local shared = {
     _questie_last_guid = nil,       -- GUID of last Questie fallback target (reserved for future GUID-based cooldown)
     _visited_waypoints = {},        -- indices of visited waypoints for movement-only area goals
     _was_alive_last_tick = true,    -- tracks alive→dead transitions for death counting (prevents per-tick spam)
+    _respawn_wait_until = 0,        -- core_time when respawn wait expires (3 min)
+    _respawn_last_scan = 0,         -- core_time of last respawn scan during wait
+    _respawn_target_name = nil,     -- name of NPC/object we're waiting to respawn
 }
 local INTERACT_TIMEOUT = 15        -- max seconds in INTERACT before force-exit
 
@@ -126,6 +129,15 @@ end
 -- ============================================================================
 -- Lazy-Load Helpers — all submodules loaded on first use via pcall
 -- ============================================================================
+
+local _anti_detection = nil
+local function ensure_anti_detection()
+    if not _anti_detection then
+        local ok, a = pcall(require, "anti_detection_sylvanas")
+        if ok then _anti_detection = a end
+    end
+    return _anti_detection
+end
 
 local function ensure_utils()
     if not _utils then
@@ -265,6 +277,7 @@ local function build_context()
         safe_api = ensure_safe_api(),
         probed = ensure_probed_apis(),
         death_tracker = ensure_death_tracker(),
+        anti_detection = ensure_anti_detection(),
     }
 end
 
@@ -458,6 +471,29 @@ function M.update()
                     next_state = "NAV"
                     debug_log("Coordinator: force vendor — bags > 80% full")
                 end
+            end
+        end
+    end
+
+    -- Anti-detection: human-like behavior when idle or navigating (not in combat)
+    local ad = ctx.anti_detection
+    if ad and not in_combat then
+        local is_casting = false
+        local is_channeling = false
+        if ctx.me then
+            local cast_ok, casting = pcall(function() return ctx.me:is_casting_spell() end)
+            if cast_ok and casting then is_casting = true end
+            local chan_ok, channeling = pcall(function() return ctx.me:is_channelling_spell() end)
+            if chan_ok and channeling then is_channeling = true end
+        end
+        -- Camera jitter when idle/navigating (not casting)
+        ad.maybe_camera_jitter(false, is_casting or is_channeling)
+        -- Player proximity pause — if another player is near, pause briefly
+        if ad.check_player_proximity then
+            local should_pause = ad.check_player_proximity(30)
+            if should_pause then
+                shared._action_pause_timer = ctx.now + 3.0
+                debug_log("Coordinator: player proximity detected — pausing briefly")
             end
         end
     end
