@@ -215,7 +215,14 @@ local function build_action(name, spell_value, opts)
     return row
 end
 
+local _last_build_state_time = -1
 local function build_state(context)
+    local state = arms_state
+    local now = context.now
+    if now and now == _last_build_state_time then return state end
+    now = now or (NS.time_now and NS.time_now() or 0)
+    if context.now then _last_build_state_time = now end
+    state.now = now
     local target = context.target
     local me = context.me or NS.GetPlayer()
 

@@ -42,7 +42,7 @@ local CHARGE_MIN_RANGE = 8
 local CHARGE_MAX_RANGE = 25
 local AOE_SCAN_RANGE = 8
 local PACK_SCAN_RANGE = 10
-local SCAN_INTERVAL = 0.2
+local SCAN_INTERVAL = 0.5
 local TAUNT_COOLDOWN_WINDOW = 8
 local CHALLENGING_ROAR_ENEMY_COUNT = 3
 local OOC_ENRAGE_RAGE_MAX = 20
@@ -322,10 +322,19 @@ local function update_rage_tracking(state)
     state.rage_deficit = RAGE_CAP - state.rage
 end
 
+-- Throttle build_state to once per frame to avoid rebuilding state N times
+-- per frame (once per strategy match function). Uses context.now when
+-- available (real game); falls back to no caching in test environments.
+local _last_build_state_time = -1
+
 local function build_state(context)
     local state = bear_state
     local settings = context.settings or NS.settings or {}
-    state.now = NS.time_now and NS.time_now() or 0
+    local now = context.now
+    if now and now == _last_build_state_time then return state end
+    now = now or (NS.time_now and NS.time_now() or 0)
+    if context.now then _last_build_state_time = now end
+    state.now = now
     state.me = context.me or (NS.GetPlayer and NS.GetPlayer()) or nil
     state.target = context.target
     state.settings = settings
