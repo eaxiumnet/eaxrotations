@@ -413,7 +413,9 @@ end
 
 local function build_context()
     for k in pairs(_context) do _context[k] = nil end
-    _context.lowest = { unit = nil, hp = 100 }
+    _context.lowest = _context.lowest or {}
+    _context.lowest.unit = nil
+    _context.lowest.hp = 100
     local me = _get_player()
     if not me then
         NS.current_context = nil
