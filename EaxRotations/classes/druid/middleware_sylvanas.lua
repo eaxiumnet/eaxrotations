@@ -109,6 +109,19 @@ local ROOT_SNARE_DEBUFFS = {
     3408, 11202, 11201,  -- Crippling Poison
 }
 
+-- Throttle shared state to prevent per-frame scan overhead
+local _last_ccbreak_scan = 0
+local _last_ccbreak_result = false
+local CCBREAK_SCAN_INTERVAL = 0.3
+
+local _last_root_scan = 0
+local _last_root_result = false
+local ROOT_SCAN_INTERVAL = 0.2
+
+-- Shared form-shift throttle across all druid modules
+local _last_mw_form_shift = 0
+local MW_FORM_SHIFT_COOLDOWN = 2.0
+
 -- Helper: check if druid is in a form that's immune to Polymorph
 local function in_poly_immune_form()
     if NS.has_player_buff and NS.has_player_buff(FORM_BUFFS.BEAR) then return true end
@@ -118,12 +131,19 @@ local function in_poly_immune_form()
     return false
 end
 
--- Helper: check if druid is rooted or snared
+-- Helper: check if druid is rooted or snared (throttled to avoid 17 debuff checks per frame)
 local function is_rooted_or_snared(me)
     if not me or not NS.debuff_up then return false end
+    local now = NS.time_now and NS.time_now() or 0
+    if now - _last_root_scan < ROOT_SCAN_INTERVAL then return _last_root_result end
+    _last_root_scan = now
     for _, id in ipairs(ROOT_SNARE_DEBUFFS) do
-        if NS.debuff_up(me, id) then return true end
+        if NS.debuff_up(me, id) then
+            _last_root_result = true
+            return true
+        end
     end
+    _last_root_result = false
     return false
 end
 
@@ -179,19 +199,29 @@ local strategies = {
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
-            -- Preemptive scan: check if any nearby enemy is casting Poly/Cyclone/Hibernate on us
-            -- Only preempt if we're in caster form (forms are immune to Poly)
-            if not in_poly_immune_form() then
-                local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
-                for _, enemy in ipairs(enemies) do
-                    if enemy then
-                        local is_casting_cc = CCBreakDB.is_casting_preemptive_cc(enemy)
-                        if is_casting_cc then
-                            local ok, etarget = pcall(function() return enemy:get_target() end)
-                            if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
-                                local form_id = get_best_cc_form(settings)
-                                if form_id and NS.spell_ready and NS.spell_ready(form_id, me, { skip_range = true }) then
-                                    return true
+            -- Throttle: full scan is expensive (enemy iteration + preemptive CC detection)
+            local now = NS.time_now and NS.time_now() or 0
+            if now - _last_ccbreak_scan < CCBREAK_SCAN_INTERVAL then
+                if not _last_ccbreak_result then return false end
+                -- If we throttled a positive result, fall through to reactive check only
+            else
+                _last_ccbreak_scan = now
+                _last_ccbreak_result = false
+                -- Preemptive scan: check if any nearby enemy is casting Poly/Cyclone/Hibernate on us
+                -- Only preempt if we're in caster form (forms are immune to Poly)
+                if not in_poly_immune_form() then
+                    local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+                    for _, enemy in ipairs(enemies) do
+                        if enemy then
+                            local is_casting_cc = CCBreakDB.is_casting_preemptive_cc(enemy)
+                            if is_casting_cc then
+                                local ok, etarget = pcall(function() return enemy:get_target() end)
+                                if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
+                                    local form_id = get_best_cc_form(settings)
+                                    if form_id and NS.spell_ready and NS.spell_ready(form_id, me, { skip_range = true }) then
+                                        _last_ccbreak_result = true
+                                        return true
+                                    end
                                 end
                             end
                         end
@@ -212,7 +242,12 @@ local strategies = {
             if not me then return false end
             local form_id = get_best_cc_form(context.settings or {})
             if not form_id then return false end
-            return NS.try_cast(form_id, me, "[DRUID] Shapeshift → CC Break", { skip_range = true })
+            -- Apply shared form-shift throttle to prevent rapid oscillation
+            local now = NS.time_now and NS.time_now() or 0
+            if now - _last_mw_form_shift < MW_FORM_SHIFT_COOLDOWN then return false end
+            local ok = NS.try_cast(form_id, me, "[DRUID] Shapeshift → CC Break", { skip_range = true })
+            if ok then _last_mw_form_shift = now end
+            return ok
         end,
     },
 

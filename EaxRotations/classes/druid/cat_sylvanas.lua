@@ -145,6 +145,16 @@ local snapshot_state = {
     rake_cast_time = 0,
 }
 
+-- Form-switch throttle: prevent rapid cat↔travel form oscillation when OOC.
+-- Any form cast sets this; subsequent form casts are blocked for FORM_SWITCH_COOLDOWN seconds.
+local _last_form_shift_time = -100
+local FORM_SWITCH_COOLDOWN = 2.0
+
+-- Throttle build_state to once per frame to avoid rebuilding state N times
+-- per frame (once per strategy match function). Uses context.now when
+-- available (real game); falls back to no caching in test environments.
+local _last_build_state_time = -1
+
 local function safe_method(object, method_name, fallback)
     if not object then return fallback end
     local method = object[method_name]
@@ -379,6 +389,7 @@ local function cast_and_record(context, action)
     local ok = execute_action(context, action)
     if ok then
         if action.name == "Powershift" or action.name == "EmergencyPowershift" then record_shift(state) end
+        if action.kind == "form" then _last_form_shift_time = get_now() end
         record_bleed_snapshot(action.name, state)
     end
     return ok
@@ -392,7 +403,12 @@ function build_state(context)
     local target = context.target
     local has_energy_context = context.energy ~= nil or context.me ~= nil or NS.power_current ~= nil or NS.energy ~= nil
 
-    state.now = get_now()
+    local now = context.now
+    if now and now == _last_build_state_time then return state end
+    now = now or get_now()
+    if context.now then _last_build_state_time = now end
+
+    state.now = now
     state.now_ms = get_now_ms()
     state.me = me
     state.target = target
@@ -454,6 +470,7 @@ end
 
 local function cat_form_matches(context, action)
     if NS.has_form and NS.has_form("cat") then return false end
+    if _last_form_shift_time > 0 and (get_now() - _last_form_shift_time) < FORM_SWITCH_COOLDOWN then return false end
     return true
 end
 
@@ -524,6 +541,8 @@ end
 local function travel_form_matches(context, action)
     local state = build_state(context)
     if state.in_combat then return false end
+    if NS.has_form and NS.has_form("travel") then return false end
+    if _last_form_shift_time > 0 and (get_now() - _last_form_shift_time) < FORM_SWITCH_COOLDOWN then return false end
     if not state.target or state.target_range < TRAVEL_FORM_RANGE then return false end
     return true
 end
