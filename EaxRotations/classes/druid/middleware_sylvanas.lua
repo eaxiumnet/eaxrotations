@@ -494,6 +494,139 @@ local strategies = {
         end,
     },
 
+    -- ========================================================================
+    -- BARKSKIN (Combat defensive — damage reduction when HP low)
+    -- ========================================================================
+    {
+        name = "Barkskin",
+        priority = 850,
+        is_defensive = true,
+        matches = function(context)
+            local settings = context.settings or {}
+            if not context.in_combat then return false end
+            local threshold = settings.barkskin_hp or 0
+            if threshold <= 0 then return false end
+            if (context.hp or 100) <= threshold then
+                local bs_buffs = { 22812 }
+                if NS.has_player_buff and NS.has_player_buff(bs_buffs) then return false end
+                local spell = SPELLS.Barkskin or { id = bs_buffs, name = "Barkskin" }
+                if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.Barkskin or { id = { 22812 }, name = "Barkskin" }
+            return NS.try_cast(spell, context.me, "[DRUID] Barkskin", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- INNERVATE (Combat mana recovery — prefer low-mana healer, fallback self)
+    -- ========================================================================
+    {
+        name = "Innervate",
+        priority = 750,
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_innervate == false then return false end
+            if not context.in_combat then return false end
+            local spell = SPELLS.Innervate or { id = { 29166 }, name = "Innervate" }
+            if not (NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })) then return false end
+            -- Check if Innervate buff already on anyone we care about
+            local innervate_buff = { 29166 }
+            if NS.has_player_buff and NS.has_player_buff(innervate_buff) then return false end
+            local mana_pct = context.mana_pct or 100
+            local threshold = settings.innervate_mana_pct or 30
+            if mana_pct <= threshold then return true end
+            -- Also cast if a healer party member is low mana
+            if NS.GetPartyMembers then
+                local HEALER_CLASS_IDS = { [2] = true, [5] = true, [7] = true, [11] = true }
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member then
+                        local class_id = nil
+                        pcall(function() class_id = member:get_class() end)
+                        if HEALER_CLASS_IDS[class_id] then
+                            local m_mana = 100
+                            pcall(function() m_mana = member:get_mana_percentage() end)
+                            if m_mana <= threshold then return true end
+                        end
+                    end
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.Innervate or { id = { 29166 }, name = "Innervate" }
+            -- Prefer low-mana healer
+            local HEALER_CLASS_IDS = { [2] = true, [5] = true, [7] = true, [11] = true }
+            if NS.GetPartyMembers then
+                local threshold = (context.settings or {}).innervate_mana_pct or 30
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member then
+                        local class_id = nil
+                        pcall(function() class_id = member:get_class() end)
+                        if HEALER_CLASS_IDS[class_id] then
+                            local m_mana = 100
+                            pcall(function() m_mana = member:get_mana_percentage() end)
+                            if m_mana <= threshold then
+                                return NS.try_cast(spell, member, "[DRUID] Innervate (Healer)", { skip_range = true })
+                            end
+                        end
+                    end
+                end
+            end
+            -- Fallback: self
+            return NS.try_cast(spell, context.me, "[DRUID] Innervate (Self)", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- REBIRTH (Combat resurrection — dead party/raid member)
+    -- ========================================================================
+    {
+        name = "Rebirth",
+        priority = 1000,
+        is_defensive = true,
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_rebirth == false then return false end
+            if not context.in_combat then return false end
+            -- Must be in caster form (not Bear/Cat/Moonkin/Tree)
+            local form_buffs = { 9634, 5487, 768, 24858, 33891 }
+            for _, id in ipairs(form_buffs) do
+                if NS.has_player_buff and NS.has_player_buff({ id }) then return false end
+            end
+            local spell = SPELLS.Rebirth or { id = { 26994, 20748, 20747, 20742, 20739, 20484 }, name = "Rebirth" }
+            if not (NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })) then return false end
+            -- Check for dead party/raid member
+            if NS.GetPartyMembers then
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member then
+                        local alive = true
+                        pcall(function() alive = member:is_alive() end)
+                        if not alive then return true end
+                    end
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.Rebirth or { id = { 26994, 20748, 20747, 20742, 20739, 20484 }, name = "Rebirth" }
+            if NS.GetPartyMembers then
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member then
+                        local alive = true
+                        pcall(function() alive = member:is_alive() end)
+                        if not alive then
+                            return NS.try_cast(spell, member, "[DRUID] Rebirth", { skip_range = true })
+                        end
+                    end
+                end
+            end
+            return false
+        end,
+    },
+
     -- ============================================================================
     -- PvP CC Gate: placed at END of middleware so healthstones/pots/dispels still fire.
     -- Only gates spec-level AoE (Swipe, Hurricane).

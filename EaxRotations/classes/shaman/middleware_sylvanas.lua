@@ -206,6 +206,74 @@ local strategies = {
         end,
     },
 
+    -- ========================================================================
+    -- LIGHTNING SHIELD (OOC self-buff — maintain shield charges)
+    -- ========================================================================
+    {
+        name = "LightningShield",
+        priority = 450,
+        matches = function(context)
+            local settings = context.settings or {}
+            if context.in_combat then return false end
+            if settings.auto_lightning_shield == false then return false end
+            local ls_buffs = { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
+            if NS.has_player_buff and NS.has_player_buff(ls_buffs) then return false end
+            local spell = SPELLS.LightningShield or { id = ls_buffs, name = "LightningShield" }
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
+        end,
+        execute = function(context)
+            local ls_buffs = { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
+            local spell = SPELLS.LightningShield or { id = ls_buffs, name = "LightningShield" }
+            return NS.try_cast(spell, context.me, "[SHAMAN] Lightning Shield", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- BLOODLUST (Combat offensive cooldown — party/raid haste buff)
+    -- ========================================================================
+    {
+        name = "Bloodlust",
+        priority = 750,
+        matches = function(context)
+            local settings = context.settings or {}
+            if settings.use_bloodlust == false then return false end
+            if not context.in_combat then return false end
+            if not context.has_valid_enemy_target then return false end
+            local spell = SPELLS.Bloodlust or { id = { 2825 }, name = "Bloodlust" }
+            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.Bloodlust or { id = { 2825 }, name = "Bloodlust" }
+            return NS.try_cast(spell, context.me, "[SHAMAN] Bloodlust", { skip_range = true })
+        end,
+    },
+
+    -- ========================================================================
+    -- SELF-HEAL (Combat emergency — Healing Surge / Lesser Healing Wave)
+    -- ========================================================================
+    {
+        name = "Shaman_SelfHeal",
+        priority = 850,
+        is_defensive = true,
+        matches = function(context)
+            local settings = context.settings or {}
+            if not context.in_combat then return false end
+            local threshold = settings.self_heal_hp or 0
+            if threshold <= 0 then return false end
+            if (context.hp or 100) <= threshold then
+                local spell = SPELLS.LesserHealingWave or { id = { 25420, 10468, 10467, 10466, 8010, 8008, 8004 }, name = "LesserHealingWave" }
+                if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            end
+            return false
+        end,
+        execute = function(context)
+            local spell = SPELLS.LesserHealingWave or { id = { 25420, 10468, 10467, 10466, 8010, 8008, 8004 }, name = "LesserHealingWave" }
+            return NS.try_cast(spell, context.me, "[SHAMAN] Lesser Healing Wave", { skip_range = true })
+        end,
+    },
+
     -- Auto-consumable usage
     { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
 

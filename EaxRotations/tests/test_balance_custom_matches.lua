@@ -230,7 +230,7 @@ local ctx_sf_low = {
 assert_false(starfire.matches(ctx_sf_low, {}), "Starfire should not match when mana < 15%")
 assert_eq(#action_calls, 0, "action_matches should not be called when mana low")
 
--- Not moving, mana OK -> should match
+-- Not moving, mana OK + Nature's Grace active -> should match (starfire)
 action_calls = {}
 local ctx_sf_ok = {
     is_moving = false,
@@ -238,10 +238,10 @@ local ctx_sf_ok = {
     target = {},
     has_valid_enemy_target = true,
 }
-assert_true(starfire.matches(ctx_sf_ok, {}), "Starfire should match when not moving and mana >= 15%")
+assert_true(starfire.matches(ctx_sf_ok, { natures_grace_active = true }), "Starfire should match when not moving, mana >= 15%, and Nature's Grace active")
 
 action_calls = {}
-assert_true(starfire.execute(ctx_sf_ok, {}), "Starfire execute should call try_cast")
+assert_true(starfire.execute(ctx_sf_ok, { natures_grace_active = true }), "Starfire execute should call try_cast")
 assert_eq(#action_calls, 1, "Starfire execute should call try_cast once")
 assert_eq(action_calls[1].spell, "Starfire", "Starfire execute should pass the Starfire spell")
 
