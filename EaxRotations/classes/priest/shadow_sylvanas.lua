@@ -9,6 +9,7 @@ local SPELLS = NS.PriestSpells or {}
 
 local mf_tick = require("shared/mf_tick_compute_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+local _last_shadow_cc_scan = 0
 
 -- ============================================================================
 -- Buff & Debuff ID tables
@@ -249,19 +250,24 @@ local function build_state(context)
         shadow_state.has_breakable_cc, shadow_state.breakable_cc_name = CCBreakDB.is_breakable_cc_active(me, NS)
         if not shadow_state.has_breakable_cc then
             -- Preemptive scan: check if any nearby enemy is casting a CC on us
-            -- This is the primary SW:D CC break path — casting SW:D preemptively
-            -- triggers backlash damage that will break incoming CC if it lands
-            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
-            for _, enemy in ipairs(enemies) do
-                if enemy then
-                    local is_casting_cc, cc_name = CCBreakDB.is_casting_preemptive_cc(enemy)
-                    if is_casting_cc then
-                        -- Check if this enemy is targeting the player
-                        local ok, etarget = pcall(function() return enemy:get_target() end)
-                        if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
-                            shadow_state.enemy_casting_cc = true
-                            shadow_state.enemy_cc_spell_name = cc_name
-                            break
+            -- Throttled to avoid per-frame enemy iteration
+            local now = NS.time_now and NS.time_now() or 0
+            if now - (_last_shadow_cc_scan or 0) >= 0.3 then
+                _last_shadow_cc_scan = now
+                -- This is the primary SW:D CC break path — casting SW:D preemptively
+                -- triggers backlash damage that will break incoming CC if it lands
+                local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+                for _, enemy in ipairs(enemies) do
+                    if enemy then
+                        local is_casting_cc, cc_name = CCBreakDB.is_casting_preemptive_cc(enemy)
+                        if is_casting_cc then
+                            -- Check if this enemy is targeting the player
+                            local ok, etarget = pcall(function() return enemy:get_target() end)
+                            if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
+                                shadow_state.enemy_casting_cc = true
+                                shadow_state.enemy_cc_spell_name = cc_name
+                                break
+                            end
                         end
                     end
                 end

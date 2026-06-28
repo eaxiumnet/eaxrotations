@@ -13,6 +13,10 @@ local DISPEL_MAGIC_IDS = { 988, 527 }
 -- Abolish Disease IDs by rank
 local ABOLISH_DISEASE_IDS = { 552, 552, 552 }  -- Same ID in TBC
 
+-- Throttle shared state for expensive enemy scans
+local _last_priest_md_scan = 0
+local _last_priest_fade_scan = 0
+
 -- Check if debuff is magic type
 local function has_magic_debuff_on_unit(unit)
     if not NS.has_debuff then return false end
@@ -112,7 +116,13 @@ local function find_mana_burn_target(context)
     local best_target, best_mana = nil, 0
     for _, enemy in ipairs(enemies) do
         if enemy and OffensiveDispelDB.is_healer_class(enemy) then
-            local mana = NS.unit_mana_pct and NS.unit_mana_pct(enemy) or 0
+            -- NS.unit_mana_pct does not exist; use raw game_object API with pcall
+            local ok, power, max_power = pcall(function()
+                local p = enemy.get_power and enemy:get_power(0) or 0
+                local m = enemy.get_max_power and enemy:get_max_power(0) or 0
+                return p, m
+            end)
+            local mana = (ok and max_power and max_power > 0) and (power / max_power * 100) or 0
             if mana > best_mana then
                 best_target, best_mana = enemy, mana
             end
@@ -142,6 +152,10 @@ local strategies = {
             -- Spell check
             if not (NS.is_spell_learned and NS.is_spell_learned(SPELLS.MassDispel)) then return false end
             if not (NS.spell_ready and NS.spell_ready(SPELLS.MassDispel)) then return false end
+            -- Throttle: expensive enemy iteration
+            local now = NS.time_now and NS.time_now() or 0
+            if now - (_last_priest_md_scan or 0) < 0.3 then return false end
+            _last_priest_md_scan = now
             -- Scan enemies for Divine Shield / Ice Block
             local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
             for _, enemy in ipairs(enemies) do
@@ -156,6 +170,11 @@ local strategies = {
         end,
         execute = function(context)
             -- Find the target with the critical buff (cast Mass Dispel on their position)
+            -- Reuse the cached scan result from matches if still valid
+            local now = NS.time_now and NS.time_now() or 0
+            if now - (_last_priest_md_scan or 0) >= 0.3 then
+                _last_priest_md_scan = now
+            end
             local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
             for _, enemy in ipairs(enemies) do
                 if enemy then
@@ -244,6 +263,10 @@ local strategies = {
             if context.settings.use_threat_drop == false then return false end
             if not (NS.spell_ready and SPELLS.Fade and NS.spell_ready(SPELLS.Fade, context.me, { skip_range = true })) then return false end
             if context.me and NS.has_buff and NS.has_buff(context.me, SPELLS.Fade) then return false end
+            -- Throttle: expensive enemy iteration
+            local now = NS.time_now and NS.time_now() or 0
+            if now - _last_priest_fade_scan < 0.5 then return false end
+            _last_priest_fade_scan = now
             local enemies = (NS.GetEnemiesInRange and NS.GetEnemiesInRange(20)) or {}
             for _, enemy in ipairs(enemies) do
                 if enemy then
@@ -452,6 +475,10 @@ local strategies = {
             
             -- Check if any visible enemy is targeting player
             -- This is a simplified check - in practice might need more sophisticated threat detection
+            -- Throttle: expensive enemy iteration
+            local now2 = NS.time_now and NS.time_now() or 0
+            if now2 - _last_priest_fade_scan < 0.5 then return false end
+            _last_priest_fade_scan = now2
             local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(40) or {}
             for _, enemy in ipairs(enemies) do
                 if enemy then

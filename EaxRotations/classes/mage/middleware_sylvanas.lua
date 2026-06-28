@@ -92,6 +92,9 @@ local function find_curse_target(context)
     return nil
 end
 
+local _last_mage_cc_scan = 0
+local MAGE_CC_SCAN_INTERVAL = 0.3
+
 local strategies = {
 
     interrupt_manager.register_interrupt_spell("mage", "Counterspell", SPELLS),
@@ -107,6 +110,10 @@ local strategies = {
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
+            -- Throttle: expensive enemy iteration
+            local now = NS.time_now and NS.time_now() or 0
+            if now - _last_mage_cc_scan < MAGE_CC_SCAN_INTERVAL then return false end
+            _last_mage_cc_scan = now
             -- Preemptive scan: check if any nearby enemy is casting CC on us
             local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
             for _, enemy in ipairs(enemies) do

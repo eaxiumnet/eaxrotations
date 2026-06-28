@@ -192,8 +192,8 @@ local strategies = {
                 local cast_ok, casting = is_casting and pcall(is_casting, target) or false, false
                 if cast_ok and casting then
                     local get_casting_spell_id = NS.safe_field and NS.safe_field(target, "get_casting_spell_id")
-                    local spell_id = get_casting_spell_id and pcall(get_casting_spell_id, target) or nil
-                    if spell_id then
+                    local ok_sid, spell_id = get_casting_spell_id and pcall(get_casting_spell_id, target) or false, nil
+                    if ok_sid and spell_id then
                         local hs_cost = 15
                         local pummel_cost = 10
                         if rage < (hs_cost + pummel_cost) then
