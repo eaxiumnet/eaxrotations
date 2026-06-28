@@ -40,6 +40,7 @@ _G.EaxRotations = {
     end,
     log = function() end,
     gate_overheal = function() return false end,
+    buff_remains = function(unit, ids) return 0 end,
     rotation_registry = {
         register = function() end,
     },
@@ -164,5 +165,32 @@ assert_true(aw.matches({ in_combat = true, settings = {} }, { heavy_healing = tr
 
 -- Target about to die (ttd < 15) -> should NOT match (don't waste 3-min CD)
 assert_false(aw.matches({ in_combat = true, settings = {}, ttd_known = true, ttd = 10 }, { heavy_healing = true }), "AvengingWrath should not match when ttd < 15")
+
+-- ============================================================================
+-- LightsGraceChaining: refresh LG with cheap HL R4 before it expires
+-- ============================================================================
+
+local lg_chain = find_strategy("LightsGraceChaining")
+
+-- Setting disabled -> should NOT match
+assert_false(lg_chain.matches({ in_combat = true, settings = { holy_lights_grace_chaining = false } }, { has_lights_grace = true, lights_grace_remains = 2, heal_target = { unit = {}, effective_hp = 80 } }), "LGChain should not match when disabled")
+
+-- LG not active -> should NOT match
+assert_false(lg_chain.matches({ in_combat = true, settings = {} }, { has_lights_grace = false, lights_grace_remains = 0, heal_target = { unit = {}, effective_hp = 80 } }), "LGChain should not match without LG")
+
+-- LG expires in >3s -> should NOT match
+assert_false(lg_chain.matches({ in_combat = true, settings = {} }, { has_lights_grace = true, lights_grace_remains = 5, heal_target = { unit = {}, effective_hp = 80 } }), "LGChain should not match when LG > 3s")
+
+-- Out of combat -> should NOT match
+assert_false(lg_chain.matches({ in_combat = false, settings = {} }, { has_lights_grace = true, lights_grace_remains = 2, heal_target = { unit = {}, effective_hp = 80 } }), "LGChain should not match out of combat")
+
+-- Lowest in critical HP -> should NOT match (let emergency heals win)
+assert_false(lg_chain.matches({ in_combat = true, settings = {} }, { has_lights_grace = true, lights_grace_remains = 2, lowest = { unit = {}, effective_hp = 30 }, heal_target = { unit = {}, effective_hp = 80 } }), "LGChain should not match when lowest is critical")
+
+-- Valid: LG active, <3s, in combat, non-critical target -> should match
+assert_true(lg_chain.matches({ in_combat = true, settings = {} }, { has_lights_grace = true, lights_grace_remains = 2, lowest = { unit = {}, effective_hp = 60 }, heal_target = { unit = {}, effective_hp = 80 } }), "LGChain should match in valid conditions")
+
+-- Valid with heal_target nil (falls back to lowest) -> should match
+assert_true(lg_chain.matches({ in_combat = true, settings = {} }, { has_lights_grace = true, lights_grace_remains = 1.5, lowest = { unit = {}, effective_hp = 60 } }), "LGChain should match falling back to lowest")
 
 print("PASS test_paladin_holy_custom_matches")
