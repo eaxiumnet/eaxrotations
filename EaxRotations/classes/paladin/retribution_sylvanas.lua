@@ -208,6 +208,7 @@ end
 
 local function build_state(context)
     local is_group = context.is_group or false
+    ret_state.is_group = is_group
     -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(27170, 3.0) or false
     ret_state.hp_pct = context.hp or health_pct(context.me, 100)

@@ -120,6 +120,7 @@ local function build_smite_state(context)
     smite_state.psychic_scream_ready = spell_exists(SPELLS.PsychicScream) and spell_ready(SPELLS.PsychicScream, NS.PLAYER_UNIT, PSYCHIC_SCREAM_OPTS)
     smite_state.shadowfiend_ready = spell_exists(SPELLS.Shadowfiend) and spell_ready(SPELLS.Shadowfiend, target, SHADOWFIEND_OPTS)
     smite_state.hp_pct = context.hp or 100
+    smite_state.is_group = context.is_group or false
     smite_state.mana_pct = context.mana_pct or 100
     smite_state.enemy_count = context.enemy_count or context.enemies_count or 1
 

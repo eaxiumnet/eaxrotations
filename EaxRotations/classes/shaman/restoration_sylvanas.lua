@@ -165,6 +165,7 @@ local function build_state(context)
     resto_state.purge_ready = target and NS.spell_ready(SPELLS.Purge, target) or false
     resto_state.cure_poison_ready = me and SPELLS.CurePoison and NS.spell_ready(SPELLS.CurePoison, me, { skip_range = true }) or false
     resto_state.cure_disease_ready = me and SPELLS.CureDisease and NS.spell_ready(SPELLS.CureDisease, me, { skip_range = true }) or false
+    resto_state.is_group = context.is_group or false
     resto_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     resto_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     -- Mana conservation tiers (configurable via schema)

@@ -373,6 +373,7 @@ local _last_build_state_time = -1
 local function build_state(context)
     local is_group = context.is_group or false
     local state = bear_state
+    state.is_group = is_group
     local settings = context.settings or NS.settings or {}
     local now = context.now
     if now and now == _last_build_state_time then return state end

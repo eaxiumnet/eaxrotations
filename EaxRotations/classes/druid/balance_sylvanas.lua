@@ -73,6 +73,7 @@ local function _build_state(ctx)
         _state.natures_grace_active = _G_E.has_player_buff(_NATURES_BUFF)
         _state.barkskin_active = _G_E.has_player_buff(_BARKSKIN_BUFF)
     end
+    _state.is_group = ctx.is_group or false
     _state.mana_pct = ctx.mana_pct or ctx.mana or 100
     _state.enemy_count = ctx.enemy_count or 1
     _state.target_ttd = ctx.ttd or ctx.target_ttd or 999

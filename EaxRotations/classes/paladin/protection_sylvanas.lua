@@ -157,6 +157,7 @@ local function build_state(context)
     prot_state.needs_cleanse = self_needs_cleanse(me)
     prot_state.seal_of_wisdom_ready = me and NS.spell_ready(SPELLS.SealOfWisdom, me, { skip_range = true, expected_cooldown = 1.5 }) or false
     prot_state.righteous_defense_ready = me and NS.spell_ready(SPELLS.RighteousDefense, me, { skip_range = true, expected_cooldown = 15 }) or false
+    prot_state.is_group = context.is_group or false
     prot_state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me)) or 100
     prot_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     prot_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
