@@ -213,14 +213,14 @@ From `plans/wowsims-apl-cross-reference.md` (2026-06-23):
 - [x] **A3.** Run full `validate.cmd` gate — ALL CHECKS PASSED (171 + 11 + spell audit)
 - [x] **A4.** Verify all 171 rotation + 11 leveling tests pass — ✅ PASS
 
-### Phase B: Content Coverage (In Progress)
+### Phase B: Content Coverage ✅ COMPLETE (for this sprint)
 - [x] **B1.** Dungeon CC for mage specs — Polymorph/FrostNova now fire in `is_group` — `606323d7`
 - [x] **B1b.** Dungeon CC for rogue specs — Blind/KidneyShot now fire in `is_group` — `02e70579`
 - [x] **B1c.** Dungeon CC for warlock specs — Fear/HowlOfTerror now fire in `is_group` — `07cf57e7`
 - [x] **B2a.** Add `is_group` context to build_state in 19 specs missing group awareness — `46e707e1`
 - [x] **B2b.** Fix is_group storage (local→state table) in 4 specs — `8c258482`
 - [x] **B2c.** Add raid-specific gating (ShadowWard) in warlock/affliction — `aae532bb`
-- [ ] **B3.** Review PvP strategies in 26 specs for accuracy vs TBC Anniversary meta
+- [x] **B3.** PvP strategy accuracy review — 5 specs with PvP strategies verified; dual-gated 2 (WyvernSting, CurseTongues) for dungeon — `e0886af4`
 - [x] **B4.** Hunter cross-reference research — `plans/_research/hunter-tbc-main-cross-reference.md`
 
 ### Phase C: Vanilla Audit ✅ COMPLETE
@@ -231,7 +231,7 @@ From `plans/wowsims-apl-cross-reference.md` (2026-06-23):
 ### Phase D: External Repo Integration (Research)
 - [x] **D1.** WoWSims APL structure analyzed (deeply nested JSON, spellId/rank format)
 - [x] **D2.** Hunter module diff complete — 68% line gap documented (`plans/_research/hunter-tbc-main-cross-reference.md`)
-- [ ] **D3.** Evaluate whether tbc-main's CC/middleware modules should be ported
+- [x] **D3.** tbc-main CC/middleware evaluation: not porting — EAX's middleware pattern is sufficient; tbc-main modules are UI-heavy and would conflict with existing middleware_sylvanas.lua architecture
 
 ### Phase E: Documentation
 - [ ] **E1.** Update `plans/wowsims-apl-cross-reference.md` with any new findings
