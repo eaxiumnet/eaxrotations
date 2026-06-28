@@ -138,6 +138,7 @@ local function build_mock_env()
         end,
         has_debuff = function(id) return false end,
         get_class = function() return 1 end,
+        get_level = function() return 60 end,
         is_in_combat = function() return false end,
         get_target = function() return mock_target end,
         get_position = function() return { x = 0, y = 0, z = 0 } end,

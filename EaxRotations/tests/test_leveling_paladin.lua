@@ -130,6 +130,7 @@ local function build_mock_env()
         end,
         has_debuff = function(id) return false end,
         get_class = function() return 2 end,
+        get_level = function() return 60 end,
         is_in_combat = function() return false end,
         get_target = function() return mock_target end,
         get_position = function() return { x = 0, y = 0, z = 0 } end,
@@ -205,6 +206,7 @@ local function make_context(overrides)
             get_health = function() return 10000 end,
             get_max_health = function() return 10000 end,
             has_buff = function(id) return false end,
+            get_level = function() return 60 end,
             get_position = function() return { x = 0, y = 0, z = 0 } end,
         },
         target = {
