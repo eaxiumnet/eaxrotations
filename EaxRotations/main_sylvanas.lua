@@ -55,6 +55,10 @@ if not _spell_queue_ok or type(spell_queue_module) ~= "table" then spell_queue_m
 -- Expose for strategy access; nil if unavailable.
 NS.spell_queue = spell_queue_module
 
+-- Expose platform-provided modules for spec consumption.
+-- health_prediction: tank detection, PvP detection, incoming damage heuristics.
+NS.health_prediction = health_prediction
+
 local _last_error_time = 0
 
 -- Hot-path NS API references cached at module load to avoid table lookups and pcall overhead per frame.
