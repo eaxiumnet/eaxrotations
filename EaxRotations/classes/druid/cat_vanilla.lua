@@ -232,10 +232,19 @@ local function should_snapshot_upgrade(current_ap, snapshotted_ap, remains, refr
     return current_ap > snapshotted_ap * ratio
 end
 
+-- Throttle build_state to once per frame to avoid rebuilding state N times
+-- per frame (once per strategy match function). Uses context.now when
+-- available (real game); falls back to no caching in test environments.
+local _last_build_state_time = -1
+
 local function build_state(context)
     local state = cat_state
     local settings = context.settings or NS.settings or {}
-    state.now = get_now()
+    local now = context.now
+    if now and now == _last_build_state_time then return state end
+    now = now or get_now()
+    if context.now then _last_build_state_time = now end
+    state.now = now
     state.me = context.me or (NS.GetPlayer and NS.GetPlayer()) or nil
     state.target = context.target
     state.settings = settings
@@ -299,6 +308,10 @@ local function action_ready(spell, target, opts)
     return NS.spell_ready and NS.spell_ready(spell, target, opts or {}) or false
 end
 
+-- Form-switch throttle: prevent rapid cat↔travel form oscillation when OOC.
+local _last_form_shift_time = -100
+local FORM_SWITCH_COOLDOWN = 2.0
+
 local _strategies = {
     { name = "HealthPotion",
       matches = function(context)
@@ -332,11 +345,15 @@ local _strategies = {
         name = "TravelForm",
         matches = function(ctx, s)
             if ctx.in_combat then return false end
+            if NS.has_form and NS.has_form("travel") then return false end
+            if _last_form_shift_time > 0 and (get_now() - _last_form_shift_time) < FORM_SWITCH_COOLDOWN then return false end
             if s.target_range > 0 and s.target_range < TRAVEL_FORM_RANGE then return false end
             return spell_ready(SPELLS.TravelForm, ctx.me or NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function(ctx)
-            return execute_cast(SPELLS.TravelForm, ctx.me or NS.PLAYER_UNIT, "Travel Form")
+            local ok = execute_cast(SPELLS.TravelForm, ctx.me or NS.PLAYER_UNIT, "Travel Form")
+            if ok then _last_form_shift_time = get_now() end
+            return ok
         end,
     },
     {

@@ -142,6 +142,7 @@ local function build_state(context)
     local s = arcane_state
 
     -- Basic state
+    s.is_group = context.is_group or false
     s.mana_pct = context.mana_pct or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
     s.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
     s.in_combat = context.in_combat or false

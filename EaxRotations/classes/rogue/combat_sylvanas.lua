@@ -169,6 +169,7 @@ local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
 
+    combat_state.is_group = context.is_group or false
     combat_state.is_stealthed = Stealth.is_stealthed_for_class("rogue")
     combat_state.has_snd = me and NS.buff_up(me, SND_BUFF) or false
     combat_state.has_blade_flurry = me and NS.buff_up(me, BLADE_FLURRY_BUFF) or false
