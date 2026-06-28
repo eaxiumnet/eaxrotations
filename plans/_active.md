@@ -30,13 +30,13 @@
 - [ ] Auto Spec Detection (Holy/Disc)
 
 ### Phase 2: Tank & Melee Supremacy (Week 2 — July 5 - July 12)
-- [ ] Snap Threat on Combat Start
-- [ ] Mana Emergency Swap (JoW)
-- [ ] Post-Swing Judgement
-- [ ] Seal Twist Diagnostics
-- [ ] Totem Twisting
-- [ ] Auto Weapon Buffs by Level
-- [ ] Intelligent Shield Switching
+- [x] Snap Threat on Combat Start (completed in Phase 1)
+- [x] Mana Emergency Swap (JoW)
+- [x] Post-Swing Judgement
+- [x] Seal Twist Diagnostics
+- [x] Totem Twisting
+- [x] Auto Weapon Buffs by Level
+- [x] Intelligent Shield Switching
 
 ### Phase 3: Ranged & Caster Supremacy (Week 3 — July 12 - July 19)
 - [ ] Multi-DoT Engine

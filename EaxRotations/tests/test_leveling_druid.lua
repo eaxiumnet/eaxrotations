@@ -2,10 +2,7 @@
 -- Tests build_state, all 12 match functions, strategy ordering,
 -- helper functions, and edge case handling
 
-local EAXROTATIONS_DIR = "C:/newbot/scripts/EaxRotations"
-if not package.path:find(EAXROTATIONS_DIR, 1, true) then
-    package.path = package.path .. ";" .. EAXROTATIONS_DIR .. "/?.lua"
-end
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local passed = 0
 local failed = 0

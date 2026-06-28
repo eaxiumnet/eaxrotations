@@ -140,7 +140,6 @@ local fury_state = {
     sunder_ready = false,
     rend_ready = false,
     demo_ready = false,
-    thunder_ready = false,
     -- Charge/Intercept protection
     charge_lock_until = 0,
     intercept_fired_at = 0,
@@ -306,7 +305,7 @@ local function build_state(context)
     fury_state.sunder_ready = NS.spell_ready(ACTION.SunderArmor, target) or false
     fury_state.rend_ready = NS.spell_ready(ACTION.Rend, target) or false
     fury_state.demo_ready = NS.spell_ready(ACTION.DemoralizingShout, me, { skip_range = true }) or false
-    fury_state.thunder_ready = NS.spell_ready(ACTION.ThunderClap, me, { skip_range = true, expected_cooldown = 4 }) or false
+    -- thunder_ready removed: not used by Fury (tank/Arms debuff)
 
     fury_state.execute_phase = execute_phase(context, fury_state)
 

@@ -52,6 +52,8 @@ local BLOODLUST_BUFF_ID = { 2825 }
 local totem_state = {
     -- Twisting
     next_air = "windfury",
+    twist_phase = "windfury",  -- current active phase ("windfury" or "grace")
+    air_totem_remains = 0,
     -- Earth
     -- Water
     -- Fire
@@ -141,6 +143,10 @@ local enh_state = {
     lightning_shield_mana = 80,
     manage_totems = true,
     totem_twisting = true,
+    auto_mh_buff = nil,
+    auto_oh_buff = nil,
+    auto_shield_type = nil,
+    player_level = 70,
     -- Totemic call
     totemic_call_ready = false,
     gift_of_the_naaru_ready = false,
@@ -195,6 +201,47 @@ local function build_state(context)
         enh_state.effective_mode = auto_aoe and "aoe" or "single"
     else
         enh_state.effective_mode = enh_state.combat_mode
+    end
+
+    -- -- Player level for auto weapon buff selection
+    local player = me or NS.GetPlayer()
+    enh_state.player_level = (player and player.get_level and pcall(player.get_level, player) and ({pcall(player.get_level, player)})[2]) or 70
+    if type(enh_state.player_level) ~= "number" then enh_state.player_level = 70 end
+
+    -- -- Auto weapon buffs by level
+    local function best_weapon_buff_for_level(level)
+        if level >= 30 then
+            if NS.is_spell_learned and NS.is_spell_learned(SPELLS.WindfuryWeapon or 8232) then return "windfury" end
+        end
+        if level >= 10 then
+            if NS.is_spell_learned and NS.is_spell_learned(SPELLS.FlametongueWeapon or 8024) then return "flametongue" end
+        end
+        if NS.is_spell_learned and NS.is_spell_learned(SPELLS.RockbiterWeapon or 8017) then return "rockbiter" end
+        return "windfury"  -- ultimate fallback
+    end
+    local mh_choice = s.enhancement_main_hand_ench or "windfury"
+    local oh_choice = s.enhancement_off_hand_ench or "flametongue"
+    enh_state.auto_mh_buff = (mh_choice == "auto") and best_weapon_buff_for_level(enh_state.player_level) or mh_choice
+    enh_state.auto_oh_buff = (oh_choice == "auto") and best_weapon_buff_for_level(enh_state.player_level) or oh_choice
+
+    -- -- Auto shield type based on mana
+    if enh_state.shield_type == "auto" then
+        if (enh_state.mana_pct or 100) > 60 then
+            enh_state.auto_shield_type = "lightning"
+        elseif (enh_state.mana_pct or 100) < 40 then
+            enh_state.auto_shield_type = "water"
+        else
+            -- hysteresis band: keep current shield
+            if enh_state.has_lightning_shield then
+                enh_state.auto_shield_type = "lightning"
+            elseif enh_state.has_water_shield then
+                enh_state.auto_shield_type = "water"
+            else
+                enh_state.auto_shield_type = "lightning"
+            end
+        end
+    else
+        enh_state.auto_shield_type = enh_state.shield_type
     end
 
     -- -- Buff detection
@@ -299,6 +346,31 @@ local function build_state(context)
     enh_state.bloodlust_ready = me and NS.spell_ready(SPELLS.Bloodlust, me, { skip_range = true, expected_cooldown = 600 }) or false
     enh_state.totemic_call_ready = me and NS.spell_ready(SPELLS.TotemicCall, me, { skip_range = true, expected_cooldown = 120 }) or false
     enh_state.gift_of_the_naaru_ready = me and NS.spell_ready(SPELLS.GiftOfTheNaaru, me, { skip_range = true, expected_cooldown = 120 }) or false
+
+    -- -- Totem phase tracking for twisting (check air slot = 4)
+    local air_info = NS.get_totem_info and NS.get_totem_info(4)
+    if air_info and air_info.have_totem then
+        local air_remains = (air_info.duration or 0) - ((NS.game_time_ms and NS.game_time_ms() or 0) / 1000 - (air_info.start_time or 0))
+        if air_remains < 0 then air_remains = 0 end
+        totem_state.air_totem_remains = air_remains
+        -- Determine current phase from active totem spell_id
+        local sid = air_info.spell_id or 0
+        local is_wf = false
+        local is_grace = false
+        for i = 1, #(WINDFURY_WEAPON_SPELLS or {}) do
+            if sid == WINDFURY_WEAPON_SPELLS[i] then is_wf = true; break end
+        end
+        -- Windfury Totem spell IDs differ from weapon imbues; check against totem spell list
+        local WF_TOTEM_SPELLS = { 8512, 10607, 10611, 25585, 25587 }
+        local GOA_TOTEM_SPELLS = { 8835, 10626, 10627, 25359 }
+        for i = 1, #WF_TOTEM_SPELLS do if sid == WF_TOTEM_SPELLS[i] then is_wf = true; break end end
+        for i = 1, #GOA_TOTEM_SPELLS do if sid == GOA_TOTEM_SPELLS[i] then is_grace = true; break end end
+        if is_wf then totem_state.twist_phase = "windfury"
+        elseif is_grace then totem_state.twist_phase = "grace"
+        end
+    else
+        totem_state.air_totem_remains = 0
+    end
 
     return enh_state
 end
@@ -467,10 +539,12 @@ local function windfury_twist_matches(ctx)
     if not enh_state.totem_twisting then return false end
     if not enh_state.in_combat then return false end
     if enh_state.mana_low then return false end
-    local mana_floor = (ctx.settings or {}).enhancement_totem_twist_mana_floor or 25
+    local mana_floor = (ctx.settings or {}).enhancement_twist_mana_threshold or 40
     if (enh_state.mana_pct or 0) < mana_floor then return false end
     if not enh_state.windfury_totem_ready then return false end
     if totem_state.next_air ~= "windfury" then return false end
+    -- Enhanced: only drop when current air totem is expiring (< 3s) or none active
+    if totem_state.air_totem_remains > 3 then return false end
     return not (NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, SPELLS.WindfuryTotem))
 end
 
@@ -478,10 +552,12 @@ local function grace_air_twist_matches(ctx)
     if not enh_state.totem_twisting then return false end
     if not enh_state.in_combat then return false end
     if enh_state.mana_low then return false end
-    local mana_floor = (ctx.settings or {}).enhancement_totem_twist_mana_floor or 25
+    local mana_floor = (ctx.settings or {}).enhancement_twist_mana_threshold or 40
     if (enh_state.mana_pct or 0) < mana_floor then return false end
     if not enh_state.grace_of_air_totem_ready then return false end
     if totem_state.next_air ~= "grace" then return false end
+    -- Enhanced: only drop when current air totem is expiring (< 3s) or none active
+    if totem_state.air_totem_remains > 3 then return false end
     return not (NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, SPELLS.GraceOfAirTotem))
 end
 
@@ -489,13 +565,14 @@ end
 -- Shield match functions
 -- ============================================================================
 local function lightning_shield_matches(ctx)
-    if enh_state.shield_type == "water" then return false end
+    local shield = enh_state.auto_shield_type or enh_state.shield_type or "auto"
+    if shield == "water" then return false end
     if enh_state.has_lightning_shield and (enh_state.lightning_shield_charges or 0) > 1 then return false end
     if enh_state.now_ms - runtime.last_lightning_shield_ms < SHIELD_REFRESH_UNKNOWN_MS then return false end
     if not enh_state.lightning_shield_ready then return false end
     if NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, LIGHTNING_SHIELD_BUFF) > 2 then return false end
     -- Auto mode: only maintain Lightning Shield when mana is above threshold
-    if enh_state.shield_type == "auto" and (enh_state.mana_pct or 0) < (enh_state.lightning_shield_mana or 0) then return false end
+    if shield == "auto" and (enh_state.mana_pct or 0) < (enh_state.lightning_shield_mana or 0) then return false end
     return true
 end
 
@@ -508,12 +585,13 @@ local function lightning_shield_execute(ctx)
 end
 
 local function water_shield_matches(ctx)
-    if enh_state.shield_type == "lightning" then return false end
+    local shield = enh_state.auto_shield_type or enh_state.shield_type or "auto"
+    if shield == "lightning" then return false end
     if enh_state.has_water_shield then return false end
     if not enh_state.water_shield_ready then return false end
     if NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, WATER_SHIELD_BUFF) > 2 then return false end
     -- Auto mode: switch to Water Shield when mana is low
-    if enh_state.shield_type == "auto" and (enh_state.mana_pct or 100) >= (enh_state.water_shield_mana or 100) then return false end
+    if shield == "auto" and (enh_state.mana_pct or 100) >= (enh_state.water_shield_mana or 100) then return false end
     return true
 end
 
@@ -529,12 +607,14 @@ local function mh_weapon_matches(ctx)
     local choice = s.enhancement_main_hand_ench or "windfury"
     if choice == "none" then return false end
     if enh_state.in_combat then return false end
+    -- Resolve "auto" to level-appropriate buff
+    local resolved = (choice == "auto") and enh_state.auto_mh_buff or choice
     -- Check WeaponImbueManager-based state: if the desired imbue is detected, skip
     local has_imbue = false
-    if choice == "windfury" then has_imbue = enh_state.has_windfury_weapon
-    elseif choice == "flametongue" then has_imbue = enh_state.has_flametongue_weapon
-    elseif choice == "rockbiter" then has_imbue = enh_state.has_rockbiter_weapon
-    elseif choice == "frostbrand" then has_imbue = enh_state.has_frostbrand_weapon
+    if resolved == "windfury" then has_imbue = enh_state.has_windfury_weapon
+    elseif resolved == "flametongue" then has_imbue = enh_state.has_flametongue_weapon
+    elseif resolved == "rockbiter" then has_imbue = enh_state.has_rockbiter_weapon
+    elseif resolved == "frostbrand" then has_imbue = enh_state.has_frostbrand_weapon
     end
     if has_imbue then return false end
     return true
@@ -545,12 +625,14 @@ local function oh_weapon_matches(ctx)
     local choice = s.enhancement_off_hand_ench or "flametongue"
     if choice == "none" then return false end
     if enh_state.in_combat then return false end
+    -- Resolve "auto" to level-appropriate buff
+    local resolved = (choice == "auto") and enh_state.auto_oh_buff or choice
     -- Check WeaponImbueManager-based state: if the desired imbue is detected, skip
     local has_imbue = false
-    if choice == "windfury" then has_imbue = enh_state.oh_has_windfury_weapon
-    elseif choice == "flametongue" then has_imbue = enh_state.oh_has_flametongue_weapon
-    elseif choice == "rockbiter" then has_imbue = enh_state.oh_has_rockbiter_weapon
-    elseif choice == "frostbrand" then has_imbue = enh_state.oh_has_frostbrand_weapon
+    if resolved == "windfury" then has_imbue = enh_state.oh_has_windfury_weapon
+    elseif resolved == "flametongue" then has_imbue = enh_state.oh_has_flametongue_weapon
+    elseif resolved == "rockbiter" then has_imbue = enh_state.oh_has_rockbiter_weapon
+    elseif resolved == "frostbrand" then has_imbue = enh_state.oh_has_frostbrand_weapon
     end
     if has_imbue then return false end
     return true
@@ -673,19 +755,7 @@ local function chain_lightning_matches(ctx)
     return true
 end
 
-local _enh_lb_count = 0
 local function lightning_bolt_matches(ctx)
-    _enh_lb_count = _enh_lb_count + 1
-    if _enh_lb_count <= 3 and NS.log then
-        NS.log(string.format(
-            "[ENHANCEMENT][LightningBolt] call #%d: ctx.in_combat=%s, ctx.has_valid_enemy_target=%s, ctx.target=%s, enh_state.lightning_bolt_ready=%s, enh_state.in_combat=%s",
-            _enh_lb_count,
-            tostring(ctx and ctx.in_combat),
-            tostring(ctx and ctx.has_valid_enemy_target),
-            tostring(ctx and ctx.target ~= nil),
-            tostring(enh_state and enh_state.lightning_bolt_ready),
-            tostring(enh_state and enh_state.in_combat)))
-    end
     if not enh_state.lightning_bolt_ready then return false end
     -- v1.1.5: OOC ranged pulls only — once in combat, commit to melee rotation
     if enh_state.in_combat then return false end
@@ -860,27 +930,29 @@ end
 local function mh_weapon_execute(ctx)
     local s = ctx.settings or {}
     local choice = s.enhancement_main_hand_ench or "windfury"
+    local resolved = (choice == "auto") and enh_state.auto_mh_buff or choice
     local spell_list
-    if choice == "windfury" then spell_list = WINDFURY_WEAPON_SPELLS
-    elseif choice == "flametongue" then spell_list = FLAMETONGUE_WEAPON_SPELLS
-    elseif choice == "rockbiter" then spell_list = ROCKBITER_WEAPON_SPELLS
-    elseif choice == "frostbrand" then spell_list = FROSTBRAND_WEAPON_SPELLS
+    if resolved == "windfury" then spell_list = WINDFURY_WEAPON_SPELLS
+    elseif resolved == "flametongue" then spell_list = FLAMETONGUE_WEAPON_SPELLS
+    elseif resolved == "rockbiter" then spell_list = ROCKBITER_WEAPON_SPELLS
+    elseif resolved == "frostbrand" then spell_list = FROSTBRAND_WEAPON_SPELLS
     else return false end
 
-    return NS.try_cast(spell_list, NS.PLAYER_UNIT, "[ENHANCEMENT] MH " .. choice) or false
+    return NS.try_cast(spell_list, NS.PLAYER_UNIT, "[ENHANCEMENT] MH " .. resolved) or false
 end
 
 local function oh_weapon_execute(ctx)
     local s = ctx.settings or {}
     local choice = s.enhancement_off_hand_ench or "flametongue"
+    local resolved = (choice == "auto") and enh_state.auto_oh_buff or choice
     local spell_list
-    if choice == "windfury" then spell_list = WINDFURY_WEAPON_SPELLS
-    elseif choice == "flametongue" then spell_list = FLAMETONGUE_WEAPON_SPELLS
-    elseif choice == "rockbiter" then spell_list = ROCKBITER_WEAPON_SPELLS
-    elseif choice == "frostbrand" then spell_list = FROSTBRAND_WEAPON_SPELLS
+    if resolved == "windfury" then spell_list = WINDFURY_WEAPON_SPELLS
+    elseif resolved == "flametongue" then spell_list = FLAMETONGUE_WEAPON_SPELLS
+    elseif resolved == "rockbiter" then spell_list = ROCKBITER_WEAPON_SPELLS
+    elseif resolved == "frostbrand" then spell_list = FROSTBRAND_WEAPON_SPELLS
     else return false end
 
-    return NS.try_cast(spell_list, NS.PLAYER_UNIT, "[ENHANCEMENT] OH " .. choice) or false
+    return NS.try_cast(spell_list, NS.PLAYER_UNIT, "[ENHANCEMENT] OH " .. resolved) or false
 end
 
 -- ============================================================================

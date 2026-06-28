@@ -199,7 +199,7 @@ end
 -- ============================================================================
 -- Helper: check item cooldown (trinkets, potions)
 -- ============================================================================
-function is_item_ready(me, item_id)
+local function is_item_ready(me, item_id)
     if not me or not item_id then return false end
     local cd_fn = me.get_item_cooldown
     if cd_fn then

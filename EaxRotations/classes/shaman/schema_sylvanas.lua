@@ -92,6 +92,7 @@ return {
                 header = "Enhancement � Weapon Buffs",
                 settings = {
                     { key = "enhancement_main_hand_ench", type = "dropdown", label = "Main Hand Enchant", default = "windfury", options = {
+                        { text = "Auto (Level)", value = "auto" },
                         { text = "None", value = "none" },
                         { text = "Windfury Weapon", value = "windfury" },
                         { text = "Flametongue Weapon", value = "flametongue" },
@@ -99,6 +100,7 @@ return {
                         { text = "Frostbrand Weapon", value = "frostbrand" },
                     } },
                     { key = "enhancement_off_hand_ench", type = "dropdown", label = "Off Hand Enchant", default = "flametongue", options = {
+                        { text = "Auto (Level)", value = "auto" },
                         { text = "None", value = "none" },
                         { text = "Windfury Weapon", value = "windfury" },
                         { text = "Flametongue Weapon", value = "flametongue" },

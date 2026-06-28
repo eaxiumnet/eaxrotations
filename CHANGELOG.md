@@ -2,6 +2,68 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [Unreleased] — FrostByte Supremacy Phase 2 (2026-06-28)
+
+### Added
+
+#### Prot Paladin: Mana Emergency Swap (JoW)
+- **WHAT**: When mana drops below threshold, switch Judgement to Seal of Wisdom for mana return.
+- **WHY**: Prevents oom tanks from losing threat due to inability to cast Consecration/Holy Shield.
+- **HOW**: Hysteresis with +5% dead band; `last_judgement_mode` prevents flip-flopping.
+- **Settings**: `prot_jow_enabled` (default true), `prot_jow_mana_threshold` (default 20%).
+- **Files**: `protection_sylvanas.lua`, `schema_sylvanas.lua`.
+
+#### Ret Paladin: Post-Swing Judgement
+- **WHAT**: Gates Judgement casts to avoid clipping auto-attack swings.
+- **WHY**: Judging before a swing delays the melee hit, reducing DPS.
+- **HOW**: `swing_remains < 0.3s` → block; `swing_remains > 1.5s` → allow.
+- **Settings**: `retri_post_swing_judge` (default true).
+- **Files**: `retribution_sylvanas.lua`, `schema_sylvanas.lua`.
+
+#### Ret Paladin: Seal Twist Diagnostics
+- **WHAT**: Logs seal twist timing quality (PERFECT / LATE / NO-TWIST / PHANTOM).
+- **WHY**: Users need feedback to tune their twist window for latency.
+- **HOW**: 5s log throttle via pcall-guarded `core.log.info()`.
+- **Settings**: `retri_twist_diagnostics` (default false).
+- **Files**: `retribution_sylvanas.lua`, `schema_sylvanas.lua`.
+
+#### Enh Shaman: Totem Twisting Enhancement
+- **WHAT**: Tracks twist phase and only replaces air totem when < 3s remaining.
+- **WHY**: Prevents wasted GCDs from early totem replacement.
+- **HOW**: `NS.get_totem_info(4)` reads air slot; `twist_phase` synced with active totem spell_id.
+- **Settings**: `enhancement_twist_mana_threshold` slider (default 40%).
+- **Files**: `enhancement_sylvanas.lua`, `schema_sylvanas.lua`.
+
+#### Enh Shaman: Auto Weapon Buffs by Level
+- **WHAT**: "auto" setting picks Rockbiter (1-9), Flametongue (10-29), Windfury (30+) based on learned spells.
+- **WHY**: Leveling enhancement shamans shouldn't need to reconfigure weapon buffs every tier.
+- **HOW**: `NS.is_spell_learned()` gated; `auto_mh_buff` / `auto_oh_buff` resolved in `build_state()`.
+- **Settings**: `enhancement_main_hand_ench` / `enhancement_off_hand_ench` now include "auto" option.
+- **Files**: `enhancement_sylvanas.lua`, `schema_sylvanas.lua`.
+
+#### Enh Shaman: Intelligent Shield Switching
+- **WHAT**: Auto mode switches between Lightning Shield (>60% mana) and Water Shield (<40% mana).
+- **WHY**: Lightning Shield adds DPS; Water Shield adds mana regen when low.
+- **HOW**: Hysteresis band (40-60%) retains current shield; `auto_shield_type` resolved in `build_state()`.
+- **Settings**: `enhancement_shield_type` = "auto" (already present, logic enhanced).
+- **Files**: `enhancement_sylvanas.lua`.
+
+### Tests
+- Added 6 new test suites (196 total rotation suites):
+  - `test_paladin_protection_jow_mode.lua`
+  - `test_paladin_retribution_post_swing_judge.lua`
+  - `test_paladin_retribution_twist_diagnostics.lua`
+  - `test_shaman_enhancement_totem_twist.lua`
+  - `test_shaman_enhancement_auto_weapon_buffs.lua`
+  - `test_shaman_enhancement_intelligent_shield.lua`
+- All 196 rotation suites: 193 pass (3 pre-existing failures unrelated to Phase 2).
+- All 11 leveling suites pass.
+
+### Files Changed
+- **Modified specs**: `protection_sylvanas.lua`, `retribution_sylvanas.lua`, `enhancement_sylvanas.lua`
+- **Modified schemas**: `paladin/schema_sylvanas.lua`, `shaman/schema_sylvanas.lua`
+- **Modified tests**: `run_rotation_tests.lua`
+
 ## [Unreleased] — FrostByte Supremacy Phase 1 (2026-06-28)
 
 ### Added

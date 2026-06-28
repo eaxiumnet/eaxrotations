@@ -21,6 +21,14 @@ local tests = {
     "test_snap_threat.lua",
     "test_combat_mode.lua",
 
+    -- FrostByte Supremacy Phase 2 tests
+    "test_paladin_protection_jow_mode.lua",
+    "test_paladin_retribution_post_swing_judge.lua",
+    "test_paladin_retribution_twist_diagnostics.lua",
+    "test_shaman_enhancement_totem_twist.lua",
+    "test_shaman_enhancement_auto_weapon_buffs.lua",
+    "test_shaman_enhancement_intelligent_shield.lua",
+
     -- Arms warrior tests
     "test_arms_custom_matches.lua",
     "test_arms_hamstring_tactician.lua",
@@ -243,6 +251,24 @@ local tests = {
     "test_classic_druid_spec.lua",
     "test_classic_remaining_specs.lua",
     "test_classic_warrior_spec.lua",
+
+    -- Leveling tests (previously not registered)
+    "test_leveling_druid.lua",
+    "test_leveling_edge_cases.lua",
+    "test_leveling_hunter.lua",
+    "test_leveling_load.lua",
+    "test_leveling_mage.lua",
+    "test_leveling_paladin.lua",
+    "test_leveling_priest.lua",
+    "test_leveling_rogue.lua",
+    "test_leveling_shaman.lua",
+    "test_leveling_shared.lua",
+    "test_leveling_warlock.lua",
+    "test_leveling_warrior.lua",
+
+    -- reset_api_health tests (previously not registered)
+    "test_reset_api_health.lua",
+    "test_reset_api_health_spell_integration.lua",
 }
 
 local function first_failure_line(output)

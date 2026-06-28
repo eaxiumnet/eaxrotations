@@ -132,10 +132,7 @@ end
 local _ct_ok, _cooldown_tracker = pcall(require, "common/utility/cooldown_tracker")
 if not _ct_ok or type(_cooldown_tracker) ~= "table" then _cooldown_tracker = nil end
 
-local _sm_ok, _settings_manager = pcall(require, "common/modules/settings_manager")
-if not _sm_ok or type(_settings_manager) ~= "table" then _settings_manager = nil end
--- Disabled: file-save feature causes "File name not set" spam on script reload.
-_settings_manager = nil
+local _settings_manager = nil
 
 -- spell_helper: native spell readiness checks (cooldown + range + resource + facing + LOS + learned)
 local _sh_ok, _spell_helper = pcall(require, "common/utility/spell_helper")
@@ -209,12 +206,6 @@ if _cooldown_tracker then
             if not unit or not spell_id then return nil end
             return _cooldown_tracker:get_remaining_cooldown(unit, spell_id)
         end,
-        has_major_offensive_active_or_recent = function(unit, recent_seconds)
-            return false  -- cooldown_tracker has no equivalent; simplified to false
-        end,
-        get_enemy_cds = function(unit)
-            return EMPTY  -- cooldown_tracker has no equivalent; legacy API preserved
-        end,
     }
 end
 
@@ -276,20 +267,6 @@ NS.POWER_MANA, NS.POWER_RAGE, NS.POWER_FOCUS, NS.POWER_ENERGY = 0, 1, 2, 3
 
 NS.CLASS_ID = NS.CLASS_ID or { WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11 }
 
-local VANILLA_HIGH_SPELL_ALLOWLIST = {
-
-    [27799] = true, [27800] = true, [27801] = true, [27803] = true, [27804] = true, [27805] = true, -- Holy Nova ranks
-
-    [27819] = true, -- Mana Detonation (Classic Naxxramas debuff)
-
-    [28271] = true, [28272] = true, -- Classic Polymorph variants
-
-    [28610] = true, -- Shadow Ward high Classic rank
-
-    [29166] = true, -- Innervate
-
-}
-
 local VANILLA_TBC_SPELL_BLOCKLIST = {
 
     [469] = true, -- Commanding Shout
@@ -349,14 +326,6 @@ NS.current_context = NS.current_context or nil
 NS._manual_item_cooldowns = NS._manual_item_cooldowns or {}
 
 NS._last_item_use = NS._last_item_use or {}
-
-local _settings_cache = {}
-
-local _settings_cache_last_update = 0
-
-local _SETTINGS_CACHE_TTL = 0.20  -- 200ms throttle (was 50ms)
-
-local _settings_cache_time
 
 NS.CC_DEBUFFS = NS.CC_DEBUFFS or {
 
@@ -844,9 +813,10 @@ end
 
 --- Returns whether the spell_book API is flagged as broken.
 ---@return boolean broken True if we have fallen back to level-based spell IDs.
-function NS.isfalse()
-    return false == true
+function NS.is_api_health_broken()
+    return false
 end
+NS.isfalse = NS.is_api_health_broken
 
 --- Returns true if the given spell_id was recently cast within `seconds` ago.
 --- Useful for throttling strategies when aura APIs are broken and buff detection is unreliable.
@@ -1264,7 +1234,7 @@ local function filter_spell_ids_for_expansion(ids, levels)
 
         local spell_id = ids[i]
 
-        if true then
+        if true then -- TODO: implement vanilla level filtering
 
             filtered_ids[#filtered_ids + 1] = spell_id
 
@@ -1403,7 +1373,7 @@ local function collect_ids(spell, out)
 
     if type(spell) == "number" then
 
-        if true then out.n = out.n + 1; out[out.n] = spell end
+        out.n = out.n + 1; out[out.n] = spell
 
     elseif type(spell) == "table" then
 
@@ -1417,9 +1387,9 @@ local function collect_ids(spell, out)
 
             elseif type(id) == "table" then collect_ids(id, out) end
 
-        elseif type(spell.id) == "number" then if true then out.n = out.n + 1; out[out.n] = spell.id end
+        elseif type(spell.id) == "number" then out.n = out.n + 1; out[out.n] = spell.id
 
-        elseif type(spell.spell_id) == "number" then if true then out.n = out.n + 1; out[out.n] = spell.spell_id end end
+        elseif type(spell.spell_id) == "number" then out.n = out.n + 1; out[out.n] = spell.spell_id end
 
         for i = 1, #spell do if type(spell[i]) == "number" then out.n = out.n + 1; out[out.n] = spell[i] end end
 
@@ -1531,7 +1501,7 @@ end
 
 function NS.get_spell_id(spell)
 
-    local ids = collect_ids(spell, {})
+    local ids = collect_ids(spell)
 
     if #ids == 0 then return nil end
 
@@ -1663,7 +1633,6 @@ function NS.is_spell_learned(spell)
 end
 
 function NS.spell_exists(spell)
-    if false then return true end
     return NS.is_spell_learned(spell)
 end
 
@@ -1750,17 +1719,13 @@ function NS.cooldown_remains(spell, expected_cooldown)
             _last_spell_cast["_max_throttle_" .. id] = expected_cooldown
         end
     end
-    local buffer = false and 0.15 or 1.0
+    local buffer = 1.0
     local throttle = (expected_cooldown or _last_spell_cast["_max_throttle_" .. id] or 1.5) + buffer
     local elapsed = NS.time_now() - last_cast
     if elapsed < throttle then return throttle - elapsed end
     return 0
 end
 
-
--- Manual cast-history cooldown fallback is now inlined into NS.cooldown_remains.
--- This variable is kept to avoid nil-reference errors from any remaining call sites.
-_last_cast_time_cooldown = function() return nil end
 
 NS.get_spell_cooldown_remaining = NS.cooldown_remains
 
@@ -1826,7 +1791,7 @@ end
 local function spell_helper_castable(id, target, opts)
     local caster = NS.GetPlayer()
     if not caster or not target then return false end
-    local castable = _spell_helper.is_spell_castable(
+    local castable_ok, castable = pcall(_spell_helper.is_spell_castable,
         _spell_helper,
         id,
         caster,
@@ -1837,7 +1802,7 @@ local function spell_helper_castable(id, target, opts)
         opts.skip_controller == true,
         opts.skip_learned == true
     )
-    return castable == true
+    return castable_ok and castable == true
 end
 
 function NS.spell_ready(spell, target, opts)
@@ -3700,8 +3665,10 @@ function NS.is_safe_to_cast(context, cast_time)
 
 end
 
+-- Stub: extension point for future modules
 function NS.player_control_locked() return false end
 
+-- Stub: extension point for future modules
 function NS.has_breakable_cc_nearby() return false end
 
 function NS.try_interrupt(target)
@@ -3735,10 +3702,6 @@ function NS.try_interrupt(target)
     return type(spell_id) == "number" and spell_id > 0
 
 end
-
--- DEPRECATED: match_fail() always returns false and discards its argument.
--- Use `return false` directly in match functions. Retained for nil-safety.
-function NS.match_fail() return false end
 
 function NS.is_current_spell(spell_id)
 
@@ -5895,14 +5858,6 @@ function NS.dump_player_info()
 
     NS.log("=== END DUMP ===")
 
-end
-
---- Returns the player's current spell damage bonus.
--- Sylvanas API does not expose spell_power directly;
--- callers should prefer context.spell_damage when available.
----@return number
-function NS.get_spell_damage()
-    return 0
 end
 
 -- ============================================================================

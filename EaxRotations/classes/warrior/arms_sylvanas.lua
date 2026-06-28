@@ -208,7 +208,7 @@ end
 local function stance_swap_safe(state, cost)
     local effective_cost = math.min(cost or 0, 15)
     if state.stance == nil then return true end
-    return preserved_rage_after_swapstate.rage >= effective_cost
+    return preserved_rage_after_swap(state.rage or 0) >= effective_cost
 end
 
 local function action(context, row)
@@ -244,6 +244,64 @@ local function build_action(name, spell_value, opts)
     row.spell = spell_value
     return row
 end
+
+-- Schema for safe_state: mirrors arms_state defaults. Fields NOT listed here
+-- use spec_kit.SAFE_STATE_DEFAULTS (rage→0, hp→100, enemy_count→0, etc.).
+-- Custom defaults (e.g. enemy_count=1, stance=BATTLE, mh_until=999) override the kit defaults.
+local ARMS_SCHEMA = {
+    stance = STANCE.BATTLE,
+    enemy_count = 1,
+    is_pvp = false,
+    in_combat = false,
+    is_moving = false,
+    target_is_player = false,
+    target_is_pet = false,
+    target_is_casting = false,
+    target_casting_interruptible = false,
+    target_is_melee = false,
+    target_in_combat = false,
+    has_battle_shout = false,
+    has_berserker_rage = false,
+    has_commanding_shout = false,
+    has_sweeping_strikes = false,
+    victory_rush_ready = false,
+    ms_remains = 0,
+    rend_remains = 0,
+    hamstring_remains = 0,
+    demo_remains = 0,
+    tclap_remains = 0,
+    sunder_stacks = 0,
+    ms_cd = 99,
+    ww_cd = 99,
+    ss_cd = 99,
+    overpower_ready = false,
+    execute_ready = false,
+    ms_ready = false,
+    ww_ready = false,
+    slam_ready = false,
+    sweeping_ready = false,
+    heroic_ready = false,
+    cleave_ready = false,
+    pummel_ready = false,
+    intercept_ready = false,
+    charge_ready = false,
+    hamstring_ready = false,
+    piercing_ready = false,
+    spell_reflect_ready = false,
+    disarm_ready = false,
+    intimidating_ready = false,
+    thunder_ready = false,
+    demo_ready = false,
+    bloodrage_ready = false,
+    death_wish_ready = false,
+    recklessness_ready = false,
+    retaliation_ready = false,
+    shield_wall_ready = false,
+    execute_phase = false,
+    mh_until = 999,
+    mh_progress = 0,
+    healthstone_ready = false,
+}
 
 local _last_build_state_time = -1
 local function build_state(context)
@@ -339,64 +397,6 @@ local function build_state(context)
     return spec_kit.safe_state(arms_state, ARMS_SCHEMA)
 end
 
--- Schema for safe_state: mirrors arms_state defaults. Fields NOT listed here
--- use spec_kit.SAFE_STATE_DEFAULTS (rage→0, hp→100, enemy_count→0, etc.).
--- Custom defaults (e.g. enemy_count=1, stance=BATTLE, mh_until=999) override the kit defaults.
-local ARMS_SCHEMA = {
-    stance = STANCE.BATTLE,
-    enemy_count = 1,
-    is_pvp = false,
-    in_combat = false,
-    is_moving = false,
-    target_is_player = false,
-    target_is_pet = false,
-    target_is_casting = false,
-    target_casting_interruptible = false,
-    target_is_melee = false,
-    target_in_combat = false,
-    has_battle_shout = false,
-    has_berserker_rage = false,
-    has_commanding_shout = false,
-    has_sweeping_strikes = false,
-    victory_rush_ready = false,
-    ms_remains = 0,
-    rend_remains = 0,
-    hamstring_remains = 0,
-    demo_remains = 0,
-    tclap_remains = 0,
-    sunder_stacks = 0,
-    ms_cd = 99,
-    ww_cd = 99,
-    ss_cd = 99,
-    overpower_ready = false,
-    execute_ready = false,
-    ms_ready = false,
-    ww_ready = false,
-    slam_ready = false,
-    sweeping_ready = false,
-    heroic_ready = false,
-    cleave_ready = false,
-    pummel_ready = false,
-    intercept_ready = false,
-    charge_ready = false,
-    hamstring_ready = false,
-    piercing_ready = false,
-    spell_reflect_ready = false,
-    disarm_ready = false,
-    intimidating_ready = false,
-    thunder_ready = false,
-    demo_ready = false,
-    bloodrage_ready = false,
-    death_wish_ready = false,
-    recklessness_ready = false,
-    retaliation_ready = false,
-    shield_wall_ready = false,
-    execute_phase = false,
-    mh_until = 999,
-    mh_progress = 0,
-    healthstone_ready = false,
-}
-
 local function battle_stance_action()
     return build_action("BattleStance", ACTION.BattleStance, { target = "self", kind = "form", form = "battle", requires_target = false })
 end
@@ -430,7 +430,7 @@ end
 
 local function mortal_strike_matches(context, state)
     -- Rage cap: bypass min_rage gate to prevent rage waste when capped
-    if state.rage >= RAGE_CAP then return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 })) end
+    if state.rage >= RAGE_CAP then return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, cooldown = 6 })) end
     return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }))
 end
 

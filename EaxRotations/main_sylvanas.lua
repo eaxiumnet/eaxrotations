@@ -4,6 +4,7 @@ if not NS then return nil end
 
 local M = {}
 local _context = {}
+_context.lowest = { unit = nil, hp = 100 }
 local _combat_start_time = nil
 local was_in_combat = false
 local _combat_state_last_known = 0  -- timestamp when combat state was last confirmed by API
@@ -412,6 +413,7 @@ end
 
 local function build_context()
     for k in pairs(_context) do _context[k] = nil end
+    _context.lowest = { unit = nil, hp = 100 }
     local me = _get_player()
     if not me then
         NS.current_context = nil
@@ -710,7 +712,8 @@ local function build_context()
     _context.tank_alive = tank_alive
     _context.lowest_unit = nil
     _context.lowest_hp = 100
-    _context.lowest = { unit = nil, hp = 100 }
+    _context.lowest.unit = nil
+    _context.lowest.hp = 100
     _context.lowest_ally_hp = 100
     _context.lowest_group_hp = 100
     if _context.is_group and _party_members then
@@ -726,7 +729,8 @@ local function build_context()
         end
         _context.lowest_unit = lowest_unit
         _context.lowest_hp = lowest_val
-        _context.lowest = { unit = lowest_unit, hp = lowest_val }
+        _context.lowest.unit = lowest_unit
+        _context.lowest.hp = lowest_val
         _context.lowest_ally_hp = lowest_val
         _context.lowest_group_hp = lowest_val
     end
@@ -1155,8 +1159,6 @@ function M.on_rotation_update()
             end
         end
     end
-    local pre_aoe = active
-    active = resolve_auto_aoe_playstyle(registry, active, context.enemy_count or 0)
     if not auto_detected and NS.set_setting and active ~= NS.get_setting("active_playstyle", nil) then
         NS.set_setting("active_playstyle", active)
     end
@@ -1230,8 +1232,6 @@ function M.on_rotation_update_unified()
             end
         end
     end
-    local pre_aoe = active
-    active = resolve_auto_aoe_playstyle(registry, active, context.enemy_count or 0)
     if not auto_detected and NS.set_setting and active ~= NS.get_setting("active_playstyle", nil) then
         NS.set_setting("active_playstyle", active)
     end

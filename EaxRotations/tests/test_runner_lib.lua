@@ -240,6 +240,18 @@ function M.file_exists(path)
 end
 
 -- ---------------------------------------------------------------------------
+-- Shared assertion helpers
+-- ---------------------------------------------------------------------------
+
+function M.assert_true(v, label)
+    if not v then error(label or "assert_true failed", 2) end
+end
+
+function M.assert_eq(a, b, label)
+    if a ~= b then error((label or "assert_eq failed") .. ": expected " .. tostring(b) .. ", got " .. tostring(a), 2) end
+end
+
+-- ---------------------------------------------------------------------------
 -- Test execution
 -- ---------------------------------------------------------------------------
 

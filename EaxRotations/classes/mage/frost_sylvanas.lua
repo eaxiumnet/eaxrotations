@@ -345,6 +345,7 @@ local function arcane_intellect_matches(context, s)
 end
 
 local function fire_blast_matches(context, s)
+    if not context.settings or context.settings.frost_use_fire_blast ~= true then return false end
     if not context.target then return false end
     if not s.fire_blast_ready then return false end
     return true
@@ -369,6 +370,7 @@ local function remove_curse_matches(context, s)
 end
 
 local function scorch_matches(context, s)
+    if not context.settings or context.settings.frost_use_scorch ~= true then return false end
     if not context.target then return false end
     if context.is_moving then return false end
     if not s.scorch_ready then return false end
@@ -376,6 +378,7 @@ local function scorch_matches(context, s)
 end
 
 local function arcane_missiles_matches(context, s)
+    if not context.settings or context.settings.frost_use_arcane_missiles ~= true then return false end
     if not context.target then return false end
     if context.is_moving then return false end
     if not s.arcane_missiles_ready then return false end

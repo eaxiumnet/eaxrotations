@@ -407,7 +407,7 @@ local strategies = {
         end,
         execute = function(context)
             local ok = NS.try_cast(SPELLS.Corruption, context.target, "[AFFL] Corruption")
-            if ok then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
+            if ok and aff_state.spell_damage then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
             return ok
         end,
     },
@@ -442,7 +442,7 @@ local strategies = {
         end,
         execute = function(context)
             local ok = NS.try_cast(SPELLS.Corruption, context.target, "[AFFL] Corruption (moving)")
-            if ok then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
+            if ok and aff_state.spell_damage then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
             return ok
         end,
     },
@@ -463,7 +463,7 @@ local strategies = {
         end,
         execute = function(context)
             local ok = NS.try_cast(SPELLS.UnstableAffliction, context.target, "[AFFL] Unstable Affliction")
-            if ok then aff_state.snapshot_ua_dmg = aff_state.spell_damage end
+            if ok and aff_state.spell_damage then aff_state.snapshot_ua_dmg = aff_state.spell_damage end
             return ok
         end,
     },
@@ -485,7 +485,7 @@ local strategies = {
         end,
         execute = function(context)
             local ok = NS.try_cast(SPELLS.SiphonLife, context.target, "[AFFL] Siphon Life")
-            if ok then aff_state.snapshot_siphon_dmg = aff_state.spell_damage end
+            if ok and aff_state.spell_damage then aff_state.snapshot_siphon_dmg = aff_state.spell_damage end
             return ok
         end,
     },
@@ -612,7 +612,7 @@ local strategies = {
         end,
         execute = function(context)
             local ok = NS.try_cast(SPELLS.Immolate, context.target, "[AFFL] Immolate")
-            if ok then aff_state.snapshot_immolate_dmg = aff_state.spell_damage end
+            if ok and aff_state.spell_damage then aff_state.snapshot_immolate_dmg = aff_state.spell_damage end
             return ok
         end,
     },
