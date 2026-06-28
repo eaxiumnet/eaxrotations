@@ -41,6 +41,7 @@ return {
                     } },
                     { key = "enhancement_manage_totems", type = "checkbox", label = "Manage Totems", default = true },
                     { key = "enhancement_totem_twisting", type = "checkbox", label = "WF + GoA Twisting", default = true },
+                    { key = "enhancement_twist_mana_threshold", type = "slider", label = "Totem Twist Min Mana %", min = 0, max = 100, default = 40, tooltip = "Only attempt totem twisting when mana is above this threshold" },
                     { key = "enhancement_auto_attack", type = "checkbox", label = "Auto Attack", default = true },
                     { key = "enhancement_aoe_threshold", type = "slider", label = "AoE Threshold", min = 2, max = 6, default = 3 },
                 },
@@ -153,7 +154,7 @@ return {
                 settings = {
                     { key = "enhancement_mana_low_pct", type = "slider", label = "Mana Low (% — skip shocks, conserve)", min = 10, max = 50, default = 20 },
                     { key = "enhancement_mana_emergency_pct", type = "slider", label = "Mana Emergency (% — auto-attack only)", min = 0, max = 20, default = 10 },
-                    { key = "enhancement_totem_twist_mana_floor", type = "slider", label = "Totem Twist Mana Floor (%)", min = 10, max = 50, default = 25 },
+                    { key = "enhancement_totem_twist_mana_floor", type = "slider", label = "Totem Twist Mana Floor (%)", min = 0, max = 100, default = 40 },
                 },
             },
             {
