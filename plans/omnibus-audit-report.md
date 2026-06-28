@@ -25,6 +25,8 @@ Completed a comprehensive autonomous audit of the EaxRotations codebase covering
 | `70d5f153` | Plan updates | Documentation |
 | `c71f88ea` | Plan updates | Documentation |
 | `6ecc5d05` | Plan updates | Documentation |
+| `911418c1` | Omnibus audit final report | Documentation |
+| `f23f7efa` | Add Shadowfury to destruction | Content coverage |
 
 ### Phase Results
 
