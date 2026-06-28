@@ -22,6 +22,9 @@ local EXPECTED_300S = { expected_cooldown = 300, skip_range = true }
 local EXPECTED_LOH = { expected_cooldown = 3600, skip_range = true }
 local EXPECTED_CONSECRATION_SELF = { skip_range = true, expected_cooldown = 8 }
 
+local _last_aura_cast = -100
+local AURA_SWITCH_COOLDOWN = 3.0
+
 local function spell_action(ids, label)
     if NS.spell_action then return NS.spell_action(ids, label) end
     return type(ids) == "table" and ids[1] or ids
@@ -618,10 +621,14 @@ local strategies = {
     {
         name = "AuraManagement",
         matches = function(_, s)
+            local now = NS.time_now and NS.time_now() or 0
+            if now - _last_aura_cast < AURA_SWITCH_COOLDOWN then return false end
             return s.aura_spell and NS.spell_ready(s.aura_spell, NS.PLAYER_UNIT, SELF_OPTS)
         end,
         execute = function(_, s)
-            return NS.try_cast(s.aura_spell, NS.PLAYER_UNIT, "[HOLY] " .. s.aura_label, SELF_OPTS)
+            local ok = NS.try_cast(s.aura_spell, NS.PLAYER_UNIT, "[HOLY] " .. s.aura_label, SELF_OPTS)
+            if ok then _last_aura_cast = NS.time_now and NS.time_now() or 0 end
+            return ok
         end,
     },
     {
