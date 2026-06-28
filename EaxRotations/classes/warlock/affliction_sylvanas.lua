@@ -830,7 +830,7 @@ local strategies = {
     {
         name = "PvP_CurseTongues",
         matches = function(context)
-            if not context.is_pvp then return false end
+            if not (context.is_pvp or context.is_group) then return false end
             if not context.target then return false end
             if not context.enemy_caster then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseTongues, context.target) or false
