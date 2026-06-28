@@ -396,7 +396,6 @@ local function cast_and_record(context, action)
 end
 
 function build_state(context)
-    local is_group = context.is_group or false
     local state = cat_state
     local settings = context.settings or {}
     local me = context.me or (NS.GetPlayer and NS.GetPlayer())

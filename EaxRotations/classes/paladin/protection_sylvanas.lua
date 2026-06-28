@@ -115,7 +115,6 @@ local function creature_type(unit)
 end
 
 local function build_state(context)
-    local is_group = context.is_group or false
     local me = context.me or NS.GetPlayer()
     local target = context.target
 
