@@ -279,7 +279,7 @@ end
 
 -- Wyvern Sting: CC + DoT; suppress if target already has a DoT (breaks sleep)
 local function wyvern_sting_matches(context, s)
-    if not context.is_pvp then return false end
+    if not (context.is_pvp or context.is_group) then return false end
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "incapacitate") then return false end
     if not s.wyvern_sting_ready then return false end
     if s.has_serpent_sting then return false end
