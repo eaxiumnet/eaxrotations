@@ -206,6 +206,17 @@ local function build_state(context)
         end
     end
 
+    -- FrostByte parity: Snap Threat — immediate high-threat opener on combat start
+    if NS.SnapThreat and type(NS.SnapThreat.check) == "function" then
+        local snap_spell = NS.SnapThreat.check(me, target, context.settings, {
+            spell_id = SPELLS.Judgement,
+            fallback_id = SPELLS.AvengerShield,
+        })
+        if snap_spell and NS.try_cast then
+            pcall(NS.try_cast, snap_spell, target, "[PROT] Snap Threat opener")
+        end
+    end
+
     return prot_state
 end
 

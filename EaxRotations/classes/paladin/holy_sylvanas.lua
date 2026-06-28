@@ -462,7 +462,7 @@ local function build_state(context)
     choose_aura(context, state)
     -- Use Triage scoring when available for smarter target selection
     if Triage and Triage.rank and state.count > 1 then
-        local ranked = Triage.rank(entries, state.count)
+        local ranked = Triage.rank(entries, state.count, context.settings)
         if ranked and ranked[1] then
             state.heal_target = ranked[1]
         else
@@ -475,6 +475,13 @@ local function build_state(context)
     local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
     state.friendly_target = ft
     state.friendly_target_ready = ft ~= nil
+
+    -- FrostByte parity: Smart Stop-Cast — cancel overhealing casts mid-flight
+    local me = context.me or NS.GetPlayer and NS.GetPlayer() or nil
+    if me and NS.StopCast and type(NS.StopCast.update) == "function" then
+        NS.StopCast.update(me, context.settings)
+    end
+
     return state
 end
 

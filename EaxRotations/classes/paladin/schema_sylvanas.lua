@@ -54,6 +54,16 @@ return {
                 },
             },
             {
+                header = "Smart Casting",
+                settings = {
+                    { key = "stopcast_enabled", type = "checkbox", label = "Smart Stop-Cast", default = true, tooltip = "Cancel in-flight heals if target recovers above threshold during cast" },
+                    { key = "stopcast_threshold", type = "slider", label = "Stop-Cast Threshold (%)", min = 80, max = 100, default = 95, tooltip = "Cancel cast if target would end above this HP%" },
+                    { key = "tank_hp_bias", type = "slider", label = "Tank HP Bias (%)", min = 0, max = 30, default = 15, tooltip = "Treat tanks as if they have this much less HP for triage scoring" },
+                    { key = "heal_pets", type = "checkbox", label = "Heal Pets", default = true, tooltip = "Include Hunter/Warlock pets in healing target scan" },
+                    { key = "pet_weight", type = "slider", label = "Pet Triage Weight", min = 0.1, max = 1.0, default = 0.6, tooltip = "Lower = pets are less urgent than players" },
+                },
+            },
+            {
                 header = "Paladin Utility",
                 settings = {
                     { key = "divine_shield_hp", type = "slider", label = "Divine Shield HP", min = 0, max = 100, default = 0 },
@@ -124,6 +134,17 @@ return {
                     { key = "prot_flash_of_light_hp", type = "slider", label = "Flash of Light HP %", min = 0, max = 100, default = 40, tooltip = "Self-heal with Flash of Light below this HP" },
                     { key = "prot_holy_light_hp", type = "slider", label = "Holy Light HP %", min = 0, max = 100, default = 25, tooltip = "Self-heal with Holy Light below this HP (emergency)" },
                     { key = "prot_cleanse", type = "checkbox", label = "Cleanse", default = true, tooltip = "Cleanse debuffs from self" },
+                },
+            },
+            {
+                header = "Threat & Utility",
+                settings = {
+                    { key = "snap_threat_enabled", type = "checkbox", label = "Snap Threat on Combat Start", default = true, tooltip = "Fire Judgement immediately when entering combat to establish threat" },
+                    { key = "combat_mode", type = "dropdown", label = "Combat Mode", default = "auto", options = {
+                        { text = "Auto", value = "auto" },
+                        { text = "Single Target", value = "single" },
+                        { text = "AoE", value = "aoe" },
+                    }, tooltip = "Force rotation mode: Auto uses enemy count, ST/AoE override" },
                 },
             },
         },
