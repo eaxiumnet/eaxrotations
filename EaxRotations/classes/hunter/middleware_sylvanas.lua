@@ -47,8 +47,8 @@ local strategies = {
             -- Check target has mana (skip non-mana users)
             local target = context.target
             if not target then return false end
-            local power_type = target.get_power_type and target:get_power_type()
-            if power_type ~= 0 then return false end -- 0 = MANA
+            local ok_pt, power_type = pcall(function() return target:get_power_type() end)
+            if not ok_pt or power_type ~= 0 then return false end -- 0 = MANA
 
             -- Check HP threshold — skip Viper Sting on low HP targets (focus damage instead)
             local hp_threshold = settings.viper_sting_hp_threshold or 30
@@ -71,8 +71,8 @@ local strategies = {
                     PALADIN = true, PRIEST = true, SHAMAN = true,
                     MAGE = true, WARLOCK = true, DRUID = true, HUNTER = true,
                 }
-                local target_class = target.get_class and target:get_class()
-                if target_class then
+                local ok_tc, target_class = pcall(function() return target:get_class() end)
+                if ok_tc and target_class then
                     local class_key = target_class -- enum value
                     -- Check class via power type (already confirmed mana) for PvE,
                     -- or via class enum for PvP
@@ -280,7 +280,7 @@ local strategies = {
             if not pet then return false end
             if pet.is_alive == false then return false end
             if type(pet.is_alive) == "function" then
-                local ok, alive = pcall(pet.is_alive)
+                local ok, alive = pcall(pet.is_alive, pet)
                 if not ok or alive == false then return false end
             end
             return NS.spell_ready and NS.spell_ready(1539, context.me, { skip_range = true })

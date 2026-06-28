@@ -105,6 +105,8 @@ local function get_divine_shield_spell()
     return nil
 end
 
+local _last_paladin_cc_scan = 0
+
 local strategies = {
 
     interrupt_manager.register_interrupt_spell("paladin", "Repentance", SPELLS),
@@ -291,6 +293,10 @@ local strategies = {
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
+            -- Throttle: expensive enemy iteration
+            local now = NS.time_now and NS.time_now() or 0
+            if now - _last_paladin_cc_scan < 0.3 then return false end
+            _last_paladin_cc_scan = now
             -- Preemptive scan: check if any nearby enemy is casting CC on us
             local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
             for _, enemy in ipairs(enemies) do
@@ -303,7 +309,7 @@ local strategies = {
                             local ds_spell = get_divine_shield_spell()
                             if ds_spell then
                                 -- Check Forbearance debuff (25771)
-                                if me.debuff_remains and NS.debuff_remains(me, {25771}) > 0 then ds_spell = nil end
+                                if NS.debuff_remains(me, {25771}) > 0 then ds_spell = nil end
                             end
                             if ds_spell and NS.spell_ready and NS.spell_ready(ds_spell, me, { skip_range = true }) then
                                 return true

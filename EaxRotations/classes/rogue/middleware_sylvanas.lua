@@ -13,6 +13,7 @@ local EVASION_IDS = { 26669, 5277 }      -- Evasion
 local CLOAK_IDS = { 31224 }               -- Cloak of Shadows
 local VANISH_IDS = { 26889, 1857, 1856 } -- Vanish
 local THISTLE_TEA_ID = 7676              -- Thistle Tea (item-based energy restore)
+local _last_rogue_cc_scan = 0
 
 -- Check if unit is melee attacker
 local function is_melee_attacker(context)
@@ -113,6 +114,10 @@ local strategies = {
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
+            -- Throttle: expensive enemy iteration
+            local now = NS.time_now and NS.time_now() or 0
+            if now - _last_rogue_cc_scan < 0.3 then return false end
+            _last_rogue_cc_scan = now
             -- Preemptive scan: enemy casting CC at us → Cloak (magic immunity) or Vanish (escape)
             local cloak_id = get_known_spell_id(CLOAK_IDS)
             local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}

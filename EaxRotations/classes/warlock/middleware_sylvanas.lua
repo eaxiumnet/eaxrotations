@@ -25,6 +25,7 @@ local _cached_cc_break_fresh = false
 local _cached_devour_unit = nil
 local _cached_devour_priority = 0
 local _cached_devour_fresh = false
+local _last_warlock_cc_scan = 0
 local function get_devour_magic_target(context)
     if _cached_devour_fresh then
         return _cached_devour_unit, _cached_devour_priority
@@ -82,6 +83,10 @@ local strategies = {
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
+            -- Throttle: expensive enemy iteration
+            local now = NS.time_now and NS.time_now() or 0
+            if now - (_last_warlock_cc_scan or 0) < 0.3 then return false end
+            _last_warlock_cc_scan = now
             -- Preemptive scan: enemy casting CC at us → Death Coil to interrupt
             local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
             for _, enemy in ipairs(enemies) do
