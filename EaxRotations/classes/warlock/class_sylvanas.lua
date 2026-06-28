@@ -130,6 +130,16 @@ local SPELLS = {
         power_type = "mana",
         school = "fire",
     }),
+    Shadowfury = NS.spell_action({
+        name = "Shadowfury",
+        ids = {30414, 30413, 30283},
+        levels = {70, 60, 50},
+        cast_time = 0.5,
+        cooldown = 20,
+        power_cost = 0,
+        power_type = "mana",
+        school = "shadow",
+    }),
     DrainLife = NS.spell_action({
         name = "DrainLife",
         ids = {27220, 27219, 11700, 11699, 7651, 709, 699, 689},
