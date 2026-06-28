@@ -203,7 +203,7 @@ local strategies = {
     },
 
     -- ============================================================================
-    -- CLEANSE (Dispel on self — poison + disease + magic)
+    -- CLEANSE (Dispel on self then party — poison + disease + magic)
     -- ============================================================================
     {
         name = "Paladin_Cleanse",
@@ -214,27 +214,51 @@ local strategies = {
             if (context.is_mounted or false) then return false end
             local me = context.me
             if not me then return false end
-            -- Check for poison, disease, or magic debuffs on player
-            -- Cleanse can remove these; use aura debuff check if available
-            local hasPoison = false
-            local hasDisease = false
-            local hasMagic = false
-            if type(NS.has_dispel_type_debuff) == "function" then
-                hasPoison = NS.has_dispel_type_debuff(me, "Poison")
-                hasDisease = NS.has_dispel_type_debuff(me, "Disease")
-                hasMagic = NS.has_dispel_type_debuff(me, "Magic")
-            elseif NS.has_player_debuff then
-                hasPoison = NS.has_player_debuff({2764, 5237, 11359, 13240})
-                hasDisease = NS.has_player_debuff({853, 1368, 2047})
-                hasMagic = NS.has_player_debuff({33786, 2855, 30982})
+            local function unitNeedsCleanse(unit)
+                if type(NS.has_dispel_type_debuff) == "function" then
+                    if NS.has_dispel_type_debuff(unit, "Poison") then return true end
+                    if NS.has_dispel_type_debuff(unit, "Disease") then return true end
+                    if NS.has_dispel_type_debuff(unit, "Magic") then return true end
+                elseif NS.has_debuff then
+                    if NS.has_debuff(unit, {2764, 5237, 11359, 13240}) then return true end
+                    if NS.has_debuff(unit, {853, 1368, 2047}) then return true end
+                    if NS.has_debuff(unit, {33786, 2855, 30982}) then return true end
+                end
+                return false
             end
-            if not hasPoison and not hasDisease and not hasMagic then return false end
-            return true
+            if unitNeedsCleanse(me) then return true end
+            if NS.GetPartyMembers then
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member and unitNeedsCleanse(member) then return true end
+                end
+            end
+            return false
         end,
         execute = function(context)
             local spell = SPELLS.Cleanse
-            if spell and NS.spell_ready and NS.spell_ready(spell, context.me, {}) then
-                return NS.try_cast(spell, context.me, "[PALADIN] Cleanse")
+            if not spell then return false end
+            local function unitNeedsCleanse(unit)
+                if type(NS.has_dispel_type_debuff) == "function" then
+                    if NS.has_dispel_type_debuff(unit, "Poison") then return true end
+                    if NS.has_dispel_type_debuff(unit, "Disease") then return true end
+                    if NS.has_dispel_type_debuff(unit, "Magic") then return true end
+                elseif NS.has_debuff then
+                    if NS.has_debuff(unit, {2764, 5237, 11359, 13240}) then return true end
+                    if NS.has_debuff(unit, {853, 1368, 2047}) then return true end
+                    if NS.has_debuff(unit, {33786, 2855, 30982}) then return true end
+                end
+                return false
+            end
+            local me = context.me
+            if me and unitNeedsCleanse(me) and NS.spell_ready and NS.spell_ready(spell, me, {}) then
+                return NS.try_cast(spell, me, "[PALADIN] Cleanse (Self)")
+            end
+            if NS.GetPartyMembers then
+                for _, member in ipairs(NS.GetPartyMembers() or {}) do
+                    if member and unitNeedsCleanse(member) and NS.spell_ready and NS.spell_ready(spell, member, {}) then
+                        return NS.try_cast(spell, member, "[PALADIN] Cleanse (Party)")
+                    end
+                end
             end
             return false
         end,
@@ -727,6 +751,7 @@ local strategies = {
         name = "Paladin_GroupBlessKings",
         priority = 65,
         matches = function(context)
+            local settings = context.settings or {}
             if context.in_combat then return false end
             if (context.is_mounted or false) then return false end
             if not SPELLS.BlessingOfKings then return false end
@@ -740,7 +765,7 @@ local strategies = {
                     if member and NS.buff_remains then
                         local mRemains = NS.buff_remains(member, BLESSING_KINGS_BUFF) or 0
                         local hasOther = NS.buff_up and NS.buff_up(member, OTHER_BLESSINGS_FOR_KINGS)
-                        if not hasOther and mRemains <= 0 then
+                        if mRemains <= (settings.group_bless_kings_threshold or 120) then
                             if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
                                 local now = NS.time_now and NS.time_now() or 0
                                 if (now - _last_group_bless_kings_match_time) < 3.0 then return false end
@@ -754,6 +779,7 @@ local strategies = {
             return false
         end,
         execute = function(context)
+            local settings = context.settings or {}
             local useGreater = false
             if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
                 if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
@@ -764,7 +790,7 @@ local strategies = {
                     if member and NS.buff_remains then
                         local mRemains = NS.buff_remains(member, BLESSING_KINGS_BUFF) or 0
                         local hasOther = NS.buff_up and NS.buff_up(member, OTHER_BLESSINGS_FOR_KINGS)
-                        if not hasOther and mRemains <= 0 then
+                        if mRemains <= (settings.group_bless_kings_threshold or 120) then
                             if useGreater and SPELLS.GreaterBlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfKings, member, {}) then
                                 return NS.try_cast(SPELLS.GreaterBlessingOfKings, member, "[PALADIN] Greater Kings (group, OOC)")
                             elseif SPELLS.BlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfKings, member, {}) then
@@ -801,17 +827,23 @@ local strategies = {
         execute = function() return true end,
     },
 
-    -- Auto-consumable usage (throttled at matches()-end; inner on_update has its own 3s)
+    -- Auto-consumable usage (throttle set only on successful execute; inner on_update has its own 3s)
     { name = "AutoConsumable",
       matches = function(context)
           if not context.in_combat then return false end
           if (context.player_level or 999) < 10 then return false end
           local now = NS.time_now and NS.time_now() or 0
           if (now - _last_auto_consumable_match_time) < 3.0 then return false end
-          _last_auto_consumable_match_time = now
           return true
       end,
-      execute = function(context) return consumable_manager.on_update(context) end },
+      execute = function(context)
+          local ok = consumable_manager.on_update(context)
+          if ok then
+              local now = NS.time_now and NS.time_now() or 0
+              _last_auto_consumable_match_time = now
+          end
+          return ok
+      end },
 
 }
 NS.register_class_middleware("paladin", strategies)

@@ -318,14 +318,16 @@ local strategies = {
             if (context.mana_pct or 0) > threshold then return false end
             local now = NS.time_now and NS.time_now() or 0
             if now - (_mana_gem_last or 0) < 30 then return false end
-            local gem = first_ready_mana_gem()
-            if gem then _mana_gem_last = now end
-            return gem ~= nil
+            return first_ready_mana_gem() ~= nil
         end,
         execute = function(context)
             local item_id = first_ready_mana_gem()
             if not item_id or not NS.use_item_by_id then return false end
-            return NS.use_item_by_id(item_id) and true or false
+            local ok = NS.use_item_by_id(item_id) and true or false
+            if ok then
+                _mana_gem_last = NS.time_now and NS.time_now() or 0
+            end
+            return ok
         end,
     },
 

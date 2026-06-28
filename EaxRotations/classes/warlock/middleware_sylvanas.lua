@@ -74,6 +74,7 @@ local SOUL_SHARD_ITEM = 6265  -- TBC soul shard reagent
 -- CC Break: interrupt incoming CC with Death Coil (horror + self-heal)
 -- ============================================================================
 local strategies = {
+    interrupt_manager.register_interrupt_spell("warlock", "SpellLock", SPELLS),
     {
         name = "WarlockCCBreak",
         matches = function(context)

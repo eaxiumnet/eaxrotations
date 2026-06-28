@@ -91,10 +91,18 @@ local bos_state = { has_blessing_sanctuary=false, hp_pct=100, mana_pct=100, cons
 assert_true(bos.matches(ctx_ooc, bos_state), "bos fresh")
 assert_false(bos.matches(ctx_ooc, bos_state), "bos 3s block")
 
--- 5) AutoConsumable
+-- 5) AutoConsumable — throttle set only on successful execute, not in matches
 local ac = find_strategy(ms, "AutoConsumable")
 assert_true(ac.matches(ctx_combat), "ac fresh")
-assert_false(ac.matches(ctx_combat), "ac 3s block")
+-- execute returns false (mock consumable_manager), so throttle is NOT set
+assert_true(ac.matches(ctx_combat), "ac still fresh after failed execute")
+-- now mock a successful execute
+package.loaded["shared/consumable_manager_sylvanas"] = { on_update = function() return true end }
+local ms2 = dofile("EaxRotations/classes/paladin/middleware_sylvanas.lua")
+local ac2 = find_strategy(ms2, "AutoConsumable")
+assert_true(ac2.matches(ctx_combat), "ac2 fresh")
+assert_true(ac2.execute(ctx_combat), "ac2 execute succeeds")
+assert_false(ac2.matches(ctx_combat), "ac2 3s block after success")
 
 -- 6) SealRighteousness
 local sr = find_strategy(prot_strats, "SealRighteousness")
