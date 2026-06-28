@@ -231,12 +231,19 @@ end
 -- ============================================================================
 -- State builder
 -- ============================================================================
+local _last_build_state_time = -1
 local function build_state(context)
+    local state = fury_state
+    local now = context.now
+    if now and now == _last_build_state_time then return state end
+    now = now or (NS.time_now and NS.time_now() or 0)
+    if context.now then _last_build_state_time = now end
+    state.now = now
+
     local is_group = context.is_group or false
-    fury_state.is_group = is_group
+    state.is_group = is_group
     local target = context.target
     local me = context.me or NS.GetPlayer()
-    local now = NS.time_now and NS.time_now() or 0
 
     fury_state.rage = context.rage or 0
     fury_state.hp = context.hp or 100

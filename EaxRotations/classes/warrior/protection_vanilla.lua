@@ -89,7 +89,14 @@ local prot_state = {
 
 local setting = NS.setting
 
+local _last_build_state_time = -1
 local function build_state(context)
+    local state = prot_state
+    local now = context.now
+    if now and now == _last_build_state_time then return state end
+    now = now or (NS.time_now and NS.time_now() or 0)
+    if context.now then _last_build_state_time = now end
+    state.now = now
     local target = context.target
     if target then
         prot_state.sunder_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SUNDER_DEBUFF) or 0
