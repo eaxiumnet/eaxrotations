@@ -55,7 +55,7 @@ local CHARGE_MIN_RANGE = 8
 local CHARGE_MAX_RANGE = 25
 local AOE_SCAN_RANGE = 8
 local PACK_SCAN_RANGE = 10
-local SCAN_INTERVAL = 0.2
+local SCAN_INTERVAL = 0.5
 local TAUNT_COOLDOWN_WINDOW = 8
 local CHALLENGING_ROAR_ENEMY_COUNT = 3
 local OOC_ENRAGE_RAGE_MAX = 20
@@ -365,11 +365,20 @@ local function update_rage_tracking(state)
     state.rage_deficit = RAGE_CAP - state.rage
 end
 
+-- Throttle build_state to once per frame to avoid rebuilding state N times
+-- per frame (once per strategy match function). Uses context.now when
+-- available (real game); falls back to no caching in test environments.
+local _last_build_state_time = -1
+
 local function build_state(context)
     local is_group = context.is_group or false
     local state = bear_state
     local settings = context.settings or NS.settings or {}
-    state.now = NS.time_now and NS.time_now() or 0
+    local now = context.now
+    if now and now == _last_build_state_time then return state end
+    now = now or (NS.time_now and NS.time_now() or 0)
+    state.now = now
+    if context.now then _last_build_state_time = now end
     state.me = context.me or (NS.GetPlayer and NS.GetPlayer()) or nil
     state.target = context.target
     state.settings = settings
@@ -385,8 +394,9 @@ local function build_state(context)
     state.enemy_count = context.enemy_count or context.enemies_count or 1
     state.aoe_threshold = NS.setting_number(settings, "bear_aoe_threshold", NS.setting_number(settings, "aoe_threshold", 3))
     state.maul_rage = NS.setting_number(settings, "bear_maul_rage", 40)
-    state.barkskin_hp = NS.setting_number(settings, "bear_barkskin_hp", 55)
-    state.frenzied_regen_hp = NS.setting_number(settings, "bear_frenzied_regen_hp", 35)
+    -- Group content: more proactive defensives; solo: emergency only
+    state.barkskin_hp = NS.setting_number(settings, "bear_barkskin_hp", state.is_group and 70 or 55)
+    state.frenzied_regen_hp = NS.setting_number(settings, "bear_frenzied_regen_hp", state.is_group and 50 or 35)
     state.demo_roar_enabled = NS.setting_bool(settings, "bear_demo_roar", true)
     state.should_burst = context.should_burst == true
     state.has_valid_target = context.has_valid_enemy_target ~= false and state.target ~= nil

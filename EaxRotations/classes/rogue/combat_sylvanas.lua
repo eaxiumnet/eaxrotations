@@ -400,7 +400,8 @@ local function evasion_matches(context, s)
     if not (NS.is_spell_learned and NS.is_spell_learned(26669)) then return false end
     local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(SPELLS.Evasion) or 0
     if cd > 0 then return false end
-    local evasion_hp = (context.settings and context.settings.combat_evasion_hp) or 30
+    local default_hp = s.is_group and 45 or 30
+    local evasion_hp = (context.settings and context.settings.combat_evasion_hp) or default_hp
     return (s.hp_pct or 100) <= evasion_hp
 end
 
@@ -409,7 +410,8 @@ local function cloak_of_shadows_matches(context, s)
     if not (NS.is_spell_learned and NS.is_spell_learned(31224)) then return false end
     local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(SPELLS.CloakOfShadows) or 0
     if cd > 0 then return false end
-    local cloak_hp = (context.settings and context.settings.combat_cloak_hp) or 20
+    local default_hp = s.is_group and 35 or 20
+    local cloak_hp = (context.settings and context.settings.combat_cloak_hp) or default_hp
     return (s.hp_pct or 100) <= cloak_hp
 end
 
