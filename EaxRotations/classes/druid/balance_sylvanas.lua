@@ -123,8 +123,9 @@ local function _choose_nuke(s, ctx)
     local mana_floor = (settings and settings.balance_starfire_mana) or 40
     local m = _mana_now(s, ctx)
     if m < mana_floor then return "wrath" end
+    -- Nature's Grace active: Starfire for burst; otherwise Wrath for mana efficiency.
     if s.natures_grace_active then return "starfire" end
-    return "starfire"
+    return "wrath"
 end
 
 local _strategies = {

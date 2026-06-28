@@ -14,6 +14,28 @@ M.MANA_POTION_IDS = { 33935, 32948, 22850, 22832, 13444, 13443, 6149, 3827, 3385
 -- Damage/Combat Potion IDs (Destruction > Haste > Heroic > Insane Strength)
 M.DAMAGE_POTION_IDS = { 22840, 22839, 22838, 22837, 13453, 13452, 13454 }
 
+-- Healthstone IDs (TBC best-to-worst: 1.4 > 1.3 > 1.2 > 1.1 > Minor)
+M.HEALTHSTONE_IDS = { 22105, 22104, 22103, 22102, 19013 }
+
+--- Find the first ready healthstone in the player's inventory.
+---@param me table Player unit object.
+---@return number|nil item_id The first ready healthstone ID, or nil.
+function M.find_ready_healthstone(me)
+    if not me then return nil end
+    for _, id in ipairs(M.HEALTHSTONE_IDS) do
+        local cd_ok, cd_remaining = pcall(function()
+            if NS.cooldown_remains then
+                return NS.cooldown_remains({ _meta = { ids = { id } } }, me)
+            end
+            return 0
+        end)
+        if cd_ok and (cd_remaining or 0) <= 0 then
+            return id
+        end
+    end
+    return nil
+end
+
 --- Try to use the first available item from a list.
 --- Each call is pcall-wrapped for nil/throwing API safety.
 ---@param context table Rotation context (needs context.me).

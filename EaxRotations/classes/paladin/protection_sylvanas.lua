@@ -14,6 +14,8 @@ local SPELLS = NS.PaladinSpells or {}
 local RIGHTEOUS_FURY_BUFF = { 25780 }
 local SEAL_RIGHTEOUSNESS_BUFF = { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }
 local SEAL_COMMAND_BUFF = { 27170, 20920, 20919, 20918, 20915, 20375 }
+local SEAL_WISDOM_BUFF = { 27166, 20357, 20356, 20166 }
+local JUDGEMENT_WISDOM_DEBUFF = { 27164, 20355, 20354, 20186 }
 local HOLY_SHIELD_BUFF = { 27179, 20928, 20927, 20925 }
 local CONSECRATION_DEBUFF = { 27173, 20924, 20923, 20922, 20116, 26573 }
 local BLESSING_OF_SANCTUARY_BUFF = { 27168, 20914, 20913, 20912, 20911 }
@@ -96,6 +98,10 @@ local prot_state = {
     ally_threatened = nil,
     low_hp_ally = nil,
     cc_nearby = false,
+    has_seal_wisdom = false,
+    target_has_wisdom = false,
+    judgement_wisdom_mode = false,
+    last_judgement_mode = nil,
 }
 
 local function self_needs_cleanse(unit)
@@ -137,6 +143,8 @@ local function build_state(context)
         prot_state.has_forbearance = me and NS.debuff_up(me, FORBEARANCE_DEBUFF) or false
         prot_state.consecration_remains = target and NS.debuff_remains(target, CONSECRATION_DEBUFF) or 0
         prot_state.has_blessing_sanctuary = me and NS.buff_up(me, BLESSING_OF_SANCTUARY_BUFF) or false
+        prot_state.has_seal_wisdom = me and NS.buff_up(me, SEAL_WISDOM_BUFF) or false
+        prot_state.target_has_wisdom = target and NS.debuff_up(target, JUDGEMENT_WISDOM_DEBUFF) or false
     end
     prot_state.consecration_ready = me and NS.spell_ready(SPELLS.Consecration, me, { skip_range = true, expected_cooldown = 8 }) or false
     prot_state.holy_shield_ready = me and NS.spell_ready(SPELLS.HolyShield, me, { skip_range = true, expected_cooldown = 10 }) or false
@@ -159,6 +167,24 @@ local function build_state(context)
     prot_state.righteous_defense_ready = me and NS.spell_ready(SPELLS.RighteousDefense, me, { skip_range = true, expected_cooldown = 15 }) or false
     prot_state.is_group = context.is_group or false
     prot_state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me)) or 100
+    -- JoW emergency mode with hysteresis: enter below threshold, exit only above threshold + 5%
+    local jow_enabled = get_setting(context, "prot_jow_enabled", true)
+    local jow_threshold = get_setting(context, "prot_jow_mana_threshold", 20)
+    if jow_enabled then
+        if (prot_state.mana_pct or 100) < jow_threshold then
+            prot_state.judgement_wisdom_mode = true
+            prot_state.last_judgement_mode = "wisdom"
+        elseif (prot_state.mana_pct or 100) > (jow_threshold + 5) then
+            prot_state.judgement_wisdom_mode = false
+            prot_state.last_judgement_mode = "damage"
+        else
+            -- In hysteresis band: retain last mode (prevents flip-flopping)
+            prot_state.judgement_wisdom_mode = (prot_state.last_judgement_mode == "wisdom")
+        end
+    else
+        prot_state.judgement_wisdom_mode = false
+        prot_state.last_judgement_mode = "damage"
+    end
     prot_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     prot_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
     prot_state.enemy_count = context.enemy_count or context.enemies_count or 1
@@ -293,6 +319,11 @@ local function judgement_matches(context, state)
     if not has_combat_target(context) then return false end
     if not state.judgement_ready then return false end
     if not state.has_seal then return false end
+    -- Mana Emergency: only judge Seal of Wisdom (skip damage seals)
+    if state.judgement_wisdom_mode then
+        if not state.has_seal_wisdom then return false end
+        if state.target_has_wisdom then return false end
+    end
     return true
 end
 

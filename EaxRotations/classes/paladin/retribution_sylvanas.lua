@@ -72,6 +72,29 @@ local TWIST_WINDOW = 0.45
 local TWIST_PREP_WINDOW = 1.20
 local MELEE_RANGE = 8
 
+-- ============================================================================
+-- Seal twist diagnostics
+-- ============================================================================
+local _last_twist_result = nil
+local _last_twist_log_time = 0
+local _last_expected_swing_time = 0
+
+local function log_twist_result(result)
+    _last_twist_result = result
+    local now = (NS.time_now and NS.time_now()) or 0
+    if (now - _last_twist_log_time) < 5.0 then return end
+    _last_twist_log_time = now
+    local diag_enabled = false
+    -- get_any_setting handles both old and new key names safely
+    if type(NS.get_any_setting) == "function" then
+        diag_enabled = NS.get_any_setting(nil, "retri_twist_diagnostics", nil, false)
+    end
+    if not diag_enabled then return end
+    local ok, has_core = pcall(function() return core and core.log and core.log.info end)
+    if ok and has_core then
+        pcall(core.log.info, string.format("[RET] Seal twist: %s", result))
+    end
+end
 
 local ret_state = {
     hp_pct = 100,
@@ -111,6 +134,14 @@ local get_setting = NS.setting
 
 local function has_player_buff(ids)
     return NS.has_player_buff and NS.has_player_buff(ids) or false
+end
+
+local function post_swing_judge_gate(context, state)
+    if not get_setting(context, "retri_post_swing_judge", true) then return true end
+    local swing_remains = state.swing_remains or 99
+    if swing_remains < 0.3 then return false end -- too close to swing, wait
+    if swing_remains > 1.5 then return true end   -- just swung, safe to judge
+    return true -- in the middle of swing cycle, allow
 end
 
 local function has_player_debuff(ids)
@@ -389,10 +420,26 @@ strategies[#strategies + 1] = {
     priority = 760,
     matches = function(context, state)
         -- [ARTISTRY] Improved: Use dynamic twist_window instead of hardcoded 0.45s
-        return state.can_twist and state.has_command and not state.has_blood and (state.swing_remains or 99) <= (state.twist_window or TWIST_WINDOW) and NS.spell_ready(SPELLS.SealBlood, PLAYER, { skip_range = true }) or false
+        local twist_window = state.twist_window or TWIST_WINDOW
+        local swing_remains = state.swing_remains or 99
+        if not (state.can_twist and state.has_command and not state.has_blood and swing_remains <= twist_window and NS.spell_ready(SPELLS.SealBlood, PLAYER, { skip_range = true })) then
+            -- Diagnostic: if we're in twist window but didn't attempt, log NO-TWIST
+            if state.can_twist and swing_remains <= twist_window and not state.has_blood then
+                log_twist_result("NO-TWIST")
+            end
+            return false
+        end
+        _last_expected_swing_time = (NS.time_now and NS.time_now() or 0) + swing_remains
+        return true
     end,
     execute = function()
-        return cast(SPELLS.SealBlood, PLAYER, "[RET] Seal twist: Blood", { skip_range = true })
+        local ok = cast(SPELLS.SealBlood, PLAYER, "[RET] Seal twist: Blood", { skip_range = true })
+        if ok then
+            log_twist_result("PERFECT")
+        else
+            log_twist_result("PHANTOM")
+        end
+        return ok
     end,
 }
 
@@ -407,10 +454,18 @@ strategies[#strategies + 1] = {
         -- If Judgement is about to come off CD (≤1.5s), skip prep and let Judgement fire first
         local judge_cd = NS.cooldown_remains and NS.cooldown_remains(SPELLS.Judgement) or 0
         if judge_cd <= 1.5 then return false end
-        return state.can_twist and state.can_use_blood and not state.has_command_rank1 and swing_remains <= prep_start and swing_remains > twist_window and NS.spell_ready(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, { skip_range = true }) or false
+        if not (state.can_twist and state.can_use_blood and not state.has_command_rank1 and swing_remains <= prep_start and swing_remains > twist_window and NS.spell_ready(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, { skip_range = true })) then
+            return false
+        end
+        _last_expected_swing_time = (NS.time_now and NS.time_now() or 0) + swing_remains
+        return true
     end,
     execute = function()
-        return cast(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, "[RET] Seal twist prep: Rank 1 Command", { skip_range = true })
+        local ok = cast(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, "[RET] Seal twist prep: Rank 1 Command", { skip_range = true })
+        if not ok then
+            log_twist_result("PHANTOM")
+        end
+        return ok
     end,
 }
 
@@ -419,6 +474,7 @@ add_strategy(strategies, "Ret_CrusaderStrike_AfterJudgement", 730, function(cont
 end, function(context) return cast(SPELLS.CrusaderStrike, context.target, "[RET] Crusader Strike after Judgement", { expected_cooldown = 6 }) end)
 
 add_strategy(strategies, "Ret_JudgeCrusader", 720, function(context, state)
+    if not post_swing_judge_gate(context, state) then return false end
     return not state.target_has_crusader and state.has_crusader and NS.spell_ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
 end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Seal of the Crusader", { skip_gcd = true, expected_cooldown = 10 }) end)
 
@@ -441,6 +497,7 @@ strategies[#strategies + 1] = {
 }
 
 add_strategy(strategies, "Ret_JudgeDamageSeal", 690, function(context, state)
+    if not post_swing_judge_gate(context, state) then return false end
     return state.has_damage_seal and (state.mana_pct or 100) >= 12 and NS.spell_ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
 end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judgement damage seal", { skip_gcd = true, expected_cooldown = 10 }) end)
 
@@ -457,6 +514,7 @@ add_strategy(strategies, "Ret_SealCommand_Primary", 660, function(_, state)
 end, function() return cast(SPELLS.SealCommand, PLAYER, "[RET] Seal of Command primary", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_JudgementWisdom_LowMana", 640, function(context, state)
+    if not post_swing_judge_gate(context, state) then return false end
     local threshold = get_setting(context, "retri_judge_wisdom_mana", 45)
     return (state.mana_pct or 100) <= threshold and state.has_wisdom and not state.target_has_wisdom and NS.spell_ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
 end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Wisdom for mana", { skip_gcd = true, expected_cooldown = 10 }) end)
@@ -514,6 +572,7 @@ add_strategy(strategies, "Ret_HolyWrath_AoE", 575, function(context, state)
 end, function() return cast(SPELLS.HolyWrath, PLAYER, "[RET] Holy Wrath AoE", { skip_range = true, expected_cooldown = 60 }) end, 60)
 
 add_strategy(strategies, "Ret_JudgeSecondary_CommandCleave", 570, function(context, state)
+    if not post_swing_judge_gate(context, state) then return false end
     return state.secondary_target ~= nil and state.has_command and (state.mana_pct or 0) >= 30 and NS.spell_ready(SPELLS.Judgement, state.secondary_target, { skip_gcd = true, expected_cooldown = 10 }) or false
 end, function(_, state) return cast(SPELLS.Judgement, state.secondary_target, "[RET] Judgement secondary cleave", { skip_gcd = true, expected_cooldown = 10 }) end)
 
@@ -550,6 +609,7 @@ add_strategy(strategies, "Ret_SealRighteousness_Filler", 470, function(_, state)
 end, function() return cast(SPELLS.SealRighteousness, PLAYER, "[RET] Seal of Righteousness filler", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_Judgement_RighteousnessFiller", 460, function(context, state)
+    if not post_swing_judge_gate(context, state) then return false end
     return state.has_righteousness and (state.mana_pct or 0) >= 25 and NS.spell_ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
 end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Righteousness filler", { skip_gcd = true, expected_cooldown = 10 }) end)
 
