@@ -35,12 +35,14 @@ return {
                     { key = "holy_shock_hp", type = "slider", label = "Holy Shock HP %", min = 0, max = 100, default = 40, tooltip = "Use Holy Shock for instant emergency or movement healing" },
                     { key = "holy_divine_favor_hp", type = "slider", label = "Divine Favor HP %", min = 0, max = 100, default = 45, tooltip = "Use Divine Favor before critical Holy Light healing" },
                     { key = "holy_flash_light_hp", type = "slider", label = "Flash of Light HP %", min = 0, max = 100, default = 85, tooltip = "Use efficient Flash of Light below this HP" },
+                    { key = "holy_light_hp", type = "slider", label = "Holy Light HP %", min = 40, max = 100, default = 70, tooltip = "Prefer Holy Light over Flash of Light below this HP" },
                     { key = "holy_light_rank", type = "dropdown", label = "Holy Light Rank", default = "max", options = {
                             { text = "Max / Smart", value = "max" },
                             { text = "Rank 9", value = "rank9" },
                             { text = "Rank 7", value = "rank7" },
                             { text = "Rank 4", value = "rank4" },
                     } },
+                    { key = "holy_lights_grace_chaining", type = "checkbox", label = "Light's Grace Chaining", default = true, tooltip = "Cast cheap Holy Light R4 to refresh Light's Grace before it expires" },
                 },
             },
             {
