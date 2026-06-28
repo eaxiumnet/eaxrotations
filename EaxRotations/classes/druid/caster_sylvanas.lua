@@ -34,6 +34,7 @@ local function build_state(context)
         caster_state.ff_remains = target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
     end
     caster_state.in_combat = context.in_combat or false
+    caster_state.is_group = context.is_group or false
     caster_state.mana_pct = context.mana_pct or (NS.mana_pct and NS.mana_pct(me)) or 100
     caster_state.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
     caster_state.target_hp = context.target_hp or 100

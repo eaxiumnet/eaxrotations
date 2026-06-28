@@ -407,6 +407,7 @@ function build_state(context)
     now = now or get_now()
     if context.now then _last_build_state_time = now end
 
+    state.is_group = context.is_group or false
     state.now = now
     state.now_ms = get_now_ms()
     state.me = me

@@ -179,6 +179,7 @@ local function build_state(context)
     enh_state.gift_of_the_naaru_enabled = s.enhancement_cd_gift_of_the_naaru ~= false
 
     -- -- Resource state
+    enh_state.is_group = context.is_group or false
     enh_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     enh_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     enh_state.now_ms = NS.game_time_ms()

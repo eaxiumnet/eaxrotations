@@ -86,6 +86,7 @@ local function build_state(context)
     local settings = context.settings or {}
 
     -- Core state
+    state.is_group = context.is_group or false
     state.is_mounted = context.is_mounted or false
     state.in_combat = context.in_combat or false
     state.enemy_count = context.enemy_count or context.enemies_count or 1
