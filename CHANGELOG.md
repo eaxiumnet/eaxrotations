@@ -28,6 +28,15 @@ All notable changes to the EAX TBC Classic Rotations project.
 - **Paladin**: Healing thresholds more aggressive at low levels — Flash of Light 75% HP at ≤20 (was 60%), Holy Light 50% at ≤20 (was 35%). Prevents death spiral at 1-11.
 - **Hunter**: Low-mana threshold 15% at ≤20 (was 30%). Prevents mana starvation causing no-damage loops at 1-9.
 
+#### Schema UI Settings (All 6 Classes)
+Every new middleware feature now has a corresponding UI checkbox/slider:
+- **Warlock**: `auto_demon_armor` checkbox (General → Pet/Stones)
+- **Hunter**: `use_rapid_fire` checkbox (Cooldowns), `healthstone_hp` slider (Defensives)
+- **Shaman**: `auto_lightning_shield` checkbox, `use_bloodlust` checkbox, `self_heal_hp` slider (General)
+- **Priest**: `pws_hp` slider, `auto_inner_fire` checkbox, `auto_fortitude` checkbox (General)
+- **Druid**: `barkskin_hp` slider, `use_innervate` checkbox + `innervate_mana_pct` slider, `use_rebirth` checkbox (General)
+- **Mage**: `auto_conjure_water` checkbox, `auto_conjure_food` checkbox (Buffs/Utility), `healthstone_hp` slider (Defensives)
+
 ### Added
 
 #### Prot Paladin: Mana Emergency Swap (JoW)
