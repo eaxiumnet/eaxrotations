@@ -1,3 +1,9 @@
+-- dagger_set_sylvanas.lua -- rogue dagger-set bonus detector (Renataki, etc.)
+-- WHAT:  detect equipped dagger-set pieces and surface proc-ready flags
+-- WHEN:  rogue combat, when dual-wielding daggers
+-- WHY:   prevents dropping proc windows on dagger-set bonuses
+-- SAFETY: is_in_combat gate; line-of-sight nil-guard via los_guard_sylvanas
+
 -- ============================================================================
 -- Dagger Item ID Set (auto-generated from cMaNGOS item_template)
 -- Used by assassination_sylvanas.lua to verify Mutilate eligibility.

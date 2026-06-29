@@ -1,3 +1,9 @@
+-- gear_score_sylvanas.lua -- heuristic gearscore aggregator (rough item-rarity sum)
+-- WHAT:  aggregate a simple gearscore number from equipped item quality
+-- WHEN:  called on spec registration; never per-frame
+-- WHY:   rough triage signal so specs can default to PvE or PvP mode
+-- SAFETY: no allocations; cached at registration
+
 -- Shared Helper: Gear Score Calculator
 -- ============================================================================
 local M = {}

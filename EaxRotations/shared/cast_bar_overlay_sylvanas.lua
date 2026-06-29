@@ -1,3 +1,9 @@
+-- cast_bar_overlay_sylvanas.lua -- cast-bar overlay UI widget for in-progress spell tracking
+-- WHAT:  draw a floating cast-bar overlay showing current cast + remaining time
+-- WHEN:  any time the player is channeling or casting >0.5s
+-- WHY:   user-visible feedback for the queue, replaces the default UI's hidden GCD
+-- SAFETY: graphics API nil-guarded; only enabled when menu toggle on
+
 -- ============================================================================
 -- EaxRotations Cast-Bar Overlay Module
 -- ============================================================================

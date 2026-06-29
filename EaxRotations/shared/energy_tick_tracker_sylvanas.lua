@@ -1,3 +1,10 @@
+-- energy_tick_tracker_sylvanas.lua -- rogue/druid-cat energy tick projection
+-- WHAT:  project next-tick energy based on observed tick cadence
+-- WHEN:  rogue + feral druid combat
+-- WHY:   lets Rip/Shred/Evis energy-gate decisions use projected (not just current) energy
+-- SAFETY: no allocations in tick path; bounded observation window
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 -- Shared Helper: Energy Tick Tracker
 -- Tracks energy tick timing for energy-based classes (Rogue, Cat Druid, Feral)
 -- ============================================================================

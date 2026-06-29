@@ -1,3 +1,9 @@
+-- combat_log_parser_sylvanas.lua -- shared rolling-buffer combat-log parser for damage/heal/CastSuccess tracking
+-- WHAT:  rolling-buffer parser; consumers scan windowed events
+-- WHEN:  any combat state
+-- WHY:   lets multiple specs query the same log window without re-parsing
+-- SAFETY: bounded buffer; nil-guarded event fields; cleared on combat exit
+
 -- shared combat log parser and rolling buffer.
 
 

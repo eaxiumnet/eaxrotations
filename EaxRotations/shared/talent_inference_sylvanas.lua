@@ -1,3 +1,9 @@
+-- talent_inference_sylvanas.lua -- infer spec from active talents (when API hides spec_id)
+-- WHAT:  given talent choices plus known ranks, infer the player's spec
+-- WHEN:  called at module load when spec_id API is unavailable
+-- WHY:   removes hardcoded class/race lookups; lets engine route correctly
+-- SAFETY: talent-lib nil-guarded; known-mismatch returns 'unknown'
+
 -- talent_inference_sylvanas.lua -- best-effort talent tab/points inference when API unavailable.
 -- WHAT:   best-effort talent tab/points inference when API unavailable
 -- WHEN:   called during spec build_state; results cached per spec load

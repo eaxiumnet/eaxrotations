@@ -1,3 +1,10 @@
+-- swing_timer_sylvanas.lua -- swing-timer enhancement (offset + haste compensation)
+-- WHAT:  enhance the engine's swing timer with offset + haste compensation
+-- WHEN:  any melee spec when dual-wield or 2H
+-- WHY:   decreases melee-cap clipping by exposing actual-swing ETA
+-- SAFETY: zero allocations; throttled recompute
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 -- Shared Helper: Swing Timer Enhancement
 -- ============================================================================
 local M = {}

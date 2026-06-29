@@ -1,3 +1,10 @@
+-- melee_combat_math_sylvanas.lua -- physical damage / swing / crit / glancing formulas for melee specs.
+-- WHAT:   physical damage / swing / crit / glancing formulas for melee specs
+-- WHEN:   called per-frame in melee spec match functions
+-- WHY:    single source of TBC melee formulas (no string-table lookups)
+-- SAFETY: constants DBC-verified; pure math, no game API
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: Melee Combat Math (TBC 2.4.3)
 -- ============================================================================

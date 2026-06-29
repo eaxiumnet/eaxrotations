@@ -1,3 +1,9 @@
+-- purge_manager_sylvanas.lua -- shared enemy-buff purge candidate selector
+-- WHAT:  score + queue purgable enemy buffs (e.g. PW:Shield target prioritization)
+-- WHEN:  PvE + PvP where dispel-on-enemy is usable
+-- WHY:   single source of truth so multiple specs (healer/paladin/mage) share logic
+-- SAFETY: is_in_combat gate; nil-guard on auras; bounded scan (<=8)
+
 -- purge_manager_sylvanas.lua -- offensive dispel (Purge) with hostile-buff priority list.
 -- WHAT:   offensive dispel (Purge) with hostile-buff priority list
 -- WHEN:   called per-tick in PvP specs when target has dispellable buff

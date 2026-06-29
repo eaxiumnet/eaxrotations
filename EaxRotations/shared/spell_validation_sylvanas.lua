@@ -1,3 +1,9 @@
+-- spell_validation_sylvanas.lua -- validate spell IDs against DBC at startup
+-- WHAT:  verify all ids in class spell tables exist in the TBC/Wrath DBC
+-- WHEN:  called at engine startup; recompute is opt-in
+-- WHY:   catches class-table IDs that the DBC no longer contains
+-- SAFETY: lua-side stub (no FFI / disk reads) -> nothing banned, all safe
+
 -- ============================================================================
 -- Shared Helper: Spell Validation
 -- ============================================================================

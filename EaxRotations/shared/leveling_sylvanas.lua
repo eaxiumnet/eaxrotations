@@ -1,3 +1,9 @@
+-- leveling_sylvanas.lua -- shared leveling support module (state-build, gear routing)
+-- WHAT:  engine-side glue: spec discovery, gear routing, init wiring
+-- WHEN:  called at startup by leveling runs
+-- WHY:   centralizes sub-70 routing logic shared across 11 leveling specs
+-- SAFETY: init gating; combat-mode respect
+
 -- Shared Leveling Module.
 -- Provides common helpers for per-class leveling rotations:
 --   - Context guard (solo/leveling playstyle)

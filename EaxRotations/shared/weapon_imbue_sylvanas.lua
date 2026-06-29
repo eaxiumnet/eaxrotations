@@ -1,3 +1,9 @@
+-- weapon_imbue_sylvanas.lua -- shared weapon-imbue manager (rogue poison, shaman windfury, etc.)
+-- WHAT:  apply, refresh, deplete weapon imbues
+-- WHEN:  out-of-combat refresh + warning before combat entry
+-- WHY:   centralizes the imbue timer logic across specs
+-- SAFETY: is_weapon_equipped nil-guarded; throttled re-application
+
 -- Shared Helper: Weapon Imbue Manager
 -- Uses GetWeaponEnchantInfo() (TBC API from wow_api_clone.lua)
 --   + item:item_has_enchant() via equipped item slots

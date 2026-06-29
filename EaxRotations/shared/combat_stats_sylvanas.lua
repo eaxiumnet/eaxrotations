@@ -1,3 +1,10 @@
+-- combat_stats_sylvanas.lua -- shared combat-statistics aggregator (DPS/HPS/avoidance)
+-- WHAT:  aggregate per-session combat statistics
+-- WHEN:  any combat state
+-- WHY:   single source of truth for the in-game DPS/HPS overlay
+-- SAFETY: bounded ring buffer; nil-guard on event source
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 -- Shared Helper: Combat Statistics Tracker
 -- ============================================================================
 local M = {}

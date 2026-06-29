@@ -1,3 +1,9 @@
+-- player_helpers_sylvanas.lua -- shared per-player helpers (race, class-id, faction, in-dungeon)
+-- WHAT:  small helpers reused across specs
+-- WHEN:  any call site
+-- WHY:   removes copy-paste of get_race/get_class_id/in_dungeon from specs
+-- SAFETY: all call sites nil-guard; result cached per session
+
 -- player_helpers_sylvanas.lua -- get_player + form/stance + range helpers used by every spec.
 -- WHAT:   get_player + form/stance + range helpers used by every spec
 -- WHEN:   called per-frame from every spec's build_state and strategies

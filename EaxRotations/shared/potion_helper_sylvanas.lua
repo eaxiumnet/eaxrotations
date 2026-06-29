@@ -1,3 +1,9 @@
+-- potion_helper_sylvanas.lua -- shared potion item IDs + try_use_potion wrapper
+-- WHAT:  expose known potion IDs (healing/mana/etc) + a try_use_potion helper
+-- WHEN:  any in-combat where the trigger condition holds
+-- WHY:   removes per-spec hardcoded item IDs; keeps IDs in one file
+-- SAFETY: is_spell_learned + in_bag check; combat-mode gating
+
 -- potion_helper_sylvanas.lua -- TBC potion item ID lists (HP/mana) plus try_use_potion dispatcher.
 -- WHAT:   TBC potion item ID lists (HP/mana) plus try_use_potion dispatcher
 -- WHEN:   called per-frame under HP/mana thresholds by all specs
