@@ -2,7 +2,7 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
-## [Unreleased] — FrostByte Supremacy Phase 4 (2026-06-29)
+## [2.2.0] — FrostByte Supremacy Phase 4 (2026-06-29)
 
 ### Added
 
@@ -46,12 +46,24 @@ All notable changes to the EAX TBC Classic Rotations project.
 - **HOW**: Already existed via `shared/combat_mode_sylvanas.lua`. Extended via schema wiring. Verified working in Shadow Priest, Warrior (all specs), Hunter (all specs), Shaman Enhancement, Paladin (all specs).
 - **Files**: `shared/combat_mode_sylvanas.lua`, various spec schemas.
 
+#### Strategy Gating Extracted
+- **WHAT**: Centralized strategy category classification and quick-toggle gating.
+- **WHY**: Previously duplicated in `core_sylvanas.lua` and `main_sylvanas.lua`.
+- **HOW**: New `core/strategy_gating.lua` — single source of truth for category strings + toggle predicates. Consumed by `main_sylvanas.lua` and tests.
+- **Files**: `core/strategy_gating.lua`, `main_sylvanas.lua`, `core_sylvanas.lua`.
+
+### Fixed
+- **Protection Warrior strategy count**: StanceSwitch added → test updated from 34→35.
+- **Pre-existing test failures resolved**: `test_reset_api_health.lua`, `test_reset_api_health_spell_integration.lua`, `test_leveling_edge_cases.lua` — all now pass.
+- **CC helper cleanup**: Removed 9 redundant `NS.cc_is_*` wrappers from `core_sylvanas.lua` (consolidated into `strategy_gating.lua` in prior work).
+
 ### Tests
 - Added `test_stance_manager.lua` (6 assertions) — PASS
 - Added `test_rage_manager.lua` (7 assertions) — PASS
 - Added `test_dispel_manager.lua` (7 assertions) — PASS
-- Total: 208 rotation suites (206 pass, 2 pre-existing failures unrelated to this work)
-- Total: 11 leveling suites (all pass)
+- Added `test_arms_critical_fixes.lua` — PASS
+- **Total: 208 rotation suites — ALL PASS (0 failures)**
+- **Total: 11 leveling suites — ALL PASS (0 failures)**
 
 ## [Unreleased] — FrostByte Supremacy Phase 3 (2026-06-29)
 
