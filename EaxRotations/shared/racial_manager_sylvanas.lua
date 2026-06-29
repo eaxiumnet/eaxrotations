@@ -1,3 +1,10 @@
+-- racial_manager_sylvanas.lua -- scroll through racial abilities (Berserking/Gift/Will/etc.).
+-- WHAT:   scroll through racial abilities (Berserking/Gift/Will/etc.)
+-- WHEN:   called per-tick; activates when CD ready and contextual gate met
+-- WHY:    removes 9 class spec files from duplicating racial-detection code
+-- SAFETY: racial IDs DBC-verified; nil-guarded cooldown API
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- ============================================================================
 -- Shared Runtime Helper: TBC Racial Manager
 -- ============================================================================

@@ -1,3 +1,10 @@
+-- ooc_manager_sylvanas.lua -- mount/buff/vendor/regen behaviours when not in combat.
+-- WHAT:   mount/buff/vendor/regen behaviours when not in combat
+-- WHEN:   called per-tick when not in_combat and not mounted
+-- WHY:    centralises 11 different OOC strategies into one dispatcher
+-- SAFETY: calls api only outside combat; nil-guarded player check
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- ============================================================================
 -- Shared Runtime Helper: Out-of-Combat Manager
 -- ============================================================================

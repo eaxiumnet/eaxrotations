@@ -1,3 +1,10 @@
+-- stealth_helper_sylvanas.lua -- shared stealth/opener plumbing for Rogue and Feral Druid.
+-- WHAT:   shared stealth/opener plumbing for Rogue and Feral Druid
+-- WHEN:   called per-frame in cat/subtlety/assassination specs
+-- WHY:    single source of stealth detection + opener sequencing
+-- SAFETY: OPENER_BUFF check nil-guarded; no side-effects
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- =========================================================================
 -- EaxRotations/shared/stealth_helper_sylvanas.lua
 -- Shared stealth helper for Rogue (Stealth) and Druid (Prowl) specs.

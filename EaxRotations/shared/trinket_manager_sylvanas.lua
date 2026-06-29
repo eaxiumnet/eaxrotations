@@ -1,3 +1,10 @@
+-- trinket_manager_sylvanas.lua -- TBC trinket equip-swap + on-use activation with buff gating.
+-- WHAT:   TBC trinket equip-swap + on-use activation with buff gating
+-- WHEN:   called per-tick by DPS specs when trinket CD ready
+-- WHY:    consolidates trinket policy across 29 specs into one source
+-- SAFETY: trinket IDs DBC-verified; nil-guarded bag API
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- ============================================================================
 -- Shared Runtime Helper: TBC Trinket Manager
 -- ============================================================================

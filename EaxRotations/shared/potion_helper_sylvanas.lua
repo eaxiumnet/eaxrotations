@@ -1,3 +1,10 @@
+-- potion_helper_sylvanas.lua -- TBC potion item ID lists (HP/mana) plus try_use_potion dispatcher.
+-- WHAT:   TBC potion item ID lists (HP/mana) plus try_use_potion dispatcher
+-- WHEN:   called per-frame under HP/mana thresholds by all specs
+-- WHY:    prevents 9 specs duplicating item ID lists and use logic
+-- SAFETY: all IDs DBC-verified; nil-guarded use-item API
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- Shared Helper: Potion item IDs and try_use_potion utility.
 -- Centralises potion ID lists and the pcall-safe use_item loop so
 -- class rotation files can share a single copy.

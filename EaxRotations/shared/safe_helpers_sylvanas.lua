@@ -1,3 +1,10 @@
+-- safe_helpers_sylvanas.lua -- nil-safe wrappers for has_buff/buff_remains/health_pct APIs that crash on nil units.
+-- WHAT:   nil-safe wrappers for has_buff/buff_remains/health_pct APIs that crash on nil units
+-- WHEN:   called everywhere spec code touches a game_object without nil check
+-- WHY:    eliminates a class of nil method error crashes in spec code
+-- SAFETY: fallbacks return 0/false; never throw
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- =============================================================================
 -- safe_helpers_sylvanas.lua
 --

@@ -1,3 +1,10 @@
+-- player_helpers_sylvanas.lua -- get_player + form/stance + range helpers used by every spec.
+-- WHAT:   get_player + form/stance + range helpers used by every spec
+-- WHEN:   called per-frame from every spec's build_state and strategies
+-- WHY:    removes ~200 lines of duplicated range/form boilerplate per spec
+-- SAFETY: cached local_player at module load; nil-guarded accessors
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- =============================================================================
 -- player_helpers_sylvanas.lua
 --

@@ -1,3 +1,10 @@
+-- class_loader_sylvanas.lua -- factory that returns load_child/load_spec closures for class modules.
+-- WHAT:   factory that returns load_child/load_spec closures for class modules
+-- WHEN:   called once at Sylvanas plugin bootstrap
+-- WHY:    single source of truth for class + spec expansion loading
+-- SAFETY: pcall-wrapped require; never throws on missing child
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- DRY class loader for all class_sylvanas.lua modules.
 
 local NS = _G.EaxRotations
