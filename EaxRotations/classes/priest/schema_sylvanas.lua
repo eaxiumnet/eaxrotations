@@ -32,6 +32,9 @@ return {
                     { key = "shadowfiend_mana_threshold", type = "slider", label = "Shadowfiend Mana", min = 10, max = 60, default = 30 },
                     { key = "use_enhanced_fade", type = "checkbox", label = "Enhanced Fade", default = true },
                     { key = "use_symbol_of_hope", type = "checkbox", label = "Symbol of Hope (Party Mana)", default = true, tooltip = "Buffs party members with 33 mana every 5 sec for 15 sec. 15 mana cost, 5 min cooldown. Requires group/party." },
+                    { key = "pws_hp", type = "slider", label = "PW:Shield HP Threshold", min = 0, max = 100, default = 0, tooltip = "Self-cast PW:Shield when HP drops below this in combat (0 = disabled)" },
+                    { key = "auto_inner_fire", type = "checkbox", label = "Inner Fire (OOC)", default = true },
+                    { key = "auto_fortitude", type = "checkbox", label = "Fortitude (OOC)", default = true },
                 },
             },
         },
@@ -211,6 +214,12 @@ return {
                         { text = "Cleave", value = "cleave" },
                         { text = "AoE", value = "aoe" },
                     } },
+                    { key = "shadow_multidot_mode", type = "dropdown", label = "Multi-DoT Mode", default = 1, options = {
+                        { text = "Off", value = 1 },
+                        { text = "Near Target Only", value = 2 },
+                        { text = "All in Range", value = 3 },
+                    } },
+                    { key = "shadow_multidot_max_targets", type = "slider", label = "Multi-DoT Max Targets", min = 2, max = 5, default = 3 },
                     { key = "shadow_multi_dot_range", type = "slider", label = "Multi-DoT Range", min = 10, max = 40, default = 30 },
                     { key = "shadow_multi_dot_targets", type = "slider", label = "Multi-DoT Targets", min = 2, max = 6, default = 3 },
                 },
@@ -221,6 +230,7 @@ return {
                     { key = "shadow_vt_refresh_window", type = "slider", label = "VT Refresh Window (s)", min = 1, max = 6, default = 3 },
                     { key = "shadow_swp_refresh_window", type = "slider", label = "SW:P Refresh Window (s)", min = 1, max = 6, default = 3 },
                     { key = "shadow_dp_refresh_window", type = "slider", label = "DP Refresh Window (s)", min = 1, max = 6, default = 3 },
+                    { key = "shadow_dot_ttd_threshold", type = "slider", label = "DoT TTD Threshold (%)", min = 0, max = 100, default = 50, tooltip = "Skip DoT reapplication if target dies before this % of DoT duration" },
                 },
             },
             {
@@ -228,6 +238,7 @@ return {
                 settings = {
                     { key = "shadow_mb_mana_floor", type = "slider", label = "MB Mana Floor (%)", min = 10, max = 50, default = 30 },
                     { key = "shadow_conserve_mana_floor", type = "slider", label = "Conserve Mana Floor (%)", min = 5, max = 30, default = 15 },
+                    { key = "shadow_if_mb_combo", type = "checkbox", label = "Inner Focus + Mind Blast Combo", default = true, tooltip = "Hold Inner Focus for Mind Blast; if MB on long CD, use IF on next best spell" },
                 },
             },
             {

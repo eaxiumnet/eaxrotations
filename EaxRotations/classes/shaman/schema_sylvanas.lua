@@ -19,6 +19,9 @@ return {
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },
                     { key = "use_ooc_buffs", type = "checkbox", label = "OOC Buffs", default = true },
+                    { key = "auto_lightning_shield", type = "checkbox", label = "Lightning Shield (OOC)", default = true, tooltip = "Maintain Lightning Shield out of combat" },
+                    { key = "use_bloodlust", type = "checkbox", label = "Bloodlust", default = true },
+                    { key = "self_heal_hp", type = "slider", label = "Self-Heal HP Threshold", min = 0, max = 100, default = 0, tooltip = "Cast Lesser Healing Wave on self when HP drops below this (0 = disabled)" },
                 },
             },
             {
