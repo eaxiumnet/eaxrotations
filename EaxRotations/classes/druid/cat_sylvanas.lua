@@ -336,12 +336,15 @@ local function should_snapshot_upgrade(current_ap, snapshotted_ap, remains, refr
 end
 
 local function target_lives(state, seconds)
-    if state.target_ttd <= 0 then return true end
-    return state.target_ttd >= seconds
+    -- Pattern 14: nil target_ttd -> treat as 0 -> return true (lives).
+    -- Unknown TTD = assume long-lived (don't skip DoTs/finishers).
+    if (state.target_ttd or 0) <= 0 then return true end
+    return (state.target_ttd or 999) >= seconds
 end
 
 local function prevent_cp_waste(state, added_cp)
-    return state.combo_points + (added_cp or 1) <= 5
+    -- (state.combo_points or 0): nil combo_points -> arithmetic crash guard.
+    return (state.combo_points or 0) + (added_cp or 1) <= 5
 end
 
 local function has_valid_target(context)
@@ -455,14 +458,14 @@ function build_state(context)
     state.should_execute = state.target_hp <= NS.setting_number(settings, "cat_execute_hp", EXECUTE_HP)
     state.should_aoe = state.enemy_count >= (settings.aoe_threshold or 3)
     state.should_tab_rake = state.enemy_count >= 2 and state.enemy_count <= 3
-    state.should_pool_for_rip = state.combo_points >= NS.setting_number(settings, "cat_rip_cp", 5) and state.energy < RIP_COST and target_lives(state, MIN_RIP_TTD)
-    state.should_pool_for_shred = state.combo_points < 5 and state.energy < SHRED_COST and state.energy + ENERGY_PER_TICK >= SHRED_COST
+    state.should_pool_for_rip = (state.combo_points or 0) >= NS.setting_number(settings, "cat_rip_cp", 5) and (state.energy or 0) < RIP_COST and target_lives(state, MIN_RIP_TTD)
+    state.should_pool_for_shred = (state.combo_points or 0) < 5 and (state.energy or 0) < SHRED_COST and (state.energy or 0) + ENERGY_PER_TICK >= SHRED_COST
     state.pooling = state.should_pool_for_rip or state.should_pool_for_shred
     state.should_powershift = false
     if NS.setting_bool(settings, "cat_powershift_enabled", true) and state.is_cat and state.in_combat then
         local shift_energy = NS.setting_number(settings, "cat_powershift_energy", 20)
         local shift_gain = state.has_wolfshead and POWERSHIFT_GAIN_WOLFSHEAD or POWERSHIFT_GAIN_FUROR
-        local useful_after = state.energy + shift_gain >= math.min(ENERGY_CAP, SHRED_COST)
+        local useful_after = (state.energy or 0) + shift_gain >= math.min(ENERGY_CAP, SHRED_COST)
         state.should_powershift = state.energy <= shift_energy and state.combo_points <= POWERSHIFT_SAFE_CP and state.mana_pct >= POWERSHIFT_MIN_MANA and useful_after
     end
     return state
@@ -586,6 +589,56 @@ local function rip_matches(context, action)
     if state.target_ttd > 0 and state.target_ttd < 6 then return false end
     if should_wait_for_tick(state, RIP_COST) then return false end
     if not should_snapshot_upgrade(state.attack_power, state.rip_ap, state.rip_remains, RIP_REFRESH_WINDOW, AP_UPGRADE_RATIO) then return false end
+    return true
+end
+
+-- ============================================================================
+-- Rip Trick (advanced micro-optimization from wowsims feral rotation)
+-- Casts Rip at 1+ CP when energy is in the narrow [RIP_COST, MANGLE_COST)
+-- window -- you can afford Rip but not Mangle, so Rip now > waiting.
+-- Only fires when powershifting mana is available. Opt-in (default off).
+-- Source: wowsims_classic/sim/druid/feral/rotation.go canRipTrick
+local function rip_trick_matches(context, action)
+    local state = build_state(context)
+    if not NS.setting_bool(state.settings, "cat_use_rip_trick", false) then return false end
+    if not state.target then return false end
+    if not state.is_cat or not state.in_combat then return false end
+    if (state.mana_pct or 100) < POWERSHIFT_MIN_MANA then return false end
+    if (state.combo_points or 0) < 1 then return false end
+    if (state.rip_remains or 0) > 0 then return false end
+    if not target_lives(state, MIN_RIP_TTD) then return false end
+    if (state.target_ttd or 999) > 0 and (state.target_ttd or 999) < 6 then return false end
+    local energy = (state.energy or 0)
+    local next_energy = energy + ENERGY_PER_TICK
+    local in_window_now = energy >= RIP_COST and energy < MANGLE_COST
+    local in_window_next = next_energy >= RIP_COST and next_energy < MANGLE_COST
+    if not in_window_now and not in_window_next then return false end
+    if not in_window_now then
+        if should_wait_for_tick(state, RIP_COST) then return false end
+    end
+    return true
+end
+
+-- ============================================================================
+-- Shred Trick (advanced micro-optimization from wowsims feral rotation)
+-- Prefers Shred over Mangle as builder when a bleed is active, energy
+-- >= SHRED_COST, next tick >1s away, and Mangle affordable after Shred.
+-- Only fires with ample powershifting mana. Opt-in (default off).
+-- Source: wowsims_classic/sim/druid/feral/rotation.go canShredTrick
+local function shred_trick_matches(context, action)
+    local state = build_state(context)
+    if not NS.setting_bool(state.settings, "cat_use_shred_trick", false) then return false end
+    if not state.target then return false end
+    if not state.is_cat or not state.in_combat then return false end
+    if not state.is_behind then return false end
+    local bleed_active = (state.mangle_remains or 0) > 0 or (state.rip_remains or 0) > 0 or (state.rake_remains or 0) > 0
+    if not bleed_active then return false end
+    if (state.mana_pct or 100) < (POWERSHIFT_MIN_MANA * 2) then return false end
+    if (state.energy or 0) < SHRED_COST then return false end
+    if (state.next_tick_in or 0) <= 1.0 then return false end
+    local energy_after_shred = (state.energy or 0) - SHRED_COST + ENERGY_PER_TICK
+    if energy_after_shred < MANGLE_COST and (state.next_tick_in or 0) <= 1.5 then return false end
+    if (state.combo_points or 0) >= 5 then return false end
     return true
 end
 
@@ -780,6 +833,7 @@ local ACTIONS = {
     { name = "MangleDebuff", spell = SPELLS.MangleCat, required_form = "cat", min_energy = MANGLE_COST, debuff = MANGLE_DEBUFF, refresh = MANGLE_REFRESH_WINDOW, matches = mangle_debuff_matches },
 
     { name = "RipSnapshot", spell = SPELLS.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 5, matches = rip_snapshot_matches },
+    { name = "RipTrick", spell = SPELLS.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 1, matches = rip_trick_matches },
     { name = "Rip", spell = SPELLS.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 3, matches = rip_matches },
     { name = "FerociousBiteExecute", spell = SPELLS.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, target_max_hp = EXECUTE_HP, matches = bite_matches },
     { name = "FerociousBiteTtd", spell = SPELLS.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, matches = emergency_bite_matches },
@@ -793,6 +847,7 @@ local ACTIONS = {
     { name = "RakeTab", spell = SPELLS.Rake, required_form = "cat", min_energy = RAKE_COST, matches = rake_tab_matches },
     { name = "Rake", spell = SPELLS.Rake, required_form = "cat", min_energy = RAKE_COST, matches = rake_matches },
     { name = "ShredOmen", spell = SPELLS.Shred, required_form = "cat", requires_behind = true, matches = clearcasting_shred_matches },
+    { name = "ShredTrick", spell = SPELLS.Shred, required_form = "cat", requires_behind = true, min_energy = SHRED_COST, matches = shred_trick_matches },
     { name = "Shred", spell = SPELLS.Shred, required_form = "cat", requires_behind = true, min_energy = SHRED_COST, matches = shred_matches },
     { name = "MangleFiller", spell = SPELLS.MangleCat, required_form = "cat", min_energy = MANGLE_COST, matches = mangle_filler_matches },
     { name = "ClawFallback", spell = SPELLS.Claw, required_form = "cat", min_energy = 45, matches = claw_matches },

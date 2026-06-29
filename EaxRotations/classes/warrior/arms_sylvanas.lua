@@ -490,8 +490,9 @@ local function rend_matches(context, state)
     if execute_phase(context, state) then return false end
     if state.rend_remains > 3 then return false end
     if state.target_hp < 25 then return false end
-    -- TTD gate: skip Rend if target dying soon (bleed won't tick enough)
-    if state.ttd > 0 and state.ttd < 15 then return false end
+    -- TTD gate: skip Rend if target dying soon (bleed won't tick enough).
+    -- (state.ttd or 999): TTD unknown -> assume target lives long (allow Rend).
+    if (state.ttd or 999) > 0 and (state.ttd or 999) < 15 then return false end
     -- Skip Rend on bleed-immune creature types (Elemental, Undead, Mechanical)
     local target = context.target
     if target and target.get_creature_type then
