@@ -66,7 +66,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Throttle tracking
 -- ---------------------------------------------------------------------------
-local _last_dispel_at = 0
+local _last_dispel_at = -999
 
 function M.is_throttled()
     local now = (NS.time_now and NS.time_now()) or 0
