@@ -65,12 +65,19 @@
 - [ ] Plugin page copy overhaul
 
 ### Baseline (ALL GREEN)
-- 196 rotation suites: 193 pass, 3 pre-existing failures (unrelated)
+- 204 rotation suites: 201 pass, 3 pre-existing failures (unrelated)
 - 11 leveling suites: ALL PASS
 - 31 vanilla audit: PASS (0 tainted)
 - 61 sylvanas audit: PASS (0 invalid)
-- 402/402 luac -p: PASS
+- 412/412 luac -p: PASS
 - Critical runtime scan: 0 issues
+
+### Current Status (as of 2026-06-29)
+- Phase 1: ✅ COMPLETE (Healer Supremacy)
+- Phase 2: ✅ COMPLETE (Tank & Melee Supremacy)
+- Phase 3: ✅ COMPLETE (Ranged & Caster Supremacy)
+- Phase 4: 🔄 IN PROGRESS (Warrior & Polish)
+- Phase 5: ⏳ PENDING (Marketing & Community)
 
 ### Remaining from Previous Sprint
 1. Hunter cliptracker port (tbc-main has 1361-line module vs EAX's 39-line stub)
