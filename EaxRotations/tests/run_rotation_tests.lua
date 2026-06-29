@@ -179,6 +179,8 @@ local tests = {
  -- Cat snapshot
  "test_cat_snapshot_upgrade.lua",
 
+ "test_cat_trick_optimizations.lua",
+
  -- Rogue
  "test_combat_custom_matches.lua",
  "test_assassination_dagger_requirement.lua",

@@ -62,6 +62,8 @@ return {
                     { key = "cat_use_faerie_fire", type = "checkbox", label = "Use Faerie Fire (Feral)", default = true },
                     { key = "cat_aoe_threshold", type = "slider", label = "AoE Enemy Count", min = 2, max = 6, default = 3 },
                     { key = "cat_energy_pooling", type = "checkbox", label = "Energy Pooling", default = true, description = "Pool energy for optimal finisher timing" },
+                    { key = "cat_use_rip_trick", type = "checkbox", label = "Rip Trick (advanced)", default = false, description = "Cast Rip at low CP when energy is in [Rip, Mangle) window before powershifting. Short-fight / full-powershift only." },
+                    { key = "cat_use_shred_trick", type = "checkbox", label = "Shred Trick (advanced)", default = false, description = "Prefer Shred over Mangle as builder when bleed active and energy window allows. Short-fight / full-powershift only." },
                 },
             },
             {
