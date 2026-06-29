@@ -1,3 +1,10 @@
+-- leveling_helpers_sylvanas.lua -- build_state + match helpers reused across 9 leveling rotations.
+-- WHAT:   build_state + match helpers reused across 9 leveling rotations
+-- WHEN:   called every frame by every leveling spec
+-- WHY:    extracts duplicated 70-line helper block from each leveling_sylvanas.lua
+-- SAFETY: all functions nil-guarded; pure helpers, no on_update side-effects
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- Shared helper functions for leveling rotations.
 -- Extracted from duplicated boilerplate across 10 leveling files.
 -- Each function matches the exact implementation found in the leveling files.

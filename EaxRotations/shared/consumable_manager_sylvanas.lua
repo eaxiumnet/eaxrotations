@@ -1,3 +1,10 @@
+-- consumable_manager_sylvanas.lua -- centralised healthstone/potion/flask activator with HP/mana floors.
+-- WHAT:   centralised healthstone/potion/flask activator with HP/mana floors
+-- WHEN:   called per-frame in combat by every spec
+-- WHY:    removes 29 files of duplicated use-item + HP gate logic
+-- SAFETY: all item IDs from tbc_data_sylvanas; nil-guarded api calls
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- Shared Helper: Consumable Manager
 -- ============================================================================
 -- ============================================================================

@@ -1,3 +1,10 @@
+-- spell_rank_resolver_sylvanas.lua -- pick the highest learned spell rank for a class+level using expansion gates.
+-- WHAT:   pick the highest learned spell rank for a class+level using expansion gates
+-- WHEN:   called during spec build_state to decide which ID list to use
+-- WHY:    harmonises TBC vs TBC Anniversary (2.5.5) spell IDs across specs
+-- SAFETY: pure function; uses is_spell_learned fallback chain
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: Spell Rank Resolver (Expansion-Aware)
 -- ============================================================================

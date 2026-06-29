@@ -1,3 +1,10 @@
+-- arena_priority_sylvanas.lua -- selects highest-value CC/damage target in 2v2/3v3/5v5 arena.
+-- WHAT:   selects highest-value CC/damage target in 2v2/3v3/5v5 arena
+-- WHEN:   called by PvP specs on every on_update when is_pvp
+-- WHY:    eliminates copy-paste CC target scoring across Rogue/Mage/Priest/etc.
+-- SAFETY: no on_update allocs; pure scoring function; nil-guarded enemy list
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- Shared Helper: Arena Priority System
 -- ============================================================================
 local M = {}

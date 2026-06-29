@@ -1,3 +1,10 @@
+-- pet_manager_sylvanas.lua -- call/revive/mend/feed/dismiss helpers for Hunter + Warlock pets.
+-- WHAT:   call/revive/mend/feed/dismiss helpers for Hunter + Warlock pets
+-- WHEN:   called per-frame in and out of combat by pet-using specs
+-- WHY:    single retry/cooldown/MendPet policy for all pet specs
+-- SAFETY: MendPet throttled to 2s; nil-guarded pet pointer
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: Pet Manager (Hunter + Warlock)
 -- ============================================================================

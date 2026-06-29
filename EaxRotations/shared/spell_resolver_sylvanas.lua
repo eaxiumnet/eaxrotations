@@ -1,3 +1,10 @@
+-- spell_resolver_sylvanas.lua -- cached spell resolution table with talent-modifier awareness.
+-- WHAT:   cached spell resolution table with talent-modifier awareness
+-- WHEN:   called per-frame in spec match functions; caches outcomes in-process
+-- WHY:    replaces string-key spell lookups with pre-resolved ID tables
+-- SAFETY: cache TTL 5s; nil-guarded on cache miss
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- ============================================================================
 -- Shared Module: Talent-Modified Spell Resolution
 -- ============================================================================

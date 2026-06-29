@@ -1,3 +1,10 @@
+-- interrupt_manager_sylvanas.lua -- class-portable interrupt with DR tracking and CD awareness.
+-- WHAT:   class-portable interrupt with DR tracking and CD awareness
+-- WHEN:   called per-tick; checks enemy casting channel + DR counter
+-- WHY:    unified interrupt API across 6 interrupt-capable classes
+-- SAFETY: DR state cached per-frame; nil-guarded debuff api
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: Interrupt Manager
 -- ============================================================================

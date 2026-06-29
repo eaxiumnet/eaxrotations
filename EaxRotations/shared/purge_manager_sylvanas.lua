@@ -1,3 +1,10 @@
+-- purge_manager_sylvanas.lua -- offensive dispel (Purge) with hostile-buff priority list.
+-- WHAT:   offensive dispel (Purge) with hostile-buff priority list
+-- WHEN:   called per-tick in PvP specs when target has dispellable buff
+-- WHY:    unifies offensive dispel behaviour across classes
+-- SAFETY: throttled to 1s; nil-guarded debuff API
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: Purge Manager
 -- ============================================================================

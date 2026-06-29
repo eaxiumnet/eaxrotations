@@ -1,3 +1,10 @@
+-- talent_inference_sylvanas.lua -- best-effort talent tab/points inference when API unavailable.
+-- WHAT:   best-effort talent tab/points inference when API unavailable
+-- WHEN:   called during spec build_state; results cached per spec load
+-- WHY:    lets specs branch on talents using batched APIGetTalentInfo
+-- SAFETY: introspection guarded; pure helper
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- Shared Helper: Talent Inference
 -- ============================================================================
 local M = {}

@@ -1,3 +1,10 @@
+-- match_helpers_sylvanas.lua -- distance/state/HP/combo match-function predicates shared by specs.
+-- WHAT:   distance/state/HP/combo match-function predicates shared by specs
+-- WHEN:   called by spec match functions in every strategy table
+-- WHY:    replaces ~30 hand-written `(state.x or 0) < y` snippets per spec
+-- SAFETY: pure predicates; no api calls; cached dependencies
+-- DECISION: consumed by specs via require(); no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: Match Helpers
 -- What:   Boolean gate helpers for common strategy match-function patterns.
