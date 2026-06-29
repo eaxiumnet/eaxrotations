@@ -50,13 +50,13 @@
 - [x] Dynamic Aspect Switching — `shared/aspect_manager_sylvanas.lua`; Hawk/Viper/Cheetah auto
 - [x] Melee Weaving — Raptor Strike + Wing Clip at <= 5yd; all 3 Hunter specs
 
-### Phase 4: Warrior & Polish (Week 4 — July 19 - July 26)
-- [ ] Stance Dance Management
-- [ ] Smart Rage Management
-- [ ] Healthstone Automation
-- [ ] Fade Automation
-- [ ] Fully Automated Dispel
-- [ ] Combat Mode Override
+### Phase 4: Warrior & Polish (Week 4 — June 29) ✅ COMPLETE
+- [x] Stance Dance Management (`shared/stance_manager_sylvanas.lua`) — Battle/Berserker/Defensive auto-switch
+- [x] Smart Rage Management (`shared/rage_manager_sylvanas.lua`) — HS/Cleave dump with starvation guard
+- [x] Healthstone Automation — All Warlock specs + Shadow Priest
+- [x] Fade Automation — All Priest specs (Shadow/Holy/Discipline)
+- [x] Fully Automated Dispel (`shared/dispel_manager_sylvanas.lua`) — 5-class support, 3s throttle, tank-gated
+- [x] Combat Mode Override — Verified/extended across existing specs
 
 ### Phase 5: Marketing & Community (Week 5+)
 - [ ] Free Trial request to PS team
@@ -65,18 +65,18 @@
 - [ ] Plugin page copy overhaul
 
 ### Baseline (ALL GREEN)
-- 204 rotation suites: 201 pass, 3 pre-existing failures (unrelated)
+- 208 rotation suites: 206 pass, 2 pre-existing failures (unrelated)
 - 11 leveling suites: ALL PASS
 - 31 vanilla audit: PASS (0 tainted)
 - 61 sylvanas audit: PASS (0 invalid)
-- 412/412 luac -p: PASS
+- All modified files luac -p: PASS
 - Critical runtime scan: 0 issues
 
 ### Current Status (as of 2026-06-29)
 - Phase 1: ✅ COMPLETE (Healer Supremacy)
 - Phase 2: ✅ COMPLETE (Tank & Melee Supremacy)
 - Phase 3: ✅ COMPLETE (Ranged & Caster Supremacy)
-- Phase 4: 🔄 IN PROGRESS (Warrior & Polish)
+- Phase 4: ✅ COMPLETE (Warrior & Polish)
 - Phase 5: ⏳ PENDING (Marketing & Community)
 
 ### Remaining from Previous Sprint

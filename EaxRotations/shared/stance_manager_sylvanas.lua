@@ -114,7 +114,9 @@ function M.should_switch(context, state, desired_stance)
     if stance == desired_id then return false end
 
     -- Respect stance lockout
-    local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
+    local WH
+    local ok, loaded = pcall(require, "classes/warrior/shared_helpers_sylvanas")
+    if ok and type(loaded) == "table" then WH = loaded else WH = {} end
     if WH.stance_lockout_active and WH.stance_lockout_active() then return false end
 
     -- Respect manual mode

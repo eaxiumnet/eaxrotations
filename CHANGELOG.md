@@ -2,6 +2,57 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [Unreleased] — FrostByte Supremacy Phase 4 (2026-06-29)
+
+### Added
+
+#### Stance Dance Management (Warrior)
+- **WHAT**: Auto-switch stances based on rotation needs and survival state.
+- **WHY**: Battle for Rend/Overpower/Charge, Berserker for DPS/Execute/Intercept, Defensive for survival.
+- **HOW**: `shared/stance_manager_sylvanas.lua` provides `get_optimal_stance(context, state)` and `should_switch(context, state, desired)`. Rules: Defensive when HP < 30%, Berserker for Execute, Battle for Rend/Overpower. Respects Tactical Mastery rage preservation and stance lockout.
+- **Settings**: `stance_mode` dropdown — "auto", "manual", "battle", "defensive", "berserker".
+- **Files**: `shared/stance_manager_sylvanas.lua`, `arms_sylvanas.lua`, `fury_sylvanas.lua`, `protection_sylvanas.lua`.
+
+#### Smart Rage Management (Warrior DPS)
+- **WHAT**: Intelligently dump rage with Heroic Strike / Cleave to prevent capping.
+- **WHY**: Rage capping is DPS loss; rage starving is also DPS loss.
+- **HOW**: `shared/rage_manager_sylvanas.lua` provides `should_heroic_strike()`, `should_cleave()`, `recommend_dump()`. Respects core ability starvation (MS/Overpower for Arms, BT/WW for Fury). Fury-specific HS trick (queue when OH imminent).
+- **Settings**: `rage_dump_threshold` slider (default 80), `rage_dump_ability` dropdown — "heroic_strike", "cleave", "auto".
+- **Files**: `shared/rage_manager_sylvanas.lua`, `arms_sylvanas.lua`, `fury_sylvanas.lua`.
+
+#### Healthstone Automation
+- **WHAT**: Auto-use Healthstone when HP drops below threshold.
+- **WHY**: Basic survival feature advertised by FrostByte.
+- **HOW**: Scan bags for healthstone IDs {22105..22100}. Use `NS.use_item_by_id()` when off-GCD and not casting.
+- **Settings**: `auto_healthstone` checkbox (default true), `healthstone_hp_threshold` slider (default 30%).
+- **Files**: `affliction_sylvanas.lua`, `destruction_sylvanas.lua`, `demonology_sylvanas.lua`, `shadow_sylvanas.lua`.
+
+#### Fade Automation (Priest)
+- **WHAT**: Auto-cast Fade when threat is high.
+- **WHY**: Prevents pulling aggro in dungeons/raids.
+- **HOW**: Uses `context.threat_pct` or `context.threat_status >= 2` as trigger. Respects `priest_auto_fade` checkbox and `priest_fade_threat_threshold` slider (default 80%).
+- **Files**: `shadow_sylvanas.lua`, `holy_sylvanas.lua`, `discipline_sylvanas.lua`.
+
+#### Fully Automated Dispel
+- **WHAT**: Auto-dispel party/raid members (and self) for dispellable debuffs.
+- **WHY**: Reduces manual dispel burden in raids/dungeons.
+- **HOW**: `shared/dispel_manager_sylvanas.lua` scans party for debuff types and casts appropriate dispel. Supports: Priest (Magic/Disease), Paladin (Poison/Disease/Magic with talent), Shaman (Poison/Disease), Druid (Poison/Curse), Mage (Curse). Throttled to 1 dispel per 3 seconds. Skips during critical healing (tank < 50%).
+- **Settings**: `auto_dispel` checkbox (default true), `dispel_priority` dropdown — "self", "tank", "all".
+- **Files**: `shared/dispel_manager_sylvanas.lua`.
+
+#### Combat Mode Override (Extended)
+- **WHAT**: Force Single Target, AoE, or Auto-detect mode across all DPS/tank specs.
+- **WHY**: Users want control over rotation behavior.
+- **HOW**: Already existed via `shared/combat_mode_sylvanas.lua`. Extended via schema wiring. Verified working in Shadow Priest, Warrior (all specs), Hunter (all specs), Shaman Enhancement, Paladin (all specs).
+- **Files**: `shared/combat_mode_sylvanas.lua`, various spec schemas.
+
+### Tests
+- Added `test_stance_manager.lua` (6 assertions) — PASS
+- Added `test_rage_manager.lua` (7 assertions) — PASS
+- Added `test_dispel_manager.lua` (7 assertions) — PASS
+- Total: 208 rotation suites (206 pass, 2 pre-existing failures unrelated to this work)
+- Total: 11 leveling suites (all pass)
+
 ## [Unreleased] — FrostByte Supremacy Phase 3 (2026-06-29)
 
 ### Added
