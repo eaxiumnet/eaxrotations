@@ -12,6 +12,11 @@ if not NS then return end
 local M = {}
 NS.StanceManager = M
 
+-- Cache warrior helpers at module load (Pattern 2: cache hot-path APIs)
+local _WH
+local _wh_ok, _wh_loaded = pcall(require, "classes/warrior/shared_helpers_sylvanas")
+if _wh_ok and type(_wh_loaded) == "table" then _WH = _wh_loaded else _WH = {} end
+
 -- ---------------------------------------------------------------------------
 -- Constants
 -- ---------------------------------------------------------------------------
@@ -113,11 +118,8 @@ function M.should_switch(context, state, desired_stance)
     if not desired_id then return false end
     if stance == desired_id then return false end
 
-    -- Respect stance lockout
-    local WH
-    local ok, loaded = pcall(require, "classes/warrior/shared_helpers_sylvanas")
-    if ok and type(loaded) == "table" then WH = loaded else WH = {} end
-    if WH.stance_lockout_active and WH.stance_lockout_active() then return false end
+    -- Respect stance lockout (cached at module load)
+    if _WH.stance_lockout_active and _WH.stance_lockout_active() then return false end
 
     -- Respect manual mode
     local mode = setting(context, "stance_mode", "auto")
