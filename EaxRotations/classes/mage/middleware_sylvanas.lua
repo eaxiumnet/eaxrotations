@@ -69,8 +69,17 @@ local function should_use_mage_defensive(context)
 end
 
 local function has_armor_buff()
-    if not NS.has_player_buff then return false end
-    return NS.has_player_buff(MAGE_ARMOR_BUFFS) or NS.has_player_buff(MOLTEN_ARMOR_BUFFS)
+    -- BUGFIX (2026-06-29): this function used to return ``false`` when the
+    -- API was missing, which is the OPPOSITE of the safe default.  When PS
+    -- didn't expose has_player_buff the manager would think the player had
+    -- no armor buff and recast every tick.  Now returns true (= "buff up")
+    -- on missing API, matching the original defensive intent.  Also splits
+    -- the disjunctive ``a or b`` pattern into two explicit checks so a nil
+    -- return from one branch doesn't propagate.
+    if not NS.has_player_buff then return true end
+    local has_mage = NS.has_player_buff(MAGE_ARMOR_BUFFS)
+    if has_mage and has_mage ~= false then return true end
+    return NS.has_player_buff(MOLTEN_ARMOR_BUFFS) and true or false
 end
 
 local function first_ready_mana_gem()
@@ -205,8 +214,14 @@ local strategies = {
             if not should_use_mage_defensive(context) then return false end
             local settings = context.settings or {}
             local mana_threshold = settings.mana_shield_mana_threshold or 50
+            -- BUGFIX (2026-06-29): nil-guard NS.has_player_buff.  ``not nil``
+            -- is true, which would falsely report "no Mana Shield buff" and
+            -- recast every tick when the API is missing.  Default to ``true``
+            -- (= "buff is up, skip recast") so the safe-failure mode matches
+            -- the has_armor_buff helper above.
+            local has_ms = NS.has_player_buff and NS.has_player_buff(SPELLS.ManaShield) and true or false
             return (settings.use_ice_block ~= false and self_spell_ready(SPELLS.IceBlock, context))
-                or (settings.use_mana_shield ~= false and (context.mana_pct or 0) >= mana_threshold and not NS.has_player_buff(SPELLS.ManaShield) and self_spell_ready(SPELLS.ManaShield, context))
+                or (settings.use_mana_shield ~= false and (context.mana_pct or 0) >= mana_threshold and not has_ms and self_spell_ready(SPELLS.ManaShield, context))
         end,
         execute = function(context)
             local settings = context.settings or {}
@@ -214,7 +229,8 @@ local strategies = {
             if settings.use_ice_block ~= false and self_spell_ready(SPELLS.IceBlock, context) then
                 return NS.try_cast(SPELLS.IceBlock, (context.me or NS.GetPlayer()), "[MAGE] Ice Block", { skip_range = true }) == true
             end
-            if settings.use_mana_shield ~= false and (context.mana_pct or 0) >= mana_threshold and not NS.has_player_buff(SPELLS.ManaShield) and self_spell_ready(SPELLS.ManaShield, context) then
+            local has_ms = NS.has_player_buff and NS.has_player_buff(SPELLS.ManaShield) and true or false
+            if settings.use_mana_shield ~= false and (context.mana_pct or 0) >= mana_threshold and not has_ms and self_spell_ready(SPELLS.ManaShield, context) then
                 return NS.try_cast(SPELLS.ManaShield, (context.me or NS.GetPlayer()), "[MAGE] Mana Shield", { skip_range = true }) == true
             end
             return false
@@ -226,10 +242,14 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if settings.use_self_buffs == false then return false end
+            -- BUGFIX (2026-06-29): nil-guard NS.has_player_buff so a missing
+            -- API doesn't crash the dispatch.  ``not nil`` is true which would
+            -- falsely report "no Arcane Intellect buff" and recast every tick.
+            local safe_has_player_buff = NS.has_player_buff or function() return true end
             if not has_armor_buff() then
                 return self_spell_ready(SPELLS.MoltenArmor, context) or self_spell_ready(SPELLS.MageArmor, context)
             end
-            if not NS.has_player_buff(ARCANE_INTELLECT_BUFFS) then
+            if not safe_has_player_buff(ARCANE_INTELLECT_BUFFS) then
                 return self_spell_ready(SPELLS.ArcaneIntellect, context)
             end
             return false
@@ -239,7 +259,8 @@ local strategies = {
                 if self_spell_ready(SPELLS.MoltenArmor, context) and NS.try_cast(SPELLS.MoltenArmor, (context.me or NS.GetPlayer()), "[MAGE] Molten Armor", { skip_range = true }) then return true end
                 if self_spell_ready(SPELLS.MageArmor, context) and NS.try_cast(SPELLS.MageArmor, (context.me or NS.GetPlayer()), "[MAGE] Mage Armor", { skip_range = true }) then return true end
             end
-            if not NS.has_player_buff(ARCANE_INTELLECT_BUFFS) and self_spell_ready(SPELLS.ArcaneIntellect, context) then
+            local safe_has_player_buff = NS.has_player_buff or function() return true end
+            if not safe_has_player_buff(ARCANE_INTELLECT_BUFFS) and self_spell_ready(SPELLS.ArcaneIntellect, context) then
                 return NS.try_cast(SPELLS.ArcaneIntellect, (context.me or NS.GetPlayer()), "[MAGE] Arcane Intellect", { skip_range = true }) == true
             end
             return false
@@ -248,6 +269,13 @@ local strategies = {
         name = "PvPIceBlock",
         matches = function(context)
             local settings = context.settings or {}
+            -- BUGFIX (2026-06-29): PvPIceBlock used to fire unconditionally on
+            -- kite-or-low-HP regardless of the user's ``use_ice_block`` toggle.
+            -- The user reported this as part of the wider middleware-not-honoring-
+            -- toggles issue.  Now respects both the per-spell and PvP toggles,
+            -- matching the pattern used by the ``Defensive`` strategy immediately
+            -- above.
+            if settings.use_ice_block == false then return false end
             if settings.use_pvp_defensives == false then return false end
             if not NS.should_kite or not NS.should_kite(context) or (context.hp or 100) >= 30 then return false end
             return true

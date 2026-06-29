@@ -8,8 +8,16 @@ local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local CCGateDB = CCBreakDB
 local SPELLS = NS.DruidSpells or {}
-local _is_spell_learned = core.spell_book and core.spell_book.is_spell_learned or nil
-local _get_party_frames = core.object_manager and core.object_manager.get_party_frames or nil
+-- BUGFIX (2026-06-29): this file used to read the bare global ``core``, which
+-- depended on _G.core being set by core_sylvanas.lua BEFORE this chunk loaded.
+-- In test sandboxes or any load-order where core_sylvanas runs later, the
+-- read resolved to nil and the two helpers below silently no-op'd in silent
+-- ways (party-frame scan + form-shift).  Capture an explicit local from
+-- ``NS.core`` (set by core_sylvanas.lua as ``NS.core = _G.core``) so the
+-- file is self-contained and not ambient-global dependent.
+local core = NS.core or {}
+local _is_spell_learned = (type(core) == "table" and type(core.spell_book) == "table" and core.spell_book.is_spell_learned) or NS.is_spell_learned or nil
+local _get_party_frames = (type(core) == "table" and type(core.object_manager) == "table" and core.object_manager.get_party_frames) or nil
 
 -- ============================================================================
 -- FORM-AWARE CONSUMABLES

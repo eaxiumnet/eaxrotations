@@ -56,6 +56,14 @@ if not _spell_queue_ok or type(spell_queue_module) ~= "table" then spell_queue_m
 -- Expose for strategy access; nil if unavailable.
 NS.spell_queue = spell_queue_module
 
+-- Pet manager: loaded at module load (not per-frame) so the hot path doesn't
+-- pcall(require, ...) every tick.  Hunter-only at runtime; preloading here
+-- means the dispatcher can call pet_manager.on_update unconditionally and
+-- the worst case is a single function pointer indirection.
+local _pet_manager_mod_ok, pet_manager = pcall(require, "shared/pet_manager_sylvanas")
+if not _pet_manager_mod_ok or type(pet_manager) ~= "table" then pet_manager = nil end
+NS.pet_manager = pet_manager
+
 -- Expose platform-provided modules for spec consumption.
 -- health_prediction: tank detection, PvP detection, incoming damage heuristics.
 NS.health_prediction = health_prediction
@@ -1185,11 +1193,8 @@ function M.on_rotation_update()
 
     -- Pet manager update (hunter only): runs every frame to keep pet attacking target
     -- and casting pet abilities (Growl, Claw, Bite, etc.) on cooldown.
-    if class_key == "hunter" and context.me then
-        local _pm_ok, pet_manager = pcall(require, "shared/pet_manager_sylvanas")
-        if _pm_ok and pet_manager and pet_manager.on_update then
-            pet_manager.on_update(context.me, context.target, active)
-        end
+    if class_key == "hunter" and context.me and pet_manager and pet_manager.on_update then
+        pet_manager.on_update(context.me, context.target, active)
     end
 
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
@@ -1258,11 +1263,8 @@ function M.on_rotation_update_unified()
 
     -- Pet manager update (hunter only): runs every frame to keep pet attacking target
     -- and casting pet abilities (Growl, Claw, Bite, etc.) on cooldown.
-    if class_key == "hunter" and context.me then
-        local _pm_ok, pet_manager = pcall(require, "shared/pet_manager_sylvanas")
-        if _pm_ok and pet_manager and pet_manager.on_update then
-            pet_manager.on_update(context.me, context.target, active)
-        end
+    if class_key == "hunter" and context.me and pet_manager and pet_manager.on_update then
+        pet_manager.on_update(context.me, context.target, active)
     end
 
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then

@@ -109,7 +109,12 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if settings.use_self_buffs == false or settings.use_battle_shout == false then return false end
-            if NS.has_player_buff(BATTLE_SHOUT_BUFFS) then return false end
+            -- BUGFIX (2026-06-29): previously this called ``NS.has_player_buff``
+            -- without nil-guarding the API.  On PS builds where the function
+            -- is missing, every tick would crash the dispatcher.  Now we check
+            -- the function exists; if it doesn't, we skip the buff-state gate
+            -- and let the throttled broken_api path decide (next line).
+            if NS.has_player_buff and NS.has_player_buff(BATTLE_SHOUT_BUFFS) then return false end
             -- Throttle on PS builds where aura API is broken and has_player_buff always returns false
             if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 10.0) then return false end
             return defensive_spell_ready(SPELLS.BattleShout, context)

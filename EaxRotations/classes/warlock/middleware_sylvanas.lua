@@ -205,6 +205,11 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if not context.in_combat then return false end
+            -- BUGFIX (2026-06-29): respect the master ``use_auto_consumables``
+            -- AND a new ``use_death_coil`` per-spell toggle.  Previously this
+            -- strategy fired at low HP regardless of either setting.
+            if settings.use_auto_consumables == false then return false end
+            if settings.use_death_coil == false then return false end
             local threshold = settings.death_coil_hp or 0
             if threshold <= 0 then return false end
             if (context.hp or 100) <= threshold then
@@ -235,12 +240,41 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if not context.in_combat then return false end
+            -- BUGFIX (2026-06-29): respect the master + per-category toggles.
+            -- Previously this strategy ignored ``use_auto_consumables`` and
+            -- ``use_healthstones`` entirely, leading to auto-chugging at low
+            -- HP regardless of the user's preference.  Also add a fast-path
+            -- bag check before matches returns true so the dispatcher doesn't
+            -- iterate ``HEALTHSTONE_ITEMS`` for a player with nothing in bags.
+            if settings.use_auto_consumables == false then return false end
+            if settings.use_healthstones == false then return false end
             local threshold = settings.healthstone_hp or 0
             if threshold <= 0 then return false end
-            if (context.hp or 100) <= threshold then
-                return true
+            if (context.hp or 100) > threshold then return false end
+            -- Fast-path bag scan (cached) so we don't trigger the execute
+            -- loop when player has zero healthstones / potions in bags.
+            local consumable_manager
+            pcall(function() consumable_manager = require("shared/consumable_manager_sylvanas") end)
+            if consumable_manager and type(consumable_manager.has_any_consumable) == "function" then
+                local ids = {}
+                local seen = {}
+                local add = function(id)
+                    if type(id) == "number" and id > 0 and not seen[id] then
+                        seen[id] = true
+                        ids[#ids + 1] = id
+                    end
+                end
+                if type(HEALTHSTONE_ITEMS) == "table" then
+                    for _, id in ipairs(HEALTHSTONE_ITEMS) do add(id) end
+                end
+                if type(HEALING_POTION_ITEMS) == "table" then
+                    for _, id in ipairs(HEALING_POTION_ITEMS) do add(id) end
+                end
+                if #ids > 0 and not consumable_manager.has_any_consumable(ids) then
+                    return false
+                end
             end
-            return false
+            return true
         end,
         execute = function(context)
             -- Try Healthstone first (item-based, has CD)
@@ -256,7 +290,7 @@ local strategies = {
             if used_item then return true end
 
             -- Fallback: Healing Potion if no Healthstone used
-            if NS.use_item and context.me then
+            if settings and settings.use_health_potions ~= false and NS.use_item and context.me then
                 for _, item_id in ipairs(HEALING_POTION_ITEMS) do
                     if NS.use_item(item_id, context.me) then
                         return true
