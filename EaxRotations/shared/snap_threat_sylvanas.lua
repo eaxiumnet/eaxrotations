@@ -3,6 +3,7 @@
 -- WHEN:  Prot Paladin, Prot Warrior (and any tank spec that opts in).
 -- WHY:   Establishes threat before DPS opens up, preventing early aggro loss.
 -- SAFETY: 3s cooldown after snap to prevent spam; gated by setting; nil-guarded
+-- DECISION: snap Judgement/Shield Slam on combat entry for Prot Pally/Warrior.
 --         API access. Only fires when actually entering combat (not already in).
 -- Decision: Shared module because both Prot Pally and Prot Warrior need it,
 --           and future tank specs (Bear, Prot DK) can reuse the same hook.

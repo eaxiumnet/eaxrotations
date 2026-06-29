@@ -3,6 +3,7 @@
 -- WHEN:  Any healer or class with dispel in group content.
 -- WHY:   Reduces manual dispel burden in raids/dungeons.
 -- SAFETY: Throttled (max 1 dispel per 3s); skips during critical healing
+-- DECISION: 5-class dispel dispatcher with 3s throttle and tank-priority.
 --         (tank < 50% HP); nil-guarded settings; priority-based targeting.
 
 local _G = _G

@@ -3,6 +3,7 @@
 -- WHEN:  All DPS and tank specs that have AoE abilities.
 -- WHY:   Users want control — e.g. "force ST on boss even with adds nearby".
 -- SAFETY: Setting is nil-guarded; auto mode falls back to existing enemy count
+-- DECISION: Single Target / AoE / Auto override; pure setting-driven gate.
 --         logic; no state mutation, pure read-only helper.
 -- Decision: Shared module because 20+ specs need the same 3-state logic.
 

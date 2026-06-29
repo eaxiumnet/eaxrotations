@@ -5,6 +5,7 @@
 -- WHY: has this; EAX needs parity. A Greater Heal landing on a target
 --  that was topped off by a HoT tick = ~40% overheal.
 -- SAFETY: All API calls nil-guarded; disabled pass-through when off or when
+-- DECISION: smart Stop-Cast Engine; cancel heal channel when target recovers enough.
 --   target data is unavailable. Uses engine cancel API (cancel_spells).
 -- Decision: Standalone module so all 5 healer specs can consume it uniformly.
 

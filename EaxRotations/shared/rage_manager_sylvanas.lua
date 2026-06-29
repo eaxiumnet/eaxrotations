@@ -3,6 +3,7 @@
 -- WHEN:  Arms and Fury Warrior (Protection uses its own rage dump logic).
 -- WHY:   Rage capping is DPS loss; rage starving is also DPS loss.
 -- SAFETY: Nil-guarded settings; starvation checks prevent blocking core abilities.
+-- DECISION: Warrior rage dump (HS/Cleave) with starvation guard.
 
 local _G = _G
 local NS = _G.EaxRotations

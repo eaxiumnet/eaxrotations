@@ -3,6 +3,7 @@
 -- WHEN:  All Hunter specs (used by MM/Survival spec files; BM uses middleware).
 -- WHY:   Never go OOM, never waste GCD on manual aspect.
 -- SAFETY: nil-guarded; only suggests switches when not already in correct aspect.
+-- DECISION: Hawk/Viper/Cheetah auto-switch; pure state machine driven by mana%.
 
 local NS = _G.EaxRotations
 if not NS then return {} end

@@ -3,6 +3,7 @@
 -- WHEN:  All DoT specs (Shadow Priest, Affliction Lock, etc.).
 -- WHY:   Don't waste GCDs on targets that die in 3s.
 -- SAFETY: nil-guarded; returns false (don't skip) when data is missing.
+-- DECISION: DoT refresh helper gated by target TTD; pure caller.
 
 local NS = _G.EaxRotations
 if not NS then return {} end
