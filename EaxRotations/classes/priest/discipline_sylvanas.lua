@@ -589,9 +589,14 @@ end
 -- Auto-use Fade when player has aggro.
 -- ============================================================================
 local function fade_matches(context, s)
+    local auto_fade = (context.settings and context.settings.priest_auto_fade) ~= false
+    if not auto_fade then return false end
     if not context.in_combat then return false end
     if s.has_fade_buff then return false end
     if not s.fade_ready then return false end
+    local threshold = (context.settings and context.settings.priest_fade_threat_threshold) or 80
+    if context.threat_pct and context.threat_pct >= threshold then return true end
+    if context.threat_status and context.threat_status >= 2 then return true end
     local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(20) or {}
     for _, enemy in ipairs(enemies) do
         if enemy then
@@ -617,8 +622,10 @@ end
 -- Auto-use healthstone below HP threshold, off-GCD.
 -- ============================================================================
 local function healthstone_matches(context, s)
+    local auto_hs = (context.settings and context.settings.auto_healthstone) ~= false
+    if not auto_hs then return false end
     if not s.healthstone_ready then return false end
-    local hs_hp = (context.settings and context.settings.discipline_healthstone_hp) or 35
+    local hs_hp = (context.settings and context.settings.healthstone_hp_threshold) or 30
     if (s.hp_pct or 100) > hs_hp then return false end
     return true
 end
