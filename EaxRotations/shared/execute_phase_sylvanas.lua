@@ -1,3 +1,10 @@
+-- execute_phase_sylvanas.lua -- Execute Phase + Low-HP Target Gating.
+-- WHAT:   Execute Phase + Low-HP Target Gating.
+-- WHEN:   called per-frame in warrior/rogue specs
+-- WHY:    unifies 'target below X% HP' gating across melee specs
+-- SAFETY: target_hp nil-guarded per Pattern 14
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: Execute Phase & Low-HP Target Gating
 -- ============================================================================

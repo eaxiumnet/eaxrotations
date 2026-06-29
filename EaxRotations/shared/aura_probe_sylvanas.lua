@@ -1,8 +1,10 @@
--- aura_probe_sylvanas.lua -- diagnostic aura-ID validator against TBC DBC
--- WHAT:  validate Sylvanas aura-ID lookups against TBC DBC, log mismatches
--- WHEN:  opt-in diagnostic; never called from hot paths
--- WHY:   catches aura-ID drift between AGENTS.md constants and client DBC
--- SAFETY: opt-in menu flag, must be nil-guarded if invoked from spec
+-- aura_probe_sylvanas.lua -- runtime aura probe used by tests + validators to confirm Sylvanas aura IDs.
+-- WHAT:   runtime aura probe used by tests + validators to confirm Sylvanas aura IDs.
+-- WHEN:   called when tests need to assert aura data; not used in production
+-- WHY:    single source for aura validation across all specs
+-- SAFETY: PCalled around api; nil-guarded unit
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- Runtime aura probe for validating Sylvanas aura IDs against TBC data.
 

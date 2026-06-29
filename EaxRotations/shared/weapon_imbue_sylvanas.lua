@@ -1,8 +1,10 @@
--- weapon_imbue_sylvanas.lua -- shared weapon-imbue manager (rogue poison, shaman windfury, etc.)
--- WHAT:  apply, refresh, deplete weapon imbues
--- WHEN:  out-of-combat refresh + warning before combat entry
--- WHY:   centralizes the imbue timer logic across specs
--- SAFETY: is_weapon_equipped nil-guarded; throttled re-application
+-- weapon_imbue_sylvanas.lua -- shared Weapon Imbue Manager (uses GetWeaponEnchantInfo TBC API).
+-- WHAT:   shared Weapon Imbue Manager (uses GetWeaponEnchantInfo TBC API).
+-- WHEN:   called per-frame by Enhancement/Elemental + Feral specs
+-- WHY:    centralises Rockbiter/WF/FT/CoH/MS imbue policy
+-- SAFETY: PCalled on GetWeaponEnchantInfo; nil-guarded weapon object
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- Shared Helper: Weapon Imbue Manager
 -- Uses GetWeaponEnchantInfo() (TBC API from wow_api_clone.lua)

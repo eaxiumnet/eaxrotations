@@ -1,8 +1,10 @@
--- hunter_core_sylvanas.lua -- Hunter core shot-timing engine (auto-shot + Steady + clip math)
--- WHAT:  auto-shot + Steady Shot timing, weapon speed, cast-time + clip gating
--- WHEN:  hunter any combat state when ranged attacks are usable
--- WHY:   centralizes all ranged-shot math so specs only consume the signal
--- SAFETY: auto-shot cast in flight never doubled; latency offset exposed
+-- hunter_core_sylvanas.lua -- shared Hunter core: auto-shot timer + shot weaving + sting/aspect/pet helpers.
+-- WHAT:   shared Hunter core: auto-shot timer + shot weaving + sting/aspect/pet helpers.
+-- WHEN:   called per-frame by all 3 Hunter specs and shot_timer module
+-- WHY:    centralises Hunter timing logic into one module
+-- SAFETY: auto_shot_active nil-guarded; ms_until_auto(0) means no pending
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- ============================================================================
 -- Shared Hunter Core: auto-shot timer, shot weaving, sting/aspect/pet helpers

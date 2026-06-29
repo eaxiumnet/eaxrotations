@@ -1,3 +1,10 @@
+-- offensive_dispel_sylvanas.lua -- Offensive Dispel Database — PvP enemy buff priority tiers.
+-- WHAT:   Offensive Dispel Database — PvP enemy buff priority tiers.
+-- WHEN:   called per-tick in PvP specs; chooses which friendly dispel is best
+-- WHY:    eliminates per-spec hardcoded priority lists
+-- SAFETY: static priority tiers; nil-guarded debuff api
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 -- Offensive Dispel Database — PvP enemy buff priority tiers.
 
 local M = {}

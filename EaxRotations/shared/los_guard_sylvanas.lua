@@ -1,3 +1,10 @@
+-- los_guard_sylvanas.lua -- Line-of-sight guard used by cast-time spells that need LOS on target.
+-- WHAT:   Line-of-sight guard used by cast-time spells that need LOS on target.
+-- WHEN:   called per-frame before any cast_time spell
+-- WHY:    silently skips casts when target is obscured (no-op, no crash)
+-- SAFETY: PCalled on LineOfSight api; nil-guarded unit
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: LOS Guard
 -- Wraps game_object:los_to() and core.graphics.is_line_of_sight().

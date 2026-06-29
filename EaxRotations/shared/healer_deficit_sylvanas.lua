@@ -1,8 +1,10 @@
--- healer_deficit_sylvanas.lua -- predictive healing-deficit tracker per heal target
--- WHAT:  track per-party-member incoming-damage vs incoming-heal gap
--- WHEN:  any healer combat
--- WHY:   centralizes triage so healers spec only the deficit list
--- SAFETY: bounded party scan (<=5); nil-guard on buff/debuff lookups
+-- healer_deficit_sylvanas.lua -- predictive healing deficit tracker using damage-rate sampling.
+-- WHAT:   predictive healing deficit tracker using damage-rate sampling.
+-- WHEN:   called per-frame in all 5 healer specs
+-- WHY:    lets healers prioritise targets whose deficit exceeds heal+incoming
+-- SAFETY: bounded deficit buffer; nil-guarded ttd
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- Predictive Healing Deficit Tracker (EaxRotations)
 -- What: Estimates future health deficit by tracking per-unit HP samples and

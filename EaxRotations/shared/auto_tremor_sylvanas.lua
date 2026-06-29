@@ -1,8 +1,10 @@
--- auto_tremor_sylvanas.lua -- auto-trigger Tremor Totem on group fear chains
--- WHAT:  auto-cast Tremor Totem when >=2 party members have a fear debuff
--- WHEN:  group PvE with fear mechanics (e.g. Magtheridon); PvP polymorph+hex chains
--- WHY:   avoids having to micro Tremor manual during mass-fear pulls
--- SAFETY: only fires when party-side fear debuff present, never solo-PvE questing
+-- auto_tremor_sylvanas.lua -- Auto Tremor Totem placement for Enhancement Shaman.
+-- WHAT:   Auto Tremor Totem placement for Enhancement Shaman.
+-- WHEN:   called per-tick by enhancement specs when fear/sap detected
+-- WHY:    eliminates 4-line fear-break duplication in enhancement_sylvanas
+-- SAFETY: per-fight cooldown; nil-guarded totem API
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- ============================================================================
 -- Shared Helper: Auto Tremor Totem

@@ -1,8 +1,10 @@
--- movement_assist_sylvanas.lua -- in-combat movement helper: facing + minimal pathing hints
--- WHAT:  encodes facing + minimal pathing for short reposition hops
--- WHEN:  any combat that requires stepping (LOS clipping, avoidance)
--- WHY:   centralizes micro-movement so rotation specs do not call core.input.move directly
--- SAFETY: core.input nil-guarded; only fires on localized hints
+-- movement_assist_sylvanas.lua -- shared movement/facing assist for cast reliability.
+-- WHAT:   shared movement/facing assist for cast reliability.
+-- WHEN:   called per-frame when in_combat but target out_of_range
+-- WHY:    auto-faces and steps toward target during 2.5s cast windows
+-- SAFETY: is_moving nil-guarded per Pattern 14
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- movement_assist_sylvanas.lua
 -- What: Shared movement/facing assist for cast reliability.

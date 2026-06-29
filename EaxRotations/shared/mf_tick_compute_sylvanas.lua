@@ -1,3 +1,10 @@
+-- mf_tick_compute_sylvanas.lua -- Mind Flay tick computation helper for Shadow Priest.
+-- WHAT:   Mind Flay tick computation helper for Shadow Priest.
+-- WHEN:   called per-frame in shadow_sylvanas while MF is channeling
+-- WHY:    lets Shadow lock MF for exactly N ticks then bail to VT
+-- SAFETY: uses NS.tbc_time; nil-guarded
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: Mind Flay Tick Computation
 -- ============================================================================

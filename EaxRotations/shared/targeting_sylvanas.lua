@@ -1,8 +1,10 @@
--- targeting_sylvanas.lua -- target selector: enemy + party + aoe zone scoring
--- WHAT:  score + select the strongest target/zone for the spec
--- WHEN:  any combat with >1 enemy
--- WHY:   centralizes target-priority; prevents deadlocks on tied candidates
--- SAFETY: is_alive + is_in_party nil-guarded; bounded scan (<=50)
+-- targeting_sylvanas.lua -- shared Targeting System: enemy scoring + multi-target selection.
+-- WHAT:   shared Targeting System: enemy scoring + multi-target selection.
+-- WHEN:   called per-frame in spec build_state
+-- WHY:    centralises threat/distance/HP-anomaly-based target scoring
+-- SAFETY: bounded enemy scan; nil-guarded targets; static scoring table
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- ============================================================================
 -- Shared Helper: Targeting System
