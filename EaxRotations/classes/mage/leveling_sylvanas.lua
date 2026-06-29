@@ -33,6 +33,10 @@ local CONJURE_MANA_GEM_SPELLS = { 27101, 10054, 10053, 3552, 759 }
 -- Mana gem item IDs (highest → lowest rank) — using correct TBC item IDs
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }
 
+-- Freeze detection for Ice Lance 3x damage
+local FROST_NOVA_ROOTS = { 27088, 10230, 6131, 865, 122 }
+local FROSTBITE_DEBUFF = { 12494 }
+
 local WAND_SPELL_ID = leveling.WAND_SPELL_ID or 5019
 
 local EMPTY_SETTINGS = {}
@@ -157,6 +161,26 @@ local function build_state(context)
     state.frost_armor_ready = spell_is_ready(SPELLS.FrostArmor, nil, { skip_range = true })
     state.cone_of_cold_ready = spell_is_ready(SPELLS.ConeOfCold, context.target)
     state.blink_ready = spell_is_ready(SPELLS.Blink, nil, { skip_range = true })
+    state.mage_armor_ready = spell_is_ready(SPELLS.MageArmor, nil, { skip_range = true })
+    state.water_elemental_ready = spell_is_ready(SPELLS.WaterElemental, nil, { skip_range = true })
+    state.ice_lance_ready = spell_is_ready(SPELLS.IceLance, context.target)
+
+    -- Pet tracking: check if Water Elemental is already active
+    state.has_water_elemental = false
+    if me and me.has_pet then
+        local ok_pet, pet = pcall(function() return me:get_pet() end)
+        if ok_pet and pet then
+            local ok_valid, valid = pcall(function() return pet:is_valid() end)
+            state.has_water_elemental = ok_valid and valid or false
+        end
+    end
+
+    -- Freeze detection for Ice Lance 3x damage
+    local target = context.target
+    local frostbite_active = target and NS.debuff_up and NS.debuff_up(target, FROSTBITE_DEBUFF) or false
+    local target_rooted = target and NS.debuff_up and NS.debuff_up(target, FROST_NOVA_ROOTS) or false
+    state.target_frozen = frostbite_active or target_rooted
+    state.target_not_rooted = target and not target_rooted or false
 
     -- Wand readiness (learned via wand training)
     local ok_wand, exists = pcall(NS.spell_exists, WAND_SPELL_ID)
@@ -264,6 +288,8 @@ local function frostbolt_matches(context, state)
     if not state.in_combat then return false end
     if state.is_moving then return false end
     if (state.mana_pct or 100) < 10 then return false end
+    -- Prefer Ice Lance when target is frozen (3x damage)
+    if state.target_frozen then return false end
     return state.frostbolt_ready
 end
 
@@ -324,6 +350,32 @@ end
 
 -- NOTE: In-combat curse removal would require scanning for curse debuffs on self.
 -- For leveling simplicity, Remove Curse runs OOC only.
+
+local function mage_armor_matches(context, state)
+    if not state then return false end
+    if state.in_combat then return false end
+    if state.has_mage_armor then return false end
+    -- Prefer Mage Armor over Frost Armor once learned (better mana regen)
+    return state.mage_armor_ready
+end
+
+local function water_elemental_matches(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if state.has_water_elemental then return false end
+    if not state.water_elemental_ready then return false end
+    return true
+end
+
+local function ice_lance_matches(context, state)
+    if not state then return false end
+    if not state.target then return false end
+    if not state.ice_lance_ready then return false end
+    -- Ice Lance deals 3x damage to frozen targets; otherwise use when moving
+    if state.target_frozen then return true end
+    if state.is_moving then return true end
+    return false
+end
 
 local function wand_matches(context, state)
     if not state then return false end
@@ -400,6 +452,10 @@ local strategies = {
       matches = arcane_intellect_matches,
       execute = function() return try_cast(SPELLS.ArcaneIntellect, NS.PLAYER_UNIT, "[LEVELING] Arcane Intellect") end },
 
+    { name = "MageArmor",
+      matches = mage_armor_matches,
+      execute = function() return try_cast(SPELLS.MageArmor, NS.PLAYER_UNIT, "[LEVELING] Mage Armor") end },
+
     { name = "FrostArmor",
       matches = frost_armor_matches,
       execute = function() return try_cast(SPELLS.FrostArmor, NS.PLAYER_UNIT, "[LEVELING] Frost Armor") end },
@@ -432,6 +488,10 @@ local strategies = {
     { name = "IceBarrier",
       matches = ice_barrier_matches,
       execute = function() return try_cast(SPELLS.IceBarrier, NS.PLAYER_UNIT, "[LEVELING] Ice Barrier") end },
+
+    { name = "WaterElemental",
+      matches = water_elemental_matches,
+      execute = function() return try_cast(SPELLS.WaterElemental, NS.PLAYER_UNIT, "[LEVELING] Water Elemental", { skip_range = true }) end },
 
     { name = "FrostNova",
       matches = frost_nova_matches,
@@ -473,6 +533,10 @@ local strategies = {
     { name = "ArcaneMissiles",
       matches = arcane_missiles_matches,
       execute = function(context) if not context then return false end; return try_cast(SPELLS.ArcaneMissiles, context.target, "[LEVELING] Arcane Missiles") end },
+
+    { name = "IceLance",
+      matches = ice_lance_matches,
+      execute = function(context) if not context then return false end; return try_cast(SPELLS.IceLance, context.target, "[LEVELING] Ice Lance") end },
 
     { name = "Frostbolt",
       matches = frostbolt_matches,
