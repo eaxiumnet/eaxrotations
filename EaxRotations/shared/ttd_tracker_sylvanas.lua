@@ -24,6 +24,8 @@
 
 local M = {}
 
+-- Static buffers for linear regression (Pattern 4 — eliminate per-call allocation)
+local _xs, _ys = {}, {}
 -- Per-target rolling sample history.
 -- Keys are target GUID strings; values are arrays of { t = timestamp, hp = hp_pct }.
 local _samples = {}
@@ -206,14 +208,15 @@ function M.update(target, now, settings)
     -- Build x,y arrays using time-since-first-sample for numerical stability.
     local n = #history
     local t0 = history[1].t
-    local xs = {}
-    local ys = {}
+    -- Reuse static buffers (Pattern 4)
+    for i = #_xs, 1, -1 do _xs[i] = nil end
+    for i = #_ys, 1, -1 do _ys[i] = nil end
     for i = 1, n do
-        xs[i] = history[i].t - t0
-        ys[i] = history[i].hp
+        _xs[i] = history[i].t - t0
+        _ys[i] = history[i].hp
     end
 
-    local slope, intercept = linear_regression(xs, ys, n)
+    local slope, intercept = linear_regression(_xs, _ys, n)
     if not slope or not intercept then return nil end
 
     -- Slope must be negative (HP dropping) for a meaningful death prediction.
