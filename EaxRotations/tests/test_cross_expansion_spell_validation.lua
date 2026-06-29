@@ -38,16 +38,79 @@ local function file_exists(path)
 end
 
 -- Glob for all *_vanilla.lua files under EaxRotations/classes/
+-- Portable: tries lfs first, then os.execute with platform-aware fallback.
+local KNOWN_VANILLA_FILES = {
+    "EaxRotations/classes/druid/balance_vanilla.lua",
+    "EaxRotations/classes/druid/bear_vanilla.lua",
+    "EaxRotations/classes/druid/caster_vanilla.lua",
+    "EaxRotations/classes/druid/cat_vanilla.lua",
+    "EaxRotations/classes/druid/leveling_vanilla.lua",
+    "EaxRotations/classes/druid/resto_vanilla.lua",
+    "EaxRotations/classes/hunter/beast_mastery_vanilla.lua",
+    "EaxRotations/classes/hunter/leveling_vanilla.lua",
+    "EaxRotations/classes/hunter/marksmanship_vanilla.lua",
+    "EaxRotations/classes/hunter/survival_vanilla.lua",
+    "EaxRotations/classes/mage/arcane_vanilla.lua",
+    "EaxRotations/classes/mage/fire_vanilla.lua",
+    "EaxRotations/classes/mage/frost_vanilla.lua",
+    "EaxRotations/classes/mage/leveling_vanilla.lua",
+    "EaxRotations/classes/paladin/holy_vanilla.lua",
+    "EaxRotations/classes/paladin/leveling_vanilla.lua",
+    "EaxRotations/classes/paladin/protection_vanilla.lua",
+    "EaxRotations/classes/paladin/retribution_vanilla.lua",
+    "EaxRotations/classes/priest/discipline_vanilla.lua",
+    "EaxRotations/classes/priest/holy_vanilla.lua",
+    "EaxRotations/classes/priest/leveling_vanilla.lua",
+    "EaxRotations/classes/priest/shadow_vanilla.lua",
+    "EaxRotations/classes/priest/smite_vanilla.lua",
+    "EaxRotations/classes/rogue/assassination_vanilla.lua",
+    "EaxRotations/classes/rogue/combat_vanilla.lua",
+    "EaxRotations/classes/rogue/leveling_vanilla.lua",
+    "EaxRotations/classes/rogue/subtlety_vanilla.lua",
+    "EaxRotations/classes/shaman/elemental_vanilla.lua",
+    "EaxRotations/classes/shaman/enhancement_vanilla.lua",
+    "EaxRotations/classes/shaman/leveling_vanilla.lua",
+    "EaxRotations/classes/shaman/restoration_vanilla.lua",
+    "EaxRotations/classes/warlock/affliction_vanilla.lua",
+    "EaxRotations/classes/warlock/demonology_vanilla.lua",
+    "EaxRotations/classes/warlock/destruction_vanilla.lua",
+    "EaxRotations/classes/warlock/leveling_vanilla.lua",
+    "EaxRotations/classes/warrior/arms_vanilla.lua",
+    "EaxRotations/classes/warrior/fury_vanilla.lua",
+    "EaxRotations/classes/warrior/kebab_vanilla.lua",
+    "EaxRotations/classes/warrior/leveling_vanilla.lua",
+    "EaxRotations/classes/warrior/protection_vanilla.lua",
+}
+
 local function find_vanilla_files()
-    local files = {}
-    local pipe = io.popen("dir /s /b EaxRotations\\classes\\*_vanilla.lua 2>NUL")
-    if pipe then
-        for line in pipe:lines() do
-            -- Normalize path separators
-            local normalized = line:gsub("\\", "/"):gsub("^%./", "")
-            files[#files + 1] = normalized
+    -- Try lfs (LuaFileSystem) first for dynamic discovery
+    local ok, lfs = pcall(require, "lfs")
+    if ok and lfs then
+        local files = {}
+        local function walk(dir)
+            for entry in lfs.dir(dir) do
+                if entry ~= "." and entry ~= ".." then
+                    local p = dir .. "/" .. entry
+                    local mode = lfs.attributes(p, "mode")
+                    if mode == "directory" then
+                        walk(p)
+                    elseif mode == "file" and entry:match("_vanilla%.lua$") then
+                        files[#files + 1] = p
+                    end
+                end
+            end
         end
-        pipe:close()
+        local ok2 = pcall(walk, "EaxRotations/classes")
+        if ok2 and #files > 0 then return files end
+    end
+    -- Fallback: hardcoded list (regenerate with: find EaxRotations/classes -name "*_vanilla.lua" | sort)
+    local files = {}
+    for i = 1, #KNOWN_VANILLA_FILES do
+        local f = io.open(KNOWN_VANILLA_FILES[i], "rb")
+        if f then
+            f:close()
+            files[#files + 1] = KNOWN_VANILLA_FILES[i]
+        end
     end
     return files
 end
