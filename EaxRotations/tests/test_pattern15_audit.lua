@@ -1,0 +1,166 @@
+-- test_pattern15_audit.lua -- regression pinning Pattern-15 header hygiene.
+-- WHAT: walks every EaxRotations/shared/*.lua file (excluding gitignored
+--       build artefacts) and asserts the canonical 5-key header is present
+--       exactly once, with no duplicate taglines and no mid-block DECISION
+--       injection.
+-- WHEN:  invoked by run_rotation_tests.lua on every regression cycle.
+-- WHY:   regression for the duplicate-header / separator-echo pathology that
+--       stack-patches over pre-existing headers introduce.
+-- SAFETY: pure file walker; no engine API calls; never raises.
+
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;./?.lua;api/?.lua" .. package.path
+
+local io_open, os_exit, print = io.open, os.exit, print
+
+local SHARED = "EaxRotations/shared"
+
+-- list .lua files in SHARED via dir /B so we don't need LuaFileSystem.
+local function listfiles(dir)
+    local out = {}
+    local p = io.popen('cmd /C dir /B "' .. dir .. '" 2>nul')
+    if not p then return out end
+    for ln in p:lines() do
+        if ln:sub(-4) == ".lua" then out[#out + 1] = ln end
+    end
+    p:close()
+    table.sort(out)
+    return out
+end
+
+-- skip files whose relative path is gitignored (test them separately;
+-- they're build artefacts that may carry whatever the generator wrote).
+local function is_gitignored(relpath)
+    local p = io.popen('git check-ignore -- "' .. relpath .. '" 2>nul')
+    if not p then return false end
+    local rv = false
+    for ln in p:lines() do if ln and ln ~= "" then rv = true; break end end
+    p:close()
+    return rv
+end
+
+local function strip_leading_sp(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
+local function starts_with(s, prefix) return s:sub(1, #prefix) == prefix end
+
+local function audit_file(path, fname)
+    local f = io_open(path, "r")
+    if not f then return { "READ-ERR" } end
+    local src = f:read("*a") or ""
+    f:close()
+    local issues = {}
+
+    local lines = {}
+    for ln in src:gmatch("[^\n]+") do
+        lines[#lines + 1] = ln
+        if #lines >= 80 then break end
+    end
+
+    -- 1) Tagline count: how many distinct `--  filename.lua ...` preambles.
+    local tag_count = 0
+    for _, ln in ipairs(lines) do
+        local s = strip_leading_sp(ln)
+        if s == "-- " .. fname or
+           starts_with(s, "-- " .. fname .. "--") or
+           starts_with(s, "-- " .. fname .. " ") then
+            tag_count = tag_count + 1
+        end
+    end
+    if tag_count > 1 then issues[#issues + 1] = "DUP-TAGLINE(" .. tag_count .. ")" end
+
+    -- 2) Collect 5-key positions.
+    local positions = { WHAT = {}, WHEN = {}, WHY = {}, SAFETY = {}, DECISION = {} }
+    for i, ln in ipairs(lines) do
+        local s = strip_leading_sp(ln)
+        for _, k in ipairs({ "WHAT", "WHEN", "WHY", "SAFETY", "DECISION" }) do
+            if s == "-- " .. k .. ":" or
+               starts_with(s, "-- " .. k .. ": ") then
+                positions[k][#positions[k] + 1] = i
+                break
+            end
+        end
+    end
+
+    -- 3) No-header files are acceptable for legitimately data-only modules;
+    --    but at least one key should be present in shared/* (defensive).
+    local any_key = false
+    for _k, v in pairs(positions) do
+        if #v > 0 then any_key = true; break end
+    end
+    if not any_key then issues[#issues + 1] = "NO-HEADER" end
+
+    -- 4) Multi-block: any key with count > 1 -> duplicate headers stacked.
+    for k, v in pairs(positions) do
+        if #v > 1 then issues[#issues + 1] = "MULTI-BLOCK(" .. k .. "=" .. #v .. ")" end
+    end
+
+    -- 5) Mid-block DECISION injection.
+    if #positions.DECISION > 0 then
+        local dec_pos = positions.DECISION[1]
+        local max_other = -1
+        for _, k in ipairs({ "WHAT", "WHEN", "WHY", "SAFETY" }) do
+            if positions[k][1] and positions[k][1] > max_other then
+                max_other = positions[k][1]
+            end
+        end
+        if max_other > 0 and dec_pos < max_other then
+            issues[#issues + 1] = "MID-INJECT"
+        end
+    end
+
+    -- 6) Code-line distance: allow large gaps when a `-- ...` comment block
+    --    follows the header (legit docstring/fat-arch block). The flag
+    --    fires only when NOTHING intervenes between header and code.
+    local last_key = -1
+    for _, k in ipairs({ "WHAT","WHEN","WHY","SAFETY","DECISION" }) do
+        for _, p in ipairs(positions[k]) do
+            if p > last_key then last_key = p end
+        end
+    end
+    local first_code = -1
+    for i, ln in ipairs(lines) do
+        local s = strip_leading_sp(ln)
+        if s ~= "" and not starts_with(s, "--") then first_code = i; break end
+    end
+    if last_key > 0 and first_code > 0 then
+        local gap = first_code - last_key
+        -- Look at the intervening lines: if >=3 are `-- ...` comments, treat
+        -- as legitimate docstring block; otherwise expect <=30.
+        local comment_lines = 0
+        for i = last_key + 1, first_code - 1 do
+            local s = strip_leading_sp(lines[i] or "")
+            if starts_with(s, "--") and s ~= "" then
+                comment_lines = comment_lines + 1
+            end
+        end
+        local allowed_gap = (comment_lines >= 3) and 80 or 30
+        if gap > allowed_gap then
+            issues[#issues + 1] = "CODE-TOO-FAR(gap=" .. gap .. ",comments=" .. comment_lines .. ")"
+        end
+    end
+
+    return issues
+end
+
+local files = listfiles(SHARED)
+local scanned, bad = 0, {}
+for _, fname in ipairs(files) do
+    local rel = SHARED .. "/" .. fname
+    if is_gitignored(rel) then
+        -- skip build artefacts (regenerated by build_tools/json_to_lua_data.py)
+    else
+        scanned = scanned + 1
+        local issues = audit_file(rel, fname)
+        if #issues > 0 then
+            bad[#bad + 1] = { fname, issues }
+        end
+    end
+end
+
+if #bad > 0 then
+    print("FAIL test_pattern15_audit:")
+    for _, p in ipairs(bad) do
+        print("  " .. p[1] .. ": " .. table.concat(p[2], ", "))
+    end
+    os_exit(1)
+end
+
+print("PASS test_pattern15_audit (" .. scanned .. " tracked shared/*.lua files clean)")

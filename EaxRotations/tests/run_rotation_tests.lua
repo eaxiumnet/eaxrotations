@@ -181,6 +181,9 @@ local tests = {
 
  "test_cat_trick_optimizations.lua",
 
+ -- Pattern 15 header audit (hygiene regression)
+ "test_pattern15_audit.lua",
+
  -- Rogue
  "test_combat_custom_matches.lua",
  "test_assassination_dagger_requirement.lua",

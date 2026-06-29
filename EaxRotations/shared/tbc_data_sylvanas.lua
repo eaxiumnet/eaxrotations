@@ -5,11 +5,6 @@
 -- SAFETY: all IDs DBC-verified; pure data; nil-tolerant key fetch.
 -- DECISION: pure data; consumed via require(); nil-tolerant key fetch.
 
--- tbc_data_sylvanas.lua -- TBC-era verified spell/item/NPC IDs (only-things-in-2.5.5)
--- WHAT:  expose small set of TBC-verified IDs the engine relies on
--- WHEN:  engine-load time
--- WHY:   single cross-check file for IDs that must NOT regress
--- SAFETY: all ids commented with source + first-seen revision
 
 -- Verified TBC Classic IDs.
 -- Generated from wowhead_data cache (lexxer.org mirror) on 2026-06-09.
