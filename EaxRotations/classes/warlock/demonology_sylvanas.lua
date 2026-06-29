@@ -26,6 +26,7 @@ local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
 local PET_LOW_HP = 30
 local EXECUTE_THRESHOLD = 25
 local SOUL_SHARD_CAPTURE_TTD = 5  -- TBC: Drain Soul is shard-capture only (mob about to die); sub-25% execute is Wrath, not TBC
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 22102, 22101, 22100 }
 
 local DOT_REFRESH_WINDOW = 1.5
 
@@ -113,6 +114,18 @@ local function build_state(context)
     demo_state.soul_link_ready = me and NS.spell_ready(25228, me, { skip_range = true }) or false
     demo_state.has_soul_link = me and NS.buff_up and NS.buff_up(me, SOUL_LINK_BUFF) or false
     demo_state.target_hp_pct = target and target.get_health_percentage and target:get_health_percentage() or 100
+    demo_state.healthstone_id = nil
+    demo_state.healthstone_ready = false
+    if NS.is_item_ready then
+        for _, id in ipairs(HEALTHSTONE_IDS) do
+            local ok, ready = pcall(NS.is_item_ready, id)
+            if ok and ready then
+                demo_state.healthstone_id = id
+                demo_state.healthstone_ready = true
+                break
+            end
+        end
+    end
 
     return demo_state
 end
@@ -450,6 +463,19 @@ local strategies = {
     { name = "Soulshatter", matches = soulshatter_matches, execute = function(context) return NS.try_cast(SPELLS.Soulshatter, context.me, "[DEMONOLOGY] Soulshatter", { skip_range = true }) end },
     { name = "ShadowBolt", matches = shadow_bolt_matches, execute = function(context) return NS.try_cast(SPELLS.ShadowBolt, context.target, "[DEMONOLOGY] Shadow Bolt") end },
     { name = "Incinerate", matches = incinerate_matches, execute = function(context) return NS.try_cast(SPELLS.Incinerate, context.target, "[DEMONOLOGY] Incinerate") end },
+    { name = "Healthstone",
+      matches = function(context, state)
+          local auto_hs = (context.settings and context.settings.auto_healthstone) ~= false
+          if not auto_hs then return false end
+          local threshold = (context.settings and context.settings.healthstone_hp_threshold) or 30
+          if (context.hp or 100) > threshold then return false end
+          if context.is_casting then return false end
+          return state and state.healthstone_ready == true
+      end,
+      execute = function(_, state)
+          return state and state.healthstone_id and NS.use_item_by_id and NS.use_item_by_id(state.healthstone_id) or false
+      end,
+    },
 }
 
 NS.rotation_registry:register("demonology", strategies, { get_state = build_state })

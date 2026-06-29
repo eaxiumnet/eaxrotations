@@ -346,7 +346,11 @@ local strategies = {
     {
         name = "Healthstone",
         matches = function(context, state)
-            if (context.hp or 100) > 40 then return false end
+            local auto_hs = (context.settings and context.settings.auto_healthstone) ~= false
+            if not auto_hs then return false end
+            local threshold = (context.settings and context.settings.healthstone_hp_threshold) or 30
+            if (context.hp or 100) > threshold then return false end
+            if context.is_casting then return false end
             return state and state.healthstone_ready == true
         end,
         execute = function(_, state)

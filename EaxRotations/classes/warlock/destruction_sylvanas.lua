@@ -53,6 +53,7 @@ local MANA_LIFE_TAP_THRESHOLD = 35
 local DARK_PACT_MANA_THRESHOLD = 45
 local MANA_ITEM_IDS = { 20520, 12662 }  -- Dark Rune, Demonic Rune
 local SOUL_SHARD_ITEM = 6265             -- TBC Soul Shard reagent (moved before first use in shadowburn_matches)
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 22102, 22101, 22100 }
 
 -- build_state: compute per-update aura and timing state once for all strategies
 local function build_state(context)
@@ -77,6 +78,8 @@ local function build_state(context)
         mana_gem_id = nil,
         mana_gem_ready = false,
         spell_damage = 0,
+        healthstone_id = nil,
+        healthstone_ready = false,
     }
     -- Find ready mana item
     state.mana_gem_id = nil
@@ -87,6 +90,18 @@ local function build_state(context)
         end
     end
     state.mana_gem_ready = state.mana_gem_id ~= nil
+    -- Healthstone: find first available in bags
+    state.healthstone_id = nil
+    state.healthstone_ready = false
+    if NS.is_item_ready then
+        for _, id in ipairs(HEALTHSTONE_IDS) do
+            if NS.is_item_ready(id) then
+                state.healthstone_id = id
+                state.healthstone_ready = true
+                break
+            end
+        end
+    end
     -- SP-aware gating: Falls back through context (middleware) then to 0 (conservative: skip DoTs when SP unknown)
     state.spell_damage = context.spell_damage or 0
     return state
@@ -452,10 +467,29 @@ table.insert(strategies, 7, {
     end,
 })
 
+-- Healthstone: auto-use healthstone when HP is low
+-- Insert at position 23 (before Soulshatter)
+table.insert(strategies, 23, {
+    name = "Healthstone",
+    matches = function(context, state)
+        local auto_hs = (context.settings and context.settings.auto_healthstone) ~= false
+        if not auto_hs then return false end
+        local threshold = (context.settings and context.settings.healthstone_hp_threshold) or 30
+        if (context.hp or 100) > threshold then return false end
+        if context.is_casting then return false end
+        return state.healthstone_ready or false
+    end,
+    execute = function(_, state)
+        if state and state.healthstone_id and NS.use_item_by_id then
+            return NS.use_item_by_id(state.healthstone_id)
+        end
+        return false
+    end,
+})
+
 -- Soulshatter: threat dump
--- Insert at position 24 (after Hellfire=22 shift by ManaGem=1, before DeathCoil=23 shift by ManaGem=1)
--- Original position after AoE (SeedOfCorruption=20, RainOfFire=21, Hellfire=22), before emergency (DeathCoil=23, Fear=24)
-table.insert(strategies, 24, {
+-- Insert at position 25 (after Healthstone shift)
+table.insert(strategies, 25, {
     name = "Soulshatter",
     matches = function(context, state)
         if not context.in_combat then return false end
