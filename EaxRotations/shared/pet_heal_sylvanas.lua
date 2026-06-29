@@ -88,13 +88,14 @@ end
 -- ---------------------------------------------------------------------------
 -- Pet scanning
 -- ---------------------------------------------------------------------------
+-- Static table for pet scanning (Pattern 4: no per-frame allocs)
+local _pet_scan = { n = 0 }
 
 --- Gather party/raid pets via available APIs.
 -- @param me  game_object  Local player (for distance filtering)
 -- @return table  Array of pet game_objects
 local function scan_pets(me)
-    local pets = {}
-    local n = 0
+    _pet_scan.n = 0
 
     -- Try core.object_manager.get_party_pets if available
     local om = core and core.object_manager
@@ -108,15 +109,15 @@ local function scan_pets(me)
         if ok and type(list) == "table" then
             for _, pet in ipairs(list) do
                 if pet and unit_alive(pet) then
-                    n = n + 1
-                    pets[n] = pet
+                    _pet_scan.n = _pet_scan.n + 1
+                    _pet_scan[_pet_scan.n] = pet
                 end
             end
         end
     end
 
     -- Fallback: scan visible objects and check if they are pets of party members
-    if n == 0 and om and type(om.get_visible_objects) == "function" then
+    if _pet_scan.n == 0 and om and type(om.get_visible_objects) == "function" then
         local ok_vis, visible = pcall(om.get_visible_objects, om)
         if ok_vis and type(visible) == "table" then
             for _, obj in ipairs(visible) do
@@ -127,15 +128,15 @@ local function scan_pets(me)
                         return false
                     end)
                     if ok_pet and is_pet then
-                        n = n + 1
-                        pets[n] = obj
+                        _pet_scan.n = _pet_scan.n + 1
+                        _pet_scan[_pet_scan.n] = obj
                     end
                 end
             end
         end
     end
 
-    return pets, n
+    return _pet_scan, _pet_scan.n
 end
 
 -- ---------------------------------------------------------------------------
