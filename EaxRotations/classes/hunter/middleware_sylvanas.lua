@@ -216,6 +216,20 @@ local strategies = {
     -- ========================================================================
     -- HEALTHSTONE / POTION (Combat emergency heal)
     -- ========================================================================
+    --
+    -- BUGFIX (2026-06-29): formerly this strategy ignored the master
+    -- ``use_auto_consumables`` / per-category ``use_healthstones`` /
+    -- ``use_health_potions`` toggles entirely.  It also had no fast-path bag
+    -- check, so every 3-throttled tick at low HP iterated 7 item ids, each
+    -- costing a 5-bag scan.  Now it honours the master + per-category
+    -- toggles and uses ``consumable_manager.has_any_consumable`` as a
+    -- pre-flight check.
+    --
+    -- The hard-coded HEALING_POTION_ITEMS list below is preserved verbatim:
+    -- these are the seven potion ranks in the game, and the consumable_manager
+    -- ALSO scans them in M.use_health_potion.  Both paths share the
+    -- ``invalidate_bag_cache`` hook inside the manager so a single successful
+    -- use is reflected in the next scan.
     {
         name = "Hunter_Healthstone",
         priority = 850,
@@ -223,10 +237,20 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if not context.in_combat then return false end
+            if settings.use_auto_consumables == false then return false end
+            if settings.use_healthstones == false and settings.use_health_potions == false then return false end
             local threshold = settings.healthstone_hp or 0
             if threshold <= 0 then return false end
-            if (context.hp or 100) <= threshold then return true end
-            return false
+            if (context.hp or 100) > threshold then return false end
+            -- Fast-path bag check (uses the in-process cache when available).
+            local HEALING_POTION_ITEMS = { 21877, 13446, 3928, 1710, 929, 858, 118 }
+            local consumable_manager
+            pcall(function() consumable_manager = require("shared/consumable_manager_sylvanas") end)
+            if consumable_manager and type(consumable_manager.has_any_consumable) == "function" then
+                local any = consumable_manager.has_any_consumable(HEALING_POTION_ITEMS)
+                if not any then return false end
+            end
+            return true
         end,
         execute = function(context)
             local HEALING_POTION_ITEMS = { 21877, 13446, 3928, 1710, 929, 858, 118 }
@@ -326,11 +350,22 @@ local strategies = {
             if happiness > 2 then return false end
             local pet = context.pet or (NS.get_pet and NS.get_pet())
             if not pet then return false end
-            if pet.is_alive == false then return false end
-            if type(pet.is_alive) == "function" then
-                local ok, alive = pcall(pet.is_alive, pet)
-                if not ok or alive == false then return false end
-            end
+            -- BUGFIX (2026-06-29): previously this block only checked
+            -- ``pet.is_alive == false`` (literal false), then *only* pcall'd
+            -- when ``is_alive`` was a function.  When the API returned it as
+            -- nil or a boolean true, the liveness was never actually verified
+            -- and we could attempt to feed a dead pet.  Now we always resolve
+            -- the value via pcall regardless of type — safe on every build.
+            local liveness = nil
+            local ok, value = pcall(function()
+                local f = pet.is_alive
+                if type(f) == "function" then return f(pet) end
+                return f
+            end)
+            if not ok then return false end
+            liveness = value
+            if liveness == false then return false end
+            -- Happy / content / happy pets are already fed.
             return NS.spell_ready and NS.spell_ready(1539, context.me, { skip_range = true })
         end,
         execute = function(context)

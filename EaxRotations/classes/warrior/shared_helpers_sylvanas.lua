@@ -76,6 +76,10 @@ function M.stance_swap_safe(state, cost)
     return M.preserved_rage_after_swap(state.rage or 0) >= effective_cost
 end
 
+-- Static reusable opts table to avoid per-frame allocation in hot path.
+-- Pattern 4: static table reuse.
+local _action_opts = {}
+
 -- action: spell readiness check (more defensive version with required_stance gate).
 function M.action(context, row)
     if not context or not row then return false end
@@ -84,10 +88,10 @@ function M.action(context, row)
     if not target then return false end
         if row.min_rage and context.rage and context.rage < row.min_rage then return false end
     if row.required_stance and context.stance ~= row.required_stance then return false end
-    local opts = {}
-    if row.requires_target == false then opts.skip_range = true end
-    if row.cooldown then opts.expected_cooldown = row.cooldown end
-    return NS.spell_ready(row.spell, target, opts)
+    -- Reset and mutate the static opts table in place.
+    _action_opts.skip_range = row.requires_target == false or nil
+    _action_opts.expected_cooldown = row.cooldown or nil
+    return NS.spell_ready(row.spell, target, _action_opts)
 end
 
 -- cast: spell cast wrapper. Uses M.CAST_TAG (configurable per spec).
@@ -96,10 +100,9 @@ function M.cast(context, row)
     if not row.spell then return false end
     local target = (row.target == "self" or row.requires_target == false) and (context.me or NS.GetPlayer()) or context.target
     if not target then return false end
-    local opts = {}
-    if row.requires_target == false then opts.skip_range = true end
-    if row.cooldown then opts.expected_cooldown = row.cooldown end
-    local ok = NS.try_cast(row.spell, target, M.CAST_TAG, opts)
+    _action_opts.skip_range = row.requires_target == false or nil
+    _action_opts.expected_cooldown = row.cooldown or nil
+    local ok = NS.try_cast(row.spell, target, M.CAST_TAG, _action_opts)
     if ok and row.kind == "form" then
         M.last_stance_cast_at = NS.time_now and NS.time_now() or 0
     end

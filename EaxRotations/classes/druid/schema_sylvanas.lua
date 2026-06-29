@@ -152,9 +152,18 @@ return {
                     { key = "use_mana_potions", type = "checkbox", label = "Mana Potions", default = true },
                     { key = "mana_potion_threshold", type = "slider", label = "Mana Potion at %", min = 0, max = 100, default = 40 },
                     { key = "health_potion_threshold", type = "slider", label = "Health Potion at %", min = 0, max = 100, default = 35 },
-                    { key = "use_healthstone", type = "checkbox", label = "Healthstones (auto-use)", default = false, description = "Auto-use healthstone at HP threshold" },
+                    { key = "use_health_potions", type = "checkbox", label = "Health Potions", default = true },
+                    { key = "use_bandages", type = "checkbox", label = "Bandages", default = false },
+                    { key = "use_dark_runes", type = "checkbox", label = "Dark Runes", default = false },
+                    -- NOTE (2026-06-29): druid has TWO healthstone / healing potion paths —
+                    -- the consumable_manager (``use_healthstones`` plural, default true) which
+                    -- works in any form, plus the form-aware path (``use_healthstone`` singular,
+                    -- default false) which un-shifts from Cat/Bear, uses the item, then re-shifts.
+                    -- Both are exposed; the singular keys default off so the master
+                    -- ``use_auto_consumables`` toggle drives default behaviour.
+                    { key = "use_healthstone", type = "checkbox", label = "Healthstones (form-aware)", default = false, description = "Auto-use healthstone at HP threshold with form un-shift / re-shift" },
                     { key = "healthstone_hp", type = "slider", label = "Healthstone HP%", min = 0, max = 100, default = 30 },
-                    { key = "use_healing_potion", type = "checkbox", label = "Healing Potions (auto-use)", default = false, description = "Auto-use healing potion at HP threshold" },
+                    { key = "use_healing_potion", type = "checkbox", label = "Healing Potions (form-aware)", default = false, description = "Auto-use healing potion at HP threshold with form un-shift / re-shift" },
                     { key = "healing_potion_hp", type = "slider", label = "Healing Potion HP%", min = 0, max = 100, default = 35 },
                 },
             },

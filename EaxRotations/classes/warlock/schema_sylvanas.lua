@@ -40,6 +40,7 @@ return {
             {
                 header = "Survival",
                 settings = {
+                    { key = "use_death_coil", type = "checkbox", label = "Auto Death Coil", default = true, tooltip = "Auto-cast Death Coil on enemy target at low HP for emergency self-heal (also used as CC Break; see PvP section)" },
                     { key = "death_coil_hp", type = "slider", label = "Death Coil HP", min = 0, max = 100, default = 0 },
                     { key = "use_cc_break", type = "checkbox", label = "CC Break (Death Coil)", default = true, tooltip = "Preemptively Death Coil when enemy casts Polymorph/Fear/Cyclone at you to interrupt + self-heal" },
                     { key = "healthstone_hp", type = "slider", label = "Healthstone HP", min = 0, max = 100, default = 0 },
@@ -83,6 +84,9 @@ return {
                     { key = "use_mana_potions", type = "checkbox", label = "Mana Potions", default = true },
                     { key = "mana_potion_threshold", type = "slider", label = "Mana Potion at %", min = 0, max = 100, default = 40 },
                     { key = "health_potion_threshold", type = "slider", label = "Health Potion at %", min = 0, max = 100, default = 35 },
+                    { key = "use_health_potions", type = "checkbox", label = "Health Potions", default = true },
+                    { key = "use_bandages", type = "checkbox", label = "Bandages", default = false },
+                    { key = "use_dark_runes", type = "checkbox", label = "Dark Runes", default = false },
                 },
             },
         },

@@ -184,6 +184,9 @@ local tests = {
  -- Pattern 15 header audit (hygiene regression)
  "test_pattern15_audit.lua",
 
+ -- Consumable manager settings + bag wiring (user-reported bugs 2026-06-29)
+ "test_consumable_manager_settings.lua",
+
  -- Rogue
  "test_combat_custom_matches.lua",
  "test_assassination_dagger_requirement.lua",
