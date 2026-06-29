@@ -43,12 +43,31 @@ end
 -- LOS cache: 100ms TTL per (caster, target) pair
 -- Uses tostring identity keys since game_object references are stable pointers
 -- in the PS runtime.
+--
+-- BUGFIX (2026-06-29): the unit-keyed cache used to grow unbounded as
+-- the player swapped targets repeatedly during a long session (every
+-- enemy ever seen stays keyed forever).  Added a MAX_LOS_CACHE_ENTRIES=64
+-- FIFO eviction inside M.check + a public M.clear() for zone changes.
 -- --------------------------------------------------------------------------
-local _CACHE_TTL = 0.1  -- 100 milliseconds
+local _CACHE_TTL = 0.1     -- 100 milliseconds
 local _cache = {}
+local _los_cache_order = {}  -- FIFO of cache keys (oldest first)
+local MAX_LOS_CACHE_ENTRIES = 64
+
+local function _evict_oldest_los()
+    if #_los_cache_order == 0 then return end
+    local oldest = table.remove(_los_cache_order, 1)
+    _cache[oldest] = nil
+end
 
 local function _cache_key(caster, target)
     return tostring(caster) .. "::" .. tostring(target)
+end
+
+--- BUGFIX (2026-06-29): public clear method, useful on zone / BG change.
+function M.clear()
+    for k in pairs(_cache) do _cache[k] = nil end
+    for i = 1, #_los_cache_order do _los_cache_order[i] = nil end
 end
 
 -- --------------------------------------------------------------------------
@@ -116,8 +135,12 @@ function M.check(target)
         result = true
     end
 
-    -- Cache the result for the TTL window.
+    -- Cache the result for the TTL window, with FIFO eviction at MAX.
     _cache[key] = { result = result, time = now }
+    _los_cache_order[#_los_cache_order + 1] = key
+    while #_los_cache_order > MAX_LOS_CACHE_ENTRIES do
+        _evict_oldest_los()
+    end
 
     return result
 end
