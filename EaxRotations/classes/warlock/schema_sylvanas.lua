@@ -61,6 +61,7 @@ return {
                     { key = "health_funnel_pet_hp", type = "slider", label = "Health Funnel Pet HP", min = 0, max = 100, default = 40 },
                     { key = "auto_create_healthstone", type = "checkbox", label = "Create Healthstone", default = true },
                     { key = "auto_create_soulstone", type = "checkbox", label = "Create Soulstone", default = true },
+                    { key = "auto_demon_armor", type = "checkbox", label = "Demon / Fel Armor", default = true, tooltip = "Maintain Demon Armor (or Fel Armor at 62+) out of combat" },
                 },
             },
         },
@@ -119,6 +120,7 @@ return {
                 settings = {
                     { key = "aff_seed_targets", type = "slider", label = "Seed of Corruption Min", min = 3, max = 10, default = 3 },
                     { key = "aff_use_amplify_curse", type = "checkbox", label = "Amplify Curse", default = true },
+                    { key = "dot_ttd_threshold", type = "slider", label = "DoT TTD Threshold (%)", min = 0, max = 100, default = 50, tooltip = "Skip DoT reapplication if target dies before this % of DoT duration" },
                 },
             },
         },

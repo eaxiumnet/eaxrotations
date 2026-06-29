@@ -45,10 +45,19 @@ return {
             {
                 header = "Aspect Management",
                 settings = {
+                    { key = "hunter_auto_aspect", type = "checkbox", label = "Auto Aspect Switch", default = true, tooltip = "Auto-switch between Hawk (DPS), Viper (low mana), Cheetah (OOC)" },
                     { key = "aspect_hawk", type = "checkbox", label = "Aspect of the Hawk", default = true },
                     { key = "aspect_viper", type = "checkbox", label = "Aspect of the Viper", default = true },
                     { key = "mana_viper_start", type = "slider", label = "Viper On Mana (%)", min = 0, max = 100, default = 20 },
                     { key = "mana_viper_end", type = "slider", label = "Viper Off Mana (%)", min = 0, max = 100, default = 30 },
+                    { key = "hunter_viper_mana_threshold", type = "slider", label = "Viper Mana Threshold (%)", min = 0, max = 100, default = 20 },
+                },
+            },
+            {
+                header = "Shot Weaving",
+                settings = {
+                    { key = "hunter_shot_timer_buffer", type = "slider", label = "Shot Timer Buffer (ms)", min = 0, max = 300, default = 150, tooltip = "Delay Steady Shot if auto-shot is within this buffer" },
+                    { key = "hunter_melee_weave", type = "checkbox", label = "Melee Weave", default = true, tooltip = "Use Raptor Strike / Wing Clip when in melee range" },
                 },
             },
             {
@@ -60,18 +69,62 @@ return {
                     { key = "auto_call_pet", type = "checkbox", label = "Call Pet", default = true },
                     { key = "auto_hunters_mark", type = "checkbox", label = "Hunter's Mark", default = true },
                 },
-            },	            {
-	                header = "Cooldowns",
-	                settings = {
-	                    { key = "use_readiness", type = "checkbox", label = "Readiness (reset CDs)", default = true },
-	                },
-	            },
-	            {
-	                header = "Utility",
+            },
+            {
+                header = "Cooldowns",
+                settings = {
+                    { key = "use_rapid_fire", type = "checkbox", label = "Rapid Fire", default = true },
+                    { key = "use_readiness", type = "checkbox", label = "Readiness (reset CDs)", default = true },
+                },
+            },
+            {
+                header = "Defensives",
+                settings = {
+                    { key = "healthstone_hp", type = "slider", label = "Healthstone / Potion HP", min = 0, max = 100, default = 0, tooltip = "Use healthstone or healing potion when HP drops below this threshold (0 = disabled)" },
+                },
+            },
+            {
+                header = "Utility",
 	                settings = {
 	                    { key = "use_misdirection", type = "checkbox", label = "Misdirection", default = true },
                     { key = "misdirection_pull_window", type = "slider", label = "Misdirection Window (s)", min = 1, max = 10, default = 6 },
                     { key = "misdirection_on_focus", type = "checkbox", label = "Misdirection on Focus", default = true },
+                },
+            },
+        },
+    },
+    {
+        name = "Beast Mastery",
+        sections = {
+            {
+                header = "Shot Weaving",
+                settings = {
+                    { key = "hunter_shot_timer_buffer", type = "slider", label = "Shot Timer Buffer (ms)", min = 0, max = 300, default = 150, tooltip = "Delay Steady Shot if auto-shot is within this buffer" },
+                    { key = "hunter_melee_weave", type = "checkbox", label = "Melee Weave", default = true, tooltip = "Use Raptor Strike / Wing Clip when in melee range" },
+                },
+            },
+        },
+    },
+    {
+        name = "Marksmanship",
+        sections = {
+            {
+                header = "Shot Weaving",
+                settings = {
+                    { key = "hunter_shot_timer_buffer", type = "slider", label = "Shot Timer Buffer (ms)", min = 0, max = 300, default = 150, tooltip = "Delay Steady Shot if auto-shot is within this buffer" },
+                    { key = "hunter_melee_weave", type = "checkbox", label = "Melee Weave", default = true, tooltip = "Use Raptor Strike / Wing Clip when in melee range" },
+                },
+            },
+        },
+    },
+    {
+        name = "Survival",
+        sections = {
+            {
+                header = "Shot Weaving",
+                settings = {
+                    { key = "hunter_shot_timer_buffer", type = "slider", label = "Shot Timer Buffer (ms)", min = 0, max = 300, default = 150, tooltip = "Delay Steady Shot if auto-shot is within this buffer" },
+                    { key = "hunter_melee_weave", type = "checkbox", label = "Melee Weave", default = true, tooltip = "Use Raptor Strike / Wing Clip when in melee range" },
                 },
             },
         },

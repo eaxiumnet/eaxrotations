@@ -24,6 +24,10 @@ return {
                     { key = "use_cc_break", type = "checkbox", label = "CC Break (Shapeshift)", default = true, tooltip = "Preemptively shapeshift when enemy casts Polymorph/Cyclone/Hibernate at you; shift to break roots/snares" },
                     { key = "use_pvp_cc_gating", type = "checkbox", label = "PvP CC Gate (skip AoE near CC)", default = true, tooltip = "Skip Swipe/Hurricane when a nearby enemy is Polymorphed/Cycloned/etc." },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },
+                    { key = "barkskin_hp", type = "slider", label = "Barkskin HP Threshold", min = 0, max = 100, default = 0, tooltip = "Self-cast Barkskin when HP drops below this in combat (0 = disabled)" },
+                    { key = "use_innervate", type = "checkbox", label = "Innervate", default = true },
+                    { key = "innervate_mana_pct", type = "slider", label = "Innervate Mana %", min = 0, max = 100, default = 30 },
+                    { key = "use_rebirth", type = "checkbox", label = "Rebirth (Combat Res)", default = true },
                 },
             },
             {
