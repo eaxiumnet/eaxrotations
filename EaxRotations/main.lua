@@ -160,6 +160,10 @@ local MENU_COLORS = {
     red = color.red(),
 }
 
+-- Theme module: playstyle colors, role/capability maps, section scoping.
+local _mt_ok, MenuTheme = pcall(require, "shared/menu_theme_sylvanas")
+if not _mt_ok or type(MenuTheme) ~= "table" then MenuTheme = nil end
+
 -- Pre-allocated empty table for 'or {}' fallbacks (avoids GC pressure from repeated table creation)
 local EMPTY_TABLE = {}
 
@@ -258,6 +262,13 @@ if class_config and type(class_config.playstyles) == "table" then
             table.insert(playstyle_options, label)
         end
     end
+end
+
+-- Theme lookups derived from class_config playstyles (built once at init).
+local _class_key = class_config and class_config.class_key or class_name
+local _ps_keyset, _ps_n2k
+if MenuTheme and #playstyle_keys > 0 then
+    _ps_keyset, _ps_n2k = MenuTheme.build_playstyle_lookup(playstyle_keys, playstyle_options)
 end
 
 local function normalize_schema_tabs(schema)
@@ -398,12 +409,28 @@ local function initialize_schema_menu()
             tree = core.menu.tree_node(),
             sections = {},
         }
+        -- Theme: scope this tab to a playstyle if its name matches one (e.g. "Bear", "Arcane").
+        if MenuTheme and _ps_n2k then
+            normalized_tab.playscope = MenuTheme.tab_playscope(normalized_tab.name, _ps_n2k)
+        end
 
         for section_index, section in ipairs(tab.sections or EMPTY_TABLE) do
             local normalized_section = {
                 header = section.header or ("Section " .. tostring(section_index)),
                 settings = {},
             }
+
+            -- Theme: scope this section to playstyle(s) via curated map / class rules.
+            if MenuTheme and _class_key then
+                local rules = MenuTheme.CLASS_SECTION_RULES[_class_key]
+                normalized_section.playscope = MenuTheme.section_playscope(
+                    _class_key, normalized_section.header, section.playstyles, _ps_keyset, rules)
+                local cat_color = MenuTheme.category_color(normalized_section.header)
+                normalized_section.header_color = cat_color
+                normalized_section.header_label = MenuTheme.format_section_header(normalized_section.header)
+            else
+                normalized_section.header_label = normalized_section.header
+            end
 
             -- [#4] Pre-allocate section header — created once, reused every render frame.
             local section_header = core.menu.header()
@@ -464,6 +491,8 @@ local menu_elements = {
     settings_tree = core.menu.tree_node(),
     diagnostics_tree = core.menu.tree_node(),
     dump_spells_btn = core.menu.button("eax_dump_spells"),
+    -- Theme: optional decorative space/meteor panel toggle.
+    theme_panel_toggle = core.menu.checkbox(false, "eax_theme_panel_enabled"),
     -- [#4] Pre-allocated header widgets — created ONCE, not every render frame.
     -- core.menu.header() returns a new widget each call; creating inside render_menu()
     -- leaked instances every frame. Now stored and reused.
@@ -490,6 +519,7 @@ local quick_toggle_defs = {
         tooltip = "Allow healing and shielding actions.",
         control = menu_elements.healing_toggle,
         default = true,
+        capability = "healing",
     },
     {
         key = "damage_enabled",
@@ -518,6 +548,7 @@ local quick_toggle_defs = {
         tooltip = "Allow interrupt logic where the class supports it.",
         control = menu_elements.interrupts_toggle,
         default = true,
+        capability = "interrupts",
     },
     {
         key = "utility_enabled",
@@ -532,6 +563,7 @@ local quick_toggle_defs = {
         tooltip = "Allow threat-drop abilities when group threat data says they are needed.",
         control = menu_elements.threat_drop_toggle,
         default = true,
+        capability = "threat_drop",
     },
 }
 
@@ -631,20 +663,37 @@ local function on_control_panel_render()
     if framework_core.runtime_generation ~= runtime_generation then return {} end
     local control_panel_elements = {}
 
+    -- Theme: filter control panel toggles by active playstyle role.
+    local _role = "hybrid"
+    local _caps = nil
+    if MenuTheme and _class_key then
+        local _active = framework_core and framework_core.get_setting and framework_core.get_setting("active_playstyle") or nil
+        _role = MenuTheme.role_for_playstyle(_class_key, _active)
+        _caps = MenuTheme.capabilities(_role)
+    end
+
     for _, def in ipairs(quick_toggle_defs) do
-        local label = format("[Eax] %s (%s) ", def.label, get_keybind_name(def.control))
-        local inserted = false
-        if control_panel_helper and control_panel_helper.insert_toggle_ then
-            local ok, result = pcall(function()
-                return control_panel_helper:insert_toggle_(control_panel_elements, label, def.control, false, true)
-            end)
-            inserted = ok and result == true
+        -- Role-based visibility: skip toggles that don't make sense for this role.
+        local _skip = false
+        if _caps then
+            local cap_key = def.capability or def.key
+            if _caps[cap_key] == false then _skip = true end
         end
-        if not inserted then
-            control_panel_elements[#control_panel_elements + 1] = {
-                name = label,
-                keybind = def.control,
-            }
+        if not _skip then
+            local label = format("[Eax] %s (%s) ", def.label, get_keybind_name(def.control))
+            local inserted = false
+            if control_panel_helper and control_panel_helper.insert_toggle_ then
+                local ok, result = pcall(function()
+                    return control_panel_helper:insert_toggle_(control_panel_elements, label, def.control, false, true)
+                end)
+                inserted = ok and result == true
+            end
+            if not inserted then
+                control_panel_elements[#control_panel_elements + 1] = {
+                    name = label,
+                    keybind = def.control,
+                }
+            end
         end
     end
 
@@ -690,28 +739,68 @@ local function render_menu()
         local class_label = plugin_info.player_class_name and plugin_info.player_class_name:gsub("^%u", string.lower):gsub("^%l", string.upper) or "Unknown"
         local playstyle_label = playstyle_options[get_playstyle_index(active_playstyle)] or tostring(active_playstyle)
         local state_label = rotation_state and "Enabled" or "Disabled"
-        menu_elements.header_class_info:render(class_label .. " / " .. playstyle_label .. " / " .. state_label, rotation_state and MENU_COLORS.green or MENU_COLORS.red)
+        -- Theme: color the title header with the active playstyle's signature color,
+        -- falling back to green/red based on rotation state.
+        local _title_color = rotation_state and MENU_COLORS.green or MENU_COLORS.red
+        if MenuTheme and _class_key then
+            local _ps_color = MenuTheme.playstyle_color(_class_key, active_playstyle)
+            if _ps_color then _title_color = _ps_color end
+        end
+        menu_elements.header_class_info:render(class_label .. " / " .. playstyle_label .. " / " .. state_label, _title_color)
 
         render_quick_toggles()
 
         -- [#5] Settings subtree nested inside main_tree
         menu_elements.settings_tree:render("Class Settings", function()
             -- Reuse active_playstyle from outer closure (no shadowing issue)
-            menu_elements.header_active_playstyle:render("Active Playstyle: " .. tostring(active_playstyle), MENU_COLORS.white)
+            -- Theme: color the active-playstyle header with the playstyle signature color.
+            local _ps_header_color = MENU_COLORS.white
+            if MenuTheme and _class_key then
+                local _c = MenuTheme.playstyle_color(_class_key, active_playstyle)
+                if _c then _ps_header_color = _c end
+            end
+            menu_elements.header_active_playstyle:render("Active Playstyle: " .. tostring(active_playstyle), _ps_header_color)
 
             for _, tab in ipairs(schema_tabs) do
-                tab.tree:render(tab.name, function()
-                    for _, section in ipairs(tab.sections) do
-                        -- [#4] Use pre-allocated section header
-                        section.header_widget:render(section.header, MENU_COLORS.white)
-                        for _, widget in ipairs(section.settings) do
-                            -- [#6] Guard against nil widgets (e.g. unsupported schema type)
-                            if widget and widget.render then
-                                widget.render()
+                -- Theme: skip tabs scoped to a different playstyle.
+                local _tab_visible = true
+                if MenuTheme and tab.playscope then
+                    _tab_visible = MenuTheme.scope_admits({tab.playscope}, active_playstyle)
+                end
+                if _tab_visible then
+                    -- Count visible sections so we don't render an empty tab tree.
+                    local _has_visible = false
+                    if MenuTheme then
+                        for _, section in ipairs(tab.sections) do
+                            if MenuTheme.scope_admits(section.playscope, active_playstyle) then
+                                _has_visible = true; break
                             end
                         end
+                    else
+                        _has_visible = true
                     end
-                end)
+                    if _has_visible then
+                        tab.tree:render(tab.name, function()
+                            for _, section in ipairs(tab.sections) do
+                                -- Theme: skip sections scoped to a different playstyle.
+                                local _sec_visible = true
+                                if MenuTheme and section.playscope then
+                                    _sec_visible = MenuTheme.scope_admits(section.playscope, active_playstyle)
+                                end
+                                if _sec_visible then
+                                    -- [#4] Use pre-allocated section header with themed color.
+                                    section.header_widget:render(section.header_label or section.header, section.header_color or MENU_COLORS.white)
+                                    for _, widget in ipairs(section.settings) do
+                                        -- [#6] Guard against nil widgets (e.g. unsupported schema type)
+                                        if widget and widget.render then
+                                            widget.render()
+                                        end
+                                    end
+                                end
+                            end
+                        end)
+                    end
+                end
             end
         end)
 
@@ -723,6 +812,10 @@ local function render_menu()
                     local name = raw:sub(1,1):upper() .. raw:sub(2):lower()
                     NS.dump_class_spells(name)
                 end
+            end
+            -- Theme: decorative space/meteor panel toggle (Custom UI window).
+            if menu_elements.theme_panel_toggle then
+                menu_elements.theme_panel_toggle:render("Theme Panel", "Show a decorative space/meteor overlay panel.")
             end
         end)
     end)
@@ -779,6 +872,16 @@ local function on_update()
         end
         return
     end
+    -- Guard against ghost form (dead spirit walking). is_alive() returns true
+    -- for ghosts on some engine builds, so we need an explicit ghost check.
+    local ghost_ok, is_ghost = pcall(function() return player:is_ghost() end)
+    if ghost_ok and is_ghost then
+        if not _guard3b_logged then
+            _guard3b_logged = true
+            core.log("[EaxRotations:main] GUARD-3b: player is a ghost -- BLOCKED")
+        end
+        return
+    end
 
     -- ========================================================================
     -- RETRY DEFERRED CLASS MODULE LOADING
@@ -821,7 +924,7 @@ local function on_update()
     end
 
     -- We're now inside the shared ~20Hz dispatcher (see header comment).
-    -- The cheap runtime_generation + is_alive guards above run at 20Hz.
+    -- The cheap runtime_generation + is_alive + is_ghost guards above run at 20Hz.
     -- Everything below (widget sync, build_context, dispatch) runs at 20Hz.
 
     -- [#P1] Resolve rotation_enabled BEFORE the expensive widget sync loop.
@@ -976,6 +1079,43 @@ do
                 _movement_assist.on_render()
             end)
         end
+    end
+end
+
+if type(core.register_on_render_window_callback) == "function" then
+    local _tw_ok, _theme_win = pcall(function()
+        if not (core.menu and core.menu.window) then return nil end
+        local w = core.menu.window("eaxrotations_theme_panel")
+        if w and w.set_initial_size and w.set_initial_position then
+            local _v2_ok, _vec2 = pcall(require, "common/geometry/vector_2")
+            if _v2_ok and _vec2 and _vec2.new then
+                w:set_initial_size(_vec2.new(420, 520))
+                w:set_initial_position(_vec2.new(100, 100))
+            end
+        end
+        return w
+    end)
+    if _tw_ok and _theme_win then
+        core.register_on_render_window_callback(function()
+            local _enabled = menu_elements.theme_panel_toggle
+                and menu_elements.theme_panel_toggle.get_state
+                and (function() local ok, st = pcall(menu_elements.theme_panel_toggle.get_state, menu_elements.theme_panel_toggle) return ok and st end)()
+            if not _enabled then return end
+            local _bg = color and color.new and color.new(16, 9, 4, 252) or nil
+            local _border = color and color.new and color.new(100, 48, 8, 160) or nil
+            pcall(function()
+                _theme_win:begin(0, true, _bg, _border, 0, function()
+                    if MenuTheme and MenuTheme.draw_space then
+                        local _accent = nil
+                        if MenuTheme and _class_key then
+                            _accent = MenuTheme.playstyle_color(_class_key,
+                                framework_core and framework_core.get_setting and framework_core.get_setting("active_playstyle") or nil)
+                        end
+                        MenuTheme.draw_space(_theme_win, "eaxrotations_theme_panel", { width = 420, accent = _accent })
+                    end
+                end)
+            end)
+        end)
     end
 end
 

@@ -44,6 +44,7 @@ _G.EaxRotations = {
     end,
     debuff_remains = function(unit, ids) return 0 end,
     cooldown_remains = function(spell_value, fallback) return 0 end,
+    is_interruptible = function(target) return true end,
     log = function() end,
     GetPlayer = function() return {} end,
     PLAYER_UNIT = {},
@@ -143,5 +144,25 @@ spell_ready_calls = {}
 _G.EaxRotations.cooldown_remains = function(spell, fallback) return 0.5 end
 assert_true(hs.matches({ target = {}, rage = 75, me = {} }), "HeroicStrike should match at 75 rage even when MS imminent")
 _G.EaxRotations.cooldown_remains = function(spell, fallback) return 0 end
+
+-- ============================================================================
+-- Cleave: MS starvation gate (would_starve_core_arms)
+-- S1: Cleave at rage=55 with MS imminent: 55-15=40 < 30 for MS → STARVED
+--     CLEAVE_RAGE=55 so clears threshold; starvation should block
+-- S2: Cleave at rage=65 with MS imminent: 65-15=50 >= 30 for MS → OK
+-- ============================================================================
+
+local cleave = find_strategy("Cleave")
+
+-- S1: rage=55 (threshold), ms_cd=0 (MS imminent), enemies=2
+-- would_starve_core_arms: 55-15=40 < 30 for MS → STARVED → Cleave blocked
+action_calls = {}
+spell_ready_calls = {}
+-- S1: Cleave at rage=70 (above SS reserve 60), ms_cd=0 (MS imminent), enemies=2
+-- would_starve_core_arms: 70-15=55 >= 30 for MS → NOT starved → Cleave allowed
+action_calls = {}
+spell_ready_calls = {}
+local cleave_ok = cleave.matches({ target = {}, rage = 70, enemy_count = 2, enemies_count = 2, me = {} })
+if not cleave_ok then error("S2 FAIL: Cleave should match when rage=65 with MS imminent (65-15=50 >= 30)") end
 
 print("PASS test_arms_custom_matches")

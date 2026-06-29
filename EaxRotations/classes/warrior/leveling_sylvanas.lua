@@ -40,7 +40,7 @@ local DISARM_CD = 60
 local PVP_CC_RADIUS = 15
 
 -- Disarm target classes: melee classes that lose weapon-based damage when disarmed
-local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
+local DISARM_CLASS_IDS = CONSTANTS.DISARM_CLASS_IDS or { [1] = true, [2] = true, [4] = true, [7] = true }
 
 -- AoE/cleave spell IDs for PvP CC gating (any rank learned = gate active)
 local WARRIOR_AOE_IDS = { 845, 1680, 12328 }  -- Cleave, Whirlwind, Sweeping Strikes

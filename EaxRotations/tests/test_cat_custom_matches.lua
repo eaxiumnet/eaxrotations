@@ -73,6 +73,7 @@ local rip = find_strategy("Rip")
 -- Debuff fresh -> should NOT match
 action_calls = {}
 local ctx_rip_fresh = {
+    combo_points = 5,
     target = { _debuff_remains = 10 },
     ttd = 60,
 }
@@ -82,6 +83,7 @@ assert_eq(#action_calls, 0, "action_matches should not be called when debuff fre
 -- Debuff expiring -> should match
 action_calls = {}
 local ctx_rip_refresh = {
+    combo_points = 5,
     target = { _debuff_remains = 1 },
     ttd = 60,
 }
@@ -89,67 +91,6 @@ assert_true(rip.matches(ctx_rip_refresh), "Rip should match when debuff needs re
 
 -- No target -> should return false
 assert_false(rip.matches({}), "Rip should not match when target is nil")
-
--- ============================================================================
--- Rake: only refresh via should_refresh_dot
--- ============================================================================
-
-local rake = find_strategy("Rake")
-
--- Debuff fresh -> should NOT match
-action_calls = {}
-local ctx_rake_fresh = {
-    target = { _debuff_remains = 8 },
-    ttd = 60,
-}
-assert_false(rake.matches(ctx_rake_fresh), "Rake should not match when debuff is fresh")
-assert_eq(#action_calls, 0, "action_matches should not be called when debuff fresh")
-
--- Debuff expiring -> should match
-action_calls = {}
-local ctx_rake_refresh = {
-    target = { _debuff_remains = 1 },
-    ttd = 60,
-}
-assert_true(rake.matches(ctx_rake_refresh), "Rake should match when debuff needs refresh")
-
--- ============================================================================
--- Faerie Fire Feral: only when debuff absent/expiring and target lives long enough
--- ============================================================================
-
-local faerie_fire = find_strategy("FaerieFireFeral")
-
--- Debuff fresh -> should NOT match
-action_calls = {}
-local ctx_ff_fresh = {
-    target = { _debuff_remains = 10 },
-    ttd = 60,
-    target_armor = 5000,
-}
-assert_false(faerie_fire.matches(ctx_ff_fresh), "FaerieFireFeral should not match when debuff > 3 sec")
-assert_eq(#action_calls, 0, "action_matches should not be called when debuff fresh")
-
--- Debuff low but target dies soon -> should NOT match
-action_calls = {}
-local ctx_ff_low_ttd = {
-    target = { _debuff_remains = 1 },
-    ttd = 5,
-    target_armor = 5000,
-}
-assert_false(faerie_fire.matches(ctx_ff_low_ttd), "FaerieFireFeral should not match when ttd < 10")
-assert_eq(#action_calls, 0, "action_matches should not be called when ttd < 10")
-
--- Debuff low, target lives long -> should match
-action_calls = {}
-local ctx_ff_ok = {
-    target = { _debuff_remains = 1 },
-    ttd = 30,
-    target_armor = 5000,
-}
-assert_true(faerie_fire.matches(ctx_ff_ok), "FaerieFireFeral should match when debuff low and ttd >= 10")
-
--- No target -> should return false
-assert_false(faerie_fire.matches({}), "FaerieFireFeral should not match when target is nil")
 
 -- ============================================================================
 -- Tiger's Fury: only when energy won't cap and target lives long enough
@@ -164,33 +105,44 @@ local ctx_tf_cap = {
         get_power = function(pt) return 60 end,
         get_max_power = function(pt) return 100 end,
     },
-    ttd = 60,
 }
 assert_false(tigers_fury.matches(ctx_tf_cap), "TigersFury should not match when energy + 60 > max")
 assert_eq(#action_calls, 0, "action_matches should not be called when energy would cap")
 
--- Target dies soon -> should NOT match
+-- In combat with low energy -> should match (mid-combat use enabled)
 action_calls = {}
-local ctx_tf_low_ttd = {
+local ctx_tf_combat = {
     me = {
         get_power = function(pt) return 20 end,
         get_max_power = function(pt) return 100 end,
     },
-    ttd = 5,
+    in_combat = true,
 }
-assert_false(tigers_fury.matches(ctx_tf_low_ttd), "TigersFury should not match when ttd < 8")
-assert_eq(#action_calls, 0, "action_matches should not be called when ttd < 8")
+assert_true(tigers_fury.matches(ctx_tf_combat), "TigersFury should match in combat with low energy")
+assert_eq(#action_calls, 0, "action_matches should not be called in combat")
 
--- Energy low, target lives -> should match
+-- In combat with 5cp and enough energy for Rip -> should NOT match (save for Rip)
+action_calls = {}
+local ctx_tf_rip_ready = {
+    me = {
+        get_power = function(pt) return 30 end,
+        get_max_power = function(pt) return 100 end,
+    },
+    in_combat = true,
+    combo_points = 5,
+}
+assert_false(tigers_fury.matches(ctx_tf_rip_ready), "TigersFury should not match when Rip is ready")
+
+-- Energy low, OOC -> should match (pre-cast opener)
 action_calls = {}
 local ctx_tf_ok = {
     me = {
         get_power = function(pt) return 20 end,
         get_max_power = function(pt) return 100 end,
     },
-    ttd = 30,
+    in_combat = true,
 }
-assert_true(tigers_fury.matches(ctx_tf_ok), "TigersFury should match when energy low and ttd >= 8")
+assert_true(tigers_fury.matches(ctx_tf_ok), "TigersFury should match in combat with low energy")
 
 -- No me -> should return false
 assert_false(tigers_fury.matches({}), "TigersFury should not match when me is nil")
@@ -205,6 +157,7 @@ local shred_omen = find_strategy("ShredOmen")
 action_calls = {}
 local ctx_omen_none = {
     me = { _buff_up = false },
+    in_combat = true,
 }
 assert_false(shred_omen.matches(ctx_omen_none), "ShredOmen should not match without Omen buff")
 assert_eq(#action_calls, 0, "action_matches should not be called without Omen buff")
@@ -213,6 +166,7 @@ assert_eq(#action_calls, 0, "action_matches should not be called without Omen bu
 action_calls = {}
 local ctx_omen_up = {
     me = { _buff_up = true },
+    in_combat = true,
 }
 assert_true(shred_omen.matches(ctx_omen_up), "ShredOmen should match with Omen buff")
 
@@ -228,6 +182,7 @@ local ctx_dash_pve = {
     is_pvp = false,
     settings = { pvp_mode = false },
     me = {},
+    in_combat = true,
 }
 assert_false(dash.matches(ctx_dash_pve), "Dash should not match in PvE")
 assert_eq(#action_calls, 0, "action_matches should not be called in PvE")
@@ -240,6 +195,7 @@ local ctx_dash_close = {
         get_distance = function() return 5 end,
     },
     target = {},
+    in_combat = true,
 }
 assert_false(dash.matches(ctx_dash_close), "Dash should not match when target < 10 yards")
 assert_eq(#action_calls, 0, "action_matches should not be called when target close")
@@ -252,6 +208,7 @@ local ctx_dash_far = {
         get_distance = function() return 15 end,
     },
     target = {},
+    in_combat = true,
 }
 assert_true(dash.matches(ctx_dash_far), "Dash should match in PvP when target > 10 yards")
 

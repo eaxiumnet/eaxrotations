@@ -537,6 +537,13 @@ M.ITEMS = {
         broiled_bloodfin = 33867,
         kiblers_bits = 33874,
         stormchops = 33866,
+        -- Leveling food fallbacks
+        herb_baked_egg = 4607,
+        cooked_gladeflinger = 33874,
+        mithril_head_trout = 8364,
+        baked_salmon = 13929,
+        cooked_crab_claw = 12209,
+        spiced_chili_crab = 12212,
     },
     drinks = {
         purified_draenic_water = 27860,
@@ -545,6 +552,14 @@ M.ITEMS = {
         conjured_mountain_spring_water = 30703,
         conjured_manna_biscuit = 34062,
         naaru_ration = 34780,
+        ice_cold_milk = 1179,
+        melon_juice = 1205,
+        spring_water = 159,
+        sweet_nectar = 1708,
+        moonberry_juice = 1645,
+        gold_tea = 7676,
+        purified_water = 8078,
+        gray_mountains_water = 8079,
     },
     weapon_buffs = {
         superior_wizard_oil = 22522,

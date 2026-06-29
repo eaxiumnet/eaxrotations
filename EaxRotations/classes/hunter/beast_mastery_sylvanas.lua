@@ -752,7 +752,20 @@ local strategies = {
         matches = feign_death_matches,
         execute = function(context) return NS.try_cast(SPELLS.FeignDeath, context.me, "[BEAST_MASTERY] FeignDeath", { skip_range = true }) end,
     },
-    -- 15. Multi-Shot (AoE)
+    -- 15. Adaptive rotation (DPS-optimal shot selection, setting-gated)
+    {
+        name = "AdaptiveRotation",
+        matches = function(context)
+            if not NS.HunterAdaptive then return false end
+            if not NS.get_setting("use_adaptive_rotation", false) then return false end
+            if not context.in_combat or not context.target then return false end
+            return true
+        end,
+        execute = function(context)
+            return (NS.create_adaptive_rotation_strategy and NS.create_adaptive_rotation_strategy()(context)) or false
+        end,
+    },
+    -- 16. Multi-Shot (AoE)
     {
         name = "MultiShot",
         matches = multi_shot_matches,

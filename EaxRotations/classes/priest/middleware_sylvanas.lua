@@ -249,6 +249,7 @@ local strategies = {
             local settings = context.settings or {}
             if settings.use_pvp_defensives == false then return false end
             if NS.should_kite and not NS.should_kite(context) then return false end
+            if not NS.spell_ready(SPELLS.PsychicScream, context.me, { skip_range = true }) then return false end
             if (NS.GetEnemiesCount and NS.GetEnemiesCount(8) or 0) < 2 then return false end
             return true
         end,
@@ -262,6 +263,8 @@ local strategies = {
         matches = function(context)
             if not context.in_combat then return false end
             if context.settings.use_threat_drop == false then return false end
+            -- Only drop threat if a group ally is in combat nearby (Fade is useless solo)
+            if not (NS.has_group_combat_ally_40 and NS.has_group_combat_ally_40()) then return false end
             if not (NS.spell_ready and SPELLS.Fade and NS.spell_ready(SPELLS.Fade, context.me, { skip_range = true })) then return false end
             if context.me and NS.has_buff and NS.has_buff(context.me, SPELLS.Fade) then return false end
             -- Throttle: expensive enemy iteration
@@ -574,7 +577,7 @@ local strategies = {
     },
 
     -- Auto-consumable usage
-    { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
+    { name = "AutoConsumable", matches = function(context) return consumable_manager.should_check(context) end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("priest", strategies)

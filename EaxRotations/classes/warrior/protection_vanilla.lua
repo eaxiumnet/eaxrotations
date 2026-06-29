@@ -31,16 +31,15 @@ local TEST_ASSERTIONS = {
     { name = "ThunderClap", cooldown = THUNDERCLAP_CD },
 }
 
-local SUNDER_DEBUFF = { 11597, 11596, 8380, 7405, 7386 }
-local DEMO_SHOUT_DEBUFF = { 11556, 11555, 11554, 6190, 1160 }
-local THUNDER_CLAP_DEBUFF = { 11581, 11580, 8205, 8204, 8198, 6343 }
-local BATTLE_SHOUT_BUFF = { 11551, 11550, 11549, 6192, 5242, 6673 }
+local SUNDER_DEBUFF = CONSTANTS.SUNDER_DEBUFF or { 11597, 11596, 8380, 7405, 7386 }
+local DEMO_SHOUT_DEBUFF = CONSTANTS.DEMO_SHOUT_DEBUFF or { 11556, 11555, 11554, 6190, 1160 }
+local THUNDER_CLAP_DEBUFF = CONSTANTS.THUNDER_CLAP_DEBUFF or { 11581, 11580, 8205, 8204, 8198, 6343 }
+local BATTLE_SHOUT_BUFF = CONSTANTS.BATTLE_SHOUT_IDS or { 11551, 11550, 11549, 6192, 5242, 6673 }
 local STAND_BUFF = { 12975 }
 local SHIELD_WALL_BUFF = { 871 }
 local REND_DEBUFF = { 11574, 11573, 6548, 6547, 772 }
-local INTIMIDATING_SHOUT_DEBUFF = { 5246 }
 
-local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }
+local DISARM_CLASS_IDS = CONSTANTS.DISARM_CLASS_IDS or { [1] = true, [2] = true, [4] = true, [7] = true }
 
 local function target_is_casting(unit)
     if not unit or type(unit.is_casting) ~= "function" then return false end

@@ -19,7 +19,7 @@ local player = {
     get_class = function() return 9 end,
     get_target = function() return nil end,
     can_attack = function(_, unit) return unit == target end,
-    is_in_combat = function() return false end,
+    is_in_combat = function() return true end,
     is_alive = function() return true end,
     is_valid = function() return true end,
     gcd_remains = function() return 0 end,

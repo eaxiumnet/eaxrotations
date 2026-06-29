@@ -118,6 +118,9 @@ local holy_state = {
     dispel_magic_ready = false,
     cure_disease_ready = false,
     abolish_disease_ready = false,
+    flash_heal_ready = false,
+    prayer_of_healing_ready = false,
+    greater_heal_ready = false,
 }
 -- Shared helpers from core_sylvanas.lua
 local try_cast, spell_exists, spell_ready, debuff_remains, health_pct, player_control_locked, has_player_buff = NS.import_helpers(
@@ -212,6 +215,9 @@ local function build_holy_state(context)
     holy_state.dispel_magic_ready = spell_exists(SPELLS.DispelMagic) and spell_ready(SPELLS.DispelMagic, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
     holy_state.cure_disease_ready = spell_exists(SPELLS.CureDisease) and spell_ready(SPELLS.CureDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
     holy_state.abolish_disease_ready = spell_exists(SPELLS.AbolishDisease) and spell_ready(SPELLS.AbolishDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
+    holy_state.flash_heal_ready = NS.spell_ready(SPELLS.FlashHeal, NS.PLAYER_UNIT, { skip_range = true }) or false
+    holy_state.prayer_of_healing_ready = NS.spell_ready(SPELLS.PrayerOfHealing, NS.PLAYER_UNIT, { skip_range = true }) or false
+    holy_state.greater_heal_ready = NS.spell_ready(SPELLS.GreaterHeal, NS.PLAYER_UNIT, { skip_range = true }) or false
 
     return holy_state
 end
@@ -327,6 +333,7 @@ end
 local function encounter_reactions_matches(context, state)
     if not context.in_combat then return false end
     if state.encounter_id ~= KARAZHAN_MAP_ID then return false end
+    if not state.flash_heal_ready then return false end
     -- Netherspite: player control locked (Nether Breath fear) ? dispel/prepare
     if context.player_control_locked then
         return state.tank_hp < 80
@@ -368,6 +375,7 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if context.player_control_locked or context.is_moving then return false end
+            if not state.flash_heal_ready then return false end
             if not state.lowest then return false end
             return state.lowest_hp < (context.settings.holy_emergency_hp or 30)
         end,
@@ -424,6 +432,7 @@ local strategies = {
             if not context.in_combat then return false end
             if context.player_control_locked or context.is_moving then return false end
             if context.settings.holy_use_poh == false then return false end
+            if not state.prayer_of_healing_ready then return false end
             -- Use subgroup count for PoH (only counts your party in raids)
             local poh_count = state.subgroup_damaged_count or state.group_damaged_count
             if poh_count < (context.settings.holy_aoe_count or 3) then return false end
@@ -476,6 +485,7 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if context.player_control_locked or context.is_moving then return false end
+            if not state.greater_heal_ready then return false end
             if not state.lowest then return false end
             -- Pushback gate: skip GH when taking damage, fallback to FH
             if _check_pushback(context) then return false end
@@ -502,6 +512,7 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if context.player_control_locked or context.is_moving then return false end
+            if not state.flash_heal_ready then return false end
             if not state.lowest then return false end
             -- Mana conservation: drop direct heals below 15% mana, Renew only
             if context.mana_pct < (context.settings.holy_fh_mana_floor or 15) then return false end

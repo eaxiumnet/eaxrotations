@@ -415,6 +415,7 @@ local function shackle_undead_matches(context, s)
     if not context.has_valid_enemy_target then return false end
     if s.target_creature_type ~= 6 then return false end
     if not s.shackle_undead_ready then return false end
+    if context.target and NS.debuff_up and NS.debuff_up(context.target, {9484, 9485, 10955}) then return false end
     return true
 end
 

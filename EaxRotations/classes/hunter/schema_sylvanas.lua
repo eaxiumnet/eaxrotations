@@ -19,6 +19,11 @@ return {
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },
+                    { key = "use_adaptive_rotation", type = "checkbox", label = "Adaptive Rotation (wowsims DPS math)", default = false, tooltip = "Replace threshold-based shot selection with DPS-optimal math engine. Selects best shot per tick by computing expected damage of each option." },
+                    { key = "mana_save", type = "slider", label = "Mana Save %", min = 0, max = 100, default = 30, tooltip = "Below this mana %, skip expensive shots (Multi-Shot, Arcane Shot)." },
+                    { key = "arcane_shot_mana", type = "slider", label = "Arcane Shot Mana Floor %", min = 0, max = 100, default = 15, tooltip = "Minimum mana % to cast Arcane Shot." },
+                    { key = "adaptive_exec_pad_ms", type = "slider", label = "Adaptive Exec Pad (ms)", min = 0, max = 250, default = 100, tooltip = "Extra delay added before each special shot to reduce auto-shot clipping. Higher = safer but lower DPS." },
+                    { key = "weapon_speed", type = "slider", label = "Ranged Weapon Speed", min = 20, max = 40, default = 29, tooltip = "Your ranged weapon's base speed in tenths of seconds (e.g. 29 = 2.9s). Used for haste computation." },
                 },
             },
             {

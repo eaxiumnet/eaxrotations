@@ -45,16 +45,20 @@ end
 -- ============================================================================
 
 --- Executes the Shoot/wand spell on the target.
+--- Starts auto-attack once; does NOT spam Shoot every frame.
 --- @param context table Rotation context
 --- @return boolean success
 function leveling.execute_wand(context)
     if not context or not context.target then return false end
-    if NS.try_cast then
-        -- Route Shoot through the central cast guard so wanding respects target,
-        -- GCD/cooldown/resource, anti-flicker, and range checks like all spells.
-        return NS.try_cast(leveling.WAND_SPELL_ID, context.target, "[LEVELING] Wand") == true
+    if not NS.is_auto_attacking then
+        -- Fallback: no auto-attack API available, use try_cast
+        if NS.try_cast then
+            return NS.try_cast(leveling.WAND_SPELL_ID, context.target, "[LEVELING] Wand") == true
+        end
+        return false
     end
-    return false
+    if NS.is_auto_attacking(context.me) then return true end
+    return NS.start_auto_attack(context.target, NS.AUTO_ATTACK_WAND) == true
 end
 
 -- ============================================================================

@@ -51,6 +51,10 @@ return {
                     { key = "warrior_cancel_external_buff", type = "checkbox", label = "Cancel PW:S/BoP", default = false },
                     { key = "warrior_defensive_stance_pve", type = "checkbox", label = "Defensive Stance Outside PvP", default = false },
                     { key = "hs_trick", type = "checkbox", label = "HS Dequeue Trick", default = true, description = "Smart HS dequeue to avoid rage waste on missed attacks" },
+                    { key = "fury_swing_desync", type = "checkbox", label = "Swing Desync (Fury DW)", default = false, description = "Inject Slam to desync MH/OH swing timers for smoother rage gen" },
+                    { key = "fury_use_hamstring", type = "checkbox", label = "Hamstring Weave (Fury)", default = false, description = "Weave Hamstring at high rage for Sword Spec procs" },
+                    { key = "fury_hamstring_rage", type = "slider", label = "Hamstring Weave Rage Min", min = 30, max = 100, default = 50, description = "Minimum rage to begin Hamstring Sword Spec weave" },
+                    { key = "fury_ww_prio_count", type = "slider", label = "WW Priority Over BT", min = 0, max = 5, default = 2, description = "Enemy count threshold: yield Bloodthirst to Whirlwind above this (0=disabled)" },
                 },
             },
             {

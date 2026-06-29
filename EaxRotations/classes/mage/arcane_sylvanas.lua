@@ -196,7 +196,7 @@ local function build_state(context)
     s.min_mtte = min_mtte
 
     -- Emergency: mana critically low
-    if s.mana_pct < 10 then
+    if (s.mana_pct or 100) < 10 then
         s.phase = PHASE_EMERGENCY
         s.can_burn = false
         s.should_conserve = true
@@ -227,10 +227,10 @@ local function build_state(context)
     elseif s.should_conserve then
         -- Enter conserve: low mana or poor MTTE
         s.phase = PHASE_CONSERVE
-    elseif s.phase == PHASE_BURN and s.mana_pct < conserve_threshold then
+    elseif s.phase == PHASE_BURN and (s.mana_pct or 100) < conserve_threshold then
         -- Mana depleted during burn, switch to conserve
         s.phase = PHASE_CONSERVE
-    elseif s.phase == PHASE_BURN and not s.can_burn and s.mana_pct < burn_threshold then
+    elseif s.phase == PHASE_BURN and not s.can_burn and (s.mana_pct or 100) < burn_threshold then
         -- Can't sustain burn anymore
         s.phase = PHASE_CONSERVE
     elseif s.phase ~= PHASE_BURN and s.phase ~= PHASE_CONSERVE then
