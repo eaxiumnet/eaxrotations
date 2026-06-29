@@ -1,3 +1,10 @@
+-- spell_id_table_sylvanas.lua -- auto-generated expansion-aware spell ID table (TBC + Anniversary + Vanilla keys).
+-- WHAT:   auto-generated expansion-aware spell ID table (TBC + Anniversary + Vanilla keys).
+-- WHEN:   consumed by every spec build_state.
+-- WHY:    eliminates per-spec string-key spell lookups.
+-- SAFETY: pure constants; generator-stamped; nil-tolerant key fetch.
+-- DECISION: pure data; consumed via require(); nil-tolerant key fetch.
+
 -- spell_id_table_sylvanas.lua -- centralized spell-ID lookup table (rank -> id, id -> rank)
 -- WHAT:  spell-ID resolution across ranks, with localized fallbacks
 -- WHEN:  called at module load + at runtime via izi.spell()

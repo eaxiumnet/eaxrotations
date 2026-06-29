@@ -1,3 +1,10 @@
+-- spell_corpus_sylvanas.lua -- shared spell corpus used for parser fallback and lookup (Lua-key-value table).
+-- WHAT:   shared spell corpus used for parser fallback and lookup (Lua-key-value table).
+-- WHEN:   required at module load by parser call sites; pure constant data.
+-- WHY:    single source of spell names/IDs across all spec files.
+-- SAFETY: static Lua table; no api calls; nil-tolerant on key miss.
+-- DECISION: pure data; consumed via require(); nil-tolerant key fetch.
+
 -- ============================================================================
 -- Shared Helper: Spell Corpus
 -- ============================================================================
