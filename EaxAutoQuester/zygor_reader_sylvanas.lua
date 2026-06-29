@@ -112,7 +112,10 @@ function M_get_current_waypoint_world()
     if not wp.map_id or not wp.x or not wp.y then return nil end
 
     local wok, wpos = pcall(_convert_map_to_world, wp.map_id, { x = wp.x, y = wp.y })
-    if not wok or not wpos then return nil end
+    if not wok or not wpos then
+        core.log("[EaxAutoQuester] Waypoint conversion failed for map " .. tostring(wp.map_id) .. " (" .. tostring(wp.x) .. ", " .. tostring(wp.y) .. ")")
+        return nil
+    end
 
     return wpos
 end

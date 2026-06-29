@@ -6,10 +6,9 @@
 --         positions fixed via waypoint_fixer before returning
 -- Decision: Replaces old minimal reader; backward-compatible exports kept
 
--- ============================================================================
--- Hot-path API Caching at Module Load (Pattern 2 from AGENTS.md)
--- ============================================================================
+-- Dynamic resolution — not cached, resolves each call (Questie may load after this module)
 
+<<<<<<< Updated upstream
 local _core_time = core.time
 local _is_loaded = core.addons.questie.is_loaded
 local _get_quest_npc_ids = core.addons.questie.get_quest_npc_ids
@@ -28,6 +27,9 @@ local function ensure_waypoint_fixer()
     if ok and w then _waypoint_fixer = w end
     return _waypoint_fixer ~= nil
 end
+=======
+local _get_visible_objs  = core.object_manager.get_visible_objects
+>>>>>>> Stashed changes
 
 local _utils = nil
 local function ensure_utils()
@@ -48,7 +50,7 @@ local _stack = { n = 0 }
 -- ============================================================================
 
 local function questie_loaded()
-    local ok, loaded = pcall(_is_loaded)
+    local ok, loaded = pcall(function() return core.addons.questie.is_loaded() end)
     return ok and loaded == true
 end
 
@@ -100,7 +102,12 @@ function M_get_quest_npc_positions()
         return nil
     end
 
+<<<<<<< Updated upstream
     local ok, npc_ids = pcall(_get_quest_npc_ids)
+=======
+    -- Nil-guard: get quest NPC IDs from Questie
+    local ok, npc_ids = pcall(function() return core.addons.questie.get_quest_npc_ids() end)
+>>>>>>> Stashed changes
     if not ok or not npc_ids or #npc_ids == 0 then return nil end
 
     local id_set = {}
@@ -177,8 +184,13 @@ function M_get_quest_locations(quest_id)
     if not questie_loaded() then return nil end
     if not quest_id then return nil end
 
+<<<<<<< Updated upstream
     local ok, locations = pcall(_get_quest_locations, quest_id)
     if not ok or not locations or #locations == 0 then return nil end
+=======
+    local ok, ids = pcall(function() return core.addons.questie.get_quest_npc_ids() end)
+    if not ok or not ids or #ids == 0 then return nil end
+>>>>>>> Stashed changes
 
     local result = {}
     for i = 1, #locations do

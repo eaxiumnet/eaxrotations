@@ -89,7 +89,9 @@ local function sell_junk()
     for _, bag_id in ipairs(BAG_IDS) do
         local ok, items = pcall(_get_items_in_bag, bag_id)
         if ok and items then
-            for _, item in ipairs(items) do
+            -- Process in reverse order so slot shifts don't affect remaining items
+            for i = #items, 1, -1 do
+                local item = items[i]
                 if item and item.object and item.object.get_item_id then
                     local item_id = item.object:get_item_id()
                     if item_id and item_id > 0 then

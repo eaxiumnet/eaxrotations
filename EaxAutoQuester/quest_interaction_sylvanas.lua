@@ -468,14 +468,15 @@ function M.handle_any_frame(step_text)
     local trainer_action = M.handle_trainer()
     if trainer_action then return trainer_action end
 
-    -- Priority 5: Vendor frame — auto-repair, sell junk, buy quest items
+    -- Priority 5: Vendor frame — auto-repair and sell junk, then close
     local ok_vendor, vendor_count = pcall(function() return _game_ui.get_vendor_item_count() end)
     if ok_vendor and vendor_count and vendor_count > 0 then
-        local vm_ok, vm = pcall(require, "vendor_manager_sylvanas")
-        if vm_ok and vm and vm.handle_vendor then
-            vm.handle_vendor()
+        local _, vendor = pcall(require, "vendor_manager_sylvanas")
+        if vendor and vendor.handle_vendor then
+            vendor.handle_vendor(nil)
         end
-        return "vendor_open"
+        pcall(function() _quests.close_gossip() end)
+        return "vendor_handled"
     end
 
     return nil

@@ -58,6 +58,11 @@ local _area_last_target_guid = nil   -- GUID of last brute-force target (detect 
 local _interact_start_time = 0       -- when INTERACT state was entered (timeout safety net)
 local INTERACT_TIMEOUT = 15          -- max seconds in INTERACT before force-exit
 local _interact_cooldown = 0         -- don't re-enter INTERACT until this time
+local _action_loop_count = 0         -- consecutive DO_ACTION cycles (progressive backoff)
+local _last_action_type = ""         -- previous action type (loop detection)
+local _death_location = nil          -- where player died (vec3), for ghost run-back
+local _death_location_saved = false  -- flag: death location saved this death
+local GHOST_BUFF_ID = 8326           -- Ghost aura
 
 -- ============================================================================
 -- Nil-Guard Helper (Pattern 14 from AGENTS.md) — safe default for any field
@@ -263,6 +268,8 @@ local function state_idle()
         _last_step_num = step_num
         _nav_retries = 0
         _last_goal_type = nil
+        _action_loop_count = 0
+        _last_action_type = ""
         debug_log("IDLE: new step " .. tostring(step_num))
     end
 
@@ -282,7 +289,7 @@ local function state_idle()
         end
     end
 
-    -- Low HP pause: if out of combat and HP below 80%, wait until regen
+    -- Low HP pause: if out of combat and HP below threshold, wait until regen
     if me then
         local hp_ok, hp_pct = pcall(function()
             local max_hp = me:get_max_health()
@@ -292,49 +299,233 @@ local function state_idle()
             end
             return 100
         end)
-        if hp_ok and hp_pct and hp_pct < 80 then
+        local menu = ensure_menu()
+        local min_hp = menu and menu.get("min_hp", 80) or 80
+        if hp_ok and hp_pct and hp_pct < min_hp then
+            -- Reset death recovery state when alive (HP>0, not ghost)
+            if hp_pct > 0 then
+                local _, ghost = pcall(function() return me:has_buff(GHOST_BUFF_ID) end)
+                if not ghost and (_death_location or _death_location_saved) then
+                    log("Resurrected — resuming questing")
+                    _death_location = nil
+                    _death_location_saved = false
+                end
+            end
+
+            -- Death recovery: triggers on hp=0 OR ghost state (ghost has ~1 HP, not 0)
+            local _, is_death_ghost = pcall(function() return me:has_buff(GHOST_BUFF_ID) end)
+            if hp_pct == 0 or is_death_ghost then
+                -- Save death location once per death
+                if not _death_location_saved then
+                    local _, dpos = pcall(function() return me:get_position() end)
+                    if dpos then
+                        _death_location = { x = dpos.x, y = dpos.y, z = dpos.z }
+                        _death_location_saved = true
+                        local utils = ensure_utils()
+                        log("Died at " .. (utils and utils.vec3_to_string(_death_location) or tostring(_death_location.x .. "," .. _death_location.y)))
+                    end
+                end
+
+                if is_death_ghost then
+                    -- Ghost mode: navigate to corpse, then safe-resurrect
+                    local _, gpos = pcall(function() return me:get_position() end)
+                    if gpos and _death_location then
+                        local utils = ensure_utils()
+                        if utils then
+                            local dist_sq = utils.squared_distance(gpos, _death_location)
+                            if dist_sq > 25 then
+                                local nav = ensure_navigation()
+                                if nav and not nav.is_navigating() then
+                                    _nav_destination = { x = _death_location.x, y = _death_location.y, z = _death_location.z }
+                                    debug_log("DEATH: ghost — running to corpse (" .. math.floor(math.sqrt(dist_sq)) .. "yd)")
+                                    return "NAV"
+                                end
+                            else
+                                -- Near corpse — check safety before resurrecting
+                                local safe = true
+                                local _, objs = pcall(core.object_manager.get_visible_objects)
+                                if objs then
+                                    local limit = #objs > 50 and 50 or #objs
+                                    for i = 1, limit do
+                                        local obj = objs[i]
+                                        if obj then
+                                            local uok, is_unit = pcall(function() return obj:is_unit() end)
+                                            if uok and is_unit then
+                                                local dok, dead = pcall(function() return obj:is_dead() end)
+                                                if not (dok and dead) then
+                                                    local eok, is_enemy = pcall(function() return obj:is_enemy_with(me) end)
+                                                    if eok and is_enemy then
+                                                        local pok, opos = pcall(function() return obj:get_position() end)
+                                                        if pok and opos then
+                                                            local dsq = utils.squared_distance(gpos, opos)
+                                                            if dsq < 2025 then
+                                                                safe = false
+                                                                break
+                                                            end
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                                if safe then
+                                    pcall(core.input.retrieve_corpse)
+                                    debug_log("DEATH: ghost — resurrecting (safe)")
+                                else
+                                    debug_log("DEATH: ghost — enemies near corpse, waiting")
+                                    if not _last_hp_warning or _core_time() - _last_hp_warning > 5.0 then
+                                        _last_hp_warning = _core_time()
+                                        log("Enemies near corpse — waiting for them to move")
+                                    end
+                                end
+                            end
+                        end
+                    end
+                else
+                    -- At corpse, not yet released — release spirit
+                    pcall(core.input.release_spirit)
+                    debug_log("DEATH: releasing spirit")
+                end
+
+                local ns = _G.EaxAutoQuester
+                if ns and ns.set_warning and (not _last_hp_warning or _core_time() - _last_hp_warning > 10.0) then
+                    _last_hp_warning = _core_time()
+                    ns.set_warning("Died — auto-recovering", 4.0)
+                end
+                return "IDLE"
+            end
+
+            -- HP low but alive (>0%) — wait for regen
             if not _last_hp_warning or _core_time() - _last_hp_warning > 5.0 then
                 _last_hp_warning = _core_time()
-                if hp_pct == 0 then
-                    debug_log("IDLE: player dead — waiting for resurrection")
-                else
-                    debug_log("IDLE: HP low (" .. math.floor(hp_pct) .. "%) — waiting for regen")
-                end
+                debug_log("IDLE: HP low (" .. math.floor(hp_pct) .. "%) — waiting for regen (min: " .. math.floor(min_hp) .. "%)")
                 local ns = _G.EaxAutoQuester
                 if ns and ns.set_warning then
-                    ns.set_warning("HP low (" .. math.floor(hp_pct) .. "%) - waiting", 4.0)
+                    ns.set_warning("HP low (" .. math.floor(hp_pct) .. "%) - waiting (min: " .. math.floor(min_hp) .. "%)", 4.0)
                 end
             end
             return "IDLE"
         end
 
-        -- Mana check: wait until > 80% (use power type 0 = MANA)
-        if me then
-            local mana_ok, mana_pct = pcall(function()
-                local max_mp = me:get_max_power(0)
-                local cur_mp = me:get_power(0)
-                if max_mp and max_mp > 0 and cur_mp then
-                    return (cur_mp / max_mp) * 100
-                end
-                return nil
-            end)
-            if mana_ok and mana_pct and mana_pct < 80 then
-                debug_log("IDLE: Mana low (" .. math.floor(mana_pct) .. "%) — waiting for regen")
-                return "IDLE"
+        -- Mana check: DISABLED for questing. At 76% mana the bot would wait
+        -- indefinitely for regen instead of gathering Bundle of Wood nodes.
+        -- Gathering/collecting quests do not require mana. Re-enable only if
+        -- combat rotations prove unreliable at low mana.
+        if false then
+        local min_mana = menu and menu.get("min_mana", 80) or 80
+        local mana_ok, mana_pct = pcall(function()
+            local max_mp = me:get_max_power(0)
+            local cur_mp = me:get_power(0)
+            if max_mp and max_mp > 0 and cur_mp then
+                return (cur_mp / max_mp) * 100
             end
+            return nil
+        end)
+        if mana_ok and mana_pct and mana_pct < min_mana then
+            debug_log("IDLE: Mana low (" .. math.floor(mana_pct) .. "%) — waiting for regen (min: " .. math.floor(min_mana) .. "%)")
+            return "IDLE"
+        end
         end
     end
 
     -- Determine if player needs to move to goal position first
     local wp = zygor.get_current_waypoint_world()
 
+    -- Fix Z on waypoint: map→world conversion often returns z=0 (underground).
+    -- SentinelNavClient can't path to z=0 — it returns "Position not on navmesh".
+    -- Use player Z as fallback when waypoint Z is 0 or near 0.
+    if wp then
+        local wf_ok, wf = pcall(require, "waypoint_fixer_sylvanas")
+        if wf_ok and wf and wf.fix_z then
+            wp = wf.fix_z(wp) or wp
+        end
+    end
+    if wp and (wp.z or 0) == 0 and me then
+        local _, pos = pcall(function() return me:get_position() end)
+        if pos and pos.z and math.abs(pos.z) > 5 then
+            wp = { x = wp.x, y = wp.y, z = pos.z }
+            debug_log("IDLE: waypoint Z was 0, using player Z fallback (z=" .. tostring(math.floor(pos.z)) .. ")")
+        end
+    end
+
     if current_goal then
-        -- Goal found — determine action type
+        -- Goal found — determine action type (Zygor uses .action, .type, or .action_type)
         local action_type = "area"
         if type(current_goal) == "table" then
-            action_type = safe(current_goal.type, safe(current_goal.action_type, "area"))
+            action_type = safe(current_goal.type, safe(current_goal.action_type, safe(current_goal.action, "area")))
         end
         _last_goal_type = action_type
+
+        -- Objective-first: before walking to the waypoint, scan for quest objects
+        -- by name within 50yd. If found, navigate directly to the closest object.
+        -- This avoids the "walk to waypoint, then look for objects" loop.
+        local goal_target = nil
+        if type(current_goal) == "table" then
+            goal_target = safe(current_goal.target, safe(current_goal.npc, safe(current_goal.text, nil)))
+        end
+        if goal_target and me then
+            local npc = ensure_npc_manager()
+            if npc then
+                -- Plural→singular fallback: Zygor pluralizes names ("Bundles of Wood")
+                local names_to_try = {}
+                for name in goal_target:gmatch("[^,]+") do
+                    local trimmed = name:match("^%s*(.-)%s*$")
+                    if trimmed and trimmed ~= "" then
+                        names_to_try[#names_to_try + 1] = trimmed
+                    end
+                end
+                local n = #names_to_try
+                for i = 1, n do
+                    local name = names_to_try[i]
+                    local first_word = name:match("^(%S+)")
+                    if first_word and first_word:sub(-1) == "s" then
+                        local singular_first = name:gsub("^" .. first_word, first_word:sub(1, -2), 1)
+                        names_to_try[#names_to_try + 1] = singular_first
+                    end
+                    if name:sub(-1) == "s" then
+                        local singular = name:sub(1, -2)
+                        if singular ~= "" then
+                            names_to_try[#names_to_try + 1] = singular
+                        end
+                    end
+                end
+
+                local utils = ensure_utils()
+                local _, pos = pcall(function() return me:get_position() end)
+                local best_obj = nil
+                local best_dist_sq = 2500  -- 50yd squared
+                for _, name in ipairs(names_to_try) do
+                    local objects = npc.find_interactable_objects(name)
+                    if objects then
+                        for _, obj in ipairs(objects) do
+                            local _, opos = pcall(function() return obj:get_position() end)
+                            if opos and pos and utils then
+                                local dsq = utils.squared_distance(pos, opos)
+                                if dsq < best_dist_sq then
+                                    best_dist_sq = dsq
+                                    best_obj = obj
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if best_obj then
+                    local dist_yds = math.floor(math.sqrt(best_dist_sq))
+                    local _, opos = pcall(function() return best_obj:get_position() end)
+                    if opos then
+                        -- Fix Z on object position too (game objects can have z=0)
+                        if (opos.z or 0) == 0 and pos and pos.z then
+                            opos = { x = opos.x, y = opos.y, z = pos.z }
+                        end
+                        _nav_destination = opos
+                        debug_log("IDLE: objective-first '" .. tostring(goal_target) .. "' found at " .. tostring(dist_yds) .. "yd → NAV")
+                        return "NAV"
+                    end
+                end
+            end
+        end
 
         -- Check distance to waypoint using :get_position() (game_object has no .x/.y)
         -- Skip check if we just arrived (tolerance mismatch with navigator)
@@ -352,7 +543,21 @@ local function state_idle()
         end
         _just_arrived = false
 
-        -- Player at position (or no waypoint) — execute action
+        -- Kill goal: if already have a valid target, stay IDLE for EaxRotations
+        if action_type == "kill" then
+            local combat_helper = ensure_combat_helper()
+            if combat_helper and combat_helper.is_current_target_valid(50) then
+                return "IDLE"
+            end
+        end
+
+        -- Player at position (or no waypoint) — decide next action
+        -- Respect DO_ACTION pause timer: don't re-enter before it expires
+        if _action_pause_timer > 0 and _core_time() < _action_pause_timer then
+            local remain_ms = math.floor((_action_pause_timer - _core_time()) * 1000)
+            debug_log("IDLE: waiting (" .. tostring(remain_ms) .. "ms) before next action")
+            return "IDLE"
+        end
         _action_pause_timer = 0
         debug_log("IDLE: goal type=" .. action_type .. " → DO_ACTION")
         return "DO_ACTION"
@@ -397,6 +602,42 @@ local function state_nav()
     -- Per-tick update for stuck detection (Pattern 5 from AGENTS.md)
     nav.update()
 
+    -- Continuous side scan: pre-tag quest mobs while navigating (every 1.5s)
+    local utils = ensure_utils()
+    if utils and utils.throttle("nav_target_scan", 1.5) then
+        local zygor = ensure_zygor()
+        local me2 = _get_local_player()
+        if zygor and me2 then
+            local _, combat = pcall(function() return me2:is_in_combat() end)
+            if not combat and zygor.has_current_step and zygor.has_current_step() then
+                local step = zygor.get_current_step_info()
+                if step and step.goals then
+                    for _, g in ipairs(step.goals) do
+                        if not g.is_complete then
+                            local nid = (g.npc_id and g.npc_id > 0) and g.npc_id or ((g.target_id and g.target_id > 0) and g.target_id or nil)
+                            if nid then
+                                local npc = ensure_npc_manager()
+                                if npc then
+                                    local nearest = npc.find_nearest_npc({ nid }, 50)
+                                    if nearest then
+                                        pcall(core.input.set_target, nearest)
+                                        pcall(core.input.interact_with_object, nearest)
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Anti-cheat: random jump every 10-25s while navigating
+    if utils and utils.throttle("random_jump_nav", math.random(10, 25)) then
+        pcall(core.input.jump)
+    end
+
     local nav_state = nav.get_state()
     local now = _core_time()
 
@@ -413,17 +654,6 @@ local function state_nav()
             nav.navigate_to(_nav_destination, nil)
         end
         return "NAV"
-    end
-
-    -- Check for catastrophic navigation failure — warn and stop
-    if nav_state == "FAILED" and _nav_retries == 0 then
-        local nav_type = nav.get_nav_type and nav.get_nav_type() or "unknown"
-        if nav_type == "simple" or nav_type == nil then
-            local ns = _G.EaxAutoQuester
-            if ns and ns.set_warning then
-                ns.set_warning("Navigation unavailable - check SentinelNavClient", 8.0)
-            end
-        end
     end
 
     -- Handle terminal navigation states
@@ -470,7 +700,20 @@ local function state_nav()
             return "IDLE"
         end
 
-        -- 2s pause on stuck
+        -- Progressive stuck recovery (escalating actions)
+        if _nav_retries == 1 then
+            pcall(core.input.jump)
+        elseif _nav_retries == 2 then
+            pcall(core.input.jump)
+            if math.random(2) == 1 then
+                pcall(core.input.turn_left_start)
+                pcall(core.input.turn_left_stop)  -- brief tap
+            else
+                pcall(core.input.turn_right_start)
+                pcall(core.input.turn_right_stop)
+            end
+        end
+
         _nav_retry_timer = now + 2.0
         return "NAV"
     end
@@ -504,7 +747,7 @@ local function state_interact()
         pcall(function() core.quests.close_quest() end)
         pcall(function() core.quests.close_gossip() end)
         pcall(core.input.close_loot)
-        core.log_warning("[EaxAutoQuester] Frame stuck - manual intervention may be needed")
+        pcall(core.log_warning, "[EaxAutoQuester] Frame stuck - manual intervention may be needed")
         return "IDLE"
     end
 
@@ -599,9 +842,32 @@ local function execute_goal_action(action_type, goal)
 
     if action_type == "kill" then
         if combat then
+            -- Skip re-tagging if already in combat with a valid target
+            if combat.is_current_target_valid(50) then
+                debug_log("DO_ACTION: already fighting — target valid, skip re-tag")
+                return true
+            end
+            -- Prefer quest-specific mob by NPC ID (e.g. Elder Stranglethorn Tiger over generic tiger)
+            local goal_npc_id = nil
+            if type(goal) == "table" then
+                local raw_id = goal.npc_id or goal.target_id
+                goal_npc_id = (raw_id and raw_id > 0) and raw_id or nil
+            end
+            if npc and goal_npc_id then
+                local nearest = npc.find_nearest_npc({ goal_npc_id }, 50)
+                if nearest then
+                    pcall(core.input.set_target, nearest)
+                    pcall(core.input.interact_with_object, nearest)
+                    local _, npos = pcall(function() return nearest:get_position() end)
+                    if npos then pcall(core.input.look_at_3d, npos) end
+                    debug_log("DO_ACTION: kill — targeted quest NPC " .. tostring(goal_npc_id))
+                    return true
+                end
+            end
+            -- Last resort: any nearest enemy
             local tagged = combat.target_and_tag_nearest(50)
             if tagged then
-                debug_log("DO_ACTION: tagged enemy for kill")
+                debug_log("DO_ACTION: tagged enemy for kill (generic)")
                 return true
             end
         end
@@ -611,15 +877,126 @@ local function execute_goal_action(action_type, goal)
 
     if action_type == "talk" or action_type == "gossip" then
         if npc then
+            -- Try 1: find by quest NPC IDs (Questie/Zygor data)
             local npc_ids = npc.find_quest_npcs()
             if npc_ids then
-                local nearest = npc.find_nearest_npc(npc_ids, 20)
+                _core_log("[EaxAutoQuester-DEBUG] talk: found " .. tostring(#npc_ids) .. " quest NPC IDs")
+                local nearest = npc.find_nearest_npc(npc_ids, 50)
                 if nearest then
+                    local _, nname = pcall(function() return nearest:get_name() end)
                     pcall(core.input.set_target, nearest)
-                    debug_log("DO_ACTION: targeted quest NPC for talk")
+                    pcall(core.input.interact_with_object, nearest)
+                    debug_log("DO_ACTION: targeted quest NPC '" .. tostring(nname or "?") .. "' by ID for talk")
                     return true
+                else
+                    _core_log("[EaxAutoQuester-DEBUG] talk: find_nearest_npc returned nil for all " .. tostring(#npc_ids) .. " IDs")
                 end
+            else
+                _core_log("[EaxAutoQuester-DEBUG] talk: find_quest_npcs returned nil")
             end
+
+            -- Try 2: find any unit flagged as a quest unit (engine's own flag)
+            if npc.find_nearest_quest_unit then
+                local nearest = npc.find_nearest_quest_unit(50, true)
+                if nearest then
+                    local _, nname = pcall(function() return nearest:get_name() end)
+                    pcall(core.input.set_target, nearest)
+                    pcall(core.input.interact_with_object, nearest)
+                    debug_log("DO_ACTION: targeted quest unit '" .. tostring(nname or "?") .. "' by is_quest_unit for talk")
+                    return true
+                else
+                    _core_log("[EaxAutoQuester-DEBUG] talk: find_nearest_quest_unit returned nil")
+                end
+            else
+                _core_log("[EaxAutoQuester-DEBUG] talk: npc.find_nearest_quest_unit is nil")
+            end
+
+            -- Try 3: brute-force scan for any valid NPC or quest game object within 30yd
+            local me = _get_local_player()
+            if me then
+                local _, pos = pcall(function() return me:get_position() end)
+                if pos then
+                    local _, objects = pcall(core.object_manager.get_visible_objects)
+                    if objects and #objects > 0 then
+                        local best = nil
+                        local best_sq = 1e9
+                        local scanned = 0
+                        local valid_units = 0
+                        local valid_gos = 0
+                        local limit = #objects > 50 and 50 or #objects
+                        for i = 1, limit do
+                            local obj = objects[i]
+                            if obj then
+                                scanned = scanned + 1
+                                local skip = false
+                                -- Exclude player
+                                local ok_player, is_player = pcall(function() return obj:is_player() end)
+                                if ok_player and is_player then skip = true end
+                                -- Exclude dead
+                                if not skip then
+                                    local ok_dead, is_dead = pcall(function() return obj:is_dead() end)
+                                    if ok_dead and is_dead then skip = true end
+                                end
+                                -- Check distance
+                                if not skip then
+                                    local _, opos = pcall(function() return obj:get_position() end)
+                                    if opos then
+                                        local dx = (opos.x or 0) - (pos.x or 0)
+                                        local dy = (opos.y or 0) - (pos.y or 0)
+                                        local d_sq = dx * dx + dy * dy
+                                        if d_sq < 900 then  -- 30yd squared
+                                            -- Prefer quest units, then regular units, then game objects
+                                            local is_quest = false
+                                            local ok_quest, quest_flag = pcall(function() return obj:is_quest_unit() end)
+                                            if ok_quest and quest_flag then is_quest = true end
+                                            local is_unit = false
+                                            local ok_unit, unit_flag = pcall(function() return obj:is_unit() end)
+                                            if ok_unit and unit_flag then is_unit = true end
+
+                                            if is_quest then
+                                                valid_units = valid_units + 1
+                                                if d_sq < best_sq then
+                                                    best_sq = d_sq
+                                                    best = obj
+                                                end
+                                            elseif is_unit then
+                                                valid_units = valid_units + 1
+                                                if d_sq < best_sq then
+                                                    best_sq = d_sq
+                                                    best = obj
+                                                end
+                                            else
+                                                valid_gos = valid_gos + 1
+                                                if d_sq < best_sq then
+                                                    best_sq = d_sq
+                                                    best = obj
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        _core_log("[EaxAutoQuester-DEBUG] talk brute-force: scanned=" .. tostring(scanned) .. " valid_units=" .. tostring(valid_units) .. " valid_gos=" .. tostring(valid_gos) .. " best=" .. tostring(best and "yes" or "nil"))
+                        if best then
+                            local _, nname = pcall(function() return best:get_name() end)
+                            local dist_yds = math.floor(math.sqrt(best_sq))
+                            pcall(core.input.set_target, best)
+                            pcall(core.input.interact_with_object, best)
+                            debug_log("DO_ACTION: targeted '" .. tostring(nname or "?") .. "' at " .. tostring(dist_yds) .. "yd for talk")
+                            return true
+                        end
+                    else
+                        _core_log("[EaxAutoQuester-DEBUG] talk: no visible objects at all")
+                    end
+                else
+                    _core_log("[EaxAutoQuester-DEBUG] talk: could not get player position")
+                end
+            else
+                _core_log("[EaxAutoQuester-DEBUG] talk: could not get local player")
+            end
+        else
+            _core_log("[EaxAutoQuester-DEBUG] talk: npc manager is nil")
         end
         debug_log("DO_ACTION: no quest NPC to talk to")
         return true
@@ -647,8 +1024,9 @@ local function execute_goal_action(action_type, goal)
         local goal_npc_id = nil
         local goal_target = nil
         if type(goal) == "table" then
-            goal_npc_id = safe(goal.npc_id, safe(goal.target_id, nil))
-            goal_target = safe(goal.target, safe(goal.npc, nil))
+            local raw_id = goal.npc_id or goal.target_id
+            goal_npc_id = (raw_id and raw_id > 0) and raw_id or nil
+            goal_target = goal.target or goal.npc or nil
         end
 
         if goal_npc_id then
@@ -689,13 +1067,97 @@ local function execute_goal_action(action_type, goal)
         end
 
         if npc and goal_target then
-            local objects = npc.find_interactable_objects(goal_target)
-            if objects and #objects > 0 then
-                pcall(core.input.set_target, objects[1])
-                pcall(core.input.interact_with_object, objects[1])
-                debug_log("DO_ACTION: area — targeted '" .. tostring(goal_target) .. "'")
-                return true
+            -- Build list of names to try, including plural→singular fallback
+            local names_to_try = {}
+            for name in goal_target:gmatch("[^,]+") do
+                local trimmed = name:match("^%s*(.-)%s*$")
+                if trimmed and trimmed ~= "" then
+                    names_to_try[#names_to_try + 1] = trimmed
+                end
             end
+            local n = #names_to_try
+            for i = 1, n do
+                local name = names_to_try[i]
+                local first_word = name:match("^(%S+)")
+                if first_word and first_word:sub(-1) == "s" then
+                    local singular_first = name:gsub("^" .. first_word, first_word:sub(1, -2), 1)
+                    names_to_try[#names_to_try + 1] = singular_first
+                end
+                if name:sub(-1) == "s" then
+                    local singular = name:sub(1, -2)
+                    if singular ~= "" then
+                        names_to_try[#names_to_try + 1] = singular
+                    end
+                end
+            end
+
+            for _, name in ipairs(names_to_try) do
+                local objects = npc.find_interactable_objects(name)
+                if objects and #objects > 0 then
+                    -- Pick closest object by distance
+                    local me = _get_local_player()
+                    local utils = ensure_utils()
+                    local best_obj = nil
+                    local best_dist_sq = 1e9
+                    if me and utils then
+                        local _, me_pos = pcall(function() return me:get_position() end)
+                        if me_pos then
+                            for _, candidate in ipairs(objects) do
+                                local _, cpos = pcall(function() return candidate:get_position() end)
+                                if cpos then
+                                    local dsq = utils.squared_distance(me_pos, cpos)
+                                    if dsq < best_dist_sq then
+                                        best_dist_sq = dsq
+                                        best_obj = candidate
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if not best_obj then best_obj = objects[1] end
+
+                    -- Determine if it's a unit or game object
+                    local is_unit_obj = false
+                    local ok_unit, is_unit_val = pcall(function() return best_obj:is_unit() end)
+                    if ok_unit and is_unit_val then is_unit_obj = true end
+
+                    local dist_yds = math.floor(math.sqrt(best_dist_sq))
+
+                    -- Game objects need to be within ~5yd; navigate if too far
+                    if not is_unit_obj and best_dist_sq > 25 then
+                        local _, opos = pcall(function() return best_obj:get_position() end)
+                        if opos then
+                            -- Fix Z on object position (game objects can have z=0)
+                            if (opos.z or 0) == 0 then
+                                local _, me_pos = pcall(function() return me:get_position() end)
+                                if me_pos and me_pos.z then
+                                    opos = { x = opos.x, y = opos.y, z = me_pos.z }
+                                end
+                            end
+                            _nav_destination = opos
+                            debug_log("DO_ACTION: area — '" .. tostring(name) .. "' at " .. tostring(dist_yds) .. "yd, navigating closer")
+                            return false
+                        end
+                    end
+
+                    -- Face the object before interacting
+                    local _, opos = pcall(function() return best_obj:get_position() end)
+                    if opos then
+                        pcall(core.input.look_at, opos)
+                    end
+                    pcall(core.input.set_target, best_obj)
+
+                    if is_unit_obj then
+                        pcall(core.input.interact_with_object, best_obj)
+                        debug_log("DO_ACTION: area — interacted with unit '" .. tostring(name) .. "' (" .. tostring(dist_yds) .. "yd)")
+                    else
+                        pcall(core.input.use_object, best_obj)
+                        debug_log("DO_ACTION: area — used game object '" .. tostring(name) .. "' (" .. tostring(dist_yds) .. "yd)")
+                    end
+                    return true
+                end
+            end
+            debug_log("DO_ACTION: area — no interactable objects for '" .. tostring(goal_target) .. "'")
         end
 
         -- Brute-force scan for nearby NPCs (skip if permanently blocked)
@@ -706,7 +1168,6 @@ local function execute_goal_action(action_type, goal)
         local me = _get_local_player()
         if me then
             local _, pos = pcall(function() return me:get_position() end)
-            local _, me_guid = pcall(function() return me:get_guid() end)
             if pos then
                 local _, objects = pcall(core.object_manager.get_visible_objects)
                 if objects and #objects > 0 then
@@ -716,35 +1177,25 @@ local function execute_goal_action(action_type, goal)
                     for i = 1, limit do
                         local obj = objects[i]
                         if not obj then break end
-                        local skip = false
-                        if me_guid then
-                            local _, guid = pcall(function() return obj:get_guid() end)
-                            if guid and guid == me_guid then skip = true end
-                        end
-                        if not skip then
-                            local ok2, unit = pcall(function() return obj:is_unit() end)
-                            if not (ok2 and unit) then skip = true end
-                        end
-                        if not skip then
+                        local ok2, unit = pcall(function() return obj:is_unit() end)
+                        if ok2 and unit then
                             local ok5, is_player = pcall(function() return obj:is_player() end)
-                            if ok5 and is_player then skip = true end
-                        end
-                        if not skip then
-                            local ok3, dead = pcall(function() return obj:is_dead() end)
-                            if ok3 and dead then skip = true end
-                        end
-                        if not skip then
-                            local ok1, valid = pcall(function() return obj:is_valid() end)
-                            if ok1 and valid then
-                                local ok4, opos = pcall(function() return obj:get_position() end)
-                                if ok4 and opos then
-                                    local dx = (opos.x or 0) - (pos.x or 0)
-                                    local dy = (opos.y or 0) - (pos.y or 0)
-                                    local d_sq = dx * dx + dy * dy
-                                    if d_sq < best_sq and d_sq < 100 then
-                                        best, best_sq = obj, d_sq
-                                        local _, g = pcall(function() return obj:get_guid() end)
-                                        if g then best_guid = g end
+                            if ok5 and not is_player then
+                                local ok3, dead = pcall(function() return obj:is_dead() end)
+                                if ok3 and not dead then
+                                    local ok1, valid = pcall(function() return obj:is_valid() end)
+                                    if ok1 and valid then
+                                        local ok4, opos = pcall(function() return obj:get_position() end)
+                                        if ok4 and opos then
+                                            local dx = (opos.x or 0) - (pos.x or 0)
+                                            local dy = (opos.y or 0) - (pos.y or 0)
+                                            local d_sq = dx * dx + dy * dy
+                                            if d_sq < best_sq and d_sq < 100 then
+                                                best, best_sq = obj, d_sq
+                                                local _, g = pcall(function() return obj:get_guid() end)
+                                                if g then best_guid = g end
+                                            end
+                                        end
                                     end
                                 end
                             end
@@ -761,7 +1212,7 @@ local function execute_goal_action(action_type, goal)
                         if _area_fail_count >= 5 then
                             _area_fail_count = 999  -- permanent block
                             _area_last_target_guid = nil
-                            core.log_warning("[EaxAutoQuester] Cannot interact with target - manual help required")
+                            pcall(core.log_warning, "[EaxAutoQuester] Cannot interact with target - manual help required")
                             local ns = _G.EaxAutoQuester
                             if ns and ns.set_warning then
                                 ns.set_warning("Stuck - cannot interact with NPC here", 0)
@@ -793,6 +1244,15 @@ local function execute_goal_action(action_type, goal)
         debug_log("DO_ACTION: area goal — no NPC, waiting")
         return true
     end
+    end
+
+    -- Fallback: if area goal couldn't find any interactable NPC, try killing nearby enemies
+    if combat then
+        local tagged = combat.target_and_tag_nearest(50)
+        if tagged then
+            debug_log("DO_ACTION: area fallback — tagged enemy for kill")
+            return true
+        end
     end
 
     -- Unknown action type — skip
@@ -853,17 +1313,27 @@ local function state_do_action()
         return "IDLE"
     end
 
-    -- Determine action type from goal or cached value
+    -- Determine action type from goal or cached value (Zygor uses .action, .type, or .action_type)
     local action_type = safe(_last_goal_type, "area")
     if type(current_goal) == "table" then
-        action_type = safe(current_goal.type, safe(current_goal.action_type, action_type))
+        action_type = safe(current_goal.type, safe(current_goal.action_type, safe(current_goal.action, action_type)))
     end
 
     -- Execute action
     execute_goal_action(action_type, current_goal)
 
-    -- Set 0.5s pause after action before re-evaluating in IDLE
-    _action_pause_timer = now + 0.5
+    -- Progressive backoff: same action type → increase pause (0.5s → 1s → 2s → 4s → capped 5s)
+    local pause = 0.5
+    if action_type == _last_action_type then
+        _action_loop_count = _action_loop_count + 1
+        pause = math.min(0.5 * math.pow(2, _action_loop_count), 2.0)
+    else
+        _action_loop_count = 0
+    end
+    _last_action_type = action_type
+
+    -- Add random jitter (±10%) to avoid robotic timing patterns
+    _action_pause_timer = now + pause + math.random() * 0.1 * pause - 0.05 * pause
     return "IDLE"
 end
 

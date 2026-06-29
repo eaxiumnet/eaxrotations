@@ -28,10 +28,14 @@ local _nav_tolerance_sq = 9       -- 3 yards
 local STUCK_TIMEOUT = 3.0
 local STUCK_THRESHOLD_SQ = 1.0
 
--- Stuck-recovery state
-local _stuck_level = 0            -- 0=none, 1=jump+strafe, 2=turn+move, 3=dismount, 4=hearth
-local _stuck_recovery_timer = 0   -- core_time when current recovery phase ends
-local _stuck_attempts = 0         -- consecutive stuck events on same destination
+local function get_nav_tolerance_sq()
+    local ns = _G.EaxAutoQuester
+    if ns and ns.menu and ns.menu.get then
+        local tol = ns.menu.get("nav_tolerance", 3)
+        return tol * tol
+    end
+    return _nav_tolerance_sq
+end
 
 -- Color (lazy)
 local _color = nil
@@ -142,19 +146,28 @@ function M.navigate_to(destination, callback)
     end
     if _state == "NAVIGATING" then stop_internal() end
 
+    -- Fix Z=0 on destination: SentinelNavClient can't path to z=0 (underground).
+    -- Use the current player Z as fallback.
+    if destination and (destination.z or 0) == 0 then
+        local me_ok, me = pcall(core.object_manager.get_local_player)
+        if me_ok and me then
+            local _, pos = pcall(function() return me:get_position() end)
+            if pos and pos.z and math.abs(pos.z) > 5 then
+                destination = { x = destination.x, y = destination.y, z = pos.z }
+            end
+        end
+    end
+
     _destination = destination
     _arrived_cb = callback
     _stuck_timer = 0; _last_position = nil; _last_pos_time = 0
 
-    if not _is_fallback and init_sentinel() then
+    -- Always try SentinelNavClient first (it may have become available since
+    -- last attempt). Only fall back to simple_movement if Sentinel init fails.
+    if init_sentinel() then
         _is_fallback = false; _state = "NAVIGATING"
         local ok, err = pcall(function()
-            _client:move_to(destination, function(success, reason)
-                if _state == "NAVIGATING" then
-                    _state = success and "ARRIVED" or "FAILED"
-                    stop_internal(); fire_callback(success, reason)
-                end
-            end)
+            _client:move_to(destination)
         end)
         if not ok then _state = "FAILED"; _destination = nil; _arrived_cb = nil
             if callback then pcall(callback, false, tostring(err)) end
@@ -164,6 +177,7 @@ function M.navigate_to(destination, callback)
 
     if init_fallback() then
         _is_fallback = true; _state = "NAVIGATING"
+        _core_log("[EaxAutoQuester] SentinelNavClient unavailable — using simple_movement fallback")
         local ok, err = pcall(function() _fallback_mover:move_to_position(destination) end)
         if not ok then _state = "FAILED"; _destination = nil; _arrived_cb = nil
             if callback then pcall(callback, false, tostring(err)) end
@@ -191,12 +205,7 @@ function M.follow_path(waypoints, callback)
     if init_sentinel() then
         _is_fallback = false; _state = "NAVIGATING"
         local ok, err = pcall(function()
-            _client:follow_path(waypoints, function(success, reason)
-                if _state == "NAVIGATING" then
-                    _state = success and "ARRIVED" or "FAILED"
-                    stop_internal(); fire_callback(success, reason)
-                end
-            end)
+            _client:follow_path(waypoints)
         end)
         if not ok then _state = "FAILED"; _destination = nil; _arrived_cb = nil
             if callback then pcall(callback, false, tostring(err)) end
@@ -217,15 +226,21 @@ function M.plan_route(nodes, callback)
     if not init_sentinel() then
         M.navigate_to(nodes[#nodes], callback); return end
 
-    _client:plan_route(nodes, function(ok, data)
-        if ok and data and data.waypoints then
-            M.follow_path(data.waypoints, callback)
-        else
-            local err = (data and data.error) or "route_failed"
-            _core_log("[EaxAutoQuester] Route plan failed: " .. tostring(err))
-            M.navigate_to(nodes[#nodes], callback)
-        end
-    end, { return_to_start = false })
+    local pok, perr = pcall(function()
+        _client:plan_route(nodes, function(ok, data)
+            if ok and data and data.waypoints then
+                M.follow_path(data.waypoints, callback)
+            else
+                local err = (data and data.error) or "route_failed"
+                _core_log("[EaxAutoQuester] Route plan failed: " .. tostring(err))
+                M.navigate_to(nodes[#nodes], callback)
+            end
+        end, { return_to_start = false })
+    end)
+    if not pok then
+        _core_log("[EaxAutoQuester] Route plan error: " .. tostring(perr))
+        M.navigate_to(nodes[#nodes], callback)
+    end
 end
 
 --- Cancel navigation.
@@ -335,7 +350,7 @@ function M.update()
     local _, pos = pcall(function() return me:get_position() end)
     if not pos then return end
 
-    if sq_distance(pos, _destination) <= _nav_tolerance_sq then
+    if sq_distance(pos, _destination) <= get_nav_tolerance_sq() then
         _state = "ARRIVED"; stop_internal(); fire_callback(true); return
     end
 
@@ -352,7 +367,8 @@ function M.update()
 
     local dx = (pos.x or 0) - (_last_position.x or 0)
     local dy = (pos.y or 0) - (_last_position.y or 0)
-    if dx * dx + dy * dy > STUCK_THRESHOLD_SQ then
+    local dz = (pos.z or 0) - (_last_position.z or 0)
+    if dx * dx + dy * dy + dz * dz > STUCK_THRESHOLD_SQ then
         _last_position = { x = pos.x, y = pos.y, z = pos.z }
         _last_pos_time = now; _stuck_timer = 0
     else

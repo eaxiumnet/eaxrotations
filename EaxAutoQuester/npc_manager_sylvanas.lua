@@ -63,6 +63,7 @@ local function find_nearest_npc(ids, range)
     local utils = ensure_utils()
     local me = _get_local_player()
     if not me then return nil end
+    local _, me_pos = pcall(function() return me:get_position() end)
 
     -- Build ID lookup set for O(1) matching
     local id_set = {}
@@ -79,6 +80,7 @@ local function find_nearest_npc(ids, range)
 
     for i = 1, limit do
         local obj = objects[i]
+<<<<<<< Updated upstream
         if obj then
             local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
             if unit_ok and is_unit then
@@ -95,6 +97,20 @@ local function find_nearest_npc(ids, range)
                                 best = obj
                             end
                         end
+=======
+        if not obj then break end
+
+        local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
+        if unit_ok and is_unit then
+            local id_ok, npc_id = pcall(function() return obj:get_npc_id() end)
+            if id_ok and npc_id and id_set[npc_id] then
+                local pos_ok, pos = pcall(function() return obj:get_position() end)
+                if pos_ok and pos then
+                    local dist_sq = (me_pos and utils) and utils.squared_distance(me_pos, pos) or 0
+                    if dist_sq < best_dist_sq then
+                        best_dist_sq = dist_sq
+                        best = obj
+>>>>>>> Stashed changes
                     end
                 end
             end
@@ -207,6 +223,7 @@ local function get_nearest_enemy(range)
     local utils = ensure_utils()
     local me = _get_local_player()
     if not me then return nil end
+    local _, me_pos = pcall(function() return me:get_position() end)
 
     local best = nil
     local best_dist_sq = range_sq
@@ -238,6 +255,7 @@ local function get_nearest_enemy(range)
         end
     end
 
+<<<<<<< Updated upstream
     return best
 end
 
@@ -298,6 +316,21 @@ local function find_nearest_quest_unit(range, exclude_dead)
                                     best = obj
                                 end
                             end
+=======
+        local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
+        if unit_ok and is_unit then
+            local dead_ok, is_dead = pcall(function() return obj:is_dead() end)
+            if dead_ok and not is_dead then
+                local attack_ok, can_attack = pcall(function() return obj:can_attack(me) end)
+                local enemy_ok, is_enemy   = pcall(function() return obj:is_enemy_with(me) end)
+                if attack_ok and can_attack and enemy_ok and is_enemy then
+                    local pos_ok, pos = pcall(function() return obj:get_position() end)
+                    if pos_ok and pos then
+                        local dist_sq = (me_pos and utils) and utils.squared_distance(me_pos, pos) or 0
+                        if dist_sq < best_dist_sq then
+                            best_dist_sq = dist_sq
+                            best = obj
+>>>>>>> Stashed changes
                         end
                     end
                 end
@@ -318,10 +351,13 @@ local function get_interact_distance(obj)
     local me = _get_local_player()
     if not me or not utils then return 0 end
 
+    local _, me_pos = pcall(function() return me:get_position() end)
+    if not me_pos then return 0 end
+
     local pos_ok, pos = pcall(function() return obj:get_position() end)
     if not pos_ok or not pos then return 0 end
 
-    return math.sqrt(utils.squared_distance(me, pos))
+    return math.sqrt(utils.squared_distance(me_pos, pos))
 end
 
 -- ============================================================================

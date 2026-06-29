@@ -61,7 +61,7 @@ function M.try_loot()
     _gold_indices.n = 0
     _item_indices.n = 0
 
-    for i = 0, count - 1 do
+    for i = 1, count do
         local is_gold_ok, is_gold = pcall(_get_loot_is_gold, i)
         if is_gold_ok and is_gold then
             _gold_indices.n = _gold_indices.n + 1
@@ -122,6 +122,13 @@ function M.auto_loot_all(range)
     if not ensure_utils() then return false end
     if not _utils.throttle("loot_cycle", 0.5) then return false end
 
+    -- Check bag space — skip if nearly full (leave room for quest items)
+    local _, free_slots = pcall(function() return core.inventory.get_num_free_slots() end)
+    if free_slots and free_slots < 4 then
+        _core_log("[EaxAutoQuester] Bags full — skipping loot")
+        return false
+    end
+
     local max_range = range or 5
     local max_range_sq = max_range * max_range
 
@@ -143,9 +150,11 @@ function M.auto_loot_all(range)
                 -- Check distance (squared, no math.sqrt — Pattern 3)
                 local pos_ok, pos = pcall(function() return obj:get_position() end)
                 if pos_ok and pos then
-                    local dx = (pos.x or 0) - (player.x or 0)
-                    local dy = (pos.y or 0) - (player.y or 0)
-                    local dz = (pos.z or 0) - (player.z or 0)
+                    local _, player_pos = pcall(function() return player:get_position() end)
+                    if not player_pos then break end
+                    local dx = (pos.x or 0) - (player_pos.x or 0)
+                    local dy = (pos.y or 0) - (player_pos.y or 0)
+                    local dz = (pos.z or 0) - (player_pos.z or 0)
                     local dist_sq = dx * dx + dy * dy + dz * dz
 
                     if dist_sq <= max_range_sq then

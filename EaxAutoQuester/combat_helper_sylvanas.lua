@@ -46,8 +46,8 @@ local function target_and_tag_nearest(range)
     local me_pos = me.get_position and me:get_position()
     if not me_pos then return false end
 
-    local objects = _get_visible_objects()
-    if not objects then return false end
+    local ok, objects = pcall(_get_visible_objects)
+    if not ok or not objects then return false end
 
     -- Reuse static table for enemy list
     _enemies.n = 0
@@ -61,8 +61,21 @@ local function target_and_tag_nearest(range)
         if obj and obj.is_unit and obj:is_unit() then
             if not obj.is_dead or not obj:is_dead() then
                 if obj.is_enemy_with and obj:is_enemy_with(me) then
-                    _enemies.n = _enemies.n + 1
-                    _enemies[_enemies.n] = obj
+                    -- Pull prevention: skip mobs already engaged by another player
+                    local _, e_target = pcall(function() return obj:get_target() end)
+                    if e_target then
+                        local _, e_guid = pcall(function() return e_target:get_guid() end)
+                        local e_ok, e_is_player = pcall(function() return e_target:is_player() end)
+                        if e_guid and e_is_player then
+                            local _, my_guid = pcall(function() return me:get_guid() end)
+                            if my_guid and e_guid ~= my_guid then
+                                -- skip: mob targeting another player
+                            end
+                        end
+                    else
+                        _enemies.n = _enemies.n + 1
+                        _enemies[_enemies.n] = obj
+                    end
                 end
             end
         end
@@ -86,9 +99,12 @@ local function target_and_tag_nearest(range)
 
     if not nearest then return false end
 
-    -- Set as target
+    -- Set as target, interact to start combat, and face it
     local ok, result = pcall(_set_target, nearest)
     if not ok then return false end
+    pcall(core.input.interact_with_object, nearest)
+    local _, npos = pcall(function() return nearest:get_position() end)
+    if npos then pcall(core.input.look_at_3d, npos) end
     return result == true
 end
 
@@ -153,6 +169,45 @@ local function use_quest_item_on_target(item_id)
 end
 
 -- ============================================================================
+-- Auto-Face Enemy — face nearest attackable enemy when in combat
+-- ============================================================================
+
+--- Auto-face the nearest enemy targeting the player when in combat.
+--- Sets the nearest attackable enemy as target (client auto-faces on target change).
+--- Uses the same scan pattern as target_and_tag_nearest.
+--- @return boolean true if an enemy was targeted
+local function auto_face_enemy()
+    local me = _get_local_player()
+    if not me then return false end
+
+    -- Face any valid enemy target, even before combat starts (kill goal may have tagged it)
+    local target_ok, target = pcall(function() return me:get_target() end)
+    if target_ok and target then
+        local alive_ok, alive = pcall(function() return target:is_alive() end)
+        if alive_ok and alive then
+            local enemy_ok, is_enemy = pcall(function() return target:is_enemy_with(me) end)
+            if enemy_ok and is_enemy then
+                local _, tpos = pcall(function() return target:get_position() end)
+                if tpos then
+                    pcall(core.input.look_at_3d, tpos)
+                    -- Small random jitter on facing to avoid robotic precision
+                    if math.random(3) == 1 then
+                        pcall(math.random(2) == 1 and core.input.turn_right_start or core.input.turn_left_start)
+                    end
+                end
+                return true
+            end
+        end
+    end
+
+    -- No target — find and tag nearest enemy only if in combat
+    local combat_ok, in_combat = pcall(function() return me:is_in_combat() end)
+    if not combat_ok or not in_combat then return false end
+
+    return target_and_tag_nearest(30)
+end
+
+-- ============================================================================
 -- Module Table
 -- ============================================================================
 
@@ -160,6 +215,7 @@ local M = {
     target_and_tag_nearest = target_and_tag_nearest,
     is_current_target_valid = is_current_target_valid,
     use_quest_item_on_target = use_quest_item_on_target,
+    auto_face_enemy = auto_face_enemy,
 }
 
 -- Expose globally for cross-module access without re-require

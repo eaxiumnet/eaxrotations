@@ -7,11 +7,13 @@ local M = {}
 
 local _spawn_data = nil
 
--- Lazy-load spawn index JSON from scripts_data/tbc_db/
+-- Lazy-load spawn index JSON from scripts_data/tbc_db/ via json_loader
 local function ensure_data()
     if _spawn_data then return true end
-    if not core.read_data_file then return false end
+    local ok, loader = pcall(require, "json_loader")
+    if not ok or not loader or not loader.load_data_file then return false end
 
+<<<<<<< Updated upstream
     local ok, raw = pcall(core.read_data_file, "tbc_db/creature_spawn_index.json")
     if not ok or not raw or raw == "" then return false end
 
@@ -26,9 +28,16 @@ local function ensure_data()
     end)
     if not ok2 or not parsed then return false end
     if not parsed.by_entry then return false end
+=======
+    local parsed = loader.load_data_file("tbc_db/creature_spawn_index.json")
+    if not parsed or type(parsed) ~= "table" then return false end
+    if not parsed.by_entry or type(parsed.by_entry) ~= "table" then return false end
+>>>>>>> Stashed changes
 
     _spawn_data = parsed.by_entry
-    core.log("[EaxAutoQuester] NPC DB loaded (" .. tostring(#_spawn_data or "?") .. " entries)")
+    local count = 0
+    for _ in pairs(_spawn_data) do count = count + 1 end
+    core.log("[EaxAutoQuester] NPC DB loaded (" .. tostring(count) .. " entries)")
     return true
 end
 

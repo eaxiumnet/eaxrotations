@@ -32,6 +32,8 @@ local IDs = {
     vendor_threshold = "eaxaq_vendor_threshold",
     interact_range  = "eaxaq_interact_range",
     nav_tolerance   = "eaxaq_nav_tolerance",
+    min_hp          = "eaxaq_min_hp",
+    min_mana        = "eaxaq_min_mana",
     toggle_keybind  = "eaxaq_toggle_keybind",
 }
 
@@ -70,6 +72,8 @@ M.vendor_threshold = _core_menu.combobox(1, IDs.vendor_threshold)
 -- Sliders
 M.interact_range  = _core_menu.slider_int(5, 50, 20, IDs.interact_range)
 M.nav_tolerance   = _core_menu.slider_int(1, 10, 3, IDs.nav_tolerance)
+M.min_hp          = _core_menu.slider_int(1, 100, 80, IDs.min_hp)
+M.min_mana        = _core_menu.slider_int(1, 100, 80, IDs.min_mana)
 
 -- Keybind — toggle plugin on/off (Ctrl+Shift+T = key 7, shift=true)
 M.toggle_keybind  = _core_menu.keybind(7, true, IDs.toggle_keybind)

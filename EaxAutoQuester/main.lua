@@ -127,15 +127,13 @@ local function check_enabled()
 end
 
 --- Render warning overlay — always shows when warning is active.
+--- Uses core.graphics.text_2d(text, position, font_size, color, centered).
 local function render_warnings()
     if not state.warning_msg then return end
     if _core_time() > state.warning_timer then
         state.warning_msg = nil
         return
     end
-
-    local c_ok, color = pcall(require, "common/color")
-    if not c_ok then return end
 
     local lines = {}
     lines[#lines + 1] = "!!! EaxAutoQuester !!!"
@@ -145,8 +143,12 @@ local function render_warnings()
     local text = table.concat(lines, "\n")
     local screen = core.graphics.get_screen_size()
     if screen then
-        local cx = screen.x * 0.5
-        pcall(core.graphics.draw_text, cx - 100, screen.y * 0.4, text)
+        local cx = (screen.x or 1280) * 0.5
+        local cy = (screen.y or 720) * 0.4
+        local ok, color = pcall(require, "common/color")
+        if ok and color then
+            pcall(core.graphics.text_2d, text, { x = cx - 100, y = cy }, 16, color.red(255), false)
+        end
     end
 end
 
@@ -169,6 +171,13 @@ local function on_pre_tick()
     if not _menu then init_modules() end
     check_enabled()
     if not state.enabled then return end
+
+    -- Auto-face enemy when in combat (lazy-load combat_helper)
+    local ok, combat = pcall(require, "combat_helper_sylvanas")
+    if ok and combat and combat.auto_face_enemy then
+        combat.auto_face_enemy()
+    end
+
     if state.paused then return end
     if not _quest_state then return end
     _quest_state.update()
