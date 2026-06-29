@@ -251,13 +251,12 @@ assert_false(flame_shock.matches({
     flame_remains = 5, spell_damage = 500,
 }), "FlameShock should not match when >1s remains")
 
--- SP below minimum -> should NOT match
-spell_ready_calls = {}
-assert_false(flame_shock.matches({
+-- SP gate removed (spell_damage field was dead); Flame Shock now matches on refresh window only
+assert_true(flame_shock.matches({
     target = {}, settings = { elemental_flame_shock_min_sp = 400 },
 }, {
-    flame_remains = 0.5, spell_damage = 200,
-}), "FlameShock should not match when spell damage < minimum")
+    flame_remains = 0.5,
+}), "FlameShock should match when in refresh window (spell_damage gate removed)")
 
 -- SP above minimum, within refresh window -> should match
 _G.EaxRotations.should_refresh_dot = function(remains, window, ttd, dur) return true end

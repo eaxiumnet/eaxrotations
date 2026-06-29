@@ -52,7 +52,7 @@ local _ACT_IS  = { name="InsectSwarm", spell=SPELLS.InsectSwarm, position="targe
 local _state = {
     insect_remains=0, moonfire_remains=0, ff_remains=0, natures_grace_active=false,
     barkskin_active=false, mana_pct=100,
-    enemy_count=1, target_ttd=999, innervate_target=nil, spell_damage=0,
+    enemy_count=1, target_ttd=999, innervate_target=nil,
 }
 
 local function _build_state(ctx)
@@ -77,7 +77,6 @@ local function _build_state(ctx)
     _state.mana_pct = ctx.mana_pct or ctx.mana or 100
     _state.enemy_count = ctx.enemy_count or 1
     _state.target_ttd = ctx.ttd or ctx.target_ttd or 999
-    _state.spell_damage = ctx.spell_damage or 0
     _state.innervate_target = nil
     local floor_mana = (ctx.settings and ctx.settings.balance_innervate_mana) or 30
     local now = NS.time_now and NS.time_now() or 0
@@ -270,7 +269,6 @@ local _strategies = {
             local settings = ctx.settings or {}
             if settings.balance_use_insect_swarm == false then return false end
             local min_sp = settings.balance_insect_swarm_min_sp or _INSECT_MIN_SP
-            if (s.spell_damage or 0) < min_sp then return false end
             if (s.mana_pct or 100) < 10 then return false end
             return NS.action_matches(ctx, _ACT_IS)
         end,
@@ -288,7 +286,6 @@ local _strategies = {
             if not ctx.has_valid_enemy_target then return false end
             local settings = ctx.settings or {}
             local min_sp = settings.balance_moonfire_min_sp or _MOONFIRE_MIN_SP
-            if (s.spell_damage or 0) < min_sp then return false end
             if (s.mana_pct or 100) < 10 then return false end
             return NS.action_matches(ctx, _ACT_MF)
         end,
