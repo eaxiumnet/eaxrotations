@@ -171,6 +171,7 @@ local prot_state = {
     is_group = false,
     tank = nil,
     lowest_allied = nil,
+    desired_stance = nil,
 }
 
 local function build_state(context)
@@ -298,6 +299,11 @@ local function build_state(context)
         prot_state.nearby_enemies = nil
         prot_state.nearby_count = 0
         prot_state.no_threat_target = nil
+    end
+
+    -- StanceManager integration
+    if StanceManager and StanceManager.get_optimal_stance then
+        prot_state.desired_stance = StanceManager.get_optimal_stance(context, prot_state)
     end
 
     -- Intervene: populate party state
@@ -654,6 +660,15 @@ local function intimidating_shout_matches_fn(context, state)
     return true
 end
 
+-- Unified stance switch using StanceManager
+local function stance_switch_matches_fn(context, state)
+    if not StanceManager or not StanceManager.should_switch then return false end
+    local desired = state.desired_stance
+    if not desired then return false end
+    if not StanceManager.should_switch(context, state, desired) then return false end
+    return true
+end
+
 -- ============================================================================
 -- Strategies
 -- ============================================================================
@@ -954,6 +969,21 @@ local strategies = {
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.HeroicStrike, context.target, "[PROT] RageDump")
+        end,
+    },
+    {
+        name = "StanceSwitch",
+        matches = stance_switch_matches_fn,
+        execute = function(context)
+            local desired = prot_state.desired_stance
+            if desired == "battle" then
+                return NS.try_cast(SPELLS.BattleStance, context.me or NS.GetPlayer(), "[PROT] BattleStance", { skip_range = true })
+            elseif desired == "berserker" then
+                return NS.try_cast(SPELLS.BerserkerStance, context.me or NS.GetPlayer(), "[PROT] BerserkerStance", { skip_range = true })
+            elseif desired == "defensive" then
+                return NS.try_cast(SPELLS.DefensiveStance, context.me or NS.GetPlayer(), "[PROT] DefensiveStance", { skip_range = true })
+            end
+            return false
         end,
     },
 }
