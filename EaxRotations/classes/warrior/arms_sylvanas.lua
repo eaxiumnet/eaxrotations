@@ -66,6 +66,36 @@ local SWEEPING_STRIKES_BUFF = { 12328 }
 local THUNDER_CLAP_DEBUFF = CONSTANTS.THUNDER_CLAP_DEBUFF or { 25264, 11581, 11580, 8205, 8204, 8198, 6343 }
 local VICTORY_RUSH_BUFF = { 34428 }
 
+-- Crowd-control debuff IDs for fear-break detection (Berserker Rage / Death Wish)
+local FEAR_DEBUFF_IDS = {
+    [5782] = true, [6215] = true, [5484] = true,   -- Warlock Fear / Howl
+    [8122] = true, [10888] = true, [10890] = true, -- Psychic Scream
+    [5246] = true,                                  -- Intimidating Shout
+    [33111] = true,                                 -- Bellowing Roar (Nightbane)
+}
+local SAP_DEBUFF_IDS = {
+    [6770] = true, [2070] = true, [11297] = true,  -- Sap
+}
+local INCAP_DEBUFF_IDS = {
+    [1776] = true, [1777] = true, [8629] = true,   -- Gouge
+    [20066] = true,                                 -- Repentance
+    [3355] = true,                                  -- Freezing Trap
+}
+
+local function is_feared_sapped_or_incapacitated(unit)
+    if not unit then return false end
+    for id in pairs(FEAR_DEBUFF_IDS) do
+        if NS.debuff_up and NS.debuff_up(unit, id) then return true, "fear" end
+    end
+    for id in pairs(SAP_DEBUFF_IDS) do
+        if NS.debuff_up and NS.debuff_up(unit, id) then return true, "sap" end
+    end
+    for id in pairs(INCAP_DEBUFF_IDS) do
+        if NS.debuff_up and NS.debuff_up(unit, id) then return true, "incapacitate" end
+    end
+    return false
+end
+
 -- Healthstone item IDs (TBC, best to worst)
 local HEALTHSTONE_IDS = (TBC and TBC.ITEMS and TBC.ITEMS.healthstones) or { 22116, 22105, 22104, 22103, 22102, 22101 }
 
@@ -118,6 +148,7 @@ local arms_state = {
     ttd = 0,
     has_battle_shout = false,
     has_berserker_rage = false,
+    berserker_rage_ready = false,
     has_commanding_shout = false,
     has_sweeping_strikes = false,
     victory_rush_ready = false,
@@ -272,6 +303,7 @@ local ARMS_SCHEMA = {
     target_in_combat = false,
     has_battle_shout = false,
     has_berserker_rage = false,
+    berserker_rage_ready = false,
     has_commanding_shout = false,
     has_sweeping_strikes = false,
     victory_rush_ready = false,
@@ -345,6 +377,7 @@ local function build_state(context)
 
     arms_state.has_battle_shout = NS.buff_up(me, BATTLE_SHOUT_BUFF) or false
     arms_state.has_berserker_rage = NS.buff_up(me, BERSERKER_RAGE_BUFF) or false
+    arms_state.berserker_rage_ready = NS.spell_ready(ACTION.BerserkerRage, me, { skip_range = true }) or false
     arms_state.has_commanding_shout = NS.buff_up(me, COMMANDING_SHOUT_BUFF) or false
     arms_state.has_sweeping_strikes = NS.buff_up(me, SWEEPING_STRIKES_BUFF) or false
     arms_state.victory_rush_ready = NS.buff_up(me, VICTORY_RUSH_BUFF) or false
@@ -691,13 +724,32 @@ local function bloodrage_matches(context, state)
 end
 
 local function death_wish_matches(context, state)
-    if not cooldowns_allowed(context, state) then return false end
-    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
-    if state.hp < 45 then return false end
-    -- TTD gate: don't waste burst CD if target is about to die
-    if state.ttd > 0 and state.ttd < 10 then return false end
-    if state.target_hp < 20 and state.rage < 25 then return false end
-    return action(context, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false, cooldown = 180 }))
+    if not state.death_wish_ready then return false end
+    -- Fear break: Death Wish enrage breaks fear (any stance, unlike Berserker Rage)
+    local me = context.me or NS.GetPlayer()
+    local is_cc, cc_type = is_feared_sapped_or_incapacitated(me)
+    if is_cc and cc_type == "fear" then return true end
+    -- Normal: burst CD usage
+    if not state.in_combat then return false end
+    if state.execute_phase then return true end
+    if state.is_pvp then return true end
+    if state.is_boss then
+        if state.target_hp_pct and state.target_hp_pct > 20 then return true end
+    end
+    return false
+end
+
+local function berserker_rage_matches(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BerserkerRage, 3.0) then return false end
+    if not state.berserker_rage_ready then return false end
+    if state.has_berserker_rage then return false end
+    -- Fear break: cast immediately if feared/sapped/incapacitated
+    local me = context.me or NS.GetPlayer()
+    local is_cc = is_feared_sapped_or_incapacitated(me)
+    if is_cc then return true end
+    -- Normal usage: only in combat, not just for rage gen on CD
+    if not state.in_combat then return false end
+    return true
 end
 
 local function recklessness_matches(context, state)
@@ -766,6 +818,7 @@ local STRATEGY_SPECS = {
     { "Retaliation", retaliation_matches, build_action("Retaliation", ACTION.Retaliation, { target = "self", required_stance = STANCE.BATTLE, requires_target = false }) },
     { "Recklessness", recklessness_matches, build_action("Recklessness", ACTION.Recklessness, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false }) },
     { "DeathWish", death_wish_matches, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false }) },
+    { "BerserkerRage", berserker_rage_matches, build_action("BerserkerRage", ACTION.BerserkerRage, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false }) },
     { "MortalStrike", mortal_strike_matches, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }) },
     { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }) },
     { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },

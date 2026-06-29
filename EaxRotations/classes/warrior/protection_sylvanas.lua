@@ -47,6 +47,36 @@ local REND_DEBUFF = { 25208, 11574, 11573, 6548, 6547, 772 }
 local INTIMIDATING_SHOUT_DEBUFF = { 5246 }
 local CC_DEBUFFS = { 118, 12824, 12825, 12826, 6770, 2070, 5782, 6213, 6215, 20066, 2637, 9484, 9485, 10955 }
 
+-- Crowd-control debuff IDs for fear-break detection (Berserker Rage)
+local FEAR_DEBUFF_IDS = {
+    [5782] = true, [6215] = true, [5484] = true,   -- Warlock Fear / Howl
+    [8122] = true, [10888] = true, [10890] = true, -- Psychic Scream
+    [5246] = true,                                  -- Intimidating Shout
+    [33111] = true,                                 -- Bellowing Roar (Nightbane)
+}
+local SAP_DEBUFF_IDS = {
+    [6770] = true, [2070] = true, [11297] = true,  -- Sap
+}
+local INCAP_DEBUFF_IDS = {
+    [1776] = true, [1777] = true, [8629] = true,   -- Gouge
+    [20066] = true,                                 -- Repentance
+    [3355] = true,                                  -- Freezing Trap
+}
+
+local function is_feared_sapped_or_incapacitated(unit)
+    if not unit then return false end
+    for id in pairs(FEAR_DEBUFF_IDS) do
+        if NS.debuff_up and NS.debuff_up(unit, id) then return true, "fear" end
+    end
+    for id in pairs(SAP_DEBUFF_IDS) do
+        if NS.debuff_up and NS.debuff_up(unit, id) then return true, "sap" end
+    end
+    for id in pairs(INCAP_DEBUFF_IDS) do
+        if NS.debuff_up and NS.debuff_up(unit, id) then return true, "incapacitate" end
+    end
+    return false
+end
+
 -- Disarm target classes: melee classes that lose weapon-based damage when disarmed
 local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
 
@@ -621,6 +651,10 @@ end
 
 local function berserker_rage_matches_fn(context, state)
     if not state.berserker_rage_ready then return false end
+    -- Fear break: cast immediately if feared/sapped/incapacitated
+    local me = context.me or NS.GetPlayer()
+    local is_cc = is_feared_sapped_or_incapacitated(me)
+    if is_cc then return true end
     return true
 end
 
