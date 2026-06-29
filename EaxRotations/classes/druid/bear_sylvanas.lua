@@ -337,6 +337,7 @@ local function scan_pack(state)
                     state.off_target_lacerate_stacks = lacerate_stacks
                     state.off_target_lacerate_remains = NS.debuff_remains(unit, LACERATE_DEBUFF) or 0
                     state.off_target_threat_low = not targets_me
+    state.recent_taunt = state.recent_taunt or 0
                 end
             end
         end
@@ -492,7 +493,7 @@ local function would_starve_mangle(state, rage_cost)
     if not spell_exists(SPELLS.MangleBear) then return false end
     if state.rage - rage_cost >= RAGE_MANGLE_RESERVE then return false end
     if state.mangle_ready then return (state.rage or 0) < RAGE_MANGLE_RESERVE + rage_cost end
-    if state.mangle_cd > MANGLE_HOLD_WINDOW then return false end
+    if (state.mangle_cd or 0) > MANGLE_HOLD_WINDOW then return false end
     if (state.rage_per_second or 0) > 8 and (state.rage or 0) >= rage_cost + 5 then return false end
     return true
 end
@@ -500,7 +501,7 @@ end
 local function rage_allows_filler(state, rage_cost)
     if NS.spell_ready == nil then return true end
     if state.has_clearcasting then return true end
-    if state.rage < rage_cost then return false end
+    if (state.rage or 0) < rage_cost then return false end
     return not would_starve_mangle(state, rage_cost)
 end
 
@@ -533,16 +534,16 @@ end
 local function pre_pull_enrage_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or state.in_combat then return false end
-    if state.rage >= RAGE_POOL_PULL then return false end
-    if state.rage > OOC_ENRAGE_RAGE_MAX then return false end
+    if (state.rage or 0) >= RAGE_POOL_PULL then return false end
+    if (state.rage or 0) > OOC_ENRAGE_RAGE_MAX then return false end
     return action_ready(context, action)
 end
 
 local function feral_charge_pull_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.has_valid_target then return false end
-    if state.target_range < CHARGE_MIN_RANGE or state.target_range > CHARGE_MAX_RANGE then return false end
-    if state.in_combat and state.combat_time > 6 then return false end
+    if (state.target_range or 30) < CHARGE_MIN_RANGE or (state.target_range or 30) > CHARGE_MAX_RANGE then return false end
+    if state.in_combat and (state.combat_time or 0) > 6 then return false end
     return action_ready(context, action)
 end
 
@@ -622,7 +623,7 @@ local function faerie_fire_matches(context, action)
     if not can_use_bear_ability(state) then return false end
     -- Skip only if API explicitly says "no armor" (sentinel 1). Most mobs have armor; FF is a raid DPS boost.
     if (context.target_armor or 0) == 1 then return false end
-    if state.faerie_remains > FAERIE_FIRE_REFRESH then return false end
+    if (state.faerie_remains or 0) > FAERIE_FIRE_REFRESH then return false end
     return action_ready(context, action)
 end
 
@@ -660,7 +661,7 @@ local function off_target_lacerate_matches(context, action)
     if not state.is_bear or not state.in_combat then return false end
     if not state.off_target then return false end
     if (state.enemy_count or 0) < 2 then return false end
-    if not state.off_target_threat_low and state.off_target_lacerate_stacks >= 3 then return false end
+    if not state.off_target_threat_low and (state.off_target_lacerate_stacks or 0) >= 3 then return false end
     if (state.off_target_lacerate_stacks or 0) >= LACERATE_MAX_STACKS and (state.off_target_lacerate_remains or 0) > LACERATE_REFRESH_WINDOW then return false end
     action.unit = state.off_target
     return action_ready(context, action)
@@ -682,7 +683,7 @@ local function swipe_cleave_matches(context, action)
     if not state.in_combat and NS.spell_ready then return false end
     if (state.enemy_count or 0) < 2 then return false end
     if context.has_breakable_cc_nearby then return false end
-    if state.target and state.lacerate_stacks < 3 and state.target_ttd > 8 then return false end
+    if state.target and (state.lacerate_stacks or 0) < 3 and (state.target_ttd or 999) > 8 then return false end
     if not rage_allows_filler(state, RAGE_SWIPE) then return false end
     return action_ready(context, action)
 end
@@ -712,7 +713,7 @@ local function maul_matches(context, action)
     local state = build_state(context)
     if not can_use_bear_ability(state) then return false end
     if (state.enemy_count or 0) >= (state.aoe_threshold or 3) and (state.rage or 0) < HIGH_RAGE then return false end
-    if state.rage < state.maul_rage then return false end
+    if (state.rage or 0) < state.maul_rage then return false end
     if not state.target and NS.spell_ready == nil then return action_ready(context, action) end
     if would_starve_mangle(state, RAGE_MAUL) then return false end
     -- Maul is on-next-swing (not GCD). Skip if target dies before swing lands (TTD < 3s) unless it's a boss.
@@ -726,7 +727,7 @@ local function enrage_combat_matches(context, action)
     if state.is_target_boss then return false end
     if (state.rage or 0) > RAGE_LOW then return false end
     if (state.hp or 100) < 60 and (state.enemy_count or 0) >= 2 then return false end
-    if state.mangle_ready and state.rage < RAGE_MANGLE then return action_ready(context, action) end
+    if state.mangle_ready and (state.rage or 0) < RAGE_MANGLE then return action_ready(context, action) end
     if (state.lacerate_stacks or 0) < LACERATE_MAX_STACKS and (state.rage or 0) < RAGE_LACERATE then return action_ready(context, action) end
     return false
 end
@@ -748,9 +749,9 @@ local function wait_for_mangle_matches(context)
     if not state.is_bear or not state.in_combat then return false end
     if state.has_clearcasting then return false end
     if state.mangle_ready then return false end
-    if state.mangle_cd > MANGLE_HOLD_WINDOW then return false end
-    if state.rage >= RAGE_MANGLE then return true end
-    return state.rage + math.max(0, state.rage_per_second) >= RAGE_MANGLE
+    if (state.mangle_cd or 0) > MANGLE_HOLD_WINDOW then return false end
+    if (state.rage or 0) >= RAGE_MANGLE then return true end
+    return (state.rage or 0) + math.max(0, state.rage_per_second or 0) >= RAGE_MANGLE
 end
 
 local function wait_execute()
