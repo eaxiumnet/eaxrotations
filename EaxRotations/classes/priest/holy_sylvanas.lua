@@ -265,11 +265,11 @@ local function stop_cast_matches(context, state)
  if not ok or not is_casting then return false end
  -- Someone is critically low and we're casting something else — interrupt
  if not state.lowest then return false end
- if state.lowest_hp < 30 then
+ if (state.lowest_hp or 100) < 30 then
   return true
  end
  -- If tank dropped below safe zone during cast, stop and heal them
- if state.tank and state.tank_hp < 50 then
+ if state.tank and (state.tank_hp or 100) < 50 then
   return true
  end
  return false
@@ -286,7 +286,7 @@ local function pre_heal_matches(context, state)
  if not state.tank then return false end
  -- Tank HP should be in the "pre-heal" range: healthy enough to survive
  -- the cast, but damage is incoming
- if state.tank_hp < 60 or state.tank_hp > 95 then return false end
+ if (state.tank_hp or 100) < 60 or (state.tank_hp or 100) > 95 then return false end
  -- Check for incoming damage: enemy casting
  if not _check_pushback(context) then return false end
  -- Don't pre-heal if already casting
@@ -366,10 +366,10 @@ local function encounter_reactions_matches(context, state)
  if not state.flash_heal_ready then return false end
  -- Netherspite: player control locked (Nether Breath fear) — dispel/prepare
  if context.player_control_locked then
-  return state.tank_hp < 80
+   return (state.tank_hp or 100) < 80
  end
  -- Maiden / Moroes: tank taking heavy damage
- if state.tank and state.tank_hp < 45 then
+ if state.tank and (state.tank_hp or 100) < 45 then
   return true
  end
  return false
@@ -447,7 +447,7 @@ local strategies = {
    if context.player_control_locked or context.is_moving then return false end
    if not state.flash_heal_ready then return false end
    if not state.lowest then return false end
-   return state.lowest_hp < (context.settings.holy_emergency_hp or 30)
+    return (state.lowest_hp or 100) < (context.settings.holy_emergency_hp or 30)
   end,
   execute = function(context, state)
    local target = state.lowest.unit
@@ -485,7 +485,7 @@ local strategies = {
    if context.player_control_locked then return false end
    if context.settings.holy_use_coh == false then return false end
    if not state.coh_ready then return false end
-   return state.group_damaged_count >= (context.settings.holy_aoe_count or 3)
+   return (state.group_damaged_count or 0) >= (context.settings.holy_aoe_count or 3)
   end,
   execute = function(_, state)
    local target = (state.lowest and state.lowest.unit) or (state.tank and state.tank.unit) or NS.PLAYER_UNIT
@@ -543,7 +543,7 @@ local strategies = {
    if _check_pushback(context) then return false end
    -- Predictive overheal gate: don't waste clearcast GH if predicted deficit is small
    if NS.gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
-   return state.lowest_hp < 95
+    return (state.lowest_hp or 100) < 95
   end,
   execute = function(context, state)
    local target = state.lowest.unit
@@ -563,7 +563,7 @@ local strategies = {
    if state.has_inner_focus then return false end
    if not spell_exists(SPELLS.InnerFocus) or not spell_ready(SPELLS.InnerFocus, NS.PLAYER_UNIT) then return false end
    if not state.lowest then return false end
-   return state.lowest_hp < (context.settings.holy_renew_hp or 90)
+   return (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90)
   end,
   execute = function()
    return try_cast(SPELLS.InnerFocus, NS.PLAYER_UNIT, "[HOLY] Inner Focus")
@@ -577,7 +577,7 @@ local strategies = {
    if context.settings.holy_use_lightwell == false then return false end
    if not state.lightwell_ready then return false end
    -- Only place Lightwell when raid HP is under sustained pressure (3+ injured)
-   return state.group_damaged_count >= (context.settings.holy_aoe_count or 3)
+   return (state.group_damaged_count or 0) >= (context.settings.holy_aoe_count or 3)
   end,
   execute = function()
    return try_cast(SPELLS.Lightwell, NS.PLAYER_UNIT, "[HOLY] Lightwell (raid sustain)")
@@ -596,7 +596,7 @@ local strategies = {
    if context.mana_pct < (context.settings.holy_gh_mana_floor or 30) then return false end
    local flash_hp = context.settings.holy_flash_heal_hp or 50
    local renew_hp = context.settings.holy_renew_hp or 90
-   if not (state.lowest_hp < renew_hp and state.lowest_hp >= flash_hp) then return false end
+   if not ((state.lowest_hp or 100) < renew_hp and (state.lowest_hp or 100) >= flash_hp) then return false end
    -- Predictive overheal gate
    if NS.gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
    return true
@@ -771,7 +771,7 @@ local strategies = {
    end
    if lowest_renew > 3 then return false end
 
-   return state.lowest_hp < (context.settings.holy_renew_hp or 90)
+   return (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90)
   end,
   execute = function(_, state)
    return try_cast(SPELLS.Renew, state.lowest.unit, format("[HOLY] Renew %.0f%%", state.lowest.effective_hp or 0))
@@ -784,7 +784,7 @@ local strategies = {
    if context.player_control_locked then return false end
    if not state.surge_of_light then return false end
    if not context.has_valid_enemy_target then return false end
-   if state.lowest_hp < (context.settings.holy_flash_heal_hp or 50) then return false end
+    if (state.lowest_hp or 100) < (context.settings.holy_flash_heal_hp or 50) then return false end
    return spell_exists(SPELLS.Smite) and spell_ready(SPELLS.Smite, context.target)
   end,
   execute = function(context)
@@ -798,9 +798,9 @@ local strategies = {
    if context.player_control_locked then return false end
    if not holy_idle_damage_enabled(context) then return false end
    if not context.has_valid_enemy_target then return false end
-   if state.lowest_hp < (context.settings.holy_renew_hp or 90) then return false end
-   if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 35 or 70)) then return false end
-   if state.swp_remaining > 0 then return false end
+    if (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90) then return false end
+    if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 35 or 70)) then return false end
+    if (state.swp_remaining or 0) > 0 then return false end
    return spell_exists(SPELLS.ShadowWordPain) and spell_ready(SPELLS.ShadowWordPain, context.target)
   end,
   execute = function(context)
@@ -814,9 +814,9 @@ local strategies = {
    if context.player_control_locked or context.is_moving then return false end
    if not holy_idle_damage_enabled(context) then return false end
    if not context.has_valid_enemy_target then return false end
-   if state.lowest_hp < (context.settings.holy_renew_hp or 90) then return false end
-   if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 45 or 70)) then return false end
-   if state.holy_fire_remaining > 0 then return false end
+    if (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90) then return false end
+    if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 45 or 70)) then return false end
+    if (state.holy_fire_remaining or 0) > 0 then return false end
    return spell_exists(SPELLS.HolyFire) and spell_ready(SPELLS.HolyFire, context.target)
   end,
   execute = function(context)
@@ -830,7 +830,7 @@ local strategies = {
    if context.player_control_locked or context.is_moving then return false end
    if not holy_idle_damage_enabled(context) then return false end
    if not context.has_valid_enemy_target then return false end
-   if state.lowest_hp < (context.settings.holy_renew_hp or 90) then return false end
+    if (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90) then return false end
    if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 35 or 70)) then return false end
    return spell_exists(SPELLS.Smite) and spell_ready(SPELLS.Smite, context.target)
   end,
