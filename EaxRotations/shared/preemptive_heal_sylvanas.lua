@@ -7,6 +7,7 @@
 -- WHY:   Reduces reactive-heal latency; Leyara-strategy tested against
 --        wowsims APL shows ~8-12% less overheal and tighter triage.
 -- SAFETY: All calculations are nil-guarded; falls back to current HP when
+-- DECISION: predict incoming damage within 2s; pre-cast heal if deficit covered.
 --         prediction infrastructure is unavailable.
 -- Decision: Entry-level predictions already computed by NS.build_healing_entries
 --           (via NS.HealerDeficit.predicted_deficit). This module provides the

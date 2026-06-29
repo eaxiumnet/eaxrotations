@@ -4,6 +4,7 @@
 -- WHY:   Battle for Rend/Overpower/Charge, Berserker for DPS/Execute/Intercept,
 --         Defensive for survival.
 -- SAFETY: Nil-guarded settings reads; respects lockout and rage preservation.
+-- DECISION: Warrior Battle/Berserker/Defensive stance auto-switch.
 
 local _G = _G
 local NS = _G.EaxRotations

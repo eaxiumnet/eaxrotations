@@ -3,6 +3,7 @@
 -- WHEN:  Any healing spec in group content with heal_pets enabled.
 -- WHY:   Hunters and warlocks expect their pets to be healed in dungeons/raids.
 -- SAFETY: All API calls nil-guarded; pet entries get 0.6x triage weight to avoid
+-- DECISION: Hunter/Warlock pet healing dispatcher using 0.6x triage weight.
 --         pets outranking players. Falls back gracefully when pet APIs unavailable.
 -- Decision: Separate module so build_healing_entries can optionally append pets
 --           without complicating the core healing scan.

@@ -4,6 +4,7 @@
 -- WHEN:  Loaded at startup by main.lua; used by all 5 healer specs.
 -- WHY:   Consolidates NS.Triage + NS.AoEHeal that 5 healer specs reference with nil-guards.
 -- SAFETY: All reads nil-guarded; returns empty table/nil on invalid input.
+-- DECISION: healer triage scoring (tank bias 15% + focus bias 10%).
 -- Decision: Keep rank() and best_target() in one module because both are small
 --           and share the same load lifecycle (must be present before any
 --           healer build_state runs).

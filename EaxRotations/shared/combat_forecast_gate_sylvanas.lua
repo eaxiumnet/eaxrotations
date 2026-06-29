@@ -3,6 +3,7 @@
 -- WHEN:  called by spec match functions before committing offensive/defensive CDs.
 -- WHY:   avoids wasting 3-minute CDs on trash that dies in 20 seconds.
 -- SAFETY: nil-guards on context; defaults to "allow cast" when forecast is unavailable.
+-- DECISION: predicts incoming damage ratio before spec actions; pure bridge.
 
 local M = {}
 

@@ -3,6 +3,7 @@
 -- WHEN:  one M.snapshot(unit) call per frame, then M.find_buff/M.find_debuff lookups.
 -- WHY:   avoids repeated UnitBuff/UnitDebuff calls across strategies within the same tick.
 -- SAFETY: no on_update() garbage; self-validating TTL check on every lookup.
+-- DECISION: 50ms TTL buff/debuff cache; pure read helper.
 
 local _G = _G
 local core = _G.core

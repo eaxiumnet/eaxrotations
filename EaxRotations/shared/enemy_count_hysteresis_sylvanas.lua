@@ -3,6 +3,7 @@
 -- WHEN:  Called every frame/update to smooth raw enemy count readings.
 -- WHY:   Prevents rapid ST↔AoE oscillation when enemies spike in/out of range.
 -- SAFETY: Static state table — zero allocations per call. Nil-safe defaults.
+-- DECISION: anti-flap target-count buffer; pure setter/getter.
 
 local M = {}
 

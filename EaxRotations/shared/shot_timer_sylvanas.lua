@@ -3,6 +3,7 @@
 -- WHEN:  All Hunter specs before Steady Shot / instant shots.
 -- WHY:   Clipping auto-shots is the #1 Hunter DPS mistake.
 -- SAFETY: delegates to HunterCore; nil-guarded fallbacks.
+-- DECISION: pre-cast delay gate for Hunter cast-time spells vs auto-shot.
 
 local NS = _G.EaxRotations
 if not NS then return {} end
