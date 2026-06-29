@@ -12,7 +12,7 @@
 **Local Path**: `C:\newbot\scripts`
 **Last Updated**: 2026-06-29
 **Specs**: 29 TBC Classic class specializations (all 29 completed)
-**Tests**: 208 rotation suites registered in `run_rotation_tests.lua` + 11 leveling suites in `run_leveling_tests.lua` (219 total)
+**Tests**: 210 rotation suites registered in `run_rotation_tests.lua` + 11 leveling suites in `run_leveling_tests.lua` (221 total)
 
 ---
 
