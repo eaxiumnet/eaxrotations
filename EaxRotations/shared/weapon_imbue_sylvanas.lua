@@ -1,15 +1,13 @@
--- weapon_imbue_sylvanas.lua -- shared Weapon Imbue Manager (uses GetWeaponEnchantInfo TBC API).
+-- weapon_imbue_sylvanas.lua -- shared Weapon Imbue Manager (uses GetWeaponEnchantInfo TBC API)..
 -- WHAT:   shared Weapon Imbue Manager (uses GetWeaponEnchantInfo TBC API).
 -- WHEN:   called per-frame by Enhancement/Elemental + Feral specs
 -- WHY:    centralises Rockbiter/WF/FT/CoH/MS imbue policy
 -- SAFETY: PCalled on GetWeaponEnchantInfo; nil-guarded weapon object
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
-
--- Shared Helper: Weapon Imbue Manager
 -- Uses GetWeaponEnchantInfo() (TBC API from wow_api_clone.lua)
 --   + item:item_has_enchant() via equipped item slots
--- ============================================================================
+
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations

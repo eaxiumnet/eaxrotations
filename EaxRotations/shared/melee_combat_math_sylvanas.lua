@@ -5,9 +5,6 @@
 -- SAFETY: constants DBC-verified; pure math, no game API
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
--- ============================================================================
--- Shared Helper: Melee Combat Math (TBC 2.4.3)
--- ============================================================================
 -- Pure math functions for TBC melee combat calculations:
 -- glancing blow chance/damage, off-hand multiplier, dual-wield miss chance,
 -- armor mitigation, and rage normalization.
@@ -20,7 +17,6 @@
 -- Usage (unit test — dofile pattern):
 --   dofile("EaxRotations/shared/melee_combat_math_sylvanas.lua")
 --   local glancing_chance = _G.MeleeCombatMath.glancing_chance
--- ============================================================================
 
 local M = {}
 

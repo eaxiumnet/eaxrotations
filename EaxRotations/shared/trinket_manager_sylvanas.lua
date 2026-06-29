@@ -1,9 +1,3 @@
--- trinket_manager_sylvanas.lua -- shared trinket-use manager (proc + on-use)
--- WHAT:  decide when to use proc/on-use trinkets across specs
--- WHEN:  any combat where a trinket proc is active
--- WHY:   centralizes trinket use so specs do not race
--- SAFETY: is_in_bag + is_spell_learned nil-guarded
-
 -- trinket_manager_sylvanas.lua -- TBC trinket equip-swap + on-use activation with buff gating.
 -- WHAT:   TBC trinket equip-swap + on-use activation with buff gating
 -- WHEN:   called per-tick by DPS specs when trinket CD ready
@@ -11,9 +5,6 @@
 -- SAFETY: trinket IDs DBC-verified; nil-guarded bag API
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- ============================================================================
--- Shared Runtime Helper: TBC Trinket Manager
--- ============================================================================
 local _G = _G
 local NS = _G.EaxRotations
 

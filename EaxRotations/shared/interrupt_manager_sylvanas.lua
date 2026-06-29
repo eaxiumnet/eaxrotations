@@ -1,19 +1,10 @@
--- interrupt_manager_sylvanas.lua -- centralized interrupt queue + priority scorer
--- WHAT:  score + queue interrupts; consume in priority order across specs
--- WHEN:  any combat where interrupts are usable
--- WHY:   prevents interrupt starvation; spec files only request, manager arbitrates
--- SAFETY: is_interruptible() nil-guarded; bounded scan (<=8)
-
--- interrupt_manager_sylvanas.lua -- class-portable interrupt with DR tracking and CD awareness.
--- WHAT:   class-portable interrupt with DR tracking and CD awareness
+-- interrupt_manager_sylvanas.lua -- score + queue interrupts; consume in priority order across specs.
+-- WHAT:   score + queue interrupts; consume in priority order across specs
 -- WHEN:   called per-tick; checks enemy casting channel + DR counter
--- WHY:    unified interrupt API across 6 interrupt-capable classes
--- SAFETY: DR state cached per-frame; nil-guarded debuff api
+-- WHY:    prevents interrupt starvation; spec files only request, manager arbitrates
+-- SAFETY: is_interruptible() nil-guarded; bounded scan (<=8)
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- ============================================================================
--- Shared Helper: Interrupt Manager
--- ============================================================================
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations

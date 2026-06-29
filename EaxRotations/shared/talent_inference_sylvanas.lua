@@ -1,18 +1,10 @@
--- talent_inference_sylvanas.lua -- infer spec from active talents (when API hides spec_id)
--- WHAT:  given talent choices plus known ranks, infer the player's spec
--- WHEN:  called at module load when spec_id API is unavailable
--- WHY:   removes hardcoded class/race lookups; lets engine route correctly
--- SAFETY: talent-lib nil-guarded; known-mismatch returns 'unknown'
-
--- talent_inference_sylvanas.lua -- best-effort talent tab/points inference when API unavailable.
--- WHAT:   best-effort talent tab/points inference when API unavailable
+-- talent_inference_sylvanas.lua -- given talent choices plus known ranks, infer the player's spec.
+-- WHAT:   given talent choices plus known ranks, infer the player's spec
 -- WHEN:   called during spec build_state; results cached per spec load
--- WHY:    lets specs branch on talents using batched APIGetTalentInfo
--- SAFETY: introspection guarded; pure helper
+-- WHY:    removes hardcoded class/race lookups; lets engine route correctly
+-- SAFETY: talent-lib nil-guarded; known-mismatch returns 'unknown'
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- Shared Helper: Talent Inference
--- ============================================================================
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations

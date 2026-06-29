@@ -1,12 +1,10 @@
--- movement_assist_sylvanas.lua -- shared movement/facing assist for cast reliability.
+-- movement_assist_sylvanas.lua -- shared movement/facing assist for cast reliability..
 -- WHAT:   shared movement/facing assist for cast reliability.
 -- WHEN:   called per-frame when in_combat but target out_of_range
 -- WHY:    auto-faces and steps toward target during 2.5s cast windows
 -- SAFETY: is_moving nil-guarded per Pattern 14
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
-
--- movement_assist_sylvanas.lua
 -- What: Shared movement/facing assist for cast reliability.
 -- When: Used by specs or cast backend when a spell requires the player to stop moving and face the target.
 -- Why: Movement/facing failures cause cast-time spells to fail. This helper uses the documented

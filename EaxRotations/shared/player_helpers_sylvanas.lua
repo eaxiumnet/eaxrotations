@@ -1,18 +1,10 @@
--- player_helpers_sylvanas.lua -- shared per-player helpers (race, class-id, faction, in-dungeon)
--- WHAT:  small helpers reused across specs
--- WHEN:  any call site
--- WHY:   removes copy-paste of get_race/get_class_id/in_dungeon from specs
--- SAFETY: all call sites nil-guard; result cached per session
-
 -- player_helpers_sylvanas.lua -- get_player + form/stance + range helpers used by every spec.
 -- WHAT:   get_player + form/stance + range helpers used by every spec
 -- WHEN:   called per-frame from every spec's build_state and strategies
--- WHY:    removes ~200 lines of duplicated range/form boilerplate per spec
+-- WHY:    removes copy-paste of get_race/get_class_id/in_dungeon from specs
 -- SAFETY: cached local_player at module load; nil-guarded accessors
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- =============================================================================
--- player_helpers_sylvanas.lua
 --
 -- Centralized wrappers for fetching the local player object. Replaces
 -- 3-line `get_player()` helpers copy-pasted in ooc_manager, racial_manager,
@@ -34,7 +26,6 @@
 --                           lacks a GetPlayer shim.
 --   - install(NS):          installs get_player + get_player_robust on the NS table
 --                           so individual shared files don't need to require this.
--- =============================================================================
 
 local M = {}
 

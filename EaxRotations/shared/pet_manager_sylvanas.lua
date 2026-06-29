@@ -1,23 +1,13 @@
--- pet_manager_sylvanas.lua -- pet summon + happiness + spec selector
--- WHAT:  summon, dismiss, set pet passive/aggro, set happiness points
--- WHEN:  hunter + warlock combat
--- WHY:   single source of truth so class specs only consume signals
--- SAFETY: is_pet_summoned nil-guarded; pet-spec validate at register
-
 -- pet_manager_sylvanas.lua -- call/revive/mend/feed/dismiss helpers for Hunter + Warlock pets.
 -- WHAT:   call/revive/mend/feed/dismiss helpers for Hunter + Warlock pets
 -- WHEN:   called per-frame in and out of combat by pet-using specs
--- WHY:    single retry/cooldown/MendPet policy for all pet specs
--- SAFETY: MendPet throttled to 2s; nil-guarded pet pointer
+-- WHY:    single source of truth so class specs only consume signals
+-- SAFETY: is_pet_summoned nil-guarded; pet-spec validate at register
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- ============================================================================
--- Shared Helper: Pet Manager (Hunter + Warlock)
--- ============================================================================
 -- Ported from archive EAXHunterBeastMastery pet_manager.lua
 -- State machine: IDLE -> ENGAGING -> FIGHTING -> RETREATING
 -- Safety: nil-guarded, throttled, no raw API calls.
--- ============================================================================
 
 local NS = _G.EaxRotations
 local M = {}

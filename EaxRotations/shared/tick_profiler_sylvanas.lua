@@ -1,11 +1,10 @@
--- tick_profiler_sylvanas.lua -- tick-rate profiler (HoT tick, energy tick, swing tick rates)
--- WHAT:  capture observed tick periods and report histograms
--- WHEN:  diagnostic; called only when menu flag set
--- WHY:   lets user verify we are not missing ticks in cluttered fights
+-- tick_profiler_sylvanas.lua -- capture observed tick periods and report histograms.
+-- WHAT:   capture observed tick periods and report histograms
+-- WHEN:   diagnostic; called only when menu flag set
+-- WHY:    lets user verify we are not missing ticks in cluttered fights
 -- SAFETY: no allocations in tick path; opt-in only
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
--- ============================================================================
 -- Tick Profiler: measures per-tick CPU time of the rotation dispatcher.
 --
 -- What:  Wraps on_rotation_update() with core.cpu_time() timing, stores rolling
@@ -19,7 +18,7 @@
 --        in the Sylvanas sandbox.
 -- Decision:Separate module so the dispatcher stays clean. Dashboard reads
 --        via custom_lines function references (lazy eval each frame).
--- ============================================================================
+
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end

@@ -1,13 +1,10 @@
--- pvp_burst_window_sylvanas.lua -- PvP burst-window scoring (damage spike / DR low window detection).
+-- pvp_burst_window_sylvanas.lua -- PvP burst-window scoring (damage spike / DR low window detection)..
 -- WHAT:   PvP burst-window scoring (damage spike / DR low window detection).
 -- WHEN:   called per-tick when fighting opponent players
 -- WHY:    lets specs time damage cooldowns to enemy DR/debuff gaps
 -- SAFETY: windowed heuristic; nil-guarded DR counter
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
-
--- Shared Helper: PvP Burst Window Scoring
--- ============================================================================
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations

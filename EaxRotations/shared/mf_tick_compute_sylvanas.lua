@@ -1,13 +1,10 @@
--- mf_tick_compute_sylvanas.lua -- Mind Flay tick computation helper for Shadow Priest.
+-- mf_tick_compute_sylvanas.lua -- Mind Flay tick computation helper for Shadow Priest..
 -- WHAT:   Mind Flay tick computation helper for Shadow Priest.
 -- WHEN:   called per-frame in shadow_sylvanas while MF is channeling
 -- WHY:    lets Shadow lock MF for exactly N ticks then bail to VT
 -- SAFETY: uses NS.tbc_time; nil-guarded
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
--- ============================================================================
--- Shared Helper: Mind Flay Tick Computation
--- ============================================================================
 -- Pure function extracted from shadow_sylvanas.lua build_shadow_state.
 -- Computes MF channel state (channeling, ticks, clip signal) from injectable
 -- API-like parameters. No NS/api/ dependencies — safe for unit testing.
@@ -26,7 +23,6 @@
 --   dofile("EaxRotations/shared/mf_tick_compute_sylvanas.lua")
 --   local mf_tick = _G.MfTickCompute
 --   ...same as above...
--- ============================================================================
 
 local floor = math.floor
 local ipairs = ipairs

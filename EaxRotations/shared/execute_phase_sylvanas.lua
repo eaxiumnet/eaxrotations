@@ -1,13 +1,10 @@
--- execute_phase_sylvanas.lua -- Execute Phase + Low-HP Target Gating.
+-- execute_phase_sylvanas.lua -- Execute Phase + Low-HP Target Gating..
 -- WHAT:   Execute Phase + Low-HP Target Gating.
 -- WHEN:   called per-frame in warrior/rogue specs
 -- WHY:    unifies 'target below X% HP' gating across melee specs
 -- SAFETY: target_hp nil-guarded per Pattern 14
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
--- ============================================================================
--- Shared Helper: Execute Phase & Low-HP Target Gating
--- ============================================================================
 -- Pure functions extracted from 8+ class modules that all check
 -- target HP < threshold (typically 20%) for execute-phase abilities.
 -- No NS/api/ dependencies — safe for unit testing.
@@ -23,7 +20,6 @@
 --   dofile("EaxRotations/shared/execute_phase_sylvanas.lua")
 --   local is_execute_phase = _G.ExecutePhase.is_execute_phase
 --   ...same as above...
--- ============================================================================
 
 local M = {}
 

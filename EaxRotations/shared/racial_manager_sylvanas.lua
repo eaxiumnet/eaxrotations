@@ -1,19 +1,10 @@
--- racial_manager_sylvanas.lua -- racial passive/active manager (Will of the Forsaken, etc.)
--- WHAT:  register + enable + dispatch active racial abilities
--- WHEN:  an unyielding will racial activation or any active racial cd
--- WHY:   centralizes racial data; spec modules consume racial signals only
--- SAFETY: get_race() nil-guarded; race-specific table fence
-
 -- racial_manager_sylvanas.lua -- scroll through racial abilities (Berserking/Gift/Will/etc.).
 -- WHAT:   scroll through racial abilities (Berserking/Gift/Will/etc.)
 -- WHEN:   called per-tick; activates when CD ready and contextual gate met
--- WHY:    removes 9 class spec files from duplicating racial-detection code
--- SAFETY: racial IDs DBC-verified; nil-guarded cooldown API
+-- WHY:    centralizes racial data; spec modules consume racial signals only
+-- SAFETY: get_race() nil-guarded; race-specific table fence
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- ============================================================================
--- Shared Runtime Helper: TBC Racial Manager
--- ============================================================================
 local _G = _G
 local NS = _G.EaxRotations
 

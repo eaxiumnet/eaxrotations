@@ -1,13 +1,10 @@
--- ttd_ema_tracker_sylvanas.lua -- exponentially-weighted TTD tracker (smoother than raw ttd)
--- WHAT:  track TTD with EMA for less jittery gating
--- WHEN:  any spec that uses TTD-gating (cat, mage execute, etc.)
--- WHY:   smooths out the ttd jitter between rare HP changes
+-- ttd_ema_tracker_sylvanas.lua -- track TTD with EMA for less jittery gating.
+-- WHAT:   track TTD with EMA for less jittery gating
+-- WHEN:   any spec that uses TTD-gating (cat, mage execute, etc.)
+-- WHY:    smooths out the ttd jitter between rare HP changes
 -- SAFETY: bounded observation; nil-guarded on ttd input
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
--- ============================================================================
--- Shared Helper: Exponential Moving Average Time-To-Die (TTD) Tracker
--- ============================================================================
 -- What:   Computes per-unit incoming DPS using an exponential moving average
 --         over recent combat-log events, then derives TTD = current_hp / ema_dps.
 -- When:   Called every tick for enemy targets (TTD) and party members (incoming DPS).
@@ -22,7 +19,6 @@
 --   local state = ema.update(target, NS.time_now())
 --   local ttd = ema.get_ttd(target, NS.time_now())
 --   local incoming = ema.get_incoming_dps(target)
--- ============================================================================
 
 local M = {}
 

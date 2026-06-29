@@ -5,9 +5,6 @@
 -- SAFETY: pure function; uses is_spell_learned fallback chain
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- ============================================================================
--- Shared Helper: Spell Rank Resolver (Expansion-Aware)
--- ============================================================================
 -- What:   Auto-resolves spell rank chains from embedded wowhead spell data.
 -- When:   Module load (cached). Used by spec files for rank-by-level lookups.
 -- Why:    Replace hardcoded spell rank arrays with data-driven resolution.

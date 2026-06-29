@@ -1,17 +1,12 @@
--- auto_tremor_sylvanas.lua -- Auto Tremor Totem placement for Enhancement Shaman.
+-- auto_tremor_sylvanas.lua -- Auto Tremor Totem placement for Enhancement Shaman..
 -- WHAT:   Auto Tremor Totem placement for Enhancement Shaman.
 -- WHEN:   called per-tick by enhancement specs when fear/sap detected
 -- WHY:    eliminates 4-line fear-break duplication in enhancement_sylvanas
 -- SAFETY: per-fight cooldown; nil-guarded totem API
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
-
--- ============================================================================
--- Shared Helper: Auto Tremor Totem
--- ============================================================================
 -- Pattern: 17 TBC fear-capable encounter NPC IDs (Nightbane, Archimonde, etc.)
 -- IDs verified against TBC encounter data and in-game behavior references.
--- ============================================================================
 
 local M = {}
 local _G = _G
