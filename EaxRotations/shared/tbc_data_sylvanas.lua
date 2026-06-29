@@ -1,3 +1,10 @@
+-- tbc_data_sylvanas.lua -- TBC Classic spell + item ID constants (verified against 2.5.5.68101 client).
+-- WHAT:   TBC Classic spell + item ID constants (verified against 2.5.5.68101 client).
+-- WHEN:   required at module load by every spec and shared module that references a spell ID.
+-- WHY:    single source of truth for spell/item ID literals across EaxRotations.
+-- SAFETY: all IDs DBC-verified; pure data; nil-tolerant key fetch.
+-- DECISION: pure data; consumed via require(); nil-tolerant key fetch.
+
 -- tbc_data_sylvanas.lua -- TBC-era verified spell/item/NPC IDs (only-things-in-2.5.5)
 -- WHAT:  expose small set of TBC-verified IDs the engine relies on
 -- WHEN:  engine-load time

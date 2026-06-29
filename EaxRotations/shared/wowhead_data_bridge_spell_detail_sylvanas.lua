@@ -1,3 +1,16 @@
+-- wowhead_data_bridge_spell_detail_sylvanas.lua -- shared Wowhead data bridge for per-spell detail fields.
+-- WHAT:   shared Wowhead data bridge for per-spell detail fields.
+-- WHEN:   loaded at spec-class startup; consumed on spell-id match functions.
+-- WHY:    enriches EaxRotations spec logic with Wowhead detail scalars.
+-- SAFETY: static bridge; nil-tolerant key fetch; no api at load.
+-- DECISION: pure data; consumed via require(); nil-tolerant key fetch.
+
+-- wowhead_data_bridge_spell_detail_sylvanas.lua -- Wowhead spell-detail bridge (rank + description + cost)
+-- WHAT:  expose spell-detail lookups: name, rank, cost, cast_time
+-- WHEN:  module load + spec validators
+-- WHY:   single source for spell metadata that the DBC does not expose
+-- SAFETY: read-only table consumer; nil on missing id
+
 -- ============================================================================
 -- Shared Data: Wowhead Spell Detail
 -- ============================================================================
