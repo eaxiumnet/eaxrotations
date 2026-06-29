@@ -7,6 +7,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
 local hunter_core = require("shared/hunter_core_sylvanas")
+local shot_timer = require("shared/shot_timer_sylvanas")
 local targeting = require("shared/targeting_sylvanas")
 local pet_manager = require("shared/pet_manager_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
@@ -67,6 +68,8 @@ local state = {
     wing_clip_active = false,
     -- Melee & AoE features (parity parity)
     use_melee = true,
+    hunter_melee_weave = true,
+    hunter_shot_timer_buffer = 150,
     raptor_strike_ready = false,
     concussive_shot_ready = false,
     volley_ready = false,
@@ -78,6 +81,7 @@ local state = {
     trinket_2_id = nil,
     trinket_1_ready = false,
     trinket_2_ready = false,
+    auto_aspect = true,
 }
 
 local function build_state(context)
@@ -170,10 +174,14 @@ local function build_state(context)
 
     -- Melee & AoE settings (parity parity)
     state.use_melee = settings.use_melee ~= false
+    state.hunter_melee_weave = settings.hunter_melee_weave ~= false
+    state.hunter_shot_timer_buffer = settings.hunter_shot_timer_buffer or 150
     state.use_volley = settings.use_volley == true
     state.use_explosive_trap = settings.use_explosive_trap == true
     state.aoe_threshold = settings.aoe_threshold or settings.volley_threshold or 3
     state.trinket_mode = settings.trinket_mode or "off"
+    state.auto_aspect = settings.hunter_auto_aspect ~= false
+    state.viper_mana_threshold = settings.hunter_viper_mana_threshold or 20
     state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
 
     return state
@@ -254,9 +262,38 @@ end
 local function ooc_aspect_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if s.in_combat then return false end
+    if not s.auto_aspect then return false end
     if s.has_hawk then return false end
     if not (NS.spell_ready and NS.spell_ready(SPELLS.AspectOfTheHawk, context.me, { skip_range = true })) then return false end
     return true
+end
+
+-- Auto Aspect: in-combat Hawk/Viper switching
+local function auto_aspect_matches(context, s)
+    if not mounted_bail(context, s) then return false end
+    if not s.in_combat then return false end
+    if not s.auto_aspect then return false end
+    -- Viper when mana low
+    if not s.has_viper and (s.mana_pct or 100) <= (s.viper_mana_threshold or 20) then
+        if NS.spell_ready and NS.spell_ready(SPELLS.AspectOfTheViper, context.me, { skip_range = true }) then
+            return true
+        end
+    end
+    -- Hawk when mana recovered
+    if not s.has_hawk and (s.mana_pct or 100) > (s.viper_mana_threshold or 20) + 10 then
+        if NS.spell_ready and NS.spell_ready(SPELLS.AspectOfTheHawk, context.me, { skip_range = true }) then
+            return true
+        end
+    end
+    return false
+end
+
+local function auto_aspect_execute(context)
+    local s = state
+    if not s.has_viper and (s.mana_pct or 100) <= (s.viper_mana_threshold or 20) then
+        return NS.try_cast(SPELLS.AspectOfTheViper, context.me, "[BEAST_MASTERY] AutoAspect Viper", { skip_range = true })
+    end
+    return NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[BEAST_MASTERY] AutoAspect Hawk", { skip_range = true })
 end
 
 -- IN COMBAT — Hunter's Mark
@@ -415,7 +452,8 @@ local function steady_shot_matches(context, s)
     if not s.in_combat then return false end
     if s.in_dead_zone then return false end
     if not s.steady_shot_ready then return false end
-    -- Check auto-shot clipping for steady
+    -- Check auto-shot clipping for steady (via shot_timer if available)
+    if shot_timer.should_delay_cast and shot_timer.should_delay_cast(context, s.hunter_shot_timer_buffer) then return false end
     if not hunter_core.can_cast_steady(s.shot_buffer) then return false end
     -- Not while moving (steady requires standing still)
     if context.is_moving then return false end
@@ -439,7 +477,14 @@ end
 local function raptor_strike_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
-    if not s.use_melee then return false end
+    -- Backward compat: accept both hunter_melee_weave (new) and use_melee (legacy)
+    local melee_enabled
+    if s.hunter_melee_weave ~= nil then
+        melee_enabled = s.hunter_melee_weave
+    else
+        melee_enabled = s.use_melee ~= false
+    end
+    if not melee_enabled then return false end
     if not context.target then return false end
     -- Squared distance: 5yd = 25
     local dsq = s.distance_sq or (context.distance and context.distance * context.distance) or 10000
@@ -611,6 +656,12 @@ local strategies = {
         name = "AspectOfTheHawk_OOC",
         matches = ooc_aspect_matches,
         execute = ooc_aspect_execute,
+    },
+    -- 3a. Auto Aspect (in-combat Hawk/Viper)
+    {
+        name = "AutoAspect",
+        matches = auto_aspect_matches,
+        execute = auto_aspect_execute,
     },
     -- 4. Misdirection (pull window)
     {

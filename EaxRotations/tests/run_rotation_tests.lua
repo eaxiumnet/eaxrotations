@@ -29,6 +29,16 @@ local tests = {
     "test_shaman_enhancement_auto_weapon_buffs.lua",
     "test_shaman_enhancement_intelligent_shield.lua",
 
+    -- FrostByte Supremacy Phase 3 tests
+    "test_dot_ttd_gating.lua",
+    "test_shot_timer.lua",
+    "test_aspect_manager.lua",
+    "test_shadow_multidot.lua",
+    "test_shadow_inner_focus_combo.lua",
+    "test_affliction_dot_ttd.lua",
+    "test_hunter_shot_timer_integration.lua",
+    "test_hunter_melee_weave.lua",
+
     -- Arms warrior tests
     "test_arms_custom_matches.lua",
     "test_arms_hamstring_tactician.lua",

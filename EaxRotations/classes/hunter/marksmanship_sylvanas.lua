@@ -7,6 +7,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
 local pet_manager = require("shared/pet_manager_sylvanas")
+local shot_timer = require("shared/shot_timer_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 
 local AUTO_SHOT_BUFFER_MS = 100
@@ -100,6 +101,9 @@ local mm_state = {
     in_combat = false,
     enemy_count = 1,
     is_ooc = false,
+    hunter_melee_weave = true,
+    hunter_shot_timer_buffer = 150,
+    distance_sq = 10000,
 }
 
 local function build_state(context)
@@ -155,6 +159,10 @@ local function build_state(context)
     mm_state.enemy_count = context.enemy_count or context.enemies_count or 1
     mm_state.is_ooc = not mm_state.in_combat
     mm_state.pre_steady_leveling = ((context.player_level or 70) < 62) or (context.is_leveling == true and not mm_state.steady_shot_ready)
+    local settings = context.settings or {}
+    mm_state.hunter_melee_weave = settings.hunter_melee_weave ~= false
+    mm_state.hunter_shot_timer_buffer = settings.hunter_shot_timer_buffer or 150
+    mm_state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
 
     return mm_state
 end
@@ -212,6 +220,7 @@ end
 
 local function steady_shot_matches(context, s)
     if not s.steady_shot_ready then return false end
+    if shot_timer.should_delay_cast and shot_timer.should_delay_cast(context, s.hunter_shot_timer_buffer or 150) then return false end
     if not can_cast_steady() then return false end
     return true
 end
@@ -333,6 +342,29 @@ local function leveling_sting_matches(context, s)
     return true
 end
 
+-- Raptor Strike: melee weaving when target in melee range (5yd)
+local function raptor_strike_matches(context, s)
+    if not s.in_combat then return false end
+    if not s.hunter_melee_weave then return false end
+    if not context.target then return false end
+    local dsq = s.distance_sq or 10000
+    if dsq > 25 then return false end
+    if not s.raptor_strike_ready then return false end
+    return true
+end
+
+-- Wing Clip: melee slow when target is moving away
+local function wing_clip_matches(context, s)
+    if not s.in_combat then return false end
+    if not s.hunter_melee_weave then return false end
+    if s.wing_clip_active then return false end
+    if not context.target then return false end
+    local dsq = s.distance_sq or 10000
+    if dsq > 25 then return false end
+    if not s.wing_clip_ready then return false end
+    return true
+end
+
 -- ============================================================================
 -- Strategies
 -- ============================================================================
@@ -409,6 +441,8 @@ local strategies = {
     { name = "SteadyShot", matches = steady_shot_matches, execute = function(context) if NS.try_cast(SPELLS.SteadyShot, context.target, "[MARKSMANSHIP] Steady Shot") then record_manual_shot() return true end return false end },
     { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(SPELLS.ViperSting, context.target, "[MARKSMANSHIP] Viper Sting", { expected_cooldown = 8 }) end },
     { name = "SerpentSting", matches = serpent_sting_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting") end },
+    { name = "RaptorStrike", matches = raptor_strike_matches, execute = function(context) return NS.try_cast(SPELLS.RaptorStrike, context.target, "[MARKSMANSHIP] Raptor Strike") end },
+    { name = "WingClip", matches = wing_clip_matches, execute = function(context) return NS.try_cast(SPELLS.WingClip, context.target, "[MARKSMANSHIP] Wing Clip") end },
 }
 
 NS.rotation_registry:register("marksmanship", strategies, { get_state = build_state })

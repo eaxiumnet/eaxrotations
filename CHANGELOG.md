@@ -2,6 +2,76 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [Unreleased] — FrostByte Supremacy Phase 3 (2026-06-29)
+
+### Added
+
+#### Multi-DoT Engine for Shadow Priest
+- **WHAT**: Spread SW:P and Vampiric Touch to nearby enemies in cleave/AoE.
+- **WHY**: Massive DPS increase on multi-target.
+- **HOW**: Throttled 1s enemy scan within configurable range; gates on multidot_mode (Off/Near/All), max targets (2-5), and target HP > 30%.
+- **Settings**: `shadow_multidot_mode` dropdown (1=Off, 2=Near, 3=All), `shadow_multidot_max_targets` slider (default 3).
+- **Files**: `shadow_sylvanas.lua`.
+
+#### DoT TTD Gating
+- **WHAT**: Skip DoT reapplication if target will die before DoT runs full duration.
+- **WHY**: Don't waste GCDs on targets that die in 3s.
+- **HOW**: `NS.DotTTD.should_skip_dot(ttd, dot_duration, threshold)` — returns true if TTD < duration * threshold. Shared module used by Shadow Priest (SW:P, VT) and Affliction Lock (Corruption, UA, Siphon Life, Immolate).
+- **Settings**: `shadow_dot_ttd_threshold` (Priest), `dot_ttd_threshold` (Warlock) — slider 0-100% (default 50%).
+- **Files**: `shared/dot_ttd_gating_sylvanas.lua`, `shadow_sylvanas.lua`, `affliction_sylvanas.lua`.
+
+#### Inner Focus → Mind Blast Combo
+- **WHAT**: Hold Inner Focus for Mind Blast to guarantee crit on hardest-hitting spell.
+- **WHY**: 25% mana cost reduction + guaranteed crit on biggest nuke.
+- **HOW**: When combo enabled, InnerFocusMindBlast strategy matches when IF is ready AND (MB ready OR MB CD <= 5s). If MB on long CD (>5s), falls through to non-combo logic.
+- **Settings**: `shadow_if_mb_combo` checkbox (default true).
+- **Files**: `shadow_sylvanas.lua`.
+
+#### Auto-Shot Timer for Hunter
+- **WHAT**: Prevent shot clipping with swing-timer-aware casting.
+- **WHY**: Clipping auto-shots is the #1 Hunter DPS mistake.
+- **HOW**: `shared/shot_timer_sylvanas.lua` wraps HunterCore; `should_delay_cast()` gates Steady Shot before every cast. Wired into all 3 Hunter specs.
+- **Settings**: `hunter_shot_timer_buffer` slider 0-300ms (default 150).
+- **Files**: `shared/shot_timer_sylvanas.lua`, `beast_mastery_sylvanas.lua`, `marksmanship_sylvanas.lua`, `survival_sylvanas.lua`.
+
+#### Dynamic Aspect Switching for Hunter
+- **WHAT**: Auto-switch between Hawk (DPS), Viper (mana), Cheetah (OOC).
+- **WHY**: Never go OOM, never waste GCD on manual aspect.
+- **HOW**: In-combat + mana > threshold+10% → Hawk; in-combat + mana <= threshold → Viper; OOC + no enemies → Cheetah. BM uses `AutoAspect` strategy; MM/SV use existing AspectOfTheHawk/AspectOfTheViper with updated thresholds.
+- **Settings**: `hunter_auto_aspect` checkbox (default true), `hunter_viper_mana_threshold` slider (default 20%).
+- **Files**: `shared/aspect_manager_sylvanas.lua`, `beast_mastery_sylvanas.lua`, `marksmanship_sylvanas.lua`, `survival_sylvanas.lua`.
+
+#### Melee Weaving for Hunter
+- **WHAT**: Use Raptor Strike and Wing Clip when in melee range.
+- **WHY**: DPS gain when kiting fails.
+- **HOW**: Squared distance <= 25 (5yd); low priority below ranged. Configurable per spec.
+- **Settings**: `hunter_melee_weave` checkbox (default true).
+- **Files**: All 3 Hunter spec files; BM backward-compatible with legacy `use_melee`.
+
+### Schema Updates
+- **Priest Shadow**: Added `shadow_multidot_mode`, `shadow_multidot_max_targets`, `shadow_dot_ttd_threshold`, `shadow_if_mb_combo`.
+- **Hunter**: Added `hunter_auto_aspect`, `hunter_viper_mana_threshold`, `hunter_shot_timer_buffer`, `hunter_melee_weave` (BM/MM/SV tabs).
+- **Warlock Affliction**: Added `dot_ttd_threshold`.
+
+### Tests
+- Added 8 new test suites (204 total rotation suites):
+  - `test_dot_ttd_gating.lua`
+  - `test_shot_timer.lua`
+  - `test_aspect_manager.lua`
+  - `test_shadow_multidot.lua`
+  - `test_shadow_inner_focus_combo.lua`
+  - `test_affliction_dot_ttd.lua`
+  - `test_hunter_shot_timer_integration.lua`
+  - `test_hunter_melee_weave.lua`
+- 200 pass (4 pre-existing failures unrelated to this work).
+- All 11 leveling suites pass.
+
+### Files Changed
+- **New shared modules**: `dot_ttd_gating_sylvanas.lua`, `shot_timer_sylvanas.lua`, `aspect_manager_sylvanas.lua`
+- **Modified specs**: `shadow_sylvanas.lua`, `affliction_sylvanas.lua`, `beast_mastery_sylvanas.lua`, `marksmanship_sylvanas.lua`, `survival_sylvanas.lua`
+- **Modified schemas**: `priest/schema_sylvanas.lua`, `hunter/schema_sylvanas.lua`, `warlock/schema_sylvanas.lua`
+- **Modified tests**: `run_rotation_tests.lua`
+
 ## [Unreleased] — FrostByte Supremacy Phase 2 (2026-06-28)
 
 ### Fixed

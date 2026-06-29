@@ -9,7 +9,13 @@ local SPELLS = NS.PriestSpells or {}
 
 local mf_tick = require("shared/mf_tick_compute_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+local DotTTD = require("shared/dot_ttd_gating_sylvanas")
 local _last_shadow_cc_scan = 0
+local _last_multidot_scan = 0
+local _cached_dotted_swp = 0
+local _cached_enemies_missing_swp = 0
+local _cached_dotted_vt = 0
+local _cached_enemies_missing_vt = 0
 
 -- ============================================================================
 -- Buff & Debuff ID tables
@@ -156,6 +162,15 @@ local shadow_state = {
     fortitude_ready = false,          -- Power Word: Fortitude is ready to cast
     has_fortitude = false,            -- Self has Fortitude buff
     is_group = false,                 -- Player is in a group
+    -- Multi-DoT state
+    multidot_mode = 1,                -- 1=Off, 2=Near Target, 3=All in Range
+    multidot_max = 3,                 -- Max targets for multidot
+    multidot_range = 30,              -- Scan range for multidot
+    dotted_swp_count = 0,             -- Enemies with SW:P
+    enemies_missing_swp = 0,          -- Enemies without SW:P
+    dotted_vt_count = 0,              -- Enemies with VT
+    enemies_missing_vt = 0,           -- Enemies without VT
+    mb_cd_remains = 0,                -- Mind Blast cooldown remaining
 }
 
 local function build_state(context)
@@ -177,6 +192,7 @@ local function build_state(context)
     shadow_state.ve_remaining = target and NS.debuff_remains(target, VAMPIRIC_EMBRACE_DEBUFF) or 0
     shadow_state.dp_remaining = target and NS.debuff_remains(target, DEVOURING_PLAGUE_DEBUFF) or 0
     shadow_state.mb_ready = target and NS.spell_ready(SPELLS.MindBlast, target, { expected_cooldown = 5.5 }) or false
+    shadow_state.mb_cd_remains = NS.cooldown_remains and NS.cooldown_remains(SPELLS.MindBlast) or 0
     shadow_state.swd_ready = target and NS.spell_ready(SPELLS.ShadowWordDeath, target, { expected_cooldown = 12 }) or false
     shadow_state.mf_channeling, shadow_state.mf_ticks = mf_tick.compute_channel_state(me, NS.game_time_ms(), MIND_FLAY_IDS)
     shadow_state.should_clip_mf = mf_tick.should_clip_mf(
@@ -221,6 +237,10 @@ local function build_state(context)
     shadow_state.swd_safety_hp = settings.shadow_swd_safety_hp or 80
     shadow_state.shield_hp = settings.shadow_shield_hp or 35
     shadow_state.flash_heal_hp = settings.shadow_flash_heal_hp or 25
+    -- Multi-DoT settings
+    shadow_state.multidot_mode = settings.shadow_multidot_mode or 1
+    shadow_state.multidot_max = settings.shadow_multidot_max_targets or 3
+    shadow_state.multidot_range = settings.shadow_multi_dot_range or 30
     -- Has Weakened Soul (cannot receive PW:Shield)
     shadow_state.has_weakened_soul = me and NS.debuff_up and NS.debuff_up(me, WEAKENED_SOUL_DEBUFF) or false
     
@@ -303,6 +323,38 @@ local function build_state(context)
     shadow_state.spell_damage = context.spell_damage or 0
     -- Bloodlust/Heroism buff — enables more aggressive snapshot upgrade threshold
     shadow_state.has_bloodlust = me and NS.buff_up(me, BLOODLUST_BUFFS) or false
+    -- Multi-DoT: scan nearby enemies for missing DoTs (throttled to 1s)
+    shadow_state.dotted_swp_count = 0
+    shadow_state.enemies_missing_swp = 0
+    shadow_state.dotted_vt_count = 0
+    shadow_state.enemies_missing_vt = 0
+    local now_t = NS.time_now and NS.time_now() or 0
+    if (now_t - _last_multidot_scan) >= 1.0 then
+        _last_multidot_scan = now_t
+        if shadow_state.in_combat and shadow_state.enemy_count >= 2 then
+            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(shadow_state.multidot_range) or {}
+            local swp_missing = 0
+            local swp_dotted = 0
+            local vt_missing = 0
+            local vt_dotted = 0
+            for _, enemy in ipairs(enemies) do
+                if enemy then
+                    local has_swp = NS.debuff_up and NS.debuff_up(enemy, SHADOW_WORD_PAIN_DEBUFF) or false
+                    local has_vt = NS.debuff_up and NS.debuff_up(enemy, VAMPIRIC_TOUCH_DEBUFF) or false
+                    if has_swp then swp_dotted = swp_dotted + 1 else swp_missing = swp_missing + 1 end
+                    if has_vt then vt_dotted = vt_dotted + 1 else vt_missing = vt_missing + 1 end
+                end
+            end
+            _cached_dotted_swp = swp_dotted
+            _cached_enemies_missing_swp = swp_missing
+            _cached_dotted_vt = vt_dotted
+            _cached_enemies_missing_vt = vt_missing
+        end
+    end
+    shadow_state.dotted_swp_count = _cached_dotted_swp
+    shadow_state.enemies_missing_swp = _cached_enemies_missing_swp
+    shadow_state.dotted_vt_count = _cached_dotted_vt
+    shadow_state.enemies_missing_vt = _cached_enemies_missing_vt
     -- Maintain snapshot state: reset snapshots if DoT expired or target changed
     local target_key = target and (target.get_guid and target:get_guid()) or nil
     if target_key ~= shadow_state.snapshot_target then
@@ -469,6 +521,9 @@ local function vampiric_touch_matches(context, s)
     if not context.has_valid_enemy_target or s.vt_remaining > (s.vt_refresh_window or 3) then return false end
     -- TTD gate: skip VT if target dying soon (1.5s cast + 15s to get full value)
     if context.ttd_known and context.ttd > 0 and context.ttd < 6 then return false end
+    -- DoT TTD gating: skip reapplication if target dies before threshold % of DoT duration
+    local ttd_threshold = (context.settings and context.settings.shadow_dot_ttd_threshold or 50) / 100
+    if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.vampiric_touch, ttd_threshold) then return false end
     -- Mana emergency: drop all spells (wand only)
     if s.mana_emergency then return false end
     -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
@@ -493,6 +548,9 @@ local function shadow_word_pain_matches(context, s)
     -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
     local ratio = s.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
     if s.swp_remaining > 0 and not should_snapshot_upgrade(s.spell_damage, s.snapshot_swp_dmg, s.swp_remaining, sw_window, ratio) then return false end
+    -- DoT TTD gating: skip reapplication if target dies before threshold % of DoT duration
+    local ttd_threshold = (context.settings and context.settings.shadow_dot_ttd_threshold or 50) / 100
+    if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.shadow_word_pain, ttd_threshold) then return false end
     return true
 end
 
@@ -520,9 +578,22 @@ end
 
 local function inner_focus_matches(context, s)
     if not can_break_mind_flay(s) then return false end
-    if not context.in_combat or not s.mb_ready then return false end
+    if not context.in_combat then return false end
     if s.has_inner_focus then return false end
     if s.mana_low then return false end  -- don't burn IF if MB is gated by mana
+    -- Inner Focus + Mind Blast combo: hold IF for MB when both are ready or MB is off soon
+    local combo_enabled = context.settings and context.settings.shadow_if_mb_combo
+    if combo_enabled == nil then combo_enabled = true end
+    if combo_enabled then
+        -- If MB is ready now, queue IF immediately (next GCD will be MB)
+        if s.mb_ready then return true end
+        -- If MB is on short CD (<= 5s), hold IF for the combo
+        if (s.mb_cd_remains or 999) <= 5 then return true end
+        -- MB is on long CD (> 5s) — use IF on next best spell (don't hold forever)
+        -- Fall through to non-combo logic below
+    end
+    -- Non-combo path (or combo disabled / MB on long CD): use IF when MB is off cooldown
+    if not s.mb_ready then return false end
     -- TTD gate: don't burn 180s cooldown if combat ends within threshold
     if context.ttd_known and context.ttd > 0 and context.ttd < MIN_TTD_FOR_CD_INNER_FOCUS then return false end
     return true
@@ -616,6 +687,49 @@ local function psychic_scream_matches(context, s)
     return true
 end
 
+-- ============================================================================
+-- Multi-DoT: spread SW:P and VT to nearby enemies in cleave/AoE
+-- ============================================================================
+local function multidot_swp_matches(context, s)
+    local mode = s.multidot_mode or 1
+    if mode == 1 then return false end  -- Off
+    if not s.swp_known then return false end
+    if not can_break_mind_flay(s) then return false end
+    if not context.in_combat then return false end
+    if (s.enemy_count or 0) < 2 then return false end
+    -- Only multidot when target HP > 30% (don't waste on dying adds)
+    if (context.target_hp_pct or 100) <= 30 then return false end
+    -- Limit to max targets
+    if (s.dotted_swp_count or 0) >= (s.multidot_max or 3) then return false end
+    -- Don't spread if current target still has SW:P ticking with time
+    if s.swp_remaining > 3 then return false end
+    -- Only spread if there are enemies missing SW:P
+    if (s.enemies_missing_swp or 0) < 1 then return false end
+    -- Mana gate: don't spread below emergency
+    if s.mana_emergency then return false end
+    return true
+end
+
+local function multidot_vt_matches(context, s)
+    local mode = s.multidot_mode or 1
+    if mode == 1 then return false end  -- Off
+    if not s.vampiric_touch_known then return false end
+    if not can_break_mind_flay(s) then return false end
+    if not context.in_combat then return false end
+    if context.is_moving then return false end
+    if (s.enemy_count or 0) < 2 then return false end
+    -- Only multidot when target HP > 30% (don't waste on dying adds)
+    if (context.target_hp_pct or 100) <= 30 then return false end
+    -- Limit to max targets
+    if (s.dotted_vt_count or 0) >= (s.multidot_max or 3) then return false end
+    -- Don't spread if current target still has VT ticking with time
+    if s.vt_remaining > 3 then return false end
+    -- Only spread if there are enemies missing VT
+    if (s.enemies_missing_vt or 0) < 1 then return false end
+    -- Mana emergency: drop all spells
+    if s.mana_emergency then return false end
+    return true
+end
 
 local function dispel_magic_matches(context, s)
     -- Disabled: middleware PartyDispelMagic already handles self + party dispel
@@ -688,7 +802,7 @@ local strategies = {
     end, execute = function(context) local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] SWP (moving)"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
     { name = "VampiricEmbrace", matches = vampiric_embrace_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricEmbrace, context.target, "[SHADOW] VampiricEmbrace") end },
     { name = "DevouringPlague", matches = devouring_plague_matches, execute = function(context) local ok = NS.try_cast(SPELLS.DevouringPlague, context.target, "[SHADOW] DevouringPlague"); if ok then shadow_state.snapshot_dp_dmg = shadow_state.spell_damage end; return ok end },
-    { name = "InnerFocusMindBlast", matches = inner_focus_matches, execute = function(context) return NS.try_cast(SPELLS.InnerFocus, NS.PLAYER_UNIT, "[SHADOW] InnerFocus", { skip_range = true }) end },
+    { name = "InnerFocusMindBlast", matches = inner_focus_matches, execute = function(context) return NS.try_cast(SPELLS.InnerFocus, NS.PLAYER_UNIT, "[SHADOW] InnerFocus→MB Combo", { skip_range = true }) end },
     { name = "MindBlast", matches = mind_blast_matches, execute = function(context) return NS.try_cast(SPELLS.MindBlast, context.target, "[SHADOW] MindBlast") end },
     { name = "ShadowWordDeath", matches = shadow_word_death_matches, execute = function(context) return NS.try_cast(SPELLS.ShadowWordDeath, context.target, "[SHADOW] ShadowWordDeath") end },
     { name = "MindFlay", matches = mind_flay_matches, execute = function(context) return NS.try_cast(SPELLS.MindFlay, context.target, "[SHADOW] MindFlay") end },
@@ -698,6 +812,8 @@ local strategies = {
     { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return NS.try_cast(SPELLS.ShackleUndead, context.target, "[SHADOW] ShackleUndead") end },
     { name = "SWPSpread", matches = shadow_swp_spread_matches, execute = function(context) _set_lockout("SWP", 3000); local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] SWPSpread"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
     { name = "VTSpread", matches = shadow_vt_spread_matches, execute = function(context) _set_lockout("VT", 3000); local ok = NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] VTSpread"); if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end; return ok end },
+    { name = "MultiDotSWP", matches = multidot_swp_matches, execute = function(context) local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] MultiDoT SW:P"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
+    { name = "MultiDotVT", matches = multidot_vt_matches, execute = function(context) local ok = NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] MultiDoT VT"); if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end; return ok end },
     { name = "InnerFire", matches = inner_fire_matches, execute = function(context) return NS.try_cast(SPELLS.InnerFire, NS.PLAYER_UNIT, "[SHADOW] InnerFire", { skip_range = true }) end },
     { name = "PowerWordShield", matches = power_word_shield_matches, execute = function(context) return NS.try_cast(SPELLS.PowerWordShield, NS.PLAYER_UNIT, "[SHADOW] PowerWordShield", { skip_range = true }) end },
     { name = "FlashHeal", matches = flash_heal_matches, execute = function(context) return NS.try_cast(SPELLS.FlashHeal, NS.PLAYER_UNIT, "[SHADOW] FlashHeal", { skip_range = true }) end },
