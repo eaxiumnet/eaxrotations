@@ -2,7 +2,7 @@
 -- WHAT:  snapshots UnitBuff/UnitDebuff once per tick into O(1) hash tables.
 -- WHEN:  one M.snapshot(unit) call per frame, then M.find_buff/M.find_debuff lookups.
 -- WHY:   avoids repeated UnitBuff/UnitDebuff calls across strategies within the same tick.
--- SAFETY: no on_update() garbage; self-validating TTL check on every lookup.
+-- SAFETY: no on_update() garbage; self-validating TTL check on every lookup; bounded LRU.
 -- DECISION: 50ms TTL buff/debuff cache; pure read helper.
 
 local _G = _G
@@ -11,9 +11,17 @@ local M = {}
 
 M.TTL_MS = 50  -- snapshot valid for 50ms (one frame at 20fps)
 
+-- BUGFIX (2026-06-29): the unit-keyed cache used to grow unbounded as the
+-- player encountered new units (party members joining/leaving, every enemy
+-- ever seen).  After a long BGs / 25-man raid this leaked hundreds of
+-- entries.  We now bound it with FIFO eviction at MAX_CACHE_ENTRIES (128).
+local MAX_CACHE_ENTRIES = 128
+
 -- Cache: unit (game_object) → { ts = core.time(), buffs = { [id] = true }, debuffs = { [id] = true } }
 -- Using unit directly as key; Sylvanas returns stable userdata wrappers for the same in-game entity.
 M._cache = {}
+-- FIFO insertion order; oldest at HEAD.  Rebuilt by M.clear().
+local _cache_order = {}
 
 local _core_time = core and core.time
 local _type = type
@@ -23,6 +31,21 @@ local _pairs = pairs
 
 local function _now()
     return _core_time and _core_time() or 0
+end
+
+--- Drop the oldest cache entry to keep within MAX_CACHE_ENTRIES.
+local function _evict_one()
+    if #_cache_order == 0 then return end
+    local oldest = _cache_order[1]
+    table.remove(_cache_order, 1)
+    M._cache[oldest] = nil
+end
+
+--- BUGFIX (2026-06-29): public clear method, useful on zone change / BG end.
+--- Called externally as M.clear() to flush the entire cache.
+function M.clear()
+    for k in pairs(M._cache) do M._cache[k] = nil end
+    for i = 1, #_cache_order do _cache_order[i] = nil end
 end
 
 --- Populate the unit's buff/debuff snapshot tables from current aura state.
@@ -37,6 +60,11 @@ function M.snapshot(unit)
     if not entry then
         entry = { ts = 0, buffs = {}, debuffs = {} }
         M._cache[unit] = entry
+        _cache_order[#_cache_order + 1] = unit
+        -- Bound: evict oldest entries until we're under the cap.
+        while #_cache_order > MAX_CACHE_ENTRIES do
+            _evict_one()
+        end
     end
 
     entry.ts = now
