@@ -67,6 +67,36 @@ local DEMO_SHOUT_DEBUFF = CONSTANTS.DEMO_SHOUT_DEBUFF or { 25203, 25202, 11556, 
 local THUNDER_CLAP_DEBUFF = CONSTANTS.THUNDER_CLAP_DEBUFF or { 25264, 11581, 11580, 8205, 8204, 8198, 6343 }
 local HAMSTRING_DEBUFF = { 25212, 7373, 7372, 1715 }
 
+-- Crowd-control debuff IDs for fear-break detection (Berserker Rage)
+local FEAR_DEBUFF_IDS = {
+    [5782] = true, [6215] = true, [5484] = true,   -- Warlock Fear / Howl
+    [8122] = true, [10888] = true, [10890] = true, -- Psychic Scream
+    [5246] = true,                                  -- Intimidating Shout
+    [33111] = true,                                 -- Bellowing Roar (Nightbane)
+}
+local SAP_DEBUFF_IDS = {
+    [6770] = true, [2070] = true, [11297] = true,  -- Sap
+}
+local INCAP_DEBUFF_IDS = {
+    [1776] = true, [1777] = true, [8629] = true,   -- Gouge
+    [20066] = true,                                 -- Repentance
+    [3355] = true,                                  -- Freezing Trap
+}
+
+local function is_feared_sapped_or_incapacitated(unit)
+    if not unit then return false end
+    for id in pairs(FEAR_DEBUFF_IDS) do
+        if NS.debuff_up and NS.debuff_up(unit, id) then return true, "fear" end
+    end
+    for id in pairs(SAP_DEBUFF_IDS) do
+        if NS.debuff_up and NS.debuff_up(unit, id) then return true, "sap" end
+    end
+    for id in pairs(INCAP_DEBUFF_IDS) do
+        if NS.debuff_up and NS.debuff_up(unit, id) then return true, "incapacitate" end
+    end
+    return false
+end
+
 -- Healthstone and health potion item IDs (TBC, best to worst)
 local HEALTHSTONE_IDS = { 22116, 22105, 22104, 22103, 22102, 22101 }
 local HEALTH_POTION_IDS = { 22829, 28102, 13446, 13442, 3928, 1710 }
@@ -115,6 +145,7 @@ local fury_state = {
     has_battle_shout = false,
     has_commanding_shout = false,
     has_berserker_rage = false,
+    berserker_rage_ready = false,
     has_sweeping_strikes = false,
     has_rampage = false,
     rampage_stacks = 0,
@@ -311,6 +342,7 @@ local function build_state(context)
     fury_state.sunder_ready = NS.spell_ready(ACTION.SunderArmor, target) or false
     fury_state.rend_ready = NS.spell_ready(ACTION.Rend, target) or false
     fury_state.demo_ready = NS.spell_ready(ACTION.DemoralizingShout, me, { skip_range = true }) or false
+    fury_state.berserker_rage_ready = NS.spell_ready(ACTION.BerserkerRage, me, { skip_range = true }) or false
     -- thunder_ready removed: not used by Fury (tank/Arms debuff)
 
     fury_state.execute_phase = execute_phase(context, fury_state)
@@ -628,8 +660,16 @@ end
 -- Berserker Rage: fear break / enrage
 local function berserker_rage_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BerserkerRage, 3.0) then return false end
-    if not state.in_combat then return false end
     if state.has_berserker_rage then return false end
+    if not state.berserker_rage_ready then return false end
+    -- Fear break: cast immediately if feared/sapped/incapacitated
+    local me = context.me or NS.GetPlayer()
+    local is_cc = is_feared_sapped_or_incapacitated(me)
+    if is_cc then
+        return action(context, build_action("BerserkerRage", ACTION.BerserkerRage, { target = "self", requires_target = false, cooldown = 30 }))
+    end
+    -- Normal: only in combat
+    if not state.in_combat then return false end
     return action(context, build_action("BerserkerRage", ACTION.BerserkerRage, { target = "self", requires_target = false, cooldown = 30 }))
 end
 
