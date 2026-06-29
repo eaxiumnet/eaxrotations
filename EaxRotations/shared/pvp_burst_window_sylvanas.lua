@@ -1,8 +1,10 @@
--- pvp_burst_window_sylvanas.lua -- PvP burst-window scoring component (used by burst_logic)
--- WHAT:  score current target's burst-vulnerability for PvP offensive cooldown use
--- WHEN:  PvP arenas + rated BGs
--- WHY:   centralizes tactical scoring so specs read a single signal
--- SAFETY: is_in_combat + is_pvp gate; nil-guards on enemy auras
+-- pvp_burst_window_sylvanas.lua -- PvP burst-window scoring (damage spike / DR low window detection).
+-- WHAT:   PvP burst-window scoring (damage spike / DR low window detection).
+-- WHEN:   called per-tick when fighting opponent players
+-- WHY:    lets specs time damage cooldowns to enemy DR/debuff gaps
+-- SAFETY: windowed heuristic; nil-guarded DR counter
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- Shared Helper: PvP Burst Window Scoring
 -- ============================================================================

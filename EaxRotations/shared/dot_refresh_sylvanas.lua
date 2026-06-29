@@ -1,3 +1,10 @@
+-- dot_refresh_sylvanas.lua -- APL-formula-driven DoT refresh gating helper.
+-- WHAT:   APL-formula-driven DoT refresh gating helper.
+-- WHEN:   called per-frame in shadow/affliction/balance specs
+-- WHY:    centralises pandemic refresh math into one shared helper
+-- SAFETY: uses NS.tbc_time; nil-guarded
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: DoT Refresh Logic (APL Formula)
 -- ============================================================================

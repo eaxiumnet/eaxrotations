@@ -1,8 +1,10 @@
--- hunter_adaptive_sylvanas.lua -- Hunter adaptive DPS engine (wowsims-port ChooseAction)
--- WHAT:  compute steady/arcane/multi choice from current AP/rap/crit/state
--- WHEN:  hunter BM/MM/SV combat
--- WHY:   wowsims-derived decision tree beats hardcoded priority lists
--- SAFETY: recompute is throttled (>=2s); zero allocations in on_update
+-- hunter_adaptive_sylvanas.lua -- Hunter Adaptive DPS Rotation (wowsims port).
+-- WHAT:   Hunter Adaptive DPS Rotation (wowsims port).
+-- WHEN:   called per-frame by Marks/BM/Survival when use_adaptive_rotation=true
+-- WHY:    replaces threshold-based shot selection with DPS-math-optimal choices
+-- SAFETY: lazy recompute on aura/equip delta; no on_update allocs
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- Hunter Adaptive DPS Rotation (ported from Flux AIO)
 -- Direct port of the wowsims TBC adaptive rotation:

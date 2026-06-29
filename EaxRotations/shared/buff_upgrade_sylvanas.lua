@@ -1,8 +1,10 @@
--- buff_upgrade_sylvanas.lua -- detect buff-rank mismatches; auto-replace with higher rank
--- WHAT:  detect downranked buffs on self + party and queue the uprank
--- WHEN:  party buff maintenance; class-specific scroll/shout synergy
--- WHY:   prevents party DPS loss from forgotten rank refresh
--- SAFETY: is_spell_learned() check before cast; combat-mode gating
+-- buff_upgrade_sylvanas.lua -- Detects lower-rank party buffs and triggers buff-up.
+-- WHAT:   Detects lower-rank party buffs and triggers buff-up.
+-- WHEN:   called every frame in build_state for any party spec
+-- WHY:    auto-upgrades Scroll of Strength IV → Greater Buffs without user action
+-- SAFETY: PCalled on every party member; nil-guarded aura api
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- What: Detects buff rank mismatches and triggers upgrades for self + party.
 -- When: Called from OOC manager after self-buffs, before food/flask.

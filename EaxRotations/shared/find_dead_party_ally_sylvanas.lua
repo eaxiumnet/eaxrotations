@@ -1,8 +1,10 @@
--- find_dead_party_ally_sylvanas.lua -- low-level helper: first dead party member with resurrection capability
--- WHAT:  first death in party that a resurrect spell can target
--- WHEN:  combat end + post-combat cleanup
--- WHY:   shared helper for combat-rez strategies across healing specs
--- SAFETY: is_dead() + get_class_id() nil-guarded; bounded scan
+-- find_dead_party_ally_sylvanas.lua -- Locate dead party ally for combat-res / ress macro.
+-- WHAT:   Locate dead party ally for combat-res / ress macro.
+-- WHEN:   called per-frame when no enemy target; only in group context
+-- WHY:    centralises dead-ally lookup shared by priest/paladin/shamy
+-- SAFETY: PCalled on GetPartyFrames; nil-guarded party list
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- ============================================================================
 -- Shared Helper: Find Dead Party Ally

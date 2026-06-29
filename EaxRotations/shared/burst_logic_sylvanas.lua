@@ -1,8 +1,10 @@
--- burst_logic_sylvanas.lua -- burst-window scoring for cooldown stacking decisions
--- WHAT:  score burst-window readiness across cooldowns/trinkets/procs
--- WHEN:  PvP kill windows + PvE burn phases
--- WHY:   centralizes burst-scoring logic so spec files consume a single signal
--- SAFETY: all function args nil-guarded; recompute is throttled (>=2s)
+-- burst_logic_sylvanas.lua -- should_auto_burst + offensive_autocast_match scoring helpers.
+-- WHAT:   should_auto_burst + offensive_autocast_match scoring helpers.
+-- WHEN:   called per-tick by melee/ranged specs when burstwindow is open
+-- WHY:    centralises burst-window scoring into one dispatcher
+-- SAFETY: pure scoring function; nil-guarded enemy list; no on_update allocs
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- ============================================================================
 -- Shared Helper: Burst Logic (should_auto_burst + offensive_autocast_matches)

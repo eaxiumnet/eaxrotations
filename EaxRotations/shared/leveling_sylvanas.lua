@@ -1,8 +1,10 @@
--- leveling_sylvanas.lua -- shared leveling support module (state-build, gear routing)
--- WHAT:  engine-side glue: spec discovery, gear routing, init wiring
--- WHEN:  called at startup by leveling runs
--- WHY:   centralizes sub-70 routing logic shared across 11 leveling specs
--- SAFETY: init gating; combat-mode respect
+-- leveling_sylvanas.lua -- shared Leveling Module: helpers used by all 9 leveling rotations.
+-- WHAT:   shared Leveling Module: helpers used by all 9 leveling rotations.
+-- WHEN:   called per-frame by every leveling_sylvanas.lua spec Variant
+-- WHY:    eliminates 9 duplicate scaffolding blocks across class leveling files
+-- SAFETY: all helpers nil-guarded; no on_update side-effects
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 
 -- Shared Leveling Module.
 -- Provides common helpers for per-class leveling rotations:
