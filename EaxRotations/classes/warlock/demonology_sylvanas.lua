@@ -30,13 +30,20 @@ local HEALTHSTONE_IDS = { 22105, 22104, 22103, 22102, 22101, 22100 }
 
 local DOT_REFRESH_WINDOW = 1.5
 
+local IMP_FIREBOLT_IDS = { 3110, 7799, 7800, 7801, 7802, 11762, 11763, 27267 }
+
+local ImpFirebolt = NS.spell_action and NS.spell_action(IMP_FIREBOLT_IDS, "ImpFirebolt") or nil
+
 -- ============================================================================
 -- State builder
 -- ============================================================================
 local demo_state = {
     has_fel_armor = false,
     has_pet = false,
+    pet_alive = false,
     pet_hp_pct = 100,
+    pet_type_imp = false,
+    pet_casting_firebolt = false,
     hp_pct = 100,
     mana_pct = 100,
     enemy_count = 1,
@@ -74,14 +81,39 @@ local function build_state(context)
 
     demo_state.has_fel_armor = me and NS.buff_up and NS.buff_up(me, FEL_ARMOR_BUFF) or false
     demo_state.has_pet = false
+    demo_state.pet_alive = false
     demo_state.pet_hp_pct = 100
+    demo_state.pet_type_imp = false
+    demo_state.pet_casting_firebolt = false
     if me then
         local ok, has_pet = pcall(function() return me:has_pet() end)
         demo_state.has_pet = ok and has_pet or false
         if demo_state.has_pet then
             local ok_pet, pet = pcall(function() return me:get_pet() end)
             if ok_pet and pet and pet:is_valid() then
-                demo_state.pet_hp_pct = pet.get_health_percentage and pet:get_health_percentage() or 100
+                local ok_alive, alive = pcall(function() return pet:is_alive() end)
+                demo_state.pet_alive = ok_alive and alive or false
+                if demo_state.pet_alive then
+                    demo_state.pet_hp_pct = pet.get_health_percentage and pet:get_health_percentage() or 100
+                    local ok_sp, pet_spells = pcall(function()
+                        return core.spell_book and core.spell_book.get_pet_spells and core.spell_book.get_pet_spells() or {}
+                    end)
+                    if ok_sp and type(pet_spells) == "table" then
+                        for _, fire_id in ipairs(IMP_FIREBOLT_IDS) do
+                            for _, known in ipairs(pet_spells) do
+                                if known == fire_id then
+                                    demo_state.pet_type_imp = true
+                                    break
+                                end
+                            end
+                            if demo_state.pet_type_imp then break end
+                        end
+                    end
+                    if demo_state.pet_type_imp then
+                        local ok_cast, casting = pcall(function() return pet:is_casting_spell() end)
+                        demo_state.pet_casting_firebolt = ok_cast and casting or false
+                    end
+                end
             end
         end
     end
@@ -202,6 +234,27 @@ end
 
 local function health_funnel_matches(context)
     return pet_needs_healing(context)
+end
+
+local function imp_firebolt_pacing_matches(context, s)
+    if not s then return false end
+    if not context.in_combat then return false end
+    if not s.pet_alive then return false end
+    if not s.pet_type_imp then return false end
+    if s.pet_casting_firebolt then return false end
+    if not context.target then return false end
+    if context.target.is_dead and context.target:is_dead() then return false end
+    return true
+end
+
+local function imp_firebolt_pacing_execute(context)
+    local target = context.target
+    if not target then return false end
+    local cast = core.input and core.input.pet_cast_target_spell
+    if not cast then return false end
+    local ok, result = pcall(cast, 3110, target)
+    if ok then return result == true or result == nil end
+    return false
 end
 
 -- ============================================================================
@@ -442,6 +495,7 @@ local strategies = {
     { name = "SummonImp", matches = function(context) return needs_imp_fallback(context) end, execute = function(context) return NS.try_cast(SPELLS.SummonImp, context.me, "[DEMONOLOGY] Summon Imp", { skip_range = true }) end },
     { name = "FelDomination", matches = fel_domination_matches, execute = function(context) return NS.try_cast(SPELLS.FelDomination, context.me, "[DEMONOLOGY] Fel Domination", { skip_range = true, expected_cooldown = 900 }) end },
     { name = "HealthFunnel", matches = health_funnel_matches, execute = function(context) return NS.try_cast(SPELLS.HealthFunnel, context.pet or context.me, "[DEMONOLOGY] Health Funnel") end },
+    { name = "imp_firebolt_pacing", matches = imp_firebolt_pacing_matches, execute = imp_firebolt_pacing_execute },
     { name = "CurseOfDoom", matches = curse_of_doom_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfDoom, context.target, "[DEMONOLOGY] Curse of Doom", { expected_cooldown = 60 }) end },
     { name = "CurseOfElements", matches = curse_of_elements_matches, execute = function(context) return NS.try_cast(SPELLS.CurseElements, context.target, "[DEMONOLOGY] Curse of Elements") end },
     { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfAgony, context.target, "[DEMONOLOGY] Curse of Agony") end },

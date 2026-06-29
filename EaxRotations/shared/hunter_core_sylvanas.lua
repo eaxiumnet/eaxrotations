@@ -334,7 +334,7 @@ function M.calculate_shot_window(buffer_ms)
     local remain_ms = M.ms_until_auto()
     local weapon_speed_ms = M.get_weapon_speed() * 1000
     local steady_cast_ms = 1500  -- Steady Shot cast time (TBC base)
-    local gcd_ms = 1500          -- TBC GCD is 1.5s base
+    local gcd_ms = (NS.get_global_cooldown and NS.get_global_cooldown() or 1.5) * 1000
 
     if remain_ms == 0 then
         -- No auto-shot pending, full window available

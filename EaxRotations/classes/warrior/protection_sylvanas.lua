@@ -35,17 +35,14 @@ local TEST_ASSERTIONS = {
     { name = "ThunderClap", cooldown = THUNDERCLAP_CD },
 }
 
-local SUNDER_DEBUFF = { 25225, 11597, 11596, 8380, 7405, 7386 }
-local DEMO_SHOUT_DEBUFF = { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }
-local THUNDER_CLAP_DEBUFF = { 25264, 11581, 11580, 8205, 8204, 8198, 6343 }
-local BATTLE_SHOUT_BUFF = { 2048, 25289, 11551, 11550, 11549, 6192, 5242, 6673 }
-local COMMANDING_SHOUT_BUFF = { 469 }
+local SUNDER_DEBUFF = CONSTANTS.SUNDER_DEBUFF or { 25225, 11597, 11596, 8380, 7405, 7386 }
+local DEMO_SHOUT_DEBUFF = CONSTANTS.DEMO_SHOUT_DEBUFF or { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }
+local THUNDER_CLAP_DEBUFF = CONSTANTS.THUNDER_CLAP_DEBUFF or { 25264, 11581, 11580, 8205, 8204, 8198, 6343 }
+local BATTLE_SHOUT_BUFF = CONSTANTS.BATTLE_SHOUT_IDS or { 2048, 25289, 11551, 11550, 11549, 6192, 5242, 6673 }
+local COMMANDING_SHOUT_BUFF = CONSTANTS.COMMANDING_SHOUT_BUFF or { 469 }
 local STAND_BUFF = { 12975 }
 local SHIELD_WALL_BUFF = { 871 }
-local SNARE_IDS = { 25212, 1715 }
 local REND_DEBUFF = { 25208, 11574, 11573, 6548, 6547, 772 }
-local INTIMIDATING_SHOUT_DEBUFF = { 5246 }
-local CC_DEBUFFS = { 118, 12824, 12825, 12826, 6770, 2070, 5782, 6213, 6215, 20066, 2637, 9484, 9485, 10955 }
 
 -- Crowd-control debuff IDs for fear-break detection (Berserker Rage)
 local FEAR_DEBUFF_IDS = {
@@ -78,7 +75,7 @@ local function is_feared_sapped_or_incapacitated(unit)
 end
 
 -- Disarm target classes: melee classes that lose weapon-based damage when disarmed
-local DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true }  -- Warrior, Paladin, Rogue, Shaman
+local DISARM_CLASS_IDS = CONSTANTS.DISARM_CLASS_IDS or { [1] = true, [2] = true, [4] = true, [7] = true }
 
 local setting = NS.setting or function(context, key, fallback)
     local settings = context and context.settings

@@ -185,6 +185,7 @@ local function shackle_matches(context, state)
     if not state then return false end
     if not state.target then return false end
     if not state.shackle_ready then return false end
+    if state.target and NS.debuff_up and NS.debuff_up(state.target, {9484, 9485, 10955}) then return false end
     return is_undead_type(target_creature_type(context, state))
 end
 

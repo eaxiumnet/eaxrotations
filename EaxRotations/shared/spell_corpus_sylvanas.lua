@@ -21,7 +21,7 @@ NS.SpellCorpus = M
 ---@class SpellDetailEntry
 ---Positional fields from bridge.spell_detail:
 ---  1=cost_type, 2=cost_amount, 3=range, 4=cast_time, 5=duration,
----  6=periodic_amount, 7=periodic_school, 8=periodic_interval, 9=flags, 10=school
+---  6=periodic_amount, 7=periodic_school, 8=periodic_interval, 9=flags, 10=school, 11=gcd
 
 local _bridge = nil
 local function get_bridge()
@@ -42,7 +42,7 @@ local _spell_cache = {}
 -- ============================================================================
 -- Index loading (from bridge module — lightweight, load once)
 -- ============================================================================
-local _spell_index = {}  -- spell_id -> {name, class, school, is_heal, aoe, cast_time, level}
+local _spell_index = {}
 local _index_loaded = false
 
 local function load_index()
@@ -52,9 +52,8 @@ local function load_index()
     local bridge = get_bridge()
     if not bridge then return end
 
-    -- Convert bridge's positional format to named fields
-    -- Bridge: [spell_id] = {name, class, level, school, is_heal, aoe, cast_time, rank}
-    -- Pos:      1=name, 2=class, 3=level, 4=school, 5=is_heal, 6=aoe, 7=cast_time, 8=rank
+    -- Bridge: [spell_id] = {name, class, level, school, is_heal, aoe, cast_time, rank, gcd, cooldown_seconds}
+    -- Pos:      1=name, 2=class, 3=level, 4=school, 5=is_heal, 6=aoe, 7=cast_time, 8=rank, 9=gcd, 10=cooldown_seconds
     local raw = bridge.spell_index_tbc
     if not raw then return end
     for id, entry in pairs(raw) do
@@ -66,6 +65,8 @@ local function load_index()
             aoe = entry[6],
             cast_time = entry[7],
             level = entry[3],
+            gcd = entry[9],
+            cooldown_seconds = entry[10],
         }
     end
 end
@@ -97,7 +98,7 @@ function M.get_spell_info(spell_id)
 
     -- Bridge detail format: positional array
     -- 1=cost_type, 2=cost_amount, 3=range, 4=cast_time, 5=duration,
-    -- 6=periodic_amount, 7=periodic_school, 8=periodic_interval, 9=flags, 10=school
+    -- 6=periodic_amount, 7=periodic_school, 8=periodic_interval, 9=flags, 10=school, 11=gcd
     local index_entry = M.get_spell_index(spell_id)
     local data = {
         id = spell_id,
@@ -118,6 +119,7 @@ function M.get_spell_info(spell_id)
         has_buff = nil,
         buff_duration = nil,
         buff_text = nil,
+        gcd = detail[11] or (index_entry and index_entry.gcd),
     }
 
     _spell_cache[spell_id] = data
@@ -178,6 +180,28 @@ function M.get_spell_cost(spell_id)
     local info = M.get_spell_info(spell_id)
     if not info then return nil, nil end
     return info.cost_amount, info.cost_type
+end
+
+--- Get spell GCD in seconds.
+--- @param spell_id number Spell ID
+--- @return number|nil gcd_seconds (typically 1.5, 1.0, or 0.5)
+function M.get_gcd(spell_id)
+    if not spell_id then return nil end
+    load_index()
+    local info = _spell_index[spell_id]
+    if not info then return nil end
+    return info.gcd
+end
+
+--- Get spell cooldown in seconds.
+--- @param spell_id number Spell ID
+--- @return number|nil cooldown_seconds (nil = no cooldown)
+function M.get_cooldown(spell_id)
+    if not spell_id then return nil end
+    load_index()
+    local info = _spell_index[spell_id]
+    if not info then return nil end
+    return info.cooldown_seconds
 end
 
 --- Search spells for a class by filter criteria.

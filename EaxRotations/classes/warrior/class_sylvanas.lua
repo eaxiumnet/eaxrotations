@@ -454,6 +454,7 @@ NS.WarriorConstants = {
     DEMO_SHOUT_DEBUFF = { 25203, 25202, 11556, 11555, 11554, 6190, 1160 },
     BATTLE_SHOUT_IDS = { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 },
     COMMANDING_SHOUT_BUFF = { 469 },
+    DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true },
 }
 
 local config = {

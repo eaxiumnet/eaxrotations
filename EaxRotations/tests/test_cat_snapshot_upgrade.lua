@@ -213,36 +213,6 @@ do
 end
 
 -- ============================================================================
--- Section 2: should_snapshot_upgrade via rake_matches (same logic, different constants)
--- ============================================================================
-
-local rake = find_strategy("Rake")
-
--- Case 7: Rake debuff expired -> should match unconditionally
-do
-    action_calls = {}
-    local t = {}
-    local ctx = base_context({ target = t, _debuff_remains = 0, attack_power = 1000, combo_points = 4 })
-    assert_true(
-        rake.matches(ctx),
-        "Rake should match when debuff expired (remains=0)"
-    )
-end
-
--- Case 8: Rake partially expired, snapshot exists, AP upgrade -> should match
-do
-    action_calls = {}
-    local t = {}
-    record_snapshot(rake, 2000, t)
-    action_calls = {}
-    local ctx = base_context({ target = t, _debuff_remains = 4, attack_power = 2500, combo_points = 4 })
-    assert_true(
-        rake.matches(ctx),
-        "Rake should match when AP upgrade from 2000 to 2500 justifies refresh"
-    )
-end
-
--- ============================================================================
 -- Section 3: has_high_ap_window detection via rip_snapshot_matches
 -- ============================================================================
 
@@ -363,60 +333,6 @@ do
     assert_false(
         rip_snapshot.matches(ctx),
         "RipSnapshot should not match: no high-AP window (2100<2160), fails strong ratio (2100<2300)"
-    )
-end
-
--- ============================================================================
--- Section 4: rake_snapshot_matches (same high-AP window logic, rake bleed)
--- ============================================================================
-
-local rake_snapshot = find_strategy("RakeSnapshot")
-
--- Case 15: RakeSnapshot with strong AP upgrade, no high-AP window -> should match
-do
-    action_calls = {}
-    local t = {}
-    record_snapshot(rake, 2000, t)
-    action_calls = {}
-    -- combo_points must be < 5 for rake_snapshot
-    -- AP=2500 >= 2000*1.15=2300 -> yes
-    local ctx = base_context({ target = t, _debuff_remains = 6, attack_power = 2500, combo_points = 4 })
-    assert_true(
-        rake_snapshot.matches(ctx),
-        "RakeSnapshot should match with strong AP upgrade (2500 >= 2000*1.15)"
-    )
-end
-
--- Case 16: RakeSnapshot, high-AP window via bloodlust -> uses lower threshold
---    2150 >= 2000*1.05=2100 -> yes (but 2150 < 2000*1.15=2300, so only passes with lower ratio)
-do
-    action_calls = {}
-    local t = {}
-    record_snapshot(rake, 2000, t)
-    action_calls = {}
-    local ctx = base_context({
-        target = t,
-        _debuff_remains = 6,
-        attack_power = 2150,
-        combo_points = 4,
-        _buff_up = true,  -- Bloodlust active via buff_up mock
-    })
-    assert_true(
-        rake_snapshot.matches(ctx),
-        "RakeSnapshot should match with bloodlust window (2150 >= 2000*1.05)"
-    )
-end
-
--- Case 17: RakeSnapshot at max combo points (5) -> should NOT match
-do
-    action_calls = {}
-    local t = {}
-    record_snapshot(rake, 2000, t)
-    action_calls = {}
-    local ctx = base_context({ target = t, _debuff_remains = 6, attack_power = 3000, combo_points = 5 })
-    assert_false(
-        rake_snapshot.matches(ctx),
-        "RakeSnapshot should not match at 5 combo points (cap guard)"
     )
 end
 

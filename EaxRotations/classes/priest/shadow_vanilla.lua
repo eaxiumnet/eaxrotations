@@ -114,6 +114,17 @@ local shadow_state = {
     dp_remaining = 0,
     mb_ready = false,
     has_shadowform = false,
+    shadowform_known = false,
+    swp_known = false,
+    vampiric_embrace_known = false,
+    devouring_plague_known = false,
+    mind_flay_known = false,
+    inner_fire_known = false,
+    flash_heal_known = false,
+    berserking_known = false,
+    blood_fury_known = false,
+    arcane_torrent_known = false,
+    starshards_known = false,
     has_inner_focus = false,
     has_inner_fire = false,
     combat_mode = "auto",          -- "auto" | "st" | "cleave" | "aoe"
@@ -180,6 +191,17 @@ local function build_state(context)
         shadow_state.swp_remaining
     )
     shadow_state.has_shadowform = me and NS.buff_up(me, SHADOWFORM_BUFF) or false
+    shadow_state.shadowform_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Shadowform) or false
+    shadow_state.swp_known = me and NS.spell_exists and NS.spell_exists(SPELLS.ShadowWordPain) or false
+    shadow_state.vampiric_embrace_known = me and NS.spell_exists and NS.spell_exists(SPELLS.VampiricEmbrace) or false
+    shadow_state.devouring_plague_known = me and NS.spell_exists and NS.spell_exists(SPELLS.DevouringPlague) or false
+    shadow_state.mind_flay_known = me and NS.spell_exists and NS.spell_exists(SPELLS.MindFlay) or false
+    shadow_state.inner_fire_known = me and NS.spell_exists and NS.spell_exists(SPELLS.InnerFire) or false
+    shadow_state.flash_heal_known = me and NS.spell_exists and NS.spell_exists(SPELLS.FlashHeal) or false
+    shadow_state.berserking_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Berserking) or false
+    shadow_state.blood_fury_known = me and NS.spell_exists and NS.spell_exists(SPELLS.BloodFury) or false
+    shadow_state.arcane_torrent_known = me and NS.spell_exists and NS.spell_exists(SPELLS.ArcaneTorrent) or false
+    shadow_state.starshards_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Starshards) or false
     shadow_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
     shadow_state.has_inner_fire = me and NS.buff_up(me, INNER_FIRE_BUFF) or false
     -- Combat mode: explicit setting or auto-detect
@@ -280,10 +302,12 @@ end
 local function shadowform_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Shadowform, 3.0) then return false end
     if s.has_shadowform then return false end
+    if not s.shadowform_known then return false end
     return true
 end
 
 local function shadow_swp_spread_matches(context, s)
+    if not s.swp_known then return false end
     if not can_break_mind_flay(s) then return false end
     -- Combat mode gate: only spread in cleave or aoe mode
     if s.combat_mode ~= "cleave" and s.combat_mode ~= "aoe" then return false end
@@ -299,6 +323,7 @@ local function shadow_swp_spread_matches(context, s)
 end
 
 local function inner_fire_matches(context, s)
+    if not s.inner_fire_known then return false end
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.InnerFire, 3.0) then return false end
     if s.has_inner_fire then return false end
     local settings = context.settings or {}
@@ -316,6 +341,7 @@ local function power_word_shield_matches(context, s)
 end
 
 local function flash_heal_matches(context, s)
+    if not s.flash_heal_known then return false end
     -- HP-gated self-heal
     if (context.hp or 100) > (s.flash_heal_hp or 25) then return false end
     if context.is_moving then return false end
@@ -332,6 +358,7 @@ local function holy_nova_aoe_matches(context, s)
 end
 
 local function racial_matches(context, s)
+    if not s.berserking_known and not s.blood_fury_known and not s.arcane_torrent_known then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
     if not context.in_combat then return false end
@@ -341,6 +368,7 @@ local function racial_matches(context, s)
 end
 
 local function shadow_word_pain_matches(context, s)
+    if not s.swp_known then return false end
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShadowWordPain, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
@@ -357,12 +385,14 @@ local function shadow_word_pain_matches(context, s)
 end
 
 local function vampiric_embrace_matches(context, s)
+    if not s.vampiric_embrace_known then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target or s.ve_remaining > 10 then return false end
     return true
 end
 
 local function devouring_plague_matches(context, s)
+    if not s.devouring_plague_known then return false end
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DevouringPlague, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target or s.dp_remaining > (s.dp_refresh_window or 3) then return false end
@@ -396,6 +426,7 @@ local function mind_blast_matches(context, s)
 end
 
 local function mind_flay_matches(context, s)
+    if not s.mind_flay_known then return false end
     if context.is_moving or context.is_casting or context.is_channeling then return false end
     if not context.has_valid_enemy_target then return false end
     -- Mana emergency: drop all spells (wand only)
@@ -437,10 +468,12 @@ local function shackle_undead_matches(context, s)
     if not context.has_valid_enemy_target then return false end
     if s.target_creature_type ~= 6 then return false end
     if not s.shackle_undead_ready then return false end
+    if context.target and NS.debuff_up and NS.debuff_up(context.target, {9484, 9485, 10955}) then return false end
     return true
 end
 
 local function starshards_matches(context, s)
+    if not s.starshards_known then return false end
     if not context.has_valid_enemy_target then return false end
     if context.is_moving then return false end
     return true

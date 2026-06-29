@@ -651,7 +651,7 @@ local strategies = {
     },
 
     -- Auto-consumable usage
-    { name = "AutoConsumable", matches = function(context) return context.in_combat end, execute = function(context) return consumable_manager.on_update(context) end },
+    { name = "AutoConsumable", matches = function(context) return consumable_manager.should_check(context) end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("druid", strategies)
