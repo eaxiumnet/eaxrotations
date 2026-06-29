@@ -1,3 +1,9 @@
+-- stealth_helper_sylvanas.lua -- shared stealth-detector for opener/CC states
+-- WHAT:  centralized stealth detection across rogue + druid-cat specs
+-- WHEN:  any spec that relies on stealth openers (Rogue, Feral)
+-- WHY:   single source of truth so openers stay consistent
+-- SAFETY: has_buff + buff_remains nil-guarded
+
 -- stealth_helper_sylvanas.lua -- shared stealth/opener plumbing for Rogue and Feral Druid.
 -- WHAT:   shared stealth/opener plumbing for Rogue and Feral Druid
 -- WHEN:   called per-frame in cat/subtlety/assassination specs

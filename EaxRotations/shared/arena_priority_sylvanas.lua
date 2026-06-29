@@ -1,3 +1,9 @@
+-- arena_priority_sylvanas.lua -- ranks arena enemies/players for switch-decision scoring
+-- WHAT:  rank arena targets by burst/CC priority for switch decisions
+-- WHEN:  pvp arenas + rated battlegrounds
+-- WHY:   consistent target switching prevents wasted globals
+-- SAFETY: unit-field nil-guards; gated on combat mode + arena flag
+
 -- arena_priority_sylvanas.lua -- selects highest-value CC/damage target in 2v2/3v3/5v5 arena.
 -- WHAT:   selects highest-value CC/damage target in 2v2/3v3/5v5 arena
 -- WHEN:   called by PvP specs on every on_update when is_pvp

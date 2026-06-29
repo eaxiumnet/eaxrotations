@@ -1,3 +1,10 @@
+-- hot_tick_tracker_sylvanas.lua -- predict HoT tick times for snapshot-aware refresh gating
+-- WHAT:  predict next HoT tick per aura; expose tick-time delta
+-- WHEN:  any healer combat
+-- WHY:   prevents refreshing HoTs mid-tick (which wipes incoming tick)
+-- SAFETY: bounded aura list; throttled recompute
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: HOT Tick Tracker
 -- ============================================================================

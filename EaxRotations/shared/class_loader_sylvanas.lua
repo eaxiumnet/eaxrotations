@@ -1,3 +1,9 @@
+-- class_loader_sylvanas.lua -- DRY class-loader for all classes/<class>/class_sylvanas.lua modules
+-- WHAT:  resolve a class_id -> spec table without per-class scaffolding
+-- WHEN:  called once at engine startup
+-- WHY:   removes boilerplate, single point of failure for spec resolution
+-- SAFETY: invalid class_id returns nil; spec missing logs a single warning
+
 -- class_loader_sylvanas.lua -- factory that returns load_child/load_spec closures for class modules.
 -- WHAT:   factory that returns load_child/load_spec closures for class modules
 -- WHEN:   called once at Sylvanas plugin bootstrap

@@ -1,3 +1,9 @@
+-- hunter_core_sylvanas.lua -- Hunter core shot-timing engine (auto-shot + Steady + clip math)
+-- WHAT:  auto-shot + Steady Shot timing, weapon speed, cast-time + clip gating
+-- WHEN:  hunter any combat state when ranged attacks are usable
+-- WHY:   centralizes all ranged-shot math so specs only consume the signal
+-- SAFETY: auto-shot cast in flight never doubled; latency offset exposed
+
 -- ============================================================================
 -- Shared Hunter Core: auto-shot timer, shot weaving, sting/aspect/pet helpers
 -- ============================================================================

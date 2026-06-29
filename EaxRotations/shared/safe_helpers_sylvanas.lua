@@ -1,3 +1,9 @@
+-- safe_helpers_sylvanas.lua -- safe wrappers around common API calls (never crash on nil/empty)
+-- WHAT:  small safe_* wrappers (range, hp, buff_exists, debuff_exists)
+-- WHEN:  any call site; preferred over raw core.* in spec files
+-- WHY:   removes 50+ ad-hoc nil checks in spec files
+-- SAFETY: all wrappers nil-check inputs; return sensible defaults
+
 -- safe_helpers_sylvanas.lua -- nil-safe wrappers for has_buff/buff_remains/health_pct APIs that crash on nil units.
 -- WHAT:   nil-safe wrappers for has_buff/buff_remains/health_pct APIs that crash on nil units
 -- WHEN:   called everywhere spec code touches a game_object without nil check

@@ -1,3 +1,9 @@
+-- spell_id_table_sylvanas.lua -- centralized spell-ID lookup table (rank -> id, id -> rank)
+-- WHAT:  spell-ID resolution across ranks, with localized fallbacks
+-- WHEN:  called at module load + at runtime via izi.spell()
+-- WHY:   removes per-spec hardcoded IDs; one table to maintain
+-- SAFETY: table-driven; missing IDs return nil + out-of-band warn
+
 -- =============================================================================
 -- Expansion-aware Spell ID Table (AUTO-GENERATED)
 -- =============================================================================

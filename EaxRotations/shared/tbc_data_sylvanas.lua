@@ -1,3 +1,9 @@
+-- tbc_data_sylvanas.lua -- TBC-era verified spell/item/NPC IDs (only-things-in-2.5.5)
+-- WHAT:  expose small set of TBC-verified IDs the engine relies on
+-- WHEN:  engine-load time
+-- WHY:   single cross-check file for IDs that must NOT regress
+-- SAFETY: all ids commented with source + first-seen revision
+
 -- Verified TBC Classic IDs.
 -- Generated from wowhead_data cache (lexxer.org mirror) on 2026-06-09.
 -- Preserved entries from prior hand-written versions are kept intact.

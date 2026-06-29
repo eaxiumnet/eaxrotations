@@ -1,3 +1,9 @@
+-- spec_kit_sylvanas.lua -- boilerplate + nil-guard elimination kit (define_action, safe_state)
+-- WHAT:  macro helpers: define_action_for_class + spec_kit.safe_state proxy
+-- WHEN:  called at module load
+-- WHY:   sandbox refactor kit: makes Pattern 14 nil-guards structurally impossible
+-- SAFETY: safe_state returns 0/100 by default per AGENTS.md Pattern 14
+
 -- =============================================================================
 -- spec_kit_sylvanas.lua
 --

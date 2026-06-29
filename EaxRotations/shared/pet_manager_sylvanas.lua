@@ -1,3 +1,9 @@
+-- pet_manager_sylvanas.lua -- pet summon + happiness + spec selector
+-- WHAT:  summon, dismiss, set pet passive/aggro, set happiness points
+-- WHEN:  hunter + warlock combat
+-- WHY:   single source of truth so class specs only consume signals
+-- SAFETY: is_pet_summoned nil-guarded; pet-spec validate at register
+
 -- pet_manager_sylvanas.lua -- call/revive/mend/feed/dismiss helpers for Hunter + Warlock pets.
 -- WHAT:   call/revive/mend/feed/dismiss helpers for Hunter + Warlock pets
 -- WHEN:   called per-frame in and out of combat by pet-using specs

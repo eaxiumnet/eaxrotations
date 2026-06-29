@@ -1,3 +1,10 @@
+-- ttd_ema_tracker_sylvanas.lua -- exponentially-weighted TTD tracker (smoother than raw ttd)
+-- WHAT:  track TTD with EMA for less jittery gating
+-- WHEN:  any spec that uses TTD-gating (cat, mage execute, etc.)
+-- WHY:   smooths out the ttd jitter between rare HP changes
+-- SAFETY: bounded observation; nil-guarded on ttd input
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: Exponential Moving Average Time-To-Die (TTD) Tracker
 -- ============================================================================

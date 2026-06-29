@@ -1,3 +1,9 @@
+-- leveling_helpers_sylvanas.lua -- shared helpers for the leveling rotation suite
+-- WHAT:  small helpers (range, face, form) reused across leveling specs
+-- WHEN:  called from leveling specs
+-- WHY:   removes per-spec copy-paste of basic helpers
+-- SAFETY: no per-frame allocations; nil-guards on unit fields
+
 -- leveling_helpers_sylvanas.lua -- build_state + match helpers reused across 9 leveling rotations.
 -- WHAT:   build_state + match helpers reused across 9 leveling rotations
 -- WHEN:   called every frame by every leveling spec

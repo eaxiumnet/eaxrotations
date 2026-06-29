@@ -1,3 +1,10 @@
+-- ttd_tracker_sylvanas.lua -- raw time-to-death tracker per target
+-- WHAT:  track raw TTD per target based on HP delta over window
+-- WHEN:  any combat
+-- WHY:   fundamental primitive consumed by execute_phase + ttd_ema
+-- SAFETY: bounded history; nil-guarded
+-- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
+
 -- ============================================================================
 -- Shared Helper: Linear Regression Time-To-Die (TTD) Tracker
 -- ============================================================================

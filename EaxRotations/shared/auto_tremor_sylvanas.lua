@@ -1,3 +1,9 @@
+-- auto_tremor_sylvanas.lua -- auto-trigger Tremor Totem on group fear chains
+-- WHAT:  auto-cast Tremor Totem when >=2 party members have a fear debuff
+-- WHEN:  group PvE with fear mechanics (e.g. Magtheridon); PvP polymorph+hex chains
+-- WHY:   avoids having to micro Tremor manual during mass-fear pulls
+-- SAFETY: only fires when party-side fear debuff present, never solo-PvE questing
+
 -- ============================================================================
 -- Shared Helper: Auto Tremor Totem
 -- ============================================================================

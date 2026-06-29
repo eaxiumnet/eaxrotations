@@ -1,3 +1,9 @@
+-- targeting_sylvanas.lua -- target selector: enemy + party + aoe zone scoring
+-- WHAT:  score + select the strongest target/zone for the spec
+-- WHEN:  any combat with >1 enemy
+-- WHY:   centralizes target-priority; prevents deadlocks on tied candidates
+-- SAFETY: is_alive + is_in_party nil-guarded; bounded scan (<=50)
+
 -- ============================================================================
 -- Shared Helper: Targeting System
 -- Sticky target, raid marker priority, pull modes, enemy counting

@@ -1,3 +1,9 @@
+-- ooc_manager_sylvanas.lua -- out-of-combat behavior manager (mount/buff/idle)
+-- WHAT:  mount/buff/idle behavior when not in combat
+-- WHEN:  out of combat
+-- WHY:   single source of truth for OOC bot behavior
+-- SAFETY: is_in_combat() nil-guarded; per-spec allow-flag
+
 -- ooc_manager_sylvanas.lua -- mount/buff/vendor/regen behaviours when not in combat.
 -- WHAT:   mount/buff/vendor/regen behaviours when not in combat
 -- WHEN:   called per-tick when not in_combat and not mounted

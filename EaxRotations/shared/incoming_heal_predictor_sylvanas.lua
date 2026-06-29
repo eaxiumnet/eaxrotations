@@ -1,3 +1,9 @@
+-- incoming_heal_predictor_sylvanas.lua -- predict incoming heals on a unit (raid-wide heal amplification)
+-- WHAT:  predict incoming HoT/HOT ticks + cast-time heals arriving on unit
+-- WHEN:  any healer combat
+-- WHY:   lets triage skip pre-healed targets to avoid overheal
+-- SAFETY: bounded observation window; nil-guard on source units
+
 -- Incoming Heal Predictor (EaxRotations)
 -- What: Estimates heals currently incoming on friendly targets by combining
 --       (a) native API get_incoming_heals() when available,

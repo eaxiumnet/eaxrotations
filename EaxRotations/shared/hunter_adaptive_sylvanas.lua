@@ -1,3 +1,9 @@
+-- hunter_adaptive_sylvanas.lua -- Hunter adaptive DPS engine (wowsims-port ChooseAction)
+-- WHAT:  compute steady/arcane/multi choice from current AP/rap/crit/state
+-- WHEN:  hunter BM/MM/SV combat
+-- WHY:   wowsims-derived decision tree beats hardcoded priority lists
+-- SAFETY: recompute is throttled (>=2s); zero allocations in on_update
+
 -- Hunter Adaptive DPS Rotation (ported from Flux AIO)
 -- Direct port of the wowsims TBC adaptive rotation:
 --    https://github.com/wowsims/tbc/blob/main/sim/hunter/rotation.go (lines 139-280)

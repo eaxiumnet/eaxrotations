@@ -1,3 +1,9 @@
+-- healer_deficit_sylvanas.lua -- predictive healing-deficit tracker per heal target
+-- WHAT:  track per-party-member incoming-damage vs incoming-heal gap
+-- WHEN:  any healer combat
+-- WHY:   centralizes triage so healers spec only the deficit list
+-- SAFETY: bounded party scan (<=5); nil-guard on buff/debuff lookups
+
 -- Predictive Healing Deficit Tracker (EaxRotations)
 -- What: Estimates future health deficit by tracking per-unit HP samples and
 --       projecting damage intake over a configurable horizon.

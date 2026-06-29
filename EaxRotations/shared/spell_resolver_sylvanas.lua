@@ -1,3 +1,9 @@
+-- spell_resolver_sylvanas.lua -- resolve a spell to its highest learned rank + valid id
+-- WHAT:  given a name/id and the local player, return the active rank id
+-- WHEN:  called from spec helpers and izi.spell() consumers
+-- WHY:   lets specs request 'Spell X' and get the right id for the player's level
+-- SAFETY: is_spell_learned() gate; nil result is benign (returns nil)
+
 -- spell_resolver_sylvanas.lua -- cached spell resolution table with talent-modifier awareness.
 -- WHAT:   cached spell resolution table with talent-modifier awareness
 -- WHEN:   called per-frame in spec match functions; caches outcomes in-process
