@@ -263,9 +263,32 @@ NS.settings = NS.settings or {}
 
 NS.class_middleware = NS.class_middleware or {}
 
-NS.POWER_MANA, NS.POWER_RAGE, NS.POWER_FOCUS, NS.POWER_ENERGY = 0, 1, 2, 3
+-- Load API enums for power types and class IDs (fallback to hardcoded if unavailable)
+local _ok_enums, _enums = pcall(require, "common/enums")
+if _ok_enums and type(_enums) == "table" and _enums.power_type then
+    NS.POWER_MANA   = _enums.power_type.MANA   or 0
+    NS.POWER_RAGE   = _enums.power_type.RAGE   or 1
+    NS.POWER_FOCUS  = _enums.power_type.FOCUS  or 2
+    NS.POWER_ENERGY = _enums.power_type.ENERGY or 3
+else
+    NS.POWER_MANA, NS.POWER_RAGE, NS.POWER_FOCUS, NS.POWER_ENERGY = 0, 1, 2, 3
+end
 
-NS.CLASS_ID = NS.CLASS_ID or { WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11 }
+if _ok_enums and type(_enums) == "table" and _enums.class_id then
+    NS.CLASS_ID = {
+        WARRIOR = _enums.class_id.WARRIOR or 1,
+        PALADIN = _enums.class_id.PALADIN or 2,
+        HUNTER  = _enums.class_id.HUNTER  or 3,
+        ROGUE   = _enums.class_id.ROGUE   or 4,
+        PRIEST  = _enums.class_id.PRIEST  or 5,
+        SHAMAN  = _enums.class_id.SHAMAN  or 7,
+        MAGE    = _enums.class_id.MAGE    or 8,
+        WARLOCK = _enums.class_id.WARLOCK or 9,
+        DRUID   = _enums.class_id.DRUID   or 11,
+    }
+else
+    NS.CLASS_ID = NS.CLASS_ID or { WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11 }
+end
 
 local VANILLA_TBC_SPELL_BLOCKLIST = {
 
@@ -1822,7 +1845,7 @@ function NS.spell_ready(spell, target, opts)
     if not opts.skip_gcd and gcd <= 0 then
         local global_gcd = _last_spell_cast["_global_gcd"]
         if global_gcd then
-            local manual_gcd = 1.5 + 0.15 - (NS.time_now() - global_gcd)
+            local manual_gcd = (NS.get_global_cooldown() or 1.5) + 0.15 - (NS.time_now() - global_gcd)
             if manual_gcd > 0 then gcd = manual_gcd end
         end
     end
@@ -3383,17 +3406,18 @@ function NS.is_melee_target(target, me)
 end
 
 function NS.is_target_bursting(target)
-
     if not target then return false end
-
-    for i = 1, #PVP_BURST_BUFFS do
-
-        if NS.buff_up(target, PVP_BURST_BUFFS[i]) then return true end
-
+    -- Use API burst detection when available (replaces hardcoded PVP_BURST_BUFFS)
+    local has_burst_fn = safe_field(target, "has_burst_active")
+    if has_burst_fn then
+        local has_burst = safe(has_burst_fn, target)
+        if has_burst then return true end
     end
-
+    -- Fallback: iterate hardcoded burst buffs if API method unavailable
+    for i = 1, #PVP_BURST_BUFFS do
+        if NS.buff_up(target, PVP_BURST_BUFFS[i]) then return true end
+    end
     return false
-
 end
 
 function NS.should_kite(context)
@@ -3555,35 +3579,55 @@ function NS.filter_pvp_targets(enemies, out)
 end
 
 function NS.is_safe_to_cast(context, cast_time)
-
     if type(context) ~= "table" then return true end
-
     local target = context.target
-
     local cast_seconds = type(cast_time) == "number" and cast_time or 0
 
-    if target and NS.debuff_up(target, NS.CC_DEBUFFS) and NS.debuff_remains(target, NS.CC_DEBUFFS) > cast_seconds then
-
-        return true
-
+    -- Use API CC check when available; fallback to hardcoded NS.CC_DEBUFFS
+    if target then
+        local is_cc_fn = safe_field(target, "is_cc")
+        if is_cc_fn then
+            local is_cc = safe(is_cc_fn, target, cast_seconds * 1000)
+            if is_cc then return true end
+        elseif NS.debuff_up(target, NS.CC_DEBUFFS) and NS.debuff_remains(target, NS.CC_DEBUFFS) > cast_seconds then
+            return true
+        end
     end
 
-    for i = 1, #PLAYER_DEFENSIVE_BUFFS do
-
-        if NS.has_player_buff(PLAYER_DEFENSIVE_BUFFS[i]) then return true end
-
+    -- Use API damage immunity check when available; fallback to hardcoded PLAYER_DEFENSIVE_BUFFS
+    local me = NS.GetPlayer()
+    if me then
+        local is_immune_fn = safe_field(me, "is_damage_immune")
+        if is_immune_fn then
+            local is_immune = safe(is_immune_fn, me)
+            if is_immune then return true end
+        else
+            for i = 1, #PLAYER_DEFENSIVE_BUFFS do
+                if NS.has_player_buff(PLAYER_DEFENSIVE_BUFFS[i]) then return true end
+            end
+        end
     end
 
     return not NS.should_kite(context) and not NS.is_target_bursting(target)
-
 end
 
 -- Stub: extension point for future modules
-function NS.player_control_locked() return false end
-
--- Stub: extension point for future modules
-function NS.has_breakable_cc_nearby() return false end
-
+function NS.has_breakable_cc_nearby(context)
+    -- Use existing API when available
+    if NS.OffensiveDispelDB and NS.OffensiveDispelDB.is_any_nearby_enemy_under_cc then
+        local ok, result = pcall(NS.OffensiveDispelDB.is_any_nearby_enemy_under_cc, NS, 15)
+        if ok then return result end
+    end
+    -- Fallback: scan enemies for CC debuffs
+    local enemies = (context and context.enemies) or NS.GetEnemiesInRange(15)
+    if not enemies then return false end
+    local n = enemies.n or #enemies
+    for i = 1, n do
+        local e = enemies[i]
+        if e and NS.debuff_up(e, NS.CC_DEBUFFS) then return true end
+    end
+    return false
+end
 function NS.try_interrupt(target)
 
     if not target then return false end

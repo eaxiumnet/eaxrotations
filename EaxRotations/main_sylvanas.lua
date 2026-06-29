@@ -61,6 +61,7 @@ NS.spell_queue = spell_queue_module
 NS.health_prediction = health_prediction
 
 local _last_error_time = 0
+local _trace_strat_last = {}  -- per-list trace throttle (keyed by strategy list name)
 
 -- Hot-path NS API references cached at module load to avoid table lookups and pcall overhead per frame.
 -- Safe to cache: these are stable functions set during NS initialization (see core_sylvanas.lua).
@@ -86,6 +87,7 @@ local _has_breakable_cc_nearby = NS.has_breakable_cc_nearby
 local _get_debuff_stacks = NS.get_debuff_stacks
 local _same_unit = NS.same_unit
 local _gcd_remains = NS.gcd_remains
+local _get_global_cooldown = NS.get_global_cooldown
 local _get_setting = NS.get_setting
 
 -- Talent build detection: cached API reference (nil if unavailable at load time)
@@ -568,6 +570,7 @@ local function build_context()
     _context.player_mana_pct = _context.mana_pct
     _context.gcd_remains = _gcd_remains and _gcd_remains() or 0
     _context.on_gcd = (_context.gcd_remains or 0) > 0
+    _context.gcd_duration = _get_global_cooldown and _get_global_cooldown() or 1.5
     _context.combat_time = _combat_start_time and (_time_now() - _combat_start_time) or 0
     _context.rage = _power_current(NS.POWER_RAGE)
     _context.player_rage = _context.rage
@@ -816,9 +819,19 @@ local function build_context()
             local n = enemies.n or #enemies
             for i = 1, n do
                 local e = enemies[i]
-                if e and _unit_alive(e) and _debuff_up(e, NS.CC_DEBUFFS) then
-                    _context.cc_safe = false
-                    break
+                if e and _unit_alive(e) then
+                    -- Use API CC check when available (replaces hardcoded NS.CC_DEBUFFS)
+                    local is_cc_fn = NS.safe_field and NS.safe_field(e, "is_cc")
+                    if is_cc_fn then
+                        local ok, is_cc = pcall(is_cc_fn, e)
+                        if ok and is_cc then
+                            _context.cc_safe = false
+                            break
+                        end
+                    elseif _debuff_up(e, NS.CC_DEBUFFS) then
+                        _context.cc_safe = false
+                        break
+                    end
                 end
             end
         end
@@ -1098,8 +1111,10 @@ local function run_list(name, list, options, context)
                 if ok then
                     local executed = fast(strategy.execute, context, state) == true
                     local _now_trace = _time_now()
-                    if _now_trace - (_trace_strat_last or 0) > 2 then
-                        _trace_strat_last = _now_trace
+                    -- Per-list trace throttle: each strategy list gets its own 2s budget.
+                    local _tt_key = name or "default"
+                    if _now_trace - (_trace_strat_last[_tt_key] or 0) > 2 then
+                        _trace_strat_last[_tt_key] = _now_trace
                         NS.log("[EaxRotations:TRACE] " .. name .. ":" .. tostring(strategy.name or i) .. " matched=" .. tostring(ok) .. ", executed=" .. tostring(executed))
                     end
                     if executed then
