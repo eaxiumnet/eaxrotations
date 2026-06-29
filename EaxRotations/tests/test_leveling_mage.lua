@@ -395,21 +395,21 @@ test("polymorph_matches: OOC, ready, target HP low, no debuff -> true", function
     local state = get_state(ctx)
     state.polymorph_ready = true
     state.polymorph_hp = 40
-    assert_true(strategies[5].matches(ctx, state), "should match when target HP below threshold")
+    assert_true(strategies[6].matches(ctx, state), "should match when target HP below threshold")
 end)
 
 test("polymorph_matches: in combat -> false", function()
     local ctx = make_context({in_combat = true})
     local state = get_state(ctx)
     state.polymorph_ready = true
-    assert_false(strategies[5].matches(ctx, state), "should not match in combat")
+    assert_false(strategies[6].matches(ctx, state), "should not match in combat")
 end)
 
 test("polymorph_matches: no target -> false", function()
     local ctx = make_context({in_combat = false, target = nil})
     local state = get_state(ctx)
     state.polymorph_ready = true
-    assert_false(strategies[5].matches(ctx, state), "no target should return false")
+    assert_false(strategies[6].matches(ctx, state), "no target should return false")
 end)
 
 test("polymorph_matches: target HP too high -> false", function()
@@ -418,7 +418,7 @@ test("polymorph_matches: target HP too high -> false", function()
     state.polymorph_ready = true
     state.polymorph_hp = 10
     -- Target HP returns 80, threshold is 10, 80 >= 10 -> false
-    assert_false(strategies[5].matches(ctx, state), "target HP above threshold should not match")
+    assert_false(strategies[6].matches(ctx, state), "target HP above threshold should not match")
 end)
 
 test("polymorph_matches: debuff still active -> false", function()
@@ -436,7 +436,7 @@ test("polymorph_matches: debuff still active -> false", function()
     local state = get_state(ctx)
     state.polymorph_ready = true
     NS.debuff_remains = function(target, ids) return 15 end
-    assert_false(strategies[5].matches(ctx, state), "active polymorph should not match")
+    assert_false(strategies[6].matches(ctx, state), "active polymorph should not match")
     NS.debuff_remains = function(target, ids) return 0 end
 end)
 
@@ -458,7 +458,7 @@ test("counterspell_matches: ready, target casting -> true", function()
     }
     local state = get_state(ctx)
     state.counterspell_ready = true
-    assert_true(strategies[6].matches(ctx, state), "target casting should match")
+    assert_true(strategies[7].matches(ctx, state), "target casting should match")
 end)
 
 test("counterspell_matches: target not casting -> false", function()
@@ -466,7 +466,7 @@ test("counterspell_matches: target not casting -> false", function()
     ctx.target.is_casting = function() return false end
     local state = get_state(ctx)
     state.counterspell_ready = true
-    assert_false(strategies[6].matches(ctx, state), "target not casting should not match")
+    assert_false(strategies[7].matches(ctx, state), "target not casting should not match")
 end)
 
 test("counterspell_matches: no target -> false", function()
@@ -474,7 +474,7 @@ test("counterspell_matches: no target -> false", function()
     local state = get_state(ctx)
     state.counterspell_ready = true
     state.target = nil
-    assert_false(strategies[6].matches(ctx, state), "no target should return false")
+    assert_false(strategies[7].matches(ctx, state), "no target should return false")
 end)
 
 test("counterspell_matches: interrupt disabled -> false", function()
@@ -483,7 +483,7 @@ test("counterspell_matches: interrupt disabled -> false", function()
     local state = get_state(ctx)
     state.counterspell_ready = true
     state.use_interrupt = false
-    assert_false(strategies[6].matches(ctx, state), "interrupt disabled should not match")
+    assert_false(strategies[7].matches(ctx, state), "interrupt disabled should not match")
 end)
 
 -- ============================================================================
@@ -496,7 +496,7 @@ test("mana_shield_matches: ready, low HP, no shield -> true", function()
     state.has_mana_shield = false
     state.mana_shield_ready = true
     state.hp = 30
-    assert_true(strategies[7].matches(ctx, state), "low HP should match")
+    assert_true(strategies[8].matches(ctx, state), "low HP should match")
 end)
 
 test("mana_shield_matches: already has shield -> false", function()
@@ -505,7 +505,7 @@ test("mana_shield_matches: already has shield -> false", function()
     state.has_mana_shield = true
     state.mana_shield_ready = true
     state.hp = 30
-    assert_false(strategies[7].matches(ctx, state), "shield already active")
+    assert_false(strategies[8].matches(ctx, state), "shield already active")
 end)
 
 test("mana_shield_matches: HP above threshold -> false", function()
@@ -514,11 +514,11 @@ test("mana_shield_matches: HP above threshold -> false", function()
     state.has_mana_shield = false
     state.mana_shield_ready = true
     state.hp = 80
-    assert_false(strategies[7].matches(ctx, state), "HP above 40 threshold")
+    assert_false(strategies[8].matches(ctx, state), "HP above 40 threshold")
 end)
 
 test("mana_shield_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[7].matches, make_context({hp = 30}), nil)
+    local ok, result = pcall(strategies[8].matches, make_context({hp = 30}), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
@@ -531,7 +531,7 @@ test("ice_barrier_matches: ready, in combat, no barrier -> true", function()
     local state = get_state(ctx)
     state.has_ice_barrier = false
     state.ice_barrier_ready = true
-    assert_true(strategies[8].matches(ctx, state), "should match in combat without barrier")
+    assert_true(strategies[9].matches(ctx, state), "should match in combat without barrier")
 end)
 
 test("ice_barrier_matches: already has barrier -> false", function()
@@ -539,7 +539,7 @@ test("ice_barrier_matches: already has barrier -> false", function()
     local state = get_state(ctx)
     state.has_ice_barrier = true
     state.ice_barrier_ready = true
-    assert_false(strategies[8].matches(ctx, state), "barrier already active")
+    assert_false(strategies[9].matches(ctx, state), "barrier already active")
 end)
 
 test("ice_barrier_matches: not in combat -> false", function()
@@ -547,7 +547,7 @@ test("ice_barrier_matches: not in combat -> false", function()
     local state = get_state(ctx)
     state.has_ice_barrier = false
     state.ice_barrier_ready = true
-    assert_false(strategies[8].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[9].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
@@ -559,7 +559,7 @@ test("frost_nova_matches: ready, in combat, target in melee -> true", function()
     local state = get_state(ctx)
     state.frost_nova_ready = true
     ctx.target.get_distance = function(other) return 5 end
-    assert_true(strategies[9].matches(ctx, state), "target in melee range should match")
+    assert_true(strategies[11].matches(ctx, state), "target in melee range should match")
 end)
 
 test("frost_nova_matches: target far away -> false", function()
@@ -567,14 +567,14 @@ test("frost_nova_matches: target far away -> false", function()
     local state = get_state(ctx)
     state.frost_nova_ready = true
     ctx.target.get_distance = function(other) return 15 end
-    assert_false(strategies[9].matches(ctx, state), "target far should not match")
+    assert_false(strategies[11].matches(ctx, state), "target far should not match")
 end)
 
 test("frost_nova_matches: not in combat -> false", function()
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.frost_nova_ready = true
-    assert_false(strategies[9].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[11].matches(ctx, state), "OOC should not match")
 end)
 
 test("frost_nova_matches: no target -> false", function()
@@ -582,7 +582,7 @@ test("frost_nova_matches: no target -> false", function()
     local state = get_state(ctx)
     state.frost_nova_ready = true
     state.target = nil
-    assert_false(strategies[9].matches(ctx, state), "no target should return false")
+    assert_false(strategies[11].matches(ctx, state), "no target should return false")
 end)
 
 -- ============================================================================
@@ -595,7 +595,7 @@ test("blizzard_matches: ready, 3+ enemies, not moving -> true", function()
     state.blizzard_ready = true
     state.enemies = 3
     state.is_moving = false
-    assert_true(strategies[12].matches(ctx, state), "3 enemies stationary should match")
+    assert_true(strategies[14].matches(ctx, state), "3 enemies stationary should match")
 end)
 
 test("blizzard_matches: 1 enemy -> false", function()
@@ -603,7 +603,7 @@ test("blizzard_matches: 1 enemy -> false", function()
     local state = get_state(ctx)
     state.blizzard_ready = true
     state.enemies = 1
-    assert_false(strategies[12].matches(ctx, state), "1 enemy should not match")
+    assert_false(strategies[14].matches(ctx, state), "1 enemy should not match")
 end)
 
 test("blizzard_matches: moving -> false", function()
@@ -612,7 +612,7 @@ test("blizzard_matches: moving -> false", function()
     state.blizzard_ready = true
     state.enemies = 3
     state.is_moving = true
-    assert_false(strategies[12].matches(ctx, state), "moving should not match")
+    assert_false(strategies[14].matches(ctx, state), "moving should not match")
 end)
 
 test("blizzard_matches: not ready -> false", function()
@@ -620,11 +620,11 @@ test("blizzard_matches: not ready -> false", function()
     local state = get_state(ctx)
     state.blizzard_ready = false
     state.enemies = 3
-    assert_false(strategies[12].matches(ctx, state), "blizzard not ready")
+    assert_false(strategies[14].matches(ctx, state), "blizzard not ready")
 end)
 
 test("blizzard_matches: nil state -> does not crash", function()
-    local ok, result = pcall(strategies[12].matches, make_context({enemies_count = 3}), nil)
+    local ok, result = pcall(strategies[14].matches, make_context({enemies_count = 3}), nil)
     assert_true(ok, "nil state should not throw")
 end)
 
@@ -637,7 +637,7 @@ test("evocation_matches: ready, low mana, in combat -> true", function()
     local state = get_state(ctx)
     state.evocation_ready = true
     state.mana_pct = 20
-    assert_true(strategies[13].matches(ctx, state), "low mana in combat should match")
+    assert_true(strategies[15].matches(ctx, state), "low mana in combat should match")
 end)
 
 test("evocation_matches: mana above 25% -> false", function()
@@ -645,7 +645,7 @@ test("evocation_matches: mana above 25% -> false", function()
     local state = get_state(ctx)
     state.evocation_ready = true
     state.mana_pct = 50
-    assert_false(strategies[13].matches(ctx, state), "mana above 25% should not match")
+    assert_false(strategies[15].matches(ctx, state), "mana above 25% should not match")
 end)
 
 test("evocation_matches: not in combat -> false", function()
@@ -654,7 +654,7 @@ test("evocation_matches: not in combat -> false", function()
     state.evocation_ready = true
     state.in_combat = false
     state.mana_pct = 20
-    assert_false(strategies[13].matches(ctx, state), "OOC should not match")
+    assert_false(strategies[15].matches(ctx, state), "OOC should not match")
 end)
 
 -- ============================================================================
@@ -666,7 +666,7 @@ test("fire_blast_matches: ready, has target, enabled -> true", function()
     local state = get_state(ctx)
     state.fire_blast_ready = true
     state.use_fire_blast = true
-    assert_true(strategies[14].matches(ctx, state), "should match when ready")
+    assert_true(strategies[16].matches(ctx, state), "should match when ready")
 end)
 
 test("fire_blast_matches: disabled -> false", function()
@@ -674,7 +674,7 @@ test("fire_blast_matches: disabled -> false", function()
     local state = get_state(ctx)
     state.fire_blast_ready = true
     state.use_fire_blast = false
-    assert_false(strategies[14].matches(ctx, state), "disabled should not match")
+    assert_false(strategies[16].matches(ctx, state), "disabled should not match")
 end)
 
 test("fire_blast_matches: no target -> false", function()
@@ -683,7 +683,7 @@ test("fire_blast_matches: no target -> false", function()
     state.fire_blast_ready = true
     state.target = nil
     state.use_fire_blast = true
-    assert_false(strategies[14].matches(ctx, state), "no target should not match")
+    assert_false(strategies[16].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
@@ -697,7 +697,7 @@ test("scorch_matches: ready, enabled, not moving, enough mana -> true", function
     state.use_scorch = true
     state.is_moving = false
     state.mana_pct = 50
-    assert_true(strategies[16].matches(ctx, state), "should match when ready and stationary")
+    assert_true(strategies[18].matches(ctx, state), "should match when ready and stationary")
 end)
 
 test("scorch_matches: moving -> false", function()
@@ -706,7 +706,7 @@ test("scorch_matches: moving -> false", function()
     state.scorch_ready = true
     state.use_scorch = true
     state.is_moving = true
-    assert_false(strategies[16].matches(ctx, state), "moving should not match")
+    assert_false(strategies[18].matches(ctx, state), "moving should not match")
 end)
 
 test("scorch_matches: disabled -> false", function()
@@ -714,7 +714,7 @@ test("scorch_matches: disabled -> false", function()
     local state = get_state(ctx)
     state.scorch_ready = true
     state.use_scorch = false
-    assert_false(strategies[16].matches(ctx, state), "disabled should not match")
+    assert_false(strategies[18].matches(ctx, state), "disabled should not match")
 end)
 
 test("scorch_matches: low mana -> false", function()
@@ -724,7 +724,7 @@ test("scorch_matches: low mana -> false", function()
     state.use_scorch = true
     state.is_moving = false
     state.mana_pct = 5
-    assert_false(strategies[16].matches(ctx, state), "low mana should not match")
+    assert_false(strategies[18].matches(ctx, state), "low mana should not match")
 end)
 
 -- ============================================================================
@@ -738,7 +738,7 @@ test("arcane_missiles_matches: ready, enabled, not moving, enough mana -> true",
     state.use_arcane_missiles = true
     state.is_moving = false
     state.mana_pct = 50
-    assert_true(strategies[17].matches(ctx, state), "should match when ready and stationary")
+    assert_true(strategies[19].matches(ctx, state), "should match when ready and stationary")
 end)
 
 test("arcane_missiles_matches: moving -> false", function()
@@ -747,7 +747,7 @@ test("arcane_missiles_matches: moving -> false", function()
     state.arcane_missiles_ready = true
     state.use_arcane_missiles = true
     state.is_moving = true
-    assert_false(strategies[17].matches(ctx, state), "moving should not match")
+    assert_false(strategies[19].matches(ctx, state), "moving should not match")
 end)
 
 test("arcane_missiles_matches: low mana -> false", function()
@@ -756,7 +756,7 @@ test("arcane_missiles_matches: low mana -> false", function()
     state.arcane_missiles_ready = true
     state.use_arcane_missiles = true
     state.mana_pct = 10
-    assert_false(strategies[17].matches(ctx, state), "low mana should not match")
+    assert_false(strategies[19].matches(ctx, state), "low mana should not match")
 end)
 
 test("arcane_missiles_matches: disabled -> false", function()
@@ -765,7 +765,7 @@ test("arcane_missiles_matches: disabled -> false", function()
     state.arcane_missiles_ready = true
     state.use_arcane_missiles = false
     state.is_moving = false
-    assert_false(strategies[17].matches(ctx, state), "disabled should not match")
+    assert_false(strategies[19].matches(ctx, state), "disabled should not match")
 end)
 
 -- ============================================================================
@@ -778,7 +778,7 @@ test("frostbolt_matches: ready, not moving, enough mana -> true", function()
     state.frostbolt_ready = true
     state.is_moving = false
     state.mana_pct = 50
-    assert_true(strategies[18].matches(ctx, state), "should match when ready and stationary")
+    assert_true(strategies[21].matches(ctx, state), "should match when ready and stationary")
 end)
 
 test("frostbolt_matches: moving -> false", function()
@@ -786,7 +786,7 @@ test("frostbolt_matches: moving -> false", function()
     local state = get_state(ctx)
     state.frostbolt_ready = true
     state.is_moving = true
-    assert_false(strategies[18].matches(ctx, state), "moving should not match")
+    assert_false(strategies[21].matches(ctx, state), "moving should not match")
 end)
 
 test("frostbolt_matches: low mana -> false", function()
@@ -794,7 +794,7 @@ test("frostbolt_matches: low mana -> false", function()
     local state = get_state(ctx)
     state.frostbolt_ready = true
     state.mana_pct = 5
-    assert_false(strategies[18].matches(ctx, state), "low mana should not match")
+    assert_false(strategies[21].matches(ctx, state), "low mana should not match")
 end)
 
 test("frostbolt_matches: no target -> false", function()
@@ -802,7 +802,7 @@ test("frostbolt_matches: no target -> false", function()
     local state = get_state(ctx)
     state.frostbolt_ready = true
     state.target = nil
-    assert_false(strategies[18].matches(ctx, state), "no target should not match")
+    assert_false(strategies[21].matches(ctx, state), "no target should not match")
 end)
 
 -- ============================================================================
@@ -815,7 +815,7 @@ test("wand_matches: low mana, in combat, has target -> true", function()
     state.mana_pct = 10
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_true(strategies[20].matches(ctx, state), "low mana should match")
+    assert_true(strategies[23].matches(ctx, state), "low mana should match")
 end)
 
 test("wand_matches: enough mana -> false", function()
@@ -824,7 +824,7 @@ test("wand_matches: enough mana -> false", function()
     state.mana_pct = 80
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_false(strategies[20].matches(ctx, state), "enough mana should not match")
+    assert_false(strategies[23].matches(ctx, state), "enough mana should not match")
 end)
 
 test("wand_matches: no target -> false", function()
@@ -833,7 +833,7 @@ test("wand_matches: no target -> false", function()
     state.mana_pct = 10
     state.target = nil
     state.wand_learned = true
-    assert_false(strategies[20].matches(ctx, state), "no target should not match")
+    assert_false(strategies[23].matches(ctx, state), "no target should not match")
 end)
 
 test("wand_matches: not in combat -> false", function()
@@ -843,7 +843,7 @@ test("wand_matches: not in combat -> false", function()
     state.wand_threshold = 30
     state.wand_learned = true
     state.in_combat = false
-    assert_true(strategies[20].matches(ctx, state), "Wand matches OOC when mana is below threshold")
+    assert_true(strategies[23].matches(ctx, state), "Wand matches OOC when mana is below threshold")
 end)
 
 test("wand_matches: wand not learned -> false", function()
@@ -851,7 +851,7 @@ test("wand_matches: wand not learned -> false", function()
     local state = get_state(ctx)
     state.mana_pct = 10
     state.wand_learned = false
-    assert_false(strategies[20].matches(ctx, state), "wand not learned should not match")
+    assert_false(strategies[23].matches(ctx, state), "wand not learned should not match")
 end)
 
 -- ============================================================================
@@ -881,7 +881,7 @@ test("strategies: 19 strategies in correct priority order", function()
         "UseManaGem",
         "Wand",
     }
-    assert_eq(#strategies, 20, "should have 20 strategies after adding Fireball, FrostArmor, RemoveCurse, ConeOfCold, Blink")
+    assert_eq(#strategies, 23, "should have 23 strategies after adding MageArmor, WaterElemental, IceLance, Fireball, FrostArmor, RemoveCurse, ConeOfCold, Blink")
     for i, s in ipairs(strategies) do
         assert_true(type(s.name) == "string", "strategy[" .. i .. "] should have string name")
         assert_true(type(s.matches) == "function", "strategy[" .. i .. "] matches should be function")
@@ -900,12 +900,12 @@ end)
 
 test("execute_Wand: does not crash with context", function()
     local ctx = make_context()
-    local ok, result = pcall(strategies[20].execute, ctx)
+    local ok, result = pcall(strategies[23].execute, ctx)
     assert_true(ok, "execute with context should not throw")
 end)
 
 test("execute_Wand: does not crash without context", function()
-    local ok, result = pcall(strategies[20].execute)
+    local ok, result = pcall(strategies[23].execute)
     assert_true(ok, "execute without context should not throw")
 end)
 
@@ -972,7 +972,7 @@ test("rotation: OOC scenario - only OOC buffs should match", function()
     -- The default target's get_health_percentage returns 80, and polymorph_hp is 40
     -- So 80 >= 40 is true, meaning HP too high, polymorph would NOT match
     -- This is correct - stray polymorphs OOC would steal a mob we're not fighting yet
-    assert_false(strategies[5].matches(ctx, state), "Polymorph should not match OOC with high-HP target")
+    assert_false(strategies[6].matches(ctx, state), "Polymorph should not match OOC with high-HP target")
 
     -- Combat abilities should not match OOC
     -- Start at 6 (Counterspell): 4=ConjureManaGem and 5=Polymorph are OOC-gated
@@ -982,7 +982,7 @@ test("rotation: OOC scenario - only OOC buffs should match", function()
         assert_false(matched, "strategy[" .. i .. "] should not match OOC")
     end
     -- Wand can match OOC if mana is below threshold
-    local ok_wand, matched_wand = pcall(strategies[20].matches, ctx, state)
+    local ok_wand, matched_wand = pcall(strategies[23].matches, ctx, state)
     assert_true(ok_wand, "strategy[13] matches should not throw")
 end)
 
@@ -994,7 +994,7 @@ test("rotation: low HP scenario - mana shield should match", function()
     state.hp = 30
 
     -- ManaShield should match when HP < 40
-    assert_true(strategies[7].matches(ctx, state), "ManaShield should match when HP < 40")
+    assert_true(strategies[8].matches(ctx, state), "ManaShield should match when HP < 40")
 end)
 
 test("rotation: AoE scenario - blizzard should match with 3+ enemies", function()
@@ -1005,7 +1005,7 @@ test("rotation: AoE scenario - blizzard should match with 3+ enemies", function(
     state.is_moving = false
 
     -- Blizzard should match with 3+ enemies stationary
-    assert_true(strategies[12].matches(ctx, state), "Blizzard should match with 3+ enemies")
+    assert_true(strategies[14].matches(ctx, state), "Blizzard should match with 3+ enemies")
 end)
 
 test("rotation: low mana scenario - wand should match", function()
@@ -1016,7 +1016,7 @@ test("rotation: low mana scenario - wand should match", function()
     state.wand_learned = true
 
     -- Wand should match when mana below threshold
-    assert_true(strategies[20].matches(ctx, state), "Wand should match when mana below threshold")
+    assert_true(strategies[23].matches(ctx, state), "Wand should match when mana below threshold")
 end)
 
 -- ============================================================================
@@ -1038,7 +1038,7 @@ test("edge_polymorph: target HP exactly at threshold (40) should not match", fun
     local state = get_state(ctx)
     state.polymorph_ready = true
     state.polymorph_hp = 40
-    assert_false(strategies[5].matches(ctx, state), "HP at exactly 40 should not match (40 >= 40)")
+    assert_false(strategies[6].matches(ctx, state), "HP at exactly 40 should not match (40 >= 40)")
 end)
 
 test("edge_polymorph: target HP just below threshold (39) should match", function()
@@ -1056,7 +1056,7 @@ test("edge_polymorph: target HP just below threshold (39) should match", functio
     local state = get_state(ctx)
     state.polymorph_ready = true
     state.polymorph_hp = 40
-    assert_true(strategies[5].matches(ctx, state), "HP at 39 should match (< 40)")
+    assert_true(strategies[6].matches(ctx, state), "HP at 39 should match (< 40)")
 end)
 
 test("edge_polymorph: debuff remains at exactly 10 boundary should not match", function()
@@ -1076,7 +1076,7 @@ test("edge_polymorph: debuff remains at exactly 10 boundary should not match", f
     state.polymorph_hp = 40
     local saved_debuff = NS.debuff_remains
     NS.debuff_remains = function() return 10 end
-    assert_false(strategies[5].matches(ctx, state), "debuff at exactly 10s should not match (10 >= 10 is true, returns false)")
+    assert_false(strategies[6].matches(ctx, state), "debuff at exactly 10s should not match (10 >= 10 is true, returns false)")
     NS.debuff_remains = saved_debuff
 end)
 
@@ -1097,7 +1097,7 @@ test("edge_polymorph: debuff remains at 9 should match", function()
     state.polymorph_hp = 40
     local saved_debuff = NS.debuff_remains
     NS.debuff_remains = function() return 9 end
-    assert_true(strategies[5].matches(ctx, state), "debuff at 9s should match (< 10)")
+    assert_true(strategies[6].matches(ctx, state), "debuff at 9s should match (< 10)")
     NS.debuff_remains = saved_debuff
 end)
 
@@ -1116,7 +1116,7 @@ test("edge_polymorph: not ready returns false", function()
     local state = get_state(ctx)
     state.polymorph_ready = false
     state.polymorph_hp = 40
-    assert_false(strategies[5].matches(ctx, state), "polymorph not ready should not match")
+    assert_false(strategies[6].matches(ctx, state), "polymorph not ready should not match")
 end)
 
 test("edge_polymorph: NS.debuff_remains nil does not crash", function()
@@ -1136,7 +1136,7 @@ test("edge_polymorph: NS.debuff_remains nil does not crash", function()
     local state = get_state(ctx)
     state.polymorph_ready = true
     state.polymorph_hp = 40
-    local ok, result = pcall(strategies[5].matches, ctx, state)
+    local ok, result = pcall(strategies[6].matches, ctx, state)
     assert_true(ok, "NS.debuff_remains nil should not throw")
     NS.debuff_remains = saved_debuff
 end)
@@ -1160,7 +1160,7 @@ test("edge_counterspell: is_casting throws error should not crash", function()
     local state = get_state(ctx)
     state.counterspell_ready = true
     state.use_interrupt = true
-    local ok, result = pcall(strategies[6].matches, ctx, state)
+    local ok, result = pcall(strategies[7].matches, ctx, state)
     assert_true(ok, "is_casting throw should be caught by pcall in counterspell_matches")
 end)
 
@@ -1170,7 +1170,7 @@ test("edge_counterspell: no target returns false", function()
     state.counterspell_ready = true
     state.target = nil
     state.use_interrupt = true
-    assert_false(strategies[6].matches(ctx, state), "no target should return false")
+    assert_false(strategies[7].matches(ctx, state), "no target should return false")
 end)
 
 test("edge_counterspell: interrupt disabled returns false", function()
@@ -1179,7 +1179,7 @@ test("edge_counterspell: interrupt disabled returns false", function()
     local state = get_state(ctx)
     state.counterspell_ready = true
     state.use_interrupt = false
-    assert_false(strategies[6].matches(ctx, state), "interrupt disabled should return false")
+    assert_false(strategies[7].matches(ctx, state), "interrupt disabled should return false")
 end)
 
 -- ============================================================================
@@ -1222,7 +1222,7 @@ test("edge_frost_nova: target at exactly 10 yards should match", function()
     ctx.target.get_distance = function(other) return 10 end
     local state = get_state(ctx)
     state.frost_nova_ready = true
-    assert_true(strategies[9].matches(ctx, state), "target at exactly 10 yards should match (dist <= 10)")
+    assert_true(strategies[11].matches(ctx, state), "target at exactly 10 yards should match (dist <= 10)")
 end)
 
 test("edge_frost_nova: target at 11 yards should not match", function()
@@ -1230,7 +1230,7 @@ test("edge_frost_nova: target at 11 yards should not match", function()
     ctx.target.get_distance = function(other) return 11 end
     local state = get_state(ctx)
     state.frost_nova_ready = true
-    assert_false(strategies[9].matches(ctx, state), "target at 11 yards should not match (dist > 10)")
+    assert_false(strategies[11].matches(ctx, state), "target at 11 yards should not match (dist > 10)")
 end)
 
 -- ============================================================================
@@ -1243,7 +1243,7 @@ test("edge_blizzard: exactly 2 enemies does not match", function()
     state.blizzard_ready = true
     state.enemies = 2
     state.is_moving = false
-    assert_false(strategies[12].matches(ctx, state), "exactly 2 enemies should not match (< 3)")
+    assert_false(strategies[14].matches(ctx, state), "exactly 2 enemies should not match (< 3)")
 end)
 
 test("edge_blizzard: exactly 3 enemies matches", function()
@@ -1252,7 +1252,7 @@ test("edge_blizzard: exactly 3 enemies matches", function()
     state.blizzard_ready = true
     state.enemies = 3
     state.is_moving = false
-    assert_true(strategies[12].matches(ctx, state), "exactly 3 enemies should match (>= 3)")
+    assert_true(strategies[14].matches(ctx, state), "exactly 3 enemies should match (>= 3)")
 end)
 
 -- ============================================================================
@@ -1265,7 +1265,7 @@ test("edge_movement: frostbolt while moving does not match", function()
     state.frostbolt_ready = true
     state.is_moving = true
     state.mana_pct = 80
-    assert_false(strategies[18].matches(ctx, state), "frostbolt while moving should not match")
+    assert_false(strategies[21].matches(ctx, state), "frostbolt while moving should not match")
 end)
 
 test("edge_movement: scorch while moving does not match", function()
@@ -1275,7 +1275,7 @@ test("edge_movement: scorch while moving does not match", function()
     state.use_scorch = true
     state.is_moving = true
     state.mana_pct = 80
-    assert_false(strategies[16].matches(ctx, state), "scorch while moving should not match")
+    assert_false(strategies[18].matches(ctx, state), "scorch while moving should not match")
 end)
 
 test("edge_movement: arcane missiles while moving does not match", function()
@@ -1285,7 +1285,7 @@ test("edge_movement: arcane missiles while moving does not match", function()
     state.use_arcane_missiles = true
     state.is_moving = true
     state.mana_pct = 80
-    assert_false(strategies[17].matches(ctx, state), "arcane missiles while moving should not match")
+    assert_false(strategies[19].matches(ctx, state), "arcane missiles while moving should not match")
 end)
 
 test("edge_movement: blizzard while moving does not match", function()
@@ -1294,7 +1294,7 @@ test("edge_movement: blizzard while moving does not match", function()
     state.blizzard_ready = true
     state.enemies = 4
     state.is_moving = true
-    assert_false(strategies[12].matches(ctx, state), "blizzard while moving should not match")
+    assert_false(strategies[14].matches(ctx, state), "blizzard while moving should not match")
 end)
 
 test("edge_movement: fire blast (instant) still works while moving", function()
@@ -1303,7 +1303,7 @@ test("edge_movement: fire blast (instant) still works while moving", function()
     state.fire_blast_ready = true
     state.use_fire_blast = true
     state.is_moving = true
-    assert_true(strategies[14].matches(ctx, state), "fire blast (instant) should work while moving")
+    assert_true(strategies[16].matches(ctx, state), "fire blast (instant) should work while moving")
 end)
 
 -- ============================================================================
@@ -1316,7 +1316,7 @@ test("edge_wand: mana exactly at threshold (30) should not match", function()
     state.mana_pct = 30
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_false(strategies[20].matches(ctx, state), "mana exactly at threshold should not match (mana >= threshold)")
+    assert_false(strategies[23].matches(ctx, state), "mana exactly at threshold should not match (mana >= threshold)")
 end)
 
 test("edge_wand: wand not learned returns false even at low mana", function()
@@ -1325,7 +1325,7 @@ test("edge_wand: wand not learned returns false even at low mana", function()
     state.mana_pct = 10
     state.wand_threshold = 30
     state.wand_learned = false
-    assert_false(strategies[20].matches(ctx, state), "wand not learned should return false")
+    assert_false(strategies[23].matches(ctx, state), "wand not learned should return false")
 end)
 
 -- ============================================================================
@@ -1361,7 +1361,7 @@ test("edge_api: NS.try_cast nil does not crash execute", function()
     local saved = NS.try_cast
     NS.try_cast = nil
     local ctx = make_context()
-    local ok, result = pcall(strategies[18].execute, ctx)  -- Frostbolt execute
+    local ok, result = pcall(strategies[21].execute, ctx)  -- Frostbolt execute
     assert_true(ok, "NS.try_cast nil should not crash execute")
     NS.try_cast = saved
 end)
@@ -1369,7 +1369,7 @@ end)
 test("edge_api: NS.try_cast nil does not crash execute with nil context", function()
     local saved = NS.try_cast
     NS.try_cast = nil
-    local ok, result = pcall(strategies[18].execute, nil)  -- Frostbolt execute
+    local ok, result = pcall(strategies[21].execute, nil)  -- Frostbolt execute
     assert_true(ok, "NS.try_cast nil with nil context should not crash")
     NS.try_cast = saved
 end)
@@ -1420,16 +1420,16 @@ test("edge_all_disabled: all toggles off, only wand matches", function()
     state.ai_ready = true
 
     -- Verify each toggle-gated strategy returns false
-    assert_false(strategies[5].matches(ctx, state), "polymorph disabled OOC with low HP target")
-    assert_false(strategies[6].matches(ctx, state), "counterspell disabled")
-    assert_false(strategies[14].matches(ctx, state), "fire_blast disabled")
-    assert_false(strategies[16].matches(ctx, state), "scorch disabled")
-    assert_false(strategies[17].matches(ctx, state), "arcane_missiles disabled")
+    assert_false(strategies[6].matches(ctx, state), "polymorph disabled OOC with low HP target")
+    assert_false(strategies[7].matches(ctx, state), "counterspell disabled")
+    assert_false(strategies[16].matches(ctx, state), "fire_blast disabled")
+    assert_false(strategies[18].matches(ctx, state), "scorch disabled")
+    assert_false(strategies[19].matches(ctx, state), "arcane_missiles disabled")
 
     -- But wand should still match (no toggle gate)
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_true(strategies[20].matches(ctx, state), "wand should still match when mana low")
+    assert_true(strategies[23].matches(ctx, state), "wand should still match when mana low")
 end)
 
 -- ============================================================================
@@ -1478,7 +1478,7 @@ test("edge_settings: custom polymorph_hp=60 means 55 HP target matches", functio
     local state = get_state(ctx)
     state.polymorph_ready = true
     state.polymorph_hp = 60
-    assert_true(strategies[5].matches(ctx, state), "HP 55 < 60 threshold should match")
+    assert_true(strategies[6].matches(ctx, state), "HP 55 < 60 threshold should match")
 end)
 
 test("edge_settings: custom wand_threshold=15 means 15% mana does not wand", function()
@@ -1488,7 +1488,7 @@ test("edge_settings: custom wand_threshold=15 means 15% mana does not wand", fun
     state.mana_pct = 15
     state.wand_threshold = 15
     state.wand_learned = true
-    assert_false(strategies[20].matches(ctx, state), "wand at threshold 15 should not match (mana >= threshold)")
+    assert_false(strategies[23].matches(ctx, state), "wand at threshold 15 should not match (mana >= threshold)")
 end)
 
 test("edge_settings: custom wand_threshold=15 means 14% mana does wand", function()
@@ -1498,7 +1498,7 @@ test("edge_settings: custom wand_threshold=15 means 14% mana does wand", functio
     state.mana_pct = 14
     state.wand_threshold = 15
     state.wand_learned = true
-    assert_true(strategies[20].matches(ctx, state), "wand at 14 < 15 threshold should match")
+    assert_true(strategies[23].matches(ctx, state), "wand at 14 < 15 threshold should match")
 end)
 
 -- ============================================================================
@@ -1510,7 +1510,7 @@ test("edge_mana_gem: conjure OOC, ready, no gem -> true", function()
     local state = get_state(ctx)
     state.conjure_gem_ready = true
     state.mana_gem_available = false
-    assert_true(strategies[4].matches(ctx, state), "OOC conjure ready without gem should match")
+    assert_true(strategies[5].matches(ctx, state), "OOC conjure ready without gem should match")
 end)
 
 test("edge_mana_gem: conjure in combat -> false", function()
@@ -1518,7 +1518,7 @@ test("edge_mana_gem: conjure in combat -> false", function()
     local state = get_state(ctx)
     state.conjure_gem_ready = true
     state.mana_gem_available = false
-    assert_false(strategies[4].matches(ctx, state), "conjure in combat should not match")
+    assert_false(strategies[5].matches(ctx, state), "conjure in combat should not match")
 end)
 
 test("edge_mana_gem: conjure not ready -> false", function()
@@ -1526,7 +1526,7 @@ test("edge_mana_gem: conjure not ready -> false", function()
     local state = get_state(ctx)
     state.conjure_gem_ready = false
     state.mana_gem_available = false
-    assert_false(strategies[4].matches(ctx, state), "conjure not ready should not match")
+    assert_false(strategies[5].matches(ctx, state), "conjure not ready should not match")
 end)
 
 test("edge_mana_gem: conjure already have gem -> false", function()
@@ -1534,21 +1534,21 @@ test("edge_mana_gem: conjure already have gem -> false", function()
     local state = get_state(ctx)
     state.conjure_gem_ready = true
     state.mana_gem_available = true
-    assert_false(strategies[4].matches(ctx, state), "already have gem should not conjure")
+    assert_false(strategies[5].matches(ctx, state), "already have gem should not conjure")
 end)
 
 test("edge_mana_gem: conjure execute returns false when no spell known", function()
     local saved_exists = NS.spell_exists
     NS.spell_exists = function(id) return false end
     local ctx = make_context({in_combat = false})
-    local ok, result = pcall(strategies[4].execute)
+    local ok, result = pcall(strategies[5].execute)
     assert_true(ok, "conjure execute should not crash when no spell known")
     NS.spell_exists = saved_exists
 end)
 
 test("edge_mana_gem: conjure nil state does not crash", function()
     local ctx = make_context({in_combat = false})
-    local ok, result = pcall(strategies[4].matches, ctx, nil)
+    local ok, result = pcall(strategies[5].matches, ctx, nil)
     assert_true(ok, "conjure matches with nil state should not crash")
 end)
 
@@ -1565,7 +1565,7 @@ test("edge_mana_gem_use: in combat, low mana, gem available -> true", function()
     state.mana_gem_available = true
     state.mana_pct = 50
     state.mana_gem_threshold = 70
-    assert_true(strategies[19].matches(ctx, state), "low mana with gem should match")
+    assert_true(strategies[22].matches(ctx, state), "low mana with gem should match")
     NS.is_item_ready = saved_ready
 end)
 
@@ -1578,7 +1578,7 @@ test("edge_mana_gem_use: mana above threshold -> false", function()
     state.mana_gem_available = true
     state.mana_pct = 80
     state.mana_gem_threshold = 70
-    assert_false(strategies[19].matches(ctx, state), "mana above threshold should not match")
+    assert_false(strategies[22].matches(ctx, state), "mana above threshold should not match")
     NS.is_item_ready = saved_ready
 end)
 
@@ -1589,7 +1589,7 @@ test("edge_mana_gem_use: OOC -> false", function()
     state.mana_gem_available = true
     state.mana_pct = 50
     state.mana_gem_threshold = 70
-    assert_false(strategies[19].matches(ctx, state), "OOC should not use gem")
+    assert_false(strategies[22].matches(ctx, state), "OOC should not use gem")
 end)
 
 test("edge_mana_gem_use: use_mana_gem disabled -> false", function()
@@ -1599,7 +1599,7 @@ test("edge_mana_gem_use: use_mana_gem disabled -> false", function()
     state.mana_gem_available = true
     state.mana_pct = 50
     state.mana_gem_threshold = 70
-    assert_false(strategies[19].matches(ctx, state), "disabled setting should not match")
+    assert_false(strategies[22].matches(ctx, state), "disabled setting should not match")
 end)
 
 test("edge_mana_gem_use: no gem available -> false", function()
@@ -1609,19 +1609,19 @@ test("edge_mana_gem_use: no gem available -> false", function()
     state.mana_gem_available = false
     state.mana_pct = 50
     state.mana_gem_threshold = 70
-    assert_false(strategies[19].matches(ctx, state), "no gem in inventory should not match")
+    assert_false(strategies[22].matches(ctx, state), "no gem in inventory should not match")
 end)
 
 test("edge_mana_gem_use: nil state does not crash", function()
     local ctx = make_context({mana_pct = 50, in_combat = true})
-    local ok, result = pcall(strategies[19].matches, ctx, nil)
+    local ok, result = pcall(strategies[22].matches, ctx, nil)
     assert_true(ok, "use gem with nil state should not crash")
 end)
 
 test("edge_mana_gem_use: execute with no items ready returns false", function()
     local saved_ready = NS.is_item_ready
     NS.is_item_ready = function(id) return false end
-    local ok, result = pcall(strategies[19].execute)
+    local ok, result = pcall(strategies[22].execute)
     assert_true(ok, "use gem execute with no items should not crash")
     NS.is_item_ready = saved_ready
 end)
@@ -1629,7 +1629,7 @@ end)
 test("edge_mana_gem_use: execute with nil NS.is_item_ready returns false", function()
     local saved_ready = NS.is_item_ready
     NS.is_item_ready = nil
-    local ok, result = pcall(strategies[19].execute)
+    local ok, result = pcall(strategies[22].execute)
     assert_true(ok, "use gem execute with nil NS.is_item_ready should not crash")
     NS.is_item_ready = saved_ready
 end)
@@ -1643,7 +1643,7 @@ test("edge_mana_gem_use: mana at exactly threshold should not match", function()
     state.mana_gem_available = true
     state.mana_pct = 70
     state.mana_gem_threshold = 70
-    assert_false(strategies[19].matches(ctx, state), "mana exactly at 70 threshold should not match (70 > 70 is false)")
+    assert_false(strategies[22].matches(ctx, state), "mana exactly at 70 threshold should not match (70 > 70 is false)")
     NS.is_item_ready = saved_ready
 end)
 
@@ -1661,24 +1661,24 @@ do
     state.arcane_missiles_ready = true
     state.fire_blast_ready = true
     state.scorch_ready = true
-    assert_true(strategies[7].matches(ctx, state), "manashield hp=40 -> match (hp <= 40)")
+    assert_true(strategies[8].matches(ctx, state), "manashield hp=40 -> match (hp <= 40)")
 
     local ctx2 = make_context({ hp = 41 })
     local state2 = get_state(ctx2)
     state2.mana_shield_ready = true
     state2.ice_barrier_ready = true
-    assert_false(strategies[7].matches(ctx2, state2), "manashield hp=41 -> no match (hp > 40)")
+    assert_false(strategies[8].matches(ctx2, state2), "manashield hp=41 -> no match (hp > 40)")
 
     -- Blink: hp <= 50 -> match; hp > 50 -> no match
     local ctx3 = make_context({ hp = 50 })
     local state3 = get_state(ctx3)
     state3.blink_ready = true
-    assert_true(strategies[11].matches(ctx3, state3), "blink hp=50 -> match (hp <= 50)")
+    assert_true(strategies[13].matches(ctx3, state3), "blink hp=50 -> match (hp <= 50)")
 
     local ctx4 = make_context({ hp = 51 })
     local state4 = get_state(ctx4)
     state4.blink_ready = true
-    assert_false(strategies[11].matches(ctx4, state4), "blink hp=51 -> no match (hp > 50)")
+    assert_false(strategies[13].matches(ctx4, state4), "blink hp=51 -> no match (hp > 50)")
 end
 
 -- ============================================================================
@@ -1689,12 +1689,12 @@ do
     local ctx = make_context({ mana_pct = 25 })
     local state = get_state(ctx)
     state.evocation_ready = true
-    assert_true(strategies[13].matches(ctx, state), "evocation mana=25 -> match (<=25)")
+    assert_true(strategies[15].matches(ctx, state), "evocation mana=25 -> match (<=25)")
 
     local ctx2 = make_context({ mana_pct = 26 })
     local state2 = get_state(ctx2)
     state2.evocation_ready = true
-    assert_false(strategies[13].matches(ctx2, state2), "evocation mana=26 -> no match (>25)")
+    assert_false(strategies[15].matches(ctx2, state2), "evocation mana=26 -> no match (>25)")
 
     -- ArcaneMissiles: mana_pct >= 20 -> match; < 20 -> no match
     local ctx3 = make_context({ mana_pct = 20 })
@@ -1704,13 +1704,13 @@ do
     state3.frostbolt_ready = true
     state3.fire_blast_ready = true
     state3.scorch_ready = true
-    assert_true(strategies[17].matches(ctx3, state3), "arcanemissiles mana=20 -> match (>=20)")
+    assert_true(strategies[19].matches(ctx3, state3), "arcanemissiles mana=20 -> match (>=20)")
 
     local ctx4 = make_context({ mana_pct = 19 })
     local state4 = get_state(ctx4)
     state4.arcane_missiles_ready = true
     state4.use_arcane_missiles = true
-    assert_false(strategies[17].matches(ctx4, state4), "arcanemissiles mana=19 -> no match (<20)")
+    assert_false(strategies[19].matches(ctx4, state4), "arcanemissiles mana=19 -> no match (<20)")
 
     -- Frostbolt: mana_pct >= 10 -> match; < 10 -> no match
     local ctx5 = make_context({ mana_pct = 10 })
@@ -1718,12 +1718,12 @@ do
     state5.frostbolt_ready = true
     state5.fire_blast_ready = true
     state5.scorch_ready = true
-    assert_true(strategies[18].matches(ctx5, state5), "frostbolt mana=10 -> match (>=10)")
+    assert_true(strategies[21].matches(ctx5, state5), "frostbolt mana=10 -> match (>=10)")
 
     local ctx6 = make_context({ mana_pct = 9 })
     local state6 = get_state(ctx6)
     state6.frostbolt_ready = true
-    assert_false(strategies[18].matches(ctx6, state6), "frostbolt mana=9 -> no match (<10)")
+    assert_false(strategies[21].matches(ctx6, state6), "frostbolt mana=9 -> no match (<10)")
 
     -- Scorch: mana_pct >= 10 -> match; < 10 -> no match
     local ctx7 = make_context({ mana_pct = 10 })
@@ -1731,13 +1731,13 @@ do
     state7.scorch_ready = true
     state7.use_scorch = true
     state7.fire_blast_ready = true
-    assert_true(strategies[16].matches(ctx7, state7), "scorch mana=10 -> match (>=10)")
+    assert_true(strategies[18].matches(ctx7, state7), "scorch mana=10 -> match (>=10)")
 
     local ctx8 = make_context({ mana_pct = 9 })
     local state8 = get_state(ctx8)
     state8.scorch_ready = true
     state8.use_scorch = true
-    assert_false(strategies[16].matches(ctx8, state8), "scorch mana=9 -> no match (<10)")
+    assert_false(strategies[18].matches(ctx8, state8), "scorch mana=9 -> no match (<10)")
 end
 
 -- ============================================================================
@@ -1751,7 +1751,7 @@ do
     state.wand_learned = true
     state.frostbolt_ready = true
     state.arcane_missiles_ready = true
-    assert_true(strategies[20].matches(ctx, state), "wand mana=29 -> match (<30)")
+    assert_true(strategies[23].matches(ctx, state), "wand mana=29 -> match (<30)")
 
     local ctx2 = make_context({ mana_pct = 30 })
     ctx2.wand_learned = true
@@ -1759,7 +1759,7 @@ do
     state2.wand_learned = true
     state2.frostbolt_ready = true
     state2.arcane_missiles_ready = true
-    assert_false(strategies[20].matches(ctx2, state2), "wand mana=30 -> no match (>=30)")
+    assert_false(strategies[23].matches(ctx2, state2), "wand mana=30 -> no match (>=30)")
 end
 
 -- ============================================================================
@@ -1776,14 +1776,14 @@ do
     state.arcane_missiles_ready = true
     state.fire_blast_ready = true
     state.scorch_ready = true
-    assert_true(strategies[19].matches(ctx, state), "usemanagem mana=69 -> match (<70)")
+    assert_true(strategies[22].matches(ctx, state), "usemanagem mana=69 -> match (<70)")
 
     local ctx2 = make_context({ mana_pct = 70 })
     ctx2.mana_gem_available = true
     local state2 = get_state(ctx2)
     state2.mana_gem_available = true
     state2.use_mana_gem = true
-    assert_false(strategies[19].matches(ctx2, state2), "usemanagem mana=70 -> no match (>=70)")
+    assert_false(strategies[22].matches(ctx2, state2), "usemanagem mana=70 -> no match (>=70)")
 
     -- UseManaGem: no gem available -> no match
     local ctx3 = make_context({ mana_pct = 50 })
@@ -1791,7 +1791,7 @@ do
     local state3 = get_state(ctx3)
     state3.mana_gem_available = false
     state3.use_mana_gem = true
-    assert_false(strategies[19].matches(ctx3, state3), "usemanagem no gem -> no match")
+    assert_false(strategies[22].matches(ctx3, state3), "usemanagem no gem -> no match")
 
     -- ConjureManaGem: gem already available -> no match
     local ctx4 = make_context({ in_combat = false })
@@ -1799,7 +1799,7 @@ do
     local state4 = get_state(ctx4)
     state4.conjure_gem_ready = true
     state4.mana_gem_available = true
-    assert_false(strategies[4].matches(ctx4, state4), "conjuregem gem available -> no match")
+    assert_false(strategies[5].matches(ctx4, state4), "conjuregem gem available -> no match")
 end
 
 -- ============================================================================
@@ -1819,7 +1819,7 @@ do
     state.polymorph_ready = true
     state.ai_ready = true
     state.frost_armor_ready = true
-    assert_true(strategies[5].matches(ctx, state), "polymorph target_hp=39 -> match (<40)")
+    assert_true(strategies[6].matches(ctx, state), "polymorph target_hp=39 -> match (<40)")
 
     local ctx2 = make_context({ in_combat = false, enemies_count = 0 })
     ctx2.polymorph_hp = 40
@@ -1833,7 +1833,7 @@ do
     state2.polymorph_ready = true
     state2.ai_ready = true
     state2.frost_armor_ready = true
-    assert_false(strategies[5].matches(ctx2, state2), "polymorph target_hp=40 -> no match (>=40)")
+    assert_false(strategies[6].matches(ctx2, state2), "polymorph target_hp=40 -> no match (>=40)")
 
     -- Polymorph: remains >= 10 -> no match
     local ctx3 = make_context({ in_combat = false, enemies_count = 0 })
@@ -1849,7 +1849,7 @@ do
     state3.frost_armor_ready = true
     local saved = NS.debuff_remains
     NS.debuff_remains = function(target, spell) return 9 end
-    assert_true(strategies[5].matches(ctx3, state3), "polymorph remains=9 -> match (<10)")
+    assert_true(strategies[6].matches(ctx3, state3), "polymorph remains=9 -> match (<10)")
     NS.debuff_remains = saved
 
     local ctx4 = make_context({ in_combat = false, enemies_count = 0 })
@@ -1865,7 +1865,7 @@ do
     state4.frost_armor_ready = true
     local saved4 = NS.debuff_remains
     NS.debuff_remains = function(target, spell) return 10 end
-    assert_false(strategies[5].matches(ctx4, state4), "polymorph remains=10 -> no match (>=10)")
+    assert_false(strategies[6].matches(ctx4, state4), "polymorph remains=10 -> no match (>=10)")
     NS.debuff_remains = saved4
 end
 
@@ -1881,12 +1881,12 @@ do
     state.arcane_missiles_ready = true
     state.fire_blast_ready = true
     state.scorch_ready = true
-    assert_true(strategies[12].matches(ctx, state), "blizzard enemies=3 -> match (>=3)")
+    assert_true(strategies[14].matches(ctx, state), "blizzard enemies=3 -> match (>=3)")
 
     local ctx2 = make_context({ enemies_count = 2 })
     local state2 = get_state(ctx2)
     state2.blizzard_ready = true
-    assert_false(strategies[12].matches(ctx2, state2), "blizzard enemies=2 -> no match (<3)")
+    assert_false(strategies[14].matches(ctx2, state2), "blizzard enemies=2 -> no match (<3)")
 
     -- ConeOfCold: enemies >= 2 -> match; < 2 -> no match
     local ctx3 = make_context({ enemies_count = 2 })
@@ -1904,13 +1904,13 @@ do
     state3.arcane_missiles_ready = true
     state3.fire_blast_ready = true
     state3.scorch_ready = true
-    assert_true(strategies[10].matches(ctx3, state3), "conecold enemies=2 -> match (>=2)")
+    assert_true(strategies[12].matches(ctx3, state3), "conecold enemies=2 -> match (>=2)")
 
     local ctx4 = make_context({ enemies_count = 1 })
     ctx4.me = { is_valid = function() return true end, get_position = function() return { x = 0, y = 0, z = 0 } end }
     local state4 = get_state(ctx4)
     state4.cone_of_cold_ready = true
-    assert_false(strategies[10].matches(ctx4, state4), "conecold enemies=1 -> no match (<2)")
+    assert_false(strategies[12].matches(ctx4, state4), "conecold enemies=1 -> no match (<2)")
 end
 
 -- ============================================================================
@@ -1921,27 +1921,27 @@ do
     local ctx = make_context({ is_moving = true, enemies_count = 3 })
     local state = get_state(ctx)
     state.blizzard_ready = true
-    assert_false(strategies[12].matches(ctx, state), "blizzard moving -> no match")
+    assert_false(strategies[14].matches(ctx, state), "blizzard moving -> no match")
 
     -- ArcaneMissiles: is_moving -> no match
     local ctx2 = make_context({ is_moving = true })
     local state2 = get_state(ctx2)
     state2.arcane_missiles_ready = true
     state2.use_arcane_missiles = true
-    assert_false(strategies[17].matches(ctx2, state2), "arcanemissiles moving -> no match")
+    assert_false(strategies[19].matches(ctx2, state2), "arcanemissiles moving -> no match")
 
     -- Frostbolt: is_moving -> no match
     local ctx3 = make_context({ is_moving = true })
     local state3 = get_state(ctx3)
     state3.frostbolt_ready = true
-    assert_false(strategies[18].matches(ctx3, state3), "frostbolt moving -> no match")
+    assert_false(strategies[21].matches(ctx3, state3), "frostbolt moving -> no match")
 
     -- Scorch: is_moving -> no match
     local ctx4 = make_context({ is_moving = true })
     local state4 = get_state(ctx4)
     state4.scorch_ready = true
     state4.use_scorch = true
-    assert_false(strategies[16].matches(ctx4, state4), "scorch moving -> no match")
+    assert_false(strategies[18].matches(ctx4, state4), "scorch moving -> no match")
 end
 
 -- ============================================================================
@@ -1960,7 +1960,7 @@ do
     local state2 = get_state(ctx2)
     state2.has_frost_armor = true
     state2.frost_armor_ready = true
-    assert_false(strategies[2].matches(ctx2, state2), "frostarmor buff active -> no match")
+    assert_false(strategies[3].matches(ctx2, state2), "frostarmor buff active -> no match")
 
     -- FrostArmor: has_mage_armor -> no match
     local ctx3 = make_context({ in_combat = false, enemies_count = 0 })
@@ -1968,14 +1968,14 @@ do
     state3.has_frost_armor = false
     state3.has_mage_armor = true
     state3.frost_armor_ready = true
-    assert_false(strategies[2].matches(ctx3, state3), "frostarmor mage armor active -> no match")
+    assert_false(strategies[3].matches(ctx3, state3), "frostarmor mage armor active -> no match")
 
     -- IceBarrier: has_ice_barrier -> no match
     local ctx4 = make_context({})
     local state4 = get_state(ctx4)
     state4.has_ice_barrier = true
     state4.ice_barrier_ready = true
-    assert_false(strategies[8].matches(ctx4, state4), "icebarrier buff active -> no match")
+    assert_false(strategies[9].matches(ctx4, state4), "icebarrier buff active -> no match")
 end
 
 -- ============================================================================
@@ -1990,7 +1990,7 @@ do
     state.frostbolt_ready = true
     state.arcane_missiles_ready = true
     state.scorch_ready = true
-    assert_false(strategies[14].matches(ctx, state), "fireblast setting disabled -> no match")
+    assert_false(strategies[16].matches(ctx, state), "fireblast setting disabled -> no match")
 
     -- Scorch: use_scorch disabled -> no match
     local ctx2 = make_context({})
@@ -1999,7 +1999,7 @@ do
     state2.scorch_ready = true
     state2.frostbolt_ready = true
     state2.arcane_missiles_ready = true
-    assert_false(strategies[16].matches(ctx2, state2), "scorch setting disabled -> no match")
+    assert_false(strategies[18].matches(ctx2, state2), "scorch setting disabled -> no match")
 
     -- ArcaneMissiles: use_arcane_missiles disabled -> no match
     local ctx3 = make_context({})
@@ -2007,7 +2007,7 @@ do
     local state3 = get_state(ctx3)
     state3.arcane_missiles_ready = true
     state3.frostbolt_ready = true
-    assert_false(strategies[17].matches(ctx3, state3), "arcanemissiles setting disabled -> no match")
+    assert_false(strategies[19].matches(ctx3, state3), "arcanemissiles setting disabled -> no match")
 
     -- Counterspell: use_interrupt disabled -> no match
     local ctx4 = make_context({})
@@ -2023,7 +2023,7 @@ do
     state4.counterspell_ready = true
     state4.frostbolt_ready = true
     state4.arcane_missiles_ready = true
-    assert_false(strategies[6].matches(ctx4, state4), "counterspell interrupt disabled -> no match")
+    assert_false(strategies[7].matches(ctx4, state4), "counterspell interrupt disabled -> no match")
 end
 
 -- ============================================================================
@@ -2045,7 +2045,7 @@ do
     state.arcane_missiles_ready = true
     state.fire_blast_ready = true
     state.scorch_ready = true
-    assert_true(strategies[9].matches(ctx, state), "frostnova dist=10 -> match (<=10)")
+    assert_true(strategies[11].matches(ctx, state), "frostnova dist=10 -> match (<=10)")
 
     local ctx2 = make_context({})
     ctx2.me = { is_valid = function() return true end, get_position = function() return { x = 0, y = 0, z = 0 } end }
@@ -2058,7 +2058,7 @@ do
     }
     local state2 = get_state(ctx2)
     state2.frost_nova_ready = true
-    assert_false(strategies[9].matches(ctx2, state2), "frostnova dist=11 -> no match (>10)")
+    assert_false(strategies[11].matches(ctx2, state2), "frostnova dist=11 -> no match (>10)")
 end
 
 -- ============================================================================
@@ -2131,7 +2131,7 @@ do
     -- OOC-only indices: {1,2,3,4,5} check `if state.in_combat then return false end`
     -- wand (19) has no combat gate — matches OOC when mana low
     -- Counterspell (6) omitted — it does NOT check state.in_combat, only target + casting + ready
-    local combat_gated = {7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}
+    local combat_gated = {8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21}
     local ctx = make_context({in_combat = false, mana_pct = 80, hp = 80, enemies_count = 1, is_moving = false})
     ctx.target = {
         is_valid = function() return true end,
@@ -2173,7 +2173,7 @@ do
     -- Target-dependent indices: {5,6,9,10,12,14,15,16,17,18,20}
     -- These check `if not state.target then return false end`
     -- Non-target: {1,2,3,4,7,8,11,13,19}
-    local target_dependent = {5, 6, 9, 10, 12, 14, 15, 16, 17, 18, 20}
+    local target_dependent = {6, 7, 11, 12, 14, 16, 17, 18, 19, 20, 21, 23}
     local ctx = make_context({target = nil, in_combat = true, mana_pct = 80, hp = 50, enemies_count = 1, is_moving = false})
     -- ctx must have no target
     ctx.target = nil
@@ -2220,7 +2220,7 @@ do
     state.arcane_missiles_ready = true
     state.fire_blast_ready = true
     state.scorch_ready = true
-    assert_true(strategies[10].matches(ctx, state), "conecold dist=10 -> match (<=10)")
+    assert_true(strategies[12].matches(ctx, state), "conecold dist=10 -> match (<=10)")
 
     local ctx2 = make_context({enemies_count = 2})
     ctx2.me = { is_valid = function() return true end, get_position = function() return { x = 0, y = 0, z = 0 } end }
@@ -2233,7 +2233,7 @@ do
     }
     local state2 = get_state(ctx2)
     state2.cone_of_cold_ready = true
-    assert_false(strategies[10].matches(ctx2, state2), "conecold dist=11 -> no match (>10)")
+    assert_false(strategies[12].matches(ctx2, state2), "conecold dist=11 -> no match (>10)")
 end
 
 -- ============================================================================
@@ -2244,19 +2244,19 @@ do
     local ctx = make_context({ in_combat = false })
     local state = get_state(ctx)
     state.remove_curse_ready = true
-    assert_true(strategies[3].matches(ctx, state), "removecurse OOC ready -> match")
+    assert_true(strategies[4].matches(ctx, state), "removecurse OOC ready -> match")
 
     -- RemoveCurse: in combat -> false
     local ctx2 = make_context({ in_combat = true })
     local state2 = get_state(ctx2)
     state2.remove_curse_ready = true
-    assert_false(strategies[3].matches(ctx2, state2), "removecurse in combat -> no match")
+    assert_false(strategies[4].matches(ctx2, state2), "removecurse in combat -> no match")
 
     -- RemoveCurse: not ready -> false
     local ctx3 = make_context({ in_combat = false })
     local state3 = get_state(ctx3)
     state3.remove_curse_ready = false
-    assert_false(strategies[3].matches(ctx3, state3), "removecurse not ready -> no match")
+    assert_false(strategies[4].matches(ctx3, state3), "removecurse not ready -> no match")
 end
 
 -- ============================================================================
@@ -2268,7 +2268,7 @@ do
     local state = get_state(ctx)
     state.has_frost_armor = false
     state.frost_armor_ready = true
-    assert_false(strategies[2].matches(ctx, state), "frostarmor in combat -> no match")
+    assert_false(strategies[3].matches(ctx, state), "frostarmor in combat -> no match")
 
     -- FrostArmor: has_mage_armor -> false
     local ctx2 = make_context({ in_combat = false })
@@ -2276,7 +2276,7 @@ do
     state2.has_frost_armor = false
     state2.has_mage_armor = true
     state2.frost_armor_ready = true
-    assert_false(strategies[2].matches(ctx2, state2), "frostarmor mage armor active -> no match")
+    assert_false(strategies[3].matches(ctx2, state2), "frostarmor mage armor active -> no match")
 
     -- FrostArmor: not ready -> false
     local ctx3 = make_context({ in_combat = false })
@@ -2284,7 +2284,7 @@ do
     state3.has_frost_armor = false
     state3.has_mage_armor = false
     state3.frost_armor_ready = false
-    assert_false(strategies[2].matches(ctx3, state3), "frostarmor not ready -> no match")
+    assert_false(strategies[3].matches(ctx3, state3), "frostarmor not ready -> no match")
 end
 
 -- ============================================================================
@@ -2317,88 +2317,88 @@ do
     state4.in_combat = false
     state4.conjure_gem_ready = false
     state4.mana_gem_available = false
-    assert_false(strategies[4].matches(ctx, state4), "conjuregem not ready -> no match")
+    assert_false(strategies[5].matches(ctx, state4), "conjuregem not ready -> no match")
 
     -- Strategy 5: Polymorph not ready
     local state5 = get_state(ctx)
     state5.in_combat = false
     state5.polymorph_ready = false
     state5.polymorph_hp = 40
-    assert_false(strategies[5].matches(ctx, state5), "polymorph not ready -> no match")
+    assert_false(strategies[6].matches(ctx, state5), "polymorph not ready -> no match")
 
     -- Strategy 6: Counterspell not ready
     local state6 = get_state(ctx)
     state6.counterspell_ready = false
     state6.use_interrupt = true
-    assert_false(strategies[6].matches(ctx, state6), "counterspell not ready -> no match")
+    assert_false(strategies[7].matches(ctx, state6), "counterspell not ready -> no match")
 
     -- Strategy 7: ManaShield not ready
     local state7 = get_state(ctx)
     state7.mana_shield_ready = false
     state7.has_mana_shield = false
     state7.hp = 30
-    assert_false(strategies[7].matches(ctx, state7), "manashield not ready -> no match")
+    assert_false(strategies[8].matches(ctx, state7), "manashield not ready -> no match")
 
     -- Strategy 8: IceBarrier not ready
     local state8 = get_state(ctx)
     state8.ice_barrier_ready = false
     state8.has_ice_barrier = false
-    assert_false(strategies[8].matches(ctx, state8), "icebarrier not ready -> no match")
+    assert_false(strategies[9].matches(ctx, state8), "icebarrier not ready -> no match")
 
     -- Strategy 9: FrostNova not ready
     local state9 = get_state(ctx)
     state9.frost_nova_ready = false
-    assert_false(strategies[9].matches(ctx, state9), "frostnova not ready -> no match")
+    assert_false(strategies[11].matches(ctx, state9), "frostnova not ready -> no match")
 
     -- Strategy 10: ConeOfCold not ready
     local state10 = get_state(ctx)
     state10.cone_of_cold_ready = false
     state10.enemies = 2
-    assert_false(strategies[10].matches(ctx, state10), "conecold not ready -> no match")
+    assert_false(strategies[12].matches(ctx, state10), "conecold not ready -> no match")
 
     -- Strategy 11: Blink not ready
     local state11 = get_state(ctx)
     state11.blink_ready = false
     state11.hp = 30
-    assert_false(strategies[11].matches(ctx, state11), "blink not ready -> no match")
+    assert_false(strategies[13].matches(ctx, state11), "blink not ready -> no match")
 
     -- Strategy 12: Blizzard not ready
     local state12 = get_state(ctx)
     state12.blizzard_ready = false
     state12.enemies = 3
-    assert_false(strategies[12].matches(ctx, state12), "blizzard not ready -> no match")
+    assert_false(strategies[14].matches(ctx, state12), "blizzard not ready -> no match")
 
     -- Strategy 13: Evocation not ready
     local state13 = get_state(ctx)
     state13.evocation_ready = false
     state13.mana_pct = 20
-    assert_false(strategies[13].matches(ctx, state13), "evocation not ready -> no match")
+    assert_false(strategies[15].matches(ctx, state13), "evocation not ready -> no match")
 
     -- Strategy 14: FireBlast not ready
     local state14 = get_state(ctx)
     state14.fire_blast_ready = false
     state14.use_fire_blast = true
-    assert_false(strategies[14].matches(ctx, state14), "fireblast not ready -> no match")
+    assert_false(strategies[16].matches(ctx, state14), "fireblast not ready -> no match")
 
     -- Strategy 15: Scorch not ready
     local state15 = get_state(ctx)
     state15.scorch_ready = false
     state15.use_scorch = true
     state15.mana_pct = 50
-    assert_false(strategies[16].matches(ctx, state15), "scorch not ready -> no match")
+    assert_false(strategies[18].matches(ctx, state15), "scorch not ready -> no match")
 
     -- Strategy 16: ArcaneMissiles not ready
     local state16 = get_state(ctx)
     state16.arcane_missiles_ready = false
     state16.use_arcane_missiles = true
     state16.mana_pct = 50
-    assert_false(strategies[17].matches(ctx, state16), "arcanemissiles not ready -> no match")
+    assert_false(strategies[19].matches(ctx, state16), "arcanemissiles not ready -> no match")
 
     -- Strategy 17: Frostbolt not ready
     local state17 = get_state(ctx)
     state17.frostbolt_ready = false
     state17.mana_pct = 50
-    assert_false(strategies[18].matches(ctx, state17), "frostbolt not ready -> no match")
+    assert_false(strategies[21].matches(ctx, state17), "frostbolt not ready -> no match")
 end
 
 -- ============================================================================
@@ -2418,7 +2418,7 @@ do
     }
     local state = get_state(ctx)
     state.frost_nova_ready = true
-    local ok1, result1 = pcall(strategies[9].matches, ctx, state)
+    local ok1, result1 = pcall(strategies[11].matches, ctx, state)
     assert_true(ok1, "frostnova get_distance throws -> pcall catches")
 
     -- ConeOfCold: target.get_distance throws -> pcall catches, returns false
@@ -2435,7 +2435,7 @@ do
     local state2 = get_state(ctx2)
     state2.cone_of_cold_ready = true
     state2.enemies = 2
-    local ok2, result2 = pcall(strategies[10].matches, ctx2, state2)
+    local ok2, result2 = pcall(strategies[12].matches, ctx2, state2)
     assert_true(ok2, "conecold get_distance throws -> pcall catches")
 end
 
@@ -2453,7 +2453,7 @@ do
     local state = get_state(ctx)
     state.polymorph_ready = true
     state.polymorph_hp = 40
-    local ok, result = pcall(strategies[5].matches, ctx, state)
+    local ok, result = pcall(strategies[6].matches, ctx, state)
     assert_true(ok, "polymorph get_health_percentage throws -> pcall catches, matches when debuff allows")
 end
 
@@ -2474,7 +2474,7 @@ do
     -- Also test conjure gem execute with nil spell_exists
     local saved_try = NS.try_cast
     NS.try_cast = nil
-    local ok2, result2 = pcall(strategies[4].execute)
+    local ok2, result2 = pcall(strategies[5].execute)
     assert_true(ok2, "conjure_gem execute does not crash when NS.try_cast nil")
     NS.try_cast = saved_try
 end
@@ -2493,7 +2493,7 @@ do
     local state = get_state(ctx)
     state.polymorph_ready = true
     state.polymorph_hp = 40
-    local ok, result = pcall(strategies[5].matches, ctx, state)
+    local ok, result = pcall(strategies[6].matches, ctx, state)
     assert_true(ok, "polymorph target 0 HP -> does not crash")
 end
 
@@ -2506,7 +2506,7 @@ do
     state.has_frost_armor = false
     state.has_mage_armor = false
     state.frost_armor_ready = true
-    assert_true(strategies[2].matches(ctx, state), "frostarmor OOC ready no armor -> match")
+    assert_true(strategies[3].matches(ctx, state), "frostarmor OOC ready no armor -> match")
 end
 
 -- ============================================================================
@@ -2518,7 +2518,7 @@ do
     state.mana_shield_ready = true
     state.has_mana_shield = false
     state.hp = 30
-    assert_false(strategies[7].matches(ctx, state), "manashield OOC -> no match")
+    assert_false(strategies[8].matches(ctx, state), "manashield OOC -> no match")
 end
 
 -- ============================================================================
@@ -2529,13 +2529,13 @@ do
     local state = get_state(ctx)
     state.blink_ready = true
     state.hp = 30
-    assert_false(strategies[11].matches(ctx, state), "blink OOC -> no match")
+    assert_false(strategies[13].matches(ctx, state), "blink OOC -> no match")
 
     local ctx2 = make_context({in_combat = true, hp = 30})
     local state2 = get_state(ctx2)
     state2.blink_ready = false
     state2.hp = 30
-    assert_false(strategies[11].matches(ctx2, state2), "blink not ready -> no match")
+    assert_false(strategies[13].matches(ctx2, state2), "blink not ready -> no match")
 end
 
 -- ============================================================================
@@ -2548,7 +2548,7 @@ do
     local state = get_state(ctx)
     state.fire_blast_ready = false
     state.use_fire_blast = false
-    assert_false(strategies[14].matches(ctx, state), "fireblast disabled & not ready -> no match")
+    assert_false(strategies[16].matches(ctx, state), "fireblast disabled & not ready -> no match")
 end
 
 -- ============================================================================
@@ -2567,7 +2567,7 @@ do
     local state = get_state(ctx)
     state.counterspell_ready = true
     state.use_interrupt = true
-    assert_false(strategies[6].matches(ctx, state), "counterspell is_casting returns nil -> no match")
+    assert_false(strategies[7].matches(ctx, state), "counterspell is_casting returns nil -> no match")
 
     -- is_casting returns 0 (truthy but not boolean)
     local ctx2 = make_context()
@@ -2581,7 +2581,7 @@ do
     local state2 = get_state(ctx2)
     state2.counterspell_ready = true
     state2.use_interrupt = true
-    local ok2, result2 = pcall(strategies[6].matches, ctx2, state2)
+    local ok2, result2 = pcall(strategies[7].matches, ctx2, state2)
     assert_true(ok2, "counterspell is_casting returns 0 -> pcall handles it")
 end
 
@@ -2594,7 +2594,7 @@ do
     local state = get_state(ctx)
     state.evocation_ready = false
     state.mana_pct = 25
-    assert_false(strategies[13].matches(ctx, state), "evocation not ready -> no match")
+    assert_false(strategies[15].matches(ctx, state), "evocation not ready -> no match")
 end
 
 -- ============================================================================
@@ -2610,7 +2610,7 @@ do
     state.mana_gem_available = true
     state.mana_pct = 70
     state.mana_gem_threshold = 70
-    assert_false(strategies[19].matches(ctx, state), "usemanagem mana exactly 70 -> no match")
+    assert_false(strategies[22].matches(ctx, state), "usemanagem mana exactly 70 -> no match")
     NS.is_item_ready = saved_ready
 end
 
@@ -2624,7 +2624,7 @@ do
     state.mana_pct = 10
     state.wand_threshold = 30
     state.wand_learned = true
-    assert_true(strategies[20].matches(ctx, state), "wand OOC low mana -> match (no combat gate)")
+    assert_true(strategies[23].matches(ctx, state), "wand OOC low mana -> match (no combat gate)")
 
     -- wand OOC with enough mana -> false
     local ctx2 = make_context({in_combat = false, mana_pct = 80})
@@ -2632,7 +2632,7 @@ do
     state2.mana_pct = 80
     state2.wand_threshold = 30
     state2.wand_learned = true
-    assert_false(strategies[20].matches(ctx2, state2), "wand OOC enough mana -> no match")
+    assert_false(strategies[23].matches(ctx2, state2), "wand OOC enough mana -> no match")
 end
 
 -- ============================================================================
@@ -2651,7 +2651,7 @@ do
     state.polymorph_hp = 40
     local saved_debuff = NS.debuff_remains
     NS.debuff_remains = function() return 0 end
-    assert_true(strategies[5].matches(ctx, state), "polymorph remains=0 -> match")
+    assert_true(strategies[6].matches(ctx, state), "polymorph remains=0 -> match")
     NS.debuff_remains = saved_debuff
 end
 
@@ -2665,7 +2665,7 @@ do
     local state = get_state(ctx)
     assert_false(state.conjure_gem_ready, "conjure_gem_ready false when no gem spells exist")
 
-    local ok, result = pcall(strategies[4].execute)
+    local ok, result = pcall(strategies[5].execute)
     assert_true(ok, "conjure gem execute with no spells exists -> no crash")
     NS.spell_exists = saved_exists
 end
@@ -2678,7 +2678,7 @@ do
     NS.is_item_ready = function(id) return false end
     local saved_use = NS.use_item_by_id
     NS.use_item_by_id = function(id) return false end
-    local ok, result = pcall(strategies[19].execute)
+    local ok, result = pcall(strategies[22].execute)
     assert_true(ok, "use mana gem execute with no items ready -> no crash")
     NS.is_item_ready = saved_ready
     NS.use_item_by_id = saved_use
@@ -2722,7 +2722,7 @@ do
     state.use_interrupt = true
 
     test("counterspell_no_combat_gate: matches OOC when target casting", function()
-        assert_true(strategies[6].matches(ctx, state), "counterspell should match OOC if target is casting")
+        assert_true(strategies[7].matches(ctx, state), "counterspell should match OOC if target is casting")
     end)
 
     -- Verify it does NOT match OOC if target not casting
@@ -2740,7 +2740,7 @@ do
     state2.use_interrupt = true
 
     test("counterspell_no_combat_gate: no match OOC when target not casting", function()
-        assert_false(strategies[6].matches(ctx2, state2), "counterspell should not match OOC if target not casting")
+        assert_false(strategies[7].matches(ctx2, state2), "counterspell should not match OOC if target not casting")
     end)
 end
 
@@ -2765,7 +2765,7 @@ do
         local state = get_state(ctx)
         state.polymorph_ready = true
         state.polymorph_hp = 40
-        local ok, result = pcall(strategies[5].matches, ctx, state)
+        local ok, result = pcall(strategies[6].matches, ctx, state)
         assert_true(ok, "polymorph match should not crash when debuff_remains is nil")
         NS.debuff_remains = saved
     end)
@@ -2775,7 +2775,7 @@ do
         local state = get_state(ctx)
         state.polymorph_ready = true
         state.polymorph_hp = 40
-        local ok, result = pcall(strategies[5].matches, ctx, state)
+        local ok, result = pcall(strategies[6].matches, ctx, state)
         assert_true(ok, "polymorph match should not crash when debuff_remains throws")
         NS.debuff_remains = saved
     end)
@@ -2864,7 +2864,7 @@ do
         local state = get_state(ctx)
         state.blink_ready = true
         state.hp = 50
-        assert_true(strategies[11].matches(ctx, state), "blink HP=50 -> match")
+        assert_true(strategies[13].matches(ctx, state), "blink HP=50 -> match")
     end)
 
     test("blink_full: in combat, HP=51, ready -> no match", function()
@@ -2872,7 +2872,7 @@ do
         local state = get_state(ctx)
         state.blink_ready = true
         state.hp = 51
-        assert_false(strategies[11].matches(ctx, state), "blink HP=51 -> no match")
+        assert_false(strategies[13].matches(ctx, state), "blink HP=51 -> no match")
     end)
 
     test("blink_full: OOC, HP=30, ready -> no match", function()
@@ -2881,7 +2881,7 @@ do
         state.blink_ready = true
         state.hp = 30
         state.in_combat = false
-        assert_false(strategies[11].matches(ctx, state), "blink OOC -> no match")
+        assert_false(strategies[13].matches(ctx, state), "blink OOC -> no match")
     end)
 end
 
@@ -2892,7 +2892,7 @@ do
         local state = get_state(ctx)
         state.ice_barrier_ready = true
         state.has_ice_barrier = false
-        assert_true(strategies[8].matches(ctx, state), "icebarrier in combat no barrier -> match")
+        assert_true(strategies[9].matches(ctx, state), "icebarrier in combat no barrier -> match")
     end)
 
     test("icebarrier_full: already has barrier -> no match", function()
@@ -2900,7 +2900,7 @@ do
         local state = get_state(ctx)
         state.ice_barrier_ready = true
         state.has_ice_barrier = true
-        assert_false(strategies[8].matches(ctx, state), "icebarrier already active -> no match")
+        assert_false(strategies[9].matches(ctx, state), "icebarrier already active -> no match")
     end)
 
     test("icebarrier_full: OOC, no barrier -> no match", function()
@@ -2908,7 +2908,7 @@ do
         local state = get_state(ctx)
         state.ice_barrier_ready = true
         state.has_ice_barrier = false
-        assert_false(strategies[8].matches(ctx, state), "icebarrier OOC -> no match")
+        assert_false(strategies[9].matches(ctx, state), "icebarrier OOC -> no match")
     end)
 
     test("icebarrier_full: not ready -> no match", function()
@@ -2916,7 +2916,7 @@ do
         local state = get_state(ctx)
         state.ice_barrier_ready = false
         state.has_ice_barrier = false
-        local ok, result = pcall(strategies[8].matches, ctx, state)
+        local ok, result = pcall(strategies[9].matches, ctx, state)
         assert_true(ok, "icebarrier not ready should not throw")
     end)
 end
@@ -2928,7 +2928,7 @@ do
         local state = get_state(ctx)
         state.evocation_ready = true
         state.mana_pct = 25
-        assert_true(strategies[13].matches(ctx, state), "evocation mana=25 -> match")
+        assert_true(strategies[15].matches(ctx, state), "evocation mana=25 -> match")
     end)
 
     test("evocation_full: in combat, mana=26, ready -> no match", function()
@@ -2936,7 +2936,7 @@ do
         local state = get_state(ctx)
         state.evocation_ready = true
         state.mana_pct = 26
-        assert_false(strategies[13].matches(ctx, state), "evocation mana=26 -> no match")
+        assert_false(strategies[15].matches(ctx, state), "evocation mana=26 -> no match")
     end)
 
     test("evocation_full: not ready -> no match", function()
@@ -2944,7 +2944,7 @@ do
         local state = get_state(ctx)
         state.evocation_ready = false
         state.mana_pct = 20
-        assert_false(strategies[13].matches(ctx, state), "evocation not ready -> no match")
+        assert_false(strategies[15].matches(ctx, state), "evocation not ready -> no match")
     end)
 end
 
@@ -2956,7 +2956,7 @@ do
         state.mana_shield_ready = true
         state.hp = 20
         state.has_mana_shield = true
-        assert_false(strategies[7].matches(ctx, state), "manashield already active -> no match at any HP")
+        assert_false(strategies[8].matches(ctx, state), "manashield already active -> no match at any HP")
     end)
 
     test("manashield_full: hp=40 -> match", function()
@@ -2965,7 +2965,7 @@ do
         state.mana_shield_ready = true
         state.hp = 40
         state.has_mana_shield = false
-        assert_true(strategies[7].matches(ctx, state), "manashield hp=40 -> match")
+        assert_true(strategies[8].matches(ctx, state), "manashield hp=40 -> match")
     end)
 
     test("manashield_full: hp=41 -> no match", function()
@@ -2974,7 +2974,7 @@ do
         state.mana_shield_ready = true
         state.hp = 41
         state.has_mana_shield = false
-        assert_false(strategies[7].matches(ctx, state), "manashield hp=41 -> no match")
+        assert_false(strategies[8].matches(ctx, state), "manashield hp=41 -> no match")
     end)
 
     test("manashield_full: OOC even at low HP -> no match", function()
@@ -2983,7 +2983,7 @@ do
         state.mana_shield_ready = true
         state.hp = 20
         state.has_mana_shield = false
-        assert_false(strategies[7].matches(ctx, state), "manashield OOC -> no match")
+        assert_false(strategies[8].matches(ctx, state), "manashield OOC -> no match")
     end)
 end
 
@@ -2995,7 +2995,7 @@ do
         state.fire_blast_ready = true
         state.use_fire_blast = true
         state.is_moving = true
-        assert_true(strategies[14].matches(ctx, state), "fireblast instant works while moving")
+        assert_true(strategies[16].matches(ctx, state), "fireblast instant works while moving")
     end)
 
     test("fireblast_full: disabled while moving -> no match", function()
@@ -3003,7 +3003,7 @@ do
         local state = get_state(ctx)
         state.fire_blast_ready = true
         state.use_fire_blast = false
-        assert_false(strategies[14].matches(ctx, state), "fireblast disabled -> no match")
+        assert_false(strategies[16].matches(ctx, state), "fireblast disabled -> no match")
     end)
 
     test("fireblast_full: no target while moving -> no match", function()
@@ -3012,7 +3012,7 @@ do
         state.fire_blast_ready = true
         state.use_fire_blast = true
         state.target = nil
-        assert_false(strategies[14].matches(ctx, state), "fireblast no target -> no match")
+        assert_false(strategies[16].matches(ctx, state), "fireblast no target -> no match")
     end)
 end
 
@@ -3023,7 +3023,7 @@ do
         local state = get_state(ctx)
         state.conjure_gem_ready = true
         state.mana_gem_available = false
-        assert_true(strategies[4].matches(ctx, state), "conjure ready no gem -> match")
+        assert_true(strategies[5].matches(ctx, state), "conjure ready no gem -> match")
     end)
 
     test("conjuregem_full: in combat -> no match", function()
@@ -3031,7 +3031,7 @@ do
         local state = get_state(ctx)
         state.conjure_gem_ready = true
         state.mana_gem_available = false
-        assert_false(strategies[4].matches(ctx, state), "conjure in combat -> no match")
+        assert_false(strategies[5].matches(ctx, state), "conjure in combat -> no match")
     end)
 
     test("conjuregem_full: gem already available -> no match", function()
@@ -3039,13 +3039,13 @@ do
         local state = get_state(ctx)
         state.conjure_gem_ready = true
         state.mana_gem_available = true
-        assert_false(strategies[4].matches(ctx, state), "conjure gem available -> no match")
+        assert_false(strategies[5].matches(ctx, state), "conjure gem available -> no match")
     end)
 
     test("conjuregem_full: NS.spell_exists nil does not crash execute", function()
         local saved = NS.spell_exists
         NS.spell_exists = nil
-        local ok, result = pcall(strategies[4].execute)
+        local ok, result = pcall(strategies[5].execute)
         assert_true(ok, "conjure execute should not crash when NS.spell_exists is nil")
         NS.spell_exists = saved
     end)
@@ -3062,7 +3062,7 @@ do
         state.mana_gem_available = true
         state.mana_pct = 50
         state.mana_gem_threshold = 70
-        assert_true(strategies[19].matches(ctx, state), "usemanagem low mana with gem -> match")
+        assert_true(strategies[22].matches(ctx, state), "usemanagem low mana with gem -> match")
         NS.is_item_ready = saved_ready
     end)
 
@@ -3074,7 +3074,7 @@ do
         state.use_mana_gem = true
         state.mana_pct = 50
         state.mana_gem_threshold = 70
-        local ok, result = pcall(strategies[19].matches, ctx, state)
+        local ok, result = pcall(strategies[22].matches, ctx, state)
         assert_true(ok, "usemanagem match should not crash when is_item_ready nil")
         NS.is_item_ready = saved
     end)
@@ -3084,7 +3084,7 @@ do
         local saved_use = NS.use_item_by_id
         NS.is_item_ready = function(id) return true end
         NS.use_item_by_id = nil
-        local ok, result = pcall(strategies[19].execute)
+        local ok, result = pcall(strategies[22].execute)
         assert_true(ok, "usemanagem execute should not crash when use_item_by_id nil")
         NS.is_item_ready = saved_ready
         NS.use_item_by_id = saved_use
@@ -3110,7 +3110,7 @@ do
         state.has_frost_armor = false
         state.has_mage_armor = false
         state.frost_armor_ready = true
-        assert_true(strategies[2].matches(ctx, state), "frostarmor OOC no armor -> match")
+        assert_true(strategies[3].matches(ctx, state), "frostarmor OOC no armor -> match")
     end)
 
     test("frostarmor_guard: has mage armor blocks frost armor", function()
@@ -3119,7 +3119,7 @@ do
         state.has_frost_armor = false
         state.has_mage_armor = true
         state.frost_armor_ready = true
-        assert_false(strategies[2].matches(ctx, state), "frostarmor should not overwrite mage armor")
+        assert_false(strategies[3].matches(ctx, state), "frostarmor should not overwrite mage armor")
     end)
 
     test("frostarmor_guard: has frost armor already -> no match", function()
@@ -3128,7 +3128,7 @@ do
         state.has_frost_armor = true
         state.has_mage_armor = false
         state.frost_armor_ready = true
-        assert_false(strategies[2].matches(ctx, state), "frostarmor already active -> no match")
+        assert_false(strategies[3].matches(ctx, state), "frostarmor already active -> no match")
     end)
 end
 
@@ -3169,18 +3169,18 @@ do
         local ctx = make_context({in_combat = false})
         local state = get_state(ctx)
         state.remove_curse_ready = true
-        assert_true(strategies[3].matches(ctx, state), "removecurse OOC ready -> match")
+        assert_true(strategies[4].matches(ctx, state), "removecurse OOC ready -> match")
     end)
 
     test("removecurse_guard: in combat -> no match", function()
         local ctx = make_context({in_combat = true})
         local state = get_state(ctx)
         state.remove_curse_ready = true
-        assert_false(strategies[3].matches(ctx, state), "removecurse combat -> no match")
+        assert_false(strategies[4].matches(ctx, state), "removecurse combat -> no match")
     end)
 
     test("removecurse_guard: nil state does not crash", function()
-        local ok, result = pcall(strategies[3].matches, make_context({in_combat = false}), nil)
+        local ok, result = pcall(strategies[4].matches, make_context({in_combat = false}), nil)
         assert_true(ok, "removecurse nil state -> no crash")
     end)
 end
@@ -3202,7 +3202,7 @@ do
         local state = get_state(ctx)
         state.cone_of_cold_ready = true
         state.enemies = 2
-        assert_true(strategies[10].matches(ctx, state), "conecold dist=10 enemies=2 -> match")
+        assert_true(strategies[12].matches(ctx, state), "conecold dist=10 enemies=2 -> match")
     end)
 
     test("conecold_boundary: dist=11 -> no match", function()
@@ -3218,7 +3218,7 @@ do
         local state = get_state(ctx)
         state.cone_of_cold_ready = true
         state.enemies = 2
-        assert_false(strategies[10].matches(ctx, state), "conecold dist=11 -> no match")
+        assert_false(strategies[12].matches(ctx, state), "conecold dist=11 -> no match")
     end)
 end
 
@@ -3232,7 +3232,7 @@ do
         state.blizzard_ready = true
         state.enemies = 3
         state.is_moving = false
-        assert_true(strategies[12].matches(ctx, state), "blizzard 3 enemies -> match")
+        assert_true(strategies[14].matches(ctx, state), "blizzard 3 enemies -> match")
     end)
 
     test("blizzard_enemies_3_minimum: exactly 2 enemies -> no match", function()
@@ -3240,7 +3240,7 @@ do
         local state = get_state(ctx)
         state.blizzard_ready = true
         state.enemies = 2
-        assert_false(strategies[12].matches(ctx, state), "blizzard 2 enemies -> no match")
+        assert_false(strategies[14].matches(ctx, state), "blizzard 2 enemies -> no match")
     end)
 end
 
@@ -3251,24 +3251,28 @@ do
     -- Map each strategy to its primary ready flag
     local ready_checks = {
         { idx = 1,  flag = "ai_ready",               label = "ArcaneIntellect" },
-        { idx = 2,  flag = "frost_armor_ready",      label = "FrostArmor" },
-        { idx = 3,  flag = "remove_curse_ready",     label = "RemoveCurse" },
-        { idx = 4,  flag = "conjure_gem_ready",      label = "ConjureManaGem" },
-        { idx = 5,  flag = "polymorph_ready",        label = "Polymorph" },
-        { idx = 6,  flag = "counterspell_ready",     label = "Counterspell" },
-        { idx = 7,  flag = "mana_shield_ready",      label = "ManaShield" },
-        { idx = 8,  flag = "ice_barrier_ready",      label = "IceBarrier" },
-        { idx = 9,  flag = "frost_nova_ready",       label = "FrostNova" },
-        { idx = 10, flag = "cone_of_cold_ready",     label = "ConeOfCold" },
-        { idx = 11, flag = "blink_ready",            label = "Blink" },
-        { idx = 12, flag = "blizzard_ready",         label = "Blizzard" },
-        { idx = 13, flag = "evocation_ready",        label = "Evocation" },
-        { idx = 14, flag = "fire_blast_ready",       label = "FireBlast" },
-        { idx = 15, flag = "scorch_ready",           label = "Scorch" },
-        { idx = 16, flag = "arcane_missiles_ready",  label = "ArcaneMissiles" },
-        { idx = 17, flag = "frostbolt_ready",        label = "Frostbolt" },
-        -- UseManaGem (18) checks item readiness, not a _ready flag
-        -- Wand (19) checks wand_learned, not a _ready flag
+        { idx = 2,  flag = "mage_armor_ready",       label = "MageArmor" },
+        { idx = 3,  flag = "frost_armor_ready",      label = "FrostArmor" },
+        { idx = 4,  flag = "remove_curse_ready",     label = "RemoveCurse" },
+        { idx = 5,  flag = "conjure_gem_ready",      label = "ConjureManaGem" },
+        { idx = 6,  flag = "polymorph_ready",        label = "Polymorph" },
+        { idx = 7,  flag = "counterspell_ready",     label = "Counterspell" },
+        { idx = 8,  flag = "mana_shield_ready",      label = "ManaShield" },
+        { idx = 9,  flag = "ice_barrier_ready",      label = "IceBarrier" },
+        { idx = 10, flag = "water_elemental_ready",  label = "WaterElemental" },
+        { idx = 11, flag = "frost_nova_ready",       label = "FrostNova" },
+        { idx = 12, flag = "cone_of_cold_ready",     label = "ConeOfCold" },
+        { idx = 13, flag = "blink_ready",            label = "Blink" },
+        { idx = 14, flag = "blizzard_ready",         label = "Blizzard" },
+        { idx = 15, flag = "evocation_ready",        label = "Evocation" },
+        { idx = 16, flag = "fire_blast_ready",       label = "FireBlast" },
+        { idx = 17, flag = "fireball_ready",         label = "Fireball" },
+        { idx = 18, flag = "scorch_ready",           label = "Scorch" },
+        { idx = 19, flag = "arcane_missiles_ready",  label = "ArcaneMissiles" },
+        { idx = 21, flag = "frostbolt_ready",        label = "Frostbolt" },
+        -- UseManaGem (22) checks item readiness, not a _ready flag
+        -- Wand (23) checks wand_learned, not a _ready flag
+        -- IceLance (20) checks ice_lance_ready + target_frozen, tested separately
     }
 
     local ctx = make_context({in_combat = true, mana_pct = 50, hp = 30, enemies_count = 3, is_moving = false})

@@ -418,7 +418,7 @@ test("mage match: target:is_casting error caught by pcall", function()
     state.use_interrupt = true
     state.target = ctx.target
     -- counterspell_matches uses pcall on target:is_casting
-    local ok, result = pcall(mage_strategies[6].matches, ctx, state)
+    local ok, result = pcall(mage_strategies[7].matches, ctx, state)
     assert_true(ok, "should not throw")
     assert_false(result, "should return false when is_casting throws")
 end)
@@ -429,7 +429,7 @@ test("mage match: target missing get_health_percentage (nil target in state)", f
     state.polymorph_ready = true
     state.target = nil
     -- polymorph_matches checks state.target, should return false
-    local ok, result = pcall(mage_strategies[5].matches, ctx, state)
+    local ok, result = pcall(mage_strategies[6].matches, ctx, state)
     assert_true(ok, "no target should not throw")
     assert_false(result, "should return false without target")
 end)
@@ -451,7 +451,7 @@ test("mage match: target:get_distance throws error", function()
     state.in_combat = true
     state.target = ctx.target
     -- frost_nova_matches calls target:get_distance with pcall
-    local ok, result = pcall(mage_strategies[9].matches, ctx, state)
+    local ok, result = pcall(mage_strategies[11].matches, ctx, state)
     assert_true(ok, "should not throw")
     assert_false(result, "should return false when get_distance throws")
 end)
@@ -475,7 +475,7 @@ test("mage match: nil context.me in frost_nova (me check)", function()
     state.frost_nova_ready = true
     state.in_combat = true
     state.target = ctx.target
-    local ok, result = pcall(mage_strategies[9].matches, ctx, state)
+    local ok, result = pcall(mage_strategies[11].matches, ctx, state)
     assert_true(ok, "nil context.me should not throw")
     assert_false(result, "should return false without me")
 end)
@@ -509,7 +509,7 @@ test("mage match: enemies_count extremes (0, large)", function()
     local ctx0 = make_context({enemies_count = 0})
     local state0 = mage_get_state(ctx0)
     state0.blizzard_ready = true
-    assert_false(mage_strategies[12].matches(ctx0, state0), "blizzard does not match with 0 enemies")
+    assert_false(mage_strategies[14].matches(ctx0, state0), "blizzard does not match with 0 enemies")
 end)
 
 test("mage match: hp extremes (0, 100)", function()
@@ -519,7 +519,7 @@ test("mage match: hp extremes (0, 100)", function()
     state0.mana_shield_ready = true
     state0.hp = 0
     state0.has_mana_shield = false
-    assert_true(mage_strategies[7].matches(ctx0, state0), "mana shield matches at hp 0")
+    assert_true(mage_strategies[8].matches(ctx0, state0), "mana shield matches at hp 0")
 
     -- HP 100: mana shield should not match
     local ctx100 = make_context({hp = 100})
@@ -527,7 +527,7 @@ test("mage match: hp extremes (0, 100)", function()
     state100.mana_shield_ready = true
     state100.hp = 100
     state100.has_mana_shield = false
-    assert_false(mage_strategies[7].matches(ctx100, state100), "mana shield does not match at hp 100")
+    assert_false(mage_strategies[8].matches(ctx100, state100), "mana shield does not match at hp 100")
 end)
 
 -- ============================================================================
