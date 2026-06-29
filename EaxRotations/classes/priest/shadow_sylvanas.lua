@@ -171,6 +171,12 @@ local shadow_state = {
     dotted_vt_count = 0,              -- Enemies with VT
     enemies_missing_vt = 0,           -- Enemies without VT
     mb_cd_remains = 0,                -- Mind Blast cooldown remaining
+    -- Healthstone
+    healthstone_id = nil,
+    healthstone_ready = false,
+    -- Fade
+    fade_ready = false,
+    has_fade_buff = false,
 }
 
 local function build_state(context)
@@ -367,6 +373,25 @@ local function build_state(context)
         if shadow_state.swp_remaining <= 0 then shadow_state.snapshot_swp_dmg = 0 end
         if shadow_state.dp_remaining <= 0 then shadow_state.snapshot_dp_dmg = 0 end
     end
+
+    -- Healthstone scanning
+    shadow_state.healthstone_id = nil
+    shadow_state.healthstone_ready = false
+    if NS.is_item_ready then
+        local HEALTHSTONE_IDS = { 22105, 22104, 22103, 22102, 22101, 22100 }
+        for _, id in ipairs(HEALTHSTONE_IDS) do
+            local ok, ready = pcall(NS.is_item_ready, id)
+            if ok and ready then
+                shadow_state.healthstone_id = id
+                shadow_state.healthstone_ready = true
+                break
+            end
+        end
+    end
+
+    -- Fade state
+    shadow_state.fade_ready = me and NS.spell_ready(SPELLS.Fade, me, { skip_range = true }) or false
+    shadow_state.has_fade_buff = me and NS.buff_up(me, { 25429, 10942, 10941, 9592, 9579, 9578, 586 }) or false
 
     return shadow_state
 end
@@ -807,7 +832,33 @@ local strategies = {
     { name = "ShadowWordDeath", matches = shadow_word_death_matches, execute = function(context) return NS.try_cast(SPELLS.ShadowWordDeath, context.target, "[SHADOW] ShadowWordDeath") end },
     { name = "MindFlay", matches = mind_flay_matches, execute = function(context) return NS.try_cast(SPELLS.MindFlay, context.target, "[SHADOW] MindFlay") end },
     { name = "PsychicScream", matches = psychic_scream_matches, execute = function(context) return NS.try_cast(SPELLS.PsychicScream, context.target, "[SHADOW] PsychicScream") end },
-    -- Fade removed: middleware ThreatDrop + EnhancedFade handle threat-based Fade
+    { name = "Fade",
+      matches = function(context, state)
+          local auto_fade = (context.settings and context.settings.priest_auto_fade) ~= false
+          if not auto_fade then return false end
+          if not context.in_combat then return false end
+          if state.has_fade_buff then return false end
+          if not state.fade_ready then return false end
+          local threshold = (context.settings and context.settings.priest_fade_threat_threshold) or 80
+          if context.threat_pct and context.threat_pct >= threshold then return true end
+          if context.threat_status and context.threat_status >= 2 then return true end
+          return false
+      end,
+      execute = function(context) return NS.try_cast(SPELLS.Fade, NS.PLAYER_UNIT, "[SHADOW] Fade", { skip_range = true }) end,
+    },
+    { name = "Healthstone",
+      matches = function(context, state)
+          local auto_hs = (context.settings and context.settings.auto_healthstone) ~= false
+          if not auto_hs then return false end
+          local threshold = (context.settings and context.settings.healthstone_hp_threshold) or 30
+          if (context.hp or 100) > threshold then return false end
+          if context.is_casting then return false end
+          return state and state.healthstone_ready == true
+      end,
+      execute = function(_, state)
+          return state and state.healthstone_id and NS.use_item_by_id and NS.use_item_by_id(state.healthstone_id) or false
+      end,
+    },
     { name = "DispelMagic", matches = dispel_magic_matches, execute = function(context) return NS.try_cast(SPELLS.DispelMagic, NS.PLAYER_UNIT, "[SHADOW] DispelMagic", { skip_range = true }) end },
     { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return NS.try_cast(SPELLS.ShackleUndead, context.target, "[SHADOW] ShackleUndead") end },
     { name = "SWPSpread", matches = shadow_swp_spread_matches, execute = function(context) _set_lockout("SWP", 3000); local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] SWPSpread"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },

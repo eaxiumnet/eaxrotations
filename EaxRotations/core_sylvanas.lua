@@ -2410,151 +2410,64 @@ function NS.cc_get_npc_id(unit)
     return (ok and type(id) == "number" and id > 0) and id or nil
 end
 
-function NS.cc_is_stunnable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_stunnable(id) ~= false
-end
 
-function NS.cc_is_rootable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_rootable(id) ~= false
-end
-
-function NS.cc_is_fearable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_fearable(id) ~= false
-end
-
----@param unit game_object The target unit.
----@return boolean polymorphable True if NPC is polymorphable.
-function NS.cc_is_polymorphable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_polymorphable(id, unit) ~= false
-end
-
-function NS.cc_is_sappable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_sappable(id, unit) ~= false
-end
-
-function NS.cc_is_banishable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_banishable(id, unit) ~= false
-end
-
-function NS.cc_is_tauntable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_tauntable(id) ~= false
-end
-
-function NS.cc_is_silenceable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_silenceable(id) ~= false
-end
-
-function NS.cc_is_disorientable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_disorientable(id) ~= false
-end
-
-function NS.cc_is_incapacitateable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_incapacitateable(id) ~= false
-end
-
-function NS.cc_is_slowable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_slowable(id) ~= false
-end
-
-function NS.cc_is_knockable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_knockable(id) ~= false
-end
-
-function NS.cc_is_grippable(unit)
-    local id = NS.cc_get_npc_id(unit)
-    if not id or not _cc_data then return true end
-    return _cc_data:is_grippable(id) ~= false
+-- CC immunity bridge functions — generated from table to eliminate boilerplate.
+-- Each function: get NPC ID → check _cc_data method → return true if not blocked.
+-- Fails open (returns true) when CC data module is missing or NPC ID is unknown.
+local CC_CHECKS = {
+    stunnable       = "is_stunnable",
+    rootable        = "is_rootable",
+    fearable        = "is_fearable",
+    polymorphable   = "is_polymorphable",
+    sappable        = "is_sappable",
+    banishable      = "is_banishable",
+    tauntable       = "is_tauntable",
+    silenceable     = "is_silenceable",
+    disorientable   = "is_disorientable",
+    incapacitateable = "is_incapacitateable",
+    slowable        = "is_slowable",
+    knockable       = "is_knockable",
+    grippable       = "is_grippable",
+}
+for check_name, method_name in pairs(CC_CHECKS) do
+    NS["cc_is_" .. check_name] = function(unit)
+        local id = NS.cc_get_npc_id(unit)
+        if not id or not _cc_data then return true end
+        local fn = _cc_data[method_name]
+        if type(fn) ~= "function" then return true end
+        local ok, v = pcall(fn, _cc_data, id, unit)
+        return ok and v ~= false
+    end
 end
 
 -- ============================================================================
 -- Unit Utility Wrappers (unit_helper bridge)
--- ============================================================================
+-- =============================================================================
 
 --- Returns true if the unit is a boss (world boss, dungeon boss, raid boss).
 ---@param unit game_object The target unit.
 ---@return boolean is_boss True if the unit is a boss.
-function NS.unit_is_boss(unit)
-    if not _unit_helper or not unit then return false end
-    local ok, v = pcall(_unit_helper.is_boss, _unit_helper, unit)
-    return ok and v == true
-end
 
---- Returns true if the unit is a training dummy.
----@param unit game_object The target unit.
----@return boolean is_dummy True if the unit is a training dummy.
-function NS.unit_is_dummy(unit)
-    if not _unit_helper or not unit then return false end
-    local ok, v = pcall(_unit_helper.is_dummy, _unit_helper, unit)
-    return ok and v == true
-end
-
---- Returns true if the unit is a valid enemy (filters out immune/untargetable NPCs).
----@param unit game_object The target unit.
----@return boolean is_valid_enemy True if the unit is a valid enemy.
-function NS.unit_is_valid_enemy(unit)
-    if not _unit_helper or not unit then return false end
-    local ok, v = pcall(_unit_helper.is_valid_enemy, _unit_helper, unit)
-    return ok and v == true
-end
-
---- Returns true if the unit is a valid ally (filters out hostile/immune units).
----@param unit game_object The target unit.
----@return boolean is_valid_ally True if the unit is a valid ally.
-function NS.unit_is_valid_ally(unit)
-    if not _unit_helper or not unit then return false end
-    local ok, v = pcall(_unit_helper.is_valid_ally, _unit_helper, unit)
-    return ok and v == true
-end
-
---- Returns true if the unit is in combat.
----@param unit game_object The target unit.
----@return boolean in_combat True if the unit is in combat.
-function NS.unit_is_in_combat(unit)
-    if not _unit_helper or not unit then return false end
-    local ok, v = pcall(_unit_helper.is_in_combat, _unit_helper, unit)
-    return ok and v == true
-end
-
---- Returns true if the unit is in the tank role.
----@param unit game_object The target unit.
----@return boolean is_tank True if the unit is a tank.
-function NS.unit_is_tank(unit)
-    if not _unit_helper or not unit then return false end
-    local ok, v = pcall(_unit_helper.is_tank, _unit_helper, unit)
-    return ok and v == true
-end
-
---- Returns true if the unit is in the healer role.
----@param unit game_object The target unit.
----@return boolean is_healer True if the unit is a healer.
-function NS.unit_is_healer(unit)
-    if not _unit_helper or not unit then return false end
-    local ok, v = pcall(_unit_helper.is_healer, _unit_helper, unit)
-    return ok and v == true
+-- Unit utility bridge functions — generated from table to eliminate boilerplate.
+-- Each function: nil-guard module + unit → pcall method → return true if result is true.
+-- Fails closed (returns false) when the unit_helper module is missing.
+local UNIT_CHECKS = {
+    boss        = "is_boss",
+    dummy       = "is_dummy",
+    valid_enemy = "is_valid_enemy",
+    valid_ally  = "is_valid_ally",
+    in_combat   = "is_in_combat",
+    tank        = "is_tank",
+    healer      = "is_healer",
+}
+for check_name, method_name in pairs(UNIT_CHECKS) do
+    NS["unit_is_" .. check_name] = function(unit)
+        if not _unit_helper or not unit then return false end
+        local fn = _unit_helper[method_name]
+        if type(fn) ~= "function" then return false end
+        local ok, v = pcall(fn, _unit_helper, unit)
+        return ok and v == true
+    end
 end
 
 --- Returns the health percentage (0-100) minus predicted incoming damage.
