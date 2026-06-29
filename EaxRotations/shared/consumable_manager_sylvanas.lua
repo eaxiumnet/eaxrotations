@@ -13,6 +13,7 @@ if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = {}, BUFFS = {} } en
 
 -- Throttle: don't check consumables more than once per 3s
 local _last_check = 0
+local _last_should_check = 0
 
 -- ============================================================================
 -- TBC CONSUMABLE ITEM IDs
@@ -165,9 +166,14 @@ end
 function M.use_mana_potion(context)
     if not context or (context.mana_pct or 100) > 40 then return false end
     local ids = {
+        -- High-end (Outland) potions
         COMBAT_POTIONS.super_mana,
         COMBAT_POTIONS.fel_mana,
         COMBAT_POTIONS.super_rejuvenation,
+        COMBAT_POTIONS.crystal_mana,
+        COMBAT_POTIONS.auchenai_mana,
+        COMBAT_POTIONS.major_mana,
+        COMBAT_POTIONS.superior_mana,
     }
     for i = 1, #ids do
         if use_item(ids[i], context.me, "Mana Potion") then return true end
@@ -252,35 +258,52 @@ end
 
 function M.use_food(context)
     if not context then return false end
+    if (context.hp or 100) > 75 then return false end
     if player_has_any_buff(ACTIVE_BUFFS.food) or player_has_any_buff(ACTIVE_BUFFS.refreshment) then return false end
     local role = M.get_role(context.player_class, context.active_playstyle)
     if role == "melee" then
         if use_item(FOOD.spicy_hot_talbuk, nil, "Spicy Hot Talbuk") then return true end
         if use_item(FOOD.warp_burger, nil, "Warp Burger") then return true end
-        return use_item(FOOD.grilled_mudfish, nil, "Grilled Mudfish")
+        if use_item(FOOD.grilled_mudfish, nil, "Grilled Mudfish") then return true end
     elseif role == "ranged" then
         if use_item(FOOD.ravager_dog, nil, "Ravager Dog") then return true end
         if use_item(FOOD.spicy_hot_talbuk, nil, "Spicy Hot Talbuk") then return true end
-        return use_item(FOOD.warp_burger, nil, "Warp Burger")
+        if use_item(FOOD.warp_burger, nil, "Warp Burger") then return true end
     elseif role == "caster" then
         if use_item(FOOD.blackened_basilisk, nil, "Blackened Basilisk") then return true end
         if use_item(FOOD.crunchy_serpent, nil, "Crunchy Serpent") then return true end
-        return use_item(FOOD.poached_bluefish, nil, "Poached Bluefish")
+        if use_item(FOOD.poached_bluefish, nil, "Poached Bluefish") then return true end
     elseif role == "healer" then
         if use_item(FOOD.golden_fish_sticks, nil, "Golden Fish Sticks") then return true end
-        return use_item(FOOD.blackened_sporefish, nil, "Blackened Sporefish")
+        if use_item(FOOD.blackened_sporefish, nil, "Blackened Sporefish") then return true end
     end
-    return use_item(FOOD.roasted_clefthoof, nil, "Roasted Clefthoof")
+    -- Leveling food fallbacks (lower-level health food)
+    if use_item(FOOD.herb_baked_egg, nil, "Herb Baked Egg") then return true end
+    if use_item(FOOD.cooked_gladeflinger, nil, "Cooked Gladeflinger") then return true end
+    if use_item(FOOD.mithril_head_trout, nil, "Mithril Head Trout") then return true end
+    if use_item(FOOD.baked_salmon, nil, "Baked Salmon") then return true end
+    if use_item(FOOD.cooked_crab_claw, nil, "Cooked Crab Claw") then return true end
+    return use_item(FOOD.spiced_chili_crab, nil, "Spiced Chili Crab")
 end
 
 function M.use_drink(context)
-    if not context or (context.mana_pct or 100) > 65 then return false end
+    if not context or (context.mana_pct or 100) > 80 then return false end
     if player_has_any_buff(ACTIVE_BUFFS.drink) or player_has_any_buff(ACTIVE_BUFFS.refreshment) then return false end
+    -- Try high-end drinks first, then fall back to leveling drinks
     if use_item(DRINKS.conjured_manna_biscuit, nil, "Conjured Manna Biscuit") then return true end
     if use_item(DRINKS.conjured_mountain_spring_water, nil, "Conjured Mountain Spring Water") then return true end
     if use_item(DRINKS.filtered_draenic_water, nil, "Filtered Draenic Water") then return true end
     if use_item(DRINKS.star_tears, nil, "Star's Tears") then return true end
-    return use_item(DRINKS.purified_draenic_water, nil, "Purified Draenic Water")
+    if use_item(DRINKS.purified_draenic_water, nil, "Purified Draenic Water") then return true end
+    -- Leveling drink fallbacks (lower-level water)
+    if use_item(DRINKS.gray_mountains_water, nil, "Gray Mountain Water") then return true end
+    if use_item(DRINKS.purified_water, nil, "Purified Water") then return true end
+    if use_item(DRINKS.gold_tea, nil, "Gold Tea") then return true end
+    if use_item(DRINKS.moonberry_juice, nil, "Moonberry Juice") then return true end
+    if use_item(DRINKS.sweet_nectar, nil, "Sweet Nectar") then return true end
+    if use_item(DRINKS.spring_water, nil, "Spring Water") then return true end
+    if use_item(DRINKS.melon_juice, nil, "Melon Juice") then return true end
+    return use_item(DRINKS.ice_cold_milk, nil, "Ice Cold Milk")
 end
 
 function M.use_weapon_buff(context)
@@ -340,6 +363,33 @@ end
 -- ============================================================================
 -- MAIN ENTRY POINT
 -- ============================================================================
+
+--- Match function throttle: prevents AutoConsumable middleware from re-evaluating
+--- every frame. Returns true only once per 3s when in combat.
+--- @param context table Rotation context
+--- @return boolean should_check
+function M.should_check(context)
+    if not context then return false end
+    -- Skip while already drinking or eating (don't spam consumables mid-channel)
+    if player_has_any_buff(ACTIVE_BUFFS.drink) or player_has_any_buff(ACTIVE_BUFFS.refreshment) then return false end
+    if player_has_any_buff(ACTIVE_BUFFS.food) then return false end
+    -- Allow OOC checks if player needs food/drink (low mana or HP)
+    if not context.in_combat then
+        local hp = context.hp or 100
+        local mana = context.mana_pct or 100
+        if hp >= 80 and mana >= 80 then return false end
+    end
+    -- In combat: only check if HP or mana is actually low (prevents trace spam and wasted cycles)
+    if context.in_combat then
+        local hp = context.hp or 100
+        local mana = context.mana_pct or 100
+        if hp > 60 and mana > 50 then return false end
+    end
+    local now = NS.time_now and NS.time_now() or 0
+    if now - _last_should_check < 3 then return false end
+    _last_should_check = now
+    return true
+end
 
 function M.on_update(context)
     if not NS or type(context) ~= "table" then return false end
