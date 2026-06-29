@@ -315,6 +315,14 @@ local mage_strategies = reg2.strategies
 local mage_get_state = reg2.opts.get_state
 print("Loaded " .. tostring(#mage_strategies) .. " Mage strategies")
 
+-- Helper: find a strategy by name (avoids fragile hardcoded indices)
+local function find_strategy(name)
+    for i = 1, #mage_strategies do
+        if mage_strategies[i].name == name then return mage_strategies[i] end
+    end
+    return nil
+end
+
 -- Test: build_state with nil context.me (nil NS.get_local_player equivalent)
 test("mage build_state: nil context.me does not crash", function()
     local ctx = make_context({
@@ -479,21 +487,21 @@ test("mage match: mana_pct extremes (0 and 100)", function()
     local state0 = mage_get_state(ctx0)
     state0.wand_threshold = 30
     state0.wand_learned = true
-    assert_true(mage_strategies[19].matches(ctx0, state0), "wand matches at mana_pct 0")
+    assert_true(find_strategy("Wand").matches(ctx0, state0), "wand matches at mana_pct 0")
 
     -- Mana 100: wand should not match
     local ctx100 = make_context({mana_pct = 100})
     local state100 = mage_get_state(ctx100)
     state100.wand_threshold = 30
     state100.wand_learned = true
-    assert_false(mage_strategies[19].matches(ctx100, state100), "wand does not match at mana_pct 100")
+    assert_false(find_strategy("Wand").matches(ctx100, state100), "wand does not match at mana_pct 100")
 
     -- Mana exactly at threshold: should not match (>=)
     local ctx30 = make_context({mana_pct = 30})
     local state30 = mage_get_state(ctx30)
     state30.wand_threshold = 30
     state30.wand_learned = true
-    assert_false(mage_strategies[19].matches(ctx30, state30), "wand does not match at mana_pct == threshold")
+    assert_false(find_strategy("Wand").matches(ctx30, state30), "wand does not match at mana_pct == threshold")
 end)
 
 test("mage match: enemies_count extremes (0, large)", function()
@@ -543,12 +551,12 @@ test("mage execute: all strategies handle no args gracefully", function()
 end)
 
 test("mage execute: wand handles nil context.target", function()
-    local ok, result = pcall(mage_strategies[19].execute, {target = nil})
+    local ok, result = pcall(find_strategy("Wand").execute, {target = nil})
     assert_true(ok, "execute with nil target should not throw")
 end)
 
 test("mage execute: wand handles nil context entirely", function()
-    local ok, result = pcall(mage_strategies[19].execute, nil)
+    local ok, result = pcall(find_strategy("Wand").execute, nil)
     assert_true(ok, "execute with nil context should not throw")
 end)
 
@@ -568,7 +576,7 @@ end)
 test("mage execute: wand works when core.input is nil", function()
     local saved = _G.core.input
     _G.core.input = nil
-    local ok, result = pcall(mage_strategies[19].execute, make_context())
+    local ok, result = pcall(find_strategy("Wand").execute, make_context())
     assert_true(ok, "wand execute should not throw when core.input is nil")
     _G.core.input = saved
 end)
@@ -576,7 +584,7 @@ end)
 test("mage execute: frost_nova works when NS.try_cast is nil", function()
     local saved = NS2.try_cast
     NS2.try_cast = nil
-    local ok, result = pcall(mage_strategies[9].execute)
+    local ok, result = pcall(find_strategy("FrostNova").execute)
     assert_true(ok, "frost_nova execute should not throw when NS.try_cast is nil")
     NS2.try_cast = saved
 end)

@@ -39,6 +39,11 @@ local tests = {
     "test_hunter_shot_timer_integration.lua",
     "test_hunter_melee_weave.lua",
 
+    -- FrostByte Supremacy Phase 4 tests
+    "test_stance_manager.lua",
+    "test_rage_manager.lua",
+    "test_dispel_manager.lua",
+
     -- Arms warrior tests
     "test_arms_custom_matches.lua",
     "test_arms_hamstring_tactician.lua",
