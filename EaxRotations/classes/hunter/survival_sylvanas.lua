@@ -7,6 +7,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
 local pet_manager = require("shared/pet_manager_sylvanas")
+local shot_timer = require("shared/shot_timer_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 
 local AUTO_SHOT_BUFFER_MS = 100
@@ -88,6 +89,9 @@ local sv_state = {
     mana_pct = 100,
     in_combat = false,
     enemy_count = 1,
+    hunter_melee_weave = true,
+    hunter_shot_timer_buffer = 150,
+    distance_sq = 10000,
 }
 
 local function build_state(context)
@@ -139,6 +143,9 @@ local function build_state(context)
     sv_state.enemy_count = context.enemy_count or context.enemies_count or 1
     sv_state.pre_steady_leveling = ((context.player_level or 70) < 62) or (context.is_leveling == true and not sv_state.steady_shot_ready)
     sv_state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
+    local settings = context.settings or {}
+    sv_state.hunter_melee_weave = settings.hunter_melee_weave ~= false
+    sv_state.hunter_shot_timer_buffer = settings.hunter_shot_timer_buffer or 150
 
     return sv_state
 end
@@ -205,6 +212,7 @@ end
 
 local function steady_shot_matches(context, s)
     if not s.steady_shot_ready then return false end
+    if shot_timer.should_delay_cast and shot_timer.should_delay_cast(context, s.hunter_shot_timer_buffer or 150) then return false end
     if not can_cast_steady() then return false end
     return true
 end
@@ -358,6 +366,7 @@ end
 -- Raptor Strike: melee weaving when target in melee range (5yd)
 local function raptor_strike_matches(context, s)
     if not s.in_combat then return false end
+    if not s.hunter_melee_weave then return false end
     local target = context.target
     if not target then return false end
     -- Squared distance: 5yd = 25
@@ -372,6 +381,7 @@ end
 -- Wing Clip: melee slow to keep enemies in range (5yd)
 local function wing_clip_matches(context, s)
     if not s.in_combat then return false end
+    if not s.hunter_melee_weave then return false end
     if s.wing_clip_active then return false end
     local target = context.target
     if not target then return false end
