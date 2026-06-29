@@ -491,7 +491,7 @@ end
 local function would_starve_mangle(state, rage_cost)
     if state.has_clearcasting then return false end
     if not spell_exists(SPELLS.MangleBear) then return false end
-    if state.rage - rage_cost >= RAGE_MANGLE_RESERVE then return false end
+    if (state.rage or 0) - rage_cost >= RAGE_MANGLE_RESERVE then return false end
     if state.mangle_ready then return (state.rage or 0) < RAGE_MANGLE_RESERVE + rage_cost end
     if (state.mangle_cd or 0) > MANGLE_HOLD_WINDOW then return false end
     if (state.rage_per_second or 0) > 8 and (state.rage or 0) >= rage_cost + 5 then return false end
@@ -570,7 +570,7 @@ local function potion_matches(context)
     if not state.in_combat then return false end
     if (state.healthstone_ready or 0) > 0 and (state.hp or 100) <= 28 then return false end
     if (state.hp or 100) > 32 then return false end
-    return state.potion_ready > 0
+    return (state.potion_ready or 0) > 0
 end
 
 local function frenzied_regen_matches(context, action)
@@ -600,7 +600,7 @@ local function challenging_roar_matches(context, action)
     local state = build_state(context)
     lazy_scan_pack(state)
     if not state.is_bear or not state.in_combat then return false end
-    if (state.enemy_count or 0) < CHALLENGING_ROAR_ENEMY_COUNT and state.pack_loose < 2 then return false end
+    if (state.enemy_count or 0) < CHALLENGING_ROAR_ENEMY_COUNT and (state.pack_loose or 0) < 2 then return false end
     if (state.pack_loose or 0) < 2 and (state.hp or 100) < 45 then return false end
     return action_ready(context, action)
 end
@@ -611,7 +611,7 @@ local function growl_matches(context, action)
     if not state.loose_target then return false end
     if state.target_target_is_tank then return false end
     if state.target_target_is_player or state.target_target_is_healer then
-        if state.now - state.recent_taunt < TAUNT_COOLDOWN_WINDOW then return false end
+        if state.now - (state.recent_taunt or 0) < TAUNT_COOLDOWN_WINDOW then return false end
         return action_ready(context, action)
     end
     return false
@@ -633,7 +633,7 @@ local function demo_roar_matches(context, action)
     if not state.is_bear or not state.in_combat or not state.demo_roar_enabled then return false end
     if (state.enemy_count or 0) <= 0 then return false end
     if (state.demo_remains or 0) > DEMO_ROAR_REFRESH and not state.pack_needs_demo then return false end
-    if (state.enemy_count or 0) < 2 and not state.is_target_boss and state.target_ttd < 10 then return false end
+    if (state.enemy_count or 0) < 2 and not state.is_target_boss and (state.target_ttd or 999) < 10 then return false end
     return action_ready(context, action)
 end
 
@@ -738,7 +738,7 @@ local function ferocious_bite_matches(context, action)
     if not can_use_bear_ability(state) then return false end
     if state.is_target_boss or state.is_target_player then return false end
     if (state.target_hp or 100) > EXECUTE_HP then return false end
-    if state.loose_target or state.pack_loose > 0 then return false end
+    if state.loose_target or (state.pack_loose or 0) > 0 then return false end
     if (state.lacerate_stacks or 0) < LACERATE_MAX_STACKS and (state.target_ttd or 999) > 5 then return false end
     if (state.rage or 0) < RAGE_BITE + RAGE_SAFE_RESERVE then return false end
     return action_ready(context, action)
@@ -826,7 +826,7 @@ local ACTIONS = {
         local state = build_state(context)
         if not state.is_target_player then return false end
         if not can_use_bear_ability(state) then return false end
-        if state.target_range < CHARGE_MIN_RANGE or state.target_range > CHARGE_MAX_RANGE then return false end
+        if (state.target_range or 30) < CHARGE_MIN_RANGE or (state.target_range or 30) > CHARGE_MAX_RANGE then return false end
         return action_ready(context, { spell = FERAL_CHARGE })
     end },
     { name = "NaturesGraspPvP", spell = SPELLS.NaturesGrasp, target = "self", requires_target = false, matches = function(context)
