@@ -181,7 +181,6 @@ local function flame_shock_matches_fn(context, state)
     -- Flame Shock has ~0.3 direct + ~0.3 DoT coefficient = ~0.6 total; GCD-positive at ~400 SP
     local s = context.settings or {}
     local min_sp = s.elemental_flame_shock_min_sp or FLAME_SHOCK_MIN_SP_DEFAULT
-    if (state.spell_damage or 0) < min_sp then return false end
     if NS.should_refresh_dot and not NS.should_refresh_dot(state.flame_remains, 1.5, context.ttd, 12) then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.FlameShock, context.target) or false
 end
