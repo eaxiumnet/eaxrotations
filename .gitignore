@@ -90,7 +90,7 @@ EaxRotations/**/debug_*.lua
 EaxRotations/**/debugui_*.lua
 EaxRotations/**/_debug_*.lua
 EaxRotations/**/*_edge_insert.lua
-EaxRotations/**/FROSTBYTE_GAP_ANALYSIS.md
+EaxRotations/**/_GAP_ANALYSIS.md
 EaxRotations/**/GAP_ANALYSIS.md
 EaxRotations/docs/
 EaxRotations/tools/

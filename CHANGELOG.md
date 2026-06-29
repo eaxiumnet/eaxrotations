@@ -2,7 +2,7 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
-## [2.2.0] — FrostByte Supremacy Phase 4 (2026-06-29)
+## [2.2.0] — Supremacy Phase 4 (2026-06-29)
 
 ### Added
 
@@ -22,7 +22,7 @@ All notable changes to the EAX TBC Classic Rotations project.
 
 #### Healthstone Automation
 - **WHAT**: Auto-use Healthstone when HP drops below threshold.
-- **WHY**: Basic survival feature advertised by FrostByte.
+- **WHY**: Basic survival feature advertised by .
 - **HOW**: Scan bags for healthstone IDs {22105..22100}. Use `NS.use_item_by_id()` when off-GCD and not casting.
 - **Settings**: `auto_healthstone` checkbox (default true), `healthstone_hp_threshold` slider (default 30%).
 - **Files**: `affliction_sylvanas.lua`, `destruction_sylvanas.lua`, `demonology_sylvanas.lua`, `shadow_sylvanas.lua`.
@@ -65,7 +65,7 @@ All notable changes to the EAX TBC Classic Rotations project.
 - **Total: 208 rotation suites — ALL PASS (0 failures)**
 - **Total: 11 leveling suites — ALL PASS (0 failures)**
 
-## [Unreleased] — FrostByte Supremacy Phase 3 (2026-06-29)
+## [Unreleased] — Supremacy Phase 3 (2026-06-29)
 
 ### Added
 
@@ -118,14 +118,14 @@ All notable changes to the EAX TBC Classic Rotations project.
 
 ### Tests
 - Added 8 new test suites (204 total rotation suites):
-  - `test_dot_ttd_gating.lua`
-  - `test_shot_timer.lua`
-  - `test_aspect_manager.lua`
-  - `test_shadow_multidot.lua`
-  - `test_shadow_inner_focus_combo.lua`
-  - `test_affliction_dot_ttd.lua`
-  - `test_hunter_shot_timer_integration.lua`
-  - `test_hunter_melee_weave.lua`
+ - `test_dot_ttd_gating.lua`
+ - `test_shot_timer.lua`
+ - `test_aspect_manager.lua`
+ - `test_shadow_multidot.lua`
+ - `test_shadow_inner_focus_combo.lua`
+ - `test_affliction_dot_ttd.lua`
+ - `test_hunter_shot_timer_integration.lua`
+ - `test_hunter_melee_weave.lua`
 - 200 pass (4 pre-existing failures unrelated to this work).
 - All 11 leveling suites pass.
 
@@ -135,7 +135,7 @@ All notable changes to the EAX TBC Classic Rotations project.
 - **Modified schemas**: `priest/schema_sylvanas.lua`, `hunter/schema_sylvanas.lua`, `warlock/schema_sylvanas.lua`
 - **Modified tests**: `run_rotation_tests.lua`
 
-## [Unreleased] — FrostByte Supremacy Phase 2 (2026-06-28)
+## [Unreleased] — Supremacy Phase 2 (2026-06-28)
 
 ### Fixed
 
@@ -216,12 +216,12 @@ Every new middleware feature now has a corresponding UI checkbox/slider:
 
 ### Tests
 - Added 6 new test suites (196 total rotation suites):
-  - `test_paladin_protection_jow_mode.lua`
-  - `test_paladin_retribution_post_swing_judge.lua`
-  - `test_paladin_retribution_twist_diagnostics.lua`
-  - `test_shaman_enhancement_totem_twist.lua`
-  - `test_shaman_enhancement_auto_weapon_buffs.lua`
-  - `test_shaman_enhancement_intelligent_shield.lua`
+ - `test_paladin_protection_jow_mode.lua`
+ - `test_paladin_retribution_post_swing_judge.lua`
+ - `test_paladin_retribution_twist_diagnostics.lua`
+ - `test_shaman_enhancement_totem_twist.lua`
+ - `test_shaman_enhancement_auto_weapon_buffs.lua`
+ - `test_shaman_enhancement_intelligent_shield.lua`
 - All 196 rotation suites: 193 pass (3 pre-existing failures unrelated to Phase 2).
 - All 11 leveling suites pass.
 
@@ -230,7 +230,7 @@ Every new middleware feature now has a corresponding UI checkbox/slider:
 - **Modified schemas**: `paladin/schema_sylvanas.lua`, `shaman/schema_sylvanas.lua`
 - **Modified tests**: `run_rotation_tests.lua`
 
-## [Unreleased] — FrostByte Supremacy Phase 1 (2026-06-28)
+## [Unreleased] — Supremacy Phase 1 (2026-06-28)
 
 ### Added
 
@@ -278,11 +278,11 @@ Every new middleware feature now has a corresponding UI checkbox/slider:
 
 ### Tests
 - Added 5 new test suites (176 total rotation suites):
-  - `test_stopcast_engine.lua`
-  - `test_pet_heal.lua`
-  - `test_triage_tank_bias.lua`
-  - `test_snap_threat.lua`
-  - `test_combat_mode.lua`
+ - `test_stopcast_engine.lua`
+ - `test_pet_heal.lua`
+ - `test_triage_tank_bias.lua`
+ - `test_snap_threat.lua`
+ - `test_combat_mode.lua`
 - All 176 rotation suites pass.
 - All 11 leveling suites pass.
 

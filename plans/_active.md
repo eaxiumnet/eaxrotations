@@ -1,17 +1,17 @@
 # Active Plan
 
-**Current:** `plans/ultra-plan-frostbyte-supremacy.md` — 8-week roadmap to dominate FrostByte
+**Current:** `plans/ultra-plan--supremacy.md` — 8-week roadmap to dominate 
 **Previous:** `plans/omnibus-master-audit-2026-06-26.md` ✅ COMPLETE
 
 ---
 
-## 🏆 FrostByte Supremacy Ultra-Plan
-**Started:** 2026-06-28  
-**Goal:** Out-feature, out-quality, and out-market FrostByte across all 32 identified gaps  
+## 🏆 Supremacy Ultra-Plan
+**Started:** 2026-06-28 
+**Goal:** Out-feature, out-quality, and out-market across all 32 identified gaps 
 **Competitor Intel:** 21 plugins (17 TBC rotation + 3 MoP + 1 utility)
 
 ### EAX Advantages (Maintain & Amplify)
-- ✅ 29 specs vs FrostByte's ~17
+- ✅ 29 specs vs 's ~17
 - ✅ 11 leveling suites vs ~6
 - ✅ `gate_overheal` — predictive overheal prevention (NO competitor has this)
 - ✅ Triage scoring — smart target selection

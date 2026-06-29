@@ -1,7 +1,7 @@
 # Holy Paladin — Light's Grace Chaining + Configurable HL Threshold
 
 ## Goal
-Close the gap vs FrostByte Holy Paladin on two advertised features:
+Close the gap vs Holy Paladin on two advertised features:
 1. **Light's Grace chaining** — refresh the 0.5s haste buff before it expires with a cheap HL R4
 2. **Configurable Holy Light HP threshold** — expose the hardcoded 70% as a user setting
 
