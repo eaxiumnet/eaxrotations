@@ -80,7 +80,7 @@
 - Phase 5: ⏳ PENDING (Marketing & Community)
 
 ### Remaining from Previous Sprint
-1. Hunter cliptracker port (tbc-main has 1361-line module vs EAX's 39-line stub)
+1. ~~Hunter cliptracker port (tbc-main has 1361-line module vs EAX's 39-line stub)~~ ✅ Shipped 2026-06-29 as a layered architecture: `classes/hunter/cliptracker_sylvanas.lua` (38-line delegate) + `shared/hunter_core_sylvanas.lua` (384 lines: auto-shot timer + weapon-speed table + can_cast_steady/instant) + `shared/hunter_adaptive_sylvanas.lua` (997 lines: wowsims-port ChooseAction engine with damage formulas, clip budgets, decision log) + `shared/shot_timer_sylvanas.lua` (68 lines: pre-cast delay gate) = ~1487 lines of production code covering the same territory as tbc-main's 1361-line monolithic module. Covered by `test_hunter_shot_timer_integration.lua` and `test_hunter_melee_weave.lua` (registered in `run_rotation_tests.lua` lines 39-40).
 2. Shared module Pattern 15 headers (43/64 missing)
 3. Remaining raid defensive thresholds (~14 specs)
 4. Druid bear test failure (pre-existing from another agent)
