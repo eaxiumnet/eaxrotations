@@ -1,15 +1,11 @@
--- targeting_sylvanas.lua -- shared Targeting System: enemy scoring + multi-target selection.
+-- targeting_sylvanas.lua -- shared Targeting System: enemy scoring + multi-target selection..
 -- WHAT:   shared Targeting System: enemy scoring + multi-target selection.
 -- WHEN:   called per-frame in spec build_state
 -- WHY:    centralises threat/distance/HP-anomaly-based target scoring
 -- SAFETY: bounded enemy scan; nil-guarded targets; static scoring table
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
-
--- ============================================================================
--- Shared Helper: Targeting System
 -- Sticky target, raid marker priority, pull modes, enemy counting
--- ============================================================================
 
 local M = {}
 local _G = _G

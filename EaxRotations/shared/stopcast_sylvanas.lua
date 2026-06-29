@@ -1,11 +1,12 @@
--- stopcast_sylvanas.lua — Smart in-flight cast cancellation to prevent overheal.
--- WHAT: Cancels a direct heal cast when the target's HP recovers above threshold
---  during the cast, preventing massive overheal waste.
--- WHEN: Any healing spec casting a direct heal with cast time > 1.0s.
--- WHY: has this; EAX needs parity. A Greater Heal landing on a target
---  that was topped off by a HoT tick = ~40% overheal.
+-- stopcast_sylvanas.lua -- Cancels a direct heal cast when the target's HP recovers above threshold.
+-- WHAT:   Cancels a direct heal cast when the target's HP recovers above threshold
+-- WHEN:   Any healing spec casting a direct heal with cast time > 1.0s.
+-- WHY:    has this; EAX needs parity. A Greater Heal landing on a target
 -- SAFETY: All API calls nil-guarded; disabled pass-through when off or when
 -- DECISION: smart Stop-Cast Engine; cancel heal channel when target recovers enough.
+
+--  during the cast, preventing massive overheal waste.
+--  that was topped off by a HoT tick = ~40% overheal.
 --   target data is unavailable. Uses engine cancel API (cancel_spells).
 -- Decision: Standalone module so all 5 healer specs can consume it uniformly.
 

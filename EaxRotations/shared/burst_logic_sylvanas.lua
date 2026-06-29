@@ -1,17 +1,14 @@
--- burst_logic_sylvanas.lua -- should_auto_burst + offensive_autocast_match scoring helpers.
+-- burst_logic_sylvanas.lua -- should_auto_burst + offensive_autocast_match scoring helpers..
 -- WHAT:   should_auto_burst + offensive_autocast_match scoring helpers.
 -- WHEN:   called per-tick by melee/ranged specs when burstwindow is open
 -- WHY:    centralises burst-window scoring into one dispatcher
 -- SAFETY: pure scoring function; nil-guarded enemy list; no on_update allocs
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
-
--- ============================================================================
--- Shared Helper: Burst Logic (should_auto_burst + offensive_autocast_matches)
--- ============================================================================
 -- Pure functions extracted from core_sylvanas.lua for reuse in tests.
 -- All NS/api/ dependencies are injected via the deps table for testability.
 --
+
 local M = {}
 
 -- Bloodlust alignment timeout: if Bloodlust hasn't come by this many seconds

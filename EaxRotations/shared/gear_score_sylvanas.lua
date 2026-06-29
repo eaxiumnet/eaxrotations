@@ -1,13 +1,10 @@
--- gear_score_sylvanas.lua -- Gear Score Calculator (cached per equip change).
+-- gear_score_sylvanas.lua -- Gear Score Calculator (cached per equip change)..
 -- WHAT:   Gear Score Calculator (cached per equip change).
 -- WHEN:   called once per PLAYER_EQUIPMENT_CHANGED event
 -- WHY:    exposes gear_score metric for menu display
 -- SAFETY: recomputed only on equipment change; nil-guarded stats api
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
-
--- Shared Helper: Gear Score Calculator
--- ============================================================================
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations

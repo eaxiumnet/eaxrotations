@@ -1,17 +1,10 @@
--- potion_helper_sylvanas.lua -- shared potion item IDs + try_use_potion wrapper
--- WHAT:  expose known potion IDs (healing/mana/etc) + a try_use_potion helper
--- WHEN:  any in-combat where the trigger condition holds
--- WHY:   removes per-spec hardcoded item IDs; keeps IDs in one file
--- SAFETY: is_spell_learned + in_bag check; combat-mode gating
-
--- potion_helper_sylvanas.lua -- TBC potion item ID lists (HP/mana) plus try_use_potion dispatcher.
--- WHAT:   TBC potion item ID lists (HP/mana) plus try_use_potion dispatcher
+-- potion_helper_sylvanas.lua -- expose known potion IDs (healing/mana/etc) + a try_use_potion helper.
+-- WHAT:   expose known potion IDs (healing/mana/etc) + a try_use_potion helper
 -- WHEN:   called per-frame under HP/mana thresholds by all specs
--- WHY:    prevents 9 specs duplicating item ID lists and use logic
--- SAFETY: all IDs DBC-verified; nil-guarded use-item API
+-- WHY:    removes per-spec hardcoded item IDs; keeps IDs in one file
+-- SAFETY: is_spell_learned + in_bag check; combat-mode gating
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- Shared Helper: Potion item IDs and try_use_potion utility.
 -- Centralises potion ID lists and the pcall-safe use_item loop so
 -- class rotation files can share a single copy.
 

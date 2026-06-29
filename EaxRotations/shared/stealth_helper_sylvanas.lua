@@ -1,17 +1,10 @@
--- stealth_helper_sylvanas.lua -- shared stealth-detector for opener/CC states
--- WHAT:  centralized stealth detection across rogue + druid-cat specs
--- WHEN:  any spec that relies on stealth openers (Rogue, Feral)
--- WHY:   single source of truth so openers stay consistent
--- SAFETY: has_buff + buff_remains nil-guarded
-
--- stealth_helper_sylvanas.lua -- shared stealth/opener plumbing for Rogue and Feral Druid.
--- WHAT:   shared stealth/opener plumbing for Rogue and Feral Druid
--- WHEN:   called per-frame in cat/subtlety/assassination specs
+-- stealth_helper_sylvanas.lua -- centralized stealth detection across rogue + druid-cat specs.
+-- WHAT:   centralized stealth detection across rogue + druid-cat specs
+-- WHEN:   any spec that relies on stealth openers (Rogue, Feral)
 -- WHY:    single source of stealth detection + opener sequencing
 -- SAFETY: OPENER_BUFF check nil-guarded; no side-effects
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- =========================================================================
 -- EaxRotations/shared/stealth_helper_sylvanas.lua
 -- Shared stealth helper for Rogue (Stealth) and Druid (Prowl) specs.
 -- TBC Classic Anniversary (3.3.5 client).
@@ -20,7 +13,6 @@
 --   M.try(context)        -> boolean   (cast or queue via NS.try_cast)
 --   M.is_stealthed()      -> boolean   (checks all stealth buff IDs)
 --   M.SPELLS              -> { STEALTH, PROWL, SHADOWMELD }
--- =========================================================================
 
 local _G = _G
 local NS = _G.EaxRotations

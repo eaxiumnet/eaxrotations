@@ -1,14 +1,10 @@
--- spell_validation_sylvanas.lua -- Spell ID Validation: verifies spell ID exists in DBC at module load.
+-- spell_validation_sylvanas.lua -- Spell ID Validation: verifies spell ID exists in DBC at module load..
 -- WHAT:   Spell ID Validation: verifies spell ID exists in DBC at module load.
 -- WHEN:   called once at spec module load
 -- WHY:    fast-fail on invalid IDs to prevent runtime 'unknown spell' crashes
 -- SAFETY: PCalled on api; loads wowhead_data_bridge for ID lookup
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
-
--- ============================================================================
--- Shared Helper: Spell Validation
--- ============================================================================
 local M = {}
 local _G = _G
 local NS = _G.EaxRotations

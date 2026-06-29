@@ -1,22 +1,12 @@
--- purge_manager_sylvanas.lua -- shared enemy-buff purge candidate selector
--- WHAT:  score + queue purgable enemy buffs (e.g. PW:Shield target prioritization)
--- WHEN:  PvE + PvP where dispel-on-enemy is usable
--- WHY:   single source of truth so multiple specs (healer/paladin/mage) share logic
--- SAFETY: is_in_combat gate; nil-guard on auras; bounded scan (<=8)
-
--- purge_manager_sylvanas.lua -- offensive dispel (Purge) with hostile-buff priority list.
--- WHAT:   offensive dispel (Purge) with hostile-buff priority list
+-- purge_manager_sylvanas.lua -- score + queue purgable enemy buffs (e.g. PW:Shield target prioritization).
+-- WHAT:   score + queue purgable enemy buffs (e.g. PW:Shield target prioritization)
 -- WHEN:   called per-tick in PvP specs when target has dispellable buff
--- WHY:    unifies offensive dispel behaviour across classes
--- SAFETY: throttled to 1s; nil-guarded debuff API
+-- WHY:    single source of truth so multiple specs (healer/paladin/mage) share logic
+-- SAFETY: is_in_combat gate; nil-guard on auras; bounded scan (<=8)
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- ============================================================================
--- Shared Helper: Purge Manager
--- ============================================================================
 -- Pattern: Check enemy for magic buffs, cast Purge if found.
 -- Supports both standalone API calls and NS.action_matches/execute middleware.
--- ============================================================================
 
 local M = {}
 local _G = _G

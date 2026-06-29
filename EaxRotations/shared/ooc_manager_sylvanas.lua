@@ -1,9 +1,3 @@
--- ooc_manager_sylvanas.lua -- out-of-combat behavior manager (mount/buff/idle)
--- WHAT:  mount/buff/idle behavior when not in combat
--- WHEN:  out of combat
--- WHY:   single source of truth for OOC bot behavior
--- SAFETY: is_in_combat() nil-guarded; per-spec allow-flag
-
 -- ooc_manager_sylvanas.lua -- mount/buff/vendor/regen behaviours when not in combat.
 -- WHAT:   mount/buff/vendor/regen behaviours when not in combat
 -- WHEN:   called per-tick when not in_combat and not mounted
@@ -11,9 +5,6 @@
 -- SAFETY: calls api only outside combat; nil-guarded player check
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- ============================================================================
--- Shared Runtime Helper: Out-of-Combat Manager
--- ============================================================================
 -- What:     Automates pre-combat setup: class buff refreshes, pet summons, and
 --           food/flask consumption while out of combat.
 -- When:     Called by main_sylvanas.lua's on_rotation_update() ONLY when
@@ -70,7 +61,6 @@
 --         broken_api_throttled(10s) -> NS.try_cast(skip_range)
 --       try_buff_upgrades -> buff_rank position > 1 -> NS.try_cast (rank upgrade)
 --       try_food_flask  -> broken_api_throttled(3s) -> NS.try_cast (numeric ID, no rank mismatch)
--- ============================================================================
 
 local _G = _G
 local NS = _G.EaxRotations

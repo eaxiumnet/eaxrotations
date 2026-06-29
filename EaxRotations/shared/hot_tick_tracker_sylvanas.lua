@@ -1,13 +1,10 @@
--- hot_tick_tracker_sylvanas.lua -- predict HoT tick times for snapshot-aware refresh gating
--- WHAT:  predict next HoT tick per aura; expose tick-time delta
--- WHEN:  any healer combat
--- WHY:   prevents refreshing HoTs mid-tick (which wipes incoming tick)
+-- hot_tick_tracker_sylvanas.lua -- predict next HoT tick per aura; expose tick-time delta.
+-- WHAT:   predict next HoT tick per aura; expose tick-time delta
+-- WHEN:   any healer combat
+-- WHY:    prevents refreshing HoTs mid-tick (which wipes incoming tick)
 -- SAFETY: bounded aura list; throttled recompute
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
--- ============================================================================
--- Shared Helper: HOT Tick Tracker
--- ============================================================================
 -- Generic heal-over-time tick progress computation for TBC/Classic.
 -- Tracks buff-based HOTs (Renew, Rejuvenation, Regrowth, Lifebloom) by
 -- monitoring buff presence via NS.buff_remains and computing tick state.
@@ -22,7 +19,6 @@
 --   for _, st in ipairs(hots) do
 --       print(st.hot_key, st.next_tick_in)
 --   end
--- ============================================================================
 
 local _G = _G
 local NS = _G.EaxRotations

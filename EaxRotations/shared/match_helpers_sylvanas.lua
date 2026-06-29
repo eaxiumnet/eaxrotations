@@ -5,14 +5,11 @@
 -- SAFETY: pure predicates; no api calls; cached dependencies
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- ============================================================================
--- Shared Helper: Match Helpers
 -- What:   Boolean gate helpers for common strategy match-function patterns.
 -- When:   Loaded at module init. Used by spec match functions via NS.match_helpers.
 -- Why:    Eliminates duplicate inline guards across 16+ spec files.
 -- Safety: Pure boolean logic — no side effects, no engine API calls.
 -- Decision: Start with ttd_gate (highest ROI: 43 occurrences, 16 files).
--- ============================================================================
 
 local M = {}
 local _G = _G

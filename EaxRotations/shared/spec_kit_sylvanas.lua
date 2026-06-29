@@ -1,13 +1,10 @@
--- spec_kit_sylvanas.lua -- spec_kit: boilerplate + nil-guard elimination kit for spec files.
+-- spec_kit_sylvanas.lua -- spec_kit: boilerplate + nil-guard elimination kit for spec files..
 -- WHAT:   spec_kit: boilerplate + nil-guard elimination kit for spec files.
 -- WHEN:   loaded by spec files; consumed by build_state + actions
 -- WHY:    provides define_action_for_class + safe_state proxies
 -- SAFETY: lazy-loaded only by spec files; nil-tolerant
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
-
--- =============================================================================
--- spec_kit_sylvanas.lua
 --
 -- Boilerplate + nil-guard elimination kit for EaxRotations spec files.
 -- Mirrors the proven design in eax_refactor/lua/spec_kit.lua and ports it into
@@ -40,7 +37,6 @@
 --   - Every public function is nil-guarded against a missing NS.
 --   - safe_state returns a write-through proxy: __newindex lands on the
 --     underlying raw table, so build_state() mutations still work.
--- =============================================================================
 
 local M = {}
 

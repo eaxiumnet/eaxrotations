@@ -1,13 +1,10 @@
--- ttd_tracker_sylvanas.lua -- raw time-to-death tracker per target
--- WHAT:  track raw TTD per target based on HP delta over window
--- WHEN:  any combat
--- WHY:   fundamental primitive consumed by execute_phase + ttd_ema
+-- ttd_tracker_sylvanas.lua -- track raw TTD per target based on HP delta over window.
+-- WHAT:   track raw TTD per target based on HP delta over window
+-- WHEN:   any combat
+-- WHY:    fundamental primitive consumed by execute_phase + ttd_ema
 -- SAFETY: bounded history; nil-guarded
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
--- ============================================================================
--- Shared Helper: Linear Regression Time-To-Die (TTD) Tracker
--- ============================================================================
 -- What:   Estimates how long a target will live by fitting a line to recent
 --         health-percentage samples and extrapolating to 0%.
 -- When:   Called every tick while in combat with a valid enemy target.
@@ -27,7 +24,6 @@
 -- Usage (test — dofile pattern):
 --   dofile("EaxRotations/shared/ttd_tracker_sylvanas.lua")
 --   local M = _G.TTDTracker
--- ============================================================================
 
 local M = {}
 

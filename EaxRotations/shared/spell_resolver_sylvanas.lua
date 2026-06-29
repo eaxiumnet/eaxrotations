@@ -1,19 +1,10 @@
--- spell_resolver_sylvanas.lua -- resolve a spell to its highest learned rank + valid id
--- WHAT:  given a name/id and the local player, return the active rank id
--- WHEN:  called from spec helpers and izi.spell() consumers
--- WHY:   lets specs request 'Spell X' and get the right id for the player's level
--- SAFETY: is_spell_learned() gate; nil result is benign (returns nil)
-
--- spell_resolver_sylvanas.lua -- cached spell resolution table with talent-modifier awareness.
--- WHAT:   cached spell resolution table with talent-modifier awareness
+-- spell_resolver_sylvanas.lua -- given a name/id and the local player, return the active rank id.
+-- WHAT:   given a name/id and the local player, return the active rank id
 -- WHEN:   called per-frame in spec match functions; caches outcomes in-process
--- WHY:    replaces string-key spell lookups with pre-resolved ID tables
--- SAFETY: cache TTL 5s; nil-guarded on cache miss
+-- WHY:    lets specs request 'Spell X' and get the right id for the player's level
+-- SAFETY: is_spell_learned() gate; nil result is benign (returns nil)
 -- DECISION: consumed by specs via require(); no on_update side-effects.
 
--- ============================================================================
--- Shared Module: Talent-Modified Spell Resolution
--- ============================================================================
 -- What:   Auto-resolves talent-modified spell IDs using the WoW client's
 --         spell override API. When a talent improves a spell (e.g., Improved
 --         Seal of Righteousness), the client reports a different spell ID
@@ -30,7 +21,6 @@
 -- Decision: Separate module rather than extending core_sylvanas.lua to keep
 --           concerns isolated. Follows existing shared module pattern with M.*
 --           exports and NS namespace registration.
--- ============================================================================
 
 local _G = _G
 local NS = _G.EaxRotations

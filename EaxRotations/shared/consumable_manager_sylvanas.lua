@@ -1,19 +1,9 @@
--- consumable_manager_sylvanas.lua -- shared consumable manager: healthstone, potions, scrolls, food
--- WHAT:  centralized inventory + cooldown check + cast wrapper for consumables
--- WHEN:  any in-combat or pre-pull state
--- WHY:   single Settings-aware entry for all consumables, removes per-spec bloat
--- SAFETY: is_spell_learned() gate; combat-mode respect; item-id validity table-fenced
-
--- consumable_manager_sylvanas.lua -- centralised healthstone/potion/flask activator with HP/mana floors.
--- WHAT:   centralised healthstone/potion/flask activator with HP/mana floors
+-- consumable_manager_sylvanas.lua -- centralized inventory + cooldown check + cast wrapper for consumables.
+-- WHAT:   centralized inventory + cooldown check + cast wrapper for consumables
 -- WHEN:   called per-frame in combat by every spec
--- WHY:    removes 29 files of duplicated use-item + HP gate logic
--- SAFETY: all item IDs from tbc_data_sylvanas; nil-guarded api calls
+-- WHY:    single Settings-aware entry for all consumables, removes per-spec bloat
+-- SAFETY: is_spell_learned() gate; combat-mode respect; item-id validity table-fenced
 -- DECISION: consumed by specs via require(); no on_update side-effects.
-
--- Shared Helper: Consumable Manager
--- ============================================================================
--- ============================================================================
 
 local _G = _G
 local NS = _G.EaxRotations
