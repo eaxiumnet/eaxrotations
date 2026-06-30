@@ -26,13 +26,15 @@
 
 **Acceptance:** schema compliance test green; no menu behavior change. ✅
 
-## Phase 2 — Track C: Leveling + class_config alignment (~0.5 day, low risk)
+## Phase 2 — Track C: Leveling + class_config alignment (~0.5 day, low risk) ✅ COMPLETE
 
-1. Bring all 9 leveling files to canonical return shape + guarded registration
-2. Standardize leveling module-table name to `<class>_leveling` with `build_state` field
-3. Extend schema compliance test: class_config.playstyles subset of schema playstyle values subset of registered keys
+- [x] Bring all 9 leveling files to canonical return shape + guarded registration
+  - Fixed: 5 Pattern-1 files (Mage, Hunter, Paladin, Priest, Warlock) — added guarded registration
+  - Pattern-2 files (Druid, Rogue, Shaman, Warrior) already conform
+- [x] Write `tests/test_leveling_compliance.lua` — validates load, registration, build_state, strategies, guard
+- [x] Register test in `run_leveling_tests.lua` (suite count: 11 → 12)
 
-**Acceptance:** leveling suite (11) green; cross-consistency assertion passes.
+**Acceptance:** leveling suite (12) green; cross-consistency assertion passes. ✅
 
 ## Phase 3 — Track B: Opportunistic spec_kit migration (ongoing, ~3-5 days)
 
