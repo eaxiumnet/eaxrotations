@@ -15,14 +15,16 @@
 
 **Acceptance:** luac -p clean; full suite green; compliance test passes; AGENTS.md + README updated.
 
-## Phase 1 — Track A: Schema standardization (~1 day, low risk)
+## Phase 1 — Track A: Schema standardization (~1 day, low risk) ✅ COMPLETE
 
-1. Extract shared Consumables tab (9x copy) into `shared/schema_consumables_sylvanas.lua`
-2. Define required common key set; confirm each of 9 schemas has them
-3. Write `tests/test_schema_compliance.lua`
-4. Normalize tab ordering: General -> per-spec -> Leveling -> Consumables
+- [x] Extract shared Consumables tab (9x copy) into `shared/schema_consumables_sylvanas.lua`
+- [x] Define required common key set; confirm each of 9 schemas has them
+- [x] Write `tests/test_schema_compliance.lua`
+- [x] Normalize tab ordering: General -> per-spec -> Leveling -> Consumables
+  - Fixed: mage, paladin, priest, warlock (4 commits, one per file)
+- [x] Register test in `run_rotation_tests.lua` (suite count: 212 → 213)
 
-**Acceptance:** schema compliance test green; no menu behavior change.
+**Acceptance:** schema compliance test green; no menu behavior change. ✅
 
 ## Phase 2 — Track C: Leveling + class_config alignment (~0.5 day, low risk)
 
