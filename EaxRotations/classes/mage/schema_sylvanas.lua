@@ -59,30 +59,6 @@ return {
         },
     },
     {
-        name = "Consumables",
-        sections = {
-            {
-                header = "Auto Consumables",
-                settings = {
-                    { key = "use_auto_consumables", type = "checkbox", label = "Enable Auto Consumables", default = true },
-                    { key = "use_flasks", type = "checkbox", label = "Use Flasks", default = false },
-                    { key = "use_elixirs", type = "checkbox", label = "Use Elixirs", default = false },
-                    { key = "use_food", type = "checkbox", label = "Use Food", default = false },
-                    { key = "use_combat_potions", type = "checkbox", label = "Combat Potions", default = true },
-                    { key = "use_weapon_buffs", type = "checkbox", label = "Weapon Buffs", default = false },
-                    { key = "use_drums", type = "checkbox", label = "Drums", default = false },
-                    { key = "use_healthstones", type = "checkbox", label = "Healthstones", default = true },
-                    { key = "use_mana_potions", type = "checkbox", label = "Mana Potions", default = true },
-                    { key = "mana_potion_threshold", type = "slider", label = "Mana Potion at %", min = 0, max = 100, default = 40 },
-                    { key = "health_potion_threshold", type = "slider", label = "Health Potion at %", min = 0, max = 100, default = 35 },
-                    { key = "use_health_potions", type = "checkbox", label = "Health Potions", default = true },
-                    { key = "use_bandages", type = "checkbox", label = "Bandages", default = false },
-                    { key = "use_dark_runes", type = "checkbox", label = "Dark Runes", default = false },
-                },
-            },
-        },
-    },
-    {
         name = "Arcane",
         sections = {
             {
@@ -139,6 +115,30 @@ return {
                     { key = "leveling_arcane_missiles_use", type = "checkbox", label = "Use Arcane Missiles", default = true },
                     { key = "leveling_scorch_use", type = "checkbox", label = "Use Scorch", default = true },
                     { key = "leveling_fire_blast_use", type = "checkbox", label = "Use Fire Blast", default = true },
+                },
+            },
+        },
+    },
+    {
+        name = "Consumables",
+        sections = {
+            {
+                header = "Auto Consumables",
+                settings = {
+                    { key = "use_auto_consumables", type = "checkbox", label = "Enable Auto Consumables", default = true },
+                    { key = "use_flasks", type = "checkbox", label = "Use Flasks", default = false },
+                    { key = "use_elixirs", type = "checkbox", label = "Use Elixirs", default = false },
+                    { key = "use_food", type = "checkbox", label = "Use Food", default = false },
+                    { key = "use_combat_potions", type = "checkbox", label = "Combat Potions", default = true },
+                    { key = "use_weapon_buffs", type = "checkbox", label = "Weapon Buffs", default = false },
+                    { key = "use_drums", type = "checkbox", label = "Drums", default = false },
+                    { key = "use_healthstones", type = "checkbox", label = "Healthstones", default = true },
+                    { key = "use_mana_potions", type = "checkbox", label = "Mana Potions", default = true },
+                    { key = "mana_potion_threshold", type = "slider", label = "Mana Potion at %", min = 0, max = 100, default = 40 },
+                    { key = "health_potion_threshold", type = "slider", label = "Health Potion at %", min = 0, max = 100, default = 35 },
+                    { key = "use_health_potions", type = "checkbox", label = "Health Potions", default = true },
+                    { key = "use_bandages", type = "checkbox", label = "Bandages", default = false },
+                    { key = "use_dark_runes", type = "checkbox", label = "Dark Runes", default = false },
                 },
             },
         },
