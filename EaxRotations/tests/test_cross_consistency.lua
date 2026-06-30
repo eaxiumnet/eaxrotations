@@ -39,7 +39,7 @@ local function extract_schema_playstyles(text)
     local ps_key = text:find('key%s*=%s*"playstyle"')
     if not ps_key then return nil, "playstyle dropdown not found" end
     local opts_start = text:find("options%s*=%s*{", ps_key)
-        if not opts_start then return nil, "options block not found after playstyle key" end
+    if not opts_start then return nil, "options block not found after playstyle key" end
     local opts_end = text:find("}%s*}", opts_start)
     if not opts_end then return nil, "options block not terminated" end
     local block = text:sub(opts_start, opts_end)
