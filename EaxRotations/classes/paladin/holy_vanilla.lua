@@ -807,6 +807,6 @@ local strategies = {
 }
 
 NS.rotation_registry:register("holy", strategies, { get_state = build_state })
-NS.log("Paladin holy rotation registered (deep Classic Vanilla healing/buff utility)")
+-- Paladin holy rotation registered (deep Classic Vanilla healing/buff utility)
 return strategies
 

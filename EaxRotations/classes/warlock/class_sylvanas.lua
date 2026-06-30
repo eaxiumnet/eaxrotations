@@ -307,5 +307,5 @@ load_spec("leveling", true)
 load_spec("affliction")
 load_spec("demonology")
 load_spec("destruction")
-NS.log("Warlock class module loaded")
+-- class module initialized
 return config

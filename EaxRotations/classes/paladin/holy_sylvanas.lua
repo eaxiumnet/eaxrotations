@@ -952,5 +952,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("holy", strategies, { get_state = build_state })
-NS.log("Paladin holy rotation registered — Triage targeting, DF+HS burst combo")
+-- Paladin holy rotation registered — Triage targeting, DF+HS burst combo
 return strategies

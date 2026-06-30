@@ -521,5 +521,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("subtlety", strategies, { get_state = build_state })
-NS.log("Rogue subtlety rotation registered (Shadowstep control enhanced)")
+-- Rogue subtlety rotation registered (Shadowstep control enhanced)
 return strategies

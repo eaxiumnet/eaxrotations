@@ -561,5 +561,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("protection", strategies, { get_state = build_state })
-NS.log("Paladin protection rotation registered — AoE threat priority, SoC option, HS charge tracking")
+-- Paladin protection rotation registered — AoE threat priority, SoC option, HS charge tracking
 return strategies

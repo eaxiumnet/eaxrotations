@@ -642,5 +642,5 @@ if NS.CombatLogParser and NS.CombatLogParser.subscribe then
     NS.CombatLogParser.subscribe(M._on_combat_log_entry)
 end
 
-NS.log("IncomingHeals module loaded")
+-- module initialized
 return M

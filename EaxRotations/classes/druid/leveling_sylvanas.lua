@@ -766,5 +766,5 @@ function druid_leveling.on_update(context)
     return false
 end
 
-NS.log("[Druid] Leveling rotation loaded")
+-- [Druid] Leveling rotation loaded
 return druid_leveling

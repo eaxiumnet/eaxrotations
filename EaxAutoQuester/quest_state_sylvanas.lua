@@ -652,17 +652,30 @@ local function state_nav()
         if _nav_destination then
             debug_log("NAV: retrying navigation")
             nav.navigate_to(_nav_destination, nil)
+            _nav_destination = nil  -- pending dest consumed; next ARRIVED/FAILED handled below
         end
         return "NAV"
     end
 
-    -- Handle terminal navigation states
+    -- Handle terminal navigation states.
+    -- SentinelNavClient's on_sentinel_arrived leaves the nav module in ARRIVED
+    -- indefinitely after the first arrival. If a NEW destination is pending,
+    -- reset the module and re-arm ONCE; the pending dest is consumed so a
+    -- subsequent ARRIVED (e.g. already at the spot) falls through to IDLE
+    -- instead of re-arming every tick (the awaiting_path->arrived->idle spin).
     if nav_state == "ARRIVED" then
-        debug_log("NAV: arrived")
-        _nav_destination = nil
-        _nav_retries = 0
-        _just_arrived = true
-        return "IDLE"
+        if _nav_destination then
+            nav.stop()
+            nav.navigate_to(_nav_destination, nil)
+            _nav_destination = nil  -- consumed; next ARRIVED -> IDLE
+            debug_log("NAV: re-arming after stale ARRIVED")
+        else
+            debug_log("NAV: arrived")
+            _nav_destination = nil
+            _nav_retries = 0
+            _just_arrived = true
+            return "IDLE"
+        end
     end
 
     if nav_state == "FAILED" then
@@ -722,6 +735,7 @@ local function state_nav()
     if nav_state == "IDLE" and _nav_destination then
         debug_log("NAV: starting navigation")
         nav.navigate_to(_nav_destination, nil)
+        _nav_destination = nil  -- pending dest consumed; ARRIVED/FAILED handled above
     end
 
     return "NAV"

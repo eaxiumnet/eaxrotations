@@ -250,5 +250,5 @@ function M.is_enabled(settings)
  return enabled
 end
 
-if NS.log then NS.log("StopCast module loaded") end
+-- module initialized
 return M

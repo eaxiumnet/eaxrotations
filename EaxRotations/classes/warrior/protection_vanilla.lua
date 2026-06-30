@@ -496,5 +496,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("protection", strategies, { get_state = build_state })
-NS.log("Warrior protection_vanilla rotation registered (Classic Vanilla)")
+-- Warrior protection_vanilla rotation registered (Classic Vanilla)
 return strategies

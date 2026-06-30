@@ -428,5 +428,5 @@ load_spec("leveling", true)
 load_spec("arcane")
 load_spec("fire")
 load_spec("frost")
-NS.log("Mage class module loaded")
+-- class module initialized
 return config

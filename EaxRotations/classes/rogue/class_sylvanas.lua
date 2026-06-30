@@ -370,5 +370,5 @@ load_spec("leveling", true)
 load_spec("assassination")
 load_spec("combat")
 load_spec("subtlety")
-NS.log("Rogue class module loaded")
+-- class module initialized
 return config

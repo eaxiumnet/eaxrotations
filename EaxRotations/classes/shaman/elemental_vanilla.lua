@@ -474,6 +474,6 @@ local strategies = {
 }
 
 NS.rotation_registry:register("elemental", strategies, { get_state = build_state })
-NS.log("Shaman elemental rotation registered (deep enhanced, parity weapon/heal/totem parity)")
+-- Shaman elemental rotation registered (deep enhanced, parity weapon/heal/totem parity)
 return strategies
 

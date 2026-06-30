@@ -23,6 +23,10 @@ local FROST_NOVA_ROOTS = TBC_MAGE.frost_nova or { 27088, 10230, 6131, 865, 122 }
 local MANA_SHIELD_BUFF = { 27131, 10193, 10192, 10191, 8495, 8494, 1463 }
 local ARCANE_INTELLECT_BUFF = { 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 }
 local MAGE_ARMOR_BUFF = { 27125, 22783, 22782, 6117 }
+-- Frost Armor + Ice Armor share one ladder (Ice Armor replaces Frost Armor at lvl 30).
+local FROST_ARMOR_BUFF = { 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168 }
+-- Any active mage armor — used to suppress the armor fallback when one is already up.
+local ANY_MAGE_ARMOR_BUFF = { 27125, 22783, 22782, 6117, 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168, 30482 }
 local ICE_BLOCK_BUFF = { 45438 }  -- 11958=ColdSnap not IceBlock; 27619 unverified
 local PRESENCE_OF_MIND_BUFF = { 12043 }
 local COMBUSTION_BUFF = { 11129 }
@@ -114,6 +118,7 @@ local frost_state = {
     has_mana_shield = false,
     has_arcane_intellect = false,
     has_mage_armor = false,
+    has_any_armor = false,
     has_ice_block = false,
     has_presence_of_mind = false,
     has_combustion = false,
@@ -179,6 +184,7 @@ local function build_state(context)
     frost_state.has_mana_shield = me and NS.buff_up(me, MANA_SHIELD_BUFF) or false
     frost_state.has_arcane_intellect = me and NS.buff_up(me, ARCANE_INTELLECT_BUFF) or false
     frost_state.has_mage_armor = me and NS.buff_up(me, MAGE_ARMOR_BUFF) or false
+    frost_state.has_any_armor = me and NS.buff_up(me, ANY_MAGE_ARMOR_BUFF) or false
     frost_state.has_ice_block = me and NS.buff_up(me, ICE_BLOCK_BUFF) or false
     frost_state.has_presence_of_mind = me and NS.buff_up(me, PRESENCE_OF_MIND_BUFF) or false
     frost_state.has_combustion = me and NS.buff_up(me, COMBUSTION_BUFF) or false
@@ -385,10 +391,24 @@ local function arcane_missiles_matches(context, s)
     return true
 end
 
+local function frost_armor_matches(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FrostArmor, 3.0) then return false end
+    if context.settings and context.settings.use_self_buffs == false then return false end
+    if s.has_any_armor then return false end
+    -- Frost/Ice Armor is the low-level fallback; once Mage Armor is learned (lvl 34+)
+    -- it is strictly better, so defer to mage_armor_matches.
+    if NS.is_spell_learned and NS.is_spell_learned(SPELLS.MageArmor) then return false end
+    local me = context.me or NS.GetPlayer()
+    return NS.spell_ready and NS.spell_ready(SPELLS.FrostArmor, me, { skip_range = true }) or false
+end
+
 local function mage_armor_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.MageArmor, 3.0) then return false end
     if context.settings and context.settings.use_self_buffs == false then return false end
     if s.has_mage_armor then return false end
+    -- Skip when Mage Armor is not learned so we never spam an unlearned spell;
+    -- frost_armor_matches handles the Frost/Ice Armor fallback below it.
+    if NS.is_spell_learned and not NS.is_spell_learned(SPELLS.MageArmor) then return false end
     return true
 end
 
@@ -439,6 +459,7 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+    { name = "FrostArmor", matches = frost_armor_matches, execute = function() return NS.try_cast(SPELLS.FrostArmor, NS.PLAYER_UNIT, "[FROST] Frost Armor", { skip_range = true }) end },
     { name = "MageArmor", matches = mage_armor_matches, execute = function() return NS.try_cast(SPELLS.MageArmor, NS.PLAYER_UNIT, "[FROST] Mage Armor", { skip_range = true }) end },
     { name = "ArcaneIntellect", matches = arcane_intellect_matches, execute = function() return NS.try_cast(SPELLS.ArcaneIntellect, NS.PLAYER_UNIT, "[FROST] ArcaneIntellect", { skip_range = true }) end },
     { name = "IceBarrier", matches = ice_barrier_matches, execute = function() return NS.try_cast(SPELLS.IceBarrier, NS.PLAYER_UNIT, "[FROST] IceBarrier", { skip_range = true }) end },
@@ -469,6 +490,6 @@ local strategies = {
 }
 
 NS.rotation_registry:register("frost", strategies, { get_state = build_state })
-NS.log("Mage frost rotation registered")
+-- Mage frost rotation registered
 return strategies
 

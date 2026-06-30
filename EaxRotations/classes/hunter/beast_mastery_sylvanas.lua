@@ -841,6 +841,6 @@ local ok, existing = pcall(NS.rotation_registry.register, NS.rotation_registry, 
 if not ok then
     NS.rotation_registry:register("beast_mastery", strategies, { get_state = build_state })
 end
-NS.log("Hunter beast_mastery rotation registered (parity parity)")
+-- Hunter beast_mastery rotation registered (parity parity)
 
 return strategies

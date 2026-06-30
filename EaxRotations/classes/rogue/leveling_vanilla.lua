@@ -394,5 +394,5 @@ function rogue_leveling.on_update(context)
     return false
 end
 
-NS.log("[Rogue] Leveling rotation loaded (Classic)")
+-- [Rogue] Leveling rotation loaded (Classic)
 return rogue_leveling

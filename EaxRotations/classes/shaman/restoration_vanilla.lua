@@ -476,7 +476,7 @@ local idle_dps_strategies = {
 }
 
 NS.rotation_registry:register("restoration", healing_strategies, { get_state = build_state })
-NS.log("Shaman restoration rotation registered")
+-- Shaman restoration rotation registered
 local restoration_module = {
     strategies = healing_strategies,
     healing_strategies = healing_strategies,

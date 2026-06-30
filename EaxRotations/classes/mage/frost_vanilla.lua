@@ -384,6 +384,6 @@ local strategies = {
 }
 
 NS.rotation_registry:register("frost", strategies, { get_state = build_state })
-NS.log("Mage frost rotation registered")
+-- Mage frost rotation registered
 return strategies
 

@@ -381,7 +381,7 @@ table.insert(strategies, 7, {
 })
 
 NS.rotation_registry:register("destruction", strategies, { get_state = build_state })
-NS.log("Warlock destruction rotation registered (build_state, explicit strategies, Backlash/Backdraft, execute, AoE, defensives, utility)")
+-- Warlock destruction rotation registered (build_state, explicit strategies, Backlash/Backdraft, execute, AoE, defensives, utility)
 return strategies
 
 

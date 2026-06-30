@@ -558,5 +558,5 @@ NS.rotation_registry:register("kebab", strategies, {
     context_builder = build_kebab_state,
 })
 
-NS.log("Kebab (DW Arms) rotation registered")
+-- Kebab (DW Arms) rotation registered
 return strategies

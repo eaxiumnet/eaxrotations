@@ -227,5 +227,5 @@ NS.ShamanHealing.select_heal = select_heal
 NS.ShamanHealing.is_in_raid = is_in_raid
 NS.ShamanHealing.is_in_party = is_in_party
 
-NS.log("Shaman healing utilities loaded")
+-- Shaman healing utilities loaded
 return NS.ShamanHealing

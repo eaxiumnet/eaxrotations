@@ -887,5 +887,5 @@ for i = 1, #ACTIONS do
 end
 
 NS.rotation_registry:register("cat", strategies, { get_state = build_state })
-NS.log("Druid cat rotation registered (production TBC: powershift, bleeds, openers, PvP, movement, snapshotting)")
+-- Druid cat rotation registered (production TBC: powershift, bleeds, openers, PvP, movement, snapshotting)
 return strategies

@@ -177,5 +177,5 @@ function M.stance_id(name)
     return nil
 end
 
-if NS.log then NS.log("StanceManager module loaded") end
+-- module initialized
 return M

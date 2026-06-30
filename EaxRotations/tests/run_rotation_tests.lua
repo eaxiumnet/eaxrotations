@@ -97,6 +97,7 @@ local tests = {
  "test_rotation_static_compliance.lua",
  "test_rotation_strategy_compliance.lua",
  "test_quality_bar_compliance.lua",
+ "test_spec_layout_compliance.lua",
  "test_hunter_adaptive_nil_globals.lua",
  "test_vec2_api_lint.lua",
  "test_fire_scorch_maintenance.lua",

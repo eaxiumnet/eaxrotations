@@ -863,5 +863,5 @@ for i = 1, #ACTIONS do
 end
 
 NS.rotation_registry:register("bear", strategies, { get_state = build_state })
-NS.log("Druid bear rotation registered (production TBC: Mangle, Lacerate, Swipe, taunts, defensive layering, rage pooling)")
+-- Druid bear rotation registered (production TBC: Mangle, Lacerate, Swipe, taunts, defensive layering, rage pooling)
 return strategies

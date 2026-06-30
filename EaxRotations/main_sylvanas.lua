@@ -949,24 +949,14 @@ local function build_context()
     _context.now = NS.time_now()
     NS.current_context = _context
     -- Trace context state (throttled to 2s in combat)
-    if in_combat then
-        local _now_trace = _time_now()
-        if _now_trace - (_trace_ctx_last or 0) > 2 then
-            _trace_ctx_last = _now_trace
-            local target_alive = target and type(_unit_alive) == "function" and _unit_alive(target) or false
-            NS.log("[EaxRotations:TRACE] ctx combat=" .. tostring(in_combat or false) .. ", target=" .. tostring(target_alive and "yes" or "no") .. ", enemies=" .. tostring(count or 0) .. ", hp=" .. tostring(math.floor((_context.hp or 100))) .. "%, mana=" .. tostring(math.floor((_context.mana_pct or 100))) .. "%")
-        end
-    end
     -- Fire combat start/end callbacks AFTER context is fully built so subscribers
     -- can safely read fields like settings, hp, mana_pct, ttd, enemy_count.
     if combat_state_known then
         if in_combat and not was_in_combat then
-            NS.log("[EaxRotations:TRACE] callback: combat_start")
             if NS._fire_combat_start then NS._fire_combat_start(_context) end
         elseif not in_combat and was_in_combat then
             _manual_target_lockout_until = 0
             _last_target_guid = nil
-            NS.log("[EaxRotations:TRACE] callback: combat_end")
             if NS._fire_combat_end then NS._fire_combat_end(_context) end
         end
         was_in_combat = in_combat
@@ -1146,7 +1136,6 @@ local function run_list(name, list, options, context)
                     if _strat_loggable and _list_loggable then
                         _trace_strat_last[_tt_key] = _now_trace
                         _trace_strategy_last[_strat_key] = _now_trace
-                        NS.log("[EaxRotations:TRACE] " .. name .. ":" .. tostring(strategy.name or i) .. " matched=" .. tostring(ok) .. ", executed=" .. tostring(executed))
                     end
                     if executed then
                         return true
@@ -1300,6 +1289,6 @@ end
 
 NS.on_rotation_update = M.on_rotation_update
 NS.on_rotation_update_unified = M.on_rotation_update_unified
-NS.log("Rotation dispatcher loaded")
+-- rotation dispatcher initialized
 
 return M

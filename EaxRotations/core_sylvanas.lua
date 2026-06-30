@@ -520,7 +520,7 @@ do
     if not ok then ok, units_domain = pcall(require, "EaxRotations/core/units") end
     if ok and type(units_domain) == "table" and type(units_domain.install) == "function" then
         units_domain.install(NS)
-        NS.log("[EaxRotations] units domain installed — GetPlayer=" .. tostring(NS.GetPlayer) .. " GetPet=" .. tostring(NS.GetPet))
+        -- Removed "units domain installed" boot log to reduce spam.
     else
         if core and type(core.log_warning) == "function" then
             core.log_warning("[EaxRotations] units domain install FAILED: " .. tostring(units_domain))
@@ -1085,17 +1085,14 @@ function NS.register_on_update_callback(callback)
                 if type(_fn) == "function" then
                     local _maker = (_kind == "event") and _make_event_dispatcher or _make_tick_dispatcher
                     local _ok2, _result2 = pcall(_fn, _maker())
-                    NS.log(string.format("[EaxRotations] %s-source fallback: %s=ok=%s", _kind, _name, tostring(_ok2 and _result2 ~= false)))
                     if _ok2 and _result2 ~= false then
                         _ok_count = _ok_count + 1
                     end
-                else
-                    NS.log(string.format("[EaxRotations] %s-source fallback: %s=skipped (not a function)", _kind, _name))
                 end
             end
 
             if _ok_count > 0 then
-                NS.log(string.format("[EaxRotations] %d tick/event sources registered -- rotation is live", _ok_count))
+                -- Removed "tick/event sources registered -- rotation is live" log.
                 _shared_dispatcher_registered = true
                 return true
             end
@@ -1207,7 +1204,7 @@ function NS._fire_combat_start(context)
 
         local ok, err = pcall(cb, context)
         if not ok and type(NS.log_warning) == "function" then
-            NS.log_warning("[EaxRotations] combat_start callback error: " .. tostring(err))
+            NS.log_warning("combat_start callback error: " .. tostring(err))
         end
 
     end
@@ -1222,7 +1219,7 @@ function NS._fire_combat_end(context)
 
         local ok, err = pcall(cb, context)
         if not ok and type(NS.log_warning) == "function" then
-            NS.log_warning("[EaxRotations] combat_end callback error: " .. tostring(err))
+            NS.log_warning("combat_end callback error: " .. tostring(err))
         end
 
     end
@@ -5620,24 +5617,7 @@ NS.get_health_pct = NS.unit_health_pct
 NS.safe_call = safe
 
 -- One-shot API probe: log spell_book availability at load time
-
-local _sb = core.spell_book
-
-if _sb then
-
-    local has_learned = type(_sb.is_spell_learned) == "function" and "yes" or "no"
-
-    local has_known = type(_sb.is_spell_known) == "function" and "yes" or "no"
-
-    local has_has = type(_sb.has_spell) == "function" and "yes" or "no"
-
-    NS.log("[PROBE] spell_book present | is_spell_learned=" .. has_learned .. " is_spell_known=" .. has_known .. " has_spell=" .. has_has)
-
-else
-
-    NS.log("[PROBE] spell_book MISSING — all spells will be treated as unknown")
-
-end
+-- Removed to reduce boot spam. If you need this, check core.spell_book directly.
 
 local racial_manager_ok, racial_manager = pcall(require, "shared/racial_manager_sylvanas")
 
@@ -5663,9 +5643,8 @@ else
 
 end
 
-NS.log("Core runtime loaded (core-v2: pcall buff_manager)")
-NS.log("GameVersion: " .. tostring(core.get_game_version and core.get_game_version() or "?"))
-NS.log("ExactVersion: " .. tostring(core.get_exact_game_version and core.get_exact_game_version() or "?"))
+-- Removed Core runtime / GameVersion / ExactVersion boot logs.
+-- These were useful during development but add noise on every /reload.
 
 --- Dump all available player information to the log.
 

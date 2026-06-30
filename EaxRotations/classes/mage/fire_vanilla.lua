@@ -308,6 +308,6 @@ local strategies = {
 }
 
 NS.rotation_registry:register("fire", strategies, { get_state = build_state })
-NS.log("Mage fire rotation registered (deep enhanced)")
+-- Mage fire rotation registered (deep enhanced)
 return strategies
 

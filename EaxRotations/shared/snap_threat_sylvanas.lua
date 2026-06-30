@@ -148,5 +148,5 @@ function M.mark_fired()
     _snap_fired_this_combat = true
 end
 
-if NS.log then NS.log("SnapThreat module loaded") end
+-- module initialized
 return M

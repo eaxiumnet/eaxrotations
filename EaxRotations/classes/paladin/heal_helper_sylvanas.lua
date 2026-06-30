@@ -280,5 +280,5 @@ end
 
 NS.PaladinHealing.select_heal = select_heal
 
-NS.log("Healing module loaded")
+-- Healing module loaded
 return NS.PaladinHealing

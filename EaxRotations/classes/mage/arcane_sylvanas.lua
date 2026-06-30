@@ -551,6 +551,6 @@ local strategies = {
 }
 
 NS.rotation_registry:register("arcane", strategies, { get_state = build_state })
-NS.log("Mage arcane rotation registered (burn/conserve phase state machine + configurable AB stack limits)")
+-- Mage arcane rotation registered (burn/conserve phase state machine + configurable AB stack limits)
 return strategies
 

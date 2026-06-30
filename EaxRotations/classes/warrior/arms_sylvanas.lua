@@ -871,5 +871,5 @@ end
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("arms", strategies, { get_state = build_state })
 end
-if NS.log then NS.log("Warrior arms rotation registered (deep TBC enhanced)") end
+-- Warrior arms rotation registered (deep TBC enhanced)
 return strategies

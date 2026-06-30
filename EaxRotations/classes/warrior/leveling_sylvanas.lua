@@ -641,5 +641,5 @@ function warrior_leveling.on_update(context)
     return false
 end
 
-NS.log("[Warrior] Leveling rotation loaded")
+-- [Warrior] Leveling rotation loaded
 return warrior_leveling

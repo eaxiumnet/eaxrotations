@@ -878,7 +878,7 @@ local strategies = {
 }
 
 NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
-NS.log("Priest shadow rotation registered")
+-- Priest shadow rotation registered
 
 -- Register combat start callback to fire one wand shot on combat entry
 if NS.register_on_combat_start then

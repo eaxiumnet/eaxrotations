@@ -474,5 +474,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
-NS.log("Warlock leveling rotation registered")
+-- Warlock leveling rotation registered
 return strategies

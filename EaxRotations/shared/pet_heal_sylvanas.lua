@@ -227,5 +227,5 @@ function M.count_injured_pets(me, settings)
     return injured
 end
 
-if NS.log then NS.log("PetHeal module loaded") end
+-- module initialized
 return M

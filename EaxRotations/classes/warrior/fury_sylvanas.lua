@@ -889,5 +889,5 @@ if NS.register_strategy then  -- both unified APIs available
     end
 end
 
-NS.log("Warrior fury rotation registered (parity v1.0.6+ parity) — legacy + unified")
+-- Warrior fury rotation registered (parity v1.0.6+ parity) — legacy + unified
 return strategies

@@ -95,4 +95,4 @@ function NS.common_cd_min_ttd_section()
     }, "Gates offensive trinkets and burst cooldowns behind a minimum time-to-die threshold.")
 end
 
-NS.log("Common schema helpers loaded")
+-- common schema initialized

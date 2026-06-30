@@ -475,5 +475,5 @@ NS.rotation_registry:register("smite", strategies, {
     end,
 })
 
-NS.log("Smite priest rotation registered (solo/leveling/PvP support)")
+-- Smite priest rotation registered (solo/leveling/PvP support)
 return strategies

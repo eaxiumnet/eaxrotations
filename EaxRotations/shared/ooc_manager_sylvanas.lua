@@ -107,6 +107,11 @@ local BUFFS = {
 -- toggle endlessly because each entry only checks its own buff IDs.
 local ALL_WARLOCK_ARMOR = { n = 10, 28189, 28176, 27260, 11735, 11734, 11733, 1086, 706, 687, 696 }
 local ALL_SHAMAN_SHIELDS = { n = 12, 33736, 24398, 23575, 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
+-- Mage armor ladder: Mage Armor (34+) supersedes Frost/Ice Armor (1+). Listed
+-- Mage Armor IDs first so NS.get_spell_id resolves the highest *learned* rank
+-- (Mage Armor if learned, else the highest Frost/Ice Armor rank). The combined
+-- buff set prevents recast while ANY mage armor (incl. Molten Armor) is active.
+local ALL_MAGE_ARMOR = { n = 13, 27125, 22783, 22782, 6117, 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168, 30482 }
 
 local DEFAULT_BUFFS_BY_CLASS = {
     [CLASS.WARRIOR] = {
@@ -116,7 +121,7 @@ local DEFAULT_BUFFS_BY_CLASS = {
         { key = "aspect_hawk", label = "Aspect of the Hawk", buff = BUFFS.aspect_hawk, spell = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 } },
     },
     [CLASS.MAGE] = {
-        { key = "mage_armor", label = "Mage Armor", buff = BUFFS.mage_armor, spell = { 27125, 22783, 22782, 6117 } },
+        { key = "mage_armor", label = "Armor (Mage/Frost/Ice)", buff = ALL_MAGE_ARMOR, spell = { 27125, 22783, 22782, 6117, 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168 } },
         { key = "arcane_intellect", label = "Arcane Intellect", buff = BUFFS.arcane_intellect, spell = { 27126, 10157, 10156, 1461, 1460, 1459 } },
     },
     [CLASS.PALADIN] = {
@@ -433,3 +438,5 @@ if NS then
 end
 
 return M
+
+-- PERSISTENCE_SENTINEL_1782803371

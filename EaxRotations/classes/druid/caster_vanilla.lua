@@ -121,5 +121,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("caster", strategies, { get_state = build_state })
-if NS.log then NS.log("Druid caster vanilla rotation registered") end
+-- Druid caster vanilla rotation registered
 return strategies
