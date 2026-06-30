@@ -388,6 +388,8 @@ local strategies = {
       end },
 }
 
-NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
+end
 -- Hunter leveling rotation registered
 return strategies
