@@ -99,6 +99,7 @@ local tests = {
  "test_quality_bar_compliance.lua",
  "test_spec_layout_compliance.lua",
  "test_schema_compliance.lua",
+ "test_cross_consistency.lua",
  "test_hunter_adaptive_nil_globals.lua",
  "test_vec2_api_lint.lua",
  "test_fire_scorch_maintenance.lua",
