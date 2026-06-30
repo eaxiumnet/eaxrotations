@@ -23,6 +23,7 @@
 - [x] Normalize tab ordering: General -> per-spec -> Leveling -> Consumables
   - Fixed: mage, paladin, priest, warlock (4 commits, one per file)
 - [x] Register test in `run_rotation_tests.lua` (suite count: 212 → 213)
+- [x] Adopt shared Consumables module across all 9 schema files (9 migrated, 0 legacy)
 
 **Acceptance:** schema compliance test green; no menu behavior change. ✅
 
