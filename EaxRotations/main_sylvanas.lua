@@ -471,6 +471,17 @@ local function build_context()
     if not _combat_start_time and me and in_combat then _combat_start_time = NS.time_now() end
     if _combat_start_time and me and combat_state_known and not in_combat then _combat_start_time = nil end
     local enemy_ok = valid_enemy(me, target)
+    -- BUGFIX (2026-06-29): ``find_enemy_target`` preserves the player's
+    -- manually-selected target even when it is friendly (non-hostile).
+    -- ``valid_enemy`` correctly rejects it (``enemy_ok = false``), but
+    -- ``target`` was left non-nil and propagated into ``context.target``.
+    -- Every DPS spec that only guards on ``not context.target`` (instead of
+    -- ``not context.has_valid_enemy_target``) would then fire its execute
+    -- with a friendly unit, and the SDK emitted the per-frame "You have no
+    -- target" toast.  Clear the target here so no spec ever sees a
+    -- non-enemy.  Safe for healers — no healer spec uses context.target
+    -- for healing casts.
+    if target and not enemy_ok then target = nil end
     local _enemies_cache = throttled_enemies()
     local count = (_enemies_cache and _enemies_cache.n) or (_enemies_cache and #_enemies_cache) or 0
     local engine_ttd = enemy_ok and target_time_to_die(target) or nil
