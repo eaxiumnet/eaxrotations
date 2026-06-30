@@ -3,6 +3,8 @@
 **Current:** `plans/ultra-plan--supremacy.md` — 8-week roadmap to dominate 
 **Previous:** `plans/omnibus-master-audit-2026-06-26.md` ✅ COMPLETE
 
+**Active sub-plan:** plans/spec-standardization-2026-06-30.md — schema/spec/leveling standardization for open-source release
+
 ---
 
 ## 🏆 Supremacy Ultra-Plan

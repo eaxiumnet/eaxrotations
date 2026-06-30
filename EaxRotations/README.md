@@ -120,6 +120,39 @@ EaxRotations/
 
 ---
 
+## 📖 How to Read a Spec (for Contributors)
+
+Every spec file follows the same 9-part layout. Start with the **reference implementation**:
+
+> **`classes/warrior/arms_sylvanas.lua`** — the first spec converted to the canonical template.
+
+### The 9-part spec structure
+
+| Part | What | Why |
+|------|------|-----|
+| 1. Header | Pattern 15 `WHAT/WHEN/WHY/SAFETY` comment block | Understand the file without reading it all |
+| 2. NS guard | `local NS = _G.EaxRotations; if not NS then return nil end` | Safe no-op when engine isn't loaded (unit tests) |
+| 3. spec_kit + requires | `require("shared/spec_kit_sylvanas")` + shared modules | Centralized action resolver + nil-guard proxy |
+| 4. ACTION table | `spec_kit.define_action_for_class(SPELLS)` | One spell resolver, not 29 copy-pasted helpers |
+| 5. ID tables | Buff/debuff spell-ID lists + constants | TBC spell rank chains |
+| 6. build_state | `local function build_state(context)` then `spec_kit.safe_state(raw)` | Compute per-tick state once; nil-guarded reads |
+| 7. Match functions | `local function x_matches(context, state)` | One per strategy — returns true/false |
+| 8. strategies | `{ name=, matches=, execute= }` ordered list | Dispatcher runs first match that returns true |
+| 9. Register + return | Guarded `NS.rotation_registry:register(...)` + `return { strategies, build_state }` | Nil-safe registration + test-consumable return |
+
+See `AGENTS.md` Pattern 16 for the full annotated skeleton.
+
+### Migration state (spec_kit adoption)
+
+| Status | Files | Count |
+|--------|-------|-------|
+| Converted | `arms_sylvanas.lua` | 1 |
+| Pending | all other spec + leveling files | 40 |
+
+> Enforced by `tests/test_spec_layout_compliance.lua`. To mark a spec as converted, add it to the `CONVERTED` table in that test after conversion + full test gate.
+
+---
+
 ## 🧪 Testing
 
 Run syntax checks on all Lua files:

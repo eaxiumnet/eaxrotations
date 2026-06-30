@@ -339,14 +339,74 @@ Every `.lua` file in `EaxRotations/` starts with a 1–5 line header documenting
 
 This is mandatory for new files and strongly encouraged when substantially editing an existing file.
 
-### Pattern 16: spec_kit (boilerplate + nil-guard elimination)
+### Pattern 16: spec_kit (canonical spec-file boilerplate + nil-guard elimination)
 
-A proof-of-concept kit lives in `eax_refactor/lua/spec_kit.lua` (parallel sandbox, not yet wired into the live engine). It provides:
+`spec_kit` is **live** in `EaxRotations/shared/spec_kit_sylvanas.lua` (no longer a sandbox proof-of-concept). It provides:
 
 - `spec_kit.define_action_for_class(SPELLS)` — replaces the copy-pasted `spell()` helper in every spec.
 - `spec_kit.safe_state(raw, schema)` — a proxy table where numeric reads fall back to documented Pattern 14 defaults, making the nil-guard bug **structurally impossible**.
+- `spec_kit.setting(context, key, default)` — centralized Pattern 8 menu-settings helper.
 
-When migrating a spec to `spec_kit` (opportunistic, one at a time — never big-bang): copy the kit into `EaxRotations/shared/spec_kit_sylvanas.lua`, convert one spec, gate with the full rotation suite. See `eax_refactor/README.md` and `eax_refactor/examples/arms_next.lua` for the shape.
+**Reference implementation:** `classes/warrior/arms_sylvanas.lua` (first spec converted — uses `define_action_for_class` + guarded registration).
+
+**Canonical spec-file skeleton** (target for all 29 specs — see README "How to Read a Spec"):
+
+```lua
+-- <spec>_sylvanas.lua — <Class> <Spec> rotation for TBC Anniversary (2.5.5).
+-- WHAT:  one-line summary of the rotation's priority logic.
+-- WHEN:  combat conditions (target type, form, range).
+-- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
+-- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+
+local NS = _G.EaxRotations
+if not NS then return nil end
+
+-- 1. spec_kit + shared modules
+local spec_kit = require("shared/spec_kit_sylvanas")
+local potion_helper = require("shared/potion_helper_sylvanas")
+local SPELLS = NS.<Class>Spells or {}
+
+-- 2. Action table via spec_kit (replaces per-spec spell() helper)
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = { SpellName = define("SpellName", { rank_ids }, "Label") }
+
+-- 3. Buff/debuff ID tables + constants
+local SOME_BUFF = { spell_ids }
+
+-- 4. State table (raw; safe_state proxy applied in build_state)
+local spec_state = { }
+local _last_build_state_time = -1
+
+-- 5. build_state(context) — populate state, return safe_state proxy
+local function build_state(context)
+    local state = spec_kit.safe_state(spec_state)
+    -- populate fields from context + NS
+    return state
+end
+
+-- 6. Match functions (one per strategy)
+local function some_spell_matches(context, state) return true end
+
+-- 7. Strategy table (ordered priority list)
+local strategies = {
+    { name = "SpellName", matches = some_spell_matches, execute = function(ctx) end },
+}
+
+-- 8. Register (guarded — nil-safe in unit tests)
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("<spec>", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("<Class> <spec> rotation registered") end
+
+-- 9. Return (canonical shape — dispatcher + tests both get what they need)
+return { strategies = strategies, build_state = build_state }
+```
+
+**Migration rules:**
+- Convert a spec **only when already editing it** — never big-bang (per `plans/refactor-developer-experience-2026-06.md`).
+- One spec per commit. Gate each with `luac -p` + full 208+11 suite.
+- **R5: if a task loops more than 2 attempts, STOP.** Write a debugging note in `plans/`.
+- Migration state is tracked in `EaxRotations/README.md` ("How to Read a Spec") and enforced by `tests/test_spec_layout_compliance.lua`.
 
 ---
 
