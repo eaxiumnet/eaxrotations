@@ -18,6 +18,7 @@
 ## Phase 1 — Track A: Schema standardization (~1 day, low risk) ✅ COMPLETE
 
 - [x] Extract shared Consumables tab (9x copy) into `shared/schema_consumables_sylvanas.lua`
+- [x] Adopt shared Consumables module in all 9 schemas (rogue, warrior, hunter, mage, paladin, priest, warlock, shaman, druid)
 - [x] Define required common key set; confirm each of 9 schemas has them
 - [x] Write `tests/test_schema_compliance.lua`
 - [x] Normalize tab ordering: General -> per-spec -> Leveling -> Consumables
