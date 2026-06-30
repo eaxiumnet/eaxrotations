@@ -49,7 +49,7 @@
 | Repo | Files | Lua Files | Notes |
 |------|-------|-----------|-------|
 | tbc-main | 211 | 78 | Has class.lua per class, rotation.lua for Hunter, larger middleware files |
-| _flux_tbc_explore | 210 | 78 | Clone of tbc-main structure |
+| _external_tbc_explore | 210 | 78 | Clone of tbc-main structure |
 | ClassResearchTBC | 241 | 0 | No Lua files |
 | EaxESP | 13 | 9 | ESP/radar addon — unrelated to rotations |
 | wowsims_classic | 1,019 | 0 | Go-based sim with APL JSONs in ui/*/apls/*.apl.json |

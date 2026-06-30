@@ -73,7 +73,7 @@ have to context-switch.
 
 4. **Never commit external reference repos.** `tbc-main/`, `tbc-new/`,
    `Sonah/`, `HealPredict/`, `LibHealComm-4.0.lua`, `NAG/`, `NextActionTBC/`,
-   `_flux_tbc_explore/`, `eax_refactor/`, `EaxESP/`, `EaxProfessions/`,
+   `_external_tbc_explore/`, `eax_refactor/`, `EaxESP/`, `EaxProfessions/`,
    `wowheadScrape/`, `scraped_docs*/`, `scripts_data/`, `.agents/`,
    `.openclaude/`, `.playwright-mcp/`, `__pycache__/` are **local-only
    inspiration sources, explicitly out of scope per AGENTS.md.** They are

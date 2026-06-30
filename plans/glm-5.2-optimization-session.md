@@ -251,7 +251,7 @@ Verification gate between waves: `luac -p` + `lua EaxRotations/tests/run_rotatio
 1. All 5 waves complete
 2. Full test suite green
 3. `git diff --stat` shows only intended changes
-4. No reference-system clones modified (Sonah, NAG, tbc-new, _flux, tbc-main, eax_refactor, NextActionTBC)
+4. No reference-system clones modified (Sonah, NAG, tbc-new, _external, tbc-main, eax_refactor, NextActionTBC)
 5. AGENTS.md updated if patterns changed
 
 ---

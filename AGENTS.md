@@ -5,7 +5,7 @@
 > the EAX codebase. Any `CLAUDE.md`, `.cursorrules`, or per-tool prompt that says
 > otherwise is stale — read **this file first**, always. Do not rely on memorized
 > spec/test counts or data paths; the numbers below are authoritative as of the
-> "Last Updated" line. Reference-system clones (`tbc-main/`, `_flux_tbc_explore/`,
+> "Last Updated" line. Reference-system clones (`tbc-main/`, `_external_tbc_explore/`,
 > `tbc_roblox/`, `ClassResearchTBC/`, `EaxESP/`) are **external** and out of scope.
 
 **Repo**: https://github.com/eaxiumnet/eaxrotations
@@ -23,7 +23,7 @@
 3. **One concern per commit.** Never bundle unrelated changes.
 4. **Before marking any task complete:** run `luac -p` on changed files AND `lua EaxRotations/tests/run_rotation_tests.lua`. Both must pass.
 5. **If a task loops more than 2 attempts, STOP.** Write a debugging note in `plans/` describing the failure instead of retrying. Looping is the failure mode this contract exists to prevent.
-6. **Never edit reference-system clones** (`tbc-main/`, `_flux_tbc_explore/`, etc.) — they are external inspiration, not our code.
+6. **Never edit reference-system clones** (`tbc-main/`, `_external_tbc_explore/`, etc.) — they are external inspiration, not our code.
 
 ## Agent Operating Charter (META v2.0)
 

@@ -18,7 +18,7 @@ This file consolidates ~20 items previously documented as "gaps" or "bugs" in va
 | Arms `mortal_strike_matches` dead rage-cap bypass | `eaxrotations-deep-review-2026-06-29.md` Phase 1 | Phase 1 | Condition corrected |
 | Berserker Rage fear break (all 3 warrior specs) | `phase-5-supremacy-completion-2026-06-29.md` | Phase 5 (2026-06-28) | `arms_sylvanas.lua:728-748`, `fury_sylvanas.lua:660-667` |
 | Death Wish fear break (Arms) | `phase-5-supremacy-completion-2026-06-29.md` | Phase 5 | `arms_sylvanas.lua:728-731` |
-| Warrior rage pooling | `flux-import-warrior-rage-pooling.md` | Partial (Phase 4) | `rage_manager_sylvanas.lua`, stance auto-switch, HS/Cleave dump |
+| Warrior rage pooling | `external-import-warrior-rage-pooling.md` | Partial (Phase 4) | `rage_manager_sylvanas.lua`, stance auto-switch, HS/Cleave dump |
 | Shield Wall / Last Stand / Spell Reflection | `reference-gap-analysis-filtered.md` | Pre-Phase 5 | `protection_sylvanas.lua` has all three with match functions |
 
 ## Druid
@@ -35,7 +35,7 @@ This file consolidates ~20 items previously documented as "gaps" or "bugs" in va
 | Item | Where documented | Fixed in | Evidence |
 |------|-----------------|----------|----------|
 | Cliptracker / auto-shot weave | `reference-gap-analysis-filtered.md` | Pre-existing | `hunter_core_sylvanas.lua` (384 lines) — `can_cast_steady()`, `ms_until_auto()` |
-| Melee weaving | `flux-import-hunter-adaptive.md` | Pre-existing | All 3 hunter specs inline |
+| Melee weaving | `external-import-hunter-adaptive.md` | Pre-existing | All 3 hunter specs inline |
 | Bestial Wrath | `reference-gap-analysis-filtered.md` | Pre-existing | BM + MM specs |
 | Feign Death | `reference-gap-analysis-filtered.md` | Pre-existing | All 3 hunter specs |
 

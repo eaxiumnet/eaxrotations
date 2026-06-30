@@ -146,7 +146,7 @@ Every task: one commit, gated by `validate.cmd` (after A1 fixes it). Lua 5.1.5 i
 
 1. `luac -p` on changed files (5.1 luac — already correct in PATH)
 2. `EaxRotations\validate.cmd` exits 0 (after A1, this runs tests under Lua 5.1)
-3. No reference-system clone modified (`tbc-main/`, `tbc-new/`, `Sonah/`, `HealPredict/`, `LibHealComm-4.0.lua`, `NAG/`, `NextActionTBC/`, `_flux_tbc_explore/`, `eax_refactor/`)
+3. No reference-system clone modified (`tbc-main/`, `tbc-new/`, `Sonah/`, `HealPredict/`, `LibHealComm-4.0.lua`, `NAG/`, `NextActionTBC/`, `_external_tbc_explore/`, `eax_refactor/`)
 4. AGENTS.md updated if a new pattern is adopted
 
 ## Recommended Starting Order

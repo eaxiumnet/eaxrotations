@@ -154,8 +154,8 @@ per directive guardrail 2.
 
 `01-performance-optimization.md`, `02-shaman-tbc-rotation.md`,
 `apl_lua_diff_2026_06_13.md`, `apl_to_lua_mapping_2026_06_13.md`,
-`eaxrotations-bugfix-2026-06-13.md`, `flux-import-hunter-adaptive.md`,
-`flux-import-warrior-rage-pooling.md`, `hardcoded-to-api-migration.md`,
+`eaxrotations-bugfix-2026-06-13.md`, `external-import-hunter-adaptive.md`,
+`external-import-warrior-rage-pooling.md`, `hardcoded-to-api-migration.md`,
 `rake-claw-pve-builder.md`, `remaining-gaps-2026-06.md`,
 `tier1-simplification.md`. Dated Jun 9–15, to be archived after
 `git log` confirms each landed.
@@ -217,7 +217,7 @@ chooses to consume it.
 | `get_talent_info` | `EaxRotations/tests/test_talent_context.lua` |
 | (adjacent) | `EaxRotations/shared/hunter_adaptive_sylvanas.lua`, `EaxRotations/shared/stealth_helper_sylvanas.lua`, `EaxRotations/shared/match_helpers_sylvanas.lua`, `EaxRotations/shared/wowhead_data_bridge_*_sylvanas.lua` (3), `EaxRotations/tests/test_match_helpers_sylvanas.lua`, `test_stealth_helper.lua`, `test_hunter_dead_zone.lua`, `test_protection_paladin_custom_matches.lua`, `test_pvp_ooc_target_block.lua`, `test_runtime_orphan_modules.lua`, all `test_*_custom_matches.lua` updates. |
 
-**Reference clones (out of scope, untracked):** `_flux_tbc_explore/`,
+**Reference clones (out of scope, untracked):** `_external_tbc_explore/`,
 `tbc-main/`, `tbc_roblox/`, `EaxESP/`, `tbc-new/`, `ClassResearchTBC/`.
 
 **Out-of-tree products:** `EaxAutoQuester/` (not in scope of

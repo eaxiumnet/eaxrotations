@@ -6,7 +6,7 @@
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
 
--- Hunter Adaptive DPS Rotation (ported from Flux AIO)
+-- Hunter Adaptive DPS Rotation (TBC adaptive DPS rotation)
 -- Direct port of the wowsims TBC adaptive rotation:
 --    https://github.com/wowsims/tbc/blob/main/sim/hunter/rotation.go (lines 139-280)
 --

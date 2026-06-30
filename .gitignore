@@ -52,7 +52,7 @@ core_universal_kicks/
 dev_developer_tools/
 dist/
 ext_rotation_tbc_opendruid_alpha/
-flux/
+external/
 tools/
 node_modules/
 
@@ -63,7 +63,7 @@ node_modules/
 # NOTE: AGENTS.md is intentionally TRACKED — it is the canonical agent-instruction
 # file (single source of truth). Do not re-add it here. See START_HERE.md.
 DASHBOARD_HANDOVER.md
-FLUX_EAX_TANKING_HANDOVER.md
+EXTERNAL_EAX_TANKING_HANDOVER.md
 HANDOVER.md
 HANDOVER_MENU_WIRING_FIXES.md
 KIMI_HANDOVER_PROMPT.md
@@ -112,7 +112,7 @@ HealPredict/
 LibHealComm-4.0.lua
 NAG/
 NextActionTBC/
-_flux_tbc_explore/
+_external_tbc_explore/
 eax_refactor/
 EaxESP/
 EaxProfessions/

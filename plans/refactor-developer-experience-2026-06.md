@@ -11,8 +11,8 @@
 
 **The problem (evidence-based):** AI agents are running in loops because there is no single source of truth, no clear ownership boundaries, and no enforced "definition of done." Specifically:
 
-1. **Scattered agent-instruction files for *our* code** (`AGENTS.md` + `EaxRotations/CLAUDE.md`) — agents read different ones, get different context, redo work. *(NOTE: `tbc-main/`, `_flux_tbc_explore/`, `tbc_roblox/`, `ClassResearchTBC/`, `EaxESP/` are external **reference clones** on the GGL platform — untracked, not ours to refactor. Their `CLAUDE.md`/`AGENTS.md` are instructions for THEIR system and must be left untouched. `tbc-main`/`flux` is the inspiration source, mined for ideas only.)*
-2. **Scattered `plans/` dirs across multiple AI tools for *our* code** (`.omo/plans`, `.opencode/plans`, `EaxAutoQuester/plans`, `EaxRotations/plans`, top-level `plans/`) — every AI tool created its own scratch space; plans duplicate and contradict. *(The `plans/` inside `tbc-main/` and `_flux_tbc_explore/` belong to the reference system — ignored.)*
+1. **Scattered agent-instruction files for *our* code** (`AGENTS.md` + `EaxRotations/CLAUDE.md`) — agents read different ones, get different context, redo work. *(NOTE: `tbc-main/`, `_external_tbc_explore/`, `tbc_roblox/`, `ClassResearchTBC/`, `EaxESP/` are external **reference clones** on the GGL platform — untracked, not ours to refactor. Their `CLAUDE.md`/`AGENTS.md` are instructions for THEIR system and must be left untouched. `tbc-main`/`external` is the inspiration source, mined for ideas only.)*
+2. **Scattered `plans/` dirs across multiple AI tools for *our* code** (`.omo/plans`, `.opencode/plans`, `EaxAutoQuester/plans`, `EaxRotations/plans`, top-level `plans/`) — every AI tool created its own scratch space; plans duplicate and contradict. *(The `plans/` inside `tbc-main/` and `_external_tbc_explore/` belong to the reference system — ignored.)*
 3. **`core_sylvanas.lua` is 6,431 lines / 258 functions** in one god-file mixing ~15 unrelated domains (settings, units, items, equipment, casting, TTD, talent inference, spell resolution, cooldowns, diagnostics). Any change risks unrelated regressions.
 4. **Repeated nil-guard commits** — `fix(subtlety): nil-guard...`, `fix(bear): nil-guard...`, `fix(resto): nil-guard...`, `fix(specs): add nil-guards...` show the same bug class fixed spec-by-spec because there is no shared safe-state accessor. Each new spec reintroduces it.
 5. **~60% copy-paste spec boilerplate** — every spec re-implements the `NS = _G.EaxRotations` guard, `spell()` resolver helper, `ACTION = {}` table, state table, and threshold constants from scratch.
@@ -48,7 +48,7 @@ This plan reuses only already-adopted APIs. No new integration.
 | File | Change |
 |------|--------|
 | `AGENTS.md` | Becomes the **only** agent-instruction file for our code; absorbs unique content from `EaxRotations/CLAUDE.md` |
-| `EaxRotations/CLAUDE.md` | Becomes single-line pointer to `../AGENTS.md` (reference-system `CLAUDE.md` files in `tbc-main/`/`_flux_tbc_explore/` are NOT ours — untouched) |
+| `EaxRotations/CLAUDE.md` | Becomes single-line pointer to `../AGENTS.md` (reference-system `CLAUDE.md` files in `tbc-main/`/`_external_tbc_explore/` are NOT ours — untouched) |
 | `plans/` (top-level) | Becomes the **only** active plans dir; others archived under `plans/_archive/<tool>/` |
 | `EaxRotations/core_sylvanas.lua` | Split 6,431-line god-file into focused domain modules under `EaxRotations/core/` |
 | `EaxRotations/core/*.lua` (new) | `settings.lua`, `units.lua`, `items.lua`, `casting.lua`, `cooldowns.lua`, `ttd.lua`, `talents.lua`, `diagnostics.lua` |
@@ -68,7 +68,7 @@ This plan reuses only already-adopted APIs. No new integration.
 
 - [ ] **Task 1.1: Consolidate OUR agent-instruction files**
   - **Files:** `AGENTS.md` (expand), `EaxRotations/CLAUDE.md` (→ pointer)
-  - **Scope guard:** Only `AGENTS.md` and `EaxRotations/CLAUDE.md` are ours. Do **NOT** touch `tbc-main/tbc-main/CLAUDE.md`, `_flux_tbc_explore/CLAUDE.md`, `tbc_roblox/AGENTS.md`, or `ClassResearchTBC/AGENTS.md` — those belong to the external GGL reference system (untracked), mined for inspiration only.
+  - **Scope guard:** Only `AGENTS.md` and `EaxRotations/CLAUDE.md` are ours. Do **NOT** touch `tbc-main/tbc-main/CLAUDE.md`, `_external_tbc_explore/CLAUDE.md`, `tbc_roblox/AGENTS.md`, or `ClassResearchTBC/AGENTS.md` — those belong to the external GGL reference system (untracked), mined for inspiration only.
   - **Change:**
     - `AGENTS.md` becomes canonical. Add a top section: "This is the only agent-instruction file for EaxRotations. If you are an AI agent, read this first."
     - `EaxRotations/CLAUDE.md` becomes a 1-line pointer: `→ See ../AGENTS.md` (kept, not deleted — some tools auto-load `CLAUDE.md`; a pointer prevents divergence).
@@ -81,16 +81,16 @@ This plan reuses only already-adopted APIs. No new integration.
 
 - [ ] **Task 1.2: Consolidate OUR plans into one active directory**
   - **Files:** `plans/` (canonical), `.omo/plans/`, `.opencode/plans/`, `EaxAutoQuester/plans/`, `EaxRotations/plans/`
-  - **Scope guard:** Only consolidate plans dirs that belong to OUR code. Do **NOT** touch `tbc-main/tbc-main/docs/plans/` or `_flux_tbc_explore/docs/plans/` — those belong to the external GGL reference system (untracked).
+  - **Scope guard:** Only consolidate plans dirs that belong to OUR code. Do **NOT** touch `tbc-main/tbc-main/docs/plans/` or `_external_tbc_explore/docs/plans/` — those belong to the external GGL reference system (untracked).
   - **Change:**
     - Create `plans/_archive/<tool>/` and move each of OUR tool's existing plans there (`.omo`, `.opencode`, `EaxAutoQuester`, `EaxRotations`) — preserved history, out of active sight.
     - Move `EaxRotations/plans/*.md` up to top-level `plans/` (they're the most current — `api-integration-2026-06.md`, this refactor plan, etc.). This very file moves too.
-    - Add `plans/README.md`: "Active plans live here. Completed/abandoned plans move to `_archive/`. One active plan per effort. Reference-system plans (tbc-main/flux) are out of scope — they live with the reference clone."
+    - Add `plans/README.md`: "Active plans live here. Completed/abandoned plans move to `_archive/`. One active plan per effort. Reference-system plans (tbc-main/external) are out of scope — they live with the reference clone."
     - Add `plans/_active.md` index: a one-line-per-effort status table (effort, status, owner-skill).
   - **Acceptance:**
     - `find EaxRotations .omo .opencode EaxAutoQuester -type d -name plans` returns no active (non-archived) plans dirs for our code.
     - `plans/_active.md` lists current efforts with status.
-    - `tbc-main/`, `_flux_tbc_explore/` untouched.
+    - `tbc-main/`, `_external_tbc_explore/` untouched.
   - **Verify:** `git status --short` shows only moves inside our dirs.
 
 - [ ] **Task 1.3: Add "agent contract" section to `AGENTS.md`**
@@ -349,7 +349,7 @@ Phase 5:
 
 ### Moved (archived) — OUR code only
 - `.omo/plans/*`, `.opencode/plans/*`, `EaxAutoQuester/plans/*`, `EaxRotations/plans/*` → `plans/_archive/<tool>/`
-- Reference-system `tbc-main/`, `_flux_tbc_explore/`, `tbc_roblox/`, `ClassResearchTBC/`, `EaxESP/` are **untracked** and out of scope.
+- Reference-system `tbc-main/`, `_external_tbc_explore/`, `tbc_roblox/`, `ClassResearchTBC/`, `EaxESP/` are **untracked** and out of scope.
 
 ---
 

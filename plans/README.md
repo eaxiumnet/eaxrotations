@@ -11,7 +11,7 @@ This is the **single active plans directory** for the EAX codebase.
    #1 cause of agents "running in loops".)
 3. **Finished or abandoned → `_archive/`.** Don't leave dead plans in the active
    list. Move the file to `plans/_archive/` and delete its row from `_active.md`.
-4. **Reference-system plans are out of scope.** `tbc-main/`, `_flux_tbc_explore/`,
+4. **Reference-system plans are out of scope.** `tbc-main/`, `_external_tbc_explore/`,
    `tbc_roblox/`, `ClassResearchTBC/`, `EaxESP/` are external clones — do not
    plan work against them.
 
