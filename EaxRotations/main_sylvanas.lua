@@ -70,6 +70,8 @@ NS.health_prediction = health_prediction
 
 local _last_error_time = 0
 local _trace_strat_last = {}  -- per-list trace throttle (keyed by strategy list name)
+local _trace_strategy_last = {}  -- per-strategy trace throttle — keyed by ``list:strategy_name``. Used to suppress the matched=true/executed=false spam from AutoConsumable et al when the executor is a no-op (no setting matches, no item in bags). Default 30s budget per strategy.
+local TRACE_PER_STRATEGY_TTL = 30.0  -- seconds between per-strategy trace lines
 
 -- Hot-path NS API references cached at module load to avoid table lookups and pcall overhead per frame.
 -- Safe to cache: these are stable functions set during NS initialization (see core_sylvanas.lua).
@@ -1119,10 +1121,31 @@ local function run_list(name, list, options, context)
                 if ok then
                     local executed = fast(strategy.execute, context, state) == true
                     local _now_trace = _time_now()
-                    -- Per-list trace throttle: each strategy list gets its own 2s budget.
+                    -- BUGFIX (2026-06-29): two-tier trace throttle.
+                    --   1. Per-list throttle (existing, 2s budget per list)
+                    --      keeps the per-list output stream alive so other
+                    --      strategies in the same list still show up.
+                    --   2. NEW per-strategy throttle (30s budget per
+                    --      ``list:strategy_name`` pair) suppresses the
+                    --      AutoConsumable ``matched=true, executed=false``
+                    --      spam when the executor is a no-op (no items in
+                    --      bags, no setting enabled, HP/mana not in
+                    --      threshold).  Worked-example: with auto-consume
+                    --      on but no consumables in bags, the manager used
+                    --      to spam 1 trace line every ~3s; now it's
+                    --      suppressed for 30s after the first miss.
+                    --   3. When the executor DID fire (executed=true) we
+                    --      force-log immediately — single trace per real
+                    --      cast is the most-useful information for the user.
                     local _tt_key = name or "default"
-                    if _now_trace - (_trace_strat_last[_tt_key] or 0) > 2 then
+                    local _strat_key = (name or "default") .. ":" .. tostring(strategy.name or ("idx_" .. i))
+                    local _strat_last = _trace_strategy_last[_strat_key] or 0
+                    local _strat_loggable = executed
+                        or (_now_trace - _strat_last) > TRACE_PER_STRATEGY_TTL
+                    local _list_loggable = (_now_trace - (_trace_strat_last[_tt_key] or 0)) > 2
+                    if _strat_loggable and _list_loggable then
                         _trace_strat_last[_tt_key] = _now_trace
+                        _trace_strategy_last[_strat_key] = _now_trace
                         NS.log("[EaxRotations:TRACE] " .. name .. ":" .. tostring(strategy.name or i) .. " matched=" .. tostring(ok) .. ", executed=" .. tostring(executed))
                     end
                     if executed then

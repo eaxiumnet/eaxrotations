@@ -556,6 +556,14 @@ end
 --- @return boolean should_check
 function M.should_check(context)
     if not context then return false end
+    -- BUGFIX (2026-06-29): honor the master ``use_auto_consumables`` toggle
+    -- HERE (not just in on_update) so the dispatcher doesn't log
+    -- ``match=true, executed=false`` every 3s when the user has explicitly
+    -- disabled auto-consumables.  ``should_check`` is the gate that feeds
+    -- both the run_list trace and the per-cycle work; it must agree with
+    -- the executor's gate.
+    local settings = context.settings or {}
+    if settings.use_auto_consumables == false then return false end
     -- Skip while already drinking or eating (don't spam consumables mid-channel)
     if player_has_any_buff(ACTIVE_BUFFS.drink) or player_has_any_buff(ACTIVE_BUFFS.refreshment) then return false end
     if player_has_any_buff(ACTIVE_BUFFS.food) then return false end

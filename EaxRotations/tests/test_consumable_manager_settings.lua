@@ -302,4 +302,23 @@ do
     lib.assert_true(r3, "should_check should re-fire after 3s elapse")
 end
 
+-- ============================================================================
+-- BUGFIX (2026-06-29 follow-up): should_check must also honor the master
+-- ``use_auto_consumables`` toggle.  Previously when the toggle was off the
+-- executor (``on_update``) returned false, but ``should_check`` continued to
+-- return true, causing per-3s trace spam of
+--   ``matched=true, executed=false``
+-- with no way for the user to recognise the cause.
+-- ============================================================================
+do
+    local context = {
+        in_combat = true,
+        hp = 30,
+        mana_pct = 20,
+        settings = { use_auto_consumables = false },
+    }
+    local r = M.should_check(context)
+    lib.assert_false(r, "should_check should return false when use_auto_consumables=false (fixes trace spam)")
+end
+
 print("  [ PASS ] test_consumable_manager_settings.lua ok")
