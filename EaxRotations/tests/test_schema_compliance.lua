@@ -52,10 +52,16 @@ local function basename(path)
 end
 
 -- Extract tab names from the schema file.
+-- If the schema uses the shared consumables module, the "Consumables" tab is
+-- built by consumables.build_tab() instead of an inline name = "Consumables".
+-- In that case, append "Consumables" at the end (build_tab is always the last entry).
 local function extract_tabs(text)
     local tabs = {}
     for name in text:gmatch('name%s*=%s*"([^"]+)"') do
         tabs[#tabs + 1] = name
+    end
+    if text:find('consumables%.build_tab%s*%(') then
+        tabs[#tabs + 1] = "Consumables"
     end
     return tabs
 end
