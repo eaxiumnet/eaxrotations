@@ -569,5 +569,5 @@ local strategies = {
 
 local module = { strategies = strategies, build_state = build_state }
 NS.rotation_registry:register("resto", strategies, { get_state = build_state })
-NS.log("Druid resto rotation registered")
+-- Druid resto rotation registered
 return module

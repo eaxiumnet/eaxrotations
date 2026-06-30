@@ -968,5 +968,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("enhancement", strategies, { get_state = build_state })
-NS.log("Shaman enhancement rotation registered (parity v2.0 port)")
+-- Shaman enhancement rotation registered (parity v2.0 port)
 return strategies

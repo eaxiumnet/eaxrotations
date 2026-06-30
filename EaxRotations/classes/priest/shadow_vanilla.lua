@@ -517,6 +517,6 @@ local strategies = {
 }
 
 NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
-NS.log("Priest shadow rotation registered")
+-- Priest shadow rotation registered
 return strategies
 

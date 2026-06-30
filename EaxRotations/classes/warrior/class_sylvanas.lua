@@ -477,5 +477,5 @@ load_spec("arms")
 load_spec("fury")
 load_spec("kebab", true)
 load_spec("protection")
-NS.log("Warrior class module loaded")
+-- class module initialized
 return config

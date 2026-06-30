@@ -160,5 +160,5 @@ function M.recommend_dump(context, state, spec)
     return nil
 end
 
-if NS.log then NS.log("RageManager module loaded") end
+-- module initialized
 return M

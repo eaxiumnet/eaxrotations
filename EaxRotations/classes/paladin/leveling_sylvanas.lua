@@ -419,5 +419,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
-NS.log("Paladin leveling rotation registered")
+-- Paladin leveling rotation registered
 return strategies

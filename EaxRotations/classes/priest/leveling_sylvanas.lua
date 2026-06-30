@@ -565,5 +565,5 @@ local strategies = {
 -- ============================================================================
 
 NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
-NS.log("[Priest] Leveling rotation registered")
+-- [Priest] Leveling rotation registered
 return strategies

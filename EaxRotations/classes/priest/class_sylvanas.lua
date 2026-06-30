@@ -484,5 +484,5 @@ load_spec("discipline")
 load_spec("holy")
 load_spec("shadow")
 load_child("smite_sylvanas")
-NS.log("Priest class module loaded")
+-- class module initialized
 return config

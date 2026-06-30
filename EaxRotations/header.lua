@@ -85,9 +85,4 @@ local CLASS_ID_TO_NAME = {
 plugin["player_class_name"] = CLASS_ID_TO_NAME[player_class]
 plugin["player_class_id"] = player_class
 
-if core and type(core.log) == "function" then
-    core.log("[EaxRotations] Header validated - Class: " .. plugin["player_class_name"])
-end
-
-
 return plugin

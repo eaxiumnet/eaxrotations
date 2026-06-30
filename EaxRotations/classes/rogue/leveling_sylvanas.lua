@@ -520,5 +520,5 @@ function rogue_leveling.on_update(context)
     return false
 end
 
-NS.log("[Rogue] Leveling rotation loaded")
+-- [Rogue] Leveling rotation loaded
 return rogue_leveling

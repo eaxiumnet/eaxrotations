@@ -244,5 +244,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
-NS.log("[Paladin] Leveling rotation loaded (Classic)")
+-- [Paladin] Leveling rotation loaded (Classic)
 return strategies

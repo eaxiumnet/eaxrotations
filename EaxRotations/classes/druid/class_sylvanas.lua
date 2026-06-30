@@ -598,5 +598,5 @@ load_spec("cat")
 load_child("caster_sylvanas")
 load_child("healing_sylvanas")
 load_spec("resto")
-NS.log("Druid class module loaded")
+-- class module initialized
 return config

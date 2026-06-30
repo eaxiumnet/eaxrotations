@@ -751,5 +751,5 @@ function shaman_leveling.on_update(context)
     return false
 end
 
-NS.log("[Shaman] Leveling rotation loaded")
+-- [Shaman] Leveling rotation loaded
 return shaman_leveling

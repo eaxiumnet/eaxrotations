@@ -352,5 +352,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("survival", strategies, { get_state = build_state })
-NS.log("Hunter survival rotation registered")
+-- Hunter survival rotation registered
 return strategies

@@ -611,5 +611,5 @@ local _strategies = {
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("cat", _strategies, { get_state = build_state })
 end
-if NS.log then NS.log("Druid cat_vanilla rotation registered (Classic Vanilla)") end
+-- Druid cat_vanilla rotation registered (Classic Vanilla)
 return { strategies = _strategies, build_state = build_state }

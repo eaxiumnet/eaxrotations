@@ -340,5 +340,5 @@ function M.clear(state)
     if state then state._preemptive_target = nil end
 end
 
-NS.log("PreemptiveHeal module loaded")
+-- module initialized
 return M

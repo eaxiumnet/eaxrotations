@@ -533,6 +533,6 @@ local strategies = {
 }
 
 NS.rotation_registry:register("demonology", strategies, { get_state = build_state })
-NS.log("Demonology rotation registered")
+-- Demonology rotation registered
 return strategies
 

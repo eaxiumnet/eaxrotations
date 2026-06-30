@@ -189,5 +189,5 @@ end
 
 NS.PriestHealing.count_subgroup_below_hp = count_subgroup_below_hp
 
-NS.log("Healing utilities loaded")
+-- Healing utilities loaded
 return NS.PriestHealing

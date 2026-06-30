@@ -429,5 +429,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("subtlety", strategies, { get_state = build_state })
-NS.log("Rogue subtlety rotation registered (Vanilla PvP/stealth)")
+-- Rogue subtlety rotation registered (Vanilla PvP/stealth)
 return strategies

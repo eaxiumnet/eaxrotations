@@ -488,7 +488,7 @@ load_spec("leveling", true)
 load_spec("elemental")
 load_spec("enhancement")
 load_spec("restoration")
-NS.log("Shaman class module loaded")
+-- class module initialized
 -- Dump known spells for debugging; run once at load.
 if NS.dump_class_spells then NS.dump_class_spells("Shaman") end
 return config

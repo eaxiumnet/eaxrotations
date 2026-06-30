@@ -40,8 +40,7 @@ if not plugin_info.player_class_name then
     return
 end
 
-core.log("[EaxRotations] Initializing framework for " .. plugin_info.player_class_name)
-core.log("[EaxRotations] Version " .. tostring(plugin_info.version or "unknown") .. " loaded")
+-- Startup summary is printed at end of main.lua (consolidated one-line boot message).
 
 -- Load core framework components in dependency order.
 -- The runtime only loads header.lua + main.lua; all framework files must be explicitly require()'d here.
@@ -123,12 +122,13 @@ if KNOWN_CLASSES[class_name] then
     local class_module_ok, class_module = pcall(require, "classes/" .. class_name .. "/class_sylvanas")
     if class_module_ok and class_module then
         class_module_loaded = true
-        core.log("[EaxRotations] Class module loaded: " .. tostring(plugin_info.player_class_name))
+        -- class_sylvanas.lua prints its own "X class module loaded" log;
+        -- avoid duplicating it here.
     else
         core.log_error("[EaxRotations] Failed to load class module for " .. tostring(plugin_info.player_class_name) .. ": " .. tostring(class_module))
     end
 else
-    core.log("[EaxRotations] Deferring class load: " .. tostring(plugin_info.player_class_name or "no player yet (login screen)"))
+    -- Login-screen deferral: intentionally silent (no player class yet).
 end
 
 local format = string.format
@@ -836,17 +836,11 @@ local function on_update()
         return
     end
     _on_update_throttle_ms = now_ms
-    if not _on_update_first_print then
-        _on_update_first_print = true
-        core.log("[EaxRotations:main] FIRST on_update CALL -- dispatcher is alive")
-    end
     _on_update_tick_count = _on_update_tick_count + 1
-    -- Debug tick counter (no API calls to avoid overhead)
-    -- One-shot heartbeat: logs exactly once to confirm this callback fires
-    if not _on_update_heartbeat_logged then
-        _on_update_heartbeat_logged = true
-        core.log("[EaxRotations:main] HEARTBEAT: on_update callback is firing! runtime_gen=" .. tostring(runtime_generation) .. " core_gen=" .. tostring(framework_core.runtime_generation))
-    end
+    -- Removed FIRST on_update / HEARTBEAT one-shot logs. They were useful during
+    -- development (v2.0) but now generate noise on every /reload. Use the
+    -- consolidated boot summary or enable debug mode (set eax_rotations_debug
+    -- setting) for verbose startup diagnostics.
     if framework_core.runtime_generation ~= runtime_generation then
         local now_s = NS and NS.time_now and NS.time_now() or 0
         if now_s - (_last_gen_mismatch_log or 0) > 3 then
@@ -860,7 +854,6 @@ local function on_update()
     if not player then
         if not _guard2_logged then
             _guard2_logged = true
-            core.log("[EaxRotations:main] GUARD-2: get_local_player returned nil -- BLOCKED")
         end
         return
     end
@@ -868,7 +861,6 @@ local function on_update()
     if alive_ok and alive == false then
         if not _guard3_logged then
             _guard3_logged = true
-            core.log("[EaxRotations:main] GUARD-3: player not alive -- BLOCKED")
         end
         return
     end
@@ -878,7 +870,6 @@ local function on_update()
     if ghost_ok and is_ghost then
         if not _guard3b_logged then
             _guard3b_logged = true
-            core.log("[EaxRotations:main] GUARD-3b: player is a ghost -- BLOCKED")
         end
         return
     end
@@ -916,9 +907,8 @@ local function on_update()
                     class_schema = schema_val
                 end
                 initialize_schema_menu()
-                core.log("[EaxRotations] Deferred class module loaded: " .. retry_name:upper())
             else
-                core.log("[EaxRotations] Retrying class module load (" .. retry_name .. ") — still pending")
+                -- Retry still pending; intentionally silent.
             end
         end
     end
@@ -934,7 +924,7 @@ local function on_update()
     local rotation_enabled = not (framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) == false)
     if _last_enabled_log ~= rotation_enabled then
         _last_enabled_log = rotation_enabled
-        core.log("[EaxRotations] Rotation " .. (rotation_enabled and "Enabled" or "Disabled"))
+        -- Removed per-toggle log to reduce spam. Toggle state is visible in the UI.
     end
 
     if control_panel_helper and control_panel_helper.on_update then
@@ -982,7 +972,6 @@ local function on_update()
     if not rotation_enabled then
         if not _guard4_logged then
             _guard4_logged = true
-            core.log("[EaxRotations:main] GUARD-4: rotation_disabled -- BLOCKED")
             core.log_warning("[EaxRotations] Rotation disabled by quick toggle")
         end
         return
@@ -995,19 +984,11 @@ local function on_update()
     if not me then
         if not _guard5_logged then
             _guard5_logged = true
-            core.log("[EaxRotations:main] GUARD-5: GetPlayer nil -- PROBING ns.core=" .. tostring(NS and NS.core) .. " ns.player_unit=" .. tostring(NS and NS.PLAYER_UNIT) .. " om=" .. tostring(core and core.object_manager) .. " flogs=" .. tostring(framework_core and framework_core.log and "yes" or "no"))
-            if NS and NS.core then
-                local om_ok, om_fresh = pcall(core.object_manager.get_local_player, core.object_manager)
-                core.log("[EaxRotations:main] GUARD-5: direct OM probe => ok=" .. tostring(om_ok) .. " fresh=" .. tostring(om_fresh) .. " valid=" .. tostring(om_fresh and pcall(function() return om_fresh:is_valid() end)))
-            else
-                core.log("[EaxRotations:main] GUARD-5: NS.core is nil - units.lua GetPlayer can never reach OM")
-            end
         end
         -- Workaround: fall back to direct OM if GetPlayer caches nothing
         local fallback_ok, fallback_me = pcall(core.object_manager.get_local_player, core.object_manager)
         if fallback_ok and fallback_me then
             me = fallback_me
-            core.log("[EaxRotations:main] WORKAROUND: fell back to direct OM for GetPlayer")
         else
             return -- No player unit available
         end
@@ -1017,14 +998,12 @@ local function on_update()
     if not pcall_ok or player_valid == false then
         if not _guard6_logged then
             _guard6_logged = true
-            core.log("[EaxRotations:main] GUARD-6: is_valid() returned false or failed -- BLOCKED")
         end
         return -- Player object is garbage-collected / invalid
     end
 
     if not _post_guards_logged then
         _post_guards_logged = true
-        core.log("[EaxRotations:main] ALL-GUARDS-PASSED: reached dispatcher block")
     end
     if framework_main and framework_main.on_rotation_update then
         local success, err = pcall(framework_main.on_rotation_update)
@@ -1048,13 +1027,10 @@ end
 -- caused measurable FPS drops on weak CPUs.
 if NS and NS.register_on_update_callback then
     local _reg_ok = NS.register_on_update_callback(on_update)
-    print("[EaxRotations:main] REGISTER result=" .. tostring(_reg_ok))
-    core.log("[EaxRotations:main] REGISTER result=" .. tostring(_reg_ok))
     if not _reg_ok then
         core.log_error("[EaxRotations:main] FAIL: NS.register_on_update_callback returned false -- on_update will NEVER fire")
     end
 else
-    print("[EaxRotations:main] FAIL: NS.register_on_update_callback is nil -- PS build missing API")
     core.log_error("[EaxRotations:main] FAIL: NS.register_on_update_callback is nil -- PS build missing API")
 end
 if type(core.register_on_render_menu_callback) == "function" then
@@ -1119,7 +1095,12 @@ if type(core.register_on_render_window_callback) == "function" then
     end
 end
 
-core.log("[EaxRotations] Framework initialized successfully!")
-core.log("[EaxRotations] Class: " .. plugin_info.player_class_name)
-core.log("[EaxRotations] APIs: core, izi_sdk (Project Sylvanas native)")
-core.log("[EaxRotations] Optimizations: DecisionCache (state tracking)")
+-- Consolidated startup summary (replaces 4 verbose lines).
+local _rot_count = 0
+if NS and NS.rotation_registry and NS.rotation_registry.playstyles then
+    for _ in pairs(NS.rotation_registry.playstyles) do _rot_count = _rot_count + 1 end
+end
+core.log("[EaxRotations] v" .. tostring(plugin_info.version or "?") .. " loaded for " .. tostring(plugin_info.player_class_name or "?")
+    .. " (core+izi_sdk, 20Hz dispatcher)")
+core.log("[EaxRotations] Class module: " .. tostring(plugin_info.player_class_name or "?")
+    .. " (" .. tostring(_rot_count) .. " rotation" .. (_rot_count == 1 and "" or "s") .. " registered)")

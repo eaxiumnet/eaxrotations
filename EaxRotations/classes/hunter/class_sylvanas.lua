@@ -435,5 +435,5 @@ end
 load_spec("beast_mastery")
 load_spec("marksmanship")
 load_spec("survival")
-NS.log("Hunter class module loaded")
+-- class module initialized
 return config

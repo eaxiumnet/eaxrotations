@@ -940,5 +940,5 @@ NS.rotation_registry:register("holy", strategies, {
  end,
 })
 
-NS.log("Holy priest rotation registered")
+-- Holy priest rotation registered
 return strategies

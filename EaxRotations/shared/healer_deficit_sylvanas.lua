@@ -400,5 +400,5 @@ function M.clear()
     _last_prune_stale_time = 0
 end
 
-NS.log("HealerDeficit module loaded")
+-- module initialized
 return M

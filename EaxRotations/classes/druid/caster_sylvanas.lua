@@ -138,5 +138,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("caster", strategies, { get_state = build_state })
-NS.log("Druid caster rotation registered (deep enhanced)")
+-- Druid caster rotation registered (deep enhanced)
 return strategies

@@ -85,5 +85,5 @@ function M.mode_name(settings)
     return MODE_NAMES[mode] or "Auto"
 end
 
-if NS.log then NS.log("CombatMode module loaded") end
+-- CombatMode module initialized
 return M

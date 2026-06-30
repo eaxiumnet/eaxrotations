@@ -501,5 +501,5 @@ load_spec("protection")
 load_spec("retribution")
 -- Reset API health after a /reload so spell_book is re-probed fresh.
 if NS.reset_api_health then NS.reset_api_health() end
-NS.log("Paladin class module loaded")
+-- class module initialized
 return config

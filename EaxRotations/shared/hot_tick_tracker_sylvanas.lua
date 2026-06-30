@@ -280,5 +280,5 @@ function M.clear()
     for k in pairs(_state) do _state[k] = nil end
 end
 
-NS.log("HotTickTracker module loaded")
+-- module initialized
 return M

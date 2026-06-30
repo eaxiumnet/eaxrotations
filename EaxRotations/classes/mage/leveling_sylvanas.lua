@@ -554,5 +554,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
-NS.log("Mage leveling rotation registered")
+-- Mage leveling rotation registered
 return strategies

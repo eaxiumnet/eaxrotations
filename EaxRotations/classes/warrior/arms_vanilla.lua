@@ -652,5 +652,5 @@ end
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("arms", strategies, { get_state = build_state })
 end
-if NS.log then NS.log("Warrior arms_vanilla rotation registered (Classic Vanilla)") end
+-- Warrior arms_vanilla rotation registered (Classic Vanilla)
 return strategies

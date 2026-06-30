@@ -255,5 +255,5 @@ function M.execute_dispel(target, spell_id)
     return ok
 end
 
-if NS.log then NS.log("DispelManager module loaded") end
+-- module initialized
 return M

@@ -250,6 +250,6 @@ NS.validate_set_data = M.validate_set_data
 NS.get_set_bonus_effects = M.get_set_bonus_effects
 NS.get_set_bonus_spells = M.get_set_bonus_spells
 
-if NS.log then NS.log("TBC gear set registry loaded") end
+-- gear sets initialized
 
 return M

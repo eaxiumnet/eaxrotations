@@ -500,5 +500,5 @@ local strategies = {
 }
 
 NS.rotation_registry:register("combat", strategies, { get_state = build_state })
-NS.log("Rogue combat rotation registered")
+-- Rogue combat rotation registered
 return strategies

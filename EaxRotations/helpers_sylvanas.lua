@@ -84,4 +84,4 @@ function NS.import_helpers_safe(...)
     return unpack(results, 1, n)
 end
 
-NS.log("Helper import module loaded")
+-- helper module initialized
