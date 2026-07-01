@@ -253,10 +253,14 @@ function M.handle_quest_detail()
         return nil
     end
 
-    -- Probe: check if any quest frame is showing via reward link or reward money
+    -- Probe: check if any quest frame is showing via reward link, reward money, or gossip quests
     local ok_link, link = pcall(function() return _quests.get_quest_item_link("choice", 1) end)
     local ok_money, reward_money = pcall(function() return _quests.get_reward_money() end)
+    local ok_avail, available = pcall(function() return _quests.get_gossip_available_quests() end)
+    local ok_active, active = pcall(function() return _quests.get_gossip_active_quests() end)
+    _core_log("[EaxAutoQuester-DEBUG] handle_quest_detail: link=" .. tostring(ok_link and link and #link) .. " money=" .. tostring(ok_money and reward_money) .. " avail=" .. tostring(ok_avail and available and #available) .. " active=" .. tostring(ok_active and active and #active))
     local has_frame = (ok_link and link and link ~= "") or (ok_money and reward_money and reward_money > 0)
+                      or (ok_avail and available and #available > 0) or (ok_active and active and #active > 0)
 
     if not has_frame then
         if _quest_retry_count > 0 then _quest_retry_count = 0 end
@@ -336,6 +340,7 @@ end
 function M.handle_gossip(step_text)
     -- Check if gossip frame is actually shown
     local ok, is_shown = pcall(function() return _quests.is_gossip_frame_shown() end)
+    _core_log("[EaxAutoQuester-DEBUG] handle_gossip: is_gossip_frame_shown ok=" .. tostring(ok) .. " shown=" .. tostring(is_shown))
     if not ok or not is_shown then return nil end
 
     -- Priority 0: Pre-accept all available quests on turn-in NPCs
@@ -424,6 +429,7 @@ end
 --- @param step_text string|nil Current Zygor step text for service gossip detection.
 --- @return string|nil Action description or nil if no frame handled
 function M.handle_any_frame(step_text)
+    _core_log("[EaxAutoQuester-DEBUG] handle_any_frame: checking frames...")
     -- Priority 1: Loot frame — auto-loot all
     local ok_loot, loot_count = pcall(function() return _game_ui.get_loot_item_count() end)
     if ok_loot and loot_count and loot_count > 0 then
@@ -479,6 +485,7 @@ function M.handle_any_frame(step_text)
         return "vendor_handled"
     end
 
+    _core_log("[EaxAutoQuester-DEBUG] handle_any_frame: no frame detected")
     return nil
 end
 

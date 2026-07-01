@@ -65,6 +65,10 @@ local function find_nearest_npc(ids, range)
     if not me then return nil end
     local _, me_pos = pcall(function() return me:get_position() end)
 
+    -- Cache player name for extra self-exclusion guard
+    local _, me_name = pcall(function() return me:get_name() end)
+    me_name = me_name and me_name:lower() or nil
+
     -- Build ID lookup set for O(1) matching
     local id_set = {}
     for i = 1, #ids do
@@ -80,37 +84,31 @@ local function find_nearest_npc(ids, range)
 
     for i = 1, limit do
         local obj = objects[i]
-<<<<<<< Updated upstream
-        if obj then
-            local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
-            if unit_ok and is_unit then
-                -- Exclude the local player — targeting self causes infinite loops
-                local player_ok, is_player = pcall(function() return obj:is_player() end)
-                if not (player_ok and is_player) then
+        if not obj then break end
+
+        local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
+        if unit_ok and is_unit then
+            -- Exclude the local player — targeting self causes infinite loops
+            local player_ok, is_player = pcall(function() return obj:is_player() end)
+            if player_ok and is_player then
+                -- skip player (confirmed)
+            elseif player_ok and not is_player then
+                -- Extra guard: skip if name matches local player
+                local name_ok, obj_name = pcall(function() return obj:get_name() end)
+                if name_ok and me_name and obj_name and obj_name:lower() == me_name then
+                    -- skip self by name
+                else
+                    -- confirmed NOT player, safe to process
                     local id_ok, npc_id = pcall(function() return obj:get_npc_id() end)
                     if id_ok and npc_id and id_set[npc_id] then
                         local pos_ok, pos = pcall(function() return obj:get_position() end)
                         if pos_ok and pos then
-                            local dist_sq = utils and utils.squared_distance(me, pos) or 0
+                            local dist_sq = (me_pos and utils) and utils.squared_distance(me_pos, pos) or 0
                             if dist_sq < best_dist_sq then
                                 best_dist_sq = dist_sq
                                 best = obj
                             end
                         end
-=======
-        if not obj then break end
-
-        local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
-        if unit_ok and is_unit then
-            local id_ok, npc_id = pcall(function() return obj:get_npc_id() end)
-            if id_ok and npc_id and id_set[npc_id] then
-                local pos_ok, pos = pcall(function() return obj:get_position() end)
-                if pos_ok and pos then
-                    local dist_sq = (me_pos and utils) and utils.squared_distance(me_pos, pos) or 0
-                    if dist_sq < best_dist_sq then
-                        best_dist_sq = dist_sq
-                        best = obj
->>>>>>> Stashed changes
                     end
                 end
             end
@@ -236,11 +234,17 @@ local function get_nearest_enemy(range)
         if obj then
             local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
             if unit_ok and is_unit then
-                local dead_ok, is_dead = pcall(function() return obj:is_dead() end)
-                if dead_ok and not is_dead then
-                    local attack_ok, can_attack = pcall(function() return obj:can_attack(me) end)
-                    local enemy_ok, is_enemy   = pcall(function() return obj:is_enemy_with(me) end)
-                    if attack_ok and can_attack and enemy_ok and is_enemy then
+                -- Exclude player
+                local player_ok, is_player = pcall(function() return obj:is_player() end)
+                if player_ok and is_player then
+                    -- skip player (confirmed)
+                elseif player_ok and not is_player then
+                    -- confirmed NOT player, safe to process
+                    local dead_ok, is_dead = pcall(function() return obj:is_dead() end)
+                    if dead_ok and not is_dead then
+                        local attack_ok, can_attack = pcall(function() return obj:can_attack(me) end)
+                        local enemy_ok, is_enemy   = pcall(function() return obj:is_enemy_with(me) end)
+                        if attack_ok and can_attack and enemy_ok and is_enemy then
                         local pos_ok, pos = pcall(function() return obj:get_position() end)
                         if pos_ok and pos then
                             local dist_sq = utils and utils.squared_distance(me, pos) or 0
@@ -254,8 +258,8 @@ local function get_nearest_enemy(range)
             end
         end
     end
+end
 
-<<<<<<< Updated upstream
     return best
 end
 
@@ -290,7 +294,10 @@ local function find_nearest_quest_unit(range, exclude_dead)
             if unit_ok and is_unit then
                 -- Exclude player
                 local player_ok, is_player = pcall(function() return obj:is_player() end)
-                if not (player_ok and is_player) then
+                if player_ok and is_player then
+                    -- skip player (confirmed)
+                elseif player_ok and not is_player then
+                    -- confirmed NOT player, safe to process
                     local quest_ok, is_quest = pcall(function() return obj:is_quest_unit() end)
                     if quest_ok and is_quest then
                         if exclude_dead then
@@ -316,21 +323,6 @@ local function find_nearest_quest_unit(range, exclude_dead)
                                     best = obj
                                 end
                             end
-=======
-        local unit_ok, is_unit = pcall(function() return obj:is_unit() end)
-        if unit_ok and is_unit then
-            local dead_ok, is_dead = pcall(function() return obj:is_dead() end)
-            if dead_ok and not is_dead then
-                local attack_ok, can_attack = pcall(function() return obj:can_attack(me) end)
-                local enemy_ok, is_enemy   = pcall(function() return obj:is_enemy_with(me) end)
-                if attack_ok and can_attack and enemy_ok and is_enemy then
-                    local pos_ok, pos = pcall(function() return obj:get_position() end)
-                    if pos_ok and pos then
-                        local dist_sq = (me_pos and utils) and utils.squared_distance(me_pos, pos) or 0
-                        if dist_sq < best_dist_sq then
-                            best_dist_sq = dist_sq
-                            best = obj
->>>>>>> Stashed changes
                         end
                     end
                 end

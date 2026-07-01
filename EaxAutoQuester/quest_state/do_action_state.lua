@@ -144,7 +144,11 @@ local function execute_goal_action(shared, ctx, action_type, goal)
                 local nearest = npc.find_nearest_npc(npc_ids, 20, nil, ctx.object_scanner)
                 if nearest then
                     pcall(core.input.set_target, nearest)
-                    ctx.debug_log("DO_ACTION: targeted quest NPC for talk")
+                    pcall(core.input.interact_with_object, nearest)
+                    ctx.debug_log("DO_ACTION: targeted and interacted with quest NPC for talk")
+                    shared._post_interact_timer = ctx.now + 0.5
+                    shared._interact_start_time = ctx.now
+                    shared._should_enter_interact = true
                     return true
                 end
             end
@@ -841,6 +845,12 @@ function M.run(shared, ctx)
 
     if shared._area_wait_timer > 0 and ctx.now < shared._area_wait_timer then
         return "DO_ACTION"
+    end
+
+    -- If we just interacted with an NPC (talk/gossip), enter INTERACT to process dialog
+    if shared._should_enter_interact then
+        shared._should_enter_interact = false
+        return "INTERACT"
     end
 
     shared._action_pause_timer = ctx.now + 0.5

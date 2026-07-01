@@ -57,6 +57,7 @@ local _area_fail_count = 0           -- consecutive area interaction failures
 local _area_last_target_guid = nil   -- GUID of last brute-force target (detect loops)
 local _interact_start_time = 0       -- when INTERACT state was entered (timeout safety net)
 local INTERACT_TIMEOUT = 15          -- max seconds in INTERACT before force-exit
+local _last_wait_log_time = 0        -- throttle IDLE waiting log spam
 local _interact_cooldown = 0         -- don't re-enter INTERACT until this time
 local _action_loop_count = 0         -- consecutive DO_ACTION cycles (progressive backoff)
 local _last_action_type = ""         -- previous action type (loop detection)
@@ -172,15 +173,36 @@ local function detect_open_frame()
 
     -- Gossip frame: check if gossip is shown
     local ok2, gossip = pcall(core.quests.is_gossip_frame_shown)
-    if ok2 and gossip then return true end
+    if ok2 and gossip then
+        _core_log("[EaxAutoQuester-DEBUG] detect_open_frame: gossip frame detected")
+        return true
+    end
 
     -- Quest detail/reward frame: probe reward link
     local ok3, link = pcall(core.quests.get_quest_item_link, "choice", 1)
-    if ok3 and link and link ~= "" then return true end
+    if ok3 and link and link ~= "" then
+        _core_log("[EaxAutoQuester-DEBUG] detect_open_frame: quest reward frame detected")
+        return true
+    end
 
     -- Also check for reward money (alternative quest frame indicator)
     local ok3b, reward_money = pcall(core.quests.get_reward_money)
-    if ok3b and reward_money and reward_money > 0 then return true end
+    if ok3b and reward_money and reward_money > 0 then
+        _core_log("[EaxAutoQuester-DEBUG] detect_open_frame: quest money frame detected")
+        return true
+    end
+
+    -- Quest gossip frame: check if there are available or active quests
+    local ok4a, available = pcall(core.quests.get_gossip_available_quests)
+    if ok4a and available and #available > 0 then
+        _core_log("[EaxAutoQuester-DEBUG] detect_open_frame: quest gossip available detected (" .. #available .. " quests)")
+        return true
+    end
+    local ok4b, active = pcall(core.quests.get_gossip_active_quests)
+    if ok4b and active and #active > 0 then
+        _core_log("[EaxAutoQuester-DEBUG] detect_open_frame: quest gossip active detected (" .. #active .. " quests)")
+        return true
+    end
 
     -- Trainer frame: check service count
     local ok4, num = pcall(core.quests.get_num_trainer_services)
@@ -555,9 +577,14 @@ local function state_idle()
         -- Respect DO_ACTION pause timer: don't re-enter before it expires
         if _action_pause_timer > 0 and _core_time() < _action_pause_timer then
             local remain_ms = math.floor((_action_pause_timer - _core_time()) * 1000)
-            debug_log("IDLE: waiting (" .. tostring(remain_ms) .. "ms) before next action")
+            -- Throttle log spam: only log once per second
+            if not _last_wait_log_time or _core_time() - _last_wait_log_time >= 1.0 then
+                _last_wait_log_time = _core_time()
+                debug_log("IDLE: waiting (" .. tostring(remain_ms) .. "ms) before next action")
+            end
             return "IDLE"
         end
+        _last_wait_log_time = 0
         _action_pause_timer = 0
         debug_log("IDLE: goal type=" .. action_type .. " → DO_ACTION")
         return "DO_ACTION"
@@ -674,6 +701,7 @@ local function state_nav()
             _nav_destination = nil
             _nav_retries = 0
             _just_arrived = true
+            _action_pause_timer = _core_time() + 1.5  -- brief pause so NPC can render
             return "IDLE"
         end
     end
@@ -891,6 +919,8 @@ local function execute_goal_action(action_type, goal)
 
     if action_type == "talk" or action_type == "gossip" then
         if npc then
+            -- DEBUG: log full goal structure
+            _core_log("[EaxAutoQuester-DEBUG] talk: goal type=" .. type(goal) .. " keys=" .. (type(goal)=="table" and table.concat((function() local k={} for a,b in pairs(goal) do k[#k+1]=tostring(a) end return k end)(),",") or "nil"))
             -- Try 1: find by quest NPC IDs (Questie/Zygor data)
             local npc_ids = npc.find_quest_npcs()
             if npc_ids then
@@ -898,8 +928,41 @@ local function execute_goal_action(action_type, goal)
                 local nearest = npc.find_nearest_npc(npc_ids, 50)
                 if nearest then
                     local _, nname = pcall(function() return nearest:get_name() end)
-                    pcall(core.input.set_target, nearest)
-                    pcall(core.input.interact_with_object, nearest)
+                    -- Check distance before interacting (squared, no math.sqrt)
+                    local me_pos_ok, me_pos = pcall(function() return me:get_position() end)
+                    local npc_pos_ok, npc_pos = pcall(function() return nearest:get_position() end)
+                    local dist_yds = nil
+                    if me_pos_ok and me_pos and npc_pos_ok and npc_pos then
+                        local dx = (me_pos.x or 0) - (npc_pos.x or 0)
+                        local dy = (me_pos.y or 0) - (npc_pos.y or 0)
+                        dist_yds = math.floor(math.sqrt(dx*dx + dy*dy))
+                        if dist_yds > 6 then
+                            _core_log("[EaxAutoQuester-DEBUG] talk: NPC '" .. tostring(nname or "?") .. "' at " .. tostring(dist_yds) .. "yd — too far, navigating closer")
+                            local utils = ensure_utils()
+                            if utils and utils.move_to then
+                                pcall(function() utils.move_to(npc_pos) end)
+                            end
+                            return true
+                        end
+                    end
+                    local st_ok, st_err = pcall(core.input.set_target, nearest)
+                    local int_ok, int_err = pcall(core.input.interact_with_object, nearest)
+                    _core_log("[EaxAutoQuester-DEBUG] talk: set_target=" .. tostring(st_ok) .. " interact=" .. tostring(int_ok) .. " dist=" .. tostring(dist_yds) .. "yd name='" .. tostring(nname or "?") .. "'")
+                    if int_ok then
+                        local qi = ensure_quest_interaction()
+                        if qi and qi.handle_any_frame then
+                            local result = qi.handle_any_frame()
+                            if result then
+                                _core_log("[EaxAutoQuester-DEBUG] talk: quest frame handled [ID]: " .. tostring(result))
+                            else
+                                _core_log("[EaxAutoQuester-DEBUG] talk: quest frame NOT detected after interact [ID]")
+                            end
+                        else
+                            _core_log("[EaxAutoQuester-DEBUG] talk: ensure_quest_interaction returned nil")
+                        end
+                    else
+                        _core_log("[EaxAutoQuester-DEBUG] talk: interact failed: " .. tostring(int_err))
+                    end
                     debug_log("DO_ACTION: targeted quest NPC '" .. tostring(nname or "?") .. "' by ID for talk")
                     return true
                 else
@@ -909,13 +972,81 @@ local function execute_goal_action(action_type, goal)
                 _core_log("[EaxAutoQuester-DEBUG] talk: find_quest_npcs returned nil")
             end
 
+            -- Try 1.5: find by goal name (e.g. "Marshal Dughan") when IDs don't match
+            -- Zygor uses .target or .npc for the NPC name, NOT .text/.name
+            -- CRITICAL: goal.target may be "" (empty string, truthy in Lua), so we must check ~= ""
+            local goal_name = nil
+            if type(goal) == "table" then
+                local function nonempty(s) return (s and s ~= "") and s or nil end
+                goal_name = nonempty(goal.npc) or nonempty(goal.target) or nonempty(goal.npc_name) or nonempty(goal.text) or nonempty(goal.name) or nil
+                _core_log("[EaxAutoQuester-DEBUG] talk: goal_name extracted='" .. tostring(goal_name or "nil") .. "' from target='" .. tostring(goal.target or "nil") .. "' npc='" .. tostring(goal.npc or "nil") .. "'")
+            end
+            if goal_name and goal_name ~= "" and npc.find_interactable_objects then
+                local objects = npc.find_interactable_objects(goal_name)
+                if objects and #objects > 0 then
+                    local nearest = objects[1]
+                    local _, nname = pcall(function() return nearest:get_name() end)
+                    local me_pos_ok, me_pos = pcall(function() return me:get_position() end)
+                    local npc_pos_ok, npc_pos = pcall(function() return nearest:get_position() end)
+                    local dist_yds = nil
+                    if me_pos_ok and me_pos and npc_pos_ok and npc_pos then
+                        local dx = (me_pos.x or 0) - (npc_pos.x or 0)
+                        local dy = (me_pos.y or 0) - (npc_pos.y or 0)
+                        dist_yds = math.floor(math.sqrt(dx*dx + dy*dy))
+                        if dist_yds > 6 then
+                            _core_log("[EaxAutoQuester-DEBUG] talk: name-match NPC '" .. tostring(nname or "?") .. "' at " .. tostring(dist_yds) .. "yd — too far, navigating closer")
+                            local utils = ensure_utils()
+                            if utils and utils.move_to then
+                                pcall(function() utils.move_to(npc_pos) end)
+                            end
+                            return true
+                        end
+                    end
+                    local st_ok = pcall(core.input.set_target, nearest)
+                    local int_ok = pcall(core.input.interact_with_object, nearest)
+                    _core_log("[EaxAutoQuester-DEBUG] talk: set_target=" .. tostring(st_ok) .. " interact=" .. tostring(int_ok) .. " dist=" .. tostring(dist_yds) .. "yd name='" .. tostring(nname or "?") .. "' [name-match]")
+                    debug_log("DO_ACTION: targeted quest NPC '" .. tostring(nname or "?") .. "' by name for talk")
+                    return true
+                else
+                    _core_log("[EaxAutoQuester-DEBUG] talk: name-match fallback returned nil for '" .. tostring(goal_name) .. "'")
+                end
+            end
+
             -- Try 2: find any unit flagged as a quest unit (engine's own flag)
             if npc.find_nearest_quest_unit then
                 local nearest = npc.find_nearest_quest_unit(50, true)
                 if nearest then
                     local _, nname = pcall(function() return nearest:get_name() end)
-                    pcall(core.input.set_target, nearest)
-                    pcall(core.input.interact_with_object, nearest)
+                    local me_pos_ok, me_pos = pcall(function() return me:get_position() end)
+                    local npc_pos_ok, npc_pos = pcall(function() return nearest:get_position() end)
+                    local dist_yds = nil
+                    if me_pos_ok and me_pos and npc_pos_ok and npc_pos then
+                        local dx = (me_pos.x or 0) - (npc_pos.x or 0)
+                        local dy = (me_pos.y or 0) - (npc_pos.y or 0)
+                        dist_yds = math.floor(math.sqrt(dx*dx + dy*dy))
+                        if dist_yds > 6 then
+                            _core_log("[EaxAutoQuester-DEBUG] talk: quest unit '" .. tostring(nname or "?") .. "' at " .. tostring(dist_yds) .. "yd — too far, navigating closer")
+                            local utils = ensure_utils()
+                            if utils and utils.move_to then
+                                pcall(function() utils.move_to(npc_pos) end)
+                            end
+                            return true
+                        end
+                    end
+                    local st_ok = pcall(core.input.set_target, nearest)
+                    local int_ok = pcall(core.input.interact_with_object, nearest)
+                    _core_log("[EaxAutoQuester-DEBUG] talk: set_target=" .. tostring(st_ok) .. " interact=" .. tostring(int_ok) .. " dist=" .. tostring(dist_yds) .. "yd name='" .. tostring(nname or "?") .. "'")
+                    if int_ok then
+                        local qi = ensure_quest_interaction()
+                        if qi and qi.handle_any_frame then
+                            local result = qi.handle_any_frame()
+                            if result then
+                                _core_log("[EaxAutoQuester-DEBUG] talk: quest frame handled [quest_unit]: " .. tostring(result))
+                            else
+                                _core_log("[EaxAutoQuester-DEBUG] talk: quest frame NOT detected after interact [quest_unit]")
+                            end
+                        end
+                    end
                     debug_log("DO_ACTION: targeted quest unit '" .. tostring(nname or "?") .. "' by is_quest_unit for talk")
                     return true
                 else
@@ -925,18 +1056,25 @@ local function execute_goal_action(action_type, goal)
                 _core_log("[EaxAutoQuester-DEBUG] talk: npc.find_nearest_quest_unit is nil")
             end
 
-            -- Try 3: brute-force scan for any valid NPC or quest game object within 30yd
+            -- Try 3: brute-force scan for quest-relevant objects only (is_quest_unit or known quest NPC ID)
             local me = _get_local_player()
             if me then
                 local _, pos = pcall(function() return me:get_position() end)
                 if pos then
                     local _, objects = pcall(core.object_manager.get_visible_objects)
                     if objects and #objects > 0 then
+                        -- Build ID set from quest NPC IDs if available
+                        local id_set = {}
+                        if npc_ids then
+                            for j = 1, #npc_ids do
+                                local id = npc_ids[j]
+                                if id then id_set[id] = true end
+                            end
+                        end
                         local best = nil
                         local best_sq = 1e9
                         local scanned = 0
-                        local valid_units = 0
-                        local valid_gos = 0
+                        local valid_quest = 0
                         local limit = #objects > 50 and 50 or #objects
                         for i = 1, limit do
                             local obj = objects[i]
@@ -951,53 +1089,57 @@ local function execute_goal_action(action_type, goal)
                                     local ok_dead, is_dead = pcall(function() return obj:is_dead() end)
                                     if ok_dead and is_dead then skip = true end
                                 end
-                                -- Check distance
+                                -- Only accept quest-relevant objects
+                                if not skip then
+                                    local ok_quest, quest_flag = pcall(function() return obj:is_quest_unit() end)
+                                    if ok_quest and quest_flag then
+                                        valid_quest = valid_quest + 1
+                                    elseif next(id_set) then
+                                        -- Fallback: match against known quest NPC IDs
+                                        local ok_id, obj_npc_id = pcall(function() return obj:get_npc_id() end)
+                                        if ok_id and obj_npc_id and id_set[obj_npc_id] then
+                                            valid_quest = valid_quest + 1
+                                        else
+                                            skip = true
+                                        end
+                                    else
+                                        skip = true
+                                    end
+                                end
+                                -- Check distance and track best
                                 if not skip then
                                     local _, opos = pcall(function() return obj:get_position() end)
                                     if opos then
                                         local dx = (opos.x or 0) - (pos.x or 0)
                                         local dy = (opos.y or 0) - (pos.y or 0)
                                         local d_sq = dx * dx + dy * dy
-                                        if d_sq < 900 then  -- 30yd squared
-                                            -- Prefer quest units, then regular units, then game objects
-                                            local is_quest = false
-                                            local ok_quest, quest_flag = pcall(function() return obj:is_quest_unit() end)
-                                            if ok_quest and quest_flag then is_quest = true end
-                                            local is_unit = false
-                                            local ok_unit, unit_flag = pcall(function() return obj:is_unit() end)
-                                            if ok_unit and unit_flag then is_unit = true end
-
-                                            if is_quest then
-                                                valid_units = valid_units + 1
-                                                if d_sq < best_sq then
-                                                    best_sq = d_sq
-                                                    best = obj
-                                                end
-                                            elseif is_unit then
-                                                valid_units = valid_units + 1
-                                                if d_sq < best_sq then
-                                                    best_sq = d_sq
-                                                    best = obj
-                                                end
-                                            else
-                                                valid_gos = valid_gos + 1
-                                                if d_sq < best_sq then
-                                                    best_sq = d_sq
-                                                    best = obj
-                                                end
-                                            end
+                                        if d_sq < 900 and d_sq < best_sq then  -- 30yd squared
+                                            best_sq = d_sq
+                                            best = obj
                                         end
                                     end
                                 end
                             end
                         end
-                        _core_log("[EaxAutoQuester-DEBUG] talk brute-force: scanned=" .. tostring(scanned) .. " valid_units=" .. tostring(valid_units) .. " valid_gos=" .. tostring(valid_gos) .. " best=" .. tostring(best and "yes" or "nil"))
+                        _core_log("[EaxAutoQuester-DEBUG] talk brute-force: scanned=" .. tostring(scanned) .. " valid_quest=" .. tostring(valid_quest) .. " best=" .. tostring(best and "yes" or "nil"))
                         if best then
                             local _, nname = pcall(function() return best:get_name() end)
                             local dist_yds = math.floor(math.sqrt(best_sq))
-                            pcall(core.input.set_target, best)
-                            pcall(core.input.interact_with_object, best)
-                            debug_log("DO_ACTION: targeted '" .. tostring(nname or "?") .. "' at " .. tostring(dist_yds) .. "yd for talk")
+                            if dist_yds > 6 then
+                                _core_log("[EaxAutoQuester-DEBUG] talk: brute-force NPC '" .. tostring(nname or "?") .. "' at " .. tostring(dist_yds) .. "yd — too far, navigating closer")
+                                local best_pos_ok, best_pos = pcall(function() return best:get_position() end)
+                                if best_pos_ok and best_pos then
+                                    local utils = ensure_utils()
+                                    if utils and utils.move_to then
+                                        pcall(function() utils.move_to(best_pos) end)
+                                    end
+                                end
+                                return true
+                            end
+                            local st_ok = pcall(core.input.set_target, best)
+                            local int_ok = pcall(core.input.interact_with_object, best)
+                            _core_log("[EaxAutoQuester-DEBUG] talk: set_target=" .. tostring(st_ok) .. " interact=" .. tostring(int_ok) .. " dist=" .. tostring(dist_yds) .. "yd name='" .. tostring(nname or "?") .. "'")
+                            debug_log("DO_ACTION: targeted '" .. tostring(nname or "?") .. "' at " .. tostring(dist_yds) .. "yd for talk [brute-force quest-relevant]")
                             return true
                         end
                     else
@@ -1008,6 +1150,180 @@ local function execute_goal_action(action_type, goal)
                 end
             else
                 _core_log("[EaxAutoQuester-DEBUG] talk: could not get local player")
+            end
+            -- Try 3.5: wide name-based unit scan (100yd) — for NPCs like "Marshal Dughan"
+            -- that don't match quest IDs or is_quest_unit but are named in the goal
+            if goal_name and goal_name ~= "" then
+                local me3 = _get_local_player()
+                if me3 then
+                    local _, ppos3 = pcall(function() return me3:get_position() end)
+                    if ppos3 then
+                        local _, objects3 = pcall(core.object_manager.get_visible_objects)
+                        if objects3 and #objects3 > 0 then
+                            local best3 = nil
+                            local best3_sq = 10000  -- 100yd squared
+                            local best3_name = nil
+                            local limit3 = #objects3 > 100 and 100 or #objects3
+                            local glower = goal_name:lower()
+                            for k = 1, limit3 do
+                                local obj3 = objects3[k]
+                                if obj3 then
+                                    local ok_p3, is_p3 = pcall(function() return obj3:is_player() end)
+                                    if ok_p3 and is_p3 then
+                                        -- skip player
+                                    else
+                                        local ok_u3, is_u3 = pcall(function() return obj3:is_unit() end)
+                                        if ok_u3 and is_u3 then
+                                            local ok_n3, n3 = pcall(function() return obj3:get_name() end)
+                                            if ok_n3 and n3 then
+                                                local n3lower = n3:lower()
+                                                if n3lower:find(glower, 1, true) or glower:find(n3lower, 1, true) then
+                                                    local _, opos3 = pcall(function() return obj3:get_position() end)
+                                                    if opos3 then
+                                                        local dx3 = (opos3.x or 0) - (ppos3.x or 0)
+                                                        local dy3 = (opos3.y or 0) - (ppos3.y or 0)
+                                                        local d3_sq = dx3*dx3 + dy3*dy3
+                                                        if d3_sq < best3_sq then
+                                                            best3_sq = d3_sq
+                                                            best3 = obj3
+                                                            best3_name = n3
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            if best3 then
+                                local dist3_yds = math.floor(math.sqrt(best3_sq))
+                                if dist3_yds > 6 then
+                                    _core_log("[EaxAutoQuester-DEBUG] talk: wide-scan NPC '" .. tostring(best3_name) .. "' at " .. tostring(dist3_yds) .. "yd — navigating closer")
+                                    local bp_ok, bp = pcall(function() return best3:get_position() end)
+                                    if bp_ok and bp then
+                                        local utils = ensure_utils()
+                                        if utils and utils.move_to then pcall(function() utils.move_to(bp) end) end
+                                    end
+                                    return true
+                                end
+                                local st_ok = pcall(core.input.set_target, best3)
+                                local int_ok = pcall(core.input.interact_with_object, best3)
+                                _core_log("[EaxAutoQuester-DEBUG] talk: set_target=" .. tostring(st_ok) .. " interact=" .. tostring(int_ok) .. " dist=" .. tostring(dist3_yds) .. "yd name='" .. tostring(best3_name) .. "' [wide-scan]")
+                                -- After interacting, try to handle any quest dialog immediately
+                                local qi = ensure_quest_interaction()
+                                if qi and qi.handle_any_frame then
+                                    local result = qi.handle_any_frame()
+                                    if result then
+                                        _core_log("[EaxAutoQuester-DEBUG] talk: quest frame handled: " .. tostring(result))
+                                    end
+                                end
+                                debug_log("DO_ACTION: targeted '" .. tostring(best3_name) .. "' by wide name scan")
+                                return true
+                            else
+                                _core_log("[EaxAutoQuester-DEBUG] talk: wide name scan found nothing for '" .. tostring(goal_name) .. "'")
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- Try 4: proximity fallback — we're at the destination but the NPC
+            -- doesn't match IDs or is_quest_unit. Accept any non-player target
+            -- within range. Two-pass: prefer name match, then closest valid.
+            local me2 = _get_local_player()
+            if me2 then
+                local _, ppos = pcall(function() return me2:get_position() end)
+                if ppos then
+                    local _, objects2 = pcall(core.object_manager.get_visible_objects)
+                    if objects2 and #objects2 > 0 then
+                        local best2 = nil
+                        local best2_sq = 900  -- 30yd squared
+                        local best2_name = nil
+                        local limit2 = #objects2 > 50 and 50 or #objects2
+                        if type(goal) == "table" and not goal_name then
+                            goal_name = goal.text or goal.name or goal.npc_name or nil
+                        end
+                        -- Pass 1: name-aware closest match
+                        for k = 1, limit2 do
+                            local obj2 = objects2[k]
+                            if obj2 then
+                                local skip2 = false
+                                local ok_p2, is_p2 = pcall(function() return obj2:is_player() end)
+                                if ok_p2 and is_p2 then skip2 = true end
+                                if not skip2 then
+                                    local ok_d2, is_d2 = pcall(function() return obj2:is_dead() end)
+                                    if ok_d2 and is_d2 then skip2 = true end
+                                end
+                                if not skip2 then
+                                    local _, opos2 = pcall(function() return obj2:get_position() end)
+                                    if opos2 then
+                                        local dx2 = (opos2.x or 0) - (ppos.x or 0)
+                                        local dy2 = (opos2.y or 0) - (ppos.y or 0)
+                                        local d2_sq = dx2 * dx2 + dy2 * dy2
+                                        if d2_sq < best2_sq then
+                                            local ok_n2, n2 = pcall(function() return obj2:get_name() end)
+                                            if ok_n2 and n2 then
+                                                local n2lower = n2:lower()
+                                                if goal_name and goal_name ~= "" then
+                                                    local glower = goal_name:lower()
+                                                    if n2lower:find(glower, 1, true) or glower:find(n2lower, 1, true) then
+                                                        best2_sq = d2_sq
+                                                        best2 = obj2
+                                                        best2_name = n2
+                                                    end
+                                                end
+                                                -- Always track closest valid for pass-2 fallback
+                                                if not best2 then
+                                                    best2 = obj2
+                                                    best2_sq = d2_sq
+                                                    best2_name = n2
+                                                end
+                                            elseif not best2 then
+                                                best2 = obj2
+                                                best2_sq = d2_sq
+                                                best2_name = "?"
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if best2 then
+                            local dist2_yds = math.floor(math.sqrt(best2_sq))
+                            if dist2_yds > 6 then
+                                _core_log("[EaxAutoQuester-DEBUG] talk: proximity NPC '" .. tostring(best2_name or "?") .. "' at " .. tostring(dist2_yds) .. "yd — too far, navigating closer")
+                                local best2_pos_ok, best2_pos = pcall(function() return best2:get_position() end)
+                                if best2_pos_ok and best2_pos then
+                                    local utils = ensure_utils()
+                                    if utils and utils.move_to then
+                                        pcall(function() utils.move_to(best2_pos) end)
+                                    end
+                                end
+                                return true
+                            end
+                            local st_ok = pcall(core.input.set_target, best2)
+                            local int_ok = pcall(core.input.interact_with_object, best2)
+                            _core_log("[EaxAutoQuester-DEBUG] talk: set_target=" .. tostring(st_ok) .. " interact=" .. tostring(int_ok) .. " dist=" .. tostring(dist2_yds) .. "yd name='" .. tostring(best2_name or "?") .. "'")
+                            if int_ok then
+                                local qi = ensure_quest_interaction()
+                                if qi and qi.handle_any_frame then
+                                    local result = qi.handle_any_frame()
+                                    if result then _core_log("[EaxAutoQuester-DEBUG] talk: quest frame handled [proximity]: " .. tostring(result)) end
+                                end
+                            end
+                            debug_log("DO_ACTION: targeted '" .. tostring(best2_name or "?") .. "' at " .. tostring(dist2_yds) .. "yd for talk [proximity fallback, goal='" .. tostring(goal_name or "?") .. "']")
+                            return true
+                        else
+                            _core_log("[EaxAutoQuester-DEBUG] talk: proximity fallback found nothing within 30yd (goal='" .. tostring(goal_name or "nil") .. "', objects=" .. tostring(#objects2) .. ")")
+                        end
+                    else
+                        _core_log("[EaxAutoQuester-DEBUG] talk: proximity fallback — no visible objects")
+                    end
+                else
+                    _core_log("[EaxAutoQuester-DEBUG] talk: proximity fallback — no player position")
+                end
+            else
+                _core_log("[EaxAutoQuester-DEBUG] talk: proximity fallback — no local player")
             end
         else
             _core_log("[EaxAutoQuester-DEBUG] talk: npc manager is nil")
@@ -1335,6 +1651,14 @@ local function state_do_action()
 
     -- Execute action
     execute_goal_action(action_type, current_goal)
+
+    -- After talk/gossip: immediately check for open frames (quest dialog)
+    -- instead of waiting for the full pause timer
+    if action_type == "talk" or action_type == "gossip" then
+        -- Give the server 0.3s to open the frame, then check
+        _action_pause_timer = now + 0.3
+        return "IDLE"
+    end
 
     -- Progressive backoff: same action type → increase pause (0.5s → 1s → 2s → 4s → capped 5s)
     local pause = 0.5
