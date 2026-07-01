@@ -1,8 +1,32 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to the EAX TBC Classic Rotations project.
 
-## [2.2.0] — Supremacy Phase 4 (2026-06-29)
+## [2.2.3] — EaxAutoQuester Hardening + Rotation Fixes (2026-07-01)
+
+### Fixed
+
+#### EaxAutoQuester — Merge Conflict Resolution & Interaction Flow
+- **npc_manager_sylvanas.lua**: Removed git merge conflict markers that caused runtime failure. Added name-based self-exclusion guard to prevent targeting the local player in find_nearest_npc, get_nearest_enemy, and find_nearest_quest_unit.
+- **quest_state_sylvanas.lua**: Expanded detect_open_frame() with gossip available/active quest probes for better quest dialog detection. Throttled IDLE wait log spam (1s). Added brief 1.5s pause after NAV arrival for NPC rendering. Added proximity NPC fallback (30yd scan) when named lookup fails for talk goals. Immediate frame check (0.3s) after talk/gossip actions instead of full progressive backoff.
+- **quest_interaction_sylvanas.lua**: Added gossip available/active quest detection in handle_quest_detail(). Added debug logging in handle_gossip() and handle_any_frame().
+- **do_action_state.lua**: Now calls interact_with_object after set_target for talk goals. Enters INTERACT state after NPC interaction to process dialog frames immediately.
+- **questie_reader_sylvanas.lua**: Removed git merge conflict markers. Restored cached API references for get_quest_npc_ids and get_quest_locations.
+
+#### Rotation Fixes
+- **protection_vanilla.lua**: Removed duplicated holy_shock_matches dead-code block after return true that caused a syntax error ('end' expected).
+- **protection_sylvanas.lua**: Added Holy Shock self-heal gate — don't burn Holy Shock offensively when tank HP is below the Flash of Light threshold (40 percent).
+- **enhancement_vanilla.lua**: Fixed pcall double-call bug in target_is_casting check (was calling :is_casting() twice, second call unguarded).
+
+### Tests
+- 214/214 rotation suites pass
+- 12/12 leveling suites pass
+- 431 files syntax-checked (luac -p)
+- 61/61 DBC spell audit clean
+- 31/31 vanilla spec audit clean
+
+---
+## [2.2.0] â€” Supremacy Phase 4 (2026-06-29)
 
 ### Added
 
@@ -10,14 +34,14 @@ All notable changes to the EAX TBC Classic Rotations project.
 - **WHAT**: Auto-switch stances based on rotation needs and survival state.
 - **WHY**: Battle for Rend/Overpower/Charge, Berserker for DPS/Execute/Intercept, Defensive for survival.
 - **HOW**: `shared/stance_manager_sylvanas.lua` provides `get_optimal_stance(context, state)` and `should_switch(context, state, desired)`. Rules: Defensive when HP < 30%, Berserker for Execute, Battle for Rend/Overpower. Respects Tactical Mastery rage preservation and stance lockout.
-- **Settings**: `stance_mode` dropdown — "auto", "manual", "battle", "defensive", "berserker".
+- **Settings**: `stance_mode` dropdown â€” "auto", "manual", "battle", "defensive", "berserker".
 - **Files**: `shared/stance_manager_sylvanas.lua`, `arms_sylvanas.lua`, `fury_sylvanas.lua`, `protection_sylvanas.lua`.
 
 #### Smart Rage Management (Warrior DPS)
 - **WHAT**: Intelligently dump rage with Heroic Strike / Cleave to prevent capping.
 - **WHY**: Rage capping is DPS loss; rage starving is also DPS loss.
 - **HOW**: `shared/rage_manager_sylvanas.lua` provides `should_heroic_strike()`, `should_cleave()`, `recommend_dump()`. Respects core ability starvation (MS/Overpower for Arms, BT/WW for Fury). Fury-specific HS trick (queue when OH imminent).
-- **Settings**: `rage_dump_threshold` slider (default 80), `rage_dump_ability` dropdown — "heroic_strike", "cleave", "auto".
+- **Settings**: `rage_dump_threshold` slider (default 80), `rage_dump_ability` dropdown â€” "heroic_strike", "cleave", "auto".
 - **Files**: `shared/rage_manager_sylvanas.lua`, `arms_sylvanas.lua`, `fury_sylvanas.lua`.
 
 #### Healthstone Automation
@@ -37,7 +61,7 @@ All notable changes to the EAX TBC Classic Rotations project.
 - **WHAT**: Auto-dispel party/raid members (and self) for dispellable debuffs.
 - **WHY**: Reduces manual dispel burden in raids/dungeons.
 - **HOW**: `shared/dispel_manager_sylvanas.lua` scans party for debuff types and casts appropriate dispel. Supports: Priest (Magic/Disease), Paladin (Poison/Disease/Magic with talent), Shaman (Poison/Disease), Druid (Poison/Curse), Mage (Curse). Throttled to 1 dispel per 3 seconds. Skips during critical healing (tank < 50%).
-- **Settings**: `auto_dispel` checkbox (default true), `dispel_priority` dropdown — "self", "tank", "all".
+- **Settings**: `auto_dispel` checkbox (default true), `dispel_priority` dropdown â€” "self", "tank", "all".
 - **Files**: `shared/dispel_manager_sylvanas.lua`.
 
 #### Combat Mode Override (Extended)
@@ -49,23 +73,23 @@ All notable changes to the EAX TBC Classic Rotations project.
 #### Strategy Gating Extracted
 - **WHAT**: Centralized strategy category classification and quick-toggle gating.
 - **WHY**: Previously duplicated in `core_sylvanas.lua` and `main_sylvanas.lua`.
-- **HOW**: New `core/strategy_gating.lua` — single source of truth for category strings + toggle predicates. Consumed by `main_sylvanas.lua` and tests.
+- **HOW**: New `core/strategy_gating.lua` â€” single source of truth for category strings + toggle predicates. Consumed by `main_sylvanas.lua` and tests.
 - **Files**: `core/strategy_gating.lua`, `main_sylvanas.lua`, `core_sylvanas.lua`.
 
 ### Fixed
-- **Protection Warrior strategy count**: StanceSwitch added → test updated from 34→35.
-- **Pre-existing test failures resolved**: `test_reset_api_health.lua`, `test_reset_api_health_spell_integration.lua`, `test_leveling_edge_cases.lua` — all now pass.
+- **Protection Warrior strategy count**: StanceSwitch added â†’ test updated from 34â†’35.
+- **Pre-existing test failures resolved**: `test_reset_api_health.lua`, `test_reset_api_health_spell_integration.lua`, `test_leveling_edge_cases.lua` â€” all now pass.
 - **CC helper cleanup**: Removed 9 redundant `NS.cc_is_*` wrappers from `core_sylvanas.lua` (consolidated into `strategy_gating.lua` in prior work).
 
 ### Tests
-- Added `test_stance_manager.lua` (6 assertions) — PASS
-- Added `test_rage_manager.lua` (7 assertions) — PASS
-- Added `test_dispel_manager.lua` (7 assertions) — PASS
-- Added `test_arms_critical_fixes.lua` — PASS
-- **Total: 208 rotation suites — ALL PASS (0 failures)**
-- **Total: 11 leveling suites — ALL PASS (0 failures)**
+- Added `test_stance_manager.lua` (6 assertions) â€” PASS
+- Added `test_rage_manager.lua` (7 assertions) â€” PASS
+- Added `test_dispel_manager.lua` (7 assertions) â€” PASS
+- Added `test_arms_critical_fixes.lua` â€” PASS
+- **Total: 208 rotation suites â€” ALL PASS (0 failures)**
+- **Total: 11 leveling suites â€” ALL PASS (0 failures)**
 
-## [Unreleased] — Supremacy Phase 3 (2026-06-29)
+## [Unreleased] â€” Supremacy Phase 3 (2026-06-29)
 
 ### Added
 
@@ -79,11 +103,11 @@ All notable changes to the EAX TBC Classic Rotations project.
 #### DoT TTD Gating
 - **WHAT**: Skip DoT reapplication if target will die before DoT runs full duration.
 - **WHY**: Don't waste GCDs on targets that die in 3s.
-- **HOW**: `NS.DotTTD.should_skip_dot(ttd, dot_duration, threshold)` — returns true if TTD < duration * threshold. Shared module used by Shadow Priest (SW:P, VT) and Affliction Lock (Corruption, UA, Siphon Life, Immolate).
-- **Settings**: `shadow_dot_ttd_threshold` (Priest), `dot_ttd_threshold` (Warlock) — slider 0-100% (default 50%).
+- **HOW**: `NS.DotTTD.should_skip_dot(ttd, dot_duration, threshold)` â€” returns true if TTD < duration * threshold. Shared module used by Shadow Priest (SW:P, VT) and Affliction Lock (Corruption, UA, Siphon Life, Immolate).
+- **Settings**: `shadow_dot_ttd_threshold` (Priest), `dot_ttd_threshold` (Warlock) â€” slider 0-100% (default 50%).
 - **Files**: `shared/dot_ttd_gating_sylvanas.lua`, `shadow_sylvanas.lua`, `affliction_sylvanas.lua`.
 
-#### Inner Focus → Mind Blast Combo
+#### Inner Focus â†’ Mind Blast Combo
 - **WHAT**: Hold Inner Focus for Mind Blast to guarantee crit on hardest-hitting spell.
 - **WHY**: 25% mana cost reduction + guaranteed crit on biggest nuke.
 - **HOW**: When combo enabled, InnerFocusMindBlast strategy matches when IF is ready AND (MB ready OR MB CD <= 5s). If MB on long CD (>5s), falls through to non-combo logic.
@@ -100,7 +124,7 @@ All notable changes to the EAX TBC Classic Rotations project.
 #### Dynamic Aspect Switching for Hunter
 - **WHAT**: Auto-switch between Hawk (DPS), Viper (mana), Cheetah (OOC).
 - **WHY**: Never go OOM, never waste GCD on manual aspect.
-- **HOW**: In-combat + mana > threshold+10% → Hawk; in-combat + mana <= threshold → Viper; OOC + no enemies → Cheetah. BM uses `AutoAspect` strategy; MM/SV use existing AspectOfTheHawk/AspectOfTheViper with updated thresholds.
+- **HOW**: In-combat + mana > threshold+10% â†’ Hawk; in-combat + mana <= threshold â†’ Viper; OOC + no enemies â†’ Cheetah. BM uses `AutoAspect` strategy; MM/SV use existing AspectOfTheHawk/AspectOfTheViper with updated thresholds.
 - **Settings**: `hunter_auto_aspect` checkbox (default true), `hunter_viper_mana_threshold` slider (default 20%).
 - **Files**: `shared/aspect_manager_sylvanas.lua`, `beast_mastery_sylvanas.lua`, `marksmanship_sylvanas.lua`, `survival_sylvanas.lua`.
 
@@ -135,16 +159,16 @@ All notable changes to the EAX TBC Classic Rotations project.
 - **Modified schemas**: `priest/schema_sylvanas.lua`, `hunter/schema_sylvanas.lua`, `warlock/schema_sylvanas.lua`
 - **Modified tests**: `run_rotation_tests.lua`
 
-## [Unreleased] — Supremacy Phase 2 (2026-06-28)
+## [Unreleased] â€” Supremacy Phase 2 (2026-06-28)
 
 ### Fixed
 
 #### Middleware Critical Bugs
 - **Warlock**: Registered `SpellLock` with `interrupt_manager` (was completely missing).
-- **Paladin Cleanse**: Rewrote from self-only to party-wide scan — dispels self then all party members.
+- **Paladin Cleanse**: Rewrote from self-only to party-wide scan â€” dispels self then all party members.
 - **Paladin GroupBlessKings**: Now refreshes expiring Kings even if target has another blessing (was: never refreshed).
-- **Paladin AutoConsumable**: Moved throttle set from `matches()` to inside `execute()` — only throttles on *successful* use (was: consumed 3s cooldown even on failed execute → 6s total lockout).
-- **Mage ManaGem**: Moved `_mana_gem_last` set from `matches()` to inside `execute()` — only throttles on successful gem use (was: 30s lockout on failed use).
+- **Paladin AutoConsumable**: Moved throttle set from `matches()` to inside `execute()` â€” only throttles on *successful* use (was: consumed 3s cooldown even on failed execute â†’ 6s total lockout).
+- **Mage ManaGem**: Moved `_mana_gem_last` set from `matches()` to inside `execute()` â€” only throttles on successful gem use (was: 30s lockout on failed use).
 - **Warlock CreateHealthstone**: Added nil-guard on `NS.core.inventory.get_item_count`.
 - **main_sylvanas.lua**: Fixed `_context.lowest` subtable being nil'd by `build_context()` reset loop, causing downstream crashes.
 
@@ -158,12 +182,12 @@ All notable changes to the EAX TBC Classic Rotations project.
 
 #### Leveling Death Zone Fixes
 - **Warrior**: Heroic Strike rage threshold now level-aware (`math.min(50, math.max(15, 15 + level))`). Level 1 dumps at 15 rage, scaling to 50 by 60. Prevents total rage starvation at 1-10.
-- **Paladin**: Healing thresholds more aggressive at low levels — Flash of Light 75% HP at ≤20 (was 60%), Holy Light 50% at ≤20 (was 35%). Prevents death spiral at 1-11.
-- **Hunter**: Low-mana threshold 15% at ≤20 (was 30%). Prevents mana starvation causing no-damage loops at 1-9.
+- **Paladin**: Healing thresholds more aggressive at low levels â€” Flash of Light 75% HP at â‰¤20 (was 60%), Holy Light 50% at â‰¤20 (was 35%). Prevents death spiral at 1-11.
+- **Hunter**: Low-mana threshold 15% at â‰¤20 (was 30%). Prevents mana starvation causing no-damage loops at 1-9.
 
 #### Schema UI Settings (All 6 Classes)
 Every new middleware feature now has a corresponding UI checkbox/slider:
-- **Warlock**: `auto_demon_armor` checkbox (General → Pet/Stones)
+- **Warlock**: `auto_demon_armor` checkbox (General â†’ Pet/Stones)
 - **Hunter**: `use_rapid_fire` checkbox (Cooldowns), `healthstone_hp` slider (Defensives)
 - **Shaman**: `auto_lightning_shield` checkbox, `use_bloodlust` checkbox, `self_heal_hp` slider (General)
 - **Priest**: `pws_hp` slider, `auto_inner_fire` checkbox, `auto_fortitude` checkbox (General)
@@ -182,7 +206,7 @@ Every new middleware feature now has a corresponding UI checkbox/slider:
 #### Ret Paladin: Post-Swing Judgement
 - **WHAT**: Gates Judgement casts to avoid clipping auto-attack swings.
 - **WHY**: Judging before a swing delays the melee hit, reducing DPS.
-- **HOW**: `swing_remains < 0.3s` → block; `swing_remains > 1.5s` → allow.
+- **HOW**: `swing_remains < 0.3s` â†’ block; `swing_remains > 1.5s` â†’ allow.
 - **Settings**: `retri_post_swing_judge` (default true).
 - **Files**: `retribution_sylvanas.lua`, `schema_sylvanas.lua`.
 
@@ -230,7 +254,7 @@ Every new middleware feature now has a corresponding UI checkbox/slider:
 - **Modified schemas**: `paladin/schema_sylvanas.lua`, `shaman/schema_sylvanas.lua`
 - **Modified tests**: `run_rotation_tests.lua`
 
-## [Unreleased] — Supremacy Phase 1 (2026-06-28)
+## [Unreleased] â€” Supremacy Phase 1 (2026-06-28)
 
 ### Added
 
@@ -260,11 +284,11 @@ Every new middleware feature now has a corresponding UI checkbox/slider:
 - **WHY**: Establishes threat before DPS opens up.
 - **HOW**: Hooks combat-start detection; 3s cooldown between snaps to prevent spam.
 - **Settings**: `snap_threat_enabled` (default true).
-- **Wired into**: Prot Paladin (Judgement → Avenger's Shield fallback), Prot Warrior (Shield Slam → Revenge fallback).
+- **Wired into**: Prot Paladin (Judgement â†’ Avenger's Shield fallback), Prot Warrior (Shield Slam â†’ Revenge fallback).
 
 #### Combat Mode Override (`shared/combat_mode_sylvanas.lua`)
 - **WHAT**: Allows users to force Single Target, AoE, or Auto-detect mode.
-- **WHY**: Users want control — e.g., "force ST on boss even with adds nearby".
+- **WHY**: Users want control â€” e.g., "force ST on boss even with adds nearby".
 - **HOW**: Pure read-only helper; specs query `NS.CombatMode.is_aoe()` instead of raw enemy count.
 - **Settings**: `combat_mode` dropdown (1=Auto, 2=Single Target, 3=AoE).
 - **Schema updates**: Paladin Protection, Warrior Protection (all DPS specs can opt-in).
