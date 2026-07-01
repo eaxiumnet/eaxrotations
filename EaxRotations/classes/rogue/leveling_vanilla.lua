@@ -82,6 +82,9 @@ function rogue_leveling.build_state(context)
     state.expose_armor_ready = spell_ready(SPELLS.ExposeArmor)
     state.shiv_ready = spell_ready(SPELLS.Shiv)
     state.thistle_tea_ready = SPELLS.ThistleTea and spell_ready(SPELLS.ThistleTea) or false
+    state.sap_ready = spell_ready(SPELLS.Sap)
+
+    state.thistle_tea_ready = SPELLS.ThistleTea and spell_ready(SPELLS.ThistleTea) or false
 
     state.is_pvp = context.is_pvp or false
     state.in_melee_range = context.in_melee_range or false
@@ -123,6 +126,32 @@ local ambush_matches = function(context, state)
     if not state.stealthed then return false end
     if not state.ambush_ready then return false end
     if not context.target then return false end
+    return true
+end
+
+local garrote_matches = function(context, state)
+    if not state then return false end
+    if state.in_combat then return false end
+    if not state.stealthed then return false end
+    if not state.garrote_ready then return false end
+    if not context.target then return false end
+    return true
+end
+
+--- Sap — CC humanoid target while stealthed (OOC only, requires stealth)
+local sap_matches = function(context, state)
+    if not state then return false end
+    if state.in_combat then return false end
+    if not state.stealthed then return false end
+    if not state.sap_ready then return false end
+    if not context.target then return false end
+    -- Only sap humanoids (creature_type 7)
+    local ctype = context.target_creature_type
+    if not ctype and context.target and context.target.get_creature_type then
+        local ok, val = pcall(function() return context.target:get_creature_type() end)
+        if ok then ctype = val end
+    end
+    if ctype and ctype ~= 7 then return false end
     return true
 end
 
@@ -351,6 +380,15 @@ local strategies = {
     { name = "Rupture",
       matches = rupture_matches,
       execute = function(context) return try_cast(SPELLS.Rupture, context and context.target, "[LEVELING] Rupture") end },
+    -- Sap: CC humanoid while stealthed (before entering combat)
+    { name = "Sap",
+      matches = sap_matches,
+      execute = function(context) return try_cast(SPELLS.Sap, context and context.target, "[LEVELING] Sap") end },
+
+    { name = "Eviscerate",
+      matches = eviscerate_matches,
+      execute = function(context) return try_cast(SPELLS.Eviscerate, context and context.target, "[LEVELING] Eviscerate") end },
+
 
     { name = "ExposeArmor",
       matches = expose_armor_matches,

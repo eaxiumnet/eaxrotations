@@ -114,6 +114,8 @@ local function build_state(context)
     state.frostbolt_ready = spell_is_ready(SPELLS.Frostbolt, context.target)
     state.fire_blast_ready = spell_is_ready(SPELLS.FireBlast, context.target)
     state.scorch_ready = spell_is_ready(SPELLS.Scorch, context.target)
+    state.fireball_ready = spell_is_ready(SPELLS.Fireball, context.target)
+    state.scorch_ready = spell_is_ready(SPELLS.Scorch, context.target)
     state.arcane_missiles_ready = spell_is_ready(SPELLS.ArcaneMissiles, context.target)
     state.frost_nova_ready = spell_is_ready(SPELLS.FrostNova, context.target)
     state.blizzard_ready = spell_is_ready(SPELLS.Blizzard, context.target)
@@ -244,6 +246,26 @@ local function scorch_matches(context, state)
     if (state.mana_pct or 100) < 10 then return false end
     return state.scorch_ready
 end
+local function scorch_matches(context, state)
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if not state.use_scorch then return false end
+    if state.is_moving then return false end
+    if (state.mana_pct or 100) < 10 then return false end
+    return state.scorch_ready
+end
+
+--- Fireball — primary fire nuke, used when fire is preferred or as fallback nuke
+local function fireball_matches(context, state)
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if state.is_moving then return false end
+    if (state.mana_pct or 100) < 10 then return false end
+    return state.fireball_ready
+end
+
 
 local function frost_armor_matches(context, state)
     if not state then return false end
@@ -402,6 +424,14 @@ local strategies = {
     { name = "FireBlast",
       matches = fire_blast_matches,
       execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.FireBlast, context.target, "[LEVELING] Fire Blast") or false end },
+    { name = "Fireball",
+      matches = fireball_matches,
+      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Fireball, context.target, "[LEVELING] Fireball") or false end },
+
+    { name = "Frostbolt",
+      matches = frostbolt_matches,
+      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Frostbolt, context.target, "[LEVELING] Frostbolt") or false end },
+
 
     { name = "Scorch",
       matches = scorch_matches,

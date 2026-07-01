@@ -87,6 +87,15 @@ function warrior_leveling.build_state(context)
     state.disarm_ready = spell_ready(SPELLS.Disarm)
     state.shield_wall_ready = spell_ready(SPELLS.ShieldWall)
     state.intimidating_shout_ready = spell_ready(SPELLS.IntimidatingShout)
+    state.berserker_rage_ready = spell_ready(SPELLS.BerserkerRage)
+    state.pummel_ready = spell_ready(SPELLS.Pummel)
+    state.bloodthirst_ready = spell_ready(SPELLS.Bloodthirst)
+    state.shield_slam_ready = spell_ready(SPELLS.ShieldSlam)
+
+    state.pummel_ready = spell_ready(SPELLS.Pummel)
+
+    state.berserker_rage_ready = spell_ready(SPELLS.BerserkerRage)
+
 
     -- PvP state
     state.is_pvp = context.is_pvp or false
@@ -151,6 +160,41 @@ local shield_bash_matches = function(context, state)
     if not state.shield_bash_ready then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
+--- Pummel - berserker stance interrupt (for dual-wield/fury leveling)
+local pummel_matches = function(context, state)
+    if not state then return false end
+    if not state.use_interrupt then return false end
+    if not state.pummel_ready then return false end
+    if not state.target then return false end
+--- Bloodthirst - fury talent rage spender (instant attack, 6s CD)
+local bloodthirst_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.bloodthirst_ready then return false end
+    if not state.target then return false end
+    if not state.in_melee_range then return false end
+    if (state.rage or 0) < 30 then return false end
+    return true
+end
+
+--- ShieldSlam - protection talent threat generator (instant, 6s CD)
+local shield_slam_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.shield_slam_ready then return false end
+    if not state.target then return false end
+    if not state.in_melee_range then return false end
+    if (state.rage or 0) < 20 then return false end
+    return true
+end
+
+
+    if not state.in_combat then return false end
+    local ok, casting = pcall(function() return state.target:is_casting() end)
+    return ok and casting
+end
+
+
     local ok, casting = pcall(function() return state.target:is_casting() end)
     return ok and casting
 end
@@ -335,6 +379,17 @@ local charge_matches = function(context, state)
     if dist and dist > 25 then return false end
     return true
 end
+--- Berserker Rage - fear immunity + rage generation
+local berserker_rage_matches = function(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.berserker_rage_ready then return false end
+    -- Use when facing multiple enemies (fear-capable or rage-starved)
+    if (state.enemies or 0) < 2 then return false end
+    return true
+end
+
+
 
 -- ============================================================================
 -- Strategies table
@@ -351,10 +406,19 @@ local strategies = {
       matches = shield_bash_matches,
       execute = function(context) return NS.try_cast(SPELLS.ShieldBash, context.target, "[LEVELING] Shield Bash") end },
 
+    -- Interrupt: Pummel (Berserker Stance, for fury/2H leveling)
+    { name = "Pummel",
+      matches = pummel_matches,
+      execute = function(context) return NS.try_cast(SPELLS.Pummel, context.target, "[LEVELING] Pummel") end },
+
     -- Opener: Charge
     { name = "Charge",
       matches = charge_matches,
       execute = function(context) return NS.try_cast(SPELLS.Charge, context.target, "[LEVELING] Charge") end },
+    -- Rage: Berserker Rage (fear immunity + rage generation)
+    { name = "BerserkerRage",
+      matches = berserker_rage_matches,
+      execute = function(context) return NS.try_cast(SPELLS.BerserkerRage, nil, "[LEVELING] Berserker Rage") end },
 
     -- Rage: Bloodrage
     { name = "Bloodrage",
@@ -371,10 +435,21 @@ local strategies = {
       matches = execute_matches,
       execute = function(context) return NS.try_cast(SPELLS.Execute, context.target, "[LEVELING] Execute") end },
 
+    -- Bloodthirst (Fury talent, instant attack)
+    { name = "Bloodthirst",
+      matches = bloodthirst_matches,
+      execute = function(context) return NS.try_cast(SPELLS.Bloodthirst, context.target, "[LEVELING] Bloodthirst") end },
+
+    -- ShieldSlam (Protection talent, threat generator)
+    { name = "ShieldSlam",
+      matches = shield_slam_matches,
+      execute = function(context) return NS.try_cast(SPELLS.ShieldSlam, context.target, "[LEVELING] Shield Slam") end },
+
+
     -- PvP CC Gate: blocks AoE when nearby breakable CC
     { name = "PvPCCGate",
       matches = pvp_cc_gate_matches,
-      execute = function() if false then return NS.try_cast(nil, nil, "[LEVELING] PvP CC Gate") end
+      execute = function()
           return true
       end },
 
@@ -435,7 +510,7 @@ local strategies = {
     -- PvP: Disarm (after Shield Bash, before Charge)
     { name = "Disarm",
       matches = disarm_matches,
-      execute = function(context) if false then return NS.try_cast(nil, nil, "[LEVELING] Scanner marker") end
+      execute = function(context)
           if context.stance ~= STANCE.DEFENSIVE then
               if (context.rage or 0) > 25 then return false end
               if spell_ready(SPELLS.DefensiveStance) then

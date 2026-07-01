@@ -464,7 +464,6 @@ local strategies = {
     { name = "ShieldSlamPurge",
       matches = shield_slam_purge_matches,
       execute = function(context) if not context then return false end
-          if false then return L.try_cast(nil, nil, "[LEVELING] Scanner marker") end
           -- Shield Slam requires Defensive Stance — stance dance if needed
           if context.stance ~= STANCE.DEFENSIVE then
               if L.spell_ready(SPELLS.DefensiveStance) then
@@ -480,7 +479,6 @@ local strategies = {
     { name = "Disarm",
       matches = disarm_matches,
       execute = function(context) if not context then return false end
-          if false then return L.try_cast(nil, nil, "[LEVELING] Scanner marker") end
           -- Disarm requires Defensive Stance — stance dance if rage-safe
           if context.stance ~= STANCE.DEFENSIVE then
               if (context.rage or 0) > 25 then return false end
@@ -533,7 +531,7 @@ local strategies = {
     -- PvP CC Gate: blocks AoE when nearby breakable CC (after all utilities, before AoE)
     { name = "PvPCCGate",
       matches = pvp_cc_gate_matches,
-      execute = function() if false then return L.try_cast(nil, nil, "[LEVELING] PvP CC Gate") end
+      execute = function()
           return true
       end },  -- No-op: consume tick, block AoE
 

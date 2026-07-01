@@ -2,6 +2,65 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.2.4] — Classic Leveling Spell Coverage + Stability (2026-07-01)
+
+### What This Means for You
+
+This update closes the last gaps between our Classic Era leveling rotations and the full spell kits each class actually has at those levels. If you level a character using the Classic leveling rotations, your bot will now use abilities it was previously ignoring -- not because they were unsupported, but because they were never wired into the leveling logic. Every spell added in this update has been verified against the WoW Classic client database and Wowhead Classic to confirm it exists and is available in the Classic Era (1.15.x) client.
+
+No settings need to be changed. The new abilities slot into the existing priority lists automatically. You will notice richer, more responsive leveling behavior the next time you load a Classic leveling rotation.
+
+### What Changed
+
+**Hunter Leveling**
+- **Raptor Strike** and **Mongoose Bite** are now used when enemies close into melee range. Previously the leveling rotation had no melee weave -- if a mob reached you, the bot stood there until it could shoot again. Now it fights back with instant melee attacks, including Mongoose Bite after a dodge.
+
+**Mage Leveling**
+- **Fireball** is now cast as a primary damage spell. Previously the leveling rotation only used Frostbolt, Arcane Missiles, and Scorch. If you prefer a fire-oriented leveling approach, Fireball is now part of the rotation automatically. It respects the same movement and mana gates as other cast-time spells.
+
+**Rogue Leveling**
+- **Sap** is now cast on humanoid targets while stealthed and out of combat. This gives you crowd control before pulling -- the bot will Sap one target, then engage the other. It only works on humanoids and only before combat starts, matching how Sap functions in Classic.
+
+**Priest Leveling**
+- **Vampiric Embrace** is now maintained automatically once you enter Shadowform. This means your shadow damage passively heals you and your party during leveling, which significantly reduces downtime between pulls.
+- **Desperate Prayer** is now cast as an emergency self-heal when your health drops below 40 percent. This is a Dwarf and Human priest racial spell with no mana cost and a 10-minute cooldown, so it is a free safety net that was previously going unused.
+
+**Shaman Leveling**
+- **Stormstrike** is now used in melee range when the spell is available. This is the 31-point Enhancement talent and is the core melee attack for Enhancement leveling. Previously the leveling rotation skipped it entirely, which meant Enhancement shamans were only using shocks and totems with no melee ability priority.
+
+**Warrior Leveling**
+- **Pummel** is now used to interrupt spellcasting when in Berserker Stance. Previously only Shield Bash was available as an interrupt, which requires a shield and Defensive Stance. Fury and two-handed weapon levelers who stay in Berserker Stance now have a working interrupt.
+- **Bloodthirst** (Fury talent, level 40) is now used as a primary rage spender in melee range. This is the core Fury attack and was missing from the leveling rotation entirely.
+- **Shield Slam** (Protection talent, level 40) is now used as a threat-generating attack in melee range. Protection levelers now have their signature ability in the rotation.
+
+**Paladin Leveling**
+- **Holy Shield** is now cast when fighting multiple enemies and health is below 70 percent. This increases block chance and deals holy damage to attackers, which is the core Protection Paladin AoE farming mechanic.
+- **Retribution Aura** is now maintained out of combat as an alternative to Devotion Aura. It deals holy damage to anything that hits you, which is strong for solo leveling. The bot will not override Devotion Aura if you already have it active.
+
+### Also Fixed in This Release
+
+- **EaxAutoQuester**: Resolved a crash caused by leftover merge conflict markers in the NPC manager. The quest interaction flow now detects quest dialog windows more reliably, pauses briefly after reaching an NPC to let the game render, and falls back to a proximity scan if the named NPC lookup fails.
+- **Protection Paladin (TBC)**: Holy Shock is no longer used offensively when the tank is below the emergency heal threshold. It will be saved for healing instead.
+- **Enhancement Shaman (Classic)**: Fixed a bug where the spellcasting interrupt check could crash when the target proxy was stale.
+
+### What to Expect After Updating
+
+- Install the new version over your existing one. No configuration reset is needed.
+- If you are running a Classic leveling rotation, you will see new abilities being cast that were not used before. This is expected and intentional.
+- All 214 rotation test suites and 13 leveling test suites pass. No existing behavior has been removed or changed -- only new abilities were added to the priority lists.
+- The version number in the plugin header now reads 2.2.4.
+
+### Verification
+
+Every spell added in this update was checked against four independent sources before inclusion:
+- The WoW 2.5.5 client DBC database (28,650 spells extracted from the game client)
+- Wowhead Classic (the spell page for each rank-1 spell ID was fetched and confirmed)
+- The wowsims_classic simulator source code (11 of 12 spells found; the 12th, Desperate Prayer, is a racial spell not modeled by the simulator)
+- Existing Classic Era spec files (all 12 spells were already referenced in at least one other vanilla spec file)
+
+No TBC-only spells were added to the Classic leveling rotations. Spells like Ice Lance, Water Elemental, Seal of Blood, Shadow Word: Death, Vampiric Touch, Steady Shot, and Mangle were checked and correctly excluded because they do not exist in the Classic Era client.
+
+---
 ## [2.2.3] — EaxAutoQuester Hardening + Rotation Fixes (2026-07-01)
 
 ### Fixed
