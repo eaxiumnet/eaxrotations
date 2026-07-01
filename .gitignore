@@ -53,7 +53,10 @@ dev_developer_tools/
 dist/
 ext_rotation_tbc_opendruid_alpha/
 external/
-tools/
+tools/*
+!tools/update_badges.lua
+!tools/run_all_checks.sh
+!tools/run_all_checks.bat
 node_modules/
 
 # ---- Loose files to ignore ----
@@ -113,6 +116,7 @@ LibHealComm-4.0.lua
 NAG/
 NextActionTBC/
 _external_tbc_explore/
+_flux_tbc_explore/
 eax_refactor/
 EaxESP/
 EaxProfessions/
