@@ -97,7 +97,6 @@ function build_state(context)
     state.vampiric_embrace_ready = spell_ready(SPELLS.VampiricEmbrace)
     state.desperate_prayer_ready = spell_ready(SPELLS.DesperatePrayer)
 
-    state.mf_ready = spell_ready(SPELLS.MindFlay)
 
     state.has_fortitude = has_buff(POWER_WORD_FORTITUDE_BUFF)
     state.has_inner_fire = has_buff(INNER_FIRE_BUFF)
