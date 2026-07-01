@@ -439,6 +439,10 @@ end
 local function holy_shock_matches(context, state)
  if not has_combat_target(context) then return false end
  if not state.holy_shock_ready then return false end
+ -- Don't burn Holy Shock offensively when the tank needs self-healing;
+ -- let Flash of Light / Holy Light (positioned below) get priority instead.
+ local fol_threshold = get_setting(context, "prot_flash_of_light_hp", 40)
+ if (state.hp_pct or 100) <= fol_threshold then return false end
  return true
 end
 
