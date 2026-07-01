@@ -58,6 +58,8 @@ local function build_state(context)
     leveling_state.has_aspect_cheetah = safe_buff_up(context.me, { 5118 })
     leveling_state.concussive_shot_ready = safe_spell_ready(SPELLS.ConcussiveShot, context.target)
     leveling_state.wing_clip_ready = safe_spell_ready(SPELLS.WingClip, context.target)
+    leveling_state.raptor_strike_ready = safe_spell_ready(SPELLS.RaptorStrike, context.target)
+    leveling_state.mongoose_bite_ready = safe_spell_ready(SPELLS.MongooseBite, context.target)
     leveling_state.rapid_fire_ready = safe_spell_ready(SPELLS.RapidFire, nil, { skip_range = true })
     leveling_state.scare_beast_ready = safe_spell_ready(SPELLS.ScareBeast, context.target)
     leveling_state.freezing_trap_ready = safe_spell_ready(SPELLS.FreezingTrap, context.me, { skip_range = true, expected_cooldown = 30 })
@@ -143,6 +145,28 @@ local function wing_clip_matches(context, state)
     if (state.hp or 100) > 50 then return false end
     return state.wing_clip_ready
 end
+--- Raptor Strike — melee weave attack when target is in melee range
+local function raptor_strike_matches(context, state)
+    if not context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if not state.in_melee then return false end
+    if state.low_mana then return false end
+    return state.raptor_strike_ready
+end
+
+--- Mongoose Bite — instant melee attack (proc-based, only when available)
+local function mongoose_bite_matches(context, state)
+    if not context_allowed(context) then return false end
+    if not state then return false end
+    if not state.target then return false end
+    if not state.in_combat then return false end
+    if not state.in_melee then return false end
+    return state.mongoose_bite_ready
+end
+
+
 
 local function scare_beast_matches(context, state)
     if not context_allowed(context) then return false end
@@ -238,6 +262,12 @@ local strategies = {
     { name = "AimedShot", matches = aimed_shot_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.AimedShot, context.target, "[LEVELING] Aimed Shot") or false end },
     { name = "MendPet", matches = mend_pet_matches,
+    -- Melee weave: Raptor Strike + Mongoose Bite (when target is in melee range)
+    { name = "MongooseBite", matches = mongoose_bite_matches,
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.MongooseBite, context.target, "[LEVELING] Mongoose Bite") or false end },
+    { name = "RaptorStrike", matches = raptor_strike_matches,
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.RaptorStrike, context.target, "[LEVELING] Raptor Strike") or false end },
+
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.MendPet, context.pet, "[LEVELING] Mend Pet") or false end },
     { name = "ConcussiveShot", matches = concussive_shot_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.ConcussiveShot, context.target, "[LEVELING] Concussive Shot") or false end },

@@ -81,8 +81,10 @@ local function build_state(context)
     leveling_state.flash_light_ready = spell_is_ready(SPELLS.FlashOfLight, context.me)
     leveling_state.holy_light_ready = spell_is_ready(SPELLS.HolyLight, context.me)
     leveling_state.cleanse_ready = spell_is_ready(SPELLS.Cleanse, nil, { skip_range = true })
+    leveling_state.holy_shield_ready = spell_is_ready(SPELLS.HolyShield, nil, { skip_range = true })
+    leveling_state.retribution_aura_ready = spell_is_ready(SPELLS.RetributionAura, nil, { skip_range = true })
     leveling_state.selected_seal = choose_seal_action(leveling_state)
-
+    leveling_state.selected_seal = choose_seal_action(leveling_state)
     return leveling_state
 end
 
@@ -133,7 +135,7 @@ local function seal_matches(context, state)
     if not state.target then return false end
     -- Check if seal is already active (refresh when missing)
     if state.has_any_seal then return false end
-    return state.selected_seal ~= nil
+    return (state.selected_seal ~= nil)
 end
 
 local function judgement_matches(context, state)
@@ -203,13 +205,35 @@ local function lay_on_hands_matches(context, state)
     if (state.hp or 100) > 15 then return false end
     return state.lay_on_hands_ready
 end
-
 local function flash_light_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
     if not state.in_combat then return false end
     if (state.hp or 100) > 60 then return false end
     return state.flash_light_ready
+end
+
+--- Holy Shield — defensive block-chance buff for protection leveling
+local function holy_shield_matches(context, state)
+    if not context_allowed(context) then return false end
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.holy_shield_ready then return false end
+    if (state.hp or 100) > 70 then return false end
+    if (state.enemies or 0) < 2 then return false end
+    return true
+end
+
+--- Retribution Aura — damage aura for solo/leveling (alternative to Devotion)
+local function retribution_aura_matches(context, state)
+    if not context_allowed(context) then return false end
+    if not state then return false end
+    if state.in_combat then return false end
+    if not state.retribution_aura_ready then return false end
+    if state.has_devotion_aura then return false end  -- dont override devotion
+    local RETRIBUTION_AURA_BUFF = { 27150, 10301, 10300, 10299, 10298, 7294 }
+    if safe_buff_up(context.me, RETRIBUTION_AURA_BUFF) then return false end
+    return true
 end
 
 local strategies = {
@@ -219,14 +243,18 @@ local strategies = {
       execute = function() return NS.try_cast and NS.try_cast(SPELLS.BlessingOfWisdom, NS.PLAYER_UNIT, "[LEVELING] Blessing of Wisdom") or false end },
     { name = "DevotionAura", matches = devotion_aura_matches,
       execute = function() return NS.try_cast and NS.try_cast(SPELLS.DevotionAura, NS.PLAYER_UNIT, "[LEVELING] Devotion Aura") or false end },
+    { name = "RetributionAura", matches = retribution_aura_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.RetributionAura, NS.PLAYER_UNIT, "[LEVELING] Retribution Aura") or false end },
+    { name = "HolyShield", matches = holy_shield_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.HolyShield, NS.PLAYER_UNIT, "[LEVELING] Holy Shield") or false end },
+    { name = "DivineShield", matches = divine_shield_matches,
+      execute = function() return NS.try_cast and NS.try_cast(SPELLS.DivineShield, NS.PLAYER_UNIT, "[LEVELING] Divine Shield") or false end },
     { name = "Cleanse", matches = cleanse_matches,
       execute = function() return NS.try_cast and NS.try_cast(SPELLS.Cleanse, NS.PLAYER_UNIT, "[LEVELING] Cleanse") or false end },
     { name = "FlashOfLight", matches = flash_light_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.FlashOfLight, context.me, "[LEVELING] Flash of Light") or false end },
     { name = "HolyLight", matches = holy_light_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.HolyLight, context.me, "[LEVELING] Holy Light") or false end },
-    { name = "DivineShield", matches = divine_shield_matches,
-      execute = function() return NS.try_cast and NS.try_cast(SPELLS.DivineShield, NS.PLAYER_UNIT, "[LEVELING] Divine Shield") or false end },
     { name = "LayOnHands", matches = lay_on_hands_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.LayOnHands, context.me, "[LEVELING] Lay on Hands") or false end },
     { name = "HammerOfJustice", matches = hammer_justice_matches,

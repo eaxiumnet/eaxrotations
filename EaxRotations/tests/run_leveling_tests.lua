@@ -14,6 +14,7 @@ local tests = {
     "test_leveling_load.lua",
     "test_leveling_shared.lua",
     "test_leveling_compliance.lua",
+    "test_warrior_leveling_vanilla_spells.lua",
 }
 
 local function first_failure_line(output)

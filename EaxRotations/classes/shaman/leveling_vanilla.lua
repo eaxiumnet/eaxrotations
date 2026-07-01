@@ -145,6 +145,9 @@ function shaman_leveling.build_state(context)
     state.grounding_totem_ready = spell_ready(SPELLS.GroundingTotem, me, { skip_range = true })
     state.windfury_totem_ready = spell_ready(SPELLS.WindfuryTotem, me, { skip_range = true })
     state.tremor_totem_ready = spell_ready(SPELLS.TremorTotem, me, { skip_range = true })
+    state.stormstrike_ready = spell_ready(SPELLS.Stormstrike, state.target)
+
+    state.tremor_totem_ready = spell_ready(SPELLS.TremorTotem, me, { skip_range = true })
 
     state.has_lightning_shield = has_buff(LIGHTNING_SHIELD_BUFF)
     local _dist = state.target and state.target.get_distance and state.target:get_distance(me)
@@ -247,7 +250,7 @@ local flame_shock_matches = function(context, state)
     if not state.target then return false end
     local remains = safe_debuff_remains(state.target, SPELLS.FlameShock)
     if remains > 4 then return false end
-    if state.default_shock ~= "flame" then return false end
+    if (state.default_shock or "flame") ~= "flame" then return false end
     return true
 end
 
@@ -257,9 +260,29 @@ local earth_shock_dps_matches = function(context, state)
     if not state.earth_shock_ready then return false end
     if not state.use_shocks then return false end
     if not state.target then return false end
-    if state.default_shock ~= "earth" then return false end
+    if (state.default_shock or "flame") ~= "earth" then return false end
     return true
 end
+local earth_shock_dps_matches = function(context, state)
+    if not state then return false end
+    if not has_enemy_target(context, state) then return false end
+    if not state.earth_shock_ready then return false end
+    if not state.use_shocks then return false end
+    if not state.target then return false end
+    if (state.default_shock or "flame") ~= "earth" then return false end
+    return true
+end
+
+--- Stormstrike — enhancement melee attack (instant, boosts next nature spells)
+local stormstrike_matches = function(context, state)
+    if not state then return false end
+    if not has_enemy_target(context, state) then return false end
+    if not state.stormstrike_ready then return false end
+    if not state.target then return false end
+    if not state.in_melee_range then return false end
+    return true
+end
+
 
 local frost_shock_matches = function(context, state)
     if not state then return false end
@@ -267,7 +290,7 @@ local frost_shock_matches = function(context, state)
     if not state.frost_shock_ready then return false end
     if not state.use_shocks then return false end
     if not state.target then return false end
-    if state.default_shock ~= "frost" then return false end
+    if (state.default_shock or "flame") ~= "frost" then return false end
     return true
 end
 
@@ -382,6 +405,8 @@ local strategies = {
           local spell = (state.mana_spring_ready and (state.mana_pct or 100) <= 85) and SPELLS.ManaSpringTotem or SPELLS.HealingStreamTotem
           return try_cast(spell, nil, "[LEVELING] Water Totem", { skip_range = true })
       end },
+    { name = "Stormstrike", matches = stormstrike_matches,
+      execute = function(context) if not context then return false end return try_cast(SPELLS.Stormstrike, context.target, "[LEVELING] Stormstrike") end },
     { name = "GroundingTotem", matches = grounding_totem_matches,
       execute = function(context) return try_cast(SPELLS.GroundingTotem, nil, "[LEVELING] Grounding Totem", { skip_range = true }) end },
     { name = "TremorTotem", matches = tremor_totem_matches,

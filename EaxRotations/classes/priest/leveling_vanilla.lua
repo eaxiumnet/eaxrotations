@@ -94,6 +94,10 @@ function build_state(context)
     state.inner_focus_ready = spell_ready(SPELLS.InnerFocus)
     state.shadowform_ready = spell_ready(SPELLS.Shadowform)
     state.mf_ready = spell_ready(SPELLS.MindFlay)
+    state.vampiric_embrace_ready = spell_ready(SPELLS.VampiricEmbrace)
+    state.desperate_prayer_ready = spell_ready(SPELLS.DesperatePrayer)
+
+    state.mf_ready = spell_ready(SPELLS.MindFlay)
 
     state.has_fortitude = has_buff(POWER_WORD_FORTITUDE_BUFF)
     state.has_inner_fire = has_buff(INNER_FIRE_BUFF)
@@ -223,7 +227,6 @@ local function holy_nova_matches(context, state)
     if state.is_moving then return false end
     return (state.enemies or 0) >= 3
 end
-
 local function smite_matches(context, state)
     if not state then return false end
     if not state.target then return false end
@@ -231,6 +234,26 @@ local function smite_matches(context, state)
     if state.is_moving then return false end
     return (state.mana_pct or 100) >= state.wand_threshold
 end
+
+--- Vampiric Embrace — self-heal buff for shadow priests (OOC or before combat)
+local function vampiric_embrace_matches(context, state)
+    if not state then return false end
+    if not state.vampiric_embrace_ready then return false end
+    if not state.has_shadowform then return false end  -- only useful in shadowform
+    -- Check if already active
+    if NS.has_player_buff and NS.has_player_buff({15286}) then return false end
+    return true
+end
+
+--- Desperate Prayer — emergency self-heal (Dwarf/Draenei racial, Holy/Shadow)
+local function desperate_prayer_matches(context, state)
+    if not state then return false end
+    if not state.in_combat then return false end
+    if not state.desperate_prayer_ready then return false end
+    if (state.hp or 100) > 40 then return false end
+    return true
+end
+
 
 local function shadowform_matches(context, state)
     if not state then return false end
@@ -264,6 +287,11 @@ local strategies = {
     { name = "InnerFire", matches = inner_fire_matches,
       execute = function() return try_cast(SPELLS.InnerFire, nil, "[LEVELING] Inner Fire") end },
     { name = "Shadowform", matches = shadowform_matches,
+    { name = "Shadowform", matches = shadowform_matches,
+      execute = function() return try_cast(SPELLS.Shadowform, nil, "[LEVELING] Shadowform") end },
+    { name = "VampiricEmbrace", matches = vampiric_embrace_matches,
+      execute = function() return try_cast(SPELLS.VampiricEmbrace, nil, "[LEVELING] Vampiric Embrace") end },
+    { name = "PowerWordShield", matches = shield_matches,
       execute = function() return try_cast(SPELLS.Shadowform, nil, "[LEVELING] Shadowform") end },
     { name = "PowerWordShield", matches = shield_matches,
       execute = function() return try_cast(SPELLS.PowerWordShield, nil, "[LEVELING] PW:S") end },
@@ -275,7 +303,10 @@ local strategies = {
       execute = function() return try_cast(SPELLS.InnerFocus, nil, "[LEVELING] Inner Focus") end },
     { name = "GreaterHeal", matches = heal_matches,
       execute = function() return try_cast(SPELLS.GreaterHeal, nil, "[LEVELING] Greater Heal") end },
+    { name = "DesperatePrayer", matches = desperate_prayer_matches,
+      execute = function() return try_cast(SPELLS.DesperatePrayer, nil, "[LEVELING] Desperate Prayer") end },
     { name = "PsychicScream", matches = scream_matches,
+      execute = function() return try_cast(SPELLS.PsychicScream, nil, "[LEVELING] Scream") end },
       execute = function() return try_cast(SPELLS.PsychicScream, nil, "[LEVELING] Scream") end },
     { name = "Fade", matches = fade_matches,
       execute = function() return try_cast(SPELLS.Fade, nil, "[LEVELING] Fade") end },
