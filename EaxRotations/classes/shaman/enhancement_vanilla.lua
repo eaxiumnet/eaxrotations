@@ -237,7 +237,8 @@ local function build_state(context)
     enh_state.target_has_flame_shock = target and NS.debuff_up(target, FLAME_SHOCK_DEBUFF) or false
     enh_state.flame_shock_remains = target and NS.debuff_remains(target, FLAME_SHOCK_DEBUFF) or 0
     if target and target.is_casting then
-        enh_state.target_is_casting = pcall(function() return target:is_casting() end) and target:is_casting() or false
+        local ok_casting, casting = pcall(function() return target:is_casting() end)
+        enh_state.target_is_casting = ok_casting and casting or false
         local ok, pct = pcall(function() return target:get_cast_pct() end)
         enh_state.target_cast_pct = ok and pct or 0
         local is_interruptible = NS.is_interruptible and NS.is_interruptible(target) or false
