@@ -92,10 +92,6 @@ function warrior_leveling.build_state(context)
     state.bloodthirst_ready = spell_ready(SPELLS.Bloodthirst)
     state.shield_slam_ready = spell_ready(SPELLS.ShieldSlam)
 
-    state.pummel_ready = spell_ready(SPELLS.Pummel)
-
-    state.berserker_rage_ready = spell_ready(SPELLS.BerserkerRage)
-
 
     -- PvP state
     state.is_pvp = context.is_pvp or false

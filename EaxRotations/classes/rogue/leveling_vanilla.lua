@@ -84,7 +84,6 @@ function rogue_leveling.build_state(context)
     state.thistle_tea_ready = SPELLS.ThistleTea and spell_ready(SPELLS.ThistleTea) or false
     state.sap_ready = spell_ready(SPELLS.Sap)
 
-    state.thistle_tea_ready = SPELLS.ThistleTea and spell_ready(SPELLS.ThistleTea) or false
 
     state.is_pvp = context.is_pvp or false
     state.in_melee_range = context.in_melee_range or false

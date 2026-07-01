@@ -84,7 +84,6 @@ local function build_state(context)
     leveling_state.holy_shield_ready = spell_is_ready(SPELLS.HolyShield, nil, { skip_range = true })
     leveling_state.retribution_aura_ready = spell_is_ready(SPELLS.RetributionAura, nil, { skip_range = true })
     leveling_state.selected_seal = choose_seal_action(leveling_state)
-    leveling_state.selected_seal = choose_seal_action(leveling_state)
     return leveling_state
 end
 
