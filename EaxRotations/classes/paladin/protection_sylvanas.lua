@@ -19,6 +19,7 @@ local JUDGEMENT_WISDOM_DEBUFF = { 27164, 20355, 20354, 20186 }
 local HOLY_SHIELD_BUFF = { 27179, 20928, 20927, 20925 }
 local CONSECRATION_DEBUFF = { 27173, 20924, 20923, 20922, 20116, 26573 }
 local BLESSING_OF_SANCTUARY_BUFF = { 27168, 20914, 20913, 20912, 20911 }
+local BLESSING_KINGS_BUFF = { 25898, 20217 }
 local DEVOTION_AURA_BUFF = { 27149, 10293, 10292, 1032, 643, 10291, 10290, 465 }
 local DIVINE_SHIELD_BUFF = { 642 }
 local FORBEARANCE_DEBUFF = { 25771 }
@@ -244,6 +245,23 @@ local function build_state(context)
  end
 
  return prot_state
+end
+
+local function find_ally(context, predicate)
+ local members = context.party_members or context.group_members
+ if type(members) == "table" and #members > 0 then
+  for i = 1, #members do
+   local member = members[i]
+   if member and predicate(member) then return member end
+  end
+ end
+ local me = context.me or NS.GetPlayer and NS.GetPlayer()
+ if me and predicate(me) then return me end
+ return nil
+end
+
+local function unit_has_buff(unit, ids)
+ return NS.buff_up(unit, ids)
 end
 
 local function cooldowns_enabled(context)
@@ -562,6 +580,15 @@ local strategies = {
  -- Peel
  { name = "RighteousDefense", matches = function(context, state) return get_setting(context, "prot_righteous_defense", true) and state.ally_threatened ~= nil and state.righteous_defense_ready and (context.target_classification or 0) >= 1 end, execute = function(context, state) return NS.try_cast(SPELLS.RighteousDefense, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end },
  { name = "BlessingOfProtectionAlly", matches = function(context, state) return get_setting(context, "prot_blessing_of_protection", true) and state.low_hp_ally ~= nil and NS.spell_ready(SPELLS.BlessingOfProtection, state.low_hp_ally, {}) or false end, execute = function(context, state) return NS.try_cast(SPELLS.BlessingOfProtection, state.low_hp_ally, "[PROTECTION] BoP emergency peel") end },
+ -- OOC party buff maintenance
+ { name = "BlessingOfKingsParty", matches = function(context, state)
+  if context.in_combat then return false end
+  if not get_setting(context, "prot_bok_party", true) then return false end
+  if not state.is_group then return false end
+  if not NS.spell_ready(SPELLS.BlessingOfKings, NS.PLAYER_UNIT, { skip_range = true }) then return false end
+  state.utility_target = find_ally(context, function(unit) return not unit_has_buff(unit, BLESSING_KINGS_BUFF) end)
+  return state.utility_target ~= nil
+ end, execute = function(_, state) return NS.try_cast(SPELLS.BlessingOfKings, state.utility_target, "[PROT] Blessing of Kings party") end },
 }
 
 NS.rotation_registry:register("protection", strategies, { get_state = build_state })

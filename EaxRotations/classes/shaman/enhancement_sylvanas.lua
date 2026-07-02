@@ -10,6 +10,11 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local _cleu = NS.SwingDiagnostics
+if _cleu then
+    _cleu.register_seals({17364, 30823, 25505, 16362, 8232, 25489, 16342, 8030, 25485, 25479, 16316, 10399, 8019, 8018, 8017, 25500, 16356, 10456, 8038, 8033})
+end
+
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
@@ -371,6 +376,10 @@ local function build_state(context)
     else
         totem_state.air_totem_remains = 0
     end
+
+    -- Prefer CLEU-backed swing timer; fallback to native prediction
+    local cleu_remains = (_cleu and _cleu.get_swing_remains and _cleu.get_swing_remains()) or nil
+    enh_state.swing_remains = cleu_remains or (NS.get_time_until_swing and NS.get_time_until_swing()) or 0
 
     return enh_state
 end

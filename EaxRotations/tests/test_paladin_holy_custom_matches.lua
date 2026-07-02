@@ -167,30 +167,33 @@ assert_true(aw.matches({ in_combat = true, settings = {} }, { heavy_healing = tr
 assert_false(aw.matches({ in_combat = true, settings = {}, ttd_known = true, ttd = 10 }, { heavy_healing = true }), "AvengingWrath should not match when ttd < 15")
 
 -- ============================================================================
--- LightsGraceChaining: refresh LG with cheap HL R4 before it expires
+-- LightGraceChain: refresh LG before it expires
 -- ============================================================================
 
-local lg_chain = find_strategy("LightsGraceChaining")
+local lg_chain = find_strategy("LightGraceChain")
 
 -- Setting disabled -> should NOT match
-assert_false(lg_chain.matches({ in_combat = true, settings = { holy_lights_grace_chaining = false } }, { has_lights_grace = true, lights_grace_remains = 2, heal_target = { unit = {}, effective_hp = 80 } }), "LGChain should not match when disabled")
+assert_false(lg_chain.matches({ in_combat = true, settings = { holy_lg_chain_enabled = false } }, { lights_grace_remains = 2, tank = { unit = {}, deficit = 1000 } }), "LGChain should not match when disabled")
 
 -- LG not active -> should NOT match
-assert_false(lg_chain.matches({ in_combat = true, settings = {} }, { has_lights_grace = false, lights_grace_remains = 0, heal_target = { unit = {}, effective_hp = 80 } }), "LGChain should not match without LG")
+assert_false(lg_chain.matches({ in_combat = true, settings = {} }, { lights_grace_remains = 0, tank = { unit = {}, deficit = 1000 } }), "LGChain should not match without LG")
 
--- LG expires in >3s -> should NOT match
-assert_false(lg_chain.matches({ in_combat = true, settings = {} }, { has_lights_grace = true, lights_grace_remains = 5, heal_target = { unit = {}, effective_hp = 80 } }), "LGChain should not match when LG > 3s")
+-- LG expires in >=2.5s -> should NOT match
+assert_false(lg_chain.matches({ in_combat = true, settings = {} }, { lights_grace_remains = 3, tank = { unit = {}, deficit = 1000 } }), "LGChain should not match when LG >= 2.5s")
 
 -- Out of combat -> should NOT match
-assert_false(lg_chain.matches({ in_combat = false, settings = {} }, { has_lights_grace = true, lights_grace_remains = 2, heal_target = { unit = {}, effective_hp = 80 } }), "LGChain should not match out of combat")
+assert_false(lg_chain.matches({ in_combat = false, settings = {} }, { lights_grace_remains = 2, tank = { unit = {}, deficit = 1000 } }), "LGChain should not match out of combat")
 
--- Lowest in critical HP -> should NOT match (let emergency heals win)
-assert_false(lg_chain.matches({ in_combat = true, settings = {} }, { has_lights_grace = true, lights_grace_remains = 2, lowest = { unit = {}, effective_hp = 30 }, heal_target = { unit = {}, effective_hp = 80 } }), "LGChain should not match when lowest is critical")
+-- No tank -> should NOT match
+assert_false(lg_chain.matches({ in_combat = true, settings = {} }, { lights_grace_remains = 2, tank = nil }), "LGChain should not match without tank")
 
--- Valid: LG active, <3s, in combat, non-critical target -> should match
-assert_true(lg_chain.matches({ in_combat = true, settings = {} }, { has_lights_grace = true, lights_grace_remains = 2, lowest = { unit = {}, effective_hp = 60 }, heal_target = { unit = {}, effective_hp = 80 } }), "LGChain should match in valid conditions")
+-- Tank with zero deficit -> should NOT match
+assert_false(lg_chain.matches({ in_combat = true, settings = {} }, { lights_grace_remains = 2, tank = { unit = {}, deficit = 0 } }), "LGChain should not match when tank full")
 
--- Valid with heal_target nil (falls back to lowest) -> should match
-assert_true(lg_chain.matches({ in_combat = true, settings = {} }, { has_lights_grace = true, lights_grace_remains = 1.5, lowest = { unit = {}, effective_hp = 60 } }), "LGChain should match falling back to lowest")
+-- Valid: LG active, <2.5s, in combat, tank with deficit -> should match
+assert_true(lg_chain.matches({ in_combat = true, settings = {} }, { lights_grace_remains = 2, tank = { unit = {}, deficit = 1000 } }), "LGChain should match in valid conditions")
+
+-- Valid edge: LG at 0.1s -> should match
+assert_true(lg_chain.matches({ in_combat = true, settings = {} }, { lights_grace_remains = 0.1, tank = { unit = {}, deficit = 500 } }), "LGChain should match at 0.1s remaining")
 
 print("PASS test_paladin_holy_custom_matches")

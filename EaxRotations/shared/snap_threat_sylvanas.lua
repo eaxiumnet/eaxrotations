@@ -70,6 +70,36 @@ local function try_cast(spell_id, target, label)
 end
 
 -- ---------------------------------------------------------------------------
+-- CLEU event-driven combat start detection
+-- ---------------------------------------------------------------------------
+local _cleu_snap_requested = false
+local _cleu_snap_time = 0
+local _cleu_registered = false
+
+local function on_game_event(event_name, args)
+    if event_name == "PLAYER_REGEN_DISABLED" then
+        _cleu_snap_requested = true
+        _cleu_snap_time = NS.time_now and NS.time_now() or (core and core.time and core.time()) or 0
+        _snap_fired_this_combat = false
+    end
+end
+
+local function try_register_cleu()
+    if _cleu_registered then return true end
+    local fn = core and core.register_on_game_event_callback
+    if type(fn) ~= "function" then return false end
+    local ok, result = pcall(fn, function(event_name, args)
+        on_game_event(event_name, args)
+    end)
+    if ok and result ~= false then
+        _cleu_registered = true
+        if NS.log then pcall(NS.log, "[SnapThreat] CLEU combat-start listener registered") end
+        return true
+    end
+    return false
+end
+
+-- ---------------------------------------------------------------------------
 -- Public API
 -- ---------------------------------------------------------------------------
 
@@ -81,6 +111,7 @@ end
 -- @return number|nil  spell_id to cast, or nil if no snap needed
 function M.check(me, target, settings, opener_map)
     settings = settings or (NS.settings or {})
+    try_register_cleu()  -- lazy init on first check call
 
     local enabled = settings.snap_threat_enabled
     if enabled == nil then enabled = DEFAULT_ENABLED end
@@ -93,9 +124,21 @@ function M.check(me, target, settings, opener_map)
 
     local in_combat = is_in_combat(me)
 
-    -- Combat just started
+    -- Combat just started (frame-based detection)
     if in_combat and not _was_in_combat then
         _snap_fired_this_combat = false
+    end
+
+    -- CLEU-driven instant snap: PLAYER_REGEN_DISABLED fires before is_in_combat() returns true
+    if _cleu_snap_requested then
+        _cleu_snap_requested = false
+        local cleu_age = now - _cleu_snap_time
+        if cleu_age <= DEFAULT_WINDOW and not _snap_fired_this_combat then
+            if NS.log then
+                NS.log("[SnapThreat] CLEU combat-start snap triggered")
+            end
+            -- Fall through to opener selection (same path as frame-based snap)
+        end
     end
 
     _was_in_combat = in_combat

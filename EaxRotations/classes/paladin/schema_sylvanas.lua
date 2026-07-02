@@ -44,7 +44,7 @@ return {
                             { text = "Rank 7", value = "rank7" },
                             { text = "Rank 4", value = "rank4" },
                     } },
-                    { key = "holy_lights_grace_chaining", type = "checkbox", label = "Light's Grace Chaining", default = true, tooltip = "Cast cheap Holy Light R4 to refresh Light's Grace before it expires" },
+                    { key = "holy_lg_chain_enabled", type = "checkbox", label = "Light's Grace Chaining", default = true, tooltip = "Cast Holy Light to refresh Light's Grace before it expires" },
                 },
             },
             {
@@ -101,6 +101,7 @@ return {
                     { key = "prot_jow_mana_threshold", type = "slider", label = "Judge Wisdom Mana Threshold %", min = 0, max = 100, default = 20, tooltip = "When mana drops below this, only judge Seal of Wisdom (skip Righteousness judgement for mana return)" },
                     { key = "prot_devotion_aura", type = "checkbox", label = "Devotion Aura", default = true, tooltip = "Maintain Devotion Aura for armor" },
                     { key = "prot_blessing_sanctuary", type = "checkbox", label = "Blessing of Sanctuary", default = true, tooltip = "Maintain Blessing of Sanctuary for damage reduction" },
+                    { key = "prot_bok_party", type = "checkbox", label = "Blessing of Kings Party", default = true, tooltip = "Cast Blessing of Kings on party members missing the buff out of combat" },
                 },
             },
             {

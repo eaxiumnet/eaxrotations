@@ -696,28 +696,24 @@ local strategies = {
    return cast_on(s.holy_light_spell, s.lowest, format("[HOLY] %s guaranteed crit %.0f%%", s.holy_light_label, hp_of(s.lowest)))
   end,
  },
- -- Light's Grace Chaining: when LG is active but about to expire (< 3s),
- -- cast a cheap Holy Light Rank 4 to refresh it. Only during active combat
- -- when there's a healable target that isn't in critical HP (avoids wasting
- -- a cast on a target that's about to get emergency healing anyway).
- -- This maintains the 2.0s cast time for future Holy Lights.
+ -- Light's Grace Chain: when LG is active but about to expire (< 2.5s),
+ -- cast another Holy Light to keep the haste rolling. Positioned after
+ -- DivineFavorHolyLightFollowup so DF+HS still wins emergencies.
  {
-  name = "LightsGraceChaining",
+  name = "LightGraceChain",
   matches = function(context, s)
-   if not safe_setting(context, "holy_lights_grace_chaining", true) then return false end
-   if not s.has_lights_grace then return false end
-   if (s.lights_grace_remains or 0) > 3 then return false end
+   if not safe_setting(context, "holy_lg_chain_enabled", true) then return false end
    if not (context and context.in_combat) then return false end
-   local target = s.heal_target or s.lowest or s.tank
-   if not can_help(target) then return false end
-   -- Don't chain if someone is in critical range (let emergency heals fire)
-   if can_help(s.lowest) and hp_of(s.lowest) <= 40 then return false end
-   if NS.gate_overheal("HolyLight", target.unit, 2.5, context.settings) then return false end
-   return NS.spell_ready(HolyLightRank4, target.unit, EMPTY_OPTS)
+   if (s.lights_grace_remains or 0) <= 0 then return false end
+   if (s.lights_grace_remains or 0) >= 2.5 then return false end
+   if not s.tank then return false end
+   if not can_help(s.tank) then return false end
+   if deficit_of(s.tank) <= 0 then return false end
+   s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.tank)
+   return NS.spell_ready(s.holy_light_spell, s.tank.unit, EMPTY_OPTS)
   end,
   execute = function(_, s)
-   local target = s.heal_target or s.lowest or s.tank
-   return cast_on(HolyLightRank4, target, format("[HOLY] Holy Light R4 (Light's Grace refresh %.1fs)", s.lights_grace_remains or 0))
+   return cast_on(s.holy_light_spell, s.tank, format("[HOLY] %s (Light's Grace chain %.1fs)", s.holy_light_label, s.lights_grace_remains or 0))
   end,
  },
  -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
