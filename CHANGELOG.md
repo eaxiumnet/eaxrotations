@@ -2,29 +2,46 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.3.2] — Hotfix: Holy Priest Crash + Dispel Spam (2026-07-03)
+
+### Bug Fixes
+
+- **Holy Priest (TBC + Classic)**: Fixed a crash that spammed the error log during combat. The rotation now runs smoothly without flooding your console.
+- **Holy Priest (TBC + Classic)**: Fixed Dispel Magic and Cure Disease firing repeatedly on party members who had no debuffs. Now only casts when someone actually needs cleansing.
+- **Shadow Priest (Classic)**: Dispel Magic now only casts when YOU have a magic debuff (Polymorph, Silence, Mind Control, etc.) instead of wasting it on cooldown.
+- **Smite Priest (TBC + Classic)**: Fixed the same combat crash as Holy Priest.
+- **Kebab Warrior (TBC + Classic)**: Fixed the same combat crash.
+
+### What to Expect
+
+- Drop-in replacement. Delete your old `EaxRotations` folder and replace with this one.
+- All your settings carry over automatically.
+- No settings reset needed.
+
+---
+
 ## [2.2.5] — Leveling Rotation Fixes (2026-07-02)
 
 ### Bug Fixes
 
-- **Warrior Classic Leveling**: Shield Bash and Pummel interrupts were non-functional due to missing function closures. Fixed.
-- **Mage Classic Leveling**: Removed duplicate `scorch_matches` function.
-- **Mage Classic Leveling**: Removed duplicate `fireball_ready` and `scorch_ready` assignments in build_state.
-- **Shaman Classic Leveling**: Removed duplicate `tremor_totem_ready` assignment.
-- **Paladin Classic Leveling**: Removed duplicate `selected_seal` assignment.
-- **Priest Classic Leveling**: Removed duplicate `mf_ready` assignment.
-- **Rogue Classic Leveling**: Removed duplicate `thistle_tea_ready` assignment.
+- **Warrior Classic Leveling**: Shield Bash and Pummel interrupts now work correctly.
+- **Mage Classic Leveling**: Removed duplicate logic causing erratic Scorch and Fireball behavior.
+- **Shaman Classic Leveling**: Cleaned up duplicate totem checks.
+- **Paladin Classic Leveling**: Cleaned up duplicate seal selection.
+- **Priest Classic Leveling**: Cleaned up duplicate Mind Flay checks.
+- **Rogue Classic Leveling**: Cleaned up duplicate Thistle Tea checks.
 
-### Stability
+### What to Expect
 
 - 214/214 rotation test suites pass.
 - 13/13 leveling test suites pass.
-- No settings reset required. Drop-in replacement over v2.2.4.
+- Drop-in replacement over v2.2.4. No settings reset.
 
 ---
 
 ## [2.2.4] — Classic Leveling Spell Coverage + Stability (2026-07-01)
 
-### Features
+### New Features
 
 **Hunter Leveling**
 - **Raptor Strike**: instant melee attack when enemies close into melee range.
@@ -50,19 +67,16 @@ All notable changes to the EAX TBC Classic Rotations project.
 
 **Paladin Leveling**
 - **Holy Shield**: cast when fighting multiple enemies below 70% HP.
-- **Retribution Aura**: maintained OOC as alternative to Devotion Aura for solo DPS.
+- **Retribution Aura**: maintained out-of-combat as alternative to Devotion Aura for solo DPS.
 
 ### Fixes
 
-- **EaxAutoQuester**: Resolved crash from leftover merge conflict markers in NPC manager. Improved quest dialog detection, NPC rendering pause, proximity NPC fallback.
-- **Protection Paladin (TBC)**: Holy Shock no longer burned offensively when tank HP below Flash of Light threshold.
-- **Enhancement Shaman (Classic)**: Fixed crash in spellcasting interrupt check on stale target proxy.
+- **EaxAutoQuester**: Fixed crash from merge conflict markers. Better quest dialog detection and NPC rendering.
+- **Protection Paladin (TBC)**: Holy Shock no longer wasted offensively when tank health is low.
+- **Enhancement Shaman (Classic)**: Fixed crash on spell interrupt check.
 
-### Verified
+### What to Expect
 
 - 214/214 rotation suites pass.
 - 13/13 leveling suites pass.
-- All 12 spells verified against DBC + Wowhead Classic.
-- Drop-in replacement over v2.2.3. No settings reset required.
-
----
+- Drop-in replacement over v2.2.3. No settings reset.

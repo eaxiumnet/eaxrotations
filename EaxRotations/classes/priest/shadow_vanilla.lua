@@ -461,7 +461,22 @@ end
 
 local function dispel_magic_matches(context, s)
     if not s.dispel_magic_ready then return false end
-    return true
+    -- Only dispel self if we actually have a magic debuff
+    local me = context.me or NS.GetPlayer()
+    if not me then return false end
+    -- Common magic debuffs in vanilla (hardcoded whitelist; no dispel_type API)
+    local MAGIC_DEBUFFS = {
+        118, 12824, 12825, 12826, -- Polymorph
+        2637, -- Hibernate
+        605, 10911, 10912, -- Mind Control
+        9484, 9485, 10955, -- Shackle Undead
+        15487, -- Silence
+        1330, -- Garrote - Silence
+    }
+    for _, id in ipairs(MAGIC_DEBUFFS) do
+        if NS.has_debuff and NS.has_debuff(me, id) then return true end
+    end
+    return false
 end
 
 local function shackle_undead_matches(context, s)

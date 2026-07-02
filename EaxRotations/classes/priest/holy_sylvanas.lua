@@ -150,7 +150,7 @@ local function build_holy_state(context)
  if player.is_mounted and player:is_mounted() then
   return holy_state
  end
- context.player_control_locked = player_control_locked()
+ context.player_control_locked = (type(player_control_locked) == "function" and player_control_locked()) or false
  context.is_moving = context.is_moving or (player.is_moving and player:is_moving()) or false
  context.hp = health_pct(NS.PLAYER_UNIT)
  context.mana_pct = context.player_mana_pct or (player.mana_pct and player:mana_pct()) or 100
@@ -406,12 +406,12 @@ local strategies = {
    -- Tank-only gate: when disc_shield_tank_only is set, only shield the tank
    if context.settings.disc_shield_tank_only then
     if not state.tank then return false end
-    if state.tank.effective_hp > (context.settings.holy_pws_hp or 30) then return false end
+    if (state.tank.effective_hp or 100) > (context.settings.holy_pws_hp or 30) then return false end
     if state.tank.has_weakened_soul then return false end
     return spell_exists(SPELLS.PowerWordShield) and spell_ready(SPELLS.PowerWordShield, state.tank.unit)
    end
    if not state.lowest then return false end
-   if state.lowest.effective_hp > (context.settings.holy_pws_hp or 30) then return false end
+   if (state.lowest.effective_hp or 100) > (context.settings.holy_pws_hp or 30) then return false end
    if state.lowest.has_weakened_soul then return false end
    return spell_exists(SPELLS.PowerWordShield) and spell_ready(SPELLS.PowerWordShield, state.lowest.unit)
   end,
@@ -676,7 +676,7 @@ local strategies = {
    if Healing.has_dangerous_dispel then
     return Healing.has_dangerous_dispel(target)
    end
-   return true
+   return false
   end,
   execute = function(_, state)
    local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit)
@@ -695,7 +695,7 @@ local strategies = {
    if Healing.has_disease then
     return Healing.has_disease((state.tank and state.tank.unit) or state.lowest.unit)
    end
-   return true
+   return false
   end,
   execute = function(_, state)
    local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit)
@@ -745,7 +745,7 @@ local strategies = {
    if tank_renew > 3 then return false end
 
    local threshold = context.settings.holy_renew_hp or 90
-   if state.tank.effective_hp > threshold and context.in_combat then
+   if (state.tank.effective_hp or 100) > threshold and context.in_combat then
     return false
    end
 
