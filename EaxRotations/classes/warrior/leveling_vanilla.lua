@@ -156,12 +156,21 @@ local shield_bash_matches = function(context, state)
     if not state.shield_bash_ready then return false end
     if not state.target then return false end
     if not state.in_combat then return false end
+    local ok, casting = pcall(function() return state.target:is_casting() end)
+    return ok and casting
+end
+
 --- Pummel - berserker stance interrupt (for dual-wield/fury leveling)
 local pummel_matches = function(context, state)
     if not state then return false end
     if not state.use_interrupt then return false end
     if not state.pummel_ready then return false end
     if not state.target then return false end
+    if not state.in_combat then return false end
+    local ok, casting = pcall(function() return state.target:is_casting() end)
+    return ok and casting
+end
+
 --- Bloodthirst - fury talent rage spender (instant attack, 6s CD)
 local bloodthirst_matches = function(context, state)
     if not state then return false end
@@ -182,17 +191,6 @@ local shield_slam_matches = function(context, state)
     if not state.in_melee_range then return false end
     if (state.rage or 0) < 20 then return false end
     return true
-end
-
-
-    if not state.in_combat then return false end
-    local ok, casting = pcall(function() return state.target:is_casting() end)
-    return ok and casting
-end
-
-
-    local ok, casting = pcall(function() return state.target:is_casting() end)
-    return ok and casting
 end
 
 --- Execute - low HP finisher

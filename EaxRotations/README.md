@@ -114,7 +114,7 @@ EaxRotations/
 │
 └── tests/                  # Regression test suite
     ├── run_rotation_tests.lua    # 214 rotation suites
-    ├── run_leveling_tests.lua    # 12 leveling suites
+    ├── run_leveling_tests.lua    # 13 leveling suites
     └── test_*.lua                # Individual test files
 ```
 
@@ -167,7 +167,7 @@ Run the full rotation regression suite (**214 suites**):
 lua EaxRotations/tests/run_rotation_tests.lua
 ```
 
-Run the leveling test suite (**12 suites**):
+Run the leveling test suite (**13 suites**):
 
 ```bash
 lua EaxRotations/tests/run_leveling_tests.lua
