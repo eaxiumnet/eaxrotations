@@ -1,7 +1,7 @@
 # Comprehensive Audit — Batch 2: Vanilla Leveling Spell Coverage
 
 **Started:** 2026-07-01
-**Status:** COMPLETE — all 12 spells added, nil-guard fixes applied, 214+13 tests pass
+**Status:** COMPLETE — all 12 spells added, nil-guard fixes applied, duplicate assignments removed from 4 files, committed, pushed, zip regenerated. 214+13 tests pass.
 
 ## Web Verification (2026-07-01)
 

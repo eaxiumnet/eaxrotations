@@ -482,6 +482,7 @@ local function state_idle()
         -- Objective-first: before walking to the waypoint, scan for quest objects
         -- by name within 50yd. If found, navigate directly to the closest object.
         -- This avoids the "walk to waypoint, then look for objects" loop.
+        local objective_in_range = false  -- set when obj is within interaction range
         local goal_target = nil
         if type(current_goal) == "table" then
             goal_target = safe(current_goal.target, safe(current_goal.npc, safe(current_goal.text, nil)))
@@ -541,12 +542,29 @@ local function state_idle()
                         if (opos.z or 0) == 0 and pos and pos.z then
                             opos = { x = opos.x, y = opos.y, z = pos.z }
                         end
-                        _nav_destination = opos
-                        debug_log("IDLE: objective-first '" .. tostring(goal_target) .. "' found at " .. tostring(dist_yds) .. "yd → NAV")
-                        return "NAV"
+                        -- If already within interaction range, skip navigation and
+                        -- fall through to DO_ACTION. Navigating to a 0yd destination
+                        -- causes an infinite IDLE->NAV->ARRIVED->IDLE spin because
+                        -- SentinelNavClient resolves instantly and the objective-first
+                        -- block re-fires every IDLE tick.
+                        if dist_yds <= 5 then
+                            objective_in_range = true
+                            debug_log("IDLE: objective-first '" .. tostring(goal_target) .. "' at " .. tostring(dist_yds) .. "yd -- in range, skip NAV")
+                        else
+                            _nav_destination = opos
+                            debug_log("IDLE: objective-first '" .. tostring(goal_target) .. "' found at " .. tostring(dist_yds) .. "yd -> NAV")
+                            return "NAV"
+                        end
                     end
                 end
             end
+        end
+        -- Objective was found within interaction range -- skip nav/wp checks,
+        -- go straight to DO_ACTION so we actually interact/kill instead of spinning.
+        if objective_in_range then
+            _just_arrived = false
+            debug_log("IDLE: objective in range -- goal type=" .. action_type .. " -> DO_ACTION")
+            return "DO_ACTION"
         end
 
         -- Check distance to waypoint using :get_position() (game_object has no .x/.y)
