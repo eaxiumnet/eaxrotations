@@ -1,4 +1,4 @@
--- Eax's Fishing - Configuration v2.0.0
+-- Eax's Fishing - Configuration v2.1.0
 local ok_izi, izi = pcall(require, "common/izi_sdk")
 if not ok_izi then izi = nil end
 local ok_color, color = pcall(require, "common/color")

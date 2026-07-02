@@ -48,88 +48,66 @@ function M.get_assumed_duration(lure_item_id)
     return DEFAULT_LURE_DURATION
 end
 
---- Check if player has active lure buff
--- @param ctx table context
--- @param me table player object
+--- Check if lure is considered active
+-- @param ctx table
+-- @param me game_object
+-- @param now number
 -- @return boolean
-function M.has_active_lure(ctx, me)
+function M.has_active_lure(ctx, me, now)
     local state = ctx.state
-    
-    if not APISurface.is_valid(me) then
-        return false
+    if not APISurface.is_valid(me) then return false end
+
+    local dbg = not state.lure.next_dbg_time or now >= state.lure.next_dbg_time
+    if dbg then state.lure.next_dbg_time = now + 3.0 end
+
+    -- Primary: item_has_enchant called as a method on slot 16
+    local ok, slot = pcall(APISurface.get_item_at_inventory_slot, me, 16)
+    if ok and slot and slot.object then
+        local ok2, has_enchant = pcall(slot.object.item_has_enchant, slot.object)
+        if dbg then
+            APISurface.print("[EaxFishing] [DBG] item_has_enchant() = " .. tostring(has_enchant))
+        end
+        if ok2 and has_enchant then return true end
     end
-    
-    local buffs = APISurface.get_buffs(me)
-    if not buffs then
-        return false
-    end
-    
-    for _, buff in ipairs(buffs) do
-        if buff then
-            if type(buff.buff_id) == "number" and LURE_BUFF_ID_SET[buff.buff_id] then
-                state.lure.assumed_expire_time = 0.0
-                return true
-            end
-            
-            if type(buff.buff_name) == "string" then
-                local lower_name = string.lower(buff.buff_name)
-                if string.find(lower_name, "lure") or string.find(lower_name, "fishing") then
-                    state.lure.assumed_expire_time = 0.0
-                    return true
+
+    -- Fallback: get_equipped_items loop
+    if type(me.get_equipped_items) == "function" then
+        local ok2, items = pcall(me.get_equipped_items, me)
+        if ok2 and items then
+            for _, value in pairs(items) do
+                if value.slot_id == 16 and value.object then
+                    local ok3, has_enchant = pcall(value.object.item_has_enchant, value.object)
+                    if dbg then
+                        APISurface.print("[EaxFishing] [DBG] equipped item_has_enchant() = " .. tostring(has_enchant))
+                    end
+                    if ok3 and has_enchant then return true end
+
+                    local ok3, eid = pcall(value.object.item_enchant_id, value.object)
+                    if ok3 and type(eid) == "number" and eid > 0 then
+                        if dbg then APISurface.print("[EaxFishing] [DBG] item_enchant_id = " .. tostring(eid)) end
+                        return true
+                    end
+                    local ok4, exp = pcall(value.object.item_enchant_expiration, value.object)
+                    if ok4 and type(exp) == "number" and exp > 0 then
+                        if dbg then APISurface.print("[EaxFishing] [DBG] item_enchant_expiration = " .. tostring(exp)) end
+                        return true
+                    end
                 end
             end
         end
     end
-    
-    -- Check assumed expiry
-    local now = APISurface.now()
-    if type(now) == "number" and now < state.lure.assumed_expire_time then
-        return true
+
+    -- Final fallback: duration timer set on successful apply
+    if state.lure.assumed_expire_time > 0 then
+        if now < state.lure.assumed_expire_time then
+            return true
+        end
+        state.lure.assumed_expire_time = 0.0
     end
-    
+
     return false
 end
 
---- Check if player has active main hand enchant
--- @param me table player object
--- @return boolean
-function M.has_main_hand_enchant(me)
-    if not APISurface.is_valid(me) then
-        return false
-    end
-    
-    local main_hand = APISurface.get_item_at_inventory_slot(me, 16)
-    if not main_hand then
-        return false
-    end
-    
-    local obj = main_hand.object
-    if not obj then
-        return false
-    end
-    
-    -- Check if item has enchant using APISurface
-    if not APISurface.item_has_enchant(obj) then
-        return false
-    end
-    
-    -- Check enchant details using APISurface
-    local enchant_id = APISurface.item_enchant_id(obj)
-    local enchant_expiration = APISurface.item_enchant_expiration(obj)
-    local enchant_charges = APISurface.item_enchant_charges(obj)
-    
-    if type(enchant_id) == "number" and TEMP_LURE_ENCHANT_IDS[enchant_id] then
-        return true
-    end
-    if type(enchant_expiration) == "number" and enchant_expiration > 0 then
-        return true
-    end
-    if type(enchant_charges) == "number" and enchant_charges > 0 then
-        return true
-    end
-    
-    return false
-end
 
 -- Lure priority list — best bonus first, TBC content
 -- All of these apply a temporary fishing enchant to the equipped pole.

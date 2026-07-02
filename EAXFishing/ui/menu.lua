@@ -28,7 +28,7 @@ function M.render_menu(ctx)
     config.menu.root:render("Eax's Fishing", function()
 
         -- ── Identity ───────────────────────────────────────────────────────
-        h:render("Eax's Fishing  v2.0.0", C.brand)
+        h:render("Eax's Fishing  v2.1.0", C.brand)
         h:render("Enable / Disable in the Control Panel", C.dim)
 
         -- ── Gear ───────────────────────────────────────────────────────────

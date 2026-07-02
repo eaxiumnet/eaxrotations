@@ -113,7 +113,11 @@ function M.tick(ctx)
         end
 
         if now >= state.anti_afk.next_pulse_time then
-            APISurface.jump()
+            -- Only jump when NOT actively fishing - jumping cancels the fishing channel
+            if not state.fishing.awaiting_bobber then
+                APISurface.jump()
+            end
+            -- Always advance the timer so it does not fire immediately after the bobber is pulled
             state.anti_afk.next_pulse_time = now + math.random(afk_min, afk_max)
         end
     end
@@ -154,13 +158,13 @@ function M.tick(ctx)
                                 catch_max_ms = deps.config.menu.catch_delay_max_ms:get()
                             end
                             -- Scale by behavior profile so reaction time varies naturally over session
-                            local reaction_s = Behavior.scaled_delay(state, now, catch_min_ms, catch_max_ms, "reaction")
+                            local reaction_s = Behavior.scaled_delay(state, now, catch_min_ms, catch_max_ms, "reaction", deps.config)
                             bite_reaction_deadline = bite_detected_time + reaction_s
                             local allow_escape = deps.config.menu.enable_fish_escape
                                 and deps.config.menu.enable_fish_escape:get_state()
                             if allow_escape then
                                 -- Scale escape window by behavior too
-                                local escape_extra = Behavior.scaled_delay(state, now, 800, 1800, "reaction")
+                                local escape_extra = Behavior.scaled_delay(state, now, 800, 1800, "reaction", deps.config)
                                 bite_escape_deadline = bite_reaction_deadline + escape_extra
                             end
                             local allow_miss = deps.config.menu.enable_missed_catches
@@ -377,7 +381,7 @@ function M.tick(ctx)
     
     -- Apply lure if needed
     if deps.config.menu.auto_lure and deps.config.menu.auto_lure:get_state() then
-        if not Lures.has_active_lure(ctx, me) and not Lures.has_main_hand_enchant(me) then
+        if not Lures.has_active_lure(ctx, me, now) then
             if Lures.try_apply_lure(ctx, me, now) then
                 state.fishing.status = "Applying lure..."
                 state.fishing.last_action_time = now
@@ -394,6 +398,9 @@ function M.tick(ctx)
                     return
                 end
             end
+        else
+            -- Lure is active — reset the warning flag so it fires again next time lures run out
+            state.fishing.no_lure_warned = false
         end
     end
     
@@ -409,9 +416,12 @@ function M.tick(ctx)
         if break_freq > 0 then
             -- Initialize next break time if needed
             if state.fishing.next_break_time <= 0.0 then
-                -- Schedule first break (3-10 minutes depending on frequency)
-                local base_interval = 600 - (break_freq * 5)  -- 600s at 0%, 100s at 100%
-                state.fishing.next_break_time = now + math.random(base_interval * 0.8, base_interval * 1.2)
+                -- Schedule first break - use math.floor to ensure integers for math.random
+                local base_interval = 600 - (break_freq * 5)
+                state.fishing.next_break_time = now + math.random(
+                    math.floor(base_interval * 0.8),
+                    math.floor(base_interval * 1.2)
+                )
             end
             
             -- Check if it's time for a micro-break
@@ -419,9 +429,12 @@ function M.tick(ctx)
                 -- Take a 10-30 second break
                 state.fishing.status = "Taking a short break..."
                 state.fishing.next_cast_time = now + math.random(10, 30)
-                -- Schedule next break
+                -- Schedule next break - use math.floor to ensure integers for math.random
                 local base_interval = 600 - (break_freq * 5)
-                state.fishing.next_break_time = now + math.random(base_interval * 0.8, base_interval * 1.2)
+                state.fishing.next_break_time = now + math.random(
+                    math.floor(base_interval * 0.8),
+                    math.floor(base_interval * 1.2)
+                )
                 return
             end
         end
@@ -530,7 +543,9 @@ function M.tick(ctx)
     local elapsed = now - state.fishing.cast_start_time
 
     -- Cast if not active and not awaiting bobber (or timeout)
-    if not is_active and (not state.fishing.awaiting_bobber or elapsed > 2.0) then
+    -- NOTE: timeout raised to 7.0s (above the 6s no-bobber threshold) to prevent
+    -- a brief is_active=false lag spike from triggering a double-cast
+    if not is_active and (not state.fishing.awaiting_bobber or elapsed > 7.0) then
         state.fishing.awaiting_bobber = false
         reset_bite()
 

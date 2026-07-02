@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Eax's Fishing - Main Entry Point
--- Version: 2.0.0
+-- Version: 2.1.0
 -- =============================================================================
 
 local APISurface = require("core/api_surface")
@@ -22,7 +22,7 @@ if not has_color_helper then
     color_helper = nil
 end
 
-APISurface.print("[EaxFishing] v2.0.0 loaded")
+APISurface.print("[EaxFishing] v2.1.0 loaded")
 
 
 
