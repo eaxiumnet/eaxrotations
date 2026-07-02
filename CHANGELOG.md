@@ -1,7 +1,52 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.2.5] — Leveling Rotation Structural Fixes (2026-07-02)
+
+### What This Means for You
+
+This update fixes structural bugs in the Classic leveling rotations that could cause silent failures or missing abilities. These bugs were discovered during a full security pass of every leveling file. They were not causing crashes in most cases because the Lua runtime is lenient with duplicate definitions, but they were preventing entire match functions from being registered correctly.
+
+If you noticed that certain abilities in Classic leveling were never being cast even though the spell was available, this update likely fixes that. No settings need to be changed.
+
+### What Changed
+
+**Warrior Classic Leveling**
+- **Shield Bash** and **Pummel** interrupt match functions were structurally broken: they were missing `end` keywords, which caused the interrupt logic to be nested inside unrelated functions. This meant interrupts never fired. Fixed by restoring proper function closures.
+
+**Mage Classic Leveling**
+- Removed a duplicate `scorch_matches` function that was shadowing the original with identical logic. This was harmless but created unnecessary code bloat.
+
+**Shaman Classic Leveling**
+- Removed a duplicate `tremor_totem_ready` assignment. Harmless but cleaned up.
+
+**Paladin Classic Leveling**
+- Removed a duplicate `selected_seal` assignment in buildState.
+
+**Priest Classic Leveling**
+- Removed a duplicate `mf_ready` assignment in buildState.
+
+**Rogue Classic Leveling**
+- Removed a duplicate `thistle_tea_ready` assignment in buildState.
+
+### Wand, Melee, and Execute Audit Summary
+
+Every leveling rotation was audited for three critical fallback behaviors:
+
+| Check | Result |
+|---|---|
+| **Auto-wand when OOM** | Mage, Priest, Warlock, and Hunter all use wand/Shoot when mana is below the configured wand threshold. Druid uses auto-attack in caster form. Shaman uses auto-attack with weapon imbue fallback. Rogue and Warrior are melee-only, no wand needed. |
+| **Auto-melee when OOM or in range** | Hunter uses Raptor Strike and Mongoose Bite in melee range. Shaman uses Stormstrike in melee range. Warrior uses all melee abilities. Rogue uses all melee abilities. Paladin uses melee seals and Judgement. Druid uses Cat/Bear forms. |
+| **Instant execute/finisher at low target HP** | Warrior Execute triggers below 20% HP. Paladin Hammer of Wrath triggers below 20% HP. Rogue Eviscerate is used at max combo points. Druid Ferocious Bite and Rip are used at max combo points. Warlock Drain Soul triggers below 25% HP. Shadow Priest Shadow Word: Death triggers below 25% HP. |
+
+### What to Expect After Updating
+
+- Install over your existing version. No configuration reset needed.
+- Warrior Classic leveling interrupts (Shield Bash / Pummel) will now work correctly.
+- All 214 rotation test suites and 13 leveling test suites pass.
+
+---
 ## [2.2.4] — Classic Leveling Spell Coverage + Stability (2026-07-01)
 
 ### What This Means for You
