@@ -1,4 +1,4 @@
--- auto_tremor_sylvanas.lua -- Auto Tremor Totem placement for Enhancement Shaman..
+﻿-- auto_tremor_sylvanas.lua -- Auto Tremor Totem placement for Enhancement Shaman..
 -- WHAT:   Auto Tremor Totem placement for Enhancement Shaman.
 -- WHEN:   called per-tick by enhancement specs when fear/sap detected
 -- WHY:    eliminates 4-line fear-break duplication in enhancement_sylvanas
@@ -99,8 +99,8 @@ function M.try_drop_tremor(context)
     if context.settings.use_auto_tremor_totem == false then return false end
     if not context.target then return false end
 
-    -- Only drop if targeting a fear boss
-    if not M.is_fear_boss(context.target) then return false end
+    -- Only drop if targeting a fear boss or a nearby ally is feared
+    if not M.is_fear_boss(context.target) and not M.detect_fear_on_ally() then return false end
 
     -- Don't drop if already active
     if M.has_tremor_totem() then return false end
@@ -136,7 +136,7 @@ function M.as_middleware_strategy(SPELLS)
             if context.settings.use_auto_tremor_totem == false then return false end
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
-            if not M.is_fear_boss(context.target) then return false end
+            if not M.is_fear_boss(context.target) and not M.detect_fear_on_ally() then return false end
             if M.has_tremor_totem() then return false end
             return NS.action_matches(context, {
                 name = "AutoTremor",
