@@ -733,6 +733,7 @@ local strategies = {
         name = "HammerOfJusticeDiver",
         matches = function(context, s)
             if not s.in_pvp and (s.hp_pct or 100) > 55 then return false end
+            if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
             if not has_valid_enemy(context) then return false end
             if NS.unit_distance and NS.unit_distance(context.target, context.me) > 10 then return false end
             return NS.spell_ready(SPELLS.HammerOfJustice, context.target, EMPTY_OPTS)

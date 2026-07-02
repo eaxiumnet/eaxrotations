@@ -483,6 +483,12 @@ end
 
 -- Death Wish: burst CD
 local function death_wish_matches(context, state)
+    -- Fear break: Death Wish enrage breaks fear (any stance, unlike Berserker Rage)
+    local me = context.me or NS.GetPlayer()
+    local is_cc, cc_type = is_feared_sapped_or_incapacitated(me)
+    if is_cc and cc_type == "fear" then
+        return action(context, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false, cooldown = 180 }))
+    end
     local cds_enabled = setting(context, "use_cooldowns", true)
     if not cds_enabled or not state.death_wish_ready then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end

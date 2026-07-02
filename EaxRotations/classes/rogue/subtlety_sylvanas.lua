@@ -373,6 +373,7 @@ local function preparation_matches(context, state)
 end
 
 local function kidney_shot_matches(context, state)
+    if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
     if (state.combo or 0) < 3 or not enough_energy(state, ENERGY_KIDNEY) then return false end
     if (state.kidney_remains or 0) > 0 then return false end
     if not is_pvp_target(context) and (state.target_hp or 100) > 35 then return false end

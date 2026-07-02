@@ -1,5 +1,41 @@
 # Changelog
 
+## 2.3.1 - 2026-07-02
+
+### PvP DR Gating Fixes
+**Affected specs:** Holy Paladin, Protection Paladin, Combat Rogue, Subtlety Rogue
+
+Added `NS.DRTracker.is_dr_immune()` checks to stun abilities that were casting into immune targets:
+
+- **Hammer of Justice** (Holy + Protection Paladin) — now gated on `stun` DR
+- **Cheap Shot** (Combat Rogue) — now gated on `stun` DR
+- **Kidney Shot** (Combat + Subtlety Rogue) — now gated on `stun` DR
+
+This prevents wasting a full-duration stun on a target that is already DR-immune, which is the single biggest PvP efficiency gain in the framework.
+
+### Warrior Death Wish Fear Break
+**Affected spec:** Fury Warrior
+
+`death_wish_matches` now checks `is_feared_sapped_or_incapacitated()` before the normal burst CD logic. If the player is feared, Death Wish fires immediately as a reactive break (it grants fear immunity in any stance, unlike Berserker Rage which requires Berserker Stance).
+
+### Druid Barkskin Configurability
+**Affected spec:** Restoration Druid
+
+Replaced the hardcoded `55%` HP threshold in `BarkskinSelfPreservation` with `settings.barkskin_hp or 55`. The schema already exposed this slider; the rotation now respects it.
+
+### Shaman Tremor Totem PvP Coverage
+**Affected spec:** Enhancement Shaman
+
+`auto_tremor_sylvanas.lua` previously only dropped Tremor Totem when targeting one of 17 known fear-casting boss NPCs. It now also checks `detect_fear_on_ally()` — if any nearby party member has a fear debuff (Warlock Fear, Priest Psychic Scream, etc.), the totem drops automatically.
+
+### PvP Feature Page Accuracy
+Rewrote `docs/PVP_FEATURE_PAGE.md` from a full code audit. Removed false claims (e.g., abilities listed as DR-gated that were not). Documented actual behavior with file references. Added "Known Gaps" section so players know what is and is not implemented.
+
+### Quality & Reliability
+- 219 rotation test suites — all passing
+- 13 leveling rotation suites — all passing
+- All changes are backward compatible. No settings reset required.
+
 ## 2.3.0 - 2026-07-02
 
 ### Server-Authoritative Swing Timer (CLEU)

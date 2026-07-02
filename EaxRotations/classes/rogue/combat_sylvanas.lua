@@ -384,6 +384,7 @@ end
 
 local function kidney_shot_matches(context, s)
     if not s.kidney_shot_ready then return false end
+    if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
     return true
 end
 
@@ -417,6 +418,7 @@ local function cloak_of_shadows_matches(context, s)
 end
 
 local function cheap_shot_matches(context, s)
+    if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
     if not s.is_stealthed then return false end
     if not context.target then return false end
     if not (context.in_melee_range or false) then return false end
