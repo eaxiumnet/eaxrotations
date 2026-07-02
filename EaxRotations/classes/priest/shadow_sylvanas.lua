@@ -44,7 +44,22 @@ local INNER_FOCUS_CD = 180
 local MIN_TTD_FOR_CD_SHADOWFIEND = 60     -- Don't summon if combat ends within 60s (won't get 2nd use)
 local MIN_TTD_FOR_CD_INNER_FOCUS = 45     -- Don't burn Inner Focus if combat ends within 45s
 
-local VT_CLIP_THRESHOLD = 1.5
+-- ============================================================================
+-- Configurable DoT refresh windows
+-- ============================================================================
+local function vt_clip_threshold(context)
+    local s = context and context.settings
+    if s and s.shadow_vt_refresh_window ~= nil then return s.shadow_vt_refresh_window end
+    if NS.get_setting then return NS.get_setting("shadow_vt_refresh_window", 1.5) end
+    return 1.5
+end
+
+local function swp_clip_threshold(context)
+    local s = context and context.settings
+    if s and s.shadow_swp_refresh_window ~= nil then return s.shadow_swp_refresh_window end
+    if NS.get_setting then return NS.get_setting("shadow_swp_refresh_window", 1.5) end
+    return 1.5
+end
 
 -- Snapshot-aware refresh constants
 local SPELL_DMG_UPGRADE_RATIO = 1.08    -- Refresh only if 8%+ spell damage upgrade
@@ -153,7 +168,7 @@ local shadow_state = {
     snapshot_vt_dmg = 0,
     snapshot_swp_dmg = 0,
     snapshot_dp_dmg = 0,
-    has_bloodlust = false,               -- Bloodlust/Heroism buff — enables more aggressive snapshot upgrades
+    has_bloodlust = false,               -- Bloodlust/Heroism buff â€” enables more aggressive snapshot upgrades
     snapshot_target = nil,
     -- Wand/auto-attack state
     wand_learned = false,             -- Shoot (5019) is learned (wand equipped)
@@ -204,11 +219,12 @@ local function build_state(context)
     shadow_state.should_clip_mf = mf_tick.should_clip_mf(
         shadow_state.mf_channeling,
         shadow_state.mf_ticks,
-        VT_CLIP_THRESHOLD,
+        vt_clip_threshold(context),
         shadow_state.mb_ready,
         shadow_state.swd_ready,
         shadow_state.vt_remaining,
-        shadow_state.swp_remaining
+        shadow_state.swp_remaining,
+        swp_clip_threshold(context)
     )
     shadow_state.has_shadowform = me and NS.buff_up(me, SHADOWFORM_BUFF) or false
     shadow_state.shadowform_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Shadowform) or false
@@ -236,8 +252,8 @@ local function build_state(context)
     end
     shadow_state.combat_mode = mode
     -- Configurable refresh windows
-    shadow_state.vt_refresh_window = settings.shadow_vt_refresh_window or 3
-    shadow_state.swp_refresh_window = settings.shadow_swp_refresh_window or 3
+    shadow_state.vt_refresh_window = settings.shadow_vt_refresh_window or 1.5
+    shadow_state.swp_refresh_window = settings.shadow_swp_refresh_window or 1.5
     shadow_state.dp_refresh_window = settings.shadow_dp_refresh_window or 3
     -- Configurable safety thresholds
     shadow_state.swd_safety_hp = settings.shadow_swd_safety_hp or 80
@@ -280,7 +296,7 @@ local function build_state(context)
             local now = NS.time_now and NS.time_now() or 0
             if now - (_last_shadow_cc_scan or 0) >= 0.3 then
                 _last_shadow_cc_scan = now
-                -- This is the primary SW:D CC break path — casting SW:D preemptively
+                -- This is the primary SW:D CC break path â€” casting SW:D preemptively
                 -- triggers backlash damage that will break incoming CC if it lands
                 local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
                 for _, enemy in ipairs(enemies) do
@@ -327,7 +343,7 @@ local function build_state(context)
 
     -- Current spell damage from NS (provided by middleware or character API)
     shadow_state.spell_damage = context.spell_damage or 0
-    -- Bloodlust/Heroism buff — enables more aggressive snapshot upgrade threshold
+    -- Bloodlust/Heroism buff â€” enables more aggressive snapshot upgrade threshold
     shadow_state.has_bloodlust = me and NS.buff_up(me, BLOODLUST_BUFFS) or false
     -- Multi-DoT: scan nearby enemies for missing DoTs (throttled to 1s)
     shadow_state.dotted_swp_count = 0
@@ -543,7 +559,7 @@ local function vampiric_touch_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.VampiricTouch, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
     if context.is_moving then return false end
-    if not context.has_valid_enemy_target or s.vt_remaining > (s.vt_refresh_window or 3) then return false end
+    if not context.has_valid_enemy_target or s.vt_remaining > vt_clip_threshold(context) then return false end
     -- TTD gate: skip VT if target dying soon (1.5s cast + 15s to get full value)
     if context.ttd_known and context.ttd > 0 and context.ttd < 6 then return false end
     -- DoT TTD gating: skip reapplication if target dies before threshold % of DoT duration
@@ -567,7 +583,7 @@ local function shadow_word_pain_matches(context, s)
     if s.mana_emergency then return false end
     if (s.swp_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
     -- Shadow Weaving maintenance: extend refresh window from 3s to 5s when stacks < 5
-    local sw_window = s.swp_refresh_window or 3
+    local sw_window = swp_clip_threshold(context)
     local effective_window = (s.weaving_stacks > 0 and s.weaving_stacks < 5) and 5 or sw_window
     if s.swp_remaining > effective_window then return false end
     -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
@@ -614,7 +630,7 @@ local function inner_focus_matches(context, s)
         if s.mb_ready then return true end
         -- If MB is on short CD (<= 5s), hold IF for the combo
         if (s.mb_cd_remains or 999) <= 5 then return true end
-        -- MB is on long CD (> 5s) — use IF on next best spell (don't hold forever)
+        -- MB is on long CD (> 5s) â€” use IF on next best spell (don't hold forever)
         -- Fall through to non-combo logic below
     end
     -- Non-combo path (or combo disabled / MB on long CD): use IF when MB is off cooldown
@@ -674,7 +690,7 @@ local function swd_cc_break_matches(context, s)
     if not context.has_valid_enemy_target then return false end
     local settings = context.settings or {}
     if settings.shadow_swd_cc_break == false then return false end
-    -- Primary path: enemy is casting a CC on us — preempt with SW:D
+    -- Primary path: enemy is casting a CC on us â€” preempt with SW:D
     if s.enemy_casting_cc and s.enemy_cc_spell_name then
         return true
     end
@@ -781,7 +797,7 @@ local function starshards_matches(context, s)
 end
 
 -- ============================================================================
--- Wand / Auto-Attack (mana emergency — conserve_mana_floor)
+-- Wand / Auto-Attack (mana emergency â€” conserve_mana_floor)
 -- ============================================================================
 local function mana_emergency_wand_matches(context, s)
     if not s.mana_emergency then return false end
@@ -811,7 +827,7 @@ local strategies = {
     { name = "PowerWordFortitude", matches = fortitude_matches, execute = function(context) return NS.try_cast(SPELLS.PowerWordFortitude, NS.PLAYER_UNIT, "[SHADOW] PowerWordFortitude", { skip_range = true }) end },
     { name = "PreCombatPull", matches = pre_combat_pull_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] PreCombatPull") end },
     { name = "Shadowform", matches = shadowform_matches, execute = function(context) return NS.try_cast(SPELLS.Shadowform, NS.PLAYER_UNIT, "[SHADOW] Shadowform", { skip_range = true }) end },
-    { name = "SWDCCBreak", matches = swd_cc_break_matches, execute = function(context, s) if s.mf_channeling then if NS.stop_casting then NS.stop_casting() end; if NS.cancel_current_cast then NS.cancel_current_cast() end end; return NS.try_cast(SPELLS.ShadowWordDeath, context.target, string.format("[SHADOW] SWD CC Break → %s", s.enemy_cc_spell_name or s.breakable_cc_name or "CC")) end },
+    { name = "SWDCCBreak", matches = swd_cc_break_matches, execute = function(context, s) if s.mf_channeling then if NS.stop_casting then NS.stop_casting() end; if NS.cancel_current_cast then NS.cancel_current_cast() end end; return NS.try_cast(SPELLS.ShadowWordDeath, context.target, string.format("[SHADOW] SWD CC Break â†’ %s", s.enemy_cc_spell_name or s.breakable_cc_name or "CC")) end },
     { name = "Shadowfiend", matches = shadowfiend_matches, execute = function(context) return NS.try_cast(SPELLS.Shadowfiend, context.target, "[SHADOW] Shadowfiend") end },
     { name = "VampiricTouch", matches = vampiric_touch_matches, execute = function(context) local ok = NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] VampiricTouch"); if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end; return ok end },
     { name = "ShadowWordPain", matches = shadow_word_pain_matches, execute = function(context) local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] ShadowWordPain"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
@@ -827,7 +843,7 @@ local strategies = {
     end, execute = function(context) local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] SWP (moving)"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
     { name = "VampiricEmbrace", matches = vampiric_embrace_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricEmbrace, context.target, "[SHADOW] VampiricEmbrace") end },
     { name = "DevouringPlague", matches = devouring_plague_matches, execute = function(context) local ok = NS.try_cast(SPELLS.DevouringPlague, context.target, "[SHADOW] DevouringPlague"); if ok then shadow_state.snapshot_dp_dmg = shadow_state.spell_damage end; return ok end },
-    { name = "InnerFocusMindBlast", matches = inner_focus_matches, execute = function(context) return NS.try_cast(SPELLS.InnerFocus, NS.PLAYER_UNIT, "[SHADOW] InnerFocus→MB Combo", { skip_range = true }) end },
+    { name = "InnerFocusMindBlast", matches = inner_focus_matches, execute = function(context) return NS.try_cast(SPELLS.InnerFocus, NS.PLAYER_UNIT, "[SHADOW] InnerFocusâ†’MB Combo", { skip_range = true }) end },
     { name = "MindBlast", matches = mind_blast_matches, execute = function(context) return NS.try_cast(SPELLS.MindBlast, context.target, "[SHADOW] MindBlast") end },
     { name = "ShadowWordDeath", matches = shadow_word_death_matches, execute = function(context) return NS.try_cast(SPELLS.ShadowWordDeath, context.target, "[SHADOW] ShadowWordDeath") end },
     { name = "MindFlay", matches = mind_flay_matches, execute = function(context) return NS.try_cast(SPELLS.MindFlay, context.target, "[SHADOW] MindFlay") end },

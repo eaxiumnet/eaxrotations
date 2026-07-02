@@ -31,6 +31,13 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local _cleu = NS.SwingDiagnostics
+if _cleu then
+    _cleu.register_seals({
+        1464, 8820, 11604, 11605, 25241, 25242,
+        78, 284, 285, 1608, 11584, 11585, 25286,
+    })
+end
 local potion_helper = require("shared/potion_helper_sylvanas")
 
 local load_player = NS.GetPlayer and NS.GetPlayer()
@@ -189,7 +196,8 @@ local function build_kebab_state(context)
         or not context.has_offhand
 
     -- Swing timer for HS Trick (DW offhand weaving)
-    context.mh_remain = NS.get_time_until_swing and NS.get_time_until_swing() or nil  -- [#28] auto_attack_helper
+    -- Prefer CLEU-backed swing timer; fallback to native prediction
+    context.mh_remain = (_cleu and _cleu.get_swing_remains and _cleu.get_swing_remains()) or (NS.get_time_until_swing and NS.get_time_until_swing()) or nil
     context.oh_remain = NS.get_time_until_oh_swing and NS.get_time_until_oh_swing() or nil  -- [#28] auto_attack_helper
 
     kebab_state.target_below_20 = is_execute_phase(context.target_hp, 20)

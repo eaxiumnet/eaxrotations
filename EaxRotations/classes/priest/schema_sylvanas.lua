@@ -37,7 +37,7 @@ return {
                     { key = "pws_hp", type = "slider", label = "PW:Shield HP Threshold", min = 0, max = 100, default = 0, tooltip = "Self-cast PW:Shield when HP drops below this in combat (0 = disabled)" },
                     { key = "auto_inner_fire", type = "checkbox", label = "Inner Fire (OOC)", default = true },
                     { key = "auto_fortitude", type = "checkbox", label = "Fortitude (OOC)", default = true },
-                    { key = "use_offensive_dispel", type = "checkbox", label = "Offensive Dispel", default = true, tooltip = "Dispel target magic buffs (Bloodlust, PW:S, Ice Barrier, etc.) — auto-targets highest priority enemy" },
+                    { key = "use_offensive_dispel", type = "checkbox", label = "Offensive Dispel", default = true, tooltip = "Dispel target magic buffs (Bloodlust, PW:S, Ice Barrier, etc.) â€” auto-targets highest priority enemy" },
                     { key = "offensive_dispel_mana_floor", type = "slider", label = "Offensive Dispel Mana Floor", min = 10, max = 60, default = 30 },
                     { key = "use_mass_dispel", type = "checkbox", label = "Mass Dispel", default = false, tooltip = "AoE dispel all friendlies within 15yd; 100 mana cost, no CD" },
                     { key = "mass_dispel_mana_floor", type = "slider", label = "Mass Dispel Mana Floor", min = 10, max = 80, default = 50 },
@@ -214,8 +214,8 @@ return {
             {
                 header = "DoT Refresh",
                 settings = {
-                    { key = "shadow_vt_refresh_window", type = "slider", label = "VT Refresh Window (s)", min = 1, max = 6, default = 3 },
-                    { key = "shadow_swp_refresh_window", type = "slider", label = "SW:P Refresh Window (s)", min = 1, max = 6, default = 3 },
+                    { key = "shadow_vt_refresh_window", type = "slider", label = "VT Refresh Window (s)", min = 0.5, max = 3.0, default = 1.5 },
+                    { key = "shadow_swp_refresh_window", type = "slider", label = "SW:P Refresh Window (s)", min = 0.5, max = 3.0, default = 1.5 },
                     { key = "shadow_dp_refresh_window", type = "slider", label = "DP Refresh Window (s)", min = 1, max = 6, default = 3 },
                     { key = "shadow_dot_ttd_threshold", type = "slider", label = "DoT TTD Threshold (%)", min = 0, max = 100, default = 50, tooltip = "Skip DoT reapplication if target dies before this % of DoT duration" },
                 },

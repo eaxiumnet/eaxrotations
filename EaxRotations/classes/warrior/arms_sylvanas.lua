@@ -7,6 +7,14 @@
 -- Warrior Arms priority list for TBC Sylvanas rotations.
 local NS = _G.EaxRotations
 if not NS then return nil end
+local _cleu = NS.SwingDiagnostics
+if _cleu then
+    _cleu.register_seals({
+        1464, 8820, 11604, 11605, 25241, 25242,
+        78, 284, 285, 1608, 11584, 11585, 25286,
+    })
+end
+
 local potion_helper = require("shared/potion_helper_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
@@ -432,7 +440,9 @@ local function build_state(context)
         end
     end
 
-    arms_state.mh_until = (me and NS.swing_time_until and NS.swing_time_until(me)) or 999
+    -- Prefer CLEU-backed swing timer; fallback to native prediction
+    local cleu_remains = (_cleu and _cleu.get_swing_remains and _cleu.get_swing_remains()) or nil
+    arms_state.mh_until = cleu_remains or (me and NS.swing_time_until and NS.swing_time_until(me)) or 999
     arms_state.mh_progress = (me and NS.swing_progress and NS.swing_progress(me)) or 0
 
     -- safe_state proxy: structural nil-guard elimination (Pattern 14)

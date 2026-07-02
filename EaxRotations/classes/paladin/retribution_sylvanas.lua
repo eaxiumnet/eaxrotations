@@ -73,6 +73,18 @@ local TWIST_PREP_WINDOW = 1.20
 local MELEE_RANGE = 8
 
 -- ============================================================================
+-- CLEU swing diagnostics integration
+-- ============================================================================
+local _cleu = NS.SwingDiagnostics
+if _cleu then
+    _cleu.register_seals({
+        31892, 348700,
+        27170, 20920, 20919, 20918, 20915, 20375,
+        27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084,
+    })
+end
+
+-- ============================================================================
 -- Seal twist diagnostics
 -- ============================================================================
 local _last_twist_result = nil
@@ -90,6 +102,8 @@ local function log_twist_result(result)
         diag_enabled = NS.get_any_setting(nil, "retri_twist_diagnostics", nil, false)
     end
     if not diag_enabled then return end
+    -- CLEU provides authoritative twist logging; skip client-side guess when active.
+    if _cleu and _cleu.is_active() then return end
     local ok, has_core = pcall(function() return core and core.log and core.log.info end)
     if ok and has_core then
         pcall(core.log.info, string.format("[RET] Seal twist: %s", result))
@@ -246,7 +260,9 @@ local function build_state(context)
     ret_state.mana_pct = context.mana_pct or context.mana or 100
     ret_state.enemy_count = context.enemy_count or context.enemies_nearby or 1
     ret_state.target_hp_pct = health_pct(context.target, context.target_hp or 100)
-    ret_state.swing_remains = (NS.get_time_until_swing and NS.get_time_until_swing()) or (context.time_to_swing or 0)
+    -- Prefer CLEU-authoritative swing timer when available; fallback to native prediction
+    local cleu_remains = (_cleu and _cleu.get_swing_remains and _cleu.get_swing_remains()) or nil
+    ret_state.swing_remains = cleu_remains or (NS.get_time_until_swing and NS.get_time_until_swing()) or (context.time_to_swing or 0)
     ret_state.seal_preference = get_setting(context, "seal_preference", get_setting(context, "retri_seal_preference", "auto"))
     ret_state.can_use_blood = should_use_blood(context)
     ret_state.preferred_damage_seal = ret_state.can_use_blood and "blood" or "command"
@@ -433,6 +449,7 @@ strategies[#strategies + 1] = {
         return true
     end,
     execute = function()
+        if _cleu then _cleu.mark_twist_attempt(SPELLS.SealBlood) end
         local ok = cast(SPELLS.SealBlood, PLAYER, "[RET] Seal twist: Blood", { skip_range = true })
         if ok then
             log_twist_result("PERFECT")

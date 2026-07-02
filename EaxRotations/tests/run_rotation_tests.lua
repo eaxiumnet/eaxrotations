@@ -23,8 +23,12 @@ local tests = {
 
  -- Supremacy Phase 2 tests
  "test_paladin_protection_jow_mode.lua",
+ "test_holy_lg_chaining.lua",
+ "test_protection_bok_party.lua",
  "test_paladin_retribution_post_swing_judge.lua",
  "test_paladin_retribution_twist_diagnostics.lua",
+ "test_swing_diagnostics.lua",
+ "test_melee_cleu_wiring.lua",
  "test_shaman_enhancement_totem_twist.lua",
  "test_shaman_enhancement_auto_weapon_buffs.lua",
  "test_shaman_enhancement_intelligent_shield.lua",
@@ -35,6 +39,7 @@ local tests = {
  "test_aspect_manager.lua",
  "test_shadow_multidot.lua",
  "test_shadow_inner_focus_combo.lua",
+ "test_shadow_refresh_windows.lua",
  "test_affliction_dot_ttd.lua",
  "test_hunter_shot_timer_integration.lua",
  "test_hunter_melee_weave.lua",
