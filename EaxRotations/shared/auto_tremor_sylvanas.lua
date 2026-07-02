@@ -1,4 +1,4 @@
-﻿-- auto_tremor_sylvanas.lua -- Auto Tremor Totem placement for Enhancement Shaman..
+-- auto_tremor_sylvanas.lua -- Auto Tremor Totem placement for Enhancement Shaman..
 -- WHAT:   Auto Tremor Totem placement for Enhancement Shaman.
 -- WHEN:   called per-tick by enhancement specs when fear/sap detected
 -- WHY:    eliminates 4-line fear-break duplication in enhancement_sylvanas

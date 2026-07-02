@@ -133,7 +133,7 @@ local function build_kebab_state(context)
     context.target_hp = target and health_pct(target) or 100
     context.in_melee_range = target and safe_unit_call(target, "is_in_melee_range", 5) or false
     context.has_breakable_cc_nearby = has_breakable_cc_nearby(context)
-    context.player_control_locked = player_control_locked()
+    context.player_control_locked = (type(player_control_locked) == "function" and player_control_locked()) or false
     local player = NS.GetPlayer()
     context.is_moving = safe_unit_call(player, "is_moving") or false
     context.has_offhand = has_offhand_weapon()

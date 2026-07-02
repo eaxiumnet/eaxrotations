@@ -86,7 +86,7 @@ local function build_smite_state(context)
     local target = context.target
     local player = NS.GetPlayer()
 
-    context.player_control_locked = player_control_locked()
+    context.player_control_locked = (type(player_control_locked) == "function" and player_control_locked()) or false
     context.is_moving = context.is_moving or (player.is_moving and player:is_moving()) or false
     context.mana_pct = context.mana_pct or context.player_mana_pct or (player.mana_pct and player:mana_pct()) or 100
     context.hp = health_pct(NS.PLAYER_UNIT)
