@@ -3,6 +3,7 @@
 -- =============================================================================
 
 local APISurface = require("core/api_surface")
+local LootDB     = require("fishing/loot_db")
 
 local M = {}
 
@@ -93,7 +94,6 @@ function M.render(ctx)
     -- Session Stats HUD
     -- =========================================================
     if deps.config.menu.show_stats and deps.config.menu.show_stats:get_state() then
-        local LootDB  = require("fishing/loot_db")
         local tnow    = APISurface.now()
         local elapsed = tnow - state.session.start_time
         local hours   = elapsed / 3600
@@ -142,6 +142,10 @@ function M.render(ctx)
             local rate = math.floor((state.session.catches / state.session.attempts) * 100)
             row("Catch rate", rate .. "%", c_green)
         end
+        if hours > 0.02 then
+            local cph = math.floor(state.session.catches / hours)
+            row("Catches/hr", tostring(cph) .. "/h", c_green)
+        end
 
         -- Misses / escapes (only shown if non-zero)
         if state.session.misses > 0 then
@@ -156,6 +160,10 @@ function M.render(ctx)
         -- Item categories
         local stats = state.session.stats
         row("Fish",       tostring(stats.fish_count), c_green)
+        if hours > 0.02 then
+            local fph = math.floor(stats.fish_count / hours)
+            row("Fish / hr",  tostring(fph) .. "/h", c_green)
+        end
         row("Junk",       tostring(stats.gray_count), c_gray)
 
         -- Top items caught (up to 6)
