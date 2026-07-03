@@ -23,7 +23,12 @@ function M.render_menu(ctx)
 
     if not C.brand then init_colors(color) end
 
-    local h = core.menu.header()
+    local h = nil
+    if core and core.menu and type(core.menu.header) == "function" then
+        local ok, result = pcall(core.menu.header)
+        if ok and result then h = result end
+    end
+    if not h then return end  -- Can't render without header API
 
     config.menu.root:render("Eax's Fishing", function()
 
@@ -44,6 +49,10 @@ function M.render_menu(ctx)
             "Enables a randomised behavior profile that shifts your timing every 15-25 min so no two sessions look the same.")
         config.menu.ultra_safe_mode:render("Ultra-Safe Mode",
             "Pushes all delays to maximum. Recommended on high-value or watched accounts.")
+        config.menu.cast_jitter_enabled:render("Cast Jitter",
+            "Applies a small random facing offset before each cast so bobbers land in different spots.")
+        config.menu.cast_jitter_degrees:render("Jitter Range (y)",
+            "How far the bobber landing can vary. Default 5y.")
 
         h:render("Cast Delays", C.sub)
         config.menu.cast_delay_min_ms:render("Min delay after catch (ms)",
@@ -80,6 +89,17 @@ function M.render_menu(ctx)
             "Randomly misses 1 in ~25 catches after a streak of 5+. Looks human.")
         config.menu.enable_fish_escape:render("Fish Escape Window",
             "If you don't click within the escape window, the fish gets away.")
+
+        -- Z-dip fallback (Sylvanas bobber:does_bobber_have_fish is broken)
+        h:render("Bite Detection (Fallback)", C.sub)
+        config.menu.dip_bite_fallback:render("Z-Dip Splash Detection",
+            "Detects bites by the bobber diving below its rest line. Needed while Sylvanas' bobber:does_bobber_have_fish() is broken. Keep ON.")
+        config.menu.dip_threshold:render("Dip Sensitivity (x10 yd)",
+            "How far the bobber must drop to count as a bite. Default 10 = 0.10yd. Raise if false-clicks; lower if missed bites.")
+
+        h:render("Session Limits", C.sub)
+        config.menu.session_time_limit:render("Auto-Stop After (min)",
+            "Hard-stops fishing after this many minutes (0 = no limit).")
 
         -- ── Pool Routing ───────────────────────────────────────────────────
         h:render("POOL ROUTING", C.section)

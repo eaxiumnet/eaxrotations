@@ -23,11 +23,19 @@ function M.create(now)
             next_cast_time = 0.0,
             next_break_time = 0.0,
             consecutive_catches = 0,
-            look_at_delay_end = 0.0,
-            stand_still_since = 0.0,  -- Track when player started standing still
             no_lure_warned = false,   -- Track if we already warned about no lures
-            bobber_last_seen = 0,
-            last_bobber_obj = nil,
+            -- Z-dip bite-detection fallback (Sylvanas does_bobber_have_fish
+            -- is broken — always false). Baseline the bobber's resting Z after
+            -- a cast; a splash dips it below baseline.
+            bobber_z_baseline = nil,
+            dip_confirm_count = 0,
+            bobber_found_time = 0.0,
+            bite_window_timeout_click = false,
+            -- Sticky: once a Z-dip bite is confirmed for THIS bobber, keep
+            -- reporting a bite until the click reels it in (prevents a
+            -- transient dip-recovery frame from aborting a real bite
+            -- mid-reaction-window).
+            dip_triggered = false,
         },
         
         -- Bite detection state
@@ -49,9 +57,7 @@ function M.create(now)
         
         -- Equipment state
         equip = {
-            pole_delay_end = 0.0,
             pole_equip_delay_end = 0.0,
-            lure_delay_end = 0.0,
             pre_main_hand_id = nil,
             pre_off_hand_id = nil,
             last_reequip_time = 0.0,
@@ -78,26 +84,13 @@ function M.create(now)
             full_confirm_count = 0,
             next_alert_time = 0.0,
             next_space_check_time = 0.0,
-            cached_free_slots = nil,
-            last_helper_free = nil,
-            last_fallback_free = nil,
-            last_total_slots = 0,
-            last_used_slots = 0,
-            last_slot_data_unreliable = false,
-            next_slot_warn_time = 0.0,
+            safety_lock_active = false,
+            _last_debug_log = 0.0,
         },
         
         -- Anti-AFK state
         anti_afk = {
             next_pulse_time = 0.0,
-        },
-        
-        -- Auto-delete state
-        auto_delete = {
-            next_scan_time = 0.0,
-            next_api_warn_time = 0.0,
-            blacklist_cache = "",
-            blacklist_ids = {},
         },
         
         -- Profile/behavior state
@@ -111,6 +104,7 @@ function M.create(now)
         -- Lure tracking state
         lure = {
             assumed_expire_time = 0.0,
+            next_dbg_time = 0.0,
             lure_apply_delay_end = 0.0,
         },
         
@@ -138,6 +132,8 @@ function M.create(now)
             catches      = 0,
             misses       = 0,   -- deliberate misses (humanizer)
             escaped      = 0,   -- fish that got away
+            end_time     = 0.0, -- calculated on first enable if session limit is set
+            time_limit_warned = false,
             stats = {
                 fish_count   = 0,       -- total fish items looted
                 gray_count   = 0,       -- total gray items looted
@@ -170,6 +166,7 @@ function M.reset_shoreline_solver_cache(state)
 end
 
 --- Reset all fishing state (for disable/stop)
+-- Clears timers and flags so re-enable starts from a clean slate.
 -- @param state table
 function M.reset_fishing(state)
     state.fishing.status = "Idle"
@@ -179,9 +176,26 @@ function M.reset_fishing(state)
     state.fishing.consecutive_catches = 0
     state.fishing.next_cast_time = 0.0
     state.fishing.next_break_time = 0.0
-    state.fishing.stand_still_since = 0.0
     state.fishing.no_lure_warned = false
-    state.safety.hard_stop = false  -- Reset safety stop on manual disable
+    -- Clear Z-dip fallback tracking so the next cast re-baselines fresh.
+    state.fishing.bobber_z_baseline = nil
+    state.fishing.dip_confirm_count = 0
+    state.fishing.bobber_found_time = 0.0
+    state.fishing.bite_window_timeout_click = false
+    state.fishing.dip_triggered = false
+    state.safety.hard_stop = false
+    state.session.time_limit_warned = false
+    -- Clear stale equip / lure delays so they don't block re-enable
+    state.equip.upgrade_announced = false
+    state.equip.pole_equip_delay_end = 0.0
+    state.lure.lure_apply_delay_end = 0.0
+    -- Clear navigation stale state
+    state.navigation.shoreline_no_route_count = 0
+    state.navigation.pool_face_update = 0.0
+    state.navigation.pool_face_pos = nil
+    M.reset_shoreline_solver_cache(state)
+    -- Clear bag confirmation count
+    state.bag.full_confirm_count = 0
     M.reset_bite(state)
     state.loot.last_time = 0.0
     state.loot.slot_index = 0

@@ -21,6 +21,100 @@ local M = {}
 
 -- Bite state lives in ctx.state.bite and is reset via State.reset_bite(state)
 
+-- =============================================================================
+-- Z-DIP BITE-DETECTION FALLBACK
+-- =============================================================================
+-- Sylvanas' game_object:does_bobber_have_fish() currently always returns false,
+-- which leaves the bot looping on a found bobber forever (no catch). The classic
+-- reliable WoW fishing-bot signal is the bobber SPLASH: when a fish bites, the
+-- bobber dips below its resting water-line. We baseline the bobber's resting Z
+-- after it settles post-cast and confirm a bite when it dips past a threshold
+-- for a few consecutive ticks. A max bite-window timeout clicks once as a
+-- last resort so we never get stuck on a dead bobber.
+-- =============================================================================
+
+local DIP_SETTLE_S       = 1.2   -- let the bobber settle before baselining
+local DIP_CONFIRM_TICKS  = 2     -- consecutive dip samples to confirm (filters jitter)
+local BITE_WINDOW_MAX_S  = 22.0  -- last-resort click window after the bobber appears
+
+--- Z-dip splash fallback. Returns true when a bite is detected (dip confirmed
+--- OR max bite window elapsed). Sticky: once confirmed, stays true for this
+--- bobber until dip_triggered is cleared on reel-in / new cast.
+function M.check_z_dip(state, bobber, now, deps)
+    local dip_on = true
+    if deps.config.menu.dip_bite_fallback and deps.config.menu.dip_bite_fallback.get_state then
+        dip_on = deps.config.menu.dip_bite_fallback:get_state()
+    end
+    if not dip_on then return false end
+
+    -- Sticky: a bite is already confirmed for this bobber — keep reporting it
+    -- so the reaction-window click completes even if the bobber momentarily
+    -- rises back toward baseline between ticks.
+    if state.fishing.dip_triggered then return true end
+
+    local pos = APISurface.get_object_position(bobber)
+    if not pos or type(pos.z) ~= "number" then return false end
+
+    local threshold = 0.10
+    if deps.config.menu.dip_threshold and deps.config.menu.dip_threshold.get then
+        threshold = (deps.config.menu.dip_threshold:get() or 10) / 100.0
+    end
+
+    local debug_on = deps.config.menu.debug and deps.config.menu.debug.get_state
+        and deps.config.menu.debug:get_state()
+
+    -- Establish baseline after the bobber settles post-cast.
+    if state.fishing.bobber_z_baseline == nil then
+        if state.fishing.bobber_found_time == 0 then
+            state.fishing.bobber_found_time = now
+        end
+        if (now - state.fishing.bobber_found_time) < DIP_SETTLE_S then
+            return false
+        end
+        state.fishing.bobber_z_baseline = pos.z
+        state.fishing.dip_confirm_count = 0
+        if debug_on then
+            APISurface.print("[EaxFishing] dip baseline z=" .. string.format("%.3f", pos.z))
+        end
+        return false
+    end
+
+    local delta = state.fishing.bobber_z_baseline - pos.z  -- positive = dipped down
+
+    if delta >= threshold then
+        state.fishing.dip_confirm_count = state.fishing.dip_confirm_count + 1
+        if debug_on then
+            APISurface.print("[EaxFishing] dip sample delta=" .. string.format("%.3f", delta)
+                .. " count=" .. state.fishing.dip_confirm_count)
+        end
+        if state.fishing.dip_confirm_count >= DIP_CONFIRM_TICKS then
+            state.fishing.dip_triggered = true
+            state.fishing.bobber_z_baseline = nil  -- consume; next cast re-baselines
+            if debug_on then APISurface.print("[EaxFishing] Z-dip bite confirmed") end
+            return true
+        end
+    else
+        if state.fishing.dip_confirm_count > 0 then
+            state.fishing.dip_confirm_count = 0
+        end
+    end
+
+    -- Last resort: max bite window elapsed with no confirmed dip. Click once to
+    -- reel in (catch or empty) so we never loop forever on a dead bobber.
+    if state.fishing.bobber_found_time > 0 and not state.fishing.bite_window_timeout_click then
+        if (now - state.fishing.bobber_found_time) >= (DIP_SETTLE_S + BITE_WINDOW_MAX_S) then
+            state.fishing.bite_window_timeout_click = true
+            state.fishing.dip_triggered = true
+            if debug_on then
+                APISurface.print("[EaxFishing] dip: max bite window elapsed — last-resort click")
+            end
+            return true
+        end
+    end
+
+    return false
+end
+
 --- Main update tick
 function M.tick(ctx)
     local state = ctx.state
@@ -139,8 +233,12 @@ function M.tick(ctx)
                 if bobber then
                     state.fishing.failed_cast_count = 0
 
-                    -- Documented bite detection
+                    -- Documented bite detection (currently broken on Sylvanas:
+                    -- always returns false). Fall back to Z-dip splash detection.
                     local has_fish = APISurface.does_bobber_have_fish(bobber)
+                    if not has_fish then
+                        has_fish = M.check_z_dip(state, bobber, now, deps)
+                    end
 
                     if has_fish then
                         if not state.bite.pending then
@@ -610,6 +708,14 @@ function M.tick(ctx)
                 state.fishing.awaiting_bobber = true
                 state.fishing.last_action_time = now
                 state.fishing.status = "Casting..."
+                -- Fresh cast: clear all Z-dip fallback state so the new bobber
+                -- baselines cleanly and a stale dip_triggered doesn't fire a
+                -- phantom bite on the new (splash-less) bobber.
+                state.fishing.dip_triggered = false
+                state.fishing.bobber_z_baseline = nil
+                state.fishing.dip_confirm_count = 0
+                state.fishing.bobber_found_time = 0.0
+                state.fishing.bite_window_timeout_click = false
                 Behavior.apply_random_wait(ctx, 1.0, 2.5)
             else
                 state.fishing.failed_cast_count = state.fishing.failed_cast_count + 1
