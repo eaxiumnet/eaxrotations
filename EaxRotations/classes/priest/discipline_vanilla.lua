@@ -540,7 +540,7 @@ local healing_strategies = {
         if not context.in_combat then return false end
         if context.player_control_locked or context.is_moving then return false end
         if not _check_pushback(context) then return false end
-        if context.settings.disc_use_friendly_target == false then return false end
+        if context.settings and context.settings.disc_use_friendly_target == false then return false end
         local threshold = (context.settings and context.settings.disc_friendly_target_threshold) or 90
         local ft = NS.get_friendly_target_entry(context)
         if not ft or not ft.unit then return false end

@@ -243,7 +243,7 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
-            if context.settings.smite_use_shadowfiend == false then return false end
+            if context.settings and context.settings.smite_use_shadowfiend == false then return false end
             if state.mana_pct > (context.settings.smite_shadowfiend_mana or 35) then return false end
             return state.shadowfiend_ready
         end,
@@ -314,7 +314,7 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
-            if context.settings.smite_use_power_infusion == false then return false end
+            if context.settings and context.settings.smite_use_power_infusion == false then return false end
             if state.mana_emergency then return false end
             -- Only use when Holy Fire is ready (max burst value)
             if not state.hf_ready then return false end
@@ -333,7 +333,7 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
-            if context.settings.smite_use_inner_focus == false then return false end
+            if context.settings and context.settings.smite_use_inner_focus == false then return false end
             if state.has_inner_focus then return false end
             if not state.inner_focus_ready then return false end
             -- Pair with HF, then MB (if enabled), then Smite as last resort
@@ -354,7 +354,7 @@ local strategies = {
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
             if state.mana_emergency then return false end
-            if context.settings.smite_use_starshards == false then return false end
+            if context.settings and context.settings.smite_use_starshards == false then return false end
             return spell_exists(SPELLS.Starshards) and spell_ready(SPELLS.Starshards, context.target)
         end,
         execute = function(context)
@@ -370,7 +370,7 @@ local strategies = {
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
             if state.mana_emergency then return false end
-            if context.settings.smite_use_devouring_plague == false then return false end
+            if context.settings and context.settings.smite_use_devouring_plague == false then return false end
             if context.ttd > 0 and context.ttd < 8 then return false end
             if state.dp_remaining > 3 then return false end
             return spell_exists(SPELLS.DevouringPlague) and spell_ready(SPELLS.DevouringPlague, context.target)
@@ -386,7 +386,7 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
-            if context.settings.smite_use_mb == false then return false end
+            if context.settings and context.settings.smite_use_mb == false then return false end
             if context.is_moving then return false end
             if state.mana_emergency then return false end
             if state.mana_low then return false end
@@ -405,7 +405,7 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
-            if context.settings.smite_use_swd == false then return false end
+            if context.settings and context.settings.smite_use_swd == false then return false end
             if state.mana_emergency then return false end
             if not state.swd_safe then return false end
             -- Threat safety: skip optional shadow spells if tank threat unsafe

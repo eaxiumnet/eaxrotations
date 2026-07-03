@@ -402,9 +402,9 @@ local strategies = {
   name = "EmergencyPWS",
   matches = function(context, state)
    if context.player_control_locked then return false end
-   if context.settings.holy_use_pws == false then return false end
+   if context.settings and context.settings.holy_use_pws == false then return false end
    -- Tank-only gate: when disc_shield_tank_only is set, only shield the tank
-   if context.settings.disc_shield_tank_only then
+   if context.settings and context.settings.disc_shield_tank_only then
     if not state.tank then return false end
     if (state.tank.effective_hp or 100) > (context.settings.holy_pws_hp or 30) then return false end
     if state.tank.has_weakened_soul then return false end
@@ -483,7 +483,7 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if context.settings.holy_use_coh == false then return false end
+   if context.settings and context.settings.holy_use_coh == false then return false end
    if not state.coh_ready then return false end
    return (state.group_damaged_count or 0) >= (context.settings.holy_aoe_count or 3)
   end,
@@ -497,7 +497,7 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked or context.is_moving then return false end
-   if context.settings.holy_use_binding_heal == false then return false end
+   if context.settings and context.settings.holy_use_binding_heal == false then return false end
    if context.hp > (context.settings.holy_binding_self_hp or 80) then return false end
    if not state.lowest or state.lowest.is_player then return false end
    if not spell_exists(SPELLS.BindingHeal) or not spell_ready(SPELLS.BindingHeal, state.lowest.unit) then return false end
@@ -516,7 +516,7 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked or context.is_moving then return false end
-   if context.settings.holy_use_poh == false then return false end
+   if context.settings and context.settings.holy_use_poh == false then return false end
    if not state.prayer_of_healing_ready then return false end
    -- Use subgroup count for PoH (only counts your party in raids)
    local poh_count = state.subgroup_damaged_count or state.group_damaged_count
@@ -559,7 +559,7 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if context.settings.holy_use_inner_focus == false then return false end
+   if context.settings and context.settings.holy_use_inner_focus == false then return false end
    if state.has_inner_focus then return false end
    if not spell_exists(SPELLS.InnerFocus) or not spell_ready(SPELLS.InnerFocus, NS.PLAYER_UNIT) then return false end
    if not state.lowest then return false end
@@ -574,7 +574,7 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if context.settings.holy_use_lightwell == false then return false end
+   if context.settings and context.settings.holy_use_lightwell == false then return false end
    if not state.lightwell_ready then return false end
    -- Only place Lightwell when raid HP is under sustained pressure (3+ injured)
    return (state.group_damaged_count or 0) >= (context.settings.holy_aoe_count or 3)
@@ -634,7 +634,7 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if context.settings.holy_use_desperate_prayer == false then return false end
+   if context.settings and context.settings.holy_use_desperate_prayer == false then return false end
    if context.hp > (context.settings.holy_desp_prayer_hp or 30) then return false end
    if not spell_exists(SPELLS.DesperatePrayer) or not spell_ready(SPELLS.DesperatePrayer, NS.PLAYER_UNIT) then return false end
    return true
@@ -650,8 +650,8 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if not context.settings.use_shadowfiend then
-    if context.settings.use_shadowfiend == nil and context.settings.use_cooldowns == false then return false end
+   if context.settings and not context.settings.use_shadowfiend then
+    if context.settings and context.settings.use_shadowfiend == nil and context.settings.use_cooldowns == false then return false end
    end
    if not state.shadowfiend_ready then return false end
    -- Mana floor gate: only use Shadowfiend when mana is actually low
@@ -666,7 +666,7 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if context.settings.use_party_dispel == false then return false end
+   if context.settings and context.settings.use_party_dispel == false then return false end
    if not state.dispel_magic_ready then return false end
    if context.mana_pct < (context.settings.party_dispel_mana_floor or 30) then return false end
    -- Dispel dangerous magic debuffs on tank first, then lowest ally

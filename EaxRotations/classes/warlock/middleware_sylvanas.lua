@@ -175,7 +175,7 @@ local strategies = {
     },        {
             name = "ThreatDrop",
             matches = function(context)
-                if context.settings.use_threat_drop == false then return false end
+                if context.settings and context.settings.use_threat_drop == false then return false end
                 if not context.in_combat then return false end
                 -- Only when threat is high (90%+)
                 if context.threat_pct and context.threat_pct < 90 then return false end
