@@ -553,7 +553,7 @@ local function windfury_twist_matches(ctx)
     if not enh_state.windfury_totem_ready then return false end
     if totem_state.next_air ~= "windfury" then return false end
     -- Enhanced: only drop when current air totem is expiring (< 3s) or none active
-    if totem_state.air_totem_remains > 3 then return false end
+    if (totem_state.air_totem_remains or 0) > 3 then return false end
     return not (NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, SPELLS.WindfuryTotem))
 end
 
@@ -566,7 +566,7 @@ local function grace_air_twist_matches(ctx)
     if not enh_state.grace_of_air_totem_ready then return false end
     if totem_state.next_air ~= "grace" then return false end
     -- Enhanced: only drop when current air totem is expiring (< 3s) or none active
-    if totem_state.air_totem_remains > 3 then return false end
+    if (totem_state.air_totem_remains or 0) > 3 then return false end
     return not (NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, SPELLS.GraceOfAirTotem))
 end
 
