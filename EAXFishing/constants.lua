@@ -26,16 +26,16 @@ constants.SPELLS = {
 
 constants.ITEMS = {
     FISHING_POLE = 6256,
+    -- Ordered best-first by fishing-skill bonus (DBC-verified equip spells):
     FISHING_POLES = {
-        19970, -- Arcanite Fishing Pole        (+40)
-        34077, -- Jeweled Fishing Pole          (+35, TBC)
-        19022, -- Nat Pagle's Extreme Angler   (+25)
-        25978, -- Seth's Graphite Fishing Pole  (+20)
-        12225, -- Blump Family Fishing Pole     (+20)
-        6367,  -- Big Iron Fishing Pole         (+20)
-        6366,  -- Darkwood Fishing Pole         (+15)
-        6365,  -- Strong Fishing Pole           (+5)
-        6256,  -- Fishing Pole
+        19970, -- Arcanite Fishing Pole         (+35, spell 24301)
+        19022, -- Nat Pagle's Extreme Angler    (+25, spell 8082)
+        25978, -- Seth's Graphite Fishing Pole   (+20, spell 7826)
+        6367,  -- Big Iron Fishing Pole         (+20, spell 7826)
+        6366,  -- Darkwood Fishing Pole         (+15, spell 7825)
+        6365,  -- Strong Fishing Pole           (+5,  spell 7823)
+        12225, -- Blump Family Fishing Pole     (+3,  spell 15956)
+        6256,  -- Fishing Pole                  (basic, +0)
     },
     SHINY_BAUBLE = 6529,
     LURES = {
