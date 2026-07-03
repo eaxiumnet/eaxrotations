@@ -3,29 +3,9 @@
 -- Uses APISurface for all runtime API calls
 -- =============================================================================
 
-local State = require("core/state")
 local APISurface = require("core/api_surface")
 
 local M = {}
-
--- Lure buff IDs
-local LURE_BUFF_IDS = {
-    8087, 8088, 8089, 8090, 8532, -- Classic lures
-    7778, 7779, 25163, -- Legacy
-}
-
-local LURE_BUFF_ID_SET = {}
-for _, id in ipairs(LURE_BUFF_IDS) do
-    LURE_BUFF_ID_SET[id] = true
-end
-
--- Lure enchant IDs (temporary enchant)
-local TEMP_LURE_ENCHANT_IDS = {
-    [263] = true, -- Fishing Lure +25
-    [264] = true, -- Fishing Lure +50
-    [265] = true, -- Fishing Lure +75
-    [266] = true, -- Fishing Lure +100
-}
 
 -- Lure assumed durations (item_id -> seconds)
 local LURE_ASSUMED_DURATION = {
@@ -34,6 +14,7 @@ local LURE_ASSUMED_DURATION = {
     [6811] = 600.0, -- Aquadynamic Fish Lens
     [6532] = 600.0, -- Bright Baubles
     [6533] = 300.0, -- Aquadynamic Fish Attractor
+    [7307] = 600.0, -- Flesh Eating Worm (+75, TBC lure, req. 100 fishing)
 }
 
 local DEFAULT_LURE_DURATION = 420.0
@@ -115,6 +96,7 @@ local LURE_ITEMS = {
     { id = 6533,  name = "Aquadynamic Fish Attractor", bonus = 100 }, -- vendor/AH
     { id = 34861, name = "Sharpened Fish Hook",         bonus = 100 }, -- TBC Engineering (BoP)
     { id = 6532,  name = "Bright Baubles",              bonus = 75  }, -- vendor
+    { id = 7307,  name = "Flesh Eating Worm",           bonus = 75  }, -- TBC drop lure (enchant 265)
     { id = 6811,  name = "Aquadynamic Fish Lens",       bonus = 50  }, -- vendor
     { id = 6530,  name = "Nightcrawlers",               bonus = 50  }, -- vendor
     { id = 6529,  name = "Shiny Bauble",                bonus = 25  }, -- vendor
