@@ -348,6 +348,8 @@ local ARMS_SCHEMA = {
     retaliation_ready = false,
     shield_wall_ready = false,
     execute_phase = false,
+    is_boss = false,            -- [#fix-2] Death Wish boss-burst gate
+    target_hp_pct = 100,       -- [#fix-2] Death Wish boss-burst gate (>20%)
     mh_until = 999,
     mh_progress = 0,
     healthstone_ready = false,
@@ -424,6 +426,9 @@ local function build_state(context)
     arms_state.retaliation_ready = NS.spell_ready(ACTION.Retaliation, me, { skip_range = true }) or false
     arms_state.shield_wall_ready = NS.spell_ready(ACTION.ShieldWall, me, { skip_range = true }) or false
 
+    -- [#fix-2] boss flag + target HP pct for Death Wish boss-burst gate
+    arms_state.is_boss = target and bool_call(target, "is_boss") or false
+    arms_state.target_hp_pct = arms_state.target_hp or context.target_hp or 100
     arms_state.execute_phase = execute_phase(context, arms_state)
 
     -- Healthstone: find first available healthstone in bags
