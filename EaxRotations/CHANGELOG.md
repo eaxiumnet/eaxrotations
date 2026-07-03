@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.3.8 - 2026-07-03
+
+### Bug Fixes
+- **Mage — Fire**: `state.has_clearcasting` now populated in `build_state`; Clearcasting proc is consumed on Fireball.
+- **Warrior — Arms**: `state.is_boss` + `target_hp_pct` populated in `ARMS_SCHEMA`/`build_state`; Death Wish boss-burst gate (target >20% HP) now fires.
+- **Druid — Bear**: `state.is_rooted`/`is_snared` populated via `safe_method`; Nature's Grasp PvP peel now triggers when CC'd.
+- **Warlock — Demonology**: `demo_state.in_combat` populated; Pet state matchers no longer rely on stale reference.
+
+### API Compliance
+- **is_boss**: All call sites now prefer `context.target_is_boss` (accurate, via `unit_helper:is_boss()`) and fall back to `NS.unit_is_boss()`, never the raw inaccurate `target:is_boss()`.
+- **is_tank**: `core_sylvanas:is_tank_unit` now prefers accurate `NS.unit_is_tank()` (`unit_helper:is_tank()`) before falling back to raw `unit:is_tank()` + role heuristic.
+
+### Healer Dispel Throttle (v2.3.7)
+- All 4 healer specs throttle dispels/cleanses to 3-second intervals, preventing rapid-fire casts on stale debuff data.
+
+### Quality & Reliability
+- 219 rotation test suites — all passing
+- 13 leveling rotation suites — all passing
+- All changes are backward compatible. No settings reset required.
+
 ## 2.3.1 - 2026-07-02
 
 ### PvP DR Gating Fixes
