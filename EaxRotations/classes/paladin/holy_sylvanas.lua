@@ -461,7 +461,7 @@ local function build_state(context)
  choose_blessing(context, state)
  choose_aura(context, state)
  -- Use Triage scoring when available for smarter target selection
- if Triage and Triage.rank and state.count > 1 then
+ if Triage and Triage.rank and (state.count or 0) > 1 then
   local ranked = Triage.rank(entries, state.count, context.settings)
   if ranked and ranked[1] then
    state.heal_target = ranked[1]
