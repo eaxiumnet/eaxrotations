@@ -7,14 +7,23 @@
 
 local M = {}
 
+local function _is_boss(context)
+    -- Prefer the accurately-computed context value (main_sylvanas sets it via
+    -- NS.unit_is_boss → unit_helper:is_boss; the raw target:is_boss() is
+    -- documented as inaccurate — see game-object.md). Fall back to the helper.
+    if context and context.target_is_boss == true then return true end
+    local NS = _G.EaxRotations
+    local has_helper = NS and NS.unit_is_boss ~= nil
+    if context and context.target and has_helper then
+        return NS.unit_is_boss(context.target) == true
+    end
+    return false
+end
+
 function M.should_use_long_cd(context, spell_cooldown_seconds)
     if not context or not context.combat_length_forecast then return true end
     local forecast = context.combat_length_forecast
-    local is_boss = false
-    if context.target and type(context.target.is_boss) == "function" then
-        is_boss = context.target:is_boss() == true
-    end
-    if is_boss then return true end
+    if _is_boss(context) then return true end
     if spell_cooldown_seconds >= 180 and forecast < 60 then return false end
     if spell_cooldown_seconds >= 120 and forecast < 45 then return false end
     if spell_cooldown_seconds >= 60 and forecast < 30 then return false end

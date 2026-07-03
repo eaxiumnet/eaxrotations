@@ -427,7 +427,7 @@ local function build_state(context)
     arms_state.shield_wall_ready = NS.spell_ready(ACTION.ShieldWall, me, { skip_range = true }) or false
 
     -- [#fix-2] boss flag + target HP pct for Death Wish boss-burst gate
-    arms_state.is_boss = target and bool_call(target, "is_boss") or false
+    arms_state.is_boss = context.target_is_boss == true or (NS.unit_is_boss and NS.unit_is_boss(target)) or false
     arms_state.target_hp_pct = arms_state.target_hp or context.target_hp or 100
     arms_state.execute_phase = execute_phase(context, arms_state)
 
