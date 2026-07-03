@@ -35,6 +35,16 @@ M.MAX_QUEUE_SIZE = 50
 -- Minimum delay between crafts (seconds) to respect GCD
 M.CRAFT_COOLDOWN_S = 0.8
 
+-- Skill-difficulty types that yield skill ups (WoW TradeSkill).
+-- 'optimal' = orange, 'medium' = yellow → both grant skill points.
+-- 'easy' (green) / 'trivial' (grey) → no skill gain, skip in skill-gain mode.
+local SKILL_UP_TYPES = { optimal = true, medium = true }
+local function is_skill_up_recipe(recipe_type)
+  -- nil/unknown allowed (older clients may not populate type) → treat as skill-up eligible
+  if not recipe_type or recipe_type == "" then return true end
+  return SKILL_UP_TYPES[recipe_type] == true
+end
+
 -- -----------------------------------------------------------------------------
 -- Internal: Build skill-to-enum mapping from PROFESSION_ENUM
 -- -----------------------------------------------------------------------------
@@ -243,8 +253,9 @@ end
 -- @param skill_id integer  SkillLine.dbc ID
 -- @param recipe_name string  Recipe name (substring match)
 -- @param count? integer  Number to craft (default 1)
+-- @param skill_gain_only? boolean  Skip recipes that no longer grant skill ups
 -- @return boolean  true if the craft was issued
-function M.craft_by_name(skill_id, recipe_name, count)
+function M.craft_by_name(skill_id, recipe_name, count, skill_gain_only)
   if not M.can_craft_profession(skill_id) then return false end
   if type(recipe_name) ~= "string" then return false end
   count = count or 1
@@ -255,6 +266,9 @@ function M.craft_by_name(skill_id, recipe_name, count)
   -- Find the recipe
   local recipe = M.find_recipe(skill_id, recipe_name)
   if not recipe then return false end
+
+  -- Skill-gain filter: skip grey/green recipes when in skill-gain mode
+  if skill_gain_only and not is_skill_up_recipe(recipe.type) then return false end
 
   -- Check reagents and cooldown
   if not M.has_reagents(recipe.index) then return false end
@@ -299,8 +313,9 @@ end
 --- Craft an enchant by name (uses the Craft UI, not TradeSkill).
 -- @param skill_id integer  Should be 333 (Enchanting)
 -- @param recipe_name string  Enchant name (substring match)
+-- @param skill_gain_only? boolean  Skip recipes that no longer grant skill ups
 -- @return boolean  true if the craft was issued
-function M.craft_enchant_by_name(skill_id, recipe_name)
+function M.craft_enchant_by_name(skill_id, recipe_name, skill_gain_only)
   if not M.can_craft_profession(skill_id) then return false end
   if type(recipe_name) ~= "string" then return false end
 
@@ -308,6 +323,9 @@ function M.craft_enchant_by_name(skill_id, recipe_name)
 
   local recipe = M.find_craft_recipe(recipe_name)
   if not recipe then return false end
+
+  -- Skill-gain filter (Craft UI type uses the same optimal/medium/easy/trivial scheme)
+  if skill_gain_only and not is_skill_up_recipe(recipe.type) then return false end
 
   local ok = APISurface.do_craft(recipe.index)
   if ok then
@@ -323,8 +341,9 @@ end
 -- and no cooldown, up to `max_per_recipe` copies each.
 -- @param skill_id integer  SkillLine.dbc ID
 -- @param max_per_recipe? integer  Max copies per recipe (default 1)
+-- @param skill_gain_only? boolean  Skip recipes that no longer grant skill ups
 -- @return integer  total number of crafts issued
-function M.craft_all(skill_id, max_per_recipe)
+function M.craft_all(skill_id, max_per_recipe, skill_gain_only)
   if not M.can_craft_profession(skill_id) then return 0 end
   max_per_recipe = max_per_recipe or 1
 
@@ -334,7 +353,8 @@ function M.craft_all(skill_id, max_per_recipe)
   local total = 0
 
   for _, recipe in ipairs(recipes) do
-    if recipe.cooldown <= 0 and recipe.num_available > 0 then
+    if recipe.cooldown <= 0 and recipe.num_available > 0
+       and (not skill_gain_only or is_skill_up_recipe(recipe.type)) then
       local count = math.min(recipe.num_available, max_per_recipe)
       if M.has_reagents(recipe.index) then
         if APISurface.do_trade_skill(recipe.index, count) then

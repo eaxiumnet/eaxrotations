@@ -42,6 +42,7 @@ else
   local known_tests = {
     "test_api_surface.lua",
     "test_crafting_engine.lua",
+    "test_skill_gain_and_menu.lua",
   }
   for _, file in ipairs(known_tests) do
     local path = root .. "/" .. file

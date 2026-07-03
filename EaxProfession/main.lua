@@ -65,16 +65,21 @@ function on_update()
     CraftingEngine.open_profession(skill_id)
   end
 
+  -- Skill-gain mode: when enabled, only orange/yellow recipes (skill-ups) are
+  -- eligible. This passes a filter hint to the crafting engine so it skips
+  -- grey/green recipes that would waste reagents for no skill gain.
+  local skill_gain = Menu.is_skill_gain_mode()
+
   -- Execute the selected crafting mode
   if Menu.is_mass_craft() then
-    CraftingEngine.craft_all(skill_id, Menu.get_craft_count())
+    CraftingEngine.craft_all(skill_id, Menu.get_craft_count(), skill_gain)
   else
     local filter = Menu.get_recipe_filter()
     if filter and filter ~= "" then
       if Constants.CRAFT_UI_SKILLS[skill_id] then
-        CraftingEngine.craft_enchant_by_name(skill_id, filter)
+        CraftingEngine.craft_enchant_by_name(skill_id, filter, skill_gain)
       else
-        CraftingEngine.craft_by_name(skill_id, filter, Menu.get_craft_count())
+        CraftingEngine.craft_by_name(skill_id, filter, Menu.get_craft_count(), skill_gain)
       end
     end
   end
@@ -82,11 +87,12 @@ end
 
 -- -----------------------------------------------------------------------------
 -- on_render_menu — Draw the menu UI (called by Sylvanas when menu is open)
+-- Delegates to Menu.render() which draws the tree_node + all widgets.
+-- Previously referenced an undefined global `_menu` (it was file-local in
+-- menu.lua) so the menu NEVER rendered. Now fixed.
 -- -----------------------------------------------------------------------------
 function on_render_menu()
-  if _menu and _menu.window then
-    _menu.window:render()
-  end
+  Menu.render()
 end
 
 -- -----------------------------------------------------------------------------
