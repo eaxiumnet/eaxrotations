@@ -409,6 +409,9 @@ local function build_state(context)
     end
     state.is_target_boss = context.target_is_boss == true or safe_method(state.target, "is_boss", false) == true
     state.is_target_player = context.target_is_player == true or unit_is_player(state.target)
+    -- [#fix-3] player self root/snare for NaturesGraspPvP peel (never set before → dead strategy)
+    state.is_rooted = safe_method(state.me, "is_rooted", false) == true
+    state.is_snared = safe_method(state.me, "is_snared", false) == true
     state.target_is_casting = target_is_casting(state.target)
     state.target_interruptible = target_cast_interruptible(state.target)
 
