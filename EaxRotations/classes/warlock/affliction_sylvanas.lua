@@ -52,6 +52,9 @@ local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
 local SOULSHATTER_BUFF       = { 29858 }
 local FEL_ARMOR_BUFF         = { 28189, 28176 }
+-- Imp Firebolt spell IDs (all ranks). Only the Imp has Firebolt, so these also
+-- identify the active pet as an Imp.
+local IMP_FIREBOLT_IDS       = { 3110, 7799, 7800, 7801, 7802, 11762, 11763, 27267 }
 
 local DOT_REFRESH_WINDOW = 1.5   -- refresh within last 1.5s per Research Angle 1 (clip <1.5s)
 local SOUL_SHARD_CAPTURE_TTD = 5  -- TBC: Drain Soul is shard-capture only (mob about to die); sub-25% execute is Wrath, not TBC
@@ -126,6 +129,8 @@ local aff_state = {
     pet_alive = false,
     pet_health = 100,
     pet_mana = 100,
+    pet_type_imp = false,
+    pet_casting_firebolt = false,
     -- Items
     mana_potion_id = nil,
     healthstone_id = nil,
@@ -185,6 +190,29 @@ local function build_state(context)
                 aff_state.pet_mana = 100
             end
             aff_state.has_pet = aff_state.pet_alive
+            -- Imp Machine Gun detection: only the Imp has Firebolt
+            aff_state.pet_casting_firebolt = false
+            aff_state.pet_type_imp = false
+            if pet and aff_state.pet_alive then
+                if pet.is_casting_spell and pet:is_casting_spell() and pet.get_active_spell_id then
+                    local sid = pet:get_active_spell_id()
+                    if type(sid) == "number" then
+                        for _, id in ipairs(IMP_FIREBOLT_IDS) do
+                            if sid == id then
+                                aff_state.pet_casting_firebolt = true
+                                aff_state.pet_type_imp = true
+                                break
+                            end
+                        end
+                    end
+                end
+                if not aff_state.pet_type_imp and pet.get_name then
+                    local ok_name, name = pcall(pet.get_name, pet)
+                    if ok_name and type(name) == "string" then
+                        aff_state.pet_type_imp = name:lower():find("imp") ~= nil
+                    end
+                end
+            end
             aff_state.has_demonic_sacrifice = context.me and NS.buff_up and NS.buff_up(context.me, {18789, 18790, 18791, 18792, 35701}) or false
             -- Amplify Curse readiness
             aff_state.amplify_curse_ready = NS.spell_ready(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, { skip_range = true })

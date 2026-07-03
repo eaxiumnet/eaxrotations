@@ -17,6 +17,53 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 
 local BASE_SPELLS = NS.DruidSpells or {}
 local SPELLS = BASE_SPELLS
+-- Form detection diagnostic: logs all detection methods once at startup (debug only)
+local _form_diag_logged = false
+local function dump_form_detection()
+    if _form_diag_logged then return end
+    _form_diag_logged = true
+    if not NS.debug then return end
+    local me = NS.GetPlayer and NS.GetPlayer()
+    if not me or not NS.log then return end
+    local cat_form_buff_id = 768
+    local bear_form_buff_ids = { 5487, 9634 }
+    local moonkin_form_buff_id = 24858
+    -- Method 1: engine-level get_shapeshift_form_id
+    local form_id = -1
+    if core and core.spell_book and core.spell_book.get_shapeshift_form_id then
+        local ok, id = pcall(core.spell_book.get_shapeshift_form_id)
+        if ok then form_id = id end
+    end
+    NS.log("[FORM_DIAG] 1. get_shapeshift_form_id() = " .. tostring(form_id) .. " (0=caster,1=bear,3=cat,4=travel)")
+    -- Method 2-4: NS.has_form by name
+    NS.log("[FORM_DIAG] 2. NS.has_form('cat') = " .. tostring(NS.has_form and NS.has_form("cat")))
+    NS.log("[FORM_DIAG] 3. NS.has_form('bear') = " .. tostring(NS.has_form and NS.has_form("bear")))
+    NS.log("[FORM_DIAG] 4. NS.has_form('moonkin') = " .. tostring(NS.has_form and NS.has_form("moonkin")))
+    -- Method 5: NS.get_player_stance
+    if NS.get_player_stance then
+        NS.log("[FORM_DIAG] 5. NS.get_player_stance() = " .. tostring(NS.get_player_stance()))
+    end
+    -- Method 6-8: NS.buff_up with raw buff IDs
+    NS.log("[FORM_DIAG] 6. NS.buff_up(me, " .. cat_form_buff_id .. ") [CatForm buff] = " .. tostring(NS.buff_up and NS.buff_up(me, cat_form_buff_id)))
+    local bear_buff = false
+    if NS.buff_up then
+        for _, id in ipairs(bear_form_buff_ids) do
+            if NS.buff_up(me, id) then bear_buff = true; break end
+        end
+    end
+    NS.log("[FORM_DIAG] 7. NS.buff_up(me, bear_form_buffs) = " .. tostring(bear_buff))
+    NS.log("[FORM_DIAG] 8. NS.buff_up(me, moonkin=" .. moonkin_form_buff_id .. ") = " .. tostring(NS.buff_up and NS.buff_up(me, moonkin_form_buff_id)))
+    -- Method 9: has_player_buff wrapper
+    NS.log("[FORM_DIAG] 9. NS.has_player_buff(" .. cat_form_buff_id .. ") = " .. tostring(NS.has_player_buff and NS.has_player_buff(cat_form_buff_id)))
+    -- Method 10: power type detection
+    local energy = 0
+    if me.get_power then
+        local ok, e = pcall(me.get_power, me, 3)
+        if ok and type(e) == "number" then energy = e end
+    end
+    NS.log("[FORM_DIAG] 10. power_type=energy value=" .. tostring(energy) .. " (energy>0 implies cat form)")
+end
+
 
 local POUNCE = BASE_SPELLS.Pounce or (NS.spell_action and NS.spell_action({ 27006, 9827, 9005 }, "Pounce"))
 local MAIM = BASE_SPELLS.Maim or (NS.spell_action and NS.spell_action({ 22570 }, "Maim"))
@@ -667,6 +714,19 @@ local function bite_matches(context, action)
     return true
 end
 
+local function bite_trick_matches(context, action)
+    local state = build_state(context)
+    if not state.in_combat then return false end
+    if NS.setting_bool and NS.setting_bool(state.settings, "cat_use_ferocious_bite", true) == false then return false end
+    if (state.combo_points or 0) < 5 then return false end
+    local bite_max_energy = NS.setting_number and NS.setting_number(state.settings, "cat_bite_max_energy", 39) or 39
+    if (state.energy or 0) > bite_max_energy then return false end
+    if (state.energy or 0) < BITE_COST then return false end
+    if state.next_tick_in <= 0.1 then return false end
+    if state.rip_remains <= 2 and target_lives(state, MIN_RIP_TTD) then return false end
+    return true
+end
+
 local function emergency_bite_matches(context, action)
     local state = build_state(context)
     if (state.combo_points or 0) < 3 then return false end
@@ -837,6 +897,7 @@ local ACTIONS = {
     { name = "Rip", spell = SPELLS.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 3, matches = rip_matches },
     { name = "FerociousBiteExecute", spell = SPELLS.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, target_max_hp = EXECUTE_HP, matches = bite_matches },
     { name = "FerociousBiteTtd", spell = SPELLS.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, matches = emergency_bite_matches },
+    { name = "BiteTrick", spell = SPELLS.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 5, matches = bite_trick_matches },
     { name = "MaimControl", spell = MAIM, required_form = "cat", min_energy = MAIM_COST, min_combo = 3, matches = maim_control_matches },
 
     { name = "TigersFury", spell = SPELLS.TigersFury, target = "self", required_form = "cat", requires_target = false, cooldown = 30, matches = tigers_fury_matches },
