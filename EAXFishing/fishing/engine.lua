@@ -19,24 +19,7 @@ local APISurface = require("core/api_surface")
 
 local M = {}
 
--- Forward declarations
-local reset_bite
-
--- Bite state (module level)
-local bite_pending = false
-local bite_detected_time = 0
-local bite_reaction_deadline = 0
-local bite_escape_deadline = 0
-local bite_should_miss = false
-
---- Reset bite state
-reset_bite = function()
-    bite_pending = false
-    bite_detected_time = 0
-    bite_reaction_deadline = 0
-    bite_escape_deadline = 0
-    bite_should_miss = false
-end
+-- Bite state lives in ctx.state.bite and is reset via State.reset_bite(state)
 
 --- Main update tick
 function M.tick(ctx)
@@ -47,7 +30,7 @@ function M.tick(ctx)
     -- Sync control panel
     local cp_helper = APISurface.get_control_panel_helper()
     if cp_helper and cp_helper.on_update then
-        local ok = pcall(cp_helper.on_update, cp_helper, deps.config.menu)
+        pcall(cp_helper.on_update, cp_helper, deps.config.menu)
     end
     
     -- Check if enabled
@@ -87,7 +70,21 @@ function M.tick(ctx)
         APISurface.print("[EaxFishing] First enable - initializing")
         state.profile.enabled_since_time = now
         Bags.reset_full_confirm(ctx)
-        reset_bite()
+        State.reset_bite(state)
+        -- Reset session timer and gold baseline so stats track THIS fishing session
+        state.session.start_time = now
+        state.session.stats.gold_start = nil
+        -- Calculate session end time if a limit is configured (slider in minutes)
+        local limit_mins = 0
+        if deps.config.menu.session_time_limit and deps.config.menu.session_time_limit.get then
+            limit_mins = deps.config.menu.session_time_limit:get()
+        end
+        if limit_mins > 0 then
+            state.session.end_time = now + (limit_mins * 60)
+            APISurface.print("[EaxFishing] Session limit: " .. limit_mins .. " min")
+        else
+            state.session.end_time = 0.0
+        end
     end
     state.profile.was_enabled = true
 
@@ -146,9 +143,9 @@ function M.tick(ctx)
                     local has_fish = APISurface.does_bobber_have_fish(bobber)
 
                     if has_fish then
-                        if not bite_pending then
-                            bite_pending = true
-                            bite_detected_time = now
+                        if not state.bite.pending then
+                            state.bite.pending = true
+                            state.bite.detected_time = now
                             local catch_min_ms = 150
                             local catch_max_ms = 400
                             if deps.config.menu.catch_delay_min_ms and deps.config.menu.catch_delay_min_ms.get then
@@ -159,46 +156,46 @@ function M.tick(ctx)
                             end
                             -- Scale by behavior profile so reaction time varies naturally over session
                             local reaction_s = Behavior.scaled_delay(state, now, catch_min_ms, catch_max_ms, "reaction", deps.config)
-                            bite_reaction_deadline = bite_detected_time + reaction_s
+                            state.bite.reaction_deadline = state.bite.detected_time + reaction_s
                             local allow_escape = deps.config.menu.enable_fish_escape
                                 and deps.config.menu.enable_fish_escape:get_state()
                             if allow_escape then
                                 -- Scale escape window by behavior too
                                 local escape_extra = Behavior.scaled_delay(state, now, 800, 1800, "reaction", deps.config)
-                                bite_escape_deadline = bite_reaction_deadline + escape_extra
+                                state.bite.escape_deadline = state.bite.reaction_deadline + escape_extra
                             end
                             local allow_miss = deps.config.menu.enable_missed_catches
                                 and deps.config.menu.enable_missed_catches:get_state()
                             if allow_miss and state.fishing.consecutive_catches >= 5 then
-                                bite_should_miss = math.random() < 0.04
+                                state.bite.should_miss = math.random() < 0.04
                             end
                             state.fishing.status = "Splash!"
                         end
 
-                        if bite_escape_deadline > 0 and now >= bite_escape_deadline then
+                        if state.bite.escape_deadline > 0 and now >= state.bite.escape_deadline then
                             APISurface.print("[EaxFishing] Fish got away...")
                             state.fishing.status = "Fish got away..."
                             state.session.escaped = state.session.escaped + 1
-                            reset_bite()
+                            State.reset_bite(state)
                             state.fishing.consecutive_catches = 0
                             state.fishing.awaiting_bobber = false
                             state.fishing.next_cast_time = now + (1.5 + math.random() * 1.0)
                             return
                         end
 
-                        if bite_should_miss and now >= bite_reaction_deadline then
+                        if state.bite.should_miss and now >= state.bite.reaction_deadline then
                             APISurface.print("[EaxFishing] ~~~ Deliberate miss (humanizer) ~~~")
                             state.fishing.status = "Deliberate miss..."
                             state.session.misses = state.session.misses + 1
-                            reset_bite()
+                            State.reset_bite(state)
                             state.fishing.consecutive_catches = 0
                             state.fishing.awaiting_bobber = false
                             state.fishing.next_cast_time = now + (2.0 + math.random() * 1.5)
                             return
                         end
 
-                        if now < bite_reaction_deadline then
-                            local wait_ms = (bite_reaction_deadline - now) * 1000
+                        if now < state.bite.reaction_deadline then
+                            local wait_ms = (state.bite.reaction_deadline - now) * 1000
                             state.fishing.status = "Splash! (" .. string.format("%.0f", wait_ms) .. "ms)..."
                             return
                         end
@@ -208,7 +205,7 @@ function M.tick(ctx)
                         if success then
                             state.fishing.last_action_time = now
                             state.fishing.awaiting_bobber = false
-                            reset_bite()
+                            State.reset_bite(state)
                             state.fishing.consecutive_catches = state.fishing.consecutive_catches + 1
                             state.session.catches = state.session.catches + 1
                             state.fishing.status = "Caught! (" .. state.session.catches .. ")"
@@ -216,7 +213,7 @@ function M.tick(ctx)
                         end
                         return
                     else
-                        if bite_pending then reset_bite() end
+                        if state.bite.pending then State.reset_bite(state) end
                         state.fishing.status = "Fishing..."
                         return
                     end
@@ -277,6 +274,7 @@ function M.tick(ctx)
             if Bags.get_full_confirm_count(ctx) >= 3 then
                 state.fishing.status = "Bags Full - Stopped"
                 state.safety.hard_stop = true
+                state.bag.safety_lock_active = true
                 -- Disable via menu
                 if deps.config.menu.enabled and deps.config.menu.enabled.set_state then
                     deps.config.menu.enabled:set_state(false)
@@ -304,7 +302,11 @@ function M.tick(ctx)
         state.lure.assumed_expire_time = 0.0
         Gear.snapshot_weapons(ctx, me)
 
-        if deps.config.menu.auto_equip:get_state() then
+        local auto_equip_on = true
+        if deps.config.menu.auto_equip and deps.config.menu.auto_equip.get_state then
+            auto_equip_on = deps.config.menu.auto_equip:get_state()
+        end
+        if auto_equip_on then
             if Gear.try_equip_fishing_pole(ctx, me, now) then
                 state.fishing.status = "Equipping pole..."
                 state.fishing.last_action_time = now
@@ -320,7 +322,11 @@ function M.tick(ctx)
     end
 
     -- Upgrade check: a pole is equipped but a better one may be in bags.
-    if deps.config.menu.auto_equip:get_state() then
+    local auto_equip_on = true
+    if deps.config.menu.auto_equip and deps.config.menu.auto_equip.get_state then
+        auto_equip_on = deps.config.menu.auto_equip:get_state()
+    end
+    if auto_equip_on then
         local best_id     = Gear.get_owned_fishing_pole(ctx)
         local equipped_id = Gear.get_equipped_item_id(me, 16)
         if best_id and equipped_id and best_id ~= equipped_id then
@@ -399,7 +405,7 @@ function M.tick(ctx)
                 end
             end
         else
-            -- Lure is active � reset the warning flag so it fires again next time lures run out
+            -- Lure is active — reset the warning flag so it fires again next time lures run out
             state.fishing.no_lure_warned = false
         end
     end
@@ -474,10 +480,16 @@ function M.tick(ctx)
             for _, obj in ipairs(objects) do
                 if APISurface.is_valid(obj) then
                     local name = APISurface.get_object_name(obj)
-                    local is_pool = type(name) == "string"
-                        and (string.find(name, "Pool", 1, true)
-                            or string.find(name, "School", 1, true)
-                            or string.find(name, "Wreckage", 1, true))
+                    local is_pool = false
+                    if type(name) == "string" then
+                        if deps.constants.OBJECTS.POOLS and deps.constants.OBJECTS.POOLS[name] then
+                            is_pool = true
+                        else
+                            is_pool = string.find(name, "Pool", 1, true)
+                                or string.find(name, "School", 1, true)
+                                or string.find(name, "Wreckage", 1, true)
+                        end
+                    end
                     if is_pool then
                         if not only_wreckage or string.find(name, "Wreckage", 1, true) then
                             local pos = APISurface.get_object_position(obj)
@@ -547,20 +559,55 @@ function M.tick(ctx)
     -- a brief is_active=false lag spike from triggering a double-cast
     if not is_active and (not state.fishing.awaiting_bobber or elapsed > 7.0) then
         state.fishing.awaiting_bobber = false
-        reset_bite()
+        State.reset_bite(state)
 
         -- Resolve fishing spell ID using documented API
         if not state.fishing.id then
             state.fishing.id = APISurface.resolve_fishing_spell(deps.constants.SPELLS.FISHING_RANKS)
         end
 
+        -- Session time limit check (before every cast)
+        if state.session.end_time > 0 and now >= state.session.end_time then
+            if not state.session.time_limit_warned then
+                APISurface.print("[EaxFishing] Session time limit reached — stopping")
+                state.session.time_limit_warned = true
+            end
+            state.fishing.status = "Session limit reached"
+            state.safety.hard_stop = true
+            state.bag.safety_lock_active = true
+            if deps.config.menu.enabled and deps.config.menu.enabled.set_state then
+                deps.config.menu.enabled:set_state(false)
+            end
+            Client.stop(ctx)
+            return
+        end
+
+        -- Apply a small random yaw jitter so the bobber doesn't land in the exact same spot
+        if deps.config.menu.cast_jitter_enabled and deps.config.menu.cast_jitter_enabled:get_state() then
+            local jitter_deg = 5
+            if deps.config.menu.cast_jitter_degrees and deps.config.menu.cast_jitter_degrees.get then
+                jitter_deg = deps.config.menu.cast_jitter_degrees:get()
+            end
+            if jitter_deg > 0 then
+                local me_pos = APISurface.get_object_position(me)
+                if me_pos then
+                    local target = { x = me_pos.x, y = me_pos.y, z = me_pos.z }
+                    local angle = math.random() * (math.pi * 2)
+                    local dist = math.random() * jitter_deg
+                    target.x = target.x + math.cos(angle) * dist
+                    target.y = target.y + math.sin(angle) * dist
+                    APISurface.look_at(target)
+                end
+            end
+        end
+
         -- Cast
         if state.fishing.id then
+            state.session.attempts = state.session.attempts + 1
             local success = APISurface.cast_target_spell(state.fishing.id, me)
             if success then
                 state.fishing.cast_start_time = now
                 state.fishing.awaiting_bobber = true
-                state.session.attempts = state.session.attempts + 1
                 state.fishing.last_action_time = now
                 state.fishing.status = "Casting..."
                 Behavior.apply_random_wait(ctx, 1.0, 2.5)
@@ -592,7 +639,7 @@ function M.tick(ctx)
         if p then
             local bobber = APISurface.find_bobber(ctx, me, p.x, p.y, p.z)
             if not bobber and elapsed > 6.0 then
-                reset_bite()
+                State.reset_bite(state)
                 state.fishing.awaiting_bobber = false
                 state.fishing.no_bobber_count = (state.fishing.no_bobber_count or 0) + 1
                 APISurface.print("[EaxFishing] No bobber found after 6s ("
