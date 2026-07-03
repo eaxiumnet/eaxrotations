@@ -49,7 +49,10 @@ local function use_mana_gem()
 end
 
 local function build_state(context)
+    local me = context.me or NS.GetPlayer()
     local target = context.target
+    -- Clearcasting proc (Arcane Concentration) — consumed on Fireball below. [#fix-1]
+    fire_state.has_clearcasting = me and NS.buff_up(me, CLEARCASTING_BUFF) or false
     if target then
         fire_state.scorch_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SCORCH_DEBUFF) or 0
         fire_state.scorch_remains = NS.debuff_remains and NS.debuff_remains(target, SCORCH_DEBUFF) or 0
