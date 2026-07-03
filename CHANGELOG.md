@@ -2,6 +2,27 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.3.3] — Hotfix: Settings Nil-Guard Sweep (2026-07-03)
+
+### Bug Fixes
+
+- **Priest Holy (TBC + Classic)**: All settings reads now nil-guarded. Previously accessing `context.settings.holy_use_pws`, `holy_use_coh`, `holy_use_binding_heal`, `holy_use_poh`, `holy_use_inner_focus`, `holy_use_lightwell`, `holy_use_desperate_prayer`, `use_party_dispel`, `disc_shield_tank_only`, and `use_shadowfiend` without checking if `context.settings` existed could crash during API hiccups or load race conditions.
+- **Priest Smite (TBC + Classic)**: All settings reads now nil-guarded. Fixed `smite_use_shadowfiend`, `smite_use_power_infusion`, `smite_use_inner_focus`, `smite_use_starshards`, `smite_use_devouring_plague`, `smite_use_mb`, and `smite_use_swd`.
+- **Priest Discipline (Classic)**: Fixed `disc_use_friendly_target` settings access.
+- **Priest Middleware (TBC)**: Fixed `use_threat_drop` settings access.
+- **Druid Restoration (Classic)**: Fixed `resto_use_friendly_target` settings access.
+- **Druid Middleware (TBC)**: Fixed `use_threat_drop` settings access.
+- **Paladin Holy (Classic)**: Fixed `holy_use_friendly_target` settings access.
+- **Warlock Middleware (TBC)**: Fixed `use_threat_drop` settings access.
+
+### What to Expect
+
+- Drop-in replacement. Delete your old `EaxRotations` folder and replace with this one.
+- All your settings carry over automatically.
+- No settings reset needed.
+
+---
+
 ## [2.3.2] — Hotfix: Holy Priest Crash + Dispel Spam (2026-07-03)
 
 ### Bug Fixes

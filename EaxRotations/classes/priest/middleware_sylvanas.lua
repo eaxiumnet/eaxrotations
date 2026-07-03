@@ -262,7 +262,7 @@ local strategies = {
         name = "ThreatDrop",
         matches = function(context)
             if not context.in_combat then return false end
-            if context.settings.use_threat_drop == false then return false end
+            if context.settings and context.settings.use_threat_drop == false then return false end
             -- Only drop threat if a group ally is in combat nearby (Fade is useless solo)
             if not (NS.has_group_combat_ally_40 and NS.has_group_combat_ally_40()) then return false end
             if not (NS.spell_ready and SPELLS.Fade and NS.spell_ready(SPELLS.Fade, context.me, { skip_range = true })) then return false end
