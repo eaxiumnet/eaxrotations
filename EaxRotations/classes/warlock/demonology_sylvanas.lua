@@ -120,6 +120,7 @@ local function build_state(context)
     demo_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     demo_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     demo_state.enemy_count = context.enemy_count or context.enemies_count or 1
+    demo_state.in_combat = context.in_combat or false  -- [#fix-4] used by Pet{Defensive,Passive,Aggressive} matchers
     demo_state.target_casting = target and target.is_casting and target:is_casting() or false
     demo_state.fel_armor_ready = me and NS.spell_ready(SPELLS.FelArmor, me, { skip_range = true }) or false
     demo_state.curse_of_doom_ready = target and NS.spell_ready(SPELLS.CurseOfDoom, target, { expected_cooldown = 60 }) or false
