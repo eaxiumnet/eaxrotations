@@ -689,6 +689,13 @@ local function berserker_rage_matches(context, state)
 end
 
 -- Hamstring: PvP snare + Sword Spec weave (high rage)
+local function pummel_matches(context, state)
+    if not state.target_is_casting then return false end
+    if not (state.target_casting_interruptible or false) then return false end
+    if not state.pummel_ready then return false end
+    return action(context, build_action("Pummel", ACTION.Pummel, { required_stance = STANCE.BERSERKER, min_rage = 10 }))
+end
+
 local function hamstring_matches(context, state)
     -- PvP snare
     if state.is_pvp then
@@ -824,6 +831,7 @@ local STRATEGY_SPECS = {
     -- PvP / Interrupt
     { "Intercept", intercept_matches, build_action("Intercept", ACTION.Intercept, { required_stance = STANCE.BERSERKER, min_rage = 10 }) },
     { "Hamstring", hamstring_matches, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }) },
+    { "Pummel", pummel_matches, build_action("Pummel", ACTION.Pummel, { required_stance = STANCE.BERSERKER, min_rage = 10 }) },
     -- Stance
     { "BerserkerStance", berserker_stance_matches, berserker_stance_action() },
     { "BattleStance", battle_stance_matches, battle_stance_action() },
