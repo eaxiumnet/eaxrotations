@@ -1,0 +1,19 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_nature_invisibilitytotem",
+ "name": "Grace of Air Totem",
+ "required_class": "Shaman",
+ "required_level": 60,
+ "description": "Summons a Grace of Air Totem with 5 health at the feet of the caster.  The totem increases the agility of party members within 20 yards by 77.  Lasts 2 min.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 310
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 120,
+ "gcd": 1.0,
+ "_id": 25359,
+ "_source": "wowhead_classified"
+}

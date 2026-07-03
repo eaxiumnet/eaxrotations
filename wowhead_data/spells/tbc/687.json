@@ -1,0 +1,22 @@
+{
+ "target_type": "self",
+ "has_buff": true,
+ "buff_duration": 1800,
+ "buff_text": "Increases armor by 40 and restores 3 Health per 5 sec.",
+ "icon": "spell_shadow_ragingscream",
+ "name": "Demon Skin",
+ "required_class": "Warlock",
+ "required_level": 1,
+ "description": "Protects the caster, increasing armor by 40 and restores 3 Health per 5 sec. for 30 min.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 20
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 1800,
+ "gcd": 1.5,
+ "_id": 687,
+ "_source": "wowhead_classified"
+}

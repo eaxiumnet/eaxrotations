@@ -1,0 +1,13 @@
+{
+ "icon": "spell_shadow_burningspirit",
+ "name": "Life Tap",
+ "required_class": "Warlock",
+ "required_level": 68,
+ "description": "Converts 582 health into 582 mana.",
+ "school": "shadow",
+ "range": 0,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 27222,
+ "_source": "wowhead_classified"
+}

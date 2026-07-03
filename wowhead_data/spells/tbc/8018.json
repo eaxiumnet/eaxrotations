@@ -1,0 +1,9 @@
+{
+ "icon": "spell_nature_rockbiter",
+ "name": "Rockbiter Weapon",
+ "required_class": "Shaman",
+ "required_level": 8,
+ "description": "Imbue the Shaman's weapon, increasing its damage per second by 4.  Lasts 30 minutes.",
+ "_id": 8018,
+ "_source": "wowhead_classified"
+}

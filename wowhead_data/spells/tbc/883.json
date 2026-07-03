@@ -1,0 +1,13 @@
+{
+ "icon": "ability_hunter_beastcall",
+ "name": "Call Pet",
+ "required_class": "Hunter",
+ "required_level": 10,
+ "description": "Summons your pet to you.",
+ "school": "physical",
+ "range": 0,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 883,
+ "_source": "wowhead_classified"
+}

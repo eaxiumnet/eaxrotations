@@ -1,0 +1,19 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_thunderclap",
+ "name": "Hammer of Wrath",
+ "required_class": "Paladin",
+ "required_level": 68,
+ "description": "Hurls a hammer that strikes an enemy for 672 to 742 Holy damage.  Only usable on enemies that have 20% or less health.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 440
+ },
+ "range": 30,
+ "cast_time": 0.5,
+ "gcd": 0.5,
+ "cooldown_seconds": 6,
+ "_id": 27180,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,9 @@
+{
+ "icon": "spell_shadow_shadowbolt",
+ "name": "Shadow Bolt",
+ "required_class": "Warlock",
+ "required_level": 60,
+ "description": "Sends a shadowy bolt at the enemy, causing 470 to 522 Shadow damage.",
+ "_id": 11661,
+ "_source": "wowhead_classified"
+}

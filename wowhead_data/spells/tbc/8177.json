@@ -1,0 +1,16 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_nature_groundingtotem",
+ "name": "Grounding Totem",
+ "required_class": "Shaman",
+ "required_level": 30,
+ "description": "Summons a Grounding Totem with 5 health at the feet of the caster that will redirect one harmful spell cast on a nearby party member to itself, destroying the totem.  Will not redirect area of effect spells.  Lasts 45 sec.",
+ "school": "nature",
+ "range": 0,
+ "cast_time": 0,
+ "duration": 45,
+ "gcd": 1.0,
+ "cooldown_seconds": 15,
+ "_id": 8177,
+ "_source": "wowhead_classified"
+}

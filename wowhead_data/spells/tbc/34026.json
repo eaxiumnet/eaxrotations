@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_hunter_killcommand",
+ "name": "Kill Command",
+ "required_class": null,
+ "description": "Give the command to kill, causing your pet to instantly attack for an additional 127 damage.  Can only be used after the Hunter lands a critical strike on the target.",
+ "school": "physical",
+ "cost": {
+ "type": "mana",
+ "amount": 75
+ },
+ "range": 45,
+ "cast_time": 0,
+ "gcd": 0.0,
+ "cooldown_seconds": 5,
+ "_id": 34026,
+ "_source": "wowhead_classified"
+}

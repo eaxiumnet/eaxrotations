@@ -1,0 +1,19 @@
+{
+ "icon": "ability_hunter_snaketrap",
+ "name": "Snake Trap",
+ "required_class": "Hunter",
+ "required_level": 68,
+ "description": "Place a trap that will release several venomous snakes to attack the first enemy to approach.  The snakes will die after 15 sec.  Trap will exist for 1 min.  Only one trap can be active at a time.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 305
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 60,
+ "gcd": 1.5,
+ "cooldown_seconds": 30,
+ "_id": 34600,
+ "_source": "wowhead_classified"
+}

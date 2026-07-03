@@ -1,0 +1,23 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 4,
+ "buff_text": "Incapacitated.",
+ "icon": "ability_gouge",
+ "name": "Gouge",
+ "required_class": "Rogue",
+ "required_level": 18,
+ "description": "Causes 20 damage, incapacitating the opponent for 4 sec, and turns off your attack.  Target must be facing you.  Any damage caused will revive the target.  Awards 1 combo point.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 45
+ },
+ "range": 5,
+ "cast_time": 0,
+ "duration": 4,
+ "gcd": 1.0,
+ "cooldown_seconds": 10,
+ "_id": 1777,
+ "_source": "wowhead_classified"
+}

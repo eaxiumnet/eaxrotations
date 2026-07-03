@@ -1,0 +1,17 @@
+{
+ "icon": "spell_fire_soulburn",
+ "name": "Scorch",
+ "required_class": "Mage",
+ "required_level": 65,
+ "description": "Scorch the enemy for 278 to 327 Fire damage.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 165
+ },
+ "range": 30,
+ "cast_time": 1.5,
+ "gcd": 1.5,
+ "_id": 27073,
+ "_source": "wowhead_classified"
+}

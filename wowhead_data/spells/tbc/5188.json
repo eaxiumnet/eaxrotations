@@ -1,0 +1,18 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_nature_healingtouch",
+ "name": "Healing Touch",
+ "required_class": "Druid",
+ "required_level": 20,
+ "description": "Heals a friendly target for 376 to 459.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 185
+ },
+ "range": 40,
+ "cast_time": 3,
+ "gcd": 1.5,
+ "_id": 5188,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,23 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 10,
+ "buff_text": "Disoriented.",
+ "icon": "spell_shadow_mindsteal",
+ "name": "Blind",
+ "required_class": "Rogue",
+ "required_level": 34,
+ "description": "Blinds the target, causing it to wander disoriented for up to 10 sec.  Any damage caused will remove the effect.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 30
+ },
+ "range": 10,
+ "cast_time": 0,
+ "duration": 10,
+ "gcd": 1.0,
+ "cooldown_seconds": 180,
+ "_id": 2094,
+ "_source": "wowhead_classified"
+}

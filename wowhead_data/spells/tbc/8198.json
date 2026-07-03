@@ -1,0 +1,22 @@
+{
+ "has_buff": true,
+ "buff_duration": 14,
+ "buff_text": "Time between attacks increased by 10%.",
+ "icon": "spell_nature_thunderclap",
+ "name": "Thunder Clap",
+ "required_class": "Warrior",
+ "required_level": 18,
+ "description": "Blasts nearby enemies increasing the time between their attacks by 10% for 14 sec and doing 23 damage to them.  This ability causes additonal threat and will affect up to 4 targets.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 20
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 14,
+ "gcd": 1.5,
+ "cooldown_seconds": 4,
+ "_id": 8198,
+ "_source": "wowhead_classified"
+}

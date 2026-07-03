@@ -1,0 +1,19 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_shadow_unholyfrenzy",
+ "name": "Mind Blast",
+ "required_class": "Priest",
+ "required_level": 69,
+ "description": "Blasts the target for 711 to 752 Shadow damage.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 450
+ },
+ "range": 30,
+ "cast_time": 1.5,
+ "gcd": 1.5,
+ "cooldown_seconds": 8,
+ "_id": 25375,
+ "_source": "wowhead_classified"
+}

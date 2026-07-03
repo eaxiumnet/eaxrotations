@@ -1,0 +1,17 @@
+{
+ "icon": "ability_druid_maul",
+ "name": "Maul",
+ "required_class": "Druid",
+ "required_level": 26,
+ "description": "Increases the druid's next attack by 37 damage.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 15
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 0.0,
+ "_id": 6809,
+ "_source": "wowhead_classified"
+}

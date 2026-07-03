@@ -1,0 +1,14 @@
+{
+ "icon": "ability_hunter_beastsoothe",
+ "name": "Revive Pet",
+ "required_class": "Hunter",
+ "required_level": 10,
+ "description": "Revive your pet, returning it to life with 15% of its base health.",
+ "school": "nature",
+ "range": 0,
+ "cast_time": 10,
+ "duration": 3,
+ "gcd": 1.5,
+ "_id": 982,
+ "_source": "wowhead_classified"
+}

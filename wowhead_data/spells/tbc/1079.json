@@ -1,0 +1,21 @@
+{
+ "has_buff": true,
+ "buff_duration": 12,
+ "buff_text": "Bleed damage every 2 seconds.",
+ "icon": "ability_ghoulfrenzy",
+ "name": "Rip",
+ "required_class": "Druid",
+ "required_level": 20,
+ "description": "Finishing move that causes damage over time.  Damage increases per combo point and by your attack power:   1 point  : 42 damage over 12 sec.   2 points: 66 damage over 12 sec.   3 points: 90 damage over 12 sec.   4 points: 114 damage over 12 sec.   5 points: 138 damage over 12 sec.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 30
+ },
+ "range": 5,
+ "cast_time": 0,
+ "duration": 12,
+ "gcd": 1.0,
+ "_id": 1079,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,17 @@
+{
+ "icon": "spell_holy_heal",
+ "name": "Heal",
+ "required_class": "Priest",
+ "required_level": 16,
+ "description": "Heal your target for 307 to 353.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 155
+ },
+ "range": 40,
+ "cast_time": 3,
+ "gcd": 1.5,
+ "_id": 2054,
+ "_source": "wowhead_classified"
+}

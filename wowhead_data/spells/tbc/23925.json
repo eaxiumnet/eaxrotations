@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "inv_shield_05",
+ "name": "Shield Slam",
+ "required_class": null,
+ "description": "Slam the target with your shield, causing 342 to 358 damage, modified by your shield block value, and dispels 1 magic effect on the target.  Also causes a high amount of threat.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 20
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "cooldown_seconds": 6,
+ "_id": 23925,
+ "_source": "wowhead_classified"
+}

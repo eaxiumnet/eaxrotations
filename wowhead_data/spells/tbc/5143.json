@@ -1,0 +1,19 @@
+{
+ "channeled": true,
+ "icon": "spell_nature_starfall",
+ "name": "Arcane Missiles",
+ "required_class": "Mage",
+ "required_level": 8,
+ "description": "Launches Arcane Missiles at the enemy, causing 26 Arcane damage every 1 sec for 3 sec.",
+ "school": "arcane",
+ "cost": {
+ "type": "mana",
+ "amount": 85
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 3,
+ "gcd": 1.5,
+ "_id": 5143,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,13 @@
+{
+ "icon": "spell_shadow_summonfelhunter",
+ "name": "Summon Felhunter",
+ "required_class": "Warlock",
+ "required_level": 30,
+ "description": "Summons a Felhunter under the command of the Warlock.",
+ "school": "shadow",
+ "range": 0,
+ "cast_time": 10,
+ "gcd": 1.5,
+ "_id": 691,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,17 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_backstab",
+ "name": "Backstab",
+ "required_class": null,
+ "description": "60 Energy | 5 yards (Combat) | Instant",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 60
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.0,
+ "_id": 26863,
+ "_source": "wowhead_classified"
+}

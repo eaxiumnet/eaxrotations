@@ -1,0 +1,22 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 7,
+ "buff_text": "Heals 39 every second and 600 when effect finishes or is dispelled.",
+ "icon": "inv_misc_herb_felblossom",
+ "name": "Lifebloom",
+ "required_class": "Druid",
+ "required_level": 64,
+ "description": "220 Mana | 40 yards (Long) | Instant",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 220
+ },
+ "range": 40,
+ "cast_time": 0,
+ "duration": 7,
+ "gcd": 1.5,
+ "_id": 33763,
+ "_source": "wowhead_classified"
+}

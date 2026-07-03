@@ -1,0 +1,17 @@
+{
+ "icon": "inv_misc_gem_emerald_02",
+ "name": "Conjure Mana Jade",
+ "required_class": "Mage",
+ "required_level": 38,
+ "description": "Conjures a mana jade that can be used to instantly restore 585 to 615 mana.Conjured items disappear if logged out for more than 15 minutes.",
+ "school": "arcane",
+ "cost": {
+ "type": "mana",
+ "amount": 800
+ },
+ "range": 0,
+ "cast_time": 3,
+ "gcd": 1.5,
+ "_id": 3552,
+ "_source": "wowhead_classified"
+}

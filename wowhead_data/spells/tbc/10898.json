@@ -1,0 +1,23 @@
+{
+ "target_type": "friendly",
+ "has_buff": true,
+ "buff_duration": 30,
+ "buff_text": "Absorbs damage.",
+ "icon": "spell_holy_powerwordshield",
+ "name": "Power Word: Shield",
+ "required_class": "Priest",
+ "required_level": 42,
+ "description": "Draws on the soul of the party member to shield them, absorbing 499 damage.  Lasts 30 sec.  While the shield holds, spellcasting will not be interrupted by damage.  Once shielded, the target cannot be shielded again for 15 sec.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 300
+ },
+ "range": 40,
+ "cast_time": 0,
+ "duration": 30,
+ "gcd": 1.5,
+ "cooldown_seconds": 4,
+ "_id": 10898,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,10 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_frost_frostbrand",
+ "name": "Frostbrand Weapon",
+ "required_class": "Shaman",
+ "required_level": 20,
+ "description": "Imbue the Shaman's weapon with frost.  Each hit has a chance of causing 48 additional Frost damage and slowing the target's movement speed by 25% for 8 sec.  Lasts 30 minutes.",
+ "_id": 8033,
+ "_source": "wowhead_classified"
+}

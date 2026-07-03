@@ -1,0 +1,22 @@
+{
+ "has_buff": true,
+ "buff_duration": 3,
+ "buff_text": "Horrified.",
+ "icon": "spell_shadow_deathcoil",
+ "name": "Death Coil",
+ "required_class": "Warlock",
+ "required_level": 42,
+ "description": "Causes the enemy target to run in horror for 3 sec and causes 258 Shadow damage.  The caster gains 100% of the damage caused in health.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 365
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 3,
+ "gcd": 1.5,
+ "cooldown_seconds": 120,
+ "_id": 6789,
+ "_source": "wowhead_classified"
+}

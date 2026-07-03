@@ -1,0 +1,19 @@
+{
+ "icon": "spell_fire_flameshock",
+ "name": "Immolation Trap",
+ "required_class": "Hunter",
+ "required_level": 26,
+ "description": "Place a fire trap that will burn the first enemy to approach for (Ranged Attack Power * 0.1 + 43 * 5) Fire damage over 15 sec.  Trap will exist for 1 min.  Only one trap can be active at a time.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 90
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 60,
+ "gcd": 1.5,
+ "cooldown_seconds": 30,
+ "_id": 14302,
+ "_source": "wowhead_classified"
+}

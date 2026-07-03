@@ -1,0 +1,19 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_fire_searingtotem",
+ "name": "Searing Totem",
+ "required_class": "Shaman",
+ "required_level": 20,
+ "description": "Summons a Searing Totem with 5 health at your feet for 35 sec that repeatedly attacks an enemy within 20 yards for 13 to 17 Fire damage.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 45
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 35,
+ "gcd": 1.0,
+ "_id": 6363,
+ "_source": "wowhead_classified"
+}

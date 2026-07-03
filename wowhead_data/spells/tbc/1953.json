@@ -1,0 +1,19 @@
+{
+ "target_type": "self",
+ "has_buff": true,
+ "buff_duration": 1,
+ "buff_text": "Blinking.",
+ "icon": "spell_arcane_blink",
+ "name": "Blink",
+ "required_class": "Mage",
+ "required_level": 20,
+ "description": "Teleports the caster 20 yards forward, unless something is in the way.  Also frees the caster from stuns and bonds.",
+ "school": "arcane",
+ "range": 0,
+ "cast_time": 0,
+ "duration": 1,
+ "gcd": 1.5,
+ "cooldown_seconds": 15,
+ "_id": 1953,
+ "_source": "wowhead_classified"
+}

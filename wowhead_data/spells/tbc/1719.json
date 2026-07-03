@@ -1,0 +1,17 @@
+{
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "Immune to Fear effects, most attacks do critical hits, but all damage taken is increased by 20%.",
+ "icon": "ability_criticalstrike",
+ "name": "Recklessness",
+ "required_class": null,
+ "description": "The warrior will cause critical hits with most attacks and will be immune to Fear effects for the next 15 sec, but all damage taken is increased by 20%.",
+ "school": "physical",
+ "range": 0,
+ "cast_time": 0,
+ "duration": 15,
+ "gcd": 1.5,
+ "cooldown_seconds": 1800,
+ "_id": 1719,
+ "_source": "wowhead_classified"
+}

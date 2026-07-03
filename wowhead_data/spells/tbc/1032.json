@@ -1,0 +1,16 @@
+{
+ "target_type": "friendly",
+ "has_buff": true,
+ "buff_text": "Increases armor by 505.",
+ "icon": "spell_holy_devotionaura",
+ "name": "Devotion Aura",
+ "required_class": "Paladin",
+ "required_level": 40,
+ "description": "Gives 505 additional armor to party members within 30 yards.  Players may only have one Aura on them per Paladin at any one time.",
+ "school": "holy",
+ "range": 0,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 1032,
+ "_source": "wowhead_classified"
+}

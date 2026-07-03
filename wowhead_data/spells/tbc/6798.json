@@ -1,0 +1,23 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 3,
+ "buff_text": "Stunned.",
+ "icon": "ability_druid_bash",
+ "name": "Bash",
+ "required_class": "Druid",
+ "required_level": 30,
+ "description": "Stuns the target for 3 sec.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 10
+ },
+ "range": 5,
+ "cast_time": 0,
+ "duration": 3,
+ "gcd": 1.5,
+ "cooldown_seconds": 60,
+ "_id": 6798,
+ "_source": "wowhead_classified"
+}

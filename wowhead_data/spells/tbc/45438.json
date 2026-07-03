@@ -1,0 +1,22 @@
+{
+ "has_buff": true,
+ "buff_duration": 10,
+ "buff_text": "Immune to all attacks and spells.  Cannot attack, move or use spells.",
+ "icon": "spell_frost_frost",
+ "name": "Ice Block",
+ "required_class": "Mage",
+ "required_level": 30,
+ "description": "You become encased in a block of ice, protecting you from all physical attacks and spells for 10 sec, but during that time you cannot attack, move or cast spells.  Also causes Hypothermia, preventing you from recasting Ice Block for 30 sec.",
+ "school": "frost",
+ "cost": {
+ "type": "mana",
+ "amount": 15
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 10,
+ "gcd": 1.5,
+ "cooldown_seconds": 300,
+ "_id": 45438,
+ "_source": "wowhead_classified"
+}

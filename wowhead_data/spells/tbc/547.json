@@ -1,0 +1,18 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_nature_magicimmunity",
+ "name": "Healing Wave",
+ "required_class": "Shaman",
+ "required_level": 12,
+ "description": "Heals a friendly target for 136 to 163.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 80
+ },
+ "range": 40,
+ "cast_time": 2.5,
+ "gcd": 1.5,
+ "_id": 547,
+ "_source": "wowhead_classified"
+}

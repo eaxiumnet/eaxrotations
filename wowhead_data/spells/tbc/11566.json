@@ -1,0 +1,9 @@
+{
+ "icon": "ability_rogue_ambush",
+ "name": "Heroic Strike",
+ "required_class": "Warrior",
+ "required_level": 48,
+ "description": "A strong attack that increases melee damage by 111 and causes a high amount of threat.",
+ "_id": 11566,
+ "_source": "wowhead_classified"
+}

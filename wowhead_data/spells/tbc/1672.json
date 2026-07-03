@@ -1,0 +1,19 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_warrior_shieldbash",
+ "name": "Shield Bash",
+ "required_class": null,
+ "description": "Bashes the target with your shield for 45 damage.  It also interrupts spellcasting and prevents any spell in that school from being cast for 6 sec.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 10
+ },
+ "range": 5,
+ "cast_time": 0,
+ "duration": 6,
+ "gcd": 1.5,
+ "cooldown_seconds": 12,
+ "_id": 1672,
+ "_source": "wowhead_classified"
+}

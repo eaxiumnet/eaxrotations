@@ -1,0 +1,9 @@
+{
+ "icon": "spell_nature_purge",
+ "name": "Purge",
+ "required_class": "Shaman",
+ "required_level": 32,
+ "description": "Purges the enemy target, removing 2 beneficial magic effects.",
+ "_id": 8012,
+ "_source": "wowhead_classified"
+}

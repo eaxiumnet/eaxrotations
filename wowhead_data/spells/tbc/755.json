@@ -1,0 +1,19 @@
+{
+ "target_type": "self",
+ "has_buff": true,
+ "buff_duration": 10,
+ "buff_text": "Transferring Life.",
+ "channeled": true,
+ "icon": "spell_shadow_lifedrain",
+ "name": "Health Funnel",
+ "required_class": "Warlock",
+ "required_level": 12,
+ "description": "Gives 12 health to the caster's pet every second for 10 sec as long as the caster channels.",
+ "school": "shadow",
+ "range": 20,
+ "cast_time": 0,
+ "duration": 10,
+ "gcd": 1.5,
+ "_id": 755,
+ "_source": "wowhead_classified"
+}

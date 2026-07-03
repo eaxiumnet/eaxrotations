@@ -1,0 +1,10 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_holy_flashheal",
+ "name": "Flash Heal",
+ "required_class": "Priest",
+ "required_level": 20,
+ "description": "Heals a friendly target for 202 to 247.",
+ "_id": 2061,
+ "_source": "wowhead_classified"
+}

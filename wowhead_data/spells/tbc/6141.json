@@ -1,0 +1,29 @@
+{
+ "periodic": {
+ "amount": 45,
+ "school": "frost",
+ "interval": 1
+ },
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 8,
+ "buff_text": "45 Frost damage every 1 second.",
+ "channeled": true,
+ "icon": "spell_frost_icestorm",
+ "name": "Blizzard",
+ "required_class": "Mage",
+ "required_level": 28,
+ "description": "Ice shards pelt the target area doing [(45 * 8)]360 Frost damage over 8 sec.",
+ "school": "frost",
+ "cost": {
+ "type": "mana",
+ "amount": 520
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 8,
+ "aoe": true,
+ "gcd": 1.5,
+ "_id": 6141,
+ "_source": "wowhead_classified"
+}

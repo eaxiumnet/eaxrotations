@@ -1,0 +1,20 @@
+{
+ "has_buff": true,
+ "buff_duration": 6,
+ "buff_text": "Causes damage every 2 seconds.",
+ "icon": "ability_rogue_rupture",
+ "name": "Rupture",
+ "required_class": null,
+ "description": "Finishing move that causes damage over time, increased by your attack power.  Lasts longer per combo point:   1 point  : 324 damage over 8 secs   2 points: 460 damage over 10 secs   3 points: 618 damage over 12 secs   4 points: 798 damage over 14 secs   5 points: 1000 damage over 16 secs",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 25
+ },
+ "range": 5,
+ "cast_time": 0,
+ "duration": 6,
+ "gcd": 1.0,
+ "_id": 26867,
+ "_source": "wowhead_classified"
+}

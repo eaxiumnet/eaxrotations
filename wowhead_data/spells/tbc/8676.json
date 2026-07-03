@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_rogue_ambush",
+ "name": "Ambush",
+ "required_class": "Rogue",
+ "required_level": 18,
+ "description": "Ambush the target, causing 275% weapon damage plus 70 to the target.  Must be stealthed and behind the target.  Requires a dagger in the main hand.  Awards 1 combo point.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 60
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.0,
+ "_id": 8676,
+ "_source": "wowhead_classified"
+}

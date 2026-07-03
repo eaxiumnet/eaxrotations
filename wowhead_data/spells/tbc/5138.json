@@ -1,0 +1,23 @@
+{
+ "target_type": "self",
+ "has_buff": true,
+ "buff_duration": 5,
+ "buff_text": "Drains 42 mana each second to the caster.",
+ "channeled": true,
+ "icon": "spell_shadow_siphonmana",
+ "name": "Drain Mana",
+ "required_class": "Warlock",
+ "required_level": 24,
+ "description": "Transfers 42 Mana every 1 sec from the target to the caster.  Lasts 5 sec.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 95
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 5,
+ "gcd": 1.5,
+ "_id": 5138,
+ "_source": "wowhead_classified"
+}

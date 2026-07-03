@@ -1,0 +1,14 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_arcane_arcane02",
+ "name": "Spellsteal",
+ "required_class": "Mage",
+ "required_level": 70,
+ "description": "Steals a beneficial magic effect from the target.  This effect lasts a maximum of 2 min.",
+ "school": "arcane",
+ "range": 30,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 30449,
+ "_source": "wowhead_classified"
+}

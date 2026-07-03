@@ -1,0 +1,21 @@
+{
+ "has_buff": true,
+ "buff_duration": 60,
+ "buff_text": "Absorbs damage, draining mana instead.",
+ "icon": "spell_shadow_detectlesserinvisibility",
+ "name": "Mana Shield",
+ "required_class": "Mage",
+ "required_level": 28,
+ "description": "Absorbs 210 damage, draining mana instead.  Drains 2 mana per damage absorbed.  Lasts 1 min.",
+ "school": "arcane",
+ "cost": {
+ "type": "mana",
+ "amount": 60
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 60,
+ "gcd": 1.5,
+ "_id": 8494,
+ "_source": "wowhead_classified"
+}

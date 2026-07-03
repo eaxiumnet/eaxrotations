@@ -1,0 +1,22 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 30,
+ "buff_text": "Melee attacks cause an additional [1.2 * (1689 * 1.2 * 1.03 * Mainhand weapon max base speed / 100) + 0.03 * (Mainhand weapon max damage + Mainhand weapon min damage) / 2 + 1] Holy damage.",
+ "icon": "ability_thunderbolt",
+ "name": "Seal of Righteousness",
+ "required_class": "Paladin",
+ "required_level": 50,
+ "description": "Fills the Paladin with holy spirit for 30 sec, granting each melee attack an additional [1.2 * (1689 * 1.2 * 1.03 * Mainhand weapon max base speed / 100) + 0.03 * (Mainhand weapon max damage + Mainhand weapon min damage) / 2 + 1] Holy damage.  Only one Seal can be active on the Paladin at any one time.Unleashing this Seal's energy will cause 155 to 168 Holy damage to an enemy.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 170
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 30,
+ "gcd": 1.5,
+ "_id": 20292,
+ "_source": "wowhead_classified"
+}

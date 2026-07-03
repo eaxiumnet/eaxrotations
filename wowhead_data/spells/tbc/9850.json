@@ -1,0 +1,16 @@
+{
+ "icon": "ability_druid_rake",
+ "name": "Claw",
+ "required_class": null,
+ "description": "Claw the enemy, causing 115 additional damage.  Awards 1 combo point.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 45
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.0,
+ "_id": 9850,
+ "_source": "wowhead_classified"
+}

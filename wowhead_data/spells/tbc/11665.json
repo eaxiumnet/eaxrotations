@@ -1,0 +1,17 @@
+{
+ "periodic": {
+ "amount": 51,
+ "school": "fire",
+ "interval": 3
+ },
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "51 Fire damage every 3 seconds.",
+ "icon": "spell_fire_immolation",
+ "name": "Immolate",
+ "required_class": "Warlock",
+ "required_level": 40,
+ "description": "Burns the enemy for 148 Fire damage and then an additional 255 Fire damage over 15 sec.",
+ "_id": 11665,
+ "_source": "wowhead_classified"
+}

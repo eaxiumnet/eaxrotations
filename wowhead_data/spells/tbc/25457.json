@@ -1,0 +1,28 @@
+{
+ "periodic": {
+ "amount": 105,
+ "school": "fire",
+ "interval": 3
+ },
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 12,
+ "buff_text": "105 Fire damage every 3 seconds.",
+ "icon": "spell_fire_flameshock",
+ "name": "Flame Shock",
+ "required_class": "Shaman",
+ "required_level": 70,
+ "description": "Instantly sears the target with fire, causing 377 Fire damage immediately and 420 Fire damage over 12 sec.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 500
+ },
+ "range": 20,
+ "cast_time": 0,
+ "duration": 12,
+ "gcd": 1.5,
+ "cooldown_seconds": 6,
+ "_id": 25457,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,22 @@
+{
+ "target_type": "friendly",
+ "has_buff": true,
+ "buff_duration": 21,
+ "buff_text": "Heals 98 every 3 seconds.",
+ "icon": "spell_nature_resistnature",
+ "name": "Regrowth",
+ "required_class": "Druid",
+ "required_level": 48,
+ "description": "Heals a friendly target for 672 to 751 and another 686 over 21 sec.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 405
+ },
+ "range": 40,
+ "cast_time": 2,
+ "duration": 21,
+ "gcd": 1.5,
+ "_id": 9856,
+ "_source": "wowhead_classified"
+}

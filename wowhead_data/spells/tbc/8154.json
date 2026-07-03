@@ -1,0 +1,19 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_nature_stoneskintotem",
+ "name": "Stoneskin Totem",
+ "required_class": "Shaman",
+ "required_level": 14,
+ "description": "Summons a Stoneskin Totem with 5 health at the feet of the caster.  The totem protects party members within 20 yards, reducing melee damage taken by 7.  Lasts 2 min.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 60
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 120,
+ "gcd": 1.0,
+ "_id": 8154,
+ "_source": "wowhead_classified"
+}

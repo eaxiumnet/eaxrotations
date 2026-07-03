@@ -1,0 +1,23 @@
+{
+ "has_buff": true,
+ "buff_duration": 8,
+ "buff_text": "Running in Fear.",
+ "icon": "spell_shadow_psychicscream",
+ "name": "Psychic Scream",
+ "required_class": "Priest",
+ "required_level": 14,
+ "description": "The caster lets out a psychic scream, causing 2 enemies within 8 yards to flee for 8 sec.  Damage caused may interrupt the effect.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 100
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 8,
+ "aoe": true,
+ "gcd": 1.5,
+ "cooldown_seconds": 30,
+ "_id": 8122,
+ "_source": "wowhead_classified"
+}

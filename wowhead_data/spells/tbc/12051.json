@@ -1,0 +1,12 @@
+{
+ "has_buff": true,
+ "buff_duration": 8,
+ "buff_text": "Gain 15% of total mana every 2 sec.",
+ "icon": "spell_nature_purge",
+ "name": "Evocation",
+ "required_class": "Mage",
+ "required_level": 20,
+ "description": "While channeling this spell, you gain 60% of your total mana over 8 sec.",
+ "_id": 12051,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,15 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_nature_poisoncleansingtotem",
+ "name": "Poison Cleansing Totem",
+ "required_class": "Shaman",
+ "required_level": 22,
+ "description": "Summons a Poison Cleansing Totem with 5 health at the feet of the caster that attempts to remove 1 poison effect from party members within 20 yards every 5 seconds.  Lasts 2 min.",
+ "school": "nature",
+ "range": 0,
+ "cast_time": 0,
+ "duration": 120,
+ "gcd": 1.0,
+ "_id": 8166,
+ "_source": "wowhead_classified"
+}

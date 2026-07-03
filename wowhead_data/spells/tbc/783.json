@@ -1,0 +1,16 @@
+{
+ "target_type": "self",
+ "has_buff": true,
+ "buff_text": "Immune to Polymorph effects.  Movement speed increased by 40%.",
+ "icon": "ability_druid_travelform",
+ "name": "Travel Form",
+ "required_class": "Druid",
+ "required_level": 30,
+ "description": "Shapeshift into travel form, increasing movement speed by 40%.  Also protects the caster from Polymorph effects.  Only useable outdoors.The act of shapeshifting frees the caster of Polymorph and Movement Impairing effects.",
+ "school": "physical",
+ "range": 0,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 783,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,13 @@
+{
+ "target_type": "self",
+ "has_buff": true,
+ "buff_duration": 1800,
+ "buff_text": "Increases the amount of health generated through spells and effects by 20% and increases spell damage by up to 50.",
+ "icon": "spell_shadow_felarmour",
+ "name": "Fel Armor",
+ "required_class": "Warlock",
+ "required_level": 62,
+ "description": "Surrounds the caster with fel energy, increasing the amount of health generated through spells and effects by 20% and increasing spell damage by up to 50.  Only one type of Armor spell can be active on the Warlock at any time.  Lasts 30 min.",
+ "_id": 28176,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,10 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_nature_healingwavelesser",
+ "name": "Lesser Healing Wave",
+ "required_class": "Shaman",
+ "required_level": 20,
+ "description": "Heals a friendly target for 170 to 195.",
+ "_id": 8004,
+ "_source": "wowhead_classified"
+}

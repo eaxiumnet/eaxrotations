@@ -1,0 +1,18 @@
+{
+ "target_type": "self",
+ "has_buff": true,
+ "buff_duration": 600,
+ "buff_text": "50 mana per 5 sec.  Attacks and spells used against you restore 204 mana.  3 charges.",
+ "icon": "ability_shaman_watershield",
+ "name": "Water Shield",
+ "required_class": "Shaman",
+ "required_level": 69,
+ "description": "None | 0 yards (Self) | Instant",
+ "school": "nature",
+ "range": 0,
+ "cast_time": 0,
+ "duration": 600,
+ "gcd": 1.5,
+ "_id": 33736,
+ "_source": "wowhead_classified"
+}

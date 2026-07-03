@@ -1,0 +1,19 @@
+{
+ "target_type": "self",
+ "icon": "spell_nature_wispsplode",
+ "name": "Arcane Explosion",
+ "required_class": "Mage",
+ "required_level": 14,
+ "description": "Causes an explosion of arcane magic around the caster, causing 34 to 38 Arcane damage to all targets within 10 yards.",
+ "school": "arcane",
+ "cost": {
+ "type": "mana",
+ "amount": 75
+ },
+ "range": 0,
+ "cast_time": 0,
+ "aoe": true,
+ "gcd": 1.5,
+ "_id": 1449,
+ "_source": "wowhead_classified"
+}

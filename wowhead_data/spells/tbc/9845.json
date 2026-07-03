@@ -1,0 +1,22 @@
+{
+ "has_buff": true,
+ "buff_duration": 6,
+ "buff_text": "Increases damage done by 30.",
+ "icon": "ability_mount_jungletiger",
+ "name": "Tiger's Fury",
+ "required_class": "Druid",
+ "required_level": 48,
+ "description": "Increases damage done by 30 for 6 sec.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 30
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 6,
+ "gcd": 0.0,
+ "cooldown_seconds": 1,
+ "_id": 9845,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,16 @@
+{
+ "target_type": "self",
+ "has_buff": true,
+ "buff_text": "Immune to Polymorph effects.  Increases melee attack power by 120, armor contribution from items by 180%, and Stamina by 25%.",
+ "icon": "ability_racial_bearform",
+ "name": "Bear Form",
+ "required_class": "Druid",
+ "required_level": 10,
+ "description": "Shapeshift into bear form, increasing melee attack power by 120, armor contribution from items by 180%, and Stamina by 25%.  Also protects the caster from Polymorph effects and allows the use of various bear abilities.The act of shapeshifting frees the caster of Polymorph and Movement Impairing effects.",
+ "school": "physical",
+ "range": 0,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 5487,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,22 @@
+{
+ "has_buff": true,
+ "buff_duration": 10,
+ "buff_text": "Feared.",
+ "icon": "ability_druid_cower",
+ "name": "Scare Beast",
+ "required_class": "Hunter",
+ "required_level": 14,
+ "description": "Scares a beast, causing it to run in fear for up to 10 sec.  Damage caused may interrupt the effect.  Only one beast can be feared at a time.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 35
+ },
+ "range": 30,
+ "cast_time": 1.5,
+ "duration": 10,
+ "gcd": 1.5,
+ "cooldown_seconds": 30,
+ "_id": 1513,
+ "_source": "wowhead_classified"
+}

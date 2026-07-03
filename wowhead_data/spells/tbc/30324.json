@@ -1,0 +1,16 @@
+{
+ "icon": "ability_rogue_ambush",
+ "name": "Heroic Strike",
+ "required_class": null,
+ "description": "15 Rage | 5 yards (Combat) | Instant",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 15
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 0.0,
+ "_id": 30324,
+ "_source": "wowhead_classified"
+}

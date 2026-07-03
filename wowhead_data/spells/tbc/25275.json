@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_rogue_sprint",
+ "name": "Intercept",
+ "required_class": null,
+ "description": "Charge an enemy, causing 105 damage and stunning it for 3 sec.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 10
+ },
+ "range": 8,
+ "cast_time": 0,
+ "gcd": 0.0,
+ "cooldown_seconds": 30,
+ "_id": 25275,
+ "_source": "wowhead_classified"
+}

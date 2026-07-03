@@ -1,0 +1,20 @@
+{
+ "target_type": "self",
+ "icon": "spell_nature_stoneclawtotem",
+ "name": "Stoneclaw Totem",
+ "required_class": "Shaman",
+ "required_level": 8,
+ "description": "Summons a Stoneclaw Totem with 50 health at the feet of the caster for 15 sec that taunts creatures within 8 yards to attack it.  Enemies attacking the Stoneclaw Totem have a 50% chance to be stunned for 3 sec.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 15
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 15,
+ "gcd": 1.0,
+ "cooldown_seconds": 30,
+ "_id": 5730,
+ "_source": "wowhead_classified"
+}

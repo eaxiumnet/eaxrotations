@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_warrior_revenge",
+ "name": "Revenge",
+ "required_class": null,
+ "description": "Instantly counterattack an enemy for 270 to 330 damage and a high amount of threat.   Revenge must follow a block, dodge or parry.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 5
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "cooldown_seconds": 5,
+ "_id": 11601,
+ "_source": "wowhead_classified"
+}

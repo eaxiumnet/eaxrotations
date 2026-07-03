@@ -1,0 +1,19 @@
+{
+ "icon": "ability_whirlwind",
+ "name": "Whirlwind",
+ "required_class": "Warrior",
+ "required_level": 36,
+ "description": "In a whirlwind of steel you attack up to 4 enemies within 8 yards, causing weapon damage from both melee weapons to each enemy.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 25
+ },
+ "range": 0,
+ "cast_time": 0,
+ "aoe": true,
+ "gcd": 1.5,
+ "cooldown_seconds": 10,
+ "_id": 1680,
+ "_source": "wowhead_classified"
+}

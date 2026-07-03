@@ -1,0 +1,23 @@
+{
+ "target_type": "self",
+ "has_buff": true,
+ "buff_duration": 6,
+ "buff_text": "Immune to all attacks and spells.  Cannot attack or use physical abilities.",
+ "icon": "spell_holy_restoration",
+ "name": "Divine Protection",
+ "required_class": "Paladin",
+ "required_level": 6,
+ "description": "You are protected from all physical attacks and spells for 6 sec, but during that time you cannot attack or use physical abilities yourself.  Once protected, the target cannot be made invulnerable by Divine Shield, Divine Protection or Blessing of Protection again for 1 min.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 15
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 6,
+ "gcd": 1.5,
+ "cooldown_seconds": 300,
+ "_id": 498,
+ "_source": "wowhead_classified"
+}

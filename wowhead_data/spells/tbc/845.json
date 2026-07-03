@@ -1,0 +1,19 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_warrior_cleave",
+ "name": "Cleave",
+ "required_class": "Warrior",
+ "required_level": 20,
+ "description": "A sweeping attack that does your weapon damage plus 5 to the target and his nearest ally.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 20
+ },
+ "range": 5,
+ "cast_time": 0,
+ "aoe": true,
+ "gcd": 0.0,
+ "_id": 845,
+ "_source": "wowhead_classified"
+}

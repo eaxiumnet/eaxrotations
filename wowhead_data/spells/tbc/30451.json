@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_arcane_blast",
+ "name": "Arcane Blast",
+ "required_class": "Mage",
+ "required_level": 64,
+ "description": "Blasts the target with energy, dealing 668 to 772 Arcane damage.  Each time you cast Arcane Blast, the casting time is reduced while mana cost is increased.  Effect stacks up to 3 times and lasts 8 sec.",
+ "school": "arcane",
+ "cost": {
+ "type": "mana",
+ "amount": 195
+ },
+ "range": 30,
+ "cast_time": 2.5,
+ "gcd": 1.5,
+ "_id": 30451,
+ "_source": "wowhead_classified"
+}

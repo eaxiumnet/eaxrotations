@@ -1,0 +1,26 @@
+{
+ "periodic": {
+ "amount": 19,
+ "school": "fire",
+ "interval": 2
+ },
+ "has_buff": true,
+ "buff_duration": 8,
+ "buff_text": "19 Fire damage every 2 seconds.",
+ "icon": "spell_fire_flamebolt",
+ "name": "Fireball",
+ "required_class": "Mage",
+ "required_level": 60,
+ "description": "Hurls a fiery ball that causes 611 to 776 Fire damage and an additional 76 Fire damage over 8 sec.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 410
+ },
+ "range": 35,
+ "cast_time": 3.5,
+ "duration": 8,
+ "gcd": 1.5,
+ "_id": 25306,
+ "_source": "wowhead_classified"
+}

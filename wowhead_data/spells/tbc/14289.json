@@ -1,0 +1,19 @@
+{
+ "icon": "ability_upgrademoonglaive",
+ "name": "Multi-Shot",
+ "required_class": "Hunter",
+ "required_level": 42,
+ "description": "Fires several missiles, hitting 3 targets for an additional 80 damage.",
+ "school": "physical",
+ "cost": {
+ "type": "mana",
+ "amount": 175
+ },
+ "range": 35,
+ "cast_time": 0,
+ "aoe": true,
+ "gcd": 1.5,
+ "cooldown_seconds": 10,
+ "_id": 14289,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,22 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 12,
+ "buff_text": "Heals 152 damage every 3 seconds.",
+ "icon": "spell_nature_rejuvenation",
+ "name": "Rejuvenation",
+ "required_class": "Druid",
+ "required_level": 52,
+ "description": "Heals the target for 608 over 12 sec.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 280
+ },
+ "range": 40,
+ "cast_time": 0,
+ "duration": 12,
+ "gcd": 1.5,
+ "_id": 9840,
+ "_source": "wowhead_classified"
+}

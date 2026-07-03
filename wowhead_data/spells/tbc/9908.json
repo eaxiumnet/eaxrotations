@@ -1,0 +1,16 @@
+{
+ "icon": "inv_misc_monsterclaw_03",
+ "name": "Swipe",
+ "required_class": null,
+ "description": "Swipe 3 nearby enemies, inflicting 60 damage.  Damage increased by attack power.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 20
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 9908,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,26 @@
+{
+ "periodic": {
+ "amount": 4,
+ "school": "fire",
+ "interval": 3
+ },
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "4 Fire damage every 3 seconds.",
+ "icon": "spell_fire_immolation",
+ "name": "Immolate",
+ "required_class": "Warlock",
+ "required_level": 1,
+ "description": "Burns the enemy for 11 Fire damage and then an additional 20 Fire damage over 15 sec.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 25
+ },
+ "range": 30,
+ "cast_time": 2,
+ "duration": 15,
+ "gcd": 1.5,
+ "_id": 348,
+ "_source": "wowhead_classified"
+}

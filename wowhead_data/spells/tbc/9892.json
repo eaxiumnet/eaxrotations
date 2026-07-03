@@ -1,0 +1,17 @@
+{
+ "icon": "ability_druid_cower",
+ "name": "Cower",
+ "required_class": null,
+ "description": "Cower, causing no damage but lowering your threat a large amount, making the enemy less likely to attack you.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 20
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.0,
+ "cooldown_seconds": 10,
+ "_id": 9892,
+ "_source": "wowhead_classified"
+}

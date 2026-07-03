@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_arcane_starfire",
+ "name": "Starfire",
+ "required_class": "Druid",
+ "required_level": 34,
+ "description": "Causes 212 to 253 Arcane damage to the target.",
+ "school": "arcane",
+ "cost": {
+ "type": "mana",
+ "amount": 180
+ },
+ "range": 30,
+ "cast_time": 3.5,
+ "gcd": 1.5,
+ "_id": 8950,
+ "_source": "wowhead_classified"
+}

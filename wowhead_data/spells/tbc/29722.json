@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_fire_burnout",
+ "name": "Incinerate",
+ "required_class": "Warlock",
+ "required_level": 64,
+ "description": "325 Mana | 30 yards (Medium) | 2.5 seconds",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 325
+ },
+ "range": 30,
+ "cast_time": 2.5,
+ "gcd": 1.5,
+ "_id": 29722,
+ "_source": "wowhead_classified"
+}

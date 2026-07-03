@@ -1,0 +1,18 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_holy_holybolt",
+ "name": "Holy Light",
+ "required_class": "Paladin",
+ "required_level": 54,
+ "description": "Heals a friendly target for 1272 to 1414.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 580
+ },
+ "range": 40,
+ "cast_time": 2.5,
+ "gcd": 1.5,
+ "_id": 10329,
+ "_source": "wowhead_classified"
+}

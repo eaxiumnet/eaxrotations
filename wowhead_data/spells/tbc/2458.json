@@ -1,0 +1,14 @@
+{
+ "icon": "ability_racial_avatar",
+ "name": "Berserker Stance",
+ "required_class": "Warrior",
+ "required_level": 30,
+ "description": "An aggressive stance.  Critical hit chance is increased by 3% and all damage taken is increased by 10%.",
+ "school": "physical",
+ "range": 0,
+ "cast_time": 0,
+ "gcd": 0.0,
+ "cooldown_seconds": 1,
+ "_id": 2458,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,10 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_fire_searingtotem",
+ "name": "Searing Totem",
+ "required_class": "Shaman",
+ "required_level": 10,
+ "description": "Summons a Searing Totem with 5 health at your feet for 30 sec that repeatedly attacks an enemy within 20 yards for 9 to 11 Fire damage.",
+ "_id": 3599,
+ "_source": "wowhead_classified"
+}

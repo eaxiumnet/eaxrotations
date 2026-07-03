@@ -1,0 +1,23 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 3,
+ "buff_text": "Stunned.",
+ "icon": "spell_holy_sealofmight",
+ "name": "Hammer of Justice",
+ "required_class": "Paladin",
+ "required_level": 8,
+ "description": "Stuns the target for 3 sec.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 30
+ },
+ "range": 10,
+ "cast_time": 0,
+ "duration": 3,
+ "gcd": 1.5,
+ "cooldown_seconds": 60,
+ "_id": 853,
+ "_source": "wowhead_classified"
+}

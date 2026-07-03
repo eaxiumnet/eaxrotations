@@ -1,0 +1,15 @@
+{
+ "has_buff": true,
+ "buff_text": "Stealthed.  Movement speed slowed by 30%.",
+ "icon": "ability_ambush",
+ "name": "Prowl",
+ "required_class": null,
+ "description": "Allows the Druid to prowl around, but reduces your movement speed by 30%.  Lasts until cancelled.",
+ "school": "physical",
+ "range": 0,
+ "cast_time": 0,
+ "gcd": 0.0,
+ "cooldown_seconds": 10,
+ "_id": 9913,
+ "_source": "wowhead_classified"
+}

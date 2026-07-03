@@ -1,0 +1,17 @@
+{
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "Feared.",
+ "icon": "spell_shadow_possession",
+ "name": "Fear",
+ "required_class": "Warlock",
+ "required_level": 32,
+ "description": "Strikes fear in the enemy, causing it to run in fear for up to 15 sec.  Damage caused may interrupt the effect.  Only 1 target can be feared at a time.",
+ "school": "shadow",
+ "range": 20,
+ "cast_time": 1.5,
+ "duration": 15,
+ "gcd": 1.5,
+ "_id": 6213,
+ "_source": "wowhead_classified"
+}

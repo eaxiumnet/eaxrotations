@@ -1,0 +1,22 @@
+{
+ "has_buff": true,
+ "buff_duration": 30,
+ "buff_text": "Absorbs Frost damage.",
+ "icon": "spell_frost_frostward",
+ "name": "Frost Ward",
+ "required_class": "Mage",
+ "required_level": 22,
+ "description": "Absorbs 165 Frost damage.  Lasts 30 sec.",
+ "school": "frost",
+ "cost": {
+ "type": "mana",
+ "amount": 85
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 30,
+ "gcd": 1.5,
+ "cooldown_seconds": 30,
+ "_id": 6143,
+ "_source": "wowhead_classified"
+}

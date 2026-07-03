@@ -1,0 +1,18 @@
+{
+ "periodic": {
+ "amount": 12,
+ "school": "fire",
+ "interval": 3
+ },
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 12,
+ "buff_text": "12 Fire damage every 3 seconds.",
+ "icon": "spell_fire_flameshock",
+ "name": "Flame Shock",
+ "required_class": "Shaman",
+ "required_level": 18,
+ "description": "Instantly sears the target with fire, causing 51 Fire damage immediately and 48 Fire damage over 12 sec.",
+ "_id": 8052,
+ "_source": "wowhead_classified"
+}

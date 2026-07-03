@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_druid_ravage",
+ "name": "Ravage",
+ "required_class": "Druid",
+ "required_level": 32,
+ "description": "Ravage the target, causing 385% damage plus 147 to the target.  Must be prowling and behind the target.  Awards 1 combo point.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 60
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.0,
+ "_id": 6785,
+ "_source": "wowhead_classified"
+}

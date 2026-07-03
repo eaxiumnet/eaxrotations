@@ -1,0 +1,23 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 8,
+ "buff_text": "Drains 154 mana every 2 seconds.",
+ "icon": "ability_hunter_aimedshot",
+ "name": "Viper Sting",
+ "required_class": "Hunter",
+ "required_level": 36,
+ "description": "Stings the target, draining 616 mana over 8 sec.  Only one Sting per Hunter can be active on any one target.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 135
+ },
+ "range": 35,
+ "cast_time": 0,
+ "duration": 8,
+ "gcd": 1.5,
+ "cooldown_seconds": 15,
+ "_id": 3034,
+ "_source": "wowhead_classified"
+}

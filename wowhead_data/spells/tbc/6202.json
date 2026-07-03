@@ -1,0 +1,17 @@
+{
+ "icon": "inv_stone_04",
+ "name": "Create Healthstone",
+ "required_class": "Warlock",
+ "required_level": 22,
+ "description": "Creates a Lesser Healthstone that can be used to instantly restore 250 health.Conjured items disappear if logged out for more than 15 minutes.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 240
+ },
+ "range": 0,
+ "cast_time": 3,
+ "gcd": 1.5,
+ "_id": 6202,
+ "_source": "wowhead_classified"
+}

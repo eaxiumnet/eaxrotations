@@ -1,0 +1,20 @@
+{
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "Movement slowed by 50%.",
+ "icon": "ability_shockwave",
+ "name": "Hamstring",
+ "required_class": null,
+ "description": "Maims the enemy, causing 45 damage and slowing the enemy's movement by 50% for 15 sec.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 10
+ },
+ "range": 5,
+ "cast_time": 0,
+ "duration": 15,
+ "gcd": 1.5,
+ "_id": 7373,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,17 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_rogue_shadowstrikes",
+ "name": "Mutilate",
+ "required_class": null,
+ "description": "Instantly attacks with both weapons for an additional 88 with each weapon.  Damage is increased by 50% against Poisoned targets.  Must be behind the target.  Awards 2 combo points.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 60
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.0,
+ "_id": 34412,
+ "_source": "wowhead_classified"
+}

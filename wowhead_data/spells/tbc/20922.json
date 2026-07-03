@@ -1,0 +1,23 @@
+{
+ "has_buff": true,
+ "buff_duration": 8,
+ "buff_text": "24 damage every 1 second.",
+ "icon": "spell_holy_innerfire",
+ "name": "Consecration",
+ "required_class": "Paladin",
+ "required_level": 40,
+ "description": "Consecrates the land beneath the Paladin, doing 192 Holy damage over 8 sec to enemies who enter the area.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 290
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 8,
+ "aoe": true,
+ "gcd": 1.5,
+ "cooldown_seconds": 8,
+ "_id": 20922,
+ "_source": "wowhead_classified"
+}

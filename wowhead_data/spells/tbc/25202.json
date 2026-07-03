@@ -1,0 +1,20 @@
+{
+ "has_buff": true,
+ "buff_duration": 30,
+ "buff_text": "Reduces melee attack power by 228.",
+ "icon": "ability_warrior_warcry",
+ "name": "Demoralizing Shout",
+ "required_class": null,
+ "description": "Reduces the melee attack power of all enemies within 10 yards by 228 for 30 sec.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 10
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 30,
+ "gcd": 1.5,
+ "_id": 25202,
+ "_source": "wowhead_classified"
+}

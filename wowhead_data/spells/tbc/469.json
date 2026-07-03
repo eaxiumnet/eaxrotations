@@ -1,0 +1,21 @@
+{
+ "target_type": "friendly",
+ "has_buff": true,
+ "buff_duration": 120,
+ "buff_text": "Maximum health increased by 1080.",
+ "icon": "ability_warrior_rallyingcry",
+ "name": "Commanding Shout",
+ "required_class": null,
+ "description": "Increases maximum health of all party members within 20 yards by 1080.  Lasts 2 min.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 10
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 120,
+ "gcd": 1.5,
+ "_id": 469,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,22 @@
+{
+ "has_buff": true,
+ "buff_duration": 30,
+ "buff_text": "Absorbs Shadow damage.",
+ "icon": "spell_shadow_antishadow",
+ "name": "Shadow Ward",
+ "required_class": "Warlock",
+ "required_level": 32,
+ "description": "Absorbs 290 shadow damage.  Lasts 30 sec.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 135
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 30,
+ "gcd": 1.5,
+ "cooldown_seconds": 30,
+ "_id": 6229,
+ "_source": "wowhead_classified"
+}

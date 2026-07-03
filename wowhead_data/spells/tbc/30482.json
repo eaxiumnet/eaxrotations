@@ -1,0 +1,21 @@
+{
+ "has_buff": true,
+ "buff_duration": 1800,
+ "buff_text": "Causes 75 Fire damage to attackers.  Chance to receive a critical hit reduced by 5%.  Chance to critically strike with spells increased by 3%.",
+ "icon": "ability_mage_moltenarmor",
+ "name": "Molten Armor",
+ "required_class": "Mage",
+ "required_level": 62,
+ "description": "Causes 75 Fire damage when hit, increases your chance to critically hit with spells by 3%, and reduces the chance you are critically hit by 5%.  Only one type of Armor spell can be active on the Mage at any time.  Lasts 30 min.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 630
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 1800,
+ "gcd": 1.5,
+ "_id": 30482,
+ "_source": "wowhead_classified"
+}

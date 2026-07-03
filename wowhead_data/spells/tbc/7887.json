@@ -1,0 +1,10 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_meleedamage",
+ "name": "Overpower",
+ "required_class": "Warrior",
+ "required_level": 28,
+ "description": "Instantly overpower the enemy, causing weapon damage plus 15.  Only useable after the target dodges.  The Overpower cannot be blocked, dodged or parried.",
+ "_id": 7887,
+ "_source": "wowhead_classified"
+}

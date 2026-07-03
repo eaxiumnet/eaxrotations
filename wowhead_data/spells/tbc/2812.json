@@ -1,0 +1,18 @@
+{
+ "icon": "spell_holy_excorcism",
+ "name": "Holy Wrath",
+ "required_class": "Paladin",
+ "required_level": 50,
+ "description": "Sends bolts of holy power in all directions, causing 368 to 435 Holy damage to all Undead and Demon targets within 20 yds.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 550
+ },
+ "range": 0,
+ "cast_time": 2,
+ "gcd": 1.5,
+ "cooldown_seconds": 60,
+ "_id": 2812,
+ "_source": "wowhead_classified"
+}

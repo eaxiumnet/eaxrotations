@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_holy_holysmite",
+ "name": "Smite",
+ "required_class": "Priest",
+ "required_level": 22,
+ "description": "Smite an enemy for 97 to 112 Holy damage.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 95
+ },
+ "range": 30,
+ "cast_time": 2.5,
+ "gcd": 1.5,
+ "_id": 984,
+ "_source": "wowhead_classified"
+}

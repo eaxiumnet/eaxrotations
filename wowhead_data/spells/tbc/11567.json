@@ -1,0 +1,16 @@
+{
+ "icon": "ability_rogue_ambush",
+ "name": "Heroic Strike",
+ "required_class": null,
+ "description": "A strong attack that increases melee damage by 138 and causes a high amount of threat.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 15
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 0.0,
+ "_id": 11567,
+ "_source": "wowhead_classified"
+}

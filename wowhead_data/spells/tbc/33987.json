@@ -1,0 +1,22 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 12,
+ "buff_text": "All bleed effects and Shred cause 30% additional damage.",
+ "icon": "ability_druid_mangle2",
+ "name": "Mangle (Bear)",
+ "required_class": null,
+ "description": "Mangle the target for 115% normal damage plus 155 and causes the target to take 30% additional damage from Shred and bleed effects for 12 sec.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 20
+ },
+ "range": 5,
+ "cast_time": 0,
+ "duration": 12,
+ "gcd": 1.5,
+ "cooldown_seconds": 6,
+ "_id": 33987,
+ "_source": "wowhead_classified"
+}

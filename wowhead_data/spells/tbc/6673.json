@@ -1,0 +1,22 @@
+{
+ "target_type": "friendly",
+ "has_buff": true,
+ "buff_duration": 120,
+ "buff_text": "Increases your melee attack power by 20.",
+ "icon": "ability_warrior_battleshout",
+ "name": "Battle Shout",
+ "required_class": "Warrior",
+ "required_level": 1,
+ "description": "The warrior shouts, increasing the melee attack power of all party members within 20 yards by 20.  Lasts 2 min.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 10
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 120,
+ "gcd": 1.5,
+ "_id": 6673,
+ "_source": "wowhead_classified"
+}

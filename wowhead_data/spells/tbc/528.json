@@ -1,0 +1,14 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_holy_nullifydisease",
+ "name": "Cure Disease",
+ "required_class": "Priest",
+ "required_level": 14,
+ "description": "Removes 1 disease from the friendly target.",
+ "school": "holy",
+ "range": 40,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 528,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,10 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_nature_magicimmunity",
+ "name": "Healing Wave",
+ "required_class": "Shaman",
+ "required_level": 40,
+ "description": "Heals a friendly target for 759 to 874.",
+ "_id": 8005,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,17 @@
+{
+ "icon": "spell_shadow_shadowbolt",
+ "name": "Shadow Bolt",
+ "required_class": "Warlock",
+ "required_level": 60,
+ "description": "Sends a shadowy bolt at the enemy, causing 497 to 554 Shadow damage.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 380
+ },
+ "range": 30,
+ "cast_time": 3,
+ "gcd": 1.5,
+ "_id": 25307,
+ "_source": "wowhead_classified"
+}

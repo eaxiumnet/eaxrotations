@@ -1,0 +1,19 @@
+{
+ "target_type": "self",
+ "icon": "spell_shadow_demonicfortitude",
+ "name": "Shadow Word: Death",
+ "required_class": "Priest",
+ "required_level": 70,
+ "description": "A word of dark binding that inflicts 572 to 664 Shadow damage to the target.  If the target is not killed by Shadow Word: Death, the caster takes damage equal to the damage inflicted upon the target.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 309
+ },
+ "range": 30,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "cooldown_seconds": 12,
+ "_id": 32996,
+ "_source": "wowhead_classified"
+}

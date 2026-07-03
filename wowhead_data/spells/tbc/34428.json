@@ -1,0 +1,13 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_warrior_devastate",
+ "name": "Victory Rush",
+ "required_class": null,
+ "description": "Instantly attack the target causing (Attack Power * 45 / 100) damage.  Can only be used within 20 sec after you kill an enemy that yields experience or honor.  Damage is based on your attack power.",
+ "school": "physical",
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 34428,
+ "_source": "wowhead_classified"
+}

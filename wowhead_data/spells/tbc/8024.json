@@ -1,0 +1,9 @@
+{
+ "icon": "spell_fire_flametounge",
+ "name": "Flametongue Weapon",
+ "required_class": "Shaman",
+ "required_level": 10,
+ "description": "Imbue the Shaman's weapon with fire.  Each hit causes 6 to 18 additional Fire damage, based on the speed of the weapon.  Slower weapons cause more fire damage per swing.  Lasts 30 minutes.",
+ "_id": 8024,
+ "_source": "wowhead_classified"
+}

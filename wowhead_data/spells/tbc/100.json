@@ -1,0 +1,15 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_warrior_charge",
+ "name": "Charge",
+ "required_class": "Warrior",
+ "required_level": 4,
+ "description": "Charge an enemy, generate 9 rage, and stun it for 1 sec.  Cannot be used in combat.",
+ "school": "physical",
+ "range": 8,
+ "cast_time": 0,
+ "gcd": 0.0,
+ "cooldown_seconds": 15,
+ "_id": 100,
+ "_source": "wowhead_classified"
+}

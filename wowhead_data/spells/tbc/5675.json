@@ -1,0 +1,10 @@
+{
+ "target_type": "self",
+ "icon": "spell_nature_manaregentotem",
+ "name": "Mana Spring Totem",
+ "required_class": "Shaman",
+ "required_level": 26,
+ "description": "Summons a Mana Spring Totem with 5 health at the feet of the caster for 2 min that restores 6 mana every 2 seconds to group members within 20 yards.",
+ "_id": 5675,
+ "_source": "wowhead_classified"
+}

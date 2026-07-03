@@ -1,0 +1,16 @@
+{
+ "has_buff": true,
+ "buff_text": "Stealthed.  Movement slowed by 40%.",
+ "icon": "ability_stealth",
+ "name": "Stealth",
+ "required_class": "Rogue",
+ "required_level": 20,
+ "description": "Allows the rogue to sneak around, but reduces your speed by 40%.  Lasts until cancelled.",
+ "school": "physical",
+ "range": 0,
+ "cast_time": 0,
+ "gcd": 0.0,
+ "cooldown_seconds": 10,
+ "_id": 1785,
+ "_source": "wowhead_classified"
+}

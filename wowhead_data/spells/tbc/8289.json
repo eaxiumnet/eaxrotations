@@ -1,0 +1,28 @@
+{
+ "periodic": {
+ "amount": 59,
+ "school": "shadow",
+ "interval": 3
+ },
+ "target_type": "self",
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "59 Shadow damage every 3 seconds.",
+ "channeled": true,
+ "icon": "spell_shadow_haunting",
+ "name": "Drain Soul",
+ "required_class": "Warlock",
+ "required_level": 38,
+ "description": "Drains the soul of the target, causing 295 Shadow damage over 15 sec.  If the target dies while being drained, and yields experience or honor, the caster gains a Soul Shard.  Soul Shards are required for other spells.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 210
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 15,
+ "gcd": 1.5,
+ "_id": 8289,
+ "_source": "wowhead_classified"
+}

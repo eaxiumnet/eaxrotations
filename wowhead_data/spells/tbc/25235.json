@@ -1,0 +1,18 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_holy_flashheal",
+ "name": "Flash Heal",
+ "required_class": "Priest",
+ "required_level": 67,
+ "description": "Heals a friendly target for 1116 to 1295.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 470
+ },
+ "range": 40,
+ "cast_time": 1.5,
+ "gcd": 1.5,
+ "_id": 25235,
+ "_source": "wowhead_classified"
+}

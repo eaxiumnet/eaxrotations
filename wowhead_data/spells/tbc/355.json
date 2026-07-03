@@ -1,0 +1,16 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_nature_reincarnation",
+ "name": "Taunt",
+ "required_class": "Warrior",
+ "required_level": 10,
+ "description": "Taunts the target to attack you, but has no effect if the target is already attacking you.",
+ "school": "physical",
+ "range": 5,
+ "cast_time": 0,
+ "duration": 3,
+ "gcd": 0.0,
+ "cooldown_seconds": 10,
+ "_id": 355,
+ "_source": "wowhead_classified"
+}

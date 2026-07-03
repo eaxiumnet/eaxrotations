@@ -1,0 +1,18 @@
+{
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "Movement speed increased by 50%.",
+ "icon": "ability_rogue_sprint",
+ "name": "Sprint",
+ "required_class": "Rogue",
+ "required_level": 10,
+ "description": "Increases the rogue's movement speed by 50% for 15 sec.  Does not break stealth.",
+ "school": "physical",
+ "range": 0,
+ "cast_time": 0,
+ "duration": 15,
+ "gcd": 0.0,
+ "cooldown_seconds": 300,
+ "_id": 2983,
+ "_source": "wowhead_classified"
+}

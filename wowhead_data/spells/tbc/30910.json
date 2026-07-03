@@ -1,0 +1,23 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 60,
+ "buff_text": "Causes 4200 Shadow damage after 1 min.",
+ "icon": "spell_shadow_auraofdarkness",
+ "name": "Curse of Doom",
+ "required_class": "Warlock",
+ "required_level": 70,
+ "description": "Curses the target with impending doom, causing 4200 Shadow damage after 1 min.  If the target dies from this damage, there is a chance that a Doomguard will be summoned.  Cannot be cast on players.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 380
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 60,
+ "gcd": 1.5,
+ "cooldown_seconds": 60,
+ "_id": 30910,
+ "_source": "wowhead_classified"
+}

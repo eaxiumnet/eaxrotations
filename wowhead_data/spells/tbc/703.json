@@ -1,0 +1,22 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 18,
+ "buff_text": "24 damage every 3 seconds.",
+ "icon": "ability_rogue_garrote",
+ "name": "Garrote",
+ "required_class": "Rogue",
+ "required_level": 14,
+ "description": "Garrote the enemy, causing 144 damage over 18 sec, increased by your attack power.  Must be stealthed and behind the target.  Awards 1 combo point.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 50
+ },
+ "range": 5,
+ "cast_time": 0,
+ "duration": 18,
+ "gcd": 1.0,
+ "_id": 703,
+ "_source": "wowhead_classified"
+}

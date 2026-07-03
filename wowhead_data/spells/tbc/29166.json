@@ -1,0 +1,19 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 20,
+ "buff_text": "Spirit based mana regeneration increased by 400%.  Full mana regeneration while casting.",
+ "icon": "spell_nature_lightning",
+ "name": "Innervate",
+ "required_class": "Druid",
+ "required_level": 40,
+ "description": "Increases the target's Spirit based mana regeneration by 400% and allows full mana regeneration while casting.  Lasts 20 sec.",
+ "school": "nature",
+ "range": 30,
+ "cast_time": 0,
+ "duration": 20,
+ "gcd": 1.5,
+ "cooldown_seconds": 360,
+ "_id": 29166,
+ "_source": "wowhead_classified"
+}

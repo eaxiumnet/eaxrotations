@@ -1,0 +1,23 @@
+{
+ "target_type": "self",
+ "has_buff": true,
+ "buff_duration": 8,
+ "buff_text": "Frozen in place.",
+ "icon": "spell_frost_frostnova",
+ "name": "Frost Nova",
+ "required_class": "Mage",
+ "required_level": 10,
+ "description": "Blasts enemies near the caster for 21 to 24 Frost damage and freezes them in place for up to 8 sec.  Damage caused may interrupt the effect.",
+ "school": "frost",
+ "cost": {
+ "type": "mana",
+ "amount": 55
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 8,
+ "gcd": 1.5,
+ "cooldown_seconds": 25,
+ "_id": 122,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,22 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 4,
+ "buff_text": "Stunned.",
+ "icon": "ability_cheapshot",
+ "name": "Cheap Shot",
+ "required_class": "Rogue",
+ "required_level": 26,
+ "description": "Stuns the target for 4 sec.  Must be stealthed.  Awards 2 combo points.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 60
+ },
+ "range": 5,
+ "cast_time": 0,
+ "duration": 4,
+ "gcd": 1.0,
+ "_id": 1833,
+ "_source": "wowhead_classified"
+}

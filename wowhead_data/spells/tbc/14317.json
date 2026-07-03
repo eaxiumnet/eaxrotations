@@ -1,0 +1,20 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_fire_selfdestruct",
+ "name": "Explosive Trap",
+ "required_class": "Hunter",
+ "required_level": 54,
+ "description": "Place a fire trap that explodes when an enemy approaches, causing (Ranged Attack Power * 0.1 + 201) to (Ranged Attack Power * 0.1 + 257) Fire damage and burning all enemies for 330 additional Fire damage over 20 sec to all within 10 yards.  Trap will exist for 1 min.  Only one trap can be active at a time.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 520
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 60,
+ "gcd": 1.5,
+ "cooldown_seconds": 30,
+ "_id": 14317,
+ "_source": "wowhead_classified"
+}

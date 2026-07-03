@@ -1,0 +1,10 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_nature_earthshock",
+ "name": "Earth Shock",
+ "required_class": "Shaman",
+ "required_level": 14,
+ "description": "Instantly shocks the target with concussive force, causing 65 to 69 Nature damage.  It also interrupts spellcasting and prevents any spell in that school from being cast for 2 sec.",
+ "_id": 8045,
+ "_source": "wowhead_classified"
+}

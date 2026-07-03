@@ -1,0 +1,15 @@
+{
+ "has_buff": true,
+ "buff_text": "Tracking humanoids.",
+ "icon": "ability_tracking",
+ "name": "Track Humanoids",
+ "required_class": "Druid",
+ "required_level": 32,
+ "description": "Shows the location of all nearby humanoids on the minimap.  Only one type of thing can be tracked at a time.",
+ "school": "physical",
+ "range": 0,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 5225,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,17 @@
+{
+ "target_type": "self",
+ "icon": "spell_nature_strengthofearthtotem02",
+ "name": "Earthbind Totem",
+ "required_class": "Shaman",
+ "required_level": 6,
+ "description": "Summons an Earthbind Totem with 5 health at the feet of the caster for 45 sec that slows the movement speed of enemies within 10 yards.",
+ "school": "nature",
+ "range": 0,
+ "cast_time": 0,
+ "duration": 45,
+ "aoe": true,
+ "gcd": 1.0,
+ "cooldown_seconds": 15,
+ "_id": 2484,
+ "_source": "wowhead_classified"
+}

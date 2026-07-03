@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_nature_abolishmagic",
+ "name": "Wrath",
+ "required_class": "Druid",
+ "required_level": 6,
+ "description": "Causes 28 to 33 Nature damage to the target.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 35
+ },
+ "range": 30,
+ "cast_time": 1.7,
+ "gcd": 1.5,
+ "_id": 5177,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,22 @@
+{
+ "target_type": "friendly",
+ "has_buff": true,
+ "buff_duration": 600,
+ "buff_text": "Causes 3 Nature damage to attackers.",
+ "icon": "spell_nature_thorns",
+ "name": "Thorns",
+ "required_class": "Druid",
+ "required_level": 6,
+ "description": "Thorns sprout from the friendly target causing 3 Nature damage to attackers when hit.  Lasts 10 min.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 35
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 600,
+ "gcd": 1.5,
+ "_id": 467,
+ "_source": "wowhead_classified"
+}

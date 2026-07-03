@@ -1,0 +1,20 @@
+{
+ "icon": "spell_fire_sealoffire",
+ "name": "Fire Nova Totem",
+ "required_class": "Shaman",
+ "required_level": 12,
+ "description": "Summons a Fire Nova Totem that has 5 health and lasts 5 sec.  Unless it is destroyed within 4 sec., the totem inflicts 53 to 62 fire damage to enemies within 10 yd.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 95
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 5,
+ "aoe": true,
+ "gcd": 1.0,
+ "cooldown_seconds": 15,
+ "_id": 1535,
+ "_source": "wowhead_classified"
+}

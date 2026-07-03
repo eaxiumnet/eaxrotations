@@ -1,0 +1,10 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_fire_burnout",
+ "name": "Incinerate",
+ "required_class": "Warlock",
+ "required_level": 70,
+ "description": "Deals 444 to 514 Fire damage to your target and an additional 111 to 128 Fire damage if the target is affected by an Immolate spell.",
+ "_id": 32231,
+ "_source": "wowhead_classified"
+}

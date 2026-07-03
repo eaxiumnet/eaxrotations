@@ -1,0 +1,25 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 10,
+ "buff_text": "72 damage every 1 seconds, and time between attacks increased by 25%.",
+ "channeled": true,
+ "icon": "spell_nature_cyclone",
+ "name": "Hurricane",
+ "required_class": "Druid",
+ "required_level": 40,
+ "description": "Creates a violent storm in the target area causing 72 Nature damage to enemies every 1 sec, and increasing the time between attacks of enemies by 25%.  Lasts 10 sec.  Druid must channel to maintain the spell.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 880
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 10,
+ "aoe": true,
+ "gcd": 1.5,
+ "cooldown_seconds": 60,
+ "_id": 16914,
+ "_source": "wowhead_classified"
+}

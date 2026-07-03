@@ -1,0 +1,19 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_nature_tremortotem",
+ "name": "Tremor Totem",
+ "required_class": "Shaman",
+ "required_level": 18,
+ "description": "Summons a Tremor Totem with 5 health at the feet of the caster that shakes the ground around it, removing Fear, Charm and Sleep effects from party members within 30 yards.  Lasts 2 min.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 60
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 120,
+ "gcd": 1.0,
+ "_id": 8143,
+ "_source": "wowhead_classified"
+}

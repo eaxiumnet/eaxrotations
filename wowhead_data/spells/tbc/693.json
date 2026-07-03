@@ -1,0 +1,14 @@
+{
+ "target_type": "hostile",
+ "icon": "inv_misc_orb_04",
+ "name": "Create Soulstone",
+ "required_class": "Warlock",
+ "required_level": 18,
+ "description": "Creates a Minor Soulstone.  The Soulstone can be used to store one target's soul.  If the target dies while their soul is stored, they will be able to resurrect with 400 health and 700 mana.Conjured items disappear if logged out for more than 15 minutes.",
+ "school": "shadow",
+ "range": 0,
+ "cast_time": 3,
+ "gcd": 1.5,
+ "_id": 693,
+ "_source": "wowhead_classified"
+}

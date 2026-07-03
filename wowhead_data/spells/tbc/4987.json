@@ -1,0 +1,14 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_holy_renew",
+ "name": "Cleanse",
+ "required_class": "Paladin",
+ "required_level": 42,
+ "description": "Cleanses a friendly target, removing 1 poison effect, 1 disease effect, and 1 magic effect.",
+ "school": "holy",
+ "range": 40,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 4987,
+ "_source": "wowhead_classified"
+}

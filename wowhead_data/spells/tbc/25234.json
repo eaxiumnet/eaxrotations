@@ -1,0 +1,16 @@
+{
+ "icon": "inv_sword_48",
+ "name": "Execute",
+ "required_class": null,
+ "description": "Attempt to finish off a wounded foe, causing 750 damage and converting each extra point of rage into 18 additional damage.  Only usable on enemies that have less than 20% health.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 15
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 25234,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 30,
+ "buff_text": "Redirecting threat.",
+ "icon": "ability_hunter_misdirection",
+ "name": "Misdirection",
+ "required_class": null,
+ "description": "Threat caused by your next 3 attacks is redirected to the target raid member.  Caster and target can only be affected by one Misdirection spell at a time.  Effect lasts 30 sec.",
+ "school": "physical",
+ "range": 100,
+ "cast_time": 0,
+ "duration": 30,
+ "gcd": 1.5,
+ "cooldown_seconds": 120,
+ "_id": 34477,
+ "_source": "wowhead_classified"
+}

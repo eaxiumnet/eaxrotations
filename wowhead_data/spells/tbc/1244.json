@@ -1,0 +1,22 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 1800,
+ "buff_text": "Increases Stamina by 8.",
+ "icon": "spell_holy_wordfortitude",
+ "name": "Power Word: Fortitude",
+ "required_class": "Priest",
+ "required_level": 12,
+ "description": "Power infuses the target, increasing their Stamina by 8 for 30 min.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 70
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 1800,
+ "gcd": 1.5,
+ "_id": 1244,
+ "_source": "wowhead_classified"
+}

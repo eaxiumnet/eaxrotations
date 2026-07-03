@@ -1,0 +1,16 @@
+{
+ "has_buff": true,
+ "buff_text": "Improved stealth.",
+ "icon": "ability_vanish",
+ "name": "Vanish",
+ "required_class": "Rogue",
+ "required_level": 22,
+ "description": "Allows the rogue to vanish from sight, entering an improved stealth mode for 10 sec.  Also breaks movement impairing effects.",
+ "school": "physical",
+ "range": 0,
+ "cast_time": 0,
+ "gcd": 0.0,
+ "cooldown_seconds": 300,
+ "_id": 1856,
+ "_source": "wowhead_classified"
+}

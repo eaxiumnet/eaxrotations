@@ -1,0 +1,16 @@
+{
+ "icon": "ability_hunter_steadyshot",
+ "name": "Steady Shot",
+ "required_class": null,
+ "description": "A steady shot that causes base weapon damage plus (Ranged Attack Power * 0.2 + 150).  Causes an additional 175 against Dazed targets.",
+ "school": "physical",
+ "cost": {
+ "type": "mana",
+ "amount": 110
+ },
+ "range": 35,
+ "cast_time": 1,
+ "gcd": 1.5,
+ "_id": 34120,
+ "_source": "wowhead_classified"
+}

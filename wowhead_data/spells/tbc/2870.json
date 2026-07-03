@@ -1,0 +1,14 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_nature_removedisease",
+ "name": "Cure Disease",
+ "required_class": "Shaman",
+ "required_level": 22,
+ "description": "Cures 1 disease on the target.",
+ "school": "nature",
+ "range": 40,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 2870,
+ "_source": "wowhead_classified"
+}

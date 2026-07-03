@@ -1,0 +1,23 @@
+{
+ "target_type": "friendly",
+ "has_buff": true,
+ "buff_duration": 40,
+ "buff_text": "Melee, ranged, and spell casting speed increased by 30%.",
+ "icon": "spell_nature_bloodlust",
+ "name": "Bloodlust",
+ "required_class": "Shaman",
+ "required_level": 70,
+ "description": "Increases melee, ranged, and spell casting speed by 30% for all party members.  Lasts 40 sec.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 750
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 40,
+ "gcd": 1.5,
+ "cooldown_seconds": 600,
+ "_id": 2825,
+ "_source": "wowhead_classified"
+}

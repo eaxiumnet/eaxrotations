@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_frost_frostblast",
+ "name": "Ice Lance",
+ "required_class": "Mage",
+ "required_level": 66,
+ "description": "Deals 173 to 200 Frost damage to an enemy target.  Causes triple damage against Frozen targets.",
+ "school": "frost",
+ "cost": {
+ "type": "mana",
+ "amount": 150
+ },
+ "range": 30,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 30455,
+ "_source": "wowhead_classified"
+}

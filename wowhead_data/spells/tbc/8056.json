@@ -1,0 +1,13 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 8,
+ "buff_text": "Movement slowed by 50%.",
+ "icon": "spell_frost_frostshock",
+ "name": "Frost Shock",
+ "required_class": "Shaman",
+ "required_level": 20,
+ "description": "Instantly shocks the target with frost, causing 95 to 101 Frost damage and slowing movement speed by 50%.  Lasts 8 sec.  Causes a high amount of threat.",
+ "_id": 8056,
+ "_source": "wowhead_classified"
+}

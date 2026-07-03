@@ -1,0 +1,18 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_nature_healingwavelesser",
+ "name": "Lesser Healing Wave",
+ "required_class": "Shaman",
+ "required_level": 44,
+ "description": "Heals a friendly target for 473 to 529.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 235
+ },
+ "range": 40,
+ "cast_time": 1.5,
+ "gcd": 1.5,
+ "_id": 10466,
+ "_source": "wowhead_classified"
+}

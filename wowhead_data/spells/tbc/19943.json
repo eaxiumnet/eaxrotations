@@ -1,0 +1,10 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_holy_flashheal",
+ "name": "Flash of Light",
+ "required_class": "Paladin",
+ "required_level": 58,
+ "description": "Heals a friendly target for 356 to 396.",
+ "_id": 19943,
+ "_source": "wowhead_classified"
+}

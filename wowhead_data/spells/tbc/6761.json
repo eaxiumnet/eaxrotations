@@ -1,0 +1,17 @@
+{
+ "icon": "ability_rogue_eviscerate",
+ "name": "Eviscerate",
+ "required_class": "Rogue",
+ "required_level": 16,
+ "description": "Finishing move that causes damage per combo point:   1 point  : (6 + 19 + Attack Power * 0.03)-(20 + 19 + Attack Power * 0.03) damage   2 points: [6 + (38) + Attack Power * 0.06]-[20 + (38) + Attack Power * 0.06] damage   3 points: [6 + (57) + Attack Power * 0.09]-[20 + (57) + Attack Power * 0.09] damage   4 points: [6 + (76) + Attack Power * 0.12]-[20 + (76) + Attack Power * 0.12] damage   5 points: [6 + (95) + Attack Power * 0.15]-[20 + (95) + Attack Power * 0.15] damage",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 35
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.0,
+ "_id": 6761,
+ "_source": "wowhead_classified"
+}

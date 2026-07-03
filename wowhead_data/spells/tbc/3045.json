@@ -1,0 +1,22 @@
+{
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "Increases ranged attack speed by 40%.",
+ "icon": "ability_hunter_runningshot",
+ "name": "Rapid Fire",
+ "required_class": "Hunter",
+ "required_level": 26,
+ "description": "Increases ranged attack speed by 40% for 15 sec.",
+ "school": "arcane",
+ "cost": {
+ "type": "mana",
+ "amount": 100
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 15,
+ "gcd": 0.0,
+ "cooldown_seconds": 300,
+ "_id": 3045,
+ "_source": "wowhead_classified"
+}

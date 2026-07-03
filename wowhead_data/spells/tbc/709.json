@@ -1,0 +1,23 @@
+{
+ "target_type": "self",
+ "has_buff": true,
+ "buff_duration": 5,
+ "buff_text": "Drains 29 health every 1 sec to the caster.",
+ "channeled": true,
+ "icon": "spell_shadow_lifedrain02",
+ "name": "Drain Life",
+ "required_class": "Warlock",
+ "required_level": 30,
+ "description": "Transfers 29 health every 1 sec from the target to the caster.  Lasts 5 sec.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 135
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 5,
+ "gcd": 1.5,
+ "_id": 709,
+ "_source": "wowhead_classified"
+}

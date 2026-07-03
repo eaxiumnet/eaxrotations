@@ -1,0 +1,22 @@
+{
+ "target_type": "friendly",
+ "has_buff": true,
+ "buff_duration": 1800,
+ "buff_text": "Increases armor by 65 and all attributes by 2.",
+ "icon": "spell_nature_regeneration",
+ "name": "Mark of the Wild",
+ "required_class": "Druid",
+ "required_level": 10,
+ "description": "Increases the friendly target's armor by 65 and all attributes by 2 for 30 min.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 50
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 1800,
+ "gcd": 1.5,
+ "_id": 5232,
+ "_source": "wowhead_classified"
+}

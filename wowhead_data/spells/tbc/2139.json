@@ -1,0 +1,19 @@
+{
+ "icon": "spell_frost_iceshock",
+ "name": "Counterspell",
+ "required_class": "Mage",
+ "required_level": 24,
+ "description": "Counters the enemy's spellcast, preventing any spell from that school of magic from being cast for 8 sec.  Generates a high amount of threat.",
+ "school": "arcane",
+ "cost": {
+ "type": "mana",
+ "amount": 100
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 8,
+ "gcd": 0.0,
+ "cooldown_seconds": 24,
+ "_id": 2139,
+ "_source": "wowhead_classified"
+}

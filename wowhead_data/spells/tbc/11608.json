@@ -1,0 +1,11 @@
+{
+ "target_type": "hostile",
+ "icon": "ability_warrior_cleave",
+ "name": "Cleave",
+ "required_class": "Warrior",
+ "required_level": 40,
+ "description": "A sweeping attack that does your weapon damage plus 18 to the target and his nearest ally.",
+ "aoe": true,
+ "_id": 11608,
+ "_source": "wowhead_classified"
+}

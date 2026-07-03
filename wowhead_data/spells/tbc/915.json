@@ -1,0 +1,18 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_nature_lightning",
+ "name": "Lightning Bolt",
+ "required_class": "Shaman",
+ "required_level": 20,
+ "description": "Casts a bolt of lightning at the target for 88 to 100 Nature damage.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 70
+ },
+ "range": 30,
+ "cast_time": 2.5,
+ "gcd": 1.5,
+ "_id": 915,
+ "_source": "wowhead_classified"
+}

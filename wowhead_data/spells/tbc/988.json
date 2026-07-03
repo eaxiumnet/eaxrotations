@@ -1,0 +1,14 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_holy_dispelmagic",
+ "name": "Dispel Magic",
+ "required_class": "Priest",
+ "required_level": 36,
+ "description": "Dispels magic on the target, removing 2 harmful spells from a friend or 2 beneficial spells from an enemy.",
+ "school": "holy",
+ "range": 30,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 988,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,18 @@
+{
+ "has_buff": true,
+ "buff_duration": 10,
+ "buff_text": "Converting rage into health.",
+ "icon": "ability_bullrush",
+ "name": "Frenzied Regeneration",
+ "required_class": "Druid",
+ "required_level": 36,
+ "description": "Converts up to 10 rage per second into health for 10 sec.  Each point of rage is converted into 10 health.",
+ "school": "physical",
+ "range": 0,
+ "cast_time": 0,
+ "duration": 10,
+ "gcd": 1.5,
+ "cooldown_seconds": 180,
+ "_id": 22842,
+ "_source": "wowhead_classified"
+}

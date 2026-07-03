@@ -1,0 +1,10 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_holy_holybolt",
+ "name": "Holy Light",
+ "required_class": "Paladin",
+ "required_level": 38,
+ "description": "Heals a friendly target for 717 to 799.",
+ "_id": 3472,
+ "_source": "wowhead_classified"
+}

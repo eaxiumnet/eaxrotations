@@ -1,0 +1,14 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_holy_purify",
+ "name": "Purify",
+ "required_class": "Paladin",
+ "required_level": 8,
+ "description": "Purifies the friendly target, removing 1 disease effect and 1 poison effect.",
+ "school": "holy",
+ "range": 40,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 1152,
+ "_source": "wowhead_classified"
+}

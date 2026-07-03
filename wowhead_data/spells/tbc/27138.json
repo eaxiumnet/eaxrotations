@@ -1,0 +1,19 @@
+{
+ "icon": "spell_holy_excorcism_02",
+ "name": "Exorcism",
+ "required_class": "Paladin",
+ "required_level": 68,
+ "description": "Causes 626 to 698 Holy damage to an Undead or Demon target.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 340
+ },
+ "range": 30,
+ "cast_time": 0,
+ "aoe": true,
+ "gcd": 1.5,
+ "cooldown_seconds": 15,
+ "_id": 27138,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,17 @@
+{
+ "icon": "spell_shadow_ritualofsacrifice",
+ "name": "Sinister Strike",
+ "required_class": "Rogue",
+ "required_level": 22,
+ "description": "An instant strike that causes 15 damage in addition to your normal weapon damage.  Awards 1 combo point.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 45
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.0,
+ "_id": 1759,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,22 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 30,
+ "buff_text": "Armor decreased by 180.",
+ "icon": "ability_warrior_sunder",
+ "name": "Sunder Armor",
+ "required_class": "Warrior",
+ "required_level": 22,
+ "description": "Sunders the target's armor, reducing it by 180 per Sunder Armor and causes a high amount of threat.  Can be applied up to 5 times.  Lasts 30 sec.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 15
+ },
+ "range": 5,
+ "cast_time": 0,
+ "duration": 30,
+ "gcd": 1.5,
+ "_id": 7405,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,13 @@
+{
+ "target_type": "friendly",
+ "has_buff": true,
+ "buff_duration": 180,
+ "buff_text": "Warded against Fear.",
+ "icon": "spell_holy_excorcism",
+ "name": "Fear Ward",
+ "required_class": "Priest",
+ "required_level": 20,
+ "description": "Wards the friendly target against Fear.  The next Fear effect used against the target will fail, using up the ward.  Lasts 3 min.",
+ "_id": 6346,
+ "_source": "wowhead_classified"
+}

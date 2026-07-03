@@ -1,0 +1,26 @@
+{
+ "periodic": {
+ "amount": 20,
+ "school": "holy",
+ "interval": 2
+ },
+ "has_buff": true,
+ "buff_duration": 10,
+ "buff_text": "20 Holy damage every 2 seconds.",
+ "icon": "spell_holy_searinglight",
+ "name": "Holy Fire",
+ "required_class": "Priest",
+ "required_level": 48,
+ "description": "Consumes the enemy in Holy flames that cause 271 to 340 Holy damage and an additional 100 Holy damage over 10 sec.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 200
+ },
+ "range": 30,
+ "cast_time": 3.5,
+ "duration": 10,
+ "gcd": 1.5,
+ "_id": 15266,
+ "_source": "wowhead_classified"
+}

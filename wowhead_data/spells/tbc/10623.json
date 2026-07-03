@@ -1,0 +1,18 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_nature_healingwavegreater",
+ "name": "Chain Heal",
+ "required_class": "Shaman",
+ "required_level": 54,
+ "description": "Heals the friendly target for 567 to 646, then jumps to heal additional nearby targets.  If cast on a party member, the heal will only jump to other party members.  Each jump reduces the effectiveness of the heal by 50%.  Heals 3 total targets.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 405
+ },
+ "range": 40,
+ "cast_time": 2.5,
+ "gcd": 1.5,
+ "_id": 10623,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,28 @@
+{
+ "periodic": {
+ "amount": 44,
+ "school": "fire",
+ "interval": 2
+ },
+ "has_buff": true,
+ "buff_duration": 8,
+ "buff_text": "44 Fire damage every 2 seconds.",
+ "channeled": true,
+ "icon": "spell_shadow_rainoffire",
+ "name": "Rain of Fire",
+ "required_class": "Warlock",
+ "required_level": 20,
+ "description": "Calls down a fiery rain to burn enemies in the area of effect for [(44 * 4)]176 Fire damage over 8 sec.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 295
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 8,
+ "aoe": true,
+ "gcd": 1.5,
+ "_id": 5740,
+ "_source": "wowhead_classified"
+}

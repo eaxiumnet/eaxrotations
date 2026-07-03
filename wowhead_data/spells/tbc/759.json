@@ -1,0 +1,17 @@
+{
+ "icon": "inv_misc_gem_emerald_01",
+ "name": "Conjure Mana Agate",
+ "required_class": "Mage",
+ "required_level": 28,
+ "description": "Conjures a mana agate that can be used to instantly restore 390 to 410 mana.Conjured items disappear if logged out for more than 15 minutes.",
+ "school": "arcane",
+ "cost": {
+ "type": "mana",
+ "amount": 530
+ },
+ "range": 0,
+ "cast_time": 3,
+ "gcd": 1.5,
+ "_id": 759,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,18 @@
+{
+ "icon": "ability_rogue_feint",
+ "name": "Feint",
+ "required_class": "Rogue",
+ "required_level": 16,
+ "description": "Performs a feint, causing no damage but lowering your threat by a small amount, making the enemy less likely to attack you.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 20
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.0,
+ "cooldown_seconds": 10,
+ "_id": 1966,
+ "_source": "wowhead_classified"
+}

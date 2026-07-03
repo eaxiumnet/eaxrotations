@@ -1,0 +1,18 @@
+{
+ "icon": "ability_impalingbolt",
+ "name": "Arcane Shot",
+ "required_class": "Hunter",
+ "required_level": 69,
+ "description": "An instant shot that causes (Ranged Attack Power * 0.15 + 273) Arcane damage and dispels 1 Magic effect.",
+ "school": "arcane",
+ "cost": {
+ "type": "mana",
+ "amount": 230
+ },
+ "range": 35,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "cooldown_seconds": 6,
+ "_id": 27019,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,24 @@
+{
+ "target_type": "self",
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "Damages self and all nearby enemies.",
+ "channeled": true,
+ "icon": "spell_fire_incinerate",
+ "name": "Hellfire",
+ "required_class": "Warlock",
+ "required_level": 30,
+ "description": "Ignites the area surrounding the caster, causing 87 Fire damage to himself and 87 Fire damage to all nearby enemies every 1 sec.  Lasts 15 sec.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 645
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 15,
+ "aoe": true,
+ "gcd": 1.5,
+ "_id": 1949,
+ "_source": "wowhead_classified"
+}

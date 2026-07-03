@@ -1,0 +1,13 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 30,
+ "buff_text": "Melee attacks deal additional Holy damage at the cost of health.",
+ "icon": "spell_holy_sealofblood",
+ "name": "Seal of Blood",
+ "required_class": "Paladin",
+ "required_level": 64,
+ "description": "All melee attacks deal additional Holy damage equal to 35% of normal weapon damage, but the Paladin loses health equal to 10% of the total damage inflicted.Unleashing this Seal's energy will judge an enemy, instantly causing 295 to 325 Holy damage at the cost of health equal to 33% of the damage caused.",
+ "_id": 31892,
+ "_source": "wowhead_classified"
+}

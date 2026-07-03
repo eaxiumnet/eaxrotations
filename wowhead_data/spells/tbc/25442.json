@@ -1,0 +1,19 @@
+{
+ "icon": "spell_nature_chainlightning",
+ "name": "Chain Lightning",
+ "required_class": "Shaman",
+ "required_level": 70,
+ "description": "Hurls a lightning bolt at the enemy, dealing 734 to 838 Nature damage and then jumping to additional nearby enemies.  Each jump reduces the damage by 30%.  Affects 3 total targets.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 760
+ },
+ "range": 30,
+ "cast_time": 2,
+ "aoe": true,
+ "gcd": 1.5,
+ "cooldown_seconds": 6,
+ "_id": 25442,
+ "_source": "wowhead_classified"
+}

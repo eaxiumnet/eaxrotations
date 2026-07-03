@@ -1,0 +1,12 @@
+{
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "Heals 140 every 3 sec.",
+ "icon": "ability_hunter_mendpet",
+ "name": "Mend Pet",
+ "required_class": "Hunter",
+ "required_level": 36,
+ "description": "Heals your pet for 700 health over 15 sec.",
+ "_id": 3662,
+ "_source": "wowhead_classified"
+}

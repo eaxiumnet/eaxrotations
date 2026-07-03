@@ -1,0 +1,20 @@
+{
+ "has_buff": true,
+ "buff_duration": 30,
+ "buff_text": "Decreases melee attack power by 248.",
+ "icon": "classic_ability_druid_demoralizingroar",
+ "name": "Demoralizing Roar",
+ "required_class": null,
+ "description": "The druid roars, decreasing nearby enemies' melee attack power by 248.  Lasts 30 sec.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 10
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 30,
+ "gcd": 1.5,
+ "_id": 26998,
+ "_source": "wowhead_classified"
+}

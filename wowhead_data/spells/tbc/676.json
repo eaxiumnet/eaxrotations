@@ -1,0 +1,22 @@
+{
+ "has_buff": true,
+ "buff_duration": 10,
+ "buff_text": "Disarmed!",
+ "icon": "ability_warrior_disarm",
+ "name": "Disarm",
+ "required_class": "Warrior",
+ "required_level": 18,
+ "description": "Disarm the enemy's weapon for 10 sec.",
+ "school": "physical",
+ "cost": {
+ "type": "rage",
+ "amount": 20
+ },
+ "range": 5,
+ "cast_time": 0,
+ "duration": 10,
+ "gcd": 1.5,
+ "cooldown_seconds": 60,
+ "_id": 676,
+ "_source": "wowhead_classified"
+}

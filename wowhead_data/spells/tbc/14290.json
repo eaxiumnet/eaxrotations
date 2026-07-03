@@ -1,0 +1,18 @@
+{
+ "icon": "ability_upgrademoonglaive",
+ "name": "Multi-Shot",
+ "required_class": null,
+ "description": "Fires several missiles, hitting 3 targets for an additional 120 damage.",
+ "school": "physical",
+ "cost": {
+ "type": "mana",
+ "amount": 210
+ },
+ "range": 35,
+ "cast_time": 0,
+ "aoe": true,
+ "gcd": 1.5,
+ "cooldown_seconds": 10,
+ "_id": 14290,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,27 @@
+{
+ "periodic": {
+ "amount": 5,
+ "school": "nature",
+ "interval": 3
+ },
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 12,
+ "buff_text": "Rooted.  Causes 5 Nature damage every 3 seconds.",
+ "icon": "spell_nature_stranglevines",
+ "name": "Entangling Roots",
+ "required_class": "Druid",
+ "required_level": 8,
+ "description": "Roots the target in place and causes 20 Nature damage over 12 sec.  Damage caused may interrupt the effect.  Only useable outdoors.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 50
+ },
+ "range": 30,
+ "cast_time": 1.5,
+ "duration": 12,
+ "gcd": 1.5,
+ "_id": 339,
+ "_source": "wowhead_classified"
+}

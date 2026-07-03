@@ -1,0 +1,19 @@
+{
+ "target_type": "friendly",
+ "icon": "spell_nature_earthbindtotem",
+ "name": "Strength of Earth Totem",
+ "required_class": "Shaman",
+ "required_level": 24,
+ "description": "Summons a Strength of Earth Totem with 5 health at the feet of the caster.  The totem increases the strength of party members within 20 yards by 20.  Lasts 2 min.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 65
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 120,
+ "gcd": 1.0,
+ "_id": 8160,
+ "_source": "wowhead_classified"
+}

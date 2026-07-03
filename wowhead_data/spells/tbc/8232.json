@@ -1,0 +1,17 @@
+{
+ "icon": "spell_nature_cyclone",
+ "name": "Windfury Weapon",
+ "required_class": "Shaman",
+ "required_level": 30,
+ "description": "Imbue the Shaman's weapon with wind.  Each hit has a 20% chance of dealing additional damage equal to two extra attacks with 104 extra attack power.  Lasts 30 minutes.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 90
+ },
+ "range": 0,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "_id": 8232,
+ "_source": "wowhead_classified"
+}

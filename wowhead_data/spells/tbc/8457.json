@@ -1,0 +1,22 @@
+{
+ "has_buff": true,
+ "buff_duration": 30,
+ "buff_text": "Absorbs Fire damage.",
+ "icon": "spell_fire_firearmor",
+ "name": "Fire Ward",
+ "required_class": "Mage",
+ "required_level": 30,
+ "description": "Absorbs 290 Fire damage.  Lasts 30 sec.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 135
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 30,
+ "gcd": 1.5,
+ "cooldown_seconds": 30,
+ "_id": 8457,
+ "_source": "wowhead_classified"
+}

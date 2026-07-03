@@ -1,0 +1,22 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 300,
+ "buff_text": "Reduces Arcane, Fire, Frost, and Shadow resistances by 45.  Increases Arcane, Fire, Frost, and Shadow damage taken by 6%.",
+ "icon": "spell_shadow_chilltouch",
+ "name": "Curse of the Elements",
+ "required_class": "Warlock",
+ "required_level": 32,
+ "description": "Curses the target for 5 min, reducing Arcane, Fire, Frost, and Shadow resistances by 45 and increasing Arcane, Fire,  Frost, and Shadow damage taken by 6%.  Only one Curse per Warlock can be active on any one target.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 100
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 300,
+ "gcd": 1.5,
+ "_id": 1490,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,23 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 10,
+ "buff_text": "Immune to all attacks and spells, but increases the time between your attacks by 100%.",
+ "icon": "spell_holy_divineintervention",
+ "name": "Divine Shield",
+ "required_class": "Paladin",
+ "required_level": 34,
+ "description": "Protects the paladin from all damage and spells for 10 sec, but increases the time between your attacks by 100%.  Once protected, the target cannot be made invulnerable by Divine Shield, Divine Protection, Blessing of Protection again or use Avenging Wrath for 1 min.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 75
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 10,
+ "gcd": 1.5,
+ "cooldown_seconds": 300,
+ "_id": 642,
+ "_source": "wowhead_classified"
+}

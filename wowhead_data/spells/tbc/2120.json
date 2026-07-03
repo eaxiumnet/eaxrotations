@@ -1,0 +1,27 @@
+{
+ "periodic": {
+ "amount": 12,
+ "school": "fire",
+ "interval": 2
+ },
+ "has_buff": true,
+ "buff_duration": 8,
+ "buff_text": "12 Fire damage every 2 seconds.",
+ "icon": "spell_fire_selfdestruct",
+ "name": "Flamestrike",
+ "required_class": "Mage",
+ "required_level": 16,
+ "description": "Calls down a pillar of fire, burning all enemies within the area for 55 to 71 Fire damage and an additional 48 Fire damage over 8 sec.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 195
+ },
+ "range": 30,
+ "cast_time": 3,
+ "duration": 8,
+ "aoe": true,
+ "gcd": 1.5,
+ "_id": 2120,
+ "_source": "wowhead_classified"
+}

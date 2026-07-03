@@ -1,0 +1,21 @@
+{
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "Heals 25 every 3 sec.",
+ "icon": "ability_hunter_mendpet",
+ "name": "Mend Pet",
+ "required_class": "Hunter",
+ "required_level": 12,
+ "description": "Heals your pet for 125 health over 15 sec.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 40
+ },
+ "range": 45,
+ "cast_time": 0,
+ "duration": 15,
+ "gcd": 1.5,
+ "_id": 136,
+ "_source": "wowhead_classified"
+}

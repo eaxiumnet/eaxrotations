@@ -1,0 +1,14 @@
+{
+ "icon": "spell_arcane_arcane01",
+ "name": "Soulshatter",
+ "required_class": "Warlock",
+ "required_level": 66,
+ "description": "8% of base health | 0 yards (Self) | Instant | 5 minutes",
+ "school": "shadow",
+ "range": 0,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "cooldown_seconds": 300,
+ "_id": 29858,
+ "_source": "wowhead_classified"
+}

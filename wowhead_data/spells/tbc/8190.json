@@ -1,0 +1,19 @@
+{
+ "target_type": "self",
+ "icon": "spell_fire_selfdestruct",
+ "name": "Magma Totem",
+ "required_class": "Shaman",
+ "required_level": 26,
+ "description": "Summons a Magma Totem with 5 health at the feet of the caster for 20 sec that causes 22 Fire damage to creatures within 8 yards every 2 seconds.",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 230
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 21,
+ "gcd": 1.0,
+ "_id": 8190,
+ "_source": "wowhead_classified"
+}

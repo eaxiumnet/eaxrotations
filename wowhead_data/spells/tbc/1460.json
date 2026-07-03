@@ -1,0 +1,22 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 1800,
+ "buff_text": "Increases Intellect by 7.",
+ "icon": "spell_holy_magicalsentry",
+ "name": "Arcane Intellect",
+ "required_class": "Mage",
+ "required_level": 14,
+ "description": "Increases the target's Intellect by 7 for 30 min.",
+ "school": "arcane",
+ "cost": {
+ "type": "mana",
+ "amount": 100
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 1800,
+ "gcd": 1.5,
+ "_id": 1460,
+ "_source": "wowhead_classified"
+}

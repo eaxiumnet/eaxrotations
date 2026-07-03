@@ -1,0 +1,18 @@
+{
+ "periodic": {
+ "amount": 81,
+ "school": "shadow",
+ "interval": 3
+ },
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 18,
+ "buff_text": "81 Shadow damage every 3 seconds.",
+ "icon": "spell_shadow_abominationexplosion",
+ "name": "Corruption",
+ "required_class": "Warlock",
+ "required_level": 44,
+ "description": "Corrupts the target, causing 486 Shadow damage over 18 sec.",
+ "_id": 11671,
+ "_source": "wowhead_classified"
+}

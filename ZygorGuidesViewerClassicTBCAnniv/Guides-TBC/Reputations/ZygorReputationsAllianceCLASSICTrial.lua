@@ -1,0 +1,31 @@
+local ZygorGuidesViewer=ZygorGuidesViewer
+if not ZygorGuidesViewer then return end
+if UnitFactionGroup("player")~="Alliance" then return end
+if ZGV:DoMutex("ReputationsACLASSIC") then return end
+ZygorGuidesViewer.GuideMenuTier = "TRI"
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Bloodsail Buccaneers")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Brood of Nozdormu")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Cenarion Circle")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Gelkis & Magram Centaur Clans")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Hydraxian Waterlords")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Ravenholdt")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Steamwheedle Cartel")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Timbermaw Hold")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Thorium Brotherhood")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Wintersaber Trainers")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Darnassus")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Gnomeregan Exiles")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Ironforge")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Stormwind City")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\Classic\\Argent Dawn")
+ZGV.BETASTART()
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\The Burning Crusade\\Honor Hold")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\The Burning Crusade\\Cenarion Expedition")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\The Burning Crusade\\Lower City")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\The Burning Crusade\\The Scryers")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\The Burning Crusade\\The Aldor")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\The Burning Crusade\\The Sha'tar")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\The Burning Crusade\\Keepers of Time")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\The Burning Crusade\\Sporeggar")
+ZygorGuidesViewer:RegisterGuidePlaceholder("Reputation Guides\\The Burning Crusade\\The Kurenai")
+ZGV.BETAEND()

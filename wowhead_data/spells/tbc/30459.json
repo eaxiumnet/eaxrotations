@@ -1,0 +1,17 @@
+{
+ "icon": "spell_fire_soulburn",
+ "name": "Searing Pain",
+ "required_class": "Warlock",
+ "required_level": 70,
+ "description": "205 Mana | 30 yards (Medium) | 1.5 seconds",
+ "school": "fire",
+ "cost": {
+ "type": "mana",
+ "amount": 205
+ },
+ "range": 30,
+ "cast_time": 1.5,
+ "gcd": 1.5,
+ "_id": 30459,
+ "_source": "wowhead_classified"
+}

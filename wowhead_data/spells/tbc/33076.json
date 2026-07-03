@@ -1,0 +1,19 @@
+{
+ "target_type": "hostile",
+ "icon": "spell_holy_prayerofmendingtga",
+ "name": "Prayer of Mending",
+ "required_class": "Priest",
+ "required_level": 68,
+ "description": "Places a spell on the target that heals them for 800 the next time they take damage.  When the heal occurs, Prayer of Mending jumps to a raid member within 20 yards.  Jumps up to 5 times and lasts 30 sec after each jump.  This spell can only be placed on one target at a time.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 390
+ },
+ "range": 40,
+ "cast_time": 0,
+ "gcd": 1.5,
+ "cooldown_seconds": 10,
+ "_id": 33076,
+ "_source": "wowhead_classified"
+}

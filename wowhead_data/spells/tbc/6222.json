@@ -1,0 +1,27 @@
+{
+ "periodic": {
+ "amount": 18,
+ "school": "shadow",
+ "interval": 3
+ },
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "18 Shadow damage every 3 seconds.",
+ "icon": "spell_shadow_abominationexplosion",
+ "name": "Corruption",
+ "required_class": "Warlock",
+ "required_level": 14,
+ "description": "Corrupts the target, causing 90 Shadow damage over 15 sec.",
+ "school": "shadow",
+ "cost": {
+ "type": "mana",
+ "amount": 55
+ },
+ "range": 30,
+ "cast_time": 2,
+ "duration": 15,
+ "gcd": 1.5,
+ "_id": 6222,
+ "_source": "wowhead_classified"
+}

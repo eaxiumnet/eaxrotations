@@ -1,0 +1,13 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 20,
+ "buff_text": "Attempts to dispel 1 disease every 5 seconds.",
+ "icon": "spell_nature_nullifydisease",
+ "name": "Abolish Disease",
+ "required_class": "Priest",
+ "required_level": 32,
+ "description": "Attempts to cure 1 disease effect on the target, and 1 more disease effect every 5 seconds for 20 sec.",
+ "_id": 552,
+ "_source": "wowhead_classified"
+}

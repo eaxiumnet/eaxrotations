@@ -1,0 +1,19 @@
+{
+ "icon": "ability_kick",
+ "name": "Kick",
+ "required_class": "Rogue",
+ "required_level": 42,
+ "description": "A quick kick that injures a single foe for 45 damage.  It also interrupts spellcasting and prevents any spell in that school from being cast for 5 sec.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 25
+ },
+ "range": 5,
+ "cast_time": 0,
+ "duration": 5,
+ "gcd": 1.0,
+ "cooldown_seconds": 10,
+ "_id": 1768,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,17 @@
+{
+ "target_type": "hostile",
+ "icon": "inv_throwingknife_04",
+ "name": "Shiv",
+ "required_class": null,
+ "description": "Performs an instant off-hand weapon attack that automatically applies the poison from your off-hand weapon to the target.  Slower weapons require more Energy.  Awards 1 combo point.",
+ "school": "physical",
+ "cost": {
+ "type": "energy",
+ "amount": 20
+ },
+ "range": 5,
+ "cast_time": 0,
+ "gcd": 1.0,
+ "_id": 5938,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,22 @@
+{
+ "target_type": "hostile",
+ "channeled": true,
+ "icon": "ability_marksmanship",
+ "name": "Volley",
+ "required_class": "Hunter",
+ "required_level": 40,
+ "description": "Continuously fires a volley of ammo at the target area, causing 50 Arcane damage to enemy targets within 8 yards every second for 6 sec.",
+ "school": "arcane",
+ "cost": {
+ "type": "mana",
+ "amount": 350
+ },
+ "range": 35,
+ "cast_time": 0,
+ "duration": 6,
+ "aoe": true,
+ "gcd": 1.5,
+ "cooldown_seconds": 60,
+ "_id": 1510,
+ "_source": "wowhead_classified"
+}

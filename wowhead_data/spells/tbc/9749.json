@@ -1,0 +1,22 @@
+{
+ "target_type": "hostile",
+ "has_buff": true,
+ "buff_duration": 40,
+ "buff_text": "Decreases armor by 395.  Cannot stealth or turn invisible.",
+ "icon": "spell_nature_faeriefire",
+ "name": "Faerie Fire",
+ "required_class": "Druid",
+ "required_level": 42,
+ "description": "Decrease the armor of the target by 395 for 40 sec.  While affected, the target cannot stealth or turn invisible.",
+ "school": "nature",
+ "cost": {
+ "type": "mana",
+ "amount": 95
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 40,
+ "gcd": 1.5,
+ "_id": 9749,
+ "_source": "wowhead_classified"
+}

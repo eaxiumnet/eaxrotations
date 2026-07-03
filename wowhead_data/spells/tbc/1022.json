@@ -1,0 +1,23 @@
+{
+ "target_type": "friendly",
+ "has_buff": true,
+ "buff_duration": 6,
+ "buff_text": "Immune to physical attacks.  Cannot attack or use physical abilities.",
+ "icon": "spell_holy_sealofprotection",
+ "name": "Blessing of Protection",
+ "required_class": "Paladin",
+ "required_level": 10,
+ "description": "A targeted party member is protected from all physical attacks for 6 sec, but during that time they cannot attack or use physical abilities.  Players may only have one Blessing on them per Paladin at any one time.  Once protected, the target cannot be made invulnerable by Divine Shield, Divine Protection or Blessing of Protection again for 1 min.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 25
+ },
+ "range": 30,
+ "cast_time": 0,
+ "duration": 6,
+ "gcd": 1.5,
+ "cooldown_seconds": 300,
+ "_id": 1022,
+ "_source": "wowhead_classified"
+}

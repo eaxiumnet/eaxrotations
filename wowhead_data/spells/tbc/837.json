@@ -1,0 +1,21 @@
+{
+ "has_buff": true,
+ "buff_duration": 6,
+ "buff_text": "Movement slowed by 40%.",
+ "icon": "spell_frost_frostbolt02",
+ "name": "Frostbolt",
+ "required_class": "Mage",
+ "required_level": 14,
+ "description": "Launches a bolt of frost at the enemy, causing 54 to 61 Frost damage and slowing movement speed by 40% for 6 sec.",
+ "school": "frost",
+ "cost": {
+ "type": "mana",
+ "amount": 50
+ },
+ "range": 30,
+ "cast_time": 2.2,
+ "duration": 6,
+ "gcd": 1.5,
+ "_id": 837,
+ "_source": "wowhead_classified"
+}

@@ -1,0 +1,23 @@
+{
+ "target_type": "friendly",
+ "has_buff": true,
+ "buff_duration": 15,
+ "buff_text": "Regenerating mana.",
+ "icon": "spell_holy_symbolofhope",
+ "name": "Symbol of Hope",
+ "required_class": "Priest",
+ "required_level": 10,
+ "description": "Greatly increases the morale of party members, giving them 33 mana every 5 sec.  Effect lasts 15 sec.",
+ "school": "holy",
+ "cost": {
+ "type": "mana",
+ "amount": 15
+ },
+ "range": 0,
+ "cast_time": 0,
+ "duration": 15,
+ "gcd": 1.5,
+ "cooldown_seconds": 300,
+ "_id": 32548,
+ "_source": "wowhead_classified"
+}
