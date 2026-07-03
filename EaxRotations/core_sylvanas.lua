@@ -4466,15 +4466,16 @@ function NS.has_critical_boss_debuff(unit)
 end
 
 local function is_tank_unit(unit)
-
     if not unit then return false end
-
+    -- Accurate path: unit_helper:is_tank via NS bridge.
+    local ns = _G.EaxRotations
+    if ns and ns.unit_is_tank and ns.unit_is_tank(unit) then
+        return true
+    end
+    -- Fallback chain (engine raw method + role heuristic).
     local is_tank = safe_field(unit, "is_tank")
-
     if is_tank and safe(is_tank, unit) == true then return true end
-
     return safe(safe_field(unit, "get_group_role"), unit) == 0
-
 end
 
 local healing_source_units = { n = 0 }
