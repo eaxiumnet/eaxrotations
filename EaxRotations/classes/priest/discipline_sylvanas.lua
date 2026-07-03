@@ -505,6 +505,7 @@ end
 
 local function dispel_magic_matches(context, s)
  if not s.dispel_magic_ready then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DispelMagic, 3.0) then return false end
  local me = context.me or NS.GetPlayer()
  if not has_magic_debuff(me) then return false end
  return true

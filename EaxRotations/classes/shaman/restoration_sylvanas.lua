@@ -394,6 +394,7 @@ end
 
 local function cure_poison_matches(context, state)
  if not state.cure_poison_ready then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurePoison, 3.0) then return false end
  if state.mana_emergency then return false end
  local dispel_target = _get_cleanse_target(state)
  if not dispel_target then return false end
@@ -404,6 +405,7 @@ end
 
 local function cure_disease_matches(context, state)
  if not state.cure_disease_ready then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CureDisease, 3.0) then return false end
  if state.mana_emergency then return false end
  local dispel_target = _get_cleanse_target(state)
  if not dispel_target then return false end
@@ -414,6 +416,7 @@ end
 
 local function poison_cleansing_totem_matches(context, state)
  if not state.poison_cleansing_totem_ready then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.PoisonCleansingTotem, 3.0) then return false end
  if state.mana_emergency then return false end
  local dispel_target = _get_cleanse_target(state)
  if not dispel_target then return false end
@@ -423,6 +426,7 @@ end
 
 local function disease_cleansing_totem_matches(context, state)
  if not state.disease_cleansing_totem_ready then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DiseaseCleansingTotem, 3.0) then return false end
  if state.mana_emergency then return false end
  local dispel_target = _get_cleanse_target(state)
  if not dispel_target then return false end
