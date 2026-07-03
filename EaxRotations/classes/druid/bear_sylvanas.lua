@@ -407,7 +407,7 @@ local function build_state(context)
     else
         state.is_bear = state.stance == STANCE_BEAR or context.stance == nil
     end
-    state.is_target_boss = context.target_is_boss == true or safe_method(state.target, "is_boss", false) == true
+    state.is_target_boss = context.target_is_boss == true or (NS.unit_is_boss and NS.unit_is_boss(state.target)) or false
     state.is_target_player = context.target_is_player == true or unit_is_player(state.target)
     -- [#fix-3] player self root/snare for NaturesGraspPvP peel (never set before → dead strategy)
     state.is_rooted = safe_method(state.me, "is_rooted", false) == true
