@@ -745,6 +745,18 @@ local strategies = {
    return NS.try_cast(SPELLS.ShieldBash, context.target, "[PROT] ShieldBash")
   end,
  },
+ {
+  name = "Pummel",
+  matches = function(context, state)
+   if not state.pummel_ready then return false end
+   if not state.target_is_casting then return false end
+   if not (state.target_casting_interruptible or false) then return false end
+   return true
+  end,
+  execute = function(context)
+   return NS.try_cast(SPELLS.Pummel, context.target, "[PROT] Pummel", { skip_range = true })
+  end,
+ },
  -- 3) Shield Slam Purge (PvP — checks settings from shared schema)
  {
   name = "ShieldSlamPurge",

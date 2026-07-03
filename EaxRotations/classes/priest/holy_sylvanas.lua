@@ -150,7 +150,11 @@ local function build_holy_state(context)
  if player.is_mounted and player:is_mounted() then
   return holy_state
  end
- context.player_control_locked = (type(player_control_locked) == "function" and player_control_locked()) or false
+ -- Guard: player_control_locked may be nil in some environments
+local pcl_ok, pcl_result = pcall(function()
+    return type(player_control_locked) == "function" and player_control_locked() or false
+end)
+context.player_control_locked = (pcl_ok and pcl_result) or false
  context.is_moving = context.is_moving or (player.is_moving and player:is_moving()) or false
  context.hp = health_pct(NS.PLAYER_UNIT)
  context.mana_pct = context.player_mana_pct or (player.mana_pct and player:mana_pct()) or 100
@@ -401,22 +405,23 @@ local strategies = {
  {
   name = "EmergencyPWS",
   matches = function(context, state)
+    local settings = context.settings or {}
    if context.player_control_locked then return false end
-   if context.settings and context.settings.holy_use_pws == false then return false end
+   if settings.holy_use_pws == false then return false end
    -- Tank-only gate: when disc_shield_tank_only is set, only shield the tank
-   if context.settings and context.settings.disc_shield_tank_only then
+   if settings.disc_shield_tank_only then
     if not state.tank then return false end
-    if (state.tank.effective_hp or 100) > (context.settings.holy_pws_hp or 30) then return false end
+    if (state.tank.effective_hp or 100) > (settings.holy_pws_hp or 30) then return false end
     if state.tank.has_weakened_soul then return false end
     return spell_exists(SPELLS.PowerWordShield) and spell_ready(SPELLS.PowerWordShield, state.tank.unit)
    end
    if not state.lowest then return false end
-   if (state.lowest.effective_hp or 100) > (context.settings.holy_pws_hp or 30) then return false end
+   if (state.lowest.effective_hp or 100) > (settings.holy_pws_hp or 30) then return false end
    if state.lowest.has_weakened_soul then return false end
    return spell_exists(SPELLS.PowerWordShield) and spell_ready(SPELLS.PowerWordShield, state.lowest.unit)
   end,
   execute = function(context, state)
-   if context.settings.disc_shield_tank_only and state.tank then
+   if settings.disc_shield_tank_only and state.tank then
     return try_cast(SPELLS.PowerWordShield, state.tank.unit, format("[HOLY] Emergency PW:S Tank %.0f%%", state.tank.effective_hp or 0))
    end
    return try_cast(SPELLS.PowerWordShield, state.lowest.unit, format("[HOLY] Emergency PW:S %.0f%%", state.lowest.effective_hp or 0))
@@ -664,6 +669,7 @@ local strategies = {
  {
   name = "DispelMagic",
   matches = function(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DispelMagic, 3.0) then return false end
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if context.settings and context.settings.use_party_dispel == false then return false end
@@ -686,6 +692,7 @@ local strategies = {
  {
   name = "CureDisease",
   matches = function(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CureDisease, 3.0) then return false end
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if not state.cure_disease_ready then return false end
@@ -705,12 +712,17 @@ local strategies = {
  {
   name = "AbolishDisease",
   matches = function(context, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.AbolishDisease, 3.0) then return false end
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if not state.abolish_disease_ready then return false end
    if context.mana_pct < (context.settings.party_dispel_mana_floor or 30) then return false end
-   -- Abolish Disease is pre-emptive: use on tank pre-combat or during disease-heavy encounters
-   return state.tank ~= nil and not state.cure_disease_ready
+    -- Only cast if tank actually has a disease (not pre-emptive -- wastes mana/GCD)
+    if not state.tank then return false end
+    if Healing.has_disease then
+     return Healing.has_disease(state.tank.unit)
+    end
+    return false
   end,
   execute = function(_, state)
    return try_cast(SPELLS.AbolishDisease, state.tank.unit, "[HOLY] Abolish Disease (preventive)")

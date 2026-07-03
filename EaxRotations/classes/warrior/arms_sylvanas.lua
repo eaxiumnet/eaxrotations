@@ -686,6 +686,13 @@ local function intimidating_shout_matches(context, state)
     return action(context, build_action("IntimidatingShout", ACTION.IntimidatingShout, { target = "self", min_rage = 25, requires_target = false, cooldown = 180 }))
 end
 
+local function pummel_matches(context, state)
+    if not state.target_is_casting then return false end
+    if not (state.target_casting_interruptible or false) then return false end
+    if not state.pummel_ready then return false end
+    return action(context, build_action("Pummel", ACTION.Pummel, { required_stance = STANCE.BERSERKER, min_rage = 10 }))
+end
+
 local function battle_stance_matches(context, state)
     if state.stance == STANCE.BATTLE then return false end
     if stance_lockout_active() then return false end
@@ -816,6 +823,7 @@ local STRATEGY_SPECS = {
     { "SpellReflection", spell_reflect_matches, build_action("SpellReflection", ACTION.SpellReflection, { target = "self", required_stance = STANCE.DEFENSIVE, min_rage = 15, requires_target = false }) },
     { "ShieldWall", shield_wall_matches, build_action("ShieldWall", ACTION.ShieldWall, { target = "self", required_stance = STANCE.DEFENSIVE, requires_target = false }) },
     { "IntimidatingShout", intimidating_shout_matches, build_action("IntimidatingShout", ACTION.IntimidatingShout, { target = "self", min_rage = 25, requires_target = false }) },
+    { "Pummel", pummel_matches, build_action("Pummel", ACTION.Pummel, { required_stance = STANCE.BERSERKER, min_rage = 10 }) },
     { "Intercept", intercept_matches, build_action("Intercept", ACTION.Intercept, { required_stance = STANCE.BERSERKER, min_rage = 10 }) },
     { "Disarm", disarm_matches, build_action("Disarm", ACTION.Disarm, { required_stance = STANCE.DEFENSIVE, min_rage = 20 }) },
     { "Charge", charge_matches, build_action("Charge", ACTION.Charge, { required_stance = STANCE.BATTLE }) },

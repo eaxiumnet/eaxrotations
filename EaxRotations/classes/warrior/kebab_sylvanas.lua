@@ -205,6 +205,7 @@ local function build_kebab_state(context)
     kebab_state.sunder_duration = target and get_debuff_remains(target, SUNDER_DEBUFF) or 0
     kebab_state.thunder_clap_duration = target and get_debuff_remains(target, THUNDER_CLAP_DEBUFF) or 0
     kebab_state.demo_shout_duration = target and get_debuff_remains(target, DEMO_SHOUT_DEBUFF) or 0
+    kebab_state.pummel_ready = spell_exists(SPELLS.Pummel) and spell_ready(SPELLS.Pummel, target)
     kebab_state.ms_cd = get_cooldown(SPELLS.MortalStrike)
     kebab_state.ww_cd = get_cooldown(SPELLS.Whirlwind)
 
@@ -372,6 +373,26 @@ local strategies = {
         execute = function(context)
             return try_cast(SPELLS.Overpower, context.target,
                 format("[KEBAB] Overpower - Rage: %d", context.rage or 0))
+        end,
+    },
+
+    -- [5.5] Pummel -- interrupt casters
+    {
+        name = "Pummel",
+        matches = function(context)
+            local settings = settings_for(context)
+            if not can_attack_target(context) then return false end
+            if settings.use_interrupts == false then return false end
+            if not context.target then return false end
+            local ok, casting = pcall(function() return context.target:is_casting() end)
+            if not (ok and casting) then return false end
+            local ok2, interruptible = pcall(function() return context.target:is_cast_interruptible() end)
+            if ok2 and interruptible == false then return false end
+            if (context.rage or 0) < 10 then return false end
+            return spell_exists(SPELLS.Pummel) and spell_ready(SPELLS.Pummel, context.target)
+        end,
+        execute = function(context)
+            return try_cast(SPELLS.Pummel, context.target, "[KEBAB] Pummel")
         end,
     },
 
