@@ -4,7 +4,6 @@
 -- =============================================================================
 
 local APISurface = require("core/api_surface")
-local Math = require("utils/math")
 
 local M = {}
 

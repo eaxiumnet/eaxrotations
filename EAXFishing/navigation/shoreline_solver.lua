@@ -2,7 +2,6 @@
 -- Navigation/Shoreline Solver Module - Find optimal fishing positions
 -- =============================================================================
 
-local Math = require("utils/math")
 local Terrain = require("navigation/terrain")
 
 local M = {}
@@ -36,37 +35,6 @@ end
 function M.is_shoreline_candidate(terrain_z, pool_surface_z, max_depth_delta)
     local depth_below_pool = pool_surface_z - terrain_z
     return depth_below_pool >= 0 and depth_below_pool <= max_depth_delta
-end
-
---- Build nearest above-ground point within radius
--- @param ctx table context
--- @param player_pos table
--- @param pool_pos table
--- @param max_radius number
--- @param min_above number
--- @return table? position {x, y, z}
-function M.build_nearest_above_ground(ctx, player_pos, pool_pos, max_radius, min_above)
-    local pool_z = pool_pos.z
-    
-    -- Scan in expanding circles
-    local angle_steps = 8
-    local radius_step = 2.0
-    
-    for radius = 5.0, max_radius, radius_step do
-        for angle_idx = 0, angle_steps - 1 do
-            local angle = (angle_idx / angle_steps) * TAU
-            local test_x = pool_pos.x + math.cos(angle) * radius
-            local test_y = pool_pos.y + math.sin(angle) * radius
-            
-            local terrain_z = Terrain.get_terrain_height_at(ctx, test_x, test_y, pool_z)
-            
-            if Terrain.is_ground_above_pool(terrain_z, pool_z, min_above) then
-                return { x = test_x, y = test_y, z = terrain_z }
-            end
-        end
-    end
-    
-    return nil
 end
 
 --- Build pool standoff point (optimal fishing position)

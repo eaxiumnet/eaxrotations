@@ -5,23 +5,18 @@
 -- =============================================================================
 
 local APISurface = require("core/api_surface")
+local constants = require("constants")
 
 local M = {}
 
--- Known fishing pole IDs (for detection)
-local KNOWN_FISHING_POLES = {
-    -- Vanilla / available in TBC
-    [6256]  = true,  -- Fishing Pole
-    [6365]  = true,  -- Strong Fishing Pole
-    [6366]  = true,  -- Darkwood Fishing Pole
-    [6367]  = true,  -- Big Iron Fishing Pole
-    [12225] = true,  -- Blump Family Fishing Pole
-    [19022] = true,  -- Nat Pagle's Extreme Angler FC-5000
-    [19970] = true,  -- Arcanite Fishing Pole
-    [25978] = true,  -- Seth's Graphite Fishing Pole
-    -- TBC
-    [34077] = true,  -- Jeweled Fishing Pole (S1 arena reward)
-}
+-- Derive pole lookup tables from constants (single source of truth).
+-- constants.ITEMS.FISHING_POLES is already ordered best-first.
+local KNOWN_FISHING_POLES = {}
+local FISHING_POLE_IDS = {}
+for _, id in ipairs(constants.ITEMS.FISHING_POLES) do
+    KNOWN_FISHING_POLES[id] = true
+    table.insert(FISHING_POLE_IDS, id)
+end
 
 --- Check if item ID is a known fishing pole
 -- @param item_id number?
@@ -154,19 +149,6 @@ function M.try_reequip_weapons(ctx, me, now)
     
     return true
 end
-
--- Auto-equip priority list — best pole first, TBC content only
-local FISHING_POLE_IDS = {
-    19970, -- Arcanite Fishing Pole        (+40 fishing, Vanilla crafted)
-    34077, -- Jeweled Fishing Pole          (+35 fishing, TBC S1 arena)
-    19022, -- Nat Pagle's Extreme Angler   (+25 fishing, Vanilla quest)
-    25978, -- Seth's Graphite Fishing Pole  (+20 fishing, Classic/TBC rep)
-    12225, -- Blump Family Fishing Pole     (+20 fishing, Vanilla quest)
-    6367,  -- Big Iron Fishing Pole         (+20 fishing)
-    6366,  -- Darkwood Fishing Pole         (+15 fishing)
-    6365,  -- Strong Fishing Pole           (+5 fishing)
-    6256,  -- Fishing Pole                  (basic)
-}
 
 --- Find a fishing pole in player's inventory
 -- @param ctx table context

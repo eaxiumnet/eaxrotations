@@ -7,17 +7,6 @@ local APISurface = require("core/api_surface")
 
 local M = {}
 
---- Check if vendor repair is available
--- @param ctx table context
--- @return boolean
-function M.has_vendor_api(ctx)
-    -- get_total_repair_cost() always returns a number (0 on failure), never nil,
-    -- so we must check for API existence directly rather than the return value.
-    return core ~= nil
-        and core.inventory ~= nil
-        and type(core.inventory.get_total_repair_cost) == "function"
-end
-
 --- Try to auto vendor and repair
 -- Uses documented repair flow: check cost -> check gold -> repair
 -- @param ctx table context

@@ -19,10 +19,10 @@ function M.render_control_panel(ctx)
         elements, "Eax's Fishing", current, 0, false, cp_id
     )
     
-    -- Safety lock for bag full
-    if not current and state.bag.next_alert_time < 0.0 then
+    -- Safety lock for bag full — require an explicit OFF then ON after a full-bag stop
+    if state.bag.safety_lock_active then
         if new_state == false then
-            state.bag.next_alert_time = 0.0
+            state.bag.safety_lock_active = false
         else
             state.safety.stop_id = state.safety.stop_id + 1
             table.insert(elements, {type="label", text="Safety lock: toggle OFF once, then ON"})

@@ -100,7 +100,7 @@ end
 -- @param channel string behavior channel (tempo, reaction, loot, recovery...)
 -- @return number delay in seconds
 function M.scaled_delay(state, now, min_ms, max_ms, channel, config)
-    -- FIXED: ultra_safe_mode forces reaction to max delay
+    -- ultra_safe_mode forces reaction to the maximum delay
     if config and M.is_ultra_safe_mode(config) then
         local scale = M.get_scale(state, now, channel or "tempo")
         return (max_ms * scale * 2.0) / 1000.0
@@ -248,7 +248,7 @@ function M.apply_random_wait(ctx, min, max)
             math.floor(max * 1000)
         )
         local profile_scale = M.get_scale(ctx.state, now, "recovery")
-        -- FIXED: ultra_safe_mode now takes effect forces delays to the maximum end
+        -- ultra_safe_mode forces delays to the maximum end
         if M.is_ultra_safe_mode(config) then
             profile_scale = profile_scale * 2.0
             min_ms = max_ms -- always use max delay, no randomness

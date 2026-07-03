@@ -12,19 +12,17 @@ local has_coords_helper, coords_helper = pcall(require, "common/utility/coords_h
 local has_color_helper, color_helper = pcall(require, "common/color")
 local App = require("core/app")
 
-if not has_inventory_helper then
-    inventory_helper = nil
-end
-if not has_coords_helper then
-    coords_helper = nil
-end
-if not has_color_helper then
-    color_helper = nil
-end
+if not has_inventory_helper then inventory_helper = nil end
+if not has_coords_helper   then coords_helper   = nil end
+if not has_color_helper    then color_helper    = nil end
 
 APISurface.print("[EaxFishing] v2.1.0 loaded")
 
-
+-- Seed the PRNG so behavior profiles, delays, and break timing are non-deterministic
+local now = APISurface.now()
+if now and now > 0 then
+    math.randomseed(now % 1000000)
+end
 
 -- Create app instance with dependency injection
 local app = App.new({
@@ -38,21 +36,19 @@ local app = App.new({
 })
 
 -- Register callbacks using APISurface
--- Main update loop
+-- Combined update loop (fishing tick + vendor repair)
+-- Both are called from a single callback to avoid overwriting if the runtime
+-- only supports one handler per registration type.
 APISurface.register_on_update(function()
     local ok, err = pcall(app.on_update)
     if not ok then
         APISurface.print("[EaxFishing] Update error: " .. tostring(err))
     end
-end)
-
--- Vendor repair loop (only runs when enabled and auto-repair is on)
-APISurface.register_on_update(function()
-    -- Check if auto_vendor_repair is enabled
+    -- Vendor repair has its own internal throttle, so calling every tick is safe.
     if config.menu.auto_vendor_repair and config.menu.auto_vendor_repair:get_state() then
-        local ok, err = pcall(app.on_vendor_update)
-        if not ok then
-            APISurface.print("[EaxFishing] Vendor error: " .. tostring(err))
+        local ok2, err2 = pcall(app.on_vendor_update)
+        if not ok2 then
+            APISurface.print("[EaxFishing] Vendor error: " .. tostring(err2))
         end
     end
 end)

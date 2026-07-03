@@ -40,22 +40,6 @@ function M.get_total_free_slots(ctx)
     return 999
 end
 
---- Get cached free bag slots with throttling
--- @param ctx table context
--- @return number? cached free slots
-function M.get_cached_free_slots(ctx)
-    local state = ctx.state
-    local now = APISurface.now()
-    
-    -- Refresh if needed
-    if now >= state.bag.next_space_check_time then
-        M.get_total_free_slots(ctx)
-        state.bag.next_space_check_time = now + 2.0
-    end
-    
-    return state.bag.cached_free_slots
-end
-
 --- Check if bags are full
 -- @param ctx table context
 -- @return boolean

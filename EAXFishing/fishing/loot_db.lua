@@ -83,14 +83,16 @@ function M.get(item_id)
     return M.ITEMS[item_id]
 end
 
+-- Build reverse name index for O(1) lookup (built once at require time)
+local _NAME_INDEX = {}
+for _, data in pairs(M.ITEMS) do
+    _NAME_INDEX[string.lower(data.name)] = data
+end
+
 --- Look up by name (case-insensitive fallback)
 function M.get_by_name(name)
     if not name or name == "" then return nil end
-    local lower = string.lower(name)
-    for _, data in pairs(M.ITEMS) do
-        if string.lower(data.name) == lower then return data end
-    end
-    return nil
+    return _NAME_INDEX[string.lower(name)]
 end
 
 --- Format copper as gold string (only used for Goldenscale Vendorfish)
