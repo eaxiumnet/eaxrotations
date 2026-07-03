@@ -546,7 +546,7 @@ local function faerie_fire_matches(context, action)
     if not can_use_bear_ability(state) then return false end
     -- Skip if target has no armor (API unavailable or already fully reduced)
     if (context.target_armor or 0) <= 0 then return false end
-    if state.faerie_remains > 4 then return false end
+    if (state.faerie_remains or 0) > 4 then return false end
     return action_ready(context, action)
 end
 
@@ -554,7 +554,7 @@ local function demo_roar_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.in_combat or not state.demo_roar_enabled then return false end
     if (state.enemy_count or 0) <= 0 then return false end
-    if state.demo_remains > DEMO_ROAR_REFRESH and not state.pack_needs_demo then return false end
+    if (state.demo_remains or 0) > DEMO_ROAR_REFRESH and not state.pack_needs_demo then return false end
     if (state.enemy_count or 0) < 2 and not state.is_target_boss and state.target_ttd < 10 then return false end
     return action_ready(context, action)
 end

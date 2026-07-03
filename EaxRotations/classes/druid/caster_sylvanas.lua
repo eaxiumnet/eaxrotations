@@ -72,14 +72,14 @@ local function faerie_fire_matches_fn(context, state)
     if not context.target then return false end
     -- Skip if target has no armor (API unavailable or already fully reduced)
     if (context.target_armor or 0) <= 0 then return false end
-    if state.ff_remains > 4 then return false end
+    if (state.ff_remains or 0) > 4 then return false end
     return NS.spell_ready(SPELLS.FaerieFire, context.target)
 end
 
 local function moonfire_matches_fn(context, state)
     if not caster_context_allowed(context) then return false end
     if not context.target then return false end
-    if state.moonfire_remains > 3 then return false end
+    if (state.moonfire_remains or 0) > 3 then return false end
     return NS.spell_ready(SPELLS.Moonfire, context.target)
 end
 
