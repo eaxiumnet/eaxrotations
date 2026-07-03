@@ -573,6 +573,7 @@ local strategies = {
  {
   name = "PurifySelf",
   matches = function(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Purify, 3.0) then return false end
    if safe_setting(context, "holy_auto_cleanse", true) == false then return false end
    return can_cast_on(Purify, s.purify_target)
   end,
@@ -583,6 +584,7 @@ local strategies = {
  {
   name = "CleanseParty",
   matches = function(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Cleanse, 3.0) then return false end
    if safe_setting(context, "holy_auto_cleanse", true) == false then return false end
    return can_cast_on(SPELLS.Cleanse, s.cleanse_target)
   end,
