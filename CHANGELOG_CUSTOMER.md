@@ -16,6 +16,14 @@ Before this release, only 19 of 29 specs had healthstone automation. Now it cove
 
 ---
 
+### ? Feature: Affliction Warlock — Death Coil Survival
+
+**Affliction Warlock now automatically uses Death Coil when you drop below 30% HP in combat.**
+
+Death Coil is a powerful emergency button: it fears the target and heals you for the damage dealt. Destruction and Demonology Warlocks already had this, but Affliction was missing it. Now all three Warlock specs are covered.
+
+---
+
 ### ? Feature: Target-Switch State Hygiene
 
 **Switching targets now correctly resets TTD (Time-To-Death) tracking.**
@@ -41,7 +49,6 @@ Spread-DoT and idle-damage strategies (Multi-Dot, SW:P spread, idle Smite / Holy
 **Turning the rotation OFF now stays OFF after a UI reload.**
 
 Previously, disabling the rotation via keybind and then reloading UI caused the rotation to run for 1-2 ticks before the toggle state synced back. This could trigger accidental spell casts immediately on reload. Fixed by reading the toggle state directly from the persisted widget instead of the ephemeral settings store.
-
 
 ## v2.3.11 â€” July 4, 2026
 
