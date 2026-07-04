@@ -251,26 +251,23 @@ local function health_funnel_matches(context)
     return pet_needs_healing(context)
 end
 
-local function imp_firebolt_pacing_matches(context, s)
-    if not s then return false end
-    if not context.in_combat then return false end
-    if not s.pet_alive then return false end
-    if not s.pet_type_imp then return false end
-    if s.pet_casting_firebolt then return false end
-    if not context.target then return false end
-    if context.target.is_dead and context.target:is_dead() then return false end
-    return true
-end
-
-local function imp_firebolt_pacing_execute(context)
-    local target = context.target
-    if not target then return false end
-    local cast = core.input and core.input.pet_cast_target_spell
-    if not cast then return false end
-    local ok, result = pcall(cast, 3110, target)
-    if ok then return result == true or result == nil end
-    return false
-end
+-- REMOVED: imp_firebolt_pacing (spec-level Firebolt nudge).
+-- This is now handled by pet_manager_sylvanas.lua which:
+--   1. Auto-enables autocast on the highest known Firebolt rank
+--   2. Manually casts it every 2s as fallback (with correct rank)
+-- The old imp_firebolt_pacing hardcoded rank 1 (3110) and fired every
+-- tick, conflicting with pet_manager's higher-rank cast.
+--
+-- Phase Shift (4511) is an OOC defensive Imp ability that makes it
+-- unattackable. It is auto-cast by default and does not need rotation
+-- handling — the engine manages it.
+--
+-- Fire Shield (2947) is an Imp buff that reflects fire damage. It is
+-- maintained by the player, not the pet, and is not part of the DPS
+-- rotation. Not handled here.
+--
+-- Lesser Invisibility (7870) is a Succubus OOC defensive. Same as Phase
+-- Shift — auto-cast by default, not a rotation concern.
 
 -- ============================================================================
 -- Match functions
@@ -527,7 +524,7 @@ local strategies = {
     { name = "SummonImp", matches = function(context) return needs_imp_fallback(context) end, execute = function(context) return NS.try_cast(SPELLS.SummonImp, context.me, "[DEMONOLOGY] Summon Imp", { skip_range = true }) end },
     { name = "FelDomination", matches = fel_domination_matches, execute = function(context) return NS.try_cast(SPELLS.FelDomination, context.me, "[DEMONOLOGY] Fel Domination", { skip_range = true, expected_cooldown = 900 }) end },
     { name = "HealthFunnel", matches = health_funnel_matches, execute = function(context) return NS.try_cast(SPELLS.HealthFunnel, context.pet or context.me, "[DEMONOLOGY] Health Funnel") end },
-    { name = "imp_firebolt_pacing", matches = imp_firebolt_pacing_matches, execute = imp_firebolt_pacing_execute },
+
     { name = "CurseOfDoom", matches = curse_of_doom_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfDoom, context.target, "[DEMONOLOGY] Curse of Doom", { expected_cooldown = 60 }) end },
     { name = "CurseOfElements", matches = curse_of_elements_matches, execute = function(context) return NS.try_cast(SPELLS.CurseElements, context.target, "[DEMONOLOGY] Curse of Elements") end },
     { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfAgony, context.target, "[DEMONOLOGY] Curse of Agony") end },
