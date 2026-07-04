@@ -80,8 +80,12 @@ _G.EaxRotations = {
     gate_cooldown_boss_only = function() return true end,
 }
 
-local strategies = dofile("EaxRotations/classes/warrior/fury_sylvanas.lua")
-assert_true(strategies, "strategies table should load")
+local result = dofile("EaxRotations/classes/warrior/fury_sylvanas.lua")
+assert_true(result, "fury_sylvanas should load")
+-- Canonical spec_kit return shape: { strategies = {...}, build_state = fn }
+local strategies = (type(result) == "table" and result.strategies) or result
+assert_true(strategies, "strategies table should exist")
+assert_true(#strategies > 0, "strategies table should have entries")
 
 local function find_strategy(name)
     for i = 1, #strategies do
