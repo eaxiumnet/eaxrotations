@@ -423,6 +423,14 @@ local function core_string(field)
     return type(value) == "string" and value or nil
 end
 
+local function reset_target_dependent_state(old_guid, new_guid)
+    if old_guid == new_guid then return end
+    if ttd_ema and ttd_ema.reset then ttd_ema.reset(old_guid) end
+    if ttd_tracker and ttd_tracker.reset then ttd_tracker.reset(old_guid) end
+    -- Swing timer module has no per-target state, but if it ever does, reset here
+end
+
+
 local function build_context()
     for k in pairs(_context) do _context[k] = nil end
     _context.lowest = _context.lowest or {}
@@ -448,8 +456,10 @@ local function build_context()
                 _manual_target_lockout_until = (NS.time_now and NS.time_now() or 0) + 3.0
             end
         end
+        reset_target_dependent_state(_last_target_guid, current_guid)
         _last_target_guid = current_guid
     else
+        reset_target_dependent_state(_last_target_guid, nil)
         _last_target_guid = nil
     end
     local target = find_enemy_target(me, selected_target)
