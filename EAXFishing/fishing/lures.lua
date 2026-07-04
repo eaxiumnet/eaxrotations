@@ -206,7 +206,13 @@ function M.try_apply_lure(ctx, me, now)
     -- Clear delay and apply
     state.lure.lure_apply_delay_end = 0
     state.equip.last_equip_time = now
-    
+
+    -- Defensive re-check: enchant detection may have been a false negative.
+    -- Re-verify no lure is active before consuming an item.
+    if M.has_active_lure(ctx, me, now) then
+        return false
+    end
+
     APISurface.print("[EaxFishing] Applying " .. (lure_name or "Lure") .. "...")
     
     -- Try use_on first, fall back to use_self
