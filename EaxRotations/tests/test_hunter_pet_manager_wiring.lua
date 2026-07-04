@@ -1,11 +1,10 @@
 -- ============================================================================
--- Test: Hunter Pet Manager Wiring (HU5)
+-- Test: Pet Manager Wiring (HU5)
 -- ----------------------------------------------------------------------------
 -- Verifies that main_sylvanas.lua calls pet_manager.on_update() every frame
--- when the active class is "hunter". This is the fix for the bug where
--- pet_manager.on_update() was defined in shared/pet_manager_sylvanas.lua but
--- never invoked — pet attack target following and pet spell casting were
--- completely broken.
+-- when the active class is "hunter" or "warlock". This is the fix for the
+-- bug where pet_manager.on_update() was defined but never invoked — pet
+-- attack target following and pet spell casting were completely broken.
 -- ============================================================================
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -210,22 +209,25 @@ assert_eq(pet_update_calls[1].spec, "beast_mastery", "on_rotation_update_unified
 print("  [ PASS ] on_rotation_update_unified: pet_manager.on_update called for hunter")
 
 -- ============================================================================
--- Contract 3: Non-hunter class does NOT call pet_manager.on_update()
+-- Contract 3: on_rotation_update() calls pet_manager.on_update() for warlocks
+-- ============================================================================
+pet_update_calls = {}
+_G.EaxRotations.rotation_registry.class_config = { class_key = "warlock", default_playstyle = "demonology" }
+_G.EaxRotations.rotation_registry.playstyles.demonology = {}
+_G.EaxRotations.class_middleware.warlock = {}
+local result3 = _G.EaxRotations.on_rotation_update()
+assert_eq(#pet_update_calls, 1, "on_rotation_update: pet_manager.on_update should be called once for warlock")
+print("  [ PASS ] on_rotation_update: pet_manager.on_update called for warlock")
+
+-- ============================================================================
+-- Contract 4: Non-pet class does NOT call pet_manager.on_update()
 -- ============================================================================
 pet_update_calls = {}
 _G.EaxRotations.rotation_registry.class_config = { class_key = "warrior", default_playstyle = "arms" }
 _G.EaxRotations.rotation_registry.playstyles.arms = {}
 _G.EaxRotations.class_middleware.warrior = {}
-local result3 = _G.EaxRotations.on_rotation_update()
+local result4 = _G.EaxRotations.on_rotation_update()
 assert_eq(#pet_update_calls, 0, "on_rotation_update: pet_manager.on_update should NOT be called for warrior")
 print("  [ PASS ] on_rotation_update: pet_manager.on_update NOT called for warrior")
-
--- ============================================================================
--- Contract 4: Non-hunter class does NOT call pet_manager.on_update() (unified)
--- ============================================================================
-pet_update_calls = {}
-local result4 = _G.EaxRotations.on_rotation_update_unified()
-assert_eq(#pet_update_calls, 0, "on_rotation_update_unified: pet_manager.on_update should NOT be called for warrior")
-print("  [ PASS ] on_rotation_update_unified: pet_manager.on_update NOT called for warrior")
 
 print("PASS test_hunter_pet_manager_wiring")

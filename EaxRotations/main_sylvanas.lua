@@ -1224,10 +1224,10 @@ function M.on_rotation_update()
     log_expansion_once(config, active)
     local class_key = config and config.class_key
 
-    -- Pet manager update (hunter only): runs every frame to keep pet attacking target
-    -- and casting pet abilities (Growl, Claw, Bite, etc.) on cooldown.
-    if class_key == "hunter" and context.me and pet_manager and pet_manager.on_update then
-        pet_manager.on_update(context.me, context.target, active)
+    -- Pet manager update (hunter + warlock): runs every frame to keep pet attacking
+    -- target and casting pet abilities (Growl, Claw, Bite, Imp Firebolt, etc.).
+    if (class_key == "hunter" or class_key == "warlock") and context.me and pet_manager and pet_manager.on_update then
+        pet_manager.on_update(context.me, context.target, active, context)
     end
 
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
@@ -1294,10 +1294,10 @@ function M.on_rotation_update_unified()
     log_expansion_once(config, active)
     local class_key = config and config.class_key
 
-    -- Pet manager update (hunter only): runs every frame to keep pet attacking target
-    -- and casting pet abilities (Growl, Claw, Bite, etc.) on cooldown.
-    if class_key == "hunter" and context.me and pet_manager and pet_manager.on_update then
-        pet_manager.on_update(context.me, context.target, active)
+    -- Pet manager update (hunter + warlock): runs every frame to keep pet attacking
+    -- target and casting pet abilities (Growl, Claw, Bite, Imp Firebolt, etc.).
+    if (class_key == "hunter" or class_key == "warlock") and context.me and pet_manager and pet_manager.on_update then
+        pet_manager.on_update(context.me, context.target, active, context)
     end
 
     if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
