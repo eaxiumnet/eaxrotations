@@ -514,6 +514,8 @@ local function inner_fire_matches(context, s)
     if s.has_inner_fire then return false end
     local settings = context.settings or {}
     if settings.shadow_use_inner_fire == false then return false end
+    -- OOC only: casting Inner Fire in combat wastes a GCD that could be VT/SWP
+    if context.in_combat then return false end
     return true
 end
 
@@ -707,6 +709,7 @@ local function mind_flay_matches(context, s)
     if not context.has_valid_enemy_target then return false end
     -- Mana emergency: drop all spells (wand only)
     if s.mana_emergency then return false end
+    if not _engaged_with_player(context) then return false end
     return true
 end
 
