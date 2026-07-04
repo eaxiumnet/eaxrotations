@@ -920,13 +920,15 @@ local function on_update()
     -- Everything below (widget sync, build_context, dispatch) runs at 20Hz.
 
     -- [#P1] Resolve rotation_enabled BEFORE the expensive widget sync loop.
-    -- When rotation is disabled, we still need to listen for the user re-enabling
-    -- it (sync_quick_toggles reads the keybind), but we can skip the bulk schema
-    -- widget sync (~30-50 pcall) entirely.
-    local rotation_enabled = not (framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) == false)
+    -- CRITICAL: framework_core settings are ephemeral (lost on reload).
+    -- The keybind widget state IS persisted by Sylvanas. Read the widget
+    -- directly so the toggle survives reloads without flip-flopping.
+    local rotation_enabled = get_keybind_toggle_state(menu_elements.enable_script_check, true)
     if _last_enabled_log ~= rotation_enabled then
         _last_enabled_log = rotation_enabled
-        -- Removed per-toggle log to reduce spam. Toggle state is visible in the UI.
+        if not rotation_enabled then
+            core.log("[EaxRotations] Rotation disabled by quick toggle")
+        end
     end
 
     if control_panel_helper and control_panel_helper.on_update then
