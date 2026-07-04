@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.3.9 - 2026-07-03
+
+### Bug Fixes
+- **Shadow Priest**: Fixed Mind Flay opening on fresh targets. `mind_flay_matches` was missing the `_engaged_with_player()` safety gate that every other damage spell uses. This caused Mind Flay to fire before Shadow Word: Pain and Mind Blast on targets at 100% HP that hadn't yet targeted the player. Now correctly waits for engagement (via auto-attack or party member pull) before casting.
+
+### Quality & Reliability
+- 219 rotation test suites — all passing
+- 13 leveling rotation suites — all passing
+- All changes are backward compatible. No settings reset required.
+
 ## 2.3.8 - 2026-07-03
 
 ### Bug Fixes

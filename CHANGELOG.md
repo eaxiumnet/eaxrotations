@@ -2,6 +2,21 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.3.9] — Hotfix: Shadow Priest Mind Flay Opener Fix (2026-07-03)
+
+### Bug Fixes
+
+- **Shadow Priest**: Fixed Mind Flay firing as the opening spell on fresh targets. Every other damage spell (Shadow Word: Pain, Mind Blast, Shadow Word: Death, Devouring Plague, Vampiric Embrace, Starshards) checks `_engaged_with_player()` to prevent casting on a mob that hasn't targeted you yet. Mind Flay was missing this gate, so it became the default opener when SW:P and MB were blocked. Added the missing check.
+
+### What to Expect
+
+- Shadow Priest: No more "Mind Flay opener" on fresh pulls. The rotation now correctly opens with Shadow Word: Pain → Mind Blast → Mind Flay, or auto-attacks first to establish aggro if needed.
+- Drop-in replacement. Delete your old `EaxRotations` folder and replace with this one.
+- All your settings carry over automatically.
+- No settings reset needed.
+
+---
+
 ## [2.3.3] — Hotfix: Settings Nil-Guard Sweep (2026-07-03)
 
 ### Bug Fixes

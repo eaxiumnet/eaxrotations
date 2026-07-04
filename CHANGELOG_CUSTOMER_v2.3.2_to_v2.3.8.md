@@ -1,9 +1,22 @@
 # EAX Rotations — Customer Changelog
-## Versions 2.3.2 through 2.3.8
+## Versions 2.3.2 through 2.3.9
 
 ---
 
-## v2.3.8 — Boss Detection Accuracy + Dead State Field Fixes (Latest)
+## v2.3.9 — Shadow Priest Mind Flay Opener Fix (Latest)
+
+### Bug Fixes
+- **Shadow Priest**: Fixed Mind Flay opening on fresh targets. Every other damage spell checks whether the mob has actually targeted you before casting. Mind Flay was missing this check, so it fired immediately while Shadow Word: Pain and Mind Blast correctly waited. The result was a "Mind Flay opener" that felt wrong and wasted the first GCD of a pull.
+  - Now Mind Flay waits for engagement just like every other spell.
+  - Fresh pulls will correctly open with Shadow Word: Pain → Mind Blast → Mind Flay, or auto-attack first if needed.
+
+### What to Expect
+- Shadow Priests: Your opener is now consistent. No more Mind Flay firing before DoTs are applied.
+- All other specs: No changes.
+
+---
+
+## v2.3.8 — Boss Detection Accuracy + Dead State Field Fixes
 
 ### Bug Fixes
 - **Mage — Fire**: Clearcasting proc (Arcane Concentration) is now consumed by Fireball. Previously `build_state` never tracked the proc, so it sat unused.
@@ -112,21 +125,22 @@
 
 ## Summary: What Changed Across All Versions
 
-| What | v2.3.2 | v2.3.3 | v2.3.4 | v2.3.5 | v2.3.6 | v2.3.7 | v2.3.8 |
-|------|--------|--------|--------|--------|--------|--------|--------|
-| Holy Priest stability | Fixed | — | Fixed | — | — | — | — |
-| Warrior interrupts | — | — | Added | — | — | — | — |
-| Druid crashes | — | — | Fixed | — | — | — | — |
-| Shadowfiend | — | — | — | Added | — | — | — |
-| Divine Protection | — | — | — | Added | — | — | — |
-| Imp detection | — | — | — | — | Added | — | — |
-| Cat BiteTrick | — | — | — | — | Added | — | — |
-| All healer dispel throttle | Partial | — | — | — | — | Complete | — |
-| Fire Clearcasting fix | — | — | — | — | — | — | Fixed |
-| Arms Death Wish boss burst | — | — | — | — | — | — | Fixed |
-| Bear PvP peel | — | — | — | — | — | — | Fixed |
-| Boss detection accuracy | — | — | — | — | — | — | Improved |
-| Tank detection accuracy | — | — | — | — | — | — | Improved |
+| What | v2.3.2 | v2.3.3 | v2.3.4 | v2.3.5 | v2.3.6 | v2.3.7 | v2.3.8 | v2.3.9 |
+|------|--------|--------|--------|--------|--------|--------|--------|--------|
+| Holy Priest stability | Fixed | — | Fixed | — | — | — | — | — |
+| Warrior interrupts | — | — | Added | — | — | — | — | — |
+| Druid crashes | — | — | Fixed | — | — | — | — | — |
+| Shadowfiend | — | — | — | Added | — | — | — | — |
+| Divine Protection | — | — | — | Added | — | — | — | — |
+| Imp detection | — | — | — | — | Added | — | — | — |
+| Cat BiteTrick | — | — | — | — | Added | — | — | — |
+| All healer dispel throttle | Partial | — | — | — | — | Complete | — | — |
+| Fire Clearcasting fix | — | — | — | — | — | — | Fixed | — |
+| Arms Death Wish boss burst | — | — | — | — | — | — | Fixed | — |
+| Bear PvP peel | — | — | — | — | — | — | Fixed | — |
+| Boss detection accuracy | — | — | — | — | — | — | Improved | — |
+| Tank detection accuracy | — | — | — | — | — | — | Improved | — |
+| Shadow Priest MF opener | — | — | — | — | — | — | — | Fixed |
 
 ---
 
