@@ -79,6 +79,11 @@ function M.can_cook_here(ctx, me)
         return false, "casting"
     end
 
+    -- Must be standing still — cooking requires stationary cast.
+    if APISurface.is_moving(me) then
+        return false, "moving"
+    end
+
     -- Check player has learned ANY cooking recipe (cheap gate).
     -- We test the Apprentice Cooking skill (2550 / Apprentice Cook 2551).
     if not APISurface.is_spell_learned(2550) and not APISurface.is_spell_learned(2551) then
