@@ -4,12 +4,12 @@
 -- WHY:   mirrors priority APL
 --          (Moonfire > Insect Swarm > Eclipse proc Starfire > Starfire > Wrath)
 --          with mana-aware fallback to wand / potions.
--- SAFETY: every state.* read is nil-guarded per Pattern 14.
---          no on_update() allocs (static _t reused per tick).
+-- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.DruidSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 local _potion_helper = require("shared/potion_helper_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
@@ -28,15 +28,18 @@ local _HEALER_IDS = { [2]=true, [5]=true, [7]=true, [11]=true }
 local _INNERVATE_SCAN_INTERVAL = 2.0
 local _last_innervate_scan_time = 0
 
-local _LOCAL_SPELLS = {
-    Innervate    = NS.spell_action({ 29166 }, "Innervate"),
-    Rebirth      = NS.spell_action({ 26994,20748,20747,20742,20739,20484 }, "Rebirth"),
-    Thorns       = NS.spell_action({ 26992,9910,9756,8914,1075,782,467 }, "Thorns"),
-    Cyclone      = NS.spell_action({ 33786 }, "Cyclone"),
-    EntanglingRoots = NS.spell_action({ 26989,9853,9852,5196,5195,1062,339 }, "EntanglingRoots"),
-    NaturesGrasp = NS.spell_action({ 27009,17329,16813,16812,16811,16810,16689 }, "NaturesGrasp"),
-    WarStomp     = NS.spell_action({ 20549 }, "WarStomp"),
-    MarkOfTheWild= NS.spell_action({ 26991,9885,9884,8907,5234,6756,5232,1126 }, "MarkOfTheWild"),
+-- Centralized spell resolver via spec_kit (replaces per-spec _LOCAL_SPELLS).
+local define = spec_kit.define_action_for_class(SPELLS)
+
+local ACTION = {
+    Innervate       = define("Innervate", { 29166 }, "Innervate"),
+    Rebirth         = define("Rebirth", { 26994,20748,20747,20742,20739,20484 }, "Rebirth"),
+    Thorns          = define("Thorns", { 26992,9910,9756,8914,1075,782,467 }, "Thorns"),
+    Cyclone         = define("Cyclone", { 33786 }, "Cyclone"),
+    EntanglingRoots = define("EntanglingRoots", { 26989,9853,9852,5196,5195,1062,339 }, "EntanglingRoots"),
+    NaturesGrasp    = define("NaturesGrasp", { 27009,17329,16813,16812,16811,16810,16689 }, "NaturesGrasp"),
+    WarStomp        = define("WarStomp", { 20549 }, "WarStomp"),
+    MarkOfTheWild   = define("MarkOfTheWild", { 26991,9885,9884,8907,5234,6756,5232,1126 }, "MarkOfTheWild"),
 }
 
 local _INSECT_MIN_SP = 800
@@ -65,6 +68,21 @@ local _state = {
     barkskin_active=false, mana_pct=100,
     enemy_count=1, target_ttd=999, innervate_target=nil,
     healthstone_ready=0,
+}
+
+-- Schema for safe_state: custom defaults override kit defaults.
+local BALANCE_SCHEMA = {
+    insect_remains = 0,
+    moonfire_remains = 0,
+    ff_remains = 0,
+    natures_grace_active = false,
+    barkskin_active = false,
+    mana_pct = 100,
+    enemy_count = 1,
+    target_ttd = 999,
+    innervate_target = nil,
+    healthstone_ready = 0,
+    is_group = false,
 }
 
 local function build_state(ctx)
@@ -125,7 +143,8 @@ local function build_state(ctx)
         if (_state.mana_pct or 100) <= floor_mana then _state.innervate_target = ctx.me end
     end
     _state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
-    return _state
+    -- safe_state proxy: structural nil-guard elimination (Pattern 14)
+    return spec_kit.safe_state(_state, BALANCE_SCHEMA)
 end
 
 local function _mana_now(s, ctx) return s.mana_pct or ctx.mana or ctx.mana_pct or 100 end
@@ -192,10 +211,10 @@ local strategies = {
             local me = ctx.me or NS.GetPlayer()
             if not me then return false end
             if not (NS.same_unit and NS.same_unit(s.innervate_target, me)) then return false end
-            return NS.spell_ready(_LOCAL_SPELLS.Innervate, s.innervate_target, { skip_range = true })
+            return NS.spell_ready(ACTION.Innervate, s.innervate_target, { skip_range = true })
         end,
         execute=function(_, s)
-            return NS.try_cast(_LOCAL_SPELLS.Innervate, s.innervate_target, "[BALANCE] Innervate self")
+            return NS.try_cast(ACTION.Innervate, s.innervate_target, "[BALANCE] Innervate self")
         end,
     },
     {
@@ -207,13 +226,13 @@ local strategies = {
             if not dead then return false end
             if not (dead.is_player and dead:is_player()) then return false end
             if ctx.tank_alive==false then return false end
-            return NS.spell_ready(_LOCAL_SPELLS.Rebirth, dead)
+            return NS.spell_ready(ACTION.Rebirth, dead)
         end,
         execute=function(ctx)
             local find_dead = _find_dead
             local dead = find_dead and find_dead() or nil
             if dead then
-                return NS.try_cast(_LOCAL_SPELLS.Rebirth, dead, "[BALANCE] Rebirth battle rez")
+                return NS.try_cast(ACTION.Rebirth, dead, "[BALANCE] Rebirth battle rez")
             end
             return false
         end,
@@ -365,10 +384,10 @@ local strategies = {
         matches=function(ctx)
             if not ctx.is_pvp then return false end
             if not (ctx.melee_on_you or false) then return false end
-            return NS.spell_ready(_LOCAL_SPELLS.NaturesGrasp, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.NaturesGrasp, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute=function()
-            return NS.try_cast(_LOCAL_SPELLS.NaturesGrasp, NS.PLAYER_UNIT, "[BALANCE PvP] Nature's Grasp")
+            return NS.try_cast(ACTION.NaturesGrasp, NS.PLAYER_UNIT, "[BALANCE PvP] Nature's Grasp")
         end,
     },
     {
@@ -377,10 +396,10 @@ local strategies = {
             if NS.pvp_trinket_used_recently(ctx.target) then return false end
             if not ctx.is_pvp then return false end
             if not (ctx.melee_on_you or false) then return false end
-            return NS.spell_ready(_LOCAL_SPELLS.EntanglingRoots, ctx.target)
+            return NS.spell_ready(ACTION.EntanglingRoots, ctx.target)
         end,
         execute=function(ctx)
-            return NS.try_cast(_LOCAL_SPELLS.EntanglingRoots, ctx.target, "[BALANCE PvP] Entangling Roots")
+            return NS.try_cast(ACTION.EntanglingRoots, ctx.target, "[BALANCE PvP] Entangling Roots")
         end,
     },
     {
@@ -390,10 +409,10 @@ local strategies = {
             if NS.pvp_trinket_used_recently(ctx.target) then return false end
             if not ctx.is_pvp then return false end
             if not (ctx.enemy_healer or false) then return false end
-            return NS.spell_ready(_LOCAL_SPELLS.Cyclone, ctx.target)
+            return NS.spell_ready(ACTION.Cyclone, ctx.target)
         end,
         execute=function(ctx)
-            return NS.try_cast(_LOCAL_SPELLS.Cyclone, ctx.target, "[BALANCE PvP] Cyclone on healer")
+            return NS.try_cast(ACTION.Cyclone, ctx.target, "[BALANCE PvP] Cyclone on healer")
         end,
     },
     {
@@ -401,10 +420,10 @@ local strategies = {
         matches=function(ctx, s)
             if not ctx.in_combat then return false end
             if (s.enemy_count or ctx.enemy_count or 1) < 4 then return false end
-            return NS.spell_ready(_LOCAL_SPELLS.WarStomp, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.WarStomp, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute=function()
-            return NS.try_cast(_LOCAL_SPELLS.WarStomp, NS.PLAYER_UNIT, "[BALANCE] War Stomp (4+ enemies)")
+            return NS.try_cast(ACTION.WarStomp, NS.PLAYER_UNIT, "[BALANCE] War Stomp (4+ enemies)")
         end,
     },
     {
@@ -431,10 +450,10 @@ local strategies = {
                 if NS.buff_up(NS.PLAYER_UNIT, _MOTW_BUFF) then return false end
             end
             if ctx.is_moving then return false end
-            return NS.spell_ready(_LOCAL_SPELLS.MarkOfTheWild, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.MarkOfTheWild, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute=function()
-            return NS.try_cast(_LOCAL_SPELLS.MarkOfTheWild, NS.PLAYER_UNIT, "[BALANCE] Mark of the Wild")
+            return NS.try_cast(ACTION.MarkOfTheWild, NS.PLAYER_UNIT, "[BALANCE] Mark of the Wild")
         end,
     },
     {
@@ -446,10 +465,10 @@ local strategies = {
                 if NS.buff_up(NS.PLAYER_UNIT, {26992,9910,9756,8914,1075,782,467}) then return false end
             end
             if ctx.in_combat then return false end
-            return NS.spell_ready(_LOCAL_SPELLS.Thorns, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.Thorns, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute=function()
-            return NS.try_cast(_LOCAL_SPELLS.Thorns, NS.PLAYER_UNIT, "[BALANCE] Thorns")
+            return NS.try_cast(ACTION.Thorns, NS.PLAYER_UNIT, "[BALANCE] Thorns")
         end,
     },
 }
