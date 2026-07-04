@@ -46,6 +46,15 @@ local MANA_LOW_FOR_BLOOM = 22
 local MANA_CONSERVE_PCT = 30
 local MANA_EMERGENCY_PCT = 15
 local MANA_CRITICAL_PCT = 5
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(item_ids)
+    if not NS.is_item_ready then return 0 end
+    for i = 1, #item_ids do
+        local item_id = item_ids[i]
+        if NS.is_item_ready(item_id) then return item_id end
+    end
+    return 0
+end
 local FULL_TARGET_HP = 96
 local TANK_REJUV_HP = 92
 local RAID_REJUV_HP = 88
@@ -486,6 +495,20 @@ local strategies = {
   if not ft or not ft.unit then return false end
   return NS.try_cast(SPELLS.Regrowth, ft.unit, string.format("[RESTO] Regrowth (friendly target) %.0f%%", effective_hp(ft)))
  end },
+ { name = "Healthstone",
+   matches = function(context, state)
+       if not context.in_combat then return false end
+       if (context.hp or 100) > 28 then return false end
+       return (state.healthstone_ready or 0) > 0
+   end,
+   execute = function(context)
+       local item_id = first_ready_item(HEALTHSTONE_IDS)
+       if item_id > 0 and NS.use_item_by_id then
+           return NS.use_item_by_id(item_id, context.me) and true or false
+       end
+       return false
+   end,
+ },
  { name = "BarkskinSelfPreservation", matches = function(context) local settings = context.settings or {}; local threshold = settings.barkskin_hp or 55; return (context.hp or 100) <= threshold and NS.spell_ready(SPELLS.Barkskin, PLAYER_UNIT, BARKSKIN_OPTS) end, execute = function() return NS.try_cast(SPELLS.Barkskin, PLAYER_UNIT, "[RESTO] Barkskin self", BARKSKIN_OPTS) end },
  { name = "BearFormFocusedByMelee", matches = function(context, state) return context.is_pvp and (context.hp or 100) <= 35 and state.melee_pressure_count > 0 and context.stance ~= STANCE_BEAR and NS.spell_ready(SPELLS.BearForm, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(SPELLS.BearForm, PLAYER_UNIT, "[RESTO] Bear Form under melee focus", SKIP_RANGE) end },
  { name = "NaturesGraspMelee", matches = function(context, state) return context.is_pvp and state.melee_pressure_count > 0 and not NS.has_player_buff(NATURES_GRASP_BUFF) and NS.spell_ready(LOCAL_SPELLS.NaturesGrasp, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(LOCAL_SPELLS.NaturesGrasp, PLAYER_UNIT, "[RESTO] Nature's Grasp melee peel", SKIP_RANGE) end },

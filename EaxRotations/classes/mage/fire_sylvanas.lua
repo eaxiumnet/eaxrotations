@@ -16,6 +16,16 @@ local CLEARCASTING_BUFF = { 12536 }  -- Clearcasting proc from Arcane Concentrat
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }  -- Emerald, Ruby, Citrine, Jade, Agate
 local MANA_GEM_CONJURE = { 27101, 10054, 10053, 3552, 759 }  -- Conjure Mana Emerald..Agate
 
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(item_ids)
+    if not NS.is_item_ready then return 0 end
+    for i = 1, #item_ids do
+        local item_id = item_ids[i]
+        if NS.is_item_ready(item_id) then return item_id end
+    end
+    return 0
+end
+
 -- Test assertion strings (preserved for regression tests)
 
 -- ============================================================================
@@ -30,6 +40,7 @@ local fire_state = {
     mana_pct = 100,
     mana_gem_available = false,
     remove_curse_ready = false,
+    healthstone_ready = 0,
 }
 
 local function first_ready_mana_gem()
@@ -67,6 +78,7 @@ local function build_state(context)
     if target then
         fire_state.pyroblast_ready = NS.spell_ready(SPELLS.Pyroblast, target)
     end
+    fire_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
     return fire_state
 end
 
@@ -265,6 +277,20 @@ local strategies = {
     { name = "ManaShield",
       matches = mana_shield_matches_fn,
       execute = function() return NS.try_cast(SPELLS.ManaShield, NS.PLAYER_UNIT, "[FIRE] Mana Shield") end },
+    { name = "Healthstone",
+      matches = function(context, state)
+          if not context.in_combat then return false end
+          if (state.hp_pct or 100) > 28 then return false end
+          return (state.healthstone_ready or 0) > 0
+      end,
+      execute = function(context)
+          local item_id = first_ready_item(HEALTHSTONE_IDS)
+          if item_id > 0 and NS.use_item_by_id then
+              return NS.use_item_by_id(item_id, context.me) and true or false
+          end
+          return false
+      end,
+    },
     -- Presence of Mind burst setup
     { name = "PresenceOfMind",
       matches = presence_of_mind_matches_fn,
