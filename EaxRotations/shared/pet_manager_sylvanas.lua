@@ -63,6 +63,7 @@ local FELHUNTER_DEVOUR= { 19505 }
 local FELHUNTER_SPELL = { 19647 }
 local FELGUARD_CLEAVE = { 30213 }
 local FELGUARD_INTERCEPT = { 30198, 30197, 30196 }
+local FELGUARD_ANGUISH = { 33698, 33699, 33700 }
 
 -- Mage pet abilities (Water Elemental)
 local WATERBOLT       = { 31707 }
@@ -92,6 +93,7 @@ local function _get_state(spec)
             warlock_id = nil,
             warlock_type = nil,
             felguard_intercept_id = nil,
+            felguard_anguish_id = nil,
             mage_waterbolt_id = nil,
             mage_freeze_id = nil,
             last_growl = 0,
@@ -99,6 +101,7 @@ local function _get_state(spec)
             last_special = 0,
             last_warlock = 0,
             last_felguard_intercept = 0,
+            last_felguard_anguish = 0,
             last_mage_freeze = 0,
             last_mage_waterbolt = 0,
             last_mend = 0,
@@ -163,6 +166,20 @@ function M.try_cast(spell_id, target)
             and core.input.pet_cast_target_spell(spell_id, target)
     end)
     return ok2
+end
+
+-- Cast a position-targeted pet spell (e.g., Mage Water Elemental Freeze).
+-- @param spell_id  number  Spell ID to cast
+-- @param position  vec3    World position to cast at
+-- @return boolean  true if cast was attempted
+function M.try_cast_position(spell_id, position)
+    if not spell_id then return false end
+    if not position then return false end
+    local ok = pcall(function()
+        return core and core.input and core.input.pet_cast_position_spell
+            and core.input.pet_cast_position_spell(spell_id, position)
+    end)
+    return ok
 end
 
 -- ============================================================================
@@ -260,7 +277,7 @@ local function _scan_warlock_spells(st)
             end
         end
     end
-    -- Felguard: Cleave (primary) + Intercept (secondary, stored separately)
+    -- Felguard: Cleave (primary DPS) + Intercept (gap closer) + Anguish (taunt)
     if not st.warlock_id then
         for i = #FELGUARD_CLEAVE, 1, -1 do
             if NS.spell_id_is_known(FELGUARD_CLEAVE[i]) then
@@ -274,6 +291,14 @@ local function _scan_warlock_spells(st)
         for i = #FELGUARD_INTERCEPT, 1, -1 do
             if NS.spell_id_is_known(FELGUARD_INTERCEPT[i]) then
                 st.felguard_intercept_id = FELGUARD_INTERCEPT[i]
+                break
+            end
+        end
+    end
+    if not st.felguard_anguish_id then
+        for i = #FELGUARD_ANGUISH, 1, -1 do
+            if NS.spell_id_is_known(FELGUARD_ANGUISH[i]) then
+                st.felguard_anguish_id = FELGUARD_ANGUISH[i]
                 break
             end
         end
@@ -420,11 +445,14 @@ function M.on_update(me, target, spec, context)
     end
 
     -- Pet is already on this target -> cast abilities
-    -- Hunter: Growl (taunt) every 5s
+    -- Hunter: Growl (taunt) every 5s — SKIP in group content (don't pull from tank)
     if st.growl_id and now - st.last_growl > 5 then
-        if M.try_cast(st.growl_id, target) then
-            st.last_growl = now
-            return
+        local in_group = context.is_group or false
+        if not in_group then
+            if M.try_cast(st.growl_id, target) then
+                st.last_growl = now
+                return
+            end
         end
     end
 
@@ -467,16 +495,32 @@ function M.on_update(me, target, spec, context)
         end
     end
 
-    -- Mage Water Elemental: Freeze (AoE root) when target not already rooted
+    -- Warlock Felguard: Anguish (taunt) — SKIP in group content (don't pull from tank)
+    if st.felguard_anguish_id and now - st.last_felguard_anguish > 5 then
+        local in_group = context.is_group or false
+        if not in_group then
+            if M.try_cast(st.felguard_anguish_id, target) then
+                st.last_felguard_anguish = now
+                return
+            end
+        end
+    end
+
+    -- Mage Water Elemental: Freeze (AoE root) — ground-targeted spell.
+    -- Community macro: /cast [@cursor] !Freeze — casts at cursor position.
+    -- We cast at the target's current position using pet_cast_position_spell.
     if st.mage_freeze_id and now - st.last_mage_freeze > 25 then
         local target_rooted = false
         if target and NS.debuff_up then
             target_rooted = NS.debuff_up(target, { 33395, 122, 865, 6131, 10230, 27088 }) -- Freeze / Frost Nova ranks
         end
         if not target_rooted then
-            if M.try_cast(st.mage_freeze_id, target) then
-                st.last_mage_freeze = now
-                return
+            local ok_pos, pos = pcall(function() return target:get_position() end)
+            if ok_pos and pos then
+                if M.try_cast_position(st.mage_freeze_id, pos) then
+                    st.last_mage_freeze = now
+                    return
+                end
             end
         end
     end
