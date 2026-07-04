@@ -573,12 +573,16 @@ local function get_keybind_toggle_state(control, default)
     -- the UI toggle while leaving the keybind on the default key (7).
     local ok, value = pcall(function() return control:get_toggle_state() end)
     if ok and type(value) == "boolean" then return value end
-    ok, value = pcall(function() return control:get_state() end)
-    if ok and type(value) == "boolean" then return value end
-    -- Fallback: key-code heuristics only when toggle state is unreadable
-    local key_ok, key_code = pcall(function() return control:get_key_code() end)
-    if key_ok then
-        if key_code == 999 then return false end
+    -- get_toggle_state() returned non-boolean or threw.
+    -- CRITICAL: for keybind widgets, get_state() returns KEY PRESS STATE
+    -- (is the key currently held?), NOT toggle state. When the key is not
+    -- pressed it returns false, which would falsely disable rotation.
+    -- Only fall back to get_state() for non-keybind widgets (checkboxes).
+    local key_ok = pcall(function() return control:get_key_code() end)
+    if not key_ok then
+        -- Not a keybind (checkbox/toggle) — get_state() is safe
+        ok, value = pcall(function() return control:get_state() end)
+        if ok and type(value) == "boolean" then return value end
     end
     return default
 end
