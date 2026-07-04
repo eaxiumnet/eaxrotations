@@ -9,6 +9,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
+if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local SPELLS = NS.ShamanSpells or {}
 local Healing = NS.ShamanHealing or require("classes/shaman/healing_sylvanas")
 -- Preemptive heal module (Sonah-style predictive healing)
@@ -46,6 +48,15 @@ local MANA_CONSERVE_DEFAULT = 15
 local MANA_EMERGENCY_DEFAULT = 5
 -- Earth Shield charge refresh threshold
 local EARTH_SHIELD_CHARGE_DEFAULT = 2
+
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(ids)
+    if not inventory_helper then return nil end
+    for _, id in ipairs(ids) do
+        if inventory_helper.has_item(id) then return id end
+    end
+    return nil
+end
 
 -- ============================================================================
 -- State builder
@@ -99,6 +110,7 @@ local resto_state = {
  chain_heal_cluster_count = 0,
  friendly_target = nil,
  friendly_target_ready = false,
+ healthstone_ready = 0,
 }
 
 local function build_state(context)
@@ -208,6 +220,7 @@ local function build_state(context)
  if NS.StopCast and type(NS.StopCast.update) == "function" then
   NS.StopCast.update(me, context.settings)
  end
+ resto_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
  return resto_state
 end
@@ -551,6 +564,17 @@ local healing_strategies = {
    return true
   end,
   execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+  { name = "Healthstone",
+    matches = function(ctx, state)
+      if not ctx.in_combat then return false end
+      if (state.hp_pct or 100) > 28 then return false end
+      if (state.healthstone_ready or 0) <= 0 then return false end
+      return true
+    end,
+    execute = function(ctx)
+      local id = first_ready_item(HEALTHSTONE_IDS)
+      if id then NS.use_item_by_id(id, ctx.me) end
+    end },
  -- Mana emergency: auto-attack only, all spells forbidden (Research: Mana < 5%)
  { name = "ManaEmergencyWand",
   matches = function(context, state)

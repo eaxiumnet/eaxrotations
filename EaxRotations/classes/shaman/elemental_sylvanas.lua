@@ -9,6 +9,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
+if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local SPELLS = NS.ShamanSpells or {}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { shaman = {} } } end
@@ -39,6 +41,15 @@ local FLAME_SHOCK_MIN_SP_DEFAULT = 400
 local CL_MIN_TARGETS = 3
 local CL_CLUSTER_RADIUS = 10  -- yards, configurable
 
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(ids)
+    if not inventory_helper then return nil end
+    for _, id in ipairs(ids) do
+        if inventory_helper.has_item(id) then return id end
+    end
+    return nil
+end
+
 local runtime = {
     last_lightning_shield_ms = -SHIELD_REFRESH_UNKNOWN_MS,
     last_flametongue_ms = -30000000,
@@ -64,6 +75,7 @@ local ele_state = {
     now_ms = 0,
     spell_damage = 0,
     clearcast_active = false,
+    healthstone_ready = 0,
 }
 
 local function build_state(context)
@@ -93,6 +105,7 @@ local function build_state(context)
     ele_state.has_windfury = (ele_state.now_ms - runtime.last_windfury_ms) < WEAPON_BUFF_REFRESH_MS
     ele_state.has_rockbiter = (ele_state.now_ms - runtime.last_rockbiter_ms) < WEAPON_BUFF_REFRESH_MS
     ele_state.clearcast_active = NS.has_player_buff and NS.has_player_buff(CLEARCAST_BUFF) or false
+    ele_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
     return ele_state
 end
 
@@ -403,6 +416,17 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+    { name = "Healthstone",
+      matches = function(ctx, state)
+          if not ctx.in_combat then return false end
+          if (state.hp_pct or 100) > 28 then return false end
+          if (state.healthstone_ready or 0) <= 0 then return false end
+          return true
+      end,
+      execute = function(ctx)
+          local id = first_ready_item(HEALTHSTONE_IDS)
+          if id then NS.use_item_by_id(id, ctx.me) end
+      end },
     -- Mana emergency: auto-attack/wand only (Research: Mana < 5% all spells forbidden)
     -- MUST be first so it gates all other strategies when mana is critically low
     { name = "ManaEmergencyWand",

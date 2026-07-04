@@ -8,6 +8,8 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 
 local load_player = NS.GetPlayer and NS.GetPlayer()
+local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
+if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 
 local _ok_enums, enums = pcall(require, "common/enums")
 if not _ok_enums or type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
@@ -42,6 +44,15 @@ local EMPTY_SETTINGS = {}
 local SKIP_RANGE = { skip_range = true }
 local PSYCHIC_SCREAM_OPTS = { skip_range = true, expected_cooldown = 30 }
 local SHADOWFIEND_OPTS = { expected_cooldown = 300 }
+
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(ids)
+    if not inventory_helper then return nil end
+    for _, id in ipairs(ids) do
+        if inventory_helper.has_item(id) then return id end
+    end
+    return nil
+end
 
 -- Shared helpers from core_sylvanas.lua
 local try_cast, spell_exists, spell_ready, debuff_remains, buff_up, buff_remains, health_pct, player_control_locked = NS.import_helpers(
@@ -79,6 +90,7 @@ local smite_state = {
     mana_low = false,
     threat_safe = true,
     enemy_count = 1,
+    healthstone_ready = 0,
 }
 
 local function build_smite_state(context)
@@ -136,6 +148,7 @@ local function build_smite_state(context)
         and swp_dur > SMITE_CAST_BASE
         and swp_dur < HF_CAST_BASE
 
+    smite_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
     return smite_state
 end
 
@@ -234,6 +247,21 @@ local strategies = {
         end,
         execute = function()
             return try_cast(SPELLS.PsychicScream, PLAYER_UNIT, "[SMITE] Psychic Scream peel")
+        end,
+    },
+
+    -- Auto Healthstone
+    {
+        name = "Healthstone",
+        matches = function(context, state)
+            if not context.in_combat then return false end
+            if (state.hp_pct or 100) > 28 then return false end
+            if (state.healthstone_ready or 0) <= 0 then return false end
+            return true
+        end,
+        execute = function(context)
+            local id = first_ready_item(HEALTHSTONE_IDS)
+            if id then NS.use_item_by_id(id, context.me) end
         end,
     },
 

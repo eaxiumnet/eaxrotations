@@ -9,6 +9,7 @@ local SPELLS = NS.HunterSpells or {}
 local pet_manager = require("shared/pet_manager_sylvanas")
 local shot_timer = require("shared/shot_timer_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
+local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 
 local AUTO_SHOT_BUFFER_MS = 100
 local MULTI_SHOT_CAST_MS = 500
@@ -47,6 +48,16 @@ local WING_CLIP_DEBUFF = { 2974 }
 local ASPECT_HAWK_BUFF = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 local ASPECT_VIPER_BUFF = { 34074 }
 local _last_aspect_hawk_cast = 0  -- Throttle: WoW API buff detection delay (~1-2 frames)
+
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(ids)
+    if type(inventory_helper) ~= "table" then return nil end
+    if type(inventory_helper.has_item) ~= "function" then return nil end
+    for _, id in ipairs(ids) do
+        if inventory_helper.has_item(id) then return id end
+    end
+    return nil
+end
 
 -- ============================================================================
 -- State builder
@@ -91,6 +102,7 @@ local sv_state = {
     enemy_count = 1,
     hunter_melee_weave = true,
     hunter_shot_timer_buffer = 150,
+    healthstone_ready = 0,
     distance_sq = 10000,
 }
 
@@ -146,6 +158,7 @@ local function build_state(context)
     local settings = context.settings or {}
     sv_state.hunter_melee_weave = settings.hunter_melee_weave ~= false
     sv_state.hunter_shot_timer_buffer = settings.hunter_shot_timer_buffer or 150
+    sv_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
     return sv_state
 end
@@ -442,6 +455,18 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+    -- Auto Healthstone
+    { name = "Healthstone",
+      matches = function(ctx, state)
+          if not ctx.in_combat then return false end
+          if (state.hp_pct or 100) > 28 then return false end
+          if (state.healthstone_ready or 0) <= 0 then return false end
+          return true
+      end,
+      execute = function(ctx)
+          local id = first_ready_item(HEALTHSTONE_IDS)
+          if id then NS.use_item_by_id(id, ctx.me) end
+      end },
     -- Pet State: set defensive when pet HP is critically low
     { name = "PetDefensive",
       matches = function(context, state)

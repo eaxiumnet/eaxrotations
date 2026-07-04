@@ -7,6 +7,8 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 
 local potion_helper = require("shared/potion_helper_sylvanas")
+local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
+if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local BASE_SPELLS = NS.RogueSpells or {}
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
@@ -53,6 +55,15 @@ local HEMORRHAGE_DEBUFF = { 26864, 17348, 17347, 16511 }
 local GARROTE_DEBUFF = { 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }
 local EXPOSE_ARMOR_DEBUFF = { 26866, 11198, 8647 }
 local CHEAP_SHOT_DEBUFF = { 1833 }
+
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(ids)
+    if not inventory_helper then return nil end
+    for _, id in ipairs(ids) do
+        if inventory_helper.has_item(id) then return id end
+    end
+    return nil
+end
 local KIDNEY_SHOT_DEBUFF = { 8643, 408 }
 local CONTROL_DEBUFFS = { 1833, 8643, 408, 1776, 2094, 11297, 2070, 6770 }
 
@@ -98,6 +109,7 @@ local subtlety_state = {
     target_hp = 100,
     target_distance = 40,
     target_count = 1,
+    healthstone_ready = 0,
     is_behind = false,
     is_caster_target = false,
     control_active = false,
@@ -172,6 +184,7 @@ local function build_state(context)
         local best_id, _, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
         if best_id then subtlety_state.shiv_purge_name = best_name end
     end
+    subtlety_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
     return subtlety_state
 end
 
@@ -488,6 +501,18 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
+
+    { name = "Healthstone",
+      matches = function(context, state)
+          if not context.in_combat then return false end
+          if (state.hp_pct or 100) > 28 then return false end
+          if (state.healthstone_ready or 0) <= 0 then return false end
+          return true
+      end,
+      execute = function(context)
+          local id = first_ready_item(HEALTHSTONE_IDS)
+          if id then NS.use_item_by_id(id, context.me) end
+      end },
     { name = "Kick", matches = kick_matches, execute = function(context) return cast(SPELLS.Kick, context.target, "[SUBTLETY] Kick") end },
     { name = "ShivPurge", matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return cast(SPELLS.Shiv, context.target, "[SUBTLETY] Shiv purge → " .. name, { expected_cooldown = 10 }) end },
     { name = "CloakOfShadows", matches = cloak_matches, execute = function() return cast(SPELLS.CloakOfShadows, NS.PLAYER_UNIT, "[SUBTLETY] Cloak of Shadows", { skip_range = true }) end },

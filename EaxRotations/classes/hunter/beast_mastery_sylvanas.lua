@@ -11,6 +11,7 @@ local shot_timer = require("shared/shot_timer_sylvanas")
 local targeting = require("shared/targeting_sylvanas")
 local pet_manager = require("shared/pet_manager_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
+local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 
 -- ============================================================================
 -- Constants
@@ -31,6 +32,16 @@ local RAPTOR_STRIKE_IDS  = { 27014, 14266, 14265, 14264, 14263, 14262, 14261, 14
 local CONCUSSIVE_SHOT_IDS = { 5116 }
 local VOLLEY_IDS          = { 27022, 14295, 14294, 1510 }
 local is_item_ready
+
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(ids)
+    if type(inventory_helper) ~= "table" then return nil end
+    if type(inventory_helper.has_item) ~= "function" then return nil end
+    for _, id in ipairs(ids) do
+        if inventory_helper.has_item(id) then return id end
+    end
+    return nil
+end
 
 -- ============================================================================
 -- State builder
@@ -82,6 +93,7 @@ local state = {
     trinket_1_ready = false,
     trinket_2_ready = false,
     auto_aspect = true,
+    healthstone_ready = 0,
 }
 
 local function build_state(context)
@@ -183,6 +195,7 @@ local function build_state(context)
     state.auto_aspect = settings.hunter_auto_aspect ~= false
     state.viper_mana_threshold = settings.hunter_viper_mana_threshold or 20
     state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
+    state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
     return state
 end
@@ -639,6 +652,18 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+    -- Auto Healthstone
+    { name = "Healthstone",
+      matches = function(ctx, state)
+          if not ctx.in_combat then return false end
+          if (state.hp_pct or 100) > 28 then return false end
+          if (state.healthstone_ready or 0) <= 0 then return false end
+          return true
+      end,
+      execute = function(ctx)
+          local id = first_ready_item(HEALTHSTONE_IDS)
+          if id then NS.use_item_by_id(id, ctx.me) end
+      end },
     -- 1. OOC: Call Pet
     {
         name = "CallPet",
