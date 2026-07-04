@@ -569,15 +569,17 @@ local quick_toggle_defs = {
 
 local function get_keybind_toggle_state(control, default)
     if not control then return default end
-    local key_ok, key_code = pcall(function() return control:get_key_code() end)
-    if key_ok then
-        if key_code == 7 then return default end
-        if key_code == 999 then return false end
-    end
+    -- Read the widget's actual toggle state first. The user may have clicked
+    -- the UI toggle while leaving the keybind on the default key (7).
     local ok, value = pcall(function() return control:get_toggle_state() end)
     if ok and type(value) == "boolean" then return value end
     ok, value = pcall(function() return control:get_state() end)
     if ok and type(value) == "boolean" then return value end
+    -- Fallback: key-code heuristics only when toggle state is unreadable
+    local key_ok, key_code = pcall(function() return control:get_key_code() end)
+    if key_ok then
+        if key_code == 999 then return false end
+    end
     return default
 end
 
