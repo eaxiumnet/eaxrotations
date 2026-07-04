@@ -176,6 +176,7 @@ local shadow_state = {
     -- Out-of-combat buffing
     fortitude_ready = false,          -- Power Word: Fortitude is ready to cast
     has_fortitude = false,            -- Self has Fortitude buff
+    fortitude_target = nil,           -- Party member (or self) missing Fortitude
     is_group = false,                 -- Player is in a group
     -- Multi-DoT state
     multidot_mode = 1,                -- 1=Off, 2=Near Target, 3=All in Range
@@ -335,11 +336,29 @@ local function build_state(context)
     shadow_state.wand_learned = NS.spell_exists and NS.spell_exists(5019) or false
     shadow_state.is_wanding = shadow_state.wand_learned and NS.is_auto_attacking and NS.is_auto_attacking(context.me) or false
     
-    -- Fortitude buff readiness
+    -- Fortitude buff readiness (party-aware)
     local me_unit = context.me or me
+    local FORTITUDE_BUFFS = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
     shadow_state.fortitude_ready = me_unit and NS.spell_ready and NS.spell_ready(SPELLS.PowerWordFortitude, me_unit, { skip_range = true }) or false
-    shadow_state.has_fortitude = me_unit and NS.buff_up and NS.buff_up(me_unit, { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }) or false
+    shadow_state.has_fortitude = me_unit and NS.buff_up and NS.buff_up(me_unit, FORTITUDE_BUFFS) or false
     shadow_state.is_group = context.is_group or false
+    -- Scan party members for missing Fortitude; fallback to self
+    shadow_state.fortitude_target = nil
+    if shadow_state.fortitude_ready then
+        local members = context.party_members or context.group_members
+        if type(members) == "table" and #members > 0 then
+            for i = 1, #members do
+                local member = members[i]
+                if member and not (NS.buff_up and NS.buff_up(member, FORTITUDE_BUFFS)) then
+                    shadow_state.fortitude_target = member
+                    break
+                end
+            end
+        end
+        if not shadow_state.fortitude_target and not shadow_state.has_fortitude then
+            shadow_state.fortitude_target = me_unit
+        end
+    end
 
     -- Current spell damage from NS (provided by middleware or character API)
     shadow_state.spell_damage = context.spell_damage or 0
@@ -485,6 +504,7 @@ local function shadow_swp_spread_matches(context, s)
     if s.combat_mode ~= "cleave" and s.combat_mode ~= "aoe" then return false end
     if (s.enemy_count or 0) < 3 then return false end
     if not context.has_valid_enemy_target then return false end
+    if not _engaged_with_player(context) then return false end
     -- Per-target lockout: prevent double-queuing SW:P to same target while in-flight
     if _is_locked("SWP") then return false end
     -- Avoid refreshing SW:P if it's still active on this target (we want to spread to targets that don't have it)
@@ -501,6 +521,7 @@ local function shadow_vt_spread_matches(context, s)
     if s.combat_mode ~= "cleave" and s.combat_mode ~= "aoe" then return false end
     if (s.enemy_count or 0) < 3 then return false end
     if not context.has_valid_enemy_target then return false end
+    if not _engaged_with_player(context) then return false end
     -- Per-target lockout: prevent double-queuing VT to same target while in-flight
     if _is_locked("VT") then return false end
     -- Avoid refreshing VT if still active on this target (spread to targets that don't have it)
@@ -742,6 +763,7 @@ local function multidot_swp_matches(context, s)
     if not s.swp_known then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.in_combat then return false end
+    if not _engaged_with_player(context) then return false end
     if (s.enemy_count or 0) < 2 then return false end
     -- Only multidot when target HP > 30% (don't waste on dying adds)
     if (context.target_hp_pct or 100) <= 30 then return false end
@@ -762,6 +784,7 @@ local function multidot_vt_matches(context, s)
     if not s.vampiric_touch_known then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.in_combat then return false end
+    if not _engaged_with_player(context) then return false end
     if context.is_moving then return false end
     if (s.enemy_count or 0) < 2 then return false end
     -- Only multidot when target HP > 30% (don't waste on dying adds)
@@ -819,8 +842,8 @@ end
 -- ============================================================================
 local function fortitude_matches(context, s)
     if context.in_combat then return false end
-    if s.has_fortitude then return false end
     if not s.fortitude_ready then return false end
+    if not s.fortitude_target then return false end
     return true
 end
 
@@ -829,7 +852,7 @@ end
 -- ============================================================================
 local strategies = {
     -- Out-of-combat Fortitude buff
-    { name = "PowerWordFortitude", matches = fortitude_matches, execute = function(context) return NS.try_cast(SPELLS.PowerWordFortitude, NS.PLAYER_UNIT, "[SHADOW] PowerWordFortitude", { skip_range = true }) end },
+    { name = "PowerWordFortitude", matches = fortitude_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordFortitude, s.fortitude_target, "[SHADOW] PowerWordFortitude", { skip_range = true }) end },
     { name = "PreCombatPull", matches = pre_combat_pull_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] PreCombatPull") end },
     { name = "Shadowform", matches = shadowform_matches, execute = function(context) return NS.try_cast(SPELLS.Shadowform, NS.PLAYER_UNIT, "[SHADOW] Shadowform", { skip_range = true }) end },
     { name = "SWDCCBreak", matches = swd_cc_break_matches, execute = function(context, s) if s.mf_channeling then if NS.stop_casting then NS.stop_casting() end; if NS.cancel_current_cast then NS.cancel_current_cast() end end; return NS.try_cast(SPELLS.ShadowWordDeath, context.target, string.format("[SHADOW] SWD CC Break â†’ %s", s.enemy_cc_spell_name or s.breakable_cc_name or "CC")) end },

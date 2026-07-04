@@ -249,6 +249,18 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
  return holy_state
 end
 
+local function _engaged_with_player(context)
+ if not context.in_combat then return true end
+ local target = context.target
+ local me = context.me
+ if not target or not me then return true end
+ if (context.target_hp or 100) < 100 then return true end
+ local ok, enemy_target = pcall(function() return target:get_target() end)
+ if not ok or not enemy_target then return false end
+ if NS.same_unit and NS.same_unit(enemy_target, me) then return true end
+ return false
+end
+
 local function holy_idle_damage_enabled(context)
  local settings = context and context.settings or EMPTY_SETTINGS
  if settings.holy_dps_when_idle == true then return true end
@@ -796,6 +808,7 @@ local strategies = {
    if context.player_control_locked then return false end
    if not state.surge_of_light then return false end
    if not context.has_valid_enemy_target then return false end
+   if not _engaged_with_player(context) then return false end
     if (state.lowest_hp or 100) < (context.settings.holy_flash_heal_hp or 50) then return false end
    return spell_exists(SPELLS.Smite) and spell_ready(SPELLS.Smite, context.target)
   end,
@@ -810,6 +823,7 @@ local strategies = {
    if context.player_control_locked then return false end
    if not holy_idle_damage_enabled(context) then return false end
    if not context.has_valid_enemy_target then return false end
+   if not _engaged_with_player(context) then return false end
     if (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90) then return false end
     if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 35 or 70)) then return false end
     if (state.swp_remaining or 0) > 0 then return false end
@@ -826,6 +840,7 @@ local strategies = {
    if context.player_control_locked or context.is_moving then return false end
    if not holy_idle_damage_enabled(context) then return false end
    if not context.has_valid_enemy_target then return false end
+   if not _engaged_with_player(context) then return false end
     if (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90) then return false end
     if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 45 or 70)) then return false end
     if (state.holy_fire_remaining or 0) > 0 then return false end
@@ -842,6 +857,7 @@ local strategies = {
    if context.player_control_locked or context.is_moving then return false end
    if not holy_idle_damage_enabled(context) then return false end
    if not context.has_valid_enemy_target then return false end
+   if not _engaged_with_player(context) then return false end
     if (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90) then return false end
    if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 35 or 70)) then return false end
    return spell_exists(SPELLS.Smite) and spell_ready(SPELLS.Smite, context.target)
