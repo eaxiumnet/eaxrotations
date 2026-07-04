@@ -9,6 +9,7 @@ local SPELLS = NS.HunterSpells or {}
 local pet_manager = require("shared/pet_manager_sylvanas")
 local shot_timer = require("shared/shot_timer_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
+local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 
 local AUTO_SHOT_BUFFER_MS = 100
 local MULTI_SHOT_CAST_MS = 500
@@ -54,6 +55,16 @@ local CONCUSSIVE_SHOT_IDS = { 5116 }
 local VOLLEY_IDS = { 27022, 14295, 14294, 1510 }
 
 local SERPENT_STING_REFRESH_SEC = 1.5
+
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(ids)
+    if type(inventory_helper) ~= "table" then return nil end
+    if type(inventory_helper.has_item) ~= "function" then return nil end
+    for _, id in ipairs(ids) do
+        if inventory_helper.has_item(id) then return id end
+    end
+    return nil
+end
 
 -- ============================================================================
 -- State builder
@@ -103,6 +114,7 @@ local mm_state = {
     is_ooc = false,
     hunter_melee_weave = true,
     hunter_shot_timer_buffer = 150,
+    healthstone_ready = 0,
     distance_sq = 10000,
 }
 
@@ -163,6 +175,7 @@ local function build_state(context)
     mm_state.hunter_melee_weave = settings.hunter_melee_weave ~= false
     mm_state.hunter_shot_timer_buffer = settings.hunter_shot_timer_buffer or 150
     mm_state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
+    mm_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
     return mm_state
 end
@@ -387,6 +400,18 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+    -- Auto Healthstone
+    { name = "Healthstone",
+      matches = function(ctx, state)
+          if not ctx.in_combat then return false end
+          if (state.hp_pct or 100) > 28 then return false end
+          if (state.healthstone_ready or 0) <= 0 then return false end
+          return true
+      end,
+      execute = function(ctx)
+          local id = first_ready_item(HEALTHSTONE_IDS)
+          if id then NS.use_item_by_id(id, ctx.me) end
+      end },
     { name = "MendPet", matches = mend_pet_matches, execute = function(context) return NS.try_cast(SPELLS.MendPet, context.pet or (NS.GetPet and NS.GetPet()) or context.me, "[MARKSMANSHIP] Mend Pet", { skip_range = true }) end },
     { name = "CallPet", matches = call_pet_matches, execute = function(context) return NS.try_cast(SPELLS.CallPet, context.me, "[MARKSMANSHIP] Call Pet", { skip_range = true }) end },
     { name = "RevivePet", matches = revive_pet_matches, execute = function(context) return NS.try_cast(SPELLS.RevivePet, context.me, "[MARKSMANSHIP] Revive Pet", { skip_range = true }) end },

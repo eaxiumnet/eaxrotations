@@ -16,6 +16,8 @@ if _cleu then
 end
 
 local potion_helper = require("shared/potion_helper_sylvanas")
+local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
+if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local SPELLS = NS.ShamanSpells or {}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { shaman = {} } } end
@@ -50,6 +52,15 @@ local GHOST_WOLF_SPELL = { 2645 }
 local TREMOR_TOTEM_SPELL = { 8143 }
 local SHAMANISTIC_RAGE_BUFF = { 30823 }
 local BLOODLUST_BUFF_ID = { 2825 }
+
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(ids)
+    if not inventory_helper then return nil end
+    for _, id in ipairs(ids) do
+        if inventory_helper.has_item(id) then return id end
+    end
+    return nil
+end
 
 -- ============================================================================
 -- Totem state
@@ -155,6 +166,7 @@ local enh_state = {
     -- Totemic call
     totemic_call_ready = false,
     gift_of_the_naaru_ready = false,
+    healthstone_ready = 0,
 }
 
 local runtime = {
@@ -380,6 +392,7 @@ local function build_state(context)
     -- Prefer CLEU-backed swing timer; fallback to native prediction
     local cleu_remains = (_cleu and _cleu.get_swing_remains and _cleu.get_swing_remains()) or nil
     enh_state.swing_remains = cleu_remains or (NS.get_time_until_swing and NS.get_time_until_swing()) or 0
+    enh_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
     return enh_state
 end
@@ -1065,6 +1078,17 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+    { name = "Healthstone",
+      matches = function(ctx, state)
+          if not ctx.in_combat then return false end
+          if (state.hp_pct or 100) > 28 then return false end
+          if (state.healthstone_ready or 0) <= 0 then return false end
+          return true
+      end,
+      execute = function(ctx)
+          local id = first_ready_item(HEALTHSTONE_IDS)
+          if id then NS.use_item_by_id(id, ctx.me) end
+      end },
     -- 0. Mana emergency: auto-attack only, all spells forbidden (Research: Mana < 10%)
     { name = "ManaEmergencyWand",
       matches = function(ctx)

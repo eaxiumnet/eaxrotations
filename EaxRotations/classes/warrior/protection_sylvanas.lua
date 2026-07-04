@@ -9,6 +9,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
+if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
@@ -43,6 +45,15 @@ local COMMANDING_SHOUT_BUFF = CONSTANTS.COMMANDING_SHOUT_BUFF or { 469 }
 local STAND_BUFF = { 12975 }
 local SHIELD_WALL_BUFF = { 871 }
 local REND_DEBUFF = { 25208, 11574, 11573, 6548, 6547, 772 }
+
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(ids)
+    if not inventory_helper then return nil end
+    for _, id in ipairs(ids) do
+        if inventory_helper.has_item(id) then return id end
+    end
+    return nil
+end
 
 -- Crowd-control debuff IDs for fear-break detection (Berserker Rage)
 local FEAR_DEBUFF_IDS = {
@@ -384,6 +395,7 @@ local function build_state(context)
   end
  end
 
+    prot_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
  return prot_state
 end
 
@@ -722,6 +734,18 @@ local strategies = {
    return true
   end,
   execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
+
+    { name = "Healthstone",
+      matches = function(context, state)
+          if not context.in_combat then return false end
+          if (state.hp_pct or 100) > 28 then return false end
+          if (state.healthstone_ready or 0) <= 0 then return false end
+          return true
+      end,
+      execute = function(context)
+          local id = first_ready_item(HEALTHSTONE_IDS)
+          if id then NS.use_item_by_id(id, context.me) end
+      end },
  -- 1) Emergency defensives (always first)
  {
   name = "LastStand",

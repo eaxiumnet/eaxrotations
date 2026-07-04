@@ -39,6 +39,8 @@ if _cleu then
     })
 end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
+if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 
 local load_player = NS.GetPlayer and NS.GetPlayer()
 
@@ -70,6 +72,15 @@ local SUNDER_DEBUFF = Constants.SUNDER_DEBUFF or { 7386, 7405, 8380, 11596, 1159
 local THUNDER_CLAP_DEBUFF = Constants.THUNDER_CLAP_DEBUFF or { 6343, 8198, 8204, 8205, 11580, 11581, 25264 }
 local DEMO_SHOUT_DEBUFF = Constants.DEMO_SHOUT_DEBUFF or { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }
 local BATTLE_SHOUT_IDS = Constants.BATTLE_SHOUT_IDS or { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
+
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(ids)
+    if not inventory_helper then return nil end
+    for _, id in ipairs(ids) do
+        if inventory_helper.has_item(id) then return id end
+    end
+    return nil
+end
 
 -- Shared helpers from core_sylvanas.lua
 local try_cast, spell_exists, spell_ready, debuff_remains, debuff_stacks, buff_remains, health_pct, player_control_locked, has_player_buff, has_breakable_cc_nearby, can_attack_target = NS.import_helpers(
@@ -171,9 +182,11 @@ local kebab_state = {
     demo_shout_duration = 0,
     ms_cd = 0,
     ww_cd = 0,
+    healthstone_ready = 0,
 }
 
 local function build_kebab_state(context)
+    kebab_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
     if context._kebab_valid then return kebab_state end
     context._kebab_valid = true
     kebab_state.is_group = context.is_group or false
@@ -240,6 +253,18 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
+
+    { name = "Healthstone",
+      matches = function(context, state)
+          if not context.in_combat then return false end
+          if (state.hp_pct or 100) > 28 then return false end
+          if (state.healthstone_ready or 0) <= 0 then return false end
+          return true
+      end,
+      execute = function(context)
+          local id = first_ready_item(HEALTHSTONE_IDS)
+          if id then NS.use_item_by_id(id, context.me) end
+      end },
 
     -- [1] Execute (target <20% HP — highest ST priority per sim)
     {
