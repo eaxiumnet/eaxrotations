@@ -68,6 +68,7 @@ local spec_files = {
 local CONVERTED = {
     ["EaxRotations/classes/warrior/arms_sylvanas.lua"] = true,
     ["EaxRotations/classes/warrior/fury_sylvanas.lua"] = true,
+    ["EaxRotations/classes/druid/balance_sylvanas.lua"] = true,
 }
 
 local function add_issue(issues, path, rule, detail)
