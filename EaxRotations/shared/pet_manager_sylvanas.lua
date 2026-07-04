@@ -1,6 +1,6 @@
--- pet_manager_sylvanas.lua -- pet attack/cast/stance helpers for Hunter + Warlock.
+-- pet_manager_sylvanas.lua -- pet attack/cast/stance helpers for Hunter + Warlock + Mage.
 -- WHAT:   Sends pet to attack current target + casts pet abilities on CD.
--- WHEN:   Called every frame by the dispatcher for hunter/warlock classes.
+-- WHEN:   Called every frame by the dispatcher for hunter/warlock/mage classes.
 -- WHY:    Single source of truth so specs don't duplicate pet control logic.
 -- SAFETY: Engagement-gated pet_attack; nil-guarded API calls; throttled casts.
 -- DECISION: State-machine per spec; no on_update side-effects outside this module.
@@ -13,7 +13,7 @@ local _ph_ok, pet_handler = pcall(require, "common/utility/pet_handler")
 if not _ph_ok or type(pet_handler) ~= "table" then pet_handler = nil end
 
 -- ============================================================================
--- Engagement safety (copied from shadow_sylvanas.lua — same contract)
+-- Engagement safety (copied from shadow_sylvanas.lua -- same contract)
 -- ============================================================================
 local function _engaged_with_player(context)
     if not context then return true end
@@ -104,6 +104,10 @@ local function _get_state(spec)
             last_mend = 0,
             last_follow = 0,
             last_attack = 0,
+            last_autocast_check = 0,
+            autocast_enabled = {},
+            last_stance_change = 0,
+            current_stance = nil,
         }
     end
     return _states[spec]
@@ -143,6 +147,15 @@ function M.try_cast(spell_id, target)
     end)
     if ok and cd_val then cd = cd_val end
     if cd > 0 then return false end
+    -- Check if pet is in range (skip if API unavailable)
+    local in_range = true
+    if core and core.spell_book and core.spell_book.get_pet_action_info then
+        local ok_info, info = pcall(core.spell_book.get_pet_action_info, spell_id)
+        if ok_info and info and info.checks_range and info.in_range ~= nil then
+            in_range = info.in_range
+        end
+    end
+    if not in_range then return false end
     if not target then return false end
     -- Cast via pet_cast_target_spell (Sylvanas API)
     local ok2 = pcall(function()
@@ -150,6 +163,32 @@ function M.try_cast(spell_id, target)
             and core.input.pet_cast_target_spell(spell_id, target)
     end)
     return ok2
+end
+
+-- ============================================================================
+-- Autocast management: enable autocast on primary pet abilities
+-- ============================================================================
+local function _ensure_autocast_enabled(spell_ids, state)
+    if not core or not core.input or not core.input.enable_pet_autocast then return end
+    for _, id in ipairs(spell_ids) do
+        if not state.autocast_enabled[id] then
+            local ok, info = pcall(function()
+                if core.spell_book and core.spell_book.get_pet_action_info then
+                    return core.spell_book.get_pet_action_info(id)
+                end
+                return nil
+            end)
+            if ok and info and info.auto_cast_allowed and not info.auto_cast_enabled then
+                local ok_enable = pcall(core.input.enable_pet_autocast, id)
+                if ok_enable then
+                    state.autocast_enabled[id] = true
+                end
+            else
+                -- Mark as checked even if not applicable (prevents repeated checks)
+                state.autocast_enabled[id] = true
+            end
+        end
+    end
 end
 
 -- ============================================================================
@@ -181,6 +220,12 @@ local function _scan_hunter_spells(st)
             end
         end
     end
+    -- Enable autocast on primary abilities (fallback if engine handles it)
+    local autocast_ids = {}
+    if st.growl_id then table.insert(autocast_ids, st.growl_id) end
+    if st.damage_id then table.insert(autocast_ids, st.damage_id) end
+    if st.special_id then table.insert(autocast_ids, st.special_id) end
+    if #autocast_ids > 0 then _ensure_autocast_enabled(autocast_ids, st) end
     st.pet_spells_scanned = true
 end
 
@@ -243,6 +288,8 @@ local function _scan_warlock_spells(st)
             end
         end
     end
+    -- Enable autocast on primary ability
+    if st.warlock_id then _ensure_autocast_enabled({ st.warlock_id }, st) end
     st.pet_spells_scanned = true
 end
 
@@ -262,12 +309,23 @@ local function _scan_mage_spells(st)
             break
         end
     end
+    -- Enable autocast on Waterbolt (Freeze is better manually controlled)
+    if st.mage_waterbolt_id then _ensure_autocast_enabled({ st.mage_waterbolt_id }, st) end
     st.pet_spells_scanned = true
 end
 
 -- ============================================================================
--- Stance helpers (via platform pet_handler or fallback)
+-- Stance helpers (via platform pet_handler or fallback) with deduplication
 -- ============================================================================
+-- Cached pet mode check to avoid redundant stance calls
+local function _get_current_pet_mode()
+    if core and core.spell_book and core.spell_book.get_pet_mode then
+        local ok, mode = pcall(core.spell_book.get_pet_mode)
+        if ok and type(mode) == "number" then return mode end
+    end
+    return nil
+end
+
 local function _set_pet_state(state_const, delay)
     if pet_handler and type(pet_handler.set_pet_state) == "function" then
         if pet_handler.pet_state and pet_handler.pet_state[state_const] then
@@ -277,12 +335,29 @@ local function _set_pet_state(state_const, delay)
     return false
 end
 
-function M.set_passive(delay)   return _set_pet_state("PASSIVE", delay) end
-function M.set_aggressive(delay) return _set_pet_state("AGGRESSIVE", delay) end
-function M.set_defensive(delay)  return _set_pet_state("DEFENSIVE", delay) end
+-- Stance constants (TBC: 0=passive, 1=defensive, 2=aggressive)
+local PET_MODE_PASSIVE = 0
+local PET_MODE_DEFENSIVE = 1
+local PET_MODE_AGGRESSIVE = 2
+
+function M.set_passive(delay)
+    local mode = _get_current_pet_mode()
+    if mode == PET_MODE_PASSIVE then return true end
+    return _set_pet_state("PASSIVE", delay)
+end
+function M.set_aggressive(delay)
+    local mode = _get_current_pet_mode()
+    if mode == PET_MODE_AGGRESSIVE then return true end
+    return _set_pet_state("AGGRESSIVE", delay)
+end
+function M.set_defensive(delay)
+    local mode = _get_current_pet_mode()
+    if mode == PET_MODE_DEFENSIVE then return true end
+    return _set_pet_state("DEFENSIVE", delay)
+end
 
 -- ============================================================================
--- Main on_update: called every frame by dispatcher for hunter + warlock
+-- Main on_update: called every frame by dispatcher for hunter + warlock + mage
 -- ============================================================================
 function M.on_update(me, target, spec, context)
     if not me then return end
@@ -292,14 +367,17 @@ function M.on_update(me, target, spec, context)
     local pet = M.get_pet(me)
     local now = NS.time_now and NS.time_now() or 0
 
-    -- No pet or dead pet → reset state and return
+    -- No pet or dead pet -> reset state and return
     if not pet or not M.pet_alive(pet) then
         st.state = STATE_IDLE
         st.last_target_guid = nil
+        st.pet_spells_scanned = false
+        st.autocast_enabled = {}
+        st.current_stance = nil
         return
     end
 
-    -- Scan spells once per spec
+    -- Scan spells once per spec (with autocast enable)
     local class_key = context.player_class_name or ""
     local class_lower = class_key:lower()
     if class_lower == "warlock" then
@@ -310,7 +388,7 @@ function M.on_update(me, target, spec, context)
         _scan_hunter_spells(st)
     end
 
-    -- No target → idle, but keep last_target_guid so we don't re-attack on tab-back
+    -- No target -> idle, but keep last_target_guid so we don't re-attack on tab-back
     if not target then
         st.state = STATE_IDLE
         return
@@ -325,7 +403,7 @@ function M.on_update(me, target, spec, context)
     local ok_guid, guid = pcall(function() return target:get_guid() end)
     guid = ok_guid and guid or nil
 
-    -- Target changed or was nil → send pet to attack (throttled to 1s)
+    -- Target changed or was nil -> send pet to attack (throttled to 1s)
     if guid and (st.last_target_guid ~= guid) then
         if now - st.last_attack > 1 then
             local ok = pcall(function()
@@ -341,7 +419,7 @@ function M.on_update(me, target, spec, context)
         return
     end
 
-    -- Pet is already on this target → cast abilities
+    -- Pet is already on this target -> cast abilities
     -- Hunter: Growl (taunt) every 5s
     if st.growl_id and now - st.last_growl > 5 then
         if M.try_cast(st.growl_id, target) then
