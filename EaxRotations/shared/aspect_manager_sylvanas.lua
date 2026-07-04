@@ -91,6 +91,57 @@ function M.try_swap_aspect(context)
     return false
 end
 
+--- Middleware strategy: switch to Aspect of the Viper when mana is low.
+-- Returns a strategy table entry for use in a middleware strategies array.
+-- @param spells table  SPELLS table from the spec file
+-- @return table        { name, matches, execute }
+function M.viper_middleware_strategy(spells)
+    return {
+        name = "AspectOfTheViper",
+        matches = function(context)
+            if not context.in_combat then return false end
+            local settings = context.settings or {}
+            if settings.auto_aspect == false then return false end
+            local me = context.me
+            if not me then return false end
+            if NS.buff_up and NS.buff_up(me, { 34074 }) then return false end
+            local mana_pct = context.mana_pct or (me.get_mana_percentage and me:get_mana_percentage()) or 100
+            local threshold = settings.viper_mana_threshold or 20
+            if mana_pct > threshold then return false end
+            return NS.spell_ready and NS.spell_ready(spells.AspectOfTheViper, me, { skip_range = true })
+        end,
+        execute = function(context)
+            return NS.try_cast(spells.AspectOfTheViper, context.me, "[HUNTER] Aspect of the Viper", { skip_range = true })
+        end,
+    }
+end
+
+--- Middleware strategy: switch to Aspect of the Hawk when mana recovers.
+-- Returns a strategy table entry for use in a middleware strategies array.
+-- @param spells table  SPELLS table from the spec file
+-- @return table        { name, matches, execute }
+function M.hawk_middleware_strategy(spells)
+    local ASPECT_HAWK_IDS = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
+    return {
+        name = "AspectOfTheHawk",
+        matches = function(context)
+            if not context.in_combat then return false end
+            local settings = context.settings or {}
+            if settings.auto_aspect == false then return false end
+            local me = context.me
+            if not me then return false end
+            if NS.buff_up and NS.buff_up(me, ASPECT_HAWK_IDS) then return false end
+            local mana_pct = context.mana_pct or (me.get_mana_percentage and me:get_mana_percentage()) or 100
+            local threshold = (settings.viper_mana_threshold or 20) + 10
+            if mana_pct <= threshold then return false end
+            return NS.spell_ready and NS.spell_ready(spells.AspectOfTheHawk, me, { skip_range = true })
+        end,
+        execute = function(context)
+            return NS.try_cast(spells.AspectOfTheHawk, context.me, "[HUNTER] Aspect of the Hawk", { skip_range = true })
+        end,
+    }
+end
+
 if NS then
     NS.AspectManager = M
 end
