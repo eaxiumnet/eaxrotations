@@ -901,20 +901,5 @@ local strategies = {
 NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
 -- Priest shadow rotation registered
 
--- Register combat start callback to fire one wand shot on combat entry
-if NS.register_on_combat_start then
-    NS.register_on_combat_start(function(context)
-        if not context or not context.target then return end
-        local me = NS.GetPlayer()
-        if not me then return end
-        -- Only start wand if we have a wand (Shoot learned) and not already auto-attacking
-        if not (NS.spell_exists and NS.spell_exists(5019)) then return end
-        if NS.is_auto_attacking and NS.is_auto_attacking(me) then return end
-        if NS.start_auto_attack then
-            NS.start_auto_attack(context.target, NS.AUTO_ATTACK_WAND)
-        end
-    end)
-end
-
 return strategies
 
