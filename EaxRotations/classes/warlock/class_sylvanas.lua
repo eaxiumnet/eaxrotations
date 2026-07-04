@@ -249,6 +249,7 @@ local SPELLS = {
     SummonImp = NS.spell_action({ 688 }, "SummonImp"),
     SummonVoidwalker = NS.spell_action({ 697 }, "SummonVoidwalker"),
     SummonSuccubus = NS.spell_action({ 712 }, "SummonSuccubus"),
+    Seduction = NS.spell_action({ 6358 }, "Seduction"),
     SummonFelhunter = NS.spell_action({ 691 }, "SummonFelhunter"),
     SummonFelguard = NS.spell_action({
         name = "SummonFelguard",
