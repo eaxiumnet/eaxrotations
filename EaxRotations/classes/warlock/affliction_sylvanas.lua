@@ -410,7 +410,8 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 4. Nightfall proc — instant Shadow Bolt
+    -- ------------------------------------------------------------------------
+    -- 4. Nightfall proc - instant Shadow Bolt
     -- ------------------------------------------------------------------------
     {
         name = "NightfallProc",
@@ -423,9 +424,6 @@ local strategies = {
             return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Nightfall instant Shadow Bolt")
         end,
     },
-
-    -- ------------------------------------------------------------------------
-    -- 5. Corruption (instant DoT — apply before UA for efficiency)
     -- ------------------------------------------------------------------------
     {
         name = "CorruptionDoT",
