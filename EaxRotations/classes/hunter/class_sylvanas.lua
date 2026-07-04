@@ -72,6 +72,16 @@ local SPELLS = {
         power_type = "none",
         school = "physical",
     }),
+    Intimidation = NS.spell_action({
+        name = "Intimidation",
+        ids = {19577},
+        levels = {30},
+        cast_time = 0,
+        cooldown = 60,
+        power_cost = 0,
+        power_type = "none",
+        school = "physical",
+    }),
     CallPet = NS.spell_action({
         name = "CallPet",
         ids = {883},

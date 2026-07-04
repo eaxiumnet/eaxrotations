@@ -91,12 +91,14 @@ local function _get_state(spec)
             special_type = nil,
             warlock_id = nil,
             warlock_type = nil,
+            felguard_intercept_id = nil,
             mage_waterbolt_id = nil,
             mage_freeze_id = nil,
             last_growl = 0,
             last_damage = 0,
             last_special = 0,
             last_warlock = 0,
+            last_felguard_intercept = 0,
             last_mage_freeze = 0,
             last_mage_waterbolt = 0,
             last_mend = 0,
@@ -213,12 +215,20 @@ local function _scan_warlock_spells(st)
             end
         end
     end
-    -- Felguard: Cleave
+    -- Felguard: Cleave (primary) + Intercept (secondary, stored separately)
     if not st.warlock_id then
         for i = #FELGUARD_CLEAVE, 1, -1 do
             if NS.spell_id_is_known(FELGUARD_CLEAVE[i]) then
                 st.warlock_id = FELGUARD_CLEAVE[i]
                 st.warlock_type = "cleave"
+                break
+            end
+        end
+    end
+    if not st.felguard_intercept_id then
+        for i = #FELGUARD_INTERCEPT, 1, -1 do
+            if NS.spell_id_is_known(FELGUARD_INTERCEPT[i]) then
+                st.felguard_intercept_id = FELGUARD_INTERCEPT[i]
                 break
             end
         end
@@ -361,6 +371,21 @@ function M.on_update(me, target, spec, context)
         if M.try_cast(st.warlock_id, target) then
             st.last_warlock = now
             return
+        end
+    end
+
+    -- Warlock Felguard: Intercept when target is at range (>8 yards)
+    if st.felguard_intercept_id and now - st.last_felguard_intercept > 15 then
+        local at_range = false
+        if me and target and me.get_distance then
+            local ok_dist, dist = pcall(me.get_distance, me, target)
+            if ok_dist and dist and dist > 8 then at_range = true end
+        end
+        if at_range then
+            if M.try_cast(st.felguard_intercept_id, target) then
+                st.last_felguard_intercept = now
+                return
+            end
         end
     end
 

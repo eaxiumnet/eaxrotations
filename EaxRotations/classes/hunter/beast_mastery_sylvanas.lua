@@ -138,6 +138,7 @@ local function build_state(context)
     state.multi_shot_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.MultiShot, target) or false
     state.kill_command_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.KillCommand, target) or false
     state.bestial_wrath_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.BestialWrath, me, { skip_range = true }) or false
+    state.intimidation_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.Intimidation, me, { skip_range = true }) or false
     state.rapid_fire_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true }) or false
     state.rapid_fire_cd = NS.cooldown_remains and NS.cooldown_remains(SPELLS.RapidFire) or 0
     state.feign_death_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.FeignDeath, me, { skip_range = true }) or false
@@ -355,6 +356,14 @@ local function bestial_wrath_matches(context, s)
     if not s.bestial_wrath_ready then return false end
     -- TTD gate: don't waste 2min CD on a dying target
     if context.ttd_known and context.ttd < 15 then return false end
+    return true
+end
+
+-- Intimidation (BM pet stun)
+local function intimidation_matches(context, s)
+    if not mounted_bail(context, s) then return false end
+    if not s.pet_alive then return false end
+    if not s.intimidation_ready then return false end
     return true
 end
 
@@ -768,6 +777,12 @@ local strategies = {
             return NS.try_cast(SPELLS.BestialWrath, target, "[BEAST_MASTERY] BestialWrath", { skip_range = true })
         end,
     },
+    -- 11b. Intimidation (BM pet stun)
+    {
+        name = "Intimidation",
+        matches = intimidation_matches,
+        execute = function(context) return NS.try_cast(SPELLS.Intimidation, context.target, "[BEAST_MASTERY] Intimidation") end,
+    },
     -- 12. Rapid Fire
     {
         name = "RapidFire",
@@ -791,7 +806,7 @@ local strategies = {
         name = "AdaptiveRotation",
         matches = function(context)
             if not NS.HunterAdaptive then return false end
-            if not NS.get_setting("use_adaptive_rotation", false) then return false end
+            if not (type(NS.get_setting) == "function" and NS.get_setting("use_adaptive_rotation", false)) then return false end
             if not context.in_combat or not context.target then return false end
             return true
         end,
