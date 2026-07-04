@@ -43,6 +43,7 @@ local demo_state = {
     pet_alive = false,
     pet_hp_pct = 100,
     pet_type_imp = false,
+    pet_type_succubus = false,
     pet_casting_firebolt = false,
     hp_pct = 100,
     mana_pct = 100,
@@ -84,6 +85,7 @@ local function build_state(context)
     demo_state.pet_alive = false
     demo_state.pet_hp_pct = 100
     demo_state.pet_type_imp = false
+    demo_state.pet_type_succubus = false
     demo_state.pet_casting_firebolt = false
     if me then
         local ok, has_pet = pcall(function() return me:has_pet() end)
@@ -107,6 +109,17 @@ local function build_state(context)
                                 end
                             end
                             if demo_state.pet_type_imp then break end
+                        end
+                        if not demo_state.pet_type_imp then
+                            for _, lash_id in ipairs(SUCC_LASH) do
+                                for _, known in ipairs(pet_spells) do
+                                    if known == lash_id then
+                                        demo_state.pet_type_succubus = true
+                                        break
+                                    end
+                                end
+                                if demo_state.pet_type_succubus then break end
+                            end
                         end
                     end
                     if demo_state.pet_type_imp then
@@ -138,6 +151,7 @@ local function build_state(context)
     demo_state.incinerate_ready = target and NS.spell_ready(SPELLS.Incinerate, target, { expected_cooldown = 2.5 }) or false
     demo_state.soul_fire_ready = target and NS.spell_ready(SPELLS.SoulFire, target, { expected_cooldown = 1.5 }) or false
     demo_state.fear_ready = target and NS.spell_ready(SPELLS.Fear, target) or false
+    demo_state.seduction_ready = target and NS.spell_ready(SPELLS.Seduction, target) or false
     demo_state.rain_of_fire_ready = target and NS.spell_ready(SPELLS.RainOfFire, target, { expected_cooldown = 1.5 }) or false
     demo_state.hellfire_ready = me and NS.spell_ready(SPELLS.Hellfire, me, { skip_range = true }) or false
     demo_state.curse_of_agony_ready = target and NS.spell_ready(SPELLS.CurseOfAgony, target) or false
@@ -383,6 +397,23 @@ local function fear_matches(context, s)
     return true
 end
 
+-- Succubus Seduction: PvP-only CC. Only fires when Succubus is active and target
+-- is not already CC'd. Cast by pet (pet_cast_target_spell), not by player.
+local function seduction_matches(context, s)
+    if not s then return false end
+    if not context.in_combat then return false end
+    if not context.target then return false end
+    -- PvP only: arena, battleground, or world PvP flagged
+    if not (context.is_pvp or context.is_group) then return false end
+    -- Must have Succubus summoned and alive
+    if not s.pet_type_succubus then return false end
+    if not s.pet_alive then return false end
+    if not s.seduction_ready then return false end
+    -- Don't re-CC target already seduced or feared
+    if NS.debuff_up and NS.debuff_up(context.target, { 6358, 5782, 6213, 6215 }) then return false end
+    return true
+end
+
 local function rain_of_fire_matches(context, s)
     if not s then return false end
     if not context.target then return false end
@@ -515,6 +546,7 @@ local strategies = {
     { name = "ShadowWard", matches = shadow_ward_matches, execute = function(context) return NS.try_cast(SPELLS.ShadowWard, context.me, "[DEMONOLOGY] Shadow Ward", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "HowlofTerror", matches = howl_of_terror_matches, execute = function(context) return NS.try_cast(SPELLS.HowlofTerror, context.me, "[DEMONOLOGY] Howl of Terror", { skip_range = true, expected_cooldown = 40 }) end },
     { name = "Fear", matches = fear_matches, execute = function(context) return NS.try_cast(SPELLS.Fear, context.target, "[DEMONOLOGY] Fear") end },
+    { name = "Seduction", matches = seduction_matches, execute = function(context) return NS.try_cast(SPELLS.Seduction, context.target, "[DEMONOLOGY] Seduction") end },
     { name = "Soulshatter", matches = soulshatter_matches, execute = function(context) return NS.try_cast(SPELLS.Soulshatter, context.me, "[DEMONOLOGY] Soulshatter", { skip_range = true }) end },
     { name = "ShadowBolt", matches = shadow_bolt_matches, execute = function(context) return NS.try_cast(SPELLS.ShadowBolt, context.target, "[DEMONOLOGY] Shadow Bolt") end },
     { name = "Incinerate", matches = incinerate_matches, execute = function(context) return NS.try_cast(SPELLS.Incinerate, context.target, "[DEMONOLOGY] Incinerate") end },
