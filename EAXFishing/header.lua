@@ -1,6 +1,6 @@
 return {
     name        = "EaxFishing",
-    version     = "2.1.0",
+    version     = "2.3.0",
     description = "Eax's Fishing — automated fishing for Sylvanas",
     author      = "Eax",
     load        = true,

@@ -33,7 +33,7 @@ function M.render_menu(ctx)
     config.menu.root:render("Eax's Fishing", function()
 
         -- ── Identity ───────────────────────────────────────────────────────
-        h:render("Eax's Fishing  v2.1.0", C.brand)
+        h:render("Eax's Fishing  v2.3.0", C.brand)
         h:render("Enable / Disable in the Control Panel", C.dim)
 
         -- ── Gear ───────────────────────────────────────────────────────────
@@ -42,6 +42,8 @@ function M.render_menu(ctx)
             "Automatically equips your best pole from any bag slot before casting.")
         config.menu.auto_lure:render("Auto-Apply Lure",
             "Uses the highest-bonus lure in your bags. Applies to the pole, not yourself.")
+        config.menu.auto_cook:render("Auto-Cook Raw Fish",
+            "When a campfire is nearby, casts cooking recipes to turn raw fish into valuable cooked buff food.")
 
         -- ── Timing (Humanizer) ─────────────────────────────────────────────
         h:render("TIMING", C.section)
@@ -114,6 +116,18 @@ function M.render_menu(ctx)
             "Distance from pool edge when positioning. Default 15y.")
         config.menu.pool_shore_depth_tolerance:render("Shore Depth Tolerance",
             "Allows standing spots slightly below pool surface. 0 = dry land only.")
+
+        -- ── Stealth ────────────────────────────────────────────────────────
+        h:render("STEALTH", C.section)
+        config.menu.stealth_mode:render("Slow Down When Players Near",
+            "Temporarily slows cast rhythm and takes longer breaks when another player is nearby. Looks less robotic.")
+        config.menu.stealth_range:render("Stealth Range (y)",
+            "How close a player must be to trigger slowdown. Default 30y.")
+
+        -- ── Alerts ─────────────────────────────────────────────────────────
+        h:render("ALERTS", C.section)
+        config.menu.rare_alert_enabled:render("Rare Catch Alert",
+            "Plays a sound and flashes a big message when you catch something valuable (Mr. Pinchy, Stonescale Eel, etc.).")
 
         -- ── Visuals ────────────────────────────────────────────────────────
         h:render("VISUALS", C.section)

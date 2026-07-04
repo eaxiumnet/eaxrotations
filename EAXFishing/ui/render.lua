@@ -4,6 +4,7 @@
 
 local APISurface = require("core/api_surface")
 local LootDB     = require("fishing/loot_db")
+local Alert      = require("core/alert")
 
 local M = {}
 
@@ -67,7 +68,6 @@ function M.render(ctx)
                             local dist_sq = dx*dx + dy*dy + dz*dz
 
                             if dist_sq <= esp_range_sq then
-                                local dist = math.sqrt(dist_sq)
                                 -- Pass native Vec3 objects to graphics
                                 if core and core.graphics then
                                     pcall(core.graphics.line_3d, p_native, target_native, color_esp, 2.0)
@@ -79,7 +79,7 @@ function M.render(ctx)
                                         label_pos = target_native
                                     end
                                     pcall(core.graphics.text_3d,
-                                        name .. " (" .. math.floor(dist) .. "y)",
+                                        name,
                                         label_pos, 14, color_esp)
                                 end
                             end
@@ -166,6 +166,11 @@ function M.render(ctx)
         end
         row("Junk",       tostring(stats.gray_count), c_gray)
 
+        -- Cooked count (new v2.3.0)
+        if state.cook and state.cook.cooked_count > 0 then
+            row("Cooked",   tostring(state.cook.cooked_count), c_green)
+        end
+
         -- Top items caught (up to 6)
         local sorted = {}
         for name, count in pairs(stats.item_counts) do
@@ -211,7 +216,9 @@ function M.render(ctx)
     else
         if now - state.safety.last_position_check > 10.0 then
             local lp    = state.safety.last_position
-            local moved = math.sqrt((p.x-lp.x)^2 + (p.y-lp.y)^2) > 5.0
+            local dx    = p.x - lp.x
+            local dy    = p.y - lp.y
+            local moved = dx*dx + dy*dy > 25
             if moved then
                 state.safety.standing_since = now
                 state.safety.last_position  = {x=p.x, y=p.y, z=p.z}
@@ -263,6 +270,11 @@ function M.render(ctx)
             end
         end
     end
+
+    -- =========================================================
+    -- Rare Catch Alert Overlay
+    -- =========================================================
+    Alert.render(ctx, now, SCREEN_CENTER_X, SCREEN_CENTER_Y)
 end
 
 return M

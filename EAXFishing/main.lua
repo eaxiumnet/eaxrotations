@@ -1,6 +1,6 @@
 -- =============================================================================
 -- Eax's Fishing - Main Entry Point
--- Version: 2.1.0
+-- Version: 2.2.1
 -- =============================================================================
 
 local APISurface = require("core/api_surface")
@@ -16,7 +16,7 @@ if not has_inventory_helper then inventory_helper = nil end
 if not has_coords_helper   then coords_helper   = nil end
 if not has_color_helper    then color_helper    = nil end
 
-APISurface.print("[EaxFishing] v2.1.0 loaded")
+APISurface.print("[EaxFishing] v2.3.0 loaded")
 
 -- Seed the PRNG so behavior profiles, delays, and break timing are non-deterministic
 local now = APISurface.now()

@@ -26,6 +26,8 @@ end
 local known_tests = {
   "test_state_machine.lua",
   "test_config_safe_menu.lua",
+  "test_pool_ranker.lua",
+  "test_cook.lua",
 }
 
 local passed, failed = 0, 0

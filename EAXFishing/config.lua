@@ -1,4 +1,4 @@
--- Eax's Fishing - Configuration v2.1.0
+-- Eax's Fishing - Configuration v2.2.1
 local ok_izi, izi = pcall(require, "common/izi_sdk")
 if not ok_izi then izi = nil end
 local ok_color, color = pcall(require, "common/color")
@@ -36,6 +36,14 @@ config.menu = {
     -- Gear
     auto_equip = safe_menu(_menu.checkbox, true,  "fishing_auto_equip"),
     auto_lure  = safe_menu(_menu.checkbox, true,  "fishing_auto_lure"),
+    auto_cook  = safe_menu(_menu.checkbox, false, "fishing_auto_cook"),
+
+    -- Stealth Mode
+    stealth_mode  = safe_menu(_menu.checkbox, true,  "fishing_stealth_mode"),
+    stealth_range = safe_menu(_menu.slider_int, 10, 100, 30, "fishing_stealth_range"),
+
+    -- Rare Catch Alert
+    rare_alert_enabled = safe_menu(_menu.checkbox, true, "fishing_rare_alert"),
 
     -- Visuals
     esp_enabled = safe_menu(_menu.checkbox, true,  "fishing_esp_enabled"),

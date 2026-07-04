@@ -39,7 +39,10 @@ check("lure subtable exists", type(s.lure) == "table")
 check("vendor subtable exists", type(s.vendor) == "table")
 check("safety subtable exists", type(s.safety) == "table")
 check("session subtable exists", type(s.session) == "table")
-print(" ST1 PASS: create() returns all 12 state subtables")
+check("stealth subtable exists", type(s.stealth) == "table")
+check("alert subtable exists", type(s.alert) == "table")
+check("cook subtable exists", type(s.cook) == "table")
+print(" ST1 PASS: create() returns all 15 state subtables")
 
 -- 2. initial defaults
 check("fishing.status == 'Idle'", s.fishing.status == "Idle")
@@ -50,6 +53,10 @@ check("safety.hard_stop == false", s.safety.hard_stop == false)
 check("session.start_time == 100", s.session.start_time == 100)
 check("session.catches == 0", s.session.catches == 0)
 check("navigation.stop_distance == 15.0", s.navigation.stop_distance == 15.0)
+check("stealth.player_nearby == false", s.stealth.player_nearby == false)
+check("alert.active == false", s.alert.active == false)
+check("cook.cooked_count == 0", s.cook.cooked_count == 0)
+check("cook.status == 'Idle'", s.cook.status == "Idle")
 print(" ST2 PASS: initial defaults are correct")
 
 -- 3. reset_bite clears bite detection state
@@ -98,7 +105,10 @@ check("reset_fishing clears shoreline_no_route_count", s.navigation.shoreline_no
 check("reset_fishing clears pool_face_update", s.navigation.pool_face_update == 0.0)
 check("reset_fishing clears bag full_confirm_count", s.bag.full_confirm_count == 0)
 check("reset_fishing calls reset_bite (bite.pending cleared)", s.bite.pending == false)
-print(" ST4 PASS: reset_fishing() clears fishing + safety + equip + lure + nav + bag + bite")
+check("reset_fishing clears alert.active", s.alert.active == false)
+check("reset_fishing clears cook.cooked_count", s.cook.cooked_count == 0)
+check("reset_fishing clears cook.status", s.cook.status == "Idle")
+print(" ST4 PASS: reset_fishing() clears fishing + safety + equip + lure + nav + bag + bite + alert + cook")
 
 -- 5. reset_shoreline_solver_cache
 s.navigation.shoreline_solver_cache.key = "abc"

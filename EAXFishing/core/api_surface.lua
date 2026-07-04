@@ -932,7 +932,8 @@ function M.find_bobber(ctx, me, px, py, pz, range)
                 if dist_sq < range_sq then
                     local name = M.get_object_name(obj)
                     if debug_on and type(name) == "string" and #name > 0 then
-                        M.print("[EaxFishing] nearby obj: '" .. name .. "' dist=" .. string.format("%.1f", math.sqrt(dist_sq)))
+                        -- Squared distance only (Pattern 3: avoid sqrt for comparisons; this is debug text)
+                        M.print("[EaxFishing] nearby obj: '" .. name .. "' dist_sq=" .. string.format("%.0f", dist_sq))
                     end
 
                     if M.is_fish_bobber(obj) then
@@ -977,7 +978,9 @@ end
 -- @param fishing_ranks table array of spell IDs in priority order
 -- @return number|nil spell_id
 function M.resolve_fishing_spell(fishing_ranks)
-    fishing_ranks = fishing_ranks or {13147, 7620, 7731, 7732, 18248, 33095}
+    -- DBC-verified: 33095=Master, 18248=Artisan, 7732=Expert, 7731=Journeyman, 7620=Apprentice
+    -- Spell 13147 was removed (does not exist in WoW 2.5.5 DBC).
+    fishing_ranks = fishing_ranks or {33095, 18248, 7732, 7731, 7620}
     
     for _, spell_id in ipairs(fishing_ranks) do
         if M.is_spell_learned(spell_id) then
@@ -985,8 +988,8 @@ function M.resolve_fishing_spell(fishing_ranks)
         end
     end
     
-    -- Fallback to first rank
-    return fishing_ranks[1]
+    -- Fallback to Apprentice (always exists)
+    return 7620
 end
 
 --- Check if can repair (has cost and gold)
@@ -1054,6 +1057,21 @@ function M.item_enchant_charges(item_obj)
         end
     end
     return nil
+end
+
+-- =============================================================================
+-- SOUND
+-- =============================================================================
+
+--- Play a game sound by ID
+-- @param id number sound ID
+function M.play_sound_by_id(id)
+    if core and core.play_sound_by_id then
+        local ok, err = pcall(core.play_sound_by_id, id)
+        if not ok then
+            print("[API Surface] play_sound_by_id failed: " .. tostring(err))
+        end
+    end
 end
 
 -- =============================================================================

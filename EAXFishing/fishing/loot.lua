@@ -5,6 +5,7 @@
 local APISurface = require("core/api_surface")
 local Behavior   = require("core/behavior")
 local LootDB     = require("fishing/loot_db")
+local Alert      = require("core/alert")
 
 local M = {}
 
@@ -49,6 +50,19 @@ local function record_item(ctx, slot)
     -- Track notable vendor items (Goldenscale Vendorfish = 6g confirmed)
     if db and db.vendor_copper and db.vendor_copper > 0 then
         stats.vendor_copper = stats.vendor_copper + db.vendor_copper
+    end
+
+    -- Rare catch alert: blue quality (4+), green with notable value, or high vendor value
+    local is_rare = false
+    if quality >= 4 then
+        is_rare = true
+    elseif quality == 3 and db and db.vendor_copper and db.vendor_copper >= 10000 then
+        is_rare = true  -- Green items worth ≥1g (e.g., Stonescale Eel)
+    elseif db and db.vendor_copper and db.vendor_copper >= 30000 then
+        is_rare = true  -- Any item worth ≥3g
+    end
+    if is_rare then
+        Alert.fire(ctx, item_name, quality, (db and db.vendor_copper) or 0)
     end
 end
 

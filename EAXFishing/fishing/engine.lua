@@ -12,9 +12,11 @@ local Behavior = require("core/behavior")
 local Gear = require("fishing/gear")
 local Lures = require("fishing/lures")
 local Loot = require("fishing/loot")
+local Cook = require("fishing/cook")
 local Bags = require("inventory/bags")
 local Client = require("navigation/client")
 local ShorelineSolver = require("navigation/shoreline_solver")
+local Stealth = require("core/stealth")
 local APISurface = require("core/api_surface")
 
 local M = {}
@@ -217,7 +219,8 @@ function M.tick(ctx)
     -- Action throttle — applies to casting, equipping, navigating, etc.
     -- NOTE: bobber bite-detection runs OUTSIDE this throttle further below,
     -- because fish bites can be shorter than 0.75s and we cannot miss them.
-    local action_throttle = 0.75 + math.random() * 0.6
+    local stealth_mult = Stealth.get_delay_multiplier(ctx, now)
+    local action_throttle = (0.75 + math.random() * 0.6) * stealth_mult
     local throttled = now - state.fishing.last_action_time < action_throttle
 
     -- ===== FAST PATH: Bobber bite detection (runs every tick, ignores throttle) =====
@@ -346,9 +349,9 @@ function M.tick(ctx)
             if p then
                 local dx = p.x - dest.x
                 local dy = p.y - dest.y
-                local dist = math.sqrt(dx*dx + dy*dy)
+                local stop_dist = state.navigation.stop_distance
                 
-                if dist <= state.navigation.stop_distance then
+                if dx*dx + dy*dy <= stop_dist*stop_dist then
                     Client.stop(ctx)
                     state.navigation.stop_distance = 15.0
                 else
@@ -482,7 +485,16 @@ function M.tick(ctx)
         Loot.process(ctx, me, now)
         return
     end
-    
+
+    -- Try cooking raw fish into buff food (if fire nearby + recipe learned)
+    if not state.fishing.awaiting_bobber then
+        local cooked = Cook.try_cook(ctx, me, now)
+        if cooked then
+            state.fishing.last_action_time = now
+            return
+        end
+    end
+
     -- Apply lure if needed
     if deps.config.menu.auto_lure and deps.config.menu.auto_lure:get_state() then
         if not Lures.has_active_lure(ctx, me, now) then
@@ -547,10 +559,13 @@ function M.tick(ctx)
     -- ========== POOL NAVIGATION ==========
     -- If pool tracking is enabled and nav client is available, find the nearest
     -- fish pool and navigate to a shoreline standoff position before casting.
+    -- Skip pool navigation when stealth mode detects a nearby player —
+    -- pathing like a bot while someone is watching is a dead giveaway.
     local pool_tracking_on = deps.config.menu.pool_tracking
         and deps.config.menu.pool_tracking:get_state()
-    
-    if pool_tracking_on and Client.has_client(ctx) and not Client.is_moving(ctx) then
+    local stealth_active = Stealth.get_delay_multiplier(ctx, now) > 1.0
+
+    if pool_tracking_on and not stealth_active and Client.has_client(ctx) and not Client.is_moving(ctx) then
         local p = APISurface.get_object_position(me)
         if p then
             -- Find nearest fish pool in range
@@ -571,39 +586,11 @@ function M.tick(ctx)
             local only_wreckage = deps.config.menu.only_pools_wreckage
                 and deps.config.menu.only_pools_wreckage:get_state()
 
-            -- Scan objects for the nearest fish pool
-            local nearest_pool = nil
-            local nearest_pool_dist_sq = math.huge
-            local objects = APISurface.get_all_objects()
-            for _, obj in ipairs(objects) do
-                if APISurface.is_valid(obj) then
-                    local name = APISurface.get_object_name(obj)
-                    local is_pool = false
-                    if type(name) == "string" then
-                        if deps.constants.OBJECTS.POOLS and deps.constants.OBJECTS.POOLS[name] then
-                            is_pool = true
-                        else
-                            is_pool = string.find(name, "Pool", 1, true)
-                                or string.find(name, "School", 1, true)
-                                or string.find(name, "Wreckage", 1, true)
-                        end
-                    end
-                    if is_pool then
-                        if not only_wreckage or string.find(name, "Wreckage", 1, true) then
-                            local pos = APISurface.get_object_position(obj)
-                            if pos then
-                                local dx = p.x - pos.x
-                                local dy = p.y - pos.y
-                                local dist_sq = dx*dx + dy*dy
-                                if dist_sq < search_range_sq and dist_sq < nearest_pool_dist_sq then
-                                    nearest_pool_dist_sq = dist_sq
-                                    nearest_pool = obj
-                                end
-                            end
-                        end
-                    end
-                end
-            end
+            -- Scan objects for the best-scored fish pool (value-weighted)
+            local PoolRanker = require("fishing/pool_ranker")
+            local nearest_pool, pool_score = PoolRanker.find_best_pool(
+                ctx, me, p, search_range_sq, only_wreckage
+            )
 
             if nearest_pool then
                 local pool_pos = APISurface.get_object_position(nearest_pool)
@@ -611,9 +598,9 @@ function M.tick(ctx)
                     -- Check if player is already close enough to cast at pool
                     local dx = p.x - pool_pos.x
                     local dy = p.y - pool_pos.y
-                    local dist_to_pool = math.sqrt(dx*dx + dy*dy)
+                    local desired_dist_plus_5 = desired_dist + 5
 
-                    if dist_to_pool > (desired_dist + 5) then
+                    if dx*dx + dy*dy > desired_dist_plus_5 * desired_dist_plus_5 then
                         -- Solve a shoreline standoff position
                         local standoff, _, throttled = ShorelineSolver.solve_shoreline_cached(
                             ctx, now, p, pool_pos,

@@ -54,7 +54,7 @@ M.ITEMS = {
     [27516] = { name="Enormous Barbed Gill Trout",    quality=M.WHITE, cat=M.CAT_FISH },
     [27513] = { name="Huge Spotted Feltail",          quality=M.WHITE, cat=M.CAT_FISH },
     [21153] = { name="Raw Spotted Feltail",           quality=M.WHITE, cat=M.CAT_FISH },
-    [21154] = { name="Zangarian Sporefish",           quality=M.WHITE, cat=M.CAT_FISH },
+    -- NOTE: 21154 was a duplicate of 27426 (Zangarian Sporefish); removed.
     -- Goldenscale Vendorfish: fixed 6g vendor price, that's its only purpose
     [20646] = { name="Goldenscale Vendorfish",        quality=M.WHITE, cat=M.CAT_FISH,
                 vendor_copper=60000 },

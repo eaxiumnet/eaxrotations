@@ -98,6 +98,25 @@ EAXFishing/
 
 ## Changelog
 
+### v2.3.0
+- **Auto-Cook Raw Fish** — when enabled, detects nearby campfires/cooking fires and casts DBC-verified cooking recipes to convert raw fish into cooked buff food. Frees bag slots mid-session and multiplies gold-per-slot value (Raw Spotted Feltail → Feltail Delight, etc.). Only cooks fish the bot itself caught; skips quest/stock fish. Gated by `is_spell_learned()` so no ghost-spell casts.
+- **Smart Pool Ranker** — replaces "nearest pool" with a value-weighted scorer. High-value pools (Furious Crawdad, Sporefish, Stonescale Eel, etc.) are now preferred over closer low-value pools. Expected farm rate increases significantly in multi-pool zones. Pool values are heuristically ranked from DBC-verified drop data.
+- **Session HUD v2** — shows "Cooked" count in the on-screen stats overlay when auto-cook fires.
+- **4 test suites** (was 2), **144 assertions** (was 109) covering state machine, safe-menu contract, pool ranker, and cook module.
+
+### v2.2.1
+- **Fishing spell ranks DBC-verified** — removed ghost spell 13147 (does not exist in WoW 2.5.5 client). Rank lookup now uses verified IDs: 33095 Master → 18248 Artisan → 7732 Expert → 7731 Journeyman → 7620 Apprentice.
+- All fishing poles, lures, and fish items cross-referenced against DBC + web sources. No gaps found.
+
+### v2.2.0
+- **Stealth Mode** — slows cast rhythm and takes longer breaks when another player is nearby. Configurable range (default 30y). Suppresses pool navigation while active.
+- **Rare Catch Alert** — plays the Quest Complete fanfare + flashes a big colored message when you catch a blue item (Mr. Pinchy), green item worth ≥1g, or anything worth ≥3g.
+- State machine expanded with `stealth` and `alert` subtables.
+
+### v2.1.1
+- Bumped version across all files (header, main, config, menu, README)
+- Replaced `math.sqrt` distance checks with squared-distance comparisons (Pattern 3)
+
 ### v2.1.0
 - Consolidated bite state into `state.bite` table
 - Fixed safety lock after bag-full stop (dedicated boolean)

@@ -108,11 +108,35 @@ function M.create(now)
             lure_apply_delay_end = 0.0,
         },
         
+        -- Cooking state
+        cook = {
+            last_cook_time = 0.0,
+            cooked_count = 0,
+            queued = nil,
+            status = "Idle",
+            cook_delay_end = 0.0,
+        },
+
         -- Vendor state
         vendor = {
             next_repair_time = 0.0,
         },
         
+        -- Stealth mode state
+        stealth = {
+            player_nearby = false,
+            last_scan_time = 0,
+        },
+
+        -- Rare catch alert state
+        alert = {
+            active = false,
+            text = "",
+            fade_start = 0,
+            fade_end = 0,
+            quality = 2,
+        },
+
         -- Safety system state
         safety = {
             stop_id = 0,
@@ -194,8 +218,21 @@ function M.reset_fishing(state)
     state.navigation.pool_face_update = 0.0
     state.navigation.pool_face_pos = nil
     M.reset_shoreline_solver_cache(state)
+    -- Clear cooking state
+    if state.cook then
+        state.cook.last_cook_time = 0.0
+        state.cook.cooked_count = 0
+        state.cook.queued = nil
+        state.cook.status = "Idle"
+        state.cook.cook_delay_end = 0.0
+    end
     -- Clear bag confirmation count
     state.bag.full_confirm_count = 0
+    -- Clear rare catch alert so it doesn't persist across re-enable
+    state.alert.active = false
+    state.alert.text = ""
+    state.alert.fade_start = 0
+    state.alert.fade_end = 0
     M.reset_bite(state)
     state.loot.last_time = 0.0
     state.loot.slot_index = 0

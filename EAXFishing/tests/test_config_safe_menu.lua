@@ -144,7 +144,7 @@ do
   local config = load_config_with(nil)
   local m = config.menu
   local engine_keys = {
-    "enabled", "auto_equip", "auto_lure", "esp_enabled", "esp_range",
+    "enabled", "auto_equip", "auto_lure", "auto_cook", "esp_enabled", "esp_range",
     "pool_tracking", "pool_search_range", "pool_standoff_distance",
     "humanizer_enabled", "cast_delay_min_ms", "cast_delay_max_ms",
     "catch_delay_min_ms", "catch_delay_max_ms", "anti_afk_enabled",

@@ -16,12 +16,19 @@
 local constants = {}
 
 constants.SPELLS = {
-    FISHING_ID = 13147,
+    -- Apprentice Fishing (base spell, always learned first)
+    FISHING_ID = 7620,
     -- NOTE: This table is consumed by api_surface.resolve_fishing_spell()
     -- which uses core.spell_book.is_spell_learned() to dynamically determine
     -- which fishing spell the player has learned. The order matters - higher
     -- skill ranks should come first so they're preferred when multiple are known.
-    FISHING_RANKS = { 13147, 7620, 7731, 7732, 18248, 33095 },
+    --
+    -- DBC-verified fishing skill ranks (WoW 2.5.5.68101):
+    --   33095 = Master (300-375), 18248 = Artisan (225-300),
+    --   7732  = Expert (150-225), 7731  = Journeyman (75-150),
+    --   7620  = Apprentice (1-75)
+    -- Spell 13147 was removed - it does not exist in the client DBC.
+    FISHING_RANKS = { 33095, 18248, 7732, 7731, 7620 },
 }
 
 constants.ITEMS = {
@@ -30,7 +37,7 @@ constants.ITEMS = {
     FISHING_POLES = {
         19970, -- Arcanite Fishing Pole         (+35, spell 24301)
         19022, -- Nat Pagle's Extreme Angler    (+25, spell 8082)
-        25978, -- Seth's Graphite Fishing Pole   (+20, spell 7826)
+        25978, -- Seth's Graphite Fishing Pole  (+20, spell 7826)
         6367,  -- Big Iron Fishing Pole         (+20, spell 7826)
         6366,  -- Darkwood Fishing Pole         (+15, spell 7825)
         6365,  -- Strong Fishing Pole           (+5,  spell 7823)
