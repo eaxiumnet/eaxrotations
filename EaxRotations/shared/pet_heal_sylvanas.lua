@@ -125,6 +125,7 @@ local function scan_pets(me)
                 if obj and unit_alive(obj) then
                     local ok_pet, is_pet = pcall(function()
                         if obj.is_pet then return obj:is_pet() end
+                        if obj.is_minion then return obj:is_minion() end
                         if obj.get_unit_type then return obj:get_unit_type() == 3 end -- 3 = pet
                         return false
                     end)
