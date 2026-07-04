@@ -413,6 +413,15 @@ local strategies = {
           if id then NS.use_item_by_id(id, ctx.me) end
       end },
     { name = "MendPet", matches = mend_pet_matches, execute = function(context) return NS.try_cast(SPELLS.MendPet, context.pet or (NS.GetPet and NS.GetPet()) or context.me, "[MARKSMANSHIP] Mend Pet", { skip_range = true }) end },
+    -- Deterrence -- emergency dodge/parry when critically low
+    { name = "Deterrence",
+      matches = function(context, state)
+          if not context.in_combat then return false end
+          if (state.hp_pct or 100) > 25 then return false end
+          if state.has_deterrence then return false end
+          return NS.spell_ready ~= nil and NS.spell_ready(19263, context.me, { skip_range = true }) or false
+      end,
+      execute = function(context) return NS.try_cast(19263, context.me, "[MARKSMANSHIP] Deterrence", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "CallPet", matches = call_pet_matches, execute = function(context) return NS.try_cast(SPELLS.CallPet, context.me, "[MARKSMANSHIP] Call Pet", { skip_range = true }) end },
     { name = "RevivePet", matches = revive_pet_matches, execute = function(context) return NS.try_cast(SPELLS.RevivePet, context.me, "[MARKSMANSHIP] Revive Pet", { skip_range = true }) end },
     -- Pet State: set defensive when pet HP is critically low
