@@ -433,6 +433,8 @@ local function can_break_mind_flay(s)
 end
 
 local function _engaged_with_player(context)
+    -- Allow free pulling when out of combat; safety gate only applies in-combat
+    if not context.in_combat then return true end
     local target = context.target
     local me = context.me
     if not target or not me then return true end
