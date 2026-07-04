@@ -36,6 +36,16 @@ local MANA_GEM_CONJURE = { 27101, 10054, 10053, 3552, 759 }
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }
 local CLEARCASTING_BUFF = { 12536 }  -- Clearcasting proc from Arcane Concentration talent
 
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(item_ids)
+    if not NS.is_item_ready then return 0 end
+    for i = 1, #item_ids do
+        local item_id = item_ids[i]
+        if NS.is_item_ready(item_id) then return item_id end
+    end
+    return 0
+end
+
 -- ============================================================================
 -- Custom Gating Functions (test assertions depend on these signatures)
 -- ============================================================================
@@ -157,6 +167,7 @@ local frost_state = {
     target_frozen = false,
     mana_gem_available = false,
     ice_barrier_remains = 999,
+    healthstone_ready = 0,
 }
 
 local function first_ready_mana_gem()
@@ -231,6 +242,7 @@ local function build_state(context)
         end
     end
     frost_state.ice_barrier_remains = me and (NS.buff_remains and NS.buff_remains(me, ICE_BARRIER_BUFF)) or 999
+    frost_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
 
     return frost_state
 end
@@ -464,6 +476,20 @@ local strategies = {
     { name = "ArcaneIntellect", matches = arcane_intellect_matches, execute = function() return NS.try_cast(SPELLS.ArcaneIntellect, NS.PLAYER_UNIT, "[FROST] ArcaneIntellect", { skip_range = true }) end },
     { name = "IceBarrier", matches = ice_barrier_matches, execute = function() return NS.try_cast(SPELLS.IceBarrier, NS.PLAYER_UNIT, "[FROST] IceBarrier", { skip_range = true }) end },
     { name = "IceBlock", matches = ice_block_wrapper, execute = function() return NS.try_cast(SPELLS.IceBlock, NS.PLAYER_UNIT, "[FROST] IceBlock", { skip_range = true }) end },
+    { name = "Healthstone",
+      matches = function(context, state)
+          if not context.in_combat then return false end
+          if (state.hp_pct or 100) > 28 then return false end
+          return (state.healthstone_ready or 0) > 0
+      end,
+      execute = function(context)
+          local item_id = first_ready_item(HEALTHSTONE_IDS)
+          if item_id > 0 and NS.use_item_by_id then
+              return NS.use_item_by_id(item_id, context.me) and true or false
+          end
+          return false
+      end,
+    },
     { name = "Blink", matches = function(context, s) return s.in_combat and (context.self_rooted_snared or (NS.has_player_debuff and NS.has_player_debuff(COMMON_SNARES) or false)) and NS.spell_ready(SPELLS.Blink) end, execute = function() return NS.try_cast(SPELLS.Blink, NS.PLAYER_UNIT, "[FROST] Blink", { skip_range = true }) end },
     { name = "ColdSnap", matches = cold_snap_wrapper, execute = function() return NS.try_cast(SPELLS.ColdSnap, NS.PLAYER_UNIT, "[FROST] ColdSnap", { skip_range = true }) end },
     { name = "IcyVeins", matches = icy_veins_matches, execute = function() return NS.try_cast(SPELLS.IcyVeins, NS.PLAYER_UNIT, "[FROST] IcyVeins", { skip_range = true, expected_cooldown = 180 }) end },

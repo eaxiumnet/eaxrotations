@@ -1,22 +1,22 @@
 # EaxRotations Changelog
 
-*Player-facing updates. No code, no filenames ó just what changed and why it matters.*
+*Player-facing updates. No code, no filenames ÔøΩ just what changed and why it matters.*
 
 ---
 
-## v2.3.12 ó July 4, 2026
+## v2.3.12 ÔøΩ July 4, 2026
 
-### ? Feature: Healthstone Automation ó All 29 Specs
+### ? Feature: Healthstone Automation ÔøΩ All 29 Specs
 
 **Every rotation now automatically uses a Healthstone when you drop below 28% HP in combat.**
 
 Before this release, only 19 of 29 specs had healthstone automation. Now it covers everyone: Hunter (all 3), Shaman (all 3), Warrior (Arms/Protection), Rogue (Subtlety), and Priest (Smite) join the existing coverage.
 
-**How it works:** The rotation scans your bags for any Healthstone (Major 22105, Greater 22104, Lesser 22103, Minor 19013/19012/19011, or base 5512). When you are in combat and drop below 28% HP, it uses the best one you have. No menu setting needed ó it just works.
+**How it works:** The rotation scans your bags for any Healthstone (Major 22105, Greater 22104, Lesser 22103, Minor 19013/19012/19011, or base 5512). When you are in combat and drop below 28% HP, it uses the best one you have. No menu setting needed ÔøΩ it just works.
 
 ---
 
-### ? Feature: Affliction Warlock ó Death Coil Survival
+### ? Feature: Affliction Warlock ÔøΩ Death Coil Survival
 
 **Affliction Warlock now automatically uses Death Coil when you drop below 30% HP in combat.**
 
@@ -24,11 +24,11 @@ Death Coil is a powerful emergency button: it fears the target and heals you for
 
 ---
 
-### ? Feature: Hunter ó Deterrence Emergency Defensive
+### ? Feature: Hunter ÔøΩ Deterrence Emergency Defensive
 
 **All three Hunter specs now automatically activate Deterrence when you drop below 25% HP in combat.**
 
-Deterrence is a 5-minute survival cooldown that massively increases your dodge and parry chance. When a melee mob closes the gap and your health is critical, the rotation pops it automatically ó no button press required. Covers Beast Mastery, Marksmanship, and Survival.
+Deterrence is a 5-minute survival cooldown that massively increases your dodge and parry chance. When a melee mob closes the gap and your health is critical, the rotation pops it automatically ÔøΩ no button press required. Covers Beast Mastery, Marksmanship, and Survival.
 
 
 ---
@@ -37,19 +37,19 @@ Deterrence is a 5-minute survival cooldown that massively increases your dodge a
 
 **Switching targets now correctly resets TTD (Time-To-Death) tracking.**
 
-Previously, TTD data from your old target (DPS averages, debuff timers) would leak onto your new target for the first few seconds after a switch. This caused wrong decisions ó for example, refreshing a DoT early because the old target's TTD was short, or skipping an execute because the old target's HP was high.
+Previously, TTD data from your old target (DPS averages, debuff timers) would leak onto your new target for the first few seconds after a switch. This caused wrong decisions ÔøΩ for example, refreshing a DoT early because the old target's TTD was short, or skipping an execute because the old target's HP was high.
 
 Now, the moment you switch target, the TTD tracker and EMA tracker are reset. Clean slate, correct decisions.
 
 ---
 
-### ?? Fixed: Priest ó Tab-Target Safety
+### ?? Fixed: Priest ÔøΩ Tab-Target Safety
 
 **Shadow, Holy, and Discipline priests no longer accidentally pull unengaged mobs when tab-targeting.**
 
 Spread-DoT and idle-damage strategies (Multi-Dot, SW:P spread, idle Smite / Holy Fire) now verify the target has actually engaged with you or your party before casting. Prevents dots from landing on patrols, wanderers, or neutral mobs you just happened to tab onto.
 
-**Holy & Discipline bonus:** Party Fortitude ó out of combat, the rotation scans your group and casts Power Word: Fortitude on any party member missing the buff. No more manually buffing everyone after a rez.
+**Holy & Discipline bonus:** Party Fortitude ÔøΩ out of combat, the rotation scans your group and casts Power Word: Fortitude on any party member missing the buff. No more manually buffing everyone after a rez.
 
 ---
 
@@ -58,6 +58,28 @@ Spread-DoT and idle-damage strategies (Multi-Dot, SW:P spread, idle Smite / Holy
 **Turning the rotation OFF now stays OFF after a UI reload.**
 
 Previously, disabling the rotation via keybind and then reloading UI caused the rotation to run for 1-2 ticks before the toggle state synced back. This could trigger accidental spell casts immediately on reload. Fixed by reading the toggle state directly from the persisted widget instead of the ephemeral settings store.
+
+---
+
+### ‚ú® Improved: Pet Handling ‚Äî Hunter, Warlock, Mage
+
+**Your pets now attack and cast abilities automatically.**
+
+**Hunter pets:** Now auto-attack the target and cast Growl (taunt), Claw/Bite (damage), and special abilities like Dash, Dive, Howl, Screech, and Thunderstomp on cooldown. The pet also respects engagement safety ‚Äî it won't attack unengaged patrols.
+
+**Warlock pets:** Now auto-attack and cast their primary abilities. Imp casts Firebolt, Felguard casts Cleave (and Intercept when the target is far away), Succubus casts Lash of Pain, Voidwalker casts Suffering (taunt), and Felhunter casts Bite.
+
+**Mage Water Elemental:** Frost Mages now get full Water Elemental support. The elemental auto-attacks with Waterbolt and casts its AoE Freeze root on cooldown (skips if the target is already rooted). This is a TBC Classic Anniversary backport from Wrath ‚Äî the talent (Summon Water Elemental) and both pet abilities are verified in the game client.
+
+**Engagement safety:** All pets now check if the target is actually engaged before attacking. This prevents your pet from accidentally pulling patrols or wandering mobs when you tab-target around.
+
+---
+
+### üêõ Fixed: BM Hunter ‚Äî Intimidation Missing
+
+**Beast Mastery Hunter Intimidation (pet stun) is now part of the rotation.**
+
+Intimidation is a BM talent that commands your pet to stun the target on its next melee hit. It was in the spell table but never had a rotation strategy ‚Äî it now fires automatically when off cooldown, in combat, and your pet is alive.
 
 ## v2.3.11 ‚Äî July 4, 2026
 

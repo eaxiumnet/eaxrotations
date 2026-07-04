@@ -48,6 +48,16 @@ local PHASE_EMERGENCY = "emergency"
 -- Root/snare debuff IDs (used by Blink escape)
 local COMMON_SNARES = { 122, 116, 120, 339, 5116, 3409, 3600, 12494, 13099 }
 
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(item_ids)
+    if not NS.is_item_ready then return 0 end
+    for i = 1, #item_ids do
+        local item_id = item_ids[i]
+        if NS.is_item_ready(item_id) then return item_id end
+    end
+    return 0
+end
+
 -- ============================================================================
 -- Phase State Machine State
 -- ============================================================================
@@ -73,6 +83,7 @@ local arcane_state = {
     bloodlust_active = false,
     can_burn = false,
     should_conserve = false,
+    healthstone_ready = 0,
 }
 
 -- ============================================================================
@@ -467,6 +478,20 @@ local strategies = {
     { name = "ManaShield",
       matches = mana_shield_matches,
       execute = function(context) return NS.try_cast(SPELLS.ManaShield, context.me, "[ARCANE] ManaShield") end },
+    { name = "Healthstone",
+      matches = function(context, state)
+          if not context.in_combat then return false end
+          if (state.hp_pct or 100) > 28 then return false end
+          return (state.healthstone_ready or 0) > 0
+      end,
+      execute = function(context)
+          local item_id = first_ready_item(HEALTHSTONE_IDS)
+          if item_id > 0 and NS.use_item_by_id then
+              return NS.use_item_by_id(item_id, context.me) and true or false
+          end
+          return false
+      end,
+    },
 
     -- CC / Utility
     { name = "Polymorph",

@@ -42,6 +42,17 @@ local _LOCAL_SPELLS = {
 local _INSECT_MIN_SP = 800
 local _MOONFIRE_MIN_SP = 800
 
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+
+local function first_ready_item(item_ids)
+    if not NS.is_item_ready then return 0 end
+    for i = 1, #item_ids do
+        local item_id = item_ids[i]
+        if NS.is_item_ready(item_id) then return item_id end
+    end
+    return 0
+end
+
 local _ACT_FON = { name="ForceOfNature", spell=SPELLS.ForceOfNature, position="target", combat=true, setting="use_cooldowns", cooldown=180, min_mana=25 }
 local _ACT_HUR = { name="Hurricane", spell=SPELLS.Hurricane, position="target", enemy_count=3, not_moving=true, min_mana=35, cooldown=60 }
 local _ACT_SF  = { name="Starfire", spell=SPELLS.Starfire, not_moving=true, min_mana=15 }
@@ -53,9 +64,10 @@ local _state = {
     insect_remains=0, moonfire_remains=0, ff_remains=0, natures_grace_active=false,
     barkskin_active=false, mana_pct=100,
     enemy_count=1, target_ttd=999, innervate_target=nil,
+    healthstone_ready=0,
 }
 
-local function _build_state(ctx)
+local function build_state(ctx)
     local t = ctx.target
     -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local _BARKSKIN_ID = type(SPELLS.Barkskin) == "table" and SPELLS.Barkskin[1] or 22812
@@ -112,6 +124,7 @@ local function _build_state(ctx)
     if not _state.innervate_target then
         if (_state.mana_pct or 100) <= floor_mana then _state.innervate_target = ctx.me end
     end
+    _state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
     return _state
 end
 
@@ -127,7 +140,7 @@ local function _choose_nuke(s, ctx)
     return "wrath"
 end
 
-local _strategies = {
+local strategies = {
     {
         name="BarkskinDefense",
         matches=function(ctx)
@@ -395,6 +408,21 @@ local _strategies = {
         end,
     },
     {
+        name="Healthstone",
+        matches=function(ctx, s)
+            if not ctx.in_combat then return false end
+            if (ctx.hp or 100) > 28 then return false end
+            return (s.healthstone_ready or 0) > 0
+        end,
+        execute=function(ctx)
+            local item_id = first_ready_item(HEALTHSTONE_IDS)
+            if item_id > 0 and NS.use_item_by_id then
+                return NS.use_item_by_id(item_id, ctx.me) and true or false
+            end
+            return false
+        end,
+    },
+    {
         name="MarkOfTheWild",
         matches=function(ctx)
             -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
@@ -426,6 +454,6 @@ local _strategies = {
     },
 }
 
-NS.rotation_registry:register("balance", _strategies, { get_state = _build_state })
-return { strategies = _strategies, build_state = _build_state }
+NS.rotation_registry:register("balance", strategies, { get_state = build_state })
+return { strategies = strategies, build_state = build_state }
 

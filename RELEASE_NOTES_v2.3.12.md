@@ -1,10 +1,10 @@
-# EaxRotations v2.3.12 — Release Notes
+# EaxRotations v2.3.12 ï¿½ Release Notes
 
 **Release Date:** 2026-07-04
 
 ---
 
-## ? Feature: Healthstone Automation — All 29 Specs
+## ? Feature: Healthstone Automation ï¿½ All 29 Specs
 
 **Every rotation now automatically uses a Healthstone when you drop below 28% HP in combat.**
 
@@ -24,7 +24,7 @@ Already covered (prior releases):
 - Warlock: Affliction, Demonology, Destruction
 - Rogue: Assassination, Combat
 
-**How it works:** The rotation scans your bags for any Healthstone (Major, Greater, Lesser, Minor, or the base 5512). If you're in combat and drop below 28% HP, it uses the best one you have. No menu setting needed — it just works.
+**How it works:** The rotation scans your bags for any Healthstone (Major, Greater, Lesser, Minor, or the base 5512). If you're in combat and drop below 28% HP, it uses the best one you have. No menu setting needed ï¿½ it just works.
 
 ---
 
@@ -32,19 +32,54 @@ Already covered (prior releases):
 
 **Switching targets now correctly resets TTD (Time-To-Death) tracking.**
 
-Previously, TTD data from your old target (debuff timers, DPS averages, swing remains) would leak onto your new target for the first few seconds. This caused wrong decisions — for example, refreshing a DoT early because the old target's TTD was short, or skipping an execute because the old target's HP was high.
+Previously, TTD data from your old target (debuff timers, DPS averages, swing remains) would leak onto your new target for the first few seconds. This caused wrong decisions ï¿½ for example, refreshing a DoT early because the old target's TTD was short, or skipping an execute because the old target's HP was high.
 
 Now, the moment you switch target (manually or automatically), the TTD tracker and EMA tracker are reset. Clean slate, correct decisions.
 
 ---
 
-## ?? Bug Fix: Priest — Tab-Target Safety
+## ?? Bug Fix: Priest ï¿½ Tab-Target Safety
 
 **Shadow, Holy, and Discipline priests no longer accidentally pull unengaged mobs when tab-targeting.**
 
 Spread-DoT and idle-damage strategies (Multi-Dot, Shadow Word: Pain spread, idle Smite/Holy Fire) now check that the target has actually engaged with you or your party before casting. Prevents dots from landing on patrols, wanderers, or neutral mobs you just happened to tab onto.
 
 **Holy & Discipline bonus:** Party Fortitude now scans your group and casts Power Word: Fortitude on any party member missing the buff. No more manually buffing everyone after a rez.
+
+---
+
+## ?? Feature: Pet Handling ï¿½ Hunter, Warlock, Mage
+
+**Your pets now attack and cast abilities automatically.**
+
+### Hunter Pets
+- Auto-attack target on switch (throttled to 1s)
+- Growl (taunt) every 5s
+- Claw / Bite / Gore (damage) every 2s
+- Special abilities (Dash, Dive, Howl, Screech, Thunderstomp) every 6s
+- Engagement safety: pet won't attack unengaged patrols
+
+### Warlock Pets
+- Imp: Firebolt every 2s
+- Felguard: Cleave every 2s + Intercept when target >8 yards (15s CD)
+- Succubus: Lash of Pain every 2s
+- Voidwalker: Suffering (taunt) every 2s
+- Felhunter: Bite every 2s
+- Engagement safety applies to all warlock pets
+
+### Mage Water Elemental
+- Auto-attack with Waterbolt every 3s
+- AoE Freeze root every 25s (skips if target already rooted)
+- Engagement safety applies
+- Water Elemental is a TBC Classic Anniversary backport from Wrath (verified in 2.5.5 client DBC)
+
+---
+
+## ?? Bug Fix: BM Hunter ï¿½ Intimidation Missing
+
+**Intimidation (BM pet stun talent) now fires automatically.**
+
+Intimidation (19577) commands your pet to stun the target on its next melee hit. It was in the spell table but never had a rotation strategy. Now it fires when off cooldown, in combat, and your pet is alive.
 
 ---
 
@@ -58,8 +93,8 @@ Previously, if you disabled the rotation via the quick-toggle keybind and then r
 
 ## ? Quality & Reliability
 
-- **219 rotation test suites** — all passing
-- **13 leveling rotation suites** — all passing
+- **219 rotation test suites** ï¿½ all passing
+- **13 leveling rotation suites** ï¿½ all passing
 - All changes are backward compatible. No settings reset required.
 
 ---

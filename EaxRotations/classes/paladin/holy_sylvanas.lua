@@ -11,6 +11,15 @@ local Healing = NS.PaladinHealing or require("classes/paladin/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local function first_ready_item(item_ids)
+    if not NS.is_item_ready then return 0 end
+    for i = 1, #item_ids do
+        local item_id = item_ids[i]
+        if NS.is_item_ready(item_id) then return item_id end
+    end
+    return 0
+end
 local Triage = NS.Triage
 
 local format = string.format
@@ -412,6 +421,7 @@ local function build_state(context)
  state.protection_target = nil
  state.sacrifice_target = nil
  state.pvp_stun_target = nil
+ state.healthstone_ready = 0
  state.heal_target = nil
  state.heal_spell = nil
  state.heal_label = nil
@@ -419,6 +429,7 @@ local function build_state(context)
  state.holy_light_spell = nil
  state.holy_light_label = nil
  state.emergency_count = 0
+ state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
  state.mana_pct = context and context.mana_pct or NS.mana_pct and NS.mana_pct(NS.GetPlayer()) or 100
  state.hp_pct = context and context.hp or NS.unit_health_pct and NS.unit_health_pct(NS.GetPlayer()) or 100
  state.target_hp_pct = context and context.target_hp or NS.unit_health_pct and NS.unit_health_pct(context and context.target) or 100
@@ -946,6 +957,21 @@ local strategies = {
   end,
   execute = function()
    return NS.try_cast(SPELLS.SealRighteousness, NS.PLAYER_UNIT, "[HOLY] Seal of Righteousness idle", SELF_OPTS)
+  end,
+ },
+ {
+  name = "Healthstone",
+  matches = function(context, s)
+   if not context.in_combat then return false end
+   if (context.hp or 100) > 28 then return false end
+   return (s.healthstone_ready or 0) > 0
+  end,
+  execute = function(context)
+   local item_id = first_ready_item(HEALTHSTONE_IDS)
+   if item_id > 0 and NS.use_item_by_id then
+    return NS.use_item_by_id(item_id, context.me) and true or false
+   end
+   return false
   end,
  },
 }
