@@ -2,6 +2,21 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.3.10] — Hotfix: Hunter Aspect Manager Missing Middleware Strategies (2026-07-04)
+
+### Bug Fixes
+
+- **Hunter (all specs)**: Fixed `attempt to call field 'viper_middleware_strategy' (a nil value)` that caused the Hunter class module to fail loading entirely. The `aspect_manager_sylvanas.lua` shared module was missing the `viper_middleware_strategy()` and `hawk_middleware_strategy()` functions that the hunter middleware called directly into the strategies array. Added both with proper mana threshold gating, `settings.auto_aspect` guard, buff detection, and `skip_range` casting.
+
+### What to Expect
+
+- Hunter: The rotation loads and runs correctly again. Aspect switching between Hawk and Viper works as intended in combat.
+- Drop-in replacement. Delete your old `EaxRotations` folder and replace with this one.
+- All your settings carry over automatically.
+- No settings reset needed.
+
+---
+
 ## [2.3.9] — Hotfix: Shadow Priest Mind Flay Opener Fix (2026-07-03)
 
 ### Bug Fixes
