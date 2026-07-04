@@ -170,7 +170,8 @@ _G.EaxRotations.SwingDiagnostics = {
     register_seals = function() end,
 }
 local fury_result = dofile('EaxRotations/classes/warrior/fury_sylvanas.lua')
-local fury_build_state = _G._test_captured_state_builder
+-- Canonical return: { strategies = {...}, build_state = fn }
+local fury_build_state = (type(fury_result) == "table" and fury_result.build_state) or _G._test_captured_get_state
 assert_true(fury_build_state, 'Fury build_state captured')
 local fury_state1 = fury_build_state({ target = {}, me = {} })
 assert_eq(fury_state1.mh_until, 1.5, 'Fury: CLEU mh_until consumed')

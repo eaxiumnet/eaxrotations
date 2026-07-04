@@ -67,6 +67,7 @@ local spec_files = {
 -- The full canonical template (safe_state + return {strategies, build_state}) is Phase 3.
 local CONVERTED = {
     ["EaxRotations/classes/warrior/arms_sylvanas.lua"] = true,
+    ["EaxRotations/classes/warrior/fury_sylvanas.lua"] = true,
 }
 
 local function add_issue(issues, path, rule, detail)

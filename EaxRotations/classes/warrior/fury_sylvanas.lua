@@ -1,8 +1,8 @@
--- fury_sylvanas -- warrior fury_sylvanas rotation for TBC Anniversary (2.5.5).
--- WHAT:  priority-list strategies for fury_sylvanas gameplay.
--- WHEN:  combat with valid enemy target.
+-- fury_sylvanas.lua — Warrior Fury rotation for TBC Anniversary (2.5.5).
+-- WHAT:  priority-list strategies (BT → WW → Rampage → Execute → Slam → rage dumps).
+-- WHEN:  combat with valid enemy target, dual-wield or 2H.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
 
 -- Warrior Fury priority list — parity v1.0.6+ parity (auto-charge, rampage stacks, sunder, rend, overpower, defensives)
 local NS = _G.EaxRotations
@@ -15,6 +15,7 @@ if _cleu then
     })
 end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
@@ -22,13 +23,8 @@ local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
 local PLAYER_UNIT = NS.PLAYER_UNIT
 
 
--- Helper: resolve spell ID
-local function spell(field, ids, label)
-    if SPELLS[field] ~= nil then return SPELLS[field] end
-    if NS.spell_action then return NS.spell_action(ids, label or field) end
-    if type(ids) == "table" then return ids[1] end
-    return ids
-end
+-- Centralized spell resolver via spec_kit (replaces the per-spec spell() helper).
+local define = spec_kit.define_action_for_class(SPELLS)
 
 -- Spell actions
 local ACTION = {
@@ -126,6 +122,65 @@ local last_stance_cast_at = 0  -- fallback only; WH tracks its own copy when loa
 WH.CAST_TAG = "[FURY]"
 WH.TACTICAL_MASTERY_CAP = TACTICAL_MASTERY_CAP
 WH.STANCE_CAST_LOCKOUT = STANCE_CAST_LOCKOUT
+
+-- Schema for safe_state: custom defaults override kit defaults.
+local FURY_SCHEMA = {
+    stance = STANCE.BERSERKER,
+    enemy_count = 1,
+    is_pvp = false,
+    in_combat = false,
+    is_moving = false,
+    target_is_casting = false,
+    target_casting_interruptible = false,
+    ttd = 0,
+    has_battle_shout = false,
+    has_commanding_shout = false,
+    has_berserker_rage = false,
+    berserker_rage_ready = false,
+    has_sweeping_strikes = false,
+    has_rampage = false,
+    rampage_stacks = 0,
+    victory_rush_ready = false,
+    sunder_stacks = 0,
+    rend_remains = 0,
+    hamstring_remains = 0,
+    demo_remains = 0,
+    tclap_remains = 0,
+    bt_cd = 99,
+    ww_cd = 99,
+    bt_ready = false,
+    ww_ready = false,
+    execute_ready = false,
+    slam_ready = false,
+    sweeping_ready = false,
+    heroic_ready = false,
+    cleave_ready = false,
+    pummel_ready = false,
+    intercept_ready = false,
+    charge_ready = false,
+    hamstring_ready = false,
+    overpower_ready = false,
+    execute_phase = false,
+    death_wish_ready = false,
+    recklessness_ready = false,
+    bloodrage_ready = false,
+    victory_ready = false,
+    sunder_ready = false,
+    rend_ready = false,
+    demo_ready = false,
+    healthstone_ready = false,
+    healthstone_id = nil,
+    health_potion_ready = false,
+    health_potion_id = nil,
+    has_offhand = false,
+    mh_until = 999,
+    mh_progress = 0,
+    oh_until = 999,
+    ss_cd = 99,
+    target_in_combat = false,
+    charge_lock_until = 0,
+    intercept_fired_at = 0,
+}
 
 local stance_lockout_active = WH.stance_lockout_active or function()
     return (NS.time_now and NS.time_now() or 0) < last_stance_cast_at + STANCE_CAST_LOCKOUT
@@ -397,7 +452,8 @@ local function build_state(context)
     local oh_swing = me and NS.swing_time_until and NS.swing_time_until(me, 2) or 0
     fury_state.has_offhand = oh_swing > 0
 
-    return fury_state
+    -- safe_state proxy: structural nil-guard elimination (Pattern 14)
+    return spec_kit.safe_state(fury_state, FURY_SCHEMA)
 end
 
 -- ============================================================================
@@ -888,29 +944,11 @@ for i = 1, #STRATEGY_SPECS do
     }
 end
 
-NS.rotation_registry:register("fury", strategies, { get_state = build_state })
-
--- Unified dispatcher registration (coexists with legacy for migration)
-if NS.register_strategy then  -- both unified APIs available
-    NS.register_state_builder("fury", build_state)
-    for i = 1, #STRATEGY_SPECS do
-        local spec = STRATEGY_SPECS[i]
-        local unified_matches_fn = spec[2]
-        local unified_row = spec[3]
-        local unified_custom_execute = spec[4]
-        NS.register_strategy({
-            name = "Fury:" .. spec[1],
-            playstyle = "fury",
-            priority = #STRATEGY_SPECS - i + 1,
-            matches = function(context, state)
-                return unified_matches_fn(context, state)
-            end,
-            execute = unified_custom_execute or function(context, state)
-                return cast(context, unified_row)
-            end,
-        })
-    end
+-- Guarded registration (nil-safe in unit tests)
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("fury", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Warrior Fury rotation registered") end
 
--- Warrior fury rotation registered (parity v1.0.6+ parity) — legacy + unified
-return strategies
+-- Canonical return shape: dispatcher + tests both get what they need
+return { strategies = strategies, build_state = build_state }
