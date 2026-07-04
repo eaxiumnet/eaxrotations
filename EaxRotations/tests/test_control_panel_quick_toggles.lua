@@ -35,7 +35,7 @@ assert_true(contains(main, "keybind = def.control"), "control panel should retur
 assert_true(contains(main, 'require, "common/utility/control_panel_helper"'), "control panel helper should be loaded from Sylvanas utility API")
 assert_true(contains(main, "control_panel_helper:insert_toggle_"), "control panel should use the helper for drag/drop and duplicate handling")
 assert_true(contains(main, "control_panel_helper:on_update(menu_elements)"), "control panel helper update should run for drag/drop support")
-assert_true(contains(main, 'framework_core.get_setting("rotation_enabled", true) == false'), "master rotation toggle should gate execution")
+assert_true(contains(main, 'get_keybind_toggle_state(menu_elements.enable_script_check'), "master rotation toggle should read widget directly for persistence")
 
 assert_true(contains(dispatcher, "strategy_allowed"), "dispatcher should gate strategies from quick toggles")
 assert_true(contains(dispatcher, "settings.utility_enabled == false"), "utility toggle should gate utility rows")
