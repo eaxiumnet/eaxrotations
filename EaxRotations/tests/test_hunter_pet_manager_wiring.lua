@@ -220,13 +220,24 @@ assert_eq(#pet_update_calls, 1, "on_rotation_update: pet_manager.on_update shoul
 print("  [ PASS ] on_rotation_update: pet_manager.on_update called for warlock")
 
 -- ============================================================================
--- Contract 4: Non-pet class does NOT call pet_manager.on_update()
+-- Contract 4: on_rotation_update() calls pet_manager.on_update() for mages
+-- ============================================================================
+pet_update_calls = {}
+_G.EaxRotations.rotation_registry.class_config = { class_key = "mage", default_playstyle = "frost" }
+_G.EaxRotations.rotation_registry.playstyles.frost = {}
+_G.EaxRotations.class_middleware.mage = {}
+local result4 = _G.EaxRotations.on_rotation_update()
+assert_eq(#pet_update_calls, 1, "on_rotation_update: pet_manager.on_update should be called once for mage")
+print("  [ PASS ] on_rotation_update: pet_manager.on_update called for mage")
+
+-- ============================================================================
+-- Contract 5: Non-pet class does NOT call pet_manager.on_update()
 -- ============================================================================
 pet_update_calls = {}
 _G.EaxRotations.rotation_registry.class_config = { class_key = "warrior", default_playstyle = "arms" }
 _G.EaxRotations.rotation_registry.playstyles.arms = {}
 _G.EaxRotations.class_middleware.warrior = {}
-local result4 = _G.EaxRotations.on_rotation_update()
+local result5 = _G.EaxRotations.on_rotation_update()
 assert_eq(#pet_update_calls, 0, "on_rotation_update: pet_manager.on_update should NOT be called for warrior")
 print("  [ PASS ] on_rotation_update: pet_manager.on_update NOT called for warrior")
 

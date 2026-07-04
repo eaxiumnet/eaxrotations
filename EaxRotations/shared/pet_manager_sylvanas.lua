@@ -64,6 +64,10 @@ local FELHUNTER_SPELL = { 19647 }
 local FELGUARD_CLEAVE = { 30213 }
 local FELGUARD_INTERCEPT = { 30198, 30197, 30196 }
 
+-- Mage pet abilities (Water Elemental)
+local WATERBOLT       = { 31707 }
+local WATER_FREEZE    = { 33395 }
+
 local PET_SPECIALS = {
     { ids = PET_HOWL,    type = "howl" },
     { ids = PET_SCREECH, type = "screech" },
@@ -87,10 +91,14 @@ local function _get_state(spec)
             special_type = nil,
             warlock_id = nil,
             warlock_type = nil,
+            mage_waterbolt_id = nil,
+            mage_freeze_id = nil,
             last_growl = 0,
             last_damage = 0,
             last_special = 0,
             last_warlock = 0,
+            last_mage_freeze = 0,
+            last_mage_waterbolt = 0,
             last_mend = 0,
             last_follow = 0,
             last_attack = 0,
@@ -228,6 +236,25 @@ local function _scan_warlock_spells(st)
     st.pet_spells_scanned = true
 end
 
+local function _scan_mage_spells(st)
+    if st.pet_spells_scanned then return end
+    -- Water Elemental: Waterbolt
+    for i = #WATERBOLT, 1, -1 do
+        if NS.spell_id_is_known(WATERBOLT[i]) then
+            st.mage_waterbolt_id = WATERBOLT[i]
+            break
+        end
+    end
+    -- Water Elemental: Freeze (AoE root)
+    for i = #WATER_FREEZE, 1, -1 do
+        if NS.spell_id_is_known(WATER_FREEZE[i]) then
+            st.mage_freeze_id = WATER_FREEZE[i]
+            break
+        end
+    end
+    st.pet_spells_scanned = true
+end
+
 -- ============================================================================
 -- Stance helpers (via platform pet_handler or fallback)
 -- ============================================================================
@@ -264,8 +291,11 @@ function M.on_update(me, target, spec, context)
 
     -- Scan spells once per spec
     local class_key = context.player_class_name or ""
-    if class_key:lower() == "warlock" then
+    local class_lower = class_key:lower()
+    if class_lower == "warlock" then
         _scan_warlock_spells(st)
+    elseif class_lower == "mage" then
+        _scan_mage_spells(st)
     else
         _scan_hunter_spells(st)
     end
@@ -330,6 +360,28 @@ function M.on_update(me, target, spec, context)
     if st.warlock_id and now - st.last_warlock > 2 then
         if M.try_cast(st.warlock_id, target) then
             st.last_warlock = now
+            return
+        end
+    end
+
+    -- Mage Water Elemental: Freeze (AoE root) when target not already rooted
+    if st.mage_freeze_id and now - st.last_mage_freeze > 25 then
+        local target_rooted = false
+        if target and NS.debuff_up then
+            target_rooted = NS.debuff_up(target, { 33395, 122, 865, 6131, 10230, 27088 }) -- Freeze / Frost Nova ranks
+        end
+        if not target_rooted then
+            if M.try_cast(st.mage_freeze_id, target) then
+                st.last_mage_freeze = now
+                return
+            end
+        end
+    end
+
+    -- Mage Water Elemental: Waterbolt (auto-cast by default; cast manually if needed)
+    if st.mage_waterbolt_id and now - st.last_mage_waterbolt > 3 then
+        if M.try_cast(st.mage_waterbolt_id, target) then
+            st.last_mage_waterbolt = now
             return
         end
     end
