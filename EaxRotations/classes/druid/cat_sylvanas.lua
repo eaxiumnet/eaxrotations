@@ -195,7 +195,7 @@ local snapshot_state = {
 -- Form-switch throttle: prevent rapid cat↔travel form oscillation when OOC.
 -- Any form cast sets this; subsequent form casts are blocked for FORM_SWITCH_COOLDOWN seconds.
 local _last_form_shift_time = -100
-local FORM_SWITCH_COOLDOWN = 2.0
+local FORM_SWITCH_COOLDOWN = 5.0
 
 -- Throttle build_state to once per frame to avoid rebuilding state N times
 -- per frame (once per strategy match function). Uses context.now when
@@ -520,7 +520,14 @@ end
 
 local function cat_form_matches(context, action)
     if NS.has_form and NS.has_form("cat") then return false end
+    if context.stance == STANCE_CAT then return false end
     if _last_form_shift_time > 0 and (get_now() - _last_form_shift_time) < FORM_SWITCH_COOLDOWN then return false end
+    -- Respect travel form for movement: if we're in travel form, OOC,
+    -- moving toward a distant target, stay in travel form until closer.
+    if not context.in_combat and context.is_moving and (context.target_range or 0) >= TRAVEL_FORM_RANGE then
+        if NS.has_form and NS.has_form("travel") then return false end
+        if context.stance == 4 then return false end
+    end
     return true
 end
 
@@ -590,9 +597,14 @@ end
 
 local function travel_form_matches(context, action)
     local state = build_state(context)
+    -- Default off — users opt-in via setting to prevent surprise form spam.
+    if not NS.setting_bool(state.settings, "cat_auto_travel_form", false) then return false end
     if state.in_combat then return false end
     if NS.has_form and NS.has_form("travel") then return false end
+    if context.stance == 4 then return false end
     if _last_form_shift_time > 0 and (get_now() - _last_form_shift_time) < FORM_SWITCH_COOLDOWN then return false end
+    -- Only useful when actually moving; stationary players don't need it.
+    if not context.is_moving then return false end
     if not state.target or state.target_range < TRAVEL_FORM_RANGE then return false end
     return true
 end
@@ -933,6 +945,12 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+    { name = "RemoveCurse",
+      matches = function(context)
+          if not (context.settings and context.settings.cat_auto_dispel) then return false end
+          return NS.spell_ready(SPELLS.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
+      end,
+      execute = function() return NS.try_cast(SPELLS.RemoveCurse, NS.PLAYER_UNIT, "[CAT] Remove Curse self", { skip_range = true }) end },
     { name = "PoolForRip", matches = pool_for_builder_matches, execute = wait_execute_execute },
     { name = "PoolForBuilderTick", matches = pool_for_builder_matches, execute = wait_execute_execute },
     { name = "PoolForExecuteBite", matches = wait_execute, execute = wait_execute_execute },
@@ -946,6 +964,22 @@ for i = 1, #ACTIONS do
         execute = function(context) return cast_and_record(context, action) end,
     }
 end
+
+table.insert(strategies, { name = "Healthstone",
+    matches = function(context)
+        local state = build_state(context)
+        if not state.in_combat then return false end
+        if (state.hp or 100) > 28 then return false end
+        return (state.healthstone_ready or 0) > 0
+    end,
+    execute = function(context)
+        local item_id = first_ready_item(HEALTHSTONE_IDS)
+        if item_id > 0 and NS.use_item_by_id then
+            return NS.use_item_by_id(item_id, context.me) and true or false
+        end
+        return false
+    end,
+})
 
 NS.rotation_registry:register("cat", strategies, { get_state = build_state })
 -- Druid cat rotation registered (production TBC: powershift, bleeds, openers, PvP, movement, snapshotting)
