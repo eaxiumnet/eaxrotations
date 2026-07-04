@@ -207,6 +207,18 @@ local function build_state(context)
     return disc_state
 end
 
+local function _engaged_with_player(context)
+    if not context.in_combat then return true end
+    local target = context.target
+    local me = context.me
+    if not target or not me then return true end
+    if (context.target_hp or 100) < 100 then return true end
+    local ok, enemy_target = pcall(function() return target:get_target() end)
+    if not ok or not enemy_target then return false end
+    if NS.same_unit and NS.same_unit(enemy_target, me) then return true end
+    return false
+end
+
 local function discipline_idle_damage_enabled(context)
     local settings = context and context.settings or EMPTY_SETTINGS
     if settings.discipline_dps_when_idle == true then return true end
@@ -373,6 +385,7 @@ end
 local function idle_swp_matches(context, s)
     if not context.in_combat then return false end
     if not context.has_valid_enemy_target then return false end
+    if not _engaged_with_player(context) then return false end
     if not discipline_idle_damage_enabled(context) then return false end
     if (s.mana_pct or context.mana_pct or 100) < ((context.settings or EMPTY_SETTINGS).discipline_dps_mana_floor or 35) then return false end
     if not group_stable_for_idle_damage(context, s) then return false end
@@ -385,6 +398,7 @@ local function idle_smite_matches(context, s)
     if context.is_moving then return false end
     if not context.in_combat then return false end
     if not context.has_valid_enemy_target then return false end
+    if not _engaged_with_player(context) then return false end
     if not discipline_idle_damage_enabled(context) then return false end
     if (s.mana_pct or context.mana_pct or 100) < ((context.settings or EMPTY_SETTINGS).discipline_dps_mana_floor or 35) then return false end
     if not group_stable_for_idle_damage(context, s) then return false end
@@ -396,6 +410,7 @@ local function holy_fire_matches(context, s)
     if context.is_moving then return false end
     if not context.in_combat then return false end
     if not context.has_valid_enemy_target then return false end
+    if not _engaged_with_player(context) then return false end
     if not discipline_idle_damage_enabled(context) then return false end
     if (s.mana_pct or context.mana_pct or 100) < ((context.settings or EMPTY_SETTINGS).discipline_dps_mana_floor or 45) then return false end
     if not group_stable_for_idle_damage(context, s) then return false end
