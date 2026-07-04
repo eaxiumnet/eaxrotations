@@ -24,6 +24,15 @@ Death Coil is a powerful emergency button: it fears the target and heals you for
 
 ---
 
+### ? Feature: Hunter — Deterrence Emergency Defensive
+
+**All three Hunter specs now automatically activate Deterrence when you drop below 25% HP in combat.**
+
+Deterrence is a 5-minute survival cooldown that massively increases your dodge and parry chance. When a melee mob closes the gap and your health is critical, the rotation pops it automatically — no button press required. Covers Beast Mastery, Marksmanship, and Survival.
+
+
+---
+
 ### ? Feature: Target-Switch State Hygiene
 
 **Switching targets now correctly resets TTD (Time-To-Death) tracking.**
