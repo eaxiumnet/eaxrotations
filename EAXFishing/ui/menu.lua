@@ -108,6 +108,8 @@ function M.render_menu(ctx)
         h:render("Requires SentinelNavClient to be loaded", C.warning)
         config.menu.pool_tracking:render("Navigate to Pools",
             "Automatically walks to nearby fish pools before casting.")
+        config.menu.smart_pool_ranking:render("Smart Pool Ranking",
+            "When enabled, prefers high-value pools (Crawdad, Eel, Sporefish) over closer low-value pools. When disabled, simply goes to the nearest pool.")
         config.menu.only_pools_wreckage:render("Only Cast at Pools",
             "Skips open water — only casts when standing near a named pool.")
         config.menu.pool_search_range:render("Scan Range (y)",

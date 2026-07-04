@@ -586,11 +586,50 @@ function M.tick(ctx)
             local only_wreckage = deps.config.menu.only_pools_wreckage
                 and deps.config.menu.only_pools_wreckage:get_state()
 
-            -- Scan objects for the best-scored fish pool (value-weighted)
-            local PoolRanker = require("fishing/pool_ranker")
-            local nearest_pool, pool_score = PoolRanker.find_best_pool(
-                ctx, me, p, search_range_sq, only_wreckage
-            )
+            -- Scan objects for the best pool.
+            -- Smart ranking: value-weighted scorer when enabled; nearest-pool fallback when disabled.
+            local smart_ranking_on = deps.config.menu.smart_pool_ranking
+                and deps.config.menu.smart_pool_ranking:get_state()
+            local nearest_pool = nil
+            if smart_ranking_on then
+                local PoolRanker = require("fishing/pool_ranker")
+                nearest_pool = PoolRanker.find_best_pool(
+                    ctx, me, p, search_range_sq, only_wreckage
+                )
+            else
+                -- Legacy: nearest pool by distance only
+                local nearest_dist_sq = math.huge
+                local objects = APISurface.get_all_objects()
+                for _, obj in ipairs(objects) do
+                    if APISurface.is_valid(obj) then
+                        local name = APISurface.get_object_name(obj)
+                        local is_pool = false
+                        if type(name) == "string" then
+                            if deps.constants.OBJECTS.POOLS and deps.constants.OBJECTS.POOLS[name] then
+                                is_pool = true
+                            else
+                                is_pool = string.find(name, "Pool", 1, true)
+                                    or string.find(name, "School", 1, true)
+                                    or string.find(name, "Wreckage", 1, true)
+                            end
+                        end
+                        if is_pool then
+                            if not only_wreckage or string.find(name, "Wreckage", 1, true) then
+                                local pos = APISurface.get_object_position(obj)
+                                if pos then
+                                    local dx = p.x - pos.x
+                                    local dy = p.y - pos.y
+                                    local dist_sq = dx*dx + dy*dy
+                                    if dist_sq < search_range_sq and dist_sq < nearest_dist_sq then
+                                        nearest_dist_sq = dist_sq
+                                        nearest_pool = obj
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
 
             if nearest_pool then
                 local pool_pos = APISurface.get_object_position(nearest_pool)

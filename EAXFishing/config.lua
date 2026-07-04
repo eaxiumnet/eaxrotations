@@ -52,6 +52,7 @@ config.menu = {
 
     -- Pool Navigation
     pool_tracking            = safe_menu(_menu.checkbox, false, "fishing_pool_tracking"),
+    smart_pool_ranking       = safe_menu(_menu.checkbox, true,  "fishing_smart_pool_ranking"),
     only_pools_wreckage      = safe_menu(_menu.checkbox, false, "fishing_only_pools_wreckage"),
     pool_search_range        = safe_menu(_menu.slider_int, 10, 500, 250, "fishing_pool_search_range"),
     pool_standoff_distance   = safe_menu(_menu.slider_int, 5,  40,  15,  "fishing_pool_standoff_distance"),
