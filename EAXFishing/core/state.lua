@@ -164,6 +164,7 @@ function M.create(now)
                 item_counts  = {},      -- [item_name] = count
                 vendor_copper = 0,      -- confirmed vendor value (Goldenscale Vendorfish only)
                 gold_start   = nil,     -- gold at session start (set on first tick)
+                lure_count   = 0,       -- total lures remaining in bags (for HUD)
             },
         },
     }
@@ -228,6 +229,8 @@ function M.reset_fishing(state)
     end
     -- Clear bag confirmation count
     state.bag.full_confirm_count = 0
+    -- Clear lure count so HUD doesn't show stale data
+    state.session.stats.lure_count = 0
     -- Clear rare catch alert so it doesn't persist across re-enable
     state.alert.active = false
     state.alert.text = ""

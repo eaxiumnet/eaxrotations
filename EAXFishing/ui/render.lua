@@ -166,6 +166,11 @@ function M.render(ctx)
         end
         row("Junk",       tostring(stats.gray_count), c_gray)
 
+        -- Lures remaining (new v2.3.1)
+        if stats.lure_count and stats.lure_count > 0 then
+            row("Lures",    tostring(stats.lure_count), c_green)
+        end
+
         -- Cooked count (new v2.3.0)
         if state.cook and state.cook.cooked_count > 0 then
             row("Cooked",   tostring(state.cook.cooked_count), c_green)

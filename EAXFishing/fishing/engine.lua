@@ -503,7 +503,8 @@ function M.tick(ctx)
                 state.fishing.last_action_time = now
                 return
             else
-                local lure, _, _ = Lures.find_best_lure(ctx)
+                local lure, _, _, count = Lures.find_best_lure(ctx)
+                state.session.stats.lure_count = count or 0
                 if not lure and state.lure.lure_apply_delay_end <= 0 then
                     if not state.fishing.no_lure_warned then
                         APISurface.print("[EaxFishing] No lure in bags - fishing without lure")
@@ -517,6 +518,9 @@ function M.tick(ctx)
         else
             -- Lure is active — reset the warning flag so it fires again next time lures run out
             state.fishing.no_lure_warned = false
+            -- Refresh lure count for HUD while active
+            local _, _, _, count = Lures.find_best_lure(ctx)
+            state.session.stats.lure_count = count or 0
         end
     end
     
@@ -640,9 +644,9 @@ function M.tick(ctx)
                     local desired_dist_plus_5 = desired_dist + 5
 
                     if dx*dx + dy*dy > desired_dist_plus_5 * desired_dist_plus_5 then
-                        -- Solve a shoreline standoff position
+                        -- Solve a shoreline standoff position (pass pool object for bounding-radius safety)
                         local standoff, _, throttled = ShorelineSolver.solve_shoreline_cached(
-                            ctx, now, p, pool_pos,
+                            ctx, now, p, pool_pos, nearest_pool,
                             desired_dist, depth_tol, search_range
                         )
 

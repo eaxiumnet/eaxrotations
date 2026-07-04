@@ -107,18 +107,48 @@ local LURE_ITEMS = {
 -- @return table? lure item object
 -- @return string? lure name
 -- @return number? lure item id
+-- @return number? stack count (total across all stacks)
 function M.find_best_lure(ctx)
+    local best_item = nil
+    local best_name = nil
+    local best_id = nil
+    local total_count = 0
+    
     for _, lure_info in ipairs(LURE_ITEMS) do
         local item = APISurface.get_item(lure_info.id)
         if item then
             local ok, count = pcall(item.count, item)
             if ok and count and count > 0 then
-                return item, lure_info.name, lure_info.id
+                if not best_item then
+                    best_item = item
+                    best_name = lure_info.name
+                    best_id = lure_info.id
+                end
+                total_count = total_count + count
             end
         end
     end
     
-    return nil, nil, nil
+    return best_item, best_name, best_id, total_count
+end
+
+--- Get total lure count across all lure types (for HUD display).
+-- @param ctx table context
+-- @return number total_count, number best_id
+function M.get_total_lure_count(ctx)
+    local total = 0
+    local best_id = nil
+    for _, lure_info in ipairs(LURE_ITEMS) do
+        local item = APISurface.get_item(lure_info.id)
+        if item then
+            local ok, count = pcall(item.count, item)
+            if ok and count and count > 0 then
+                total = total + count
+                if not best_id then best_id = lure_info.id end
+            end
+        end
+    end
+    return total, best_id
 end
 
 --- Try to apply a lure to the fishing pole
