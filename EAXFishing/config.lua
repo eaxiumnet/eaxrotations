@@ -153,6 +153,9 @@ config.menu = {
 
     -- v2.4.3: Advanced stealth
     stealth_face_away = safe_menu(_menu.checkbox, true, "fishing_stealth_face_away"),
+
+    -- v2.4.3: Human behaviors (subtle realism)
+    human_behaviors_enabled = safe_menu(_menu.checkbox, true, "fishing_human_behaviors"),
 }
 
 return config

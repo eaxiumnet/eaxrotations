@@ -29,6 +29,7 @@ local Relog       = require("core/relog")
 local Conditions  = require("core/conditions")
 local SoundMgr    = require("core/sound_manager")
 local WaterWalking = require("fishing/water_walking")
+local HumanBehaviors = require("core/human_behaviors")
 
 local M = {}
 
@@ -342,6 +343,14 @@ function M.tick(ctx)
                             local wait_ms = (state.bite.reaction_deadline - now) * 1000
                             state.fishing.status = "Splash! (" .. string.format("%.0f", wait_ms) .. "ms)..."
                             return
+                        end
+
+                        -- v2.4.3: Human behavior — gaze at bobber before clicking
+                        if deps.config.menu.human_behaviors_enabled
+                           and deps.config.menu.human_behaviors_enabled:get_state() then
+                            if HumanBehaviors.gaze_at_bobber(ctx, me_fast, now) then
+                                return
+                            end
                         end
 
                         -- CLICK
@@ -937,6 +946,22 @@ function M.tick(ctx)
                     }
                     APISurface.look_at(target)
                 end
+            end
+        end
+
+        -- v2.4.3: Human behavior — look around before casting
+        if deps.config.menu.human_behaviors_enabled
+           and deps.config.menu.human_behaviors_enabled:get_state() then
+            if HumanBehaviors.look_around_before_cast(ctx, me, now) then
+                return
+            end
+        end
+
+        -- v2.4.3: Human behavior — idle stare after catch
+        if deps.config.menu.human_behaviors_enabled
+           and deps.config.menu.human_behaviors_enabled:get_state() then
+            if HumanBehaviors.idle_stare_after_catch(ctx, me, now) then
+                return
             end
         end
 

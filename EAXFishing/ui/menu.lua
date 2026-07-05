@@ -254,6 +254,10 @@ function M.render_menu(ctx)
                     "How close a player must be to trigger slowdown. Default 30y.")
                 config.menu.stealth_face_away:render("Face Away From Players",
                     "When a player is within 10 yards, turns away from them. Looks more natural than staring directly at them while fishing.")
+
+                h:render("HUMAN BEHAVIORS", C.sub)
+                config.menu.human_behaviors_enabled:render("Subtle Human Behaviors",
+                    "Look around before casting (15%), gaze at bobber before clicking (40%), and stare into the distance after catches (10%). Adds 0.3-2s max per behavior. Minimal impact on catches/hr but highly realistic.")
             end)
         else
             h:render("STEALTH", C.section)

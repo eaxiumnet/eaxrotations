@@ -223,6 +223,13 @@ function M.create(now)
             paused                = false,
         },
 
+        -- v2.4.3: Human behaviors state
+        human_behaviors = {
+            last_lookaround   = 0.0,
+            bobber_gaze_end   = 0.0,
+            idle_stare_end    = 0.0,
+        },
+
         -- v2.4.2: Water walking buff state
         water_walking = {
             last_try_time    = 0.0,
@@ -408,6 +415,12 @@ function M.reset_fishing(state)
     if state.water_walking then
         state.water_walking.last_try_time = 0.0
         state.water_walking.reaction_deadline = nil
+    end
+    -- v2.4.3: reset human behaviors state
+    if state.human_behaviors then
+        state.human_behaviors.last_lookaround = 0.0
+        state.human_behaviors.bobber_gaze_end = 0.0
+        state.human_behaviors.idle_stare_end = 0.0
     end
 end
 
