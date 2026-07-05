@@ -4,15 +4,25 @@
 **Goal:** Make EaxRotations the highest-fidelity, most complete rotation system for WoW Classic (Vanilla) and TBC across solo, dungeon, raid, and PvP by grounding every spec in authoritative APLs, wowsims, guides, and pro/community sources.
 
 ## Phase 1 — Audit current state and collect sources
-- [ ] Map every spec to its canonical wowsims APL / SimC APL / Class Discord PvE BiS guide.
-- [ ] Identify PvP sources: classic WoW arena guides, pro streamer VoDs, class-discord PvP channels.
-- [ ] Solo/leveling: community speedrun guides, Classic/TBC leveling route docs.
-- [ ] Index all sources into context-mode so they can be queried without re-fetching.
-- [ ] Produce gap matrix: per spec, list missing mechanics, wrong prios, outdated thresholds.
+- [x] Map every spec to its canonical wowsims APL / SimC APL / Class Discord PvE BiS guide.
+- [x] Identify PvP sources: classic WoW arena guides, pro streamer VoDs, class-discord PvP channels.
+- [x] Solo/leveling: community speedrun guides, Classic/TBC leveling route docs.
+- [x] Index all sources into context-mode so they can be queried without re-fetching.
+- [x] Produce gap matrix: per spec, list missing mechanics, wrong prios, outdated thresholds.
+
+**Report:** `plans/research_rotation_sources_report.md`
+**Audit:** agent output `tasks/8e985546-024e-4b3.output`
+
+## Phase 1b — Emergency P0 bugfixes (completed 2026-07-05)
+- [x] Shadow Priest multi-DoT spread now targets missing-dot enemies
+- [x] Hunter BM/Survival Serpent Sting refresh
+- [x] Hunter Marksmanship disables in-combat Aimed Shot
+- [x] All changes committed with CHANGELOG.md customer-facing entries
+- [x] 219 rotation + 13 leveling suites green
 
 ## Phase 2 — Shared-system improvements
 Priority shared modules that affect every spec:
-- [ ] Cooldown planner (raid trinket/ability stacking).
+- [x] Cooldown planner (raid trinket/ability stacking).
 - [ ] Movement / pre-positioning for mechanics.
 - [ ] Dynamic stat snapshotting (trinket procs, haste buffs) for DoT/Finisher decisions.
 - [ ] Cleave / AoE target caps (TBC-specific: most spells have soft caps).

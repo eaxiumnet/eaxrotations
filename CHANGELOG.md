@@ -2,6 +2,31 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.3.14] — Cooldown Planner: Stack Trinkets with Bloodlust & Major CDs (2026-07-05)
+
+### Features
+
+- **New shared module: `shared/cooldown_planner_sylvanas.lua`**
+  - Detects Bloodlust/Heroism and TBC drums on the player.
+  - Detects major offensive cooldowns: Arcane Power, Icy Veins, Avenging Wrath, Bestial Wrath, Shamanistic Rage, Elemental Mastery, Power Infusion, Death Wish, Recklessness.
+  - `should_fire_offensive()` aligns offensive trinkets/abilities with these power windows.
+  - Timeout fallback (45s into combat) and TTD fallback (≤15s) stop trinkets from being held forever.
+  - `trinket_align_with_cds = false` setting restores legacy "fire on cooldown" behavior.
+
+- **Trinket Manager:** added `Berserker's Call` (item 33853) to the offensive on-use database.
+- **Mage Arcane:** Arcane Power now also fires when Icy Veins or another major offensive CD is active, not just during bloodlust/burn.
+- **Paladin Retribution:** Avenging Wrath now waits for Bloodlust/Drums/major CDs unless the target is dying or 45s timeout has passed.
+
+### What to Expect
+
+- DPS specs will overlap offensive trinkets and major abilities with Bloodlust/Heroism and other temporary power buffs instead of firing them randomly.
+- No regression for users who prefer legacy behavior (`trinket_align_with_cds = false`).
+- Drop-in replacement. Delete your old `EaxRotations` folder and replace with this one.
+- All your settings carry over automatically.
+- No settings reset needed.
+
+---
+
 ## [2.3.13] — Hotfix: Hunter Serpent Sting Refresh + Marksmanship Aimed Shot (2026-07-05)
 
 ### Bug Fixes
