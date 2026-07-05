@@ -186,6 +186,16 @@ function M.render(ctx)
             row("Pinchy",    tostring(state.pinchy.uses_total), c_gold)
         end
 
+        -- Auto-sell junk (new v2.4.0)
+        if state.autosell and state.autosell.sold_count > 0 then
+            row("Sold",      tostring(state.autosell.sold_count), c_green)
+        end
+
+        -- Auto-delete junk (new v2.4.0)
+        if state.autodelete and state.autodelete.deleted_count > 0 then
+            row("Deleted",   tostring(state.autodelete.deleted_count), c_gray)
+        end
+
         -- Top items caught (up to 6)
         local sorted = {}
         for name, count in pairs(stats.item_counts) do

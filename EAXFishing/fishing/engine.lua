@@ -20,6 +20,8 @@ local Stealth = require("core/stealth")
 local APISurface = require("core/api_surface")
 local Containers = require("fishing/containers")
 local MrPinchy   = require("fishing/mr_pinchy")
+local AutoSell   = require("inventory/auto_sell")
+local AutoDelete = require("inventory/auto_delete")
 
 local M = {}
 
@@ -373,6 +375,22 @@ function M.tick(ctx)
         end
         
         if should_auto_stop and Bags.is_bags_full(ctx) then
+            -- v2.4.0: Try auto-delete junk before hard-stopping
+            if deps.config.menu.auto_delete_junk and deps.config.menu.auto_delete_junk:get_state() then
+                if AutoDelete.try_delete_junk(ctx, me, now) then
+                    state.fishing.status = "Deleting junk..."
+                    Bags.reset_full_confirm(ctx)
+                    return
+                end
+            end
+            -- v2.4.0: Try auto-sell junk if vendor is open
+            if deps.config.menu.auto_sell_junk and deps.config.menu.auto_sell_junk:get_state() then
+                if AutoSell.try_sell_junk(ctx, me, now) then
+                    state.fishing.status = "Selling junk..."
+                    Bags.reset_full_confirm(ctx)
+                    return
+                end
+            end
             Bags.increment_full_confirm(ctx)
             if Bags.get_full_confirm_count(ctx) >= 3 then
                 state.fishing.status = "Bags Full - Stopped"
