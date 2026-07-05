@@ -158,6 +158,8 @@ function M.install(NS)
     end
 
     function NS.has_set_bonus(item_ids, pieces)
-        return NS.count_equipped_set(item_ids) >= (pieces or 2) end
+        return NS.count_equipped_set(item_ids) >= (pieces or 2)
+    end
+end
 
 return M

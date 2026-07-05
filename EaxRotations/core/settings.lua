@@ -76,7 +76,9 @@ function M.install(NS, deps)
         settings_table[key] = value
         _settings_cache[key] = value
         if settings_manager and value ~= last then
-            pcall(function() settings_manager:set(key, value) end) end
+            pcall(function() settings_manager:set(key, value) end)
+        end
+    end
 
     function NS.setting(context, key, default)
         local settings = context and context.settings

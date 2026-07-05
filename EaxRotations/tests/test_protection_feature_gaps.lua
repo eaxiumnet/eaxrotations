@@ -77,7 +77,9 @@ _G.EaxRotations = {
     },
 }
 
-local strategies = dofile("EaxRotations/classes/warrior/protection_sylvanas.lua")
+local result = dofile("EaxRotations/classes/warrior/protection_sylvanas.lua")
+assert_true(result, "rotation module should load")
+local strategies = (type(result) == "table" and result.strategies) or result
 assert_true(strategies, "strategies table should load")
 assert_true(#strategies > 0, "strategies table should have entries")
 

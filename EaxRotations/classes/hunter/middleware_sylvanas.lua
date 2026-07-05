@@ -170,7 +170,9 @@ local strategies = {
             local settings = context.settings or {}
             if settings.misdirection_on_focus ~= false then
                 if NS.GetFocus then
-                    target = NS.GetFocus() end
+                    target = NS.GetFocus()
+                end
+            end
 
             -- Fall back to pet if focus not available
             if not target and NS.GetPet then

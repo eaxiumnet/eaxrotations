@@ -296,7 +296,9 @@ local strategies = {
                         if stance == STANCE_CAT or stance == STANCE_BEAR then
                             local form_spell = (stance == STANCE_CAT) and SPELLS.CatForm or SPELLS.BearForm
                             if form_spell then
-                                NS.try_cast(form_spell, context.me, "[DRUID] Reshift after item", { skip_range = true }) end
+                                NS.try_cast(form_spell, context.me, "[DRUID] Reshift after item", { skip_range = true })
+                            end
+                        end
                         return true
                     end
                 end
@@ -310,7 +312,9 @@ local strategies = {
                         if stance == STANCE_CAT or stance == STANCE_BEAR then
                             local form_spell = (stance == STANCE_CAT) and SPELLS.CatForm or SPELLS.BearForm
                             if form_spell then
-                                NS.try_cast(form_spell, context.me, "[DRUID] Reshift after item", { skip_range = true }) end
+                                NS.try_cast(form_spell, context.me, "[DRUID] Reshift after item", { skip_range = true })
+                            end
+                        end
                         return true
                     end
                 end
@@ -320,7 +324,9 @@ local strategies = {
                         if stance == STANCE_CAT or stance == STANCE_BEAR then
                             local form_spell = (stance == STANCE_CAT) and SPELLS.CatForm or SPELLS.BearForm
                             if form_spell then
-                                NS.try_cast(form_spell, context.me, "[DRUID] Reshift after item", { skip_range = true }) end
+                                NS.try_cast(form_spell, context.me, "[DRUID] Reshift after item", { skip_range = true })
+                            end
+                        end
                         return true
                     end
                 end
@@ -513,6 +519,7 @@ local strategies = {
                 if NS.has_player_buff and NS.has_player_buff(bs_buffs) then return false end
                 local spell = SPELLS.Barkskin or { id = bs_buffs, name = "Barkskin" }
                 if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            end
             return false
         end,
         execute = function(context)
@@ -570,7 +577,9 @@ local strategies = {
                             local m_mana = 100
                             pcall(function() m_mana = member:get_mana_percentage() end)
                             if m_mana <= threshold then
-                                return NS.try_cast(spell, member, "[DRUID] Innervate (Healer)", { skip_range = true }) end
+                                return NS.try_cast(spell, member, "[DRUID] Innervate (Healer)", { skip_range = true })
+                            end
+                        end
                     end
                 end
             end
@@ -617,7 +626,9 @@ local strategies = {
                         local alive = true
                         pcall(function() alive = member:is_alive() end)
                         if not alive then
-                            return NS.try_cast(spell, member, "[DRUID] Rebirth", { skip_range = true }) end
+                            return NS.try_cast(spell, member, "[DRUID] Rebirth", { skip_range = true })
+                        end
+                    end
                 end
             end
             return false
