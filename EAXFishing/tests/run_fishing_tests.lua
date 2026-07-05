@@ -28,6 +28,10 @@ local known_tests = {
   "test_config_safe_menu.lua",
   "test_pool_ranker.lua",
   "test_cook.lua",
+  "test_containers.lua",
+  "test_mr_pinchy.lua",
+  "test_quest_tracker.lua",
+  "test_sound_manager.lua",
 }
 
 local passed, failed = 0, 0

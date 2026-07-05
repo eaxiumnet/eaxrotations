@@ -33,6 +33,15 @@ config.menu = {
     root    = safe_menu(_menu.tree_node),
     enabled = safe_menu(_menu.checkbox, false, "fishing_enabled"),
 
+    -- v2.4.1: Collapsible menu sections
+    gear_tree     = safe_menu(_menu.tree_node),
+    timing_tree   = safe_menu(_menu.tree_node),
+    pool_tree     = safe_menu(_menu.tree_node),
+    auto_tree     = safe_menu(_menu.tree_node),
+    sound_tree    = safe_menu(_menu.tree_node),
+    stealth_tree  = safe_menu(_menu.tree_node),
+    visuals_tree  = safe_menu(_menu.tree_node),
+
     -- Gear
     auto_equip    = safe_menu(_menu.checkbox, true,  "fishing_auto_equip"),
     auto_lure     = safe_menu(_menu.checkbox, true,  "fishing_auto_lure"),
