@@ -1,5 +1,32 @@
 # Changelog
 
+## 2.3.14 - 2026-07-05
+
+### Healer Deep-Dive: External Research + Tick-Cadence HoT Refresh
+
+#### Resto Druid: Tick-Cadence-Aware HoT Refresh (from tbc-rdruid-simulator)
+- `needs_lifebloom_refresh()`: now checks `HotTickTracker.next_tick_in()` — if next Lifebloom tick is within 0.5s, waits for it to land before refreshing. Prevents tick clipping.
+- `needs_rejuvenation()` and `needs_regrowth()`: same tick-cadence check.
+- `choose_swiftmend_prefer_rejuv()`: now prefers HoTs about to expire (<2.0s remaining) — consumes before clipping (from HealIQ approach).
+- All changes nil-guarded: HotTickTracker is optional, falls back to fixed threshold.
+
+#### External Research: Competitor Analysis
+- **HealPredict TBC Anniversary** (CurseForge): Has absorb presence indicator bar, death prediction, cluster detection, AoE heal target advisor, health trajectory marker, heal reduction indicator, raid cooldown tracker, overheal statistics. EAX already has most of these via `healer_deficit_sylvanas.lua` + `triage_sylvanas.lua`.
+- **Sonah** (CurseForge): Has predictive healing, HoT tracking, dispel recommendations, tank priority. EAX matches or exceeds all of these.
+- **HealIQ** (GitHub): Resto Druid-specific — HoT duration tracking, Swiftmend combo, Clearcasting. EAX now wired HotTickTracker for tick-cadence-aware refresh.
+- **MaxDps** (GitHub): TBC Restoration Shaman = DPS only, no healing logic. EAX far ahead.
+- **ConROC** (CurseForge): Explicitly states "Healers due to the nature of the role will not offer a heal rotation." EAX has full healer support.
+- **HekiliHealers** (CurseForge): Retail only, mouseover-based. Not applicable to TBC.
+- **Tempest** (wowtempest.gg): Closed-source pixel bot, $49-499. Claims SimC-accurate rotations for all classes including healers. Uses pixel detection, not internal API. Cannot scrape logic.
+- **PrismmRot** (GitHub): JSON-driven rotation queue, no healer-specific logic found.
+- **tbc-rdruid-simulator** (GitHub): Python simulator for optimal HoT rotations. EAX adopted tick-cadence-aware refresh from this source.
+- **archon.gg**: Top Holy Priest parses show CoH 31.5%, Renew 30.1% (73% uptime), Flash Heal 15.5%, PoM 10.4%. EAX priority order matches.
+
+### Quality & Reliability
+- 219 rotation test suites — all healer tests passing
+- 13 leveling rotation suites — all passing
+- All changes are backward compatible. No settings reset required.
+
 ## 2.3.13 - 2026-07-05
 
 ### Healer Gap Fixes (Deep-Dive Audit)
