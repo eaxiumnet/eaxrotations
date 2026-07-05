@@ -23,6 +23,8 @@ local MrPinchy   = require("fishing/mr_pinchy")
 local AutoSell   = require("inventory/auto_sell")
 local AutoDelete = require("inventory/auto_delete")
 local QuestTracker = require("fishing/quest_tracker")
+local Responder   = require("core/responder")
+local Hearth      = require("navigation/hearth")
 
 local M = {}
 
@@ -145,6 +147,14 @@ function M.tick(ctx)
         state.safety.hard_stop = false
     end
     
+    -- v2.4.0: Hearth return check (if hearthing state is active)
+    if state.hearth.state == "hearth" or state.hearth.state == "returning" then
+        local me_h = APISurface.get_local_player()
+        if me_h and APISurface.is_valid(me_h) and not APISurface.is_in_combat(me_h) then
+            Hearth.try_return(ctx, me_h, now)
+        end
+    end
+
     -- Hard safety stop
     if state.safety.hard_stop then
         if state.profile.was_enabled then
@@ -390,6 +400,13 @@ function M.tick(ctx)
             if deps.config.menu.auto_sell_junk and deps.config.menu.auto_sell_junk:get_state() then
                 if AutoSell.try_sell_junk(ctx, me, now) then
                     state.fishing.status = "Selling junk..."
+                    Bags.reset_full_confirm(ctx)
+                    return
+                end
+            end
+            -- v2.4.0: Try auto-hearth if enabled (before hard stop)
+            if deps.config.menu.auto_hearth_full and deps.config.menu.auto_hearth_full:get_state() then
+                if Hearth.try_hearth(ctx, me, now) then
                     Bags.reset_full_confirm(ctx)
                     return
                 end

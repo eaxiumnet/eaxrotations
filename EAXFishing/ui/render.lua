@@ -215,6 +215,16 @@ function M.render(ctx)
             row("Quest",     state.quest.quest_fish_name, c_gold)
         end
 
+        -- Whisper alerts (new v2.4.0)
+        if state.responder and state.responder.responses_total > 0 then
+            row("Whispers",  tostring(state.responder.responses_total), c_gray)
+        end
+
+        -- Hearth state (new v2.4.0)
+        if state.hearth and state.hearth.state ~= "idle" then
+            row("Hearth",    state.hearth.state, c_gray)
+        end
+
         -- Top items caught (up to 6)
         local sorted = {}
         for name, count in pairs(stats.item_counts) do
