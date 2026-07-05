@@ -307,6 +307,9 @@ local function viper_sting_matches(context, s)
 end
 
 local function bestial_wrath_matches(context, s)
+    -- Bestial Wrath is a 31-point Beast Mastery talent; MM builds lack it.
+    if not SPELLS.BestialWrath then return false end
+    if NS.is_spell_learned and not NS.is_spell_learned(SPELLS.BestialWrath) then return false end
     if not s.in_combat then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not s.pet_alive then return false end
