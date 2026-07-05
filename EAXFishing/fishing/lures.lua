@@ -234,6 +234,8 @@ function M.try_apply_lure(ctx, me, now)
     if applied then
         -- Set assumed expiration time
         state.lure.assumed_expire_time = now + M.get_assumed_duration(lure_id)
+        -- v2.4.1: reset lure expiry warning flag so it fires again for the new lure
+        if state.qol then state.qol.lure_expiry_warned = false end
         APISurface.print("[EaxFishing] Lure applied successfully")
         return true
     else

@@ -235,6 +235,41 @@ function M.render(ctx)
             row("Window",    "Closed", c_gray)
         end
 
+        -- Catch streak (new v2.4.1)
+        if deps.config.menu.show_catch_streak and deps.config.menu.show_catch_streak:get_state() then
+            if state.qol and state.qol.catch_streak > 1 then
+                row("Streak",    tostring(state.qol.catch_streak) .. " (best: " .. state.qol.best_catch_streak .. ")", c_green)
+            end
+        end
+
+        -- Lure expiration timer (new v2.4.1)
+        if deps.config.menu.show_lure_timer and deps.config.menu.show_lure_timer:get_state() then
+            if state.lure and state.lure.assumed_expire_time > 0 then
+                local lure_remaining = state.lure.assumed_expire_time - APISurface.now()
+                if lure_remaining > 0 then
+                    local mins = math.floor(lure_remaining / 60)
+                    local secs = math.floor(lure_remaining % 60)
+                    local col = lure_remaining < 60 and c_gray or c_green
+                    row("Lure",      string.format("%dm %02ds", mins, secs), col)
+                end
+            end
+        end
+
+        -- Coordinates (new v2.4.1)
+        if deps.config.menu.show_coordinates and deps.config.menu.show_coordinates:get_state() then
+            if type(me.get_position) == "function" then
+                local ok, p = pcall(me.get_position, me)
+                if ok and p and type(p.x) == "number" then
+                    row("Coords",    string.format("%.1f, %.1f", p.x, p.y), c_gray)
+                end
+            end
+        end
+
+        -- Paused indicator (new v2.4.1)
+        if state.qol and state.qol.paused then
+            row("Paused",     "YES", c_gray)
+        end
+
         -- Top items caught (up to 6)
         local sorted = {}
         for name, count in pairs(stats.item_counts) do

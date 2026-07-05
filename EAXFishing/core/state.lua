@@ -206,6 +206,15 @@ function M.create(now)
             window_checked_at  = 0.0,
         },
 
+        -- v2.4.1: QoL state
+        qol = {
+            lure_expiry_warned    = false,
+            catch_streak          = 0,
+            best_catch_streak     = 0,
+            last_lure_expire_time = 0.0,
+            paused                = false,
+        },
+
         -- Rare catch alert state
         alert = {
             active = false,
@@ -372,6 +381,14 @@ function M.reset_fishing(state)
     if state.conditions then
         state.conditions.in_fishing_window = true
         state.conditions.window_checked_at = 0.0
+    end
+    -- v2.4.1: reset QoL state
+    if state.qol then
+        state.qol.lure_expiry_warned = false
+        state.qol.catch_streak = 0
+        state.qol.best_catch_streak = 0
+        state.qol.last_lure_expire_time = 0.0
+        state.qol.paused = false
     end
 end
 

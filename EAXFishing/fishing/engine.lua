@@ -27,6 +27,7 @@ local Responder   = require("core/responder")
 local Hearth      = require("navigation/hearth")
 local Relog       = require("core/relog")
 local Conditions  = require("core/conditions")
+local SoundMgr    = require("core/sound_manager")
 
 local M = {}
 
@@ -144,6 +145,12 @@ function M.tick(ctx)
         enabled = deps.config.menu.enabled:get_state()
     end
     
+    -- v2.4.1: QoL pause check — skip all fishing if paused via hotkey
+    if state.qol and state.qol.paused then
+        state.fishing.status = "Paused"
+        return
+    end
+
     -- Reset hard_stop when manually disabled then re-enabled
     if not enabled and state.safety.hard_stop then
         state.safety.hard_stop = false
@@ -310,6 +317,8 @@ function M.tick(ctx)
                             state.session.escaped = state.session.escaped + 1
                             State.reset_bite(state)
                             state.fishing.consecutive_catches = 0
+                            -- v2.4.1: reset catch streak on escape
+                            state.qol.catch_streak = 0
                             state.fishing.awaiting_bobber = false
                             state.fishing.next_cast_time = now + (1.5 + math.random() * 1.0)
                             return
@@ -321,6 +330,8 @@ function M.tick(ctx)
                             state.session.misses = state.session.misses + 1
                             State.reset_bite(state)
                             state.fishing.consecutive_catches = 0
+                            -- v2.4.1: reset catch streak on miss
+                            state.qol.catch_streak = 0
                             state.fishing.awaiting_bobber = false
                             state.fishing.next_cast_time = now + (2.0 + math.random() * 1.5)
                             return
@@ -340,6 +351,13 @@ function M.tick(ctx)
                             State.reset_bite(state)
                             state.fishing.consecutive_catches = state.fishing.consecutive_catches + 1
                             state.session.catches = state.session.catches + 1
+                            -- v2.4.1: catch streak tracking
+                            state.qol.catch_streak = state.qol.catch_streak + 1
+                            if state.qol.catch_streak > state.qol.best_catch_streak then
+                                state.qol.best_catch_streak = state.qol.catch_streak
+                            end
+                            -- v2.4.1: play catch sound (if enabled)
+                            SoundMgr.play_for_event(ctx, "catch")
                             -- v2.4.0: pool depletion tracking — count catches at current pool
                             state.pool_depletion.catches_at_pool = state.pool_depletion.catches_at_pool + 1
                             state.fishing.status = "Caught! (" .. state.session.catches .. ")"
@@ -372,6 +390,21 @@ function M.tick(ctx)
     if APISurface.is_dead(me) or APISurface.is_ghost(me) then
         state.fishing.status = "Dead"
         return
+    end
+
+    -- v2.4.1: Auto-pause if HP below threshold (don't fish while dying)
+    if deps.config.menu.auto_pause_low_hp and deps.config.menu.auto_pause_low_hp:get_state() then
+        local hp_threshold = 20
+        if deps.config.menu.auto_pause_hp_threshold and deps.config.menu.auto_pause_hp_threshold.get then
+            hp_threshold = deps.config.menu.auto_pause_hp_threshold:get()
+        end
+        if me and type(me.get_health_percentage) == "function" then
+            local ok, hp_pct = pcall(me.get_health_percentage, me)
+            if ok and hp_pct and hp_pct < hp_threshold then
+                state.fishing.status = "Low HP — paused"
+                return
+            end
+        end
     end
     
     -- Handle navigation
@@ -430,6 +463,8 @@ function M.tick(ctx)
             Bags.increment_full_confirm(ctx)
             if Bags.get_full_confirm_count(ctx) >= 3 then
                 state.fishing.status = "Bags Full - Stopped"
+                -- v2.4.1: play bags-full sound
+                SoundMgr.play_for_event(ctx, "bags_full")
                 state.safety.hard_stop = true
                 state.bag.safety_lock_active = true
                 -- Disable via menu
@@ -599,6 +634,21 @@ function M.tick(ctx)
             -- Refresh lure count for HUD while active
             local _, _, _, count = Lures.find_best_lure(ctx)
             state.session.stats.lure_count = count or 0
+            -- v2.4.1: Lure expiration warning
+            if deps.config.menu.show_lure_timer and deps.config.menu.show_lure_timer:get_state() then
+                local remaining = state.lure.assumed_expire_time - now
+                if remaining > 0 then
+                    local warn_secs = 60
+                    if deps.config.menu.lure_expiry_warn_secs and deps.config.menu.lure_expiry_warn_secs.get then
+                        warn_secs = deps.config.menu.lure_expiry_warn_secs:get()
+                    end
+                    if remaining <= warn_secs and not state.qol.lure_expiry_warned then
+                        SoundMgr.play_for_event(ctx, "lure_expiring")
+                        APISurface.print("[EaxFishing] Lure expiring in " .. math.floor(remaining) .. "s")
+                        state.qol.lure_expiry_warned = true
+                    end
+                end
+            end
         end
     end
     
@@ -747,6 +797,8 @@ function M.tick(ctx)
                    and state.pool_depletion.catches_at_pool == 0
                 then
                     APISurface.print("[EaxFishing] Pool appears depleted — skipping to next")
+                    -- v2.4.1: play pool-depleted sound
+                    SoundMgr.play_for_event(ctx, "pool_depleted")
                     state.pool_depletion.depleted_count = state.pool_depletion.depleted_count + 1
                     state.pool_depletion.current_pool_guid = nil
                     state.pool_depletion.casts_at_pool = 0

@@ -119,6 +119,24 @@ config.menu = {
 
     -- v2.4.0: Night-only fishing (time window)
     night_fishing_only = safe_menu(_menu.checkbox, false, "fishing_night_only"),
+
+    -- v2.4.1: Sound alerts (master + per-event)
+    sound_alerts_enabled  = safe_menu(_menu.checkbox, true,  "fishing_sound_alerts"),
+    sound_rare            = safe_menu(_menu.checkbox, true,  "fishing_sound_rare"),
+    sound_bags_full       = safe_menu(_menu.checkbox, true,  "fishing_sound_bags_full"),
+    sound_pool_depleted   = safe_menu(_menu.checkbox, false, "fishing_sound_pool_depleted"),
+    sound_lure_expiring   = safe_menu(_menu.checkbox, true,  "fishing_sound_lure_expiring"),
+    sound_whisper         = safe_menu(_menu.checkbox, true,  "fishing_sound_whisper"),
+    sound_disconnect      = safe_menu(_menu.checkbox, true,  "fishing_sound_disconnect"),
+    sound_catch           = safe_menu(_menu.checkbox, false, "fishing_sound_catch"),
+
+    -- v2.4.1: QoL toggles
+    show_coordinates      = safe_menu(_menu.checkbox, true,  "fishing_show_coords"),
+    show_catch_streak     = safe_menu(_menu.checkbox, true,  "fishing_show_streak"),
+    show_lure_timer       = safe_menu(_menu.checkbox, true,  "fishing_show_lure_timer"),
+    lure_expiry_warn_secs = safe_menu(_menu.slider_int, 30, 300, 60, "fishing_lure_expiry_warn"),
+    auto_pause_low_hp     = safe_menu(_menu.checkbox, false, "fishing_auto_pause_low_hp"),
+    auto_pause_hp_threshold = safe_menu(_menu.slider_int, 1, 50, 20, "fishing_pause_hp_threshold"),
 }
 
 return config
