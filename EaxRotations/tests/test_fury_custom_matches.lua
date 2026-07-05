@@ -136,16 +136,20 @@ _G.EaxRotations.cooldown_remains = function(spell, duration) return 99 end	-- Ra
 local heroic_strike = find_strategy("HeroicStrike")	-- Low rage -> should NOT match
 	spell_ready_calls = {}
 	assert_false(heroic_strike.matches({ rage = 30 }, { rage = 30 }), "HeroicStrike should not match when rage < 50")-- ============================================================================
--- Death Wish: requires cooldowns enabled, HP >= 45, not in execute starvation
+-- Death Wish: requires cooldowns enabled, HP >= 45, aligns with major CDs
 -- ============================================================================
 
 local death_wish = find_strategy("DeathWish")	-- Cooldowns disabled -> should NOT match
 		spell_ready_calls = {}
 		assert_false(death_wish.matches({ settings = { use_cooldowns = false } }), "DeathWish should not match when cooldowns disabled")
 
--- In combat, cooldowns enabled -> should match
+-- In combat with major CD window (simulated via timeout) -> should match
 action_calls = {}
-assert_true(death_wish.matches({ in_combat = true, should_burst = true }), "DeathWish should match in combat")
+assert_true(death_wish.matches({ in_combat = true, should_burst = true, combat_time = 60, ttd = 120 }), "DeathWish should match during late combat / major CD window")
+
+-- Early combat without major CD window -> should NOT match (stacks with BL/Drums)
+action_calls = {}
+assert_false(death_wish.matches({ in_combat = true, should_burst = true, combat_time = 10, ttd = 120 }), "DeathWish should not match early combat without power window")
 
 -- ============================================================================
 -- Hamstring: only in PvP

@@ -17,6 +17,9 @@ end
 local potion_helper = require("shared/potion_helper_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
+local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
+if not _planner_ok or type(planner) ~= "table" then planner = nil end
+local BLOODLUST_BUFFS = { 2825, 32182 }
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
@@ -452,6 +455,12 @@ local function build_state(context)
     local oh_swing = me and NS.swing_time_until and NS.swing_time_until(me, 2) or 0
     fury_state.has_offhand = oh_swing > 0
 
+    -- Major power-window awareness for cooldown alignment
+    fury_state.bloodlust_active = me and NS.buff_up and NS.buff_up(me, BLOODLUST_BUFFS) or false
+    fury_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
+    fury_state.major_cd_window = fury_state.bloodlust_active or fury_state.major_cd_active
+    fury_state.planner_ready = planner ~= nil
+
     -- safe_state proxy: structural nil-guard elimination (Pattern 14)
     return spec_kit.safe_state(fury_state, FURY_SCHEMA)
 end
@@ -525,7 +534,7 @@ local function healthstone_matches(context, state)
     return false
 end
 
--- Recklessness: big burst CD — use on cooldown in combat per Icy Veins
+-- Recklessness: 30min burst CD — stack with Bloodlust/Drums/other major CDs.
 local function recklessness_matches(context, state)
     local cds_enabled = setting(context, "use_cooldowns", true)
     if not cds_enabled or not state.recklessness_ready then return false end
@@ -533,11 +542,15 @@ local function recklessness_matches(context, state)
     if not state.in_combat then return false end
     if (state.hp or 100) < 50 then return false end
     -- TTD gate: don't waste 30min CD if target is about to die
-    if (state.ttd or 0) > 0 and (state.ttd or 0) < 10 then return false end
+    if (state.ttd or 0) > 0 and (state.ttd or 0) < 20 then return false end
+    -- Stack with major power windows; timeout fallback so it never rots
+    local combat_time = context.combat_time or 0
+    local ttd = context.ttd or 999
+    if not state.major_cd_window and combat_time < 60 and ttd > 20 then return false end
     return action(context, build_action("Recklessness", ACTION.Recklessness, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false, cooldown = 1800 }))
 end
 
--- Death Wish: burst CD
+-- Death Wish: 3min burst CD — align with Bloodlust/Drums/major CDs.
 local function death_wish_matches(context, state)
     -- Fear break: Death Wish enrage breaks fear (any stance, unlike Berserker Rage)
     local me = context.me or NS.GetPlayer()
@@ -552,6 +565,11 @@ local function death_wish_matches(context, state)
     -- TTD gate: don't waste burst CD if target is about to die
     if (state.ttd or 0) > 0 and (state.ttd or 0) < 10 then return false end
     if (state.target_hp or 100) < 20 and (state.rage or 0) < 25 then return false end
+    -- Align with major power windows; timeout/execute fallback
+    local align = state.major_cd_window or false
+    local combat_time = context.combat_time or 0
+    local ttd = context.ttd or 999
+    if not align and combat_time < 45 and ttd > 15 then return false end
     return action(context, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false, cooldown = 180 }))
 end
 
