@@ -87,13 +87,38 @@ function M.try_apply(ctx, me, now)
         end
         if refresh_secs > 0 and expire_time then
             local remaining = expire_time - now
-            if remaining <= refresh_secs then
+            -- STEALTH: random variance on refresh threshold so it's not robotic.
+            -- A human notices the buff fading at different times, not on a metronome.
+            local variance = refresh_secs * 0.35  -- ±35% random window
+            local trigger_at = refresh_secs + (math.random() * 2 - 1) * variance
+            if trigger_at < 10 then trigger_at = 10 end  -- minimum 10s safety
+            if remaining <= trigger_at then
+                -- STEALTH: human reaction delay — not instant re-apply.
+                -- Takes a moment to notice the buff is fading, then casts.
+                if not state.water_walking.reaction_deadline then
+                    local reaction_delay = 0.5 + math.random() * 1.5  -- 0.5-2.0s
+                    state.water_walking.reaction_deadline = now + reaction_delay
+                    state.fishing.status = "Noticing buff fading..."
+                    return false  -- Wait for reaction delay
+                end
+                if now < state.water_walking.reaction_deadline then
+                    return false  -- Still "noticing"
+                end
+                state.water_walking.reaction_deadline = nil
+                -- STEALTH: occasional forgetfulness — 4% chance to let it expire.
+                -- Humans sometimes forget to re-buff. This breaks perfect patterns.
+                if math.random() < 0.04 then
+                    APISurface.print("[EaxFishing] Letting water walking expire (human forgetfulness)")
+                    return false
+                end
                 APISurface.print("[EaxFishing] Water walking expiring in " .. math.floor(remaining) .. "s — refreshing...")
                 -- Fall through to re-apply below
             else
+                state.water_walking.reaction_deadline = nil
                 return false  -- Buff is fine, no need to refresh
             end
         else
+            state.water_walking.reaction_deadline = nil
             return false  -- Buff is fine, no refresh configured
         end
     end

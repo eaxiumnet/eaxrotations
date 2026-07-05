@@ -217,7 +217,8 @@ function M.create(now)
 
         -- v2.4.2: Water walking buff state
         water_walking = {
-            last_try_time = 0.0,
+            last_try_time    = 0.0,
+            reaction_deadline = nil,
         },
 
         -- Rare catch alert state
@@ -398,6 +399,7 @@ function M.reset_fishing(state)
     -- v2.4.2: reset water walking state
     if state.water_walking then
         state.water_walking.last_try_time = 0.0
+        state.water_walking.reaction_deadline = nil
     end
 end
 
