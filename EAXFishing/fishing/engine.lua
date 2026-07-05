@@ -407,6 +407,24 @@ function M.tick(ctx)
             end
         end
     end
+
+    -- v2.4.3: Face away from nearby player (stealth anti-detection)
+    if Stealth.should_face_away(ctx, now) then
+        local nearest = Stealth.get_nearest_player(ctx)
+        if nearest then
+            local my_pos = APISurface.get_object_position(me)
+            local their_pos = APISurface.get_object_position(nearest)
+            if my_pos and their_pos then
+                -- Look in the opposite direction of the player
+                local away = {
+                    x = my_pos.x - (their_pos.x - my_pos.x),
+                    y = my_pos.y - (their_pos.y - my_pos.y),
+                    z = my_pos.z,
+                }
+                APISurface.look_at(away)
+            end
+        end
+    end
     
     -- Handle navigation
     if Client.is_moving(ctx) then

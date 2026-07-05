@@ -252,6 +252,8 @@ function M.render_menu(ctx)
                     "Temporarily slows cast rhythm and takes longer breaks when another player is nearby. Looks less robotic.")
                 config.menu.stealth_range:render("Stealth Range (y)",
                     "How close a player must be to trigger slowdown. Default 30y.")
+                config.menu.stealth_face_away:render("Face Away From Players",
+                    "When a player is within 10 yards, turns away from them. Looks more natural than staring directly at them while fishing.")
             end)
         else
             h:render("STEALTH", C.section)

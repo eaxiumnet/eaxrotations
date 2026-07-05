@@ -150,6 +150,9 @@ config.menu = {
     -- v2.4.2: Water walking buff
     auto_water_walking  = safe_menu(_menu.checkbox, false, "fishing_auto_water_walking"),
     water_walking_refresh_secs = safe_menu(_menu.slider_int, 10, 300, 60, "fishing_water_walk_refresh"),
+
+    -- v2.4.3: Advanced stealth
+    stealth_face_away = safe_menu(_menu.checkbox, true, "fishing_stealth_face_away"),
 }
 
 return config

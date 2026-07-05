@@ -122,10 +122,18 @@ function M.create(now)
             next_repair_time = 0.0,
         },
         
-        -- Stealth mode state
+        -- Stealth mode state (v2.4.3 — advanced anti-detection)
         stealth = {
             player_nearby = false,
             last_scan_time = 0,
+            nearest_dist_sq = nil,
+            nearest_player = nil,
+            consecutive_detections = 0,
+            suspicion_level = 0,
+            total_encounters = 0,
+            last_player_seen_time = 0.0,
+            nervous_pause_end = nil,
+            cooldown_end = nil,
         },
 
         -- Container opening state (v2.4.0)
