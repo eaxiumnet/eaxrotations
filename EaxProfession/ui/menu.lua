@@ -155,6 +155,22 @@ function M.get_recipe_filter()
   return f
 end
 
+--- Set the recipe name filter text programmatically.
+-- Uses set_buffer when available (pre-fills without requiring user focus).
+-- Falls back to :set() if the API build does not expose set_buffer.
+-- @param text string|nil  The filter text; nil or "" clears the filter.
+function M.set_recipe_filter(text)
+  text = (type(text) == "string") and text or ""
+  local w = _w.recipe_filter
+  if not w then return end
+  -- Prefer set_buffer: fills the internal buffer without focus side-effects.
+  if w.set_buffer and type(w.set_buffer) == "function" then
+    pcall(w.set_buffer, w, text)
+  elseif w.set and type(w.set) == "function" then
+    pcall(w.set, w, text)
+  end
+end
+
 --- Get the craft count.
 -- Clamps to >= 1 so a DUMMY/missing widget (returns 0) yields a valid count.
 -- @return integer
