@@ -1226,6 +1226,115 @@ function NS._fire_combat_end(context)
 
 end
 
+-- ============================================================================
+-- Centralized Game Event Dispatcher
+-- ============================================================================
+-- WHY: core.register_on_game_event_callback may support only a single callback.
+--      Multiple modules (swing_diagnostics, snap_threat, etc.) each calling it
+--      directly risks clobbering each other. This dispatcher registers ONE
+--      callback with the engine and fans out to per-event subscribers.
+--
+-- Usage:
+--   NS.register_on_game_event("COMBAT_LOG_EVENT_UNFILTERED", function(ev, args)
+--       -- handle CLEU
+--   end)
+--   NS.register_on_game_event("PLAYER_REGEN_DISABLED", function(ev, args)
+--       -- combat started
+--   end)
+--
+-- Returns: true on success, false on invalid args or missing API.
+
+local _game_event_callbacks = {}      -- event_name -> callback[]
+local _game_event_singleton = false   -- whether we've registered with core
+local _game_event_debug_last = {}     -- event_name -> last log time
+NS._DEBUG_GAME_EVENTS = false         -- set true at runtime to see dispatcher logs
+
+local function _game_event_debug(event_name, msg)
+    if not NS._DEBUG_GAME_EVENTS then return end
+    if not NS.log then return end
+    local now = (NS.time_now and NS.time_now()) or 0
+    local last = _game_event_debug_last[event_name] or 0
+    if now - last < 5.0 then return end
+    _game_event_debug_last[event_name] = now
+    pcall(NS.log, "[GameEvent] " .. tostring(event_name) .. ": " .. tostring(msg))
+end
+
+local function _dispatch_game_event(event_name, args)
+    local list = _game_event_callbacks[event_name]
+    if not list then
+        _game_event_debug(event_name, "NO handlers registered")
+        return
+    end
+    _game_event_debug(event_name, "dispatching to " .. #list .. " handler(s)")
+    for i = 1, #list do
+        local cb = list[i]
+        if cb then
+            local ok, err = pcall(cb, event_name, args)
+            if not ok and type(NS.log_warning) == "function" then
+                NS.log_warning("[GameEvent] " .. tostring(event_name) .. " handler error: " .. tostring(err))
+            end
+        end
+    end
+end
+
+local function _ensure_game_event_registered()
+    if _game_event_singleton then return true end
+    local fn = core and core.register_on_game_event_callback
+    if type(fn) ~= "function" then
+        if NS._DEBUG_GAME_EVENTS and NS.log then
+            pcall(NS.log, "[GameEvent] core.register_on_game_event_callback unavailable")
+        end
+        return false
+    end
+    local ok = pcall(fn, function(event_name, args)
+        _dispatch_game_event(event_name, args)
+    end)
+    if ok then
+        _game_event_singleton = true
+        if NS._DEBUG_GAME_EVENTS and NS.log then
+            pcall(NS.log, "[GameEvent] Dispatcher registered with core")
+        end
+        return true
+    end
+    if NS._DEBUG_GAME_EVENTS and NS.log then
+        pcall(NS.log, "[GameEvent] Dispatcher registration FAILED")
+    end
+    return false
+end
+
+--- Register a callback for a specific game event.
+-- @param event_name string  The WoW event name (e.g. "COMBAT_LOG_EVENT_UNFILTERED")
+-- @param callback   function handler(event_name, args)
+-- @return boolean   true on success
+function NS.register_on_game_event(event_name, callback)
+    if type(event_name) ~= "string" or type(callback) ~= "function" then return false end
+    _ensure_game_event_registered()
+    local list = _game_event_callbacks[event_name]
+    if not list then
+        list = {}
+        _game_event_callbacks[event_name] = list
+    end
+    list[#list + 1] = callback
+    return true
+end
+
+--- Unregister a callback for a specific game event.
+-- @param event_name string  The WoW event name
+-- @param callback   function The exact callback function to remove
+-- @return boolean   true if removed, false if not found
+function NS.unregister_on_game_event(event_name, callback)
+    if type(event_name) ~= "string" or type(callback) ~= "function" then return false end
+    local list = _game_event_callbacks[event_name]
+    if not list then return false end
+    for i = #list, 1, -1 do
+        if list[i] == callback then
+            table.remove(list, i)
+            return true
+        end
+    end
+    return false
+end
+
 --- Create a spell action object.
 
 -- Accepts two formats:
@@ -2270,10 +2379,50 @@ NS.AUTO_ATTACK_MELEE = 6603
 NS.AUTO_ATTACK_RANGED = 75
 NS.AUTO_ATTACK_WAND = 5019
 
+-- Swing timer debug: set NS._DEBUG_SWING_TIMER = true at runtime to see path decisions.
+NS._DEBUG_SWING_TIMER = false
+local _swing_debug_last = 0
+
+local function _swing_debug(msg)
+    if not NS._DEBUG_SWING_TIMER then return end
+    if not NS.log then return end
+    local now = (NS.time_now and NS.time_now()) or 0
+    if now - _swing_debug_last < 5.0 then return end
+    _swing_debug_last = now
+    pcall(NS.log, "[SwingTimer] " .. tostring(msg))
+end
+
 function NS.swing_time_until(unit, weapon)
-    if not _auto_attack or not unit then return 999 end
+    if not unit then return 999 end
+    -- Prefer Swing Timer addon for local player (more accurate, includes haste changes)
+    local me = NS.me
+    if me and NS.same_unit and NS.same_unit(unit, me) then
+        local ok, addon = pcall(function() return core.addons.swing_timer end)
+        if ok and addon and addon.is_loaded and addon:is_loaded() then
+            local info_ok, info = pcall(function() return addon:get_player_mainhand_info() end)
+            if info_ok and info and info.expiration_time then
+                local now = (_core_time and _core_time()) or 0
+                local remains = info.expiration_time - now
+                _swing_debug("ADDON mh remains=" .. string.format("%.3f", math.max(0, remains)) ..
+                             " speed=" .. tostring(info.swing_speed) ..
+                             " base=" .. tostring(info.base_swing_speed))
+                if remains > 0 then return remains end
+                return 0
+            else
+                _swing_debug("ADDON loaded but get_player_mainhand_info failed or no expiration_time")
+            end
+        else
+            _swing_debug("ADDON not loaded (ok=" .. tostring(ok) .. ")")
+        end
+    end
+    if not _auto_attack then
+        _swing_debug("FALLBACK: auto_attack_helper unavailable")
+        return 999
+    end
     local next_time = _auto_attack:get_next_attack_core_time(unit, weapon)
     local now = _auto_attack:get_current_combat_core_time()
+    local remains = (next_time and now and next_time > now) and (next_time - now) or 0
+    _swing_debug("FALLBACK auto_attack_helper remains=" .. string.format("%.3f", remains) .. " weapon=" .. tostring(weapon))
     if next_time and now and next_time > now then return next_time - now end
     return 0
 end
@@ -2311,6 +2460,55 @@ end
 function NS.stop_auto_attack(target, attack_type)
     if not _auto_attack or not target then return false end
     return _auto_attack:stop_attack(target, attack_type or NS.AUTO_ATTACK_MELEE) == true
+end
+
+--- Returns the current main-hand swing speed (seconds per swing), including haste.
+-- Uses Swing Timer addon when available; falls back to nil.
+-- @return number|nil
+function NS.swing_speed()
+    local ok, addon = pcall(function() return core.addons.swing_timer end)
+    if ok and addon and addon.is_loaded and addon:is_loaded() then
+        local info_ok, info = pcall(function() return addon:get_player_mainhand_info() end)
+        if info_ok and info and info.swing_speed and info.swing_speed > 0 then
+            _swing_debug("swing_speed=" .. string.format("%.3f", info.swing_speed) ..
+                         " haste=" .. string.format("%.1f%%", (info.base_swing_speed/info.swing_speed - 1) * 100))
+            return info.swing_speed
+        else
+            _swing_debug("swing_speed: addon loaded but no swing_speed data")
+        end
+    else
+        _swing_debug("swing_speed: addon not loaded")
+    end
+    return nil
+end
+
+--- Returns the base main-hand swing speed (seconds per swing), without haste.
+-- Uses Swing Timer addon when available; falls back to nil.
+-- @return number|nil
+function NS.swing_speed_base()
+    local ok, addon = pcall(function() return core.addons.swing_timer end)
+    if ok and addon and addon.is_loaded and addon:is_loaded() then
+        local info_ok, info = pcall(function() return addon:get_player_mainhand_info() end)
+        if info_ok and info and info.base_swing_speed and info.base_swing_speed > 0 then
+            _swing_debug("swing_speed_base=" .. string.format("%.3f", info.base_swing_speed))
+            return info.base_swing_speed
+        end
+    end
+    return nil
+end
+
+--- Returns the current combat session duration from the damage meter (seconds).
+-- Queries core.damage_meter for the current session duration.
+-- Returns nil if the damage meter API is unavailable or no active session.
+-- @return number|nil
+function NS.damage_meter_session_duration()
+    local ok, dm = pcall(function() return core.damage_meter end)
+    if not ok or type(dm) ~= "table" then return nil end
+    local avail_ok, is_avail = pcall(dm.is_available, dm)
+    if not avail_ok or not is_avail then return nil end
+    local dur_ok, dur = pcall(dm.get_session_duration, dm, 1) -- 1 = Current session
+    if dur_ok and type(dur) == "number" and dur > 0 then return dur end
+    return nil
 end
 
 -- ============================================================================
@@ -3625,6 +3823,13 @@ function NS.has_breakable_cc_nearby(context)
     end
     return false
 end
+
+-- Returns true when the player is under a loss-of-control effect (fear, stun,
+-- charm, polymorph, etc.) that prevents spell casting.
+function NS.player_control_locked()
+    return NS.has_player_debuff(NS.CC_DEBUFFS) == true
+end
+
 function NS.try_interrupt(target)
 
     if not target then return false end
