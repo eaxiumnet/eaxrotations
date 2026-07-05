@@ -26,7 +26,7 @@ if not M then
     return
 end
 
-local function mock_unit(guid, hp_pct, max_hp, current_hp, incoming, absorbs)
+local function mock_unit(guid, hp_pct, max_hp, current_hp, incoming, absorbs, heal_absorbs)
     return {
         guid = guid,
         hp_pct = hp_pct or 100,
@@ -34,11 +34,13 @@ local function mock_unit(guid, hp_pct, max_hp, current_hp, incoming, absorbs)
         _current_hp = current_hp or 1000,
         _incoming = incoming or 0,
         _absorbs = absorbs or 0,
+        _heal_absorbs = heal_absorbs or 0,
         get_guid = function(self) return self.guid end,
         get_max_health = function(self) return self._max_hp end,
         get_health = function(self) return self._current_hp end,
         get_incoming_heals = function(self) return self._incoming end,
         get_total_shield = function(self) return self._absorbs end,
+        get_total_heal_absorbs = function(self) return self._heal_absorbs end,
     }
 end
 
@@ -184,6 +186,19 @@ M.update(u10, base_time + 35, { healer_predict_sample_interval = 0.1, healer_pre
 local pred10 = M.predicted_deficit(u10, 2, { healer_predict_enabled = true, healer_predict_safety_pct = 0 })
 -- After 35s, old samples are stale and pruned; should fall back to base deficit
 check(assert_eq(pred10, 200, "stale prune: falls back to base deficit after 35s silence"), "t10")
+
+-- Test 11: heal_absorbs increase effective deficit (e.g. Mortal Strike)
+M.clear()
+local u11 = mock_unit("u11", 80, 1000, 800, 0, 0, 150)  -- 200 base deficit + 150 heal_absorbs
+local pred11 = M.predicted_deficit(u11, 2, { healer_predict_enabled = false })
+check(assert_eq(pred11, 350, "heal_absorbs: 200 base + 150 absorb = 350 deficit"), "t11")
+
+-- Test 12: heal_absorbs with shields and incoming heals (net effect)
+M.clear()
+local u12 = mock_unit("u12", 80, 1000, 800, 50, 30, 100)
+-- base = 1000 - 800 - 50 - 30 + 100 = 220
+local pred12 = M.predicted_deficit(u12, 2, { healer_predict_enabled = false })
+check(assert_eq(pred12, 220, "heal_absorbs net: 1000-800-50-30+100 = 220"), "t12")
 
 if all_pass then
     print("PASS test_healer_deficit")
