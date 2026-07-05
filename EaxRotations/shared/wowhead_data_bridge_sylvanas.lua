@@ -1,3 +1,10 @@
+-- wowhead_data_bridge_sylvanas.lua -- shared Wowhead data bridge root (spell + item table aggregator).
+-- WHAT:   shared Wowhead data bridge root (spell + item table aggregator).
+-- WHEN:   loaded at class-module startup by every hunter/mage/etc.
+-- WHY:    centralises the wowhead_data->Lua pipeline.
+-- SAFETY: static aggregate table; nil-tolerant getter; no api at load.
+-- DECISION: pure data; consumed via require(); nil-tolerant key fetch.
+
 -- ============================================================================
 -- Shared Data: Wowhead Data Bridge (Embedded Lua Tables)
 -- ============================================================================

@@ -575,17 +575,13 @@ M._subscribers = {}
 
 function M.subscribe(callback)
     if type(callback) == "function" then
-        table.insert(M._subscribers, callback)
-    end
-end
+        table.insert(M._subscribers, callback) end
 
 function M._notify_subscribers(entry)
     for i = 1, #M._subscribers do
         local cb = M._subscribers[i]
         if cb then
-            pcall(cb, entry)
-        end
-    end
+            pcall(cb, entry) end
 end
 
 local _original_push_entry = push_entry

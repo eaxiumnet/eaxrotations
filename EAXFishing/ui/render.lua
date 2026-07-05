@@ -225,6 +225,16 @@ function M.render(ctx)
             row("Hearth",    state.hearth.state, c_gray)
         end
 
+        -- Disconnect alerts (new v2.4.0)
+        if state.relog and state.relog.disconnected_at > 0 then
+            row("Status",    "DC'd!", c_gray)
+        end
+
+        -- Fishing window (new v2.4.0)
+        if state.conditions and not state.conditions.in_fishing_window then
+            row("Window",    "Closed", c_gray)
+        end
+
         -- Top items caught (up to 6)
         local sorted = {}
         for name, count in pairs(stats.item_counts) do

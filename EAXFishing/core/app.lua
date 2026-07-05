@@ -10,6 +10,7 @@ local Render = require("ui/render")
 local Menu = require("ui/menu")
 local ControlPanel = require("ui/control_panel")
 local APISurface = require("core/api_surface")
+local Responder = require("core/responder")
 
 local M = {}
 
@@ -40,6 +41,11 @@ function M.new(deps)
         
         on_render_control_panel = function()
             return ControlPanel.render_control_panel(ctx)
+        end,
+
+        -- v2.4.0: Game event handler (whisper detection, etc.)
+        on_game_event = function(event_name, args)
+            Responder.on_game_event(ctx, event_name, args)
         end,
     }
 end

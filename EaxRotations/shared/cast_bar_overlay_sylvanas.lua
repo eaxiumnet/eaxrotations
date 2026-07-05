@@ -358,9 +358,7 @@ function M.render(dashboard_window, bar_max_width, context)
             local tick_color = is_clip_tick and _color_cache.tick_clip or _color_cache.tick
             local tick_min = vec2.new(tick_x, 0)
             local tick_max = vec2.new(tick_x + TICK_MARKER_WIDTH, bar_height)
-            dashboard_window:render_rect_filled(tick_min, tick_max, tick_color, 0)
-        end
-    end
+            dashboard_window:render_rect_filled(tick_min, tick_max, tick_color, 0) end
 
     dashboard_window:draw_next_dynamic_widget_on_new_line()
 

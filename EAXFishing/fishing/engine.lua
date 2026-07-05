@@ -25,6 +25,8 @@ local AutoDelete = require("inventory/auto_delete")
 local QuestTracker = require("fishing/quest_tracker")
 local Responder   = require("core/responder")
 local Hearth      = require("navigation/hearth")
+local Relog       = require("core/relog")
+local Conditions  = require("core/conditions")
 
 local M = {}
 
@@ -152,6 +154,20 @@ function M.tick(ctx)
         local me_h = APISurface.get_local_player()
         if me_h and APISurface.is_valid(me_h) and not APISurface.is_in_combat(me_h) then
             Hearth.try_return(ctx, me_h, now)
+        end
+    end
+
+    -- v2.4.0: Disconnect detection (throttled, alert-only)
+    if deps.config.menu.auto_relog and deps.config.menu.auto_relog:get_state() then
+        Relog.check_disconnect(ctx, now)
+    end
+
+    -- v2.4.0: Conditions check (time-of-day window)
+    Conditions.update(ctx, now)
+    if deps.config.menu.night_fishing_only and deps.config.menu.night_fishing_only:get_state() then
+        if not state.conditions.in_fishing_window then
+            state.fishing.status = "Waiting for night..."
+            return
         end
     end
 

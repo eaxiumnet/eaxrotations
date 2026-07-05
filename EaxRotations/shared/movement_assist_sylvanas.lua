@@ -52,9 +52,7 @@ local M = {}
 -- Source: movement-handler.md:on_render (line 158-169)
 function M.on_render()
     if _movement_handler and type(_movement_handler.on_render) == "function" then
-        _movement_handler:on_render()
-    end
-end
+        _movement_handler:on_render() end
 
 --- Pause movement and lock facing to target for a cast-time spell.
 -- Only activates for non-instant spells. Auto-expires after cast_time + buffer.
@@ -114,17 +112,13 @@ end
 -- Source: movement-handler.md:resume_movement (line 78-96)
 function M.resume()
     if _movement_handler and type(_movement_handler.resume_movement) == "function" then
-        _movement_handler:resume_movement()
-    end
-end
+        _movement_handler:resume_movement() end
 
 --- Unlock look-at immediately (caller can use this to cancel a face lock early).
 -- Source: movement-handler.md:unlock_look_at (line 138-155)
 function M.unlock()
     if _movement_handler and type(_movement_handler.unlock_look_at) == "function" then
-        _movement_handler:unlock_look_at()
-    end
-end
+        _movement_handler:unlock_look_at() end
 
 --- Returns true if movement_handler is available and assist can be used.
 function M.is_available()

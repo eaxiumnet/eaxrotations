@@ -58,16 +58,13 @@ local function safe_call(name, fallback, nreturns)
     local fn = _G[name]
     if type(fn) ~= "function" then
         return function(...) return fallback_args(...) end
-    end
     return function(...)
         local ok, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10 =
             pcall(fn, ...)
         if not ok then return fallback_args(...) end
         local out = { r1, r2, r3, r4, r5, r6, r7, r8, r9, r10 }
         for _ = #out + 1, nreturns do out[#out + 1] = nil end
-        return unpack(out)
-    end
-end
+        return unpack(out) end
 
 local UnitRangedAttackPower = safe_call("UnitRangedAttackPower",
     function() return 0, 0, 0 end, 3)
@@ -591,9 +588,7 @@ local function logDecision(unit, d, shootAt, shootDoneAt)
     })
 
     while #State.decisionLog > State.decisionLogMax do
-        table.remove(State.decisionLog, 1)
-    end
-end
+        table.remove(State.decisionLog, 1) end
 
 local function clearDecisionLog()
     for i = #State.decisionLog, 1, -1 do
@@ -763,16 +758,12 @@ local function OnCLEU_AdaptiveFire()
         recordInhouseShootSuccess("cleu")
     end
     if spellName and TRACKED_FIRES[spellName] then
-        RecordFire(spellName)
-    end
-end
+        RecordFire(spellName) end
 
 local function OnUnitSpellcastSucceeded(unitID, _, spellID)
     if unitID ~= "player" then return end
     if spellID and RANGED_SWING_RESET_SPELLS[spellID] then
-        recordInhouseShootSuccess("unit")
-    end
-end
+        recordInhouseShootSuccess("unit") end
 
 -- ============================================================================
 -- CORE: ChooseAction
@@ -981,11 +972,7 @@ do
             elseif event == "PLAYER_EQUIPMENT_CHANGED" or event == "PLAYER_TALENT_UPDATE" then
                 OnEquipChange()
             elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-                OnCLEU_AdaptiveFire()
-            end
-        end)
-    end
-end
+                OnCLEU_AdaptiveFire() end) end
 
 -- Fallback: if frame creation failed, register via Sylvanas APIs
 if not frame_created then
@@ -993,9 +980,7 @@ if not frame_created then
     if NS.register_on_spell_cast then
         NS.register_on_spell_cast(function(spell_id, target, data)
             OnUnitSpellcastSucceeded("player", nil, spell_id)
-        end)
-    end
-end
+        end) end
 
 -- Force initial recompute on first ChooseAction call.
 State.dirty = true

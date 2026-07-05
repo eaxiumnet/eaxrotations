@@ -16,7 +16,7 @@ if not has_inventory_helper then inventory_helper = nil end
 if not has_coords_helper   then coords_helper   = nil end
 if not has_color_helper    then color_helper    = nil end
 
-APISurface.print("[EaxFishing] v2.3.0 loaded")
+APISurface.print("[EaxFishing] v2.4.0 loaded")
 
 -- Seed the PRNG so behavior profiles, delays, and break timing are non-deterministic
 local now = APISurface.now()
@@ -78,5 +78,18 @@ APISurface.register_on_render_control_panel(function()
     end
     return result
 end)
+
+-- v2.4.0: Register game event callback (whisper detection, etc.)
+if core and core.register_on_game_event_callback then
+    local ok, err = pcall(core.register_on_game_event_callback, function(event_name, args)
+        local ok2, err2 = pcall(app.on_game_event, event_name, args)
+        if not ok2 then
+            APISurface.print("[EaxFishing] Game event error: " .. tostring(err2))
+        end
+    end)
+    if not ok then
+        APISurface.print("[EaxFishing] Game event registration failed: " .. tostring(err))
+    end
+end
 
 return app

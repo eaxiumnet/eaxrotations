@@ -266,10 +266,8 @@ local strategies = {
                 end
                 if type(HEALTHSTONE_ITEMS) == "table" then
                     for _, id in ipairs(HEALTHSTONE_ITEMS) do add(id) end
-                end
                 if type(HEALING_POTION_ITEMS) == "table" then
                     for _, id in ipairs(HEALING_POTION_ITEMS) do add(id) end
-                end
                 if #ids > 0 and not consumable_manager.has_any_consumable(ids) then
                     return false
                 end
