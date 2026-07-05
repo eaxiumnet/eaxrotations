@@ -16,6 +16,8 @@ if _cleu then
 end
 
 local potion_helper = require("shared/potion_helper_sylvanas")
+local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
+if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local SPELLS = NS.ShamanSpells or {}
@@ -394,6 +396,11 @@ local function build_state(context)
     enh_state.swing_remains = cleu_remains or (NS.get_time_until_swing and NS.get_time_until_swing()) or 0
     enh_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
+    -- Major power-window awareness for cooldown alignment
+    enh_state.bloodlust_active = me and NS.buff_up and NS.buff_up(me, BLOODLUST_BUFF_ID) or false
+    enh_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
+    enh_state.major_cd_window = enh_state.bloodlust_active or enh_state.major_cd_active
+
     return enh_state
 end
 
@@ -672,8 +679,13 @@ local function shamanistic_rage_matches(ctx)
     if not NS.gate_cooldown_boss_only(ctx) then return false end
     -- TTD gate: don't waste 2min CD on a dying target
     if ctx.ttd_known and ctx.ttd < 8 then return false end
-    -- Gate: use when mana is low (Research) or during defensive need (hp < 40%); skip at high mana + high hp
-    if (enh_state.mana_pct or 100) > 40 and (enh_state.hp_pct or 100) > 40 then return false end
+    -- Offensive use: SR converts AP to mana, so fire it during major power windows
+    -- (Bloodlust/Heroism, Drums, other major offensive CDs) for sustained output.
+    local offensive_use = enh_state.major_cd_window or false
+    -- Defensive use: also allow when mana is low or HP is low, but avoid wasting
+    -- the cooldown when both are comfortable.
+    local defensive_use = (enh_state.mana_pct or 100) <= 40 or (enh_state.hp_pct or 100) <= 40
+    if not offensive_use and not defensive_use then return false end
     -- v1.2.4: SR melee range check — only fire if target within 8 yd
     if enh_state.sr_melee_only then
         local target = ctx.target
