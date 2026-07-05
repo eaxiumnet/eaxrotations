@@ -10,6 +10,8 @@ local SPELLS = NS.PriestSpells or {}
 local mf_tick = require("shared/mf_tick_compute_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local DotTTD = require("shared/dot_ttd_gating_sylvanas")
+local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
+if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local _last_shadow_cc_scan = 0
 local _last_multidot_scan = 0
 local _cached_dotted_swp = 0
@@ -463,6 +465,11 @@ local function build_state(context)
     shadow_state.fade_ready = me and NS.spell_ready(SPELLS.Fade, me, { skip_range = true }) or false
     shadow_state.has_fade_buff = me and NS.buff_up(me, { 25429, 10942, 10941, 9592, 9579, 9578, 586 }) or false
 
+    -- Major power-window awareness for racial/trinket alignment
+    shadow_state.bloodlust_active = me and NS.buff_up and NS.buff_up(me, BLOODLUST_BUFFS) or false
+    shadow_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
+    shadow_state.major_cd_window = shadow_state.bloodlust_active or shadow_state.major_cd_active
+
     return shadow_state
 end
 
@@ -628,6 +635,11 @@ local function racial_matches(context, s)
     if not s.berserking_known and not s.blood_fury_known and not s.arcane_torrent_known then return false end
     -- TTD gate: don't use racials if target is about to die
     if context.ttd_known and context.ttd > 0 and context.ttd < 8 then return false end
+    -- Stack racials with major power windows; timeout fallback so they fire
+    local align = s.major_cd_window or false
+    local combat_time = context.combat_time or 0
+    local ttd = context.ttd or 999
+    if not align and combat_time < 45 and ttd > 15 then return false end
     return true
 end
 
