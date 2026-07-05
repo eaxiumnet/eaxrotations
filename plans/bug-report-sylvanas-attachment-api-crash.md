@@ -126,6 +126,18 @@ c.log("[ATTACH-TEST] pcall ok=" .. tostring(ok2))
 
 ---
 
+## Documentation vs. Actual Behavior
+
+Per `apidocs/pages/dev/api/game-object.md` and `.api/game_object.lua`:
+
+> `get_attachment_name_position() -> vec3`
+> "Returns a zero vector when the model is not loaded."
+
+> `get_attachment_position(attachment_id: integer) -> vec3`
+> "Returns a zero vector when the model is not loaded or does not have the requested attachment."
+
+**The documented behavior is graceful degradation to a zero vector.** The actual behavior is a hard client crash. This suggests the C++ implementation is missing the null-check / bounds-check that the documentation promises.
+
 ## Suggested Fix (Speculative)
 
 The C++ binding for `get_attachment_position` / `get_attachment_name_position` likely:
@@ -136,6 +148,7 @@ The C++ binding for `get_attachment_position` / `get_attachment_name_position` l
 Recommended checks in the C++ implementation:
 - Validate the attachment index against `Model::GetNumAttachments()` before lookup.
 - Null-check the `Attachment*` before reading `position`.
+- Return `{x=0, y=0, z=0}` (Lua table) when model is not loaded or attachment is missing — matching documented behavior.
 - Ensure the Lua return path constructs a proper Lua table `{x=..., y=..., z=...}` rather than returning raw C++ vec3 userdata that may not be registered with the bridge.
 
 ---
