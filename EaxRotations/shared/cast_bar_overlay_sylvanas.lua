@@ -170,8 +170,7 @@ end
 -- ---------------------------------------------------------------------------
 
 -- Known flat-percentage haste buffs in TBC Classic.
--- Gear haste rating is NOT detected here (no API); buff-based is sufficient
--- for the visual overlay. Minor gear haste deviations are acceptable.
+-- Used as fallback when get_spell_haste() is unavailable (older builds).
 local HASTE_BUFFS = {
     { ids = {2825, 32182},  name = "Bloodlust/Heroism", pct = 30 },  -- 30%
     { ids = {10060},         name = "Power Infusion",   pct = 20 },  -- 20%
@@ -181,6 +180,17 @@ local HASTE_BUFFS = {
 ---@return number haste_multiplier  e.g. 1.3 for 30% haste
 function M.get_haste_multiplier(unit)
     if not unit then return 1.0 end
+
+    -- Prefer native API haste (includes gear + buffs + talents).
+    local ok, api_haste = pcall(function()
+        return unit.get_spell_haste and unit:get_spell_haste()
+    end)
+    if ok and type(api_haste) == "number" and api_haste > 0 then
+        -- API returns raw percentage (e.g. 8 means 8% haste)
+        return max(1.0, 1.0 + (api_haste / 100.0))
+    end
+
+    -- Fallback: buff-only detection (gear haste invisible on this build)
     local total_pct = 0
     for _, buff in ipairs(HASTE_BUFFS) do
         if NS.buff_up and NS.buff_up(unit, buff.ids) then
