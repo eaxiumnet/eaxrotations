@@ -275,6 +275,16 @@ function M.render(ctx)
             row("WaterWalk",  "Active", c_green)
         end
 
+        -- Stealth multiplier (new v2.4.3)
+        if deps.config.menu.stealth_mode and deps.config.menu.stealth_mode:get_state() then
+            local stealth = require("core/stealth")
+            local mult = stealth.get_delay_multiplier(ctx, APISurface.now())
+            if mult > 1.0 then
+                local col = mult >= 3.0 and c_gray or (mult >= 2.0 and c_green or c_green)
+                row("Stealth", string.format("%.1fx", mult), col)
+            end
+        end
+
         -- Top items caught (up to 6)
         local sorted = {}
         for name, count in pairs(stats.item_counts) do
