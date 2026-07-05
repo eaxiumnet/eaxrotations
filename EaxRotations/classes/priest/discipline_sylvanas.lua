@@ -128,6 +128,7 @@ local disc_state = {
  pi_target = nil, -- Highest DPS caster for Power Infusion
  -- parity feature state
  healthstone_ready = false,
+ shadowfiend_ready = false,
  healthstone_id = nil,
  has_fade_buff = false,
  fade_ready = false,
@@ -205,6 +206,7 @@ local function build_state(context)
  disc_state.smite_ready = me and NS.spell_ready(SPELLS.Smite, me, { expected_cooldown = 2.5 }) or false
  disc_state.holy_fire_ready = me and NS.spell_ready(SPELLS.HolyFire, me, { expected_cooldown = 10 }) or false
  disc_state.psychic_scream_ready = me and NS.spell_ready(SPELLS.PsychicScream, me, { expected_cooldown = 30 }) or false
+ disc_state.shadowfiend_ready = me and (NS.spell_exists and NS.spell_exists(SPELLS.Shadowfiend) or true) and NS.spell_ready(SPELLS.Shadowfiend, NS.PLAYER_UNIT) or false
  disc_state.dispel_magic_ready = me and NS.spell_ready(SPELLS.DispelMagic, me, { skip_range = true }) or false
  disc_state.shackle_undead_ready = me and NS.spell_ready(SPELLS.ShackleUndead, me, { expected_cooldown = 1.5 }) or false
  disc_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
@@ -730,6 +732,26 @@ local healing_strategies = {
  { name = "StopCast", matches = stop_cast_matches, execute = function() if NS.stop_casting then return NS.stop_casting() end; if NS.cancel_current_cast then return NS.cancel_current_cast() end; return false end },
  { name = "PreHeal", matches = pre_heal_matches, execute = function(context, s) return NS.try_cast(SPELLS.GreaterHeal, (s.tank and s.tank.unit) or (s.lowest and s.lowest.unit), string.format("[DISCIPLINE] PreHeal GH %.0f%%", (s.tank and s.tank.effective_hp) or (s.lowest and s.lowest.effective_hp) or 0)) end },
  { name = "Fade", matches = fade_matches, execute = function() return NS.try_cast(SPELLS.Fade, nil, "[DISCIPLINE] Fade (aggro drop)", { skip_range = true }) end },
+ { name = "Shadowfiend", is_gcd_gated = false, is_burst = true, matches = function(context, s)
+   if not context.in_combat then return false end
+   if context.player_control_locked then return false end
+   if context.settings and not context.settings.use_shadowfiend then
+    if context.settings and context.settings.use_shadowfiend == nil and context.settings.use_cooldowns == false then return false end
+   end
+   if not s.shadowfiend_ready then return false end
+   return (s.mana_pct or context.mana_pct or 100) < (context.settings.shadowfiend_mana_threshold or 30)
+  end, execute = function() return NS.try_cast(SPELLS.Shadowfiend, nil, "[DISCIPLINE] Shadowfiend (mana regen)", { skip_range = true }) end },
+ { name = "ManaPotion", matches = function(context, s)
+   if not context.in_combat then return false end
+   if context.settings and context.settings.use_mana_potions == false then return false end
+   local threshold = (context.settings and context.settings.mana_potion_threshold) or 20
+   return (s.mana_pct or context.mana_pct or 100) < threshold
+  end, execute = function(_, s)
+   if NS.ConsumableManager and NS.ConsumableManager.use_mana_potion then
+    return pcall(NS.ConsumableManager.use_mana_potion, NS.ConsumableManager)
+   end
+   return false
+  end },
  { name = "Healthstone", matches = healthstone_matches, execute = function(_, s) if s.healthstone_id and s.healthstone_ready and NS.use_item_by_id then return NS.use_item_by_id(s.healthstone_id) end; return false end },
 }
 
