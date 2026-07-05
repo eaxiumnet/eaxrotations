@@ -80,9 +80,7 @@ function M.define_action_for_class(SPELLS)
         if SPELLS and type(SPELLS) == "table" and SPELLS[spell_field] ~= nil then
             return SPELLS[spell_field]
         end
-        return M.define_action(spell_field, rank_ids, label)
-    end
-end
+        return M.define_action(spell_field, rank_ids, label) end
 
 -- -----------------------------------------------------------------------------
 -- SAFE_STATE_DEFAULTS: documented per-field defaults for AGENTS.md Pattern 14.

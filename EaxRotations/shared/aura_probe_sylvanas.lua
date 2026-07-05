@@ -28,9 +28,7 @@ local function log(message)
     if NS and NS.log then
         NS.log(message)
     elseif core and core.log then
-        core.log(message)
-    end
-end
+        core.log(message) end
 
 local function safe_call(fn, ...)
     if type(fn) ~= "function" then return false, nil end
@@ -155,9 +153,7 @@ local function flatten_group(prefix, value, out)
 
     for k, v in pairs(value) do
         local child = prefix ~= "" and (prefix .. "." .. tostring(k)) or tostring(k)
-        flatten_group(child, v, out)
-    end
-end
+        flatten_group(child, v, out) end
 
 local function id_in_rows(rows, ids)
     local row_ids = {}

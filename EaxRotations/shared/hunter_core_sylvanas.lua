@@ -178,17 +178,11 @@ function M.init()
     if NS.register_on_spell_cast then
         NS.register_on_spell_cast(function(spell_id, target, data)
             if spell_id == AUTO_SHOT_ID then
-                M.record_auto_shot()
-            end
-        end)
+                M.record_auto_shot() end)
     elseif core and core.register_on_spell_cast_callback then
         core.register_on_spell_cast_callback(function(data)
             if data and data.spell_id == AUTO_SHOT_ID then
-                M.record_auto_shot()
-            end
-        end)
-    end
-end
+                M.record_auto_shot() end) end
 
 -- ============================================================================
 -- Sting debuff IDs

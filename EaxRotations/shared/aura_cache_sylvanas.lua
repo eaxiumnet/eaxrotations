@@ -63,9 +63,7 @@ function M.snapshot(unit)
         _cache_order[#_cache_order + 1] = unit
         -- Bound: evict oldest entries until we're under the cap.
         while #_cache_order > MAX_CACHE_ENTRIES do
-            _evict_one()
-        end
-    end
+            _evict_one() end
 
     entry.ts = now
 

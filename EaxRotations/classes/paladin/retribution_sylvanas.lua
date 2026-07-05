@@ -106,9 +106,7 @@ local function log_twist_result(result)
     if _cleu and _cleu.is_active() then return end
     local ok, has_core = pcall(function() return core and core.log and core.log.info end)
     if ok and has_core then
-        pcall(core.log.info, string.format("[RET] Seal twist: %s", result))
-    end
-end
+        pcall(core.log.info, string.format("[RET] Seal twist: %s", result)) end
 
 local ret_state = {
     hp_pct = 100,

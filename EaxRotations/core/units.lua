@@ -38,7 +38,6 @@ function M.GetPlayer(NS)
             NS.PLAYER_UNIT = nil
             local lg = NS.log or (NS.core and NS.core.log)
             if lg then pcall(lg, "[EaxRotations:units] GetPlayer: stale guard nil'd PLAYER_UNIT") end
-        end
     end
 
     local om = NS.core and NS.core.object_manager
@@ -56,11 +55,9 @@ function M.GetPlayer(NS)
         end
         local lg = NS.log or (NS.core and NS.core.log)
         if lg then pcall(lg, "[EaxRotations:units] GetPlayer: OM.get_local_player returned ok=" .. tostring(ok) .. " fresh=" .. tostring(fresh) .. " valid=" .. tostring(valid)) end
-    end
     if not NS.PLAYER_UNIT then
         local lg = NS.log or (NS.core and NS.core.log)
         if lg then pcall(lg, "[EaxRotations:units] GetPlayer: returning nil — no cached player and OM unreachable") end
-    end
     return NS.PLAYER_UNIT
 end
 
@@ -121,6 +118,5 @@ function M.install(NS)
     end
     function NS.has_friendly_target() return M.has_friendly_target(NS) end
     function NS.get_friendly_target_entry(context) return M.get_friendly_target_entry(NS, context) end
-end
 
 return M

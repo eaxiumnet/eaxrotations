@@ -244,9 +244,7 @@ function M._reload_expansion(expansion)
     else
         _loaded_tbc = false
         _rank_tables_tbc = {}
-        load_tbc_data()
-    end
-end
+        load_tbc_data() end
 
 --- Get which expansions are loaded (for diagnostics).
 --- @return table { tbc = boolean, vanilla = boolean }

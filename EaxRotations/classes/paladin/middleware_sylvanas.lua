@@ -256,9 +256,7 @@ local strategies = {
             if NS.GetPartyMembers then
                 for _, member in ipairs(NS.GetPartyMembers() or {}) do
                     if member and unitNeedsCleanse(member) and NS.spell_ready and NS.spell_ready(spell, member, {}) then
-                        return NS.try_cast(spell, member, "[PALADIN] Cleanse (Party)")
-                    end
-                end
+                        return NS.try_cast(spell, member, "[PALADIN] Cleanse (Party)") end
             end
             return false
         end,
@@ -287,9 +285,7 @@ local strategies = {
                 -- Only interrupt if cast is past 50% (or no data)
                 if cast_left >= 50 or cast_left == 0 then
                     if SPELLS.HammerOfJustice and NS.spell_ready then
-                        return NS.spell_ready(SPELLS.HammerOfJustice, target, {})
-                    end
-                end
+                        return NS.spell_ready(SPELLS.HammerOfJustice, target, {}) end
             end
             return false
         end,
@@ -431,16 +427,12 @@ local strategies = {
                     return NS.try_cast(SPELLS.SanctityAura, context.me, "[PALADIN] Sanctity Aura")
                 end
                 if SPELLS.DevotionAura and NS.spell_ready and NS.spell_ready(SPELLS.DevotionAura, context.me, {}) then
-                    return NS.try_cast(SPELLS.DevotionAura, context.me, "[PALADIN] Devotion Aura (ret fallback)")
-                end
-            end
+                    return NS.try_cast(SPELLS.DevotionAura, context.me, "[PALADIN] Devotion Aura (ret fallback)") end
 
             -- Prot: Devotion Aura
             if playstyle == "protection" then
                 if SPELLS.DevotionAura and NS.spell_ready and NS.spell_ready(SPELLS.DevotionAura, context.me, {}) then
-                    return NS.try_cast(SPELLS.DevotionAura, context.me, "[PALADIN] Devotion Aura")
-                end
-            end
+                    return NS.try_cast(SPELLS.DevotionAura, context.me, "[PALADIN] Devotion Aura") end
 
             -- Holy: Concentration Aura
             if playstyle == "holy" then
@@ -448,9 +440,7 @@ local strategies = {
                     return NS.try_cast(SPELLS.ConcentrationAura, context.me, "[PALADIN] Concentration Aura")
                 end
                 if SPELLS.DevotionAura and NS.spell_ready and NS.spell_ready(SPELLS.DevotionAura, context.me, {}) then
-                    return NS.try_cast(SPELLS.DevotionAura, context.me, "[PALADIN] Devotion Aura (holy fallback)")
-                end
-            end
+                    return NS.try_cast(SPELLS.DevotionAura, context.me, "[PALADIN] Devotion Aura (holy fallback)") end
 
             -- Leveling: Retribution Aura (damage reflect) preferred; Devotion fallback.
             -- INVARIANT: this branch MUST stay present. Without it, the matcher still
@@ -463,9 +453,7 @@ local strategies = {
                     return NS.try_cast(SPELLS.RetributionAura, context.me, "[PALADIN] Retribution Aura (leveling)")
                 end
                 if SPELLS.DevotionAura and NS.spell_ready and NS.spell_ready(SPELLS.DevotionAura, context.me, {}) then
-                    return NS.try_cast(SPELLS.DevotionAura, context.me, "[PALADIN] Devotion Aura (leveling fallback)")
-                end
-            end
+                    return NS.try_cast(SPELLS.DevotionAura, context.me, "[PALADIN] Devotion Aura (leveling fallback)") end
 
             return false
         end,
@@ -505,9 +493,7 @@ local strategies = {
             -- Ret: Blessing of Might
             if playstyle == "retribution" then
                 if SPELLS.BlessingOfMight and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfMight, context.me, {}) then
-                    return NS.try_cast(SPELLS.BlessingOfMight, context.me, "[PALADIN] Blessing of Might")
-                end
-            end
+                    return NS.try_cast(SPELLS.BlessingOfMight, context.me, "[PALADIN] Blessing of Might") end
 
             -- Prot: Blessing of Kings if known, else Might
             if playstyle == "protection" then
@@ -515,16 +501,12 @@ local strategies = {
                     return NS.try_cast(SPELLS.BlessingOfKings, context.me, "[PALADIN] Blessing of Kings")
                 end
                 if SPELLS.BlessingOfMight and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfMight, context.me, {}) then
-                    return NS.try_cast(SPELLS.BlessingOfMight, context.me, "[PALADIN] Blessing of Might (prot fallback)")
-                end
-            end
+                    return NS.try_cast(SPELLS.BlessingOfMight, context.me, "[PALADIN] Blessing of Might (prot fallback)") end
 
             -- Holy: Blessing of Wisdom
             if playstyle == "holy" then
                 if SPELLS.BlessingOfWisdom and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfWisdom, context.me, {}) then
-                    return NS.try_cast(SPELLS.BlessingOfWisdom, context.me, "[PALADIN] Blessing of Wisdom")
-                end
-            end
+                    return NS.try_cast(SPELLS.BlessingOfWisdom, context.me, "[PALADIN] Blessing of Wisdom") end
 
             return false
         end,
@@ -673,9 +655,7 @@ local strategies = {
                             if useGreater and SPELLS.GreaterBlessingOfWisdom and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfWisdom, member, {}) then
                                 return NS.try_cast(SPELLS.GreaterBlessingOfWisdom, member, "[PALADIN] Greater Wisdom refresh (party)")
                             elseif SPELLS.BlessingOfWisdom and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfWisdom, member, {}) then
-                                return NS.try_cast(SPELLS.BlessingOfWisdom, member, "[PALADIN] Wisdom refresh (party)")
-                            end
-                        end
+                                return NS.try_cast(SPELLS.BlessingOfWisdom, member, "[PALADIN] Wisdom refresh (party)") end
                     end
                 end
             end
@@ -734,9 +714,7 @@ local strategies = {
                             if useGreater and SPELLS.GreaterBlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfKings, member, {}) then
                                 return NS.try_cast(SPELLS.GreaterBlessingOfKings, member, "[PALADIN] Greater Kings refresh (party)")
                             elseif SPELLS.BlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfKings, member, {}) then
-                                return NS.try_cast(SPELLS.BlessingOfKings, member, "[PALADIN] Kings refresh (party)")
-                            end
-                        end
+                                return NS.try_cast(SPELLS.BlessingOfKings, member, "[PALADIN] Kings refresh (party)") end
                     end
                 end
             end
@@ -794,9 +772,7 @@ local strategies = {
                             if useGreater and SPELLS.GreaterBlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfKings, member, {}) then
                                 return NS.try_cast(SPELLS.GreaterBlessingOfKings, member, "[PALADIN] Greater Kings (group, OOC)")
                             elseif SPELLS.BlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfKings, member, {}) then
-                                return NS.try_cast(SPELLS.BlessingOfKings, member, "[PALADIN] Kings (group, OOC)")
-                            end
-                        end
+                                return NS.try_cast(SPELLS.BlessingOfKings, member, "[PALADIN] Kings (group, OOC)") end
                     end
                 end
             end

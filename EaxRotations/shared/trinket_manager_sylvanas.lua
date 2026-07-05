@@ -42,9 +42,7 @@ local TRINKETS = {
 
 if NS and NS.register_item_manual_cooldown then
     for item_id, entry in pairs(TRINKETS) do
-        NS.register_item_manual_cooldown(item_id, entry.cooldown or DEFAULT_ITEM_COOLDOWN)
-    end
-end
+        NS.register_item_manual_cooldown(item_id, entry.cooldown or DEFAULT_ITEM_COOLDOWN) end
 
 local _registered = false
 local _last_used = {}
@@ -129,7 +127,6 @@ local function seed_default_settings()
     if NS.get_setting("use_trinket_offensive", nil) == nil then NS.set_setting("use_trinket_offensive", true) end
     if NS.get_setting("use_trinket_defensive", nil) == nil then NS.set_setting("use_trinket_defensive", true) end
     if NS.get_setting("trinket_defensive_hp", nil) == nil then NS.set_setting("trinket_defensive_hp", DEFAULT_DEFENSIVE_HP) end
-end
 
 local function trinket_slots()
     local slots = NS and NS.EQUIPMENT_SLOTS or nil
@@ -255,9 +252,7 @@ local function try_use_kind(context, kind)
             local item_id = slots[slot]
             local entry = item_id and TRINKETS[item_id] or nil
             if entry and entry.kind == kind and trinket_ready(me, slot, item_id, entry) then
-                return use_slot(slot, item_id, entry)
-            end
-        end
+                return use_slot(slot, item_id, entry) end
     end
     return false
 end

@@ -72,9 +72,7 @@ function M.compute_channel_state(me, game_time_ms, mf_ids)
                 or 0
             if channel_start_ms > 0 and game_time_ms > channel_start_ms then
                 local elapsed_s = (game_time_ms - channel_start_ms) / 1000.0
-                mf_ticks = floor(elapsed_s)
-            end
-        end
+                mf_ticks = floor(elapsed_s) end
     end
 
     return mf_channeling, mf_ticks
