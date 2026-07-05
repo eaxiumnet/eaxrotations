@@ -103,6 +103,77 @@ NS.PriestHealing.has_pws = has_pws
 
 NS.PriestHealing.predict_effective_deficit = predict_effective_deficit
 
+-- Magic debuff detection for Dispel Magic gate (used by Holy + Disc)
+-- Uses NS.has_dispel_type_debuff when available; falls back to manual scan.
+local DANGEROUS_MAGIC_DEBUFF_IDS = {
+    12826 -- Polymorph
+    , 61305 -- Polymorph (Black Cat)
+    , 61721 -- Polymorph (Rabbit)
+    , 61780 -- Polymorph (Turkey)
+    , 26373 -- Hibernate
+    , 19386 -- Wyvern Sting
+    , 14326 -- Sleep
+    , 5782 -- Fear
+    , 6213 -- Fear
+    , 17962 -- Death Coil
+    , 15122 -- Repentance
+    , 605 -- Mind Control
+    , 20537 -- Arcane Torrent (silence)
+    , 15487 -- Silence
+    , 18469 -- Counterspell (silence)
+    , 18425 -- Improved Counterspell (silence)
+}
+
+--- Check if a unit has a dangerous magic debuff worth dispelling.
+-- @param unit game_object|nil
+-- @return boolean
+local function has_dangerous_dispel(unit)
+    if not unit then return false end
+    -- Fast path: use shared type-based debuff checker
+    if NS.has_dispel_type_debuff then
+        local ok, result = pcall(NS.has_dispel_type_debuff, unit, "Magic")
+        if ok and result == true then return true end
+    end
+    -- Fallback: scan known dangerous magic debuff IDs
+    if NS.debuff_up then
+        for i = 1, #DANGEROUS_MAGIC_DEBUFF_IDS do
+            local ok, up = pcall(NS.debuff_up, unit, DANGEROUS_MAGIC_DEBUFF_IDS[i])
+            if ok and up then return true end
+        end
+    end
+    return false
+end
+
+--- Check if a unit has a disease debuff worth dispelling.
+-- @param unit game_object|nil
+-- @return boolean
+local function has_disease(unit)
+    if not unit then return false end
+    -- Fast path: use shared type-based debuff checker
+    if NS.has_dispel_type_debuff then
+        local ok, result = pcall(NS.has_dispel_type_debuff, unit, "Disease")
+        if ok and result == true then return true end
+    end
+    -- Fallback: use has_debuff with known disease IDs
+    local DISEASE_DEBUFF_IDS = {
+        3427 -- Infected Wound
+        , 16428 -- Mangle (TBC disease flag)
+        , 19615 -- Fling
+        , 3434 -- Wandering Plague
+        , 17172 -- Devouring Plague
+    }
+    if NS.debuff_up then
+        for i = 1, #DISEASE_DEBUFF_IDS do
+            local ok, up = pcall(NS.debuff_up, unit, DISEASE_DEBUFF_IDS[i])
+            if ok and up then return true end
+        end
+    end
+    return false
+end
+
+NS.PriestHealing.has_dangerous_dispel = has_dangerous_dispel
+NS.PriestHealing.has_disease = has_disease
+
 local is_in_raid = NS.is_in_raid or function() return false end
 local is_in_party = NS.is_in_party or function() return false end
 
