@@ -22,6 +22,7 @@ local Containers = require("fishing/containers")
 local MrPinchy   = require("fishing/mr_pinchy")
 local AutoSell   = require("inventory/auto_sell")
 local AutoDelete = require("inventory/auto_delete")
+local QuestTracker = require("fishing/quest_tracker")
 
 local M = {}
 
@@ -604,6 +605,9 @@ function M.tick(ctx)
         end
     end
     
+    -- v2.4.0: Update quest tracking (throttled, passive)
+    QuestTracker.update(ctx, now)
+
     -- ========== POOL NAVIGATION ==========
     -- If pool tracking is enabled and nav client is available, find the nearest
     -- fish pool and navigate to a shoreline standoff position before casting.
@@ -663,14 +667,23 @@ function M.tick(ctx)
                         end
                         if is_pool then
                             if not only_wreckage or string.find(name, "Wreckage", 1, true) then
+                                -- v2.4.0: quest fish targeting — prefer quest pools
+                                local quest_preferred = false
+                                if state.quest.quest_fish_id then
+                                    quest_preferred = QuestTracker.is_quest_pool(name, state.quest.quest_fish_id)
+                                end
                                 local pos = APISurface.get_object_position(obj)
                                 if pos then
                                     local dx = p.x - pos.x
                                     local dy = p.y - pos.y
                                     local dist_sq = dx*dx + dy*dy
-                                    if dist_sq < search_range_sq and dist_sq < nearest_dist_sq then
-                                        nearest_dist_sq = dist_sq
-                                        nearest_pool = obj
+                                    if dist_sq < search_range_sq then
+                                        -- Quest pools get a 10x distance bonus (prefer them)
+                                        local effective_dist = quest_preferred and (dist_sq / 10) or dist_sq
+                                        if effective_dist < nearest_dist_sq then
+                                            nearest_dist_sq = effective_dist
+                                            nearest_pool = obj
+                                        end
                                     end
                                 end
                             end

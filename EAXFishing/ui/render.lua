@@ -210,6 +210,11 @@ function M.render(ctx)
             row("Depleted",  tostring(state.pool_depletion.depleted_count), c_gray)
         end
 
+        -- Quest fish tracking (new v2.4.0)
+        if state.quest and state.quest.quest_fish_name then
+            row("Quest",     state.quest.quest_fish_name, c_gold)
+        end
+
         -- Top items caught (up to 6)
         local sorted = {}
         for name, count in pairs(stats.item_counts) do

@@ -172,9 +172,11 @@ function M.create(now)
         quest = {
             active_quest_id   = nil,
             quest_fish_id      = nil,
+            quest_fish_name    = nil,
             quest_fish_needed  = 0,
             quest_fish_count   = 0,
             quest_complete     = false,
+            last_check_time    = 0.0,
         },
 
         -- Whisper responder state (v2.4.0)
