@@ -1,7 +1,7 @@
 -- swing_diagnostics_sylvanas.lua — CLEU-backed swing timer + seal confirmation + diagnostics.
 -- WHAT:  Listens to COMBAT_LOG_EVENT_UNFILTERED for melee swings and seal casts,
 --        providing authoritative swing timing and twist-result categorization.
--- WHEN:  Loaded at startup; registers callback if core.register_on_game_event_callback exists.
+-- WHEN:  Loaded at startup; registers via NS.register_on_game_event (centralized dispatcher).
 -- WHY:   Frame-polling swing timers drift under latency/haste. CLEU gives exact server timestamps.
 -- SAFETY: Falls back silently if callback API is unavailable. All internal state is nil-guarded.
 -- DECISION: Shared module because any melee spec (Ret, Enh, Warrior) benefits from CLEU swing data.
@@ -185,7 +185,7 @@ local function on_cleu(args)
 end
 
 -- ---------------------------------------------------------------------------
--- Game event router
+-- Game event router (dispatched via NS.register_on_game_event)
 -- ---------------------------------------------------------------------------
 local function on_game_event(event_name, args)
     if event_name == "COMBAT_LOG_EVENT_UNFILTERED" then
@@ -201,14 +201,11 @@ end
 -- ---------------------------------------------------------------------------
 local function try_register()
     if _registered then return true end
-    local fn = core and core.register_on_game_event_callback
-    if type(fn) ~= "function" then return false end
-    local ok, result = pcall(fn, function(event_name, args)
-        on_game_event(event_name, args)
-    end)
-    if ok and result ~= false then
+    if type(NS.register_on_game_event) ~= "function" then return false end
+    local ok = pcall(NS.register_on_game_event, "COMBAT_LOG_EVENT_UNFILTERED", on_game_event)
+    if ok then
         _registered = true
-        if NS.log then pcall(NS.log, "[SwingDiagnostics] CLEU listener registered") end
+        if NS.log then pcall(NS.log, "[SwingDiagnostics] CLEU listener registered via dispatcher") end
         return true
     end
     return false
