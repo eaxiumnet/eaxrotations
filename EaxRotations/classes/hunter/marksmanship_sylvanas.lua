@@ -296,13 +296,9 @@ local function freezing_trap_matches(context, s)
 end
 
 local function in_combat_aimed_shot_matches(context, s)
-    if not s.in_combat then return false end
-    if not s.aimed_shot_ready then return false end
-    if (s.mana_pct or 100) < 20 then return false end
-    -- TTD gate: prefer instant Arcane Shot over 2.5s Aimed Shot when target is dying
-    if context.ttd_known and context.ttd < 3 then return false end
-    if not can_cast_before_auto(AIMED_SHOT_CAST_MS) then return false end
-    return true
+    -- Aimed Shot resets the auto-shot timer in TBC, so it is only used as a
+    -- pre-pull opener (see AimedShotPrepull). Using it in combat is a DPS loss.
+    return false
 end
 
 local function viper_sting_matches(context, s)

@@ -830,6 +830,12 @@ local strategies = {
         matches = sting_matches,
         execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting") end,
     },
+    -- 16b. Serpent Sting refresh so the DoT does not fall off mid-fight
+    {
+        name = "SerpentStingRefresh",
+        matches = serpent_refresh_matches,
+        execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting refresh") end,
+    },
     -- 17. Arcane Shot (instant filler)
     {
         name = "ArcaneShot",

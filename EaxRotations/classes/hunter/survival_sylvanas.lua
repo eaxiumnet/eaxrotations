@@ -244,6 +244,17 @@ local function serpent_sting_matches(context, s)
     return true
 end
 
+local function serpent_sting_refresh_matches(context, s)
+    if not s.in_combat then return false end
+    if not s.serpent_sting_ready then return false end
+    if not s.has_serpent_sting then return false end
+    local remains = NS.debuff_remains and NS.debuff_remains(context.target, SERPENT_STING_DEBUFF) or 0
+    if remains > 3 then return false end
+    -- TTD gate: don't refresh if target dies before the refreshed DoT ticks meaningfully
+    if context.ttd_known and context.ttd < 6 then return false end
+    return true
+end
+
 local function aspect_hawk_matches(context, s)
     if s.has_aspect_hawk then return false end
     -- Throttle: prevent thrashing due to WoW API buff detection delay
@@ -533,6 +544,7 @@ local strategies = {
     { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(context) if NS.try_cast(SPELLS.ArcaneShot, context.target, "[SURVIVAL] Arcane Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(SPELLS.ViperSting, context.target, "[SURVIVAL] Viper Sting", { expected_cooldown = 8 }) end },
     { name = "SerpentSting", matches = serpent_sting_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[SURVIVAL] Serpent Sting") end },
+    { name = "SerpentStingRefresh", matches = serpent_sting_refresh_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[SURVIVAL] Serpent Sting refresh") end },
 }
 
 NS.rotation_registry:register("survival", strategies, { get_state = build_state })
