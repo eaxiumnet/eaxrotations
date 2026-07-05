@@ -93,5 +93,6 @@ return {
             },
         },
     },
+    require("shared/schema_autoloot_sylvanas").build_tab(),
     consumables.build_tab(),
 }

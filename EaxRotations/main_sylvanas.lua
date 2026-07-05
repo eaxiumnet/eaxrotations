@@ -64,6 +64,11 @@ local _pet_manager_mod_ok, pet_manager = pcall(require, "shared/pet_manager_sylv
 if not _pet_manager_mod_ok or type(pet_manager) ~= "table" then pet_manager = nil end
 NS.pet_manager = pet_manager
 
+-- Auto-loot module (background corpse looting, v1.0)
+local _autoloot_ok, auto_loot = pcall(require, "shared/auto_loot_sylvanas")
+if not _autoloot_ok or type(auto_loot) ~= "table" then auto_loot = nil end
+NS.auto_loot = auto_loot
+
 -- Expose platform-provided modules for spec consumption.
 -- health_prediction: tank detection, PvP detection, incoming damage heuristics.
 NS.health_prediction = health_prediction
@@ -479,7 +484,13 @@ local function build_context()
     end
 
     if not _combat_start_time and me and in_combat then _combat_start_time = NS.time_now() end
-    if _combat_start_time and me and combat_state_known and not in_combat then _combat_start_time = nil end
+    if _combat_start_time and me and combat_state_known and not in_combat then
+        _combat_start_time = nil
+        -- v1.0: Auto-loot grace period tracking
+        if NS.auto_loot and NS.auto_loot.stats then
+            NS.auto_loot.stats.last_combat_end = NS.time_now()
+        end
+    end
     local enemy_ok = valid_enemy(me, target)
     -- BUGFIX (2026-06-29): ``find_enemy_target`` preserves the player's
     -- manually-selected target even when it is friendly (non-hostile).
@@ -1239,6 +1250,10 @@ function M.on_rotation_update()
         return true
     end
     local fired = run_list(tostring(active), registry and registry.playstyles[active], registry and registry.options[active], context)
+    -- v1.0: Auto-loot corpses (background service, never blocks rotation)
+    if NS.auto_loot and NS.auto_loot.on_tick then
+        pcall(NS.auto_loot.on_tick, context)
+    end
     if _tick_start and tick_profiler then tick_profiler.end_tick(_tick_start) end
     return fired
 end
@@ -1310,6 +1325,10 @@ function M.on_rotation_update_unified()
         return true
     end
     local fired = NS.run_unified_strategies(context)
+    -- v1.0: Auto-loot corpses (background service, never blocks rotation)
+    if NS.auto_loot and NS.auto_loot.on_tick then
+        pcall(NS.auto_loot.on_tick, context)
+    end
     if _tick_start and tick_profiler then tick_profiler.end_tick(_tick_start) end
     return fired
 end
