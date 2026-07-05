@@ -2,6 +2,29 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.3.15] — Major-CD Window Rollout: Fury, Enhancement, Fire, BM, Shadow, Affliction (2026-07-05)
+
+### Features
+
+- **Warrior Fury**: Death Wish and Recklessness now align with Bloodlust/Heroism/Drums/other major CDs; timeout/TTD fallbacks prevent them from rotting.
+- **Shaman Enhancement**: Shamanistic Rage now fires during major power windows in addition to the existing low-mana/low-HP defensive paths.
+- **Mage Fire**: Combustion now waits for a major power window; prefers 5-stack Scorch before popping in non-burst mode; burst/manual override skips the Scorch gate.
+- **Hunter Beast Mastery**: Bestial Wrath now aligns with major power windows.
+- **Priest Shadow**: Racial cooldowns (Berserking, Blood Fury, Arcane Torrent) now align with major power windows.
+- **Warlock Affliction**: Racial cooldowns now align with major power windows.
+
+### Bug Fixes
+
+- **Hunter Marksmanship**: Bestial Wrath is now gated on `NS.is_spell_learned` — a MM build can no longer attempt to cast the BM 31-point talent.
+
+### What to Expect
+
+- DPS specs now overlap personal offensive CDs and racials with Bloodlust/Heroism/Drums/windows instead of firing them immediately.
+- Each affected CD still fires by timeout (45–60s) or when the target is dying, so nothing is held forever.
+- No settings changes needed; behavior upgrades automatically.
+
+---
+
 ## [2.3.14] — Cooldown Planner: Stack Trinkets with Bloodlust & Major CDs (2026-07-05)
 
 ### Features

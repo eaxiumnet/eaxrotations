@@ -6,7 +6,22 @@
 
 ---
 
-## P0 — Fix before next release
+## P0 — Fix before next release ✅
+
+> All P0 items were addressed in commits `f95a560d` (Fury) through `e99ebb6f` (Affliction).
+> See `CHANGELOG.md` v2.3.15 and `RELEASE_NOTES_EaxRotations_v2.3.15.md` for user-facing notes.
+>
+> What was fixed:
+> - Marksmanship Bestial Wrath gated on `is_spell_learned`.
+> - Cooldown planner adopted by Fury Death Wish/Recklessness, Enhancement Shamanistic Rage,
+>   Fire Combustion, Beast Mastery Bestial Wrath, Shadow racials, and Affliction racials.
+>
+> What intentionally remains in existing behavior:
+> - Hunter Major CDs other than Bestial Wrath (Rapid Fire / Readiness / Trueshot Aura) were not
+>   changed in this pass because they already coordinate closely with shot weaving; aligning
+>   them with power windows can be added later behind a setting without breaking current tests.
+> - Shadowfiend, Dark Pact, and Power Infusion remain mana/defensive-gated rather than burst-gated
+>   because that is their primary role for casters.
 
 ### 1. Marksmanship Hunter includes Bestial Wrath (BM-only)
 - **File / line**: `classes/hunter/marksmanship_sylvanas.lua:461`
@@ -56,7 +71,7 @@
 
 ---
 
-## P1 — Significant fidelity improvements
+## P1 — Significant fidelity improvements (remaining)
 
 ### 8. Affliction lacks combat-mode switching / multi-target policy
 - **File / lines**: `classes/warlock/affliction_sylvanas.lua` has no `combat_mode`/ `effective_mode` fields; only `enemy_count` is used for curse choice (`:352`).
