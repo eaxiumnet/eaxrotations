@@ -9,9 +9,9 @@
 
 ## What's New
 
-### Auto-Loot Corpses (All Classes)
+### Auto-Loot Corpses (All 9 Classes)
 
-A brand-new background feature that automatically loots nearby corpses while your rotation runs — no manual clicking required.
+A brand-new background feature that automatically loots nearby corpses while your rotation runs — no manual clicking required. Available in the settings menu for **all 9 classes** (Druid, Hunter, Mage, Paladin, Priest, Rogue, Shaman, Warlock, Warrior).
 
 **How it works:**
 - While your rotation is active, the addon scans for lootable corpses within 30 yards
@@ -33,6 +33,8 @@ A brand-new background feature that automatically loots nearby corpses while you
 2. Look for the new **"Auto-Loot"** tab at the top
 3. Check **"Auto-Loot Corpses"**
 4. Adjust timing, range, and safety settings to your preference
+
+**Self-explanatory labels:** Every setting label is written so you understand it at a glance. Hover for detailed tooltips that explain *what* the setting does, *why* it matters, and *what the default means*.
 
 **Default settings:**
 - Auto-Loot: **Off** (opt-in feature)
@@ -98,7 +100,7 @@ A brand-new background feature that automatically loots nearby corpses while you
 | Category | Change |
 |----------|--------|
 | **Feature** | Auto-Loot Corpses (all classes, background service) |
-| **Feature** | Auto-Loot settings tab with 10 configurable options |
+| **Feature** | Auto-Loot settings tab with 10 configurable options (all 9 classes) |
 | **Feature** | Combat-aware looting with post-combat grace period |
 | **Feature** | Burst protection (max loots per 10s window) |
 | **Feature** | Bag-full auto-pause with configurable threshold |
@@ -108,4 +110,5 @@ A brand-new background feature that automatically loots nearby corpses while you
 | **Bugfix** | DoT spread lockout prevents double-casting on same target |
 | **Test** | 219 rotation suites: all passing |
 | **Test** | 13 leveling suites: all passing |
+| **Polish** | Self-explanatory labels + detailed tooltips on all 10 auto-loot settings |
 | **Test** | Auto-loot module: 8 unit tests passing |
