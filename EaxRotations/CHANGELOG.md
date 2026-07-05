@@ -1,5 +1,34 @@
 # Changelog
 
+## 2.3.13 - 2026-07-05
+
+### Healer Gap Fixes (Deep-Dive Audit)
+
+#### Holy Priest
+- **DispelMagic now fires**: `Healing.has_dangerous_dispel()` and `Healing.has_disease()` were referenced but never defined in `priest/healing_sylvanas.lua`. The `DispelMagic`, `CureDisease`, and `AbolishDisease` strategies were dead code — they silently skipped because the gate functions returned nil. Now defined with `NS.has_dispel_type_debuff` fast path + debuff ID scan fallback.
+- **ManaPotion strategy added**: Holy Priest was the only healer without a Mana Potion strategy (Pally, Shaman, and Druid all had one). Fires at <20% mana, gated by `use_mana_potions` setting.
+
+#### Discipline Priest
+- **Shadowfiend strategy added**: Discipline had the spell but no strategy to cast it (only Holy had one). Fires at <30% mana, gated by `use_shadowfiend` setting. `shadowfiend_ready` added to `build_state`.
+- **ManaPotion strategy added**: Same gap as Holy Priest — now has mana potion at <20%.
+
+#### Resto Shaman
+- **Solo DPS now fires**: `idle_dps_strategies` (EarthShock, FlameShock, ChainLightning, LightningBolt) were exported but NOT in the `healing_strategies` table passed to `rotation_registry:register`. Solo Shaman did zero DPS. Now merged into the registered rotation.
+- **Earth Shock interrupt now fires**: Was in the unregistered `idle_dps_strategies` — target-casting interrupt logic was dead code. Now active.
+- **Bloodlust PvP burst window**: `bloodlust_matches` now also fires during PvP burst-heal windows via `NS.PvPBurstWindow.should_burst()`, not just when group is fully healthy.
+
+#### Holy Paladin
+- **Avenging Wrath PvP burst window**: `AvengingWrathHeavyHealing` now also fires during PvP burst-heal windows via `NS.PvPBurstWindow.should_burst()`, not just during `heavy_healing` flag.
+
+#### Shared Modules
+- **`chain_heal_target()` added to `triage_sylvanas.lua`**: Resto Shaman referenced `NS.AoEHeal.chain_heal_target()` but it was never defined — the call was nil-guarded so it silently fell back to lowest-HP targeting. Now the 12.5yd cluster finder activates, improving Chain Heal bounce optimization.
+- **`PetHeal` verified**: `core_sylvanas.lua:4876` already calls `NS.PetHeal.append_entries` — no fix needed.
+
+### Quality & Reliability
+- 219 rotation test suites — all passing
+- 13 leveling rotation suites — all passing
+- All changes are backward compatible. No settings reset required.
+
 ## 2.3.9 - 2026-07-03
 
 ### Bug Fixes
