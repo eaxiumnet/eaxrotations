@@ -679,6 +679,21 @@ local strategies = {
   end,
  },
  {
+  name = "ManaPotion",
+  matches = function(context, state)
+   if not context.in_combat then return false end
+   if context.settings and context.settings.use_mana_potions == false then return false end
+   local threshold = (context.settings and context.settings.mana_potion_threshold) or 20
+   return (state.mana_pct or context.mana_pct or 100) < threshold
+  end,
+  execute = function()
+   if NS.ConsumableManager and NS.ConsumableManager.use_mana_potion then
+    return pcall(NS.ConsumableManager.use_mana_potion, NS.ConsumableManager)
+   end
+   return false
+  end,
+ },
+ {
   name = "DispelMagic",
   matches = function(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DispelMagic, 3.0) then return false end
