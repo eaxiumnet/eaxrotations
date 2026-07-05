@@ -149,6 +149,7 @@ config.menu = {
 
     -- v2.4.2: Water walking buff
     auto_water_walking  = safe_menu(_menu.checkbox, false, "fishing_auto_water_walking"),
+    water_walking_refresh_secs = safe_menu(_menu.slider_int, 10, 300, 60, "fishing_water_walk_refresh"),
 }
 
 return config

@@ -185,6 +185,8 @@ function M.render_menu(ctx)
                 h:render("BUFFS & CONSUMABLES", C.sub)
                 config.menu.auto_water_walking:render("Auto-Water Walking",
                     "Applies Water Walking (Shaman), Levitate (Priest), or Path of Frost (DK) before casting. Falls back to Elixir of Water Walking consumable. Disabled by default — opt-in for water fishing.")
+                config.menu.water_walking_refresh_secs:render("Water Walking Refresh (s)",
+                    "Re-applies the buff this many seconds before it expires. Default 60s. Set to 0 to disable refresh (only applies when missing).")
 
                 h:render("SESSION RESILIENCE", C.sub)
                 config.menu.auto_vendor_repair:render("Auto Repair at Vendor",

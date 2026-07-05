@@ -35,7 +35,7 @@ local WATER_WALKING_ITEMS = {
 
 --- Check if player has any water-walking or levitate buff active
 -- @param me game_object
--- @return boolean
+-- @return boolean has_buff, number|nil expire_time
 function M.has_water_walking_buff(me)
     if not APISurface.is_valid(me) then return false end
     local buffs = APISurface.get_buffs(me)
@@ -46,13 +46,14 @@ function M.has_water_walking_buff(me)
             or b.id == BUFF_LEVITATE
             or b.id == BUFF_PATH_OF_FROST
         then
-            return true
+            return true, b.expire_time
         end
     end
     return false
 end
 
 --- Try to apply the best available water walking buff
+-- Also refreshes the buff before it expires (configurable threshold).
 -- Priority: learned class spell > consumable item
 -- @param ctx table
 -- @param me game_object
@@ -75,9 +76,26 @@ function M.try_apply(ctx, me, now)
     if not state.water_walking then state.water_walking = { last_try_time = 0 } end
     state.water_walking.last_try_time = now
 
-    -- Already buffed?
-    if M.has_water_walking_buff(me) then
-        return false
+    -- Check if buffed and when it expires
+    local has_buff, expire_time = M.has_water_walking_buff(me)
+    if has_buff then
+        -- Check if buff is about to expire (refresh before it runs out)
+        local refresh_secs = 60
+        if ctx.deps.config.menu.water_walking_refresh_secs
+           and ctx.deps.config.menu.water_walking_refresh_secs.get then
+            refresh_secs = ctx.deps.config.menu.water_walking_refresh_secs:get()
+        end
+        if refresh_secs > 0 and expire_time then
+            local remaining = expire_time - now
+            if remaining <= refresh_secs then
+                APISurface.print("[EaxFishing] Water walking expiring in " .. math.floor(remaining) .. "s — refreshing...")
+                -- Fall through to re-apply below
+            else
+                return false  -- Buff is fine, no need to refresh
+            end
+        else
+            return false  -- Buff is fine, no refresh configured
+        end
     end
 
     -- Try class spells first (free, no item consumption)
