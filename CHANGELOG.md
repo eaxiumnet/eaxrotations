@@ -2,6 +2,26 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.3.12] — Auto-Loot Corpses (All Classes) + Shadow Priest Multi-DoT Fix (2026-07-05)
+
+### Features
+
+- **Auto-Loot Corpses** — Background service that automatically loots nearby corpses while your rotation runs. Humanized timing (random 50–200ms delay), combat-aware (OOC-only by default), burst protection (max 5 per 10s), bag-full pause, player-corpse skip, and configurable range (10–50y). Never blocks rotation casts. Disabled by default — opt-in via new "Auto-Loot" settings tab.
+- **Auto-Loot Settings Tab** — 10 configurable options: enable toggle, combat mode (OOC/Always), post-combat grace period (0–5s), min/max loot delay (0–300ms / 100–500ms), max loots per 10s (1–10), skip player corpses, stop when bags full, min free slots (0–20), loot range (10–50y).
+- **Auto-Loot Stats** — Tracks corpses looted, last target name, and bag-full pause state per session.
+
+### Bug Fixes
+
+- **Shadow Priest**: Multi-DoT spread strategies (SWPSpread, VTSpread, MultiDotSWP, MultiDotVT) now correctly target enemies missing the debuff instead of recasting on the current target.
+
+### What to Expect
+
+- New "Auto-Loot" tab appears in your rotation settings. Enable it if you want automatic corpse looting.
+- All settings carry over automatically — no reset needed.
+- 219 rotation suites + 13 leveling suites all passing.
+
+---
+
 ## [2.3.11] — Hotfix: Shadow Priest Multi-DoT Now Spreads to Real Targets (2026-07-05)
 
 ### Bug Fixes
