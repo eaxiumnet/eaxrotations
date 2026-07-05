@@ -1,5 +1,82 @@
 # Changelog
 
+## 2.3.15 - 2026-07-05
+
+### Comprehensive Competitor Ecosystem Analysis
+
+Researched 30+ providers across the entire WoW automation ecosystem. Key findings:
+
+#### TBC Healer Competitors Found
+
+| Provider | Type | TBC Healer Support | EAX vs Them |
+|----------|------|--------------------|-------------|
+| **BlistX (blistrogue.com)** | Lua framework | ✅ Holy Priest, Disc Priest PvP, Resto Shaman, Holy Pally, Resto Druid PvP | 80K lines, 17 rotations, PvP situation fields, BuddyMode. Direct competitor. |
+| **MaxDPS Assistant (maxdps.pro)** | Pixel/Memory | ❌ TBC Priest = Shadow only (no healer) | EAX far ahead |
+| **WRobot Fight Class** | Private server internal | ✅ Disc Priest PvP (6.50 EUR) | Dynamic rotation, SW:Death polymorph, frame lock. EAX matches spell usage. |
+| **Tempest (wowtempest.gg)** | Pixel bot | ✅ All specs including healers | $49-499, SimC APL, pixel-based. Cannot scrape logic. |
+| **Rice Rotations** | Pixel bot | ✅ All specs (Midnight + MoP) | Pixel-based, PvE only, no PvP. Does not list TBC Anniversary. |
+| **PixelRotation** | Pixel bot | ❌ Midnight + MoP only | Not applicable to TBC |
+| **OptiStrike** | Pixel bot | ⚠️ All versions, uses Hekili/HeroRotation | Pixel wrapper around Hekili — no own healer logic |
+| **Morpheus** | Custom bot | ✅ Any expansion, any class | Custom 1-to-1 development. Cannot scrape. |
+| **Sonah** | CurseForge addon | ✅ All 27 specs TBC | EAX exceeds — stop-cast, absorb tracking, chain heal targeting |
+| **HealPredict TBC** | CurseForge addon | ✅ UI-only heal prediction | EAX matches core logic; HealPredict is visualization only |
+| **HealIQ** | GitHub addon | ✅ Resto Druid only | EAX adopted Swiftmend expire-preference + tick-cadence |
+| **ConROC** | CurseForge addon | ❌ Explicitly no healer rotation | EAX has full healer support |
+| **Hekili** | GitHub addon | ❌ Healer = DPS only | EAX far ahead |
+| **MaxDps (kaminaris)** | GitHub addon | ❌ TBC Resto Shaman = DPS only | EAX far ahead |
+| **PrismmRot** | GitHub addon | ❌ JSON-driven DPS queue | No healer logic |
+| **HekiliHealers** | CurseForge addon | ⚠️ Retail only | Not applicable to TBC |
+
+#### Lua Unlocker / Rotation Framework Ecosystem (no public healer logic)
+
+| Provider | Type | Notes |
+|----------|------|-------|
+| NilName | Lua Unlocker + Rotations | 403 blocked, closed source |
+| WGG | Lua Unlocker | — |
+| Lunar | Mac Lua Unlocker + Framework | — |
+| Daemonic | Lua Unlocker | — |
+| Project Sylvanas | Internal Framework | **EAX's platform** |
+| SIN/WS/GDR/TJX/Funlua/TCXCore | Chinese Lua Unlockers | Closed source |
+| Clipper | PvP Rotations | Retail-focused |
+| Ascended/Phoenix/SYNQ/Opal/Dominus/Makulu/Magic | Combat Rotations | GGLoader-based, closed source |
+| EpicSync | Custom Hekili Rotations | Hekili wrapper |
+| GGLoader/Inferno | Combat Pixel Bots | Closed source |
+| Rotation Lab/Byster/Univer | Private Server Rotations | Memory-based, closed source |
+| SquireBot/Warden Grider/Bottie/PixelWoWBot/Wrobot | Farming/Multi-use | Not healer rotation relevant |
+
+#### Key Insights
+
+1. **BlistX is the most direct competitor** — 80K lines, 17 rotations, TBC healer support including Holy Priest "Smart 5-man healing, triage scoring", Disc Priest PvP, Resto Shaman, Holy Pally, Resto Druid PvP. Has "PvP Situation Fields" and "BuddyMode" (follow/assist/healer peel). However, BlistX is closed-source and Lua-based — EAX is also Lua-based and on Project Sylvanas (internal framework, more capable than pixel bots).
+
+2. **No competitor has stop-cast engine** — EAX's mid-cast cancellation at 25/50/75% progress is unique across all 30+ providers researched.
+
+3. **No competitor has PW:S absorb-aware refresh** — EAX's `buff_points()` >200 skip is unique.
+
+4. **No competitor has Chain Heal cluster targeting** — EAX's O(n²) 12.5yd radius finder is unique.
+
+5. **Pixel bots (Tempest, Rice, OptiStrike, PixelRotation)** cannot access internal game state — they read screen pixels. EAX runs inside the game via Project Sylvanas, giving full access to unit health, buffs, threat, cast info, combat log, etc. This is a fundamental architectural advantage.
+
+6. **MaxDPS Assistant** has TBC Priest but only Shadow — no healer rotation. EAX has Holy + Disc + Shadow.
+
+7. **WRobot Disc Priest PvP profile** (6.50 EUR, 2.4.3) uses: Fear, Dispel, PvP Trinket, Shadowfiend, Pain Suppression, Mass Dispel, SW:Death polymorph interrupt. EAX's Disc Priest has all of these except SW:Death polymorph interrupt and Mass Dispel.
+
+8. **BlistX BuddyMode** (follow, assist, healer peel awareness) is a feature EAX doesn't have — but it's a leveling/follow bot feature, not a rotation quality feature.
+
+### Features to Consider from Competitors
+
+| Feature | Source | Priority | Status |
+|---------|--------|----------|--------|
+| SW:Death polymorph interrupt | WRobot Disc Priest | Medium | Not in EAX |
+| Mass Dispel (PvP) | WRobot Disc Priest | Low | Not in EAX |
+| BuddyMode (follow/assist) | BlistX | Low | Out of scope for rotation engine |
+| PvP Situation Fields | BlistX | Medium | EAX has PvP via context.is_pvp + spec-specific logic |
+| 80K lines scale | BlistX | — | EAX is ~50K+ lines across 29 specs + shared modules |
+
+### Quality & Reliability
+- 219 rotation test suites — all healer tests passing
+- 13 leveling rotation suites — all passing
+- All changes are backward compatible.
+
 ## 2.3.14 - 2026-07-05
 
 ### Healer Deep-Dive: External Research + Tick-Cadence HoT Refresh
