@@ -86,14 +86,11 @@ end
 
 local function try_register_cleu()
     if _cleu_registered then return true end
-    local fn = core and core.register_on_game_event_callback
-    if type(fn) ~= "function" then return false end
-    local ok, result = pcall(fn, function(event_name, args)
-        on_game_event(event_name, args)
-    end)
-    if ok and result ~= false then
+    if type(NS.register_on_game_event) ~= "function" then return false end
+    local ok = pcall(NS.register_on_game_event, "PLAYER_REGEN_DISABLED", on_game_event)
+    if ok then
         _cleu_registered = true
-        if NS.log then pcall(NS.log, "[SnapThreat] CLEU combat-start listener registered") end
+        if NS.log then pcall(NS.log, "[SnapThreat] CLEU combat-start listener registered via dispatcher") end
         return true
     end
     return false
