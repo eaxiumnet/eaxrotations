@@ -8,10 +8,17 @@ Project Sylvanas added `get_attachment_position` and `get_attachment_name_positi
 
 ## Crash History
 - **Crash 1**: Looping `get_attachment_position(0..20)` + `get_attachment_name_position("head", "neck", ...)` every 5s with debug log.
+  - Note: `get_attachment_name_position` was called with string args, but the correct signature is **zero args** (`()`).
 - **Crash 2**: One-shot probe of index 0 + name "head" with `pcall`.
+  - Same issue: wrong signature for name_position.
 - **Crash 3**: Numeric indices from barker's attachment table (1, 2, 3, 4, 5, 6, 9, 10, 20, 34, 47, 48, 50) via `get_attachment_position(idx)`.
+  - **Correct signature used** (`get_attachment_position(me, idx)`), still crashed.
 
 All three crashed despite `pcall` wrapping. `pcall` catches Lua errors, not native access violations (AVs) in the C++ binding.
+
+**Correct signatures (from Sylvanas dev @Voltz [SBTL]):**
+- `get_attachment_position(attachment_id: integer) -> vec3`
+- `get_attachment_name_position() -> vec3` — **zero arguments**
 
 ## Root Cause (Presumed)
 The attachment APIs are fresh C++ bindings. Either:

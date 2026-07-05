@@ -9,7 +9,13 @@
 
 ## Summary
 
-`game_object:get_attachment_position(index)` and `game_object:get_attachment_name_position(name)` exist as callable methods on unit objects, but invoking them causes a **hard client crash** (access violation) that `pcall` cannot catch. This makes the APIs completely unusable from Lua.
+`game_object:get_attachment_position(attachment_id)` and `game_object:get_attachment_name_position()` exist as callable methods on unit objects, but invoking them causes a **hard client crash** (access violation) that `pcall` cannot catch. This makes the APIs completely unusable from Lua.
+
+**Important — API signatures (from Sylvanas dev @Voltz [SBTL]):**
+- `get_attachment_position(attachment_id: integer) -> vec3` — one integer arg
+- `get_attachment_name_position() -> vec3` — **zero args** (returns nameplate anchor position)
+
+The bug report's Method B used `pcall(me.get_attachment_name_position, me, "head")` which passes a string when the API expects zero arguments. However, Method A (`pcall(me.get_attachment_position, me, 0)`) uses the correct signature and still crashes, confirming the binding itself is unstable.
 
 ---
 
@@ -26,14 +32,18 @@ if me and type(me.get_attachment_position) == "function" then
 end
 ```
 
-### Method B — String name (100% crash)
+### Method B — Name position (100% crash, WRONG signature used)
 
 ```lua
+-- WRONG: passes "head" string when API expects zero arguments
 local me = core.object_manager.get_local_player()
 if me and type(me.get_attachment_name_position) == "function" then
     local ok, pos = pcall(me.get_attachment_name_position, me, "head")
     -- Client crashes here. Same AV behavior.
 end
+
+-- CORRECT signature (also crashes):
+-- local ok, pos = pcall(me.get_attachment_name_position, me)
 ```
 
 ### Method C — Batch loop (100% crash)
@@ -84,8 +94,8 @@ One of the following:
 
 | Hypothesis | Test | Result |
 |---|---|---|
-| Specific index is invalid | Tested 0, 1, 20, 34, 47, 48, 50 | All crash |
-| String name is invalid | Tested `"head"` | Crashes |
+| Specific index is invalid | Tested 0, 1, 20, 34, 47, 48, 50 (correct signature) | All crash — binding genuinely broken |
+| Wrong arg signature (name_position) | Tested `"head"` (expects 0 args) | Crashes — but this was WRONG signature per dev docs |
 | pcall is misused | Wrapped in `pcall(fn, obj, arg)` pattern | Still crashes |
 | Object is stale/invalid | Called on freshly fetched `get_local_player()` | Still crashes |
 | Renderer context required | Called outside render loop, plain `/run` | Still crashes |
@@ -108,6 +118,10 @@ c.log("[ATTACH-TEST] About to call get_attachment_position(0)...")
 local ok2, pos = pcall(me.get_attachment_position, me, 0)
 -- Crash occurs here. Lines below never execute.
 c.log("[ATTACH-TEST] pcall ok=" .. tostring(ok2))
+
+-- Also test get_attachment_name_position with CORRECT zero-arg signature:
+-- local ok3, pos2 = pcall(me.get_attachment_name_position, me)
+-- This ALSO crashes despite correct signature.
 ```
 
 ---
