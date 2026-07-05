@@ -1,5 +1,5 @@
 -- =============================================================================
--- UI/Render Module - HUD, ESP, and Safety Warning
+-- UI/Render Module - HUD, ESP, and Safety Warning (v2.4.3 — prettier HUD)
 -- =============================================================================
 
 local APISurface = require("core/api_surface")
@@ -8,9 +8,53 @@ local Alert      = require("core/alert")
 
 local M = {}
 
--- Screen resolution estimate for centering (updated each frame via text_2d position)
-local SCREEN_CENTER_X = 960
-local SCREEN_CENTER_Y = 540
+-- ── Color palette ───────────────────────────────────────────────────────────
+local C = {}
+
+local function init_colors()
+    C.title    = APISurface.color_new(80,  200, 255, 255)   -- icy blue
+    C.section  = APISurface.color_new(255, 195, 0,   220)   -- amber
+    C.head     = APISurface.color_new(200, 200, 200, 200)   -- light gray
+    C.val      = APISurface.color_new(220, 220, 220, 255)   -- white
+    C.green    = APISurface.color_new(100, 255, 120, 255)   -- green
+    C.gold     = APISurface.color_new(255, 215, 0,   255)   -- gold
+    C.gray     = APISurface.color_new(160, 160, 160, 255)   -- dim gray
+    C.red      = APISurface.color_new(255, 100, 100, 255)   -- red
+    C.status   = APISurface.color_new(255, 255, 255, 200)   -- white
+    C.dim      = APISurface.color_new(120, 120, 120, 180)   -- faint
+end
+
+--- Draw a section header
+-- @param text string
+-- @param y number current Y position
+-- @param x number X position
+-- @return number new Y position
+local function section(text, x, y)
+    APISurface.draw_text_2d("— " .. text .. " —", {x=x, y=y}, 11, C.section, false)
+    return y + 14
+end
+
+--- Draw a data row
+-- @param label string
+-- @param value string
+-- @param col table color
+-- @param x number
+-- @param y number
+-- @param label_width number
+-- @return number new Y
+local function row(label, value, col, x, y, label_width)
+    APISurface.draw_text_2d(label, {x=x, y=y}, 12, C.head, false)
+    APISurface.draw_text_2d(tostring(value), {x=x + label_width, y=y}, 12, col or C.val, false)
+    return y + 15
+end
+
+--- Draw a thin separator line (using text)
+-- @param x number
+-- @param y number
+-- @return number new Y
+local function sep(x, y)
+    return y + 4
+end
 
 --- Render ESP, HUD, and safety warnings
 -- @param ctx table context
@@ -27,7 +71,10 @@ function M.render(ctx)
         return
     end
 
-    -- Get native position object directly (runtime requires its own Vec3, not a plain table)
+    -- Lazy-init colors
+    if not C.title then init_colors() end
+
+    -- Get native position object
     local p_native = nil
     if type(me.get_position) == "function" then
         local ok, pos = pcall(me.get_position, me)
@@ -35,13 +82,12 @@ function M.render(ctx)
     end
     if not p_native then return end
 
-    -- Also get plain table version for distance math
     local p = APISurface.get_object_position(me)
     if not p then return end
 
-    -- =========================================================
+    -- ═══════════════════════════════════════════════════════════════════════
     -- Pool ESP
-    -- =========================================================
+    -- ═══════════════════════════════════════════════════════════════════════
     if deps.config.menu.esp_enabled and deps.config.menu.esp_enabled:get_state() then
         local esp_range = deps.config.menu.esp_range and deps.config.menu.esp_range:get() or 100
         local esp_range_sq = esp_range * esp_range
@@ -52,7 +98,6 @@ function M.render(ctx)
             if APISurface.is_valid(obj) then
                 local name = APISurface.get_object_name(obj)
                 if deps.constants.OBJECTS.POOLS and deps.constants.OBJECTS.POOLS[name] then
-                    -- Use native position for graphics
                     local target_native = nil
                     if type(obj.get_position) == "function" then
                         local ok2, pos2 = pcall(obj.get_position, obj)
@@ -68,19 +113,10 @@ function M.render(ctx)
                             local dist_sq = dx*dx + dy*dy + dz*dz
 
                             if dist_sq <= esp_range_sq then
-                                -- Pass native Vec3 objects to graphics
                                 if core and core.graphics then
                                     pcall(core.graphics.line_3d, p_native, target_native, color_esp, 2.0)
-                                    local label_pos = nil
-                                    if type(target_native.x) == "number" then
-                                        -- plain table works too - try it
-                                        label_pos = {x=target_pos.x, y=target_pos.y, z=target_pos.z + 1.0}
-                                    else
-                                        label_pos = target_native
-                                    end
-                                    pcall(core.graphics.text_3d,
-                                        name,
-                                        label_pos, 14, color_esp)
+                                    local label_pos = {x=target_pos.x, y=target_pos.y, z=target_pos.z + 1.0}
+                                    pcall(core.graphics.text_3d, name, label_pos, 14, color_esp)
                                 end
                             end
                         end
@@ -90,9 +126,9 @@ function M.render(ctx)
         end
     end
 
-    -- =========================================================
+    -- ═══════════════════════════════════════════════════════════════════════
     -- Session Stats HUD
-    -- =========================================================
+    -- ═══════════════════════════════════════════════════════════════════════
     if deps.config.menu.show_stats and deps.config.menu.show_stats:get_state() then
         local tnow    = APISurface.now()
         local elapsed = tnow - state.session.start_time
@@ -100,7 +136,6 @@ function M.render(ctx)
         local emins   = math.floor(elapsed / 60)
         local esecs   = math.floor(elapsed % 60)
 
-        -- Track gold gained this session
         local current_gold = APISurface.get_gold() or 0
         if not state.session.stats.gold_start then
             state.session.stats.gold_start = current_gold
@@ -108,184 +143,164 @@ function M.render(ctx)
         local gold_gained = math.max(0, current_gold - (state.session.stats.gold_start or current_gold))
         local gph = (hours > 0.02) and math.floor((gold_gained / hours) / 10000) or 0
 
-        local c_title  = APISurface.color_new(80,  200, 255, 255)
-        local c_head   = APISurface.color_new(255, 195, 0,   220)
-        local c_val    = APISurface.color_new(220, 220, 220, 255)
-        local c_green  = APISurface.color_new(100, 255, 120, 255)
-        local c_gold   = APISurface.color_new(255, 215, 0,   255)
-        local c_gray   = APISurface.color_new(160, 160, 160, 255)
-        local c_status = APISurface.color_new(255, 255, 255, 200)
-
         local x  = 15
         local y  = 90
-        local lh = 16
+        local lw = 100  -- label width for right-alignment
 
-        local function row(label, value, col)
-            APISurface.draw_text_2d(label, {x=x,    y=y}, 13, c_head,     false)
-            APISurface.draw_text_2d(value, {x=x+96, y=y}, 13, col or c_val, false)
-            y = y + lh
-        end
+        -- Title
+        APISurface.draw_text_2d("◆ Eax's Fishing", {x=x, y=y}, 15, C.title, false)
+        y = y + 18
 
-        -- Title + status
-        APISurface.draw_text_2d("Eax's Fishing", {x=x, y=y}, 16, c_title, false)
-        y = y + lh
-        APISurface.draw_text_2d(state.fishing.status, {x=x, y=y}, 13, c_status, false)
-        y = y + lh + 4
+        -- Status (large, prominent)
+        APISurface.draw_text_2d(state.fishing.status, {x=x, y=y}, 13, C.status, false)
+        y = y + 20
 
-        -- Time
-        row("Session",    string.format("%dm %02ds", emins, esecs))
+        -- ═══ SESSION ═══
+        y = section("Session", x, y)
+        y = row("Time",   string.format("%dm %02ds", emins, esecs), C.val, x, y, lw)
+        y = row("Casts",  state.session.attempts, C.val, x, y, lw)
+        y = row("Catches", state.session.catches, C.green, x, y, lw)
 
-        -- Casts / catches / rate
-        row("Casts",      tostring(state.session.attempts))
-        row("Catches",    tostring(state.session.catches), c_green)
         if state.session.attempts > 0 then
             local rate = math.floor((state.session.catches / state.session.attempts) * 100)
-            row("Catch rate", rate .. "%", c_green)
+            y = row("Rate",   rate .. "%", rate >= 80 and C.green or C.gray, x, y, lw)
         end
         if hours > 0.02 then
-            local cph = math.floor(state.session.catches / hours)
-            row("Catches/hr", tostring(cph) .. "/h", c_green)
+            y = row("C/hr",   math.floor(state.session.catches / hours) .. "/h", C.green, x, y, lw)
         end
 
-        -- Misses / escapes (only shown if non-zero)
+        -- Streak
+        if state.qol and state.qol.catch_streak > 1 then
+            y = row("Streak", state.qol.catch_streak .. " (best: " .. state.qol.best_catch_streak .. ")", C.green, x, y, lw)
+        end
+
+        -- Misses / escapes (only if non-zero)
         if state.session.misses > 0 then
-            row("Misses",   tostring(state.session.misses),  c_gray)
+            y = row("Missed", state.session.misses, C.gray, x, y, lw)
         end
         if state.session.escaped > 0 then
-            row("Escaped",  tostring(state.session.escaped), c_gray)
+            y = row("Escaped", state.session.escaped, C.gray, x, y, lw)
         end
+        y = sep(x, y)
 
-        y = y + 4
-
-        -- Item categories
+        -- ═══ RESOURCES ═══
+        y = section("Resources", x, y)
         local stats = state.session.stats
-        row("Fish",       tostring(stats.fish_count), c_green)
-        if hours > 0.02 then
-            local fph = math.floor(stats.fish_count / hours)
-            row("Fish / hr",  tostring(fph) .. "/h", c_green)
-        end
-        row("Junk",       tostring(stats.gray_count), c_gray)
+        y = row("Fish",   stats.fish_count, C.green, x, y, lw)
+        y = row("Junk",   stats.gray_count, C.gray, x, y, lw)
 
-        -- Lures remaining (new v2.3.1)
         if stats.lure_count and stats.lure_count > 0 then
-            row("Lures",    tostring(stats.lure_count), c_green)
+            y = row("Lures",  stats.lure_count, C.green, x, y, lw)
         end
-
-        -- Cooked count (new v2.3.0)
         if state.cook and state.cook.cooked_count > 0 then
-            row("Cooked",   tostring(state.cook.cooked_count), c_green)
+            y = row("Cooked", state.cook.cooked_count, C.green, x, y, lw)
         end
-
-        -- Containers opened (new v2.4.0)
         if state.containers and state.containers.opened_count > 0 then
-            row("Opened",   tostring(state.containers.opened_count), c_green)
+            y = row("Opened", state.containers.opened_count, C.green, x, y, lw)
         end
-
-        -- Mr. Pinchy uses (new v2.4.0)
         if state.pinchy and state.pinchy.uses_total > 0 then
-            row("Pinchy",    tostring(state.pinchy.uses_total), c_gold)
+            y = row("Pinchy", state.pinchy.uses_total, C.gold, x, y, lw)
         end
-
-        -- Auto-sell junk (new v2.4.0)
         if state.autosell and state.autosell.sold_count > 0 then
-            row("Sold",      tostring(state.autosell.sold_count), c_green)
+            y = row("Sold",   state.autosell.sold_count, C.green, x, y, lw)
         end
-
-        -- Auto-delete junk (new v2.4.0)
         if state.autodelete and state.autodelete.deleted_count > 0 then
-            row("Deleted",   tostring(state.autodelete.deleted_count), c_gray)
+            y = row("Deleted", state.autodelete.deleted_count, C.gray, x, y, lw)
+        end
+        y = sep(x, y)
+
+        -- ═══ STATUS ═══
+        y = section("Status", x, y)
+
+        -- Lure timer
+        if deps.config.menu.show_lure_timer and deps.config.menu.show_lure_timer:get_state() then
+            if state.lure and state.lure.assumed_expire_time > 0 then
+                local lure_remaining = state.lure.assumed_expire_time - tnow
+                if lure_remaining > 0 then
+                    local mins = math.floor(lure_remaining / 60)
+                    local secs = math.floor(lure_remaining % 60)
+                    local col = lure_remaining < 60 and C.red or C.green
+                    y = row("Lure", string.format("%dm %02ds", mins, secs), col, x, y, lw)
+                else
+                    y = row("Lure", "expired", C.red, x, y, lw)
+                end
+            end
         end
 
-        -- Cast success rate (new v2.4.0)
+        -- Coordinates
+        if deps.config.menu.show_coordinates and deps.config.menu.show_coordinates:get_state() then
+            if type(me.get_position) == "function" then
+                local ok, pos = pcall(me.get_position, me)
+                if ok and pos and type(pos.x) == "number" then
+                    y = row("Coords", string.format("%.1f, %.1f", pos.x, pos.y), C.gray, x, y, lw)
+                end
+            end
+        end
+
+        -- Cast rate
         if deps.config.menu.show_cast_rate and deps.config.menu.show_cast_rate:get_state() then
             local ct = state.cast_telemetry
             if ct and (ct.success_count + ct.fail_count) > 0 then
                 local rate = math.floor((ct.success_count / (ct.success_count + ct.fail_count)) * 100)
-                row("Cast %",    tostring(rate) .. "%", rate >= 80 and c_green or c_gray)
+                y = row("Cast %", rate .. "%", rate >= 80 and C.green or C.gray, x, y, lw)
             end
         end
 
-        -- Pool depletion count (new v2.4.0)
-        if state.pool_depletion and state.pool_depletion.depleted_count > 0 then
-            row("Depleted",  tostring(state.pool_depletion.depleted_count), c_gray)
-        end
-
-        -- Quest fish tracking (new v2.4.0)
-        if state.quest and state.quest.quest_fish_name then
-            row("Quest",     state.quest.quest_fish_name, c_gold)
-        end
-
-        -- Whisper alerts (new v2.4.0)
-        if state.responder and state.responder.responses_total > 0 then
-            row("Whispers",  tostring(state.responder.responses_total), c_gray)
-        end
-
-        -- Hearth state (new v2.4.0)
-        if state.hearth and state.hearth.state ~= "idle" then
-            row("Hearth",    state.hearth.state, c_gray)
-        end
-
-        -- Disconnect alerts (new v2.4.0)
-        if state.relog and state.relog.disconnected_at > 0 then
-            row("Status",    "DC'd!", c_gray)
-        end
-
-        -- Fishing window (new v2.4.0)
-        if state.conditions and not state.conditions.in_fishing_window then
-            row("Window",    "Closed", c_gray)
-        end
-
-        -- Catch streak (new v2.4.1)
-        if deps.config.menu.show_catch_streak and deps.config.menu.show_catch_streak:get_state() then
-            if state.qol and state.qol.catch_streak > 1 then
-                row("Streak",    tostring(state.qol.catch_streak) .. " (best: " .. state.qol.best_catch_streak .. ")", c_green)
-            end
-        end
-
-        -- Lure expiration timer (new v2.4.1)
-        if deps.config.menu.show_lure_timer and deps.config.menu.show_lure_timer:get_state() then
-            if state.lure and state.lure.assumed_expire_time > 0 then
-                local lure_remaining = state.lure.assumed_expire_time - APISurface.now()
-                if lure_remaining > 0 then
-                    local mins = math.floor(lure_remaining / 60)
-                    local secs = math.floor(lure_remaining % 60)
-                    local col = lure_remaining < 60 and c_gray or c_green
-                    row("Lure",      string.format("%dm %02ds", mins, secs), col)
-                end
-            end
-        end
-
-        -- Coordinates (new v2.4.1)
-        if deps.config.menu.show_coordinates and deps.config.menu.show_coordinates:get_state() then
-            if type(me.get_position) == "function" then
-                local ok, p = pcall(me.get_position, me)
-                if ok and p and type(p.x) == "number" then
-                    row("Coords",    string.format("%.1f, %.1f", p.x, p.y), c_gray)
-                end
-            end
-        end
-
-        -- Paused indicator (new v2.4.1)
-        if state.qol and state.qol.paused then
-            row("Paused",     "YES", c_gray)
-        end
-
-        -- Water walking buff (new v2.4.2)
-        if state.water_walking and state.water_walking.last_try_time > 0 then
-            row("WaterWalk",  "Active", c_green)
-        end
-
-        -- Stealth multiplier (new v2.4.3)
+        -- Stealth multiplier
         if deps.config.menu.stealth_mode and deps.config.menu.stealth_mode:get_state() then
             local stealth = require("core/stealth")
-            local mult = stealth.get_delay_multiplier(ctx, APISurface.now())
+            local mult = stealth.get_delay_multiplier(ctx, tnow)
             if mult > 1.0 then
-                local col = mult >= 3.0 and c_gray or (mult >= 2.0 and c_green or c_green)
-                row("Stealth", string.format("%.1fx", mult), col)
+                local col = mult >= 3.0 and C.red or (mult >= 2.0 and C.gold or C.green)
+                y = row("Stealth", string.format("%.1fx", mult), col, x, y, lw)
             end
         end
 
-        -- Top items caught (up to 6)
+        -- Quest
+        if state.quest and state.quest.quest_fish_name then
+            y = row("Quest", state.quest.quest_fish_name, C.gold, x, y, lw)
+        end
+
+        -- Whispers
+        if state.responder and state.responder.responses_total > 0 then
+            y = row("Whispers", state.responder.responses_total, C.gray, x, y, lw)
+        end
+
+        -- Hearth
+        if state.hearth and state.hearth.state ~= "idle" then
+            y = row("Hearth", state.hearth.state, C.gold, x, y, lw)
+        end
+
+        -- Disconnect
+        if state.relog and state.relog.disconnected_at > 0 then
+            y = row("Status", "DC'd!", C.red, x, y, lw)
+        end
+
+        -- Water walking
+        if state.water_walking and state.water_walking.last_try_time > 0 then
+            y = row("WaterWalk", "Active", C.green, x, y, lw)
+        end
+
+        -- Paused
+        if state.qol and state.qol.paused then
+            y = row("Paused", "YES", C.red, x, y, lw)
+        end
+        y = sep(x, y)
+
+        -- ═══ GOLD ═══
+        if gold_gained > 0 then
+            y = section("Gold", x, y)
+            y = row("Gained", string.format("%.1fg", gold_gained / 100), C.gold, x, y, lw)
+            if gph > 0 then
+                y = row("/ hr", gph .. "g/hr", C.gold, x, y, lw)
+            end
+            if stats.vendor_copper and stats.vendor_copper > 0 then
+                y = row("Vendorfish", LootDB.format_gold(stats.vendor_copper) or "0c", C.gold, x, y, lw)
+            end
+            y = sep(x, y)
+        end
+
+        -- ═══ TOP CATCHES ═══
         local sorted = {}
         for name, count in pairs(stats.item_counts) do
             table.insert(sorted, {name=name, count=count})
@@ -293,102 +308,37 @@ function M.render(ctx)
         table.sort(sorted, function(a, b) return a.count > b.count end)
 
         if #sorted > 0 then
-            y = y + 4
-            APISurface.draw_text_2d("Items caught:", {x=x, y=y}, 12, c_head, false)
-            y = y + 14
+            y = section("Top Catches", x, y)
             for i = 1, math.min(6, #sorted) do
                 local e = sorted[i]
-                local n = #e.name > 22 and (e.name:sub(1, 21) .. ".") or e.name
-                APISurface.draw_text_2d(n .. "  x" .. e.count, {x=x+4, y=y}, 12, c_val, false)
+                local n = e.name
+                if #n > 18 then n = n:sub(1, 17) .. "…" end
+                APISurface.draw_text_2d("  " .. n, {x=x, y=y}, 11, C.dim, false)
+                APISurface.draw_text_2d("x" .. e.count, {x=x+lw, y=y}, 11, C.val, false)
                 y = y + 13
             end
         end
-
-        y = y + 6
-
-        -- Goldenscale Vendorfish are worth 6g each to vendor — track separately
-        if stats.vendor_copper and stats.vendor_copper > 0 then
-            row("Vendorfish", LootDB.format_gold(stats.vendor_copper) or "0c", c_gold)
-        end
-
-        -- Actual gold gained (real, not estimated)
-        local gold_str = LootDB.format_gold(gold_gained) or "0c"
-        row("Gold gained", gold_str, c_gold)
-        row("Gold / hr",   tostring(gph) .. "g", c_gold)
     end
 
-    -- =========================================================
-    -- Safety Warning — same-position detection
-    -- =========================================================
-    local now = APISurface.now()
+    -- ═══════════════════════════════════════════════════════════════════════
+    -- Rare catch alert overlay
+    -- ═══════════════════════════════════════════════════════════════════════
+    if state.alert.active then
+        local now_t = APISurface.now()
+        if now_t >= state.alert.fade_end then
+            state.alert.active = false
+            state.alert.text = ""
+        else
+            local alpha = math.floor(255 * (1 - (now_t - state.alert.fade_start) / (state.alert.fade_end - state.alert.fade_start)))
+            local alert_color = Alert.color_for_quality(state.alert.quality)
+            alert_color.a = math.max(50, alpha)
 
-    -- Update stand-still tracking (check every 10s)
-    if not state.safety.last_position then
-        state.safety.last_position      = {x=p.x, y=p.y, z=p.z}
-        state.safety.last_position_check = now
-        state.safety.standing_since      = now
-    else
-        if now - state.safety.last_position_check > 10.0 then
-            local lp    = state.safety.last_position
-            local dx    = p.x - lp.x
-            local dy    = p.y - lp.y
-            local moved = dx*dx + dy*dy > 25
-            if moved then
-                state.safety.standing_since = now
-                state.safety.last_position  = {x=p.x, y=p.y, z=p.z}
-                -- Reset warning thresholds when player moves so they re-randomise fresh
-                state.safety.warn_yellow_at = nil
-                state.safety.warn_red_at    = nil
-            end
-            state.safety.last_position_check = now
+            local cx = SCREEN_CENTER_X
+            local cy = SCREEN_CENTER_Y - 120
+
+            APISurface.draw_text_2d(state.alert.text, {x=cx, y=cy}, 22, alert_color, true)
         end
     end
-
-    -- Only warn if bot is active
-    if deps.config.menu.enabled:get_state() then
-        local standing_secs = now - (state.safety.standing_since or now)
-
-        -- Thresholds are randomised and re-randomised after each warning fires,
-        -- so warnings keep appearing at unpredictable intervals during long sessions.
-        -- Yellow: 20-35 min, Red: 45-70 min initially, then repeat every 20-40 min.
-        if not state.safety.warn_yellow_at then
-            state.safety.warn_yellow_at = 1200 + math.random(0, 900)   -- 20-35 min
-        end
-        if not state.safety.warn_red_at then
-            state.safety.warn_red_at = state.safety.warn_yellow_at
-                + 1500 + math.random(0, 1500)                           -- 25-50 min after yellow
-        end
-
-        if standing_secs >= state.safety.warn_red_at then
-            local color_red = APISurface.color_new(255, 50, 50, 230)
-            local mins = math.floor(standing_secs / 60)
-            APISurface.draw_text_2d(
-                "!! MOVE — " .. mins .. " min at same spot !!",
-                {x=SCREEN_CENTER_X - 170, y=SCREEN_CENTER_Y - 20}, 24, color_red, false)
-            -- Re-randomise red threshold so it fires again later in the session
-            if not state.safety.warn_red_acked then
-                state.safety.warn_red_acked = true
-                -- Schedule next red warning 20-40 min from now
-                state.safety.warn_red_at = standing_secs + 1200 + math.random(0, 1200)
-            end
-        elseif standing_secs >= state.safety.warn_yellow_at then
-            local color_yellow = APISurface.color_new(255, 220, 0, 210)
-            local mins = math.floor(standing_secs / 60)
-            APISurface.draw_text_2d(
-                "Same spot: " .. mins .. " min",
-                {x=SCREEN_CENTER_X - 90, y=SCREEN_CENTER_Y - 20}, 18, color_yellow, false)
-            state.safety.warn_red_acked = false
-            -- Nudge yellow threshold forward so it doesn't spam every frame
-            if standing_secs >= state.safety.warn_yellow_at + 1 then
-                state.safety.warn_yellow_at = standing_secs + 1200 + math.random(0, 600)
-            end
-        end
-    end
-
-    -- =========================================================
-    -- Rare Catch Alert Overlay
-    -- =========================================================
-    Alert.render(ctx, now, SCREEN_CENTER_X, SCREEN_CENTER_Y)
 end
 
 return M
