@@ -2,11 +2,11 @@
 
 Automated fishing addon for the Sylvanas runtime. Casts, catches, lures, navigates to pools, cooks, opens containers, tracks quests, and alerts on rare catches — all with human-like timing variance.
 
-**Version**: 2.4.3 | **Tests**: 9 suites / 160+ assertions | **Code**: 6,500+ lines across 24 modules
+**Version**: 2.5.0 | **Tests**: 10 suites / 170+ assertions | **Code**: 7,000+ lines across 25 modules
 
 ---
 
-## Features (22 total)
+## Features (23 total)
 
 ### Core Fishing
 - **Auto-cast & auto-catch** — Detects bobber bites via documented game-object APIs with Z-dip fallback
@@ -37,6 +37,13 @@ Automated fishing addon for the Sylvanas runtime. Casts, catches, lures, navigat
 - **Disconnect alert** — Detects server disconnect via nav client (detection-only)
 - **Auto-relog** — Framework for relog when API becomes available
 - **Time/weather awareness** — Framework for night-only fishing
+
+### Auto-Loot (v2.5.0)
+- **Auto-loot corpses** — Automatically loots nearby mob corpses between casts with humanized timing, combat awareness, and bag safety
+- **Burst protection** — Max 5 loots per 10s window prevents rapid-fire detection
+- **Post-combat grace** — Waits after combat ends before looting
+- **Player corpse skip** — Respects PvP environments
+- **Bag-full pause** — Stops looting when bags are nearly full
 
 ### QoL (v2.4.1)
 - **Sound alerts** — 8 configurable per-event sounds (rare, bags full, pool depleted, lure expiring, whisper, disconnect, catch)
@@ -249,6 +256,7 @@ EAXFishing/
 │   └── terrain.lua          # Terrain height helpers
 ├── inventory/
 │   ├── auto_delete.lua      # Delete worthless junk when full
+│   ├── auto_loot.lua        # Auto-loot corpses with humanized timing (v2.5.0)
 │   ├── auto_sell.lua        # Sell gray items to vendor
 │   ├── bags.lua             # Bag space checks
 │   └── vendor.lua           # Auto-repair logic
@@ -257,7 +265,7 @@ EAXFishing/
 │   ├── menu.lua             # Settings menu (7 collapsible sections)
 │   └── render.lua           # ESP / HUD / safety warnings (v2.4.3)
 ├── tests/
-│   ├── run_fishing_tests.lua      # Test runner (9 suites)
+│   ├── run_fishing_tests.lua      # Test runner (10 suites)
 │   ├── test_state_machine.lua     # State creation + reset
 │   ├── test_config_safe_menu.lua  # Menu nil-guard contract
 │   ├── test_pool_ranker.lua       # Pool scoring logic
@@ -266,8 +274,9 @@ EAXFishing/
 │   ├── test_mr_pinchy.lua         # Mr. Pinchy handler
 │   ├── test_quest_tracker.lua     # Quest fish detection
 │   ├── test_sound_manager.lua     # Sound alert system
-│   └── test_water_walking.lua     # Water walking buff (v2.4.2)
-├── config.lua               # Menu configuration (78 options)
+│   ├── test_water_walking.lua     # Water walking buff (v2.4.2)
+│   └── test_auto_loot.lua         # Auto-loot module (v2.5.0)
+├── config.lua               # Menu configuration (88 options)
 ├── constants.lua            # Item / spell / pool constants
 ├── main.lua                 # Entry point
 └── docs/
@@ -291,6 +300,11 @@ EAXFishing/
 ---
 
 ## Changelog
+
+### v2.5.0 (2026-07-05)
+- **Auto-loot corpses** — Automatically loots nearby mob corpses between casts. Humanized timing (random 50–200ms delay), combat-aware (OOC-only by default), burst protection (max 5 per 10s), bag-full pause, player-corpse skip, and configurable range. Disabled by default — opt-in.
+- 10 new menu options under Automation → Auto-LoOT
+- New test suite: test_auto_loot.lua (6 tests)
 
 ### v2.4.3 (2026-07-05)
 - **Advanced stealth** — 6-layer anti-detection: false-positive filtering, proximity scaling, suspicion system, nervous pause, cooldown, face-away
