@@ -657,7 +657,15 @@ local strategies = {
   matches = function(context, s)
    if not safe_setting(context, "holy_avenging_wrath", true) then return false end
    if not (context and context.in_combat) then return false end
-   if not s.heavy_healing then return false end
+   -- Fire during heavy healing OR PvP burst-heal window
+   if not s.heavy_healing then
+    if NS.PvPBurstWindow and context.is_pvp then
+     local ok, should = pcall(NS.PvPBurstWindow.should_burst, NS.PvPBurstWindow, context)
+     if not (ok and should) then return false end
+    else
+     return false
+    end
+   end
    -- Don't waste a 3-min burst CD on a target about to die.
    if context.ttd_known and context.ttd and context.ttd > 0 and context.ttd < 15 then return false end
    return NS.spell_ready(SPELLS.AvengingWrath, NS.PLAYER_UNIT, SELF_OPTS)
