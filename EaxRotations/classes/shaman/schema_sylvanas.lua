@@ -293,5 +293,6 @@ return {
             },
         },
     },
+    require("shared/schema_autoloot_sylvanas").build_tab(),
     consumables.build_tab({ use_drums = { default = true }, use_mana_potions = { default = true } }),
 }
