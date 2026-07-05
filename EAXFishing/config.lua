@@ -34,9 +34,12 @@ config.menu = {
     enabled = safe_menu(_menu.checkbox, false, "fishing_enabled"),
 
     -- Gear
-    auto_equip = safe_menu(_menu.checkbox, true,  "fishing_auto_equip"),
-    auto_lure  = safe_menu(_menu.checkbox, true,  "fishing_auto_lure"),
-    auto_cook  = safe_menu(_menu.checkbox, false, "fishing_auto_cook"),
+    auto_equip    = safe_menu(_menu.checkbox, true,  "fishing_auto_equip"),
+    auto_lure     = safe_menu(_menu.checkbox, true,  "fishing_auto_lure"),
+    auto_cook     = safe_menu(_menu.checkbox, false, "fishing_auto_cook"),
+    -- v2.4.0: container + Mr. Pinchy
+    auto_open_containers = safe_menu(_menu.checkbox, true,  "fishing_auto_open_containers"),
+    auto_pinchy          = safe_menu(_menu.checkbox, true,  "fishing_auto_pinchy"),
 
     -- Stealth Mode
     stealth_mode  = safe_menu(_menu.checkbox, true,  "fishing_stealth_mode"),
@@ -96,6 +99,26 @@ config.menu = {
     auto_stop_full    = safe_menu(_menu.checkbox, true,  "fishing_auto_stop_full"),
     auto_vendor_repair = safe_menu(_menu.checkbox, false, "fishing_auto_vendor_repair"),
     debug             = safe_menu(_menu.checkbox, false, "fishing_debug"),
+
+    -- v2.4.0: Auto-sell junk + auto-delete worthless
+    auto_sell_junk    = safe_menu(_menu.checkbox, false, "fishing_auto_sell_junk"),
+    auto_delete_junk  = safe_menu(_menu.checkbox, false, "fishing_auto_delete_junk"),
+
+    -- v2.4.0: Pool depletion + cast telemetry
+    pool_depletion_threshold = safe_menu(_menu.slider_int, 3, 15, 5, "fishing_pool_depletion_threshold"),
+    show_cast_rate    = safe_menu(_menu.checkbox, true,  "fishing_show_cast_rate"),
+
+    -- v2.4.0: Whisper responder
+    auto_respond      = safe_menu(_menu.checkbox, false, "fishing_auto_respond"),
+
+    -- v2.4.0: Auto-hearth when bags full
+    auto_hearth_full  = safe_menu(_menu.checkbox, false, "fishing_auto_hearth_full"),
+
+    -- v2.4.0: Auto-relog on disconnect
+    auto_relog        = safe_menu(_menu.checkbox, false, "fishing_auto_relog"),
+
+    -- v2.4.0: Night-only fishing (time window)
+    night_fishing_only = safe_menu(_menu.checkbox, false, "fishing_night_only"),
 }
 
 return config

@@ -176,6 +176,16 @@ function M.render(ctx)
             row("Cooked",   tostring(state.cook.cooked_count), c_green)
         end
 
+        -- Containers opened (new v2.4.0)
+        if state.containers and state.containers.opened_count > 0 then
+            row("Opened",   tostring(state.containers.opened_count), c_green)
+        end
+
+        -- Mr. Pinchy uses (new v2.4.0)
+        if state.pinchy and state.pinchy.uses_total > 0 then
+            row("Pinchy",    tostring(state.pinchy.uses_total), c_gold)
+        end
+
         -- Top items caught (up to 6)
         local sorted = {}
         for name, count in pairs(stats.item_counts) do

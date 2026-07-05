@@ -128,6 +128,82 @@ function M.create(now)
             last_scan_time = 0,
         },
 
+        -- Container opening state (v2.4.0)
+        containers = {
+            last_open_time = 0.0,
+            opened_count   = 0,
+        },
+
+        -- Mr. Pinchy handler state (v2.4.0)
+        pinchy = {
+            last_use_time = 0.0,
+            uses_total    = 0,
+            crawdad_won   = false,
+        },
+
+        -- Auto-sell junk state (v2.4.0)
+        autosell = {
+            last_sell_time = 0.0,
+            sold_count     = 0,
+        },
+
+        -- Auto-delete junk state (v2.4.0)
+        autodelete = {
+            last_delete_time = 0.0,
+            deleted_count    = 0,
+        },
+
+        -- Pool depletion state (v2.4.0)
+        pool_depletion = {
+            current_pool_guid = nil,
+            casts_at_pool     = 0,
+            catches_at_pool   = 0,
+            depleted_count    = 0,
+        },
+
+        -- Cast reliability telemetry (v2.4.0)
+        cast_telemetry = {
+            success_count  = 0,
+            fail_count     = 0,
+            fail_streak    = 0,
+        },
+
+        -- Quest tracker state (v2.4.0)
+        quest = {
+            active_quest_id   = nil,
+            quest_fish_id      = nil,
+            quest_fish_needed  = 0,
+            quest_fish_count   = 0,
+            quest_complete     = false,
+        },
+
+        -- Whisper responder state (v2.4.0)
+        responder = {
+            last_response_time = 0.0,
+            responses_total    = 0,
+            last_sender        = "",
+        },
+
+        -- Hearth/return state (v2.4.0)
+        hearth = {
+            state              = "idle", -- idle|hearth|vendoring|returning
+            hearth_time        = 0.0,
+            return_position    = nil,
+        },
+
+        -- Relog state (v2.4.0)
+        relog = {
+            disconnected_at    = 0.0,
+            relog_attempts     = 0,
+            last_relog_time    = 0.0,
+        },
+
+        -- Conditions (time/weather) state (v2.4.0)
+        conditions = {
+            in_fishing_window  = true,
+            window_checked_at  = 0.0,
+        },
+
         -- Rare catch alert state
         alert = {
             active = false,
@@ -240,6 +316,61 @@ function M.reset_fishing(state)
     state.loot.last_time = 0.0
     state.loot.slot_index = 0
     state.loot.start_time = 0.0
+    -- v2.4.0: reset new feature states
+    if state.containers then
+        state.containers.last_open_time = 0.0
+        state.containers.opened_count = 0
+    end
+    if state.pinchy then
+        state.pinchy.last_use_time = 0.0
+        state.pinchy.uses_total = 0
+        state.pinchy.crawdad_won = false
+    end
+    if state.autosell then
+        state.autosell.last_sell_time = 0.0
+        state.autosell.sold_count = 0
+    end
+    if state.autodelete then
+        state.autodelete.last_delete_time = 0.0
+        state.autodelete.deleted_count = 0
+    end
+    if state.pool_depletion then
+        state.pool_depletion.current_pool_guid = nil
+        state.pool_depletion.casts_at_pool = 0
+        state.pool_depletion.catches_at_pool = 0
+        state.pool_depletion.depleted_count = 0
+    end
+    if state.cast_telemetry then
+        state.cast_telemetry.success_count = 0
+        state.cast_telemetry.fail_count = 0
+        state.cast_telemetry.fail_streak = 0
+    end
+    if state.quest then
+        state.quest.active_quest_id = nil
+        state.quest.quest_fish_id = nil
+        state.quest.quest_fish_needed = 0
+        state.quest.quest_fish_count = 0
+        state.quest.quest_complete = false
+    end
+    if state.responder then
+        state.responder.last_response_time = 0.0
+        state.responder.responses_total = 0
+        state.responder.last_sender = ""
+    end
+    if state.hearth then
+        state.hearth.state = "idle"
+        state.hearth.hearth_time = 0.0
+        state.hearth.return_position = nil
+    end
+    if state.relog then
+        state.relog.disconnected_at = 0.0
+        state.relog.relog_attempts = 0
+        state.relog.last_relog_time = 0.0
+    end
+    if state.conditions then
+        state.conditions.in_fishing_window = true
+        state.conditions.window_checked_at = 0.0
+    end
 end
 
 return M

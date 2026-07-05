@@ -18,6 +18,8 @@ local Client = require("navigation/client")
 local ShorelineSolver = require("navigation/shoreline_solver")
 local Stealth = require("core/stealth")
 local APISurface = require("core/api_surface")
+local Containers = require("fishing/containers")
+local MrPinchy   = require("fishing/mr_pinchy")
 
 local M = {}
 
@@ -484,6 +486,28 @@ function M.tick(ctx)
     if Loot.get_count(ctx) > 0 then
         Loot.process(ctx, me, now)
         return
+    end
+
+    -- v2.4.0: Open containers (clams, chests) between casts to free bag space
+    if not state.fishing.awaiting_bobber then
+        if deps.config.menu.auto_open_containers and deps.config.menu.auto_open_containers:get_state() then
+            if Containers.try_open_one(ctx, me, now) then
+                state.fishing.status = "Opening container..."
+                state.fishing.last_action_time = now
+                return
+            end
+        end
+    end
+
+    -- v2.4.0: Use Mr. Pinchy charge if available (rare TBC catch)
+    if not state.fishing.awaiting_bobber then
+        if deps.config.menu.auto_pinchy and deps.config.menu.auto_pinchy:get_state() then
+            if MrPinchy.try_use(ctx, me, now) then
+                state.fishing.status = "Using Mr. Pinchy..."
+                state.fishing.last_action_time = now
+                return
+            end
+        end
     end
 
     -- Try cooking raw fish into buff food (if fire nearby + recipe learned)
