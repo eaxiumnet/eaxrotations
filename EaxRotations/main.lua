@@ -491,8 +491,8 @@ local menu_elements = {
     settings_tree = core.menu.tree_node(),
     diagnostics_tree = core.menu.tree_node(),
     dump_spells_btn = core.menu.button("eax_dump_spells"),
-    -- Theme: optional decorative space/meteor panel toggle.
-    theme_panel_toggle = core.menu.checkbox(false, "eax_theme_panel_enabled"),
+    debug_swing_timer_chk = core.menu.checkbox(false, "eax_debug_swing_timer"),
+    debug_game_events_chk = core.menu.checkbox(false, "eax_debug_game_events"),
     -- [#4] Pre-allocated header widgets — created ONCE, not every render frame.
     -- core.menu.header() returns a new widget each call; creating inside render_menu()
     -- leaked instances every frame. Now stored and reused.
@@ -819,9 +819,12 @@ local function render_menu()
                     NS.dump_class_spells(name)
                 end
             end
-            -- Theme: decorative space/meteor panel toggle (Custom UI window).
-            if menu_elements.theme_panel_toggle then
-                menu_elements.theme_panel_toggle:render("Theme Panel", "Show a decorative space/meteor overlay panel.")
+            -- Debug toggles for runtime diagnostics (visible in console log)
+            if menu_elements.debug_swing_timer_chk then
+                menu_elements.debug_swing_timer_chk:render("Debug Swing Timer", "Log addon vs fallback path decisions")
+            end
+            if menu_elements.debug_game_events_chk then
+                menu_elements.debug_game_events_chk:render("Debug Game Events", "Log event dispatcher registration and dispatch")
             end
         end)
     end)
@@ -922,6 +925,18 @@ local function on_update()
     -- We're now inside the shared ~20Hz dispatcher (see header comment).
     -- The cheap runtime_generation + is_alive + is_ghost guards above run at 20Hz.
     -- Everything below (widget sync, build_context, dispatch) runs at 20Hz.
+
+    -- Sync debug toggles from diagnostics menu checkboxes
+    if NS then
+        if menu_elements.debug_swing_timer_chk then
+            local ok, st = pcall(function() return menu_elements.debug_swing_timer_chk:get_state() end)
+            NS._DEBUG_SWING_TIMER = ok and st == true
+        end
+        if menu_elements.debug_game_events_chk then
+            local ok, ge = pcall(function() return menu_elements.debug_game_events_chk:get_state() end)
+            NS._DEBUG_GAME_EVENTS = ok and ge == true
+        end
+    end
 
     -- [#P1] Resolve rotation_enabled BEFORE the expensive widget sync loop.
     -- CRITICAL: framework_core settings are ephemeral (lost on reload).
@@ -1063,43 +1078,6 @@ do
                 _movement_assist.on_render()
             end)
         end
-    end
-end
-
-if type(core.register_on_render_window_callback) == "function" then
-    local _tw_ok, _theme_win = pcall(function()
-        if not (core.menu and core.menu.window) then return nil end
-        local w = core.menu.window("eaxrotations_theme_panel")
-        if w and w.set_initial_size and w.set_initial_position then
-            local _v2_ok, _vec2 = pcall(require, "common/geometry/vector_2")
-            if _v2_ok and _vec2 and _vec2.new then
-                w:set_initial_size(_vec2.new(420, 520))
-                w:set_initial_position(_vec2.new(100, 100))
-            end
-        end
-        return w
-    end)
-    if _tw_ok and _theme_win then
-        core.register_on_render_window_callback(function()
-            local _enabled = menu_elements.theme_panel_toggle
-                and menu_elements.theme_panel_toggle.get_state
-                and (function() local ok, st = pcall(menu_elements.theme_panel_toggle.get_state, menu_elements.theme_panel_toggle) return ok and st end)()
-            if not _enabled then return end
-            local _bg = color and color.new and color.new(16, 9, 4, 252) or nil
-            local _border = color and color.new and color.new(100, 48, 8, 160) or nil
-            pcall(function()
-                _theme_win:begin(0, true, _bg, _border, 0, function()
-                    if MenuTheme and MenuTheme.draw_space then
-                        local _accent = nil
-                        if MenuTheme and _class_key then
-                            _accent = MenuTheme.playstyle_color(_class_key,
-                                framework_core and framework_core.get_setting and framework_core.get_setting("active_playstyle") or nil)
-                        end
-                        MenuTheme.draw_space(_theme_win, "eaxrotations_theme_panel", { width = 420, accent = _accent })
-                    end
-                end)
-            end)
-        end)
     end
 end
 
