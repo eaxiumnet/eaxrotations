@@ -10,6 +10,7 @@ local M = {}
 
 function M.record_auto_shot()
     if HunterCore then HunterCore.record_auto_shot() end
+end
 
 function M.record_manual_shot()
     -- legacy no-op (HunterCore handles all timing)

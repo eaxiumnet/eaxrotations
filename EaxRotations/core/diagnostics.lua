@@ -36,14 +36,7 @@ local function emit(kind, prefix, msg)
 
     elseif print then print(prefix .. msg) end
 
--- Debug gate: when disabled (default), NS.debug is a no-op. Set true via
---   NS.set_debug(true)              -- session-scoped
---   set_setting("eax_rotations_debug", true)  -- persisted
--- Used to silence boot-time and per-frame diagnostic spam that is useful
--- for development but not for end users.
-local _debug_on = false
-
-local function _debug_tag() return "[EaxRotations DEBUG] " end
+end
 
 function M.install(NS)
 function NS.log(msg) emit("log", "[EaxRotations] ", msg) end
@@ -51,56 +44,6 @@ function NS.log(msg) emit("log", "[EaxRotations] ", msg) end
 function NS.log_warning(msg) emit("log_warning", "[EaxRotations WARNING] ", msg) end
 
 function NS.log_error(msg) emit("log_error", "[EaxRotations ERROR] ", msg) end
-
--- NS.debug: emits only when debug mode is on.
--- Accepts either NS.debug(msg) (uses current gate state) or
---   NS.debug(force_flag, msg) (overrides gate state for this call).
--- The force_flag form lets callers keep a single argument list (no need to
--- branch in user code).
-function NS.debug(...)
-    local n = select("#", ...)
-    if n == 0 then return end
-    local arg1 = ...
-    if n == 1 then
-        if _debug_on then emit("log", _debug_tag(), arg1) end
-    else
-        -- Two-arg form: arg1 forces on/off for this call.
-        local force, msg = arg1, select(2, ...)
-        if force then emit("log", _debug_tag(), msg) end
-end
-
--- Return current debug state. Cheap (no API call; loc only).
-function NS.debug_enabled() return _debug_on end
-
--- Toggle debug state. Honors a persisted setting if NS.get_setting exists.
-function NS.set_debug(value)
-    if type(value) == "nil" then return _debug_on end
-    _debug_on = (value == true) or (value == 1) or (value == "true")
-    return _debug_on
-end
-
--- Pull persisted setting if available; called from install() if NS.get_setting
--- is already wired, otherwise safe to call later. Idempotent.
-function NS.refresh_debug_setting()
-    if NS.get_setting then
-        local v = NS.get_setting("eax_rotations_debug", false)
-        _debug_on = (v == true) or (v == 1) or (v == "true")
-    end
-    return _debug_on
-end
-
--- Late-refresh hook: invoked by core_sylvanas after the settings domain install
--- (where NS.get_setting is wired up). Without this, the persisted setting read
--- inside install() always fails because get_setting isn't there yet.
-function NS.on_get_setting_ready()
-    return NS.refresh_debug_setting()
-end
-
--- After wiring up NS.log/etc, attempt the persisted read if a get_setting
--- was set up BEFORE diagnostics installed. Late-binding handled by on_get_setting_ready.
-local function _boot_debug()
-    if NS.get_setting then NS.refresh_debug_setting() end
-_boot_debug()
 
 -- Backward-compatible stubs: PS build API health tracking was removed
 -- in v2.1.x (live TBC Classic only). These no-ops prevent crashes in
@@ -214,10 +157,13 @@ function NS.dump_class_spells(class_name)
             else
                 local next_lvl = (#levels > 0 and levels[1]) and (" (first at " .. tostring(levels[1]) .. ")") or ""
                 missing_count = missing_count + 1
-                NS.log("  [MISSING] " .. name .. next_lvl) end
+                NS.log("  [MISSING] " .. name .. next_lvl)
+            end
+        end
     end
     NS.log("=== END DUMP: " .. tostring(known_count) .. " known, " .. tostring(available_count) .. " available at level, " .. tostring(missing_count) .. " above level ===")
-end -- end NS.dump_class_spells
-end -- end M.install(NS)
+end
+
+end
 
 return M

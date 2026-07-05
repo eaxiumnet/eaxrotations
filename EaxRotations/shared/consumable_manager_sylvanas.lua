@@ -481,7 +481,9 @@ function M.use_weapon_buff(context)
         if use_item(WEAPON_BUFFS.adamantite_sharpening_stone, nil, "Adamantite Sharpening Stone") then return true end
         if use_item(WEAPON_BUFFS.adamantite_weightstone, nil, "Adamantite Weightstone") then return true end
         if use_item(WEAPON_BUFFS.fel_sharpening_stone, nil, "Fel Sharpening Stone") then return true end
-        return use_item(WEAPON_BUFFS.fel_weightstone, nil, "Fel Weightstone") end
+        return use_item(WEAPON_BUFFS.fel_weightstone, nil, "Fel Weightstone")
+    end
+end
 
 function M.use_drums(context)
     if player_has_any_buff(ACTIVE_BUFFS.drums) then return false end
@@ -607,6 +609,7 @@ local function build_all_potion_ids()
     for _, t in ipairs({ HEALTHSTONES, COMBAT_POTIONS, RUNES, BANDAGES }) do
         if type(t) == "table" then
             for _, id in pairs(t) do add(id) end
+        end
     end
     _all_potion_ids = list
     return list
@@ -625,6 +628,7 @@ local function build_all_food_drink_ids()
     for _, t in ipairs({ FLASKS, ELIXIRS, FOOD, DRINKS, SCROLLS, WEAPON_BUFFS, DRUMS }) do
         if type(t) == "table" then
             for _, id in pairs(t) do add(id) end
+        end
     end
     _all_food_drink_ids = list
     return list

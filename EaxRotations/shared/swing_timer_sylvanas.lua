@@ -46,11 +46,15 @@ local function get_swing_info(weapon_type)
             local start_time = nil
             local ok1 = pcall(function() 
                 if me.GetSwingStart then
-                    start_time = me:GetSwingStart(weapon_type) end)
+                    start_time = me:GetSwingStart(weapon_type)
+                end
+            end)
             local duration = nil
             local ok2 = pcall(function() 
                 if me.GetSwing then
-                    duration = me:GetSwing(weapon_type) end)
+                    duration = me:GetSwing(weapon_type)
+                end
+            end)
             
             if ok1 and ok2 then
                 return start_time or 0, duration or 0
@@ -229,11 +233,17 @@ function M.init()
     if NS.register_on_spell_cast then
         NS.register_on_spell_cast(function(spell_id, target, data)
             if spell_id then
-                M.record_spell_cast(spell_id) end)
+                M.record_spell_cast(spell_id)
+            end
+        end)
     elseif core and core.register_on_spell_cast_callback then
         core.register_on_spell_cast_callback(function(data)
             if data and data.spell_id then
-                M.record_spell_cast(data.spell_id) end) end
+                M.record_spell_cast(data.spell_id)
+            end
+        end)
+    end
+end
 
 -- Periodic update (call from on_update)
 function M.on_update()
@@ -244,6 +254,8 @@ if NS then
     NS.SwingTimer = M
     -- Defer init until player is available (engine callbacks may not be ready at require() time)
     if NS.GetPlayer and NS.GetPlayer() then
-        M.init() end
+        M.init()
+    end
+end
 
 return M

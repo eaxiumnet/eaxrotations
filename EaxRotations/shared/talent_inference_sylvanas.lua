@@ -182,7 +182,9 @@ function M.infer(class)
     for _, tree_name in ipairs(tree_names_sorted) do
         local score = tree_scores[tree_name]
         if tree_name ~= primary_tree and score > 0 then
-            table.insert(inferred.secondary_trees, tree_name) end
+            table.insert(inferred.secondary_trees, tree_name)
+        end
+    end
     
     return inferred
 end

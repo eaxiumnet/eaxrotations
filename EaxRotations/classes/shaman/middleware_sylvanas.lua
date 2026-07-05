@@ -114,7 +114,9 @@ local strategies = {
             if OffensiveDispelDB and OffensiveDispelDB.find_best_dispel_target then
                 local _, priority = OffensiveDispelDB.find_best_dispel_target(context.target, NS)
                 if priority and priority >= OffensiveDispelDB.PRIORITY_HIGH then
-                    return purge_manager.try_purge(context) end
+                    return purge_manager.try_purge(context)
+                end
+            end
             -- Fallback: flat list purge
             return purge_manager.try_purge(context)
         end,
@@ -263,6 +265,7 @@ local strategies = {
             if (context.hp or 100) <= threshold then
                 local spell = SPELLS.LesserHealingWave or { id = { 25420, 10468, 10467, 10466, 8010, 8008, 8004 }, name = "LesserHealingWave" }
                 if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            end
             return false
         end,
         execute = function(context)

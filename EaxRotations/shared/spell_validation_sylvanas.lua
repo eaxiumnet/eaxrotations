@@ -129,7 +129,9 @@ function M.validate_class_spells(class, required_keys, optional_keys)
                 if result.status == STATUS.PRESENT then
                     table.insert(results.present, { key = key, spell_id = spell_id, optional = true })
                 else
-                    table.insert(results.missing_optional, { key = key, spell_id = spell_id }) end
+                    table.insert(results.missing_optional, { key = key, spell_id = spell_id })
+                end
+            end
         end
     end
     
@@ -175,16 +177,22 @@ function M.print_report(class)
         if #results.missing_optional > 0 then
             NS.log("[SpellValidation] Missing optional spells: " .. #results.missing_optional)
             for _, entry in ipairs(results.missing_optional) do
-                NS.log("[SpellValidation]   - " .. entry.key .. " (ID: " .. entry.spell_id .. ")") end
+                NS.log("[SpellValidation]   - " .. entry.key .. " (ID: " .. entry.spell_id .. ")")
+            end
+        end
         
         -- Missing required (errors)
         if #results.missing_required > 0 then
             NS.log("[SpellValidation] ERROR: Missing required spells: " .. #results.missing_required)
             for _, entry in ipairs(results.missing_required) do
-                NS.log("[SpellValidation]   - " .. entry.key .. " (ID: " .. entry.spell_id .. ")") end
+                NS.log("[SpellValidation]   - " .. entry.key .. " (ID: " .. entry.spell_id .. ")")
+            end
+        end
         
         if not results.has_errors then
-            NS.log("[SpellValidation] All required spells present!") end
+            NS.log("[SpellValidation] All required spells present!")
+        end
+    end
 end
 
 -- Quick check if a spell is available

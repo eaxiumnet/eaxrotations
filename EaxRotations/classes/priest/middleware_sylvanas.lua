@@ -335,7 +335,9 @@ local strategies = {
             local party = get_party_members()
             for _, member in ipairs(party) do
                 if has_magic_debuff_on_unit(member) then
-                    return NS.try_cast(dispel_id, member, "[PRIEST] Dispel Magic (Party)", { skip_range = true }) end
+                    return NS.try_cast(dispel_id, member, "[PRIEST] Dispel Magic (Party)", { skip_range = true })
+                end
+            end
             
             return false
         end,
@@ -412,7 +414,9 @@ local strategies = {
             local party = get_party_members()
             for _, member in ipairs(party) do
                 if has_disease_debuff_on_unit(member) then
-                    return NS.try_cast(abolish_id, member, "[PRIEST] Abolish Disease (Party)", { skip_range = true }) end
+                    return NS.try_cast(abolish_id, member, "[PRIEST] Abolish Disease (Party)", { skip_range = true })
+                end
+            end
             
             return false
         end,
@@ -519,6 +523,7 @@ local strategies = {
                 if NS.has_debuff and context.me and NS.has_debuff(context.me, ws_debuffs) then return false end
                 local spell = SPELLS.PowerWordShield or { id = { 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }, name = "PowerWordShield" }
                 if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
+            end
             return false
         end,
         execute = function(context)

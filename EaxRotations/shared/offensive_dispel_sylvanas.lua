@@ -199,7 +199,9 @@ function M.find_best_dispel_target(unit, ns)
             if ns.buff_up(unit, id) then
                 best_id, best_priority, best_name = id, info.priority, info.name
                 if best_priority >= M.PRIORITY_CRITICAL then
-                    break  -- Critical buff found; stop scanning (bubble/block always wins) end
+                    break  -- Critical buff found; stop scanning (bubble/block always wins)
+                end
+            end
         end
     end
     return best_id, best_priority, best_name
