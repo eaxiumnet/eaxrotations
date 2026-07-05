@@ -196,6 +196,20 @@ function M.render(ctx)
             row("Deleted",   tostring(state.autodelete.deleted_count), c_gray)
         end
 
+        -- Cast success rate (new v2.4.0)
+        if deps.config.menu.show_cast_rate and deps.config.menu.show_cast_rate:get_state() then
+            local ct = state.cast_telemetry
+            if ct and (ct.success_count + ct.fail_count) > 0 then
+                local rate = math.floor((ct.success_count / (ct.success_count + ct.fail_count)) * 100)
+                row("Cast %",    tostring(rate) .. "%", rate >= 80 and c_green or c_gray)
+            end
+        end
+
+        -- Pool depletion count (new v2.4.0)
+        if state.pool_depletion and state.pool_depletion.depleted_count > 0 then
+            row("Depleted",  tostring(state.pool_depletion.depleted_count), c_gray)
+        end
+
         -- Top items caught (up to 6)
         local sorted = {}
         for name, count in pairs(stats.item_counts) do

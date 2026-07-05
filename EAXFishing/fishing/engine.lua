@@ -313,6 +313,8 @@ function M.tick(ctx)
                             State.reset_bite(state)
                             state.fishing.consecutive_catches = state.fishing.consecutive_catches + 1
                             state.session.catches = state.session.catches + 1
+                            -- v2.4.0: pool depletion tracking — count catches at current pool
+                            state.pool_depletion.catches_at_pool = state.pool_depletion.catches_at_pool + 1
                             state.fishing.status = "Caught! (" .. state.session.catches .. ")"
                             state.fishing.next_cast_time = now + (1.0 + math.random() * 1.5)
                         end
@@ -678,6 +680,35 @@ function M.tick(ctx)
             end
 
             if nearest_pool then
+                -- v2.4.0: Pool depletion detection
+                -- Track which pool we're fishing and how many casts we've made.
+                -- If casts exceed threshold without catches, skip this pool.
+                local pool_guid = nil
+                if type(nearest_pool.get_guid) == "function" then
+                    local ok, guid = pcall(nearest_pool.get_guid, nearest_pool)
+                    if ok and guid then pool_guid = guid end
+                end
+                if pool_guid ~= state.pool_depletion.current_pool_guid then
+                    state.pool_depletion.current_pool_guid = pool_guid
+                    state.pool_depletion.casts_at_pool = 0
+                    state.pool_depletion.catches_at_pool = 0
+                end
+                local depl_thresh = 5
+                if deps.config.menu.pool_depletion_threshold and deps.config.menu.pool_depletion_threshold.get then
+                    depl_thresh = deps.config.menu.pool_depletion_threshold:get()
+                end
+                if state.pool_depletion.casts_at_pool >= depl_thresh
+                   and state.pool_depletion.catches_at_pool == 0
+                then
+                    APISurface.print("[EaxFishing] Pool appears depleted — skipping to next")
+                    state.pool_depletion.depleted_count = state.pool_depletion.depleted_count + 1
+                    state.pool_depletion.current_pool_guid = nil
+                    state.pool_depletion.casts_at_pool = 0
+                    state.pool_depletion.catches_at_pool = 0
+                    state.fishing.status = "Pool depleted, waiting for next..."
+                    state.fishing.next_cast_time = now + 3.0
+                    return
+                end
                 local pool_pos = APISurface.get_object_position(nearest_pool)
                 if pool_pos then
                     -- Check if player is already close enough to cast at pool
@@ -790,6 +821,11 @@ function M.tick(ctx)
                 state.fishing.awaiting_bobber = true
                 state.fishing.last_action_time = now
                 state.fishing.status = "Casting..."
+                -- v2.4.0: cast reliability telemetry
+                state.cast_telemetry.success_count = state.cast_telemetry.success_count + 1
+                state.cast_telemetry.fail_streak = 0
+                -- v2.4.0: pool depletion tracking — increment casts at current pool
+                state.pool_depletion.casts_at_pool = state.pool_depletion.casts_at_pool + 1
                 -- Fresh cast: clear all Z-dip fallback state so the new bobber
                 -- baselines cleanly and a stale dip_triggered doesn't fire a
                 -- phantom bite on the new (splash-less) bobber.
@@ -801,6 +837,9 @@ function M.tick(ctx)
                 Behavior.apply_random_wait(ctx, 1.0, 2.5)
             else
                 state.fishing.failed_cast_count = state.fishing.failed_cast_count + 1
+                -- v2.4.0: cast reliability telemetry
+                state.cast_telemetry.fail_count = state.cast_telemetry.fail_count + 1
+                state.cast_telemetry.fail_streak = state.cast_telemetry.fail_streak + 1
                 local retry_delay = 1.5 + math.random() * 1.0
                 state.fishing.next_cast_time = now + retry_delay
                 state.fishing.last_action_time = now
