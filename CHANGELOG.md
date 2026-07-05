@@ -2,6 +2,23 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.3.11] — Hotfix: Shadow Priest Multi-DoT Now Spreads to Real Targets (2026-07-05)
+
+### Bug Fixes
+
+- **Shadow Priest**: The Multi-DoT / Spread strategies (`SWPSpread`, `VTSpread`, `MultiDotSWP`, `MultiDotVT`) were recasting Shadow Word: Pain and Vampiric Touch on your current target instead of spreading them to nearby enemies that were actually missing the debuff. This made cleave and AoE damage fall behind on dungeon/raid packs.
+  - Added a target picker that scans nearby enemies and selects one missing the DoT, preferring a target other than your current one.
+  - Spread casts now apply their per-target lockout to the chosen enemy so the same target is not double-queued while a cast is in flight.
+
+### What to Expect
+
+- Shadow Priest: In cleave/AoE mode, your DoTs will now genuinely spread across multiple enemies instead of being wasted on the target that already has them.
+- Drop-in replacement. Delete your old `EaxRotations` folder and replace with this one.
+- All your settings carry over automatically.
+- No settings reset needed.
+
+---
+
 ## [2.3.10] — Hotfix: Hunter Aspect Manager Missing Middleware Strategies (2026-07-04)
 
 ### Bug Fixes

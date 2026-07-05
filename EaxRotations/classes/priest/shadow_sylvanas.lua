@@ -71,8 +71,8 @@ local REFRESH_EXTRA_WINDOW = 1.5         -- Extra seconds past pandemic window f
 -- while a cast is in flight (matching parity's lockout tracking)
 local _cast_lockouts = {}  -- guid -> { spell_name = true, expires = time_ms }
 
-local function _set_lockout(spell_name, duration_ms)
-    local target = NS.GetTarget and NS.GetTarget()
+local function _set_lockout(spell_name, duration_ms, target)
+    target = target or (NS.GetTarget and NS.GetTarget())
     if not target then return end
     local guid = target.get_guid and target:get_guid()
     if not guid then return end
@@ -80,8 +80,8 @@ local function _set_lockout(spell_name, duration_ms)
     _cast_lockouts[guid][spell_name] = (NS.game_time_ms and NS.game_time_ms() or 0) + duration_ms
 end
 
-local function _is_locked(spell_name)
-    local target = NS.GetTarget and NS.GetTarget()
+local function _is_locked(spell_name, target)
+    target = target or (NS.GetTarget and NS.GetTarget())
     if not target then return false end
     local guid = target.get_guid and target:get_guid()
     if not guid or not _cast_lockouts[guid] then return false end
@@ -100,6 +100,41 @@ local function target_creature_type(unit)
     if unit.get_creature_type then
         local ok, value = pcall(function() return unit:get_creature_type() end)
         if ok then return value end
+    end
+    return nil
+end
+
+-- ============================================================================
+-- Multi-DoT target picker
+-- ============================================================================
+-- Returns the first nearby enemy that does NOT have any of the given debuff IDs.
+-- Used so SW:P/VT spread/cleave strategies actually hit a missing target instead
+-- of recasting on context.target (which already has the DoT).
+local function _find_multidot_target(context, debuff_ids, range)
+    if not context or not NS.GetEnemiesInRange then return nil end
+    range = range or (context.settings and context.settings.shadow_multidot_range) or 30
+    local enemies = NS.GetEnemiesInRange(range)
+    if type(enemies) ~= "table" or #enemies == 0 then return nil end
+    local current = context.target
+    local function is_valid_target(enemy)
+        if not enemy then return false end
+        local ok, valid = pcall(function() return enemy.is_valid and enemy:is_valid() end)
+        if ok and valid then return true end
+        -- Fallback for test stubs / raw tables without unit API
+        return ok == false and false or true
+    end
+    -- Prefer an enemy that is NOT the current target first (real spread)
+    for pass = 1, 2 do
+        for _, enemy in ipairs(enemies) do
+            if is_valid_target(enemy) then
+                local is_current = current and NS.same_unit and NS.same_unit(enemy, current)
+                if pass == 1 and is_current then
+                    -- skip current target on first pass
+                elseif not NS.debuff_up(enemy, debuff_ids) then
+                    return enemy
+                end
+            end
+        end
     end
     return nil
 end
@@ -497,6 +532,7 @@ local function shadowfiend_matches(context, s)
     return true
 end
 
+local _cached_swp_spread_target = nil
 local function shadow_swp_spread_matches(context, s)
     if not s.swp_known then return false end
     if not can_break_mind_flay(s) then return false end
@@ -507,13 +543,22 @@ local function shadow_swp_spread_matches(context, s)
     if not _engaged_with_player(context) then return false end
     -- Per-target lockout: prevent double-queuing SW:P to same target while in-flight
     if _is_locked("SWP") then return false end
-    -- Avoid refreshing SW:P if it's still active on this target (we want to spread to targets that don't have it)
+    -- Pick a target that is actually missing SW:P
+    local target = _find_multidot_target(context, SHADOW_WORD_PAIN_DEBUFF)
+    if not target then return false end
+    context._shadow_swp_spread_target = target
+    -- Allow refresh on the picked target if it is currently active but snapshot-upgradeable or in pandemic
     local swp_window = s.swp_refresh_window or 3
-    if s.swp_remaining > 0 and s.swp_remaining > swp_window then return false end
-    if s.swp_remaining > 0 and not should_snapshot_upgrade(s.spell_damage, s.snapshot_swp_dmg, s.swp_remaining, swp_window, SPELL_DMG_UPGRADE_RATIO) then return false end
+    local swp_remains = NS.debuff_remains and NS.debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
+    if swp_remains > 0 and swp_remains > swp_window then
+        if not should_snapshot_upgrade(s.spell_damage, s.snapshot_swp_dmg, swp_remains, swp_window, SPELL_DMG_UPGRADE_RATIO) then
+            return false
+        end
+    end
     return true
 end
 
+local _cached_vt_spread_target = nil
 local function shadow_vt_spread_matches(context, s)
     if not s.vampiric_touch_known then return false end
     if not can_break_mind_flay(s) then return false end
@@ -524,10 +569,18 @@ local function shadow_vt_spread_matches(context, s)
     if not _engaged_with_player(context) then return false end
     -- Per-target lockout: prevent double-queuing VT to same target while in-flight
     if _is_locked("VT") then return false end
-    -- Avoid refreshing VT if still active on this target (spread to targets that don't have it)
+    -- Pick a target that is actually missing VT
+    local target = _find_multidot_target(context, VAMPIRIC_TOUCH_DEBUFF)
+    if not target then return false end
+    context._shadow_vt_spread_target = target
+    -- Allow refresh on the picked target if currently active but snapshot-upgradeable or in pandemic
     local vt_window = s.vt_refresh_window or 3
-    if s.vt_remaining > 0 and s.vt_remaining > vt_window then return false end
-    if s.vt_remaining > 0 and not should_snapshot_upgrade(s.spell_damage, s.snapshot_vt_dmg, s.vt_remaining, vt_window, SPELL_DMG_UPGRADE_RATIO) then return false end
+    local vt_remains = NS.debuff_remains and NS.debuff_remains(target, VAMPIRIC_TOUCH_DEBUFF) or 0
+    if vt_remains > 0 and vt_remains > vt_window then
+        if not should_snapshot_upgrade(s.spell_damage, s.snapshot_vt_dmg, vt_remains, vt_window, SPELL_DMG_UPGRADE_RATIO) then
+            return false
+        end
+    end
     return true
 end
 
@@ -769,12 +822,12 @@ local function multidot_swp_matches(context, s)
     if (context.target_hp_pct or 100) <= 30 then return false end
     -- Limit to max targets
     if (s.dotted_swp_count or 0) >= (s.multidot_max or 3) then return false end
-    -- Don't spread if current target still has SW:P ticking with time
-    if s.swp_remaining > 3 then return false end
-    -- Only spread if there are enemies missing SW:P
-    if (s.enemies_missing_swp or 0) < 1 then return false end
     -- Mana gate: don't spread below emergency
     if s.mana_emergency then return false end
+    -- Pick a target that is actually missing SW:P
+    local target = _find_multidot_target(context, SHADOW_WORD_PAIN_DEBUFF)
+    if not target then return false end
+    context._shadow_swp_spread_target = target
     return true
 end
 
@@ -791,12 +844,12 @@ local function multidot_vt_matches(context, s)
     if (context.target_hp_pct or 100) <= 30 then return false end
     -- Limit to max targets
     if (s.dotted_vt_count or 0) >= (s.multidot_max or 3) then return false end
-    -- Don't spread if current target still has VT ticking with time
-    if s.vt_remaining > 3 then return false end
-    -- Only spread if there are enemies missing VT
-    if (s.enemies_missing_vt or 0) < 1 then return false end
     -- Mana emergency: drop all spells
     if s.mana_emergency then return false end
+    -- Pick a target that is actually missing VT
+    local target = _find_multidot_target(context, VAMPIRIC_TOUCH_DEBUFF)
+    if not target then return false end
+    context._shadow_vt_spread_target = target
     return true
 end
 
@@ -905,10 +958,42 @@ local strategies = {
     },
     { name = "DispelMagic", matches = dispel_magic_matches, execute = function(context) return NS.try_cast(SPELLS.DispelMagic, NS.PLAYER_UNIT, "[SHADOW] DispelMagic", { skip_range = true }) end },
     { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return NS.try_cast(SPELLS.ShackleUndead, context.target, "[SHADOW] ShackleUndead") end },
-    { name = "SWPSpread", matches = shadow_swp_spread_matches, execute = function(context) _set_lockout("SWP", 3000); local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] SWPSpread"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
-    { name = "VTSpread", matches = shadow_vt_spread_matches, execute = function(context) _set_lockout("VT", 3000); local ok = NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] VTSpread"); if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end; return ok end },
-    { name = "MultiDotSWP", matches = multidot_swp_matches, execute = function(context) local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] MultiDoT SW:P"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
-    { name = "MultiDotVT", matches = multidot_vt_matches, execute = function(context) local ok = NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] MultiDoT VT"); if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end; return ok end },
+    { name = "SWPSpread", matches = shadow_swp_spread_matches, execute = function(context)
+        local target = context._shadow_swp_spread_target
+        if not target then return false end
+        _set_lockout("SWP", 3000, target)
+        local ok = NS.try_cast(SPELLS.ShadowWordPain, target, "[SHADOW] SWPSpread")
+        if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end
+        context._shadow_swp_spread_target = nil
+        return ok
+    end },
+    { name = "VTSpread", matches = shadow_vt_spread_matches, execute = function(context)
+        local target = context._shadow_vt_spread_target
+        if not target then return false end
+        _set_lockout("VT", 3000, target)
+        local ok = NS.try_cast(SPELLS.VampiricTouch, target, "[SHADOW] VTSpread")
+        if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end
+        context._shadow_vt_spread_target = nil
+        return ok
+    end },
+    { name = "MultiDotSWP", matches = multidot_swp_matches, execute = function(context)
+        local target = context._shadow_swp_spread_target
+        if not target then return false end
+        _set_lockout("SWP", 3000, target)
+        local ok = NS.try_cast(SPELLS.ShadowWordPain, target, "[SHADOW] MultiDoT SW:P")
+        if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end
+        context._shadow_swp_spread_target = nil
+        return ok
+    end },
+    { name = "MultiDotVT", matches = multidot_vt_matches, execute = function(context)
+        local target = context._shadow_vt_spread_target
+        if not target then return false end
+        _set_lockout("VT", 3000, target)
+        local ok = NS.try_cast(SPELLS.VampiricTouch, target, "[SHADOW] MultiDoT VT")
+        if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end
+        context._shadow_vt_spread_target = nil
+        return ok
+    end },
     { name = "InnerFire", matches = inner_fire_matches, execute = function(context) return NS.try_cast(SPELLS.InnerFire, NS.PLAYER_UNIT, "[SHADOW] InnerFire", { skip_range = true }) end },
     { name = "PowerWordShield", matches = power_word_shield_matches, execute = function(context) return NS.try_cast(SPELLS.PowerWordShield, NS.PLAYER_UNIT, "[SHADOW] PowerWordShield", { skip_range = true }) end },
     { name = "FlashHeal", matches = flash_heal_matches, execute = function(context) return NS.try_cast(SPELLS.FlashHeal, NS.PLAYER_UNIT, "[SHADOW] FlashHeal", { skip_range = true }) end },
