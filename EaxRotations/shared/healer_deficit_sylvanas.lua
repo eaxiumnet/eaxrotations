@@ -278,6 +278,16 @@ function M.predicted_deficit(unit, horizon_seconds, settings)
         end)
         if ok and type(val) == "number" then absorbs = val end
     end
+    -- Healing-absorbs (e.g. Mortal Strike, Necrotic Strike) increase effective
+    -- deficit because that much healing cannot land until the absorb is removed.
+    local heal_absorbs = 0
+    do
+        local ok, val = pcall(function()
+            local fn = unit.get_total_heal_absorbs
+            return type(fn) == "function" and fn(unit) or 0
+        end)
+        if ok and type(val) == "number" then heal_absorbs = val end
+    end
     -- Fallback/enhancement: predicted incoming heals from party cast scanning
     if incoming <= 0 and NS.IncomingHeals and NS.IncomingHeals.get then
         local ok2, pred = pcall(NS.IncomingHeals.get, unit)
@@ -285,7 +295,7 @@ function M.predicted_deficit(unit, horizon_seconds, settings)
             incoming = pred
         end
     end
-    base_deficit = math_max(0, max_hp - hp - incoming - absorbs)
+    base_deficit = math_max(0, max_hp - hp - incoming - absorbs + heal_absorbs)
 
     settings = settings or (NS.settings or {})
     if settings.healer_predict_enabled == false then return base_deficit end
