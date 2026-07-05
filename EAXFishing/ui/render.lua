@@ -207,6 +207,9 @@ function M.render(ctx)
         if state.autodelete and state.autodelete.deleted_count > 0 then
             y = row("Deleted", state.autodelete.deleted_count, C.gray, x, y, lw)
         end
+        if state.autoloot and state.autoloot.corpses_looted > 0 then
+            y = row("Looted", state.autoloot.corpses_looted, C.green, x, y, lw)
+        end
         y = sep(x, y)
 
         -- ═══ STATUS ═══

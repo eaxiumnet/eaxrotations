@@ -224,6 +224,10 @@ function M.tick(ctx)
     end
     state.profile.was_enabled = true
 
+    -- v2.5.0: Auto-loot corpses (runs in parallel with fishing)
+    local AutoLoot = require("inventory/auto_loot")
+    AutoLoot.update(ctx)
+
     -- Keep behavior profile fresh (re-rolls every 15-25 min automatically)
     Behavior.ensure_profile(state, now)
 

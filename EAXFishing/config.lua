@@ -156,6 +156,18 @@ config.menu = {
 
     -- v2.4.3: Human behaviors (subtle realism)
     human_behaviors_enabled = safe_menu(_menu.checkbox, true, "fishing_human_behaviors"),
+
+    -- v2.5.0: Auto-loot corpses
+    autoloot_enabled = safe_menu(_menu.checkbox, false, "fishing_autoloot_enabled"),
+    autoloot_combat_mode = safe_menu(_menu.combobox, 1, "fishing_autoloot_combat"), -- 1=OOC only, 2=Always
+    autoloot_grace_period = safe_menu(_menu.slider_int, 0, 5, 2, "fishing_autoloot_grace"),
+    autoloot_delay_min_ms = safe_menu(_menu.slider_int, 0, 300, 50, "fishing_autoloot_min_delay"),
+    autoloot_delay_max_ms = safe_menu(_menu.slider_int, 100, 500, 200, "fishing_autoloot_max_delay"),
+    autoloot_max_per_10s = safe_menu(_menu.slider_int, 1, 10, 5, "fishing_autoloot_max_burst"),
+    autoloot_skip_players = safe_menu(_menu.checkbox, true, "fishing_autoloot_skip_players"),
+    autoloot_stop_bags_full = safe_menu(_menu.checkbox, true, "fishing_autoloot_stop_full"),
+    autoloot_min_free_slots = safe_menu(_menu.slider_int, 0, 20, 2, "fishing_autoloot_min_slots"),
+    autoloot_range = safe_menu(_menu.slider_int, 10, 50, 30, "fishing_autoloot_range"),
 }
 
 return config

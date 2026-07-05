@@ -55,6 +55,21 @@ function M.create(now)
             reverse = false,
         },
         
+        -- Auto-loot state (v2.5.0)
+        autoloot = {
+            enabled = false,
+            corpses_looted = 0,
+            last_loot_time = 0.0,
+            window_start = 0.0,
+            loots_in_window = 0,
+            loot_deadline = 0.0,
+            close_loot_deadline = 0.0,
+            paused_bags_full = false,
+            last_combat_end = nil,
+            retry_tracker = {},
+            last_corpse_name = nil,
+        },
+        
         -- Equipment state
         equip = {
             pole_equip_delay_end = 0.0,
@@ -342,6 +357,17 @@ function M.reset_fishing(state)
     -- Clear rare catch alert so it doesn't persist across re-enable
     state.alert.active = false
     state.alert.text = ""
+    -- Reset auto-loot state
+    state.autoloot.corpses_looted = 0
+    state.autoloot.last_loot_time = 0.0
+    state.autoloot.window_start = 0.0
+    state.autoloot.loots_in_window = 0
+    state.autoloot.loot_deadline = 0.0
+    state.autoloot.close_loot_deadline = 0.0
+    state.autoloot.paused_bags_full = false
+    state.autoloot.last_combat_end = nil
+    state.autoloot.retry_tracker = {}
+    state.autoloot.last_corpse_name = nil
     state.alert.fade_start = 0
     state.alert.fade_end = 0
     M.reset_bite(state)

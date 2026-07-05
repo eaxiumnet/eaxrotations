@@ -174,6 +174,30 @@ function M.render_menu(ctx)
                 config.menu.auto_stop_full:render("Stop When Bags Full",
                     "Disables fishing after 3 consecutive full-bag checks.")
 
+                h:render("AUTO-LOOT", C.sub)
+                config.menu.autoloot_enabled:render("Auto-Loot Corpses",
+                    "Automatically loots nearby mob corpses between casts. Humanized timing with burst protection. Disabled by default.")
+                if config.menu.autoloot_enabled and config.menu.autoloot_enabled.get_state and config.menu.autoloot_enabled:get_state() then
+                    config.menu.autoloot_combat_mode:render("Combat Mode",
+                        "1 = Out of Combat Only (safe), 2 = Always (includes post-combat grace period)")
+                    config.menu.autoloot_grace_period:render("Post-Combat Grace (s)",
+                        "Seconds to wait after leaving combat before looting. Prevents looting mid-fight.")
+                    config.menu.autoloot_delay_min_ms:render("Min Loot Delay (ms)",
+                        "Minimum random delay before looting a corpse. Higher = more human-like.")
+                    config.menu.autoloot_delay_max_ms:render("Max Loot Delay (ms)",
+                        "Maximum random delay before looting a corpse.")
+                    config.menu.autoloot_max_per_10s:render("Max Loots per 10s",
+                        "Burst protection: max corpses looted in any 10-second window. Prevents suspicious rapid-fire looting.")
+                    config.menu.autoloot_skip_players:render("Skip Player Corpses",
+                        "Don't loot player corpses. Recommended for PvP environments.")
+                    config.menu.autoloot_stop_bags_full:render("Stop When Bags Full",
+                        "Pause auto-looting when free bag slots drop below minimum.")
+                    config.menu.autoloot_min_free_slots:render("Min Free Bag Slots",
+                        "Auto-loot pauses when you have fewer than this many free slots.")
+                    config.menu.autoloot_range:render("Loot Range (yds)",
+                        "Maximum distance to scan for lootable corpses. 30y is safe and natural.")
+                end
+
                 h:render("RARE CATCHES", C.sub)
                 config.menu.auto_pinchy:render("Auto-Use Mr. Pinchy",
                     "Detects Mr. Pinchy (27436) in bags and auto-uses its 3 charges. Alerts on each use.")
@@ -211,6 +235,17 @@ function M.render_menu(ctx)
             config.menu.auto_vendor_repair:render("Auto Repair", "")
             config.menu.auto_relog:render("Disconnect Alert", "")
             config.menu.auto_respond:render("Whisper Alert", "")
+            h:render("AUTO-LOOT (v2.5.0)", C.sub)
+            config.menu.autoloot_enabled:render("Auto-Loot Corpses", "")
+            config.menu.autoloot_combat_mode:render("Combat Mode", "")
+            config.menu.autoloot_grace_period:render("Post-Combat Grace", "")
+            config.menu.autoloot_delay_min_ms:render("Min Loot Delay", "")
+            config.menu.autoloot_delay_max_ms:render("Max Loot Delay", "")
+            config.menu.autoloot_max_per_10s:render("Max Loots/10s", "")
+            config.menu.autoloot_skip_players:render("Skip Players", "")
+            config.menu.autoloot_stop_bags_full:render("Stop When Full", "")
+            config.menu.autoloot_min_free_slots:render("Min Free Slots", "")
+            config.menu.autoloot_range:render("Loot Range", "")
         end
 
         -- ═══════════════════════════════════════════════════════════════════
