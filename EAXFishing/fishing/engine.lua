@@ -710,7 +710,11 @@ function M.tick(ctx)
             return
         end
 
-        -- Apply a small random yaw jitter so the bobber doesn't land in the exact same spot
+        -- Apply a small random yaw jitter so the bobber doesn't land in the exact same spot.
+        -- FIXED (v2.3.2): old code treated jitter_deg as YARDS of position offset in a full
+        -- 360° circle, which could swing the player all the way around to face the beach.
+        -- Now we apply a small ANGULAR offset (±jitter_deg) to the current facing, so the
+        -- bobber always goes forward (into the water) with only a small spread.
         if deps.config.menu.cast_jitter_enabled and deps.config.menu.cast_jitter_enabled:get_state() then
             local jitter_deg = 5
             if deps.config.menu.cast_jitter_degrees and deps.config.menu.cast_jitter_degrees.get then
@@ -718,12 +722,18 @@ function M.tick(ctx)
             end
             if jitter_deg > 0 then
                 local me_pos = APISurface.get_object_position(me)
-                if me_pos then
-                    local target = { x = me_pos.x, y = me_pos.y, z = me_pos.z }
-                    local angle = math.random() * (math.pi * 2)
-                    local dist = math.random() * jitter_deg
-                    target.x = target.x + math.cos(angle) * dist
-                    target.y = target.y + math.sin(angle) * dist
+                local yaw    = APISurface.get_rotation(me)
+                if me_pos and yaw then
+                    -- ±jitter_deg converted to radians, applied to current facing
+                    local delta_rad = (math.random() * 2 - 1) * math.rad(jitter_deg)
+                    local new_yaw   = yaw + delta_rad
+                    -- Project 15 yards forward along the new facing
+                    local cast_dist = 15.0
+                    local target = {
+                        x = me_pos.x + math.cos(new_yaw) * cast_dist,
+                        y = me_pos.y + math.sin(new_yaw) * cast_dist,
+                        z = me_pos.z,
+                    }
                     APISurface.look_at(target)
                 end
             end

@@ -155,6 +155,20 @@ function M.get_object_position(obj)
     return nil
 end
 
+--- Get object yaw rotation (radians)
+-- @param obj table game object
+-- @return number|nil yaw in radians
+function M.get_rotation(obj)
+    if not M.is_valid(obj) then return nil end
+    if type(obj.get_rotation) == "function" then
+        local ok, result = pcall(obj.get_rotation, obj)
+        if ok and type(result) == "number" then
+            return result
+        end
+    end
+    return nil
+end
+
 --- Get creator object (for bobber ownership)
 -- @param obj table game object
 -- @return table|nil creator object
