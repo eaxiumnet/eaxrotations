@@ -176,26 +176,26 @@ function M.render_menu(ctx)
 
                 h:render("AUTO-LOOT", C.sub)
                 config.menu.autoloot_enabled:render("Auto-Loot Corpses",
-                    "Automatically loots nearby mob corpses between casts. Humanized timing with burst protection. Disabled by default.")
+                    "When enabled, automatically loots nearby mob corpses between casts. Waits a random moment before looting, respects combat state, and pauses if bags are nearly full. Disabled by default — turn on for hands-free grinding.")
                 if config.menu.autoloot_enabled and config.menu.autoloot_enabled.get_state and config.menu.autoloot_enabled:get_state() then
-                    config.menu.autoloot_combat_mode:render("Combat Mode",
-                        "1 = Out of Combat Only (safe), 2 = Always (includes post-combat grace period)")
-                    config.menu.autoloot_grace_period:render("Post-Combat Grace (s)",
-                        "Seconds to wait after leaving combat before looting. Prevents looting mid-fight.")
-                    config.menu.autoloot_delay_min_ms:render("Min Loot Delay (ms)",
-                        "Minimum random delay before looting a corpse. Higher = more human-like.")
-                    config.menu.autoloot_delay_max_ms:render("Max Loot Delay (ms)",
-                        "Maximum random delay before looting a corpse.")
-                    config.menu.autoloot_max_per_10s:render("Max Loots per 10s",
-                        "Burst protection: max corpses looted in any 10-second window. Prevents suspicious rapid-fire looting.")
+                    config.menu.autoloot_combat_mode:render("Loot Only When Safe",
+                        "'Out of Combat Only' means looting only happens when you're not fighting — safest for dungeons/raids. 'Always' allows looting even during combat (not recommended).")
+                    config.menu.autoloot_grace_period:render("Wait After Combat (seconds)",
+                        "After the last enemy dies, wait this many seconds before looting. Gives you time to pick a new target or move. Default 2s is a good balance.")
+                    config.menu.autoloot_delay_min_ms:render("Loot Delay: Minimum (ms)",
+                        "The bot waits at least this many milliseconds before looting a corpse. Humans don't click instantly — this adds realism. Default 50ms.")
+                    config.menu.autoloot_delay_max_ms:render("Loot Delay: Maximum (ms)",
+                        "The bot waits at most this many milliseconds before looting. A random value between Min and Max is chosen each time. Default 200ms.")
+                    config.menu.autoloot_max_per_10s:render("Loot Speed Limit (per 10 sec)",
+                        "Maximum corpses that can be looted in any 10-second window. Prevents suspicious rapid-fire looting. Default 5 is natural for AoE grinding.")
                     config.menu.autoloot_skip_players:render("Skip Player Corpses",
-                        "Don't loot player corpses. Recommended for PvP environments.")
-                    config.menu.autoloot_stop_bags_full:render("Stop When Bags Full",
-                        "Pause auto-looting when free bag slots drop below minimum.")
-                    config.menu.autoloot_min_free_slots:render("Min Free Bag Slots",
-                        "Auto-loot pauses when you have fewer than this many free slots.")
-                    config.menu.autoloot_range:render("Loot Range (yds)",
-                        "Maximum distance to scan for lootable corpses. 30y is safe and natural.")
+                        "When enabled, never loots player corpses (battlegrounds, arenas, world PvP). Respectful and avoids accidental dishonorable looting. Default ON.")
+                    config.menu.autoloot_stop_bags_full:render("Pause If Bags Nearly Full",
+                        "When enabled, auto-loot pauses when you have fewer than the minimum free slots remaining. Prevents wasting time trying to loot when you can't carry anything. Default ON.")
+                    config.menu.autoloot_min_free_slots:render("Minimum Free Bag Slots",
+                        "Auto-loot pauses when you have fewer than this many empty bag slots left. Set to 0 to ignore bag space. Default 2 keeps a small buffer.")
+                    config.menu.autoloot_range:render("Scan Range (yards)",
+                        "How far to scan for lootable corpses. 30 yards is natural — far enough to catch nearby kills but not so far that you're running across the zone. Increase for open-world grinding.")
                 end
 
                 h:render("RARE CATCHES", C.sub)
