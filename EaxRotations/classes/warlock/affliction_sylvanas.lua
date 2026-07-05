@@ -24,14 +24,68 @@ do
     if ok and type(mod) == "table" then _izi = mod end
 end
 
+-- CC debuff IDs that damage would break (don't DoT these targets)
+local CC_DEBUFF_IDS = {
+    118, 12824, 12825, 12826, 28271, 28272,  -- Polymorph
+    6770, 2070, 11297,                        -- Sap
+    1776,                                     -- Gouge
+    2094,                                     -- Blind
+    3355, 14308, 14309,                       -- Freezing Trap
+    20066,                                    -- Repentance
+    19386,                                    -- Wyvern Sting
+    5782, 6213, 6215, 5484, 17928,            -- Fear / Howl of Terror
+    2637, 18657, 18658,                       -- Hibernate
+    33786,                                    -- Cyclone
+    18647,                                    -- Banish
+}
+
+--- Check if a unit has a breakable CC debuff (don't DoT CC'd targets)
+local function is_cc_target(unit)
+    if not unit or not NS.debuff_up then return false end
+    for _, cc_id in ipairs(CC_DEBUFF_IDS) do
+        if NS.debuff_up(unit, { cc_id }) then return true end
+    end
+    return false
+end
+
+--- Check if a unit is engaged with the player (not an unengaged patrol)
+local function is_engaged(unit, me)
+    if not unit or not me then return true end
+    -- Already damaged = engaged
+    local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
+    if ok_hp and hp and hp < 100 then return true end
+    -- Targeting me or my party = engaged
+    local ok_t, target = pcall(function() return unit:get_target() end)
+    if ok_t and target then
+        if NS.same_unit and NS.same_unit(target, me) then return true end
+        -- Check if targeting a party member
+        local allies = NS.GetPartyMembers and NS.GetPartyMembers() or {}
+        for _, ally in ipairs(allies) do
+            if ally and NS.same_unit and NS.same_unit(target, ally) then return true end
+        end
+    end
+    return false
+end
+
 --- Find a target missing the specified DoT using IZI spread_dot.
---- Returns nil if IZI is unavailable or no valid target found.
+--- Safety: skips CC'd targets, unengaged patrols, and dying adds (< 20% HP).
 ---@param spell_id number DoT spell ID to check
 ---@param radius number|nil Search radius (default 40)
 ---@return game_object|nil target Missing the DoT, or nil
 local function find_dot_target(spell_id, radius)
     if not _izi then return nil end
-    local ok, target = pcall(_izi.spread_dot, spell_id, radius or 40, 1, false)
+    local me = NS.GetPlayer and NS.GetPlayer() or nil
+    local ok, target = pcall(_izi.spread_dot, spell_id, radius or 40, 1, false, function(unit)
+        if not unit then return false end
+        -- Skip CC'd targets (don't break Polymorph/Sap/Banish/etc.)
+        if is_cc_target(unit) then return false end
+        -- Skip unengaged patrols (don't pull new mobs)
+        if me and not is_engaged(unit, me) then return false end
+        -- Skip dying adds (don't waste GCD on < 20% HP targets)
+        local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
+        if ok_hp and hp and hp < 20 then return false end
+        return true
+    end)
     if ok and target then return target end
     return nil
 end
