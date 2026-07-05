@@ -11,6 +11,8 @@ local shot_timer = require("shared/shot_timer_sylvanas")
 local targeting = require("shared/targeting_sylvanas")
 local pet_manager = require("shared/pet_manager_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
+local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
+if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 
 -- ============================================================================
@@ -31,6 +33,7 @@ local WING_CLIP_DEBUFF   = { 2974 }
 local RAPTOR_STRIKE_IDS  = { 27014, 14266, 14265, 14264, 14263, 14262, 14261, 14260, 2973 }
 local CONCUSSIVE_SHOT_IDS = { 5116 }
 local VOLLEY_IDS          = { 27022, 14295, 14294, 1510 }
+local BLOODLUST_HEROISM_BUFFS = { 2825, 32182 }
 local is_item_ready
 
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
@@ -198,6 +201,11 @@ local function build_state(context)
     state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
     state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
+    -- Major power-window awareness for cooldown alignment
+    state.bloodlust_active = me and NS.buff_up and NS.buff_up(me, BLOODLUST_HEROISM_BUFFS) or false
+    state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
+    state.major_cd_window = state.bloodlust_active or state.major_cd_active
+
     return state
 end
 
@@ -347,7 +355,7 @@ local function mend_pet_matches(context, s)
     return true
 end
 
--- Bestial Wrath
+-- Bestial Wrath: align with major power windows (Bloodlust/Drums/trinkets).
 local function bestial_wrath_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not cooldowns_allowed(context) then return false end
@@ -356,6 +364,11 @@ local function bestial_wrath_matches(context, s)
     if not s.bestial_wrath_ready then return false end
     -- TTD gate: don't waste 2min CD on a dying target
     if context.ttd_known and context.ttd < 15 then return false end
+    -- Stack with major CDs; timeout fallback so BW fires by ~45s
+    local align = s.major_cd_window or false
+    local combat_time = context.combat_time or 0
+    local ttd = context.ttd or 999
+    if not align and combat_time < 45 and ttd > 15 then return false end
     return true
 end
 
