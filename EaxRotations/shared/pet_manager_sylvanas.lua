@@ -549,11 +549,21 @@ function M.on_update(me, target, spec, context)
         end
     end
 
-    -- Mage Water Elemental: Waterbolt (auto-cast by default; cast manually if needed)
-    if st.mage_waterbolt_id and now - st.last_mage_waterbolt > 3 then
-        if M.try_cast(st.mage_waterbolt_id, target) then
-            st.last_mage_waterbolt = now
-            return
+    -- Mage Water Elemental: Waterbolt — machine gun (same as Imp Firebolt).
+    -- Waterbolt has a 2.5s cast time and the TBC engine doesn't queue the
+    -- next autocast, so the Water Elemental stands idle ~0.5s between casts.
+    -- Fix: check if pet is NOT casting, then immediately fire Waterbolt.
+    if st.mage_waterbolt_id then
+        local pet_casting = false
+        if pet and pet.is_casting_spell then
+            local ok_c, casting = pcall(function() return pet:is_casting_spell() end)
+            pet_casting = ok_c and casting or false
+        end
+        if not pet_casting then
+            if M.try_cast(st.mage_waterbolt_id, target) then
+                st.last_mage_waterbolt = now
+                return
+            end
         end
     end
 
