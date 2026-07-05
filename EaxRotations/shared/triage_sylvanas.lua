@@ -183,3 +183,63 @@ function M.best_target(entries, count, radius, min_targets)
     end
     return nil, 0
 end
+
+-- ---------------------------------------------------------------------------
+-- NS.AoEHeal.chain_heal_target
+-- ---------------------------------------------------------------------------
+
+--- Find the best Chain Heal primary target (closest injured cluster center).
+-- Chain Heal jumps to nearby injured targets within `radius` yards.
+-- This is a specialized version of best_target that also returns bounce count.
+-- @param entries      array of healing entries
+-- @param count        number of valid entries
+-- @param radius       bounce radius in yards (default 12.5 for Chain Heal r4)
+-- @param min_targets  minimum cluster size (default 3 = primary + 2 bounces)
+-- @return best_entry|nil, cluster_count, bounce_count
+function M.chain_heal_target(entries, count, radius, min_targets)
+    if type(entries) ~= "table" then
+        return nil, 0, 0
+    end
+    count = type(count) == "number" and count or #entries
+    radius = type(radius) == "number" and radius or 12.5
+    min_targets = type(min_targets) == "number" and min_targets or 3
+    if count < min_targets then
+        return nil, 0, 0
+    end
+
+    local best_entry = nil
+    local best_count = 0
+
+    for i = 1, count do
+        local center = entries[i]
+        if center and center.unit then
+            local cluster = 1
+            for j = 1, count do
+                if i ~= j then
+                    local other = entries[j]
+                    if other and other.unit then
+                        local dist = 999
+                        if NS.unit_distance then
+                            local ok, d = pcall(NS.unit_distance, center.unit, other.unit)
+                            if ok and type(d) == "number" then
+                                dist = d
+                            end
+                        end
+                        if dist <= radius then
+                            cluster = cluster + 1
+                        end
+                    end
+                end
+            end
+            if cluster > best_count then
+                best_count = cluster
+                best_entry = center
+            end
+        end
+    end
+
+    if best_count >= min_targets then
+        return best_entry, best_count, best_count - 1
+    end
+    return nil, 0, 0
+end
