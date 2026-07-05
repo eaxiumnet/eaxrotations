@@ -10,9 +10,9 @@
 
 **Repo**: https://github.com/eaxiumnet/eaxrotations
 **Local Path**: `C:\newbot\scripts`
-**Last Updated**: 2026-06-29
+**Last Updated**: 2026-07-03
 **Specs**: 29 TBC Classic class specializations (all 29 completed)
-**Tests**: 214 rotation suites registered in `run_rotation_tests.lua` + 13 leveling suites in `run_leveling_tests.lua` (226 total)
+**Tests**: 219 rotation suites registered in `run_rotation_tests.lua` + 13 leveling suites in `run_leveling_tests.lua` (232 total)
 
 ---
 
@@ -58,7 +58,7 @@ EaxRotations/
 ├── core_sylvanas.lua          # NS helpers (buff_points, spell_ready, etc.)
 ├── classes/<class>/<spec>_sylvanas.lua  # 29 spec files (flat, one per spec)
 ├── shared/                    # ~50 shared modules (interrupts, consumables, etc.)
-├── tests/                     # ~221 test files (214 rotation + 13 leveling suites)
+├── tests/                     # ~232 test files (219 rotation + 13 leveling suites)
 └── tools/                     # Build/validation scripts
 
 api/                           # Sylvanas API definitions (runtime, .gitignored)
@@ -128,13 +128,15 @@ Full docs in `apidocs/`. Key entry points:
 
 | Namespace | Purpose | Key Functions |
 |-----------|---------|---------------|
-| `core.object_manager.*` | Objects | `get_local_player()`, `get_enemy_list()` |
-| `core.spell_book.*` | Spells | `is_spell_learned()`, `get_spell_cooldown()`, `cancel_form()` |
-| `core.input.*` | Actions | `cast_target_spell()`, `move_to()` |
-| `core.menu.*` | UI Widgets | `checkbox()`, `slider_int()`, `keybind()` |
-| `core.graphics.*` | Rendering | `draw_circle()`, `draw_line()` |
+| `core.object_manager.*` | Objects | `get_local_player()`, `get_all_objects()`, `get_enemies()` |
+| `core.spell_book.*` | Spells | `is_spell_learned()`, `get_spell_cooldown()`, `has_spell()`, `get_spells()` |
+| `core.input.*` | Actions | `cast_target_spell()`, `cast_position_spell()`, `use_item()`, `jump()`, `look_at()` |
+| `core.menu.*` | UI Widgets | `checkbox()`, `slider_int()`, `slider_float()`, `keybind()`, `tree_node()`, `combobox()` |
+| `core.graphics.*` | Rendering | `circle_3d()`, `line_3d()`, `text_2d()`, `text_3d()`, `rect_2d()` |
 
-**Unit methods**: `get_health_percentage()`, `get_mana_percentage()`, `get_distance()`, `is_alive()`, `is_casting()`, `is_in_combat()`, `has_buff(id)`, `has_debuff(id)`, `buff_remains(id)`, `debuff_remains(id)`
+**Raw game_object methods**: `get_position()`, `get_name()`, `is_valid()`, `is_dead()`, `is_ghost()`, `is_in_combat()`, `is_casting()`, `is_channelling()`, `get_health()`, `get_max_health()`, `get_mana()`, `get_max_mana()`, `has_buff(id)`, `has_debuff(id)`
+**IZI SDK unit extensions**: `get_health_percentage()`, `get_mana_percentage()`, `distance()`, `buff_up(id)`, `debuff_up(id)`, `buff_remains(id)`, `debuff_remains(id)`
+**Unit helper** (`require("common/utility/unit_helper")`): `get_health_percentage(unit)`, `get_enemy_list_around(point, range, ...)`
 
 **IZI SDK** (`require("common/izi_sdk")`): `izi.spell(id)`, `izi.item(id)`, `izi.pick_enemy(fn)`, `izi.enemies()`, `izi.on_combat_start(fn)`, `izi.on_spell_success(fn)`
 
@@ -323,7 +325,7 @@ local HEALER_CLASS_IDS = { [2]=true, [5]=true, [7]=true, [11]=true }  -- Pally, 
 | `enemy_count` / `enemies` | `0` | Assume none → skip AoE |
 | `target_hp` / `target_hp_pct` | `100` | Assume full → skip execute-range |
 
-**Scope**: 24 files (14 spec + 9 leveling + 1 shadow), ~170 locations guarded. All 214 rotation + 13 leveling suites pass.
+**Scope**: 24 files (14 spec + 9 leveling + 1 shadow), ~170 locations guarded. All 219 rotation + 13 leveling suites pass.
 
 ### Pattern 15: File Readability Header
 
@@ -404,7 +406,7 @@ return { strategies = strategies, build_state = build_state }
 
 **Migration rules:**
 - Convert a spec **only when already editing it** — never big-bang (per `plans/refactor-developer-experience-2026-06.md`).
-- One spec per commit. Gate each with `luac -p` + full 214+12 suite.
+- One spec per commit. Gate each with `luac -p` + full 219+13 suite.
 - **R5: if a task loops more than 2 attempts, STOP.** Write a debugging note in `plans/`.
 - Migration state is tracked in `EaxRotations/README.md` ("How to Read a Spec") and enforced by `tests/test_spec_layout_compliance.lua`.
 
@@ -425,7 +427,7 @@ return { strategies = strategies, build_state = build_state }
 ## Testing Rules
 
 - Run `luac -p` on every modified file before commit
-- Run `lua EaxRotations/tests/run_rotation_tests.lua` — all 214 rotation suites must pass
+- Run `lua EaxRotations/tests/run_rotation_tests.lua` — all 219 rotation suites must pass
 - Run `lua EaxRotations/tests/run_leveling_tests.lua` — all 13 leveling suites must pass
 - `lsp_diagnostics` must show 0 errors on changed files
 
@@ -448,6 +450,7 @@ return { strategies = strategies, build_state = build_state }
 
 ### Never
 - `ffi.C`, `io.popen`, `os.execute`, `debug.*` — banned APIs
+- **Edit any file in `api/` or `.api/`** — these are .gitignored runtime API stubs from Project Sylvanas; strictly read-only. If docs are stale, note it in plans/ instead.
 - Use `math.sqrt()` for distance comparisons
 - Call expensive APIs in `on_update()` without caching
 - Create garbage in tight loops (use static tables)
