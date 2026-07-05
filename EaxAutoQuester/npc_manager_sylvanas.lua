@@ -101,12 +101,18 @@ local function find_nearest_npc(ids, range)
                     -- confirmed NOT player, safe to process
                     local id_ok, npc_id = pcall(function() return obj:get_npc_id() end)
                     if id_ok and npc_id and id_set[npc_id] then
-                        local pos_ok, pos = pcall(function() return obj:get_position() end)
-                        if pos_ok and pos then
-                            local dist_sq = (me_pos and utils) and utils.squared_distance(me_pos, pos) or 0
-                            if dist_sq < best_dist_sq then
-                                best_dist_sq = dist_sq
-                                best = obj
+                        -- Skip phased-out NPCs (different phase, shard, warmode, chromie time)
+                        local phase_ok, phase = pcall(function() return obj:get_unit_phase() end)
+                        if phase_ok and phase and phase ~= -1 then
+                            -- NPC is in a different phase; skip it
+                        else
+                            local pos_ok, pos = pcall(function() return obj:get_position() end)
+                            if pos_ok and pos then
+                                local dist_sq = (me_pos and utils) and utils.squared_distance(me_pos, pos) or 0
+                                if dist_sq < best_dist_sq then
+                                    best_dist_sq = dist_sq
+                                    best = obj
+                                end
                             end
                         end
                     end
