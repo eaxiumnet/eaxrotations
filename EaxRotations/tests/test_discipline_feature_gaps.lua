@@ -174,9 +174,9 @@ for _, gap_name in ipairs(parity_gaps) do
  end
 end
 
--- All 4 gaps + 3 ClassResearchTBC enhancements are now implemented.
+-- All 4 gaps + 3 ClassResearchTBC enhancements + Shadowfiend + ManaPotion are now implemented.
 -- PowerWordShieldLowest was removed as duplicate of EmergencyPowerWordShield.
-assert_eq(#strategies, 31, "expected 31 strategies (duplicate PowerWordShieldLowest removed), got " .. #strategies)
+assert_eq(#strategies, 33, "expected 33 strategies (31 original + Shadowfiend + ManaPotion), got " .. #strategies)
 
 print("PASS test_discipline_feature_gaps (gap audit: " .. #strategies .. " strategies present, " .. present_gaps .. "/4 parity gaps closed)")
 
