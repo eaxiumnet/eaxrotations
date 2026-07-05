@@ -2,11 +2,11 @@
 
 Automated fishing addon for the Sylvanas runtime. Casts, catches, lures, navigates to pools, cooks, opens containers, tracks quests, and alerts on rare catches — all with human-like timing variance.
 
-**Version**: 2.4.1 | **Tests**: 8 suites / 150+ assertions | **Code**: 6,500+ lines across 20 modules
+**Version**: 2.4.3 | **Tests**: 9 suites / 160+ assertions | **Code**: 6,500+ lines across 24 modules
 
 ---
 
-## Features (18 total)
+## Features (22 total)
 
 ### Core Fishing
 - **Auto-cast & auto-catch** — Detects bobber bites via documented game-object APIs with Z-dip fallback
@@ -46,6 +46,15 @@ Automated fishing addon for the Sylvanas runtime. Casts, catches, lures, navigat
 - **Low HP auto-pause** — Pauses fishing when HP drops below threshold
 - **Cast success rate** — Shows cast success percentage in HUD
 
+### Water Fishing (v2.4.2)
+- **Auto-water walking** — Applies Water Walking (Shaman 546), Levitate (Priest 1706), or Path of Frost (DK 3714) before casting. Falls back to Elixir of Water Walking consumable (item 8827). Stealth-refresh with ±35% variance, 0.5-2s reaction delay, 4% forgetfulness.
+
+### Anti-Detection (v2.4.3)
+- **Advanced stealth** — 6-layer player-detection system: false-positive filtering, proximity scaling, suspicion system, nervous pause, cooldown, face-away
+- **Human behaviors** — Subtle look-at actions: look-around before cast (15%), bobber gaze before click (40%), idle stare after catch (10%)
+- **Prettier HUD** — Section headers, grouped layout, conditional row display, better color coding
+- **Rich control panel** — Session stats, stealth status, gold tracking, lure timer, catch streak
+
 ### Humanizer & Safety
 - **Behavior profiles** — Shifts timing every 15–25 minutes so no two sessions look the same
 - **Micro-breaks** — Random 10–30 second pauses mid-session
@@ -67,7 +76,7 @@ Enable/disable fishing from the control panel. All settings are persisted across
 
 ---
 
-## Menu Reference (66 options, 7 collapsible sections)
+## Menu Reference (78 options, 7 collapsible sections)
 
 ### Gear & Lures
 | Option | Default | Description |
@@ -122,6 +131,8 @@ Enable/disable fishing from the control panel. All settings are persisted across
 | Disconnect Alert | OFF | Detects server disconnect |
 | Night-Only Fishing | OFF | Framework (API not yet available) |
 | Whisper Alert | OFF | Alerts on incoming whispers |
+| Auto-Water Walking | OFF | Buffs before water fishing |
+| Water Walking Refresh (s) | 60 | Seconds before expiry to refresh |
 
 ### Sound Alerts (v2.4.1)
 | Option | Default | Description |
@@ -135,11 +146,13 @@ Enable/disable fishing from the control panel. All settings are persisted across
 | Disconnect Sound | ON | Error buzzer |
 | Catch Sound | OFF | Soft splash per catch |
 
-### Stealth
+### Stealth (v2.4.3)
 | Option | Default | Description |
 |--------|---------|-------------|
 | Slow Down When Players Near | ON | Slows cast rhythm near players |
 | Stealth Range | 30y | Player proximity trigger distance |
+| Face Away From Close Players | ON | Turns 180° away when player <10yd |
+| Subtle Human Behaviors | ON | Look-around, bobber gaze, idle stare |
 
 ### Visuals & HUD
 | Option | Default | Description |
@@ -149,6 +162,7 @@ Enable/disable fishing from the control panel. All settings are persisted across
 | Session HUD | ON | On-screen stats overlay |
 | Show Catch Streak | ON | Current + best streak |
 | Show Coordinates | ON | X, Y in HUD |
+| Show Lure Timer | ON | Remaining lure time |
 | Rare Catch Alert | ON | Sound + overlay for valuable catches |
 | Auto-Pause on Low HP | OFF | Pauses when HP < threshold |
 | Low HP Threshold % | 20% | Pause threshold |
@@ -160,7 +174,7 @@ Enable/disable fishing from the control panel. All settings are persisted across
 
 ---
 
-## HUD Display (31 rows)
+## HUD Display (32 rows)
 
 | Row | Description |
 |-----|-------------|
@@ -191,9 +205,11 @@ Enable/disable fishing from the control panel. All settings are persisted across
 | Streak | Current catch streak (best: N) |
 | Coords | Current X, Y position |
 | Paused | YES when paused |
+| WaterWalk | Active when water walking buff up |
 | Vendorfish | Goldenscale Vendorfish value |
 | Gold gained | Total gold earned |
 | Gold / hr | Hourly gold rate |
+| Stealth | Current delay multiplier (e.g. 1.45x) |
 | Items caught | Top 6 items by count |
 
 ---
@@ -203,54 +219,57 @@ Enable/disable fishing from the control panel. All settings are persisted across
 ```
 EAXFishing/
 ├── core/
-│   ├── api_surface.lua     # Single adapter for all runtime APIs (1111 lines)
-│   ├── app.lua             # Application bootstrap + game event handler
-│   ├── behavior.lua        # Humanizer profiles & timing
-│   ├── conditions.lua      # Time/weather awareness framework
-│   ├── context.lua         # Dependency injection container
-│   ├── relog.lua           # Disconnect detection
-│   ├── responder.lua       # Whisper detection
-│   ├── sound_manager.lua   # Configurable per-event sound alerts
-│   ├── state.lua           # Centralized runtime state (395 lines)
-│   └── stealth.lua         # Player proximity slowdown
+│   ├── api_surface.lua      # Single adapter for all runtime APIs (1111 lines)
+│   ├── app.lua              # Application bootstrap + game event handler
+│   ├── behavior.lua         # Humanizer profiles & timing
+│   ├── conditions.lua       # Time/weather awareness framework
+│   ├── context.lua          # Dependency injection container
+│   ├── human_behaviors.lua  # Subtle look-at realism (v2.4.3)
+│   ├── relog.lua            # Disconnect detection
+│   ├── responder.lua        # Whisper detection
+│   ├── sound_manager.lua    # Configurable per-event sound alerts
+│   ├── state.lua            # Centralized runtime state (395 lines)
+│   └── stealth.lua          # Advanced player proximity slowdown (v2.4.3)
 ├── fishing/
-│   ├── engine.lua          # Main fishing loop & bite detection (995 lines)
-│   ├── containers.lua      # Auto-open clams/chests
-│   ├── cook.lua            # Auto-cook raw fish
-│   ├── gear.lua            # Pole equip / weapon restore
-│   ├── loot.lua            # Loot window processing
-│   ├── loot_db.lua         # Item category database
-│   ├── lures.lua           # Lure application + stack count
-│   ├── mr_pinchy.lua       # Mr. Pinchy charge handler
-│   ├── pool_ranker.lua     # Value-weighted pool scorer
-│   └── quest_tracker.lua   # Daily fishing quest detection
+│   ├── engine.lua           # Main fishing loop & bite detection (995 lines)
+│   ├── containers.lua       # Auto-open clams/chests
+│   ├── cook.lua             # Auto-cook raw fish
+│   ├── gear.lua             # Pole equip / weapon restore
+│   ├── loot.lua             # Loot window processing
+│   ├── loot_db.lua          # Item category database
+│   ├── lures.lua            # Lure application + stack count
+│   ├── mr_pinchy.lua        # Mr. Pinchy charge handler
+│   ├── pool_ranker.lua      # Value-weighted pool scorer
+│   ├── quest_tracker.lua    # Daily fishing quest detection
+│   └── water_walking.lua    # Auto-water walking buff (v2.4.2)
 ├── navigation/
-│   ├── client.lua          # Nav client wrapper
-│   ├── hearth.lua          # Auto-hearth + return
+│   ├── client.lua           # Nav client wrapper
+│   ├── hearth.lua           # Auto-hearth + return
 │   ├── shoreline_solver.lua # Pool standoff position solver
-│   └── terrain.lua         # Terrain height helpers
+│   └── terrain.lua          # Terrain height helpers
 ├── inventory/
-│   ├── auto_delete.lua     # Delete worthless junk when full
-│   ├── auto_sell.lua       # Sell gray items to vendor
-│   ├── bags.lua            # Bag space checks
-│   └── vendor.lua          # Auto-repair logic
+│   ├── auto_delete.lua      # Delete worthless junk when full
+│   ├── auto_sell.lua        # Sell gray items to vendor
+│   ├── bags.lua             # Bag space checks
+│   └── vendor.lua           # Auto-repair logic
 ├── ui/
-│   ├── control_panel.lua   # Control panel rendering
-│   ├── menu.lua            # Settings menu (7 collapsible sections)
-│   └── render.lua          # ESP / HUD / safety warnings
+│   ├── control_panel.lua    # Rich control panel (v2.4.3)
+│   ├── menu.lua             # Settings menu (7 collapsible sections)
+│   └── render.lua           # ESP / HUD / safety warnings (v2.4.3)
 ├── tests/
-│   ├── run_fishing_tests.lua    # Test runner (8 suites)
-│   ├── test_state_machine.lua   # State creation + reset
-│   ├── test_config_safe_menu.lua # Menu nil-guard contract
-│   ├── test_pool_ranker.lua     # Pool scoring logic
-│   ├── test_cook.lua            # Cook module
-│   ├── test_containers.lua      # Container detection
-│   ├── test_mr_pinchy.lua       # Mr. Pinchy handler
-│   ├── test_quest_tracker.lua   # Quest fish detection
-│   └── test_sound_manager.lua   # Sound alert system
-├── config.lua              # Menu configuration (66 options)
-├── constants.lua           # Item / spell / pool constants
-├── main.lua                # Entry point
+│   ├── run_fishing_tests.lua      # Test runner (9 suites)
+│   ├── test_state_machine.lua     # State creation + reset
+│   ├── test_config_safe_menu.lua  # Menu nil-guard contract
+│   ├── test_pool_ranker.lua       # Pool scoring logic
+│   ├── test_cook.lua              # Cook module
+│   ├── test_containers.lua        # Container detection
+│   ├── test_mr_pinchy.lua         # Mr. Pinchy handler
+│   ├── test_quest_tracker.lua     # Quest fish detection
+│   ├── test_sound_manager.lua     # Sound alert system
+│   └── test_water_walking.lua     # Water walking buff (v2.4.2)
+├── config.lua               # Menu configuration (78 options)
+├── constants.lua            # Item / spell / pool constants
+├── main.lua                 # Entry point
 └── docs/
     └── openfishing-api-truth.md
 ```
@@ -267,13 +286,21 @@ EAXFishing/
 - **PRNG seeding**: `math.randomseed()` on load for non-deterministic behavior
 - **Lure re-check**: Defensive `has_active_lure()` re-check before consuming lure item (prevents duplicate)
 - **Cooking guards**: Blocked while casting, channeling, or moving
+- **Water walking stealth**: ±35% variance on refresh threshold, 0.5-2s reaction delay, 4% forgetfulness
 
 ---
 
 ## Changelog
 
+### v2.4.3 (2026-07-05)
+- **Advanced stealth** — 6-layer anti-detection: false-positive filtering, proximity scaling, suspicion system, nervous pause, cooldown, face-away
+- **Human behaviors** — Look-around before cast (15%), bobber gaze before click (40%), idle stare after catch (10%). Zero fishing loop risk.
+- **Prettier HUD** — Section headers (Session, Resources, Status, Gold, Top Catches), grouped layout, conditional row display, better color coding
+- **Rich control panel** — Session stats, stealth status, gold tracking, lure timer, catch streak
+- **Stealth multiplier HUD row** — Shows current delay multiplier when player nearby
+
 ### v2.4.2 (2026-07-05)
-- **Auto-Water Walking** — Auto-applies Water Walking (Shaman), Levitate (Priest), or Path of Frost (DK) before casting. Falls back to Elixir of Water Walking consumable (item 8827). Disabled by default — opt-in for water fishing.
+- **Auto-water walking** — Applies Water Walking (Shaman 546), Levitate (Priest 1706), or Path of Frost (DK 3714) before casting. Falls back to Elixir of Water Walking consumable (item 8827). Stealth-refresh with ±35% variance, 0.5-2s reaction delay, 4% forgetfulness.
 
 ### v2.4.1 (2026-07-05)
 - **Sound alerts system** — 8 configurable per-event sounds with master toggle + individual toggles
@@ -281,8 +308,8 @@ EAXFishing/
 - **Catch streak tracker** — Shows current + best consecutive catch streak in HUD
 - **Coordinate display** — Shows current X, Y in HUD
 - **Low HP auto-pause** — Pauses fishing when HP drops below configurable threshold
-- **Menu reorganization** — 66 options grouped into 7 collapsible tree sections
-- **4 new test suites** — containers, mr_pinchy, quest_tracker, sound_manager (8 total, 150+ assertions)
+- **Menu reorganization** — 78 options grouped into 7 collapsible tree sections
+- **4 new test suites** — containers, mr_pinchy, quest_tracker, sound_manager (9 total, 160+ assertions)
 
 ### v2.4.0 (2026-07-05)
 - **Auto-open containers** — Opens clams, chests, supply crates between casts to free bag space
