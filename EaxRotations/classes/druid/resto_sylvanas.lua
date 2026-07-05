@@ -203,7 +203,17 @@ local function needs_lifebloom_refresh(entry, context, wanted_stacks)
  local remains = entry.lifebloom_remains or NS.buff_remains(entry.unit, LIFEBLOOM_BUFF) or 0
  if stacks <= 0 then return true end
  if stacks < wanted_stacks and remains > LIFEBLOOM_BLOOM_SOON then return true end
- return remains > 0 and remains <= LIFEBLOOM_REFRESH
+ if remains <= 0 or remains > LIFEBLOOM_REFRESH then return false end
+ -- Tick-cadence-aware refresh: if HotTickTracker is available, check if next tick
+ -- is imminent. Refreshing right before a tick clips it; wait until after the tick.
+ if NS.HotTickTracker and type(NS.HotTickTracker.next_tick_in) == "function" then
+  local ok, tick_in = pcall(NS.HotTickTracker.next_tick_in, NS.HotTickTracker, entry.unit, "lifebloom")
+  if ok and type(tick_in) == "number" and tick_in >= 0 and tick_in < 0.5 then
+   -- Next tick is within 0.5s — wait for it to land before refreshing
+   return false
+  end
+ end
+ return true
 end
 
 local function should_let_lifebloom_bloom(entry, context)
@@ -220,14 +230,32 @@ local function needs_rejuvenation(entry, threshold)
  if not entry or not entry.unit then return false end
  if effective_hp(entry) > threshold then return false end
  local remains = NS.buff_remains(entry.unit, REJUVENATION_BUFF) or 0
- return not entry.has_rejuvenation or remains <= REJUVENATION_REFRESH
+ if not entry.has_rejuvenation or remains <= 0 then return true end
+ if remains > REJUVENATION_REFRESH then return false end
+ -- Tick-cadence-aware refresh via HotTickTracker
+ if NS.HotTickTracker and type(NS.HotTickTracker.next_tick_in) == "function" then
+  local ok, tick_in = pcall(NS.HotTickTracker.next_tick_in, NS.HotTickTracker, entry.unit, "rejuvenation")
+  if ok and type(tick_in) == "number" and tick_in >= 0 and tick_in < 0.5 then
+   return false -- wait for tick to land
+  end
+ end
+ return true
 end
 
 local function needs_regrowth(entry)
  if not entry or not entry.unit then return false end
  if effective_hp(entry) > REGROWTH_SPOT_HP then return false end
  local remains = NS.buff_remains(entry.unit, REGROWTH_BUFF) or 0
- return not entry.has_regrowth or remains <= REGROWTH_REFRESH
+ if not entry.has_regrowth or remains <= 0 then return true end
+ if remains > REGROWTH_REFRESH then return false end
+ -- Tick-cadence-aware refresh via HotTickTracker
+ if NS.HotTickTracker and type(NS.HotTickTracker.next_tick_in) == "function" then
+  local ok, tick_in = pcall(NS.HotTickTracker.next_tick_in, NS.HotTickTracker, entry.unit, "regrowth")
+  if ok and type(tick_in) == "number" and tick_in >= 0 and tick_in < 0.5 then
+   return false -- wait for tick to land
+  end
+ end
+ return true
 end
 
 local function count_tree_aura_targets(entries, count)
@@ -290,10 +318,16 @@ local function choose_swiftmend_prefer_rejuv(first, second)
  local first_hp = effective_hp(first)
  local second_hp = effective_hp(second)
  if math.abs(first_hp - second_hp) <= 8 then
+  -- Prefer Rejuv-only over Regrowth (preserves Regrowth's direct+HoT)
   local first_rejuv_only = first.has_rejuvenation and not first.has_regrowth
   local second_rejuv_only = second.has_rejuvenation and not second.has_regrowth
   if first_rejuv_only and not second_rejuv_only then return first end
   if second_rejuv_only and not first_rejuv_only then return second end
+  -- Prefer HoT that is about to expire (consume before clipping — HealIQ approach)
+  local first_remains = NS.buff_remains(first.unit, REJUVENATION_BUFF) or 999
+  local second_remains = NS.buff_remains(second.unit, REJUVENATION_BUFF) or 999
+  if first_remains < 2.0 and second_remains > 3.0 then return first end
+  if second_remains < 2.0 and first_remains > 3.0 then return second end
  end
  return choose_better(first, second)
 end
