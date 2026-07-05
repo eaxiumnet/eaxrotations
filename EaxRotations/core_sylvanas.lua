@@ -3052,108 +3052,117 @@ local function _build_aura_lookup(unit, getter_name)
     return lookup
 end
 
-function NS.buff_up(unit, ids)
-    if not unit then return false end
+-- ============================================================================
+-- Unified Aura Query Engine
+-- ============================================================================
+-- Encapsulates the 4-step resolution pattern (buff_manager → lookup fast path
+-- → direct API → default) shared by all aura accessor functions.
+--
+-- Parameters:
+--   unit        – target game_object
+--   ids         – spell ID array
+--   aura_type   – "buff" or "debuff" (selects buff_manager method + API names)
+--   default     – value returned when nothing is found
+--   use_lookup  – true to enable #list>3 _build_aura_lookup fast path
+--   extract_bm  – function(data) called on buff_manager result; return value
+--                 to short-circuit, or nil to continue
+--   extract_lookup – function(aura) called on lookup result; return value
+--                    to short-circuit, or nil to continue
+--   extract_direct – function(unit, id, list, i) called per ID in direct
+--                    iteration; return value to short-circuit, or nil
+-- ============================================================================
+local function _aura_query(unit, ids, aura_type, default, use_lookup,
+                           extract_bm, extract_lookup, extract_direct)
+    if not unit then return default end
     local list = collect_ids(ids)
-    if #list == 0 then return false end
+    if #list == 0 then return default end
 
-    -- Primary path: buff_manager with 50ms cache
+    local bm_method    = (aura_type == "debuff") and "get_debuff_data" or "get_buff_data"
+    local lookup_method= (aura_type == "debuff") and "get_debuffs"    or "get_buffs"
+
+    -- 1. Primary: buff_manager with 50ms cache
     if _buff_manager then
-        local data = _buff_manager:get_buff_data(unit, list, 50)
-        if data and data.is_active ~= false then return true end
-    end
-
-    -- Fallback: direct unit API
-    if #list > 3 then
-        local lookup = _build_aura_lookup(unit, "get_buffs")
-        if lookup then
-            for i = 1, #list do
-                if lookup[list[i]] then return true end
-            end
-        end
-    else
-        for i = 1, #list do
-            local id = list[i]
-            if safe(safe_field(unit, "has_buff"), unit, id) or safe(safe_field(unit, "buff_up"), unit, id) then return true end
-            local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
-            if fd and fd.is_active ~= false then return true end
-        end
-    end
-
-    return false
-end
-
-
-
-function NS.debuff_up(unit, ids)
-    if not unit then return false end
-    local list = collect_ids(ids)
-    if #list == 0 then return false end
-
-    -- Primary path: buff_manager with 50ms cache
-    if _buff_manager then
-        local data = _buff_manager:get_debuff_data(unit, list, 50)
-        if data and data.is_active ~= false then return true end
-    end
-
-    -- Fallback: direct unit API
-    if #list > 3 then
-        local lookup = _build_aura_lookup(unit, "get_debuffs")
-        if lookup then
-            for i = 1, #list do
-                if lookup[list[i]] then return true end
-            end
-        end
-    else
-        for i = 1, #list do
-            local id = list[i]
-            if safe(safe_field(unit, "has_debuff"), unit, id) or safe(safe_field(unit, "debuff_up"), unit, id) then return true end
-            local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
-            if fd and fd.is_active ~= false then return true end
-        end
-    end
-
-    return false
-end
-
-function NS.buff_remains(unit, ids)
-    if not unit then return 0 end
-    local list = collect_ids(ids)
-    if #list == 0 then return 0 end
-
-    -- Primary path: buff_manager with 50ms cache
-    if _buff_manager then
-        local data = _buff_manager:get_buff_data(unit, list, 50)
+        local data = _buff_manager[bm_method](_buff_manager, unit, list, 50)
         if data and data.is_active ~= false then
-            return data.remaining > 0 and (data.remaining / 1000) or 0
+            local result = extract_bm(data)
+            if result ~= nil then return result end
         end
     end
 
-    -- Fallback: direct unit API
-    if #list > 3 then
-        local lookup = _build_aura_lookup(unit, "get_buffs")
+    -- 2. Lookup fast path (worth it when #list > 3)
+    if use_lookup and #list > 3 then
+        local lookup = _build_aura_lookup(unit, lookup_method)
         if lookup then
             for i = 1, #list do
                 local aura = lookup[list[i]]
                 if aura then
-                    local remaining = aura.expire_time and (aura.expire_time - (NS.game_time_ms() or 0)) / 1000 or 0
-                    if remaining > 0 then return remaining end
+                    local result = extract_lookup(aura)
+                    if result ~= nil then return result end
                 end
-            end
-        end
-    else
-        for i = 1, #list do
-            local id = list[i]
-            local v = safe(safe_field(unit, "buff_remains"), unit, id)
-            if type(v) == "number" and v > 0 then return v end
-            local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
-            if fd and fd.is_active ~= false then
-                return fd.remaining > 0 and (fd.remaining / 1000) or 0
             end
         end
     end
 
-    return 0
+    -- 3. Direct unit API iteration
+    for i = 1, #list do
+        local result = extract_direct(unit, list[i], list, i)
+        if result ~= nil then return result end
+    end
+
+    return default
+end
+
+function NS.buff_up(unit, ids)
+    return _aura_query(unit, ids, "buff", false, true,
+        function(data) return true end,
+        function(aura) return true end,
+        function(unit, id)
+            if safe(safe_field(unit, "has_buff"), unit, id) or
+               safe(safe_field(unit, "buff_up"), unit, id) then
+                return true
+            end
+            local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
+            if fd and fd.is_active ~= false then return true end
+            return nil
+        end)
+end
+
+function NS.debuff_up(unit, ids)
+    return _aura_query(unit, ids, "debuff", false, true,
+        function(data) return true end,
+        function(aura) return true end,
+        function(unit, id)
+            if safe(safe_field(unit, "has_debuff"), unit, id) or
+               safe(safe_field(unit, "debuff_up"), unit, id) then
+                return true
+            end
+            local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
+            if fd and fd.is_active ~= false then return true end
+            return nil
+        end)
+end
+
+function NS.buff_remains(unit, ids)
+    return _aura_query(unit, ids, "buff", 0, true,
+        function(data)
+            local r = data.remaining > 0 and (data.remaining / 1000) or 0
+            return r  -- buff_manager already found best match; return even 0
+        end,
+        function(aura)
+            local r = aura.expire_time and
+                      (aura.expire_time - (NS.game_time_ms() or 0)) / 1000 or 0
+            return r > 0 and r or nil
+        end,
+        function(unit, id)
+            local v = safe(safe_field(unit, "buff_remains"), unit, id)
+            if type(v) == "number" and v > 0 then return v end
+            local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
+            if fd and fd.is_active ~= false then
+                local r = fd.remaining > 0 and (fd.remaining / 1000) or 0
+                return r > 0 and r or nil
+            end
+            return nil
+        end)
 end
 
 ---
@@ -3165,28 +3174,18 @@ end
 ---@param ids table Array of spell IDs (highest rank first).
 ---@return number[]|nil points The points array from active buff data, or nil.
 function NS.buff_points(unit, ids)
-    if not unit then return nil end
-    local list = collect_ids(ids)
-    if #list == 0 then return nil end
-
-    -- Primary path: buff_manager with 50ms cache
-    if _buff_manager then
-        local data = _buff_manager:get_buff_data(unit, list, 50)
-        if data and data.is_active ~= false and type(data.points) == "table" then
-            return data.points
-        end
-    end
-
-    -- Fallback: direct unit API
-    for i = 1, #list do
-        local id = list[i]
-        local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
-        if fd and fd.is_active ~= false and type(fd.points) == "table" then
-            return fd.points
-        end
-    end
-
-    return nil
+    return _aura_query(unit, ids, "buff", nil, false,
+        function(data)
+            return type(data.points) == "table" and data.points or nil
+        end,
+        function(aura) return nil end,  -- no lookup path
+        function(unit, id)
+            local fd = safe(safe_field(unit, "get_buff_data"), unit, id)
+            if fd and fd.is_active ~= false and type(fd.points) == "table" then
+                return fd.points
+            end
+            return nil
+        end)
 end
 
 --- Returns the active buff's spell ID and its rank position in the ID array.
@@ -3230,108 +3229,61 @@ end
 ---@param ids table Array of spell IDs.
 ---@return number[]|nil points The points array from active debuff data, or nil.
 function NS.debuff_points(unit, ids)
-    if not unit then return nil end
-    local list = collect_ids(ids)
-    if #list == 0 then return nil end
-
-    -- Primary path: buff_manager with 50ms cache
-    if _buff_manager then
-        local data = _buff_manager:get_debuff_data(unit, list, 50)
-        if data and data.is_active ~= false and type(data.points) == "table" then
-            return data.points
-        end
-    end
-
-    -- Fallback: direct unit API
-    for i = 1, #list do
-        local id = list[i]
-        local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
-        if fd and fd.is_active ~= false and type(fd.points) == "table" then
-            return fd.points
-        end
-    end
-
-    return nil
+    return _aura_query(unit, ids, "debuff", nil, false,
+        function(data)
+            return type(data.points) == "table" and data.points or nil
+        end,
+        function(aura) return nil end,
+        function(unit, id)
+            local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
+            if fd and fd.is_active ~= false and type(fd.points) == "table" then
+                return fd.points
+            end
+            return nil
+        end)
 end
 
 function NS.debuff_remains(unit, ids)
-    if not unit then return 0 end
-    local list = collect_ids(ids)
-    if #list == 0 then return 0 end
-
-    -- Primary path: buff_manager with 50ms cache
-    if _buff_manager then
-        local data = _buff_manager:get_debuff_data(unit, list, 50)
-        if data and data.is_active ~= false then
-            return data.remaining > 0 and (data.remaining / 1000) or 0
-        end
-    end
-
-    -- Fallback: direct unit API
-    if #list > 3 then
-        local lookup = _build_aura_lookup(unit, "get_debuffs")
-        if lookup then
-            for i = 1, #list do
-                local aura = lookup[list[i]]
-                if aura then
-                    local remaining = aura.expire_time and (aura.expire_time - (NS.game_time_ms() or 0)) / 1000 or 0
-                    if remaining > 0 then return remaining end
-                end
-            end
-        end
-    else
-        for i = 1, #list do
-            local id = list[i]
+    return _aura_query(unit, ids, "debuff", 0, true,
+        function(data)
+            local r = data.remaining > 0 and (data.remaining / 1000) or 0
+            return r
+        end,
+        function(aura)
+            local r = aura.expire_time and
+                      (aura.expire_time - (NS.game_time_ms() or 0)) / 1000 or 0
+            return r > 0 and r or nil
+        end,
+        function(unit, id)
             local v = safe(safe_field(unit, "debuff_remains"), unit, id)
             if type(v) == "number" and v > 0 then return v end
             local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
             if fd and fd.is_active ~= false then
-                return fd.remaining > 0 and (fd.remaining / 1000) or 0
+                local r = fd.remaining > 0 and (fd.remaining / 1000) or 0
+                return r > 0 and r or nil
             end
-        end
-    end
-
-    return 0
+            return nil
+        end)
 end
 
 function NS.debuff_stacks(unit, ids)
-    if not unit then return 0 end
-    local list = collect_ids(ids)
-    if #list == 0 then return 0 end
-
-    -- Primary path: buff_manager with 50ms cache
-    if _buff_manager then
-        local data = _buff_manager:get_debuff_data(unit, list, 50)
-        if data and data.is_active ~= false then
+    return _aura_query(unit, ids, "debuff", 0, true,
+        function(data)
             return data.count or data.stacks or 0
-        end
-    end
-
-    -- Fallback: direct unit API
-    if #list > 3 then
-        local lookup = _build_aura_lookup(unit, "get_debuffs")
-        if lookup then
-            for i = 1, #list do
-                local aura = lookup[list[i]]
-                if aura then
-                    local stacks = aura.count or aura.stacks or 0
-                    if stacks > 0 then return stacks end
-                end
-            end
-        end
-    else
-        for i = 1, #list do
-            local id = list[i]
+        end,
+        function(aura)
+            local s = aura.count or aura.stacks or 0
+            return s > 0 and s or nil
+        end,
+        function(unit, id)
             local v = safe(safe_field(unit, "get_debuff_stacks"), unit, id)
             if type(v) == "number" and v > 0 then return v end
             local fd = safe(safe_field(unit, "get_debuff_data"), unit, id)
             if fd and fd.is_active ~= false then
                 return fd.count or fd.stacks or 0
             end
-        end
-    end
-
-    return 0
+            return nil
+        end)
 end
 
 function NS.get_debuff_stacks(unit, ids)
