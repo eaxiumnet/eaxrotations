@@ -4,7 +4,7 @@
 **Previous:** `plans/omnibus-master-audit-2026-06-26.md` ? COMPLETE
 
 **Active sub-plan:** plans/spec-standardization-2026-06-30.md — schema/spec/leveling standardization for open-source release
-**Active sub-plan:** plans/multi-module-deepscan-2026-07-03.md — EAXFishing/EaxESP/EaxProfession/EaxRotations deep scan + bugfixes
+**Active sub-plan:** plans/multi-module-deepscan-2026-07-03.md -- COMPLETE (2026-07-04)
 **Active sub-plan:** plans/healthstone-hygiene-loop-2026-07-04.md -- COMPLETE (2026-07-04)
 
 ---
