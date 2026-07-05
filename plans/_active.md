@@ -4,6 +4,7 @@
 **Previous:** `plans/omnibus-master-audit-2026-06-26.md` ? COMPLETE
 
 **Active sub-plan:** plans/release-prep-fix-4f29f9af-regression-2026-07-05.md -- emergency repair of 25 corrupted Lua files blocking release (COMPLETE 2026-07-05)
+**Active sub-plan:** plans/become-1-rotation-system-classic-tbc-2026-07-05.md -- ground every spec in wowsims/SimC/guides to be #1 rotation system
 **Active sub-plan:** plans/spec-standardization-2026-06-30.md � schema/spec/leveling standardization for open-source release
 **Active sub-plan:** plans/multi-module-deepscan-2026-07-03.md -- COMPLETE (2026-07-04)
 **Active sub-plan:** plans/healthstone-hygiene-loop-2026-07-04.md -- COMPLETE (2026-07-04)
