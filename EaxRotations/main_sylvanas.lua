@@ -905,15 +905,19 @@ local function build_context()
     _context.is_mounted = me and NS.safe_field and NS.safe_field(me, "is_mounted") and fast(me.is_mounted, me) == true or false
     -- Is player control locked? (fear, charm, mind control — stop casting/gcd)
     _context.player_control_locked = _player_control_locked and _player_control_locked() or false
+    _context.combat_length_forecast = _context.ttd or 999
     if combat_forecast and type(combat_forecast.get_forecast_single) == "function" then
         local ok, forecast = pcall(combat_forecast.get_forecast_single, target)
         if ok and type(forecast) == "number" and forecast > 0 then
             _context.combat_length_forecast = forecast
-        else
-            _context.combat_length_forecast = _context.ttd or 999
         end
-    else
-        _context.combat_length_forecast = _context.ttd or 999
+    end
+    -- Fallback: damage meter session duration (more accurate for ongoing fights)
+    if _context.combat_length_forecast == 999 then
+        local dm_dur = NS.damage_meter_session_duration and NS.damage_meter_session_duration()
+        if type(dm_dur) == "number" and dm_dur > 5 then
+            _context.combat_length_forecast = dm_dur
+        end
     end
     _context.ttd_known = ttd ~= nil
     -- Consumable inventory: throttled to 1000ms (was every frame)

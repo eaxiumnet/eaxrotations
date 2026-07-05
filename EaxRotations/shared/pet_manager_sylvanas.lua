@@ -472,11 +472,35 @@ function M.on_update(me, target, spec, context)
         end
     end
 
-    -- Warlock: Pet ability (Firebolt / Cleave / Lash / Taunt / Bite)
-    if st.warlock_id and now - st.last_warlock > 2 then
-        if M.try_cast(st.warlock_id, target) then
-            st.last_warlock = now
-            return
+    -- Warlock: Pet ability
+    -- Imp Firebolt: 'machine gun' — cast immediately when NOT casting (no throttle).
+    -- The TBC engine doesn't queue the next Firebolt after one finishes, so the
+    -- Imp stands idle ~0.5s between casts. Community workaround: spam Firebolt
+    -- every frame when the Imp is not casting. This eliminates the gap.
+    -- Other warlock pets (Felguard/Succubus/VW/Felhunter): 2s throttle is fine.
+    if st.warlock_id then
+        local is_imp = st.warlock_type == "firebolt"
+        if is_imp then
+            -- Machine gun: check if pet is NOT casting, then immediately fire
+            local pet_casting = false
+            if pet and pet.is_casting_spell then
+                local ok_c, casting = pcall(function() return pet:is_casting_spell() end)
+                pet_casting = ok_c and casting or false
+            end
+            if not pet_casting then
+                if M.try_cast(st.warlock_id, target) then
+                    st.last_warlock = now
+                    return
+                end
+            end
+        else
+            -- Non-Imp pets: 2s throttle
+            if now - st.last_warlock > 2 then
+                if M.try_cast(st.warlock_id, target) then
+                    st.last_warlock = now
+                    return
+                end
+            end
         end
     end
 
