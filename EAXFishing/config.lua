@@ -146,6 +146,9 @@ config.menu = {
     lure_expiry_warn_secs = safe_menu(_menu.slider_int, 30, 300, 60, "fishing_lure_expiry_warn"),
     auto_pause_low_hp     = safe_menu(_menu.checkbox, false, "fishing_auto_pause_low_hp"),
     auto_pause_hp_threshold = safe_menu(_menu.slider_int, 1, 50, 20, "fishing_pause_hp_threshold"),
+
+    -- v2.4.2: Water walking buff
+    auto_water_walking  = safe_menu(_menu.checkbox, false, "fishing_auto_water_walking"),
 }
 
 return config

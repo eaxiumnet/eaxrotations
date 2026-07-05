@@ -270,6 +270,11 @@ function M.render(ctx)
             row("Paused",     "YES", c_gray)
         end
 
+        -- Water walking buff (new v2.4.2)
+        if state.water_walking and state.water_walking.last_try_time > 0 then
+            row("WaterWalk",  "Active", c_green)
+        end
+
         -- Top items caught (up to 6)
         local sorted = {}
         for name, count in pairs(stats.item_counts) do

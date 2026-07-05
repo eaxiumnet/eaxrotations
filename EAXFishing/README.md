@@ -272,6 +272,9 @@ EAXFishing/
 
 ## Changelog
 
+### v2.4.2 (2026-07-05)
+- **Auto-Water Walking** — Auto-applies Water Walking (Shaman), Levitate (Priest), or Path of Frost (DK) before casting. Falls back to Elixir of Water Walking consumable (item 8827). Disabled by default — opt-in for water fishing.
+
 ### v2.4.1 (2026-07-05)
 - **Sound alerts system** — 8 configurable per-event sounds with master toggle + individual toggles
 - **Lure expiration timer** — HUD shows remaining lure time, plays warning sound at configurable threshold

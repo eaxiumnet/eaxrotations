@@ -28,6 +28,7 @@ local Hearth      = require("navigation/hearth")
 local Relog       = require("core/relog")
 local Conditions  = require("core/conditions")
 local SoundMgr    = require("core/sound_manager")
+local WaterWalking = require("fishing/water_walking")
 
 local M = {}
 
@@ -648,6 +649,17 @@ function M.tick(ctx)
                         state.qol.lure_expiry_warned = true
                     end
                 end
+            end
+        end
+    end
+
+    -- v2.4.2: Water walking buff (before casting from water)
+    if deps.config.menu.auto_water_walking and deps.config.menu.auto_water_walking:get_state() then
+        if not state.fishing.awaiting_bobber then
+            if WaterWalking.try_apply(ctx, me, now) then
+                state.fishing.status = "Applying water walking..."
+                state.fishing.last_action_time = now
+                return
             end
         end
     end

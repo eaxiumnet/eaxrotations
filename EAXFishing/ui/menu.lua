@@ -182,6 +182,10 @@ function M.render_menu(ctx)
                 h:render("Auto-detected from quest items in bags", C.dim)
                 -- Quest tracking is passive — no toggle needed, just info
 
+                h:render("BUFFS & CONSUMABLES", C.sub)
+                config.menu.auto_water_walking:render("Auto-Water Walking",
+                    "Applies Water Walking (Shaman), Levitate (Priest), or Path of Frost (DK) before casting. Falls back to Elixir of Water Walking consumable. Disabled by default — opt-in for water fishing.")
+
                 h:render("SESSION RESILIENCE", C.sub)
                 config.menu.auto_vendor_repair:render("Auto Repair at Vendor",
                     "Repairs all gear when a vendor window is open.")

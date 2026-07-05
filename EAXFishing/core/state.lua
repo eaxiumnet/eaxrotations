@@ -215,6 +215,11 @@ function M.create(now)
             paused                = false,
         },
 
+        -- v2.4.2: Water walking buff state
+        water_walking = {
+            last_try_time = 0.0,
+        },
+
         -- Rare catch alert state
         alert = {
             active = false,
@@ -389,6 +394,10 @@ function M.reset_fishing(state)
         state.qol.best_catch_streak = 0
         state.qol.last_lure_expire_time = 0.0
         state.qol.paused = false
+    end
+    -- v2.4.2: reset water walking state
+    if state.water_walking then
+        state.water_walking.last_try_time = 0.0
     end
 end
 

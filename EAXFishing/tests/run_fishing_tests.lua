@@ -32,6 +32,7 @@ local known_tests = {
   "test_mr_pinchy.lua",
   "test_quest_tracker.lua",
   "test_sound_manager.lua",
+  "test_water_walking.lua",
 }
 
 local passed, failed = 0, 0

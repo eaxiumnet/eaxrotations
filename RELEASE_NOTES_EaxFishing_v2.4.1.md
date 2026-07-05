@@ -11,6 +11,12 @@
 
 ## What's New
 
+### v2.4.2 — Water Walking Buff
+- **Auto-Water Walking** — Auto-applies Water Walking (Shaman), Levitate (Priest), or Path of Frost (DK) before casting from water. Falls back to Elixir of Water Walking consumable (item 8827). Checks buffs via `APISurface.get_buffs()` and only applies when missing. Throttled (5s), guards casting/channeling/combat/moving. Disabled by default — opt-in.
+- DBC-verified spell IDs: 546 (Water Walking), 1706 (Levitate), 3714 (Path of Frost), 11447 (Elixir of Waterwalking).
+- New test suite: `test_water_walking.lua` (9 assertions).
+
+
 ### v2.4.1 — Quality of Life
 
 #### Sound Alerts System
