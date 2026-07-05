@@ -2,6 +2,25 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.3.13] — Hotfix: Hunter Serpent Sting Refresh + Marksmanship Aimed Shot (2026-07-05)
+
+### Bug Fixes
+
+- **Hunter (Beast Mastery / Survival)**: Serpent Sting was applied once and then never refreshed, letting the DoT fall off for the rest of the fight.
+  - BM: Added a `SerpentStingRefresh` strategy that re-applies Serpent Sting when it has ≤ 3 seconds remaining.
+  - Survival: Added the same `SerpentStingRefresh` behavior using the spec's native debuff tracking.
+- **Hunter (Marksmanship)**: Disabled in-combat `AimedShot`. In TBC, Aimed Shot resets the auto-shot timer, so using it after the pull was a DPS loss. It remains available as the pre-pull opener (`AimedShotPrepull`) only.
+
+### What to Expect
+
+- Hunter BM/Survival: Serpent Sting now stays up on long fights and dungeon/raid bosses.
+- Hunter Marksmanship: Cleaner Steady Shot / Arcane Shot / Multi-Shot rotation without the auto-shot reset from Aimed Shot.
+- Drop-in replacement. Delete your old `EaxRotations` folder and replace with this one.
+- All your settings carry over automatically.
+- No settings reset needed.
+
+---
+
 ## [2.3.12] — Auto-Loot Corpses (All Classes) + Shadow Priest Multi-DoT Fix (2026-07-05)
 
 ### Features
