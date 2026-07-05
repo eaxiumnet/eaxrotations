@@ -12,6 +12,10 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local SCORCH_DEBUFF = { 22959 }
 local CLEARCASTING_BUFF = { 12536 }  -- Clearcasting proc from Arcane Concentration talent
 
+local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
+if not _planner_ok or type(planner) ~= "table" then planner = nil end
+local BLOODLUST_HEROISM_BUFFS = { 2825, 32182 }
+
 -- Mana Gem item IDs (highest to lowest rank)
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }  -- Emerald, Ruby, Citrine, Jade, Agate
 local MANA_GEM_CONJURE = { 27101, 10054, 10053, 3552, 759 }  -- Conjure Mana Emerald..Agate
@@ -79,6 +83,10 @@ local function build_state(context)
         fire_state.pyroblast_ready = NS.spell_ready(SPELLS.Pyroblast, target)
     end
     fire_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
+    -- Major power-window awareness for cooldown alignment
+    fire_state.bloodlust_active = me and NS.buff_up and NS.buff_up(me, BLOODLUST_HEROISM_BUFFS) or false
+    fire_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
+    fire_state.major_cd_window = fire_state.bloodlust_active or fire_state.major_cd_active
     return fire_state
 end
 
@@ -93,10 +101,15 @@ local function combustion_matches_fn(context, state)
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     -- TTD gate: don't waste 3min CD on a dying target
     if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
-    if context.should_burst then return true end
-    if NS.should_use_long_cd then return NS.should_use_long_cd(context, 180) end
-    if context.should_burst then return true end
-    return false
+    -- Prefer 5-stack Scorch before popping Combustion, unless burst forced
+    local stacks = (state and state.scorch_stacks) or (context.scorch_stacks or 0)
+    if not context.should_burst and stacks < 5 then return false end
+    -- Align with major power windows (Bloodlust/Drums/trinkets/other CDs).
+    local align = state.major_cd_window or false
+    local combat_time = context.combat_time or 0
+    local ttd = context.ttd or 999
+    if not context.should_burst and not align and combat_time < 45 and ttd > 15 then return false end
+    return true
 end
 
 local function scorch_matches_fn(context, state)

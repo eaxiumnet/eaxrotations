@@ -68,23 +68,30 @@ local function find_strategy(name)
 end
 
 -- ============================================================================
--- Combustion: only in combat and during burst or long CD window
+-- Combustion: in combat, aligned with power windows, 5-stack Scorch preferred
 -- ============================================================================
 
 local combustion = find_strategy("Combustion")
 
 -- Not in combat -> should NOT match
 action_calls = {}
-assert_false(combustion.matches({ in_combat = false, should_burst = true }, { combustion_ready = true }), "Combustion should not match when OOC")
+assert_false(combustion.matches({ in_combat = false, should_burst = true }, { combustion_ready = true, scorch_stacks = 5 }), "Combustion should not match when OOC")
 
--- In combat, not burst, no long CD -> should NOT match (spell_ready returns true but should_use_long_cd may be false)
--- Combustion delegates to NS.should_use_long_cd which is nil in our mock, so it returns nil -> false in Lua
+-- In combat, no power window, early fight -> should NOT match
 action_calls = {}
-assert_false(combustion.matches({ in_combat = true, should_burst = false }, { combustion_ready = true }), "Combustion should not match without burst or long CD")
+assert_false(combustion.matches({ in_combat = true, should_burst = false, combat_time = 10, ttd = 120 }, { combustion_ready = true, scorch_stacks = 5 }), "Combustion should not match early without power window")
 
--- In combat, should_burst -> should match
+-- In combat, major power window active -> should match
 action_calls = {}
-assert_true(combustion.matches({ in_combat = true, should_burst = true }, { combustion_ready = true }), "Combustion should match during burst")
+assert_true(combustion.matches({ in_combat = true, should_burst = false, combat_time = 10, ttd = 120 }, { combustion_ready = true, scorch_stacks = 5, major_cd_window = true }), "Combustion should match during major power window")
+
+-- In combat, timeout fallback -> should match
+action_calls = {}
+assert_true(combustion.matches({ in_combat = true, should_burst = false, combat_time = 60, ttd = 120 }, { combustion_ready = true, scorch_stacks = 5 }), "Combustion should match after timeout fallback")
+
+-- Burst can skip Scorch requirement
+action_calls = {}
+assert_true(combustion.matches({ in_combat = true, should_burst = true, combat_time = 10, ttd = 120 }, { combustion_ready = true, scorch_stacks = 2 }), "Combustion should match during burst without full Scorch")
 
 -- ============================================================================
 -- Scorch: only when not moving, has target, and stacks < 5 or about to drop
