@@ -12,6 +12,8 @@ local pet_manager = require("shared/pet_manager_sylvanas")
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 local DotTTD = require("shared/dot_ttd_gating_sylvanas")
+local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
+if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local SPELLS = NS.WarlockSpells or {}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
@@ -316,6 +318,12 @@ local function build_state(context)
     end
     -- Wand (Shoot) spell readiness
     aff_state.wand_learned = NS.spell_exists and NS.spell_exists(5019) or false
+
+    -- Major power-window awareness for racial/trinket alignment
+    aff_state.bloodlust_active = me and NS.buff_up and NS.buff_up(me, BLOODLUST_BUFFS) or false
+    aff_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
+    aff_state.major_cd_window = aff_state.bloodlust_active or aff_state.major_cd_active
+
     return aff_state
 	end
 
@@ -359,6 +367,11 @@ local function racial_matches(context, state)
     if not context.in_combat then return false end
     -- TTD gate: don't use racials if target is about to die
     if context.ttd_known and context.ttd > 0 and context.ttd < 8 then return false end
+    -- Stack racials with major power windows; timeout fallback so they fire
+    local align = state.major_cd_window or false
+    local combat_time = context.combat_time or 0
+    local ttd = context.ttd or 999
+    if not align and combat_time < 45 and ttd > 15 then return false end
     return true
 end
 
