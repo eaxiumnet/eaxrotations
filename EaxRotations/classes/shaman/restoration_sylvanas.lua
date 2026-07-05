@@ -311,7 +311,16 @@ end
 local function bloodlust_matches(context, state)
  if not cooldowns_enabled(context) then return false end
  if not state.in_combat then return false end
- if Healing.all_members_above_hp and not Healing.all_members_above_hp(85) then return false end
+ -- Fire when group is healthy OR during PvP burst-heal window
+ local group_healthy = Healing.all_members_above_hp and Healing.all_members_above_hp(85)
+ if not group_healthy then
+  if NS.PvPBurstWindow and context.is_pvp then
+   local ok, should = pcall(NS.PvPBurstWindow.should_burst, NS.PvPBurstWindow, context)
+   if not (ok and should) then return false end
+  else
+   return false
+  end
+ end
  local me = context.me or NS.GetPlayer()
  if not me or not NS.spell_ready(SPELLS.Bloodlust, me, { skip_range = true }) then return false end
  return true
@@ -650,6 +659,12 @@ local idle_dps_strategies = {
  { name = "ChainLightning", matches = chain_lightning_matches, execute = function(context) return NS.try_cast(SPELLS.ChainLightning, context.target, "[RESTO] ChainLightning", { expected_cooldown = 6 }) end },
  { name = "LightningBolt", matches = lightning_bolt_matches, execute = function(context) return NS.try_cast(SPELLS.LightningBolt, context.target, "[RESTO] LightningBolt", { expected_cooldown = 2.5 }) end },
 }
+
+-- Merge idle DPS strategies into healing_strategies so they fire in the live rotation.
+-- Earth Shock doubles as an interrupt (target casting check in earth_shock_matches).
+for _, strategy in ipairs(idle_dps_strategies) do
+ healing_strategies[#healing_strategies + 1] = strategy
+end
 
 NS.rotation_registry:register("restoration", healing_strategies, { get_state = build_state })
 -- Shaman restoration rotation registered
