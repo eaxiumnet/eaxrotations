@@ -31,6 +31,7 @@ local TRINKETS = {
     [28040] = { name = "Vengeance of the Illidari", kind = TRINKET_KIND_OFFENSIVE, cooldown = 90 },
     [28121] = { name = "Icon of Unyielding Courage", kind = TRINKET_KIND_OFFENSIVE, cooldown = 120 },
     [29387] = { name = "Gnomeregan Auto-Blocker 600", kind = TRINKET_KIND_OFFENSIVE, cooldown = 120 },
+    [33853] = { name = "Berserker's Call", kind = TRINKET_KIND_OFFENSIVE, cooldown = 120 },
 
     -- Defensive TBC on-use trinkets.
     [28528] = { name = "Moroes' Lucky Pocket Watch", kind = TRINKET_KIND_DEFENSIVE, cooldown = 120 },
@@ -224,14 +225,26 @@ local function use_slot(slot, item_id, entry)
     return true
 end
 
+local planner = _G.EaxCooldownPlanner or (NS and NS.CooldownPlanner) or nil
+local function ensure_planner()
+    if planner then return planner end
+    local ok, mod = pcall(require, "shared/cooldown_planner_sylvanas")
+    planner = ok and mod or nil
+    return planner
+end
+
 local function should_use_offensive(context, settings)
     if not setting_enabled(settings, "use_trinket_offensive", true) then return false end
     if not context.in_combat or not context.has_valid_enemy_target then return false end
-    if context.should_burst then return true end
     -- CD Min TTD gate: don't waste trinket CDs on dying targets
     local min_ttd = setting(settings, "cd_min_ttd", 0)
     if min_ttd > 0 and (context.ttd or 999) < min_ttd then
         return false
+    end
+    -- Align offensive trinkets with major CDs / Bloodlust / Drums.
+    local p = ensure_planner()
+    if p and p.should_fire_offensive then
+        return p.should_fire_offensive(context) == true
     end
     return setting(settings, "use_trinket_offensive", true) == true
 end

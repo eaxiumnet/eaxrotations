@@ -81,6 +81,7 @@ local tests = {
  -- Core/shared infrastructure tests
  "test_aura_probe_sylvanas.lua",
  "test_trinket_manager.lua",
+ "test_cooldown_planner.lua",
  "test_spell_resolver_cache.lua",
  "test_boss_count.lua",
  "test_tbc_consumable_data.lua",

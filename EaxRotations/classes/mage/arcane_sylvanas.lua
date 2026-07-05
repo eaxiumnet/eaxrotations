@@ -6,6 +6,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.MageSpells or {}
+local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
+if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { mage = {} } } end
 local TBC_MAGE = (TBC.SPELLS and TBC.SPELLS.mage) or {}
@@ -318,15 +320,19 @@ local function pom_matches(context, s)
     return true
 end
 
---- Arcane Power: burn cooldown synced with AB stacks and bloodlust
+--- Arcane Power: burn cooldown synced with AB stacks, bloodlust, and other major CDs.
 local function arcane_power_matches(context, s)
     if s.has_arcane_power then return false end
     if not s.in_combat then return false end
     if not get_setting_bool(context, "use_cooldowns", true) then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not get_setting_bool(context, "arcane_use_burn", true) then return false end
-    -- Only use AP during burn phase or bloodlust
-    if s.phase ~= PHASE_BURN and not s.bloodlust_active then return false end
+    -- Only use AP during burn phase or when a major power window is active
+    local cd_window = s.bloodlust_active
+        or ((s.icy_veins_remains or 0) > 0)
+        or (planner and planner.is_major_offensive_cd_active(context))
+        or false
+    if s.phase ~= PHASE_BURN and not cd_window then return false end
     -- Require sufficient mana to sustain the full duration
     if (s.mana_pct or 0) < 35 then return false end
     -- Prefer high AB stacks for max value

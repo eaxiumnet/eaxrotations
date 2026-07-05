@@ -8,10 +8,14 @@ if not NS then return nil end
 
 local SPELLS = NS.PaladinSpells or {}
 local PLAYER = NS.PLAYER_UNIT
+local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
+if not _planner_ok or type(planner) ~= "table" then planner = nil end
+
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { healthstones = {}, potions = {} } } end
 local TBC_ITEMS = TBC.ITEMS or {}
 local TBC_POTIONS = TBC_ITEMS.potions or {}
+local BLOODLUST_HEROISM_BUFFS = { 2825, 32182 }
 
 local function action(ids, label)
     if NS.spell_action then return NS.spell_action(ids, label) end
@@ -304,6 +308,10 @@ local function build_state(context)
     -- Low-mana emergency: strip to essentials when mana critically low
     local mana_floor_pct = get_setting(context, "retri_mana_floor_pct", 15)
     ret_state.mana_emergency = (ret_state.mana_pct or 100) <= mana_floor_pct
+    -- Major power-window awareness for cooldown alignment
+    ret_state.bloodlust_active = has_player_buff(BLOODLUST_HEROISM_BUFFS)
+    ret_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
+    ret_state.major_cd_window = ret_state.bloodlust_active or ret_state.major_cd_active
     return ret_state
 end
 
@@ -414,6 +422,11 @@ add_strategy(strategies, "Ret_AvengingWrath_Burst", 780, function(context, state
     if not (NS.spell_ready(SPELLS.AvengingWrath, PLAYER, { skip_range = true, expected_cooldown = 180 }) or false) then return false end
     -- TTD gate: don't waste 3min CD on a dying target
     if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
+    -- Align with major power windows (Bloodlust/Drums/other CDs) or burn late fight
+    local align = state.major_cd_window or false
+    local combat_time = context.combat_time or 0
+    local ttd = context.ttd or 999
+    if not align and combat_time < 45 and ttd > 15 then return false end
     return true
 end, function() return cast(SPELLS.AvengingWrath, PLAYER, "[RET] Avenging Wrath burst", { skip_range = true, expected_cooldown = 180 }) end, 180)
 
