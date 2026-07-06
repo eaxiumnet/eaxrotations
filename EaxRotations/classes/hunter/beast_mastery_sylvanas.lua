@@ -197,7 +197,9 @@ local function build_state(context)
     state.aoe_threshold = settings.aoe_threshold or settings.volley_threshold or 3
     state.trinket_mode = settings.trinket_mode or "off"
     state.auto_aspect = settings.hunter_auto_aspect ~= false
-    state.viper_mana_threshold = settings.hunter_viper_mana_threshold or 20
+    -- Wowsims-aligned Viper/Hawk thresholds: enter Viper at 5%, exit at 25%
+    state.viper_mana_threshold = settings.hunter_viper_mana_threshold or 5
+    state.viper_exit_threshold = settings.hunter_viper_exit_threshold or 25
     state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
     state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
@@ -295,14 +297,13 @@ local function auto_aspect_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not s.auto_aspect then return false end
-    -- Viper when mana low
-    if not s.has_viper and (s.mana_pct or 100) <= (s.viper_mana_threshold or 20) then
+    -- Wowsims-aligned: Viper at <=5%, Hawk when recovered >25%
+    if not s.has_viper and (s.mana_pct or 100) <= (s.viper_mana_threshold or 5) then
         if NS.spell_ready and NS.spell_ready(SPELLS.AspectOfTheViper, context.me, { skip_range = true }) then
             return true
         end
     end
-    -- Hawk when mana recovered
-    if not s.has_hawk and (s.mana_pct or 100) > (s.viper_mana_threshold or 20) + 10 then
+    if not s.has_hawk and (s.mana_pct or 100) > (s.viper_exit_threshold or 25) then
         if NS.spell_ready and NS.spell_ready(SPELLS.AspectOfTheHawk, context.me, { skip_range = true }) then
             return true
         end
@@ -312,7 +313,7 @@ end
 
 local function auto_aspect_execute(context)
     local s = state
-    if not s.has_viper and (s.mana_pct or 100) <= (s.viper_mana_threshold or 20) then
+    if not s.has_viper and (s.mana_pct or 100) <= (s.viper_mana_threshold or 5) then
         return NS.try_cast(SPELLS.AspectOfTheViper, context.me, "[BEAST_MASTERY] AutoAspect Viper", { skip_range = true })
     end
     return NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[BEAST_MASTERY] AutoAspect Hawk", { skip_range = true })

@@ -14,22 +14,22 @@ local AM = dofile("EaxRotations/shared/aspect_manager_sylvanas.lua")
 assert_true(AM ~= nil, "module should load")
 
 -- should_hawk: already has hawk -> false
-assert_false(AM.should_hawk({ has_aspect_hawk = true, mana_pct = 100 }, 20), "already hawk -> false")
+assert_false(AM.should_hawk({ has_aspect_hawk = true, mana_pct = 100 }), "already hawk -> false")
 
 -- should_hawk: has viper, mana not recovered -> false
-assert_false(AM.should_hawk({ has_aspect_viper = true, mana_pct = 25 }, 20), "viper + low mana -> false")
+assert_false(AM.should_hawk({ has_aspect_viper = true, mana_pct = 20 }), "viper + low mana -> false")
 
 -- should_hawk: has viper, mana recovered -> true
-assert_true(AM.should_hawk({ has_aspect_viper = true, mana_pct = 35 }, 20), "viper + recovered mana -> true")
+assert_true(AM.should_hawk({ has_aspect_viper = true, mana_pct = 30 }), "viper + recovered mana -> true")
 
 -- should_viper: already viper -> false
-assert_false(AM.should_viper({ has_aspect_viper = true, mana_pct = 10 }, 20), "already viper -> false")
+assert_false(AM.should_viper({ has_aspect_viper = true, mana_pct = 10 }), "already viper -> false")
 
 -- should_viper: mana above threshold -> false
-assert_false(AM.should_viper({ has_aspect_viper = false, mana_pct = 50 }, 20), "high mana -> false")
+assert_false(AM.should_viper({ has_aspect_viper = false, mana_pct = 50 }), "high mana -> false")
 
 -- should_viper: mana below threshold -> true
-assert_true(AM.should_viper({ has_aspect_viper = false, mana_pct = 15 }, 20), "low mana -> true")
+assert_true(AM.should_viper({ has_aspect_viper = false, mana_pct = 3 }), "low mana -> true")
 
 -- should_cheetah: in combat -> false
 assert_false(AM.should_cheetah({ in_combat = true, is_mounted = false, enemy_count = 0 }, { has_valid_enemy_target = false }), "in combat -> false")
