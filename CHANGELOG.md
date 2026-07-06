@@ -2,6 +2,54 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.4.0] — Wowsims APL Alignment Release (2026-07-05)
+
+**The wowsims alignment release.** Every major DPS spec has been audited against authoritative wowsims/tbc-new APL JSON files and either improved to match or verified as already correct. Includes a new shared cooldown planner module and 10+ spec-level fidelity improvements.
+
+### Mage
+- **Arcane** — Full burn/conserve rotation: AB3→Frostbolt conserve, PoM at AP end, Serpent-Coil-aware mana gem, Evocation only when AP+IV inactive.
+- **Fire** — Combustion aligned with major power windows; prefers 5-stack Scorch before popping.
+
+### Warlock
+- **Affliction** — Drain Soul + Shadowburn execute at <5% HP; Immolate moved to correct priority (#8, after Siphon Life).
+
+### Priest
+- **Shadow** — Shadowfiend timing (early on short fights, VT-gated on long fights); Starshards moved above Mind Flay filler (was dead code).
+
+### Hunter (all specs)
+- Viper/Hawk thresholds aligned to wowsims (enter Viper 5%, exit 25% — was 20%/30%).
+- Marksmanship Aimed Shot opener at ≤0.5s combat time.
+- Bestial Wrath aligned with major power windows.
+
+### Warrior
+- **Fury** — Overpower weaving (opt-in stance dance when BT+WW on CD); Death Wish + Recklessness aligned with major CDs.
+- **Arms** — Verified: Slam weaving already implemented.
+
+### Druid
+- **Balance** — Starfire is now the primary nuke (was Wrath); mana gem strategy added.
+- **Feral Cat** — Powershift threshold raised 20→25.
+
+### Paladin
+- **Retribution** — Verified: seal twisting already implemented; Avenging Wrath aligned with major CDs.
+
+### Rogue
+- **Combat** — Blade Flurry now requires SnD active; Adrenaline Rush gated to ≤40 energy.
+
+### Shaman
+- **Enhancement** — Shamanistic Rage aligned with major power windows.
+
+### New Shared Module
+- `shared/cooldown_planner_sylvanas.lua` — Detects Bloodlust/Heroism/Drums/major offensive CDs; `should_fire_offensive()` aligns personal CDs with power windows.
+
+### Bug Fixes
+- Hunter Marksmanship no longer attempts Bestial Wrath (BM-only talent).
+- Warlock Healthstone respects `use_auto_consumables` / `use_healthstones` master toggles.
+
+### Test Baseline
+- 220 rotation suites + 13 leveling suites green (up from 219).
+
+---
+
 ## [2.3.16] — Wowsims APL Alignment: Arcane Mage + Affliction Execute (2026-07-05)
 
 ### Features
