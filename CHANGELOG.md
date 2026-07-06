@@ -125,6 +125,23 @@ All notable changes to the EAX TBC Classic Rotations project.
 
 ---
 
+## [2.4.1] — Paladin Audit: Protection Priority + Holy/Ret Verified (2026-07-05)
+
+### Features
+- **Paladin Protection — wowsims-aligned priority order**
+  - Reordered to match wowsims APL: Holy Shield > Judgement/Seal cycle > Consecration > Exorcism > Holy Wrath > Hammer of Wrath > Avenger's Shield.
+  - Previous order had Consecration and Avenger's Shield above Judgement, delaying the main threat mechanic.
+  - Avenger's Shield moved to last (wowsims treats it as opt-in, lowest priority).
+
+### Verification
+- **Paladin Holy**: No wowsims APL (healing not simmed). Verified sophisticated triage: FriendlyTarget, LayOnHands, DivineShield, BlessingOfProtection, Cleanse priority, DivineFavor+HolyShock combo, DivineIllumination, AvengingWrath healing, Light's Grace chain, HolyLight rank downranking.
+- **Paladin Retribution**: Seal twisting already implemented (SealTwistBlood, SealTwistPrepCommand); CS priority twist-aware; matches wowsims APL.
+
+### Technical
+- All 222 rotation + 13 leveling suites green.
+
+---
+
 ## [2.3.23] — Combat Rogue wowsims Alignment (2026-07-05)
 
 ### Features
