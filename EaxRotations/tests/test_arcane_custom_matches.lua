@@ -130,7 +130,7 @@ action_calls = {}
 assert_true(ab.matches({ target = target }, state({ is_moving = false, mana_pct = 50, ab_stacks = 2 })), "ArcaneBlast should match when not moving and mana OK")
 
 -- ============================================================================
--- Arcane Missiles: conserve filler, or low-mana burn filler
+-- Arcane Missiles: Clearcasting consumer only (wowsims-aligned)
 -- ============================================================================
 
 local am = find_strategy("ArcaneMissiles")
@@ -140,13 +140,13 @@ action_calls = {}
 assert_false(am.matches({ target = target }, state({ is_moving = true, mana_pct = 50, ab_stacks = 0 })), "ArcaneMissiles should not match when moving")
 assert_eq(#action_calls, 0, "action_matches should not be called when moving")
 
--- Low mana during burn -> should match
+-- Clearcasting -> should match
 action_calls = {}
-assert_true(am.matches({ target = target }, state({ phase = "burn", is_moving = false, mana_pct = 15, ab_stacks = 2 })), "ArcaneMissiles should match when burn mana is low")
+assert_true(am.matches({ target = target }, state({ phase = "conserve", is_moving = false, mana_pct = 50, ab_stacks = 1, has_clearcasting = true })), "ArcaneMissiles should match with Clearcasting")
 
--- Conserve phase -> should match as filler
+-- Conserve phase without Clearcasting -> should NOT match (Frostbolt fills)
 action_calls = {}
-assert_true(am.matches({ target = target }, state({ phase = "conserve", is_moving = false, mana_pct = 50, ab_stacks = 1 })), "ArcaneMissiles should match as conserve filler")
+assert_false(am.matches({ target = target }, state({ phase = "conserve", is_moving = false, mana_pct = 50, ab_stacks = 1 })), "ArcaneMissiles should not match as conserve filler without Clearcasting")
 
 -- Burn phase with enough mana -> should NOT match
 action_calls = {}
@@ -225,15 +225,19 @@ assert_true(evo.matches({}, state({ in_combat = true, mana_pct = 30, phase = "co
 
 local mana_gem = find_strategy("ManaGem")
 
--- High mana -> should NOT match
+-- High mana (near full, gem wouldn't help) -> should NOT match
 action_calls = {}
-assert_false(mana_gem.matches({}, state({ phase = "burn", mana_pct = 80, mana_gem_available = true })), "ManaGem should not match when mana is above burn threshold")
+assert_false(mana_gem.matches({}, state({ phase = "burn", mana_pct = 95, max_mana = 10000, current_mana = 9500, mana_gem_available = true })), "ManaGem should not match when mana is near full")
 
 -- Unavailable -> should NOT match
 action_calls = {}
 assert_false(mana_gem.matches({}, state({ phase = "burn", mana_pct = 50, mana_gem_available = false })), "ManaGem should not match when unavailable")
 
--- Burn threshold -> should match
+-- Wowsims-aligned: mana gap exceeds gem restore -> should match
+action_calls = {}
+assert_true(mana_gem.matches({}, state({ phase = "burn", mana_pct = 50, max_mana = 10000, current_mana = 5000, mana_gem_available = true })), "ManaGem should match when mana gap exceeds gem restore")
+
+-- Old fallback: below mana_pct threshold -> should match
 action_calls = {}
 assert_true(mana_gem.matches({}, state({ phase = "burn", mana_pct = 50, mana_gem_available = true })), "ManaGem should match when burn mana is below threshold")
 
