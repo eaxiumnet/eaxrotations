@@ -63,4 +63,45 @@ Full audit of all 11 active Warlock Lua files (5,786 lines). Fix every crash, wr
 - `lua EaxRotations/tests/run_rotation_tests.lua` (220 suites)
 - `lua EaxRotations/tests/run_leveling_tests.lua` (13 suites)
 
-## Status: IN PROGRESS
+## Status: COMPLETE (committed b220b239)
+
+All critical bugs fixed and committed. 220 rotation + 13 leveling tests pass.
+Pre-commit hooks clean (luac syntax, vanilla audit, sylvanas spell audit).
+
+## Summary of Changes Committed
+
+### Affliction (affliction_sylvanas.lua)
+- C3: Fixed wrong Shadowburn spell ID (17924=Soul Fire → correct Shadowburn ranks)
+- C4: Nil-guarded NS.has_player_buff(NIGHTFALL_BUFF) in build_state
+- C6: Healthstone now reads schema key `healthstone_hp` (was broken `auto_healthstone`/`healthstone_hp_threshold`)
+- C7: Added Curse of Shadow spell + debuff + strategy (raid Shadow damage buff)
+- C8: Moved AmplifyCurse BEFORE curse strategies (must precede curse to empower it)
+- H3: Shadowburn execute threshold now uses configurable `destro_shadowburn_hp` setting (was hardcoded 5%)
+- H4: Soulshatter fires at 80% threat (was 90% — too late for raids)
+- Fixed `context.is_affliction` (non-existent) → `context.active_playstyle == "affliction"`
+- select_curse now respects explicit curse mode from schema dropdown (auto/agony/shadow/elements/doom/recklessness/weakness/none)
+
+### Demonology (demonology_sylvanas.lua)
+- C1: Fixed undefined `SUCC_LASH` → defined `SUCC_LASH_IDS` (Lash of Pain ranks)
+- C2: Fixed unguarded `core.spell_book` → `NS.core or _G.core` via pcall
+- C7: Added Curse of Shadow debuff tracking + strategy
+- C6: Healthstone settings fix (same as affliction)
+
+### Destruction (destruction_sylvanas.lua)
+- C5: Removed duplicate CurseOfAgony in ACTIONS table
+- C6: Healthstone settings fix (same as affliction)
+- H1 (playbook W1): Fixed "summons imp, won't sac" bug:
+  - summon_pet_matches now spec-aware: Succubus for shadow, Imp for fire (auto-detected via Incinerate)
+  - demonic_sacrifice no longer blocks on has_valid_enemy_target (you sac BEFORE pulling)
+  - New schema setting `destro_pet_preference` (auto/succubus/imp)
+
+### Schema (schema_sylvanas.lua)
+- Added Curse of Shadow to curse mode dropdown
+- Added destro_pet_preference dropdown for Destruction
+
+### Vanilla files (already fixed in prior commits, verified correct)
+- affliction_vanilla.lua, demonology_vanilla.lua, destruction_vanilla.lua: Nightfall guard + healthstone settings confirmed correct
+
+### Tests
+- test_affliction_custom_matches.lua: Updated healthstone assertions to use schema key
+- test_destruction_demonic_sacrifice.lua: Updated for spec-aware pet selection
