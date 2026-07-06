@@ -343,6 +343,8 @@ local strategies = {
         name = "Healthstone",
         matches = function(context, state)
             local threshold = (context.settings and context.settings.healthstone_hp) or 0
+            if (context.settings and context.settings.use_auto_consumables) == false then return false end
+            if (context.settings and context.settings.use_healthstones) == false then return false end
             if threshold <= 0 then return false end
             if (context.hp or 100) > threshold then return false end
             return state and state.healthstone_ready == true
