@@ -533,10 +533,23 @@ local function shadowfiend_matches(context, s)
     if not s.shadowfiend_known then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
-    if (context.mana_pct or 100) > 45 then return false end
-    -- TTD gate: don't summon Shadowfiend if combat won't last long enough for its mana return
+    -- Wowsims-aligned Shadowfiend timing:
+    -- Short fight (<120s): use early for mana return; mana% gate relaxed.
+    -- Long fight: use when dots active and VT remaining >= Shadowfiend GCD (~1.5s).
+    -- Emergency: always fire when mana critically low.
+    local ttd = context.ttd or 999
+    local short_fight = ttd < 120
+    local long_fight = ttd >= 120
+    local mana_low = (context.mana_pct or 100) <= 45
+    local mana_emergency = (context.mana_pct or 100) <= 15
+    local vt_active = (s.vt_remaining or 0) > 0
+    local vt_long_enough = (s.vt_remaining or 0) >= 1.5
+    if mana_emergency then return true end
+    if short_fight and mana_low then return true end
+    if long_fight and vt_active and vt_long_enough and mana_low then return true end
+    -- Legacy fallback: fire at <45% if TTD allows
     if context.ttd_known and context.ttd > 0 and context.ttd < MIN_TTD_FOR_CD_SHADOWFIEND then return false end
-    return true
+    return false
 end
 
 local _cached_swp_spread_target = nil
