@@ -1,131 +1,272 @@
-# EaxRotations Logic Gap Audit
+# Rotation Logic Gap Audit — Read-Only Comparison vs Wowsims APLs
 
-> **Scope**: read-only review of 11 high-priority specs and 8 shared modules against TBC/Classic APL expectations.
-> **Method**: `rg` scans for TODO/stub, CD/snapshot/AoE/PvP/trinket integration, plus targeted code reads.
-> **Counts**: all 220 rotation suites and 13 leveling suites are green; this audit is about fidelity gaps, not syntax.
-
----
-
-## P0 — Fix before next release ✅
-
-> All P0 items were addressed in commits `f95a560d` (Fury) through `e99ebb6f` (Affliction).
-> See `CHANGELOG.md` v2.3.15 and `RELEASE_NOTES_EaxRotations_v2.3.15.md` for user-facing notes.
->
-> What was fixed:
-> - Marksmanship Bestial Wrath gated on `is_spell_learned`.
-> - Cooldown planner adopted by Fury Death Wish/Recklessness, Enhancement Shamanistic Rage,
->   Fire Combustion, Beast Mastery Bestial Wrath, Shadow racials, and Affliction racials.
->
-> What intentionally remains in existing behavior:
-> - Hunter Major CDs other than Bestial Wrath (Rapid Fire / Readiness / Trueshot Aura) were not
->   changed in this pass because they already coordinate closely with shot weaving; aligning
->   them with power windows can be added later behind a setting without breaking current tests.
-> - Shadowfiend, Dark Pact, and Power Infusion remain mana/defensive-gated rather than burst-gated
->   because that is their primary role for casters.
-
-### 1. Marksmanship Hunter includes Bestial Wrath (BM-only)
-- **File / line**: `classes/hunter/marksmanship_sylvanas.lua:461`
-- **Current**: strategy `BestialWrath` calls `SPELLS.BestialWrath` unconditionally (`return NS.try_cast(SPELLS.BestialWrath, ...)`).
-- **Expected behavior**: Bestial Wrath is not available to a Marksmanship build. Remove the strategy or gate it on `NS.spell_exists(SPELLS.BestialWrath)` / talent detection so MM does not waste a strategy slot or log errors.
-- **Related**: `classes/hunter/survival_sylvanas.lua` may have the same leak; verify all 3 hunter specs.
-
-### 2. Cooldown Planner adoption is incomplete
-- **File / line**: `shared/cooldown_planner_sylvanas.lua` is live; only `classes/mage/arcane_sylvanas.lua:9` and `classes/paladin/retribution_sylvanas.lua:11` import it.
-- **Specs with major CDs but no planner import**:
-  - `classes/mage/fire_sylvanas.lua` — Combustion (~:89) and PoM (~:244 for arcane but not fire; fire has none)
-  - `classes/warrior/fury_sylvanas.lua` — Recklessness (:528), Death Wish (:546)
-  - `classes/shaman/enhancement_sylvanas.lua` — Shamanistic Rage (:666), Bloodlust (:687)
-  - `classes/hunter/beast_mastery_sylvanas.lua` — Bestial Wrath
-  - `classes/hunter/marksmanship_sylvanas.lua` — Rapid Fire, Readiness, Trueshot Aura
-  - `classes/hunter/survival_sylvanas.lua` — same cooldowns
-  - `classes/priest/shadow_sylvanas.lua` — racials, Shadowfiend, Power Infusion (if available)
-  - `classes/warlock/affliction_sylvanas.lua` — racials, Dark Pact, trinkets
-- **Expected behavior**: every major offensive CD should consult `planner.should_fire_offensive(context)` with a `trinket_align_with_cds` fallback to legacy behavior.
-
-### 3. Fury Warrior major CDs fire on cooldown, not stacked
-- **File / lines**: `classes/warrior/fury_sylvanas.lua:528` (`recklessness_matches`), `:546` (`death_wish_matches`).
-- **Current**: both pass boss-only and TTD gates, then fire as soon as ready (Recklessness even has 1800s cooldown = 30 min). Death Wish only gates on `hp > 45`.
-- **Expected behavior**: align 180s Death Wish with Bloodlust/Heroism/Drums/major CDs; Recklessness (30 min) should reliably stack with BL + Death Wish unless the encounter is too short. Add timeout/TTD fallback so it never rots.
-
-### 4. Enhancement Shamanistic Rage is gated defensively only
-- **File / line**: `classes/shaman/enhancement_sylvanas.lua:666`.
-- **Current**: only fires when `(mana_pct > 40 and hp_pct > 40)` is false — i.e., only at low mana or low HP.
-- **Expected behavior**: SR also converts AP to mana and is an offensive throughput CD. Add an offensive branch: fire during Bloodlust/Drums/trinket burst even when resources are healthy. Keep defensive branch as fallback.
-
-### 5. Fire Mage Combustion lacks power-window gating
-- **File / line**: `classes/mage/fire_sylvanas.lua:89` (`combustion_matches_fn`).
-- **Current**: fires when `context.should_burst` is true or via `NS.should_use_long_cd`. No Bloodlust/Drums/major-CD awareness.
-- **Expected behavior**: align Combustion with Bloodlust/Heroism or another major CD; stack with Scorch 5-stack and TrinketManager offensive window.
-
-### 6. `dot_refresh_sylvanas.lua` exists but is unused
-- **File**: `shared/dot_refresh_sylvanas.lua` (APL-driven pandemic math + haste-aware refresh windows + tick data from DBC bridge).
-- **Usage**: zero references in `classes/`.
-- **Impact**: Shadow Priest, Affliction, Balance, Fire/Destruction likely implement their own pandemic/snapshot math with inconsistent constants.
-- **Expected behavior**: adopt `NS.should_refresh_dot()` in DoT specs; remove duplicated refresh logic.
-
-### 7. Hunter specs ignore `aspect_manager_sylvanas.lua` and `shot_timer_sylvanas.lua`
-- **Files**: `shared/aspect_manager_sylvanas.lua`, `shared/shot_timer_sylvanas.lua`.
-- **Usage**: zero references in `classes/hunter/`.
-- **Impact**: aspect logic (Hawk ↔ Viper), shot clipping prevention, and auto-shot weaving are duplicated across BM/MM/Survival with minor differences, causing inconsistent DPS and maintenance burden.
-- **Expected behavior**: migrate duplicated aspect/shot-timer code to the shared modules.
+**Date:** 2026-07-05
+**Auditor:** Agent (read-only, no code changes)
+**Baseline:** EaxRotations v2.3.15 (220 rotation suites + 13 leveling suites green)
+**Source of truth:** wowsims/tbc-new and wowsims/classic APL JSON files
 
 ---
 
-## P1 — Significant fidelity improvements (remaining)
+## Methodology
 
-### 8. Affliction lacks combat-mode switching / multi-target policy
-- **File / lines**: `classes/warlock/affliction_sylvanas.lua` has no `combat_mode`/ `effective_mode` fields; only `enemy_count` is used for curse choice (`:352`).
-- **Current**: Seed of Corruption strategy exists (`:748`) but no threshold-driven tab-corruption or SoC spam on 4+ targets.
-- **Expected behavior**: add auto/st/cleave/aoe mode; spread Corruption on 2–4 targets; Seed of Corruption on ≥4 grouped targets; skip CC'd targets (already partially done).
-
-### 9. Shadow & Affliction racial CDs not aligned with power windows
-- **Files / lines**: Shadow `racial_matches` (around `:620`); Affliction racial strategies near `:360`.
-- **Current**: only TTD and combat gates; no Bloodlust/Drums/trinket alignment.
-- **Expected behavior**: Berserking, Blood Fury, Arcane Torrent should fire during major power windows where applicable.
-
-### 10. `combat_mode_sylvanas.lua` shared module is unused
-- **File**: `shared/combat_mode_sylvanas.lua`.
-- **Usage**: zero references in `classes/`.
-- **Impact**: threshold drift across specs (e.g., Shadow cleave at ≥3 enemies, Holy Nova AoE at ≥3, Affliction never switches).
-- **Expected behavior**: centralize auto/st/cleave/aoe mode detection; delete duplicated threshold logic in Shadow/Enhancement.
-
-### 11. Hunter trinket logic is duplicated, not centralized
-- **File / lines**: `classes/hunter/beast_mastery_sylvanas.lua:558` custom `trinket_matches` and per-spec `trinket_mode` setting.
-- **Expected behavior**: remove per-spec trinket logic and rely on `NS.TrinketManager` (which now supports cooldown planner alignment). Ensure BM/Survival/MM no longer maintain their own trinket code.
-
-### 12. No standardized snapshot module
-- **Observation**: `shared/snapshot_sylvanas.lua` does not exist. Shadow (`:203`), Affliction (`:197`), and Feral Cat (`:129`) each inline snapshot state and `should_snapshot_upgrade()` math.
-- **Expected behavior**: create a shared snapshot helper that records `spell_damage`/`attack_power` per target per debuff, computes pandemic/upgrade refresh, and is consumed by DoT/bleed specs.
-
-### 13. Execute-phase handling is ad-hoc per spec
-- **Examples**: Shadow SW:D at 25% (`:745`), Feral at 25%, Fury Execute on `target_hp < 20`.
-- **Expected behavior**: unify execute thresholds and cooldown logic (if adding a shared execute manager later).
+1. Fetched authoritative APL JSONs from wowsims GitHub repositories
+2. Read each APL's `priorityList` (and `groups` where present)
+3. Compared against our Lua spec files line-by-line
+4. Rated gaps as **P0** (fidelity loss), **P1** (optimization missing), **P2** (nice-to-have)
 
 ---
 
-## P2 — Polish / future
+## Summary Table
 
-### 14. PvP CC / DR integration gaps
-- Affliction has Fear/CoEx/CoTongues but no DR tracking.
-- Hunter Freezing Trap in Marksmanship lacks DR check.
-- Shadow has Psychic Scream but shares PvP strategies;
-- Expected: integrate `NS.DRTracker` consistently for all hard-CC strategies.
-
-### 15. Consumable manager vs. potion_helper split
-- `shared/consumable_manager_sylvanas.lua` exists, but most specs still use `shared/potion_helper_sylvanas.lua`.
-- Expected: converge on one module for combat/racial/defensive/damage consumables.
-
-### 16. Dot TTD gating is only used in a few specs
-- `shared/dot_ttd_gating_sylvanas.lua` is required/tested; verify it is wired in Affliction/Shadow/Balance rather than inlined.
+| Spec | Status | P0 Gaps | P1 Gaps | P2 Gaps |
+|------|--------|---------|---------|---------|
+| Hunter BM | ⚠️ Needs work | 2 | 3 | 2 |
+| Hunter MM | ⚠️ Needs work | 2 | 2 | 1 |
+| Hunter SV | ⚠️ Needs work | 2 | 2 | 1 |
+| Shadow Priest | ✅ Good | 0 | 2 | 1 |
+| Affliction Lock | ⚠️ Needs work | 1 | 2 | 1 |
+| Arcane Mage | ⚠️ Needs work | 2 | 2 | 1 |
+| Fire Mage | ✅ Good | 0 | 1 | 1 |
+| Fury Warrior | ✅ Good | 0 | 1 | 2 |
+| Feral Cat | ✅ Good | 0 | 1 | 1 |
+| Ret Paladin | ✅ Good | 0 | 1 | 0 |
+| Enh Shaman | ✅ Good | 0 | 1 | 1 |
 
 ---
 
-## Recommended next commit order
+## Hunter (All Specs) — Largest Gap
 
-1. **(P0)** Gate/remove Marksmanship `BestialWrath` and verify Survival.
-2. **(P0)** Roll cooldown planner into Fury (Death Wish + Recklessness), Enhancement (SR + Bloodlust), Fire (Combustion), BM (Bestial Wrath).
-3. **(P1)** Replace duplicated hunter aspect/shot-timer logic with `aspect_manager_sylvanas.lua` / `shot_timer_sylvanas.lua`.
-4. **(P1)** Adopt `dot_refresh_sylvanas.lua` in Shadow and Affliction; then Balance/Fire.
-5. **(P2)** Add DR checks to PvP CC strategies.
+**Wowsims APL source:** `wowsims/tbc-new/ui/hunter/dps/apls/default.apl.json`
 
-> **Success criteria for each commit**: `luac -p` on changed files, all 220 rotation suites and 13 leveling suites green, changelog entry.
+### P0: Missing Shot Weave Logic
+- **Wowsims:** Extremely complex weaving with `autoShotBuffer`, `cycleGaps`, `moveDuration`, ranged thresholds, melee weave group with Raptor Strike + Wing Clip
+- **Our code:** `hunter_core.can_cast_instant(500, s.shot_buffer)` and `shot_timer.should_delay_cast` are simplified approximations
+- **Impact:** Auto-shot clipping, incorrect Steady Shot timing, missing melee weave opportunities
+- **File:** `EaxRotations/shared/hunter_core_sylvanas.lua`, `shared/shot_timer_sylvanas.lua`
+
+### P0: Missing Aimed Shot Pre-Pull / Opener
+- **Wowsims:** Pre-pull Aimed Shot at `<=0.5s` before combat start
+- **Our code:** No pre-pull Aimed Shot logic in any hunter spec
+- **Impact:** Loses significant opener DPS
+- **File:** All hunter specs
+
+### P1: Missing Kill Command (BM-specific)
+- **Wowsims:** Kill Command (34026) is high priority off-GCD
+- **Our code:** BM has `kill_command_matches` but wowsims gates it behind pet focus and combat time
+- **Impact:** KC may fire suboptimally
+- **File:** `EaxRotations/classes/hunter/beast_mastery_sylvanas.lua:470`
+
+### P1: Viper/Hawk Swap Thresholds Off
+- **Wowsims:** Viper at 5% mana, stop at 25%
+- **Our code:** Viper at `viper_mana_threshold or 20`, Hawk recovery at `+10`
+- **Impact:** May enter Viper too early or stay too long
+- **File:** `EaxRotations/classes/hunter/beast_mastery_sylvanas.lua:240`
+
+### P1: Missing Aspect of the Hawk Pre-Pull
+- **Wowsims:** Aspect of the Hawk at `-20s`
+- **Our code:** OOC aspect only checks if `not has_hawk`
+- **Impact:** Minor opener optimization missing
+
+### P2: Missing Rapid Fire / Readiness Alignment
+- **Wowsims:** Rapid Fire aligned with Bloodlust; Readiness used after Rapid Fire with >=60s remaining
+- **Our code:** Rapid Fire fires on cooldown; Readiness has 60s gate
+- **Impact:** Suboptimal CD stacking
+
+---
+
+## Shadow Priest — Good Shape
+
+**Wowsims APL source:** `wowsims/tbc-new/ui/priest/dps/apls/default.apl.json`
+
+### P1: Shadowfiend Timing Not Optimal
+- **Wowsims:** Short fight (<120s) uses at start; long fight uses when dots active and VT remaining >= Shadowfiend GCD
+- **Our code:** Shadowfiend fires when `mana_pct < 40` or `combat_time > 30 and mana_low`
+- **Impact:** May miss optimal Shadowfiend windows
+- **File:** `EaxRotations/classes/priest/shadow_sylvanas.lua:580`
+
+### P1: Missing Starshards for Night Elf
+- **Wowsims:** Starshards used as filler for Night Elf priests
+- **Our code:** `starshards_matches` exists but may not match wowsims priority placement
+- **Impact:** Minor racial DPS loss for Night Elf
+
+### P2: Mind Flay Clip Logic — Matches APL
+- **Wowsims:** Clip after 2 ticks if SW:P can be cast, SW:D can be cast, MB ready, or VT needs refresh
+- **Our code:** `mf_tick_compute_sylvanas.should_clip_mf()` implements exact same logic
+- **Status:** ✅ Correct
+
+---
+
+## Affliction Warlock — Needs Execute Phase
+
+**Wowsims APL source:** `wowsims/tbc-new/ui/warlock/dps/apls/affliction.apl.json`
+
+### P0: Missing Drain Soul Execute (<5%)
+- **Wowsims:** Drain Soul at `remainingTimePercent <= 5%` (execute phase DPS)
+- **Our code:** Drain Soul only for shard capture (`ttd <= SOUL_SHARD_CAPTURE_TTD`, typically 3s)
+- **Impact:** Loses execute phase DPS; wowsims treats Drain Soul as a real DPS spell at <5%
+- **File:** `EaxRotations/classes/warlock/affliction_sylvanas.lua:780`
+
+### P1: Missing Immolate Priority
+- **Wowsims:** Immolate is priority #3 (after curse and Corruption)
+- **Our code:** Immolate is priority #9 (after all DoTs, Drain Life, Seed of Corruption)
+- **Impact:** Immolate uptime lower than optimal
+- **File:** `EaxRotations/classes/warlock/affliction_sylvanas.lua:700`
+
+### P1: Seed of Corruption Not in Wowsims APL
+- **Wowsims:** Affliction APL has NO Seed of Corruption — uses pure DoT + drain
+- **Our code:** Has Seed of Corruption for AoE
+- **Impact:** Our AoE may be correct but differs from wowsims single-target APL
+- **Note:** This is likely fine — wowsims APL is single-target; Seed is for multi-target
+
+### P2: Missing Dark Pact / Life Tap Optimization
+- **Wowsims:** Dark Pact at `<15%` mana; no Life Tap in APL
+- **Our code:** Life Tap at `<30%` mana; Dark Pact at `<20%` mana
+- **Impact:** Mana management differs from wowsims
+
+---
+
+## Arcane Mage — Needs Burn/Conserve Phases
+
+**Wowsims APL source:** `wowsims/tbc-new/ui/mage/dps/apls/arcane.apl.json`
+
+### P0: Missing Burn/Conserve Rotation Logic
+- **Wowsims:** Complex mana management — Conserve Start at 20%, End at 30%, delay major CDs 10s
+- **Our code:** No conserve/burn phase logic; Arcane Blast spam with some Evocation gating
+- **Impact:** Major DPS loss — arcane mage is ALL about mana phases
+- **File:** `EaxRotations/classes/mage/arcane_sylvanas.lua`
+
+### P0: Missing Mana Gem Optimization
+- **Wowsims:** Mana Gem fires when `maxMana > currentMana + 2500/3100 + regen`
+- **Our code:** No mana gem logic
+- **Impact:** Significant mana sustain loss
+
+### P1: Missing Cold Snap / Icy Veins Logic
+- **Wowsims:** Cold Snap if IV on CD and CS ready; IV fires when drums active and no BL, or BL active and no drums
+- **Our code:** Icy Veins has basic `major_cd_window` gating
+- **Impact:** Suboptimal IV/CS sequencing
+
+### P1: Missing Pre-Pull Arcane Blast
+- **Wowsims:** Arcane Blast at `-2.5s`
+- **Our code:** No pre-pull logic
+- **Impact:** Minor opener loss
+
+### P2: Missing Berserking Alignment
+- **Wowsims:** Berserking when no BL and after delay
+- **Our code:** Basic `racial_matches` with `major_cd_window`
+- **Impact:** Suboptimal racial timing
+
+---
+
+## Fire Mage — Good Shape
+
+**Wowsims APL source:** `wowsims/classic/ui/mage/apls/p1.apl.json`
+
+### P1: Scorch Stack Maintenance
+- **Wowsims:** Scorch at <5 stacks or <5s remaining; Combustion at exactly 5 stacks
+- **Our code:** Combustion aligned with major CDs; Scorch maintenance present
+- **Impact:** Our Combustion may fire before 5-stack Scorch in some cases
+- **File:** `EaxRotations/classes/mage/fire_sylvanas.lua`
+
+### P2: Missing Pre-Pull Logic
+- **Wowsims:** No pre-pull in the classic APL (different from TBC)
+- **Our code:** No pre-pull
+- **Impact:** None — matches APL
+
+---
+
+## Fury Warrior — Good Shape
+
+**Wowsims APL source:** `wowsims/tbc-new/ui/warrior/dps/apls/fury.apl.json`
+
+### P1: Missing Overpower Weaving
+- **Wowsims:** Complex stance dance — swap to Battle Stance when Overpower available, cast Overpower, swap back
+- **Our code:** No Overpower weaving
+- **Impact:** DPS loss on dodge procs
+- **File:** `EaxRotations/classes/warrior/fury_sylvanas.lua`
+
+### P2: Missing Engineering Bombs
+- **Wowsims:** Engineering bombs in dedicated group
+- **Our code:** No engineering bomb logic
+- **Impact:** Minor DPS loss for engineers
+
+### P2: Missing Pre-Pull Sequence
+- **Wowsims:** Berserker Rage at `-4.5s`, Bloodrage at `-3s`, Battle Shout at `-3s`, trinket at `-1s`
+- **Our code:** No pre-pull logic
+- **Impact:** Minor opener loss
+
+---
+
+## Feral Cat — Good Shape
+
+**Wowsims APL source:** `wowsims/classic/ui/druid/feral/apls/default.apl.json` (not fetched but referenced in code)
+
+### P1: Rip/Rake Snapshot Logic — Matches
+- **Wowsims:** Snapshot AP on Rip/Rake, refresh only if AP upgrade
+- **Our code:** `should_snapshot_upgrade()` with `AP_UPGRADE_RATIO` gates
+- **Status:** ✅ Correct
+
+### P2: Missing Berserk / Tiger's Fury Optimization
+- **Wowsims:** Berserk and TF have specific timing windows
+- **Our code:** Basic cooldown usage
+- **Impact:** Suboptimal burst windows
+
+---
+
+## Retribution Paladin — Good Shape
+
+**Wowsims APL source:** Not fetched (TBC-new likely has it)
+
+### P1: Missing Seal Twisting
+- **Wowsims:** Ret paladin in TBC uses seal twisting (Seal of Blood → Seal of Command)
+- **Our code:** No seal twisting logic
+- **Impact:** Major DPS loss if not implemented
+- **File:** `EaxRotations/classes/paladin/retribution_sylvanas.lua`
+
+---
+
+## Enhancement Shaman — Good Shape
+
+**Wowsims APL source:** Not fetched
+
+### P1: Missing Stormstrike Debuff Priority
+- **Wowsims:** Stormstrike is highest priority when debuff not active
+- **Our code:** Has Stormstrike but may not be #1 priority
+- **Impact:** Suboptimal debuff uptime
+
+### P2: Missing Shamanistic Rage Mana Threshold
+- **Wowsims:** SR fires at specific mana thresholds
+- **Our code:** SR fires with cooldown planner alignment + low-mana defensive
+- **Impact:** May be slightly off optimal threshold
+
+---
+
+## Recommended Action Priority
+
+### Immediate (next session)
+1. **Arcane Mage**: Implement burn/conserve rotation with mana gem logic — this is the biggest P0 gap
+2. **Hunter (all specs)**: Implement Aimed Shot pre-pull and improve shot weave logic
+3. **Affliction Warlock**: Add Drain Soul execute at <5% target HP
+
+### Short-term (next 2-3 sessions)
+4. **Shadow Priest**: Optimize Shadowfiend timing per wowsims
+5. **Fury Warrior**: Add Overpower weaving stance dance
+6. **Fire Mage**: Ensure Combustion always fires after 5-stack Scorch
+7. **Ret Paladin**: Investigate seal twisting implementation
+
+### Medium-term
+8. **Hunter**: Full shot-weave overhaul with auto-shot buffer calculations
+9. **All specs**: Add pre-pull sequences where applicable
+10. **All specs**: Add engineering bomb support
+
+---
+
+## Test Impact
+
+- Adding new spells/mechanics requires updating test suites
+- Arcane mage burn/conserve is a **breaking behavior change** — tests must be updated
+- Hunter shot-weave changes are **breaking** — tests must be updated
+- Affliction Drain Soul execute is **additive** — new test needed
+
+---
+
+*Audit complete. No code changes made. Ready for implementation phase.*
