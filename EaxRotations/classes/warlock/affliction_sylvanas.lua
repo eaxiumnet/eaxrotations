@@ -145,6 +145,7 @@ local LOCAL_SPELLS = {
     ArcaneTorrent   = NS.spell_action({ 25046 }, "ArcaneTorrent"),
     CreateSoulstone = NS.spell_action({ 27238, 20756, 20755, 20752, 693 }, "CreateSoulstone"),
     Shoot           = NS.spell_action({ 5019 }, "Shoot"),
+    Shadowburn      = NS.spell_action({ 30546, 27263, 18871, 17924, 17877 }, "Shadowburn"),
 }
 
 local BLOODLUST_LOWER_RATIO = 1.04      -- More aggressive upgrade threshold during Bloodlust/Heroism
@@ -771,23 +772,46 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 11. Drain Soul (TBC shard capture: channel as the mob dies to gain a shard)
+    -- 11. Drain Soul (execute + shard capture)
+    -- Wowsims APL: Drain Soul at remainingTimePercent <= 5% (execute filler).
+    -- Also channels when mob is about to die for shard capture.
     -- ------------------------------------------------------------------------
     {
         name = "DrainSoulExecute",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            -- TBC: Drain Soul is NOT a DPS execute (that is a Wrath mechanic).
-            -- Channel it only when the mob is about to die so it dies during the
-            -- channel and yields a Soul Shard. Drain Soul ~62 dps vs Shadow Bolt
-            -- ~250 dps, so channeling it for DPS is a large loss.
-            if not (context.ttd_known and context.ttd and context.ttd > 0 and context.ttd <= SOUL_SHARD_CAPTURE_TTD) then return false end
             if context.is_channeling then return false end
+            -- Execute: target HP <= 5% (wowsims remainingTimePercent <= 5%)
+            local target_hp = context.target_hp_pct or 100
+            local in_execute = target_hp <= 5
+            -- Shard capture: mob about to die
+            local shard_capture = context.ttd_known and context.ttd and context.ttd > 0 and context.ttd <= SOUL_SHARD_CAPTURE_TTD
+            if not in_execute and not shard_capture then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.DrainSoul, context.target) or false
         end,
         execute = function(context, state)
+            local target_hp = context.target_hp_pct or 100
+            local reason = target_hp <= 5 and "execute" or "shard capture"
             return NS.try_cast(LOCAL_SPELLS.DrainSoul, context.target,
-                string.format("[AFFL] Drain Soul shard capture (ttd %.0fs)", (context and context.ttd) or 0))
+                string.format("[AFFL] Drain Soul (%s, ttd %.0fs)", reason, (context and context.ttd) or 0))
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 11a. Shadowburn (execute)
+    -- Wowsims APL: Shadowburn at remainingTimePercent <= 5%.
+    -- Higher priority than Shadow Bolt when target is about to die.
+    -- ------------------------------------------------------------------------
+    {
+        name = "ShadowburnExecute",
+        matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            local target_hp = context.target_hp_pct or 100
+            if target_hp > 5 then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.Shadowburn, context.target) or false
+        end,
+        execute = function(context)
+            return NS.try_cast(LOCAL_SPELLS.Shadowburn, context.target, "[AFFL] Shadowburn (execute)")
         end,
     },
 
