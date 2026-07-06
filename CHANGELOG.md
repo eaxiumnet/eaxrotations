@@ -43,6 +43,21 @@ All notable changes to the EAX TBC Classic Rotations project.
 
 ---
 
+## [2.3.18] — Shadow Priest Shadowfiend Timing (2026-07-05)
+
+### Features
+
+- **Priest Shadow — wowsims-aligned Shadowfiend timing**
+  - Short fight (<120s): fire early at <=45% mana for maximum mana return.
+  - Long fight (>=120s): fire only when Vampiric Touch is active and remaining >= 1.5s (Shadowfiend GCD).
+  - Emergency: always fire at <=15% mana regardless of fight length.
+  - Replaces old flat <45% gate that ignored fight context.
+
+### Technical
+- All 220 rotation + 13 leveling suites green.
+
+---
+
 ## [2.3.15] — Major-CD Window Rollout: Fury, Enhancement, Fire, BM, Shadow, Affliction (2026-07-05)
 
 ### Features
