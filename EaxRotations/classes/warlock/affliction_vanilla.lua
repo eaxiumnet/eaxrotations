@@ -134,7 +134,12 @@ local aff_state = {
     enemy_count = 1,
 }
 
+local _last_build_state_time = -1
 local function build_state(context)
+    -- Pattern 6: frame-keyed dedup
+    local now = context.now or (NS.time_now and NS.time_now() or 0)
+    if now == _last_build_state_time then return aff_state end
+    if context.now then _last_build_state_time = now end
     local target = context.target
     if target then
         aff_state.ua_remains = NS.debuff_remains and NS.debuff_remains(target, UNSTABLE_AFFL_DEBUFF) or 0
