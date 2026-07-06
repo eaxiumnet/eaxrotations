@@ -207,7 +207,7 @@ assert_false(ar.matches({ settings = { use_cooldowns = false } }, {
 spell_ready_calls = {}
 assert_true(ar.matches({ settings = { use_cooldowns = true } }, {
     in_combat = true, has_adrenaline_rush = false, adrenaline_rush_ready = true,
-    heroism_active = false,
+    heroism_active = false, energy = 30,  -- wowsims: AR fires at <=40 energy
 }), "AdrenalineRush should match in combat with cooldowns enabled")
 
 -- ============================================================================
