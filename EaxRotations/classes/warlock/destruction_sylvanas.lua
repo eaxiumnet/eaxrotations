@@ -312,17 +312,31 @@ end
 
 local function summon_pet_matches(context, action, state)
     if context.in_combat then return false end
-    if context.has_valid_enemy_target then return false end
     -- Do NOT re-summon if Demonic Sacrifice aura is already active
     if state and state.has_demonic_sacrifice then return false end
     local pet = NS.GetPet()
     if pet and NS.unit_alive(pet) then return false end
-    return true
+    -- Spec-aware pet preference: only summon the preferred pet type
+    -- This prevents summoning Imp (first in ACTIONS) when player wants Succubus
+    local pref = (context.settings and context.settings.destro_pet_preference) or "auto"
+    if pref == "auto" then
+        -- Default: Succubus for shadow builds (Shadow Bolt filler), Imp for fire (Incinerate filler)
+        -- Heuristic: if Incinerate is learned (fire playstyle), prefer Imp; otherwise Succubus
+        if NS.is_spell_learned and NS.is_spell_learned(32231) then
+            pref = "imp"
+        else
+            pref = "succubus"
+        end
+    end
+    if action.name == "SummonImp" then return pref == "imp" end
+    if action.name == "SummonSuccubus" then return pref == "succubus" end
+    -- Voidwalker/Felhunter/Felguard: only if explicitly preferred (not in auto mode)
+    return false
 end
 
 local function demonic_sacrifice_imp_matches(context, action, state)
     if context.in_combat then return false end
-    if context.has_valid_enemy_target then return false end
+    -- Pre-pull buff: allow even with a target selected (you sac BEFORE pulling)
     -- Only sac when we have a pet alive and no DS aura yet
     if state and state.has_demonic_sacrifice then return false end
     local pet = NS.GetPet()

@@ -23,6 +23,7 @@ local FEL_ARMOR_BUFF = { 28189, 28176 }
 local SOUL_LINK_BUFF = { 25228 }
 local CURSE_OF_AGONY_DEBUFF = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
+local CURSE_OF_SHADOW_DEBUFF = { 27229, 17937, 17862 }
 local PET_LOW_HP = 30
 local EXECUTE_THRESHOLD = 25
 local SOUL_SHARD_CAPTURE_TTD = 5  -- TBC: Drain Soul is shard-capture only (mob about to die); sub-25% execute is Wrath, not TBC
@@ -160,6 +161,7 @@ local function build_state(context)
     demo_state.hellfire_ready = me and NS.spell_ready(SPELLS.Hellfire, me, { skip_range = true }) or false
     demo_state.curse_of_agony_ready = target and NS.spell_ready(SPELLS.CurseOfAgony, target) or false
     demo_state.curse_of_elements_ready = target and NS.spell_ready(SPELLS.CurseElements, target) or false
+    demo_state.curse_of_shadow_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.CurseOfShadow, target) or false
     demo_state.dark_pact_ready = me and NS.spell_ready(SPELLS.DarkPact, me, { skip_range = true, expected_cooldown = 10 }) or false
     demo_state.drain_soul_ready = target and NS.spell_ready(SPELLS.DrainSoul, target) or false
     demo_state.soul_link_ready = me and NS.spell_ready(25228, me, { skip_range = true }) or false
@@ -531,6 +533,14 @@ local strategies = {
 
     { name = "CurseOfDoom", matches = curse_of_doom_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfDoom, context.target, "[DEMONOLOGY] Curse of Doom", { expected_cooldown = 60 }) end },
     { name = "CurseOfElements", matches = curse_of_elements_matches, execute = function(context) return NS.try_cast(SPELLS.CurseElements, context.target, "[DEMONOLOGY] Curse of Elements") end },
+    { name = "CurseOfShadow", matches = function(context, s)
+        if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfShadow, 2.0) then return false end
+        if not s then return false end
+        if not context.target then return false end
+        if not s.curse_of_shadow_ready then return false end
+        if NS.debuff_remains(context.target, CURSE_OF_SHADOW_DEBUFF) > DOT_REFRESH_WINDOW then return false end
+        return true
+    end, execute = function(context) return NS.try_cast(SPELLS.CurseOfShadow, context.target, "[DEMONOLOGY] Curse of Shadow") end },
     { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfAgony, context.target, "[DEMONOLOGY] Curse of Agony") end },
     -- TBC guide order: Corruption > Immolate (higher DPCT, longer DoT) — apply Corruption first when both need refresh.
     { name = "Corruption", matches = corruption_matches, execute = function(context) return NS.try_cast(SPELLS.Corruption, context.target, "[DEMONOLOGY] Corruption") end },

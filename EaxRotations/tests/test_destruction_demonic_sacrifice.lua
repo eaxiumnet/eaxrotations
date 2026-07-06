@@ -121,17 +121,34 @@ local summon_imp = find_strategy("SummonImp")
 assert_true(summon_imp.matches, "SummonImp should have a matches function")
 
 -- Mock context with no pet, no enemy, OOC
+-- Note: destro_pet_preference = "imp" selects Imp (fire build)
 local mock_context_no_pet = {
     in_combat = false,
     has_valid_enemy_target = false,
     me = {},
     target = nil,
+    settings = { destro_pet_preference = "imp" },
 }
 
 -- Without DS aura: should want to summon
 local mock_state_no_ds = { has_demonic_sacrifice = false }
 local should_summon = summon_imp.matches(mock_context_no_pet, mock_state_no_ds)
 assert_true(should_summon, "SummonImp should fire when no pet, no DS aura, OOC")
+
+-- Mock context with Succubus preference (shadow build)
+local mock_context_sacc = {
+    in_combat = false,
+    has_valid_enemy_target = false,
+    me = {},
+    target = nil,
+    settings = { destro_pet_preference = "succubus" },
+}
+local should_not_summon_imp = summon_imp.matches(mock_context_sacc, mock_state_no_ds)
+assert_false(should_not_summon_imp, "SummonImp should NOT fire when preference is Succubus (shadow build)")
+
+local summon_succubus = find_strategy("SummonSuccubus")
+local should_summon_succubus = summon_succubus.matches(mock_context_sacc, mock_state_no_ds)
+assert_true(should_summon_succubus, "SummonSuccubus should fire when preference is Succubus (shadow build)")
 
 -- With DS aura active: should NOT re-summon (this is the bug fix)
 _ds_aura_active = true
