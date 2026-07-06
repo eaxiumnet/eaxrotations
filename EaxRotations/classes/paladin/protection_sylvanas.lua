@@ -578,6 +578,11 @@ local strategies = {
  -- (100% uptime for the 102.4% CTC; survival > threat). Keep it above Consecration
  -- so a charge-low Holy Shield never waits a GCD behind a Consecration refresh.
  { name = "HolyShield", matches = holy_shield_matches, execute = function(context) return NS.try_cast(SPELLS.HolyShield, context.me, "[PROTECTION] HolyShield") end },
+ -- Wowsims APL order: Judgement/Seal cycle > Consecration > Exorcism > Hammer of Wrath > Avenger's Shield
+ { name = "Judgement", matches = judgement_matches, execute = function(context) return NS.try_cast(SPELLS.Judgement, context.target, "[PROTECTION] Judgement") end },
+ { name = "SealOfCommandAoE", matches = seal_command_aoe_matches, execute = function(context) return NS.try_cast(SPELLS.SealCommand, context.me, "[PROTECTION] Seal of Command AoE") end },
+ { name = "SealRighteousness", matches = seal_righteousness_matches, execute = function(context) return NS.try_cast(SPELLS.SealRighteousness, context.me, "[PROTECTION] SealRighteousness") end },
+ { name = "SealOfWisdom", matches = seal_of_wisdom_matches, execute = function(context) return NS.try_cast(SPELLS.SealOfWisdom, context.me, "[PROTECTION] SealOfWisdom") end },
  { name = "Consecration", matches = consecration_matches, execute = function(context)
   local mana_pct = context.mana_pct or (context.me and NS.unit_mana_pct and NS.unit_mana_pct(context.me)) or 100
   local downrank_id = get_consecration_id_for_mana(mana_pct)
@@ -586,15 +591,11 @@ local strategies = {
   end
   return NS.try_cast(SPELLS.Consecration, context.me, "[PROTECTION] Consecration")
  end },
- { name = "AvengerShield", matches = avenger_shield_matches, execute = function(context) return NS.try_cast(SPELLS.AvengerShield, context.target, "[PROTECTION] AvengerShield") end },
- { name = "Judgement", matches = judgement_matches, execute = function(context) return NS.try_cast(SPELLS.Judgement, context.target, "[PROTECTION] Judgement") end },
- { name = "SealOfCommandAoE", matches = seal_command_aoe_matches, execute = function(context) return NS.try_cast(SPELLS.SealCommand, context.me, "[PROTECTION] Seal of Command AoE") end },
- { name = "SealRighteousness", matches = seal_righteousness_matches, execute = function(context) return NS.try_cast(SPELLS.SealRighteousness, context.me, "[PROTECTION] SealRighteousness") end },
- { name = "HammerOfWrath", matches = hammer_of_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.HammerOfWrath, context.target, "[PROTECTION] HammerOfWrath") end },
- { name = "AvengingWrath", matches = avenging_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.AvengingWrath, context.me, "[PROTECTION] AvengingWrath") end },
  { name = "Exorcism", matches = exorcism_matches, execute = function(context) return NS.try_cast(SPELLS.Exorcism, context.target, "[PROTECTION] Exorcism") end },
  { name = "HolyWrath", matches = holy_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.HolyWrath, context.me, "[PROTECTION] HolyWrath") end },
- { name = "SealOfWisdom", matches = seal_of_wisdom_matches, execute = function(context) return NS.try_cast(SPELLS.SealOfWisdom, context.me, "[PROTECTION] SealOfWisdom") end },
+ { name = "HammerOfWrath", matches = hammer_of_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.HammerOfWrath, context.target, "[PROTECTION] HammerOfWrath") end },
+ { name = "AvengingWrath", matches = avenging_wrath_matches, execute = function(context) return NS.try_cast(SPELLS.AvengingWrath, context.me, "[PROTECTION] AvengingWrath") end },
+ { name = "AvengerShield", matches = avenger_shield_matches, execute = function(context) return NS.try_cast(SPELLS.AvengerShield, context.target, "[PROTECTION] AvengerShield") end },
  { name = "DevotionAura", matches = devotion_aura_matches, execute = function(context) return NS.try_cast(SPELLS.DevotionAura, context.me, "[PROTECTION] DevotionAura") end },
  { name = "BlessingOfSanctuary", matches = blessing_of_sanctuary_matches, execute = function(context) return NS.try_cast(SPELLS.BlessingOfSanctuary, context.me, "[PROTECTION] BlessingOfSanctuary") end },
  { name = "HolyShock", matches = holy_shock_matches, execute = function(context) return NS.try_cast(SPELLS.HolyShock, context.target, "[PROTECTION] HolyShock") end },
