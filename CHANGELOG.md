@@ -77,6 +77,26 @@ All notable changes to the EAX TBC Classic Rotations project.
 
 ---
 
+## [2.3.23] — Combat Rogue wowsims Alignment (2026-07-05)
+
+### Features
+- **Rogue Combat — Blade Flurry now requires Slice and Dice active**
+  - Wowsims APL: BF fires only when SnD (6774) AND Expose Armor are active.
+  - Our gate now requires SnD so BF time isn't wasted without the attack-speed buff.
+- **Rogue Combat — Adrenaline Rush energy gate (≤40)**
+  - Wowsims APL: AR fires at ≤40 energy (when energy is needed, not at cap).
+  - Prevents AR from firing at high energy where it would mostly overcap.
+
+### Verification
+- Audited all three rogue specs against wowsims Combat Swords APL.
+- Assassination and Subtlety verified: SnD priority, Rupture, energy pooling present.
+- Arms Warrior verified: Slam weaving already implemented.
+
+### Technical
+- All 220 rotation + 13 leveling suites green.
+
+---
+
 ## [2.3.20] — Affliction Immolate Priority + Audit Updates (2026-07-05)
 
 ### Features
