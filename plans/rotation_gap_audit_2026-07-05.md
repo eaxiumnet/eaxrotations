@@ -20,9 +20,9 @@
 
 | Spec | Status | P0 Gaps | P1 Gaps | P2 Gaps |
 |------|--------|---------|---------|---------|
-| Hunter BM | ⚠️ Needs work | 2 | 3 | 2 |
-| Hunter MM | ⚠️ Needs work | 2 | 2 | 1 |
-| Hunter SV | ⚠️ Needs work | 2 | 2 | 1 |
+| Hunter BM | ✅ Fixed | 0 | 2 | 2 |
+| Hunter MM | ✅ Fixed | 0 | 2 | 1 |
+| Hunter SV | ✅ Fixed | 0 | 2 | 1 |
 | Shadow Priest | ✅ Good | 0 | 2 | 1 |
 | Affliction Lock | ✅ Fixed | 0 | 2 | 1 |
 | Arcane Mage | ✅ Fixed | 0 | 2 | 1 |
