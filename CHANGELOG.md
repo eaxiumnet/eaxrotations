@@ -43,6 +43,32 @@ All notable changes to the EAX TBC Classic Rotations project.
 
 ---
 
+## [2.3.20] — Affliction Immolate Priority + Audit Updates (2026-07-05)
+
+### Features
+- **Warlock Affliction — wowsims-aligned Immolate priority**
+  - Immolate moved from priority #13 to #8 (right after Siphon Life, matching wowsims APL: Corruption > UA > Siphon Life > Immolate).
+  - Previously Immolate was buried below Drain Life and curses, causing significant uptime loss.
+
+### Technical
+- All 220 rotation + 13 leveling suites green.
+
+---
+
+## [2.3.19] — Fury Overpower Weaving (2026-07-05)
+
+### Features
+- **Warrior Fury — wowsims-aligned Overpower weaving (opt-in)**
+  - Added `Overpower` strategy back to Fury (was previously removed as "Arms-only").
+  - Wowsims APL includes an "Overpower Weaving" group: swap to Battle Stance when Overpower procs and both BT/WW are on CD ≥1.5s, cast Overpower, swap back.
+  - Gated behind `fury_use_overpower` setting (default off) — opt-in for advanced users.
+  - Conditions match wowsims: Delay Check (BT+WW ≥1.5s away), not in execute phase, rage 5-100.
+
+### Technical
+- All 220 rotation + 13 leveling suites green.
+
+---
+
 ## [2.3.18] — Shadow Priest Shadowfiend Timing (2026-07-05)
 
 ### Features
