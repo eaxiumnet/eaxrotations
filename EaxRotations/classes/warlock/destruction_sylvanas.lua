@@ -56,31 +56,52 @@ local SOUL_SHARD_ITEM = 6265             -- TBC Soul Shard reagent (moved before
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 22102, 22101, 22100 }
 
 -- build_state: compute per-update aura and timing state once for all strategies
+-- Pre-allocated state (Pattern 4: no per-tick table allocation)
+local destro_state = {
+    immolate_remains = 0,
+    corruption_remains = 0,
+    cod_remains = 0,
+    coa_remains = 0,
+    coe_remains = 0,
+    has_backlash = false,
+    has_backdraft = false,
+    has_fel_armor = false,
+    has_demon_armor = false,
+    has_shadow_ward = false,
+    has_demonic_sacrifice = false,
+    hp = 100,
+    mana_pct = 100,
+    mana_gem_id = nil,
+    mana_gem_ready = false,
+    spell_damage = 0,
+    healthstone_id = nil,
+    healthstone_ready = false,
+}
+local _last_build_state_time = -1
 local function build_state(context)
+    -- Pattern 6: frame-keyed dedup
+    local now = context.now or (NS.time_now and NS.time_now() or 0)
+    if now == _last_build_state_time then return destro_state end
+    if context.now then _last_build_state_time = now end
     local target = context.target
     local me = NS.GetPlayer()
-    local state = {
-        immolate_remains = target and NS.debuff_remains(target, IMMOLATE_DEBUFF) or 0,
-        corruption_remains = target and NS.debuff_remains(target, CORRUPTION_DEBUFF) or 0,
-        cod_remains = target and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF) or 0,
-        coa_remains = target and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF) or 0,
-        coe_remains = target and NS.debuff_remains(target, CURSE_OF_ELEMENTS_DEBUFF) or 0,
-        has_backlash = me and NS.buff_up(me, BACKLASH_BUFF) or false,
-        -- Backdraft (Conflagrate instant-followup proc) is a Wrath-era talent;
-        -- not present in TBC Classic Anniversary 2.5.5 DBC. Kept as false for compatibility.
-        has_backdraft = false,
-        has_fel_armor = me and NS.buff_up(me, FEL_ARMOR_BUFF) or false,
-        has_demon_armor = me and NS.buff_up(me, DEMON_ARMOR_BUFF) or false,
-        has_shadow_ward = me and NS.buff_up(me, SHADOW_WARD_BUFF) or false,
-        has_demonic_sacrifice = me and NS.buff_up(me, DEMONIC_SACRIFICE_AURA_ALL) or false,
-        hp = context.hp or 100,
-        mana_pct = context.mana_pct or 100,
-        mana_gem_id = nil,
-        mana_gem_ready = false,
-        spell_damage = 0,
-        healthstone_id = nil,
-        healthstone_ready = false,
-    }
+    local state = destro_state
+    state.immolate_remains = target and NS.debuff_remains(target, IMMOLATE_DEBUFF) or 0
+    state.corruption_remains = target and NS.debuff_remains(target, CORRUPTION_DEBUFF) or 0
+    state.cod_remains = target and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF) or 0
+    state.coa_remains = target and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF) or 0
+    state.coe_remains = target and NS.debuff_remains(target, CURSE_OF_ELEMENTS_DEBUFF) or 0
+    state.has_backlash = me and NS.buff_up(me, BACKLASH_BUFF) or false
+    -- Backdraft (Conflagrate instant-followup proc) is a Wrath-era talent;
+    -- not present in TBC Classic Anniversary 2.5.5 DBC. Kept as false for compatibility.
+    state.has_backdraft = false
+    state.has_fel_armor = me and NS.buff_up(me, FEL_ARMOR_BUFF) or false
+    state.has_demon_armor = me and NS.buff_up(me, DEMON_ARMOR_BUFF) or false
+    state.has_shadow_ward = me and NS.buff_up(me, SHADOW_WARD_BUFF) or false
+    state.has_demonic_sacrifice = me and NS.buff_up(me, DEMONIC_SACRIFICE_AURA_ALL) or false
+    state.hp = context.hp or 100
+    state.mana_pct = context.mana_pct or 100
+    state.spell_damage = context.spell_damage or 0
     -- Find ready mana item
     state.mana_gem_id = nil
     for _, id in ipairs(MANA_ITEM_IDS) do
@@ -102,8 +123,6 @@ local function build_state(context)
             end
         end
     end
-    -- SP-aware gating: Falls back through context (middleware) then to 0 (conservative: skip DoTs when SP unknown)
-    state.spell_damage = context.spell_damage or 0
     return state
 end
 
