@@ -2,6 +2,27 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.3.16] — Wowsims APL Alignment: Arcane Mage + Affliction Execute (2026-07-05)
+
+### Features
+
+- **Mage Arcane — wowsims-aligned burn/conserve rotation**
+  - Conserve phase: AB3→Frostbolt to maintain buff cheaply (matches wowsims `ConserveRotation` group).
+  - Mana Gem: fires when `maxMana > currentMana + gemRestore + regen` (3100 with Serpent-Coil Braid, 2500 without).
+  - Evocation: fires only when Arcane Power AND Icy Veins are inactive and mana < 20%.
+  - Presence of Mind: fires at end of AP window (AP remaining ≤ AB cast time) for one more instant AB.
+  - Fire Blast execute: fires when target TTD < AB cast time (instant > casting).
+  - Arcane Missiles: Clearcasting consumer ONLY — removed obsolete conserve filler role.
+
+- **Warlock Affliction — wowsims-aligned execute phase**
+  - Drain Soul: fires at target HP ≤ 5% (wowsims `remainingTimePercent <= 5%`) alongside existing shard capture.
+  - Shadowburn: new execute strategy at target HP ≤ 5%, above Shadow Bolt filler priority.
+
+### Technical
+- All 220 rotation + 13 leveling suites green.
+
+---
+
 ## [2.3.15] — Major-CD Window Rollout: Fury, Enhancement, Fire, BM, Shadow, Affliction (2026-07-05)
 
 ### Features
