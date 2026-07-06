@@ -43,6 +43,23 @@ All notable changes to the EAX TBC Classic Rotations project.
 
 ---
 
+## [2.3.21] — Balance Mana Gem + Feral/Ret Verification (2026-07-05)
+
+### Features
+- **Druid Balance — mana gem strategy**
+  - New ManaGem strategy fires when `maxMana > currentMana + 2400 + regen` (wowsims-aligned: `currentMana + 1500 < maxMana`).
+  - Serpent-Coil Braid-aware restore (3100 vs 2500).
+  - Placed before ManaPotion so gem fires first.
+
+### Verification
+- **Retribution Paladin**: seal twisting already implemented (`SealTwistBlood` + `SealTwistPrepCommand`) and matches wowsims APL concept.
+- **Feral Cat**: Rip/FB/Shred/Mangle/Powershift logic already matches wowsims APL; snapshot tricks exceed wowsims fidelity.
+
+### Technical
+- All 220 rotation + 13 leveling suites green.
+
+---
+
 ## [2.3.20] — Affliction Immolate Priority + Audit Updates (2026-07-05)
 
 ### Features
