@@ -23,6 +23,26 @@ All notable changes to the EAX TBC Classic Rotations project.
 
 ---
 
+## [2.3.17] — Hunter Viper/Hawk Thresholds + Aimed Shot Opener (2026-07-05)
+
+### Features
+
+- **Hunter (all specs) — wowsims-aligned Viper/Hawk thresholds**
+  - Aspect of the Viper: enters at 5% mana (was 20%).
+  - Aspect of the Hawk: recovers at 25% mana (was 30% or viper_threshold+10).
+  - Applies to Beast Mastery, Marksmanship, and Survival.
+  - Shared `aspect_manager_sylvanas.lua` defaults updated to match.
+
+- **Hunter Marksmanship — Aimed Shot opener**
+  - Fires Aimed Shot at ≤ 0.5s into combat when Serpent Sting is not active.
+  - Matches wowsims APL: `currentTime <= 0.5s` + `not dotIsActive(SerpentSting)`.
+  - Replaces the old hard-disable (`return false`) that never allowed in-combat Aimed Shot.
+
+### Technical
+- All 220 rotation + 13 leveling suites green.
+
+---
+
 ## [2.3.15] — Major-CD Window Rollout: Fury, Enhancement, Fire, BM, Shadow, Affliction (2026-07-05)
 
 ### Features
