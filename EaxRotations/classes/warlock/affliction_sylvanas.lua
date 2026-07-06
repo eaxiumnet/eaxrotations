@@ -615,6 +615,31 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
+    -- 5. Immolate (wowsims priority #5: after Siphon Life, before curses)
+    -- ------------------------------------------------------------------------
+    {
+        name = "ImmolateDoT",
+        matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            if (state.immolate_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            -- Skip if target TTD is very short
+            if context.ttd_known and context.ttd < 5 then return false end
+            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
+            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+            if (state.immolate_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_immolate_dmg or 0, state.immolate_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
+            -- DoT TTD gating
+            local ttd_threshold = (context.settings and context.settings.dot_ttd_threshold or 50) / 100
+            if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.immolate, ttd_threshold) then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Immolate, context.target) or false
+        end,
+        execute = function(context)
+            local ok = NS.try_cast(SPELLS.Immolate, context.target, "[AFFL] Immolate")
+            if ok and aff_state.spell_damage then aff_state.snapshot_immolate_dmg = aff_state.spell_damage end
+            return ok
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
     -- 8. Curse of Doom (long-lived PvE targets)
     -- ------------------------------------------------------------------------
     {
@@ -701,31 +726,6 @@ local strategies = {
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.DrainLife, context.target, "[AFFL] Drain Life sustain")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 9. Immolate (optional DoT, lower prio for Affliction)
-    -- ------------------------------------------------------------------------
-    {
-        name = "ImmolateDoT",
-        matches = function(context, state)
-            if not context.has_valid_enemy_target then return false end
-            if (state.immolate_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            -- Skip if target TTD is very short
-            if context.ttd_known and context.ttd < 5 then return false end
-            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
-            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
-            if (state.immolate_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_immolate_dmg or 0, state.immolate_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
-            -- DoT TTD gating
-            local ttd_threshold = (context.settings and context.settings.dot_ttd_threshold or 50) / 100
-            if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.immolate, ttd_threshold) then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Immolate, context.target) or false
-        end,
-        execute = function(context)
-            local ok = NS.try_cast(SPELLS.Immolate, context.target, "[AFFL] Immolate")
-            if ok and aff_state.spell_damage then aff_state.snapshot_immolate_dmg = aff_state.spell_damage end
-            return ok
         end,
     },
 

@@ -44,11 +44,10 @@
 - **Impact:** Auto-shot clipping, incorrect Steady Shot timing, missing melee weave opportunities
 - **File:** `EaxRotations/shared/hunter_core_sylvanas.lua`, `shared/shot_timer_sylvanas.lua`
 
-### P0: Missing Aimed Shot Pre-Pull / Opener
-- **Wowsims:** Pre-pull Aimed Shot at `<=0.5s` before combat start
-- **Our code:** No pre-pull Aimed Shot logic in any hunter spec
-- **Impact:** Loses significant opener DPS
-- **File:** All hunter specs
+### ✅ P0 FIXED: Aimed Shot Opener + Viper/Hawk Thresholds
+- **Wowsims:** Aimed Shot at `currentTime <= 0.5s`; Viper at 5% mana, Hawk at 25%
+- **Our code (FIXED):** MM in-combat Aimed Shot opener at ≤0.5s; all specs Viper enter 5%/exit 25%
+- **Commit:** `185eccdc` (v2.3.17)
 
 ### P1: Missing Kill Command (BM-specific)
 - **Wowsims:** Kill Command (34026) is high priority off-GCD
@@ -56,11 +55,10 @@
 - **Impact:** KC may fire suboptimally
 - **File:** `EaxRotations/classes/hunter/beast_mastery_sylvanas.lua:470`
 
-### P1: Viper/Hawk Swap Thresholds Off
+### ✅ P1 FIXED: Viper/Hawk Swap Thresholds
 - **Wowsims:** Viper at 5% mana, stop at 25%
-- **Our code:** Viper at `viper_mana_threshold or 20`, Hawk recovery at `+10`
-- **Impact:** May enter Viper too early or stay too long
-- **File:** `EaxRotations/classes/hunter/beast_mastery_sylvanas.lua:240`
+- **Our code (FIXED):** All 3 hunter specs now enter Viper at 5%, exit at 25%
+- **Commit:** `185eccdc` (v2.3.17)
 
 ### P1: Missing Aspect of the Hawk Pre-Pull
 - **Wowsims:** Aspect of the Hawk at `-20s`
@@ -78,11 +76,10 @@
 
 **Wowsims APL source:** `wowsims/tbc-new/ui/priest/dps/apls/default.apl.json`
 
-### P1: Shadowfiend Timing Not Optimal
-- **Wowsims:** Short fight (<120s) uses at start; long fight uses when dots active and VT remaining >= Shadowfiend GCD
-- **Our code:** Shadowfiend fires when `mana_pct < 40` or `combat_time > 30 and mana_low`
-- **Impact:** May miss optimal Shadowfiend windows
-- **File:** `EaxRotations/classes/priest/shadow_sylvanas.lua:580`
+### ✅ P1 FIXED: Shadowfiend Timing
+- **Wowsims:** Short fight (<120s) uses early; long fight when VT active and ≥1.5s remaining
+- **Our code (FIXED):** Short fight fires at ≤45% mana early; long fight requires VT active + ≥1.5s; emergency at <20%
+- **Commit:** `d8ce9b4a` (v2.3.18)
 
 ### P1: Missing Starshards for Night Elf
 - **Wowsims:** Starshards used as filler for Night Elf priests
@@ -100,11 +97,10 @@
 
 **Wowsims APL source:** `wowsims/tbc-new/ui/warlock/dps/apls/affliction.apl.json`
 
-### P0: Missing Drain Soul Execute (<5%)
-- **Wowsims:** Drain Soul at `remainingTimePercent <= 5%` (execute phase DPS)
-- **Our code:** Drain Soul only for shard capture (`ttd <= SOUL_SHARD_CAPTURE_TTD`, typically 3s)
-- **Impact:** Loses execute phase DPS; wowsims treats Drain Soul as a real DPS spell at <5%
-- **File:** `EaxRotations/classes/warlock/affliction_sylvanas.lua:780`
+### ✅ P0 FIXED: Drain Soul Execute (<5%) + Shadowburn Execute
+- **Wowsims:** Drain Soul at `remainingTimePercent <= 5%`; Shadowburn at `<=5%`
+- **Our code (FIXED):** Drain Soul now fires at target HP ≤ 5% alongside shard capture; Shadowburn execute added
+- **Commit:** `9491218b` (v2.3.16)
 
 ### P1: Missing Immolate Priority
 - **Wowsims:** Immolate is priority #3 (after curse and Corruption)
@@ -129,16 +125,10 @@
 
 **Wowsims APL source:** `wowsims/tbc-new/ui/mage/dps/apls/arcane.apl.json`
 
-### P0: Missing Burn/Conserve Rotation Logic
+### ✅ P0 FIXED: Burn/Conserve Rotation Logic
 - **Wowsims:** Complex mana management — Conserve Start at 20%, End at 30%, delay major CDs 10s
-- **Our code:** No conserve/burn phase logic; Arcane Blast spam with some Evocation gating
-- **Impact:** Major DPS loss — arcane mage is ALL about mana phases
-- **File:** `EaxRotations/classes/mage/arcane_sylvanas.lua`
-
-### P0: Missing Mana Gem Optimization
-- **Wowsims:** Mana Gem fires when `maxMana > currentMana + 2500/3100 + regen`
-- **Our code:** No mana gem logic
-- **Impact:** Significant mana sustain loss
+- **Our code (FIXED):** Full burn/conserve phase logic; Frostbolt conserve rotation at AB3 stacks; Mana Gem with Serpent-Coil Braid awareness
+- **Commit:** `c829ff0c` (v2.3.16)
 
 ### P1: Missing Cold Snap / Icy Veins Logic
 - **Wowsims:** Cold Snap if IV on CD and CS ready; IV fires when drums active and no BL, or BL active and no drums
@@ -178,11 +168,10 @@
 
 **Wowsims APL source:** `wowsims/tbc-new/ui/warrior/dps/apls/fury.apl.json`
 
-### P1: Missing Overpower Weaving
-- **Wowsims:** Complex stance dance — swap to Battle Stance when Overpower available, cast Overpower, swap back
-- **Our code:** No Overpower weaving
-- **Impact:** DPS loss on dodge procs
-- **File:** `EaxRotations/classes/warrior/fury_sylvanas.lua`
+### ✅ P1 FIXED: Overpower Weaving (opt-in)
+- **Wowsims:** Stance dance — swap to Battle Stance when Overpower proc + BT/WW on CD, cast Overpower, swap back
+- **Our code (FIXED):** Opt-in `fury_use_overpower` setting; fires when Delay Check passes (BT/WW ≥1.5s away), not execute phase, rage 5-100
+- **Commit:** `fd3f0760` (v2.3.19)
 
 ### P2: Missing Engineering Bombs
 - **Wowsims:** Engineering bombs in dedicated group
@@ -242,16 +231,17 @@
 
 ## Recommended Action Priority
 
-### Immediate (next session)
-1. **Arcane Mage**: Implement burn/conserve rotation with mana gem logic — this is the biggest P0 gap
-2. **Hunter (all specs)**: Implement Aimed Shot pre-pull and improve shot weave logic
-3. **Affliction Warlock**: Add Drain Soul execute at <5% target HP
+### ✅ Completed (2026-07-05)
+1. ~~**Arcane Mage**: Implement burn/conserve rotation with mana gem logic~~ — DONE (v2.3.16)
+2. ~~**Hunter (all specs)**: Implement Aimed Shot pre-pull and improve shot weave logic~~ — DONE (v2.3.17, Viper/Hawk + Aimed Shot opener)
+3. ~~**Affliction Warlock**: Add Drain Soul execute at <5% target HP~~ — DONE (v2.3.16)
+4. ~~**Shadow Priest**: Optimize Shadowfiend timing per wowsims~~ — DONE (v2.3.18)
+5. ~~**Fury Warrior**: Add Overpower weaving stance dance~~ — DONE (v2.3.19, opt-in)
+6. ~~**Fire Mage**: Ensure Combustion always fires after 5-stack Scorch~~ — DONE (already implemented in v2.3.15)
 
-### Short-term (next 2-3 sessions)
-4. **Shadow Priest**: Optimize Shadowfiend timing per wowsims
-5. **Fury Warrior**: Add Overpower weaving stance dance
-6. **Fire Mage**: Ensure Combustion always fires after 5-stack Scorch
-7. **Ret Paladin**: Investigate seal twisting implementation
+### Short-term (next session)
+7. **Affliction Warlock**: Raise Immolate priority from #9 to #3 (wowsims-aligned)
+8. **Ret Paladin**: Investigate seal twisting implementation
 
 ### Medium-term
 8. **Hunter**: Full shot-weave overhaul with auto-shot buffer calculations
