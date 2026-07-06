@@ -30,14 +30,15 @@ Priority shared modules that affect every spec:
 - [ ] Dungeon/raid boss mechanic triggers (e.g., freeze on Gluth, shackles on Rage Winterchill).
 
 ## Phase 3 — Per-spec fidelity pass (wowsims APL-aligned)
-- [x] Arcane Mage — burn/conserve rotation with Frostbolt conserve, wowsims mana gem logic, PoM at AP end.
-- [x] Affliction Warlock — Drain Soul execute at <5% HP, Shadowburn execute.
-- [ ] Hunter (all specs) — shot weave overhaul, Aimed Shot pre-pull.
-- [ ] Shadow Priest — Shadowfiend timing optimization, Starshards for Night Elf.
+- [x] Arcane Mage — burn/conserve rotation with Frostbolt conserve, wowsims mana gem logic, PoM at AP end. (v2.3.16)
+- [x] Affliction Warlock — Drain Soul execute at <5% HP, Shadowburn execute; Immolate moved to wowsims priority #5. (v2.3.16, v2.3.19)
+- [x] Hunter (all specs) — Viper/Hawk thresholds aligned to wowsims (5%/25%); MM Aimed Shot opener at ≤0.5s combat time. (v2.3.17)
+- [x] Shadow Priest — Shadowfiend timing optimized per wowsims; Starshards moved above Mind Flay filler (was dead code). (v2.3.18, v2.3.19)
+- [x] Fury Warrior — Overpower weaving stance dance (opt-in, wowsims "Overpower Weaving" group). (v2.3.19)
+- [x] Fire Mage — Combustion already gates on 5-stack Scorch (verified, v2.3.15).
 - [ ] Feral Cat — Berserk/TF optimization.
 - [ ] Retribution Paladin — seal twisting investigation.
-- [ ] Fury Warrior — Overpower weaving stance dance.
-- [ ] Fire Mage — Combustion after 5-stack Scorch guarantee.
+- [ ] Hunter — full shot-weave overhaul with auto-shot buffer calculations (complex, multi-session).
 - [ ] Tier 2: Protection Paladin/Warrior, Resto Shaman/Druid/Priest, Holy Paladin/Priest, Balance.
 - [ ] Tier 3: remaining specs and leveling rotations.
 
@@ -48,6 +49,17 @@ Priority shared modules that affect every spec:
 - [ ] Compare output against wowsims hundreds-of-thousands iteration APL where possible.
 
 ## Done when
-- 220 rotation + 13 leveling suites green.
+- 220 rotation + 13 leveling suites green. ✅ (current)
 - Every spec has a docstring citing its sources.
 - No known APL violations from wowsims/SimC/class guides.
+
+## Session Log — 2026-07-05 (Phase 3 wowsims alignment)
+All 11 audited specs now have their P0 gaps closed. Commits this session:
+- `efed494e` docs: wowsims APL comparison audit
+- `c829ff0c` feat(arcane): wowsims burn/conserve + Frostbolt conserve
+- `9491218b` feat(affliction): Drain Soul + Shadowburn execute
+- `185eccdc` feat(hunter): Viper/Hawk 5%/25% + Aimed Shot opener
+- `d8ce9b4a` feat(shadow): wowsims Shadowfiend timing
+- `fd3f0760` feat(fury): Overpower weaving (opt-in)
+- `fd9eced5` feat(affliction): Immolate priority #5
+- `cc9332ac` feat(shadow): Starshards above Mind Flay (was dead code)
