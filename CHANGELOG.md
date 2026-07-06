@@ -60,6 +60,23 @@ All notable changes to the EAX TBC Classic Rotations project.
 
 ---
 
+## [2.3.22] — Balance Nuke Fix + Cat Powershift Threshold (2026-07-05)
+
+### Features
+- **Druid Balance — Starfire is now the primary nuke (was Wrath)**
+  - Wowsims APL defaults to Starfire (higher DPCT); Wrath is mana-conservation only.
+  - Wrath now only fires when mana < `balance_starfire_mana` floor (default 40%).
+  - Nature's Grace proc still forces Starfire for burst.
+- **Druid Feral Cat — Powershift energy threshold raised from 20 to 25**
+  - Wowsims APL powershifts at ≤30 energy; our default was 20 (conservative).
+  - New default of 25 is a middle ground that's closer to wowsims without risking
+    excessive mana burn on live (configurable via `cat_powershift_energy`).
+
+### Technical
+- All 220 rotation + 13 leveling suites green.
+
+---
+
 ## [2.3.20] — Affliction Immolate Priority + Audit Updates (2026-07-05)
 
 ### Features
