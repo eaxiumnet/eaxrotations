@@ -510,7 +510,8 @@ function build_state(context)
     state.pooling = state.should_pool_for_rip or state.should_pool_for_shred
     state.should_powershift = false
     if NS.setting_bool(settings, "cat_powershift_enabled", true) and state.is_cat and state.in_combat then
-        local shift_energy = NS.setting_number(settings, "cat_powershift_energy", 20)
+        -- Wowsims-aligned: powershift at <=25 energy (APL uses <=30; 25 is conservative for live play)
+        local shift_energy = NS.setting_number(settings, "cat_powershift_energy", 25)
         local shift_gain = state.has_wolfshead and POWERSHIFT_GAIN_WOLFSHEAD or POWERSHIFT_GAIN_FUROR
         local useful_after = (state.energy or 0) + shift_gain >= math.min(ENERGY_CAP, SHRED_COST)
         state.should_powershift = state.energy <= shift_energy and state.combo_points <= POWERSHIFT_SAFE_CP and state.mana_pct >= POWERSHIFT_MIN_MANA and useful_after
