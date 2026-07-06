@@ -168,12 +168,15 @@ local function _mana_now(s, ctx) return s.mana_pct or ctx.mana or ctx.mana_pct o
 
 local function _choose_nuke(s, ctx)
     local settings = ctx.settings
-    local mana_floor = (settings and settings.balance_starfire_mana) or 40
     local m = _mana_now(s, ctx)
-    if m < mana_floor then return "wrath" end
-    -- Nature's Grace active: Starfire for burst; otherwise Wrath for mana efficiency.
+    -- Nature's Grace active: Starfire for burst (NG reduces cast time).
     if s.natures_grace_active then return "starfire" end
-    return "wrath"
+    -- Mana conservation: Wrath has higher DPM (damage per mana) than Starfire.
+    -- Wowsims defaults to Starfire (higher DPCT) and uses Wrath only for long fights.
+    local mana_floor = (settings and settings.balance_wrath_mana) or 35
+    if m < mana_floor then return "wrath" end
+    -- Default nuke: Starfire (higher DPCT — wowsims-aligned).
+    return "starfire"
 end
 
 local strategies = {
@@ -360,7 +363,9 @@ local strategies = {
             if ctx.is_moving then return false end
             if not ctx.has_valid_enemy_target then return false end
             if (s.mana_pct or 100) < 15 then return false end
-            if _choose_nuke(s, ctx) ~= "starfire" then return false end
+            -- Starfire is the primary nuke (higher DPCT than Wrath).
+            -- Wrath is only used for mana conservation (see WrathFiller).
+            if _choose_nuke(s, ctx) == "wrath" then return false end
             return NS.action_matches(ctx, _ACT_SF)
         end,
         execute=function(ctx) return NS.action_execute(ctx, _ACT_SF, "[BALANCE]") end,
@@ -371,6 +376,9 @@ local strategies = {
             if ctx.is_moving then return false end
             if not ctx.has_valid_enemy_target then return false end
             if (s.mana_pct or 100) < 10 then return false end
+            -- Wrath is a mana-conservation filler (lower DPCT but cheaper).
+            -- Only used when _choose_nuke says wrath (low mana or long fight conservation).
+            if _choose_nuke(s, ctx) ~= "wrath" then return false end
             return NS.action_matches(ctx, _ACT_WR)
         end,
         execute=function(ctx) return NS.action_execute(ctx, _ACT_WR, "[BALANCE]") end,

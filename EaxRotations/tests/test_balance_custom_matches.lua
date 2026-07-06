@@ -261,19 +261,25 @@ local ctx_wr_move = {
 assert_false(wrath.matches(ctx_wr_move, {}), "Wrath should not match when moving")
 assert_eq(#action_calls, 0, "action_matches should not be called when moving")
 
--- Not moving -> should match
+-- Not moving + mana conservation (mana < floor) -> should match
 action_calls = {}
 local ctx_wr_ok = {
     is_moving = false,
     target = {},
     has_valid_enemy_target = true,
+    settings = { balance_starfire_mana = 40 },
 }
-assert_true(wrath.matches(ctx_wr_ok, {}), "Wrath should match when not moving")
+-- Low mana triggers Wrath as mana-conservation nuke
+assert_true(wrath.matches(ctx_wr_ok, { mana_pct = 30 }), "Wrath should match when not moving and mana conservation active")
 
 action_calls = {}
-assert_true(wrath.execute(ctx_wr_ok, {}), "Wrath execute should call try_cast")
+assert_true(wrath.execute(ctx_wr_ok, { mana_pct = 30 }), "Wrath execute should call try_cast")
 assert_eq(#action_calls, 1, "Wrath execute should call try_cast once")
 assert_eq(action_calls[1].spell, "Wrath", "Wrath execute should pass the Wrath spell")
+
+-- High mana -> Wrath should NOT match (Starfire is the default nuke)
+action_calls = {}
+assert_false(wrath.matches(ctx_wr_ok, { mana_pct = 80 }), "Wrath should not match when mana is high (Starfire default)")
 
 -- ============================================================================
 -- Hurricane: only when not moving and 3+ enemies
