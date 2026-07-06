@@ -117,6 +117,11 @@ return {
                     { key = "destro_immolate_min_sp", type = "slider", label = "Immolate Min SP", min = 0, max = 2000, default = 400 },
                     { key = "destro_shadowburn_hp", type = "slider", label = "Shadowburn HP %", min = 0, max = 100, default = 20 },
                     { key = "destro_mana_gem_threshold", type = "slider", label = "Mana Gem at %", min = 0, max = 100, default = 35 },
+                    { key = "destro_pet_preference", type = "dropdown", label = "Pet / Sac Preference", default = "auto", options = {
+                        { text = "Auto (Succubus shadow, Imp fire)", value = "auto" },
+                        { text = "Succubus (Shadow build)", value = "succubus" },
+                        { text = "Imp (Fire build)", value = "imp" },
+                    }, tooltip = "Which pet to summon then Demonic Sacrifice. Succubus = +15% Shadow, Imp = +15% Fire." },
                 },
             },
         },

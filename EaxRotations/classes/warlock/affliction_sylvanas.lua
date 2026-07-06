@@ -384,7 +384,7 @@ local function select_curse(context, state)
     end
     if (state.enemy_count or 0) >= 3 then return "elements" end  -- AoE benefit
     -- In raids: prefer Shadow for Affliction (Shadow damage), Elements for Destruction
-    if context.is_group and context.is_affliction then return "shadow" end
+    if context.is_group and context.active_playstyle == "affliction" then return "shadow" end
     return "agony"  -- default: damage
 end
 
