@@ -78,7 +78,7 @@ local function check(path)
     assert_true(hawk.matches({ settings = {} }, { has_aspect_hawk = false, call_pet_ready = false, aspect_mode = "auto", mana_pct = 30 }), path .. " hawk should not require Call Pet")
 
     action_calls = 0
-    assert_true(viper.matches({ settings = {} }, { has_aspect_viper = false, mana_pct = 20, call_pet_ready = false, aspect_mode = "auto" }), path .. " viper should not require Call Pet")
+    assert_true(viper.matches({ settings = {} }, { has_aspect_viper = false, mana_pct = 3, call_pet_ready = false, aspect_mode = "auto" }), path .. " viper should not require Call Pet")
 
     action_calls = 0
     if leveling_arcane then

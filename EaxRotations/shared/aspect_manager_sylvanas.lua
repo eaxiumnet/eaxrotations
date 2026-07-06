@@ -11,31 +11,30 @@ if not NS then return {} end
 local M = {}
 
 --- Should we switch to Aspect of the Hawk?
--- In combat with mana above viper threshold.
+-- Wowsims-aligned: exit Viper at 25% (was viper_threshold + 10).
 --
 -- @param state               table  Hunter state table
--- @param viper_threshold     number Mana % below which Viper is desired (default 20)
+-- @param viper_exit_threshold number Mana % above which Hawk is desired (default 25)
 -- @return boolean
-function M.should_hawk(state, viper_threshold)
-    viper_threshold = viper_threshold or 20
+function M.should_hawk(state, viper_exit_threshold)
+    viper_exit_threshold = viper_exit_threshold or 25
     if not state then return false end
     if state.has_aspect_hawk then return false end
     -- Don't switch from Viper to Hawk until mana has recovered
     if state.has_aspect_viper then
-        local recover_threshold = viper_threshold + 10
-        if (state.mana_pct or 100) <= recover_threshold then return false end
+        if (state.mana_pct or 100) <= viper_exit_threshold then return false end
     end
     return true
 end
 
 --- Should we switch to Aspect of the Viper?
--- In combat with mana below threshold.
+-- Wowsims-aligned: enter Viper at 5% (was 20).
 --
 -- @param state               table  Hunter state table
--- @param viper_threshold     number Mana % below which Viper is desired (default 20)
+-- @param viper_threshold     number Mana % below which Viper is desired (default 5)
 -- @return boolean
 function M.should_viper(state, viper_threshold)
-    viper_threshold = viper_threshold or 20
+    viper_threshold = viper_threshold or 5
     if not state then return false end
     if state.has_aspect_viper then return false end
     if (state.mana_pct or 100) > viper_threshold then return false end

@@ -257,6 +257,10 @@ end
 
 local function aspect_hawk_matches(context, s)
     if s.has_aspect_hawk then return false end
+    -- Wowsims-aligned: exit Viper at 25%
+    if s.has_aspect_viper then
+        if (s.mana_pct or 100) <= 25 then return false end
+    end
     -- Throttle: prevent thrashing due to WoW API buff detection delay
     if (NS.time_now() - _last_aspect_hawk_cast) < 3 then return false end
     return true
@@ -264,7 +268,8 @@ end
 
 local function aspect_viper_matches(context, s)
     if s.has_aspect_viper then return false end
-    if (s.mana_pct or 100) > 20 then return false end
+    -- Wowsims-aligned: enter Viper at 5%
+    if (s.mana_pct or 100) > 5 then return false end
     return true
 end
 

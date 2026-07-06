@@ -252,9 +252,9 @@ end
 
 local function aspect_hawk_matches(context, s)
     if s.has_aspect_hawk then return false end
-    -- Only switch from Viper to Hawk when mana has recovered above viper_end threshold
+    -- Wowsims-aligned: exit Viper at 25% (enter at 5% via aspect_viper_matches)
     if s.has_aspect_viper then
-        local viper_end = (context.settings and context.settings.mana_viper_end) or 30
+        local viper_end = (context.settings and context.settings.mana_viper_end) or 25
         if (s.mana_pct or 100) <= viper_end then return false end
     end
     -- Throttle: prevent thrashing due to WoW API buff detection delay
@@ -264,7 +264,8 @@ end
 
 local function aspect_viper_matches(context, s)
     if s.has_aspect_viper then return false end
-    if (s.mana_pct or 100) > 30 then return false end
+    -- Wowsims-aligned: enter Viper at 5%
+    if (s.mana_pct or 100) > 5 then return false end
     return true
 end
 
@@ -296,9 +297,14 @@ local function freezing_trap_matches(context, s)
 end
 
 local function in_combat_aimed_shot_matches(context, s)
-    -- Aimed Shot resets the auto-shot timer in TBC, so it is only used as a
-    -- pre-pull opener (see AimedShotPrepull). Using it in combat is a DPS loss.
-    return false
+    -- Wowsims-aligned: Aimed Shot opener at <= 0.5s into combat when Serpent Sting not active.
+    -- At combat start the auto-shot timer hasn't fired yet, so Aimed Shot doesn't clip.
+    local combat_time = context.combat_time or 0
+    if combat_time > 0.5 then return false end
+    if not s.aimed_shot_ready then return false end
+    if s.has_serpent_sting then return false end
+    if not can_cast_before_auto(AIMED_SHOT_CAST_MS) then return false end
+    return true
 end
 
 local function viper_sting_matches(context, s)
