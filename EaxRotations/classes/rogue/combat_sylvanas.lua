@@ -259,6 +259,8 @@ local function adrenaline_rush_wrapper(context, s)
     if not s.in_combat then return false end
     if s.has_adrenaline_rush then return false end
     if not s.adrenaline_rush_ready then return false end
+    -- Wowsims: fire AR at <=40 energy (when energy is actually needed, not at cap)
+    if (s.energy or 100) > 40 then return false end
     -- Optimal: USE AR during Heroism for maximum combo point generation
     -- Setting defaults to false (use during Heroism) — override via combat_adrenaline_rush_heroism=true to delay
     local delay_during_heroism = context.settings and context.settings.combat_adrenaline_rush_heroism == true
@@ -272,6 +274,8 @@ local function blade_flurry_wrapper(context, s)
     if not s.in_combat then return false end
     if s.has_blade_flurry then return false end
     if not s.blade_flurry_ready then return false end
+    -- Wowsims APL: Blade Flurry requires Slice and Dice active (don't waste BF time without attack speed buff)
+    if not s.has_snd then return false end
     -- TBC Blade Flurry is also a single-target DPS cooldown due to attack speed.
     local min_targets = (context.settings and context.settings.combat_blade_flurry_count) or 1
     if (s.target_count or 0) < min_targets then return false end
