@@ -80,7 +80,12 @@ local demo_state = {
     target_hp_pct = 100,
 }
 
+local _last_build_state_time = -1
 local function build_state(context)
+    -- Pattern 6: frame-keyed dedup
+    local now = context.now or (NS.time_now and NS.time_now() or 0)
+    if now == _last_build_state_time then return demo_state end
+    if context.now then _last_build_state_time = now end
     local me = context.me or NS.GetPlayer()
     local target = context.target
 

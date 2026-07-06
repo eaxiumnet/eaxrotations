@@ -74,8 +74,13 @@ end
 -- State builder
 -- ============================================================================
 
+local _last_build_state_time = -1
 local function build_state(context)
     if not context then return nil end
+    -- Pattern 6: frame-keyed dedup
+    local now = context.now or (NS.time_now and NS.time_now() or 0)
+    if now == _last_build_state_time then return leveling_state end
+    if context.now then _last_build_state_time = now end
     local settings = context.settings or EMPTY_SETTINGS
     local me = context.me
     local pet = context.pet

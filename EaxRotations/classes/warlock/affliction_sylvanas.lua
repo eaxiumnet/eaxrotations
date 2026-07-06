@@ -71,11 +71,24 @@ end
 
 --- Find a target missing the specified DoT using IZI spread_dot.
 --- Safety: skips CC'd targets, unengaged patrols, and dying adds (< 20% HP).
+--- Perf: results cached per-tick keyed by spell_id (Pattern 4: no redundant scans).
+---       3 spread strategies × 2 calls each (matches+execute) = 6 scans → 3 max.
 ---@param spell_id number DoT spell ID to check
 ---@param radius number|nil Search radius (default 40)
 ---@return game_object|nil target Missing the DoT, or nil
+local _dot_target_cache = {}     -- [spell_id] = target|false
+local _dot_target_cache_tick = -1
 local function find_dot_target(spell_id, radius)
     if not _izi then return nil end
+    -- Per-tick cache: avoid re-scanning the same enemy list for the same debuff
+    local now = NS.time_now and NS.time_now() or 0
+    if now ~= _dot_target_cache_tick then
+        _dot_target_cache = {}
+        _dot_target_cache_tick = now
+    end
+    if _dot_target_cache[spell_id] ~= nil then
+        return _dot_target_cache[spell_id] or nil  -- false→nil
+    end
     local me = NS.GetPlayer and NS.GetPlayer() or nil
     local ok, target = pcall(_izi.spread_dot, spell_id, radius or 40, 1, false, function(unit)
         if not unit then return false end
@@ -88,8 +101,9 @@ local function find_dot_target(spell_id, radius)
         if ok_hp and hp and hp < 20 then return false end
         return true
     end)
-    if ok and target then return target end
-    return nil
+    local result = (ok and target) or nil
+    _dot_target_cache[spell_id] = result or false  -- cache nil as false
+    return result
 end
 
 -- ============================================================================
@@ -208,7 +222,12 @@ local aff_state = {
     enemy_count = 1,
 }
 
+local _last_build_state_time = -1
 local function build_state(context)
+    -- Pattern 6: frame-keyed dedup — skip rebuild if already built this frame
+    local now = context.now or (NS.time_now and NS.time_now() or 0)
+    if now == _last_build_state_time then return aff_state end
+    if context.now then _last_build_state_time = now end
     local target = context.target
     if target then
         aff_state.ua_remains = NS.debuff_remains and NS.debuff_remains(target, UNSTABLE_AFFL_DEBUFF) or 0
