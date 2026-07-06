@@ -1,7 +1,8 @@
 -- arcane_sylvanas.lua -- Mage Arcane rotation for TBC Anniversary (2.5.5).
--- WHAT:  burst/conserve DPS spec (Arcane Blast stacking, AP+PoM, Clearcasting AM).
+-- WHAT:  burst/conserve DPS spec (AB stacking, AP+PoM, wowsims-aligned burn/conserve).
 -- WHEN:  combat, with valid enemy target.
--- WHY:   mirrors wowsims APL: AB spam > AM (Clearcasting) > Fire Blast (moving).
+-- WHY:   mirrors wowsims APL: ConserveRotation (AB3->Frostbolt), ManaGem at mana gap,
+--         Evocation when AP+IV inactive & mana<20%, PoM at end of AP window.
 -- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -33,16 +34,21 @@ local AB_BASE_CAST_TIME = 2.5               -- Base cast time (seconds)
 local AB_CAST_REDUCTION_PER_STACK = 0.1     -- Each stack: -0.1s cast time
 local AB_STACK_DURATION = 8                 -- Stacks last 8 seconds
 
--- MTTE constants (conservative estimates including Fire Blast / AM filler)
+-- MTTE constants (conservative estimates including Fire Blast / Frostbolt filler)
 local MTTE_BURN_MPS_MULT = 1.4              -- Add 40% overhead for rotations with instant casts
-local MTTE_CONSERVE_MPS = 100               -- ~100 mana/sec during conserve (AM filler + regen)
+local MTTE_CONSERVE_MPS = 80                -- ~80 mana/sec during conserve (Frostbolt filler + regen)
+
+-- Wowsims APL-aligned thresholds
+local CONSERVE_START_PCT = 20               -- Enter conserve at 20% mana
+local CONSERVE_END_PCT = 30                 -- Exit conserve at 30% mana
+local DELAY_MAJOR_CDS_S = 10                -- Delay major CDs 10s into combat
 
 -- Bloodlust / Heroism buff IDs
 local BLOODLUST_BUFFS = { 2825, 32182 }
 
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 } -- Emerald, Ruby, Citrine, Jade, Agate.
 
--- Phases
+-- Phases (wowsims-aligned: burn = AB spam; conserve = AB3->Frostbolt)
 local PHASE_BURN = "burn"
 local PHASE_CONSERVE = "conserve"
 local PHASE_EMERGENCY = "emergency"
@@ -86,6 +92,9 @@ local arcane_state = {
     can_burn = false,
     should_conserve = false,
     healthstone_ready = 0,
+    current_mana = 15000,
+    mana_regen = 0,
+    has_serpent_coil = false,  -- Serpent-Coil Braid (37445) for mana gem optimization
 }
 
 -- ============================================================================
@@ -161,6 +170,7 @@ local function build_state(context)
     s.in_combat = context.in_combat or false
     s.is_moving = context.is_moving or false
     s.target_casting = context.target and context.target.is_casting and context.target:is_casting() or false
+    s.combat_time = context.combat_time or 0
 
     if me then
         -- Actual max mana for realistic MTTE. Use documented Sylvanas API get_max_power.
@@ -185,8 +195,20 @@ local function build_state(context)
         s.has_ice_barrier = NS.buff_up and NS.buff_up(me, ICE_BARRIER_BUFF) or false
         s.has_mana_shield = NS.buff_up and NS.buff_up(me, MANA_SHIELD_BUFF) or false
         s.bloodlust_active = NS.buff_up and NS.buff_up(me, BLOODLUST_BUFFS) or false
+        s.has_serpent_coil = NS.buff_up and NS.buff_up(me, {37445}) or false
         s.icy_veins_remains = NS.cooldown_remains and NS.cooldown_remains(SPELLS.IcyVeins) or 0
         s.cold_snap_remains = NS.cooldown_remains and NS.cooldown_remains(SPELLS.ColdSnap) or 0
+        -- Current mana for gem optimization
+        s.current_mana = 0
+        if me.get_power and type(me.get_power) == "function" then
+            local ok, val = pcall(me.get_power, me, NS.POWER_MANA or 0)
+            if ok and type(val) == "number" then s.current_mana = val end
+        end
+        s.mana_regen = 0
+        if me.get_power_regen and type(me.get_power_regen) == "function" then
+            local ok, val = pcall(me.get_power_regen, me, NS.POWER_MANA or 0)
+            if ok and type(val) == "number" then s.mana_regen = val end
+        end
     end
 
     -- Cooldown availability
@@ -201,10 +223,9 @@ local function build_state(context)
     s.mtte_burn = calc_mtte(s.mana_pct, math.max(cur_stacks, 2), s.max_mana)
     s.mtte_conserve = calc_mtte(s.mana_pct, 0, s.max_mana)
 
-    -- Phase decision
+    -- Wowsims APL-aligned phase decision
+    -- Conserve Start = 20%, Conserve End = 30%, Delay Major CDs = 10s
     local burn_enabled = get_setting_bool(context, "arcane_use_burn", true)
-    local burn_threshold = get_setting_num(context, "arcane_burn_mana_threshold", 65)
-    local conserve_threshold = get_setting_num(context, "arcane_conserve_mana_threshold", 25)
     local min_mtte = get_setting_num(context, "arcane_mtte_min", 12)
     s.min_mtte = min_mtte
 
@@ -216,38 +237,34 @@ local function build_state(context)
         return s
     end
 
-    -- Determine if we can sustain a burn phase
+    -- Determine if we can sustain a burn phase (wowsims: AvailableMana >= BurnManaNeeded)
+    local available_mana = s.current_mana + (s.mana_regen + 49) * ((context.ttd or 180) / 2)
+    local burn_mana_needed = 760 * ((context.ttd or 180) / 1.5)
     s.can_burn = burn_enabled
-        and s.mana_pct >= burn_threshold
-        and s.mtte_burn >= min_mtte
+        and s.mana_pct >= CONSERVE_START_PCT + 10  -- ~30% to start burn
+        and available_mana >= burn_mana_needed
         and not s.has_arcane_power  -- don't re-evaluate mid-burn CD
 
-    -- If bloodlust is active and we have enough mana, always burn
-    if s.bloodlust_active and s.mana_pct >= burn_threshold * 0.8 then
+    -- Bloodlust overrides: burn while BL is up with sufficient mana
+    if s.bloodlust_active and s.mana_pct >= CONSERVE_START_PCT then
         s.can_burn = true
     end
 
-    -- Determine if we should conserve (low mana or poor MTTE)
-    s.should_conserve = s.mana_pct <= conserve_threshold
+    -- Determine if we should conserve (wowsims: currentManaPercent <= Conserve Start)
+    s.should_conserve = s.mana_pct <= CONSERVE_START_PCT
         or s.mtte_burn < 5
+        or (s.phase == PHASE_CONSERVE and s.mana_pct < CONSERVE_END_PCT)
 
-    -- Phase transition logic
-    if s.can_burn and s.phase ~= PHASE_BURN and not s.should_conserve then
-        -- Enter burn: high mana, good MTTE, not currently conserving
-        if s.mana_pct >= burn_threshold then
-            s.phase = PHASE_BURN
-        end
-    elseif s.should_conserve then
-        -- Enter conserve: low mana or poor MTTE
+    -- Phase transition logic (wowsims-aligned)
+    if s.should_conserve then
         s.phase = PHASE_CONSERVE
-    elseif s.phase == PHASE_BURN and (s.mana_pct or 100) < conserve_threshold then
-        -- Mana depleted during burn, switch to conserve
-        s.phase = PHASE_CONSERVE
-    elseif s.phase == PHASE_BURN and not s.can_burn and (s.mana_pct or 100) < burn_threshold then
-        -- Can't sustain burn anymore
-        s.phase = PHASE_CONSERVE
+    elseif s.can_burn then
+        s.phase = PHASE_BURN
     elseif s.phase ~= PHASE_BURN and s.phase ~= PHASE_CONSERVE then
-        -- Default to conserve
+        s.phase = PHASE_CONSERVE
+    end
+    -- Once in burn, stay in burn until we drop below conserve threshold
+    if s.phase == PHASE_BURN and s.mana_pct <= CONSERVE_START_PCT then
         s.phase = PHASE_CONSERVE
     end
 
@@ -302,14 +319,22 @@ local function frost_nova_matches(context, s)
     return true
 end
 
---- Presence of Mind: use as burst opener synced with Arcane Power.
---- Optimal combo: AP (if available) -> PoM -> AB (instant). Fire PoM when AP is
---- already active or on CD so we don't waste PoM without the damage multiplier.
+--- Presence of Mind: wowsims-aligned — fire at end of AP window.
+-- APL: cast PoM when AP remaining time <= AB cast time ( squeeze one more instant AB )
+-- Also use as burst opener synced with Arcane Power.
 local function pom_matches(context, s)
     if s.has_presence_of_mind then return false end
     if not s.in_combat then return false end
     if not get_setting_bool(context, "use_cooldowns", true) then return false end
-    -- Only use PoM during burn phase or bloodlust
+    -- Wowsims: PoM when AP is active and about to expire (<= AB cast time remaining)
+    if s.has_arcane_power then
+        local ab_cast_time = math.max(1.0, AB_BASE_CAST_TIME - AB_CAST_REDUCTION_PER_STACK * (s.ab_stacks or 0))
+        local ap_remains = NS.buff_remains and NS.buff_remains(context.me, ARCANE_POWER_BUFF) or 0
+        if ap_remains > 0 and ap_remains <= ab_cast_time then
+            return true
+        end
+    end
+    -- Fallback: use PoM during burn phase or bloodlust
     if s.phase ~= PHASE_BURN and not s.bloodlust_active then return false end
     -- Sync with AP: fire PoM only when AP is already active or on cooldown
     local ap_active = s.has_arcane_power or false
@@ -342,13 +367,19 @@ local function arcane_power_matches(context, s)
     return true
 end
 
---- Evocation: mana recovery during conserve/emergency
+--- Evocation: wowsims-aligned — fire when AP and IV are inactive and mana < Conserve Start (20%).
 local function evocation_matches(context, s)
     if not s.in_combat then return false end
     if not get_setting_bool(context, "use_evocation", true) then return false end
     if not s.evocation_available then return false end
     local evo_mana = get_setting_num(context, "arcane_evocation_mana", 20)
-    -- Emergency: very low mana
+    -- Wowsims: Evocation when AP inactive, IV inactive, and mana < Conserve Start
+    local ap_inactive = not s.has_arcane_power
+    local iv_inactive = (s.icy_veins_remains or 0) <= 0
+    if ap_inactive and iv_inactive and (s.mana_pct or 100) <= CONSERVE_START_PCT then
+        return true
+    end
+    -- Emergency fallback: very low mana
     if (s.mana_pct or 100) <= evo_mana then
         return true
     end
@@ -359,23 +390,29 @@ local function evocation_matches(context, s)
     return false
 end
 
---- Mana Gem: use proactively during burn when mana is dropping
+--- Mana Gem: wowsims-aligned — fire when mana gap exceeds gem restore amount.
+-- With Serpent-Coil Braid: maxMana > currentMana + 3100 + regen
+-- Without: maxMana > currentMana + 2500 + regen
 local function mana_gem_matches(context, s)
     if not get_setting_bool(context, "use_mana_gem", true) then return false end
     if not s.mana_gem_available then return false end
-    local gem_mana = get_setting_num(context, "arcane_mana_gem_mana", 55)
-    -- Use during burn when mana drops below threshold
-    if s.phase == PHASE_BURN and (s.mana_pct or 100) <= gem_mana then
+    local gem_restore = s.has_serpent_coil and 3100 or 2500
+    local current_mana = s.current_mana or (s.max_mana or 15000) * (s.mana_pct or 100) / 100
+    local max_mana = s.max_mana or 15000
+    local threshold = current_mana + gem_restore + (s.mana_regen or 0)
+    if max_mana > threshold then
         return true
     end
-    -- Use during conserve to speed up recovery
-    if s.phase == PHASE_CONSERVE and (s.mana_pct or 100) <= 35 then
+    -- Fallback: old threshold for backward compat
+    local gem_mana = get_setting_num(context, "arcane_mana_gem_mana", 55)
+    if (s.mana_pct or 100) <= gem_mana then
         return true
     end
     return false
 end
 
---- Arcane Blast: primary nuke, stack management per phase
+--- Arcane Blast: primary nuke, stack management per phase.
+-- Wowsims conserve: build to 3 stacks, then Frostbolt to maintain buff without high mana cost.
 local function arcane_blast_matches(context, s)
     if s.is_moving then return false end
     if not context.target then return false end
@@ -385,13 +422,21 @@ local function arcane_blast_matches(context, s)
     if s.phase == PHASE_BURN then
         max_stacks = get_setting_num(context, "arcane_burn_max_stacks", 4)
     else
-        max_stacks = get_setting_num(context, "arcane_conserve_max_stacks", 0)
+        max_stacks = get_setting_num(context, "arcane_conserve_max_stacks", 3)
         -- Emergency: always 0 stacks
         if s.phase == PHASE_EMERGENCY then max_stacks = 0 end
     end
 
     -- Zero-stack mode: never cast AB
     if max_stacks == 0 then return false end
+
+    -- Conserve rotation: at 3 stacks with AB buff time > cast time, skip AB (Frostbolt fills)
+    if s.phase == PHASE_CONSERVE and (s.ab_stacks or 0) >= 3 then
+        local ab_cast_time = math.max(1.0, AB_BASE_CAST_TIME - AB_CAST_REDUCTION_PER_STACK * 3)
+        if (s.ab_remains or 0) > ab_cast_time then
+            return false  -- Let Frostbolt maintain the buff
+        end
+    end
 
     -- If we're already at max stacks for our phase, only cast AB to maintain them
     if (s.ab_stacks or 0) >= max_stacks then
@@ -425,7 +470,7 @@ local function fire_blast_matches(context, s)
     return true
 end
 
---- Arcane Missiles: filler that doesn't stack AB
+--- Arcane Missiles: Clearcasting consumer only (wowsims does not use AM as filler).
 local function arcane_missiles_matches(context, s)
     if context.is_channeling then return false end
     if s.is_moving then return false end
@@ -434,20 +479,34 @@ local function arcane_missiles_matches(context, s)
     -- Clearcasting: always consume free AM casts (per research Angle 5)
     if s.has_clearcasting then return true end
 
-    -- During burn: use AM only when mana is low
-    if s.phase == PHASE_BURN then
-        if (s.mana_pct or 100) < 20 then
-        return NS.spell_ready(SPELLS.ArcaneMissiles, context.target)
-        end
-        return false  -- Prefer AB in burn
-    end
-
-    -- During conserve/emergency: AM is the primary filler
-    if s.phase == PHASE_CONSERVE or s.phase == PHASE_EMERGENCY then
+    -- Wowsims APL does not use AM as filler; AB and Frostbolt are the primary spells.
+    -- Keep AM as emergency low-mana filler only.
+    if s.phase == PHASE_EMERGENCY and (s.mana_pct or 100) < 10 then
         return NS.spell_ready(SPELLS.ArcaneMissiles, context.target)
     end
 
     return false
+end
+
+--- Frostbolt: conserve rotation filler (wowsims APL ConserveRotation).
+-- At 3 AB stacks with buff time > cast time, cast Frostbolt to maintain buff cheaply.
+local function frostbolt_conserve_matches(context, s)
+    if s.is_moving then return false end
+    if not context.target then return false end
+    if s.phase ~= PHASE_CONSERVE then return false end
+    if (s.ab_stacks or 0) < 3 then return false end
+    local ab_cast_time = math.max(1.0, AB_BASE_CAST_TIME - AB_CAST_REDUCTION_PER_STACK * 3)
+    if (s.ab_remains or 0) <= ab_cast_time then return false end  -- Buff about to drop, maintain with AB
+    return NS.spell_ready(SPELLS.Frostbolt, context.target)
+end
+
+--- Fire Blast (execute): wowsims — cast when target about to die (remainingTime < AB cast time).
+local function fire_blast_execute_matches(context, s)
+    if not context.target then return false end
+    if not (context.ttd_known and context.ttd > 0) then return false end
+    local ab_cast_time = math.max(1.0, AB_BASE_CAST_TIME - AB_CAST_REDUCTION_PER_STACK * (s.ab_stacks or 0))
+    if context.ttd >= ab_cast_time then return false end
+    return NS.spell_ready(SPELLS.FireBlast, context.target)
 end
 
 --- Low-level bolt (Fireball/Frostbolt for leveling before AB is learned)
@@ -562,12 +621,22 @@ local strategies = {
       matches = arcane_blast_matches,
       execute = function(context) return NS.try_cast(SPELLS.ArcaneBlast, context.target, "[ARCANE] ArcaneBlast") end },
 
+    -- Execute: Fire Blast when target about to die (instant > casting)
+    { name = "FireBlastExecute",
+      matches = fire_blast_execute_matches,
+      execute = function(context) return NS.try_cast(SPELLS.FireBlast, context.target, "[ARCANE] FireBlast (execute)") end },
+
     -- Instant filler
     { name = "FireBlast",
       matches = fire_blast_matches,
       execute = function(context) return NS.try_cast(SPELLS.FireBlast, context.target, "[ARCANE] FireBlast") end },
 
-    -- Filler (non-stacking)
+    -- Conserve rotation: Frostbolt at 3 AB stacks to maintain buff cheaply
+    { name = "FrostboltConserve",
+      matches = frostbolt_conserve_matches,
+      execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[ARCANE] Frostbolt (conserve)") end },
+
+    -- Clearcasting AM (only)
     { name = "ArcaneMissiles",
       matches = arcane_missiles_matches,
       execute = function(context) return NS.try_cast(SPELLS.ArcaneMissiles, context.target, "[ARCANE] ArcaneMissiles") end },
