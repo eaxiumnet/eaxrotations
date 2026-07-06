@@ -31,6 +31,7 @@ return {
                         { text = "Agony", value = "agony" },
                         { text = "Doom", value = "doom" },
                         { text = "Elements", value = "elements" },
+                        { text = "Shadow", value = "shadow" },
                         { text = "Recklessness", value = "recklessness" },
                         { text = "Weakness", value = "weakness" },
                         { text = "None", value = "none" },

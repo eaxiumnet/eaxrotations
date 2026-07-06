@@ -46,6 +46,23 @@ local _INSECT_MIN_SP = 800
 local _MOONFIRE_MIN_SP = 800
 
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 } -- Emerald, Ruby, Citrine, Jade, Agate.
+
+local function first_ready_mana_gem()
+    if not NS.is_item_ready then return nil end
+    for _, item_id in ipairs(MANA_GEM_ITEM_IDS) do
+        local ok, ready = pcall(NS.is_item_ready, item_id)
+        if ok and ready then return item_id end
+    end
+    return nil
+end
+
+local function use_mana_gem()
+    local item_id = first_ready_mana_gem()
+    if not item_id or not NS.use_item_by_id then return false end
+    local ok, used = pcall(NS.use_item_by_id, item_id)
+    return ok and used == true
+end
 
 local function first_ready_item(item_ids)
     if not NS.is_item_ready then return 0 end
@@ -366,6 +383,18 @@ local strategies = {
         end,
         execute=function()
             return NS.try_cast(SPELLS.RemoveCurse, NS.PLAYER_UNIT, "[BALANCE] Remove Curse self")
+        end,
+    },
+    {
+        name="ManaGem",
+        matches=function(_, s)
+            -- Wowsims-aligned: fire when we'd benefit from a gem (mana < ~85%)
+            local threshold = (s and s.mana_gem_threshold) or 85
+            if (s.mana_pct or 100) > threshold then return false end
+            return first_ready_mana_gem() ~= nil
+        end,
+        execute=function()
+            return use_mana_gem()
         end,
     },
     {

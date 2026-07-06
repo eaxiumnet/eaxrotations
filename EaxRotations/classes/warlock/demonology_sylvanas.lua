@@ -31,6 +31,9 @@ local HEALTHSTONE_IDS = { 22105, 22104, 22103, 22102, 22101, 22100 }
 local DOT_REFRESH_WINDOW = 1.5
 
 local IMP_FIREBOLT_IDS = { 3110, 7799, 7800, 7801, 7802, 11762, 11763, 27267 }
+-- Lash of Pain spell IDs (all ranks) — only the Succubus has this, so it
+-- identifies the active pet as a Succubus.
+local SUCC_LASH_IDS = { 7814, 7815, 7816, 7817, 7818, 7819, 11770, 11771, 27268 }
 
 local ImpFirebolt = NS.spell_action and NS.spell_action(IMP_FIREBOLT_IDS, "ImpFirebolt") or nil
 
@@ -98,7 +101,8 @@ local function build_state(context)
                 if demo_state.pet_alive then
                     demo_state.pet_hp_pct = pet.get_health_percentage and pet:get_health_percentage() or 100
                     local ok_sp, pet_spells = pcall(function()
-                        return core.spell_book and core.spell_book.get_pet_spells and core.spell_book.get_pet_spells() or {}
+                        local sb = (NS.core or _G.core)
+                        return sb and sb.spell_book and sb.spell_book.get_pet_spells and sb.spell_book.get_pet_spells() or {}
                     end)
                     if ok_sp and type(pet_spells) == "table" then
                         for _, fire_id in ipairs(IMP_FIREBOLT_IDS) do
@@ -111,7 +115,7 @@ local function build_state(context)
                             if demo_state.pet_type_imp then break end
                         end
                         if not demo_state.pet_type_imp then
-                            for _, lash_id in ipairs(SUCC_LASH) do
+                            for _, lash_id in ipairs(SUCC_LASH_IDS) do
                                 for _, known in ipairs(pet_spells) do
                                     if known == lash_id then
                                         demo_state.pet_type_succubus = true
@@ -549,9 +553,8 @@ local strategies = {
     { name = "Incinerate", matches = incinerate_matches, execute = function(context) return NS.try_cast(SPELLS.Incinerate, context.target, "[DEMONOLOGY] Incinerate") end },
     { name = "Healthstone",
       matches = function(context, state)
-          local auto_hs = (context.settings and context.settings.auto_healthstone) ~= false
-          if not auto_hs then return false end
-          local threshold = (context.settings and context.settings.healthstone_hp_threshold) or 30
+          local threshold = (context.settings and context.settings.healthstone_hp) or 0
+          if threshold <= 0 then return false end
           if (context.hp or 100) > threshold then return false end
           if context.is_casting then return false end
           return state and state.healthstone_ready == true

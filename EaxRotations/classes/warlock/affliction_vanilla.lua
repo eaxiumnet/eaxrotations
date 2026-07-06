@@ -159,7 +159,7 @@ local function build_state(context)
 	        aff_state.target_hp = 100
 	    end
 	    -- Nightfall proc
-	    aff_state.nightfall_active = NS.has_player_buff(NIGHTFALL_BUFF)
+	    aff_state.nightfall_active = NS.has_player_buff and NS.has_player_buff(NIGHTFALL_BUFF) or false
 	    -- Resources
 	    aff_state.mana_pct = context.mana_pct or 100
 	    aff_state.hp_pct = context.hp or 100
@@ -334,7 +334,9 @@ local strategies = {
     {
         name = "Healthstone",
         matches = function(context, state)
-            if (context.hp or 100) > 40 then return false end
+            local threshold = (context.settings and context.settings.healthstone_hp) or 0
+            if threshold <= 0 then return false end
+            if (context.hp or 100) > threshold then return false end
             return state and state.healthstone_ready == true
         end,
         execute = function(_, state)
