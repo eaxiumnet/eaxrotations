@@ -177,8 +177,8 @@ local strategies = {
             matches = function(context)
                 if context.settings and context.settings.use_threat_drop == false then return false end
                 if not context.in_combat then return false end
-                -- Only when threat is high (90%+)
-                if context.threat_pct and context.threat_pct < 90 then return false end
+                -- Only when threat is high (80%+)
+                if context.threat_pct and context.threat_pct < 80 then return false end
                 -- Local anti-spam: Soulshatter has 5min cooldown, enforce minimum 290s between casts
                 local now = NS.time_now and NS.time_now() or 0
                 if (now - _last_soulshatter_time) < 290 then return false end

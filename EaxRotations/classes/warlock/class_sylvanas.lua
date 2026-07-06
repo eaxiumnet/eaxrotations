@@ -42,6 +42,7 @@ local SPELLS = {
         school = "shadow",
     }),
     CurseElements = NS.spell_action({ 27228, 11722, 11721, 1490 }, "CurseElements"),
+    CurseOfShadow = NS.spell_action({ 27229, 17937, 17862 }, "CurseOfShadow"),
     CurseOfExhaustion = NS.spell_action({ 18223 }, "CurseOfExhaustion"),
     CurseExhaustion = NS.spell_action({ 18223 }, "CurseExhaustion"),
     CurseOfDoom = NS.spell_action({

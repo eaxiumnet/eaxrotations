@@ -126,6 +126,7 @@ local healthstone = find_strategy("Healthstone")
 -- High HP -> should NOT match
 assert_false(healthstone.matches({
     hp = 70,
+    settings = { healthstone_hp = 40 },
     me = { get_health_percentage = function() return 70 end },
 }, {
     healthstone_ready = true, healthstone_id = 22105,
@@ -134,6 +135,7 @@ assert_false(healthstone.matches({
 -- HP <= 40, healthstone ready -> should match
 assert_true(healthstone.matches({
     hp = 30,
+    settings = { healthstone_hp = 40 },
     me = { get_health_percentage = function() return 30 end },
 }, {
     healthstone_ready = true, healthstone_id = 22105,
@@ -142,9 +144,18 @@ assert_true(healthstone.matches({
 -- HP low but healthstone not ready -> should NOT match
 assert_false(healthstone.matches({
     hp = 25,
+    settings = { healthstone_hp = 40 },
 }, {
     healthstone_ready = false,
 }), "Healthstone should not match when not ready")
+
+-- Healthstone disabled (threshold = 0) -> should NOT match
+assert_false(healthstone.matches({
+    hp = 10,
+    settings = { healthstone_hp = 0 },
+}, {
+    healthstone_ready = true, healthstone_id = 22105,
+}), "Healthstone should not match when threshold is 0 (disabled)")
 
 -- ============================================================================
 -- Nightfall: only when Nightfall proc is active and valid target

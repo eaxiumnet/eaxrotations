@@ -105,6 +105,7 @@ local SHADOW_EMBRACE_DEBUFF  = { 32386, 32388, 32389, 32390, 32391 }
 local ISB_DEBUFF = { 17800 } -- Shadow Vulnerability (ISB proc debuff)
 local SEED_OF_CORRUPTION_DEBUFF = { 27285 }  -- the DoT that triggers the explosion
 local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
+local CURSE_OF_SHADOW_DEBUFF   = { 27229, 17937, 17862 }
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
 local SOULSHATTER_BUFF       = { 29858 }
 local FEL_ARMOR_BUFF         = { 28189, 28176 }
@@ -131,6 +132,7 @@ local LOCAL_SPELLS = {
     CurseTongues    = NS.spell_action({ 11719, 1714 }, "CurseOfTongues"),
     CurseExhaustion = NS.spell_action({ 18223 }, "CurseOfExhaustion"),
     CurseElements   = NS.spell_action({ 27228, 11722, 11721, 1490 }, "CurseOfElements"),
+    CurseShadow     = NS.spell_action({ 27229, 17937, 17862 }, "CurseOfShadow"),
     DrainMana       = NS.spell_action({ 30908, 27221, 11704, 11703, 6226, 5138 }, "DrainMana"),
     HealthFunnel    = NS.spell_action({ 27259, 11695, 11694, 11693, 3700, 3699, 3698, 755 }, "HealthFunnel"),
     CreateHealthstone = NS.spell_action({ 27230, 11730, 11729, 6202, 6201, 5699 }, "CreateHealthstone"),
@@ -145,7 +147,7 @@ local LOCAL_SPELLS = {
     ArcaneTorrent   = NS.spell_action({ 25046 }, "ArcaneTorrent"),
     CreateSoulstone = NS.spell_action({ 27238, 20756, 20755, 20752, 693 }, "CreateSoulstone"),
     Shoot           = NS.spell_action({ 5019 }, "Shoot"),
-    Shadowburn      = NS.spell_action({ 30546, 27263, 18871, 17924, 17877 }, "Shadowburn"),
+    Shadowburn      = NS.spell_action({ 30546, 27263, 18871, 18870, 18869, 18868, 18867, 17877 }, "Shadowburn"),
 }
 
 local BLOODLUST_LOWER_RATIO = 1.04      -- More aggressive upgrade threshold during Bloodlust/Heroism
@@ -216,6 +218,7 @@ local function build_state(context)
         aff_state.siphon_remains = NS.debuff_remains and NS.debuff_remains(target, SIPHON_LIFE_DEBUFF) or 0
         aff_state.immolate_remains = NS.debuff_remains and NS.debuff_remains(target, IMMOLATE_DEBUFF) or 0
         aff_state.coe_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_ELEMENTS_DEBUFF) or 0
+        aff_state.cos_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_SHADOW_DEBUFF) or 0
         aff_state.se_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SHADOW_EMBRACE_DEBUFF) or 0
         aff_state.isb_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, ISB_DEBUFF) or 0
         aff_state.target_hp = (target.get_health_percentage and target:get_health_percentage()) or 100
@@ -226,12 +229,13 @@ local function build_state(context)
         aff_state.siphon_remains = 0
         aff_state.immolate_remains = 0
         aff_state.coe_remains = 0
+        aff_state.cos_remains = 0
         aff_state.se_stacks = 0
         aff_state.isb_stacks = 0
 	        aff_state.target_hp = 100
 	    end
 	    -- Nightfall proc
-	    aff_state.nightfall_active = NS.has_player_buff(NIGHTFALL_BUFF)
+	    aff_state.nightfall_active = NS.has_player_buff and NS.has_player_buff(NIGHTFALL_BUFF) or false
 	    -- Resources
 	    aff_state.mana_pct = context.mana_pct or 100
 	    aff_state.hp_pct = context.hp or 100
@@ -272,7 +276,7 @@ local function build_state(context)
             end
             aff_state.has_demonic_sacrifice = context.me and NS.buff_up and NS.buff_up(context.me, {18789, 18790, 18791, 18792, 35701}) or false
             -- Amplify Curse readiness
-            aff_state.amplify_curse_ready = NS.spell_ready(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, { skip_range = true })
+            aff_state.amplify_curse_ready = NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, { skip_range = true }) or false
 	    aff_state.spell_damage = context.spell_damage or 0  -- Current spell damage from NS (provided by middleware or character API)
 	    -- Bloodlust/Heroism buff — enables more aggressive snapshot upgrade threshold
 	    aff_state.has_bloodlust = context.me and NS.buff_up and NS.buff_up(context.me, BLOODLUST_BUFFS) or false
@@ -352,13 +356,35 @@ local function build_state(context)
 	-- Helper functions
 	-- ============================================================================
 
--- Select which curse to use based on context
+-- Select which curse to use based on context and user settings
 local function select_curse(context, state)
+    -- Respect explicit curse mode setting (from schema dropdown)
+    local curse_mode = context.settings and context.settings.warlock_curse_mode or "auto"
+    if curse_mode == "agony" then
+        if context.is_pvp and context.enemy_healer then return "tongues" end
+        if context.is_pvp and context.melee_on_you then return "exhaustion" end
+        return "agony"
+    elseif curse_mode == "shadow" then
+        return "shadow"
+    elseif curse_mode == "elements" then
+        return "elements"
+    elseif curse_mode == "doom" then
+        return "doom"
+    elseif curse_mode == "recklessness" then
+        return "recklessness"
+    elseif curse_mode == "weakness" then
+        return "weakness"
+    elseif curse_mode == "none" then
+        return nil
+    end
+    -- Auto mode: context-aware curse selection
     if context.is_pvp then
         if (context.enemy_healer or false) then return "tongues" end
         if (context.melee_on_you or false) then return "exhaustion" end
     end
     if (state.enemy_count or 0) >= 3 then return "elements" end  -- AoE benefit
+    -- In raids: prefer Shadow for Affliction (Shadow damage), Elements for Destruction
+    if context.is_group and context.is_affliction then return "shadow" end
     return "agony"  -- default: damage
 end
 
@@ -442,9 +468,8 @@ local strategies = {
     {
         name = "Healthstone",
         matches = function(context, state)
-            local auto_hs = (context.settings and context.settings.auto_healthstone) ~= false
-            if not auto_hs then return false end
-            local threshold = (context.settings and context.settings.healthstone_hp_threshold) or 30
+            local threshold = (context.settings and context.settings.healthstone_hp) or 0
+            if threshold <= 0 then return false end
             if (context.hp or 100) > threshold then return false end
             if context.is_casting then return false end
             return state and state.healthstone_ready == true
@@ -461,7 +486,7 @@ local strategies = {
         name = "Soulshatter",
         matches = function(context, state)
             if not context.in_combat then return false end
-            if context.threat_pct and context.threat_pct < 90 then return false end
+            if context.threat_pct and context.threat_pct < 80 then return false end
             local me = context.me or (NS.GetPlayer and NS.GetPlayer())
             if not me then return false end
             -- Local timer: Soul shatter has 5min CD
@@ -640,6 +665,32 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
+    -- 9a. Amplify Curse (before CoD/CoA/CoE — 3 min cooldown)
+    -- ------------------------------------------------------------------------
+    -- Fires when a curse is about to be applied and Amplify Curse is off cooldown
+    {
+        name = "AmplifyCurse",
+        matches = function(context, state)
+            if not context.target then return false end
+            if not state.amplify_curse_ready then return false end
+            -- Gate: setting check
+            if context.settings and context.settings.aff_use_amplify_curse == false then return false end
+            -- Only use on targets that live long enough (60s+ to warrant 3min CD)
+            if context.ttd_known and context.ttd < 60 then return false end
+            -- Check if a curse is about to be applied (CoD, CoA, or Curse of Elements)
+            local about_to_curse = false
+            if (state.agony_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd_known and context.ttd >= 8 then about_to_curse = true end
+            if (state.doom_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd_known and context.ttd >= 62 then about_to_curse = true end
+            -- Also check CoD cooldown via spell_ready (60s CD, if ready with no debuff it's about to be cast)
+            if context.target and (state.doom_remains or 0) <= 0 and NS.spell_ready and NS.spell_ready(SPELLS.CurseOfDoom, context.target) then about_to_curse = true end
+            return about_to_curse
+        end,
+        execute = function()
+            return NS.try_cast(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, "[AFFL] Amplify Curse", { skip_range = true })
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
     -- 8. Curse of Doom (long-lived PvE targets)
     -- ------------------------------------------------------------------------
     {
@@ -676,14 +727,31 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
+    -- 8b. Curse of Shadow (raid debuff for Shadow damage — Affliction's primary curse in raids)
+    -- ------------------------------------------------------------------------
+    {
+        name = "CurseOfShadow",
+        matches = function(context, state)
+            if not context.target then return false end
+            -- Only in group content when no other warlock has it
+            if not context.is_group then return false end
+            if (state and state.cos_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseShadow, context.target) or false
+        end,
+        execute = function(context)
+            return NS.try_cast(LOCAL_SPELLS.CurseShadow, context.target, "[AFFL] Curse of Shadow")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
     -- 9. Curse of Agony (long DoT curse)
     -- ------------------------------------------------------------------------
     {
         name = "CurseOfAgony",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            -- Skip in groups when Curse of Elements is active (TBC: one curse per target)
-            if context.is_group and (state and state.coe_remains or 0) > 0 then return false end
+            -- Skip in groups when a raid curse (Elements/Shadow) is active (TBC: one curse per target)
+            if context.is_group and ((state and state.coe_remains or 0) > 0 or (state and state.cos_remains or 0) > 0) then return false end
             local curse = select_curse(context, state)
             if curse ~= "agony" then return false end
             if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
@@ -726,32 +794,6 @@ local strategies = {
         end,
         execute = function(context)
             return NS.try_cast(LOCAL_SPELLS.DrainLife, context.target, "[AFFL] Drain Life sustain")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 9a. Amplify Curse (before CoD/CoA/CoE — 3 min cooldown)
-    -- ------------------------------------------------------------------------
-    -- Fires when a curse is about to be applied and Amplify Curse is off cooldown
-    {
-        name = "AmplifyCurse",
-        matches = function(context, state)
-            if not context.target then return false end
-            if not state.amplify_curse_ready then return false end
-            -- Gate: setting check
-            if context.settings and context.settings.aff_use_amplify_curse == false then return false end
-            -- Only use on targets that live long enough (60s+ to warrant 3min CD)
-            if context.ttd_known and context.ttd < 60 then return false end
-            -- Check if a curse is about to be applied (CoD, CoA, or Curse of Elements)
-            local about_to_curse = false
-            if (state.agony_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd_known and context.ttd >= 8 then about_to_curse = true end
-            if (state.doom_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd_known and context.ttd >= 62 then about_to_curse = true end
-            -- Also check CoD cooldown via spell_ready (60s CD, if ready with no debuff it's about to be cast)
-            if context.target and (state.doom_remains or 0) <= 0 and NS.spell_ready(SPELLS.CurseOfDoom, context.target) then about_to_curse = true end
-            return about_to_curse
-        end,
-        execute = function()
-            return NS.try_cast(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, "[AFFL] Amplify Curse", { skip_range = true })
         end,
     },
 
@@ -807,7 +849,8 @@ local strategies = {
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
             local target_hp = context.target_hp_pct or 100
-            if target_hp > 5 then return false end
+            local execute_threshold = (context.settings and context.settings.destro_shadowburn_hp) or 20
+            if target_hp > execute_threshold then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.Shadowburn, context.target) or false
         end,
         execute = function(context)

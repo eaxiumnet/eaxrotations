@@ -120,9 +120,7 @@ local ACTIONS = {
     -- Curses (CurseOfDoom before Immolate per regression test)
     { name = "CurseOfDoom", spell = SPELLS.CurseOfDoom, debuff = CURSE_OF_DOOM_DEBUFF, refresh = 5, cooldown = 60, min_ttd = 62, require_ttd = true, target_not_player = true },
     { name = "CurseOfAgony", spell = SPELLS.CurseOfAgony, debuff = CURSE_OF_AGONY_DEBUFF, refresh = 3 },
-    -- Curses
     { name = "CurseOfElements", spell = SPELLS.CurseElements, debuff = CURSE_OF_ELEMENTS_DEBUFF, refresh = 3, group_only = true },
-    { name = "CurseOfAgony", spell = SPELLS.CurseOfAgony, debuff = CURSE_OF_AGONY_DEBUFF, refresh = 3 },
     -- DoTs
     { name = "Corruption", spell = SPELLS.Corruption, debuff = CORRUPTION_DEBUFF, refresh = 3 },
     { name = "Immolate", spell = SPELLS.Immolate, debuff = IMMOLATE_DEBUFF, refresh = 3, not_moving = true },
@@ -472,10 +470,9 @@ table.insert(strategies, 7, {
 table.insert(strategies, 23, {
     name = "Healthstone",
     matches = function(context, state)
-        local auto_hs = (context.settings and context.settings.auto_healthstone) ~= false
-        if not auto_hs then return false end
-        local threshold = (context.settings and context.settings.healthstone_hp_threshold) or 30
-        if (context.hp or 100) > threshold then return false end
+        local threshold = (context.settings and context.settings.healthstone_hp) or 0
+            if threshold <= 0 then return false end
+            if (context.hp or 100) > threshold then return false end
         if context.is_casting then return false end
         return state.healthstone_ready or false
     end,
