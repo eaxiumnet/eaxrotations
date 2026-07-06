@@ -594,9 +594,24 @@ local function rampage_matches(context, state)
     return false
 end
 
--- Overpower: proc detection (requires Battle Stance)
+-- Overpower weaving: wowsims-aligned TBC Fury optimization.
+-- When BT and WW are both on cooldown (>=1.5s) and not in execute phase,
+-- swap to Battle Stance to consume an Overpower proc, then swap back.
+-- Opt-in via setting (default off) since it is an advanced technique
+-- that requires precise stance-dance timing.
+-- Source: wowsims/tbc-new/ui/warrior/dps/apls/fury.apl.json (Overpower Weaving group)
 local function overpower_matches(context, state)
+    if not NS.setting_bool(context.settings, "fury_overpower_weave", false) then return false end
     if not state.overpower_ready then return false end
+    -- Delay Check: BT and WW both >=1.5s from ready (don't delay core abilities)
+    if (state.bt_cd or 99) < 1.5 then return false end
+    if (state.ww_cd or 99) < 1.5 then return false end
+    -- Don't Overpower during execute phase (Execute hits harder)
+    if state.execute_phase then return false end
+    -- Rage gate: wowsims uses 5-100 rage window
+    local rage = (state.rage or 0)
+    if rage < 5 then return false end
+    if rage > 100 then return false end
     return action(context, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = 5 }))
 end
 
@@ -925,6 +940,7 @@ local STRATEGY_SPECS = {
     { "Bloodthirst", bt_matches, build_action("Bloodthirst", ACTION.Bloodthirst, { required_stance = STANCE.BERSERKER, min_rage = 30, cooldown = 6 }) },
     { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
     { "Rampage", rampage_matches, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }) },
+    { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = 5 }) },
     { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { required_stance = STANCE.BERSERKER, min_rage = 15 }) },
     { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }) },
     { "SwingDesync", swing_desync_matches, build_action("SwingDesync", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }) },
