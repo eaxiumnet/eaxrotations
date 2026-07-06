@@ -24,8 +24,8 @@
 | Hunter MM | ⚠️ Needs work | 2 | 2 | 1 |
 | Hunter SV | ⚠️ Needs work | 2 | 2 | 1 |
 | Shadow Priest | ✅ Good | 0 | 2 | 1 |
-| Affliction Lock | ⚠️ Needs work | 1 | 2 | 1 |
-| Arcane Mage | ⚠️ Needs work | 2 | 2 | 1 |
+| Affliction Lock | ✅ Fixed | 0 | 2 | 1 |
+| Arcane Mage | ✅ Fixed | 0 | 2 | 1 |
 | Fire Mage | ✅ Good | 0 | 1 | 1 |
 | Fury Warrior | ✅ Good | 0 | 1 | 2 |
 | Feral Cat | ✅ Good | 0 | 1 | 1 |

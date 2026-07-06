@@ -22,15 +22,22 @@
 
 ## Phase 2 — Shared-system improvements
 Priority shared modules that affect every spec:
-- [x] Cooldown planner (raid trinket/ability stacking).
+- [x] Cooldown planner (raid trinket/ability stacking) — v2.3.15.
+- [x] Dynamic stat snapshotting — Rip/Rake AP snapshot implemented in Feral Cat.
 - [ ] Movement / pre-positioning for mechanics.
-- [ ] Dynamic stat snapshotting (trinket procs, haste buffs) for DoT/Finisher decisions.
 - [ ] Cleave / AoE target caps (TBC-specific: most spells have soft caps).
 - [ ] PvP CC/dispel/kick priority DB per expansion.
 - [ ] Dungeon/raid boss mechanic triggers (e.g., freeze on Gluth, shackles on Rage Winterchill).
 
-## Phase 3 — Per-spec fidelity pass
-- [ ] Tier 1 (highest impact): Shadow, Affliction, Feral Cat, Hunter BM/MM/Surv, Enhancement, Retribution, Fury, Arcane/Fire.
+## Phase 3 — Per-spec fidelity pass (wowsims APL-aligned)
+- [x] Arcane Mage — burn/conserve rotation with Frostbolt conserve, wowsims mana gem logic, PoM at AP end.
+- [x] Affliction Warlock — Drain Soul execute at <5% HP, Shadowburn execute.
+- [ ] Hunter (all specs) — shot weave overhaul, Aimed Shot pre-pull.
+- [ ] Shadow Priest — Shadowfiend timing optimization, Starshards for Night Elf.
+- [ ] Feral Cat — Berserk/TF optimization.
+- [ ] Retribution Paladin — seal twisting investigation.
+- [ ] Fury Warrior — Overpower weaving stance dance.
+- [ ] Fire Mage — Combustion after 5-stack Scorch guarantee.
 - [ ] Tier 2: Protection Paladin/Warrior, Resto Shaman/Druid/Priest, Holy Paladin/Priest, Balance.
 - [ ] Tier 3: remaining specs and leveling rotations.
 
@@ -41,6 +48,6 @@ Priority shared modules that affect every spec:
 - [ ] Compare output against wowsims hundreds-of-thousands iteration APL where possible.
 
 ## Done when
-- 219 rotation + 13 leveling suites green.
+- 220 rotation + 13 leveling suites green.
 - Every spec has a docstring citing its sources.
 - No known APL violations from wowsims/SimC/class guides.
