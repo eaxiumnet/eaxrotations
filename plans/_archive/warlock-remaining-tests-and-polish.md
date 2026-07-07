@@ -33,22 +33,12 @@ Everything below existed in production code BEFORE this plan. No implementation 
 
 ## What Remains
 
-### 1. Orphan RED test: `test_warlock_imp_machine_gun_2026_06.lua`
+### 1. Orphan RED test: `test_warlock_imp_machine_gun_2026_06.lua` — ✅ RESOLVED (Option B)
 
-**Problem:** This test asserts `imp_firebolt_pacing` strategy exists in affliction, demonology, AND destruction. The strategy was NEVER implemented. Currently FAILS when run directly:
-```
-test_warlock_imp_machine_gun_2026_06.lua:72: demonology: imp_firebolt_pacing strategy should exist
-```
-The test is **not registered** in `run_rotation_tests.lua` or `run_leveling_tests.lua`, so it doesn't block CI. But it's dead code — a RED test with no corresponding GREEN.
-
-**Options:**
-- **A)** Implement `imp_firebolt_pacing` strategy in all 3 specs (scope: 3 spec files, new strategy per spec to fire pet's Firebolt when Imp is out, managing pet cast pacing)
-- **B)** Remove the test file (lowest effort, test was written speculatively for a feature never built)
-- **C)** Keep as RED / mark as known-failing (messy — leaves dead test around)
-
-**Recommendation: Option A if the feature is wanted; Option B if it's not a priority.**
-
-The feature (`imp_firebolt_pacing`) would be a pet automation strategy — when Imp is summoned, make it cast Firebolt on cooldown. This is a minor DPS optimization, not a bug fix. Given the scope (3 specs × ~15 lines each + test update + verify), it's ~1 hour of work.
+**Resolution:** File was deleted in commit 93f96ae9 ("feat(audit): omnibus perfection audit v3").
+The test was never registered in `run_rotation_tests.lua` and asserted an unimplemented
+`imp_firebolt_pacing` strategy. Option B (remove) was the correct choice — the feature was
+speculative and not a bug fix. Zero references remain in the tests directory.
 
 ### 2. Missing helper: `M.get_current_pet_type()` (Task 6.2)
 
@@ -91,15 +81,11 @@ This would let specs detect `is_imp` vs `is_felguard` without raw API calls. Rig
 
 ### Wave 1 (Parallel — Independent)
 
-- [ ] **1.1 Resolve orphan RED test** — Choose Option A (implement) or Option B (remove)
-  - **Files:** `EaxRotations/tests/test_warlock_imp_machine_gun_2026_06.lua`
-  - **Action:** Either implement `imp_firebolt_pacing` in 3 specs, or delete file
-  - **Verify:** `lua EaxRotations/tests/test_warlock_imp_machine_gun_2026_06.lua` → PASS (A) or file gone (B)
+- [x] **1.1 Resolve orphan RED test** — Option B (remove) completed in commit 93f96ae9
+  - **Files:** `EaxRotations/tests/test_warlock_imp_machine_gun_2026_06.lua` — DELETED
+  - **Verify:** File no longer exists; 0 references to `imp_firebolt_pacing`/`imp_machine_gun` in tests/
 
-- [ ] **1.2 Add affliction SummonFelhunter test** (optional, low priority)
-  - **Files:** `EaxRotations/tests/test_affliction_summon_felhunter.lua` (new)
-  - **Action:** Write test that loads affliction_sylvanas.lua and asserts `find_strategy("SummonFelhunter")` exists, has matches+execute, fires when OOC + no pet + no DS aura
-  - **Verify:** `lua EaxRotations/tests/test_affliction_summon_felhunter.lua` → PASS
+- [ ] **1.2 Add affliction SummonFelhunter test** (optional, low priority — deferred)
 
 ### Wave 2 (Sequential — after Wave 1)
 
