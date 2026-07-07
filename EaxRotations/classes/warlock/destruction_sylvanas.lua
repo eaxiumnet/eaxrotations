@@ -1,8 +1,10 @@
--- destruction_sylvanas -- warlock destruction_sylvanas rotation for TBC Anniversary (2.5.5).
--- WHAT:  priority-list strategies for destruction_sylvanas gameplay.
+-- destruction_sylvanas.lua — Warlock Destruction DPS for TBC Anniversary (2.5.5).
+-- WHAT:  priority-list strategies via ACTIONS table with custom match overrides
+--         (Shadow Bolt filler, Immolate/Conflagrate, Incinerate, Curse maintenance,
+--          demons, AoE, execute, defensives, mana sustain).
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 
 -- Warlock Destruction priority list.
 
@@ -10,6 +12,27 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarlockSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
+
+-- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    Conflagrate     = define("Conflagrate",     { 30912, 27266, 18932, 18931, 18930, 17962 }, "Conflagrate"),
+    Corruption      = define("Corruption",      { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
+    CurseOfAgony    = define("CurseOfAgony",    { 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
+    CurseOfDoom     = define("CurseOfDoom",     { 30910, 603 }, "CurseOfDoom"),
+    CurseElements   = define("CurseElements",   { 27228, 11722, 11721, 1490 }, "CurseElements"),
+    DeathCoil       = define("DeathCoil",       { 27223, 17926, 17925, 6789 }, "DeathCoil"),
+    FelArmor        = define("FelArmor",        { 28189, 28176 }, "FelArmor"),
+    Immolate        = define("Immolate",        { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
+    Incinerate      = define("Incinerate",      { 32231, 29722 }, "Incinerate"),
+    LifeTap         = define("LifeTap",         { 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
+    ShadowBolt      = define("ShadowBolt",      { 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
+    Shadowburn      = define("Shadowburn",      { 30546, 27263, 18871, 18870, 18869, 18868, 18867, 17877 }, "Shadowburn"),
+    Shadowfury      = define("Shadowfury",      { 30414, 30413, 30283 }, "Shadowfury"),
+    ShadowWard      = define("ShadowWard",      { 28610, 11740, 11739, 6229 }, "ShadowWard"),
+    Soulshatter     = define("Soulshatter",     { 29858 }, "Soulshatter"),
+}
 
 -- Debuff and buff ID lists for state queries
 local CURSE_OF_DOOM_DEBUFF = { 30910, 603 }
@@ -56,6 +79,28 @@ local SOUL_SHARD_ITEM = 6265             -- TBC Soul Shard reagent (moved before
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 22102, 22101, 22100 }
 
 -- build_state: compute per-update aura and timing state once for all strategies
+
+-- ============================================================================
+-- Schema for safe_state (Pattern 14 nil-guard elimination).
+local DESTRO_SCHEMA = {
+    immolate_remains = 0,
+    corruption_remains = 0,
+    cod_remains = 0,
+    coa_remains = 0,
+    coe_remains = 0,
+    has_backlash = false,
+    has_backdraft = false,
+    has_fel_armor = false,
+    has_demon_armor = false,
+    has_shadow_ward = false,
+    has_demonic_sacrifice = false,
+    hp = 100,
+    mana_pct = 100,
+    mana_gem_ready = false,
+    spell_damage = 0,
+    healthstone_ready = false,
+}
+
 -- Pre-allocated state (Pattern 4: no per-tick table allocation)
 local destro_state = {
     immolate_remains = 0,
@@ -81,11 +126,12 @@ local _last_build_state_time = -1
 local function build_state(context)
     -- Pattern 6: frame-keyed dedup
     local now = context.now or (NS.time_now and NS.time_now() or 0)
-    if now == _last_build_state_time then return destro_state end
+    if now == _last_build_state_time then return spec_kit.safe_state(destro_state, DESTRO_SCHEMA) end
     if context.now then _last_build_state_time = now end
     local target = context.target
     local me = NS.GetPlayer()
     local state = destro_state
+    if not me then return spec_kit.safe_state(destro_state, DESTRO_SCHEMA) end
     state.immolate_remains = target and NS.debuff_remains(target, IMMOLATE_DEBUFF) or 0
     state.corruption_remains = target and NS.debuff_remains(target, CORRUPTION_DEBUFF) or 0
     state.cod_remains = target and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF) or 0
@@ -123,43 +169,43 @@ local function build_state(context)
             end
         end
     end
-    return state
+    return spec_kit.safe_state(destro_state, DESTRO_SCHEMA)
 end
 
 local ACTIONS = {
     -- Buffs / OOC
-    { name = "FelArmor", spell = SPELLS.FelArmor, target = "self", kind = "buff", buff = FEL_ARMOR_BUFF, requires_target = false },
+    { name = "FelArmor", spell = ACTION.FelArmor, target = "self", kind = "buff", buff = FEL_ARMOR_BUFF, requires_target = false },
     { name = "DemonArmor", spell = DemonArmorSpell, target = "self", kind = "buff", buff = DEMON_ARMOR_BUFF, requires_target = false },
     { name = "ShadowWard", spell = ShadowWardSpell, target = "self", kind = "buff", buff = SHADOW_WARD_BUFF, requires_target = false, cooldown = 30 },
     { name = "CreateHealthstone", spell = CreateHealthstone, target = "self", ooc = true, requires_target = false },
-    { name = "LifeTap", spell = SPELLS.LifeTap, target = "self", max_mana = 65, min_hp = 40, requires_target = false },
+    { name = "LifeTap", spell = ACTION.LifeTap, target = "self", max_mana = 65, min_hp = 40, requires_target = false },
     { name = "DarkPact", spell = DarkPact, target = "self", max_mana = 55, requires_target = false },
     { name = "DrainLife", spell = DrainLife, not_moving = true, min_hp = 40 },
     { name = "HealthFunnel", spell = HealthFunnel, target = "pet", not_moving = true, min_hp = 60, requires_target = false },
     -- Curses (CurseOfDoom before Immolate per regression test)
-    { name = "CurseOfDoom", spell = SPELLS.CurseOfDoom, debuff = CURSE_OF_DOOM_DEBUFF, refresh = 5, cooldown = 60, min_ttd = 62, require_ttd = true, target_not_player = true },
-    { name = "CurseOfAgony", spell = SPELLS.CurseOfAgony, debuff = CURSE_OF_AGONY_DEBUFF, refresh = 3 },
-    { name = "CurseOfElements", spell = SPELLS.CurseElements, debuff = CURSE_OF_ELEMENTS_DEBUFF, refresh = 3, group_only = true },
+    { name = "CurseOfDoom", spell = ACTION.CurseOfDoom, debuff = CURSE_OF_DOOM_DEBUFF, refresh = 5, cooldown = 60, min_ttd = 62, require_ttd = true, target_not_player = true },
+    { name = "CurseOfAgony", spell = ACTION.CurseOfAgony, debuff = CURSE_OF_AGONY_DEBUFF, refresh = 3 },
+    { name = "CurseOfElements", spell = ACTION.CurseElements, debuff = CURSE_OF_ELEMENTS_DEBUFF, refresh = 3, group_only = true },
     -- DoTs
-    { name = "Corruption", spell = SPELLS.Corruption, debuff = CORRUPTION_DEBUFF, refresh = 3 },
-    { name = "Immolate", spell = SPELLS.Immolate, debuff = IMMOLATE_DEBUFF, refresh = 3, not_moving = true },
+    { name = "Corruption", spell = ACTION.Corruption, debuff = CORRUPTION_DEBUFF, refresh = 3 },
+    { name = "Immolate", spell = ACTION.Immolate, debuff = IMMOLATE_DEBUFF, refresh = 3, not_moving = true },
     -- Burst / Procs
-    { name = "BacklashShadowBolt", spell = SPELLS.ShadowBolt, priority = 100 },
+    { name = "BacklashShadowBolt", spell = ACTION.ShadowBolt, priority = 100 },
     -- Filler (Incinerate before Conflagrate — fill GCDs, then consume)
-    { name = "Incinerate", spell = SPELLS.Incinerate, not_moving = true },
-    { name = "ShadowBolt", spell = SPELLS.ShadowBolt, not_moving = true },
+    { name = "Incinerate", spell = ACTION.Incinerate, not_moving = true },
+    { name = "ShadowBolt", spell = ACTION.ShadowBolt, not_moving = true },
     -- Consume / Execute
-    { name = "Conflagrate", spell = SPELLS.Conflagrate, moving = true, cooldown = 10 },
+    { name = "Conflagrate", spell = ACTION.Conflagrate, moving = true, cooldown = 10 },
     { name = "SoulFire", spell = SoulFire, not_moving = true },
-    { name = "Shadowburn", spell = SPELLS.Shadowburn, cooldown = 15 },
+    { name = "Shadowburn", spell = ACTION.Shadowburn, cooldown = 15 },
     { name = "SearingPain", spell = SearingPain, moving = true },
     -- AoE
     { name = "SeedOfCorruption", spell = SeedOfCorruption, enemy_count = 3 },
     { name = "RainOfFire", spell = RainOfFire, position = "target", enemy_count = 4, not_moving = true },
     { name = "Hellfire", spell = Hellfire, position = "self", enemy_count = 4, not_moving = true },
     -- CC / Emergency
-    { name = "Shadowfury", spell = SPELLS.Shadowfury, cooldown = 20 },
-    { name = "DeathCoil", spell = SPELLS.DeathCoil, max_hp = 35, cooldown = 120 },
+    { name = "Shadowfury", spell = ACTION.Shadowfury, cooldown = 20 },
+    { name = "DeathCoil", spell = ACTION.DeathCoil, max_hp = 35, cooldown = 120 },
     { name = "Fear", spell = Fear, cooldown = 15, target_not_player = true },
     { name = "DemonicSacrifice", spell = DemonicSacrifice, target = "self", ooc = true, requires_target = false },
     -- Pet summons
@@ -172,7 +218,7 @@ local ACTIONS = {
 }
 
 local function immolate_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Immolate, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Immolate, 2.0) then return false end
     if not state then return false end
     state = state or {}
     -- SP-aware gating: skip Immolate when spell damage is below the threshold
@@ -203,7 +249,7 @@ local function shadowburn_matches(context, action, state)
 end
 
 local function curse_of_doom_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfDoom, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfDoom, 2.0) then return false end
     if not (NS.should_use_long_cd and NS.should_use_long_cd(context, action.cooldown)) then return false end
     if not state then return false end
     state = state or {}
@@ -240,7 +286,7 @@ local function soul_fire_matches(context, action, state)
 end
 
 local function corruption_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Corruption, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Corruption, 2.0) then return false end
     if not state then return false end
     state = state or {}
     if (state.corruption_remains or 0) > 3 then return false end
@@ -248,7 +294,7 @@ local function corruption_matches(context, action, state)
 end
 
 local function curse_of_agony_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfAgony, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfAgony, 2.0) then return false end
     if not state then return false end
     state = state or {}
     if (state.coa_remains or 0) > 3 then return false end
@@ -257,7 +303,7 @@ local function curse_of_agony_matches(context, action, state)
 end
 
 local function curse_of_elements_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseElements, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseElements, 2.0) then return false end
     if not state then return false end
     state = state or {}
     -- Only apply in group/raid content where the debuff benefits the whole group
@@ -290,7 +336,7 @@ local function dark_pact_matches(context, action, state)
 end
 
 local function fel_armor_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FelArmor, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FelArmor, 3.0) then return false end
     if not state then return false end
     state = state or {}
     if state.has_fel_armor then return false end
@@ -307,7 +353,7 @@ local function demon_armor_matches(context, action, state)
 end
 
 local function shadow_ward_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShadowWard, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShadowWard, 3.0) then return false end
     if not state then return false end
     state = state or {}
     if state.has_shadow_ward then return false end
@@ -527,16 +573,18 @@ table.insert(strategies, 25, {
         if not context.in_combat then return false end
         local me = context.me or (NS.GetPlayer and NS.GetPlayer())
         if not me then return false end
-        if NS.cooldown_remains(SPELLS.Soulshatter, 300) > 0 then return false end
-        return NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true })
+        if NS.cooldown_remains(ACTION.Soulshatter, 300) > 0 then return false end
+        return NS.spell_ready(ACTION.Soulshatter, me, { skip_range = true })
     end,
     execute = function(context)
         local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
-        return NS.try_cast(SPELLS.Soulshatter, me, "[DESTRUCTION] Soulshatter", { skip_range = true })
+        return NS.try_cast(ACTION.Soulshatter, me, "[DESTRUCTION] Soulshatter", { skip_range = true })
     end,
 })
 
-NS.rotation_registry:register("destruction", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("destruction", strategies, { get_state = build_state })
+end
 -- Warlock destruction rotation registered (build_state, explicit strategies, Backlash/Backdraft, execute, AoE, defensives, utility)
 return strategies
 
