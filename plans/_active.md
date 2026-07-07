@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-07 (HEAD `0c439e96`)
+**Last updated:** 2026-07-07 (HEAD `87ffb7aa`)
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -14,7 +14,7 @@
 |------|--------|---------|
 | `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` | Active | Ground every spec in wowsims/SimC/guides to be #1 rotation system |
 | `plans/spec-standardization-2026-06-30.md` | Active | Schema/spec/leveling standardization for open-source release |
-| `plans/refactor-developer-experience-2026-06.md` | Active | spec_kit migration (13 of 29 specs done: arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire) + healing_sylvanas helper |
+| `plans/refactor-developer-experience-2026-06.md` | Active | spec_kit migration (14 of 29 specs done: arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction) + healing_sylvanas helper |
 | `plans/eaxfishing-v2.4.0-12-features-2026-07-05.md` | In progress | Fishing bot v2.4.0-12 feature list |
 | `plans/pvp-burst-window-dr-tracking-2026-07-07.md` | In progress | DR + enemy-CD tracking wiring for pvp_burst_window |
 | `plans/bug-report-sylvanas-attachment-api-crash.md` | Open | Attachment API crash bug report |
@@ -54,7 +54,7 @@
 - 13 leveling suites vs ~6
 - `gate_overheal` — predictive overheal prevention (NO competitor has this)
 - Triage scoring — smart target selection
-- 234 test suites — automated quality (13 of 29 specs converted to spec_kit)
+- 234 test suites — automated quality (14 of 29 specs converted to spec_kit)
 - Cross-spec shared modules — blessings, auras, dispels, interrupts
 - CC Break — preemptive DS/Freedom
 - Light's Grace chaining

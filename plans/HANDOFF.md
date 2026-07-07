@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-07** (spec_kit migration #13 complete; HEAD `0c439e96`, pushed to origin).
+> up to date after every work session. Last updated: **2026-07-07** (spec_kit migration #14 complete; HEAD `87ffb7aa`, pushed to origin).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
@@ -35,8 +35,8 @@ have to context-switch.
     buff IDs, berserker rage fear break.
   - **EaxFishing v2.5.1** — debug throttling, stealth suspicion decay/reset, verbose
     status logging.
-  - **spec_kit migration** — 13 of 29 specs converted to `spec_kit.safe_state` +
-    `define_action_for_class` (arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire).
+  - **spec_kit migration** — 14 of 29 specs converted to `spec_kit.safe_state` +
+    `define_action_for_class` (arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction).
   - **Vanilla APL audit** — 6 phases complete, all 31 vanilla spec files reviewed.
   - **567 vanilla nil-guard test cases** added across 9 new test files (38 specs).
   - **Plan cleanup** — 44 → 15 active plans (35 archived to `plans/_archive/`).
@@ -166,7 +166,7 @@ Or run the suites directly:
 
 ---
 
-## CURRENT STATE (verified 2026-07-07, HEAD 0c439e96)
+## CURRENT STATE (verified 2026-07-07, HEAD 87ffb7aa)
 
 **Baseline:** 234 rotation + 13 leveling suites PASS / 0 fail on Lua 5.1.5.
 Spell audit PASS. Pre-commit hooks green (luac + vanilla audit + DBC audit).
@@ -183,12 +183,12 @@ Repo is 0 commits ahead of origin/master.
 | Bear Druid | Clean rebuild — pure bear-form tank, no form shifting | `c671ce73` | stripped cat/caster spells, wowsims tank APL |
 | Warrior audit | PvP CC gate, stance dance, Execute, Rampage, fear break | `08629117` | comprehensive warrior audit |
 | EaxFishing | v2.5.1 debug throttling + stealth suspicion decay | `691daee9` | fixes bot freezing from maxed suspicion |
-| spec_kit | 13 specs migrated to safe_state + define_action_for_class | `0c439e96` (latest) | arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire |
+| spec_kit | 14 specs migrated to safe_state + define_action_for_class | `87ffb7aa` (latest) | arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction |
 | Vanilla APL | 6-phase audit complete, all 31 vanilla files reviewed | `0ca3b349` | warrior/frost mage/bear fixes + 0-change reviews |
 | Nil-guard tests | 567 vanilla nil-guard test cases across 9 new files | `4ecbcaaa` | 38 specs covered (all vanilla classes) |
 | Plan cleanup | 44 → 15 active plans (35 archived) | `37c20d17`+`618cdcdf` | stale/completed plans moved to `plans/_archive/` |
 
-### spec_kit migration progress (13 of 29 specs)
+### spec_kit migration progress (14 of 29 specs)
 | Spec | Status | Key change |
 |------|--------|------------|
 | arms | ✅ Done (reference) | first conversion, `ARMS_SCHEMA` + `safe_state` |
@@ -203,8 +203,9 @@ Repo is 0 commits ahead of origin/master.
 | discipline | ✅ Done | 25 ACTION entries, `DISC_SCHEMA`, 59 SPELLS.X refs converted |
 | holy | ✅ Done | 20 ACTION entries, `HOLY_SCHEMA`, 48 SPELLS.X refs converted |
 | shadow | ✅ Done | 23 ACTION entries, `SHADOW_SCHEMA`, 61 SPELLS.X refs converted |
-| fire | ✅ Done (latest) | 18 ACTION entries, `FIRE_SCHEMA`, 42 SPELLS.X refs converted |
-| (16 remaining) | Not started | Convert only when already editing a spec |
+| fire | ✅ Done | 18 ACTION entries, `FIRE_SCHEMA`, 42 SPELLS.X refs converted |
+| destruction | ✅ Done (latest) | 15 ACTION entries, `DESTRO_SCHEMA`, 24 SPELLS.X refs converted |
+| (15 remaining) | Not started | Convert only when already editing a spec |
 
 ### Deferred / out of scope (with reasons — don't relitigate)
 - **C4 (extract core/casting.lua):** the 8 casting functions span lines
@@ -238,7 +239,7 @@ Repo is 0 commits ahead of origin/master.
 ## WHAT'S NEXT (prioritized)
 
 ### 1. Continue spec_kit migration (opportunistic — only when editing a spec)
-- 13 of 29 specs converted (arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire).
+- 14 of 29 specs converted (arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction).
 - Next candidates: any spec already being edited. Never big-bang (AGENTS Rule 5).
 - Pattern: add `spec_kit` require + `define_action_for_class(SPELLS)`, create
   ACTION table with rank IDs, add SCHEMA + `safe_state` in `build_state`,
