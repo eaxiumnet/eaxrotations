@@ -53,13 +53,13 @@ Same as TBC round:
 - [x] **P1.6** Protection Paladin — reviewed; Holy Shield > Consecration > Judgement > Seal; no taunt (correct); no changes needed
 - [x] **P1.7** Retribution — reviewed; seal twisting, JoCrusader, Consecration all present; no changes needed
 
-### Phase 2: Hunter + Mage (6 specs)
-- [ ] **P2.1** Beast Mastery — compare against Classic BM Hunter guide
-- [ ] **P2.2** Marksmanship — compare against Classic MM Hunter guide
-- [ ] **P2.3** Survival — compare against Classic SV Hunter guide
-- [ ] **P2.4** Arcane — compare against Classic Arcane Mage guide
-- [ ] **P2.5** Fire — compare against Classic Fire Mage guide
-- [ ] **P2.6** Frost — compare against Classic Frost Mage guide
+### Phase 2: Hunter + Mage (6 specs) ✅ COMPLETE
+- [x] **P2.1** Beast Mastery — reviewed; no Steady Shot (correct for Vanilla), pet management + Multi-Shot/Arcane Shot; no changes needed
+- [x] **P2.2** Marksmanship — reviewed; Aimed Shot > Multi-Shot cycle correct; no changes needed
+- [x] **P2.3** Survival — reviewed; melee weaving (Raptor Strike/Wing Clip) + Scorpid Sting; niche spec, no changes needed
+- [x] **P2.4** Arcane — reviewed; AP Frost hybrid (no Arcane Blast in Vanilla); Frostbolt primary + AM filler; burn/conserve phases; no changes needed
+- [x] **P2.5** Fire — reviewed; Scorch 5-stack → Fireball → Fire Blast; Combustion + PoM; correct for Vanilla; no changes needed
+- [x] **P2.6** Frost — fixed: Frostbolt moved above Scorch/ArcaneMissiles fillers (was below — primary nuke should never be last priority)
 
 ### Phase 3: Rogue + Warlock (6 specs)
 - [ ] **P3.1** Assassination — compare against Classic Assassination Rogue guide
