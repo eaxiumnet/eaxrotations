@@ -177,6 +177,7 @@ return {
                         { text = "Seal of Command", value = "command" },
                         { text = "Seal of the Martyr", value = "martyr" },
                     } },
+                    { key = "seal_refresh_ooc", type = "checkbox", label = "Refresh Seals Out of Combat", default = true, tooltip = "Keep refreshing your seal while out of combat (town/traveling). Uncheck to stop recasting seals when not in combat; the active seal will simply expire instead of being re-applied every ~30s." },
                     { key = "retri_seal_twisting", type = "checkbox", label = "Seal Twisting", default = true, tooltip = "Twist Seal of Command into Blood/Martyr near swing impact for double seal procs" },
                     { key = "retri_twist_window", type = "slider", label = "Twist Window (ms)", min = 200, max = 600, default = 450, tooltip = "The time window before swing impact to attempt a seal twist. Increase if high latency." },
                     { key = "retri_twist_mana_floor", type = "slider", label = "Twist Min Mana %", min = 0, max = 100, default = 20, tooltip = "Stop seal twisting when mana drops below this threshold" },
