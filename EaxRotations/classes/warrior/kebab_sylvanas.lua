@@ -46,8 +46,8 @@ local load_player = NS.GetPlayer and NS.GetPlayer()
 
 local _ok_enums, enums = pcall(require, "common/enums")
 if not _ok_enums or type(enums) ~= "table" or type(enums.class_id) ~= "table" then enums = { class_id = NS.CLASS_ID } end
-local ok_cls, cls_id = pcall(function() return load_player:get_class() end)
-if not ok_cls or cls_id ~= enums.class_id.WARRIOR then return end
+local ok_cls, cls_id = pcall(function() return load_player and load_player:get_class() end)
+if load_player and ok_cls and cls_id ~= enums.class_id.WARRIOR then return end  -- only skip if we KNOW it's not a warrior; allow nil GetPlayer (engine handles class filtering)
 
 local SPELLS = NS.WarriorSpells
 local Constants = NS.WarriorConstants
@@ -257,7 +257,7 @@ local strategies = {
     { name = "Healthstone",
       matches = function(context, state)
           if not context.in_combat then return false end
-          if (state.hp_pct or 100) > 28 then return false end
+          if (context.hp or 100) > 28 then return false end
           if (state.healthstone_ready or 0) <= 0 then return false end
           return true
       end,
@@ -265,6 +265,26 @@ local strategies = {
           local id = first_ready_item(HEALTHSTONE_IDS)
           if id then NS.use_item_by_id(id, context.me) end
       end },
+
+    -- [0] Pummel — interrupt casters (moved above damage abilities so interrupts aren't preempted)
+    {
+        name = "Pummel",
+        matches = function(context)
+            local settings = settings_for(context)
+            if not can_attack_target(context) then return false end
+            if settings.use_interrupts == false then return false end
+            if not context.target then return false end
+            local ok, casting = pcall(function() return context.target:is_casting() end)
+            if not (ok and casting) then return false end
+            local ok2, interruptible = pcall(function() return context.target:is_cast_interruptible() end)
+            if ok2 and interruptible == false then return false end
+            if (context.rage or 0) < 10 then return false end
+            return spell_exists(SPELLS.Pummel) and spell_ready(SPELLS.Pummel, context.target)
+        end,
+        execute = function(context)
+            return try_cast(SPELLS.Pummel, context.target, "[KEBAB] Pummel")
+        end,
+    },
 
     -- [1] Execute (target <20% HP — highest ST priority per sim)
     {
@@ -401,26 +421,6 @@ local strategies = {
         end,
     },
 
-    -- [5.5] Pummel -- interrupt casters
-    {
-        name = "Pummel",
-        matches = function(context)
-            local settings = settings_for(context)
-            if not can_attack_target(context) then return false end
-            if settings.use_interrupts == false then return false end
-            if not context.target then return false end
-            local ok, casting = pcall(function() return context.target:is_casting() end)
-            if not (ok and casting) then return false end
-            local ok2, interruptible = pcall(function() return context.target:is_cast_interruptible() end)
-            if ok2 and interruptible == false then return false end
-            if (context.rage or 0) < 10 then return false end
-            return spell_exists(SPELLS.Pummel) and spell_ready(SPELLS.Pummel, context.target)
-        end,
-        execute = function(context)
-            return try_cast(SPELLS.Pummel, context.target, "[KEBAB] Pummel")
-        end,
-    },
-
     -- [6] Shout maintenance
     {
         name = "BattleShout",
@@ -470,7 +470,7 @@ local strategies = {
             if not can_attack_target(context) or mode == "none" then return false end
             -- Skip if target has no armor (API unavailable or already fully reduced)
             if (context.target_armor or 0) <= 0 then return false end
-            if context.stance ~= Constants.STANCE.BATTLE and context.stance ~= Constants.STANCE.DEFENSIVE then return false end
+            if context.stance ~= Constants.STANCE.DEFENSIVE then return false end  -- Sunder/Devastate require Defensive Stance
 
             if mode == "help_stack" then
                 if (state.sunder_stacks or 0) >= (Constants.SUNDER_MAX_STACKS or 5) then return false end
@@ -608,9 +608,11 @@ local strategies = {
 -- REGISTRATION
 -- ============================================================================
 
-NS.rotation_registry:register("kebab", strategies, {
-    context_builder = build_kebab_state,
-})
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("kebab", strategies, {
+        context_builder = build_kebab_state,
+    })
+end
 
 -- Kebab (DW Arms) rotation registered
 return strategies

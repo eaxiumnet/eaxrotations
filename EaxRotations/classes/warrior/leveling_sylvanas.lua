@@ -30,7 +30,7 @@ local is_leveling_context = leveling.create_context_guard()
 -- ============================================================================
 local SPELLS = NS.WarriorSpells or NS.SPELLS or {}
 local CONSTANTS = NS.WarriorConstants or {}
-local STANCE = CONSTANTS.STANCE or { DEFENSIVE = 2 }
+local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local BATTLE_SHOUT_BUFF = CONSTANTS.BATTLE_SHOUT_IDS or { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
 local RAMPAGE_BUFF = { 30033, 30032, 30030 }
@@ -48,6 +48,20 @@ local WARRIOR_AOE_IDS = { 845, 1680, 12328 }  -- Cleave, Whirlwind, Sweeping Str
 -- ============================================================================
 -- Strategy helpers
 -- ============================================================================
+
+-- Dance to a target stance if not already in it (used by Pummel/Execute so they
+-- actually fire for a leveler who lives in Battle Stance). Follows the in-file
+-- Disarm/ShieldSlamPurge precedent. Returns true if a stance swap was cast this
+-- tick (the ability fires next tick); false if already in stance or swap unavailable.
+-- rage_floor: skip the swap if current rage exceeds this (Tactical Mastery cap ~25);
+-- pass nil/0 to always swap (for critical abilities like interrupts).
+local function dance_to_stance(context, target_stance, stance_spell, rage_floor)
+    if not context then return false end
+    if context.stance == target_stance then return false end  -- already there
+    if rage_floor and (context.rage or 0) > rage_floor then return false end  -- too much rage to lose
+    if not L.spell_ready(stance_spell) then return false end  -- stance not learned
+    return L.try_cast(stance_spell, context.me or L.get_player(), "[LEVELING] Stance dance", { skip_range = true })
+end
 
 
 
@@ -455,10 +469,17 @@ local strategies = {
       matches = battle_shout_matches,
       execute = function(context) return L.try_cast(SPELLS.BattleShout, (context and context.me) or L.get_player(), "[LEVELING] Battle Shout", { skip_range = true }) end },
 
-    -- Interrupt: Pummel
+    -- Interrupt: Pummel (Berserker Stance — dance if needed so the interrupt actually fires)
     { name = "Pummel",
       matches = pummel_matches,
-      execute = function(context) return L.try_cast(SPELLS.Pummel, context and context.target, "[LEVELING] Pummel") end },
+      execute = function(context) if not context then return false end
+          -- Pummel requires Berserker Stance; dance first (interrupts are critical — swap regardless of rage)
+          if context.stance ~= STANCE.BERSERKER then
+              if dance_to_stance(context, STANCE.BERSERKER, SPELLS.BerserkerStance) then return true end
+              return false  -- can't dance this tick; Pummel will fire next tick once in Berserker
+          end
+          return L.try_cast(SPELLS.Pummel, context.target, "[LEVELING] Pummel")
+      end },
 
     -- PvP: Shield Slam Purge (after interrupt, before AoE - same priority as main middleware)
     { name = "ShieldSlamPurge",
@@ -523,10 +544,17 @@ local strategies = {
       matches = function(context, state) return leveling.health_potion_matches(context, state, 30) end,
       execute = function(context) return leveling.health_potion_execute(context) end },
 
-    -- Execute
+    -- Execute (Berserker Stance — dance if needed; Execute dumps rage so the swap cost is acceptable)
     { name = "Execute",
       matches = execute_matches,
-      execute = function(context) return L.try_cast(SPELLS.Execute, context and context.target, "[LEVELING] Execute") end },
+      execute = function(context) if not context then return false end
+          if context.stance ~= STANCE.BERSERKER then
+              -- Execute is a rage dump; allow the swap even at high rage (unlike Disarm's 25 gate)
+              if dance_to_stance(context, STANCE.BERSERKER, SPELLS.BerserkerStance, 90) then return true end
+              return false
+          end
+          return L.try_cast(SPELLS.Execute, context.target, "[LEVELING] Execute")
+      end },
 
     -- PvP CC Gate: blocks AoE when nearby breakable CC (after all utilities, before AoE)
     { name = "PvPCCGate",
@@ -580,11 +608,15 @@ local strategies = {
       matches = hamstring_matches,
       execute = function(context) return L.try_cast(SPELLS.Hamstring, context and context.target, "[LEVELING] Hamstring") end },
 
+    -- Overpower (top Arms priority — 5 rage, high damage, dodge-proc; was below SpecFiller)
+    { name = "Overpower",
+      matches = overpower_matches,
+      execute = function(context) return L.try_cast(SPELLS.Overpower, context and context.target, "[LEVELING] Overpower") end },
+
     -- Spec filler: Mortal Strike / Bloodthirst
     { name = "SpecFiller",
       matches = spec_filler_matches,
       execute = function(context) if not context then return false end
-          if false then return L.try_cast(nil, nil, "[LEVELING] Scanner marker") end
           if L.spell_ready(SPELLS.MortalStrike) then
               return L.try_cast(SPELLS.MortalStrike, context.target, "[LEVELING] Mortal Strike")
           elseif L.spell_ready(SPELLS.Bloodthirst) then
@@ -592,11 +624,6 @@ local strategies = {
           end
           return false
       end },
-
-    -- Overpower
-    { name = "Overpower",
-      matches = overpower_matches,
-      execute = function(context) return L.try_cast(SPELLS.Overpower, context and context.target, "[LEVELING] Overpower") end },
 
     -- Debuff: Sunder Armor for durable targets before rage dumps
     { name = "SunderArmor",
