@@ -1,8 +1,10 @@
--- elemental_sylvanas -- shaman elemental_sylvanas rotation for TBC Anniversary (2.5.5).
--- WHAT:  priority-list strategies for elemental_sylvanas gameplay.
--- WHEN:  combat with valid enemy target.
--- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- elemental_sylvanas.lua -- Shaman Elemental DPS for TBC Anniversary (2.5.5).
+-- WHAT:  ranged caster DPS with Lightning Bolt filler, Flame Shock DoT,
+--         Chain Lightning cleave, Elemental Mastery burst, totem maintenance,
+--         mana-aware rank switching, and weapon buff upkeep.
+-- WHEN:  combat, with valid enemy target.
+-- WHY:   mirrors TBC elemental consensus: totems > Flame Shock > CL > LB.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 
 -- Shaman Elemental priority list.
 
@@ -12,6 +14,38 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local SPELLS = NS.ShamanSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
+
+-- Centralized spell resolver via spec_kit (rank IDs from shaman/class_sylvanas.lua).
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    Bloodlust            = define("Bloodlust",            { 2825 }, "Bloodlust"),
+    ChainHeal            = define("ChainHeal",            { 25423, 25422, 10623, 10622, 1064 }, "ChainHeal"),
+    ChainLightning       = define("ChainLightning",       { 25442, 25439, 10605, 2860, 930, 421 }, "ChainLightning"),
+    EarthbindTotem       = define("EarthbindTotem",       { 2484 }, "EarthbindTotem"),
+    EarthShock           = define("EarthShock",           { 25454, 10414, 10413, 10412, 8046, 8045, 8044, 8042 }, "EarthShock"),
+    ElementalMastery     = define("ElementalMastery",     { 16166 }, "ElementalMastery"),
+    FireNovaTotem        = define("FireNovaTotem",        { 25547, 25546, 11315, 11314, 8499, 8498, 1535 }, "FireNovaTotem"),
+    FlametongueWeapon    = define("FlametongueWeapon",    { 25489, 16342, 16341, 16339, 8030, 8027, 8024 }, "FlametongueWeapon"),
+    FlameShock           = define("FlameShock",           { 25457, 29228, 10448, 10447, 8053, 8052, 8050 }, "FlameShock"),
+    FrostShock           = define("FrostShock",           { 25464, 10473, 10472, 8058, 8056 }, "FrostShock"),
+    GhostWolf            = define("GhostWolf",            { 2645 }, "GhostWolf"),
+    HealingWave          = define("HealingWave",          { 25396, 25391, 25357, 10396, 10395, 8005, 959, 939, 913, 547, 332, 331 }, "HealingWave"),
+    LightningBolt        = define("LightningBolt",        { 25449, 25448, 15208, 15207, 10392, 10391, 6041, 943, 915, 548, 529, 403 }, "LightningBolt"),
+    LightningBoltLowerRank = define("LightningBoltLowerRank", { 25448 }, "LightningBoltLowerRank"),
+    LightningShield      = define("LightningShield",      { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }, "LightningShield"),
+    MagmaTotem           = define("MagmaTotem",           { 25550, 10587, 10586, 10585, 8190 }, "MagmaTotem"),
+    ManaSpringTotem      = define("ManaSpringTotem",      { 25570, 10497, 10496, 10495, 5675 }, "ManaSpringTotem"),
+    ManaTideTotem        = define("ManaTideTotem",        { 16190 }, "ManaTideTotem"),
+    NaturesSwiftness     = define("NaturesSwiftness",     { 16188 }, "NaturesSwiftness"),
+    RockbiterWeapon      = define("RockbiterWeapon",      { 25485, 25479, 16316, 16315, 16314, 10399, 8019, 8018, 8017 }, "RockbiterWeapon"),
+    TotemicCall          = define("TotemicCall",          { 36936 }, "TotemicCall"),
+    TotemOfWrath         = define("TotemOfWrath",         { 30706 }, "TotemOfWrath"),
+    TremorTotem          = define("TremorTotem",          { 8143 }, "TremorTotem"),
+    WaterShield          = define("WaterShield",          { 33736, 24398, 23575 }, "WaterShield"),
+    WindfuryWeapon       = define("WindfuryWeapon",       { 25505, 16362, 10486, 8235, 8232 }, "WindfuryWeapon"),
+    WrathOfAirTotem      = define("WrathOfAirTotem",      { 3738 }, "WrathOfAirTotem"),
+}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { shaman = {} } } end
 local TBC_SHAMAN = (TBC.SPELLS and TBC.SPELLS.shaman) or {}
@@ -55,6 +89,17 @@ local runtime = {
     last_flametongue_ms = -30000000,
     last_windfury_ms = -30000000,
     last_rockbiter_ms = -30000000,
+}
+
+-- ============================================================================
+-- Schema for safe_state (Pattern 14 nil-guard elimination).
+-- ============================================================================
+local ELE_SCHEMA = {
+    flame_remains = 0, lightning_shield_up = false,
+    mana_pct = 100, mana_low = false, mana_conserve = false, mana_emergency = false,
+    hp_pct = 100, target_count = 0, has_flametongue = false,
+    has_windfury = false, has_rockbiter = false, now_ms = 0,
+    spell_damage = 0, clearcast_active = false, healthstone_ready = 0,
 }
 
 -- ============================================================================
@@ -106,7 +151,7 @@ local function build_state(context)
     ele_state.has_rockbiter = (ele_state.now_ms - runtime.last_rockbiter_ms) < WEAPON_BUFF_REFRESH_MS
     ele_state.clearcast_active = NS.has_player_buff and NS.has_player_buff(CLEARCAST_BUFF) or false
     ele_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
-    return ele_state
+    return spec_kit.safe_state(ele_state, ELE_SCHEMA)
 end
 
 -- ============================================================================
@@ -114,17 +159,17 @@ end
 -- ============================================================================
 
 local function lightning_shield_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.LightningShield, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LightningShield, 3.0) then return false end
     local s = context.settings or {}
     if state.mana_emergency then return false end
     if s.elemental_lightning_shield == false then return false end
     if state.lightning_shield_up then return false end
     if state.now_ms - runtime.last_lightning_shield_ms < SHIELD_REFRESH_UNKNOWN_MS then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.LightningShield, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.LightningShield, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function lightning_shield_execute(context, state)
-    if NS.try_cast(SPELLS.LightningShield, NS.PLAYER_UNIT, "[ELEMENTAL] Lightning Shield") then
+    if NS.try_cast(ACTION.LightningShield, NS.PLAYER_UNIT, "[ELEMENTAL] Lightning Shield") then
         runtime.last_lightning_shield_ms = state.now_ms
         return true
     end
@@ -135,7 +180,7 @@ local function bloodlust_matches_fn(context, state)
     if not context.in_combat then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not context.should_burst then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Bloodlust, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Bloodlust, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function chain_lightning_matches_fn(context, state)
@@ -149,13 +194,13 @@ local function chain_lightning_matches_fn(context, state)
     if context.threat_pct and context.threat_pct > 80 then return false end
     -- Clearcast priority: always cast CL when Clearcast is active to consume the proc
     if state.clearcast_active then
-        return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ChainLightning, context.target) or false
+        return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ChainLightning, context.target) or false
     end
     -- Research: CL only at 3+ targets; configurable via schema
     local s = context.settings or {}
     local min_targets = s.elemental_cl_min_targets or CL_MIN_TARGETS
     if (state.target_count or 0) < min_targets then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ChainLightning, context.target) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ChainLightning, context.target) or false
 end
 
 local _el_lb_count = 0
@@ -179,15 +224,15 @@ local function lightning_bolt_matches_fn(context, state)
     -- Threat safety: hold Lightning Bolt if threat > 90%
     if context.threat_pct and context.threat_pct > 90 then return false end
     -- Research: switch to lower-rank Lightning Bolt at mana < 30%
-    -- Uses SPELLS.LightningBoltLowerRank when learned and mana is low
-    local lower_rank = SPELLS.LightningBoltLowerRank
+    -- Uses ACTION.LightningBoltLowerRank when learned and mana is low
+    local lower_rank = ACTION.LightningBoltLowerRank
     local lower_id = (type(lower_rank) == "table" and lower_rank.ids and lower_rank.ids[1]) or lower_rank
-    local spell_id = (state.mana_low and lower_id and NS.is_spell_learned and NS.is_spell_learned(lower_id)) and lower_rank or SPELLS.LightningBolt
+    local spell_id = (state.mana_low and lower_id and NS.is_spell_learned and NS.is_spell_learned(lower_id)) and lower_rank or ACTION.LightningBolt
     return NS.spell_ready ~= nil and NS.spell_ready(spell_id, context.target) or false
 end
 
 local function flame_shock_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FlameShock, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FlameShock, 2.0) then return false end
     if not context.target then return false end
     -- Research: only clip Flame Shock at <1s remaining (prevents shock CD starvation)
     if (state.flame_remains or 0) > 1 then return false end    -- SP-aware gating: skip Flame Shock if spell damage is below minimum threshold
@@ -195,7 +240,7 @@ local function flame_shock_matches_fn(context, state)
     local s = context.settings or {}
     local min_sp = s.elemental_flame_shock_min_sp or FLAME_SHOCK_MIN_SP_DEFAULT
     if NS.should_refresh_dot and not NS.should_refresh_dot(state.flame_remains, 1.5, context.ttd, 12) then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.FlameShock, context.target) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.FlameShock, context.target) or false
 end
 
 local function earth_shock_filler_matches_fn(context, state)
@@ -203,13 +248,13 @@ local function earth_shock_filler_matches_fn(context, state)
     -- Respect interrupt reserve: when ON, suppress Earth Shock filler to save for interrupts
     local s = context.settings or {}
     if s.elemental_interrupt_reserve ~= false then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.EarthShock, context.target) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.EarthShock, context.target) or false
 end
 
 local function frost_shock_matches_fn(context, state)
     if not context.is_moving then return false end
     if not context.is_pvp then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.FrostShock, context.target) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.FrostShock, context.target) or false
 end
 
 local function elemental_mastery_matches_fn(context, state)
@@ -221,10 +266,10 @@ local function elemental_mastery_matches_fn(context, state)
     -- EM+CL hold: don't waste EM on Lightning Bolt when CL is the better nuke
     local min_targets = s.elemental_cl_min_targets or CL_MIN_TARGETS
     if (state.target_count or 0) >= min_targets then
-        local cl_cd = NS.cooldown_remains and NS.cooldown_remains(SPELLS.ChainLightning) or 0
+        local cl_cd = NS.cooldown_remains and NS.cooldown_remains(ACTION.ChainLightning) or 0
         if cl_cd > 1.5 then return false end
     end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ElementalMastery, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ElementalMastery, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function natures_swiftness_matches_fn(context, state)
@@ -232,47 +277,47 @@ local function natures_swiftness_matches_fn(context, state)
     if s.elemental_use_natures_swiftness == false then return false end
     if not context.in_combat then return false end
     if not context.should_burst then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.NaturesSwiftness, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.NaturesSwiftness, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function water_shield_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.WaterShield, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.WaterShield, 3.0) then return false end
     local s = context.settings or {}
     if state.mana_emergency then return false end
     local ws_mana = s.elemental_water_shield_mana or WATER_SHIELD_MANA_DEFAULT
     if (state.mana_pct or 100) > ws_mana then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.WaterShield, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.WaterShield, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function ghost_wolf_matches_fn(context, state)
     if context.in_combat then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.GhostWolf, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.GhostWolf, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function tremor_totem_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.TremorTotem, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.TremorTotem, 3.0) then return false end
     if not context.in_combat then return false end
     if state.mana_emergency then return false end
     if not (context.fear_nearby or false) then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.TremorTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.TremorTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function earthbind_totem_matches_fn(context, state)
     if not context.is_pvp then return false end
     if state.mana_emergency then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.EarthbindTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.EarthbindTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function mana_tide_totem_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ManaTideTotem, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ManaTideTotem, 3.0) then return false end
     if state.mana_emergency then return false end
     if (state.mana_pct or 100) > 30 then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ManaTideTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ManaTideTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function chain_heal_matches_fn(context, state)
     if not (context.group_injured or false) then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ChainHeal, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ChainHeal, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 -- ============================================================================
@@ -280,14 +325,14 @@ end
 -- ============================================================================
 
 local function flametongue_weapon_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FlametongueWeapon, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FlametongueWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_flametongue then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.FlametongueWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.FlametongueWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function flametongue_weapon_execute(context, state)
-    if NS.try_cast(SPELLS.FlametongueWeapon, NS.PLAYER_UNIT, "[ELEMENTAL] Flametongue Weapon") then
+    if NS.try_cast(ACTION.FlametongueWeapon, NS.PLAYER_UNIT, "[ELEMENTAL] Flametongue Weapon") then
         runtime.last_flametongue_ms = state.now_ms
         return true
     end
@@ -295,14 +340,14 @@ local function flametongue_weapon_execute(context, state)
 end
 
 local function windfury_weapon_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.WindfuryWeapon, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.WindfuryWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_windfury then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.WindfuryWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.WindfuryWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function windfury_weapon_execute(context, state)
-    if NS.try_cast(SPELLS.WindfuryWeapon, NS.PLAYER_UNIT, "[ELEMENTAL] Windfury Weapon") then
+    if NS.try_cast(ACTION.WindfuryWeapon, NS.PLAYER_UNIT, "[ELEMENTAL] Windfury Weapon") then
         runtime.last_windfury_ms = state.now_ms
         return true
     end
@@ -310,14 +355,14 @@ local function windfury_weapon_execute(context, state)
 end
 
 local function rockbiter_weapon_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.RockbiterWeapon, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.RockbiterWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_rockbiter then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.RockbiterWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.RockbiterWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function rockbiter_weapon_execute(context, state)
-    if NS.try_cast(SPELLS.RockbiterWeapon, NS.PLAYER_UNIT, "[ELEMENTAL] Rockbiter Weapon") then
+    if NS.try_cast(ACTION.RockbiterWeapon, NS.PLAYER_UNIT, "[ELEMENTAL] Rockbiter Weapon") then
         runtime.last_rockbiter_ms = state.now_ms
         return true
     end
@@ -333,7 +378,7 @@ local function healing_wave_matches_fn(context, state)
     local s = context.settings or {}
     local heal_hp = s.elemental_self_heal_hp or HEALING_WAVE_HP_PCT
     if (state.hp_pct or 100) > heal_hp then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.HealingWave, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.HealingWave, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 -- ============================================================================
@@ -346,7 +391,7 @@ local function totem_of_wrath_matches_fn(context, state)
     if s.elemental_use_totem_of_wrath == false then return false end
     if state.mana_emergency then return false end
     if NS.has_player_buff(TOTEM_OF_WRATH_BUFF) then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.TotemOfWrath, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.TotemOfWrath, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function wrath_of_air_totem_matches_fn(context, state)
@@ -354,7 +399,7 @@ local function wrath_of_air_totem_matches_fn(context, state)
     if s.elemental_manage_totems == false then return false end
     if state.mana_emergency then return false end
     if NS.has_player_buff(WRATH_OF_AIR_BUFF) then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.WrathOfAirTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.WrathOfAirTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function mana_spring_totem_matches_fn(context, state)
@@ -362,7 +407,7 @@ local function mana_spring_totem_matches_fn(context, state)
     if s.elemental_manage_totems == false then return false end
     if state.mana_emergency then return false end
     if NS.has_player_buff(MANA_SPRING_BUFF) then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ManaSpringTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ManaSpringTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 -- ============================================================================
@@ -377,7 +422,7 @@ local function fire_nova_totem_matches_fn(context, state)
     local min_targets = s.elemental_aoe_threshold or 4
     if (state.target_count or 0) < min_targets then return false end
     if context.cc_safe == false then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.FireNovaTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.FireNovaTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 local function magma_totem_matches_fn(context, state)
@@ -388,7 +433,7 @@ local function magma_totem_matches_fn(context, state)
     local min_targets = s.elemental_aoe_threshold or 4
     if (state.target_count or 0) < min_targets then return false end
     if context.cc_safe == false then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.MagmaTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.MagmaTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 -- ============================================================================
@@ -399,7 +444,7 @@ local function totemic_call_matches_fn(context, state)
     if not context.in_combat then return false end
     if not context.is_moving then return false end
     if not (context.has_totems or false) then return false end
-    return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.TotemicCall, NS.PLAYER_UNIT, { skip_range = true }) or false
+    return NS.spell_ready ~= nil and NS.spell_ready(ACTION.TotemicCall, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
 -- ============================================================================
@@ -448,78 +493,78 @@ local strategies = {
     -- Water Shield (mana sustain)
     { name = "WaterShield",
       matches = water_shield_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.WaterShield, NS.PLAYER_UNIT, "[ELEMENTAL] Water Shield") end },
+      execute = function() return NS.try_cast(ACTION.WaterShield, NS.PLAYER_UNIT, "[ELEMENTAL] Water Shield") end },
     -- Ghost Wolf (OOC movement)
     { name = "GhostWolf",
       matches = ghost_wolf_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.GhostWolf, NS.PLAYER_UNIT, "[ELEMENTAL] Ghost Wolf") end },
+      execute = function() return NS.try_cast(ACTION.GhostWolf, NS.PLAYER_UNIT, "[ELEMENTAL] Ghost Wolf") end },
     -- Tremor Totem (fear break)
     { name = "TremorTotem",
       matches = tremor_totem_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.TremorTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Tremor Totem") end },
+      execute = function() return NS.try_cast(ACTION.TremorTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Tremor Totem") end },
     -- Earthbind Totem (PvP slow)
     { name = "EarthbindTotem",
       matches = earthbind_totem_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.EarthbindTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Earthbind Totem") end },
+      execute = function() return NS.try_cast(ACTION.EarthbindTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Earthbind Totem") end },
     -- Mana Tide Totem
     { name = "ManaTideTotem",
       matches = mana_tide_totem_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.ManaTideTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Mana Tide Totem") end },
+      execute = function() return NS.try_cast(ACTION.ManaTideTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Mana Tide Totem") end },
     -- Elemental Mastery burst
     { name = "ElementalMastery",
       matches = elemental_mastery_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.ElementalMastery, NS.PLAYER_UNIT, "[ELEMENTAL] Elemental Mastery") end },
+      execute = function() return NS.try_cast(ACTION.ElementalMastery, NS.PLAYER_UNIT, "[ELEMENTAL] Elemental Mastery") end },
     -- Nature's Swiftness burst
     { name = "NaturesSwiftness",
       matches = natures_swiftness_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.NaturesSwiftness, NS.PLAYER_UNIT, "[ELEMENTAL] Nature's Swiftness") end },
+      execute = function() return NS.try_cast(ACTION.NaturesSwiftness, NS.PLAYER_UNIT, "[ELEMENTAL] Nature's Swiftness") end },
     -- Bloodlust burst (test assertion string)
-    { name = "Bloodlust", spell = SPELLS.Bloodlust, target = "self", combat = true, setting = "use_cooldowns", cooldown = 600, min_mana = 25, requires_target = false,
+    { name = "Bloodlust", spell = ACTION.Bloodlust, target = "self", combat = true, setting = "use_cooldowns", cooldown = 600, min_mana = 25, requires_target = false,
       matches = bloodlust_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.Bloodlust, NS.PLAYER_UNIT, "[ELEMENTAL] Bloodlust") end },
+      execute = function() return NS.try_cast(ACTION.Bloodlust, NS.PLAYER_UNIT, "[ELEMENTAL] Bloodlust") end },
     -- Chain Lightning (test assertion string: cooldown = 6)
-    { name = "ChainLightning", spell = SPELLS.ChainLightning, not_moving = true, cooldown = 6,
+    { name = "ChainLightning", spell = ACTION.ChainLightning, not_moving = true, cooldown = 6,
       matches = chain_lightning_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.ChainLightning, context.target, "[ELEMENTAL] Chain Lightning") end },
+      execute = function(context) return NS.try_cast(ACTION.ChainLightning, context.target, "[ELEMENTAL] Chain Lightning") end },
     -- Flame Shock DoT maintenance (before filler to keep it up)
     { name = "FlameShock",
       matches = flame_shock_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.FlameShock, context.target, "[ELEMENTAL] Flame Shock") end },
+      execute = function(context) return NS.try_cast(ACTION.FlameShock, context.target, "[ELEMENTAL] Flame Shock") end },
     -- Lightning Bolt main nuke
     { name = "LightningBolt",
       matches = lightning_bolt_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.LightningBolt, context.target, "[ELEMENTAL] Lightning Bolt") end },
+      execute = function(context) return NS.try_cast(ACTION.LightningBolt, context.target, "[ELEMENTAL] Lightning Bolt") end },
     -- Chain Heal emergency
     { name = "ChainHeal",
       matches = chain_heal_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.ChainHeal, NS.PLAYER_UNIT, "[ELEMENTAL] Chain Heal") end },
+      execute = function() return NS.try_cast(ACTION.ChainHeal, NS.PLAYER_UNIT, "[ELEMENTAL] Chain Heal") end },
     -- Movement fillers (test assertion: after ChainLightning)
-    { name = "FlameShockMoving", spell = SPELLS.FlameShock, debuff = FLAME_SHOCK_DEBUFF, refresh = 3, moving = true, cooldown = 6,
+    { name = "FlameShockMoving", spell = ACTION.FlameShock, debuff = FLAME_SHOCK_DEBUFF, refresh = 3, moving = true, cooldown = 6,
       matches = flame_shock_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.FlameShock, context.target, "[ELEMENTAL] Flame Shock (moving)") end },
-    { name = "EarthShockMoving", spell = SPELLS.EarthShock, moving = true, cooldown = 6,
+      execute = function(context) return NS.try_cast(ACTION.FlameShock, context.target, "[ELEMENTAL] Flame Shock (moving)") end },
+    { name = "EarthShockMoving", spell = ACTION.EarthShock, moving = true, cooldown = 6,
       matches = earth_shock_filler_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.EarthShock, context.target, "[ELEMENTAL] Earth Shock (moving)") end },
+      execute = function(context) return NS.try_cast(ACTION.EarthShock, context.target, "[ELEMENTAL] Earth Shock (moving)") end },
     { name = "FrostShockMoving",
       matches = frost_shock_matches_fn,
-      execute = function(context) return NS.try_cast(SPELLS.FrostShock, context.target, "[ELEMENTAL] Frost Shock (moving)") end },
+      execute = function(context) return NS.try_cast(ACTION.FrostShock, context.target, "[ELEMENTAL] Frost Shock (moving)") end },
     -- Totem maintenance (Research: keep Totem of Wrath, Wrath of Air, Mana Spring)
     { name = "TotemOfWrath",
       matches = totem_of_wrath_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.TotemOfWrath, NS.PLAYER_UNIT, "[ELEMENTAL] Totem of Wrath") end },
+      execute = function() return NS.try_cast(ACTION.TotemOfWrath, NS.PLAYER_UNIT, "[ELEMENTAL] Totem of Wrath") end },
     { name = "WrathOfAirTotem",
       matches = wrath_of_air_totem_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.WrathOfAirTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Wrath of Air Totem") end },
+      execute = function() return NS.try_cast(ACTION.WrathOfAirTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Wrath of Air Totem") end },
     { name = "ManaSpringTotem",
       matches = mana_spring_totem_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.ManaSpringTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Mana Spring Totem") end },
+      execute = function() return NS.try_cast(ACTION.ManaSpringTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Mana Spring Totem") end },
     -- AoE totems (Research: Fire Nova/Magma for stacked AoE)
     { name = "FireNovaTotem",
       matches = fire_nova_totem_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.FireNovaTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Fire Nova Totem AoE") end },
+      execute = function() return NS.try_cast(ACTION.FireNovaTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Fire Nova Totem AoE") end },
     { name = "MagmaTotem",
       matches = magma_totem_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.MagmaTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Magma Totem AoE") end },
+      execute = function() return NS.try_cast(ACTION.MagmaTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Magma Totem AoE") end },
     -- parity parity: weapon buffs, self-heal, totem recall
     { name = "FlametongueWeapon",
       matches = flametongue_weapon_matches_fn,
@@ -532,13 +577,15 @@ local strategies = {
       execute = rockbiter_weapon_execute },
     { name = "HealingWave",
       matches = healing_wave_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.HealingWave, NS.PLAYER_UNIT, "[ELEMENTAL] Healing Wave") end },
+      execute = function() return NS.try_cast(ACTION.HealingWave, NS.PLAYER_UNIT, "[ELEMENTAL] Healing Wave") end },
     { name = "TotemicCall",
       matches = totemic_call_matches_fn,
-      execute = function() return NS.try_cast(SPELLS.TotemicCall, NS.PLAYER_UNIT, "[ELEMENTAL] Totemic Call") end },
+      execute = function() return NS.try_cast(ACTION.TotemicCall, NS.PLAYER_UNIT, "[ELEMENTAL] Totemic Call") end },
 }
 
-NS.rotation_registry:register("elemental", strategies, { get_state = build_state })
--- Shaman elemental rotation registered (deep enhanced, parity weapon/heal/totem parity)
-return strategies
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("elemental", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("Shaman elemental rotation registered") end
+return { strategies = strategies, build_state = build_state }
 

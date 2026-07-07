@@ -51,7 +51,7 @@ _G.EaxRotations = {
     buff_up = function() return false end,
 }
 
-local strategies = dofile("EaxRotations/classes/shaman/elemental_sylvanas.lua")
+local strategies = dofile("EaxRotations/classes/shaman/elemental_sylvanas.lua").strategies
 assert_true(type(strategies) == "table", "strategies table should load")
 
 local function find_strategy(name)
