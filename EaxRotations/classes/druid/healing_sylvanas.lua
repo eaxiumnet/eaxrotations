@@ -1,14 +1,15 @@
--- healing_sylvanas -- druid healing_sylvanas rotation for TBC Anniversary (2.5.5).
--- WHAT:  priority-list strategies for healing_sylvanas gameplay.
--- WHEN:  combat with valid enemy target (or healing context for healers).
--- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
-
--- shared druid healing helpers for resto/off-heal playstyles.
-
+-- healing_sylvanas.lua -- Shared druid healing helpers for TBC Anniversary (2.5.5).
+-- WHAT:  healing target scanner + spell recommender for resto/off-heal playstyles.
+-- WHEN:  loaded by resto_sylvanas.lua and resto_vanilla.lua via require() or NS.DruidHealing.
+-- WHY:   centralizes HoT scanning (Lifebloom stacks/remains, Rejuv, Regrowth) so resto specs
+--         don't re-implement target scanning. Recommend() returns a spell+target+reason tuple.
+-- SAFETY: all spell accesses via spec_kit.define_action_for_class; nil-guarded entry fields; no on_update() allocs.
+-- NOTE:   this is a helper module, NOT a rotation spec — no strategies/build_state/registration.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 local M = {}
 local healing_targets = {}
@@ -17,11 +18,15 @@ local scan_frame = 0
 local LIFEBLOOM_MAX_STACKS = 3
 local LIFEBLOOM_REFRESH_REMAINS = 1.6
 
-local SPELLS = NS.DruidSpells or {
-    Lifebloom = NS.spell_action(33763, "Lifebloom"),
-    Rejuvenation = NS.spell_action(26982, "Rejuvenation"),
-    Regrowth = NS.spell_action(26980, "Regrowth"),
-    HealingTouch = NS.spell_action(26979, "HealingTouch"),
+local SPELLS = NS.DruidSpells or {}
+
+-- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    HealingTouch  = define("HealingTouch",  { 26979, 26978, 25297, 9889, 9888, 9758, 8903, 6778, 5189, 5188, 5187, 5186, 5185 }, "HealingTouch"),
+    Lifebloom     = define("Lifebloom",     { 33763 }, "Lifebloom"),
+    Regrowth      = define("Regrowth",      { 26980, 9858, 9857, 9856, 9750, 8941, 8940, 8939, 8938, 8936 }, "Regrowth"),
+    Rejuvenation  = define("Rejuvenation",  { 26982, 26981, 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }, "Rejuvenation"),
 }
 
 local function has(unit, spell)
@@ -43,11 +48,11 @@ function M.scan_healing_targets()
     end
     scan_frame = current_frame
     healing_targets_count = NS.build_healing_entries(healing_targets, function(entry, unit)
-        entry.has_lifebloom = has(unit, SPELLS.Lifebloom)
-        entry.lifebloom_stacks = stacks(unit, SPELLS.Lifebloom)
-        entry.lifebloom_remains = remains(unit, SPELLS.Lifebloom)
-        entry.has_rejuvenation = has(unit, SPELLS.Rejuvenation)
-        entry.has_regrowth = has(unit, SPELLS.Regrowth)
+        entry.has_lifebloom = has(unit, ACTION.Lifebloom)
+        entry.lifebloom_stacks = stacks(unit, ACTION.Lifebloom)
+        entry.lifebloom_remains = remains(unit, ACTION.Lifebloom)
+        entry.has_rejuvenation = has(unit, ACTION.Rejuvenation)
+        entry.has_regrowth = has(unit, ACTION.Regrowth)
     end)
     return healing_targets, healing_targets_count
 end
@@ -73,23 +78,23 @@ function M.recommend(context)
     local effective = entry.effective_hp or hp
 
     if effective <= 35 then
-        return { spell = SPELLS.HealingTouch, target = target, reason = "emergency direct heal" }
+        return { spell = ACTION.HealingTouch, target = target, reason = "emergency direct heal" }
     end
     if effective <= 55 and not entry.has_regrowth then
-        return { spell = SPELLS.Regrowth, target = target, reason = "stabilize with direct heal plus HoT" }
+        return { spell = ACTION.Regrowth, target = target, reason = "stabilize with direct heal plus HoT" }
     end
     if tank and tank.unit and (context.in_combat or (tank.effective_hp or 100) <= 95) then
         local lb_stacks = tank.lifebloom_stacks or 0
         local lb_remains = tank.lifebloom_remains or 0
         if lb_stacks < LIFEBLOOM_MAX_STACKS or lb_remains <= LIFEBLOOM_REFRESH_REMAINS then
-            return { spell = SPELLS.Lifebloom, target = tank.unit, reason = "maintain tank Lifebloom roll" }
+            return { spell = ACTION.Lifebloom, target = tank.unit, reason = "maintain tank Lifebloom roll" }
         end
     end
     if hp <= 85 and not entry.has_lifebloom then
-        return { spell = SPELLS.Lifebloom, target = target, reason = "tank/party rolling HoT" }
+        return { spell = ACTION.Lifebloom, target = target, reason = "tank/party rolling HoT" }
     end
     if hp <= 90 and not entry.has_rejuvenation then
-        return { spell = SPELLS.Rejuvenation, target = target, reason = "efficient maintenance HoT" }
+        return { spell = ACTION.Rejuvenation, target = target, reason = "efficient maintenance HoT" }
     end
     return nil
 end
