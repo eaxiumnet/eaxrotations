@@ -1,14 +1,49 @@
--- demonology_sylvanas -- warlock demonology_sylvanas rotation for TBC Anniversary (2.5.5).
--- WHAT:  priority-list strategies for demonology_sylvanas gameplay.
--- WHEN:  combat with valid enemy target.
--- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- demonology_sylvanas.lua -- Warlock Demonology DPS for TBC Anniversary (2.5.5).
+-- WHAT:  pet-centric DPS spec with Felguard, Soul Link, multi-DoT cycling,
+--         Fel Domination summoning, and Imp Firebolt management.
+-- WHEN:  combat, with valid enemy target and active pet.
+-- WHY:   mirrors TBC demonology consensus: pet survival > DoT maintenance >
+--         Shadow Bolt filler, with Soul Link for survivability.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 
 -- Warlock Demonology priority list.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarlockSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
+
+-- Centralized spell resolver via spec_kit (rank IDs from warlock/class_sylvanas.lua).
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    Corruption       = define("Corruption",       { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
+    CurseElements    = define("CurseElements",    { 27228, 11722, 11721, 1490 }, "CurseElements"),
+    CurseOfAgony     = define("CurseOfAgony",     { 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
+    CurseOfDoom      = define("CurseOfDoom",      { 30910, 603 }, "CurseOfDoom"),
+    CurseOfShadow    = define("CurseOfShadow",    { 27229, 17937, 17862 }, "CurseOfShadow"),
+    DarkPact         = define("DarkPact",         { 27265, 18938, 18937, 18220 }, "DarkPact"),
+    DeathCoil        = define("DeathCoil",        { 27223, 17926, 17925, 6789 }, "DeathCoil"),
+    DrainSoul        = define("DrainSoul",        { 27217, 11675, 8289, 8288, 1120 }, "DrainSoul"),
+    Fear             = define("Fear",             { 6215, 6213, 5782 }, "Fear"),
+    FelArmor         = define("FelArmor",         { 28189, 28176 }, "FelArmor"),
+    FelDomination    = define("FelDomination",    { 18708 }, "FelDomination"),
+    HealthFunnel     = define("HealthFunnel",     { 27259, 11695, 11694, 11693, 3700, 3699, 3698, 755 }, "HealthFunnel"),
+    Hellfire         = define("Hellfire",         { 27213, 11684, 11683, 1949 }, "Hellfire"),
+    HowlofTerror     = define("HowlofTerror",     { 17928, 5484 }, "HowlofTerror"),
+    Immolate         = define("Immolate",         { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
+    Incinerate       = define("Incinerate",       { 32231, 29722 }, "Incinerate"),
+    LifeTap          = define("LifeTap",          { 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
+    RainOfFire       = define("RainOfFire",       { 27212, 5740 }, "RainOfFire"),
+    Seduction        = define("Seduction",        { 6358 }, "Seduction"),
+    SeedOfCorruption = define("SeedOfCorruption", { 27243 }, "SeedOfCorruption"),
+    ShadowBolt       = define("ShadowBolt",       { 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
+    ShadowWard       = define("ShadowWard",       { 28610, 11740, 11739, 6229 }, "ShadowWard"),
+    SiphonLife       = define("SiphonLife",       { 30911, 27264, 18881, 18880, 18879, 18265 }, "SiphonLife"),
+    SoulFire         = define("SoulFire",         { 30545, 27211, 17924, 6353 }, "SoulFire"),
+    Soulshatter      = define("Soulshatter",      { 29858 }, "Soulshatter"),
+    SummonFelguard   = define("SummonFelguard",   { 30146 }, "SummonFelguard"),
+    SummonImp        = define("SummonImp",        { 688 }, "SummonImp"),
+}
 local pet_manager = require("shared/pet_manager_sylvanas")
 
 local potion_helper = require("shared/potion_helper_sylvanas")
@@ -37,6 +72,37 @@ local IMP_FIREBOLT_IDS = { 3110, 7799, 7800, 7801, 7802, 11762, 11763, 27267 }
 local SUCC_LASH_IDS = { 7814, 7815, 7816, 7817, 7818, 7819, 11770, 11771, 27268 }
 
 local ImpFirebolt = NS.spell_action and NS.spell_action(IMP_FIREBOLT_IDS, "ImpFirebolt") or nil
+
+-- ============================================================================
+-- Schema for safe_state (Pattern 14 nil-guard elimination).
+-- ============================================================================
+local DEMO_SCHEMA = {
+    -- Buffs / pet
+    has_fel_armor = false, has_pet = false, pet_alive = false,
+    pet_hp_pct = 100, pet_type_imp = false, pet_type_succubus = false,
+    pet_casting_firebolt = false, has_soul_link = false,
+    -- Resources
+    hp_pct = 100, mana_pct = 100,
+    -- Combat
+    in_combat = false, enemy_count = 0, target_casting = false,
+    target_hp_pct = 100,
+    -- Spell readiness
+    fel_armor_ready = false, curse_of_doom_ready = false,
+    corruption_ready = false, immolate_ready = false,
+    life_tap_ready = false, death_coil_ready = false,
+    shadow_bolt_ready = false, seed_of_corruption_ready = false,
+    howl_of_terror_ready = false, shadow_ward_ready = false,
+    siphon_life_ready = false, fel_domination_ready = false,
+    soulshatter_ready = false, incinerate_ready = false,
+    soul_fire_ready = false, fear_ready = false,
+    seduction_ready = false, rain_of_fire_ready = false,
+    hellfire_ready = false, curse_of_agony_ready = false,
+    curse_of_elements_ready = false, curse_of_shadow_ready = false,
+    dark_pact_ready = false, drain_soul_ready = false,
+    soul_link_ready = false,
+    -- Items
+    healthstone_ready = false,
+}
 
 -- ============================================================================
 -- State builder
@@ -84,7 +150,7 @@ local _last_build_state_time = -1
 local function build_state(context)
     -- Pattern 6: frame-keyed dedup
     local now = context.now or (NS.time_now and NS.time_now() or 0)
-    if now == _last_build_state_time then return demo_state end
+    if now == _last_build_state_time then return spec_kit.safe_state(demo_state, DEMO_SCHEMA) end
     if context.now then _last_build_state_time = now end
     local me = context.me or NS.GetPlayer()
     local target = context.target
@@ -145,30 +211,30 @@ local function build_state(context)
     demo_state.enemy_count = context.enemy_count or context.enemies_count or 1
     demo_state.in_combat = context.in_combat or false  -- [#fix-4] used by Pet{Defensive,Passive,Aggressive} matchers
     demo_state.target_casting = target and target.is_casting and target:is_casting() or false
-    demo_state.fel_armor_ready = me and NS.spell_ready(SPELLS.FelArmor, me, { skip_range = true }) or false
-    demo_state.curse_of_doom_ready = target and NS.spell_ready(SPELLS.CurseOfDoom, target, { expected_cooldown = 60 }) or false
-    demo_state.corruption_ready = target and NS.spell_ready(SPELLS.Corruption, target) or false
-    demo_state.immolate_ready = target and NS.spell_ready(SPELLS.Immolate, target, { expected_cooldown = 1.5 }) or false
-    demo_state.life_tap_ready = me and NS.spell_ready(SPELLS.LifeTap, me, { skip_range = true }) or false
-    demo_state.death_coil_ready = target and NS.spell_ready(SPELLS.DeathCoil, target, { expected_cooldown = 120 }) or false
-    demo_state.shadow_bolt_ready = target and NS.spell_ready(SPELLS.ShadowBolt, target, { expected_cooldown = 2.5 }) or false
-    demo_state.seed_of_corruption_ready = target and NS.spell_ready(SPELLS.SeedOfCorruption, target, { expected_cooldown = 1.5 }) or false
-    demo_state.howl_of_terror_ready = me and NS.spell_ready(SPELLS.HowlofTerror, me, { skip_range = true, expected_cooldown = 40 }) or false
-    demo_state.shadow_ward_ready = me and NS.spell_ready(SPELLS.ShadowWard, me, { skip_range = true, expected_cooldown = 30 }) or false
-    demo_state.siphon_life_ready = target and NS.spell_ready(SPELLS.SiphonLife, target, { expected_cooldown = 1.5 }) or false
-    demo_state.fel_domination_ready = me and NS.spell_ready(SPELLS.FelDomination, me, { skip_range = true, expected_cooldown = 900 }) or false
-    demo_state.soulshatter_ready = me and NS.cooldown_remains(SPELLS.Soulshatter, 300) <= 0 and NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true }) or false
-    demo_state.incinerate_ready = target and NS.spell_ready(SPELLS.Incinerate, target, { expected_cooldown = 2.5 }) or false
-    demo_state.soul_fire_ready = target and NS.spell_ready(SPELLS.SoulFire, target, { expected_cooldown = 1.5 }) or false
-    demo_state.fear_ready = target and NS.spell_ready(SPELLS.Fear, target) or false
-    demo_state.seduction_ready = target and NS.spell_ready(SPELLS.Seduction, target) or false
-    demo_state.rain_of_fire_ready = target and NS.spell_ready(SPELLS.RainOfFire, target, { expected_cooldown = 1.5 }) or false
-    demo_state.hellfire_ready = me and NS.spell_ready(SPELLS.Hellfire, me, { skip_range = true }) or false
-    demo_state.curse_of_agony_ready = target and NS.spell_ready(SPELLS.CurseOfAgony, target) or false
-    demo_state.curse_of_elements_ready = target and NS.spell_ready(SPELLS.CurseElements, target) or false
-    demo_state.curse_of_shadow_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.CurseOfShadow, target) or false
-    demo_state.dark_pact_ready = me and NS.spell_ready(SPELLS.DarkPact, me, { skip_range = true, expected_cooldown = 10 }) or false
-    demo_state.drain_soul_ready = target and NS.spell_ready(SPELLS.DrainSoul, target) or false
+    demo_state.fel_armor_ready = me and NS.spell_ready(ACTION.FelArmor, me, { skip_range = true }) or false
+    demo_state.curse_of_doom_ready = target and NS.spell_ready(ACTION.CurseOfDoom, target, { expected_cooldown = 60 }) or false
+    demo_state.corruption_ready = target and NS.spell_ready(ACTION.Corruption, target) or false
+    demo_state.immolate_ready = target and NS.spell_ready(ACTION.Immolate, target, { expected_cooldown = 1.5 }) or false
+    demo_state.life_tap_ready = me and NS.spell_ready(ACTION.LifeTap, me, { skip_range = true }) or false
+    demo_state.death_coil_ready = target and NS.spell_ready(ACTION.DeathCoil, target, { expected_cooldown = 120 }) or false
+    demo_state.shadow_bolt_ready = target and NS.spell_ready(ACTION.ShadowBolt, target, { expected_cooldown = 2.5 }) or false
+    demo_state.seed_of_corruption_ready = target and NS.spell_ready(ACTION.SeedOfCorruption, target, { expected_cooldown = 1.5 }) or false
+    demo_state.howl_of_terror_ready = me and NS.spell_ready(ACTION.HowlofTerror, me, { skip_range = true, expected_cooldown = 40 }) or false
+    demo_state.shadow_ward_ready = me and NS.spell_ready(ACTION.ShadowWard, me, { skip_range = true, expected_cooldown = 30 }) or false
+    demo_state.siphon_life_ready = target and NS.spell_ready(ACTION.SiphonLife, target, { expected_cooldown = 1.5 }) or false
+    demo_state.fel_domination_ready = me and NS.spell_ready(ACTION.FelDomination, me, { skip_range = true, expected_cooldown = 900 }) or false
+    demo_state.soulshatter_ready = me and NS.cooldown_remains(ACTION.Soulshatter, 300) <= 0 and NS.spell_ready(ACTION.Soulshatter, me, { skip_range = true }) or false
+    demo_state.incinerate_ready = target and NS.spell_ready(ACTION.Incinerate, target, { expected_cooldown = 2.5 }) or false
+    demo_state.soul_fire_ready = target and NS.spell_ready(ACTION.SoulFire, target, { expected_cooldown = 1.5 }) or false
+    demo_state.fear_ready = target and NS.spell_ready(ACTION.Fear, target) or false
+    demo_state.seduction_ready = target and NS.spell_ready(ACTION.Seduction, target) or false
+    demo_state.rain_of_fire_ready = target and NS.spell_ready(ACTION.RainOfFire, target, { expected_cooldown = 1.5 }) or false
+    demo_state.hellfire_ready = me and NS.spell_ready(ACTION.Hellfire, me, { skip_range = true }) or false
+    demo_state.curse_of_agony_ready = target and NS.spell_ready(ACTION.CurseOfAgony, target) or false
+    demo_state.curse_of_elements_ready = target and NS.spell_ready(ACTION.CurseElements, target) or false
+    demo_state.curse_of_shadow_ready = target and NS.spell_ready and NS.spell_ready(ACTION.CurseOfShadow, target) or false
+    demo_state.dark_pact_ready = me and NS.spell_ready(ACTION.DarkPact, me, { skip_range = true, expected_cooldown = 10 }) or false
+    demo_state.drain_soul_ready = target and NS.spell_ready(ACTION.DrainSoul, target) or false
     demo_state.soul_link_ready = me and NS.spell_ready(25228, me, { skip_range = true }) or false
     demo_state.has_soul_link = me and NS.buff_up and NS.buff_up(me, SOUL_LINK_BUFF) or false
     demo_state.target_hp_pct = target and target.get_health_percentage and target:get_health_percentage() or 100
@@ -185,7 +251,7 @@ local function build_state(context)
         end
     end
 
-    return demo_state
+    return spec_kit.safe_state(demo_state, DEMO_SCHEMA)
 end
 
 -- ============================================================================
@@ -284,7 +350,7 @@ end
 -- Match functions
 -- ============================================================================
 local function curse_of_doom_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfDoom, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfDoom, 2.0) then return false end
     if not context.target then return false end
     if not s.curse_of_doom_ready then return false end
     -- TTD gate: Curse of Doom has 60s CD and 60s DoT — only use on long-lived targets
@@ -293,7 +359,7 @@ local function curse_of_doom_matches(context, s)
 end
 
 local function corruption_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Corruption, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Corruption, 2.0) then return false end
     if not context.target then return false end
     if not s.corruption_ready then return false end
     if NS.debuff_remains(context.target, CORRUPTION_DEBUFF) > DOT_REFRESH_WINDOW then return false end
@@ -303,7 +369,7 @@ local function corruption_matches(context, s)
 end
 
 local function immolate_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Immolate, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Immolate, 2.0) then return false end
     if not context.target then return false end
     if not s.immolate_ready then return false end
     if NS.debuff_remains(context.target, IMMOLATE_DEBUFF) > DOT_REFRESH_WINDOW then return false end
@@ -349,7 +415,7 @@ local function shadow_ward_matches(context, s)
 end
 
 local function siphon_life_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SiphonLife, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.SiphonLife, 2.0) then return false end
     if not context.target then return false end
     if not s.siphon_life_ready then return false end
     -- TTD gate: skip long DoT if target will die before it pays off (30s base)
@@ -369,8 +435,8 @@ local function soulshatter_matches(context, s)
     if not s.soulshatter_ready then return false end
     local me = context.me or (NS.GetPlayer and NS.GetPlayer())
     if not me then return false end
-    if NS.cooldown_remains(SPELLS.Soulshatter, 300) > 0 then return false end
-    return NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true })
+    if NS.cooldown_remains(ACTION.Soulshatter, 300) > 0 then return false end
+    return NS.spell_ready(ACTION.Soulshatter, me, { skip_range = true })
 end
 
 local function incinerate_matches(context, s)
@@ -382,13 +448,13 @@ end
 
 local function fel_armor_matches(context, s)
     if not s then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FelArmor, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FelArmor, 3.0) then return false end
     if s.has_fel_armor then return false end
     return s.fel_armor_ready == true
 end
 
 local function soul_fire_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SoulFire, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.SoulFire, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
     if not s.soul_fire_ready then return false end
@@ -440,7 +506,7 @@ local function hellfire_matches(context, s)
 end
 
 local function curse_of_agony_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfAgony, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfAgony, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
     if not s.curse_of_agony_ready then return false end
@@ -450,7 +516,7 @@ local function curse_of_agony_matches(context, s)
 end
 
 local function curse_of_elements_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseElements, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseElements, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
     if not s.curse_of_elements_ready then return false end
@@ -529,43 +595,43 @@ local strategies = {
           return true
       end,
       execute = function() return pet_manager.set_aggressive() end },
-    { name = "FelArmor", matches = fel_armor_matches, execute = function(context) return NS.try_cast(SPELLS.FelArmor, context.me, "[DEMONOLOGY] Fel Armor", { skip_range = true }) end },
+    { name = "FelArmor", matches = fel_armor_matches, execute = function(context) return NS.try_cast(ACTION.FelArmor, context.me, "[DEMONOLOGY] Fel Armor", { skip_range = true }) end },
     { name = "SoulLink", matches = soul_link_matches, execute = function(context) return NS.try_cast(25228, context.me, "[DEMONOLOGY] Soul Link", { skip_range = true }) end },
-    { name = "SummonFelguard", matches = function(context) return needs_felguard(context, { name = "SummonFelguard", spell = SPELLS.SummonFelguard }) end, execute = function(context) return NS.try_cast(SPELLS.SummonFelguard, context.me, "[DEMONOLOGY] Summon Felguard", { skip_range = true }) end },
-    { name = "SummonImp", matches = function(context) return needs_imp_fallback(context) end, execute = function(context) return NS.try_cast(SPELLS.SummonImp, context.me, "[DEMONOLOGY] Summon Imp", { skip_range = true }) end },
-    { name = "FelDomination", matches = fel_domination_matches, execute = function(context) return NS.try_cast(SPELLS.FelDomination, context.me, "[DEMONOLOGY] Fel Domination", { skip_range = true, expected_cooldown = 900 }) end },
-    { name = "HealthFunnel", matches = health_funnel_matches, execute = function(context) return NS.try_cast(SPELLS.HealthFunnel, context.pet or context.me, "[DEMONOLOGY] Health Funnel") end },
+    { name = "SummonFelguard", matches = function(context) return needs_felguard(context, { name = "SummonFelguard", spell = ACTION.SummonFelguard }) end, execute = function(context) return NS.try_cast(ACTION.SummonFelguard, context.me, "[DEMONOLOGY] Summon Felguard", { skip_range = true }) end },
+    { name = "SummonImp", matches = function(context) return needs_imp_fallback(context) end, execute = function(context) return NS.try_cast(ACTION.SummonImp, context.me, "[DEMONOLOGY] Summon Imp", { skip_range = true }) end },
+    { name = "FelDomination", matches = fel_domination_matches, execute = function(context) return NS.try_cast(ACTION.FelDomination, context.me, "[DEMONOLOGY] Fel Domination", { skip_range = true, expected_cooldown = 900 }) end },
+    { name = "HealthFunnel", matches = health_funnel_matches, execute = function(context) return NS.try_cast(ACTION.HealthFunnel, context.pet or context.me, "[DEMONOLOGY] Health Funnel") end },
 
-    { name = "CurseOfDoom", matches = curse_of_doom_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfDoom, context.target, "[DEMONOLOGY] Curse of Doom", { expected_cooldown = 60 }) end },
-    { name = "CurseOfElements", matches = curse_of_elements_matches, execute = function(context) return NS.try_cast(SPELLS.CurseElements, context.target, "[DEMONOLOGY] Curse of Elements") end },
+    { name = "CurseOfDoom", matches = curse_of_doom_matches, execute = function(context) return NS.try_cast(ACTION.CurseOfDoom, context.target, "[DEMONOLOGY] Curse of Doom", { expected_cooldown = 60 }) end },
+    { name = "CurseOfElements", matches = curse_of_elements_matches, execute = function(context) return NS.try_cast(ACTION.CurseElements, context.target, "[DEMONOLOGY] Curse of Elements") end },
     { name = "CurseOfShadow", matches = function(context, s)
-        if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfShadow, 2.0) then return false end
+        if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfShadow, 2.0) then return false end
         if not s then return false end
         if not context.target then return false end
         if not s.curse_of_shadow_ready then return false end
         if NS.debuff_remains(context.target, CURSE_OF_SHADOW_DEBUFF) > DOT_REFRESH_WINDOW then return false end
         return true
-    end, execute = function(context) return NS.try_cast(SPELLS.CurseOfShadow, context.target, "[DEMONOLOGY] Curse of Shadow") end },
-    { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(context) return NS.try_cast(SPELLS.CurseOfAgony, context.target, "[DEMONOLOGY] Curse of Agony") end },
+    end, execute = function(context) return NS.try_cast(ACTION.CurseOfShadow, context.target, "[DEMONOLOGY] Curse of Shadow") end },
+    { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(context) return NS.try_cast(ACTION.CurseOfAgony, context.target, "[DEMONOLOGY] Curse of Agony") end },
     -- TBC guide order: Corruption > Immolate (higher DPCT, longer DoT) — apply Corruption first when both need refresh.
-    { name = "Corruption", matches = corruption_matches, execute = function(context) return NS.try_cast(SPELLS.Corruption, context.target, "[DEMONOLOGY] Corruption") end },
-    { name = "Immolate", matches = immolate_matches, execute = function(context) return NS.try_cast(SPELLS.Immolate, context.target, "[DEMONOLOGY] Immolate") end },
-    { name = "SiphonLife", matches = siphon_life_matches, execute = function(context) return NS.try_cast(SPELLS.SiphonLife, context.target, "[DEMONOLOGY] Siphon Life") end },
-    { name = "SeedOfCorruption", matches = seed_of_corruption_matches, execute = function(context) return NS.try_cast(SPELLS.SeedOfCorruption, context.target, "[DEMONOLOGY] Seed of Corruption") end },
-    { name = "SoulFire", matches = soul_fire_matches, execute = function(context) return NS.try_cast(SPELLS.SoulFire, context.target, "[DEMONOLOGY] Soul Fire", { expected_cooldown = 1.5 }) end },
-    { name = "DrainSoul", matches = drain_soul_matches, execute = function(context) return NS.try_cast(SPELLS.DrainSoul, context.target, "[DEMONOLOGY] Drain Soul") end },
-    { name = "RainOfFire", matches = rain_of_fire_matches, execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.RainOfFire), t, 8, 35); if pos then return NS.try_cast_position(SPELLS.RainOfFire, pos, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end; return NS.try_cast(SPELLS.RainOfFire, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end },
-    { name = "Hellfire", matches = hellfire_matches, execute = function(context) return NS.try_cast(SPELLS.Hellfire, context.me, "[DEMONOLOGY] Hellfire", { skip_range = true }) end },
-    { name = "DeathCoil", matches = function(context, state) return death_coil_matches(context, { name = "DeathCoil", spell = SPELLS.DeathCoil }) end, execute = function(context) return NS.try_cast(SPELLS.DeathCoil, context.target, "[DEMONOLOGY] Death Coil", { expected_cooldown = 120 }) end },
-    { name = "LifeTap", matches = life_tap_matches, execute = function(context) return NS.try_cast(SPELLS.LifeTap, context.me, "[DEMONOLOGY] Life Tap", { skip_range = true }) end },
-    { name = "DarkPact", matches = dark_pact_matches, execute = function(context) return NS.try_cast(SPELLS.DarkPact, context.me, "[DEMONOLOGY] Dark Pact", { skip_range = true, expected_cooldown = 10 }) end },
-    { name = "ShadowWard", matches = shadow_ward_matches, execute = function(context) return NS.try_cast(SPELLS.ShadowWard, context.me, "[DEMONOLOGY] Shadow Ward", { skip_range = true, expected_cooldown = 30 }) end },
-    { name = "HowlofTerror", matches = howl_of_terror_matches, execute = function(context) return NS.try_cast(SPELLS.HowlofTerror, context.me, "[DEMONOLOGY] Howl of Terror", { skip_range = true, expected_cooldown = 40 }) end },
-    { name = "Fear", matches = fear_matches, execute = function(context) return NS.try_cast(SPELLS.Fear, context.target, "[DEMONOLOGY] Fear") end },
-    { name = "Seduction", matches = seduction_matches, execute = function(context) return NS.try_cast(SPELLS.Seduction, context.target, "[DEMONOLOGY] Seduction") end },
-    { name = "Soulshatter", matches = soulshatter_matches, execute = function(context) return NS.try_cast(SPELLS.Soulshatter, context.me, "[DEMONOLOGY] Soulshatter", { skip_range = true }) end },
-    { name = "ShadowBolt", matches = shadow_bolt_matches, execute = function(context) return NS.try_cast(SPELLS.ShadowBolt, context.target, "[DEMONOLOGY] Shadow Bolt") end },
-    { name = "Incinerate", matches = incinerate_matches, execute = function(context) return NS.try_cast(SPELLS.Incinerate, context.target, "[DEMONOLOGY] Incinerate") end },
+    { name = "Corruption", matches = corruption_matches, execute = function(context) return NS.try_cast(ACTION.Corruption, context.target, "[DEMONOLOGY] Corruption") end },
+    { name = "Immolate", matches = immolate_matches, execute = function(context) return NS.try_cast(ACTION.Immolate, context.target, "[DEMONOLOGY] Immolate") end },
+    { name = "SiphonLife", matches = siphon_life_matches, execute = function(context) return NS.try_cast(ACTION.SiphonLife, context.target, "[DEMONOLOGY] Siphon Life") end },
+    { name = "SeedOfCorruption", matches = seed_of_corruption_matches, execute = function(context) return NS.try_cast(ACTION.SeedOfCorruption, context.target, "[DEMONOLOGY] Seed of Corruption") end },
+    { name = "SoulFire", matches = soul_fire_matches, execute = function(context) return NS.try_cast(ACTION.SoulFire, context.target, "[DEMONOLOGY] Soul Fire", { expected_cooldown = 1.5 }) end },
+    { name = "DrainSoul", matches = drain_soul_matches, execute = function(context) return NS.try_cast(ACTION.DrainSoul, context.target, "[DEMONOLOGY] Drain Soul") end },
+    { name = "RainOfFire", matches = rain_of_fire_matches, execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.RainOfFire), t, 8, 35); if pos then return NS.try_cast_position(ACTION.RainOfFire, pos, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end; return NS.try_cast(ACTION.RainOfFire, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end },
+    { name = "Hellfire", matches = hellfire_matches, execute = function(context) return NS.try_cast(ACTION.Hellfire, context.me, "[DEMONOLOGY] Hellfire", { skip_range = true }) end },
+    { name = "DeathCoil", matches = function(context, state) return death_coil_matches(context, { name = "DeathCoil", spell = ACTION.DeathCoil }) end, execute = function(context) return NS.try_cast(ACTION.DeathCoil, context.target, "[DEMONOLOGY] Death Coil", { expected_cooldown = 120 }) end },
+    { name = "LifeTap", matches = life_tap_matches, execute = function(context) return NS.try_cast(ACTION.LifeTap, context.me, "[DEMONOLOGY] Life Tap", { skip_range = true }) end },
+    { name = "DarkPact", matches = dark_pact_matches, execute = function(context) return NS.try_cast(ACTION.DarkPact, context.me, "[DEMONOLOGY] Dark Pact", { skip_range = true, expected_cooldown = 10 }) end },
+    { name = "ShadowWard", matches = shadow_ward_matches, execute = function(context) return NS.try_cast(ACTION.ShadowWard, context.me, "[DEMONOLOGY] Shadow Ward", { skip_range = true, expected_cooldown = 30 }) end },
+    { name = "HowlofTerror", matches = howl_of_terror_matches, execute = function(context) return NS.try_cast(ACTION.HowlofTerror, context.me, "[DEMONOLOGY] Howl of Terror", { skip_range = true, expected_cooldown = 40 }) end },
+    { name = "Fear", matches = fear_matches, execute = function(context) return NS.try_cast(ACTION.Fear, context.target, "[DEMONOLOGY] Fear") end },
+    { name = "Seduction", matches = seduction_matches, execute = function(context) return NS.try_cast(ACTION.Seduction, context.target, "[DEMONOLOGY] Seduction") end },
+    { name = "Soulshatter", matches = soulshatter_matches, execute = function(context) return NS.try_cast(ACTION.Soulshatter, context.me, "[DEMONOLOGY] Soulshatter", { skip_range = true }) end },
+    { name = "ShadowBolt", matches = shadow_bolt_matches, execute = function(context) return NS.try_cast(ACTION.ShadowBolt, context.target, "[DEMONOLOGY] Shadow Bolt") end },
+    { name = "Incinerate", matches = incinerate_matches, execute = function(context) return NS.try_cast(ACTION.Incinerate, context.target, "[DEMONOLOGY] Incinerate") end },
     { name = "Healthstone",
       matches = function(context, state)
           local threshold = (context.settings and context.settings.healthstone_hp) or 0
@@ -582,7 +648,9 @@ local strategies = {
     },
 }
 
-NS.rotation_registry:register("demonology", strategies, { get_state = build_state })
--- Demonology rotation registered
-return strategies
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("demonology", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("Warlock demonology rotation registered") end
+return { strategies = strategies, build_state = build_state }
 
