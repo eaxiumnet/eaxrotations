@@ -60,7 +60,7 @@ _G.core = {
 
 package.loaded["shared/potion_helper_sylvanas"] = { try_use_potion = function() return false end, MANA_POTION_IDS = {} }
 
-local strategies = dofile("EaxRotations/classes/shaman/enhancement_sylvanas.lua")
+local strategies = dofile("EaxRotations/classes/shaman/enhancement_sylvanas.lua").strategies
 
 local function find_strategy(name)
     for i = 1, #strategies do
