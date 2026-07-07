@@ -48,7 +48,7 @@ _G.EaxRotations = {
  },
 }
 
-local strategies = dofile("EaxRotations/classes/hunter/survival_sylvanas.lua")
+local strategies = dofile("EaxRotations/classes/hunter/survival_sylvanas.lua").strategies
 assert_true(strategies, "strategies table should load")
 assert_true(#strategies > 0, "strategies table should have entries")
 

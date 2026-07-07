@@ -102,7 +102,7 @@ assert_false(mm_wing.matches({ in_combat = true, target = {} },
     { in_combat = true, hunter_melee_weave = true, distance_sq = 16, wing_clip_ready = true, wing_clip_active = true }), "MM wing clip already active -> no match")
 
 -- SV
-local sv_strategies = dofile("EaxRotations/classes/hunter/survival_sylvanas.lua")
+local sv_strategies = dofile("EaxRotations/classes/hunter/survival_sylvanas.lua").strategies
 local sv_raptor = find_strategy(sv_strategies, "RaptorStrike")
 assert_true(sv_raptor ~= nil, "SV RaptorStrike should exist")
 assert_true(sv_raptor.matches({ in_combat = true, target = {} },

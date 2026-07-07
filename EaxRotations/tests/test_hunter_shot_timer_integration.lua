@@ -84,7 +84,7 @@ local function load_specs_with_mock(should_delay)
     end
     local bm = dofile("EaxRotations/classes/hunter/beast_mastery_sylvanas.lua")
     local mm = dofile("EaxRotations/classes/hunter/marksmanship_sylvanas.lua").strategies
-    local sv = dofile("EaxRotations/classes/hunter/survival_sylvanas.lua")
+    local sv = dofile("EaxRotations/classes/hunter/survival_sylvanas.lua").strategies
     return bm, mm, sv
 end
 
