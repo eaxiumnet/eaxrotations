@@ -1,8 +1,11 @@
--- affliction_sylvanas -- warlock affliction_sylvanas rotation for TBC Anniversary (2.5.5).
--- WHAT:  priority-list strategies for affliction_sylvanas gameplay.
--- WHEN:  combat with valid enemy target.
--- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- affliction_sylvanas.lua -- Warlock Affliction DPS for TBC Anniversary (2.5.5).
+-- WHAT:  multi-DoT priority list with snapshot-aware refresh, Nightfall proc
+--         consumption, execute-phase Drain Soul, curse mode selection, and
+--         IZI spread_dot multi-target cycling.
+-- WHEN:  combat, with valid enemy target.
+-- WHY:   mirrors wowsims APL + TBC affliction consensus: UA > Corruption >
+--         Siphon Life > Immolate > curse (CoA/CoD/CoE/CoS) > Shadow Bolt filler.
+-- SAFETY: Pattern 14 nil-guarded via spec_kit.safe_state(); no on_update() allocs.
 
 -- TBC Warlock Affliction priority list with multi-DoT cycling, Nightfall procs, and execute drain.
 
@@ -15,6 +18,24 @@ local DotTTD = require("shared/dot_ttd_gating_sylvanas")
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local SPELLS = NS.WarlockSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
+
+-- Centralized spell resolver via spec_kit (rank IDs from warlock/class_sylvanas.lua).
+-- LOCAL_SPELLS (below) handles spells not in the class spell table.
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    Corruption          = define("Corruption",          { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
+    CurseOfAgony        = define("CurseOfAgony",        { 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
+    CurseOfDoom         = define("CurseOfDoom",         { 30910, 603 }, "CurseOfDoom"),
+    Immolate            = define("Immolate",            { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
+    LifeTap             = define("LifeTap",             { 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
+    SeedOfCorruption    = define("SeedOfCorruption",    { 27243 }, "SeedOfCorruption"),
+    ShadowBolt          = define("ShadowBolt",          { 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
+    SiphonLife          = define("SiphonLife",          { 30911, 27264, 18881, 18880, 18879, 18265 }, "SiphonLife"),
+    Soulshatter         = define("Soulshatter",         { 29858 }, "Soulshatter"),
+    SummonFelhunter     = define("SummonFelhunter",     { 691 }, "SummonFelhunter"),
+    UnstableAffliction  = define("UnstableAffliction",  { 30405, 30404, 30108 }, "UnstableAffliction"),
+}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
@@ -179,6 +200,36 @@ local MANA_POTION_IDS = {
 }
 
 -- ============================================================================
+-- Schema for safe_state (Pattern 14 nil-guard elimination).
+-- ============================================================================
+local AFFL_SCHEMA = {
+    -- DoT remains
+    ua_remains = 0, corruption_remains = 0, agony_remains = 0,
+    doom_remains = 0, siphon_remains = 0, immolate_remains = 0,
+    coe_remains = 0, cos_remains = 0,
+    -- DoT stacks
+    se_stacks = 0, isb_stacks = 0,
+    -- Proc / resource
+    nightfall_active = false, mana_pct = 100, hp_pct = 100,
+    target_hp = 100, enemy_count = 0,
+    -- Pet
+    pet_alive = false, pet_health = 100, pet_mana = 100,
+    pet_type_imp = false, pet_casting_firebolt = false, has_pet = false,
+    has_demonic_sacrifice = false,
+    -- Items
+    mana_potion_id = nil, healthstone_id = nil, healthstone_ready = false,
+    amplify_curse_ready = false,
+    -- Soulstone / Wand
+    has_soulstone = false, wand_learned = false,
+    -- Snapshot
+    spell_damage = 0, snapshot_ua_dmg = 0, snapshot_corruption_dmg = 0,
+    snapshot_siphon_dmg = 0, snapshot_immolate_dmg = 0,
+    -- Power windows
+    bloodlust_active = false, has_bloodlust = false,
+    major_cd_active = false, major_cd_window = false,
+}
+
+-- ============================================================================
 -- State builder (pre-allocated)
 -- ============================================================================
 local aff_state = {
@@ -226,7 +277,7 @@ local _last_build_state_time = -1
 local function build_state(context)
     -- Pattern 6: frame-keyed dedup — skip rebuild if already built this frame
     local now = context.now or (NS.time_now and NS.time_now() or 0)
-    if now == _last_build_state_time then return aff_state end
+    if now == _last_build_state_time then return spec_kit.safe_state(aff_state, AFFL_SCHEMA) end
     if context.now then _last_build_state_time = now end
     local target = context.target
     if target then
@@ -348,7 +399,7 @@ local function build_state(context)
     aff_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
     aff_state.major_cd_window = aff_state.bloodlust_active or aff_state.major_cd_active
 
-    return aff_state
+    return spec_kit.safe_state(aff_state, AFFL_SCHEMA)
 	end
 
 	-- ============================================================================
@@ -512,12 +563,12 @@ local strategies = {
             if not me then return false end
             -- Local timer: Soul shatter has 5min CD
             if (NS.time_now() - _last_soulshatter) < 290 then return false end
-            if NS.cooldown_remains(SPELLS.Soulshatter, 300) > 0 then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true }) or false
+            if NS.cooldown_remains(ACTION.Soulshatter, 300) > 0 then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Soulshatter, me, { skip_range = true }) or false
         end,
         execute = function(context)
             local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
-            local ok = NS.try_cast(SPELLS.Soulshatter, me, "[AFFL] Soulshatter", { skip_range = true })
+            local ok = NS.try_cast(ACTION.Soulshatter, me, "[AFFL] Soulshatter", { skip_range = true })
             if ok then _last_soulshatter = NS.time_now() end
             return ok
         end,
@@ -532,10 +583,10 @@ local strategies = {
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
             if not state.nightfall_active then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ShadowBolt, context.target) or false
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Nightfall instant Shadow Bolt")
+            return NS.try_cast(ACTION.ShadowBolt, context.target, "[AFFL] Nightfall instant Shadow Bolt")
         end,
     },
     -- ------------------------------------------------------------------------
@@ -551,10 +602,10 @@ local strategies = {
             -- DoT TTD gating
             local ttd_threshold = (context.settings and context.settings.dot_ttd_threshold or 50) / 100
             if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.corruption, ttd_threshold) then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Corruption, context.target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, context.target) or false
         end,
         execute = function(context)
-            local ok = NS.try_cast(SPELLS.Corruption, context.target, "[AFFL] Corruption")
+            local ok = NS.try_cast(ACTION.Corruption, context.target, "[AFFL] Corruption")
             if ok and aff_state.spell_damage then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
             return ok
         end,
@@ -567,12 +618,12 @@ local strategies = {
             if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
             local target = find_dot_target(CORRUPTION_DEBUFF[1])
             if not target then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Corruption, target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, target) or false
         end,
         execute = function(context)
             local target = find_dot_target(CORRUPTION_DEBUFF[1])
             if not target then return false end
-            return NS.try_cast(SPELLS.Corruption, target, "[AFFL] Corruption Spread")
+            return NS.try_cast(ACTION.Corruption, target, "[AFFL] Corruption Spread")
         end,
     },
 
@@ -586,10 +637,10 @@ local strategies = {
             if not context.has_valid_enemy_target then return false end
             if broken_api_dot_throttled(27216) then return false end
             if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Corruption, context.target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, context.target) or false
         end,
         execute = function(context)
-            local ok = NS.try_cast(SPELLS.Corruption, context.target, "[AFFL] Corruption (moving)")
+            local ok = NS.try_cast(ACTION.Corruption, context.target, "[AFFL] Corruption (moving)")
             if ok and aff_state.spell_damage then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
             return ok
         end,
@@ -610,10 +661,10 @@ local strategies = {
             -- DoT TTD gating
             local ttd_threshold = (context.settings and context.settings.dot_ttd_threshold or 50) / 100
             if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.unstable_affliction, ttd_threshold) then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.UnstableAffliction, context.target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.UnstableAffliction, context.target) or false
         end,
         execute = function(context)
-            local ok = NS.try_cast(SPELLS.UnstableAffliction, context.target, "[AFFL] Unstable Affliction")
+            local ok = NS.try_cast(ACTION.UnstableAffliction, context.target, "[AFFL] Unstable Affliction")
             if ok and aff_state.spell_damage then aff_state.snapshot_ua_dmg = aff_state.spell_damage end
             return ok
         end,
@@ -635,10 +686,10 @@ local strategies = {
             local ttd_threshold = (context.settings and context.settings.dot_ttd_threshold or 50) / 100
             if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.siphon_life, ttd_threshold) then return false end
             -- Siphon Life is talent-gated; spell won't be ready if not learned
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.SiphonLife, context.target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.SiphonLife, context.target) or false
         end,
         execute = function(context)
-            local ok = NS.try_cast(SPELLS.SiphonLife, context.target, "[AFFL] Siphon Life")
+            local ok = NS.try_cast(ACTION.SiphonLife, context.target, "[AFFL] Siphon Life")
             if ok and aff_state.spell_damage then aff_state.snapshot_siphon_dmg = aff_state.spell_damage end
             return ok
         end,
@@ -651,12 +702,12 @@ local strategies = {
             if (state.siphon_remains or 0) > DOT_REFRESH_WINDOW then return false end
             local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
             if not target then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.SiphonLife, target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.SiphonLife, target) or false
         end,
         execute = function(context)
             local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
             if not target then return false end
-            return NS.try_cast(SPELLS.SiphonLife, target, "[AFFL] Siphon Life Spread")
+            return NS.try_cast(ACTION.SiphonLife, target, "[AFFL] Siphon Life Spread")
         end,
     },
 
@@ -676,10 +727,10 @@ local strategies = {
             -- DoT TTD gating
             local ttd_threshold = (context.settings and context.settings.dot_ttd_threshold or 50) / 100
             if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.immolate, ttd_threshold) then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.Immolate, context.target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Immolate, context.target) or false
         end,
         execute = function(context)
-            local ok = NS.try_cast(SPELLS.Immolate, context.target, "[AFFL] Immolate")
+            local ok = NS.try_cast(ACTION.Immolate, context.target, "[AFFL] Immolate")
             if ok and aff_state.spell_damage then aff_state.snapshot_immolate_dmg = aff_state.spell_damage end
             return ok
         end,
@@ -703,7 +754,7 @@ local strategies = {
             if (state.agony_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd_known and context.ttd >= 8 then about_to_curse = true end
             if (state.doom_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd_known and context.ttd >= 62 then about_to_curse = true end
             -- Also check CoD cooldown via spell_ready (60s CD, if ready with no debuff it's about to be cast)
-            if context.target and (state.doom_remains or 0) <= 0 and NS.spell_ready and NS.spell_ready(SPELLS.CurseOfDoom, context.target) then about_to_curse = true end
+            if context.target and (state.doom_remains or 0) <= 0 and NS.spell_ready and NS.spell_ready(ACTION.CurseOfDoom, context.target) then about_to_curse = true end
             return about_to_curse
         end,
         execute = function()
@@ -723,10 +774,10 @@ local strategies = {
             if (state.doom_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Only on long-lived targets (Doom takes 60s to tick)
             if context.ttd_known and context.ttd < 62 then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.CurseOfDoom, context.target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfDoom, context.target) or false
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.CurseOfDoom, context.target, "[AFFL] Curse of Doom")
+            return NS.try_cast(ACTION.CurseOfDoom, context.target, "[AFFL] Curse of Doom")
         end,
     },
 
@@ -778,10 +829,10 @@ local strategies = {
             if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- On short-lived targets, CoA may not run full duration
             if context.ttd_known and context.ttd < 8 then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.CurseOfAgony, context.target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfAgony, context.target) or false
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.CurseOfAgony, context.target, "[AFFL] Curse of Agony")
+            return NS.try_cast(ACTION.CurseOfAgony, context.target, "[AFFL] Curse of Agony")
         end,
     },
     -- Curse of Agony Spread — multi-DoT via IZI spread_dot
@@ -793,12 +844,12 @@ local strategies = {
             if context.ttd_known and context.ttd < 8 then return false end
             local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
             if not target then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.CurseOfAgony, target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfAgony, target) or false
         end,
         execute = function(context)
             local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
             if not target then return false end
-            return NS.try_cast(SPELLS.CurseOfAgony, target, "[AFFL] Curse of Agony Spread")
+            return NS.try_cast(ACTION.CurseOfAgony, target, "[AFFL] Curse of Agony Spread")
         end,
     },
 
@@ -827,10 +878,10 @@ local strategies = {
             if not context.has_valid_enemy_target then return false end
             local min_targets = context.settings and context.settings.aff_seed_targets or 3
             if (state.enemy_count or 0) < min_targets then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.SeedOfCorruption, context.target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.SeedOfCorruption, context.target) or false
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.SeedOfCorruption, context.target, "[AFFL] Seed of Corruption")
+            return NS.try_cast(ACTION.SeedOfCorruption, context.target, "[AFFL] Seed of Corruption")
         end,
     },
 
@@ -890,10 +941,10 @@ local strategies = {
             -- Range check: Shadow Bolt has 30yd range
             if context.target_range and context.target_range > 28 then return false end
             -- Pre-cast Shadow Bolt on pull timer targets
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ShadowBolt, context.target) or false
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Pre-combat Shadow Bolt")
+            return NS.try_cast(ACTION.ShadowBolt, context.target, "[AFFL] Pre-combat Shadow Bolt")
         end,
     },
 
@@ -902,10 +953,10 @@ local strategies = {
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
             if (state.se_stacks or 0) >= 5 then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ShadowBolt, context.target) or false
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Shadow Embrace maintenance")
+            return NS.try_cast(ACTION.ShadowBolt, context.target, "[AFFL] Shadow Embrace maintenance")
         end,
     },
 
@@ -913,10 +964,10 @@ local strategies = {
         name = "ShadowBoltFiller",
         matches = function(context)
             if not context.has_valid_enemy_target then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ShadowBolt, context.target) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ShadowBolt, context.target) or false
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.ShadowBolt, context.target, "[AFFL] Shadow Bolt filler")
+            return NS.try_cast(ACTION.ShadowBolt, context.target, "[AFFL] Shadow Bolt filler")
         end,
     },
 
@@ -930,10 +981,10 @@ local strategies = {
             local threshold = math.min(context.settings and context.settings.aff_life_tap_mana or 30, 65)
             if (state.mana_pct or 100) > threshold then return false end
             if (state.hp_pct or 100) < LIFE_TAP_SAFETY_HP then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.LifeTap, NS.PLAYER_UNIT, { skip_range = true }) or false
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.LifeTap, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
         execute = function()
-            return NS.try_cast(SPELLS.LifeTap, NS.PLAYER_UNIT, "[AFFL] Life Tap")
+            return NS.try_cast(ACTION.LifeTap, NS.PLAYER_UNIT, "[AFFL] Life Tap")
         end,
     },
 
@@ -1116,7 +1167,7 @@ local strategies = {
             return NS.is_spell_learned and NS.is_spell_learned(691)
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.SummonFelhunter, NS.PLAYER_UNIT, "[AFFL] Summon Felhunter", { skip_range = true })
+            return NS.try_cast(ACTION.SummonFelhunter, NS.PLAYER_UNIT, "[AFFL] Summon Felhunter", { skip_range = true })
         end,
     },
 
@@ -1139,7 +1190,10 @@ local strategies = {
     },
 }
 
-NS.rotation_registry:register("affliction", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("affliction", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("Warlock affliction rotation registered") end
 return { strategies = strategies, build_state = build_state }
 
 
