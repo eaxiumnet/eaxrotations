@@ -10,14 +10,16 @@ if not NS then return nil end
 local _cleu = NS.SwingDiagnostics
 if _cleu then
     _cleu.register_seals({
-        1464, 8820, 11604, 11605, 25241, 25242,
-        78, 284, 285, 1608, 11584, 11585, 25286,
+        1464, 8820, 11604, 11605, 25241, 25242,                              -- Slam ranks
+        78, 284, 285, 1608, 11564, 11565, 11566, 11567, 25286, 29707, 30324,  -- Heroic Strike ranks
     })
 end
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
+local _eng_ok, engineering = pcall(require, "shared/engineering_helper_sylvanas")
+if not _eng_ok or type(engineering) ~= "table" then engineering = nil end
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
@@ -45,7 +47,7 @@ local ACTION = {
     Intercept = define("Intercept", { 25275, 20617, 20616, 20252 }, "Intercept"),
     IntimidatingShout = define("IntimidatingShout", 5246, "IntimidatingShout"),
     MortalStrike = define("MortalStrike", { 30330, 25248, 21553, 21552, 21551, 12294 }, "MortalStrike"),
-    Overpower = define("Overpower", { 11585, 7887, 7384 }, "Overpower"),
+    Overpower = define("Overpower", { 11585, 11584, 7887, 7384 }, "Overpower"),  -- 11584 = Rank 3 (was missing; levels 44-59 couldn't resolve Overpower)
     PiercingHowl = define("PiercingHowl", 12323, "PiercingHowl"),
     Pummel = NS.spell_action and NS.spell_action({ 6554, 6552 }, "Pummel") or 6554,
     Recklessness = define("Recklessness", 1719, "Recklessness"),
@@ -353,6 +355,7 @@ local ARMS_SCHEMA = {
     mh_until = 999,
     mh_progress = 0,
     healthstone_ready = false,
+    aoe_cc_nearby = false,          -- set from context.warrior_aoe_cc_nearby (PvPCCGate middleware)
 }
 
 local _last_build_state_time = -1
@@ -450,6 +453,7 @@ local function build_state(context)
     arms_state.mh_until = cleu_remains or (me and NS.swing_time_until and NS.swing_time_until(me)) or 999
     arms_state.mh_progress = (me and NS.swing_progress and NS.swing_progress(me)) or 0
 
+    arms_state.aoe_cc_nearby = context.warrior_aoe_cc_nearby or false
     -- safe_state proxy: structural nil-guard elimination (Pattern 14)
     -- Once wrapped, all match() functions can read state.X without nil-guards.
     return spec_kit.safe_state(arms_state, ARMS_SCHEMA)
@@ -494,6 +498,13 @@ end
 
 local function overpower_matches(context, state)
     if not state.overpower_ready then return false end
+    -- Overpower is proc-gated: only usable for 5s after the player's attack is dodged.
+    -- When CLEU diagnostics are active, require a recent dodge proc so the rotation
+    -- doesn't burn a tick attempting a non-castable Overpower. Falls back to
+    -- spell_ready-only when CLEU is unavailable (legacy behavior).
+    if _cleu and _cleu.is_active and _cleu.is_active() and _cleu.is_overpower_proc_active then
+        if not _cleu.is_overpower_proc_active() then return false end
+    end
     -- Rage protection: skip Overpower if MS is imminent and rage is too low for both
     local ms_cd = state.ms_cd or 99
     if ms_cd <= 1.5 and state.rage < MORTAL_STRIKE_RAGE then return false end
@@ -532,6 +543,7 @@ end
 
 local function sweeping_strikes_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SweepingStrikes, 3.0) then return false end
+    if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     local min_count = setting(context, "sweeping_strikes_count", SWEEPING_STRIKES_COUNT)
     if state.enemy_count < min_count then return false end
     if state.has_sweeping_strikes then return false end
@@ -560,6 +572,7 @@ end
 
 local function whirlwind_matches(context, state)
     if not state.ww_ready then return false end
+    if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     local rage = state.rage or 0
     -- Rage cap: bypass enemy count gate to prevent rage waste
     if rage >= RAGE_CAP then return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 })) end
@@ -605,6 +618,7 @@ local function heroic_strike_matches(context, state)
 end
 
 local function cleave_matches(context, state)
+    if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     if state and should_reserve_for_sweeping(context, state) then return false end
     if state.enemy_count < 2 then return false end
     if state.rage < CLEAVE_RAGE then return false end
@@ -647,6 +661,7 @@ end
 
 local function thunder_clap_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
+    if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     if state.tclap_remains > 5 then return false end
     if not state.is_pvp and state.hp > 65 and state.enemy_count < 2 then return false end
     return action(context, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, debuff = THUNDER_CLAP_DEBUFF, refresh = 5, cooldown = 4 }))
@@ -798,7 +813,6 @@ end
 -- Healthstone auto-use (item-based, off-GCD, OOC only)
 local function healthstone_matches(context, state)
     if not state.healthstone_ready then return false end
-    if state.in_combat then return false end
     if state.hp > HEALTHSTONE_HP_THRESHOLD then return false end
     -- Respect menu setting
     local hs_hp = setting(context, "healthstone_hp", HEALTHSTONE_HP_THRESHOLD)
@@ -843,11 +857,11 @@ local STRATEGY_SPECS = {
     { "Recklessness", recklessness_matches, build_action("Recklessness", ACTION.Recklessness, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false }) },
     { "DeathWish", death_wish_matches, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false }) },
     { "BerserkerRage", berserker_rage_matches, build_action("BerserkerRage", ACTION.BerserkerRage, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false }) },
+    { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { min_rage = 15 }) },
     { "MortalStrike", mortal_strike_matches, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }) },
     { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }) },
-    { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
     { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true }) },
-    { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { min_rage = 15 }) },
+    { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
     { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false }) },
     { "Rend", rend_matches, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3, creature_types = BLEED_IMMUNE_TYPES }) },
     { "PiercingHowl", piercing_howl_matches, build_action("PiercingHowl", ACTION.PiercingHowl, { target = "self", min_rage = 10, requires_target = false, enemy_count = 2 }) },
@@ -864,6 +878,14 @@ local STRATEGY_SPECS = {
         end
         return false
     end },
+    -- Engineering bombs (wowsims APL "Engineering" group)
+    { "EngineeringBomb", function(context)
+          if not engineering then return false end
+          return engineering.should_use_bomb(context)
+      end, build_action("EngineeringBomb", nil, { target = "self", requires_target = false }), function(context)
+          if not engineering then return false end
+          return engineering.use_best_bomb(context)
+      end },
 }
 
 local strategies = {}

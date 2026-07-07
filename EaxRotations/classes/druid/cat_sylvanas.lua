@@ -14,6 +14,8 @@ if not NS then return nil end
 local _same_unit = NS.same_unit or function(a, b) return a == b end
 local _not_same_unit = NS.not_same_unit or function(a, b) return a ~= b end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local _eng_ok, engineering = pcall(require, "shared/engineering_helper_sylvanas")
+if not _eng_ok or type(engineering) ~= "table" then engineering = nil end
 
 local BASE_SPELLS = NS.DruidSpells or {}
 local SPELLS = BASE_SPELLS
@@ -946,6 +948,15 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+    { name = "EngineeringBomb",
+      matches = function(context, s)
+          if not engineering then return false end
+          if not engineering.should_use_bomb(context) then return false end
+          -- Wowsims feral cat: engineering at energy <= 30 (filler during downtime)
+          if (s.energy or 100) > 30 then return false end
+          return true
+      end,
+      execute = function(context) return engineering.use_best_bomb(context) end },
     { name = "RemoveCurse",
       matches = function(context)
           if not (context.settings and context.settings.cat_auto_dispel) then return false end
