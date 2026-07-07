@@ -86,7 +86,7 @@ assert_false(bm_raptor.matches({ in_combat = true, target = {} },
     { in_combat = true, hunter_melee_weave = true, distance_sq = 100, raptor_strike_ready = true, is_mounted = false }), "BM raptor out of range -> no match")
 
 -- MM
-local mm_strategies = dofile("EaxRotations/classes/hunter/marksmanship_sylvanas.lua")
+local mm_strategies = dofile("EaxRotations/classes/hunter/marksmanship_sylvanas.lua").strategies
 local mm_raptor = find_strategy(mm_strategies, "RaptorStrike")
 assert_true(mm_raptor ~= nil, "MM RaptorStrike should exist")
 assert_true(mm_raptor.matches({ in_combat = true, target = {} },

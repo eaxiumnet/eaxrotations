@@ -65,8 +65,10 @@ local function check_bm(path)
 end
 
 -- MM/Survival match functions check has_aspect_hawk and delegate to action_matches
-local function check(path)
-    local strategies = dofile(path)
+-- Accept a path (string) or a function that returns the strategies table
+-- (spec_kit-converted specs have canonical {strategies, build_state} return).
+local function check(path_or_fn)
+    local strategies = type(path_or_fn) == "function" and path_or_fn() or dofile(path_or_fn)
     local hawk = find_strategy(strategies, "AspectOfTheHawk")
     local viper = find_strategy(strategies, "AspectOfTheViper")
     local leveling_arcane = find_strategy(strategies, "LevelingArcaneShot")
@@ -75,31 +77,31 @@ local function check(path)
     local call_pet = find_strategy(strategies, "CallPet")
 
     action_calls = 0
-    assert_true(hawk.matches({ settings = {} }, { has_aspect_hawk = false, call_pet_ready = false, aspect_mode = "auto", mana_pct = 30 }), path .. " hawk should not require Call Pet")
+    assert_true(hawk.matches({ settings = {} }, { has_aspect_hawk = false, call_pet_ready = false, aspect_mode = "auto", mana_pct = 30 }), tostring(path_or_fn) .. " hawk should not require Call Pet")
 
     action_calls = 0
-    assert_true(viper.matches({ settings = {} }, { has_aspect_viper = false, mana_pct = 3, call_pet_ready = false, aspect_mode = "auto" }), path .. " viper should not require Call Pet")
+    assert_true(viper.matches({ settings = {} }, { has_aspect_viper = false, mana_pct = 3, call_pet_ready = false, aspect_mode = "auto" }), tostring(path_or_fn) .. " viper should not require Call Pet")
 
     action_calls = 0
     if leveling_arcane then
-        assert_true(leveling_arcane.matches({ settings = {} }, { pre_steady_leveling = true, arcane_shot_ready = true }), path .. " pre-Steady Arcane Shot should match")
+        assert_true(leveling_arcane.matches({ settings = {} }, { pre_steady_leveling = true, arcane_shot_ready = true }), tostring(path_or_fn) .. " pre-Steady Arcane Shot should match")
     end
 
     action_calls = 0
     if leveling_sting then
-        assert_true(leveling_sting.matches({ settings = {} }, { pre_steady_leveling = true, has_serpent_sting = false, serpent_sting_ready = true, mana_pct = 40 }), path .. " pre-Steady sting should match")
+        assert_true(leveling_sting.matches({ settings = {} }, { pre_steady_leveling = true, has_serpent_sting = false, serpent_sting_ready = true, mana_pct = 40 }), tostring(path_or_fn) .. " pre-Steady sting should match")
     end
 
     action_calls = 0
-    assert_true(not mend_pet.matches({ settings = {} }, { pet_alive = false, pet_hp_pct = 20, mend_pet_ready = true }), path .. " Mend Pet should require live pet")
-    assert_true(action_calls == 0, path .. " dead/missing pet should fail before action gate")
+    assert_true(not mend_pet.matches({ settings = {} }, { pet_alive = false, pet_hp_pct = 20, mend_pet_ready = true }), tostring(path_or_fn) .. " Mend Pet should require live pet")
+    assert_true(action_calls == 0, tostring(path_or_fn) .. " dead/missing pet should fail before action gate")
 
     action_calls = 0
-    assert_true(call_pet.matches({ settings = {} }, { has_pet = false, in_combat = false, call_pet_ready = true }), path .. " Call Pet should match when pet missing OOC")
+    assert_true(call_pet.matches({ settings = {} }, { has_pet = false, in_combat = false, call_pet_ready = true }), tostring(path_or_fn) .. " Call Pet should match when pet missing OOC")
 end
 
 check_bm("EaxRotations/classes/hunter/beast_mastery_sylvanas.lua")
-check("EaxRotations/classes/hunter/marksmanship_sylvanas.lua")
+check(function() return dofile("EaxRotations/classes/hunter/marksmanship_sylvanas.lua").strategies end)
 check("EaxRotations/classes/hunter/survival_sylvanas.lua")
 
 print("PASS test_hunter_aspect_matches")
