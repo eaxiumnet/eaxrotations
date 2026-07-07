@@ -57,7 +57,7 @@ local mock_healing = {
 }
 package.loaded["classes/paladin/healing_sylvanas"] = mock_healing
 
-local strategies = dofile("EaxRotations/classes/paladin/holy_sylvanas.lua")
+local strategies = dofile("EaxRotations/classes/paladin/holy_sylvanas.lua").strategies
 assert_true(strategies, "strategies table should load")
 
 local function find_strategy(name)
