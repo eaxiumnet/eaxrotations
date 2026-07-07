@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-07** (spec_kit migration #8 complete; HEAD `871bcb5b`, pushed to origin).
+> up to date after every work session. Last updated: **2026-07-07** (spec_kit migration #9 complete; HEAD `d7d81aa1`, pushed to origin).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
@@ -19,7 +19,7 @@ have to context-switch.
 - **Project:** 29 WoW TBC Classic Anniversary (2.5.5.x) + Vanilla Anniversary
   rotation plugins for **Project Sylvanas**, in Lua 5.1/LuaJIT. Repo:
   `https://github.com/eaxiumnet/eaxrotations`. Work dir: `C:\newbot\scripts`.
-- **Baseline is GREEN:** **232 rotation suites + 13 leveling suites** pass on
+- **Baseline is GREEN:** **234 rotation suites + 13 leveling suites** pass on
   **Lua 5.1**. Don't break this.
 - **What's done (2026-06-27 → 2026-07-07, 284 commits):**
   - **wowsims APL alignment** for all 29 TBC specs (priority orders grounded in
@@ -35,8 +35,8 @@ have to context-switch.
     buff IDs, berserker rage fear break.
   - **EaxFishing v2.5.1** — debug throttling, stealth suspicion decay/reset, verbose
     status logging.
-  - **spec_kit migration** — 8 of 29 specs converted to `spec_kit.safe_state` +
-    `define_action_for_class` (arms, fury, protection, kebab, balance, cat, bear, caster).
+  - **spec_kit migration** — 9 of 29 specs converted to `spec_kit.safe_state` +
+    `define_action_for_class` (arms, fury, protection, kebab, balance, cat, bear, caster, resto).
   - **Vanilla APL audit** — 6 phases complete, all 31 vanilla spec files reviewed.
   - **567 vanilla nil-guard test cases** added across 9 new test files (38 specs).
   - **Plan cleanup** — 44 → 15 active plans (35 archived to `plans/_archive/`).
@@ -152,7 +152,7 @@ cd /c/newbot/scripts
 cmd.exe //c "validate.cmd"
 ```
 Expected output ends with `ALL CHECKS PASSED`. It runs: `luac -p` on modified
-files → rotation suite (232) → leveling suite (13) → spell audit. All on Lua
+files → rotation suite (234) → leveling suite (13) → spell audit. All on Lua
 5.1. If it says `VALIDATION FAILED`, read the FAIL line and fix it.
 
 For a quick single-file syntax check: `luac -p <file>` (uses the 5.1 luac).
@@ -166,9 +166,9 @@ Or run the suites directly:
 
 ---
 
-## CURRENT STATE (verified 2026-07-07, HEAD 871bcb5b)
+## CURRENT STATE (verified 2026-07-07, HEAD d7d81aa1)
 
-**Baseline:** 232 rotation + 13 leveling suites PASS / 0 fail on Lua 5.1.5.
+**Baseline:** 234 rotation + 13 leveling suites PASS / 0 fail on Lua 5.1.5.
 Spell audit PASS. Pre-commit hooks green (luac + vanilla audit + DBC audit).
 Repo is 0 commits ahead of origin/master.
 
@@ -183,12 +183,12 @@ Repo is 0 commits ahead of origin/master.
 | Bear Druid | Clean rebuild — pure bear-form tank, no form shifting | `c671ce73` | stripped cat/caster spells, wowsims tank APL |
 | Warrior audit | PvP CC gate, stance dance, Execute, Rampage, fear break | `08629117` | comprehensive warrior audit |
 | EaxFishing | v2.5.1 debug throttling + stealth suspicion decay | `691daee9` | fixes bot freezing from maxed suspicion |
-| spec_kit | 8 specs migrated to safe_state + define_action_for_class | `871bcb5b` (latest) | arms, fury, protection, kebab, balance, cat, bear, caster |
+| spec_kit | 9 specs migrated to safe_state + define_action_for_class | `d7d81aa1` (latest) | arms, fury, protection, kebab, balance, cat, bear, caster, resto |
 | Vanilla APL | 6-phase audit complete, all 31 vanilla files reviewed | `0ca3b349` | warrior/frost mage/bear fixes + 0-change reviews |
 | Nil-guard tests | 567 vanilla nil-guard test cases across 9 new files | `4ecbcaaa` | 38 specs covered (all vanilla classes) |
 | Plan cleanup | 44 → 15 active plans (35 archived) | `37c20d17`+`618cdcdf` | stale/completed plans moved to `plans/_archive/` |
 
-### spec_kit migration progress (8 of 29 specs)
+### spec_kit migration progress (9 of 29 specs)
 | Spec | Status | Key change |
 |------|--------|------------|
 | arms | ✅ Done (reference) | first conversion, `ARMS_SCHEMA` + `safe_state` |
@@ -198,8 +198,9 @@ Repo is 0 commits ahead of origin/master.
 | balance | ✅ Done | safe_state + define_action_for_class |
 | cat | ✅ Done | 19 ACTION entries, `CAT_SCHEMA`, 31 ACTIONS converted |
 | bear | ✅ Done | 17 ACTION entries, `BEAR_SCHEMA`, test-env nil-guards |
-| caster | ✅ Done (latest) | 6 ACTION entries, `CASTER_SCHEMA`, THORNS_BUFF moved |
-| (21 remaining) | Not started | Convert only when already editing a spec |
+| caster | ✅ Done | 6 ACTION entries, `CASTER_SCHEMA`, THORNS_BUFF moved |
+| resto | ✅ Done (latest) | 23 ACTION entries, `RESTO_SCHEMA`, merged LOCAL_SPELLS into ACTION |
+| (20 remaining) | Not started | Convert only when already editing a spec |
 
 ### Deferred / out of scope (with reasons — don't relitigate)
 - **C4 (extract core/casting.lua):** the 8 casting functions span lines
@@ -233,7 +234,7 @@ Repo is 0 commits ahead of origin/master.
 ## WHAT'S NEXT (prioritized)
 
 ### 1. Continue spec_kit migration (opportunistic — only when editing a spec)
-- 8 of 29 specs converted (arms, fury, protection, kebab, balance, cat, bear, caster).
+- 9 of 29 specs converted (arms, fury, protection, kebab, balance, cat, bear, caster, resto).
 - Next candidates: any spec already being edited. Never big-bang (AGENTS Rule 5).
 - Pattern: add `spec_kit` require + `define_action_for_class(SPELLS)`, create
   ACTION table with rank IDs, add SCHEMA + `safe_state` in `build_state`,
@@ -278,7 +279,7 @@ at some point to see its real status. Sibling product — its own concern.
 - `EaxRotations/classes/<class>/<spec>_sylvanas.lua` — 29 spec files (flat).
 - `EaxRotations/shared/` — ~50 shared modules (healer_deficit, preemptive_heal,
   aura_cache, enemy_count_hysteresis, pvp_burst_window, offensive_dispel, …).
-- `EaxRotations/tests/run_rotation_tests.lua` — rotation suite runner (232 suites).
+- `EaxRotations/tests/run_rotation_tests.lua` — rotation suite runner (234 suites).
 - `EaxRotations/tests/run_leveling_tests.lua` — leveling suite runner (13 suites).
 - `EaxRotations/shared/spec_kit_sylvanas.lua` — spec_kit boilerplate + nil-guard kit.
 - `EaxRotations/shared/swing_diagnostics_sylvanas.lua` — CLEU swing timer.
