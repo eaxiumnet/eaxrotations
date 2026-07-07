@@ -577,7 +577,7 @@ local strategies = {
                             local m_mana = 100
                             pcall(function() m_mana = member:get_mana_percentage() end)
                             if m_mana <= threshold then
-                                return NS.try_cast(spell, member, "[DRUID] Innervate (Healer)", { skip_range = true })
+                                return NS.try_cast(spell, member, "[DRUID] Innervate (Healer)")
                             end
                         end
                     end
@@ -626,7 +626,7 @@ local strategies = {
                         local alive = true
                         pcall(function() alive = member:is_alive() end)
                         if not alive then
-                            return NS.try_cast(spell, member, "[DRUID] Rebirth", { skip_range = true })
+                            return NS.try_cast(spell, member, "[DRUID] Rebirth")
                         end
                     end
                 end
