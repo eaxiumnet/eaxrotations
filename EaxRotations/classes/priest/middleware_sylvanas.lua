@@ -453,7 +453,7 @@ local strategies = {
             local sf_id = 34433
             local target = context.target
             if not target then return false end
-            return NS.try_cast(sf_id, target, "[PRIEST] Shadowfiend", { skip_range = true })
+            return NS.try_cast(sf_id, target, "[PRIEST] Shadowfiend")
         end,
     },
 
