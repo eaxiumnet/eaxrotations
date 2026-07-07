@@ -1,13 +1,46 @@
--- shadow_sylvanas.lua -- Priest Shadow DPS for TBC Anniversary (2.5.5).
--- WHAT:  DoT/caster DPS spec (VT, SW:P, Mind Blast, Mind Flay, SW:D execute).
+-- shadow_sylvanas.lua — Priest Shadow DPS for TBC Anniversary (2.5.5).
+-- WHAT:  DoT/caster DPS spec (VT, SW:P, Mind Blast, Mind Flay, SW:D execute)
+--         with multi-DoT spread, snapshot-aware refresh, CC break, and
+--         cooldown planning.
 -- WHEN:  combat, with valid enemy target.
 -- WHY:   mirrors wowsims APL: VT > SW:P > MB > SW:D (execute) > Mind Flay filler.
--- SAFETY: SW:D execute has safety_floor; all state fields nil-guarded.
+-- SAFETY: SW:D has safety_floor; Pattern 14 eliminated via spec_kit.safe_state();
+--         no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PriestSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 local mf_tick = require("shared/mf_tick_compute_sylvanas")
+
+-- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    ArcaneTorrent     = define("ArcaneTorrent",     { 25046 }, "ArcaneTorrent"),
+    Berserking        = define("Berserking",        { 26297, 20554 }, "Berserking"),
+    BloodFury         = define("BloodFury",         { 33697, 20572 }, "BloodFury"),
+    DevouringPlague   = define("DevouringPlague",   { 25467, 19280, 19279, 19278, 19277, 19276, 2944 }, "DevouringPlague"),
+    DispelMagic       = define("DispelMagic",       { 988, 527 }, "DispelMagic"),
+    Fade              = define("Fade",              { 25429, 10942, 10941, 9592, 9579, 9578, 586 }, "Fade"),
+    FlashHeal         = define("FlashHeal",         { 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
+    HolyNova          = define("HolyNova",          { 25331, 25329, 27805, 27804, 27803, 27801, 27800, 27799, 15431, 15430, 15237 }, "HolyNova"),
+    InnerFire         = define("InnerFire",         { 25431, 10952, 10951, 1006, 602, 7128, 588 }, "InnerFire"),
+    InnerFocus        = define("InnerFocus",        { 14751 }, "InnerFocus"),
+    MindBlast         = define("MindBlast",         { 25375, 25372, 10947, 10946, 10945, 8106, 8105, 8104, 8103, 8102, 8092 }, "MindBlast"),
+    MindFlay          = define("MindFlay",          { 25387, 18807, 17314, 17313, 17312, 17311, 15407 }, "MindFlay"),
+    PowerWordFortitude= define("PowerWordFortitude",{ 25389, 10938, 10937, 2791, 1245, 1244, 1243 }, "PowerWordFortitude"),
+    PowerWordShield   = define("PowerWordShield",   { 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }, "PowerWordShield"),
+    PsychicScream     = define("PsychicScream",     { 10890, 10888, 8124, 8122 }, "PsychicScream"),
+    ShackleUndead     = define("ShackleUndead",     { 10955, 9485, 9484 }, "ShackleUndead"),
+    ShadowWordDeath   = define("ShadowWordDeath",   { 32996, 32379 }, "ShadowWordDeath"),
+    ShadowWordPain    = define("ShadowWordPain",    { 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }, "ShadowWordPain"),
+    Shadowfiend       = define("Shadowfiend",       { 34433 }, "Shadowfiend"),
+    Shadowform        = define("Shadowform",        { 15473 }, "Shadowform"),
+    Starshards        = define("Starshards",        { 25446, 19305, 19304, 19303, 19302, 19299, 19296, 10797 }, "Starshards"),
+    VampiricEmbrace   = define("VampiricEmbrace",   { 15286 }, "VampiricEmbrace"),
+    VampiricTouch     = define("VampiricTouch",     { 34917, 34916, 34914 }, "VampiricTouch"),
+}
+
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local DotTTD = require("shared/dot_ttd_gating_sylvanas")
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
@@ -146,6 +179,98 @@ end
 -- ============================================================================
 -- State builder
 -- ============================================================================
+-- ============================================================================
+-- Schema for safe_state (Pattern 14 nil-guard elimination).
+local SHADOW_SCHEMA = {
+    -- Channeling / filler state
+    mf_channeling = false,
+    mf_ticks = 0,
+    should_clip_mf = false,
+    -- DoT remains
+    vt_remaining = 0,
+    swp_remaining = 0,
+    ve_remaining = 0,
+    dp_remaining = 0,
+    -- Spell readiness
+    mb_ready = false,
+    mb_cd_remains = 0,
+    swd_ready = false,
+    psychic_scream_ready = false,
+    silence_ready = false,
+    dispel_magic_ready = false,
+    shackle_undead_ready = false,
+    fade_ready = false,
+    healthstone_ready = false,
+    fortitude_ready = false,
+    -- Spell known
+    shadowform_known = false,
+    shadowfiend_known = false,
+    vampiric_touch_known = false,
+    swp_known = false,
+    vampiric_embrace_known = false,
+    devouring_plague_known = false,
+    mind_flay_known = false,
+    inner_fire_known = false,
+    flash_heal_known = false,
+    berserking_known = false,
+    blood_fury_known = false,
+    arcane_torrent_known = false,
+    starshards_known = false,
+    wand_learned = false,
+    -- Buff / debuff state
+    has_shadowform = false,
+    has_inner_focus = false,
+    has_inner_fire = false,
+    has_weakened_soul = false,
+    has_bloodlust = false,
+    has_fade_buff = false,
+    has_fortitude = false,
+    -- Combat state
+    combat_mode = "auto",
+    in_combat = false,
+    enemy_count = 1,
+    target_hp_pct = 100,
+    target_casting = false,
+    is_wanding = false,
+    mounted = false,
+    -- Configurable thresholds (populated from settings)
+    vt_refresh_window = 3,
+    swp_refresh_window = 3,
+    dp_refresh_window = 3,
+    swd_safety_hp = 80,
+    shield_hp = 35,
+    flash_heal_hp = 25,
+    -- Mana management
+    mana_pct = 100,
+    hp_pct = 100,
+    mana_low = false,
+    mana_emergency = false,
+    -- Threat
+    threat_safe = true,
+    -- Weaving
+    weaving_stacks = 0,
+    -- CC Break state
+    has_breakable_cc = false,
+    enemy_casting_cc = false,
+    -- Snapshot state
+    spell_damage = 0,
+    snapshot_vt_dmg = 0,
+    snapshot_swp_dmg = 0,
+    snapshot_dp_dmg = 0,
+    -- Cooldown awareness
+    major_cd_window = false,
+    bloodlust_active = false,
+    -- Multi-DoT
+    multidot_mode = 1,
+    multidot_max = 3,
+    dotted_swp_count = 0,
+    enemies_missing_swp = 0,
+    dotted_vt_count = 0,
+    enemies_missing_vt = 0,
+    -- Buffing
+    is_group = false,
+}
+
 local shadow_state = {
     mf_channeling = false,
     mf_ticks = 0,
@@ -237,13 +362,13 @@ local shadow_state = {
 local function build_state(context)
     local target = context.target
     local me = NS.GetPlayer()
-    if not me then return shadow_state end
+    if not me then return spec_kit.safe_state(shadow_state, SHADOW_SCHEMA) end
     local settings = context.settings or {}
     local mounted_bail = settings.shadow_mounted_bail
     if mounted_bail == nil or mounted_bail == true then
         if me.is_mounted and me:is_mounted() then
             shadow_state.mounted = true
-            return shadow_state
+            return spec_kit.safe_state(shadow_state, SHADOW_SCHEMA)
         end
     end
     shadow_state.mounted = false
@@ -252,9 +377,9 @@ local function build_state(context)
     shadow_state.swp_remaining = target and NS.debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
     shadow_state.ve_remaining = target and NS.debuff_remains(target, VAMPIRIC_EMBRACE_DEBUFF) or 0
     shadow_state.dp_remaining = target and NS.debuff_remains(target, DEVOURING_PLAGUE_DEBUFF) or 0
-    shadow_state.mb_ready = target and NS.spell_ready(SPELLS.MindBlast, target, { expected_cooldown = 5.5 }) or false
-    shadow_state.mb_cd_remains = NS.cooldown_remains and NS.cooldown_remains(SPELLS.MindBlast) or 0
-    shadow_state.swd_ready = target and NS.spell_ready(SPELLS.ShadowWordDeath, target, { expected_cooldown = 12 }) or false
+    shadow_state.mb_ready = target and NS.spell_ready(ACTION.MindBlast, target, { expected_cooldown = 5.5 }) or false
+    shadow_state.mb_cd_remains = NS.cooldown_remains and NS.cooldown_remains(ACTION.MindBlast) or 0
+    shadow_state.swd_ready = target and NS.spell_ready(ACTION.ShadowWordDeath, target, { expected_cooldown = 12 }) or false
     shadow_state.mf_channeling, shadow_state.mf_ticks = mf_tick.compute_channel_state(me, NS.game_time_ms(), MIND_FLAY_IDS)
     shadow_state.should_clip_mf = mf_tick.should_clip_mf(
         shadow_state.mf_channeling,
@@ -267,19 +392,19 @@ local function build_state(context)
         swp_clip_threshold(context)
     )
     shadow_state.has_shadowform = me and NS.buff_up(me, SHADOWFORM_BUFF) or false
-    shadow_state.shadowform_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Shadowform) or false
-    shadow_state.shadowfiend_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Shadowfiend) or false
-    shadow_state.vampiric_touch_known = me and NS.spell_exists and NS.spell_exists(SPELLS.VampiricTouch) or false
-    shadow_state.swp_known = me and NS.spell_exists and NS.spell_exists(SPELLS.ShadowWordPain) or false
-    shadow_state.vampiric_embrace_known = me and NS.spell_exists and NS.spell_exists(SPELLS.VampiricEmbrace) or false
-    shadow_state.devouring_plague_known = me and NS.spell_exists and NS.spell_exists(SPELLS.DevouringPlague) or false
-    shadow_state.mind_flay_known = me and NS.spell_exists and NS.spell_exists(SPELLS.MindFlay) or false
-    shadow_state.inner_fire_known = me and NS.spell_exists and NS.spell_exists(SPELLS.InnerFire) or false
-    shadow_state.flash_heal_known = me and NS.spell_exists and NS.spell_exists(SPELLS.FlashHeal) or false
-    shadow_state.berserking_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Berserking) or false
-    shadow_state.blood_fury_known = me and NS.spell_exists and NS.spell_exists(SPELLS.BloodFury) or false
-    shadow_state.arcane_torrent_known = me and NS.spell_exists and NS.spell_exists(SPELLS.ArcaneTorrent) or false
-    shadow_state.starshards_known = me and NS.spell_exists and NS.spell_exists(SPELLS.Starshards) or false
+    shadow_state.shadowform_known = me and NS.spell_exists and NS.spell_exists(ACTION.Shadowform) or false
+    shadow_state.shadowfiend_known = me and NS.spell_exists and NS.spell_exists(ACTION.Shadowfiend) or false
+    shadow_state.vampiric_touch_known = me and NS.spell_exists and NS.spell_exists(ACTION.VampiricTouch) or false
+    shadow_state.swp_known = me and NS.spell_exists and NS.spell_exists(ACTION.ShadowWordPain) or false
+    shadow_state.vampiric_embrace_known = me and NS.spell_exists and NS.spell_exists(ACTION.VampiricEmbrace) or false
+    shadow_state.devouring_plague_known = me and NS.spell_exists and NS.spell_exists(ACTION.DevouringPlague) or false
+    shadow_state.mind_flay_known = me and NS.spell_exists and NS.spell_exists(ACTION.MindFlay) or false
+    shadow_state.inner_fire_known = me and NS.spell_exists and NS.spell_exists(ACTION.InnerFire) or false
+    shadow_state.flash_heal_known = me and NS.spell_exists and NS.spell_exists(ACTION.FlashHeal) or false
+    shadow_state.berserking_known = me and NS.spell_exists and NS.spell_exists(ACTION.Berserking) or false
+    shadow_state.blood_fury_known = me and NS.spell_exists and NS.spell_exists(ACTION.BloodFury) or false
+    shadow_state.arcane_torrent_known = me and NS.spell_exists and NS.spell_exists(ACTION.ArcaneTorrent) or false
+    shadow_state.starshards_known = me and NS.spell_exists and NS.spell_exists(ACTION.Starshards) or false
     shadow_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
     shadow_state.has_inner_fire = me and NS.buff_up(me, INNER_FIRE_BUFF) or false
     -- Combat mode: explicit setting or auto-detect
@@ -307,9 +432,9 @@ local function build_state(context)
     shadow_state.has_weakened_soul = me and NS.debuff_up and NS.debuff_up(me, WEAKENED_SOUL_DEBUFF) or false
     
     shadow_state.silence_ready = me and NS.spell_ready(SILENCE_INTERRUPT_SPELL, target, { expected_cooldown = 45 }) or false
-    shadow_state.psychic_scream_ready = me and NS.spell_ready(SPELLS.PsychicScream, me, { skip_range = true, expected_cooldown = 30 }) or false
-    shadow_state.dispel_magic_ready = me and NS.spell_ready(SPELLS.DispelMagic, me, { skip_range = true }) or false
-    shadow_state.shackle_undead_ready = me and NS.spell_ready(SPELLS.ShackleUndead, me, { expected_cooldown = 1.5 }) or false
+    shadow_state.psychic_scream_ready = me and NS.spell_ready(ACTION.PsychicScream, me, { skip_range = true, expected_cooldown = 30 }) or false
+    shadow_state.dispel_magic_ready = me and NS.spell_ready(ACTION.DispelMagic, me, { skip_range = true }) or false
+    shadow_state.shackle_undead_ready = me and NS.spell_ready(ACTION.ShackleUndead, me, { expected_cooldown = 1.5 }) or false
     shadow_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     shadow_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
 
@@ -378,7 +503,7 @@ local function build_state(context)
     -- Fortitude buff readiness (party-aware)
     local me_unit = context.me or me
     local FORTITUDE_BUFFS = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
-    shadow_state.fortitude_ready = me_unit and NS.spell_ready and NS.spell_ready(SPELLS.PowerWordFortitude, me_unit, { skip_range = true }) or false
+    shadow_state.fortitude_ready = me_unit and NS.spell_ready and NS.spell_ready(ACTION.PowerWordFortitude, me_unit, { skip_range = true }) or false
     shadow_state.has_fortitude = me_unit and NS.buff_up and NS.buff_up(me_unit, FORTITUDE_BUFFS) or false
     shadow_state.is_group = context.is_group or false
     -- Scan party members for missing Fortitude (in-range only); fallback to self
@@ -393,7 +518,7 @@ local function build_state(context)
                     -- members so we don't lock onto someone across the zone and stall the
                     -- self-buff fallback. is_spell_in_range nil-guarded for test harness.
                     local in_range = (not NS.is_spell_in_range)
-                        or NS.is_spell_in_range(SPELLS.PowerWordFortitude, member) == true
+                        or NS.is_spell_in_range(ACTION.PowerWordFortitude, member) == true
                     if in_range then
                         shadow_state.fortitude_target = member
                         break
@@ -471,7 +596,7 @@ local function build_state(context)
     end
 
     -- Fade state
-    shadow_state.fade_ready = me and NS.spell_ready(SPELLS.Fade, me, { skip_range = true }) or false
+    shadow_state.fade_ready = me and NS.spell_ready(ACTION.Fade, me, { skip_range = true }) or false
     shadow_state.has_fade_buff = me and NS.buff_up(me, { 25429, 10942, 10941, 9592, 9579, 9578, 586 }) or false
 
     -- Major power-window awareness for racial/trinket alignment
@@ -479,7 +604,7 @@ local function build_state(context)
     shadow_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
     shadow_state.major_cd_window = shadow_state.bloodlust_active or shadow_state.major_cd_active
 
-    return shadow_state
+    return spec_kit.safe_state(shadow_state, SHADOW_SCHEMA)
 end
 
 -- ============================================================================
@@ -527,7 +652,7 @@ end
 -- Match functions
 -- ============================================================================
 local function shadowform_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Shadowform, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Shadowform, 3.0) then return false end
     if s.has_shadowform then return false end
     if not s.shadowform_known then return false end
     return true
@@ -538,7 +663,7 @@ local function pre_combat_pull_matches(context, s)
     if not context.has_valid_enemy_target then return false end
     if not s.has_shadowform then return false end
     -- Pull with Vampiric Touch (instant-cast DoT) if available, otherwise Mind Blast
-    if NS.spell_ready and NS.spell_ready(SPELLS.VampiricTouch, context.target, { skip_range = false }) then
+    if NS.spell_ready and NS.spell_ready(ACTION.VampiricTouch, context.target, { skip_range = false }) then
         return true
     end
     return false
@@ -621,7 +746,7 @@ end
 
 local function inner_fire_matches(context, s)
     if not s.inner_fire_known then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.InnerFire, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.InnerFire, 3.0) then return false end
     if s.has_inner_fire then return false end
     local settings = context.settings or {}
     if settings.shadow_use_inner_fire == false then return false end
@@ -635,7 +760,7 @@ local function power_word_shield_matches(context, s)
     if (context.hp or 100) > (s.shield_hp or 35) then return false end
     -- Can't cast if Weakened Soul is active
     if s.has_weakened_soul then return false end
-    if not (NS.spell_ready and NS.spell_ready(SPELLS.PowerWordShield, NS.PLAYER_UNIT, { skip_range = true })) then return false end
+    if not (NS.spell_ready and NS.spell_ready(ACTION.PowerWordShield, NS.PLAYER_UNIT, { skip_range = true })) then return false end
     return true
 end
 
@@ -653,7 +778,7 @@ local function holy_nova_aoe_matches(context, s)
     if context.is_moving then return false end
     if (s.enemy_count or 0) < 3 then return false end
     if not context.in_combat then return false end
-    return NS.spell_ready and NS.spell_ready(SPELLS.HolyNova, context.target, nil)
+    return NS.spell_ready and NS.spell_ready(ACTION.HolyNova, context.target, nil)
 end
 
 local function racial_matches(context, s)
@@ -674,7 +799,7 @@ end
 local function vampiric_touch_matches(context, s)
     if not s.vampiric_touch_known then return false end
     if context.is_casting or context.is_channeling then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.VampiricTouch, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.VampiricTouch, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
     if context.is_moving then return false end
     if not context.has_valid_enemy_target or s.vt_remaining > vt_clip_threshold(context) then return false end
@@ -694,7 +819,7 @@ end
 
 local function shadow_word_pain_matches(context, s)
     if not s.swp_known then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShadowWordPain, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShadowWordPain, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
     -- Mana emergency: drop all spells (wand only)
@@ -723,7 +848,7 @@ end
 
 local function devouring_plague_matches(context, s)
     if not s.devouring_plague_known then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DevouringPlague, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.DevouringPlague, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target or s.dp_remaining > (s.dp_refresh_window or 3) then return false end
     -- Mana emergency: drop all spells (wand only)
@@ -945,31 +1070,31 @@ end
 -- ============================================================================
 local strategies = {
     -- Out-of-combat Fortitude buff
-    { name = "PowerWordFortitude", matches = fortitude_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordFortitude, s.fortitude_target, "[SHADOW] PowerWordFortitude") end },
-    { name = "PreCombatPull", matches = pre_combat_pull_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] PreCombatPull") end },
-    { name = "Shadowform", matches = shadowform_matches, execute = function(context) return NS.try_cast(SPELLS.Shadowform, NS.PLAYER_UNIT, "[SHADOW] Shadowform", { skip_range = true }) end },
-    { name = "SWDCCBreak", matches = swd_cc_break_matches, execute = function(context, s) if s.mf_channeling then if NS.stop_casting then NS.stop_casting() end; if NS.cancel_current_cast then NS.cancel_current_cast() end end; return NS.try_cast(SPELLS.ShadowWordDeath, context.target, string.format("[SHADOW] SWD CC Break â†’ %s", s.enemy_cc_spell_name or s.breakable_cc_name or "CC")) end },
-    { name = "Shadowfiend", matches = shadowfiend_matches, execute = function(context) return NS.try_cast(SPELLS.Shadowfiend, context.target, "[SHADOW] Shadowfiend") end },
-    { name = "VampiricTouch", matches = vampiric_touch_matches, execute = function(context) local ok = NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] VampiricTouch"); if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end; return ok end },
-    { name = "ShadowWordPain", matches = shadow_word_pain_matches, execute = function(context) local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] ShadowWordPain"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
+    { name = "PowerWordFortitude", matches = fortitude_matches, execute = function(context, s) return NS.try_cast(ACTION.PowerWordFortitude, s.fortitude_target, "[SHADOW] PowerWordFortitude") end },
+    { name = "PreCombatPull", matches = pre_combat_pull_matches, execute = function(context) return NS.try_cast(ACTION.VampiricTouch, context.target, "[SHADOW] PreCombatPull") end },
+    { name = "Shadowform", matches = shadowform_matches, execute = function(context) return NS.try_cast(ACTION.Shadowform, NS.PLAYER_UNIT, "[SHADOW] Shadowform", { skip_range = true }) end },
+    { name = "SWDCCBreak", matches = swd_cc_break_matches, execute = function(context, s) if s.mf_channeling then if NS.stop_casting then NS.stop_casting() end; if NS.cancel_current_cast then NS.cancel_current_cast() end end; return NS.try_cast(ACTION.ShadowWordDeath, context.target, string.format("[SHADOW] SWD CC Break â†’ %s", s.enemy_cc_spell_name or s.breakable_cc_name or "CC")) end },
+    { name = "Shadowfiend", matches = shadowfiend_matches, execute = function(context) return NS.try_cast(ACTION.Shadowfiend, context.target, "[SHADOW] Shadowfiend") end },
+    { name = "VampiricTouch", matches = vampiric_touch_matches, execute = function(context) local ok = NS.try_cast(ACTION.VampiricTouch, context.target, "[SHADOW] VampiricTouch"); if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end; return ok end },
+    { name = "ShadowWordPain", matches = shadow_word_pain_matches, execute = function(context) local ok = NS.try_cast(ACTION.ShadowWordPain, context.target, "[SHADOW] ShadowWordPain"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
     { name = "MovingSWP", matches = function(context, s)
         if not s.swp_known then return false end
         if not context.is_moving then return false end
         if not context.has_valid_enemy_target then return false end
-        if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShadowWordPain, 2.0) then return false end
+        if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShadowWordPain, 2.0) then return false end
         if (s.swp_remaining or 0) > 3 then return false end
         if s.mana_emergency then return false end
         if (s.swp_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
         return true
-    end, execute = function(context) local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] SWP (moving)"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
-    { name = "VampiricEmbrace", matches = vampiric_embrace_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricEmbrace, context.target, "[SHADOW] VampiricEmbrace") end },
-    { name = "DevouringPlague", matches = devouring_plague_matches, execute = function(context) local ok = NS.try_cast(SPELLS.DevouringPlague, context.target, "[SHADOW] DevouringPlague"); if ok then shadow_state.snapshot_dp_dmg = shadow_state.spell_damage end; return ok end },
-    { name = "InnerFocusMindBlast", matches = inner_focus_matches, execute = function(context) return NS.try_cast(SPELLS.InnerFocus, NS.PLAYER_UNIT, "[SHADOW] InnerFocusâ†’MB Combo", { skip_range = true }) end },
-    { name = "MindBlast", matches = mind_blast_matches, execute = function(context) return NS.try_cast(SPELLS.MindBlast, context.target, "[SHADOW] MindBlast") end },
-    { name = "Starshards", matches = starshards_matches, execute = function(context) return NS.try_cast(SPELLS.Starshards, context.target, "[SHADOW] Starshards") end },
-    { name = "ShadowWordDeath", matches = shadow_word_death_matches, execute = function(context) return NS.try_cast(SPELLS.ShadowWordDeath, context.target, "[SHADOW] ShadowWordDeath") end },
-    { name = "MindFlay", matches = mind_flay_matches, execute = function(context) return NS.try_cast(SPELLS.MindFlay, context.target, "[SHADOW] MindFlay") end },
-    { name = "PsychicScream", matches = psychic_scream_matches, execute = function(context) return NS.try_cast(SPELLS.PsychicScream, context.target, "[SHADOW] PsychicScream") end },
+    end, execute = function(context) local ok = NS.try_cast(ACTION.ShadowWordPain, context.target, "[SHADOW] SWP (moving)"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
+    { name = "VampiricEmbrace", matches = vampiric_embrace_matches, execute = function(context) return NS.try_cast(ACTION.VampiricEmbrace, context.target, "[SHADOW] VampiricEmbrace") end },
+    { name = "DevouringPlague", matches = devouring_plague_matches, execute = function(context) local ok = NS.try_cast(ACTION.DevouringPlague, context.target, "[SHADOW] DevouringPlague"); if ok then shadow_state.snapshot_dp_dmg = shadow_state.spell_damage end; return ok end },
+    { name = "InnerFocusMindBlast", matches = inner_focus_matches, execute = function(context) return NS.try_cast(ACTION.InnerFocus, NS.PLAYER_UNIT, "[SHADOW] InnerFocusâ†’MB Combo", { skip_range = true }) end },
+    { name = "MindBlast", matches = mind_blast_matches, execute = function(context) return NS.try_cast(ACTION.MindBlast, context.target, "[SHADOW] MindBlast") end },
+    { name = "Starshards", matches = starshards_matches, execute = function(context) return NS.try_cast(ACTION.Starshards, context.target, "[SHADOW] Starshards") end },
+    { name = "ShadowWordDeath", matches = shadow_word_death_matches, execute = function(context) return NS.try_cast(ACTION.ShadowWordDeath, context.target, "[SHADOW] ShadowWordDeath") end },
+    { name = "MindFlay", matches = mind_flay_matches, execute = function(context) return NS.try_cast(ACTION.MindFlay, context.target, "[SHADOW] MindFlay") end },
+    { name = "PsychicScream", matches = psychic_scream_matches, execute = function(context) return NS.try_cast(ACTION.PsychicScream, context.target, "[SHADOW] PsychicScream") end },
     { name = "Fade",
       matches = function(context, state)
           local auto_fade = (context.settings and context.settings.priest_auto_fade) ~= false
@@ -982,7 +1107,7 @@ local strategies = {
           if context.threat_status and context.threat_status >= 2 then return true end
           return false
       end,
-      execute = function(context) return NS.try_cast(SPELLS.Fade, NS.PLAYER_UNIT, "[SHADOW] Fade", { skip_range = true }) end,
+      execute = function(context) return NS.try_cast(ACTION.Fade, NS.PLAYER_UNIT, "[SHADOW] Fade", { skip_range = true }) end,
     },
     { name = "Healthstone",
       matches = function(context, state)
@@ -997,13 +1122,13 @@ local strategies = {
           return state and state.healthstone_id and NS.use_item_by_id and NS.use_item_by_id(state.healthstone_id) or false
       end,
     },
-    { name = "DispelMagic", matches = dispel_magic_matches, execute = function(context) return NS.try_cast(SPELLS.DispelMagic, NS.PLAYER_UNIT, "[SHADOW] DispelMagic", { skip_range = true }) end },
-    { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return NS.try_cast(SPELLS.ShackleUndead, context.target, "[SHADOW] ShackleUndead") end },
+    { name = "DispelMagic", matches = dispel_magic_matches, execute = function(context) return NS.try_cast(ACTION.DispelMagic, NS.PLAYER_UNIT, "[SHADOW] DispelMagic", { skip_range = true }) end },
+    { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return NS.try_cast(ACTION.ShackleUndead, context.target, "[SHADOW] ShackleUndead") end },
     { name = "SWPSpread", matches = shadow_swp_spread_matches, execute = function(context)
         local target = context._shadow_swp_spread_target
         if not target then return false end
         _set_lockout("SWP", 3000, target)
-        local ok = NS.try_cast(SPELLS.ShadowWordPain, target, "[SHADOW] SWPSpread")
+        local ok = NS.try_cast(ACTION.ShadowWordPain, target, "[SHADOW] SWPSpread")
         if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end
         context._shadow_swp_spread_target = nil
         return ok
@@ -1012,7 +1137,7 @@ local strategies = {
         local target = context._shadow_vt_spread_target
         if not target then return false end
         _set_lockout("VT", 3000, target)
-        local ok = NS.try_cast(SPELLS.VampiricTouch, target, "[SHADOW] VTSpread")
+        local ok = NS.try_cast(ACTION.VampiricTouch, target, "[SHADOW] VTSpread")
         if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end
         context._shadow_vt_spread_target = nil
         return ok
@@ -1021,7 +1146,7 @@ local strategies = {
         local target = context._shadow_swp_spread_target
         if not target then return false end
         _set_lockout("SWP", 3000, target)
-        local ok = NS.try_cast(SPELLS.ShadowWordPain, target, "[SHADOW] MultiDoT SW:P")
+        local ok = NS.try_cast(ACTION.ShadowWordPain, target, "[SHADOW] MultiDoT SW:P")
         if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end
         context._shadow_swp_spread_target = nil
         return ok
@@ -1030,23 +1155,25 @@ local strategies = {
         local target = context._shadow_vt_spread_target
         if not target then return false end
         _set_lockout("VT", 3000, target)
-        local ok = NS.try_cast(SPELLS.VampiricTouch, target, "[SHADOW] MultiDoT VT")
+        local ok = NS.try_cast(ACTION.VampiricTouch, target, "[SHADOW] MultiDoT VT")
         if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end
         context._shadow_vt_spread_target = nil
         return ok
     end },
-    { name = "InnerFire", matches = inner_fire_matches, execute = function(context) return NS.try_cast(SPELLS.InnerFire, NS.PLAYER_UNIT, "[SHADOW] InnerFire", { skip_range = true }) end },
-    { name = "PowerWordShield", matches = power_word_shield_matches, execute = function(context) return NS.try_cast(SPELLS.PowerWordShield, NS.PLAYER_UNIT, "[SHADOW] PowerWordShield", { skip_range = true }) end },
-    { name = "FlashHeal", matches = flash_heal_matches, execute = function(context) return NS.try_cast(SPELLS.FlashHeal, NS.PLAYER_UNIT, "[SHADOW] FlashHeal", { skip_range = true }) end },
-    { name = "HolyNovaAoE", matches = holy_nova_aoe_matches, execute = function(context) return NS.try_cast(SPELLS.HolyNova, context.target, "[SHADOW] HolyNova") end },
+    { name = "InnerFire", matches = inner_fire_matches, execute = function(context) return NS.try_cast(ACTION.InnerFire, NS.PLAYER_UNIT, "[SHADOW] InnerFire", { skip_range = true }) end },
+    { name = "PowerWordShield", matches = power_word_shield_matches, execute = function(context) return NS.try_cast(ACTION.PowerWordShield, NS.PLAYER_UNIT, "[SHADOW] PowerWordShield", { skip_range = true }) end },
+    { name = "FlashHeal", matches = flash_heal_matches, execute = function(context) return NS.try_cast(ACTION.FlashHeal, NS.PLAYER_UNIT, "[SHADOW] FlashHeal", { skip_range = true }) end },
+    { name = "HolyNovaAoE", matches = holy_nova_aoe_matches, execute = function(context) return NS.try_cast(ACTION.HolyNova, context.target, "[SHADOW] HolyNova") end },
     -- Emergency wand fallback when mana below conserve floor (last resort)
     { name = "ManaEmergencyWand", matches = mana_emergency_wand_matches, execute = function(context) if not context.target then return false end; if NS.is_auto_attacking and NS.is_auto_attacking(context.me) then return true end; return NS.start_auto_attack and NS.start_auto_attack(context.target, NS.AUTO_ATTACK_WAND) == true end },
-    { name = "RacialBerserking", matches = racial_matches, execute = function(context) return NS.try_cast(SPELLS.Berserking, NS.PLAYER_UNIT, "[SHADOW] Berserking", { skip_range = true }) end },
-    { name = "RacialBloodFury", matches = racial_matches, execute = function(context) return NS.try_cast(SPELLS.BloodFury, NS.PLAYER_UNIT, "[SHADOW] BloodFury", { skip_range = true }) end },
-    { name = "RacialArcaneTorrent", matches = racial_matches, execute = function(context) return NS.try_cast(SPELLS.ArcaneTorrent, NS.PLAYER_UNIT, "[SHADOW] ArcaneTorrent", { skip_range = true }) end },
+    { name = "RacialBerserking", matches = racial_matches, execute = function(context) return NS.try_cast(ACTION.Berserking, NS.PLAYER_UNIT, "[SHADOW] Berserking", { skip_range = true }) end },
+    { name = "RacialBloodFury", matches = racial_matches, execute = function(context) return NS.try_cast(ACTION.BloodFury, NS.PLAYER_UNIT, "[SHADOW] BloodFury", { skip_range = true }) end },
+    { name = "RacialArcaneTorrent", matches = racial_matches, execute = function(context) return NS.try_cast(ACTION.ArcaneTorrent, NS.PLAYER_UNIT, "[SHADOW] ArcaneTorrent", { skip_range = true }) end },
 }
 
-NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
+end
 -- Priest shadow rotation registered
 
 return strategies
