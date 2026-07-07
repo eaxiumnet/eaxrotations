@@ -28,6 +28,13 @@ local TWIST_TRACK_WINDOW = 3.0
 local SWING_LOG_CAPACITY = 20
 local DIAGNOSTICS_COOLDOWN = 5.0
 
+-- Parry-haste / Overpower-proc mechanic constants (ported from SuperSwingTimer
+-- algorithms — SST_State.lua:1103 ApplyParryHaste + :1256 Overpower proc window).
+-- These are mechanic models reimplemented for the Sylvanas runtime, not addon code.
+local PARRY_REDUCTION = 0.40    -- a parry compresses the in-flight swing by 40% of weapon speed
+local PARRY_FLOOR = 0.20        -- …but never below 20% of weapon speed remaining
+local OVERPOWER_PROC_WINDOW = 5.0  -- Overpower is usable for 5s after the player's attack is dodged
+
 -- ---------------------------------------------------------------------------
 -- Internal state
 -- ---------------------------------------------------------------------------
@@ -44,6 +51,13 @@ local _diagnostics_enabled = false
 local _last_diag_log_time = 0
 local _SEAL_SPELL_IDS = {}
 local _registered = false
+
+-- Parry-haste / enemy-swing / Overpower-proc state
+local _last_parry_time = 0
+local _parry_swing_end = 0         -- adjusted MH swing-end time after a parry (0 = none pending)
+local _overpower_proc_until = 0    -- wall-clock time until which Overpower is proc-usable
+local _last_enemy_swing_time = 0   -- last incoming swing that hit/missed the player
+local _last_enemy_swing_interval = 2.0
 
 -- ---------------------------------------------------------------------------
 -- Helpers
@@ -68,6 +82,37 @@ local function is_player_source(args)
     local guid = args and args[4]
     if not guid then return false end
     return guid == get_player_guid()
+end
+
+local function is_player_dest(args)
+    local guid = args and args[8]
+    if not guid then return false end
+    return guid == get_player_guid()
+end
+
+-- Apply Classic/TBC parry-haste: when the player parries an incoming attack, the
+-- in-flight MH swing's remaining time is reduced by 40% of weapon speed, floored at 20%.
+local function apply_parry_haste(now)
+    if _last_swing_time <= 0 or _last_swing_interval <= 0 then return end
+    local base_end = _last_swing_time + _last_swing_interval
+    local swing_end = (_parry_swing_end > _last_swing_time) and _parry_swing_end or base_end
+    local remaining = swing_end - now
+    local floor = PARRY_FLOOR * _last_swing_interval
+    if remaining <= floor then return end
+    local new_remaining = math_max(remaining - PARRY_REDUCTION * _last_swing_interval, floor)
+    _parry_swing_end = now + new_remaining
+    _last_parry_time = now
+end
+
+local function record_enemy_swing(now)
+    if _last_enemy_swing_time > 0 then
+        _last_enemy_swing_interval = now - _last_enemy_swing_time
+    end
+    _last_enemy_swing_time = now
+end
+
+local function record_overpower_proc(now)
+    _overpower_proc_until = now + OVERPOWER_PROC_WINDOW
 end
 
 local function now_seconds()
@@ -116,6 +161,30 @@ local function on_cleu(args)
     local sub_event = args[2]
     if type(sub_event) ~= "string" then return end
 
+    -- ========================================================================
+    -- Player as DEFENDER: parry-haste + enemy-swing tracking.
+    -- (SWING_DAMAGE / SWING_MISSED where dest_guid == player.) Handled BEFORE
+    -- the player-as-source gate so incoming attacks are always logged.
+    -- ========================================================================
+    if (sub_event == "SWING_DAMAGE" or sub_event == "SWING_MISSED") and is_player_dest(args) then
+        local now = now_seconds()
+        record_enemy_swing(now)
+        if sub_event == "SWING_MISSED" then
+            -- args[12] = missType per the CLEU fixed-prefix layout.
+            if args[12] == "PARRY" then
+                apply_parry_haste(now)
+                if _diagnostics_enabled then
+                    log_diagnostics(string.format(
+                        "[SwingDiagnostics] parry-haste applied (interval %.2fs)", _last_swing_interval))
+                end
+            end
+        end
+        return
+    end
+
+    -- ========================================================================
+    -- Player as SOURCE: outgoing swing timing + Overpower dodge-proc.
+    -- ========================================================================
     if sub_event == "SWING_DAMAGE" or sub_event == "SWING_MISSED" then
         if not is_player_source(args) then return end
         local now = now_seconds()
@@ -124,8 +193,17 @@ local function on_cleu(args)
             is_offhand = args[21] == true or args[21] == 1
         elseif sub_event == "SWING_MISSED" then
             is_offhand = args[12] == true or args[12] == 1
+            -- Overpower proc: the player's white swing was DODGED.
+            -- (args[12] is missType for SWING_MISSED — the is_offhand read above is a
+            -- legacy no-op; see plan follow-up. The DODGE check is authoritative.)
+            if args[12] == "DODGE" then
+                record_overpower_proc(now)
+            end
         end
         if is_offhand then return end
+
+        -- A new MH swing landed → clear any pending parry-haste adjustment.
+        _parry_swing_end = 0
 
         if _last_swing_time > 0 then
             _last_swing_interval = now - _last_swing_time
@@ -154,6 +232,16 @@ local function on_cleu(args)
                 "[SwingDiagnostics] %s (swing %.0fms from twist attempt, interval %.2fs)",
                 result, ms_delta, _last_swing_interval
             ))
+        end
+        return
+    end
+
+    -- SPELL_MISSED: a player special (MS/HS/etc.) was DODGED → Overpower proc.
+    if sub_event == "SPELL_MISSED" then
+        if not is_player_source(args) then return end
+        -- SPELL_* suffix: [12]=spell_id [13]=spell_name [14]=spell_school [15]=missType
+        if args[15] == "DODGE" then
+            record_overpower_proc(now_seconds())
         end
         return
     end
@@ -261,8 +349,40 @@ function M.get_swing_remains()
     if _last_swing_time <= 0 then return nil end
     local interval = _last_swing_interval
     if not interval or interval <= 0 then return nil end
-    local elapsed = now_seconds() - _last_swing_time
-    return math_max(0, interval - elapsed)
+    local now = now_seconds()
+    -- Parry-haste: if a parry compressed the in-flight swing, use the adjusted end time.
+    local swing_end = (_parry_swing_end > _last_swing_time) and _parry_swing_end or (_last_swing_time + interval)
+    return math_max(0, swing_end - now)
+end
+
+--- Returns true if the player's attack was dodged within the last OVERPOWER_PROC_WINDOW
+--- seconds (so Overpower is currently proc-usable). Used by Arms to gate Overpower so the
+--- rotation doesn't burn ticks on a non-castable spell.
+function M.is_overpower_proc_active()
+    if _overpower_proc_until <= 0 then return false end
+    return now_seconds() < _overpower_proc_until
+end
+
+function M.get_overpower_proc_remains()
+    if _overpower_proc_until <= 0 then return 0 end
+    return math_max(0, _overpower_proc_until - now_seconds())
+end
+
+function M.get_last_parry_time()
+    return (_last_parry_time > 0) and _last_parry_time or nil
+end
+
+--- Remaining time until the target's next incoming swing lands on the player.
+--- Useful for tanks (Shield Block coverage, Revenge proc window) and interrupt timing.
+function M.get_enemy_swing_remains()
+    if _last_enemy_swing_time <= 0 then return nil end
+    local interval = _last_enemy_swing_interval
+    if not interval or interval <= 0 then return nil end
+    return math_max(0, (_last_enemy_swing_time + interval) - now_seconds())
+end
+
+function M.get_enemy_swing_interval()
+    return (_last_enemy_swing_time > 0) and _last_enemy_swing_interval or nil
 end
 
 function M.get_last_twist_result()
@@ -310,6 +430,11 @@ function M.reset()
     _swing_log_head = 0
     _seal_cast_confirmed = {}
     _player_guid = nil
+    _last_parry_time = 0
+    _parry_swing_end = 0
+    _overpower_proc_until = 0
+    _last_enemy_swing_time = 0
+    _last_enemy_swing_interval = 2.0
 end
 
 function M.is_active()
