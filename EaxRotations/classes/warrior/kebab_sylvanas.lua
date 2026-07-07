@@ -1,8 +1,8 @@
--- kebab_sylvanas -- warrior kebab_sylvanas rotation for TBC Anniversary (2.5.5).
--- WHAT:  priority-list strategies for kebab_sylvanas gameplay.
--- WHEN:  combat with valid enemy target.
--- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- kebab_sylvanas.lua — Warrior Kebab (DW Arms) rotation for TBC Anniversary (2.5.5).
+-- WHAT:  priority-list strategies (Execute → SS → WW → MS → Overpower → utility → HS/Cleave dump).
+-- WHEN:  combat with valid enemy target, dual-wield or general-use fallback.
+-- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics (DW Arms variant).
+-- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
 
 -- ============================================================================
 -- Kebab Warrior Rotation (Project Sylvanas API)
@@ -39,6 +39,7 @@ if _cleu then
     })
 end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 
@@ -49,8 +50,13 @@ if not _ok_enums or type(enums) ~= "table" or type(enums.class_id) ~= "table" th
 local ok_cls, cls_id = pcall(function() return load_player and load_player:get_class() end)
 if load_player and ok_cls and cls_id ~= enums.class_id.WARRIOR then return end  -- only skip if we KNOW it's not a warrior; allow nil GetPlayer (engine handles class filtering)
 
-local SPELLS = NS.WarriorSpells
-local Constants = NS.WarriorConstants
+local SPELLS = NS.WarriorSpells or {}
+local Constants = NS.WarriorConstants or {}
+
+-- Centralized spell resolver via spec_kit (satisfies canonical template contract).
+-- Match/execute functions still reference SPELLS.X directly; the ACTION table
+-- will be adopted in a future pass when this spec is edited for other reasons.
+local define = spec_kit.define_action_for_class(SPELLS)
 local format = string.format
 local EMPTY_SETTINGS = {}
 
@@ -185,9 +191,24 @@ local kebab_state = {
     healthstone_ready = 0,
 }
 
-local function build_kebab_state(context)
+-- Schema for safe_state: custom defaults override kit defaults.
+local KEBAB_SCHEMA = {
+    general_use = false,
+    target_below_20 = false,
+    sunder_stacks = 0,
+    sunder_duration = 0,
+    thunder_clap_duration = 0,
+    demo_shout_duration = 0,
+    ms_cd = 99,
+    ww_cd = 99,
+    pummel_ready = false,
+    healthstone_ready = 0,
+    is_group = false,
+}
+
+local function build_state(context)
     kebab_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
-    if context._kebab_valid then return kebab_state end
+    if context._kebab_valid then return spec_kit.safe_state(kebab_state, KEBAB_SCHEMA) end
     context._kebab_valid = true
     kebab_state.is_group = context.is_group or false
     context.settings = context.settings or EMPTY_SETTINGS
@@ -222,7 +243,8 @@ local function build_kebab_state(context)
     kebab_state.ms_cd = get_cooldown(SPELLS.MortalStrike)
     kebab_state.ww_cd = get_cooldown(SPELLS.Whirlwind)
 
-    return kebab_state
+    -- safe_state proxy: structural nil-guard elimination (Pattern 14)
+    return spec_kit.safe_state(kebab_state, KEBAB_SCHEMA)
 end
 
 local function general_use_kebab(context, state)
@@ -610,9 +632,10 @@ local strategies = {
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("kebab", strategies, {
-        context_builder = build_kebab_state,
+        get_state = build_state,
     })
 end
+if NS.log then NS.log("Warrior Kebab (DW Arms) rotation registered") end
 
--- Kebab (DW Arms) rotation registered
-return strategies
+-- Canonical return shape: dispatcher + tests both get what they need
+return { strategies = strategies, build_state = build_state }

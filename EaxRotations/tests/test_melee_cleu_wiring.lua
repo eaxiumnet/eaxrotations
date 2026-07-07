@@ -224,8 +224,9 @@ _G.EaxRotations.SwingDiagnostics = {
     register_seals = function() end,
 }
 local kebab_result = dofile('EaxRotations/classes/warrior/kebab_sylvanas.lua')
-local kebab_build_state = _G._test_captured_context_builder
-assert_true(kebab_build_state, 'Kebab build_kebab_state captured')
+-- Canonical return: { strategies = {...}, build_state = fn }
+local kebab_build_state = (type(kebab_result) == "table" and kebab_result.build_state) or _G._test_captured_get_state
+assert_true(kebab_build_state, 'Kebab build_state captured')
 local kebab_ctx1 = { settings = {}, target = {} }
 kebab_build_state(kebab_ctx1)
 assert_eq(kebab_ctx1.mh_remain, 1.5, 'Kebab: CLEU mh_remain consumed')
