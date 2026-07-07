@@ -71,7 +71,7 @@ _G.EaxRotations = {
     log = function() end,
     rotation_registry = { register = function() end },
 }
-local paladin = dofile("EaxRotations/classes/paladin/holy_sylvanas.lua")
+local paladin = dofile("EaxRotations/classes/paladin/holy_sylvanas.lua").strategies
 local seal = find_strategy(paladin, "SealOfRighteousnessSolo")
 assert_true(seal.matches({ is_solo = true, has_valid_enemy_target = true, target = {}, settings = {} }, { lowest = { effective_hp = 95, unit = {} }, has_seal_righteousness = false, mana_pct = 70 }), "Holy Paladin solo seal should match when stable")
 assert_false(seal.matches({ is_solo = true, has_valid_enemy_target = true, target = {}, settings = {} }, { lowest = { effective_hp = 70, unit = {} }, has_seal_righteousness = false, mana_pct = 70 }), "Holy Paladin solo seal should not match when healing is unstable")

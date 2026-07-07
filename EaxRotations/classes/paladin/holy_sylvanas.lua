@@ -1,11 +1,50 @@
--- holy_sylvanas.lua -- Paladin Holy healing for TBC Anniversary (2.5.5).
--- WHAT: single-target healer (Flash of Light, Holy Light, Divine Favor, Holy Shock).
--- WHEN: combat or pre-combat, with valid friendly targets.
--- WHY: TBC holy pally = FoL spam + downranked HL + Divine Favor burst.
--- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
+-- holy_sylvanas.lua — Paladin Holy healing rotation for TBC Anniversary (2.5.5).
+-- WHAT:  single-target healer — Flash of Light spam, downranked Holy Light (R4/R7/R9/R11),
+--         Divine Favor + Holy Shock guaranteed-crit burst combo, Light's Grace chain,
+--         Triage-scored target selection, auto-blessing/aura/cleanse maintenance.
+-- WHEN:  combat or pre-combat, with valid friendly targets.
+-- WHY:   TBC holy pally consensus = FoL sustain + ranked HL for triage, DF+HS burst,
+--         JoW/JoL seal-twist for mana/health support.
+-- SAFETY: Pattern 14 nil-guards via spec_kit.safe_state; no on_update() allocs; broken-API
+--          guard (3s throttle) on aura/buff checks; DF/DI/DS/LoH readiness gated.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}
+
+local spec_kit = require("shared/spec_kit_sylvanas")
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    AvengingWrath          = define("AvengingWrath",          {31884}, "AvengingWrath"),
+    BlessingOfFreedom      = define("BlessingOfFreedom",      {1044}, "BlessingOfFreedom"),
+    BlessingOfKings        = define("BlessingOfKings",        {20217}, "BlessingOfKings"),
+    BlessingOfLight        = define("BlessingOfLight",        {27144, 19979, 19978, 19977}, "BlessingOfLight"),
+    BlessingOfProtection   = define("BlessingOfProtection",   {10278, 5599, 1022}, "BlessingOfProtection"),
+    BlessingOfSacrifice    = define("BlessingOfSacrifice",    {27148, 27147, 20729, 6940}, "BlessingOfSacrifice"),
+    BlessingOfWisdom       = define("BlessingOfWisdom",       {27142, 25290, 19854, 19853, 19852, 19850, 19742}, "BlessingOfWisdom"),
+    Cleanse                = define("Cleanse",                {4987}, "Cleanse"),
+    ConcentrationAura      = define("ConcentrationAura",      {19746}, "ConcentrationAura"),
+    Consecration           = define("Consecration",           {27173, 20924, 20923, 20922, 20116, 26573}, "Consecration"),
+    DevotionAura           = define("DevotionAura",           {27149, 10293, 10292, 1032, 10291, 643, 10290, 465}, "DevotionAura"),
+    DivineFavor            = define("DivineFavor",            {20216}, "DivineFavor"),
+    DivineIllumination     = define("DivineIllumination",     {31842}, "DivineIllumination"),
+    DivineShield           = define("DivineShield",           {1020, 642}, "DivineShield"),
+    FireResistanceAura     = define("FireResistanceAura",     {27153, 19900, 19899, 19891}, "FireResistanceAura"),
+    FlashOfLight           = define("FlashOfLight",           {27137, 19943, 19942, 19941, 19940, 19939, 19750}, "FlashOfLight"),
+    FrostResistanceAura    = define("FrostResistanceAura",    {27152, 19898, 19897, 19888}, "FrostResistanceAura"),
+    GreaterBlessingOfKings  = define("GreaterBlessingOfKings",  {25898}, "GreaterBlessingOfKings"),
+    GreaterBlessingOfLight  = define("GreaterBlessingOfLight",  {27145, 25890}, "GreaterBlessingOfLight"),
+    GreaterBlessingOfWisdom = define("GreaterBlessingOfWisdom", {27143, 25918, 25894}, "GreaterBlessingOfWisdom"),
+    HammerOfJustice        = define("HammerOfJustice",        {10308, 5589, 5588, 853}, "HammerOfJustice"),
+    HammerOfWrath          = define("HammerOfWrath",          {27180, 24239, 24274, 24275}, "HammerOfWrath"),
+    HolyShock              = define("HolyShock",              {33072, 27174, 20930, 20929, 20473}, "HolyShock"),
+    Judgement              = define("Judgement",              {20271}, "Judgement"),
+    LayOnHands             = define("LayOnHands",             {27154, 10310, 2800, 633}, "LayOnHands"),
+    Purify                 = define("Purify",                 {1152}, "Purify"),
+    SealOfLight            = define("SealOfLight",            {27160, 20349, 20348, 20347, 20165}, "SealOfLight"),
+    SealOfWisdom           = define("SealOfWisdom",           {27166, 20357, 20356, 20166}, "SealOfWisdom"),
+    SealRighteousness      = define("SealRighteousness",      {27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154}, "SealRighteousness"),
+    ShadowResistanceAura   = define("ShadowResistanceAura",   {27151, 19896, 19895, 19876}, "ShadowResistanceAura"),
+}
 local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.PaladinHealing or require("classes/paladin/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
@@ -47,16 +86,16 @@ local function safe_setting(context, key, fallback)
 end
 
 -- TBC Holy spells not exposed by the base Paladin class map.
-local BlessingOfLight = SPELLS.BlessingOfLight or spell_action({ 27144, 19979, 19978, 19977 }, "BlessingOfLight")
-local GreaterBlessingOfLight = SPELLS.GreaterBlessingOfLight or spell_action({ 27145, 25890 }, "GreaterBlessingOfLight")
-local BlessingOfFreedom = SPELLS.BlessingOfFreedom or spell_action({ 1044 }, "BlessingOfFreedom")
-local BlessingOfProtection = SPELLS.BlessingOfProtection or spell_action({ 10278, 5599, 1022 }, "BlessingOfProtection")
-local BlessingOfSacrifice = SPELLS.BlessingOfSacrifice or spell_action({ 27148, 27147, 20729, 6940 }, "BlessingOfSacrifice")
-local FireResistanceAura = SPELLS.FireResistanceAura or spell_action({ 27153, 19900, 19899, 19891 }, "FireResistanceAura")
-local FrostResistanceAura = SPELLS.FrostResistanceAura or spell_action({ 27152, 19898, 19897, 19888 }, "FrostResistanceAura")
-local ShadowResistanceAura = SPELLS.ShadowResistanceAura or spell_action({ 27151, 19896, 19895, 19876 }, "ShadowResistanceAura")
-local SealOfLight = SPELLS.SealOfLight or spell_action({ 27160, 20349, 20348, 20347, 20165 }, "SealOfLight")
-local Purify = SPELLS.Purify or spell_action({ 1152 }, "Purify") -- DB2: learned at level 8
+local BlessingOfLight = ACTION.BlessingOfLight or spell_action({ 27144, 19979, 19978, 19977 }, "BlessingOfLight")
+local GreaterBlessingOfLight = ACTION.GreaterBlessingOfLight or spell_action({ 27145, 25890 }, "GreaterBlessingOfLight")
+local BlessingOfFreedom = ACTION.BlessingOfFreedom or spell_action({ 1044 }, "BlessingOfFreedom")
+local BlessingOfProtection = ACTION.BlessingOfProtection or spell_action({ 10278, 5599, 1022 }, "BlessingOfProtection")
+local BlessingOfSacrifice = ACTION.BlessingOfSacrifice or spell_action({ 27148, 27147, 20729, 6940 }, "BlessingOfSacrifice")
+local FireResistanceAura = ACTION.FireResistanceAura or spell_action({ 27153, 19900, 19899, 19891 }, "FireResistanceAura")
+local FrostResistanceAura = ACTION.FrostResistanceAura or spell_action({ 27152, 19898, 19897, 19888 }, "FrostResistanceAura")
+local ShadowResistanceAura = ACTION.ShadowResistanceAura or spell_action({ 27151, 19896, 19895, 19876 }, "ShadowResistanceAura")
+local SealOfLight = ACTION.SealOfLight or spell_action({ 27160, 20349, 20348, 20347, 20165 }, "SealOfLight")
+local Purify = ACTION.Purify or spell_action({ 1152 }, "Purify") -- DB2: learned at level 8
 
 local HolyLightRank11 = spell_action({ 27136 }, "HolyLightRank11")
 local HolyLightRank9 = spell_action({ 25292 }, "HolyLightRank9")
@@ -107,6 +146,32 @@ local TANK_HEAL_TARGET_HP = 92
 local LIGHT_HEAL_DEFICIT = 900
 local MEDIUM_HEAL_DEFICIT = 1900
 local LARGE_HEAL_DEFICIT = 3200
+
+-- ============================================================================
+-- Schema (Pattern 14 nil-guard defaults via spec_kit.safe_state)
+-- ============================================================================
+local HOLY_SCHEMA = {
+    -- Null-object fields (targets, spells, labels — default nil is correct)
+    entries = nil,  count = 0,  lowest = nil,  tank = nil,
+    cleanse_target = nil,  purify_target = nil,  mana_target = nil,
+    freedom_target = nil,  protection_target = nil,  sacrifice_target = nil,
+    pvp_stun_target = nil,  aura_spell = nil,  aura_label = nil,
+    blessing_target = nil,  blessing_spell = nil,  blessing_label = nil,
+    heal_target = nil,  heal_spell = nil,  heal_label = nil,  heal_priority = 0,
+    holy_light_spell = nil,  holy_light_label = nil,
+    friendly_target = nil,  friendly_target_ready = false,
+    -- Resources (Pattern 14: assume full → skip defensives)
+    mana_pct = 100,  hp_pct = 100,  target_hp_pct = 100,
+    emergency_count = 0,  heavy_healing = false,  use_group_blessings = false,
+    in_pvp = false,  moving = false,  is_group = false,  healthstone_ready = 0,
+    -- Buff/debuff state
+    has_divine_favor = false,  has_divine_illumination = false,  has_forbearance = false,
+    has_seal_wisdom = false,  has_seal_righteousness = false,  has_seal_light = false,
+    has_concentration_aura = false,  has_devotion_aura = false,
+    has_fire_aura = false,  has_frost_aura = false,  has_shadow_aura = false,
+    has_lights_grace = false,  lights_grace_remains = 0,
+    target_has_jol = false,  target_has_jow = false,
+}
 
 local state = {
  entries = nil,
@@ -275,15 +340,15 @@ local function choose_smart_heal(context, s, entry)
  local deficit = deficit_of(entry)
  local flash_hp = safe_setting(context, "holy_flash_light_hp", 85)
  local shock_hp = safe_setting(context, "holy_shock_hp", 40)
- if (context and context.is_moving or s.moving) and hp <= flash_hp and NS.spell_ready(SPELLS.HolyShock, entry.unit, EMPTY_OPTS) then
-  s.heal_spell = SPELLS.HolyShock
+ if (context and context.is_moving or s.moving) and hp <= flash_hp and NS.spell_ready(ACTION.HolyShock, entry.unit, EMPTY_OPTS) then
+  s.heal_spell = ACTION.HolyShock
   s.heal_label = "Holy Shock moving"
-  return SPELLS.HolyShock
+  return ACTION.HolyShock
  end
- if hp <= shock_hp and NS.spell_ready(SPELLS.HolyShock, entry.unit, EMPTY_OPTS) then
-  s.heal_spell = SPELLS.HolyShock
+ if hp <= shock_hp and NS.spell_ready(ACTION.HolyShock, entry.unit, EMPTY_OPTS) then
+  s.heal_spell = ACTION.HolyShock
   s.heal_label = "Holy Shock emergency"
-  return SPELLS.HolyShock
+  return ACTION.HolyShock
  end
  -- Light's Grace reduces Holy Light cast time to 2.0s, making it more efficient
  local hl_base_threshold = safe_setting(context, "holy_light_hp", 70)
@@ -292,12 +357,12 @@ local function choose_smart_heal(context, s, entry)
   -- Predictive overheal gate for Holy Light
   if NS.gate_overheal("HolyLight", entry.unit, 2.5, context.settings) then
    -- Fall through to Flash of Light instead
-   if hp <= flash_hp and NS.spell_ready(SPELLS.FlashOfLight, entry.unit, EMPTY_OPTS) then
+   if hp <= flash_hp and NS.spell_ready(ACTION.FlashOfLight, entry.unit, EMPTY_OPTS) then
     if (s.mana_pct or 100) < 15 and NS.spell_ready(FlashOfLightRank6, entry.unit, EMPTY_OPTS) then
      s.heal_spell = FlashOfLightRank6
      s.heal_label = "Flash of Light R6 conserve"
     else
-     s.heal_spell = SPELLS.FlashOfLight
+     s.heal_spell = ACTION.FlashOfLight
      s.heal_label = "Flash of Light"
     end
     return s.heal_spell
@@ -315,7 +380,7 @@ local function choose_smart_heal(context, s, entry)
    s.heal_spell = FlashOfLightRank6
    s.heal_label = "Flash of Light R6 conserve"
   else
-   s.heal_spell = SPELLS.FlashOfLight
+   s.heal_spell = ACTION.FlashOfLight
    s.heal_label = "Flash of Light"
   end
   return s.heal_spell
@@ -343,7 +408,7 @@ local function choose_blessing(context, s)
    local entry = s.entries[i]
    if entry_is_mana_user(entry) and blessing_missing_or_expiring(entry, BUFF_BLESSING_WISDOM, threshold) then
     s.blessing_target = entry
-    s.blessing_spell = use_greater and SPELLS.GreaterBlessingOfWisdom or SPELLS.BlessingOfWisdom
+    s.blessing_spell = use_greater and ACTION.GreaterBlessingOfWisdom or ACTION.BlessingOfWisdom
     s.blessing_label = use_greater and "Greater Blessing of Wisdom" or "Blessing of Wisdom"
     return
    end
@@ -353,7 +418,7 @@ local function choose_blessing(context, s)
   local entry = s.entries[i]
   if can_help(entry) and blessing_missing_or_expiring(entry, BUFF_BLESSING_KINGS, threshold) then
    s.blessing_target = entry
-   s.blessing_spell = use_greater and SPELLS.GreaterBlessingOfKings or SPELLS.BlessingOfKings
+   s.blessing_spell = use_greater and ACTION.GreaterBlessingOfKings or ACTION.BlessingOfKings
    s.blessing_label = use_greater and "Greater Blessing of Kings" or "Blessing of Kings"
    return
   end
@@ -379,12 +444,12 @@ local function choose_aura(context, s)
   return
  end
  if s.heavy_healing and not s.has_concentration_aura then
-  s.aura_spell = SPELLS.ConcentrationAura
+  s.aura_spell = ACTION.ConcentrationAura
   s.aura_label = "Concentration Aura"
   return
  end
  if not s.has_devotion_aura and not s.has_concentration_aura then
-  s.aura_spell = SPELLS.DevotionAura
+  s.aura_spell = ACTION.DevotionAura
   s.aura_label = "Devotion Aura"
  end
 end
@@ -491,9 +556,7 @@ local function build_state(context)
  local me = context.me or NS.GetPlayer and NS.GetPlayer() or nil
  if me and NS.StopCast and type(NS.StopCast.update) == "function" then
   NS.StopCast.update(me, context.settings)
- end
-
- return state
+ end    return spec_kit.safe_state(state, HOLY_SCHEMA)
 end
 
 local function has_valid_enemy(context)
@@ -511,7 +574,7 @@ local function solo_damage_enabled(context, s)
 end
 
 local function cast_judgement(context, label)
- return NS.try_cast(SPELLS.Judgement, context.target, label, EXPECTED_10S)
+ return NS.try_cast(ACTION.Judgement, context.target, label, EXPECTED_10S)
 end
 
 local strategies = {
@@ -545,20 +608,20 @@ local strategies = {
   matches = function(context, s)
    if not can_help(s.lowest) then return false end
    if hp_of(s.lowest) > 12 then return false end
-   return NS.spell_ready(SPELLS.LayOnHands, s.lowest.unit, EXPECTED_LOH)
+   return NS.spell_ready(ACTION.LayOnHands, s.lowest.unit, EXPECTED_LOH)
   end,
   execute = function(_, s)
-   return cast_on(SPELLS.LayOnHands, s.lowest, format("[HOLY] Lay on Hands last resort %.0f%%", hp_of(s.lowest)), EXPECTED_LOH)
+   return cast_on(ACTION.LayOnHands, s.lowest, format("[HOLY] Lay on Hands last resort %.0f%%", hp_of(s.lowest)), EXPECTED_LOH)
   end,
  },
  {
   name = "DivineShieldSelfPreservation",
   matches = function(context, s)
    if (s.hp_pct or 100) > 18 or s.has_forbearance then return false end
-   return NS.spell_ready(SPELLS.DivineShield, NS.PLAYER_UNIT, EXPECTED_300S)
+   return NS.spell_ready(ACTION.DivineShield, NS.PLAYER_UNIT, EXPECTED_300S)
   end,
   execute = function()
-   return NS.try_cast(SPELLS.DivineShield, NS.PLAYER_UNIT, "[HOLY] Divine Shield self-preservation", EXPECTED_300S)
+   return NS.try_cast(ACTION.DivineShield, NS.PLAYER_UNIT, "[HOLY] Divine Shield self-preservation", EXPECTED_300S)
   end,
  },
  {
@@ -575,16 +638,16 @@ local strategies = {
   matches = function(context, s)
    if safe_setting(context, "holy_auto_cleanse", true) == false then return false end
    if not entry_needs_cleanse(s.tank) then return false end
-   return can_cast_on(SPELLS.Cleanse, s.tank)
+   return can_cast_on(ACTION.Cleanse, s.tank)
   end,
   execute = function(_, s)
-   return cast_on(SPELLS.Cleanse, s.tank, "[HOLY] Cleanse tank")
+   return cast_on(ACTION.Cleanse, s.tank, "[HOLY] Cleanse tank")
   end,
  },
  {
   name = "PurifySelf",
   matches = function(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Purify, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Purify, 3.0) then return false end
    if safe_setting(context, "holy_auto_cleanse", true) == false then return false end
    return can_cast_on(Purify, s.purify_target)
   end,
@@ -595,12 +658,12 @@ local strategies = {
  {
   name = "CleanseParty",
   matches = function(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Cleanse, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Cleanse, 3.0) then return false end
    if safe_setting(context, "holy_auto_cleanse", true) == false then return false end
-   return can_cast_on(SPELLS.Cleanse, s.cleanse_target)
+   return can_cast_on(ACTION.Cleanse, s.cleanse_target)
   end,
   execute = function(_, s)
-   return cast_on(SPELLS.Cleanse, s.cleanse_target, "[HOLY] Cleanse ally")
+   return cast_on(ACTION.Cleanse, s.cleanse_target, "[HOLY] Cleanse ally")
   end,
  },
  {
@@ -618,10 +681,10 @@ local strategies = {
    local target = s.lowest or s.tank
    if not can_help(target) or s.has_divine_favor then return false end
    if hp_of(target) > safe_setting(context, "holy_divine_favor_hp", 45) then return false end
-   return NS.spell_ready(SPELLS.DivineFavor, NS.PLAYER_UNIT, SELF_OPTS)
+   return NS.spell_ready(ACTION.DivineFavor, NS.PLAYER_UNIT, SELF_OPTS)
   end,
   execute = function()
-   return NS.try_cast(SPELLS.DivineFavor, NS.PLAYER_UNIT, "[HOLY] Divine Favor before critical Holy Light", SELF_OPTS)
+   return NS.try_cast(ACTION.DivineFavor, NS.PLAYER_UNIT, "[HOLY] Divine Favor before critical Holy Light", SELF_OPTS)
   end,
  },
  {
@@ -631,11 +694,11 @@ local strategies = {
    local target = s.lowest or s.tank
    if not can_help(target) then return false end
    if hp_of(target) > safe_setting(context, "holy_shock_hp", 40) then return false end
-   return NS.spell_ready(SPELLS.HolyShock, target.unit, EMPTY_OPTS)
+   return NS.spell_ready(ACTION.HolyShock, target.unit, EMPTY_OPTS)
   end,
   execute = function(_, s)
    local target = s.lowest or s.tank
-   return cast_on(SPELLS.HolyShock, target, format("[HOLY] Holy Shock guaranteed crit %.0f%%", hp_of(target)))
+   return cast_on(ACTION.HolyShock, target, format("[HOLY] Holy Shock guaranteed crit %.0f%%", hp_of(target)))
   end,
  },
  {
@@ -643,10 +706,10 @@ local strategies = {
   matches = function(_, s)
    if s.has_divine_illumination then return false end
    if not s.heavy_healing and (s.mana_pct or 100) > LOW_MANA_PCT then return false end
-   return NS.spell_ready(SPELLS.DivineIllumination, NS.PLAYER_UNIT, SELF_OPTS)
+   return NS.spell_ready(ACTION.DivineIllumination, NS.PLAYER_UNIT, SELF_OPTS)
   end,
   execute = function(_, s)
-   return NS.try_cast(SPELLS.DivineIllumination, NS.PLAYER_UNIT, format("[HOLY] Divine Illumination mana %.0f%%", s.mana_pct), SELF_OPTS)
+   return NS.try_cast(ACTION.DivineIllumination, NS.PLAYER_UNIT, format("[HOLY] Divine Illumination mana %.0f%%", s.mana_pct), SELF_OPTS)
   end,
  },
  -- Avenging Wrath: +20% healing (and damage) for 20s on a 3-min CD. Valid TBC
@@ -668,10 +731,10 @@ local strategies = {
    end
    -- Don't waste a 3-min burst CD on a target about to die.
    if context.ttd_known and context.ttd and context.ttd > 0 and context.ttd < 15 then return false end
-   return NS.spell_ready(SPELLS.AvengingWrath, NS.PLAYER_UNIT, SELF_OPTS)
+   return NS.spell_ready(ACTION.AvengingWrath, NS.PLAYER_UNIT, SELF_OPTS)
   end,
   execute = function()
-   return NS.try_cast(SPELLS.AvengingWrath, NS.PLAYER_UNIT, "[HOLY] Avenging Wrath +20% healing (heavy window)", SELF_OPTS)
+   return NS.try_cast(ACTION.AvengingWrath, NS.PLAYER_UNIT, "[HOLY] Avenging Wrath +20% healing (heavy window)", SELF_OPTS)
   end,
  },
  {
@@ -680,13 +743,13 @@ local strategies = {
    if not can_help(s.lowest) then return false end
    local moving = s.moving or context and context.is_moving
    if hp_of(s.lowest) > safe_setting(context, "holy_shock_hp", 40) and not moving then return false end
-   if not (NS.spell_ready and NS.spell_ready(SPELLS.HolyShock, s.lowest.unit, EMPTY_OPTS)) then return false end
+   if not (NS.spell_ready and NS.spell_ready(ACTION.HolyShock, s.lowest.unit, EMPTY_OPTS)) then return false end
    -- Predictive overheal gate: Holy Shock is instant but still gated at higher HP
    if NS.gate_overheal("HolyShock", s.lowest.unit, 1.5, context.settings) then return false end
    return true
   end,
   execute = function(_, s)
-   return cast_on(SPELLS.HolyShock, s.lowest, format("[HOLY] Holy Shock %.0f%%", hp_of(s.lowest)))
+   return cast_on(ACTION.HolyShock, s.lowest, format("[HOLY] Holy Shock %.0f%%", hp_of(s.lowest)))
   end,
  },
  {
@@ -811,8 +874,8 @@ local strategies = {
    if not choose_smart_heal(context, s, s.tank) or not NS.spell_ready(s.heal_spell, s.tank.unit, EMPTY_OPTS) then return false end
    -- Predictive overheal gate for tank pre-heal
    if s.heal_spell then
-    local spell_key = (s.heal_spell == SPELLS.HolyLight) and "HolyLight" or "FlashOfLight"
-    local cast_time = (s.heal_spell == SPELLS.HolyLight) and 2.5 or 1.5
+    local spell_key = (s.heal_spell == ACTION.HolyLight) and "HolyLight" or "FlashOfLight"
+    local cast_time = (s.heal_spell == ACTION.HolyLight) and 2.5 or 1.5
     if NS.gate_overheal(spell_key, s.tank.unit, cast_time, context.settings) then return false end
    end
    return true
@@ -838,23 +901,23 @@ local strategies = {
   matches = function(context, s)
    if not can_help(s.lowest) then return false end
    if hp_of(s.lowest) > safe_setting(context, "holy_flash_light_hp", 85) then return false end
-   if not (NS.spell_ready and NS.spell_ready(SPELLS.FlashOfLight, s.lowest.unit, EMPTY_OPTS)) then return false end
+   if not (NS.spell_ready and NS.spell_ready(ACTION.FlashOfLight, s.lowest.unit, EMPTY_OPTS)) then return false end
    -- Predictive overheal gate: skip FoL if predicted deficit is small
    if NS.gate_overheal("FlashOfLight", s.lowest.unit, 1.5, context.settings) then return false end
    return true
   end,
   execute = function(_, s)
-   return cast_on(SPELLS.FlashOfLight, s.lowest, format("[HOLY] Flash of Light efficient %.0f%%", hp_of(s.lowest)))
+   return cast_on(ACTION.FlashOfLight, s.lowest, format("[HOLY] Flash of Light efficient %.0f%%", hp_of(s.lowest)))
   end,
  },
  {
   name = "SealOfWisdomLowMana",
   matches = function(_, s)
    if (s.mana_pct or 100) > LOW_MANA_PCT or s.has_seal_wisdom then return false end
-   return NS.spell_ready(SPELLS.SealOfWisdom, NS.PLAYER_UNIT, SELF_OPTS)
+   return NS.spell_ready(ACTION.SealOfWisdom, NS.PLAYER_UNIT, SELF_OPTS)
   end,
   execute = function(_, s)
-   return NS.try_cast(SPELLS.SealOfWisdom, NS.PLAYER_UNIT, format("[HOLY] Seal of Wisdom mana %.0f%%", s.mana_pct), SELF_OPTS)
+   return NS.try_cast(ACTION.SealOfWisdom, NS.PLAYER_UNIT, format("[HOLY] Seal of Wisdom mana %.0f%%", s.mana_pct), SELF_OPTS)
   end,
  },
  {
@@ -862,7 +925,7 @@ local strategies = {
   matches = function(context, s)
    if not has_valid_enemy(context) or s.target_has_jow then return false end
    if (s.mana_pct or 100) > LOW_MANA_PCT and (s.target_hp_pct or 100) < BOSS_HP_FLOOR then return false end
-   return s.has_seal_wisdom and NS.spell_ready(SPELLS.Judgement, context.target, EXPECTED_10S)
+   return s.has_seal_wisdom and NS.spell_ready(ACTION.Judgement, context.target, EXPECTED_10S)
   end,
   execute = function(context)
    return cast_judgement(context, "[HOLY] Judgement of Wisdom")
@@ -885,7 +948,7 @@ local strategies = {
   matches = function(context, s)
    if not has_valid_enemy(context) or s.target_has_jol or (s.mana_pct or 100) < LOW_MANA_PCT then return false end
    if (s.target_hp_pct or 100) < BOSS_HP_FLOOR then return false end
-   return s.has_seal_light and NS.spell_ready(SPELLS.Judgement, context.target, EXPECTED_10S)
+   return s.has_seal_light and NS.spell_ready(ACTION.Judgement, context.target, EXPECTED_10S)
   end,
   execute = function(context)
    return cast_judgement(context, "[HOLY] Judgement of Light support")
@@ -898,30 +961,30 @@ local strategies = {
    if not s.in_pvp and (s.hp_pct or 100) > 55 then return false end
    if not has_valid_enemy(context) then return false end
    if NS.unit_distance and NS.unit_distance(context.target, context.me) > 10 then return false end
-   return NS.spell_ready(SPELLS.HammerOfJustice, context.target, EMPTY_OPTS)
+   return NS.spell_ready(ACTION.HammerOfJustice, context.target, EMPTY_OPTS)
   end,
   execute = function(context)
-   return NS.try_cast(SPELLS.HammerOfJustice, context.target, "[HOLY] Hammer of Justice on diver")
+   return NS.try_cast(ACTION.HammerOfJustice, context.target, "[HOLY] Hammer of Justice on diver")
   end,
  },
  {
   name = "SealOfRighteousnessSolo",
   matches = function(context, s)
    if not solo_damage_enabled(context, s) or s.has_seal_righteousness then return false end
-   return NS.spell_ready(SPELLS.SealRighteousness, NS.PLAYER_UNIT, SELF_OPTS)
+   return NS.spell_ready(ACTION.SealRighteousness, NS.PLAYER_UNIT, SELF_OPTS)
   end,
   execute = function()
-   return NS.try_cast(SPELLS.SealRighteousness, NS.PLAYER_UNIT, "[HOLY] Solo Seal of Righteousness", SELF_OPTS)
+   return NS.try_cast(ACTION.SealRighteousness, NS.PLAYER_UNIT, "[HOLY] Solo Seal of Righteousness", SELF_OPTS)
   end,
  },
  {
   name = "HammerOfWrathSolo",
   matches = function(context, s)
    if not solo_damage_enabled(context, s) or (s.target_hp_pct or 100) > 20 then return false end
-   return NS.spell_ready(SPELLS.HammerOfWrath, context.target, EMPTY_OPTS)
+   return NS.spell_ready(ACTION.HammerOfWrath, context.target, EMPTY_OPTS)
   end,
   execute = function(context)
-   return NS.try_cast(SPELLS.HammerOfWrath, context.target, "[HOLY] Solo Hammer of Wrath")
+   return NS.try_cast(ACTION.HammerOfWrath, context.target, "[HOLY] Solo Hammer of Wrath")
   end,
  },
  {
@@ -929,17 +992,17 @@ local strategies = {
   matches = function(context, s)
    if not solo_damage_enabled(context, s) then return false end
    if (s.mana_pct or 100) < 45 and context.is_leveling then return false end
-   return NS.spell_ready(SPELLS.HolyShock, context.target, EMPTY_OPTS)
+   return NS.spell_ready(ACTION.HolyShock, context.target, EMPTY_OPTS)
   end,
   execute = function(context)
-   return NS.try_cast(SPELLS.HolyShock, context.target, "[HOLY] Solo Holy Shock")
+   return NS.try_cast(ACTION.HolyShock, context.target, "[HOLY] Solo Holy Shock")
   end,
  },
  {
   name = "JudgementSoloRighteousness",
   matches = function(context, s)
    if not solo_damage_enabled(context, s) or not s.has_seal_righteousness then return false end
-   return NS.spell_ready(SPELLS.Judgement, context.target, EXPECTED_10S)
+   return NS.spell_ready(ACTION.Judgement, context.target, EXPECTED_10S)
   end,
   execute = function(context)
    return cast_judgement(context, "[HOLY] Solo Judgement")
@@ -951,20 +1014,20 @@ local strategies = {
    if context.is_moving then return false end
    if not solo_damage_enabled(context, s) then return false end
    if (context.enemy_count or context.enemies_count or 1) < 2 then return false end
-   return NS.spell_ready(SPELLS.Consecration, NS.PLAYER_UNIT, EXPECTED_CONSECRATION_SELF)
+   return NS.spell_ready(ACTION.Consecration, NS.PLAYER_UNIT, EXPECTED_CONSECRATION_SELF)
   end,
   execute = function()
-   return NS.try_cast(SPELLS.Consecration, NS.PLAYER_UNIT, "[HOLY] Solo Consecration", EXPECTED_CONSECRATION_SELF)
+   return NS.try_cast(ACTION.Consecration, NS.PLAYER_UNIT, "[HOLY] Solo Consecration", EXPECTED_CONSECRATION_SELF)
   end,
  },
  {
   name = "SealOfRighteousnessIdle",
   matches = function(context, s)
    if not has_valid_enemy(context) or s.has_seal_righteousness or (s.mana_pct or 100) < 45 then return false end
-   return NS.spell_ready(SPELLS.SealRighteousness, NS.PLAYER_UNIT, SELF_OPTS)
+   return NS.spell_ready(ACTION.SealRighteousness, NS.PLAYER_UNIT, SELF_OPTS)
   end,
   execute = function()
-   return NS.try_cast(SPELLS.SealRighteousness, NS.PLAYER_UNIT, "[HOLY] Seal of Righteousness idle", SELF_OPTS)
+   return NS.try_cast(ACTION.SealRighteousness, NS.PLAYER_UNIT, "[HOLY] Seal of Righteousness idle", SELF_OPTS)
   end,
  },
  {
@@ -984,6 +1047,9 @@ local strategies = {
  },
 }
 
-NS.rotation_registry:register("holy", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("holy", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("Paladin holy rotation registered") end
 -- Paladin holy rotation registered — Triage targeting, DF+HS burst combo
-return strategies
+return { strategies = strategies, build_state = build_state }

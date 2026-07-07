@@ -40,7 +40,7 @@ _G.EaxRotations = {
 }
 package.loaded["classes/paladin/healing_sylvanas"] = { scan_healing_targets = function() return {}, 0 end, select_heal = function() return { spell = 19750, label = "FlashOfLight" } end }
 
-local strategies = dofile("EaxRotations/classes/paladin/holy_sylvanas.lua")
+local strategies = dofile("EaxRotations/classes/paladin/holy_sylvanas.lua").strategies
 local function find(name) for i = 1, #strategies do if strategies[i].name == name then return strategies[i] end end error("not found: "..name) end
 local ft = find("FriendlyTarget")
 assert_true(ft, "FriendlyTarget strategy should exist")
