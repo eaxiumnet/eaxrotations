@@ -208,21 +208,21 @@ if ACTION.Intercept then
     })
 end
 
--- 3. Burst: Death Wish
-if ACTION.DeathWish then
-    table.insert(strategies, { name = "DeathWish",
-        matches = function(c, s) return s.death_wish_ready and s.has_valid_enemy end,
-        execute = function() return try_cast(ACTION.DeathWish, PLAYER_UNIT, "[VANILLA FURY] Death Wish", { skip_range = true }) end
-    })
-end
-
--- 4. Execute phase (target below 20%)
+-- 3. Execute phase (target below 20%) — THE top GCD priority in execute phase
 if ACTION.Execute then
     table.insert(strategies, { name = "Execute",
         matches = function(c, s)
             return s.execute_ready and (s.target_hp or 100) <= 20 and (s.rage or 0) >= EXECUTE_DEFAULT_RAGE
         end,
         execute = function(c) return try_cast(ACTION.Execute, c.target, "[VANILLA FURY] Execute") end
+    })
+end
+
+-- 4. Burst: Death Wish (off-GCD DPS cooldown; below Execute so it never blocks it)
+if ACTION.DeathWish then
+    table.insert(strategies, { name = "DeathWish",
+        matches = function(c, s) return s.death_wish_ready and s.has_valid_enemy end,
+        execute = function() return try_cast(ACTION.DeathWish, PLAYER_UNIT, "[VANILLA FURY] Death Wish", { skip_range = true }) end
     })
 end
 
@@ -234,19 +234,19 @@ if ACTION.SweepingStrikes then
     })
 end
 
--- 6. Overpower after dodge/parry
-if ACTION.Overpower then
-    table.insert(strategies, { name = "Overpower",
-        matches = function(c, s) return s.overpower_ready and s.overpower_window end,
-        execute = function(c) return try_cast(ACTION.Overpower, c.target, "[VANILLA FURY] Overpower") end
-    })
-end
-
--- 7. Bloodthirst (core Fury damage ability; safe no-op if not learned on this client)
+-- 6. Bloodthirst (core Fury damage ability — primary rage spender per guide)
 if ACTION.Bloodthirst then
     table.insert(strategies, { name = "Bloodthirst",
         matches = function(c, s) return s.bloodthirst_ready and (s.rage or 0) >= 30 end,
         execute = function(c) return try_cast(ACTION.Bloodthirst, c.target, "[VANILLA FURY] Bloodthirst") end
+    })
+end
+
+-- 7. Overpower after dodge/parry (situational proc — below Bloodthirst)
+if ACTION.Overpower then
+    table.insert(strategies, { name = "Overpower",
+        matches = function(c, s) return s.overpower_ready and s.overpower_window end,
+        execute = function(c) return try_cast(ACTION.Overpower, c.target, "[VANILLA FURY] Overpower") end
     })
 end
 
@@ -308,7 +308,7 @@ end
 if ACTION.HeroicStrike then
     table.insert(strategies, { name = "HeroicStrike",
         matches = function(c, s)
-            return s.heroic_strike_ready and (s.rage or 0) >= 60
+            return s.heroic_strike_ready and (s.rage or 0) >= 50
         end,
         execute = function(c) return try_cast(ACTION.HeroicStrike, c.target, "[VANILLA FURY] Heroic Strike") end
     })

@@ -44,14 +44,14 @@ Same as TBC round:
 
 ## Task List
 
-### Phase 1: Warrior + Paladin (7 specs)
-- [ ] **P1.1** Arms — compare against Classic Arms Warrior guide
-- [ ] **P1.2** Fury — compare against Classic Fury Warrior guide
-- [ ] **P1.3** Protection — compare against Classic Prot Warrior guide
-- [ ] **P1.4** Kebab — compare (meme spec, likely low-priority)
-- [ ] **P1.5** Holy Paladin — compare against Classic Holy Paladin guide
-- [ ] **P1.6** Protection Paladin — compare against Classic Prot Paladin guide
-- [ ] **P1.7** Retribution — compare against Classic Ret Paladin guide
+### Phase 1: Warrior + Paladin (7 specs) ✅ COMPLETE
+- [x] **P1.1** Arms — verified Execute already above MS; added APL comment (Icy Veins/Wowhead)
+- [x] **P1.2** Fury — Execute moved above Death Wish; Bloodthirst moved above Overpower; HS threshold 60→50
+- [x] **P1.3** Protection — Revenge moved above ShieldSlam; Taunt/MockingBlow single-target gate removed; ShieldBlock buff ID fixed (2565)
+- [x] **P1.4** Kebab — reviewed; Execute properly high (pos 3); no changes needed
+- [x] **P1.5** Holy Paladin — reviewed; Flash of Light primary, Holy Light burst, downranking present; no changes needed
+- [x] **P1.6** Protection Paladin — reviewed; Holy Shield > Consecration > Judgement > Seal; no taunt (correct); no changes needed
+- [x] **P1.7** Retribution — reviewed; seal twisting, JoCrusader, Consecration all present; no changes needed
 
 ### Phase 2: Hunter + Mage (6 specs)
 - [ ] **P2.1** Beast Mastery — compare against Classic BM Hunter guide

@@ -601,6 +601,9 @@ local STRATEGY_SPECS = {
     { "Retaliation", retaliation_matches, build_action("Retaliation", ACTION.Retaliation, { target = "self", required_stance = STANCE.BATTLE, requires_target = false }) },
     { "Recklessness", recklessness_matches, build_action("Recklessness", ACTION.Recklessness, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false }) },
     { "DeathWish", death_wish_matches, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false }) },
+    -- Vanilla Arms APL: Execute is THE top GCD in execute phase (<20% HP).
+    -- Rend applied early + maintained (Blood Frenzy raid buff + Taste-for-Blood procs).
+    -- MS > Overpower > WW > Slam filler per Icy Veins / Wowhead Classic guides.
     { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { min_rage = 15 }) },
     { "MortalStrike", mortal_strike_matches, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }) },
     { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }) },

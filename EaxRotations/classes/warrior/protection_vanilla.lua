@@ -39,6 +39,7 @@ local BATTLE_SHOUT_BUFF = CONSTANTS.BATTLE_SHOUT_IDS or { 11551, 11550, 11549, 6
 local STAND_BUFF = { 12975 }
 local SHIELD_WALL_BUFF = { 871 }
 local REND_DEBUFF = { 11574, 11573, 6548, 6547, 772 }
+local SHIELD_BLOCK_BUFF = { 2565 }  -- Vanilla Shield Block buff ID (not the spell-action object)
 
 local DISARM_CLASS_IDS = CONSTANTS.DISARM_CLASS_IDS or { [1] = true, [2] = true, [4] = true, [7] = true }
 
@@ -240,14 +241,16 @@ end
 
 local function taunt_matches_fn(context, state)
     if not state.taunt_ready then return false end
-    if (state.enemy_count or 0) < 2 then return false end
+    -- Vanilla Taunt is a single-target rescue; works on any mob count (1+).
+    -- The previous `enemy_count < 2` gate disabled single-boss taunt-swaps.
     return true
 end
 
 local function mocking_blow_matches_fn(context, state)
     if not state.mocking_ready then return false end
     if state.stance ~= STANCE.BATTLE then return false end  -- Vanilla Mocking Blow requires Battle Stance
-    if (state.enemy_count or 0) < 2 then return false end
+    -- Mocking Blow is a single-target forced-attack; works on any mob count.
+    -- The previous `enemy_count < 2` gate disabled single-target rescue.
     return true
 end
 
@@ -357,20 +360,20 @@ local strategies = {
         end,
     },
     {
-        name = "ShieldSlam",
-        matches = function(context)
-            local s = build_state(context)
-            return is_defensive_stance(s.stance) and s.shield_slam_ready
-        end,
-        execute = function(context) return NS.try_cast(SPELLS.ShieldSlam, context.target, "[PROT] ShieldSlam", { expected_cooldown = SHIELD_SLAM_CD }) end,
-    },
-    {
         name = "Revenge",
         matches = function(context)
             local s = build_state(context)
             return is_defensive_stance(s.stance) and s.revenge_ready
         end,
         execute = function(context) return NS.try_cast(SPELLS.Revenge, context.target, "[PROT] Revenge", { expected_cooldown = REVENGE_CD }) end,
+    },
+    {
+        name = "ShieldSlam",
+        matches = function(context)
+            local s = build_state(context)
+            return is_defensive_stance(s.stance) and s.shield_slam_ready
+        end,
+        execute = function(context) return NS.try_cast(SPELLS.ShieldSlam, context.target, "[PROT] ShieldSlam", { expected_cooldown = SHIELD_SLAM_CD }) end,
     },
     {
         name = "Taunt",
@@ -399,8 +402,9 @@ local strategies = {
             local s = build_state(context)
             if not is_defensive_stance(s.stance) then return false end
             if not s.shield_block_ready then return false end
+            -- Use buff ID 2565, not the spell-action object (same fix as TBC prot audit P5)
             local me = context.me or NS.GetPlayer()
-            local sb_remains = me and NS.buff_remains and NS.buff_remains(me, SPELLS.ShieldBlock) or 0
+            local sb_remains = me and NS.buff_remains and NS.buff_remains(me, SHIELD_BLOCK_BUFF) or 0
             if sb_remains > 2 then return false end
             return true
         end,
