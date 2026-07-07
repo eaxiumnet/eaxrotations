@@ -834,7 +834,7 @@ local strategies = {
    return true
   end,
   execute = function(context)
-   return NS.try_cast(ACTION.Pummel, context.target, "[PROT] Pummel", { skip_range = true })
+   return NS.try_cast(ACTION.Pummel, context.target, "[PROT] Pummel")
   end,
  },
  -- 3) Shield Slam Purge (PvP — checks settings from shared schema)

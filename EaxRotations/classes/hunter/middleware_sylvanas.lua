@@ -371,7 +371,7 @@ local strategies = {
         execute = function(context)
             local pet = context.pet or (NS.get_pet and NS.get_pet())
             if not pet then return false end
-            return NS.try_cast(1539, pet, "[HUNTER] Feed Pet", { skip_range = true })
+            return NS.try_cast(1539, pet, "[HUNTER] Feed Pet")
         end,
     },
 
