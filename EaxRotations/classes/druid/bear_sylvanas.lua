@@ -8,7 +8,7 @@
 --         consensus (Icy Veins, Warcraft Tavern, Wowhead). GCD priority:
 --           defensives -> taunts -> Demo Roar -> Faerie Fire ->
 --           Mangle -> Lacerate (stack/refresh) -> Swipe (AoE) -> Maul (rage dump)
--- SAFETY: Pattern 14 nil-guards on every numeric state read; no on_update allocs;
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update allocs;
 --          no caster/cat-form spells in combat (no form shifting); menu refs nil-guarded.
 -- DECISION: stripped Ferocious Bite (cat form), RemoveCurse + Nature's Grasp
 --           (caster form), all PvP branches, Clearcasting variants, off-target
@@ -25,14 +25,31 @@ local TBC_ITEMS   = TBC.ITEMS or {}
 local TBC_POTIONS = TBC_ITEMS.potions or {}
 
 local SPELLS = NS.DruidSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 
--- Spells resolved inline (nil-safe when NS.spell_action is absent in test envs)
-local FERAL_CHARGE    = SPELLS.FeralCharge    or (NS.spell_action and NS.spell_action({ 16979 }, "FeralCharge"))
-local BASH            = SPELLS.Bash            or (NS.spell_action and NS.spell_action({ 8983, 6798, 5211 }, "Bash"))
-local ENRAGE          = SPELLS.Enrage          or (NS.spell_action and NS.spell_action({ 5229 }, "Enrage"))
-local MARK_OF_THE_WILD = SPELLS.MarkOfTheWild or (NS.spell_action and NS.spell_action({ 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }, "MarkOfTheWild"))
-local GIFT_OF_THE_WILD = SPELLS.GiftOfTheWild or (NS.spell_action and NS.spell_action({ 26991, 21850, 21849 }, "GiftOfTheWild"))
-local THORNS         = SPELLS.Thorns          or (NS.spell_action and NS.spell_action({ 26992, 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"))
+-- Centralized spell resolver via spec_kit (replaces per-spec spell() helper +
+-- FERAL_CHARGE/BASH/ENRAGE/MARK/GIFT/THORNS local spell variables).
+-- Rank IDs from class_sylvanas.lua (verified against DBC for TBC Anniversary 2.5.5).
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    Barkskin            = define("Barkskin",            { 22812 }, "Barkskin"),
+    Bash                = define("Bash",                { 8983, 6798, 5211 }, "Bash"),
+    BearForm            = define("BearForm",            { 9634, 5487 }, "BearForm"),
+    ChallengingRoar     = define("ChallengingRoar",     { 5209 }, "ChallengingRoar"),
+    DemoralizingRoar    = define("DemoralizingRoar",    { 26998, 9898, 9747, 9490, 1735, 99 }, "DemoralizingRoar"),
+    Enrage              = define("Enrage",              { 5229 }, "Enrage"),
+    FaerieFireFeral     = define("FaerieFireFeral",     { 27011, 17392, 17391, 17390, 16857 }, "FaerieFireFeral"),
+    FeralCharge         = define("FeralCharge",         { 16979 }, "FeralCharge"),
+    FrenziedRegeneration= define("FrenziedRegeneration",{ 26999, 22896, 22895, 22842 }, "FrenziedRegeneration"),
+    GiftOfTheWild       = define("GiftOfTheWild",       { 26991, 21850, 21849 }, "GiftOfTheWild"),
+    Growl               = define("Growl",               { 6795 }, "Growl"),
+    Lacerate            = define("Lacerate",            { 33745 }, "Lacerate"),
+    MangleBear          = define("MangleBear",          { 33987, 33986, 33878 }, "MangleBear"),
+    MarkOfTheWild       = define("MarkOfTheWild",       { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }, "MarkOfTheWild"),
+    Maul                = define("Maul",                { 26996, 9881, 9880, 9745, 8972, 6809, 6808, 6807 }, "Maul"),
+    SwipeBear           = define("SwipeBear",           { 26997, 9908, 9754, 769, 780, 779 }, "SwipeBear"),
+    Thorns              = define("Thorns",              { 26992, 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"),
+}
 
 -------------------------------------------------------------------------------
 -- CONSTANTS  (rage costs, refresh windows, ranges — from DBC + wowsims APL)
@@ -167,6 +184,7 @@ end
 local function action_ready(context, action)
     if not action then return false end
     if not action.spell then return true end
+    if not NS.spell_ready then return true end  -- test env fallback (no engine)
     local target = (action.target == "self" or action.requires_target == false)
                     and (context.me or (NS.GetPlayer and NS.GetPlayer())) or context.target
     if not target then return false end
@@ -184,6 +202,7 @@ local function execute_action(context, action)
     local opts = {}
     if action.requires_target == false then opts.skip_range = true end
     if action.cooldown then opts.expected_cooldown = action.cooldown end
+    if not NS.try_cast then return false end  -- test env fallback (no engine)
     return NS.try_cast(action.spell, target, "[BEAR]", opts)
 end
 
@@ -246,7 +265,7 @@ end
 -- Mangle when it comes off cooldown. Clearcasting bypasses (free cast).
 local function would_starve_mangle(state, rage_cost)
     if state.has_clearcasting then return false end
-    if not spell_exists(SPELLS.MangleBear) then return false end
+    if not spell_exists(ACTION.MangleBear) then return false end
     if (state.rage or 0) - rage_cost >= RAGE_MANGLE_RESERVE then return false end
     if state.mangle_ready then return (state.rage or 0) < RAGE_MANGLE_RESERVE + rage_cost end
     if (state.mangle_cd or 0) > 1.0 then return false end   -- Mangle far enough away
@@ -275,6 +294,36 @@ local function update_rage_tracking(state)
     state.last_rage_time = now
     state.rage_deficit   = 100 - (state.rage or 0)
 end
+
+-------------------------------------------------------------------------------
+-- BEAR SCHEMA  (for spec_kit.safe_state — Pattern 14 nil-guard elimination)
+-- Fields NOT listed here use spec_kit.SAFE_STATE_DEFAULTS (rage→0, hp→100, etc.).
+-------------------------------------------------------------------------------
+local BEAR_SCHEMA = {
+    now = 0,  stance = STANCE_CASTER,  is_bear = false,
+    in_combat = false,  combat_time = 0,
+    has_valid_target = false,
+    target_hp = 100,  target_ttd = 999,  target_range = 40,  in_melee = false,
+    enemy_count = 1,  aoe_threshold = 3,
+    maul_rage = 50,  barkskin_hp = 55,  frenzied_regen_hp = 35,
+    demo_roar_enabled = true,  use_cooldowns = true,  use_self_buffs = true,
+    auto_bear_form = true,  use_pvp_cc_gate = true,
+    is_target_boss = false,  is_target_player = false,
+    has_clearcasting = false,  has_barkskin = false,  has_frenzied_regen = false,
+    has_mark = false,  has_thorns = false,
+    faerie_remains = 0,  lacerate_remains = 0,  lacerate_stacks = 0,
+    demo_remains = 0,  mangle_remains = 0,
+    mangle_ready = false,  mangle_cd = 0,
+    healthstone_ready = 0,  potion_ready = 0,
+    target_target_exists = false,  target_target_is_me = false,
+    target_target_is_tank = false,  target_target_is_player = false,
+    target_target_is_healer = false,  loose_target = false,
+    target_is_casting = false,  target_interruptible = true,
+    recent_taunt = 0,
+    last_rage = 0,  last_rage_time = 0,  rage_delta = 0,  rage_per_second = 0,
+    rage_deficit = 100,
+    is_group = false,
+}
 
 -------------------------------------------------------------------------------
 -- BUILD STATE  (throttled to once per frame via context.now)
@@ -349,8 +398,8 @@ local function build_state(context)
     end
 
     -- readiness
-    state.mangle_ready = spell_ready(SPELLS.MangleBear, state.target)
-    state.mangle_cd    = NS.cooldown_remains and NS.cooldown_remains(SPELLS.MangleBear) or 0
+    state.mangle_ready = spell_ready(ACTION.MangleBear, state.target)
+    state.mangle_cd    = NS.cooldown_remains and NS.cooldown_remains(ACTION.MangleBear) or 0
 
     -- threat (target-of-target)
     local tt = get_target_of(state.target)
@@ -374,7 +423,8 @@ local function build_state(context)
     state.potion_ready      = first_ready_item(HEALING_POTION_IDS)
 
     update_rage_tracking(state)
-    return state
+    -- safe_state proxy: structural nil-guard elimination (Pattern 14)
+    return spec_kit.safe_state(state, BEAR_SCHEMA)
 end
 
 -------------------------------------------------------------------------------
@@ -623,19 +673,19 @@ end
 
 local ACTIONS = {
     -- OOC pre-pull buffs (caster-form prep — never in combat)
-    { name = "MarkOfTheWild",    spell = MARK_OF_THE_WILD, target = "self", requires_target = false, matches = mark_matches },
-    { name = "GiftOfTheWild",    spell = GIFT_OF_THE_WILD, target = "self", requires_target = false, matches = mark_matches },
-    { name = "Thorns",            spell = THORNS,           target = "self", requires_target = false, matches = thorns_matches },
+    { name = "MarkOfTheWild",    spell = ACTION.MarkOfTheWild, target = "self", requires_target = false, matches = mark_matches },
+    { name = "GiftOfTheWild",    spell = ACTION.GiftOfTheWild, target = "self", requires_target = false, matches = mark_matches },
+    { name = "Thorns",            spell = ACTION.Thorns,           target = "self", requires_target = false, matches = thorns_matches },
 
     -- Bear form (the one allowed shift — into bear, not out of it)
-    { name = "BearForm",         spell = SPELLS.BearForm,  target = "self", requires_target = false, matches = bear_form_matches },
+    { name = "BearForm",         spell = ACTION.BearForm,  target = "self", requires_target = false, matches = bear_form_matches },
 
     -- Pre-pull rage gen
-    { name = "PrePullEnrage",    spell = ENRAGE,           target = "self", requires_target = false, matches = pre_pull_enrage_matches },
+    { name = "PrePullEnrage",    spell = ACTION.Enrage,           target = "self", requires_target = false, matches = pre_pull_enrage_matches },
 
     -- Pull / gap close
-    { name = "FeralChargePull",  spell = FERAL_CHARGE,     matches = feral_charge_pull_matches },
-    { name = "FaerieFirePull",   spell = SPELLS.FaerieFireFeral, matches = faerie_fire_pull_matches },
+    { name = "FeralChargePull",  spell = ACTION.FeralCharge,     matches = feral_charge_pull_matches },
+    { name = "FaerieFirePull",   spell = ACTION.FaerieFireFeral, matches = faerie_fire_pull_matches },
 
     -- Defensives
     { name = "Healthstone",      target = "self", requires_target = false,
@@ -644,34 +694,34 @@ local ACTIONS = {
     { name = "HealingPotion",    target = "self", requires_target = false,
       matches = potion_matches,
       execute = function(ctx) return execute_item(ctx, build_state(ctx).potion_ready, "Healing Potion") end },
-    { name = "FrenziedRegeneration", spell = SPELLS.FrenziedRegeneration, target = "self",
+    { name = "FrenziedRegeneration", spell = ACTION.FrenziedRegeneration, target = "self",
       requires_target = false, matches = frenzied_regen_matches },
-    { name = "Barkskin",         spell = SPELLS.Barkskin,   target = "self", requires_target = false, matches = barkskin_matches },
+    { name = "Barkskin",         spell = ACTION.Barkskin,   target = "self", requires_target = false, matches = barkskin_matches },
 
     -- Taunts
-    { name = "ChallengingRoar",  spell = SPELLS.ChallengingRoar, target = "self",
+    { name = "ChallengingRoar",  spell = ACTION.ChallengingRoar, target = "self",
       requires_target = false, matches = challenging_roar_matches, execute = taunt_execute },
-    { name = "Growl",            spell = SPELLS.Growl,     matches = growl_matches, execute = taunt_execute },
+    { name = "Growl",            spell = ACTION.Growl,     matches = growl_matches, execute = taunt_execute },
 
     -- Interrupt
-    { name = "BashInterrupt",    spell = BASH,             matches = bash_interrupt_matches },
+    { name = "BashInterrupt",    spell = ACTION.Bash,             matches = bash_interrupt_matches },
 
     -- Debuffs (Demo Roar BEFORE Faerie Fire — TBC tanking priority + test contract)
-    { name = "DemoralizingRoar", spell = SPELLS.DemoralizingRoar, target = "self",
+    { name = "DemoralizingRoar", spell = ACTION.DemoralizingRoar, target = "self",
       requires_target = false, cooldown = 25, matches = demo_roar_matches },
-    { name = "FaerieFireFeral",  spell = SPELLS.FaerieFireFeral, matches = faerie_fire_matches },
+    { name = "FaerieFireFeral",  spell = ACTION.FaerieFireFeral, matches = faerie_fire_matches },
 
     -- Core rotation (wowsims APL)
-    { name = "MangleBear",       spell = SPELLS.MangleBear, matches = mangle_matches },
-    { name = "Lacerate",         spell = SPELLS.Lacerate,   matches = lacerate_matches },
-    { name = "SwipeAoE",         spell = SPELLS.SwipeBear,  target = "self",
+    { name = "MangleBear",       spell = ACTION.MangleBear, matches = mangle_matches },
+    { name = "Lacerate",         spell = ACTION.Lacerate,   matches = lacerate_matches },
+    { name = "SwipeAoE",         spell = ACTION.SwipeBear,  target = "self",
       requires_target = false, matches = swipe_aoe_matches },
-    { name = "Swipe",            spell = SPELLS.SwipeBear,  target = "self",
+    { name = "Swipe",            spell = ACTION.SwipeBear,  target = "self",
       requires_target = false, matches = swipe_cleave_matches },
-    { name = "Maul",             spell = SPELLS.Maul,       matches = maul_matches },
+    { name = "Maul",             spell = ACTION.Maul,       matches = maul_matches },
 
     -- Rage gen (in-combat, when starved)
-    { name = "EnrageCombat",     spell = ENRAGE,            target = "self", requires_target = false, matches = enrage_combat_matches },
+    { name = "EnrageCombat",     spell = ACTION.Enrage,            target = "self", requires_target = false, matches = enrage_combat_matches },
 }
 
 -------------------------------------------------------------------------------
