@@ -46,6 +46,7 @@ local BATTLE_SHOUT_BUFF = CONSTANTS.BATTLE_SHOUT_IDS or { 2048, 25289, 11551, 11
 local COMMANDING_SHOUT_BUFF = CONSTANTS.COMMANDING_SHOUT_BUFF or { 469 }
 local STAND_BUFF = { 12975 }
 local SHIELD_WALL_BUFF = { 871 }
+local SHIELD_BLOCK_BUFF = { 2565 }  -- Shield Block self-aura (buff_remains needs an ID, not a spell-action object)
 local REND_DEBUFF = { 25208, 11574, 11573, 6548, 6547, 772 }
 
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
@@ -378,9 +379,11 @@ local function build_state(context)
   prot_state.no_threat_target = nil
  end
 
- -- StanceManager integration
- if StanceManager and StanceManager.get_optimal_stance then
-  prot_state.desired_stance = StanceManager.get_optimal_stance(context, prot_state)
+ -- StanceManager integration (exposed as NS.StanceManager by shared/stance_manager_sylvanas;
+ -- the bare global `StanceManager` is nil here, so the old reference was dead.)
+ local SM = NS.StanceManager
+ if SM and SM.get_optimal_stance then
+  prot_state.desired_stance = SM.get_optimal_stance(context, prot_state)
  end
 
  -- Intervene: populate party state
@@ -435,6 +438,9 @@ local function build_state(context)
  end
 
     prot_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
+ -- AoE CC gating flag (set by the PvPCCGate middleware; consulted by AoE matches so
+ -- the rotation is never frozen by a nearby sheeped/sapped mob).
+ prot_state.aoe_cc_nearby = context.warrior_aoe_cc_nearby or false
  return spec_kit.safe_state(prot_state)
 end
 
@@ -469,6 +475,7 @@ end
 
 local function thunderclap_matches_fn(context, state)
  if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ThunderClap, 2.0) then return false end
+ if state.aoe_cc_nearby then return false end  -- don't break nearby CC
  local ec = state.enemy_count or 0
  if ec >= 2 then return true end
  -- Single target: use Thunder Clap for attack speed debuff on bosses/elites
@@ -496,6 +503,7 @@ local function heroic_strike_matches_fn(context, state)
 end
 
 local function cleave_matches_fn(context, state)
+ if state.aoe_cc_nearby then return false end  -- don't break nearby CC
  if (state.enemy_count or 0) < 2 then return false end
  if (state.rage or 0) < HEROIC_STRIKE_RAGE_DUMP then return false end
  return true
@@ -504,6 +512,9 @@ end
 local function execute_matches_fn(context, state)
  if not NS.is_execute_phase then return false end
  if not NS.is_execute_phase(state.target_hp, 20) then return false end
+ -- TBC Execute requires Battle/Berserker Stance; a Defensive-Stance prot tank will
+ -- simply not cast it (try_cast fails gracefully) — no stance-dance here to avoid
+ -- dropping Defensive during the kill phase.
  return true
 end
 
@@ -567,7 +578,6 @@ end
 
 local function taunt_matches_fn(context, state)
  if not state.taunt_ready then return false end
- if (state.enemy_count or 0) < 2 then return false end
  local me = context.me or NS.GetPlayer()
  local target = context.target
  if not target then return false end
@@ -598,7 +608,6 @@ end
 
 local function mocking_blow_matches_fn(context, state)
  if not state.mocking_ready then return false end
- if (state.enemy_count or 0) < 2 then return false end
  -- Smart taunt: only mocking blow elites/bosses (classification >= 1)
  if (context.target_classification or 0) < 1 then return false end
  -- Skip CC'd targets
@@ -629,6 +638,7 @@ end
 
 local function challenging_shout_matches_fn(context, state)
  if not state.challenging_ready then return false end
+ if state.aoe_cc_nearby then return false end  -- AoE taunt would pull CC'd mobs
  -- Challenging Shout is AoE — needs 3+ enemies to be worth the 1min cooldown
  if (state.enemy_count or 0) < 3 then return false end
  -- Smart taunt: only shout on elites/bosses (classification >= 1)
@@ -699,11 +709,15 @@ end
 
 local function berserker_rage_matches_fn(context, state)
  if not state.berserker_rage_ready then return false end
- -- Fear break: cast immediately if feared/sapped/incapacitated
+ -- Berserker Rage breaks fear/sap/incapacitate (and grants rage-on-damage, but only
+ -- in Berserker Stance). For a Prot tank in Defensive Stance this is only useful as a
+ -- fear-break attempt. The old trailing `return true` matched on every cooldown
+ -- (spam); normal in-combat rage-gen use is omitted because it requires leaving
+ -- Defensive Stance.
  local me = context.me or NS.GetPlayer()
  local is_cc = is_feared_sapped_or_incapacitated(me)
  if is_cc then return true end
- return true
+ return false
 end
 
 -- parity gaps: Bloodrage, VictoryRush, Rend, IntimidatingShout
@@ -718,7 +732,9 @@ end
 local function victory_rush_matches_fn(context, state)
  if not state.victory_ready then return false end
  if not state.in_combat then return false end
- if (state.hp or 100) > 80 then return false end
+ -- Victory Rush is free post-kill damage/threat usable in any stance; the old
+ -- `hp > 80` gate was nonsensical (Victory Rush does not heal) and skipped it
+ -- whenever the tank was above 80% HP.
  return true
 end
 
@@ -744,10 +760,11 @@ end
 
 -- Unified stance switch using StanceManager
 local function stance_switch_matches_fn(context, state)
- if not StanceManager or not StanceManager.should_switch then return false end
+ local SM = NS.StanceManager
+ if not SM or not SM.should_switch then return false end
  local desired = state.desired_stance
  if not desired then return false end
- if not StanceManager.should_switch(context, state, desired) then return false end
+ if not SM.should_switch(context, state, desired) then return false end
  return true
 end
 
@@ -777,7 +794,7 @@ local strategies = {
     { name = "Healthstone",
       matches = function(context, state)
           if not context.in_combat then return false end
-          if (state.hp_pct or 100) > 28 then return false end
+          if (state.hp or 100) > 28 then return false end
           if (state.healthstone_ready or 0) <= 0 then return false end
           return true
       end,
@@ -896,7 +913,9 @@ local strategies = {
    if not is_defensive_stance(state.stance) then return false end
    if not state.shield_block_ready then return false end
    local me = context.me or NS.GetPlayer()
-   local sb_remains = me and NS.buff_remains and NS.buff_remains(me, ACTION.ShieldBlock) or 0
+   -- buff_remains needs a buff ID (2565), not the spell-action object
+   -- (the old call passed ACTION.ShieldBlock, always reading 0 → on-CD spam).
+   local sb_remains = me and NS.buff_remains and NS.buff_remains(me, SHIELD_BLOCK_BUFF) or 0
    -- proactive refresh before expiry to prevent crush windows
    if sb_remains > 2 then return false end
    return true
@@ -1027,7 +1046,7 @@ local strategies = {
   execute = function(context, state)
    local ally = state.lowest_allied or state.tank
    if not (ally and ally.unit) then return false end
-   return NS.try_cast(ACTION.Intervene, ally.unit, "[PROT] Intervene", { skip_range = true })
+   return NS.try_cast(ACTION.Intervene, ally.unit, "[PROT] Intervene")
   end,
  },
  {

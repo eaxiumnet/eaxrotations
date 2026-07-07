@@ -725,7 +725,7 @@ local healing_strategies = {
  { name = "PowerInfusion", matches = power_infusion_matches, execute = function(_, s)
   local pi_target = s.pi_target or NS.PLAYER_UNIT
   local label = s.pi_target and "[DISCIPLINE] Power Infusion on caster DPS" or "[DISCIPLINE] Power Infusion (self)"
-  return NS.try_cast(10060, pi_target, label, { skip_range = true })
+  return NS.try_cast(10060, pi_target, label)
  end },
  { name = "InnerFocus", matches = inner_focus_matches, execute = function() return NS.try_cast(SPELLS.InnerFocus or 14751, NS.PLAYER_UNIT, "[DISCIPLINE] Inner Focus", { skip_range = true }) end },
  -- parity Features
