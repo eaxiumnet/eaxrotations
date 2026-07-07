@@ -375,7 +375,7 @@ local strategies = {
         execute = function(context)
             local target = find_curse_target(context)
             if target and self_spell_ready(SPELLS.RemoveCurse, context) then
-                if NS.try_cast(SPELLS.RemoveCurse, target, "[MAGE] Remove Curse", { skip_range = true }) then
+                if NS.try_cast(SPELLS.RemoveCurse, target, "[MAGE] Remove Curse") then
                     return true
                 end
             end

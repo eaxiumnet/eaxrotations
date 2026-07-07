@@ -415,11 +415,11 @@ local strategies = {
             if target then
                 if use_remove_curse and SPELLS.RemoveCurse then
                     if not can_cast_in_current_form(SPELLS.RemoveCurse) then return false end
-                    local ok = NS.try_cast(SPELLS.RemoveCurse, target, "[DRUID] Remove Curse", { skip_range = true })
+                    local ok = NS.try_cast(SPELLS.RemoveCurse, target, "[DRUID] Remove Curse")
                     if ok then return true end
                 elseif use_abolish_poison and SPELLS.AbolishPoison then
                     if not can_cast_in_current_form(SPELLS.AbolishPoison) then return false end
-                    local ok = NS.try_cast(SPELLS.AbolishPoison, target, "[DRUID] Abolish Poison", { skip_range = true })
+                    local ok = NS.try_cast(SPELLS.AbolishPoison, target, "[DRUID] Abolish Poison")
                     if ok then return true end
                 end
             end
