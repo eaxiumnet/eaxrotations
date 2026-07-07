@@ -18,6 +18,8 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
+local _eng_ok, engineering = pcall(require, "shared/engineering_helper_sylvanas")
+if not _eng_ok or type(engineering) ~= "table" then engineering = nil end
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local BLOODLUST_BUFFS = { 2825, 32182 }
 local SPELLS = NS.WarriorSpells or {}
@@ -66,7 +68,10 @@ local COMMANDING_SHOUT_BUFF = CONSTANTS.COMMANDING_SHOUT_BUFF or { 469 }
 local BERSERKER_RAGE_BUFF = { 18499 }
 local SWEEPING_STRIKES_BUFF = { 12328 }
 local VICTORY_RUSH_BUFF = { 34428 }
-local RAMPAGE_BUFF = { 30033, 30032, 30030 }
+local RAMPAGE_BUFF = { 30029, 30031, 30032, 29801, 30030, 30033 }
+-- Rampage AURAS (the buff applied by each rank): r1=30029, r2=30031, r3=30032.
+-- The cast spell IDs (29801/30030/30033) are NOT the buff; included for safety so
+-- buff_up/buff_stacks match regardless of which ID the runtime tracks.
 local SUNDER_DEBUFF = CONSTANTS.SUNDER_DEBUFF or { 25225, 11597, 11596, 8380, 7405, 7386 }
 local REND_DEBUFF = { 25208, 11574, 11573, 6548, 6547, 772 }
 local DEMO_SHOUT_DEBUFF = CONSTANTS.DEMO_SHOUT_DEBUFF or { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }
@@ -183,6 +188,7 @@ local FURY_SCHEMA = {
     target_in_combat = false,
     charge_lock_until = 0,
     intercept_fired_at = 0,
+    aoe_cc_nearby = false,          -- set from context.warrior_aoe_cc_nearby (PvPCCGate middleware)
 }
 
 local stance_lockout_active = WH.stance_lockout_active or function()
@@ -461,6 +467,7 @@ local function build_state(context)
     fury_state.major_cd_window = fury_state.bloodlust_active or fury_state.major_cd_active
     fury_state.planner_ready = planner ~= nil
 
+    fury_state.aoe_cc_nearby = context.warrior_aoe_cc_nearby or false
     -- safe_state proxy: structural nil-guard elimination (Pattern 14)
     return spec_kit.safe_state(fury_state, FURY_SCHEMA)
 end
@@ -577,16 +584,13 @@ end
 local function rampage_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rampage, 3.0) then return false end
     if not state.in_combat then return false end
+    -- TBC Rampage: cast to APPLY the buff (only usable after a crit) or REFRESH it
+    -- before it falls off. Stacks build automatically from successful melee hits
+    -- (up to 5) — NOT from recasting. The old `rampage_min_stacks` branch recast
+    -- Rampage whenever stacks < 5, wasting 30 rage during the ramp-up window.
     if not state.has_rampage then
-        -- No buff at all — apply it
         return action(context, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }))
     end
-    -- Stack maintenance: recast if stacks < configured minimum
-    local min_stacks = setting(context, "rampage_min_stacks", 5)
-    if (state.rampage_stacks or 0) < min_stacks then
-        return action(context, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }))
-    end
-    -- Refresh before expiry
     local rampage_remains = NS.buff_remains and NS.buff_remains(context.me or NS.GetPlayer(), RAMPAGE_BUFF) or 0
     if rampage_remains <= 3 then
         return action(context, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }))
@@ -674,6 +678,7 @@ end
 
 -- Sweeping Strikes: AoE prep
 local function sweeping_strikes_matches(context, state)
+    if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     local min_count = setting(context, "sweeping_strikes_count", 2)
     if (state.enemy_count or 0) < min_count then return false end
     if state.has_sweeping_strikes then return false end
@@ -684,6 +689,7 @@ end
 -- Whirlwind: filler + AoE — use with any extra rage per Icy Veins
 local function whirlwind_matches(context, state)
     if not state.ww_ready then return false end
+    if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     if (state.enemy_count or 0) < 2 and (state.rage or 0) < 25 then return false end
     return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
 end
@@ -742,6 +748,7 @@ end
 
 -- Cleave: AoE rage dump with starvation + SS reservation
 local function cleave_matches(context, state)
+    if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     if should_reserve_for_sweeping(context, state) then return false end
     if (state.enemy_count or 0) < 2 then return false end
     local cleave_rage = setting(context, "cleave_rage", CLEAVE_RAGE)
@@ -928,6 +935,14 @@ local STRATEGY_SPECS = {
     { "BattleShout", battle_shout_matches, build_action("BattleShout", ACTION.BattleShout, { target = "self", kind = "buff", buff = BATTLE_SHOUT_BUFF, requires_target = false }) },
     { "BerserkerRage", berserker_rage_matches, build_action("BerserkerRage", ACTION.BerserkerRage, { target = "self", requires_target = false, cooldown = 30 }) },
     { "Bloodrage", bloodrage_matches, build_action("Bloodrage", ACTION.Bloodrage, { target = "self", requires_target = false, skip_gcd = true }) },
+    -- Engineering bombs (wowsims APL "Engineering" group — filler during rage downtime)
+    { "EngineeringBomb", function(context)
+          if not engineering then return false end
+          return engineering.should_use_bomb(context)
+      end, build_action("EngineeringBomb", nil, { target = "self", requires_target = false }), function(context)
+          if not engineering then return false end
+          return engineering.use_best_bomb(context)
+      end },
     { "VictoryRush", victory_rush_matches, build_action("VictoryRush", ACTION.VictoryRush, {}) },
     -- Charge opener (OOC)
     { "Charge", charge_matches, build_action("Charge", ACTION.Charge, { required_stance = STANCE.BATTLE, cooldown = 15 }) },
@@ -936,12 +951,12 @@ local STRATEGY_SPECS = {
     { "DeathWish", death_wish_matches, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false }) },
     -- AoE
     { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false }) },
-    -- Core rotation (APL order: BT → WW → Rampage → Execute → Slam)
+    -- Core rotation (APL-aligned: Rampage upkeep → Execute → BT → WW → Overpower weave → Slam)
+    { "Rampage", rampage_matches, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }) },
+    { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { required_stance = STANCE.BERSERKER, min_rage = 15 }) },
     { "Bloodthirst", bt_matches, build_action("Bloodthirst", ACTION.Bloodthirst, { required_stance = STANCE.BERSERKER, min_rage = 30, cooldown = 6 }) },
     { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
-    { "Rampage", rampage_matches, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }) },
     { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = 5 }) },
-    { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { required_stance = STANCE.BERSERKER, min_rage = 15 }) },
     { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }) },
     { "SwingDesync", swing_desync_matches, build_action("SwingDesync", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }) },
     -- Overpower REMOVED from Fury: Arms-only in TBC
