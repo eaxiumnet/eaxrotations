@@ -253,6 +253,17 @@ local tests = {
 
  "test_bear_vanilla_nil_guards.lua",
  "test_subtlety_vanilla_nil_guards.lua",
+
+ -- Vanilla nil-guard regression tests (Pattern 14 coverage for all 38 remaining specs)
+ "test_warrior_vanilla_nil_guards.lua",
+ "test_druid_vanilla_nil_guards.lua",
+ "test_rogue_vanilla_nil_guards.lua",
+ "test_paladin_vanilla_nil_guards.lua",
+ "test_hunter_vanilla_nil_guards.lua",
+ "test_mage_vanilla_nil_guards.lua",
+ "test_priest_vanilla_nil_guards.lua",
+ "test_shaman_vanilla_nil_guards.lua",
+ "test_warlock_vanilla_nil_guards.lua",
  "test_priest_holy_vanilla_friendly_target.lua",
  "test_priest_discipline_vanilla_friendly_target.lua",
  "test_paladin_holy_vanilla_friendly_target.lua",
