@@ -31,35 +31,37 @@ local PLAYER_UNIT = NS.PLAYER_UNIT
 -- Centralized spell resolver via spec_kit (replaces the per-spec spell() helper).
 local define = spec_kit.define_action_for_class(SPELLS)
 
--- Spell actions
+-- Spell actions — resolved via spec_kit.define_action_for_class (rank IDs from DBC).
+-- Spells with expansion-aware IDs in class_sylvanas.lua (DeathWish, SweepingStrikes)
+-- use SPELLS.X directly; all others use define() with explicit rank ID arrays.
 local ACTION = {
-    BattleShout = SPELLS.BattleShout,
-    BattleStance = SPELLS.BattleStance,
-    BerserkerRage = SPELLS.BerserkerRage,
-    BerserkerStance = SPELLS.BerserkerStance,
-    Bloodrage = SPELLS.Bloodrage,
-    Bloodthirst = SPELLS.Bloodthirst,
-    Charge = SPELLS.Charge,
-    Cleave = SPELLS.Cleave,
-    CommandingShout = SPELLS.CommandingShout,
-    DeathWish = SPELLS.DeathWish,
-    DefensiveStance = SPELLS.DefensiveStance,
-    DemoralizingShout = SPELLS.DemoralizingShout,
-    Execute = SPELLS.Execute,
-    Hamstring = SPELLS.Hamstring,
-    HeroicStrike = SPELLS.HeroicStrike,
-    Intercept = SPELLS.Intercept,
-    Overpower = SPELLS.Overpower,
-    Pummel = SPELLS.Pummel,
-    Rampage = SPELLS.Rampage,
-    Recklessness = SPELLS.Recklessness,
-    Rend = SPELLS.Rend,
-    Slam = SPELLS.Slam,
-    SunderArmor = SPELLS.SunderArmor,
-    SweepingStrikes = SPELLS.SweepingStrikes,
-    ThunderClap = SPELLS.ThunderClap,
-    VictoryRush = SPELLS.VictoryRush,
-    Whirlwind = SPELLS.Whirlwind,
+    BattleShout = define("BattleShout", { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }, "BattleShout"),
+    BattleStance = define("BattleStance", 2457, "BattleStance"),
+    BerserkerRage = define("BerserkerRage", 18499, "BerserkerRage"),
+    BerserkerStance = define("BerserkerStance", 2458, "BerserkerStance"),
+    Bloodrage = define("Bloodrage", 2687, "Bloodrage"),
+    Bloodthirst = define("Bloodthirst", { 30335, 25251, 23894, 23893, 23892, 23881 }, "Bloodthirst"),
+    Charge = define("Charge", { 11578, 6178, 100 }, "Charge"),
+    Cleave = define("Cleave", { 25231, 20569, 11609, 11608, 7369, 845 }, "Cleave"),
+    CommandingShout = define("CommandingShout", 469, "CommandingShout"),
+    DeathWish = SPELLS.DeathWish,  -- expansion-aware IDs from class_sylvanas.lua
+    DefensiveStance = define("DefensiveStance", 71, "DefensiveStance"),
+    DemoralizingShout = define("DemoralizingShout", { 25203, 25202, 11556, 11555, 11554, 6190, 1160 }, "DemoralizingShout"),
+    Execute = define("Execute", { 25236, 25234, 20662, 20661, 20660, 20658, 5308 }, "Execute"),
+    Hamstring = define("Hamstring", { 25212, 7373, 7372, 1715 }, "Hamstring"),
+    HeroicStrike = define("HeroicStrike", { 30324, 29707, 25286, 11567, 11566, 11565, 11564, 1608, 285, 284, 78 }, "HeroicStrike"),
+    Intercept = define("Intercept", { 25275, 20617, 20616, 20252 }, "Intercept"),
+    Overpower = define("Overpower", { 11585, 11584, 7887, 7384 }, "Overpower"),
+    Pummel = NS.spell_action and NS.spell_action({ 6554, 6552 }, "Pummel") or 6554,
+    Rampage = define("Rampage", { 30033, 30030, 29801 }, "Rampage"),
+    Recklessness = define("Recklessness", 1719, "Recklessness"),
+    Rend = define("Rend", { 25208, 11574, 11573, 6548, 6547, 772 }, "Rend"),
+    Slam = define("Slam", { 25242, 25241, 11605, 11604, 8820, 1464 }, "Slam"),
+    SunderArmor = define("SunderArmor", { 25225, 11597, 11596, 8380, 7405, 7386 }, "SunderArmor"),
+    SweepingStrikes = SPELLS.SweepingStrikes,  -- expansion-aware IDs from class_sylvanas.lua
+    ThunderClap = define("ThunderClap", { 25264, 11581, 11580, 8205, 8204, 8198, 6343 }, "ThunderClap"),
+    VictoryRush = define("VictoryRush", 34428, "VictoryRush"),
+    Whirlwind = define("Whirlwind", 1680, "Whirlwind"),
 }
 
 -- Buff/debuff ID tables
