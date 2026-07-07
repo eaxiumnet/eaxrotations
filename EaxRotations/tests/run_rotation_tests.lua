@@ -2,6 +2,7 @@ local runner = require("EaxRotations/tests/test_runner_lib")
 local mode, root = runner.parse_args(arg, "EaxRotations")
 
 local tests = {
+ "test_pvp_burst_window.lua",
  "test_try_cast_izi_primary.lua",
  "test_range_verification_oor_fallthrough.lua",
  "test_update_callback_void_registration.lua",
@@ -27,6 +28,7 @@ local tests = {
  "test_holy_lg_chaining.lua",
  "test_protection_bok_party.lua",
  "test_paladin_retribution_post_swing_judge.lua",
+  "test_paladin_retribution_seal_ooc.lua",
  "test_paladin_retribution_twist_diagnostics.lua",
  "test_swing_diagnostics.lua",
  "test_melee_cleu_wiring.lua",
