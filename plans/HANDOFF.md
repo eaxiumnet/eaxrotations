@@ -7,7 +7,7 @@
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
-> `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — read it
+> `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — read them
 second. The hard rules live in `AGENTS.md` (repo root) — read it first per
 its own contract, but the critical bits are summarized below so you don't
 have to context-switch.
