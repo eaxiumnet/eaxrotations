@@ -31,6 +31,7 @@ local tests = {
  "test_swing_diagnostics.lua",
  "test_melee_cleu_wiring.lua",
  "test_swing_mechanics.lua",
+ "test_snapshot_helper.lua",
  "test_shaman_enhancement_totem_twist.lua",
  "test_shaman_enhancement_auto_weapon_buffs.lua",
  "test_shaman_enhancement_intelligent_shield.lua",
