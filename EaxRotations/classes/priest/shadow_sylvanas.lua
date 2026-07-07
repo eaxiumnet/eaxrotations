@@ -379,7 +379,7 @@ local function build_state(context)
     shadow_state.fortitude_ready = me_unit and NS.spell_ready and NS.spell_ready(SPELLS.PowerWordFortitude, me_unit, { skip_range = true }) or false
     shadow_state.has_fortitude = me_unit and NS.buff_up and NS.buff_up(me_unit, FORTITUDE_BUFFS) or false
     shadow_state.is_group = context.is_group or false
-    -- Scan party members for missing Fortitude; fallback to self
+    -- Scan party members for missing Fortitude (in-range only); fallback to self
     shadow_state.fortitude_target = nil
     if shadow_state.fortitude_ready then
         local members = context.party_members or context.group_members
@@ -387,8 +387,15 @@ local function build_state(context)
             for i = 1, #members do
                 local member = members[i]
                 if member and not (NS.buff_up and NS.buff_up(member, FORTITUDE_BUFFS)) then
-                    shadow_state.fortitude_target = member
-                    break
+                    -- Range gate: PW:F is a 40yd single-target buff. Skip out-of-range
+                    -- members so we don't lock onto someone across the zone and stall the
+                    -- self-buff fallback. is_spell_in_range nil-guarded for test harness.
+                    local in_range = (not NS.is_spell_in_range)
+                        or NS.is_spell_in_range(SPELLS.PowerWordFortitude, member) == true
+                    if in_range then
+                        shadow_state.fortitude_target = member
+                        break
+                    end
                 end
             end
         end
@@ -930,7 +937,7 @@ end
 -- ============================================================================
 local strategies = {
     -- Out-of-combat Fortitude buff
-    { name = "PowerWordFortitude", matches = fortitude_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordFortitude, s.fortitude_target, "[SHADOW] PowerWordFortitude", { skip_range = true }) end },
+    { name = "PowerWordFortitude", matches = fortitude_matches, execute = function(context, s) return NS.try_cast(SPELLS.PowerWordFortitude, s.fortitude_target, "[SHADOW] PowerWordFortitude") end },
     { name = "PreCombatPull", matches = pre_combat_pull_matches, execute = function(context) return NS.try_cast(SPELLS.VampiricTouch, context.target, "[SHADOW] PreCombatPull") end },
     { name = "Shadowform", matches = shadowform_matches, execute = function(context) return NS.try_cast(SPELLS.Shadowform, NS.PLAYER_UNIT, "[SHADOW] Shadowform", { skip_range = true }) end },
     { name = "SWDCCBreak", matches = swd_cc_break_matches, execute = function(context, s) if s.mf_channeling then if NS.stop_casting then NS.stop_casting() end; if NS.cancel_current_cast then NS.cancel_current_cast() end end; return NS.try_cast(SPELLS.ShadowWordDeath, context.target, string.format("[SHADOW] SWD CC Break â†’ %s", s.enemy_cc_spell_name or s.breakable_cc_name or "CC")) end },

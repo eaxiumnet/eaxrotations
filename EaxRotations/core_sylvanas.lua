@@ -1878,19 +1878,49 @@ function NS.power_current(power_type) return power(NS.GetPlayer(), power_type) e
 
 
 
+-- Tolerance (yards) for the independent OOR backstop. Only block on CLEAR
+-- out-of-range so hitbox/range-data slack never false-positives a valid cast.
+local RANGE_TOLERANCE = 5.0
+
+-- Cache spell_book range APIs at module load (declared before is_spell_in_range
+-- so the fallback path can use accurate max-range data).
+local _get_spell_range_data = core.spell_book and core.spell_book.get_spell_range_data
+local _get_spell_max_range = core.spell_book and core.spell_book.get_spell_max_range
+local _get_spell_min_range = core.spell_book and core.spell_book.get_spell_min_range
+
 function NS.is_spell_in_range(spell, target)
     if not target then return true end
     local id = NS.get_spell_id(spell)
     if not id then return true end
+    -- Primary: native spell_helper range check (authoritative). Respect a false
+    -- (out-of-range) verdict instead of falling through — previously the fallback
+    -- masked real OOR for short-range spells (e.g. Mind Flay 24yd at 30yd),
+    -- causing try_cast to commit and stall the rotation on a single spell.
     if _spell_helper then
         local ok, in_range = pcall(function()
             return _spell_helper:is_spell_in_range(id, target, nil, nil)
         end)
-        if ok and in_range == true then return true end
+        if ok then
+            return in_range == true
+        end
     end
-    -- Fallback: basic distance check
+    -- Fallback (no spell_helper): accurate range via spell max_range + distance.
+    -- Fail OPEN when range cannot be determined (no range data / unknown
+    -- distance) so missing info never freezes the rotation.
     local me = NS.GetPlayer()
     if not me then return true end
+    if _get_spell_max_range then
+        local ok, max_r = pcall(_get_spell_max_range, id)
+        if ok and type(max_r) == "number" and max_r > 0 then
+            local dist = NS.unit_distance and NS.unit_distance(target, me)
+            -- Only trust confident distances; exclude the 999 "unknown" sentinel
+            -- returned by unit_distance when no distance API is available.
+            if type(dist) == "number" and dist < 100 then
+                return dist <= (max_r + RANGE_TOLERANCE)
+            end
+        end
+    end
+    -- Last-resort basic distance check (kept for builds without range-data APIs).
     local d = safe_field(target, "distance_to")
     if d then
         local dist = safe(d, target, me)
@@ -1901,20 +1931,49 @@ end
 
 NS.spell_in_range = NS.is_spell_in_range
 
--- Cache spell_book.get_spell_range_data at module load
-local _get_spell_range_data = core.spell_book and core.spell_book.get_spell_range_data
+--- Independent ground-truth OOR check: distance vs spell max range.
+--- Used as a defense-in-depth backstop in evaluate_cast so an out-of-range spell
+--- never commits (which would stall the dispatcher on that one spell). Returns
+--- true ONLY on confident, clear OOR; false/nil (fail-open) otherwise.
+---@param spell table|number|nil
+---@param target game_object|nil
+---@return boolean
+function NS.is_out_of_range(spell, target)
+    if not target then return false end
+    local id = NS.get_spell_id(spell)
+    if not id or not _get_spell_max_range then return false end
+    local ok, max_r = pcall(_get_spell_max_range, id)
+    if not ok or type(max_r) ~= "number" or max_r <= 0 then return false end
+    local me = NS.GetPlayer()
+    if not me then return false end
+    local dist = NS.unit_distance and NS.unit_distance(target, me)
+    -- Exclude the 999 "unknown" sentinel — never block on undetermined distance.
+    if type(dist) ~= "number" or dist >= 100 then return false end
+    return dist > (max_r + RANGE_TOLERANCE)
+end
 
 --- Retrieve min/max range data for a spell. Returns {min=number, max=number}
 --- or nil if the API is unavailable, the spell has no range data, or spell_id is nil.
+--- Handles both `min/max` and `min_range/max_range` field names (api stub vs apidocs).
 ---@param spell_id integer|nil
 ---@return table|nil
 function NS.get_spell_range(spell_id)
     if not spell_id then return nil end
+    -- Prefer the direct scalar APIs (no field-name ambiguity).
+    if _get_spell_min_range and _get_spell_max_range then
+        local ok_min, mn = pcall(_get_spell_min_range, spell_id)
+        local ok_max, mx = pcall(_get_spell_max_range, spell_id)
+        if ok_min and ok_max and type(mn) == "number" and type(mx) == "number" then
+            return { min = mn, max = mx }
+        end
+    end
     if not _get_spell_range_data then return nil end
     local ok, result = pcall(_get_spell_range_data, spell_id)
     if not ok or type(result) ~= "table" then return nil end
-    if result.min == nil or result.max == nil then return nil end
-    return { min = result.min, max = result.max }
+    local mn = result.min or result.min_range
+    local mx = result.max or result.max_range
+    if mn == nil or mx == nil then return nil end
+    return { min = mn, max = mx }
 end
 
 local function spell_helper_castable(id, target, opts)
@@ -2025,6 +2084,18 @@ function NS.evaluate_cast(spell, unit, reason, opts)
     else
         -- Fallback: NS.spell_ready when spell_helper unavailable
         if not NS.spell_ready(spell, target, opts) then
+            return false
+        end
+    end
+
+    -- 1b. Defense-in-depth range gate (independent of is_spell_castable).
+    --     Blocks a clearly out-of-range spell so try_cast returns false and the
+    --     dispatcher falls through to in-range spells, instead of committing the
+    --     spell via spell_queue and stalling on it (e.g. Mind Flay 24yd at 30yd
+    --     while Mind Blast 36yd is in range). Conservative: only blocks on
+    --     confident, clear OOR; fail-open otherwise. See NS.is_out_of_range.
+    if not opts.skip_range and target and NS.not_same_unit(target, NS.GetPlayer()) then
+        if NS.is_out_of_range(spell, target) then
             return false
         end
     end
