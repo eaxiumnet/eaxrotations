@@ -54,7 +54,8 @@ _G.EaxRotations = {
     rotation_registry = { register = function() end },
 }
 
-local strategies = dofile("EaxRotations/classes/warrior/kebab_sylvanas.lua")
+local result = dofile("EaxRotations/classes/warrior/kebab_sylvanas.lua")
+local strategies = result.strategies or result
 assert_true(strategies, "kebab strategies should load")
 
 local function find_strategy(name)

@@ -69,6 +69,7 @@ local CONVERTED = {
     ["EaxRotations/classes/warrior/arms_sylvanas.lua"] = true,
     ["EaxRotations/classes/warrior/fury_sylvanas.lua"] = true,
     ["EaxRotations/classes/warrior/protection_sylvanas.lua"] = true,
+    ["EaxRotations/classes/warrior/kebab_sylvanas.lua"] = true,
     ["EaxRotations/classes/druid/balance_sylvanas.lua"] = true,
 }
 
