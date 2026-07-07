@@ -28,11 +28,38 @@ Current file is 41KB / ~870 lines with:
 
 ## Changes
 - [x] Baseline GREEN (220 suites)
-- [ ] Write clean bear_sylvanas.lua (~400 lines)
-- [ ] luac -p passes
-- [ ] test_bear_custom_matches passes
-- [ ] test_state_field_nil_guards passes
-- [ ] Full 220 suite passes
+- [x] Write clean bear_sylvanas.lua (~600 lines, down from ~870)
+- [x] luac -p passes
+- [x] test_bear_custom_matches passes
+- [x] test_state_field_nil_guards passes (22/22)
+- [x] test_archive_self_buff_aliases passes
+- [x] Full 221 rotation suite passes (0 failures)
+- [x] 13 leveling suites pass
+- [x] Sylvanas audit: 61 files clean, 0 invalid spell IDs
+
+## COMPLETE — 2026-07-06
+
+### What was removed (form-shifting cruft)
+- MarkOfTheWild/GiftOfTheWild/Thorns OOC buffing — KEPT (pre-pull caster prep, never in combat)
+- RemoveCurse (caster form) — REMOVED
+- FerociousBiteExecute (cat form) — REMOVED
+- NaturesGraspPvP (caster form) — REMOVED
+- All PvP branches (BashPvP, FeralChargePvP, NaturesGraspPvP, FaerieFirePvP) — REMOVED
+- ClearcastingMangle / ClearcastingLacerate (redundant) — REMOVED
+- MangleOpener (redundant with MangleBear) — REMOVED
+- OffTargetLacerate spreading + scan_pack scoring system — REMOVED
+- PoolForMangle wait strategy — REMOVED (tanking = active threat, not idle pooling)
+
+### What was kept (pure bear-form tanking APL)
+22 strategies in priority order:
+- OOC: Mark/Gift, Thorns, BearForm, PrePullEnrage
+- Pull: FeralChargePull, FaerieFirePull
+- Defensives: Healthstone, HealingPotion, FrenziedRegeneration, Barkskin
+- Taunts: ChallengingRoar (AoE), Growl (single)
+- Interrupt: BashInterrupt (via InterruptManager)
+- Debuffs: DemoralizingRoar → FaerieFireFeral (Demo before FF — test contract)
+- Core: MangleBear → Lacerate → SwipeAoE → Swipe → Maul
+- Utility: EnrageCombat (rage gen when starved)
 
 ## Constraints
 - Test-pinned behavior preserved (FaerieFireFeral, Lacerate, SwipeAoE, Swipe, Maul, DemoRoar-before-FF)
