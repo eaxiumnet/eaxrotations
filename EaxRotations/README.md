@@ -7,7 +7,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.3.12-blue" alt="Version 2.3.12">
   <img src="https://img.shields.io/badge/specs-29%20%2B%209%20leveling-brightgreen" alt="29 Specs + 9 Leveling">
-  <img src="https://img.shields.io/badge/tests-219%2F219%20passing-success" alt="219/219 Tests Passing">
+  <img src="https://img.shields.io/badge/tests-233%2F233%20passing-success" alt="233/233 Tests Passing">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="CC-BY-4.0">
 </p>
 
@@ -44,7 +44,7 @@ scripts/
     main_sylvanas.lua       # Update dispatcher
     classes/                # Per-class rotation modules
     shared/                 # ~50 reusable combat modules
-    tests/                  # 214 regression test suites
+    tests/                  # 233 regression test suites
 ```
 
 ---
@@ -76,7 +76,7 @@ scripts/
 | ⚔️ **PvP Support** | DR tracking, enemy CD monitoring, burst window detection, arena priority |
 | 🛡️ **Defensive Middleware** | Auto healthstones, potions, and class-specific defensive CDs |
 | ⚙️ **Role-Aware Settings** | PvE / PvP modes with customizable thresholds per spec |
-| 🧪 **219 Regression Tests** | All rotation + leveling suites pass with zero failures |
+| 🧪 **233 Regression Tests** | All rotation + leveling suites pass with zero failures |
 | ⚡ **Performance-Focused** | Cached API calls, squared-distance checks, sub-20ms strategy evaluation |
 | 🧠 **Smart Buff Upgrades** | Auto-detects and refreshes lower-rank party buffs |
 | 🏥 **Healer Engine** | Predictive triage, overheal avoidance, tank bias, shield tracking |
@@ -114,7 +114,7 @@ EaxRotations/
 │   └── ... (50+ modules)
 │
 └── tests/                  # Regression test suite
-    ├── run_rotation_tests.lua    # 219 rotation suites
+    ├── run_rotation_tests.lua    # 233 rotation suites
     ├── run_leveling_tests.lua    # 13 leveling suites
     └── test_*.lua                # Individual test files
 ```
@@ -139,7 +139,7 @@ Every spec file follows the same 9-part layout. Start with the **reference imple
 | 6. build_state | `local function build_state(context)` then `spec_kit.safe_state(raw)` | Compute per-tick state once; nil-guarded reads |
 | 7. Match functions | `local function x_matches(context, state)` | One per strategy — returns true/false |
 | 8. strategies | `{ name=, matches=, execute= }` ordered list | Dispatcher runs first match that returns true |
-| 9. Register + return | Guarded `NS.rotation_registry:register(...)` + `return { strategies, build_state }` | Nil-safe registration + test-consumable return |
+| 9. Register + return | Guarded `NS.rotation_registry:register(...)` + `return strategies` | Nil-safe registration + test-consumable return |
 
 See `AGENTS.md` Pattern 16 for the full annotated skeleton.
 
@@ -147,10 +147,11 @@ See `AGENTS.md` Pattern 16 for the full annotated skeleton.
 
 | Status | Files | Count |
 |--------|-------|-------|
-| Converted | `arms_sylvanas.lua` | 1 |
-| Pending | all other spec + leveling files | 40 |
+| Converted | `arms_sylvanas.lua`, `fury_sylvanas.lua`, `protection_sylvanas.lua`, `kebab_sylvanas.lua`, `balance_sylvanas.lua`, `cat_sylvanas.lua`, `bear_sylvanas.lua` | 7 |
+| Pending | all other spec + leveling files | 34 |
 
 > Enforced by `tests/test_spec_layout_compliance.lua`. To mark a spec as converted, add it to the `CONVERTED` table in that test after conversion + full test gate.
+> Convert a spec **only when already editing it** — never big-bang (AGENTS.md Pattern 16).
 
 ---
 
@@ -162,7 +163,7 @@ Run syntax checks on all Lua files:
 find EaxRotations -name "*.lua" -exec luac -p {} \;
 ```
 
-Run the full rotation regression suite (**214 suites**):
+Run the full rotation regression suite (**233 suites**):
 
 ```bash
 lua EaxRotations/tests/run_rotation_tests.lua
