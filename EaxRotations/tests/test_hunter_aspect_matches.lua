@@ -102,6 +102,6 @@ end
 
 check_bm("EaxRotations/classes/hunter/beast_mastery_sylvanas.lua")
 check(function() return dofile("EaxRotations/classes/hunter/marksmanship_sylvanas.lua").strategies end)
-check("EaxRotations/classes/hunter/survival_sylvanas.lua")
+check(function() return dofile("EaxRotations/classes/hunter/survival_sylvanas.lua").strategies end)
 
 print("PASS test_hunter_aspect_matches")
