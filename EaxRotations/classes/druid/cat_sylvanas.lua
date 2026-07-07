@@ -16,6 +16,8 @@ local _not_same_unit = NS.not_same_unit or function(a, b) return a ~= b end
 local potion_helper = require("shared/potion_helper_sylvanas")
 local _eng_ok, engineering = pcall(require, "shared/engineering_helper_sylvanas")
 if not _eng_ok or type(engineering) ~= "table" then engineering = nil end
+local _cm_ok, CombatMode = pcall(require, "shared/combat_mode_sylvanas")
+if not _cm_ok or type(CombatMode) ~= "table" then CombatMode = nil end
 
 local BASE_SPELLS = NS.DruidSpells or {}
 local SPELLS = BASE_SPELLS
@@ -505,7 +507,8 @@ function build_state(context)
     state.has_high_ap_window = state.has_bloodlust or (state.attack_power > 0 and state.rip_ap > 0 and state.attack_power >= state.rip_ap * AP_UPGRADE_RATIO) or (state.attack_power > 0 and state.rake_ap > 0 and state.attack_power >= state.rake_ap * AP_UPGRADE_RATIO)
     update_energy_tick(state)
     state.should_execute = state.target_hp <= NS.setting_number(settings, "cat_execute_hp", EXECUTE_HP)
-    state.should_aoe = state.enemy_count >= (settings.aoe_threshold or 3)
+    state.should_aoe = (CombatMode and CombatMode.is_aoe(settings, state.enemy_count, settings.aoe_threshold or 3))
+        or (state.enemy_count >= (settings.aoe_threshold or 3))
     state.should_tab_rake = state.enemy_count >= 2 and state.enemy_count <= 3
     state.should_pool_for_rip = (state.combo_points or 0) >= NS.setting_number(settings, "cat_rip_cp", 5) and (state.energy or 0) < RIP_COST and target_lives(state, MIN_RIP_TTD)
     state.should_pool_for_shred = (state.combo_points or 0) < 5 and (state.energy or 0) < SHRED_COST and (state.energy or 0) + ENERGY_PER_TICK >= SHRED_COST
