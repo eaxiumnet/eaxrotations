@@ -80,6 +80,7 @@ local CONVERTED = {
     ["EaxRotations/classes/priest/shadow_sylvanas.lua"] = true,
     ["EaxRotations/classes/mage/fire_sylvanas.lua"] = true,
     ["EaxRotations/classes/warlock/destruction_sylvanas.lua"] = true,
+    ["EaxRotations/classes/mage/frost_sylvanas.lua"] = true,
 }
 
 local function add_issue(issues, path, rule, detail)

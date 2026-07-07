@@ -1,11 +1,46 @@
 -- frost_sylvanas.lua -- Mage Frost rotation for TBC Anniversary (2.5.5).
--- WHAT:  frost DPS spec (Frostbolt spam, Water Elemental, Ice Lance frozen shatter).
+-- WHAT:  frost DPS spec (Frostbolt spam, Water Elemental, Ice Lance shatter,
+--         Winter's Chill stacking, Icy Veins CD, AoE Blizzard/CoC).
 -- WHEN:  combat, with valid enemy target.
--- WHY:   mirrors wowsims APL: Frostbolt > WE > Cold Snap double-pet > Ice Lance (frozen).
--- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
+-- WHY:   mirrors wowsims APL + TBC frost community consensus. Priority:
+--         defensives/buffs > CDs (WE/IV/ColdSnap) > shatter Ice Lance >
+--         Winter's Chill Frostbolt > AoE Blizzard/CoC > Frostbolt filler.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.MageSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
+
+-- Centralized spell resolver via spec_kit (rank IDs from mage/class_sylvanas.lua).
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    ArcaneExplosion   = define("ArcaneExplosion",   { 27082, 27080, 10202, 10201, 8439, 8438, 8437, 1449 }, "ArcaneExplosion"),
+    ArcaneIntellect   = define("ArcaneIntellect",   { 27126, 10157, 10156, 1461, 1460, 1459 }, "ArcaneIntellect"),
+    ArcaneMissiles    = define("ArcaneMissiles",    { 38699, 25345, 10212, 10211, 8418, 8417, 8416, 5145, 5144, 5143 }, "ArcaneMissiles"),
+    Blink             = define("Blink",             { 1953 }, "Blink"),
+    Blizzard          = define("Blizzard",          { 27085, 10187, 10186, 10185, 8427, 6141, 10 }, "Blizzard"),
+    ColdSnap          = define("ColdSnap",          { 11958 }, "ColdSnap"),
+    ConeOfCold        = define("ConeOfCold",        { 27087, 10161, 10160, 10159, 8492, 120 }, "ConeOfCold"),
+    ConjureManaEmerald= define("ConjureManaEmerald",{ 27101, 10054, 10053, 3552, 759 }, "ConjureManaEmerald"),
+    Counterspell      = define("Counterspell",      { 2139 }, "Counterspell"),
+    Evocation         = define("Evocation",         { 12051 }, "Evocation"),
+    FireBlast         = define("FireBlast",         { 27079, 27078, 10199, 10197, 8413, 8412, 2138, 2137, 2136 }, "FireBlast"),
+    FrostArmor        = define("FrostArmor",        { 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168 }, "FrostArmor"),
+    FrostNova         = define("FrostNova",         { 27088, 10230, 6131, 865, 122 }, "FrostNova"),
+    FrostWard         = define("FrostWard",         { 32796, 28609, 10177, 8462, 8461, 6143 }, "FrostWard"),
+    Frostbolt         = define("Frostbolt",         { 27072, 25304, 10181, 10180, 10179, 8408, 8407, 8406, 7322, 837, 205, 116 }, "Frostbolt"),
+    IceBarrier        = define("IceBarrier",        { 33405, 27134, 13033, 13032, 13031, 11426 }, "IceBarrier"),
+    IceBlock          = define("IceBlock",          { 45438 }, "IceBlock"),
+    IceLance          = define("IceLance",          { 30455 }, "IceLance"),
+    IcyVeins          = define("IcyVeins",          { 12472 }, "IcyVeins"),
+    MageArmor         = define("MageArmor",         { 27125, 22783, 22782, 6117 }, "MageArmor"),
+    ManaShield        = define("ManaShield",        { 27131, 10193, 10192, 10191, 8495, 8494, 1463 }, "ManaShield"),
+    Polymorph         = define("Polymorph",         { 12826, 12825, 12824, 118 }, "Polymorph"),
+    PresenceOfMind    = define("PresenceOfMind",    { 12043 }, "PresenceOfMind"),
+    RemoveCurse       = define("RemoveCurse",       { 475 }, "RemoveCurse"),
+    Scorch            = define("Scorch",            { 27074, 27073, 10207, 10206, 10205, 8446, 8445, 8444, 2948 }, "Scorch"),
+    WaterElemental    = define("WaterElemental",    { 31687 }, "WaterElemental"),
+}
 
 -- Root/snare debuff IDs (used by Blink escape)
 local COMMON_SNARES = { 122, 116, 120, 339, 5116, 3409, 3600, 12494, 13099 }
@@ -64,7 +99,7 @@ local function cold_snap_matches(context, s)
     local me = context.me
     if not me then return false end
     -- Defensive path: Ice Block on cooldown, low HP
-    if not (me and NS.spell_ready(SPELLS.IceBlock, me)) then
+    if not (me and NS.spell_ready(ACTION.IceBlock, me)) then
         local hp = me.get_health_percentage and me:get_health_percentage() or 100
         local threshold = (context.is_group or false) and 45 or 35
         if hp <= threshold then return true end
@@ -123,6 +158,39 @@ end
 -- ============================================================================
 -- State builder
 -- ============================================================================
+-- ============================================================================
+-- Schema for safe_state (Pattern 14 nil-guard elimination).
+-- ============================================================================
+local FROST_SCHEMA = {
+    -- Buff presence
+    has_ice_barrier = false, has_mana_shield = false, has_arcane_intellect = false,
+    has_mage_armor = false, has_any_armor = false, has_ice_block = false,
+    has_presence_of_mind = false, has_combustion = false, has_clearcasting = false,
+    -- Resource
+    mana_pct = 100, hp_pct = 100,
+    -- Combat
+    enemy_count = 0, in_combat = false, is_group = false,
+    -- Target
+    target_casting = false, target_casting_interruptible = false,
+    target_hp_pct = 100, target_not_rooted = false,
+    target_frozen = false, frostbite_active = false,
+    -- Spell readiness
+    ice_barrier_ready = false, ice_block_ready = false, cold_snap_ready = false,
+    icy_veins_ready = false, water_elemental_ready = false, frost_nova_ready = false,
+    ice_lance_ready = false, cone_of_cold_ready = false, blizzard_ready = false,
+    frostbolt_ready = false, presence_of_mind_ready = false, evocation_ready = false,
+    mana_shield_ready = false, arcane_intellect_ready = false, fire_blast_ready = false,
+    frost_ward_ready = false, counterspell_ready = false, polymorph_ready = false,
+    remove_curse_ready = false, scorch_ready = false, arcane_missiles_ready = false,
+    -- Numeric
+    winter_chill_stacks = 0, ice_barrier_remains = 999,
+    healthstone_ready = 0,
+    -- Pet
+    has_water_elemental = false,
+    -- Items
+    mana_gem_available = false,
+}
+
 local frost_state = {
     has_ice_barrier = false,
     has_mana_shield = false,
@@ -208,27 +276,27 @@ local function build_state(context)
     frost_state.target_hp_pct = target and NS.unit_health_pct and NS.unit_health_pct(target) or 100
     frost_state.target_not_rooted = target and not NS.debuff_up(target, FROST_NOVA_ROOTS) or false
     frost_state.in_combat = context.in_combat or false
-    frost_state.ice_barrier_ready = me and NS.spell_ready(SPELLS.IceBarrier, me, { skip_range = true }) or false
-    frost_state.ice_block_ready = me and NS.spell_ready(SPELLS.IceBlock, me, { skip_range = true }) or false
-    frost_state.cold_snap_ready = me and NS.spell_ready(SPELLS.ColdSnap, me, { skip_range = true, expected_cooldown = 480 }) or false
-    frost_state.icy_veins_ready = me and NS.spell_ready(SPELLS.IcyVeins, me, { skip_range = true, expected_cooldown = 180 }) or false
-    frost_state.water_elemental_ready = me and NS.spell_ready(SPELLS.WaterElemental, me, { skip_range = true, expected_cooldown = 180 }) or false
-    frost_state.frost_nova_ready = me and NS.spell_ready(SPELLS.FrostNova, me, { skip_range = true, expected_cooldown = 25 }) or false
-    frost_state.ice_lance_ready = target and NS.spell_ready(SPELLS.IceLance, target) or false
-    frost_state.cone_of_cold_ready = me and NS.spell_ready(SPELLS.ConeOfCold, me, { expected_cooldown = 10 }) or false
-    frost_state.blizzard_ready = me and NS.spell_ready(SPELLS.Blizzard, me, { expected_cooldown = 8, skip_range = true }) or false
-    frost_state.frostbolt_ready = target and NS.spell_ready(SPELLS.Frostbolt, target, { expected_cooldown = 3 }) or false
-    frost_state.presence_of_mind_ready = me and NS.spell_ready(SPELLS.PresenceOfMind, me, { skip_range = true, expected_cooldown = 180 }) or false
-    frost_state.evocation_ready = me and NS.spell_ready(SPELLS.Evocation, me, { skip_range = true, expected_cooldown = 480 }) or false
-    frost_state.mana_shield_ready = me and NS.spell_ready(SPELLS.ManaShield, me, { skip_range = true }) or false
-    frost_state.arcane_intellect_ready = me and NS.spell_ready(SPELLS.ArcaneIntellect, me, { skip_range = true }) or false
-    frost_state.fire_blast_ready = target and NS.spell_ready(SPELLS.FireBlast, target, { expected_cooldown = 8 }) or false
-    frost_state.frost_ward_ready = me and NS.spell_ready(SPELLS.FrostWard, me, { skip_range = true }) or false
-    frost_state.counterspell_ready = target and NS.spell_ready(SPELLS.Counterspell, target, { expected_cooldown = 24 }) or false
-    frost_state.polymorph_ready = target and NS.spell_ready(SPELLS.Polymorph, target, { expected_cooldown = 1.5 }) or false
-    frost_state.remove_curse_ready = me and NS.spell_ready(SPELLS.RemoveCurse, me, { skip_range = true }) or false
-    frost_state.scorch_ready = target and NS.spell_ready(SPELLS.Scorch, target, { expected_cooldown = 1.5 }) or false
-    frost_state.arcane_missiles_ready = target and NS.spell_ready(SPELLS.ArcaneMissiles, target, { expected_cooldown = 5 }) or false
+    frost_state.ice_barrier_ready = me and NS.spell_ready(ACTION.IceBarrier, me, { skip_range = true }) or false
+    frost_state.ice_block_ready = me and NS.spell_ready(ACTION.IceBlock, me, { skip_range = true }) or false
+    frost_state.cold_snap_ready = me and NS.spell_ready(ACTION.ColdSnap, me, { skip_range = true, expected_cooldown = 480 }) or false
+    frost_state.icy_veins_ready = me and NS.spell_ready(ACTION.IcyVeins, me, { skip_range = true, expected_cooldown = 180 }) or false
+    frost_state.water_elemental_ready = me and NS.spell_ready(ACTION.WaterElemental, me, { skip_range = true, expected_cooldown = 180 }) or false
+    frost_state.frost_nova_ready = me and NS.spell_ready(ACTION.FrostNova, me, { skip_range = true, expected_cooldown = 25 }) or false
+    frost_state.ice_lance_ready = target and NS.spell_ready(ACTION.IceLance, target) or false
+    frost_state.cone_of_cold_ready = me and NS.spell_ready(ACTION.ConeOfCold, me, { expected_cooldown = 10 }) or false
+    frost_state.blizzard_ready = me and NS.spell_ready(ACTION.Blizzard, me, { expected_cooldown = 8, skip_range = true }) or false
+    frost_state.frostbolt_ready = target and NS.spell_ready(ACTION.Frostbolt, target, { expected_cooldown = 3 }) or false
+    frost_state.presence_of_mind_ready = me and NS.spell_ready(ACTION.PresenceOfMind, me, { skip_range = true, expected_cooldown = 180 }) or false
+    frost_state.evocation_ready = me and NS.spell_ready(ACTION.Evocation, me, { skip_range = true, expected_cooldown = 480 }) or false
+    frost_state.mana_shield_ready = me and NS.spell_ready(ACTION.ManaShield, me, { skip_range = true }) or false
+    frost_state.arcane_intellect_ready = me and NS.spell_ready(ACTION.ArcaneIntellect, me, { skip_range = true }) or false
+    frost_state.fire_blast_ready = target and NS.spell_ready(ACTION.FireBlast, target, { expected_cooldown = 8 }) or false
+    frost_state.frost_ward_ready = me and NS.spell_ready(ACTION.FrostWard, me, { skip_range = true }) or false
+    frost_state.counterspell_ready = target and NS.spell_ready(ACTION.Counterspell, target, { expected_cooldown = 24 }) or false
+    frost_state.polymorph_ready = target and NS.spell_ready(ACTION.Polymorph, target, { expected_cooldown = 1.5 }) or false
+    frost_state.remove_curse_ready = me and NS.spell_ready(ACTION.RemoveCurse, me, { skip_range = true }) or false
+    frost_state.scorch_ready = target and NS.spell_ready(ACTION.Scorch, target, { expected_cooldown = 1.5 }) or false
+    frost_state.arcane_missiles_ready = target and NS.spell_ready(ACTION.ArcaneMissiles, target, { expected_cooldown = 5 }) or false
     frost_state.winter_chill_stacks = target and NS.debuff_stacks and NS.debuff_stacks(target, WINTERS_CHILL_DEBUFF) or 0
     frost_state.frostbite_active = target and NS.debuff_up and NS.debuff_up(target, FROSTBITE_DEBUFF) or false
     local target_rooted = target and NS.debuff_up and NS.debuff_up(target, FROST_NOVA_ROOTS) or false
@@ -244,7 +312,7 @@ local function build_state(context)
     frost_state.ice_barrier_remains = me and (NS.buff_remains and NS.buff_remains(me, ICE_BARRIER_BUFF)) or 999
     frost_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
 
-    return frost_state
+    return spec_kit.safe_state(frost_state, FROST_SCHEMA)
 end
 
 -- (Action definitions removed — all execute functions use NS.try_cast directly)
@@ -253,7 +321,7 @@ end
 -- Match functions
 -- ============================================================================
 local function ice_barrier_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.IceBarrier, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.IceBarrier, 3.0) then return false end
     if context.settings and (context.settings.use_defensives == false or context.settings.use_ice_barrier == false) then return false end
     if s.has_ice_barrier and (s.ice_barrier_remains or 999) > 5 then return false end
     if not s.ice_barrier_ready then return false end
@@ -317,8 +385,8 @@ end
 local function arcane_explosion_matches(context, s)
     if (s.enemy_count or 0) < 3 then return false end
     if not context.in_combat then return false end
-    if not (SPELLS.ArcaneExplosion and NS.spell_ready) then return false end
-    return NS.spell_ready(SPELLS.ArcaneExplosion, context.me or NS.GetPlayer(), { skip_range = true })
+    if not (ACTION.ArcaneExplosion and NS.spell_ready) then return false end
+    return NS.spell_ready(ACTION.ArcaneExplosion, context.me or NS.GetPlayer(), { skip_range = true })
 end
 
 local function frostbolt_matches(context, s)
@@ -347,7 +415,7 @@ local function evocation_matches(context, s)
 end
 
 local function mana_shield_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ManaShield, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ManaShield, 3.0) then return false end
     if context.settings and (context.settings.use_defensives == false or context.settings.use_mana_shield == false) then return false end
     if s.has_mana_shield then return false end
     if not s.mana_shield_ready then return false end
@@ -355,7 +423,7 @@ local function mana_shield_matches(context, s)
 end
 
 local function arcane_intellect_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ArcaneIntellect, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ArcaneIntellect, 3.0) then return false end
     if context.settings and context.settings.use_self_buffs == false then return false end
     if s.has_arcane_intellect then return false end
     if not s.arcane_intellect_ready then return false end
@@ -404,23 +472,23 @@ local function arcane_missiles_matches(context, s)
 end
 
 local function frost_armor_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FrostArmor, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FrostArmor, 3.0) then return false end
     if context.settings and context.settings.use_self_buffs == false then return false end
     if s.has_any_armor then return false end
     -- Frost/Ice Armor is the low-level fallback; once Mage Armor is learned (lvl 34+)
     -- it is strictly better, so defer to mage_armor_matches.
-    if NS.is_spell_learned and NS.is_spell_learned(SPELLS.MageArmor) then return false end
+    if NS.is_spell_learned and NS.is_spell_learned(ACTION.MageArmor) then return false end
     local me = context.me or NS.GetPlayer()
-    return NS.spell_ready and NS.spell_ready(SPELLS.FrostArmor, me, { skip_range = true }) or false
+    return NS.spell_ready and NS.spell_ready(ACTION.FrostArmor, me, { skip_range = true }) or false
 end
 
 local function mage_armor_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.MageArmor, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.MageArmor, 3.0) then return false end
     if context.settings and context.settings.use_self_buffs == false then return false end
     if s.has_mage_armor then return false end
     -- Skip when Mage Armor is not learned so we never spam an unlearned spell;
     -- frost_armor_matches handles the Frost/Ice Armor fallback below it.
-    if NS.is_spell_learned and not NS.is_spell_learned(SPELLS.MageArmor) then return false end
+    if NS.is_spell_learned and not NS.is_spell_learned(ACTION.MageArmor) then return false end
     return true
 end
 
@@ -446,7 +514,7 @@ end
 local function mana_gem_conjure_matches_fn(context, s)
     if s.in_combat then return false end
     if s.mana_gem_available then return false end
-    return NS.spell_ready(SPELLS.ConjureManaEmerald, context.me or NS.GetPlayer(), { skip_range = true }) or false
+    return NS.spell_ready(ACTION.ConjureManaEmerald, context.me or NS.GetPlayer(), { skip_range = true }) or false
 end
 
 local function mana_gem_matches_fn(context, s)
@@ -471,11 +539,11 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
-    { name = "FrostArmor", matches = frost_armor_matches, execute = function() return NS.try_cast(SPELLS.FrostArmor, NS.PLAYER_UNIT, "[FROST] Frost Armor", { skip_range = true }) end },
-    { name = "MageArmor", matches = mage_armor_matches, execute = function() return NS.try_cast(SPELLS.MageArmor, NS.PLAYER_UNIT, "[FROST] Mage Armor", { skip_range = true }) end },
-    { name = "ArcaneIntellect", matches = arcane_intellect_matches, execute = function() return NS.try_cast(SPELLS.ArcaneIntellect, NS.PLAYER_UNIT, "[FROST] ArcaneIntellect", { skip_range = true }) end },
-    { name = "IceBarrier", matches = ice_barrier_matches, execute = function() return NS.try_cast(SPELLS.IceBarrier, NS.PLAYER_UNIT, "[FROST] IceBarrier", { skip_range = true }) end },
-    { name = "IceBlock", matches = ice_block_wrapper, execute = function() return NS.try_cast(SPELLS.IceBlock, NS.PLAYER_UNIT, "[FROST] IceBlock", { skip_range = true }) end },
+    { name = "FrostArmor", matches = frost_armor_matches, execute = function() return NS.try_cast(ACTION.FrostArmor, NS.PLAYER_UNIT, "[FROST] Frost Armor", { skip_range = true }) end },
+    { name = "MageArmor", matches = mage_armor_matches, execute = function() return NS.try_cast(ACTION.MageArmor, NS.PLAYER_UNIT, "[FROST] Mage Armor", { skip_range = true }) end },
+    { name = "ArcaneIntellect", matches = arcane_intellect_matches, execute = function() return NS.try_cast(ACTION.ArcaneIntellect, NS.PLAYER_UNIT, "[FROST] ArcaneIntellect", { skip_range = true }) end },
+    { name = "IceBarrier", matches = ice_barrier_matches, execute = function() return NS.try_cast(ACTION.IceBarrier, NS.PLAYER_UNIT, "[FROST] IceBarrier", { skip_range = true }) end },
+    { name = "IceBlock", matches = ice_block_wrapper, execute = function() return NS.try_cast(ACTION.IceBlock, NS.PLAYER_UNIT, "[FROST] IceBlock", { skip_range = true }) end },
     { name = "Healthstone",
       matches = function(context, state)
           if not context.in_combat then return false end
@@ -490,32 +558,35 @@ local strategies = {
           return false
       end,
     },
-    { name = "Blink", matches = function(context, s) return s.in_combat and (context.self_rooted_snared or (NS.has_player_debuff and NS.has_player_debuff(COMMON_SNARES) or false)) and NS.spell_ready(SPELLS.Blink) end, execute = function() return NS.try_cast(SPELLS.Blink, NS.PLAYER_UNIT, "[FROST] Blink", { skip_range = true }) end },
-    { name = "ColdSnap", matches = cold_snap_wrapper, execute = function() return NS.try_cast(SPELLS.ColdSnap, NS.PLAYER_UNIT, "[FROST] ColdSnap", { skip_range = true }) end },
-    { name = "IcyVeins", matches = icy_veins_matches, execute = function() return NS.try_cast(SPELLS.IcyVeins, NS.PLAYER_UNIT, "[FROST] IcyVeins", { skip_range = true, expected_cooldown = 180 }) end },
-    { name = "WaterElemental", matches = water_elemental_matches, execute = function() return NS.try_cast(SPELLS.WaterElemental, NS.PLAYER_UNIT, "[FROST] WaterElemental", { skip_range = true, expected_cooldown = 180 }) end },
-    { name = "FrostbiteFrostbolt", matches = frostbite_fb_matches, execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[FROST] Frostbite FB") end },
-    { name = "FrozenIceLance", matches = ice_lance_matches, execute = function(context) return NS.try_cast(SPELLS.IceLance, context.target, "[FROST] Frozen IceLance") end },
-    { name = "PresenceOfMind", matches = presence_of_mind_matches, execute = function() return NS.try_cast(SPELLS.PresenceOfMind, NS.PLAYER_UNIT, "[FROST] PresenceOfMind", { skip_range = true }) end },
-    { name = "Evocation", matches = evocation_matches, execute = function() return NS.try_cast(SPELLS.Evocation, NS.PLAYER_UNIT, "[FROST] Evocation", { skip_range = true }) end },
-    { name = "ManaGemConjure", matches = mana_gem_conjure_matches_fn, execute = function() return NS.try_cast(SPELLS.ConjureManaEmerald, NS.PLAYER_UNIT, "[FROST] ConjureManaGem", { skip_range = true }) end },
+    { name = "Blink", matches = function(context, s) return s.in_combat and (context.self_rooted_snared or (NS.has_player_debuff and NS.has_player_debuff(COMMON_SNARES) or false)) and NS.spell_ready(ACTION.Blink) end, execute = function() return NS.try_cast(ACTION.Blink, NS.PLAYER_UNIT, "[FROST] Blink", { skip_range = true }) end },
+    { name = "ColdSnap", matches = cold_snap_wrapper, execute = function() return NS.try_cast(ACTION.ColdSnap, NS.PLAYER_UNIT, "[FROST] ColdSnap", { skip_range = true }) end },
+    { name = "IcyVeins", matches = icy_veins_matches, execute = function() return NS.try_cast(ACTION.IcyVeins, NS.PLAYER_UNIT, "[FROST] IcyVeins", { skip_range = true, expected_cooldown = 180 }) end },
+    { name = "WaterElemental", matches = water_elemental_matches, execute = function() return NS.try_cast(ACTION.WaterElemental, NS.PLAYER_UNIT, "[FROST] WaterElemental", { skip_range = true, expected_cooldown = 180 }) end },
+    { name = "FrostbiteFrostbolt", matches = frostbite_fb_matches, execute = function(context) return NS.try_cast(ACTION.Frostbolt, context.target, "[FROST] Frostbite FB") end },
+    { name = "FrozenIceLance", matches = ice_lance_matches, execute = function(context) return NS.try_cast(ACTION.IceLance, context.target, "[FROST] Frozen IceLance") end },
+    { name = "PresenceOfMind", matches = presence_of_mind_matches, execute = function() return NS.try_cast(ACTION.PresenceOfMind, NS.PLAYER_UNIT, "[FROST] PresenceOfMind", { skip_range = true }) end },
+    { name = "Evocation", matches = evocation_matches, execute = function() return NS.try_cast(ACTION.Evocation, NS.PLAYER_UNIT, "[FROST] Evocation", { skip_range = true }) end },
+    { name = "ManaGemConjure", matches = mana_gem_conjure_matches_fn, execute = function() return NS.try_cast(ACTION.ConjureManaEmerald, NS.PLAYER_UNIT, "[FROST] ConjureManaGem", { skip_range = true }) end },
     { name = "ManaGem", matches = mana_gem_matches_fn, execute = function() return use_mana_gem() end },
-    { name = "ManaShield", matches = mana_shield_matches, execute = function() return NS.try_cast(SPELLS.ManaShield, NS.PLAYER_UNIT, "[FROST] ManaShield", { skip_range = true }) end },
-    { name = "FrostWard", matches = frost_ward_matches, execute = function() return NS.try_cast(SPELLS.FrostWard, NS.PLAYER_UNIT, "[FROST] FrostWard", { skip_range = true }) end },
-    { name = "RemoveCurse", matches = remove_curse_matches, execute = function() return NS.try_cast(SPELLS.RemoveCurse, NS.PLAYER_UNIT, "[FROST] RemoveCurse", { skip_range = true }) end },
-    { name = "WintersChill", matches = winter_chill_fb_matches, execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[FROST] Winter's Chill") end },
-    { name = "FrostNova", matches = frost_nova_wrapper, execute = function(context) return NS.try_cast(SPELLS.FrostNova, context.me or NS.GetPlayer(), "[FROST] FrostNova", { skip_range = true }) end },
-    { name = "ConeOfCold", matches = cone_of_cold_wrapper, execute = function(context) return NS.try_cast(SPELLS.ConeOfCold, context.me or NS.GetPlayer(), "[FROST] ConeOfCold", { skip_range = true }) end },
-    { name = "Polymorph", matches = polymorph_matches, execute = function(context) return NS.try_cast(SPELLS.Polymorph, context.target, "[FROST] Polymorph") end },
-    { name = "ArcaneExplosion", matches = arcane_explosion_matches, execute = function(context) return NS.try_cast(SPELLS.ArcaneExplosion, context.me or NS.GetPlayer(), "[FROST] ArcaneExplosion", { skip_range = true }) end },
-    { name = "Blizzard", matches = blizzard_matches, execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, 8, 35); if pos then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[FROST] Blizzard") end; return NS.try_cast(SPELLS.Blizzard, t, "[FROST] Blizzard") end },
-    { name = "FireBlast", matches = fire_blast_matches, execute = function(context) return NS.try_cast(SPELLS.FireBlast, context.target, "[FROST] FireBlast") end },
-    { name = "Scorch", matches = scorch_matches, execute = function(context) return NS.try_cast(SPELLS.Scorch, context.target, "[FROST] Scorch") end },
-    { name = "ArcaneMissiles", matches = arcane_missiles_matches, execute = function(context) return NS.try_cast(SPELLS.ArcaneMissiles, context.target, "[FROST] ArcaneMissiles") end },
-    { name = "Frostbolt", matches = frostbolt_matches, execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[FROST] Frostbolt") end },
+    { name = "ManaShield", matches = mana_shield_matches, execute = function() return NS.try_cast(ACTION.ManaShield, NS.PLAYER_UNIT, "[FROST] ManaShield", { skip_range = true }) end },
+    { name = "FrostWard", matches = frost_ward_matches, execute = function() return NS.try_cast(ACTION.FrostWard, NS.PLAYER_UNIT, "[FROST] FrostWard", { skip_range = true }) end },
+    { name = "RemoveCurse", matches = remove_curse_matches, execute = function() return NS.try_cast(ACTION.RemoveCurse, NS.PLAYER_UNIT, "[FROST] RemoveCurse", { skip_range = true }) end },
+    { name = "WintersChill", matches = winter_chill_fb_matches, execute = function(context) return NS.try_cast(ACTION.Frostbolt, context.target, "[FROST] Winter's Chill") end },
+    { name = "FrostNova", matches = frost_nova_wrapper, execute = function(context) return NS.try_cast(ACTION.FrostNova, context.me or NS.GetPlayer(), "[FROST] FrostNova", { skip_range = true }) end },
+    { name = "ConeOfCold", matches = cone_of_cold_wrapper, execute = function(context) return NS.try_cast(ACTION.ConeOfCold, context.me or NS.GetPlayer(), "[FROST] ConeOfCold", { skip_range = true }) end },
+    { name = "Polymorph", matches = polymorph_matches, execute = function(context) return NS.try_cast(ACTION.Polymorph, context.target, "[FROST] Polymorph") end },
+    { name = "ArcaneExplosion", matches = arcane_explosion_matches, execute = function(context) return NS.try_cast(ACTION.ArcaneExplosion, context.me or NS.GetPlayer(), "[FROST] ArcaneExplosion", { skip_range = true }) end },
+    { name = "Blizzard", matches = blizzard_matches, execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.Blizzard), t, 8, 35); if pos then return NS.try_cast_position(ACTION.Blizzard, pos, t, "[FROST] Blizzard") end; return NS.try_cast(ACTION.Blizzard, t, "[FROST] Blizzard") end },
+    { name = "FireBlast", matches = fire_blast_matches, execute = function(context) return NS.try_cast(ACTION.FireBlast, context.target, "[FROST] FireBlast") end },
+    { name = "Scorch", matches = scorch_matches, execute = function(context) return NS.try_cast(ACTION.Scorch, context.target, "[FROST] Scorch") end },
+    { name = "ArcaneMissiles", matches = arcane_missiles_matches, execute = function(context) return NS.try_cast(ACTION.ArcaneMissiles, context.target, "[FROST] ArcaneMissiles") end },
+    { name = "Frostbolt", matches = frostbolt_matches, execute = function(context) return NS.try_cast(ACTION.Frostbolt, context.target, "[FROST] Frostbolt") end },
 }
 
-NS.rotation_registry:register("frost", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("frost", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("Mage frost rotation registered") end
 -- Mage frost rotation registered
-return strategies
+return { strategies = strategies, build_state = build_state }
 
