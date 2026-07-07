@@ -1,12 +1,48 @@
--- retribution_sylvanas.lua -- Paladin Retribution DPS for TBC Anniversary (2.5.5).
--- WHAT:  melee DPS spec (Crusader Strike, Judgement, seal twisting SoB/SoM/SoC).
+-- retribution_sylvanas.lua — Paladin Retribution DPS for TBC Anniversary (2.5.5).
+-- WHAT:  melee DPS spec (Crusader Strike, Judgement, seal twisting SoB/SoM/SoC,
+--          post-swing Judgement gate, CLEU twist diagnostics, PvP utility).
 -- WHEN:  combat, with valid enemy target.
 -- WHY:   mirrors wowsims APL: CS > Judgement > Consecration > Exorcism.
--- SAFETY: seal-twist timing native-backed; all state fields nil-guarded.
+-- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); seal-twist timing
+--          native-backed; registration guarded.
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local SPELLS = NS.PaladinSpells or {}
+
+-- spec_kit migration #24
+local spec_kit = require("shared/spec_kit_sylvanas")
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    AvengingWrath        = define("AvengingWrath",        { 31884 }, "AvengingWrath"),
+    BlessingOfFreedom    = define("BlessingOfFreedom",    { 1044 }, "BlessingOfFreedom"),
+    BlessingOfKings      = define("BlessingOfKings",      { 20217 }, "BlessingOfKings"),
+    BlessingOfMight      = define("BlessingOfMight",      { 27140, 25291, 19838, 19837, 19836, 19835, 19834, 19740 }, "BlessingOfMight"),
+    BlessingOfProtection = define("BlessingOfProtection", { 10278, 5599, 1022 }, "BlessingOfProtection"),
+    Cleanse              = define("Cleanse",              { 4987 }, "Cleanse"),
+    Consecration         = define("Consecration",         { 27173, 20924, 20923, 20922, 20116, 26573 }, "Consecration"),
+    CrusaderStrike       = define("CrusaderStrike",       { 35395 }, "CrusaderStrike"),
+    DivineProtection     = define("DivineProtection",     { 5573, 498 }, "DivineProtection"),
+    DivineShield         = define("DivineShield",         { 1020, 642 }, "DivineShield"),
+    Exorcism             = define("Exorcism",             { 27138, 10314, 10313, 10312, 5615, 5614, 879 }, "Exorcism"),
+    HammerOfJustice      = define("HammerOfJustice",      { 10308, 5589, 5588, 853 }, "HammerOfJustice"),
+    HammerOfWrath        = define("HammerOfWrath",        { 27180, 24275, 24274, 24239 }, "HammerOfWrath"),
+    HolyWrath            = define("HolyWrath",            { 27139, 10318, 2812 }, "HolyWrath"),
+    Judgement            = define("Judgement",            { 20271 }, "Judgement"),
+    LayOnHands           = define("LayOnHands",           { 27154, 10310, 2800, 633 }, "LayOnHands"),
+    Purify               = define("Purify",               { 1152 }, "Purify"),
+    Repentance           = define("Repentance",           { 20066, 5164 }, "Repentance"),
+    SanctityAura         = define("SanctityAura",         { 20218 }, "SanctityAura"),
+    SealBlood            = define("SealBlood",            { 31892 }, "SealBlood"),
+    SealCommand          = define("SealCommand",          { 27170, 20920, 20919, 20918, 20915, 20375 }, "SealCommand"),
+    SealCrusader         = define("SealCrusader",         { 27158, 20308, 20307, 20306, 20305, 20162, 21082 }, "SealCrusader"),
+    SealOfTheMartyr      = define("SealOfTheMartyr",      { 348700 }, "SealOfTheMartyr"),
+    SealOfWisdom         = define("SealOfWisdom",         { 27166, 20357, 20356, 20166 }, "SealOfWisdom"),
+    SealRighteousness    = define("SealRighteousness",    { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084 }, "SealRighteousness"),
+    SealWisdom           = define("SealWisdom",           { 27166, 20357, 20356, 20166 }, "SealWisdom"),
+    -- SealCommandRank1 is a rank-1-only variant used for prep twist; nil-safe fallback to SealCommand
+    SealCommandRank1     = define("SealCommandRank1",     { 20375 }, "SealCommandRank1"),
+}
 local PLAYER = NS.PLAYER_UNIT
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
@@ -23,15 +59,15 @@ local function action(ids, label)
 end
 
 -- Spell IDs are TBC 2.4.3 ranks only, newest-to-oldest where ranks exist.
-local SealCrusader = SPELLS.SealCrusader or action({ 27158, 20308, 20307, 20306, 20305, 20162, 21082 }, "SealCrusader")
-local SealWisdom = SPELLS.SealOfWisdom or SPELLS.SealWisdom or action({ 27166, 20357, 20356, 20166 }, "SealOfWisdom")
-local BlessingFreedom = SPELLS.BlessingOfFreedom or action({ 1044 }, "BlessingOfFreedom")
-local BlessingProtection = SPELLS.BlessingOfProtection or action({ 10278, 5599, 1022 }, "BlessingOfProtection")
-local DivineProtection = SPELLS.DivineProtection or action({ 498 }, "DivineProtection")
-local Purify = SPELLS.Purify or action({ 1152 }, "Purify")
-local HammerWrath = SPELLS.HammerOfWrath or action({ 27180, 24275, 24274, 24239 }, "HammerOfWrath")
-local HammerJustice = SPELLS.HammerOfJustice or action({ 10308, 5589, 5588, 853 }, "HammerOfJustice")
-local Repentance = SPELLS.Repentance or action({ 20066 }, "Repentance")
+local SealCrusader = ACTION.SealCrusader or action({ 27158, 20308, 20307, 20306, 20305, 20162, 21082 }, "SealCrusader")
+local SealWisdom = ACTION.SealOfWisdom or ACTION.SealWisdom or action({ 27166, 20357, 20356, 20166 }, "SealOfWisdom")
+local BlessingFreedom = ACTION.BlessingOfFreedom or action({ 1044 }, "BlessingOfFreedom")
+local BlessingProtection = ACTION.BlessingOfProtection or action({ 10278, 5599, 1022 }, "BlessingOfProtection")
+local DivineProtection = ACTION.DivineProtection or action({ 498 }, "DivineProtection")
+local Purify = ACTION.Purify or action({ 1152 }, "Purify")
+local HammerWrath = ACTION.HammerOfWrath or action({ 27180, 24275, 24274, 24239 }, "HammerOfWrath")
+local HammerJustice = ACTION.HammerOfJustice or action({ 10308, 5589, 5588, 853 }, "HammerOfJustice")
+local Repentance = ACTION.Repentance or action({ 20066 }, "Repentance")
 
 local SEAL_COMMAND_BUFF = { 27170, 20920, 20919, 20918, 20915, 20375 }
 local SEAL_COMMAND_RANK1_BUFF = { 20375 }
@@ -77,7 +113,26 @@ local TWIST_PREP_WINDOW = 1.20
 local MELEE_RANGE = 8
 
 -- ============================================================================
--- CLEU swing diagnostics integration
+-- State schema (nil-guard defaults for spec_kit.safe_state)
+-- ============================================================================
+local RET_SCHEMA = {
+    hp_pct = 100,  mana_pct = 100,  target_hp_pct = 100,  enemy_count = 1,
+    swing_remains = 99,  in_melee = true,  can_twist = false,  can_use_blood = false,
+    mana_emergency = false,  is_group = false,
+    -- Seals
+    has_blood = false,  has_command = false,  has_command_rank1 = false,
+    has_crusader = false,  has_righteousness = false,  has_wisdom = false,
+    has_martyr = false,  has_damage_seal = false,
+    -- Blessings / debuffs
+    has_might = false,  has_kings = false,  has_forbearance = false,
+    target_has_crusader = false,  target_has_wisdom = false,
+    -- Target
+    target_casting = false,  target_casting_interruptible = false,
+    target_player = false,  target_fleeing = false,
+    -- Power windows
+    bloodlust_active = false,  major_cd_active = false,  major_cd_window = false,
+}
+
 -- ============================================================================
 local _cleu = NS.SwingDiagnostics
 if _cleu then
@@ -256,13 +311,13 @@ local function should_use_blood(context)
     local preference = get_setting(context, "seal_preference", get_setting(context, "retri_seal_preference", "auto"))
     if preference == "blood" then return true end
     if preference == "command" then return false end
-    return SPELLS.SealBlood ~= nil
+    return ACTION.SealBlood ~= nil
 end
 
 local function damage_seal_spell(state)
-    if state.preferred_damage_seal == "martyr" then return SPELLS.SealOfTheMartyr end
-    if state.preferred_damage_seal == "blood" then return SPELLS.SealBlood end
-    return SPELLS.SealCommand
+    if state.preferred_damage_seal == "martyr" then return ACTION.SealOfTheMartyr end
+    if state.preferred_damage_seal == "blood" then return ACTION.SealBlood end
+    return ACTION.SealCommand
 end
 
 local function build_state(context)
@@ -284,7 +339,7 @@ local function build_state(context)
     local twist_ms = get_setting(context, "retri_twist_window", 450)
     ret_state.twist_window = twist_ms / 1000
     -- Alliance faction override: Seal of the Martyr replaces Seal of Blood
-    if SPELLS.SealOfTheMartyr and NS.unit_faction and NS.GetPlayer() then
+    if ACTION.SealOfTheMartyr and NS.unit_faction and NS.GetPlayer() then
         local faction = NS.unit_faction(NS.GetPlayer())
         if faction == "Alliance" and ret_state.preferred_damage_seal == "blood" then
             ret_state.preferred_damage_seal = "martyr"
@@ -322,7 +377,7 @@ local function build_state(context)
     ret_state.bloodlust_active = has_player_buff(BLOODLUST_HEROISM_BUFFS)
     ret_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
     ret_state.major_cd_window = ret_state.bloodlust_active or ret_state.major_cd_active
-    return ret_state
+    return spec_kit.safe_state(ret_state, RET_SCHEMA)
 end
 
 local function cast(spell, target, reason, opts)
@@ -345,20 +400,20 @@ add_strategy(strategies, "Ret_DivineShield_Emergency", 1000, function(context, s
     -- Group: preventative at higher HP; solo: emergency only
     local default_threshold = state.is_group and 25 or 15
     local threshold = get_setting(context, "divine_shield_hp", get_setting(context, "retri_ds_hp", default_threshold))
-    return (state.hp_pct or 100) <= threshold and not state.has_forbearance and NS.spell_ready(SPELLS.DivineShield, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.DivineShield, PLAYER, "[RET] Divine Shield emergency", { skip_range = true }) end)
+    return (state.hp_pct or 100) <= threshold and not state.has_forbearance and NS.spell_ready(ACTION.DivineShield, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.DivineShield, PLAYER, "[RET] Divine Shield emergency", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_LayOnHands_LastResort", 990, function(context, state)
     local default_threshold = state.is_group and 15 or 8
     local threshold = get_setting(context, "lay_on_hands_hp", default_threshold)
-    return (state.hp_pct or 100) <= threshold and NS.spell_ready(SPELLS.LayOnHands, PLAYER, { skip_range = true, expected_cooldown = 3600 }) or false
-end, function() return cast(SPELLS.LayOnHands, PLAYER, "[RET] Lay on Hands last resort", { skip_range = true, expected_cooldown = 3600 }) end)
+    return (state.hp_pct or 100) <= threshold and NS.spell_ready(ACTION.LayOnHands, PLAYER, { skip_range = true, expected_cooldown = 3600 }) or false
+end, function() return cast(ACTION.LayOnHands, PLAYER, "[RET] Lay on Hands last resort", { skip_range = true, expected_cooldown = 3600 }) end)
 
 add_strategy(strategies, "Ret_SanctityAura", 550, function(context, state)
     if not get_setting(context, "sanctity_aura_enabled", get_setting(context, "retri_aura_enabled", true)) then return false end
     if has_player_buff(SANCTITY_AURA_GATE_BUFF) then return false end
-    return NS.spell_ready(SPELLS.SanctityAura, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.SanctityAura, PLAYER, "[RET] Sanctity Aura", { skip_range = true }) end)
+    return NS.spell_ready(ACTION.SanctityAura, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.SanctityAura, PLAYER, "[RET] Sanctity Aura", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_DivineProtection_Physical", 980, function(context, state)
     local default_threshold = state.is_group and 35 or 22
@@ -391,8 +446,8 @@ end, function(_, state) return cast(BlessingFreedom, state.utility_target, "[RET
 
 add_strategy(strategies, "Ret_Cleanse_Self", 900, function(context)
     if not get_setting(context, "use_cleanse", get_setting(context, "retri_auto_cleanse", true)) then return false end
-    return has_player_debuff(COMMON_CLEANSE) and NS.spell_ready(SPELLS.Cleanse, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.Cleanse, PLAYER, "[RET] Cleanse self", { skip_range = true }) end)
+    return has_player_debuff(COMMON_CLEANSE) and NS.spell_ready(ACTION.Cleanse, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.Cleanse, PLAYER, "[RET] Cleanse self", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_Purify_SelfFallback", 890, function(context)
     if not get_setting(context, "use_purify", true) then return false end
@@ -402,8 +457,8 @@ end, function() return cast(Purify, PLAYER, "[RET] Purify self", { skip_range = 
 add_strategy(strategies, "Ret_Cleanse_Ally", 880, function(context, state)
     if not get_setting(context, "cleanse_allies", true) then return false end
     state.utility_target = find_ally(context, function(unit) return unit_has_debuff(unit, COMMON_CLEANSE) end)
-    return state.utility_target ~= nil and NS.spell_ready(SPELLS.Cleanse, state.utility_target, {}) or false
-end, function(_, state) return cast(SPELLS.Cleanse, state.utility_target, "[RET] Cleanse ally") end)
+    return state.utility_target ~= nil and NS.spell_ready(ACTION.Cleanse, state.utility_target, {}) or false
+end, function(_, state) return cast(ACTION.Cleanse, state.utility_target, "[RET] Cleanse ally") end)
 
 add_strategy(strategies, "Ret_PvP_Repentance_Opener", 850, function(context, state)
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "disorient") then return false end
@@ -429,7 +484,7 @@ end, function(context) return cast(HammerWrath, context.target, "[RET PvP] Hamme
 add_strategy(strategies, "Ret_AvengingWrath_Burst", 780, function(context, state)
     if not get_setting(context, "use_avenging_wrath", get_setting(context, "retri_aw_enabled", true)) then return false end
     if state.has_forbearance then return false end
-    if not (NS.spell_ready(SPELLS.AvengingWrath, PLAYER, { skip_range = true, expected_cooldown = 180 }) or false) then return false end
+    if not (NS.spell_ready(ACTION.AvengingWrath, PLAYER, { skip_range = true, expected_cooldown = 180 }) or false) then return false end
     -- TTD gate: don't waste 3min CD on a dying target
     if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
     -- Align with major power windows (Bloodlust/Drums/other CDs) or burn late fight
@@ -438,7 +493,7 @@ add_strategy(strategies, "Ret_AvengingWrath_Burst", 780, function(context, state
     local ttd = context.ttd or 999
     if not align and combat_time < 45 and ttd > 15 then return false end
     return true
-end, function() return cast(SPELLS.AvengingWrath, PLAYER, "[RET] Avenging Wrath burst", { skip_range = true, expected_cooldown = 180 }) end, 180)
+end, function() return cast(ACTION.AvengingWrath, PLAYER, "[RET] Avenging Wrath burst", { skip_range = true, expected_cooldown = 180 }) end, 180)
 
 -- HotC Opener: Apply Judgement of the Crusader on pull for +3% raid crit.
 -- Skips if another paladin already has the debuff on the target.
@@ -451,8 +506,8 @@ end, function() return cast(SealCrusader, PLAYER, "[RET] HotC Opener - Seal of t
 add_strategy(strategies, "Ret_HotC_Opener_Judge", 770, function(context, state)
     return context.in_combat and (context.combat_time or 0) < 8
         and not state.target_has_crusader and state.has_crusader
-and NS.spell_ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
-end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] HotC Opener - Judge Crusader", { skip_gcd = true, expected_cooldown = 10 }) end)
+and NS.spell_ready(ACTION.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
+end, function(context) return cast(ACTION.Judgement, context.target, "[RET] HotC Opener - Judge Crusader", { skip_gcd = true, expected_cooldown = 10 }) end)
 
 strategies[#strategies + 1] = {
     name = "SealTwistBlood",
@@ -462,7 +517,7 @@ strategies[#strategies + 1] = {
         -- [ARTISTRY] Improved: Use dynamic twist_window instead of hardcoded 0.45s
         local twist_window = state.twist_window or TWIST_WINDOW
         local swing_remains = state.swing_remains or 99
-        if not (state.can_twist and state.has_command and not state.has_blood and swing_remains <= twist_window and NS.spell_ready(SPELLS.SealBlood, PLAYER, { skip_range = true })) then
+        if not (state.can_twist and state.has_command and not state.has_blood and swing_remains <= twist_window and NS.spell_ready(ACTION.SealBlood, PLAYER, { skip_range = true })) then
             -- Diagnostic: if we're in twist window but didn't attempt, log NO-TWIST
             if state.can_twist and swing_remains <= twist_window and not state.has_blood then
                 log_twist_result("NO-TWIST")
@@ -473,8 +528,8 @@ strategies[#strategies + 1] = {
         return true
     end,
     execute = function()
-        if _cleu then _cleu.mark_twist_attempt(SPELLS.SealBlood) end
-        local ok = cast(SPELLS.SealBlood, PLAYER, "[RET] Seal twist: Blood", { skip_range = true })
+        if _cleu then _cleu.mark_twist_attempt(ACTION.SealBlood) end
+        local ok = cast(ACTION.SealBlood, PLAYER, "[RET] Seal twist: Blood", { skip_range = true })
         if ok then
             log_twist_result("PERFECT")
         else
@@ -494,16 +549,16 @@ strategies[#strategies + 1] = {
         local prep_start = twist_window + 0.75 -- Give enough time for GCD + Reaction
         local swing_remains = state.swing_remains or 99
         -- If Judgement is about to come off CD (≤1.5s), skip prep and let Judgement fire first
-        local judge_cd = NS.cooldown_remains and NS.cooldown_remains(SPELLS.Judgement) or 0
+        local judge_cd = NS.cooldown_remains and NS.cooldown_remains(ACTION.Judgement) or 0
         if judge_cd <= 1.5 then return false end
-        if not (state.can_twist and state.can_use_blood and not state.has_command_rank1 and swing_remains <= prep_start and swing_remains > twist_window and NS.spell_ready(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, { skip_range = true })) then
+        if not (state.can_twist and state.can_use_blood and not state.has_command_rank1 and swing_remains <= prep_start and swing_remains > twist_window and NS.spell_ready(ACTION.SealCommandRank1 or ACTION.SealCommand, PLAYER, { skip_range = true })) then
             return false
         end
         _last_expected_swing_time = (NS.time_now and NS.time_now() or 0) + swing_remains
         return true
     end,
     execute = function()
-        local ok = cast(SPELLS.SealCommandRank1 or SPELLS.SealCommand, PLAYER, "[RET] Seal twist prep: Rank 1 Command", { skip_range = true })
+        local ok = cast(ACTION.SealCommandRank1 or ACTION.SealCommand, PLAYER, "[RET] Seal twist prep: Rank 1 Command", { skip_range = true })
         if not ok then
             log_twist_result("PHANTOM")
         end
@@ -512,13 +567,13 @@ strategies[#strategies + 1] = {
 }
 
 add_strategy(strategies, "Ret_CrusaderStrike_AfterJudgement", 730, function(context, state)
-    return state.in_melee and not state.has_damage_seal and NS.spell_ready(SPELLS.CrusaderStrike, context.target, { expected_cooldown = 6 }) or false
-end, function(context) return cast(SPELLS.CrusaderStrike, context.target, "[RET] Crusader Strike after Judgement", { expected_cooldown = 6 }) end)
+    return state.in_melee and not state.has_damage_seal and NS.spell_ready(ACTION.CrusaderStrike, context.target, { expected_cooldown = 6 }) or false
+end, function(context) return cast(ACTION.CrusaderStrike, context.target, "[RET] Crusader Strike after Judgement", { expected_cooldown = 6 }) end)
 
 add_strategy(strategies, "Ret_JudgeCrusader", 720, function(context, state)
     if not post_swing_judge_gate(context, state) then return false end
-    return not state.target_has_crusader and state.has_crusader and NS.spell_ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
-end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Seal of the Crusader", { skip_gcd = true, expected_cooldown = 10 }) end)
+    return not state.target_has_crusader and state.has_crusader and NS.spell_ready(ACTION.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
+end, function(context) return cast(ACTION.Judgement, context.target, "[RET] Judge Seal of the Crusader", { skip_gcd = true, expected_cooldown = 10 }) end)
 
 add_strategy(strategies, "Ret_ApplyCrusaderSeal", 710, function(context, state)
     if not seal_refresh_allowed(context) then return false end
@@ -532,38 +587,38 @@ strategies[#strategies + 1] = {
     matches = function(context, state)
         local prep_start = (state.twist_window or TWIST_WINDOW) + 0.75
         if state.can_twist and (state.has_command or state.has_command_rank1) and not state.has_blood and (state.swing_remains or 99) <= prep_start then return false end
-        return state.in_melee and NS.spell_ready(SPELLS.CrusaderStrike, context.target, { expected_cooldown = 6 }) or false
+        return state.in_melee and NS.spell_ready(ACTION.CrusaderStrike, context.target, { expected_cooldown = 6 }) or false
     end,
     execute = function(context)
-        return cast(SPELLS.CrusaderStrike, context.target, "[RET] Crusader Strike", { expected_cooldown = 6 })
+        return cast(ACTION.CrusaderStrike, context.target, "[RET] Crusader Strike", { expected_cooldown = 6 })
     end,
 }
 
 add_strategy(strategies, "Ret_JudgeDamageSeal", 690, function(context, state)
     if not post_swing_judge_gate(context, state) then return false end
-    return state.has_damage_seal and (state.mana_pct or 100) >= 12 and NS.spell_ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
-end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judgement damage seal", { skip_gcd = true, expected_cooldown = 10 }) end)
+    return state.has_damage_seal and (state.mana_pct or 100) >= 12 and NS.spell_ready(ACTION.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
+end, function(context) return cast(ACTION.Judgement, context.target, "[RET] Judgement damage seal", { skip_gcd = true, expected_cooldown = 10 }) end)
 
 add_strategy(strategies, "Ret_SealBlood_Primary", 670, function(context, state)
     if not seal_refresh_allowed(context) then return false end
-    return state.preferred_damage_seal == "blood" and not state.has_blood and NS.spell_ready(SPELLS.SealBlood, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.SealBlood, PLAYER, "[RET] Seal of Blood primary", { skip_range = true }) end)
+    return state.preferred_damage_seal == "blood" and not state.has_blood and NS.spell_ready(ACTION.SealBlood, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.SealBlood, PLAYER, "[RET] Seal of Blood primary", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_SealMartyr_Primary", 665, function(context, state)
     if not seal_refresh_allowed(context) then return false end
-    return state.preferred_damage_seal == "martyr" and not state.has_martyr and NS.spell_ready(SPELLS.SealOfTheMartyr, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.SealOfTheMartyr, PLAYER, "[RET] Seal of the Martyr primary", { skip_range = true }) end)
+    return state.preferred_damage_seal == "martyr" and not state.has_martyr and NS.spell_ready(ACTION.SealOfTheMartyr, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.SealOfTheMartyr, PLAYER, "[RET] Seal of the Martyr primary", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_SealCommand_Primary", 660, function(context, state)
     if not seal_refresh_allowed(context) then return false end
-    return state.preferred_damage_seal == "command" and not state.has_command and NS.spell_ready(SPELLS.SealCommand, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.SealCommand, PLAYER, "[RET] Seal of Command primary", { skip_range = true }) end)
+    return state.preferred_damage_seal == "command" and not state.has_command and NS.spell_ready(ACTION.SealCommand, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.SealCommand, PLAYER, "[RET] Seal of Command primary", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_JudgementWisdom_LowMana", 640, function(context, state)
     if not post_swing_judge_gate(context, state) then return false end
     local threshold = get_setting(context, "retri_judge_wisdom_mana", 45)
-    return (state.mana_pct or 100) <= threshold and state.has_wisdom and not state.target_has_wisdom and NS.spell_ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
-end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Wisdom for mana", { skip_gcd = true, expected_cooldown = 10 }) end)
+    return (state.mana_pct or 100) <= threshold and state.has_wisdom and not state.target_has_wisdom and NS.spell_ready(ACTION.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
+end, function(context) return cast(ACTION.Judgement, context.target, "[RET] Judge Wisdom for mana", { skip_gcd = true, expected_cooldown = 10 }) end)
 
 add_strategy(strategies, "Ret_SealWisdom_Emergency", 630, function(_, state)
     return (state.mana_pct or 100) <= 18 and not state.has_wisdom and NS.spell_ready(SealWisdom, PLAYER, { skip_range = true }) or false
@@ -583,17 +638,17 @@ strategies[#strategies + 1] = {
         if state.can_twist and (state.has_command or state.has_command_rank1) and not state.has_blood and (state.swing_remains or 99) <= prep_start then return false end
         if state.mana_emergency then return false end
         local min_targets = get_setting(context, "consecration_min_targets", get_setting(context, "retri_consecration_targets", 3))
-        return (state.enemy_count or 0) >= min_targets and (state.mana_pct or 100) >= 35 and NS.spell_ready(SPELLS.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 }) or false
+        return (state.enemy_count or 0) >= min_targets and (state.mana_pct or 100) >= 35 and NS.spell_ready(ACTION.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 }) or false
     end,
     execute = function()
-        return cast(SPELLS.Consecration, PLAYER, "[RET] Consecration AoE", { skip_range = true, expected_cooldown = 8 })
+        return cast(ACTION.Consecration, PLAYER, "[RET] Consecration AoE", { skip_range = true, expected_cooldown = 8 })
     end,
 }
 
 add_strategy(strategies, "Ret_Consecration_ManaDump", 590, function(context, state)
     if state.mana_emergency then return false end
-    return get_setting(context, "consecration_single_target", false) and (state.mana_pct or 0) >= 75 and NS.spell_ready(SPELLS.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 }) or false
-end, function() return cast(SPELLS.Consecration, PLAYER, "[RET] Consecration mana dump", { skip_range = true, expected_cooldown = 8 }) end, 8)
+    return get_setting(context, "consecration_single_target", false) and (state.mana_pct or 0) >= 75 and NS.spell_ready(ACTION.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 }) or false
+end, function() return cast(ACTION.Consecration, PLAYER, "[RET] Consecration mana dump", { skip_range = true, expected_cooldown = 8 }) end, 8)
 
 add_strategy(strategies, "Exorcism", 580, function(context, state)
     local prep_start = (state.twist_window or TWIST_WINDOW) + 0.75
@@ -602,8 +657,8 @@ add_strategy(strategies, "Exorcism", 580, function(context, state)
     -- [ARTISTRY] Improved: TBC Exorcism only works on Undead and Demons.
     if not context.target then return false end
     local type = creature_type(context.target)
-    return (DEMON_OR_UNDEAD[type] and NS.spell_ready(SPELLS.Exorcism, context.target, { expected_cooldown = 15 }) or false) or false
-end, function(context) return NS.try_cast(SPELLS.Exorcism, context.target, "[RET] Exorcism", { expected_cooldown = 15 }) end, 15)
+    return (DEMON_OR_UNDEAD[type] and NS.spell_ready(ACTION.Exorcism, context.target, { expected_cooldown = 15 }) or false) or false
+end, function(context) return NS.try_cast(ACTION.Exorcism, context.target, "[RET] Exorcism", { expected_cooldown = 15 }) end, 15)
 
 add_strategy(strategies, "Ret_HolyWrath_AoE", 575, function(context, state)
     local prep_start = (state.twist_window or TWIST_WINDOW) + 0.75
@@ -611,71 +666,74 @@ add_strategy(strategies, "Ret_HolyWrath_AoE", 575, function(context, state)
     if state.mana_emergency then return false end
     -- [ARTISTRY] Improved: TBC Holy Wrath works on Undead/Demon groups.
     if (state.enemy_count or 0) < 2 or (state.mana_pct or 100) < 40 then return false end
-    if not (NS.spell_ready(SPELLS.HolyWrath, PLAYER, { skip_range = true }) or false) then return false end
+    if not (NS.spell_ready(ACTION.HolyWrath, PLAYER, { skip_range = true }) or false) then return false end
     -- Check if target is undead/demon
     local type = creature_type(context.target)
     return DEMON_OR_UNDEAD[type] or false
-end, function() return cast(SPELLS.HolyWrath, PLAYER, "[RET] Holy Wrath AoE", { skip_range = true, expected_cooldown = 60 }) end, 60)
+end, function() return cast(ACTION.HolyWrath, PLAYER, "[RET] Holy Wrath AoE", { skip_range = true, expected_cooldown = 60 }) end, 60)
 
 add_strategy(strategies, "Ret_JudgeSecondary_CommandCleave", 570, function(context, state)
     if not post_swing_judge_gate(context, state) then return false end
-    return state.secondary_target ~= nil and state.has_command and (state.mana_pct or 0) >= 30 and NS.spell_ready(SPELLS.Judgement, state.secondary_target, { skip_gcd = true, expected_cooldown = 10 }) or false
-end, function(_, state) return cast(SPELLS.Judgement, state.secondary_target, "[RET] Judgement secondary cleave", { skip_gcd = true, expected_cooldown = 10 }) end)
+    return state.secondary_target ~= nil and state.has_command and (state.mana_pct or 0) >= 30 and NS.spell_ready(ACTION.Judgement, state.secondary_target, { skip_gcd = true, expected_cooldown = 10 }) or false
+end, function(_, state) return cast(ACTION.Judgement, state.secondary_target, "[RET] Judgement secondary cleave", { skip_gcd = true, expected_cooldown = 10 }) end)
 
 add_strategy(strategies, "Ret_BlessingMight_Self", 540, function(context, state)
     if not get_setting(context, "blessing_of_might_self", get_setting(context, "retri_bless_might", true)) then return false end
-    return not state.has_might and NS.spell_ready(SPELLS.BlessingOfMight, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.BlessingOfMight, PLAYER, "[RET] Blessing of Might self", { skip_range = true }) end)
+    return not state.has_might and NS.spell_ready(ACTION.BlessingOfMight, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.BlessingOfMight, PLAYER, "[RET] Blessing of Might self", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_BlessingKings_Self", 530, function(context, state)
     if not get_setting(context, "blessing_of_kings_self", false) then return false end
-    return not state.has_kings and NS.spell_ready(SPELLS.BlessingOfKings, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.BlessingOfKings, PLAYER, "[RET] Blessing of Kings self", { skip_range = true }) end)
+    return not state.has_kings and NS.spell_ready(ACTION.BlessingOfKings, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.BlessingOfKings, PLAYER, "[RET] Blessing of Kings self", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_BlessingMight_MeleeAlly", 520, function(context, state)
     if not get_setting(context, "blessing_of_might_melee", true) then return false end
     state.utility_target = find_ally(context, function(unit) return not unit_has_buff(unit, BLESSING_MIGHT_BUFF) end)
-    return state.utility_target ~= nil and NS.spell_ready(SPELLS.BlessingOfMight, state.utility_target, {}) or false
-end, function(_, state) return cast(SPELLS.BlessingOfMight, state.utility_target, "[RET] Blessing of Might melee") end)
+    return state.utility_target ~= nil and NS.spell_ready(ACTION.BlessingOfMight, state.utility_target, {}) or false
+end, function(_, state) return cast(ACTION.BlessingOfMight, state.utility_target, "[RET] Blessing of Might melee") end)
 
 add_strategy(strategies, "Ret_BlessingKings_Party", 510, function(context, state)
     if not get_setting(context, "blessing_of_kings_party", false) then return false end
     state.utility_target = find_ally(context, function(unit) return not unit_has_buff(unit, BLESSING_KINGS_BUFF) end)
-    return state.utility_target ~= nil and NS.spell_ready(SPELLS.BlessingOfKings, state.utility_target, {}) or false
-end, function(_, state) return cast(SPELLS.BlessingOfKings, state.utility_target, "[RET] Blessing of Kings party") end)
+    return state.utility_target ~= nil and NS.spell_ready(ACTION.BlessingOfKings, state.utility_target, {}) or false
+end, function(_, state) return cast(ACTION.BlessingOfKings, state.utility_target, "[RET] Blessing of Kings party") end)
 
 add_strategy(strategies, "Ret_SealCommand_AoE", 490, function(context, state)
     if not seal_refresh_allowed(context) then return false end
     if state.mana_emergency then return false end
     local min_targets = get_setting(context, "command_cleave_min_targets", 2)
-    return (state.enemy_count or 0) >= min_targets and not state.has_command and NS.spell_ready(SPELLS.SealCommand, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.SealCommand, PLAYER, "[RET] Seal of Command cleave", { skip_range = true }) end)
+    return (state.enemy_count or 0) >= min_targets and not state.has_command and NS.spell_ready(ACTION.SealCommand, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.SealCommand, PLAYER, "[RET] Seal of Command cleave", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_SealRighteousness_Filler", 470, function(context, state)
     if not seal_refresh_allowed(context) then return false end
-    return not state.has_damage_seal and not state.has_wisdom and NS.spell_ready(SPELLS.SealRighteousness, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.SealRighteousness, PLAYER, "[RET] Seal of Righteousness filler", { skip_range = true }) end)
+    return not state.has_damage_seal and not state.has_wisdom and NS.spell_ready(ACTION.SealRighteousness, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.SealRighteousness, PLAYER, "[RET] Seal of Righteousness filler", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_Judgement_RighteousnessFiller", 460, function(context, state)
     if not post_swing_judge_gate(context, state) then return false end
-    return state.has_righteousness and (state.mana_pct or 0) >= 25 and NS.spell_ready(SPELLS.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
-end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Righteousness filler", { skip_gcd = true, expected_cooldown = 10 }) end)
+    return state.has_righteousness and (state.mana_pct or 0) >= 25 and NS.spell_ready(ACTION.Judgement, context.target, { skip_gcd = true, expected_cooldown = 10 }) or false
+end, function(context) return cast(ACTION.Judgement, context.target, "[RET] Judge Righteousness filler", { skip_gcd = true, expected_cooldown = 10 }) end)
 
 add_strategy(strategies, "Ret_SealCommand_Fallback", 450, function(context, state)
     if not seal_refresh_allowed(context) then return false end
-    return not state.has_damage_seal and NS.spell_ready(SPELLS.SealCommand, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.SealCommand, PLAYER, "[RET] Seal of Command fallback", { skip_range = true }) end)
+    return not state.has_damage_seal and NS.spell_ready(ACTION.SealCommand, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.SealCommand, PLAYER, "[RET] Seal of Command fallback", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_SealBlood_Fallback", 440, function(context, state)
     if not seal_refresh_allowed(context) then return false end
-    return not state.has_damage_seal and NS.spell_ready(SPELLS.SealBlood, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.SealBlood, PLAYER, "[RET] Seal of Blood fallback", { skip_range = true }) end)
+    return not state.has_damage_seal and NS.spell_ready(ACTION.SealBlood, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.SealBlood, PLAYER, "[RET] Seal of Blood fallback", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_SealMartyr_Fallback", 435, function(context, state)
     if not seal_refresh_allowed(context) then return false end
-    return not state.has_damage_seal and NS.spell_ready(SPELLS.SealOfTheMartyr, PLAYER, { skip_range = true }) or false
-end, function() return cast(SPELLS.SealOfTheMartyr, PLAYER, "[RET] Seal of the Martyr fallback", { skip_range = true }) end)
+    return not state.has_damage_seal and NS.spell_ready(ACTION.SealOfTheMartyr, PLAYER, { skip_range = true }) or false
+end, function() return cast(ACTION.SealOfTheMartyr, PLAYER, "[RET] Seal of the Martyr fallback", { skip_range = true }) end)
 
-NS.rotation_registry:register("retribution", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("retribution", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("Paladin retribution rotation registered") end
 return { strategies = strategies, build_state = build_state }
 

@@ -71,7 +71,7 @@ package.loaded["shared/tbc_data_sylvanas"] = { ITEMS = { healthstones = {}, poti
 -- ============================================================================
 -- Load spec
 -- ============================================================================
-local result = dofile("EaxRotations/classes/paladin/retribution_sylvanas.lua")
+local result = dofile("EaxRotations/classes/paladin/retribution_sylvanas.lua").strategies
 assert_true(result ~= nil, "retribution module should load and return non-nil")
 assert_true(_captured_strategies ~= nil, "strategies table should be captured via register")
 
