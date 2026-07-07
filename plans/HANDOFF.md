@@ -35,8 +35,8 @@ have to context-switch.
     buff IDs, berserker rage fear break.
   - **EaxFishing v2.5.1** — debug throttling, stealth suspicion decay/reset, verbose
     status logging.
-  - **spec_kit migration** — 19 of 29 specs converted to `spec_kit.safe_state` +
-    `define_action_for_class` (arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction, frost, restoration, affliction, combat, demonology).
+  - **spec_kit migration** — 20 of 29 specs converted to `spec_kit.safe_state` +
+    `define_action_for_class` (arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction, frost, restoration, affliction, combat, demonology, elemental).
   - **Vanilla APL audit** — 6 phases complete, all 31 vanilla spec files reviewed.
   - **567 vanilla nil-guard test cases** added across 9 new test files (38 specs).
   - **Plan cleanup** — 44 → 15 active plans (35 archived to `plans/_archive/`).
@@ -188,7 +188,7 @@ Repo is 0 commits ahead of origin/master.
 | Nil-guard tests | 567 vanilla nil-guard test cases across 9 new files | `4ecbcaaa` | 38 specs covered (all vanilla classes) |
 | Plan cleanup | 44 → 15 active plans (35 archived) | `37c20d17`+`618cdcdf` | stale/completed plans moved to `plans/_archive/` |
 
-### spec_kit migration progress (19 of 29 specs)
+### spec_kit migration progress (20 of 29 specs)
 | Spec | Status | Key change |
 |------|--------|------------|
 | arms | ✅ Done (reference) | first conversion, `ARMS_SCHEMA` + `safe_state` |

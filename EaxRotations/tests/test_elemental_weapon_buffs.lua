@@ -45,7 +45,7 @@ _G.EaxRotations = {
  },
 }
 
-local strategies = dofile("EaxRotations/classes/shaman/elemental_sylvanas.lua")
+local strategies = dofile("EaxRotations/classes/shaman/elemental_sylvanas.lua").strategies
 assert_true(strategies, "strategies table should load")
 
 -- Collect strategy names for audit
