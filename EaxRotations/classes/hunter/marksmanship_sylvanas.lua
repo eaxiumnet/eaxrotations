@@ -1,11 +1,42 @@
--- marksmanship_sylvanas.lua -- Hunter Marksmanship rotation for TBC Anniversary (2.5.5).
--- WHAT:  ranged DPS spec (Aimed Shot, Trueshot Aura, Rapid Fire, Steady Shot weave).
+-- marksmanship_sylvanas.lua — Hunter Marksmanship rotation for TBC Anniversary (2.5.5).
+-- WHAT:  ranged DPS spec (Aimed Shot, Trueshot Aura, Rapid Fire, Steady Shot weave,
+--         Aspect Hawk/Viper dynamic swap, pet management, melee weaving).
 -- WHEN:  combat, with valid enemy target.
 -- WHY:   mirrors wowsims APL: Aimed Shot > Multi-Shot > Steady Shot filler.
--- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
+-- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); no on_update allocs;
+--          registration guarded.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
+
+-- spec_kit migration #23
+local spec_kit = require("shared/spec_kit_sylvanas")
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    AimedShot        = define("AimedShot",        { 27065, 20904, 20903, 20902, 20901, 20900, 19434 }, "AimedShot"),
+    ArcaneShot       = define("ArcaneShot",       { 27019, 14287, 14286, 14285, 14284, 14283, 14282, 14281, 3044 }, "ArcaneShot"),
+    AspectOfTheHawk  = define("AspectOfTheHawk",  { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }, "AspectOfTheHawk"),
+    AspectOfTheViper = define("AspectOfTheViper", { 34074 }, "AspectOfTheViper"),
+    BestialWrath     = define("BestialWrath",     { 19574 }, "BestialWrath"),
+    CallPet          = define("CallPet",          { 883 }, "CallPet"),
+    ExplosiveTrap    = define("ExplosiveTrap",    { 27025, 14317, 14316, 13813 }, "ExplosiveTrap"),
+    FeignDeath       = define("FeignDeath",       { 5384 }, "FeignDeath"),
+    FreezingTrap     = define("FreezingTrap",     { 14311, 14310, 1499 }, "FreezingTrap"),
+    HuntersMark      = define("HuntersMark",      { 14325, 14324, 14323, 1130 }, "Hunter's Mark"),
+    KillCommand      = define("KillCommand",      { 34026 }, "KillCommand"),
+    MendPet          = define("MendPet",          { 27046, 13544, 13543, 13542, 3662, 3661, 3111, 136 }, "MendPet"),
+    MultiShot        = define("MultiShot",        { 27021, 25294, 14290, 14289, 14288, 2643 }, "MultiShot"),
+    RapidFire        = define("RapidFire",        { 3045 }, "RapidFire"),
+    RaptorStrike     = define("RaptorStrike",     { 27014, 14266, 14265, 14264, 14263, 14262, 14261, 14260, 2973 }, "RaptorStrike"),
+    Readiness        = define("Readiness",        { 23989 }, "Readiness"),
+    RevivePet        = define("RevivePet",        { 982 }, "RevivePet"),
+    SerpentSting     = define("SerpentSting",     { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }, "SerpentSting"),
+    SilencingShot    = define("SilencingShot",    { 34490 }, "SilencingShot"),
+    SteadyShot       = define("SteadyShot",       { 34120 }, "SteadyShot"),
+    TrueshotAura     = define("TrueshotAura",     { 19506, 20905, 20906 }, "TrueshotAura"),
+    ViperSting       = define("ViperSting",       { 27018, 14280, 14279, 3034 }, "ViperSting"),
+    WingClip         = define("WingClip",         { 14268, 14267, 2974 }, "WingClip"),
+}
 local pet_manager = require("shared/pet_manager_sylvanas")
 local shot_timer = require("shared/shot_timer_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
@@ -65,6 +96,32 @@ local function first_ready_item(ids)
     end
     return nil
 end
+
+-- ============================================================================
+-- State schema (nil-guard defaults for spec_kit.safe_state)
+-- ============================================================================
+local MM_SCHEMA = {
+    has_pet = false,  pet_alive = false,  pet_dead = false,
+    pre_steady_leveling = false,  pet_hp_pct = 100,
+    has_hunters_mark = false,  has_serpent_sting = false,  serpent_sting_remains = 0,
+    has_aspect_hawk = false,  has_aspect_viper = false,
+    mend_pet_ready = false,  hunters_mark_ready = false,
+    rapid_fire_ready = false,  rapid_fire_cd = 0,
+    aimed_shot_prepull_ready = false,  aimed_shot_ready = false,
+    silencing_shot_ready = false,  target_is_casting = false,  target_interruptible = false,
+    kill_command_ready = false,  multi_shot_ready = false,
+    steady_shot_ready = false,  arcane_shot_ready = false,  serpent_sting_ready = false,
+    call_pet_ready = false,  revive_pet_ready = false,
+    feign_death_ready = false,  freezing_trap_ready = false,
+    viper_sting_ready = false,  readiness_ready = false,
+    trueshot_aura_ready = false,  trueshot_aura_active = false,
+    raptor_strike_ready = false,  concussive_shot_ready = false,  volley_ready = false,
+    explosive_trap_ready = false,  wing_clip_active = false,  wing_clip_ready = false,
+    bestial_wrath_ready = false,  has_deterrence = false,
+    mana_pct = 100,  in_combat = false,  enemy_count = 1,  is_ooc = false,
+    hunter_melee_weave = true,  hunter_shot_timer_buffer = 150,
+    healthstone_ready = 0,  distance_sq = 10000,  is_group = false,
+}
 
 -- ============================================================================
 -- State builder
@@ -137,32 +194,32 @@ local function build_state(context)
         mm_state.has_aspect_hawk = me and NS.buff_up(me, ASPECT_HAWK_BUFF) or false
         mm_state.has_aspect_viper = me and NS.buff_up(me, ASPECT_VIPER_BUFF) or false
     end
-    mm_state.mend_pet_ready = me and NS.spell_ready(SPELLS.MendPet, me, { skip_range = true }) or false
-    mm_state.hunters_mark_ready = target and NS.spell_ready(SPELLS.HuntersMark, target) or false
-    mm_state.rapid_fire_ready = me and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
-    mm_state.rapid_fire_cd = NS.cooldown_remains and NS.cooldown_remains(SPELLS.RapidFire) or 0
-    mm_state.aimed_shot_prepull_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
-    mm_state.aimed_shot_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
-    mm_state.silencing_shot_ready = target and NS.spell_ready(SPELLS.SilencingShot, target, { expected_cooldown = 20 }) or false
+    mm_state.mend_pet_ready = me and NS.spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
+    mm_state.hunters_mark_ready = target and NS.spell_ready(ACTION.HuntersMark, target) or false
+    mm_state.rapid_fire_ready = me and NS.spell_ready(ACTION.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
+    mm_state.rapid_fire_cd = NS.cooldown_remains and NS.cooldown_remains(ACTION.RapidFire) or 0
+    mm_state.aimed_shot_prepull_ready = target and NS.spell_ready(ACTION.AimedShot, target, { expected_cooldown = 6 }) or false
+    mm_state.aimed_shot_ready = target and NS.spell_ready(ACTION.AimedShot, target, { expected_cooldown = 6 }) or false
+    mm_state.silencing_shot_ready = target and NS.spell_ready(ACTION.SilencingShot, target, { expected_cooldown = 20 }) or false
     mm_state.target_is_casting = target and ((target.is_casting and target:is_casting()) or false)
     mm_state.target_interruptible = mm_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
-    mm_state.kill_command_ready = target and NS.spell_ready(SPELLS.KillCommand, target, { expected_cooldown = 5 }) or false
-    mm_state.multi_shot_ready = target and NS.spell_ready(SPELLS.MultiShot, target, { expected_cooldown = 10 }) or false
-    mm_state.steady_shot_ready = target and NS.spell_ready(SPELLS.SteadyShot, target) or false
-    mm_state.arcane_shot_ready = target and NS.spell_ready(SPELLS.ArcaneShot, target, { expected_cooldown = 6 }) or false
-    mm_state.serpent_sting_ready = target and NS.spell_ready(SPELLS.SerpentSting, target) or false
-    mm_state.call_pet_ready = me and NS.spell_ready(SPELLS.CallPet, me, { skip_range = true }) or false
-    mm_state.revive_pet_ready = me and NS.spell_ready(SPELLS.RevivePet, me, { skip_range = true }) or false
-    mm_state.feign_death_ready = me and NS.spell_ready(SPELLS.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
-    mm_state.freezing_trap_ready = me and NS.spell_ready(SPELLS.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
-    mm_state.viper_sting_ready = target and NS.spell_ready(SPELLS.ViperSting, target, { expected_cooldown = 8 }) or false
-    mm_state.readiness_ready = me and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
-    mm_state.trueshot_aura_ready = me and NS.spell_ready(SPELLS.TrueshotAura, me, { skip_range = true, expected_cooldown = 120 }) or false
+    mm_state.kill_command_ready = target and NS.spell_ready(ACTION.KillCommand, target, { expected_cooldown = 5 }) or false
+    mm_state.multi_shot_ready = target and NS.spell_ready(ACTION.MultiShot, target, { expected_cooldown = 10 }) or false
+    mm_state.steady_shot_ready = target and NS.spell_ready(ACTION.SteadyShot, target) or false
+    mm_state.arcane_shot_ready = target and NS.spell_ready(ACTION.ArcaneShot, target, { expected_cooldown = 6 }) or false
+    mm_state.serpent_sting_ready = target and NS.spell_ready(ACTION.SerpentSting, target) or false
+    mm_state.call_pet_ready = me and NS.spell_ready(ACTION.CallPet, me, { skip_range = true }) or false
+    mm_state.revive_pet_ready = me and NS.spell_ready(ACTION.RevivePet, me, { skip_range = true }) or false
+    mm_state.feign_death_ready = me and NS.spell_ready(ACTION.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
+    mm_state.freezing_trap_ready = me and NS.spell_ready(ACTION.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    mm_state.viper_sting_ready = target and NS.spell_ready(ACTION.ViperSting, target, { expected_cooldown = 8 }) or false
+    mm_state.readiness_ready = me and NS.spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
+    mm_state.trueshot_aura_ready = me and NS.spell_ready(ACTION.TrueshotAura, me, { skip_range = true, expected_cooldown = 120 }) or false
     mm_state.trueshot_aura_active = me and NS.buff_up(me, { 19506, 20905, 20906 }) or false
     mm_state.raptor_strike_ready = target and NS.spell_ready(RAPTOR_STRIKE_IDS, target) or false
     mm_state.concussive_shot_ready = target and NS.spell_ready(CONCUSSIVE_SHOT_IDS, target) or false
     mm_state.volley_ready = target and NS.spell_ready(VOLLEY_IDS, target) or false
-    mm_state.explosive_trap_ready = me and NS.spell_ready(SPELLS.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    mm_state.explosive_trap_ready = me and NS.spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     mm_state.wing_clip_active = target and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
     mm_state.use_misdirection = context.settings and context.settings.use_misdirection == true
     mm_state.is_group = context.is_group or false
@@ -177,7 +234,7 @@ local function build_state(context)
     mm_state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
     mm_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
-    return mm_state
+    return spec_kit.safe_state(mm_state, MM_SCHEMA)
 end
 
 local function cooldowns_enabled(context)
@@ -314,8 +371,8 @@ end
 
 local function bestial_wrath_matches(context, s)
     -- Bestial Wrath is a 31-point Beast Mastery talent; MM builds lack it.
-    if not SPELLS.BestialWrath then return false end
-    if NS.is_spell_learned and not NS.is_spell_learned(SPELLS.BestialWrath) then return false end
+    if not ACTION.BestialWrath then return false end
+    if NS.is_spell_learned and not NS.is_spell_learned(ACTION.BestialWrath) then return false end
     if not s.in_combat then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not s.pet_alive then return false end
@@ -417,7 +474,7 @@ local strategies = {
           local id = first_ready_item(HEALTHSTONE_IDS)
           if id then NS.use_item_by_id(id, ctx.me) end
       end },
-    { name = "MendPet", matches = mend_pet_matches, execute = function(context) return NS.try_cast(SPELLS.MendPet, context.pet or (NS.GetPet and NS.GetPet()) or context.me, "[MARKSMANSHIP] Mend Pet", { skip_range = true }) end },
+    { name = "MendPet", matches = mend_pet_matches, execute = function(context) return NS.try_cast(ACTION.MendPet, context.pet or (NS.GetPet and NS.GetPet()) or context.me, "[MARKSMANSHIP] Mend Pet", { skip_range = true }) end },
     -- Deterrence -- emergency dodge/parry when critically low
     { name = "Deterrence",
       matches = function(context, state)
@@ -427,8 +484,8 @@ local strategies = {
           return NS.spell_ready ~= nil and NS.spell_ready(19263, context.me, { skip_range = true }) or false
       end,
       execute = function(context) return NS.try_cast(19263, context.me, "[MARKSMANSHIP] Deterrence", { skip_range = true, expected_cooldown = 300 }) end },
-    { name = "CallPet", matches = call_pet_matches, execute = function(context) return NS.try_cast(SPELLS.CallPet, context.me, "[MARKSMANSHIP] Call Pet", { skip_range = true }) end },
-    { name = "RevivePet", matches = revive_pet_matches, execute = function(context) return NS.try_cast(SPELLS.RevivePet, context.me, "[MARKSMANSHIP] Revive Pet", { skip_range = true }) end },
+    { name = "CallPet", matches = call_pet_matches, execute = function(context) return NS.try_cast(ACTION.CallPet, context.me, "[MARKSMANSHIP] Call Pet", { skip_range = true }) end },
+    { name = "RevivePet", matches = revive_pet_matches, execute = function(context) return NS.try_cast(ACTION.RevivePet, context.me, "[MARKSMANSHIP] Revive Pet", { skip_range = true }) end },
     -- Pet State: set defensive when pet HP is critically low
     { name = "PetDefensive",
       matches = function(context, state)
@@ -461,30 +518,32 @@ local strategies = {
           return true
       end,
       execute = function() return pet_manager.set_aggressive() end },
-    { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) local r = NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[MARKSMANSHIP] Aspect of the Hawk", { skip_range = true }); if r then _last_aspect_hawk_cast = NS.time_now() end; return r end },
-    { name = "AspectOfTheViper", matches = aspect_viper_matches, execute = function(context) return NS.try_cast(SPELLS.AspectOfTheViper, context.me, "[MARKSMANSHIP] Aspect of the Viper", { skip_range = true }) end },
-    { name = "FreezingTrap", matches = freezing_trap_matches, execute = function(context) return NS.try_cast(SPELLS.FreezingTrap, context.me, "[MARKSMANSHIP] Freezing Trap", { skip_range = true, expected_cooldown = 30 }) end },
-    { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return NS.try_cast(SPELLS.HuntersMark, context.target, "[MARKSMANSHIP] Hunter's Mark") end },
-    { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[MARKSMANSHIP] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
-    { name = "TrueshotAura", matches = trueshot_aura_matches, execute = function(context) return NS.try_cast(SPELLS.TrueshotAura, context.me, "[MARKSMANSHIP] Trueshot Aura", { skip_range = true, expected_cooldown = 120 }) end },
-    { name = "BestialWrath", matches = bestial_wrath_matches, execute = function(context) local pet = context.pet or (NS.GetPet and NS.GetPet()) or context.me; return NS.try_cast(SPELLS.BestialWrath, pet, "[MARKSMANSHIP] Bestial Wrath", { skip_range = true, expected_cooldown = 120 }) end },
-    { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[MARKSMANSHIP] Readiness", { skip_range = true, expected_cooldown = 300 }) end },
-    { name = "InCombatAimedShot", matches = in_combat_aimed_shot_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
-    { name = "AimedShotPrepull", matches = aimed_shot_prepull_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot (prepull)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
-    { name = "KillCommand", matches = kill_command_matches, execute = function(context) return NS.try_cast(SPELLS.KillCommand, context.target, "[MARKSMANSHIP] Kill Command", { expected_cooldown = 5, skip_gcd = true }) end },
-    { name = "FeignDeath", matches = feign_death_matches, execute = function(context) return NS.try_cast(SPELLS.FeignDeath, context.me, "[MARKSMANSHIP] Feign Death", { skip_range = true, expected_cooldown = 30 }) end },
-    { name = "LevelingArcaneShot", matches = leveling_arcane_shot_matches, execute = function(context) if NS.try_cast(SPELLS.ArcaneShot, context.target, "[MARKSMANSHIP] Arcane Shot (leveling)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
-    { name = "LevelingSting", matches = leveling_sting_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting (leveling)") end },
+    { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) local r = NS.try_cast(ACTION.AspectOfTheHawk, context.me, "[MARKSMANSHIP] Aspect of the Hawk", { skip_range = true }); if r then _last_aspect_hawk_cast = NS.time_now() end; return r end },
+    { name = "AspectOfTheViper", matches = aspect_viper_matches, execute = function(context) return NS.try_cast(ACTION.AspectOfTheViper, context.me, "[MARKSMANSHIP] Aspect of the Viper", { skip_range = true }) end },
+    { name = "FreezingTrap", matches = freezing_trap_matches, execute = function(context) return NS.try_cast(ACTION.FreezingTrap, context.me, "[MARKSMANSHIP] Freezing Trap", { skip_range = true, expected_cooldown = 30 }) end },
+    { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return NS.try_cast(ACTION.HuntersMark, context.target, "[MARKSMANSHIP] Hunter's Mark") end },
+    { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(ACTION.RapidFire, context.me, "[MARKSMANSHIP] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
+    { name = "TrueshotAura", matches = trueshot_aura_matches, execute = function(context) return NS.try_cast(ACTION.TrueshotAura, context.me, "[MARKSMANSHIP] Trueshot Aura", { skip_range = true, expected_cooldown = 120 }) end },
+    { name = "BestialWrath", matches = bestial_wrath_matches, execute = function(context) local pet = context.pet or (NS.GetPet and NS.GetPet()) or context.me; return NS.try_cast(ACTION.BestialWrath, pet, "[MARKSMANSHIP] Bestial Wrath", { skip_range = true, expected_cooldown = 120 }) end },
+    { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(ACTION.Readiness, context.me, "[MARKSMANSHIP] Readiness", { skip_range = true, expected_cooldown = 300 }) end },
+    { name = "InCombatAimedShot", matches = in_combat_aimed_shot_matches, execute = function(context) if NS.try_cast(ACTION.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
+    { name = "AimedShotPrepull", matches = aimed_shot_prepull_matches, execute = function(context) if NS.try_cast(ACTION.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot (prepull)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
+    { name = "KillCommand", matches = kill_command_matches, execute = function(context) return NS.try_cast(ACTION.KillCommand, context.target, "[MARKSMANSHIP] Kill Command", { expected_cooldown = 5, skip_gcd = true }) end },
+    { name = "FeignDeath", matches = feign_death_matches, execute = function(context) return NS.try_cast(ACTION.FeignDeath, context.me, "[MARKSMANSHIP] Feign Death", { skip_range = true, expected_cooldown = 30 }) end },
+    { name = "LevelingArcaneShot", matches = leveling_arcane_shot_matches, execute = function(context) if NS.try_cast(ACTION.ArcaneShot, context.target, "[MARKSMANSHIP] Arcane Shot (leveling)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
+    { name = "LevelingSting", matches = leveling_sting_matches, execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting (leveling)") end },
     { name = "AdaptiveRotation", matches = function(c) return NS.HunterAdaptive and (type(NS.get_setting) == "function" and NS.get_setting("use_adaptive_rotation",false)) and c.in_combat and c.target end, execute = function(c) return (NS.create_adaptive_rotation_strategy and NS.create_adaptive_rotation_strategy()(c)) or false end },
-    { name = "MultiShot", matches = multi_shot_matches, execute = function(context) if NS.try_cast(SPELLS.MultiShot, context.target, "[MARKSMANSHIP] Multi-Shot", { expected_cooldown = 10 }) then record_manual_shot() return true end return false end },
-    { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(context) if NS.try_cast(SPELLS.ArcaneShot, context.target, "[MARKSMANSHIP] Arcane Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
-    { name = "SteadyShot", matches = steady_shot_matches, execute = function(context) if NS.try_cast(SPELLS.SteadyShot, context.target, "[MARKSMANSHIP] Steady Shot") then record_manual_shot() return true end return false end },
-    { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(SPELLS.ViperSting, context.target, "[MARKSMANSHIP] Viper Sting", { expected_cooldown = 8 }) end },
-    { name = "SerpentSting", matches = serpent_sting_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting") end },
-    { name = "RaptorStrike", matches = raptor_strike_matches, execute = function(context) return NS.try_cast(SPELLS.RaptorStrike, context.target, "[MARKSMANSHIP] Raptor Strike") end },
-    { name = "WingClip", matches = wing_clip_matches, execute = function(context) return NS.try_cast(SPELLS.WingClip, context.target, "[MARKSMANSHIP] Wing Clip") end },
+    { name = "MultiShot", matches = multi_shot_matches, execute = function(context) if NS.try_cast(ACTION.MultiShot, context.target, "[MARKSMANSHIP] Multi-Shot", { expected_cooldown = 10 }) then record_manual_shot() return true end return false end },
+    { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(context) if NS.try_cast(ACTION.ArcaneShot, context.target, "[MARKSMANSHIP] Arcane Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
+    { name = "SteadyShot", matches = steady_shot_matches, execute = function(context) if NS.try_cast(ACTION.SteadyShot, context.target, "[MARKSMANSHIP] Steady Shot") then record_manual_shot() return true end return false end },
+    { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(ACTION.ViperSting, context.target, "[MARKSMANSHIP] Viper Sting", { expected_cooldown = 8 }) end },
+    { name = "SerpentSting", matches = serpent_sting_matches, execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting") end },
+    { name = "RaptorStrike", matches = raptor_strike_matches, execute = function(context) return NS.try_cast(ACTION.RaptorStrike, context.target, "[MARKSMANSHIP] Raptor Strike") end },
+    { name = "WingClip", matches = wing_clip_matches, execute = function(context) return NS.try_cast(ACTION.WingClip, context.target, "[MARKSMANSHIP] Wing Clip") end },
 }
 
-NS.rotation_registry:register("marksmanship", strategies, { get_state = build_state })
--- Hunter marksmanship rotation registered
-return strategies
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("marksmanship", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("Hunter marksmanship rotation registered") end
+return { strategies = strategies, build_state = build_state }
