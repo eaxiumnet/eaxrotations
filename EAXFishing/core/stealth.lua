@@ -19,6 +19,66 @@ local SCAN_INTERVAL = 1.5
 local DEFAULT_RANGE_YD = 30
 local DEFAULT_RANGE_SQ = DEFAULT_RANGE_YD * DEFAULT_RANGE_YD
 
+-- TBC race_id -> name (not all clients expose a race-name API; local map is safe).
+local RACE_NAME = {
+    [1]="Human", [2]="Orc", [3]="Dwarf", [4]="NightElf", [5]="Undead",
+    [6]="Tauren", [7]="Gnome", [8]="Troll", [10]="BloodElf", [11]="Draenei",
+}
+
+-- class_id -> name via enums (optional; falls back to the numeric id).
+local _enums_ok, _enums = pcall(require, "common/enums")
+local function class_name(id)
+    if id == nil then return "?" end
+    if _enums_ok and _enums and _enums.class_id_to_name then
+        local n = _enums.class_id_to_name[id]
+        if n then return n end
+    end
+    return tostring(id)
+end
+
+--- Format a one-line description of a detected player for the debug log.
+-- nil-safe: every field is pcall'd. dist_yd uses math.sqrt (debug text only,
+-- never a hot-path comparison — Pattern 3 is about distance *checks*).
+-- @param player game_object
+-- @param dist_sq number|nil squared distance to player
+-- @return string "name='X' guid=Y race=Z class=W lvl=L dist=D.Dy"
+local function format_player(player, dist_sq)
+    if not player then return "(unknown)" end
+    local name, guid, race_id, class_id, lvl = "?", "?", nil, nil, "?"
+    pcall(function()
+        if type(player.get_name) == "function" then
+            local ok, r = pcall(player.get_name, player); if ok then name = tostring(r or "?") end
+        end
+    end)
+    pcall(function()
+        if type(player.get_guid) == "function" then
+            local ok, r = pcall(player.get_guid, player); if ok then guid = tostring(r or "?") end
+        end
+    end)
+    pcall(function()
+        if type(player.get_race_id) == "function" then
+            local ok, r = pcall(player.get_race_id, player); if ok then race_id = r end
+        end
+    end)
+    pcall(function()
+        if type(player.get_class) == "function" then
+            local ok, r = pcall(player.get_class, player); if ok then class_id = r end
+        end
+    end)
+    pcall(function()
+        if type(player.get_level) == "function" then
+            local ok, r = pcall(player.get_level, player); if ok then lvl = tostring(r or "?") end
+        end
+    end)
+    local race = (race_id ~= nil) and (RACE_NAME[race_id] or tostring(race_id)) or "?"
+    local dist_str = "?"
+    if type(dist_sq) == "number" and dist_sq >= 0 then
+        dist_str = string.format("%.1fy", math.sqrt(dist_sq))
+    end
+    return string.format("name='%s' guid=%s race=%s class=%s lvl=%s dist=%s",
+        name, guid, race, class_name(class_id), lvl, dist_str)
+end
+
 --- Internal: get distance-squared to nearest player, plus the player object
 -- @param ctx table
 -- @param me game_object
@@ -112,12 +172,32 @@ function M.update(ctx, me, now)
         -- v2.4.3: "Nervous pause" — random 2-5s pause on first sighting
         local nervous_pause = 2.0 + math.random() * 3.0
         st.nervous_pause_end = now + nervous_pause
-        APISurface.print("[EaxFishing] Stealth: player detected (suspicion " .. st.suspicion_level .. "/5) — pausing " .. string.format("%.1f", nervous_pause) .. "s")
+        APISurface.print("[EaxFishing][dbg] Stealth: player detected "
+            .. format_player(nearest, dist_sq)
+            .. " (suspicion " .. st.suspicion_level .. "/5) — pausing "
+            .. string.format("%.1f", nervous_pause) .. "s")
 
     elseif not detected and st.player_nearby then
         -- Player just left — enter cooldown, don't immediately resume normal pace
         st.cooldown_end = now + (15.0 + math.random() * 30.0)  -- 15-45s cooldown
-        APISurface.print("[EaxFishing] Stealth: player left — staying cautious for cooldown")
+        APISurface.print("[EaxFishing][dbg] Stealth: player left "
+            .. format_player(st.nearest_player, st.nearest_dist_sq)
+            .. " — staying cautious for cooldown")
+    end
+
+    -- v2.5.1: Suspicion decay — gradually forget past encounters once the area
+    -- has been quiet for 60s. Without this, total_encounters/suspicion only
+    -- ever grow, so a few minutes of player traffic (or detection flicker at
+    -- the edge of scan range) permanently maxes the delay multiplier at 5.0x
+    -- and the bot effectively freezes ("stands there"). Re-arming
+    -- last_player_seen_time makes each -1 land on its own 60s timer instead of
+    -- draining all suspicion in a single tick.
+    if not detected and not st.player_nearby
+       and st.last_player_seen_time > 0
+       and (now - st.last_player_seen_time) >= 60.0 then
+        if st.suspicion_level > 0 then st.suspicion_level = st.suspicion_level - 1 end
+        if st.total_encounters > 0 then st.total_encounters = st.total_encounters - 1 end
+        st.last_player_seen_time = now
     end
 
     st.player_nearby = detected
@@ -169,9 +249,13 @@ function M.get_delay_multiplier(ctx, now)
         multiplier = multiplier + (0.2 + proximity * 1.3)
     end
 
-    -- v2.4.3: Suspicion scaling — more encounters = more cautious
-    -- Each encounter adds 0.1x permanently (session-wide paranoia)
-    multiplier = multiplier + (st.total_encounters * 0.1)
+    -- v2.4.3: Suspicion scaling — more encounters = more cautious.
+    -- v2.5.1: Cap the permanent-paranoia contribution at +1.0x (max 10
+    -- encounters counted) so a long session or repeated detection flicker
+    -- cannot grow it without bound and lock the multiplier at its 5.0x
+    -- ceiling — which freezes the bot ("stands there"). Quiet-period decay in
+    -- update() also drains total_encounters over time.
+    multiplier = multiplier + (math.min(st.total_encounters, 10) * 0.1)
 
     -- v2.4.3: Active suspicion level — recent encounters boost more
     multiplier = multiplier + (st.suspicion_level * 0.15)

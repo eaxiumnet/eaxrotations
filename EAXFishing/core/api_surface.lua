@@ -187,16 +187,17 @@ end
 function M.does_bobber_have_fish(bobber)
     if not M.is_valid(bobber) then return false end
 
-    local debug_on = false  -- will be set below if ctx available (checked via global)
-    -- We don't have ctx here, so use a module-level debug flag set by find_bobber
-    debug_on = M._debug_on or false
+    local debug_on = M._debug_on or false
 
     -- Try fish_helper — only trust a TRUE result
     local has_fish_helper, fish_helper = pcall(require, "common/utility/fish_helper")
     if has_fish_helper and fish_helper and fish_helper.does_bobber_have_fish then
         local ok, result = pcall(fish_helper.does_bobber_have_fish, fish_helper, bobber)
-        if debug_on then
-            M.print("[EaxFishing] fish_helper.does_bobber_have_fish ok=" .. tostring(ok) .. " result=" .. tostring(result))
+        -- Bite detected — log immediately (bypasses any throttle). Sylvanas
+        -- currently always returns false, so this line only prints when they
+        -- finally fix the API.
+        if debug_on and ok and result == true then
+            M.print("[EaxFishing][dbg] fish_helper BITE")
         end
         if ok and result == true then return true end
     end
@@ -204,14 +205,10 @@ function M.does_bobber_have_fish(bobber)
     -- Fallback: call directly on the bobber object
     if type(bobber.does_bobber_have_fish) == "function" then
         local ok, result = pcall(bobber.does_bobber_have_fish, bobber)
-        if debug_on then
-            M.print("[EaxFishing] bobber:does_bobber_have_fish ok=" .. tostring(ok) .. " result=" .. tostring(result))
+        if debug_on and ok and result == true then
+            M.print("[EaxFishing][dbg] bobber BITE")
         end
         if ok then return result == true end
-    else
-        if debug_on then
-            M.print("[EaxFishing] bobber has no does_bobber_have_fish method")
-        end
     end
 
     return false
@@ -927,11 +924,22 @@ function M.find_bobber(ctx, me, px, py, pz, range)
 
     M._debug_on = debug_on  -- share with does_bobber_have_fish which has no ctx
 
+    -- Throttle bobber-scan debug to once per 2s so enabling Debug Logging
+    -- doesn't flood the console with 5+ lines per tick.
+    local can_log = false
+    if debug_on then
+        local t = M.now()
+        if t and t > (M._bobber_dbg_next or 0) then
+            M._bobber_dbg_next = t + 2.0
+            can_log = true
+        end
+    end
+
     local objects = M.get_all_objects()
     local my_name = M.get_object_name(me)
 
-    if debug_on then
-        M.print("[EaxFishing] find_bobber: scanning " .. #objects .. " objects (me=" .. tostring(my_name) .. ")")
+    if can_log then
+        M.print("[EaxFishing][dbg] find_bobber: scanning " .. #objects .. " objects (me=" .. tostring(my_name) .. ")")
     end
 
     for _, obj in ipairs(objects) do
@@ -945,9 +953,9 @@ function M.find_bobber(ctx, me, px, py, pz, range)
 
                 if dist_sq < range_sq then
                     local name = M.get_object_name(obj)
-                    if debug_on and type(name) == "string" and #name > 0 then
+                    if can_log and type(name) == "string" and #name > 0 then
                         -- Squared distance only (Pattern 3: avoid sqrt for comparisons; this is debug text)
-                        M.print("[EaxFishing] nearby obj: '" .. name .. "' dist_sq=" .. string.format("%.0f", dist_sq))
+                        M.print("[EaxFishing][dbg] nearby obj: '" .. name .. "' dist_sq=" .. string.format("%.0f", dist_sq))
                     end
 
                     if M.is_fish_bobber(obj) then
@@ -974,13 +982,13 @@ function M.find_bobber(ctx, me, px, py, pz, range)
         end
     end
 
-    if debug_on then
+    if can_log then
         if closest_owned then
-            M.print("[EaxFishing] find_bobber: found OWNED bobber")
+            M.print("[EaxFishing][dbg] find_bobber: found OWNED bobber")
         elseif closest_any then
-            M.print("[EaxFishing] find_bobber: found unowned bobber (fallback)")
+            M.print("[EaxFishing][dbg] find_bobber: found unowned bobber (fallback)")
         else
-            M.print("[EaxFishing] find_bobber: NO bobber found in range " .. range)
+            M.print("[EaxFishing][dbg] find_bobber: NO bobber found in range " .. range)
         end
     end
 

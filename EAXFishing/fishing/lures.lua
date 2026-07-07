@@ -38,7 +38,13 @@ function M.has_active_lure(ctx, me, now)
     local state = ctx.state
     if not APISurface.is_valid(me) then return false end
 
-    local dbg = not state.lure.next_dbg_time or now >= state.lure.next_dbg_time
+    -- Debug prints are gated by the master "Debug Logging" toggle AND throttled
+    -- to once per 3s. Previously `dbg` was only a throttle, so the [DBG]
+    -- enchant lines spammed the console every 3s regardless of any toggle.
+    local debug_on = false
+    local cfg = ctx.deps and ctx.deps.config and ctx.deps.config.menu
+    if cfg and cfg.debug and cfg.debug.get_state then debug_on = cfg.debug:get_state() end
+    local dbg = debug_on and (not state.lure.next_dbg_time or now >= state.lure.next_dbg_time)
     if dbg then state.lure.next_dbg_time = now + 3.0 end
 
     -- Primary: item_has_enchant called as a method on slot 16
@@ -46,7 +52,7 @@ function M.has_active_lure(ctx, me, now)
     if ok and slot and slot.object then
         local ok2, has_enchant = pcall(slot.object.item_has_enchant, slot.object)
         if dbg then
-            APISurface.print("[EaxFishing] [DBG] item_has_enchant() = " .. tostring(has_enchant))
+            APISurface.print("[EaxFishing][dbg] item_has_enchant()=" .. tostring(has_enchant))
         end
         if ok2 and has_enchant then return true end
     end
@@ -59,18 +65,18 @@ function M.has_active_lure(ctx, me, now)
                 if value.slot_id == 16 and value.object then
                     local ok3, has_enchant = pcall(value.object.item_has_enchant, value.object)
                     if dbg then
-                        APISurface.print("[EaxFishing] [DBG] equipped item_has_enchant() = " .. tostring(has_enchant))
+                        APISurface.print("[EaxFishing][dbg] equipped item_has_enchant()=" .. tostring(has_enchant))
                     end
                     if ok3 and has_enchant then return true end
 
                     local ok3, eid = pcall(value.object.item_enchant_id, value.object)
                     if ok3 and type(eid) == "number" and eid > 0 then
-                        if dbg then APISurface.print("[EaxFishing] [DBG] item_enchant_id = " .. tostring(eid)) end
+                        if dbg then APISurface.print("[EaxFishing][dbg] item_enchant_id=" .. tostring(eid)) end
                         return true
                     end
                     local ok4, exp = pcall(value.object.item_enchant_expiration, value.object)
                     if ok4 and type(exp) == "number" and exp > 0 then
-                        if dbg then APISurface.print("[EaxFishing] [DBG] item_enchant_expiration = " .. tostring(exp)) end
+                        if dbg then APISurface.print("[EaxFishing][dbg] item_enchant_expiration=" .. tostring(exp)) end
                         return true
                     end
                 end

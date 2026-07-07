@@ -267,6 +267,23 @@ function M.tick(ctx)
     local action_throttle = (0.75 + math.random() * 0.6) * stealth_mult
     local throttled = now - state.fishing.last_action_time < action_throttle
 
+    -- v2.5.1: verbose status logging gated by the master Debug Logging toggle
+    -- (throttled ~1.5s). Prints the values that cause stalls — stealth
+    -- multiplier, suspicion, encounters, action throttle — so users can see
+    -- why the bot paused.
+    local _debug_log = deps and deps.config and deps.config.menu and deps.config.menu.debug
+        and deps.config.menu.debug.get_state
+        and deps.config.menu.debug:get_state()
+    if _debug_log and now >= (state.verbose.next_log_time or 0) then
+        state.verbose.next_log_time = now + 1.5
+        local thr_rem = state.fishing.last_action_time + action_throttle - now
+        APISurface.print(string.format(
+            "[EaxFishing][dbg] t=%.1f status=%s stealth=%.2fx susp=%d/5 enc=%d thr=%.2fs await=%s",
+            now, tostring(state.fishing.status), stealth_mult,
+            state.stealth.suspicion_level or 0, state.stealth.total_encounters or 0,
+            thr_rem, tostring(state.fishing.awaiting_bobber)))
+    end
+
     -- ===== FAST PATH: Bobber bite detection (runs every tick, ignores throttle) =====
     -- Uses documented API: game_object:does_bobber_have_fish()
     -- NOTE: This is currently broken on Sylvanas (always returns false).

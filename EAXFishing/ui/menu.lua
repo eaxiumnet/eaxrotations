@@ -72,7 +72,7 @@ function M.render_menu(ctx)
         if config.menu.timing_tree then
             config.menu.timing_tree:render("Timing & Humanizer", function()
                 h:render("Natural Timing", C.section)
-                config.menu.humanizer_enabled:render("Natural Timing  (master toggle)",
+                config.menu.humanizer_enabled:render("Natural Timing (master toggle)",
                     "Enables a randomised behavior profile that shifts your timing every 15-25 min so no two sessions look the same.")
                 config.menu.ultra_safe_mode:render("Ultra-Safe Mode",
                     "Pushes all delays to maximum. Recommended on high-value or watched accounts.")
@@ -94,7 +94,7 @@ function M.render_menu(ctx)
                     "Slowest click after a bite. Default 400ms.")
 
                 h:render("Breaks & AFK", C.sub)
-                config.menu.break_frequency:render("Micro-break Frequency  (0 = off)",
+                config.menu.break_frequency:render("Micro-break Frequency (0 = off)",
                     "How often to pause 10-30s mid-session. Higher = more frequent breaks.")
                 config.menu.anti_afk_enabled:render("Anti-AFK Jump",
                     "Jumps every so often to prevent idle-disconnect.")
@@ -146,8 +146,6 @@ function M.render_menu(ctx)
                 h:render("DEPLETION & TELEMETRY", C.sub)
                 config.menu.pool_depletion_threshold:render("Pool Depletion Threshold",
                     "Skip pool after this many casts with 0 catches. Default 5.")
-                config.menu.show_cast_rate:render("Show Cast Success Rate",
-                    "Shows cast success percentage in HUD.")
             end)
         else
             h:render("POOL ROUTING", C.section)
@@ -313,7 +311,8 @@ function M.render_menu(ctx)
                 h:render("HUD", C.sub)
                 config.menu.show_stats:render("Session HUD",
                     "Shows casts, catches, catch rate, fish count, gold gained, and more on screen.")
-                config.menu.show_cast_rate:render("Show Cast Success Rate", "")
+                config.menu.show_cast_rate:render("Show Cast Success Rate",
+                    "Shows cast success percentage in the HUD.")
                 config.menu.show_catch_streak:render("Show Catch Streak",
                     "Shows current consecutive catch streak + best streak.")
                 config.menu.show_coordinates:render("Show Coordinates",
@@ -338,8 +337,8 @@ function M.render_menu(ctx)
         -- DEBUG
         -- ═══════════════════════════════════════════════════════════════════
         h:render("DEBUG", C.muted)
-        config.menu.debug:render("Console Logging",
-            "Logs object scans and API calls. Turn off during normal use.")
+        config.menu.debug:render("Debug Logging",
+            "Master toggle for ALL console diagnostics: the ~1.5s status line (stealth multiplier, suspicion, throttle), bobber/scan tracing, and lure-enchant checks. Off by default — turn on only when diagnosing stalls.")
 
     end)
 end

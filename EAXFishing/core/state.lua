@@ -245,6 +245,11 @@ function M.create(now)
             idle_stare_end    = 0.0,
         },
 
+        -- v2.5.1: Verbose debug log throttle state.
+        verbose = {
+            next_log_time = 0.0,
+        },
+
         -- v2.4.2: Water walking buff state
         water_walking = {
             last_try_time    = 0.0,
@@ -447,6 +452,27 @@ function M.reset_fishing(state)
         state.human_behaviors.last_lookaround = 0.0
         state.human_behaviors.bobber_gaze_end = 0.0
         state.human_behaviors.idle_stare_end = 0.0
+    end
+    -- v2.5.1: reset stealth state so re-enabling recovers from accumulated
+    -- suspicion. Previously suspicion_level/total_encounters persisted across
+    -- disable/re-enable (Stealth.reset was never wired into this function), so
+    -- a bot that had frozen from maxed suspicion stayed frozen even after
+    -- toggling the fishing toggle off and back on.
+    if state.stealth then
+        state.stealth.last_scan_time = 0.0
+        state.stealth.player_nearby = false
+        state.stealth.nearest_dist_sq = nil
+        state.stealth.nearest_player = nil
+        state.stealth.consecutive_detections = 0
+        state.stealth.suspicion_level = 0
+        state.stealth.total_encounters = 0
+        state.stealth.last_player_seen_time = 0.0
+        state.stealth.nervous_pause_end = nil
+        state.stealth.cooldown_end = nil
+    end
+    -- v2.5.1: reset verbose-log throttle.
+    if state.verbose then
+        state.verbose.next_log_time = 0.0
     end
 end
 
