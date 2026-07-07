@@ -12,6 +12,8 @@ local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylva
 local DotTTD = require("shared/dot_ttd_gating_sylvanas")
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
+local _snap_ok, Snapshot = pcall(require, "shared/snapshot_sylvanas")
+if not _snap_ok or type(Snapshot) ~= "table" then Snapshot = nil end
 local _last_shadow_cc_scan = 0
 local _last_multidot_scan = 0
 local _cached_dotted_swp = 0
@@ -487,6 +489,12 @@ end
 -- Determine if current spell damage justifies refreshing a DoT early
 -- Returns true if: DoT expired, in pandemic window with upgrade, or about to fall off
 local function should_snapshot_upgrade(current_dmg, snapshotted_dmg, remains, refresh_window, ratio)
+    -- Delegate to shared helper (preserves shadow behavior: no-snapshot -> refresh, extra_window 1.5)
+    if Snapshot then
+        return Snapshot.should_upgrade(current_dmg, snapshotted_dmg, remains, refresh_window, ratio,
+            { no_snapshot_refresh = true, extra_window = REFRESH_EXTRA_WINDOW })
+    end
+    -- Inline fallback (identical to prior behavior)
     if remains <= 0 then return true end
     if remains <= refresh_window then return true end
     if snapshotted_dmg <= 0 then return true end
