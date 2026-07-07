@@ -35,8 +35,8 @@ have to context-switch.
     buff IDs, berserker rage fear break.
   - **EaxFishing v2.5.1** — debug throttling, stealth suspicion decay/reset, verbose
     status logging.
-  - **spec_kit migration** — 21 of 29 specs converted to `spec_kit.safe_state` +
-    `define_action_for_class` (arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction, frost, restoration, affliction, combat, demonology, elemental).
+  - **spec_kit migration** — 22 of 29 specs converted to `spec_kit.safe_state` +
+    `define_action_for_class` (arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction, frost, restoration, affliction, combat, demonology, elemental, enhancement, assassination).
   - **Vanilla APL audit** — 6 phases complete, all 31 vanilla spec files reviewed.
   - **567 vanilla nil-guard test cases** added across 9 new test files (38 specs).
   - **Plan cleanup** — 44 → 15 active plans (35 archived to `plans/_archive/`).
@@ -183,12 +183,12 @@ Repo is 0 commits ahead of origin/master.
 | Bear Druid | Clean rebuild — pure bear-form tank, no form shifting | `c671ce73` | stripped cat/caster spells, wowsims tank APL |
 | Warrior audit | PvP CC gate, stance dance, Execute, Rampage, fear break | `08629117` | comprehensive warrior audit |
 | EaxFishing | v2.5.1 debug throttling + stealth suspicion decay | `691daee9` | fixes bot freezing from maxed suspicion |
-| spec_kit | 18 specs migrated to safe_state + define_action_for_class | `be68a0e2` (latest) | arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction, frost, restoration, affliction, combat |
+| spec_kit | 22 specs migrated to safe_state + define_action_for_class | `be68a0e2` (latest) | arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction, frost, restoration, affliction, combat, demonology, elemental, enhancement, assassination |
 | Vanilla APL | 6-phase audit complete, all 31 vanilla files reviewed | `0ca3b349` | warrior/frost mage/bear fixes + 0-change reviews |
 | Nil-guard tests | 567 vanilla nil-guard test cases across 9 new files | `4ecbcaaa` | 38 specs covered (all vanilla classes) |
 | Plan cleanup | 44 → 15 active plans (35 archived) | `37c20d17`+`618cdcdf` | stale/completed plans moved to `plans/_archive/` |
 
-### spec_kit migration progress (21 of 29 specs)
+### spec_kit migration progress (22 of 29 specs)
 | Spec | Status | Key change |
 |------|--------|------------|
 | arms | ✅ Done (reference) | first conversion, `ARMS_SCHEMA` + `safe_state` |
@@ -239,7 +239,7 @@ Repo is 0 commits ahead of origin/master.
 ## WHAT'S NEXT (prioritized)
 
 ### 1. Continue spec_kit migration (opportunistic — only when editing a spec)
-- 18 of 29 specs converted (arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction, frost, restoration, affliction, combat).
+- 22 of 29 specs converted (arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction, frost, restoration, affliction, combat, demonology, elemental, enhancement, assassination).
 - Next candidates: any spec already being edited. Never big-bang (AGENTS Rule 5).
 - Pattern: add `spec_kit` require + `define_action_for_class(SPELLS)`, create
   ACTION table with rank IDs, add SCHEMA + `safe_state` in `build_state`,

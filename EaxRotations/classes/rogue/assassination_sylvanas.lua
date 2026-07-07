@@ -1,11 +1,40 @@
--- assassination_sylvanas.lua -- Rogue Assassination DPS for TBC Anniversary (2.5.5).
--- WHAT:  dagger DPS spec (Mutilate, Shiv, Envenom, Rupture, Slice and Dice).
+-- assassination_sylvanas.lua — Rogue Assassination DPS for TBC Anniversary (2.5.5).
+-- WHAT:  dagger DPS spec (Mutilate, Shiv, Envenom, Rupture, Slice and Dice)
+--         with wowsims-aligned finisher priority: SnD > Rupture > Envenom > Mutilate.
 -- WHEN:  combat, with valid enemy target and daggers equipped.
 -- WHY:   mirrors wowsims APL: SnD > Rupture > Envenom > Mutilate builder.
--- SAFETY: Mutilate dagger check present; all state fields nil-guarded.
+-- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); Mutilate dagger
+--          check present; registration guarded.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.RogueSpells or {}
+
+-- spec_kit migration #22
+local spec_kit = require("shared/spec_kit_sylvanas")
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    Blind          = define("Blind",          { 2094 }, "Blind"),
+    CheapShot      = define("CheapShot",      { 1833 }, "CheapShot"),
+    CloakOfShadows = define("CloakOfShadows", { 31224 }, "CloakOfShadows"),
+    ColdBlood      = define("ColdBlood",      { 14177 }, "ColdBlood"),
+    DeadlyThrow    = define("DeadlyThrow",    { 26679 }, "DeadlyThrow"),
+    Envenom        = define("Envenom",        { 32684, 32645 }, "Envenom"),
+    Evasion        = define("Evasion",        { 26669, 5277 }, "Evasion"),
+    Eviscerate     = define("Eviscerate",     { 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
+    ExposeArmor    = define("ExposeArmor",    { 26866, 11198, 11197, 8650, 8649, 8647 }, "ExposeArmor"),
+    Feint          = define("Feint",          { 27448, 25302, 11303, 8637, 6768, 1966 }, "Feint"),
+    Garrote        = define("Garrote",        { 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }, "Garrote"),
+    KidneyShot     = define("KidneyShot",     { 8643, 408 }, "KidneyShot"),
+    Mutilate       = define("Mutilate",       { 34413, 34412, 34411, 1329 }, "Mutilate"),
+    Rupture        = define("Rupture",        { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
+    Shiv            = define("Shiv",            { 5938 }, "Shiv"),
+    SinisterStrike  = define("SinisterStrike",  { 26862, 26861, 11294, 11293, 8621, 1760, 1759, 1758, 1757, 1752 }, "SinisterStrike"),
+    SliceAndDice   = define("SliceAndDice",   { 6774, 5171 }, "SliceAndDice"),
+    Sprint         = define("Sprint",         { 11305, 8696, 2983 }, "Sprint"),
+    Stealth        = define("Stealth",        { 1787, 1786, 1785, 1784 }, "Stealth"),
+    ThistleTea     = define("ThistleTea",     { 9513 }, "ThistleTea"),
+    Vanish         = define("Vanish",         { 26889, 1857, 1856 }, "Vanish"),
+}
 local potion_helper = require("shared/potion_helper_sylvanas")
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
@@ -35,6 +64,19 @@ if not _dagger_set_ok then dagger_set = nil end
 
 -- Healthstone / health potion IDs
 local HEALING_ITEM_IDS = { 22829, 22793, 13447, 22105, 22104, 22103, 5512, 5511, 118, 858 }
+
+-- ============================================================================
+-- State schema (nil-guard defaults for spec_kit.safe_state)
+-- ============================================================================
+local ASSN_SCHEMA = {
+    stealth_active = false,  slice_dice_active = false,  snd_remains = 0,
+    snd_needs_refresh = false,  rupture_remains = 0,  garrote_remains = 0,
+    dp_stacks = 0,  dp_remains = 0,  target_poisoned = false,
+    combo = 0,  energy = 0,  energy_low = false,  energy_pool_finisher = false,
+    hp_pct = 100,  find_weakness_active = false,
+    has_cold_blood = false,  healing_item_id = nil,
+    has_daggers = false,  shiv_ready = false,  shiv_purge_name = nil,
+}
 
 -- ============================================================================
 -- State builder (pre-allocated)
@@ -118,7 +160,7 @@ local function build_state(context)
     assassin_state.energy_pool_finisher = assassin_state.energy < ENERGY_LOW_FINISHER
     assassin_state.hp_pct = context.hp or 100
     -- Shiv Purge (PvP buff dispel via Wound Poison)
-    assassin_state.shiv_ready = target and NS.spell_ready(SPELLS.Shiv, target, { expected_cooldown = 10 }) or false
+    assassin_state.shiv_ready = target and NS.spell_ready(ACTION.Shiv, target, { expected_cooldown = 10 }) or false
     assassin_state.shiv_purge_name = nil
     if context.in_combat and (context.is_pvp or false) and target and CCGateDB and CCGateDB.find_best_dispel_target then
         local best_id, _, best_name = CCGateDB.find_best_dispel_target(target, NS)
@@ -142,7 +184,7 @@ local function build_state(context)
     local is_dagger = dagger_set and dagger_set.is_dagger or {}
     assassin_state.has_daggers = (main_id and main_id ~= 0 and is_dagger[main_id])
         and (off_id and off_id ~= 0 and is_dagger[off_id])
-    return assassin_state
+    return spec_kit.safe_state(assassin_state, ASSN_SCHEMA)
 end
 
 local function shiv_purge_matches(context, state)
@@ -168,8 +210,8 @@ local function assassination_leveling_builder_matches(context, state)
     if (state.energy or 0) < 45 then return false end
     local level = context.player_level or 70
     if not context.is_leveling and level >= 50 then return false end
-    if level >= 50 and NS.spell_exists and NS.spell_exists(SPELLS.Mutilate) then return false end
-    return NS.spell_ready(SPELLS.SinisterStrike, target)
+    if level >= 50 and NS.spell_exists and NS.spell_exists(ACTION.Mutilate) then return false end
+    return NS.spell_ready(ACTION.SinisterStrike, target)
 end
 
 -- ============================================================================
@@ -215,10 +257,10 @@ local strategies = {
         matches = function(context)
             local hp = context.settings and context.settings.assassin_evasion_hp or 25
             if (context.hp or 100) > hp then return false end
-            return NS.spell_ready(SPELLS.Evasion, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.Evasion, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.Evasion, NS.PLAYER_UNIT, "[ASSASS] Evasion defense", { skip_range = true })
+            return NS.try_cast(ACTION.Evasion, NS.PLAYER_UNIT, "[ASSASS] Evasion defense", { skip_range = true })
         end,
     },
 
@@ -230,10 +272,10 @@ local strategies = {
         matches = function(context)
             local hp = context.settings and context.settings.assassin_clos_hp or 30
             if (context.hp or 100) > hp then return false end
-            return NS.spell_ready(SPELLS.CloakOfShadows, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.CloakOfShadows, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.CloakOfShadows, NS.PLAYER_UNIT, "[ASSASS] Cloak of Shadows", { skip_range = true })
+            return NS.try_cast(ACTION.CloakOfShadows, NS.PLAYER_UNIT, "[ASSASS] Cloak of Shadows", { skip_range = true })
         end,
     },
 
@@ -260,10 +302,10 @@ local strategies = {
         matches = function(context)
             if not context.in_combat then return false end
             if (context.threat_pct or 0) < 90 then return false end
-            return NS.spell_ready(SPELLS.Vanish, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.Vanish, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.Vanish, NS.PLAYER_UNIT, "[ASSASS] Vanish (threat/reopen)")
+            return NS.try_cast(ACTION.Vanish, NS.PLAYER_UNIT, "[ASSASS] Vanish (threat/reopen)")
         end,
     },
 
@@ -276,7 +318,7 @@ local strategies = {
         matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end,
         execute = function(context)
             local name = context._shiv_purge_name or "buff"
-            return NS.try_cast(SPELLS.Shiv, context.target, "[ASSASS] Shiv purge → " .. name, { expected_cooldown = 10 })
+            return NS.try_cast(ACTION.Shiv, context.target, "[ASSASS] Shiv purge → " .. name, { expected_cooldown = 10 })
         end,
     },
 
@@ -291,13 +333,13 @@ local strategies = {
             -- Refresh when about to drop (< 3s) even if active
             if state.slice_dice_active and not state.snd_needs_refresh then return false end
             if (state.combo or 0) < 2 then return false end
-            return NS.spell_ready(SPELLS.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function(context, state)
             local tag = state.slice_dice_active
                 and string.format("[ASSASS] Slice and Dice refresh (%.1fs)", state.snd_remains)
                 or "[ASSASS] Slice and Dice"
-            return NS.try_cast(SPELLS.SliceAndDice, NS.PLAYER_UNIT, tag, { skip_range = true })
+            return NS.try_cast(ACTION.SliceAndDice, NS.PLAYER_UNIT, tag, { skip_range = true })
         end,
     },
 
@@ -315,11 +357,11 @@ local strategies = {
             if (state.dp_stacks or 0) < min_stacks then return false end
             if state.has_cold_blood then return false end  -- already active
             -- Cold Blood first (off-GCD, use SPELLS table)
-            if not NS.spell_ready(SPELLS.ColdBlood, NS.PLAYER_UNIT, { skip_range = true }) then return false end
-            return NS.spell_ready(SPELLS.Envenom, context.target)
+            if not NS.spell_ready(ACTION.ColdBlood, NS.PLAYER_UNIT, { skip_range = true }) then return false end
+            return NS.spell_ready(ACTION.Envenom, context.target)
         end,
         execute = function(context)
-            if NS.try_cast(SPELLS.ColdBlood, NS.PLAYER_UNIT, "[ASSASS] Cold Blood pre-Envenom", { skip_range = true }) then
+            if NS.try_cast(ACTION.ColdBlood, NS.PLAYER_UNIT, "[ASSASS] Cold Blood pre-Envenom", { skip_range = true }) then
                 return true  -- cast CB this GCD, Envenom next
             end
             return false
@@ -340,10 +382,10 @@ local strategies = {
             if (context.target_bleed_immune or false) then return false end  -- nil-safe: skip rupture if immune
             -- Only on long-lived targets (TTD > 12s)
             if context.ttd_known and context.ttd > 0 and context.ttd < 12 then return false end
-            return NS.spell_ready(SPELLS.Rupture, context.target)
+            return NS.spell_ready(ACTION.Rupture, context.target)
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.Rupture, context.target, "[ASSASS] Rupture")
+            return NS.try_cast(ACTION.Rupture, context.target, "[ASSASS] Rupture")
         end,
     },
 
@@ -358,10 +400,10 @@ local strategies = {
             if (state.combo or 0) < 4 then return false end
             local min_stacks = context.settings and context.settings.assassin_envenom_stacks or 3
             if (state.dp_stacks or 0) < min_stacks then return false end
-            return NS.spell_ready(SPELLS.Envenom, context.target)
+            return NS.spell_ready(ACTION.Envenom, context.target)
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.Envenom, context.target,
+            return NS.try_cast(ACTION.Envenom, context.target,
                 string.format("[ASSASS] Envenom at %d CP / %d DP stacks", context.combo_points or context.combo or 0, assassin_state.dp_stacks or 0))
         end,
     },
@@ -373,10 +415,10 @@ local strategies = {
             if not (context.is_pvp or context.is_group) then return false end
             -- Don't DR stun if already stunned recently
             if (context.target_dr_stun or false) then return false end
-            return NS.spell_ready(SPELLS.KidneyShot, context.target)
+            return NS.spell_ready(ACTION.KidneyShot, context.target)
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.KidneyShot, context.target, "[ASSASS PvP] Kidney Shot")
+            return NS.try_cast(ACTION.KidneyShot, context.target, "[ASSASS PvP] Kidney Shot")
         end,
     },
 
@@ -389,10 +431,10 @@ local strategies = {
             if not (context.settings and context.settings.assassin_thistle_tea) then return false end
             if (state.energy or 100) > 40 then return false end  -- don't waste
             if (state.combo or 0) > 3 then return false end  -- better to pool for finisher
-            return NS.spell_ready(SPELLS.ThistleTea, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.ThistleTea, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()
-            return NS.try_cast(SPELLS.ThistleTea, NS.PLAYER_UNIT, "[ASSASS] Thistle Tea", { skip_range = true })
+            return NS.try_cast(ACTION.ThistleTea, NS.PLAYER_UNIT, "[ASSASS] Thistle Tea", { skip_range = true })
         end,
     },
 
@@ -408,10 +450,10 @@ local strategies = {
             -- Only Shiv if DP is about to drop and we care about stacks
             if (state.dp_remains or 0) > 3 then return false end
             if (state.dp_stacks or 0) >= 5 then return false end  -- already max
-            return NS.spell_ready(SPELLS.Shiv, target, { expected_cooldown = 10 })
+            return NS.spell_ready(ACTION.Shiv, target, { expected_cooldown = 10 })
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.Shiv, context.target, "[ASSASS] Shiv (DP refresh)", { expected_cooldown = 10 })
+            return NS.try_cast(ACTION.Shiv, context.target, "[ASSASS] Shiv (DP refresh)", { expected_cooldown = 10 })
         end,
     },
 
@@ -424,7 +466,7 @@ local strategies = {
         name = "LevelingSinisterStrike",
         matches = assassination_leveling_builder_matches,
         execute = function(context)
-            return NS.try_cast(SPELLS.SinisterStrike, context.target, "[ASSASS] Sinister Strike leveling")
+            return NS.try_cast(ACTION.SinisterStrike, context.target, "[ASSASS] Sinister Strike leveling")
         end,
     },
     {
@@ -432,13 +474,13 @@ local strategies = {
         matches = function(context, state)
             if state.energy_low then return false end
             if not state.has_daggers then return false end
-            return NS.spell_ready(SPELLS.Mutilate, context.target)
+            return NS.spell_ready(ACTION.Mutilate, context.target)
         end,
         execute = function(context, state)
             local tag = state.target_poisoned
                 and "[ASSASS] Mutilate (poisoned)"
                 or "[ASSASS] Mutilate"
-            return NS.try_cast(SPELLS.Mutilate, context.target, tag)
+            return NS.try_cast(ACTION.Mutilate, context.target, tag)
         end,
     },
 
@@ -450,14 +492,14 @@ local strategies = {
         name = "SinisterStrikeFallback",
         matches = function(context, state)
             local level = context.player_level or 70
-            if level < 50 or not (NS.spell_exists and NS.spell_exists(SPELLS.Mutilate)) then return false end
+            if level < 50 or not (NS.spell_exists and NS.spell_exists(ACTION.Mutilate)) then return false end
             -- Fallback when Mutilate can't be used: no daggers equipped
             if state.has_daggers then return false end
             if state.energy_low then return false end
-            return NS.spell_ready(SPELLS.SinisterStrike, context.target)
+            return NS.spell_ready(ACTION.SinisterStrike, context.target)
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.SinisterStrike, context.target, "[ASSASS] Sinister Strike (Mutilate fallback)")
+            return NS.try_cast(ACTION.SinisterStrike, context.target, "[ASSASS] Sinister Strike (Mutilate fallback)")
         end,
     },
 
@@ -470,10 +512,10 @@ local strategies = {
             if state.energy_pool_finisher then return false end  -- pool energy below 25
             if (state.combo or 0) < 5 then return false end
             -- Only eviscerate if we can't Envenom or Rupture
-            return NS.spell_ready(SPELLS.Eviscerate, context.target)
+            return NS.spell_ready(ACTION.Eviscerate, context.target)
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.Eviscerate, context.target, "[ASSASS] Eviscerate")
+            return NS.try_cast(ACTION.Eviscerate, context.target, "[ASSASS] Eviscerate")
         end,
     },
 
@@ -489,10 +531,10 @@ local strategies = {
             -- Skip if target has no armor (API unavailable or already fully reduced)
             if (context.target_armor or 0) <= 0 then return false end
             if (context.has_sunder or false) then return false end
-            return NS.spell_ready(SPELLS.ExposeArmor, target)
+            return NS.spell_ready(ACTION.ExposeArmor, target)
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.ExposeArmor, context.target, "[ASSASS] Expose Armor")
+            return NS.try_cast(ACTION.ExposeArmor, context.target, "[ASSASS] Expose Armor")
         end,
     },
 
@@ -504,10 +546,10 @@ local strategies = {
         matches = function(context, state)
             if (state.combo or 0) < 3 then return false end
             -- Use when target is fleeing or at range
-            return NS.spell_ready(SPELLS.DeadlyThrow, context.target)
+            return NS.spell_ready(ACTION.DeadlyThrow, context.target)
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.DeadlyThrow, context.target, "[ASSASS] Deadly Throw")
+            return NS.try_cast(ACTION.DeadlyThrow, context.target, "[ASSASS] Deadly Throw")
         end,
     },
 
@@ -518,10 +560,10 @@ local strategies = {
         name = "BlindCC",
         matches = function(context)
             if not (context.is_pvp or context.is_group) then return false end
-            return NS.spell_ready(SPELLS.Blind, context.target)
+            return NS.spell_ready(ACTION.Blind, context.target)
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.Blind, context.target, "[ASSASS] Blind")
+            return NS.try_cast(ACTION.Blind, context.target, "[ASSASS] Blind")
         end,
     },
     {
@@ -529,10 +571,10 @@ local strategies = {
         matches = function(context)
             if not context.is_pvp then return false end
             if context.target_distance and context.target_distance < 15 then return false end
-            return NS.spell_ready(SPELLS.Sprint, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.Sprint, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()
-            return NS.try_cast(SPELLS.Sprint, NS.PLAYER_UNIT, "[ASSASS PvP] Sprint gap close", { skip_range = true })
+            return NS.try_cast(ACTION.Sprint, NS.PLAYER_UNIT, "[ASSASS PvP] Sprint gap close", { skip_range = true })
         end,
     },
     {
@@ -540,10 +582,10 @@ local strategies = {
         matches = function(context, state)
             if not state.stealth_active then return false end
             if not context.is_pvp then return false end
-            return NS.spell_ready(SPELLS.CheapShot, context.target)
+            return NS.spell_ready(ACTION.CheapShot, context.target)
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.CheapShot, context.target, "[ASSASS PvP] Cheap Shot opener")
+            return NS.try_cast(ACTION.CheapShot, context.target, "[ASSASS PvP] Cheap Shot opener")
         end,
     },
 
@@ -555,10 +597,10 @@ local strategies = {
         matches = function(context, state)
             if context.in_combat then return false end
             if state.stealth_active then return false end
-            return NS.spell_ready(SPELLS.Stealth, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.Stealth, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()
-            return NS.try_cast(SPELLS.Stealth, NS.PLAYER_UNIT, "[ASSASS] Stealth", { skip_range = true })
+            return NS.try_cast(ACTION.Stealth, NS.PLAYER_UNIT, "[ASSASS] Stealth", { skip_range = true })
         end,
     },
 
@@ -573,10 +615,10 @@ local strategies = {
             if not state.stealth_active then return false end
             if context.is_pvp then return false end  -- CheapShot better in PvP
             if NS.is_behind_target and not NS.is_behind_target(context.target) then return false end
-            return NS.spell_ready(SPELLS.Garrote, context.target)
+            return NS.spell_ready(ACTION.Garrote, context.target)
         end,
         execute = function(context)
-            return NS.try_cast(SPELLS.Garrote, context.target, "[ASSASS] Garrote opener")
+            return NS.try_cast(ACTION.Garrote, context.target, "[ASSASS] Garrote opener")
         end,
     },
 
@@ -588,18 +630,21 @@ local strategies = {
         matches = function(context, state)
             -- Threat drop: cast when threat is high regardless of HP/AoE
             if (context.threat_pct or 0) > 90 then
-                return NS.spell_ready(SPELLS.Feint, NS.PLAYER_UNIT, { skip_range = true })
+                return NS.spell_ready(ACTION.Feint, NS.PLAYER_UNIT, { skip_range = true })
             end
             -- AoE damage reduction: cast when taking AoE damage and HP low
             if (state.hp_pct or 100) > 60 then return false end
             if not context.aoe_damage_incoming then return false end
-            return NS.spell_ready(SPELLS.Feint, NS.PLAYER_UNIT, { skip_range = true })
+            return NS.spell_ready(ACTION.Feint, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()
-            return NS.try_cast(SPELLS.Feint, NS.PLAYER_UNIT, "[ASSASS] Feint", { skip_range = true })
+            return NS.try_cast(ACTION.Feint, NS.PLAYER_UNIT, "[ASSASS] Feint", { skip_range = true })
         end,
     },
 }
 
-NS.rotation_registry:register("assassination", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("assassination", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("Rogue assassination rotation registered") end
 return { strategies = strategies, build_state = build_state }
