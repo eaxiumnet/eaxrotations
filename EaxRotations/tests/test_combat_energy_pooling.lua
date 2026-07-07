@@ -61,7 +61,7 @@ _G.EaxRotations = {
     GetPlayer = function() return { _buff_up = false, _buff_remains = 0 } end,
 }
 
-local strategies = dofile("EaxRotations/classes/rogue/combat_sylvanas.lua")
+local strategies = dofile("EaxRotations/classes/rogue/combat_sylvanas.lua").strategies
 assert_true(strategies, "strategies table should load")
 
 -- Find build_state from options
