@@ -335,7 +335,7 @@ local strategies = {
             local party = get_party_members()
             for _, member in ipairs(party) do
                 if has_magic_debuff_on_unit(member) then
-                    return NS.try_cast(dispel_id, member, "[PRIEST] Dispel Magic (Party)", { skip_range = true })
+                    return NS.try_cast(dispel_id, member, "[PRIEST] Dispel Magic (Party)")
                 end
             end
             
@@ -414,7 +414,7 @@ local strategies = {
             local party = get_party_members()
             for _, member in ipairs(party) do
                 if has_disease_debuff_on_unit(member) then
-                    return NS.try_cast(abolish_id, member, "[PRIEST] Abolish Disease (Party)", { skip_range = true })
+                    return NS.try_cast(abolish_id, member, "[PRIEST] Abolish Disease (Party)")
                 end
             end
             
