@@ -79,7 +79,7 @@ _G.core = {
 }
 
 local elemental = dofile("EaxRotations/classes/shaman/elemental_sylvanas.lua").strategies
-local enhancement = dofile("EaxRotations/classes/shaman/enhancement_sylvanas.lua")
+local enhancement = dofile("EaxRotations/classes/shaman/enhancement_sylvanas.lua").strategies
     -- Helper: refresh enh_state by calling enh_build_state with current now_ms
     -- The enhancement shield match function reads enh_state (not the state param),
     -- so enh_build_state must be called each time to refresh enh_state.now_ms.

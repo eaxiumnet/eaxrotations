@@ -59,7 +59,7 @@ _G.EaxRotations = {
     try_cast = function() return true end,
     log = function() end,
 }	-- Call build_state AFTER enhancement loads so enh_state is populated
-	local strategies = dofile("EaxRotations/classes/shaman/enhancement_sylvanas.lua")
+	local strategies = dofile("EaxRotations/classes/shaman/enhancement_sylvanas.lua").strategies
 	local lhw = find_strategy(strategies, "LesserHealingWave")
 	local chain = find_strategy(strategies, "ChainHeal")
 	
