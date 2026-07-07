@@ -63,7 +63,7 @@ local spec_files = {
 }
 
 -- Specs that have adopted spec_kit.define_action_for_class (the mechanical conversion).
--- Add a spec here ONLY after it has been converted AND the full 208+11 suite passes.
+-- Add a spec here ONLY after it has been converted AND the full 234+13 suite passes.
 -- The full canonical template (safe_state + return {strategies, build_state}) is Phase 3.
 local CONVERTED = {
     ["EaxRotations/classes/warrior/arms_sylvanas.lua"] = true,
@@ -71,6 +71,10 @@ local CONVERTED = {
     ["EaxRotations/classes/warrior/protection_sylvanas.lua"] = true,
     ["EaxRotations/classes/warrior/kebab_sylvanas.lua"] = true,
     ["EaxRotations/classes/druid/balance_sylvanas.lua"] = true,
+    ["EaxRotations/classes/druid/cat_sylvanas.lua"] = true,
+    ["EaxRotations/classes/druid/bear_sylvanas.lua"] = true,
+    ["EaxRotations/classes/druid/caster_sylvanas.lua"] = true,
+    ["EaxRotations/classes/druid/resto_sylvanas.lua"] = true,
 }
 
 local function add_issue(issues, path, rule, detail)
@@ -139,10 +143,12 @@ for _, path in ipairs(spec_files) do
             add_issue(issues, path, "converted-missing-build_state", "build_state function not found")
         end
 
-        -- Valid return shape: "return strategies" or "return { strategies" (both accepted).
+        -- Valid return shape: "return strategies", "return module" (table with
+        -- strategies key), or "return { strategies" — all accepted.
         if not (has_lit(text, "return strategies") or
+                has_lit(text, "return module") or
                 text:find("return%s*%{%s*strategies", 1) ~= nil) then
-            add_issue(issues, path, "converted-invalid-return", "no return strategies or return { strategies found")
+            add_issue(issues, path, "converted-invalid-return", "no return strategies/module/{ strategies found")
         end
     else
         legacy_count = legacy_count + 1
