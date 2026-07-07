@@ -3,6 +3,7 @@ local mode, root = runner.parse_args(arg, "EaxRotations")
 
 local tests = {
  "test_try_cast_izi_primary.lua",
+ "test_range_verification_oor_fallthrough.lua",
  "test_update_callback_void_registration.lua",
  "test_update_callback_rotation_disabled_sync.lua",
  -- Dispatcher + loader regressions
@@ -29,6 +30,7 @@ local tests = {
  "test_paladin_retribution_twist_diagnostics.lua",
  "test_swing_diagnostics.lua",
  "test_melee_cleu_wiring.lua",
+ "test_swing_mechanics.lua",
  "test_shaman_enhancement_totem_twist.lua",
  "test_shaman_enhancement_auto_weapon_buffs.lua",
  "test_shaman_enhancement_intelligent_shield.lua",
