@@ -1,8 +1,11 @@
--- restoration_sylvanas -- shaman restoration_sylvanas rotation for TBC Anniversary (2.5.5).
--- WHAT: priority-list strategies for restoration_sylvanas gameplay.
--- WHEN: combat with valid enemy target (or healing context for healers).
--- WHY: mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- restoration_sylvanas.lua -- Shaman Restoration healer for TBC Anniversary (2.5.5).
+-- WHAT:  chain-heal-based group healer with Earth Shield tank maintenance,
+--         Mana Tide + Bloodlust CDs, Water Shield mana management, and
+--         totem auto-management (tremor/grounding/cleansing/stat totems).
+-- WHEN:  combat or pre-combat, with valid friendly targets.
+-- WHY:   mirrors TBC resto shaman consensus: Chain Heal is primary throughput,
+--         Earth Shield on tank, Healing Way stack maintenance, NS emergency.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 
 -- Shaman Restoration group-healing playstyle.
 
@@ -12,6 +15,36 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local SPELLS = NS.ShamanSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
+
+-- Centralized spell resolver via spec_kit (rank IDs from shaman/class_sylvanas.lua).
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    Bloodlust               = define("Bloodlust",               { 2825 }, "Bloodlust"),
+    ChainHeal               = define("ChainHeal",               { 25423, 25422, 10623, 10622, 1064 }, "ChainHeal"),
+    ChainLightning          = define("ChainLightning",          { 25442, 25439, 10605, 2860, 930, 421 }, "ChainLightning"),
+    CureDisease             = define("CureDisease",             { 2870 }, "CureDisease"),
+    CurePoison              = define("CurePoison",              { 526 }, "CurePoison"),
+    DiseaseCleansingTotem   = define("DiseaseCleansingTotem",   { 8170 }, "DiseaseCleansingTotem"),
+    EarthShield             = define("EarthShield",             { 32594, 32593, 974 }, "EarthShield"),
+    EarthShock              = define("EarthShock",              { 25454, 10414, 10413, 10412, 8046, 8045, 8044, 8042 }, "EarthShock"),
+    FlameShock              = define("FlameShock",              { 25457, 29228, 10448, 10447, 8053, 8052, 8050 }, "FlameShock"),
+    GraceOfAirTotem         = define("GraceOfAirTotem",         { 25359, 10627, 8835 }, "GraceOfAirTotem"),
+    GroundingTotem          = define("GroundingTotem",          { 8177 }, "GroundingTotem"),
+    HealingWave             = define("HealingWave",             { 25396, 25391, 25357, 10396, 10395, 8005, 959, 939, 913, 547, 332, 331 }, "HealingWave"),
+    LesserHealingWave       = define("LesserHealingWave",       { 25420, 10468, 10467, 10466, 8010, 8008, 8004 }, "LesserHealingWave"),
+    LightningBolt           = define("LightningBolt",           { 25449, 25448, 15208, 15207, 10392, 10391, 6041, 943, 915, 548, 529, 403 }, "LightningBolt"),
+    LightningShield         = define("LightningShield",         { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }, "LightningShield"),
+    ManaSpringTotem         = define("ManaSpringTotem",         { 25570, 10497, 10496, 10495, 5675 }, "ManaSpringTotem"),
+    ManaTideTotem           = define("ManaTideTotem",           { 16190 }, "ManaTideTotem"),
+    NaturesSwiftness        = define("NaturesSwiftness",        { 16188 }, "NaturesSwiftness"),
+    PoisonCleansingTotem    = define("PoisonCleansingTotem",    { 8166 }, "PoisonCleansingTotem"),
+    Purge                   = define("Purge",                   { 8012, 370 }, "Purge"),
+    StrengthOfEarthTotem    = define("StrengthOfEarthTotem",    { 25528, 25361, 10442, 8161, 8160, 8075 }, "StrengthOfEarthTotem"),
+    TremorTotem             = define("TremorTotem",             { 8143 }, "TremorTotem"),
+    WaterShield             = define("WaterShield",             { 33736, 24398, 23575 }, "WaterShield"),
+    WindfuryTotem           = define("WindfuryTotem",           { 25587, 25585, 10614, 10613, 8512 }, "WindfuryTotem"),
+}
 local Healing = NS.ShamanHealing or require("classes/shaman/healing_sylvanas")
 -- Preemptive heal module (Sonah-style predictive healing)
 local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
@@ -19,8 +52,8 @@ local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { shaman = {} } } end
 local TBC_SHAMAN = (TBC.SPELLS and TBC.SPELLS.shaman) or {}
 
-local WATER_SHIELD_SPELL = SPELLS.WaterShield or 33736
-local LIGHTNING_SHIELD_SPELL = SPELLS.LightningShield or 25472
+local WATER_SHIELD_SPELL = ACTION.WaterShield or 33736
+local LIGHTNING_SHIELD_SPELL = ACTION.LightningShield or 25472
 
 -- ============================================================================
 -- Buff & Debuff ID tables
@@ -57,6 +90,42 @@ local function first_ready_item(ids)
     end
     return nil
 end
+
+-- ============================================================================
+-- Schema for safe_state (Pattern 14 nil-guard elimination).
+-- ============================================================================
+local RESTO_SCHEMA = {
+    -- Buff presence
+    has_water_shield = false, has_lightning_shield = false,
+    natures_swiftness_active = false,
+    -- Spell readiness
+    water_shield_ready = false, lightning_shield_ready = false,
+    earth_shield_ready = false, chain_heal_ready = false,
+    healing_wave_ready = false, lesser_healing_wave_ready = false,
+    mana_tide_ready = false, bloodlust_ready = false,
+    natures_swiftness_ready = false, earth_shock_ready = false,
+    flame_shock_ready = false, lightning_bolt_ready = false,
+    chain_lightning_ready = false, purge_ready = false,
+    cure_poison_ready = false, cure_disease_ready = false,
+    tremor_totem_ready = false, grounding_totem_ready = false,
+    poison_cleansing_totem_ready = false, disease_cleansing_totem_ready = false,
+    -- Resource
+    mana_pct = 100, hp_pct = 100,
+    mana_low = false, mana_conserve = false, mana_emergency = false,
+    -- Combat
+    in_combat = false, is_group = false, enemy_count = 0,
+    -- Target
+    target_casting = false,
+    -- Numeric
+    earth_shield_charges = 0, earth_shield_remains = 0,
+    water_shield_charges = 0, flame_shock_remains = 0,
+    healing_way_stacks = 0, healing_way_remains = 0,
+    chain_heal_target_count = 0, chain_heal_cluster_count = 0,
+    lowest_hp_pct = 100, lowest_time_to_die = 999,
+    healthstone_ready = 0,
+    -- Boolean
+    friendly_target_ready = false,
+}
 
 -- ============================================================================
 -- State builder
@@ -115,10 +184,10 @@ local resto_state = {
 
 local function build_state(context)
  local me = context.me or NS.GetPlayer()
- if not me then return resto_state end
+ if not me then return spec_kit.safe_state(resto_state, RESTO_SCHEMA) end
  -- Mounted bail: healer should not queue buffs/heals while mounted
  if me.is_mounted and me:is_mounted() then
-  return resto_state
+  return spec_kit.safe_state(resto_state, RESTO_SCHEMA)
  end
  local target = context.target
  local entries, count = Healing.scan_healing_targets()
@@ -150,9 +219,9 @@ local function build_state(context)
  resto_state.natures_swiftness_active = _ns_is_active()
  resto_state.has_water_shield = me and NS.buff_up and NS.buff_up(me, WATER_SHIELD_BUFF) or false
  resto_state.has_lightning_shield = me and NS.buff_up and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
- resto_state.water_shield_ready = me and NS.spell_ready(SPELLS.WaterShield, me, { skip_range = true }) or false
- resto_state.lightning_shield_ready = me and NS.spell_ready(SPELLS.LightningShield, me, { skip_range = true }) or false
- resto_state.earth_shield_ready = me and NS.spell_ready(SPELLS.EarthShield, me, { skip_range = true }) or false
+ resto_state.water_shield_ready = me and NS.spell_ready(ACTION.WaterShield, me, { skip_range = true }) or false
+ resto_state.lightning_shield_ready = me and NS.spell_ready(ACTION.LightningShield, me, { skip_range = true }) or false
+ resto_state.earth_shield_ready = me and NS.spell_ready(ACTION.EarthShield, me, { skip_range = true }) or false
  -- Earth Shield charge/remains tracking (for tank)
  local es_target = resto_state.tank and resto_state.tank.unit
  if es_target then
@@ -164,19 +233,19 @@ local function build_state(context)
  end
  -- Water Shield charge tracking (self)
  resto_state.water_shield_charges = (me and NS.buff_stacks and NS.buff_stacks(me, WATER_SHIELD_BUFF)) or 0
- resto_state.chain_heal_ready = me and NS.spell_ready(SPELLS.ChainHeal, me, { skip_range = true }) or false
- resto_state.healing_wave_ready = me and NS.spell_ready(SPELLS.HealingWave, me, { skip_range = true }) or false
- resto_state.lesser_healing_wave_ready = me and NS.spell_ready(SPELLS.LesserHealingWave, me, { skip_range = true }) or false
- resto_state.mana_tide_ready = me and NS.spell_ready(SPELLS.ManaTideTotem, me, { skip_range = true }) or false
- resto_state.bloodlust_ready = me and NS.spell_ready(SPELLS.Bloodlust, me, { skip_range = true }) or false
- resto_state.natures_swiftness_ready = me and NS.spell_ready(SPELLS.NaturesSwiftness, me, { skip_range = true }) or false
- resto_state.earth_shock_ready = me and NS.spell_ready(SPELLS.EarthShock, me, { expected_cooldown = 6 }) or false
- resto_state.flame_shock_ready = me and NS.spell_ready(SPELLS.FlameShock, me, { expected_cooldown = 6 }) or false
- resto_state.lightning_bolt_ready = me and NS.spell_ready(SPELLS.LightningBolt, me, { expected_cooldown = 2.5 }) or false
- resto_state.chain_lightning_ready = me and NS.spell_ready(SPELLS.ChainLightning, me, { expected_cooldown = 6 }) or false
- resto_state.purge_ready = target and NS.spell_ready(SPELLS.Purge, target) or false
- resto_state.cure_poison_ready = me and SPELLS.CurePoison and NS.spell_ready(SPELLS.CurePoison, me, { skip_range = true }) or false
- resto_state.cure_disease_ready = me and SPELLS.CureDisease and NS.spell_ready(SPELLS.CureDisease, me, { skip_range = true }) or false
+ resto_state.chain_heal_ready = me and NS.spell_ready(ACTION.ChainHeal, me, { skip_range = true }) or false
+ resto_state.healing_wave_ready = me and NS.spell_ready(ACTION.HealingWave, me, { skip_range = true }) or false
+ resto_state.lesser_healing_wave_ready = me and NS.spell_ready(ACTION.LesserHealingWave, me, { skip_range = true }) or false
+ resto_state.mana_tide_ready = me and NS.spell_ready(ACTION.ManaTideTotem, me, { skip_range = true }) or false
+ resto_state.bloodlust_ready = me and NS.spell_ready(ACTION.Bloodlust, me, { skip_range = true }) or false
+ resto_state.natures_swiftness_ready = me and NS.spell_ready(ACTION.NaturesSwiftness, me, { skip_range = true }) or false
+ resto_state.earth_shock_ready = me and NS.spell_ready(ACTION.EarthShock, me, { expected_cooldown = 6 }) or false
+ resto_state.flame_shock_ready = me and NS.spell_ready(ACTION.FlameShock, me, { expected_cooldown = 6 }) or false
+ resto_state.lightning_bolt_ready = me and NS.spell_ready(ACTION.LightningBolt, me, { expected_cooldown = 2.5 }) or false
+ resto_state.chain_lightning_ready = me and NS.spell_ready(ACTION.ChainLightning, me, { expected_cooldown = 6 }) or false
+ resto_state.purge_ready = target and NS.spell_ready(ACTION.Purge, target) or false
+ resto_state.cure_poison_ready = me and ACTION.CurePoison and NS.spell_ready(ACTION.CurePoison, me, { skip_range = true }) or false
+ resto_state.cure_disease_ready = me and ACTION.CureDisease and NS.spell_ready(ACTION.CureDisease, me, { skip_range = true }) or false
  resto_state.is_group = context.is_group or false
  resto_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
  resto_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
@@ -198,10 +267,10 @@ local function build_state(context)
  local cluster_count = resto_state.chain_heal_cluster_count or 0
  local hp_count = Healing.count_below_hp and Healing.count_below_hp(80) or 1
  resto_state.chain_heal_target_count = math.max(cluster_count, hp_count)
- resto_state.tremor_totem_ready = me and NS.spell_ready(SPELLS.TremorTotem, me, { skip_range = true }) or false
- resto_state.grounding_totem_ready = me and NS.spell_ready(SPELLS.GroundingTotem, me, { skip_range = true }) or false
- resto_state.poison_cleansing_totem_ready = me and SPELLS.PoisonCleansingTotem and NS.spell_ready(SPELLS.PoisonCleansingTotem, me, { skip_range = true }) or false
- resto_state.disease_cleansing_totem_ready = me and SPELLS.DiseaseCleansingTotem and NS.spell_ready(SPELLS.DiseaseCleansingTotem, me, { skip_range = true }) or false
+ resto_state.tremor_totem_ready = me and NS.spell_ready(ACTION.TremorTotem, me, { skip_range = true }) or false
+ resto_state.grounding_totem_ready = me and NS.spell_ready(ACTION.GroundingTotem, me, { skip_range = true }) or false
+ resto_state.poison_cleansing_totem_ready = me and ACTION.PoisonCleansingTotem and NS.spell_ready(ACTION.PoisonCleansingTotem, me, { skip_range = true }) or false
+ resto_state.disease_cleansing_totem_ready = me and ACTION.DiseaseCleansingTotem and NS.spell_ready(ACTION.DiseaseCleansingTotem, me, { skip_range = true }) or false
  -- Track lowest ally HP + estimated time-to-die for NS emergency gating
  if resto_state.lowest then
   resto_state.lowest_hp_pct = resto_state.lowest.effective_hp or 100
@@ -222,7 +291,7 @@ local function build_state(context)
  end
  resto_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
- return resto_state
+ return spec_kit.safe_state(resto_state, RESTO_SCHEMA)
 end
 
 local function cooldowns_enabled(context)
@@ -235,7 +304,7 @@ end
 -- Match functions
 -- ============================================================================
 local function water_shield_matches(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.WaterShield, 3.0) then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.WaterShield, 3.0) then return false end
  local shield_type = (context.settings and context.settings.restoration_shield_type) or "water"
  if shield_type ~= "water" then return false end
  -- Water Shield costs 0 mana and returns mana — allow even during conserve
@@ -254,7 +323,7 @@ local function water_shield_matches(context, state)
 end
 
 local function lightning_shield_matches(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.LightningShield, 3.0) then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LightningShield, 3.0) then return false end
  local shield_type = (context.settings and context.settings.restoration_shield_type) or "water"
  if shield_type ~= "lightning" then return false end
  if state.has_lightning_shield then return false end
@@ -264,7 +333,7 @@ local function lightning_shield_matches(context, state)
 end
 
 local function earth_shield_tank_matches(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.EarthShield, 3.0) then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.EarthShield, 3.0) then return false end
  if state.mana_emergency then return false end
  if not state.tank then return false end
  local target = state.tank.unit or NS.PLAYER_UNIT
@@ -286,7 +355,7 @@ local function natures_swiftness_matches(context, state)
  if (state.lowest.effective_hp or 100) > 30 then return false end
  if NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, NATURES_SWIFTNESS_BUFF) then return false end
  local me = context.me or NS.GetPlayer()
- if not me or not NS.spell_ready(SPELLS.NaturesSwiftness, me, { skip_range = true }) then return false end
+ if not me or not NS.spell_ready(ACTION.NaturesSwiftness, me, { skip_range = true }) then return false end
  if (state.lowest_time_to_die or 999) > 3 then return false end
  return true
 end
@@ -304,7 +373,7 @@ local function mana_tide_totem_matches(context, state)
  end
  if Healing.all_members_above_hp and not Healing.all_members_above_hp(80) then return false end
  local me = context.me or NS.GetPlayer()
- if not me or not NS.spell_ready(SPELLS.ManaTideTotem, me, { skip_range = true }) then return false end
+ if not me or not NS.spell_ready(ACTION.ManaTideTotem, me, { skip_range = true }) then return false end
  return true
 end
 
@@ -322,7 +391,7 @@ local function bloodlust_matches(context, state)
   end
  end
  local me = context.me or NS.GetPlayer()
- if not me or not NS.spell_ready(SPELLS.Bloodlust, me, { skip_range = true }) then return false end
+ if not me or not NS.spell_ready(ACTION.Bloodlust, me, { skip_range = true }) then return false end
  return true
 end
 
@@ -416,7 +485,7 @@ end
 
 local function cure_poison_matches(context, state)
  if not state.cure_poison_ready then return false end
- if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurePoison, 3.0) then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurePoison, 3.0) then return false end
  if state.mana_emergency then return false end
  local dispel_target = _get_cleanse_target(state)
  if not dispel_target then return false end
@@ -427,7 +496,7 @@ end
 
 local function cure_disease_matches(context, state)
  if not state.cure_disease_ready then return false end
- if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CureDisease, 3.0) then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CureDisease, 3.0) then return false end
  if state.mana_emergency then return false end
  local dispel_target = _get_cleanse_target(state)
  if not dispel_target then return false end
@@ -438,7 +507,7 @@ end
 
 local function poison_cleansing_totem_matches(context, state)
  if not state.poison_cleansing_totem_ready then return false end
- if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.PoisonCleansingTotem, 3.0) then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.PoisonCleansingTotem, 3.0) then return false end
  if state.mana_emergency then return false end
  local dispel_target = _get_cleanse_target(state)
  if not dispel_target then return false end
@@ -448,7 +517,7 @@ end
 
 local function disease_cleansing_totem_matches(context, state)
  if not state.disease_cleansing_totem_ready then return false end
- if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DiseaseCleansingTotem, 3.0) then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.DiseaseCleansingTotem, 3.0) then return false end
  if state.mana_emergency then return false end
  local dispel_target = _get_cleanse_target(state)
  if not dispel_target then return false end
@@ -458,7 +527,7 @@ end
 
 local function totem_strength_matches(context, state)
  if context.settings and context.settings.restoration_manage_totems == false then return false end
- if _totem_ready(SPELLS.StrengthOfEarthTotem) then
+ if _totem_ready(ACTION.StrengthOfEarthTotem) then
   return true
  end
  return false
@@ -466,7 +535,7 @@ end
 
 local function totem_mana_spring_matches(context, state)
  if context.settings and context.settings.restoration_manage_totems == false then return false end
- if _totem_ready(SPELLS.ManaSpringTotem) then
+ if _totem_ready(ACTION.ManaSpringTotem) then
   return true
  end
  return false
@@ -474,7 +543,7 @@ end
 
 local function totem_grace_air_matches(context, state)
  if context.settings and context.settings.restoration_manage_totems == false then return false end
- if _totem_ready(SPELLS.GraceOfAirTotem) then
+ if _totem_ready(ACTION.GraceOfAirTotem) then
   return true
  end
  return false
@@ -482,7 +551,7 @@ end
 
 local function totem_windfury_matches(context, state)
  if context.settings and context.settings.restoration_manage_totems == false then return false end
- if _totem_ready(SPELLS.WindfuryTotem) then
+ if _totem_ready(ACTION.WindfuryTotem) then
   return true
  end
  return false
@@ -496,7 +565,7 @@ local function healing_way_matches(context, state)
  if (state.healing_way_stacks or 0) >= 3 then return false end
  if (state.healing_way_remains or 0) > 8 then return false end
  if not state.healing_wave_ready then return false end
- if not NS.spell_ready(SPELLS.HealingWave, state.tank.unit, { skip_range = true }) then return false end
+ if not NS.spell_ready(ACTION.HealingWave, state.tank.unit, { skip_range = true }) then return false end
  -- Predictive overheal gate: don't cast a full Healing Wave just to maintain stacks
  -- if the tank doesn't actually need the healing
  if NS.gate_overheal("HealingWave", state.tank.unit, 2.5, context.settings) then return false end
@@ -505,7 +574,7 @@ end
 
 local function healing_way_execute(context, state)
  if not state.tank then return false end
- return NS.try_cast(SPELLS.HealingWave, state.tank.unit, string.format("[RESTO] HealingWay (stack %d/3)", state.healing_way_stacks))
+ return NS.try_cast(ACTION.HealingWave, state.tank.unit, string.format("[RESTO] HealingWay (stack %d/3)", state.healing_way_stacks))
 end
 
 -- ============================================================================
@@ -534,11 +603,11 @@ local function chain_heal_execute(context, state)
  -- Prefer AoE cluster target over naive lowest
  local ch_target = state.chain_heal_optimal_target
  if ch_target and ch_target.unit then
-  return NS.try_cast(SPELLS.ChainHeal, ch_target.unit, string.format("[RESTO] ChainHeal %.0f%% (cluster %d)", ch_target.effective_hp or 0, state.chain_heal_cluster_count))
+  return NS.try_cast(ACTION.ChainHeal, ch_target.unit, string.format("[RESTO] ChainHeal %.0f%% (cluster %d)", ch_target.effective_hp or 0, state.chain_heal_cluster_count))
  end
  if not state.lowest or not state.lowest.unit then return false end
  local target = state.lowest.unit or NS.PLAYER_UNIT
- return NS.try_cast(SPELLS.ChainHeal, target, string.format("[RESTO] ChainHeal %.0f%% (%d targets)", state.lowest.effective_hp or 0, state.chain_heal_target_count))
+ return NS.try_cast(ACTION.ChainHeal, target, string.format("[RESTO] ChainHeal %.0f%% (%d targets)", state.lowest.effective_hp or 0, state.chain_heal_target_count))
 end
 
 -- ============================================================================
@@ -556,13 +625,13 @@ local healing_strategies = {
   if context.is_moving then return false end
   if context.player_control_locked then return false end
   if not state.healing_wave_ready then return false end
-  if not (NS.spell_ready and NS.spell_ready(SPELLS.HealingWave, ft.unit, { skip_range = true })) then return false end
+  if not (NS.spell_ready and NS.spell_ready(ACTION.HealingWave, ft.unit, { skip_range = true })) then return false end
   if NS.gate_overheal and NS.gate_overheal("HealingWave", ft.unit, 2.5, context.settings) then return false end
   return true
  end, execute = function(context, state)
   local ft = state.friendly_target
   if not ft or not ft.unit then return false end
-  return NS.try_cast(SPELLS.HealingWave, ft.unit, string.format("[RESTO] Healing Wave (friendly target) %.0f%%", ft.hp_pct or 100))
+  return NS.try_cast(ACTION.HealingWave, ft.unit, string.format("[RESTO] Healing Wave (friendly target) %.0f%%", ft.hp_pct or 100))
  end },
  { name = "ManaPotion",
   matches = function(context)
@@ -605,18 +674,18 @@ local healing_strategies = {
   local tank = state and state.tank
   local tank_unit = tank and tank.unit
   if tank_unit then
-   return NS.try_cast(SPELLS.EarthShield, tank_unit, "[RESTO] EarthShieldTank")
+   return NS.try_cast(ACTION.EarthShield, tank_unit, "[RESTO] EarthShieldTank")
   end
-  return NS.try_cast(SPELLS.EarthShield, NS.PLAYER_UNIT, "[RESTO] EarthShieldSelf")
+  return NS.try_cast(ACTION.EarthShield, NS.PLAYER_UNIT, "[RESTO] EarthShieldSelf")
  end },
  { name = "NaturesSwiftness", matches = natures_swiftness_matches, execute = function()
-  return NS.try_cast(SPELLS.NaturesSwiftness, NS.PLAYER_UNIT, "[RESTO] NaturesSwiftness")
+  return NS.try_cast(ACTION.NaturesSwiftness, NS.PLAYER_UNIT, "[RESTO] NaturesSwiftness")
  end },
  { name = "ManaTideTotem", matches = mana_tide_totem_matches, execute = function()
-  return NS.try_cast(SPELLS.ManaTideTotem, NS.PLAYER_UNIT, "[RESTO] ManaTideTotem", { expected_cooldown = 300 })
+  return NS.try_cast(ACTION.ManaTideTotem, NS.PLAYER_UNIT, "[RESTO] ManaTideTotem", { expected_cooldown = 300 })
  end },
  { name = "Bloodlust", matches = bloodlust_matches, execute = function()
-  return NS.try_cast(SPELLS.Bloodlust, NS.PLAYER_UNIT, "[RESTO] Bloodlust", { expected_cooldown = 600 })
+  return NS.try_cast(ACTION.Bloodlust, NS.PLAYER_UNIT, "[RESTO] Bloodlust", { expected_cooldown = 600 })
  end },
  -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
 
@@ -631,7 +700,7 @@ local healing_strategies = {
  end, execute = function(context, state)
   local target_entry = state._preemptive_target
   if not target_entry or not target_entry.unit then return false end
-  return PreemptiveHeal.execute(context, state, SPELLS.ChainHeal, string.format("[RESTO] Preemptive CH %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.5, heal_size = 1800 })
+  return PreemptiveHeal.execute(context, state, ACTION.ChainHeal, string.format("[RESTO] Preemptive CH %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.5, heal_size = 1800 })
  end },
  { name = "ChainHeal", matches = chain_heal_matches, execute = chain_heal_execute },
  { name = "SmartHeal", matches = smart_heal_matches, execute = function(context, state)
@@ -640,24 +709,24 @@ local healing_strategies = {
   if not state.lowest or not state.lowest.unit then return false end
   return NS.try_cast(heal.spell, state.lowest.unit, string.format("[RESTO] %s %.0f%%", heal.label, state.lowest.effective_hp or 0))
  end },
- { name = "Purge", matches = purge_matches, execute = function(context) return NS.try_cast(SPELLS.Purge, context.target, "[RESTO] Purge") end },
- { name = "TremorTotem", matches = tremor_totem_matches, execute = function() return NS.try_cast(SPELLS.TremorTotem, NS.PLAYER_UNIT, "[RESTO] TremorTotem") end },
- { name = "GroundingTotem", matches = grounding_totem_matches, execute = function() return NS.try_cast(SPELLS.GroundingTotem, NS.PLAYER_UNIT, "[RESTO] GroundingTotem") end },
- { name = "StrengthOfEarthTotem", matches = totem_strength_matches, execute = function() return NS.try_cast(SPELLS.StrengthOfEarthTotem, NS.PLAYER_UNIT, "[RESTO] StrengthOfEarthTotem") end },
- { name = "ManaSpringTotem", matches = totem_mana_spring_matches, execute = function() return NS.try_cast(SPELLS.ManaSpringTotem, NS.PLAYER_UNIT, "[RESTO] ManaSpringTotem") end },
- { name = "GraceOfAirTotem", matches = totem_grace_air_matches, execute = function() return NS.try_cast(SPELLS.GraceOfAirTotem, NS.PLAYER_UNIT, "[RESTO] GraceOfAirTotem") end },
- { name = "WindfuryTotem", matches = totem_windfury_matches, execute = function() return NS.try_cast(SPELLS.WindfuryTotem, NS.PLAYER_UNIT, "[RESTO] WindfuryTotem") end },
- { name = "CurePoison", matches = cure_poison_matches, execute = function(context, state) local ct = state and state.cleanse_target; local target = ct and ct.unit or NS.PLAYER_UNIT; return NS.try_cast(SPELLS.CurePoison, target, "[RESTO] CurePoison") end },
- { name = "CureDisease", matches = cure_disease_matches, execute = function(context, state) local ct = state and state.cleanse_target; local target = ct and ct.unit or NS.PLAYER_UNIT; return NS.try_cast(SPELLS.CureDisease, target, "[RESTO] CureDisease") end },
- { name = "PoisonCleansingTotem", matches = poison_cleansing_totem_matches, execute = function() return NS.try_cast(SPELLS.PoisonCleansingTotem, NS.PLAYER_UNIT, "[RESTO] PoisonCleansingTotem") end },
- { name = "DiseaseCleansingTotem", matches = disease_cleansing_totem_matches, execute = function() return NS.try_cast(SPELLS.DiseaseCleansingTotem, NS.PLAYER_UNIT, "[RESTO] DiseaseCleansingTotem") end },
+ { name = "Purge", matches = purge_matches, execute = function(context) return NS.try_cast(ACTION.Purge, context.target, "[RESTO] Purge") end },
+ { name = "TremorTotem", matches = tremor_totem_matches, execute = function() return NS.try_cast(ACTION.TremorTotem, NS.PLAYER_UNIT, "[RESTO] TremorTotem") end },
+ { name = "GroundingTotem", matches = grounding_totem_matches, execute = function() return NS.try_cast(ACTION.GroundingTotem, NS.PLAYER_UNIT, "[RESTO] GroundingTotem") end },
+ { name = "StrengthOfEarthTotem", matches = totem_strength_matches, execute = function() return NS.try_cast(ACTION.StrengthOfEarthTotem, NS.PLAYER_UNIT, "[RESTO] StrengthOfEarthTotem") end },
+ { name = "ManaSpringTotem", matches = totem_mana_spring_matches, execute = function() return NS.try_cast(ACTION.ManaSpringTotem, NS.PLAYER_UNIT, "[RESTO] ManaSpringTotem") end },
+ { name = "GraceOfAirTotem", matches = totem_grace_air_matches, execute = function() return NS.try_cast(ACTION.GraceOfAirTotem, NS.PLAYER_UNIT, "[RESTO] GraceOfAirTotem") end },
+ { name = "WindfuryTotem", matches = totem_windfury_matches, execute = function() return NS.try_cast(ACTION.WindfuryTotem, NS.PLAYER_UNIT, "[RESTO] WindfuryTotem") end },
+ { name = "CurePoison", matches = cure_poison_matches, execute = function(context, state) local ct = state and state.cleanse_target; local target = ct and ct.unit or NS.PLAYER_UNIT; return NS.try_cast(ACTION.CurePoison, target, "[RESTO] CurePoison") end },
+ { name = "CureDisease", matches = cure_disease_matches, execute = function(context, state) local ct = state and state.cleanse_target; local target = ct and ct.unit or NS.PLAYER_UNIT; return NS.try_cast(ACTION.CureDisease, target, "[RESTO] CureDisease") end },
+ { name = "PoisonCleansingTotem", matches = poison_cleansing_totem_matches, execute = function() return NS.try_cast(ACTION.PoisonCleansingTotem, NS.PLAYER_UNIT, "[RESTO] PoisonCleansingTotem") end },
+ { name = "DiseaseCleansingTotem", matches = disease_cleansing_totem_matches, execute = function() return NS.try_cast(ACTION.DiseaseCleansingTotem, NS.PLAYER_UNIT, "[RESTO] DiseaseCleansingTotem") end },
 }
 
 local idle_dps_strategies = {
- { name = "EarthShock", matches = earth_shock_matches, execute = function(context) return NS.try_cast(SPELLS.EarthShock, context.target, "[RESTO] EarthShock", { expected_cooldown = 6 }) end },
- { name = "FlameShock", matches = flame_shock_matches, execute = function(context) return NS.try_cast(SPELLS.FlameShock, context.target, "[RESTO] FlameShock", { expected_cooldown = 6 }) end },
- { name = "ChainLightning", matches = chain_lightning_matches, execute = function(context) return NS.try_cast(SPELLS.ChainLightning, context.target, "[RESTO] ChainLightning", { expected_cooldown = 6 }) end },
- { name = "LightningBolt", matches = lightning_bolt_matches, execute = function(context) return NS.try_cast(SPELLS.LightningBolt, context.target, "[RESTO] LightningBolt", { expected_cooldown = 2.5 }) end },
+ { name = "EarthShock", matches = earth_shock_matches, execute = function(context) return NS.try_cast(ACTION.EarthShock, context.target, "[RESTO] EarthShock", { expected_cooldown = 6 }) end },
+ { name = "FlameShock", matches = flame_shock_matches, execute = function(context) return NS.try_cast(ACTION.FlameShock, context.target, "[RESTO] FlameShock", { expected_cooldown = 6 }) end },
+ { name = "ChainLightning", matches = chain_lightning_matches, execute = function(context) return NS.try_cast(ACTION.ChainLightning, context.target, "[RESTO] ChainLightning", { expected_cooldown = 6 }) end },
+ { name = "LightningBolt", matches = lightning_bolt_matches, execute = function(context) return NS.try_cast(ACTION.LightningBolt, context.target, "[RESTO] LightningBolt", { expected_cooldown = 2.5 }) end },
 }
 
 -- Merge idle DPS strategies into healing_strategies so they fire in the live rotation.
@@ -666,16 +735,8 @@ for _, strategy in ipairs(idle_dps_strategies) do
  healing_strategies[#healing_strategies + 1] = strategy
 end
 
-NS.rotation_registry:register("restoration", healing_strategies, { get_state = build_state })
--- Shaman restoration rotation registered
-local restoration_module = {
- strategies = healing_strategies,
- healing_strategies = healing_strategies,
- idle_dps_strategies = idle_dps_strategies,
-}
-
-for index, strategy in ipairs(idle_dps_strategies) do
- restoration_module[index] = strategy
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("restoration", healing_strategies, { get_state = build_state })
 end
-
-return restoration_module
+if NS.log then NS.log("Shaman restoration rotation registered") end
+return { strategies = healing_strategies, build_state = build_state }

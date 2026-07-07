@@ -104,7 +104,7 @@ _G.EaxRotations = {
     log = function() end,
     rotation_registry = { register = function() end },
 }
-local shaman = dofile("EaxRotations/classes/shaman/restoration_sylvanas.lua")
+local shaman = dofile("EaxRotations/classes/shaman/restoration_sylvanas.lua").strategies
 local flame_shock = find_strategy(shaman, "FlameShock")
 assert_true(flame_shock.matches({ is_solo = true, has_valid_enemy_target = true, target = {}, settings = { restoration_dps_when_idle = true } }, { flame_shock_ready = true, flame_shock_remains = 0, mana_pct = 60, lowest = { effective_hp = 95 } }), "Resto Shaman Flame Shock should match in stable solo fallback")
 assert_false(flame_shock.matches({ is_solo = true, has_valid_enemy_target = true, target = {}, settings = { restoration_dps_when_idle = true } }, { flame_shock_ready = true, flame_shock_remains = 0, mana_pct = 20, lowest = { effective_hp = 95 } }), "Resto Shaman Flame Shock should not match below mana floor")
