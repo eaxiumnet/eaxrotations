@@ -40,7 +40,8 @@ _G.EaxRotations = {
     end,
 }
 
-local strategies = dofile("EaxRotations/classes/mage/frost_sylvanas.lua")
+local result = dofile("EaxRotations/classes/mage/frost_sylvanas.lua")
+local strategies = result.strategies
 assert_true(strategies, "strategies table should load")
 
 -- Helper to find strategy by name
