@@ -80,7 +80,7 @@ package.preload["shared/targeting_sylvanas"] = function()
  return {}
 end
 
-local strategies = dofile("EaxRotations/classes/hunter/beast_mastery_sylvanas.lua")
+local strategies = dofile("EaxRotations/classes/hunter/beast_mastery_sylvanas.lua").strategies
 assert_true(strategies, "strategies table should load")
 
 local function find_strategy(name)
