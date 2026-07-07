@@ -83,13 +83,21 @@ Same as TBC round:
 - [x] **P4.11** Restoration (Druid) — reviewed; HoT stacking (Rejuv + Regrowth + Lifebloom); no changes needed
 - [x] **P4.12** Caster — reviewed; support/OOC utility; no changes needed
 
-### Phase 5: Leveling files (9 files)
-- [ ] **P5.1** Audit all `leveling_vanilla.lua` files for Vanilla correctness
+### Phase 5: Leveling files (9 files) ✅ COMPLETE
+- [x] **P5.1** Warrior — reviewed; Execute, Bloodthirst, ShieldSlam, Overpower, SS, WW all present in correct leveling priority; no changes needed
+- [x] **P5.2** Paladin — reviewed; BlessingMight/Wisdom, HolyShield, Cleanse, FoL/HolyLight, Judgement, HammerOfWrath, Consecration, Seal; no changes needed
+- [x] **P5.3** Hunter — reviewed; AspectHawk, CallPet, HuntersMark, AimedShot, MendPet, MongooseBite, RaptorStrike, SerpentSting, ArcaneShot, MultiShot; no Steady Shot (correct); no changes needed
+- [x] **P5.4** Rogue — reviewed; Stealth, Ambush, Garrote, Kick, Gouge, Vanish, Evasion, Sprint, Blind, ThistleTea, CB, AR, BladeFlurry, SnD, Rupture, Eviscerate, ExposeArmor, KidneyShot, SinisterStrike; no changes needed
+- [x] **P5.5** Mage — reviewed; ArcaneInt, FrostArmor, FireWard, RemoveCurse, ConjureManaGem, Polymorph, Counterspell, ManaShield, IceBarrier, FrostNova, ConeOfCold, Blink, Blizzard, Evocation, FireBlast, Fireball, Frostbolt, Scorch, ArcaneMissiles, UseManaGem, Wand; no changes needed
+- [x] **P5.6** Priest — reviewed; PWF, InnerFire, Shadowform, VampiricEmbrace, PW:S, Renew, FlashHeal, InnerFocus, GreaterHeal, DesperatePrayer, PsychicScream, Fade, ShackleUndead, SW:P, HolyFire, MindBlast, MindFlay, HolyNova, Smite, Wand; no Vampiric Touch (correct); no changes needed
+- [x] **P5.7** Shaman — reviewed; WeaponImbue, LightningShield, EarthShockInterrupt, HealingWave, LesserHealingWave, SearingTotem, StrengthOfEarth, Stormstrike, ChainLightning, FlameShock, EarthShock, Purge, FrostShock, EarthbindTotem, StoneclawTotem, LightningBolt, GhostWolf, Wand; no changes needed
+- [x] **P5.8** Warlock — reviewed; DemonArmor, CreateHealthstone, CreateSoulstone, SpellLock, HealthFunnel, Fear, HowlOfTerror, DeathCoil, LifeTap, Corruption, Immolate, CurseOfAgony, SiphonLife, DrainLife, DrainSoul, SearingPain, ShadowBolt, Wand; no changes needed
+- [x] **P5.9** Druid — reviewed; hybrid bear/cat/caster leveling rotation; FerociousBite correctly gated on state.is_cat (won't fire in bear form); Rake, Shred, Rip, Claw, SwipeBear, Maul, caster nukes all form-gated; no changes needed
 
 ### Phase 6: Final Validation
-- [ ] **P6.1** Full gate: `validate.cmd` → ALL CHECKS PASSED
-- [ ] **P6.2** Pattern 15 headers added to all edited files
-- [ ] **P6.3** Cut release zip after every 5–7 specs
+- [ ] **P6.1** Full gate: all test suites pass (223 rotation + 13 leveling + vanilla audit)
+- [ ] **P6.2** Pattern 15 headers verified on edited files
+- [ ] **P6.3** Plan archived to plans/_archive/
 
 ## Risks
 
