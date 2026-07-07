@@ -18,6 +18,7 @@ local HEROIC_STRIKE_RAGE_DUMP = 70
 local LOW_HP_LIMIT = 35
 local THUNDERCLAP_CD = 4
 local SHIELD_BLOCK_CD = 5
+local SHIELD_SLAM_CD = 6
 local REVENGE_CD = 5
 local DEMO_SHOUT_CD = 25
 local BLOODRAGE_CD = 60
@@ -65,6 +66,7 @@ local prot_state = {
     has_last_stand = false,
     has_shield_wall = false,
     revenge_ready = false,
+    shield_slam_ready = false,
     shield_block_ready = false,
     demo_ready = false,
     tclap_ready = false,
@@ -124,6 +126,7 @@ local function build_state(context)
     prot_state.has_shield_wall = me and NS.buff_up(me, SHIELD_WALL_BUFF) or false
 
     prot_state.revenge_ready = target and NS.spell_ready(SPELLS.Revenge, target, { expected_cooldown = REVENGE_CD }) or false
+    prot_state.shield_slam_ready = target and NS.spell_ready(SPELLS.ShieldSlam, target, { expected_cooldown = SHIELD_SLAM_CD }) or false
     prot_state.shield_block_ready = me and NS.spell_ready(SPELLS.ShieldBlock, me, { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) or false
     prot_state.demo_ready = me and NS.spell_ready(SPELLS.DemoralizingShout, me, { skip_range = true, expected_cooldown = DEMO_SHOUT_CD }) or false
     prot_state.tclap_ready = me and NS.spell_ready(SPELLS.ThunderClap, me, { skip_range = true, expected_cooldown = THUNDERCLAP_CD }) or false
@@ -167,6 +170,7 @@ end
 
 local function thunderclap_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
+    if state.stance ~= STANCE.BATTLE then return false end  -- Vanilla TC requires Battle Stance
     if (state.enemy_count or 0) < 2 then return false end
     return true
 end
@@ -192,6 +196,9 @@ end
 local function execute_matches_fn(context, state)
     if not NS.is_execute_phase then return false end
     if not NS.is_execute_phase(state.target_hp, 20) then return false end
+    -- Vanilla Execute requires Battle or Berserker Stance (not Defensive); a Defensive-Stance
+    -- prot tank skips cleanly rather than wasting a tick on a cast the game will block.
+    if state.stance ~= STANCE.BATTLE and state.stance ~= STANCE.BERSERKER then return false end
     return true
 end
 
@@ -239,6 +246,7 @@ end
 
 local function mocking_blow_matches_fn(context, state)
     if not state.mocking_ready then return false end
+    if state.stance ~= STANCE.BATTLE then return false end  -- Vanilla Mocking Blow requires Battle Stance
     if (state.enemy_count or 0) < 2 then return false end
     return true
 end
@@ -257,6 +265,7 @@ end
 
 local function intercept_matches_fn(context, state)
     if not state.intercept_ready then return false end
+    if state.stance ~= STANCE.BERSERKER then return false end  -- Vanilla Intercept requires Berserker Stance
     if not state.is_pvp then return false end
     return true
 end
@@ -346,6 +355,14 @@ local strategies = {
         execute = function(context)
             return NS.try_cast(SPELLS.ShieldBash, context.target, "[PROT] ShieldBash")
         end,
+    },
+    {
+        name = "ShieldSlam",
+        matches = function(context)
+            local s = build_state(context)
+            return is_defensive_stance(s.stance) and s.shield_slam_ready
+        end,
+        execute = function(context) return NS.try_cast(SPELLS.ShieldSlam, context.target, "[PROT] ShieldSlam", { expected_cooldown = SHIELD_SLAM_CD }) end,
     },
     {
         name = "Revenge",

@@ -20,13 +20,16 @@ local function spell(field, ids, label)
     return ids
 end
 
--- Spell actions (Classic subset ? no Bloodthirst/Rampage/VictoryRush/CommandingShout)
+-- Spell actions (Classic subset; Bloodthirst added following the leveling_vanilla
+-- precedent — uses the shared NS.WarriorSpells table so it's a safe no-op if the
+-- spell isn't learned/resolvable on this client.)
 local ACTION = {
     BattleShout = SPELLS.BattleShout,
     BattleStance = SPELLS.BattleStance,
     BerserkerRage = SPELLS.BerserkerRage,
     BerserkerStance = SPELLS.BerserkerStance,
     Bloodrage = SPELLS.Bloodrage,
+    Bloodthirst = SPELLS.Bloodthirst,
     Charge = SPELLS.Charge,
     Cleave = SPELLS.Cleave,
     DeathWish = SPELLS.DeathWish,
@@ -143,6 +146,7 @@ local function build_state(context)
     end
     fury_state.bw_ready = spell_ready(ACTION.BerserkerRage, me, { skip_range = true })
     fury_state.bloodrage_ready = spell_ready(ACTION.Bloodrage, me, { skip_range = true })
+    fury_state.bloodthirst_ready = target and spell_ready(ACTION.Bloodthirst, target) or false
     fury_state.charge_ready = target and spell_ready(ACTION.Charge, target)
     fury_state.death_wish_ready = spell_ready(ACTION.DeathWish, me, { skip_range = true })
     fury_state.demo_ready = spell_ready(ACTION.DemoralizingShout, me, { skip_range = true })
@@ -238,7 +242,15 @@ if ACTION.Overpower then
     })
 end
 
--- 7. Whirlwind (main cooldown, no Bloodthirst in Classic)
+-- 7. Bloodthirst (core Fury damage ability; safe no-op if not learned on this client)
+if ACTION.Bloodthirst then
+    table.insert(strategies, { name = "Bloodthirst",
+        matches = function(c, s) return s.bloodthirst_ready and (s.rage or 0) >= 30 end,
+        execute = function(c) return try_cast(ACTION.Bloodthirst, c.target, "[VANILLA FURY] Bloodthirst") end
+    })
+end
+
+-- 8. Whirlwind (main cooldown)
 if ACTION.Whirlwind then
     table.insert(strategies, { name = "Whirlwind",
         matches = function(c, s)

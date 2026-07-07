@@ -56,6 +56,23 @@ local DISARM_CLASS_IDS = CONSTANTS.DISARM_CLASS_IDS or { [1] = true, [2] = true,
 local PWS_IDS = { 17, 592, 600, 3747, 6065, 6066, 10898, 10899, 10900, 10901, 25217, 25218, 27623 }
 local BOP_IDS = { 1022, 5599, 10278 }
 
+-- Throttled CC-nearby scan for AoE gating (avoids a 50-enemy scan every frame).
+-- The PvPCCGate middleware strategy stashes the result on
+-- context.warrior_aoe_cc_nearby; spec-level AoE matches
+-- (Cleave/Whirlwind/Sweeping Strikes/Thunder Clap) consult that flag so the
+-- rotation is NOT short-circuited (the old `return true` froze the entire spec
+-- rotation whenever a sheeped/sapped mob was within 15yd, even in PvE).
+local _cc_scan_last = -1
+local _cc_scan_result = false
+local function cc_nearby_throttled(range, interval)
+    local now = (NS.time_now and NS.time_now()) or 0
+    if now - _cc_scan_last >= (interval or 0.5) then
+        _cc_scan_last = now
+        _cc_scan_result = CCGateDB.is_any_nearby_enemy_under_cc(NS, range or 15) and true or false
+    end
+    return _cc_scan_result
+end
+
 -- Whitelist of dangerous spells to reflect in PvP
 local REFLECT_WHITELIST = {
     -- Mage
@@ -129,7 +146,14 @@ local strategies = {
         matches = function(context)
             local settings = context.settings or {}
             if settings.use_pvp_defensives == false then return false end
-            if not NS.should_kite(context) then return false end
+            if not (context.is_pvp or (context.settings and context.settings.pvp_mode)) then return false end
+            if not context.in_combat then return false end
+            -- Intercept is a gap-closer: fire when the target is OUT of melee range
+            -- but inside Intercept's 8-25yd band (i.e. we are being kited).
+            -- (Previously this gated on NS.should_kite, which requires the target to
+            -- be IN melee range + low HP — the exact opposite of when to Intercept.)
+            local dist = context.target_distance or context.target_range or context.distance or 0
+            if dist < 8 or dist > 25 then return false end
             return true
         end,
         execute = function(context)
@@ -193,11 +217,14 @@ local strategies = {
             end
 
             if not should_dequeue and target then
+                -- Hold rage for Pummel if the target is casting an interruptible spell.
                 local is_casting = NS.safe_field and NS.safe_field(target, "is_casting")
-                local cast_ok, casting = is_casting and pcall(is_casting, target) or false, false
+                local cast_ok, casting = false, false
+                if is_casting then cast_ok, casting = pcall(is_casting, target) end
                 if cast_ok and casting then
                     local get_casting_spell_id = NS.safe_field and NS.safe_field(target, "get_casting_spell_id")
-                    local ok_sid, spell_id = get_casting_spell_id and pcall(get_casting_spell_id, target) or false, nil
+                    local ok_sid, spell_id = false, nil
+                    if get_casting_spell_id then ok_sid, spell_id = pcall(get_casting_spell_id, target) end
                     if ok_sid and spell_id then
                         local hs_cost = 15
                         local pummel_cost = 10
@@ -512,17 +539,18 @@ local strategies = {
             local settings = context.settings or {}
             if settings.use_pvp_cc_gating == false then return false end
             if not context.in_combat then return false end
-            local has_aoe = false
+            -- Only worth scanning when the warrior actually has an AoE ability learned.
             for _, id in ipairs(WARRIOR_AOE_IDS) do
-                if NS.is_spell_learned and NS.is_spell_learned(id) then
-                    has_aoe = true
-                    break
-                end
+                if NS.is_spell_learned and NS.is_spell_learned(id) then return true end
             end
-            if not has_aoe then return false end
-            return CCGateDB.is_any_nearby_enemy_under_cc(NS, 15)
+            return false
         end,
-        execute = function() return true end,
+        execute = function(context)
+            -- Refresh the CC-nearby flag (throttled). Deliberately return false so the
+            -- spec rotation still runs; only AoE abilities gate themselves on the flag.
+            context.warrior_aoe_cc_nearby = cc_nearby_throttled(15, 0.5)
+            return false
+        end,
     },
 
     -- Auto-consumable usage

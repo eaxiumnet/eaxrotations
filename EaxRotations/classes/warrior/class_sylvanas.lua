@@ -294,8 +294,8 @@ local SPELLS = {
     }),
     Overpower = NS.spell_action({
         name = "Overpower",
-        ids = {11585, 7887, 7384},
-        levels = {60, 28, 12},
+        ids = {11585, 11584, 7887, 7384},  -- 11584 = Rank 3 (lvl 44); was missing → levels 44-59 couldn't resolve Overpower
+        levels = {60, 44, 28, 12},
         cast_time = 0,
         cooldown = 5,
         power_cost = 5,

@@ -191,6 +191,7 @@ local function action(context, row)
     local target = (row.target == "self" or row.requires_target == false) and (context.me or NS.GetPlayer()) or context.target
     if not target then return false end
         if row.min_rage and context.rage and context.rage < row.min_rage then return false end
+    if row.required_stance and context.stance ~= row.required_stance then return false end
     local opts = {}
     if row.requires_target == false then opts.skip_range = true end
     if row.cooldown then opts.expected_cooldown = row.cooldown end
@@ -561,7 +562,6 @@ end
 
 local function healthstone_matches(context, state)
     if not state.healthstone_ready then return false end
-    if state.in_combat then return false end
     if (state.hp or 100) > HEALTHSTONE_HP_THRESHOLD then return false end
     local hs_hp = setting(context, "healthstone_hp", HEALTHSTONE_HP_THRESHOLD)
     if (state.hp or 100) > hs_hp then return false end
@@ -601,9 +601,9 @@ local STRATEGY_SPECS = {
     { "Retaliation", retaliation_matches, build_action("Retaliation", ACTION.Retaliation, { target = "self", required_stance = STANCE.BATTLE, requires_target = false }) },
     { "Recklessness", recklessness_matches, build_action("Recklessness", ACTION.Recklessness, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false }) },
     { "DeathWish", death_wish_matches, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false }) },
-    { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }) },
-    { "MortalStrike", mortal_strike_matches, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }) },
     { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { min_rage = 15 }) },
+    { "MortalStrike", mortal_strike_matches, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }) },
+    { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }) },
     { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false }) },
     { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
     { "Rend", rend_matches, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3, creature_types = { [1]=true, [2]=true, [3]=true, [5]=true, [7]=true, [8]=true, [10]=true } }) },

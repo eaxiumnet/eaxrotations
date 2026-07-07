@@ -748,8 +748,8 @@ test("strategies: 25 strategies in correct priority order", function()
         "DemoralizingShout",
         "Rampage",
         "Hamstring",
-        "SpecFiller",
         "Overpower",
+        "SpecFiller",
         "SunderArmor",
         "HeroicStrike",
     }
@@ -1456,14 +1456,14 @@ do -- edge_overpower
         local ctx = make_context()
         local state = get_state(ctx)
         state.overpower_ready = true
-        assert_true(strategies[23].matches(ctx, state), "ready in combat should match")
+        assert_true(strategies[22].matches(ctx, state), "ready in combat should match")
     end)
 
     test(label .. ": not ready -> no match", function()
         local ctx = make_context()
         local state = get_state(ctx)
         state.overpower_ready = false
-        assert_false(strategies[23].matches(ctx, state), "not ready should not match")
+        assert_false(strategies[22].matches(ctx, state), "not ready should not match")
     end)
 end
 
@@ -1924,28 +1924,28 @@ do
     local state = get_state(ctx)
     state.mortal_strike_ready = true
     state.bloodthirst_ready = false
-    assert_true(strategies[22].matches(ctx, state), "specfiller ms ready -> match")
+    assert_true(strategies[23].matches(ctx, state), "specfiller ms ready -> match")
 
     -- SpecFiller: Bloodthirst ready -> match
     local ctx2 = make_context()
     local state2 = get_state(ctx2)
     state2.mortal_strike_ready = false
     state2.bloodthirst_ready = true
-    assert_true(strategies[22].matches(ctx2, state2), "specfiller bt ready -> match")
+    assert_true(strategies[23].matches(ctx2, state2), "specfiller bt ready -> match")
 
     -- SpecFiller: neither ready -> no match
     local ctx3 = make_context()
     local state3 = get_state(ctx3)
     state3.mortal_strike_ready = false
     state3.bloodthirst_ready = false
-    assert_false(strategies[22].matches(ctx3, state3), "specfiller neither ready -> no match")
+    assert_false(strategies[23].matches(ctx3, state3), "specfiller neither ready -> no match")
 
     -- SpecFiller: OOC -> no match
     local ctx4 = make_context({in_combat = false})
     local state4 = get_state(ctx4)
     state4.mortal_strike_ready = true
     state4.bloodthirst_ready = true
-    assert_false(strategies[22].matches(ctx4, state4), "specfiller OOC -> no match")
+    assert_false(strategies[23].matches(ctx4, state4), "specfiller OOC -> no match")
 
     -- SpecFiller: no target -> no match
     local ctx5 = make_context()
@@ -1954,7 +1954,7 @@ do
     state5.mortal_strike_ready = true
     state5.bloodthirst_ready = true
     state5.target = nil
-    assert_false(strategies[22].matches(ctx5, state5), "specfiller no target -> no match")
+    assert_false(strategies[23].matches(ctx5, state5), "specfiller no target -> no match")
 end
 
 -- ============================================================================
@@ -2162,7 +2162,7 @@ do
     -- Strategies that check state.target:
     -- 3=ShieldSlamPurge, 4=Disarm, 8=VictoryRush, 11=Execute,
     -- 14=Rend, 16=Cleave, 17=Whirlwind,
-    -- 20=Rampage, 21=Hamstring, 22=SpecFiller, 23=Overpower,
+    -- 20=Rampage, 21=Hamstring, 22=Overpower, 23=SpecFiller,
     -- 24=SunderArmor, 25=HeroicStrike
     -- Note: SweepingStrikes(15) is a self-buff, doesn't check target
     -- Note: Charge(5) also checks target but is OOC-only

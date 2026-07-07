@@ -25,7 +25,7 @@ local is_leveling_context = leveling.create_context_guard()
 -- ============================================================================
 local SPELLS = NS.WarriorSpells or NS.SPELLS or {}
 local CONSTANTS = NS.WarriorConstants or {}
-local STANCE = CONSTANTS.STANCE or { DEFENSIVE = 2 }
+local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local BATTLE_SHOUT_BUFF = { 11551, 11550, 11549, 6192, 5242, 6673 }
 local PVP_CC_RADIUS = 15
@@ -65,6 +65,10 @@ function warrior_leveling.build_state(context)
 
     -- Common state
     leveling.build_common_state(context, state)
+    -- build_common_state copies hp/mana_pct/enemies but NOT rage (the warrior
+    -- resource); without this, bloodthirst/shield_slam matches read state.rage
+    -- as nil → `(nil or 0) < 30` → always return false (dead abilities).
+    state.rage = context.rage or 0
 
     -- Warrior-specific spell readiness (Classic spells only)
     state.charge_ready = spell_ready(SPELLS.Charge)
@@ -365,7 +369,9 @@ end
 --- Charge - open from distance
 local charge_matches = function(context, state)
     if not state then return false end
-    if not state.in_combat then return false end
+    -- Charge is OOC-only in Vanilla (the client blocks it in combat); the old
+    -- `if not state.in_combat` gate was inverted, so Charge never fired as an opener.
+    if state.in_combat then return false end
     if not state.charge_ready then return false end
     if not state.target then return false end
     local dist = NS.get_distance and NS.get_distance(state.target)
@@ -378,8 +384,8 @@ local berserker_rage_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.berserker_rage_ready then return false end
-    -- Use when facing multiple enemies (fear-capable or rage-starved)
-    if (state.enemies or 0) < 2 then return false end
+    -- Fire on cooldown in combat for rage generation + fear immunity (was gated on enemies>=2,
+    -- which skipped it against single targets — exactly when you need fear break / rage most).
     return true
 end
 
@@ -401,9 +407,18 @@ local strategies = {
       execute = function(context) return NS.try_cast(SPELLS.ShieldBash, context.target, "[LEVELING] Shield Bash") end },
 
     -- Interrupt: Pummel (Berserker Stance, for fury/2H leveling)
+    -- Interrupt: Pummel (Berserker Stance — dance if needed so the interrupt actually fires)
     { name = "Pummel",
       matches = pummel_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Pummel, context.target, "[LEVELING] Pummel") end },
+      execute = function(context) if not context then return false end
+          if context.stance ~= STANCE.BERSERKER then
+              if NS.spell_ready and NS.spell_ready(SPELLS.BerserkerStance, context.me or NS.GetPlayer(), { skip_range = true }) then
+                  return NS.try_cast(SPELLS.BerserkerStance, context.me or NS.GetPlayer(), "[LEVELING] Berserker Stance for Pummel", { skip_range = true })
+              end
+              return false
+          end
+          return NS.try_cast(SPELLS.Pummel, context.target, "[LEVELING] Pummel")
+      end },
 
     -- Opener: Charge
     { name = "Charge",
@@ -425,9 +440,18 @@ local strategies = {
       execute = function(context) return NS.try_cast(SPELLS.ShieldWall, nil, "[LEVELING] Shield Wall") end },
 
     -- Execute
+    -- Execute (Berserker Stance — dance if needed; Execute dumps rage so the swap cost is acceptable)
     { name = "Execute",
       matches = execute_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Execute, context.target, "[LEVELING] Execute") end },
+      execute = function(context) if not context then return false end
+          if context.stance ~= STANCE.BERSERKER then
+              if NS.spell_ready and NS.spell_ready(SPELLS.BerserkerStance, context.me or NS.GetPlayer(), { skip_range = true }) then
+                  return NS.try_cast(SPELLS.BerserkerStance, context.me or NS.GetPlayer(), "[LEVELING] Berserker Stance for Execute", { skip_range = true })
+              end
+              return false
+          end
+          return NS.try_cast(SPELLS.Execute, context.target, "[LEVELING] Execute")
+      end },
 
     -- Bloodthirst (Fury talent, instant attack)
     { name = "Bloodthirst",
