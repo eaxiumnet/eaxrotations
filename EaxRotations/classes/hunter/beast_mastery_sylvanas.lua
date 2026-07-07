@@ -1,11 +1,41 @@
--- beast_mastery_sylvanas.lua -- Hunter Beast Mastery rotation for TBC Anniversary (2.5.5).
--- WHAT:  pet-focused DPS spec (Kill Command + Bestial Wrath, Mend Pet, Steady Shot weave).
+-- beast_mastery_sylvanas.lua — Hunter Beast Mastery rotation for TBC Anniversary (2.5.5).
+-- WHAT:  pet-focused DPS spec — Kill Command (off-GCD) → Bestial Wrath → Multi-Shot
+--         (AoE) → Serpent Sting → Arcane Shot → Steady Shot filler, with Mend Pet,
+--         Hawk/Viper auto-aspect swapping, melee weaving, and CD alignment (Rapid Fire,
+--         Readiness, Intimidation, Trinkets).
 -- WHEN:  combat, with valid enemy target and active pet.
--- WHY:   mirrors wowsims APL: KC > BW > Multi-Shot > Steady Shot filler.
--- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
+-- WHY:   mirrors wowsims/tbc BM APL (sim/hunter/beast_mastery/rotation.go) + Icy Veins
+--         BM priority: KC > BW > Multi-Shot > Serpent > Arcane > Steady.
+-- SAFETY: Pattern 14 nil-guards via spec_kit.safe_state; no on_update() allocs; mounted
+--          bail gate on every match function; auto-aspect hysteresis (Viper ≤5%, Hawk ≥25%).
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
+
+local spec_kit = require("shared/spec_kit_sylvanas")
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    ArcaneShot       = define("ArcaneShot",       {27019, 14287, 14286, 14285, 14284, 14283, 14282, 14281, 3044}, "ArcaneShot"),
+    AspectOfTheHawk  = define("AspectOfTheHawk",  {27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165}, "AspectOfTheHawk"),
+    AspectOfTheViper = define("AspectOfTheViper", {34074}, "AspectOfTheViper"),
+    BestialWrath     = define("BestialWrath",     {19574}, "BestialWrath"),
+    CallPet          = define("CallPet",          {883}, "CallPet"),
+    ExplosiveTrap    = define("ExplosiveTrap",    {27025, 14317, 14316, 13813}, "ExplosiveTrap"),
+    FeignDeath       = define("FeignDeath",       {5384}, "FeignDeath"),
+    FreezingTrap     = define("FreezingTrap",     {14311, 14310, 1499}, "FreezingTrap"),
+    HuntersMark      = define("HuntersMark",      {14325, 14324, 14323, 1130}, "HuntersMark"),
+    Intimidation     = define("Intimidation",     {19577}, "Intimidation"),
+    KillCommand      = define("KillCommand",      {34026}, "KillCommand"),
+    MendPet          = define("MendPet",          {27046, 13544, 13543, 13542, 3662, 3661, 3111, 136}, "MendPet"),
+    MultiShot        = define("MultiShot",        {27021, 25294, 14290, 14289, 14288, 2643}, "MultiShot"),
+    RapidFire        = define("RapidFire",        {3045}, "RapidFire"),
+    Readiness        = define("Readiness",        {23989}, "Readiness"),
+    RevivePet        = define("RevivePet",        {982}, "RevivePet"),
+    ScorpidSting     = define("ScorpidSting",     {3043}, "ScorpidSting"),
+    SerpentSting     = define("SerpentSting",     {27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978}, "SerpentSting"),
+    SteadyShot       = define("SteadyShot",       {34120}, "SteadyShot"),
+    ViperSting       = define("ViperSting",       {27018, 14280, 14279, 3034}, "ViperSting"),
+}
 local hunter_core = require("shared/hunter_core_sylvanas")
 local shot_timer = require("shared/shot_timer_sylvanas")
 local targeting = require("shared/targeting_sylvanas")
@@ -45,6 +75,50 @@ local function first_ready_item(ids)
     end
     return nil
 end
+
+-- ============================================================================
+-- Schema (Pattern 14 nil-guard defaults via spec_kit.safe_state)
+-- ============================================================================
+local BM_SCHEMA = {
+    -- Pet state (Pattern 14: assume alive → skip summons)
+    pet_alive = true,  has_pet = true,  pet_hp = 100,  has_pet_spell = true,
+    -- Resources (Pattern 14: assume full/zero → skip defensives/spenders)
+    mana_pct = 100,  hp_pct = 100,  enemy_count = 0,  threat_level = 0,
+    in_combat = false,  is_mounted = false,  in_dead_zone = false,
+    -- Aspect state
+    has_hawk = false,  has_viper = false,  has_cheetah = false,
+    -- Debuff state
+    has_hunters_mark = false,  has_serpent_sting = false,  wing_clip_active = false,
+    has_scorpid_sting = false,  has_viper_sting = false,
+    -- Spell readiness (Pattern 14: assume ready)
+    hunters_mark_ready = true,  serpent_sting_ready = true,
+    arcane_shot_ready = true,  steady_shot_ready = true,  multi_shot_ready = true,
+    kill_command_ready = true,  bestial_wrath_ready = true,  intimidation_ready = true,
+    rapid_fire_ready = true,  rapid_fire_cd = 0,
+    feign_death_ready = true,  mend_pet_ready = true,
+    call_pet_ready = true,  revive_pet_ready = true,
+    readiness_ready = true,  raptor_strike_ready = true,
+    concussive_shot_ready = true,  volley_ready = true,  explosive_trap_ready = true,
+    scorpid_sting_ready = true,  viper_sting_ready = true,
+    -- Trinkets
+    trinket_1_id = nil,  trinket_2_id = nil,
+    trinket_1_ready = false,  trinket_2_ready = false,
+    -- Parity settings (safe defaults)
+    aspect_mode = "auto",  sting_mode = "serpent",  fd_mode = "high_threat",
+    multishot_mode = 2,  pull_mode = "combat_only",
+    use_cooldowns = true,  use_misdirection = false,  misdirection_target = nil,
+    trinket_mode = "off",  shot_buffer = 150,
+    sticky_target = false,  prioritize_markers = false,
+    -- Melee & AoE
+    use_melee = true,  hunter_melee_weave = true,  hunter_shot_timer_buffer = 150,
+    aoe_threshold = 3,  use_volley = false,  use_explosive_trap = false,
+    auto_aspect = true,  healthstone_ready = 0,
+    viper_mana_threshold = 5,  viper_exit_threshold = 25,
+    distance_sq = 10000,  is_group = false,
+    -- Power windows
+    bloodlust_active = false,  major_cd_active = false,  major_cd_window = false,
+    has_deterrence = false,
+}
 
 -- ============================================================================
 -- State builder
@@ -117,7 +191,7 @@ local function build_state(context)
     state.has_pet = pet ~= nil
     state.pet_alive = hunter_core.pet_alive()
     state.pet_hp = hunter_core.pet_hp_pct()
-    state.has_pet_spell = me and NS.is_spell_learned and NS.is_spell_learned(SPELLS.CallPet) or false
+    state.has_pet_spell = me and NS.is_spell_learned and NS.is_spell_learned(ACTION.CallPet) or false
 
     -- Aspect state
     state.has_hawk = me and NS.buff_up and NS.buff_up(me, ASPECT_HAWK_IDS) or false
@@ -134,27 +208,27 @@ local function build_state(context)
     end
 
     -- Spell readiness
-    state.hunters_mark_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.HuntersMark, target) or false
-    state.serpent_sting_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.SerpentSting, target) or false
-    state.arcane_shot_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.ArcaneShot, target) or false
-    state.steady_shot_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.SteadyShot, target) or false
-    state.multi_shot_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.MultiShot, target) or false
-    state.kill_command_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.KillCommand, target) or false
-    state.bestial_wrath_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.BestialWrath, me, { skip_range = true }) or false
-    state.intimidation_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.Intimidation, me, { skip_range = true }) or false
-    state.rapid_fire_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true }) or false
-    state.rapid_fire_cd = NS.cooldown_remains and NS.cooldown_remains(SPELLS.RapidFire) or 0
-    state.feign_death_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.FeignDeath, me, { skip_range = true }) or false
-    state.mend_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.MendPet, me, { skip_range = true }) or false
-    state.call_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.CallPet, me, { skip_range = true }) or false
-    state.revive_pet_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.RevivePet, me, { skip_range = true }) or false
-    state.readiness_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
+    state.hunters_mark_ready = target and NS.spell_ready and NS.spell_ready(ACTION.HuntersMark, target) or false
+    state.serpent_sting_ready = target and NS.spell_ready and NS.spell_ready(ACTION.SerpentSting, target) or false
+    state.arcane_shot_ready = target and NS.spell_ready and NS.spell_ready(ACTION.ArcaneShot, target) or false
+    state.steady_shot_ready = target and NS.spell_ready and NS.spell_ready(ACTION.SteadyShot, target) or false
+    state.multi_shot_ready = target and NS.spell_ready and NS.spell_ready(ACTION.MultiShot, target) or false
+    state.kill_command_ready = target and NS.spell_ready and NS.spell_ready(ACTION.KillCommand, target) or false
+    state.bestial_wrath_ready = me and NS.spell_ready and NS.spell_ready(ACTION.BestialWrath, me, { skip_range = true }) or false
+    state.intimidation_ready = me and NS.spell_ready and NS.spell_ready(ACTION.Intimidation, me, { skip_range = true }) or false
+    state.rapid_fire_ready = me and NS.spell_ready and NS.spell_ready(ACTION.RapidFire, me, { skip_range = true }) or false
+    state.rapid_fire_cd = NS.cooldown_remains and NS.cooldown_remains(ACTION.RapidFire) or 0
+    state.feign_death_ready = me and NS.spell_ready and NS.spell_ready(ACTION.FeignDeath, me, { skip_range = true }) or false
+    state.mend_pet_ready = me and NS.spell_ready and NS.spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
+    state.call_pet_ready = me and NS.spell_ready and NS.spell_ready(ACTION.CallPet, me, { skip_range = true }) or false
+    state.revive_pet_ready = me and NS.spell_ready and NS.spell_ready(ACTION.RevivePet, me, { skip_range = true }) or false
+    state.readiness_ready = me and NS.spell_ready and NS.spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
     -- Viper Sting ready from SPELLS or fallback
-    if SPELLS.ViperSting then
-        state.viper_sting_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.ViperSting, target) or false
+    if ACTION.ViperSting then
+        state.viper_sting_ready = target and NS.spell_ready and NS.spell_ready(ACTION.ViperSting, target) or false
     end
-    if SPELLS.ScorpidSting then
-        state.scorpid_sting_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.ScorpidSting, target) or false
+    if ACTION.ScorpidSting then
+        state.scorpid_sting_ready = target and NS.spell_ready and NS.spell_ready(ACTION.ScorpidSting, target) or false
     end
     -- Raptor Strike ready (melee weaving)
     state.raptor_strike_ready = target and NS.spell_ready and NS.spell_ready(RAPTOR_STRIKE_IDS, target) or false
@@ -163,7 +237,7 @@ local function build_state(context)
     -- Volley ready (AoE)
     state.volley_ready = target and NS.spell_ready and NS.spell_ready(VOLLEY_IDS, target) or false
     -- Explosive Trap ready (AoE)
-    state.explosive_trap_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    state.explosive_trap_ready = me and NS.spell_ready and NS.spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
 
     -- Trinket state
     if NS.TrinketManager then
@@ -208,7 +282,7 @@ local function build_state(context)
     state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
     state.major_cd_window = state.bloodlust_active or state.major_cd_active
 
-    return state
+    return spec_kit.safe_state(state, BM_SCHEMA)
 end
 
 -- ============================================================================
@@ -288,7 +362,7 @@ local function ooc_aspect_matches(context, s)
     if s.in_combat then return false end
     if not s.auto_aspect then return false end
     if s.has_hawk then return false end
-    if not (NS.spell_ready and NS.spell_ready(SPELLS.AspectOfTheHawk, context.me, { skip_range = true })) then return false end
+    if not (NS.spell_ready and NS.spell_ready(ACTION.AspectOfTheHawk, context.me, { skip_range = true })) then return false end
     return true
 end
 
@@ -299,12 +373,12 @@ local function auto_aspect_matches(context, s)
     if not s.auto_aspect then return false end
     -- Wowsims-aligned: Viper at <=5%, Hawk when recovered >25%
     if not s.has_viper and (s.mana_pct or 100) <= (s.viper_mana_threshold or 5) then
-        if NS.spell_ready and NS.spell_ready(SPELLS.AspectOfTheViper, context.me, { skip_range = true }) then
+        if NS.spell_ready and NS.spell_ready(ACTION.AspectOfTheViper, context.me, { skip_range = true }) then
             return true
         end
     end
     if not s.has_hawk and (s.mana_pct or 100) > (s.viper_exit_threshold or 25) then
-        if NS.spell_ready and NS.spell_ready(SPELLS.AspectOfTheHawk, context.me, { skip_range = true }) then
+        if NS.spell_ready and NS.spell_ready(ACTION.AspectOfTheHawk, context.me, { skip_range = true }) then
             return true
         end
     end
@@ -314,14 +388,14 @@ end
 local function auto_aspect_execute(context)
     local s = state
     if not s.has_viper and (s.mana_pct or 100) <= (s.viper_mana_threshold or 5) then
-        return NS.try_cast(SPELLS.AspectOfTheViper, context.me, "[BEAST_MASTERY] AutoAspect Viper", { skip_range = true })
+        return NS.try_cast(ACTION.AspectOfTheViper, context.me, "[BEAST_MASTERY] AutoAspect Viper", { skip_range = true })
     end
-    return NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[BEAST_MASTERY] AutoAspect Hawk", { skip_range = true })
+    return NS.try_cast(ACTION.AspectOfTheHawk, context.me, "[BEAST_MASTERY] AutoAspect Hawk", { skip_range = true })
 end
 
 -- IN COMBAT — Hunter's Mark
 local function hunters_mark_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.HuntersMark, 2.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.HuntersMark, 2.0) then return false end
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not context.target then return false end
@@ -501,7 +575,7 @@ local function freezing_trap_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if s.in_combat then return false end
     if not context.target then return false end
-    if not (NS.spell_ready and NS.spell_ready(SPELLS.FreezingTrap, context.me, { skip_range = true })) then return false end
+    if not (NS.spell_ready and NS.spell_ready(ACTION.FreezingTrap, context.me, { skip_range = true })) then return false end
     return true
 end
 
@@ -622,7 +696,7 @@ end
 -- Inline strategy helpers for OOC aspect
 -- ============================================================================
 local function ooc_aspect_execute(context)
-    return NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[BEAST_MASTERY] AspectOfTheHawk", { skip_range = true })
+    return NS.try_cast(ACTION.AspectOfTheHawk, context.me, "[BEAST_MASTERY] AspectOfTheHawk", { skip_range = true })
 end
 
 -- Trinket execute: use on-use trinkets based on mode
@@ -700,13 +774,13 @@ local strategies = {
     {
         name = "CallPet",
         matches = call_pet_matches,
-        execute = function(context) return NS.try_cast(SPELLS.CallPet, context.me, "[BEAST_MASTERY] CallPet", { skip_range = true }) end,
+        execute = function(context) return NS.try_cast(ACTION.CallPet, context.me, "[BEAST_MASTERY] CallPet", { skip_range = true }) end,
     },
     -- 2. OOC: Revive Pet
     {
         name = "RevivePet",
         matches = revive_pet_matches,
-        execute = function(context) return NS.try_cast(SPELLS.RevivePet, context.me, "[BEAST_MASTERY] RevivePet", { skip_range = true }) end,
+        execute = function(context) return NS.try_cast(ACTION.RevivePet, context.me, "[BEAST_MASTERY] RevivePet", { skip_range = true }) end,
     },
     -- 3. OOC: Aspect of the Hawk (initial buff)
     {
@@ -758,7 +832,7 @@ local strategies = {
         execute = function(context)
             local pet = hunter_core.get_pet()
             if not pet then return false end
-            local result = NS.try_cast(SPELLS.MendPet, pet, "[BEAST_MASTERY] MendPet")
+            local result = NS.try_cast(ACTION.MendPet, pet, "[BEAST_MASTERY] MendPet")
             if result then hunter_core.record_mend() end
             return result
         end,
@@ -767,19 +841,19 @@ local strategies = {
     {
         name = "HuntersMark",
         matches = hunters_mark_matches,
-        execute = function(context) return NS.try_cast(SPELLS.HuntersMark, context.target, "[BEAST_MASTERY] HuntersMark") end,
+        execute = function(context) return NS.try_cast(ACTION.HuntersMark, context.target, "[BEAST_MASTERY] HuntersMark") end,
     },
     -- 9. Freezing Trap (OOC CC)
     {
         name = "FreezingTrap",
         matches = freezing_trap_matches,
-        execute = function(context) return NS.try_cast(SPELLS.FreezingTrap, context.me, "[BEAST_MASTERY] FreezingTrap", { skip_range = true, expected_cooldown = 30 }) end,
+        execute = function(context) return NS.try_cast(ACTION.FreezingTrap, context.me, "[BEAST_MASTERY] FreezingTrap", { skip_range = true, expected_cooldown = 30 }) end,
     },
     -- 10. Kill Command (off-GCD, highest DPS ability for BM — IcyVeins #1 priority)
     {
         name = "KillCommand",
         matches = kill_command_matches,
-        execute = function(context) return NS.try_cast(SPELLS.KillCommand, context.target, "[BEAST_MASTERY] KillCommand") end,
+        execute = function(context) return NS.try_cast(ACTION.KillCommand, context.target, "[BEAST_MASTERY] KillCommand") end,
     },
     -- 11. Bestial Wrath
     {
@@ -788,32 +862,32 @@ local strategies = {
         execute = function(context)
             local pet = hunter_core.get_pet()
             local target = pet or context.me
-            return NS.try_cast(SPELLS.BestialWrath, target, "[BEAST_MASTERY] BestialWrath", { skip_range = true })
+            return NS.try_cast(ACTION.BestialWrath, target, "[BEAST_MASTERY] BestialWrath", { skip_range = true })
         end,
     },
     -- 11b. Intimidation (BM pet stun)
     {
         name = "Intimidation",
         matches = intimidation_matches,
-        execute = function(context) return NS.try_cast(SPELLS.Intimidation, context.target, "[BEAST_MASTERY] Intimidation") end,
+        execute = function(context) return NS.try_cast(ACTION.Intimidation, context.target, "[BEAST_MASTERY] Intimidation") end,
     },
     -- 12. Rapid Fire
     {
         name = "RapidFire",
         matches = rapid_fire_matches,
-        execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[BEAST_MASTERY] RapidFire", { skip_range = true }) end,
+        execute = function(context) return NS.try_cast(ACTION.RapidFire, context.me, "[BEAST_MASTERY] RapidFire", { skip_range = true }) end,
     },
     -- 13. Readiness (reset CDs)
     {
         name = "Readiness",
         matches = readiness_matches,
-        execute = function(context) return NS.try_cast(SPELLS.Readiness, context.me, "[BEAST_MASTERY] Readiness", { skip_range = true, expected_cooldown = 300 }) end,
+        execute = function(context) return NS.try_cast(ACTION.Readiness, context.me, "[BEAST_MASTERY] Readiness", { skip_range = true, expected_cooldown = 300 }) end,
     },
     -- 14. Feign Death (threat management)
     {
         name = "FeignDeath",
         matches = feign_death_matches,
-        execute = function(context) return NS.try_cast(SPELLS.FeignDeath, context.me, "[BEAST_MASTERY] FeignDeath", { skip_range = true }) end,
+        execute = function(context) return NS.try_cast(ACTION.FeignDeath, context.me, "[BEAST_MASTERY] FeignDeath", { skip_range = true }) end,
     },
     -- 15. Adaptive rotation (DPS-optimal shot selection, setting-gated)
     {
@@ -833,7 +907,7 @@ local strategies = {
         name = "MultiShot",
         matches = multi_shot_matches,
         execute = function(context)
-            local result = NS.try_cast(SPELLS.MultiShot, context.target, "[BEAST_MASTERY] MultiShot")
+            local result = NS.try_cast(ACTION.MultiShot, context.target, "[BEAST_MASTERY] MultiShot")
             if result then hunter_core.record_instant_shot() end
             return result
         end,
@@ -842,20 +916,20 @@ local strategies = {
     {
         name = "SerpentSting",
         matches = sting_matches,
-        execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting") end,
+        execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting") end,
     },
     -- 16b. Serpent Sting refresh so the DoT does not fall off mid-fight
     {
         name = "SerpentStingRefresh",
         matches = serpent_refresh_matches,
-        execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting refresh") end,
+        execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting refresh") end,
     },
     -- 17. Arcane Shot (instant filler)
     {
         name = "ArcaneShot",
         matches = arcane_shot_matches,
         execute = function(context)
-            local result = NS.try_cast(SPELLS.ArcaneShot, context.target, "[BEAST_MASTERY] ArcaneShot")
+            local result = NS.try_cast(ACTION.ArcaneShot, context.target, "[BEAST_MASTERY] ArcaneShot")
             if result then hunter_core.record_instant_shot() end
             return result
         end,
@@ -865,7 +939,7 @@ local strategies = {
         name = "SteadyShot",
         matches = steady_shot_matches,
         execute = function(context)
-            local result = NS.try_cast(SPELLS.SteadyShot, context.target, "[BEAST_MASTERY] SteadyShot")
+            local result = NS.try_cast(ACTION.SteadyShot, context.target, "[BEAST_MASTERY] SteadyShot")
             if result then hunter_core.record_steady_start() end
             return result
         end,
@@ -895,7 +969,7 @@ local strategies = {
     {
         name = "ExplosiveTrap",
         matches = explosive_trap_matches,
-        execute = function(context) return NS.try_cast(SPELLS.ExplosiveTrap, context.me, "[BEAST_MASTERY] ExplosiveTrap", { skip_range = true, expected_cooldown = 30 }) end,
+        execute = function(context) return NS.try_cast(ACTION.ExplosiveTrap, context.me, "[BEAST_MASTERY] ExplosiveTrap", { skip_range = true, expected_cooldown = 30 }) end,
     },
     -- 24. Raptor Strike (melee weaving)
     {
@@ -906,10 +980,10 @@ local strategies = {
 }
 
 -- Register strategies
-local ok, existing = pcall(NS.rotation_registry.register, NS.rotation_registry, "beast_mastery", strategies, { get_state = build_state })
-if not ok then
+if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("beast_mastery", strategies, { get_state = build_state })
 end
--- Hunter beast_mastery rotation registered (parity parity)
+if NS.log then NS.log("Hunter beast mastery rotation registered") end
+-- Hunter beast_mastery rotation registered
 
-return strategies
+return { strategies = strategies, build_state = build_state }

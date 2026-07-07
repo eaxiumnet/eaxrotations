@@ -44,7 +44,7 @@ end
 -- BM's aspect management is handled by middleware (aspect_manager_sylvanas.lua).
 -- No spec-level aspect strategies in BM — only pet and utility strategies.
 local function check_bm(path)
-    local strategies = dofile(path)
+    local strategies = dofile(path).strategies
     local hawk = find_strategy(strategies, "AspectOfTheHawk")
     local viper = find_strategy(strategies, "AspectOfTheViper")
     local mend_pet = find_strategy(strategies, "MendPet")

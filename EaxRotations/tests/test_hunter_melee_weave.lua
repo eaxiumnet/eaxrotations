@@ -72,7 +72,7 @@ local function find_strategy(strategies, name)
 end
 
 -- BM
-local bm_strategies = dofile("EaxRotations/classes/hunter/beast_mastery_sylvanas.lua")
+local bm_strategies = dofile("EaxRotations/classes/hunter/beast_mastery_sylvanas.lua").strategies
 local bm_raptor = find_strategy(bm_strategies, "RaptorStrike")
 assert_true(bm_raptor ~= nil, "BM RaptorStrike should exist")
 -- Melee weave enabled, in range -> match
