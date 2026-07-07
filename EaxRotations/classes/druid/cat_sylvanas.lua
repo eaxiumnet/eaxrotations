@@ -5,7 +5,7 @@
 -- WHY:   TBC feral cat consensus: maintain Mangle + SR debuffs, pool energy
 --         for FB when Rip is up at 5 CP, otherwise Shred > Rake as builders.
 --         Bite gates on CP >= 5 and target HP < 25%.
--- SAFETY: pattern 14 nil-guards. Energy / CP default to 0 to avoid bite skipping.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update allocs.
 --          snapshot_sylvanas handles Rip / Rake snapshot capture.
 
 
@@ -20,9 +20,13 @@ local _cm_ok, CombatMode = pcall(require, "shared/combat_mode_sylvanas")
 if not _cm_ok or type(CombatMode) ~= "table" then CombatMode = nil end
 local _snap_ok, Snapshot = pcall(require, "shared/snapshot_sylvanas")
 if not _snap_ok or type(Snapshot) ~= "table" then Snapshot = nil end
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 local BASE_SPELLS = NS.DruidSpells or {}
 local SPELLS = BASE_SPELLS
+
+-- Centralized spell resolver via spec_kit (replaces per-spec spell() helper).
+local define = spec_kit.define_action_for_class(SPELLS)
 -- Form detection diagnostic: logs all detection methods once at startup (debug only)
 local _form_diag_logged = false
 local function dump_form_detection()
@@ -71,9 +75,29 @@ local function dump_form_detection()
 end
 
 
-local POUNCE = BASE_SPELLS.Pounce or (NS.spell_action and NS.spell_action({ 27006, 9827, 9005 }, "Pounce"))
-local MAIM = BASE_SPELLS.Maim or (NS.spell_action and NS.spell_action({ 22570 }, "Maim"))
-local TRACK_HUMANOIDS = BASE_SPELLS.TrackHumanoids or (NS.spell_action and NS.spell_action({ 5225 }, "TrackHumanoids"))
+-- Action table via spec_kit (replaces per-spec spell() helper + POUNCE/MAIM/TRACK_HUMANOIDS locals).
+-- Rank IDs from class_sylvanas.lua (verified against DBC for TBC Anniversary 2.5.5).
+local ACTION = {
+    Barkskin        = define("Barkskin",        { 22812 }, "Barkskin"),
+    CatForm         = define("CatForm",         { 768 }, "CatForm"),
+    Claw            = define("Claw",            { 27000, 9850, 9849, 5201, 3029, 1082 }, "Claw"),
+    Dash            = define("Dash",            { 33357, 9821, 1850 }, "Dash"),
+    FaerieFireFeral = define("FaerieFireFeral", { 27011, 17392, 17391, 17390, 16857 }, "FaerieFireFeral"),
+    FeralCharge     = define("FeralCharge",     { 16979 }, "FeralCharge"),
+    FerociousBite   = define("FerociousBite",   { 24248, 31018, 22829, 22828, 22827, 22568 }, "FerociousBite"),
+    Maim            = define("Maim",            { 22570 }, "Maim"),
+    MangleCat       = define("MangleCat",       { 33983, 33982, 33876 }, "MangleCat"),
+    Pounce          = define("Pounce",          { 27006, 9827, 9823, 9005 }, "Pounce"),
+    Prowl           = define("Prowl",           { 9913, 6783, 5215 }, "Prowl"),
+    Rake            = define("Rake",            { 27003, 9904, 1824, 1823, 1822 }, "Rake"),
+    Ravage          = define("Ravage",          { 27005, 9867, 9866, 6787, 6785 }, "Ravage"),
+    RemoveCurse     = define("RemoveCurse",     { 2782 }, "RemoveCurse"),
+    Rip             = define("Rip",             { 27008, 9896, 9894, 9752, 9493, 9492, 1079 }, "Rip"),
+    Shred           = define("Shred",           { 27002, 27001, 9830, 9829, 8992, 6800, 5221 }, "Shred"),
+    TigersFury      = define("TigersFury",      { 9846, 9845, 6793, 5217 }, "TigersFury"),
+    TrackHumanoids  = define("TrackHumanoids",  { 5225 }, "TrackHumanoids"),
+    TravelForm      = define("TravelForm",      { 783 }, "TravelForm"),
+}
 
 local STANCE_CAT = 3
 local ENERGY_CAP = 100
@@ -202,6 +226,57 @@ local snapshot_state = {
 -- Any form cast sets this; subsequent form casts are blocked for FORM_SWITCH_COOLDOWN seconds.
 local _last_form_shift_time = -100
 local FORM_SWITCH_COOLDOWN = 5.0
+
+-- Schema for safe_state: mirrors cat_state defaults. Fields NOT listed here
+-- use spec_kit.SAFE_STATE_DEFAULTS (energy→0, combo_points→0, enemy_count→0, etc.).
+-- Custom defaults override the kit defaults where cat needs different behavior.
+local CAT_SCHEMA = {
+    now = 0,
+    now_ms = 0,
+    mana_pct = 100,
+    energy = 0,
+    projected_energy = 0,
+    combo_points = 0,
+    enemy_count = 1,
+    target_hp = 100,
+    target_ttd = 999,
+    target_ttd_known = false,
+    target_range = 0,
+    in_combat = false,
+    is_pvp = false,
+    is_player_target = false,
+    is_stealthed = false,
+    is_cat = false,
+    is_behind = false,
+    clearcasting = false,
+    has_tigers_fury = false,
+    has_dash = false,
+    has_barkskin = false,
+    has_track_humanoids = false,
+    has_wolfshead = false,
+    has_bloodlust = false,
+    rip_remains = 0,
+    rake_remains = 0,
+    mangle_remains = 0,
+    faerie_fire_remains = 0,
+    pounce_remains = 0,
+    maim_remains = 0,
+    rip_ap = 0,
+    rake_ap = 0,
+    attack_power = 0,
+    next_tick_in = ENERGY_TICK_INTERVAL,
+    last_energy = 0,
+    last_tick_time = 0,
+    last_shift_time = -100,
+    tick_confident = false,
+    pooling = false,
+    should_powershift = false,
+    should_pool_for_rip = false,
+    should_pool_for_shred = false,
+    should_execute = false,
+    should_tab_rake = false,
+    should_aoe = false,
+}
 
 -- Throttle build_state to once per frame to avoid rebuilding state N times
 -- per frame (once per strategy match function). Uses context.now when
@@ -529,7 +604,8 @@ function build_state(context)
         local useful_after = (state.energy or 0) + shift_gain >= math.min(ENERGY_CAP, SHRED_COST)
         state.should_powershift = state.energy <= shift_energy and state.combo_points <= POWERSHIFT_SAFE_CP and state.mana_pct >= POWERSHIFT_MIN_MANA and useful_after
     end
-    return state
+    -- safe_state proxy: structural nil-guard elimination (Pattern 14)
+    return spec_kit.safe_state(state, CAT_SCHEMA)
 end
 
 local function cat_form_matches(context, action)
@@ -830,7 +906,7 @@ end
 local function mangle_filler_matches(context, action)
     local state = build_state(context)
     if (state.combo_points or 0) >= 5 then return false end
-    if state.is_behind and spell_ready(SPELLS.Shred, state.target, nil) and (state.energy or 0) >= SHRED_COST then return false end
+    if state.is_behind and spell_ready(ACTION.Shred, state.target, nil) and (state.energy or 0) >= SHRED_COST then return false end
     if should_wait_for_tick(state, MANGLE_COST) then return false end
     return true
 end
@@ -838,7 +914,7 @@ end
 local function claw_matches(context, action)
     local state = build_state(context)
     if (state.combo_points or 0) >= 5 then return false end
-    if spell_exists(SPELLS.MangleCat) then return false end
+    if spell_exists(ACTION.MangleCat) then return false end
     if should_wait_for_tick(state, 45) then return false end
     return true
 end
@@ -898,46 +974,46 @@ local function wait_execute_execute()
 end
 
 local ACTIONS = {
-    { name = "CatForm", spell = SPELLS.CatForm, target = "self", kind = "form", form = "cat", requires_target = false, matches = cat_form_matches },
-    { name = "TravelForm", spell = SPELLS.TravelForm, target = "self", kind = "form", form = "travel", requires_target = false, matches = travel_form_matches },
-    { name = "TrackHumanoids", spell = TRACK_HUMANOIDS, target = "self", kind = "buff", buff = TRACK_HUMANOIDS_BUFF, required_form = "cat", requires_target = false, matches = track_humanoids_matches },
-    { name = "Prowl", spell = SPELLS.Prowl, target = "self", kind = "buff", buff = PROWL_BUFF, ooc = true, required_form = "cat", requires_target = false, matches = prowl_matches },
+    { name = "CatForm", spell = ACTION.CatForm, target = "self", kind = "form", form = "cat", requires_target = false, matches = cat_form_matches },
+    { name = "TravelForm", spell = ACTION.TravelForm, target = "self", kind = "form", form = "travel", requires_target = false, matches = travel_form_matches },
+    { name = "TrackHumanoids", spell = ACTION.TrackHumanoids, target = "self", kind = "buff", buff = TRACK_HUMANOIDS_BUFF, required_form = "cat", requires_target = false, matches = track_humanoids_matches },
+    { name = "Prowl", spell = ACTION.Prowl, target = "self", kind = "buff", buff = PROWL_BUFF, ooc = true, required_form = "cat", requires_target = false, matches = prowl_matches },
 
-    { name = "Barkskin", spell = SPELLS.Barkskin, target = "self", required_form = "cat", requires_target = false, matches = barkskin_matches },
+    { name = "Barkskin", spell = ACTION.Barkskin, target = "self", required_form = "cat", requires_target = false, matches = barkskin_matches },
 
-    { name = "PounceOpener", spell = POUNCE, requires_buff = PROWL_BUFF, required_form = "cat", min_energy = POUNCE_COST, matches = pounce_matches },
-    { name = "RavageOpener", spell = SPELLS.Ravage, requires_buff = PROWL_BUFF, required_form = "cat", requires_behind = true, min_energy = RAVAGE_COST, matches = ravage_matches },
-    { name = "StealthShred", spell = SPELLS.Shred, requires_buff = PROWL_BUFF, required_form = "cat", requires_behind = true, min_energy = SHRED_COST, matches = stealth_shred_matches },
-    { name = "StealthMangle", spell = SPELLS.MangleCat, requires_buff = PROWL_BUFF, required_form = "cat", min_energy = MANGLE_COST, matches = stealth_mangle_matches },
+    { name = "PounceOpener", spell = ACTION.Pounce, requires_buff = PROWL_BUFF, required_form = "cat", min_energy = POUNCE_COST, matches = pounce_matches },
+    { name = "RavageOpener", spell = ACTION.Ravage, requires_buff = PROWL_BUFF, required_form = "cat", requires_behind = true, min_energy = RAVAGE_COST, matches = ravage_matches },
+    { name = "StealthShred", spell = ACTION.Shred, requires_buff = PROWL_BUFF, required_form = "cat", requires_behind = true, min_energy = SHRED_COST, matches = stealth_shred_matches },
+    { name = "StealthMangle", spell = ACTION.MangleCat, requires_buff = PROWL_BUFF, required_form = "cat", min_energy = MANGLE_COST, matches = stealth_mangle_matches },
 
-    { name = "Dash", spell = SPELLS.Dash, target = "self", required_form = "cat", requires_target = false, matches = dash_matches },
-    { name = "FeralChargeCat", spell = SPELLS.FeralCharge, target = "self", required_form = "cat", requires_target = false, matches = function(context) return context.in_combat and context.target and context.target_range and context.target_range >= 8 and context.target_range <= 25 end },
+    { name = "Dash", spell = ACTION.Dash, target = "self", required_form = "cat", requires_target = false, matches = dash_matches },
+    { name = "FeralChargeCat", spell = ACTION.FeralCharge, target = "self", required_form = "cat", requires_target = false, matches = function(context) return context.in_combat and context.target and context.target_range and context.target_range >= 8 and context.target_range <= 25 end },
 
-    { name = "MaimInterrupt", spell = MAIM, required_form = "cat", min_energy = MAIM_COST, min_combo = 1, matches = maim_interrupt_matches },
-    { name = "FaerieFireStealthLock", spell = SPELLS.FaerieFireFeral, required_form = "cat", matches = faerie_fire_stealth_matches },
-    { name = "FaerieFireFeral", spell = SPELLS.FaerieFireFeral, required_form = "cat", debuff = FAERIE_FIRE_DEBUFF, refresh = FAERIE_FIRE_REFRESH, matches = faerie_fire_matches },
-    { name = "MangleDebuff", spell = SPELLS.MangleCat, required_form = "cat", min_energy = MANGLE_COST, debuff = MANGLE_DEBUFF, refresh = MANGLE_REFRESH_WINDOW, matches = mangle_debuff_matches },
+    { name = "MaimInterrupt", spell = ACTION.Maim, required_form = "cat", min_energy = MAIM_COST, min_combo = 1, matches = maim_interrupt_matches },
+    { name = "FaerieFireStealthLock", spell = ACTION.FaerieFireFeral, required_form = "cat", matches = faerie_fire_stealth_matches },
+    { name = "FaerieFireFeral", spell = ACTION.FaerieFireFeral, required_form = "cat", debuff = FAERIE_FIRE_DEBUFF, refresh = FAERIE_FIRE_REFRESH, matches = faerie_fire_matches },
+    { name = "MangleDebuff", spell = ACTION.MangleCat, required_form = "cat", min_energy = MANGLE_COST, debuff = MANGLE_DEBUFF, refresh = MANGLE_REFRESH_WINDOW, matches = mangle_debuff_matches },
 
-    { name = "RipSnapshot", spell = SPELLS.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 5, matches = rip_snapshot_matches },
-    { name = "RipTrick", spell = SPELLS.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 1, matches = rip_trick_matches },
-    { name = "Rip", spell = SPELLS.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 3, matches = rip_matches },
-    { name = "FerociousBiteExecute", spell = SPELLS.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, target_max_hp = EXECUTE_HP, matches = bite_matches },
-    { name = "FerociousBiteTtd", spell = SPELLS.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, matches = emergency_bite_matches },
-    { name = "BiteTrick", spell = SPELLS.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 5, matches = bite_trick_matches },
-    { name = "MaimControl", spell = MAIM, required_form = "cat", min_energy = MAIM_COST, min_combo = 3, matches = maim_control_matches },
+    { name = "RipSnapshot", spell = ACTION.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 5, matches = rip_snapshot_matches },
+    { name = "RipTrick", spell = ACTION.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 1, matches = rip_trick_matches },
+    { name = "Rip", spell = ACTION.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 3, matches = rip_matches },
+    { name = "FerociousBiteExecute", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, target_max_hp = EXECUTE_HP, matches = bite_matches },
+    { name = "FerociousBiteTtd", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, matches = emergency_bite_matches },
+    { name = "BiteTrick", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 5, matches = bite_trick_matches },
+    { name = "MaimControl", spell = ACTION.Maim, required_form = "cat", min_energy = MAIM_COST, min_combo = 3, matches = maim_control_matches },
 
-    { name = "TigersFury", spell = SPELLS.TigersFury, target = "self", required_form = "cat", requires_target = false, cooldown = 30, matches = tigers_fury_matches },
-    { name = "Powershift", spell = SPELLS.CatForm, target = "self", skip_gcd = true, requires_target = false, matches = powershift_matches },
-    { name = "EmergencyPowershift", spell = SPELLS.CatForm, target = "self", skip_gcd = true, requires_target = false, matches = emergency_powershift_matches },
+    { name = "TigersFury", spell = ACTION.TigersFury, target = "self", required_form = "cat", requires_target = false, cooldown = 30, matches = tigers_fury_matches },
+    { name = "Powershift", spell = ACTION.CatForm, target = "self", skip_gcd = true, requires_target = false, matches = powershift_matches },
+    { name = "EmergencyPowershift", spell = ACTION.CatForm, target = "self", skip_gcd = true, requires_target = false, matches = emergency_powershift_matches },
 
-    { name = "RakeSnapshot", spell = SPELLS.Rake, required_form = "cat", min_energy = RAKE_COST, matches = rake_snapshot_matches },
-    { name = "RakeTab", spell = SPELLS.Rake, required_form = "cat", min_energy = RAKE_COST, matches = rake_tab_matches },
-    { name = "Rake", spell = SPELLS.Rake, required_form = "cat", min_energy = RAKE_COST, matches = rake_matches },
-    { name = "ShredOmen", spell = SPELLS.Shred, required_form = "cat", requires_behind = true, matches = clearcasting_shred_matches },
-    { name = "ShredTrick", spell = SPELLS.Shred, required_form = "cat", requires_behind = true, min_energy = SHRED_COST, matches = shred_trick_matches },
-    { name = "Shred", spell = SPELLS.Shred, required_form = "cat", requires_behind = true, min_energy = SHRED_COST, matches = shred_matches },
-    { name = "MangleFiller", spell = SPELLS.MangleCat, required_form = "cat", min_energy = MANGLE_COST, matches = mangle_filler_matches },
-    { name = "ClawFallback", spell = SPELLS.Claw, required_form = "cat", min_energy = 45, matches = claw_matches },
+    { name = "RakeSnapshot", spell = ACTION.Rake, required_form = "cat", min_energy = RAKE_COST, matches = rake_snapshot_matches },
+    { name = "RakeTab", spell = ACTION.Rake, required_form = "cat", min_energy = RAKE_COST, matches = rake_tab_matches },
+    { name = "Rake", spell = ACTION.Rake, required_form = "cat", min_energy = RAKE_COST, matches = rake_matches },
+    { name = "ShredOmen", spell = ACTION.Shred, required_form = "cat", requires_behind = true, matches = clearcasting_shred_matches },
+    { name = "ShredTrick", spell = ACTION.Shred, required_form = "cat", requires_behind = true, min_energy = SHRED_COST, matches = shred_trick_matches },
+    { name = "Shred", spell = ACTION.Shred, required_form = "cat", requires_behind = true, min_energy = SHRED_COST, matches = shred_matches },
+    { name = "MangleFiller", spell = ACTION.MangleCat, required_form = "cat", min_energy = MANGLE_COST, matches = mangle_filler_matches },
+    { name = "ClawFallback", spell = ACTION.Claw, required_form = "cat", min_energy = 45, matches = claw_matches },
 }
 
 local strategies = {
@@ -971,9 +1047,9 @@ local strategies = {
     { name = "RemoveCurse",
       matches = function(context)
           if not (context.settings and context.settings.cat_auto_dispel) then return false end
-          return NS.spell_ready(SPELLS.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
+          return NS.spell_ready(ACTION.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
       end,
-      execute = function() return NS.try_cast(SPELLS.RemoveCurse, NS.PLAYER_UNIT, "[CAT] Remove Curse self", { skip_range = true }) end },
+      execute = function() return NS.try_cast(ACTION.RemoveCurse, NS.PLAYER_UNIT, "[CAT] Remove Curse self", { skip_range = true }) end },
     { name = "PoolForRip", matches = pool_for_builder_matches, execute = wait_execute_execute },
     { name = "PoolForBuilderTick", matches = pool_for_builder_matches, execute = wait_execute_execute },
     { name = "PoolForExecuteBite", matches = wait_execute, execute = wait_execute_execute },
@@ -1004,6 +1080,8 @@ table.insert(strategies, { name = "Healthstone",
     end,
 })
 
-NS.rotation_registry:register("cat", strategies, { get_state = build_state })
--- Druid cat rotation registered (production TBC: powershift, bleeds, openers, PvP, movement, snapshotting)
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("cat", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("Druid cat rotation registered") end
 return strategies
