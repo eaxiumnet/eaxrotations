@@ -18,6 +18,8 @@ local _eng_ok, engineering = pcall(require, "shared/engineering_helper_sylvanas"
 if not _eng_ok or type(engineering) ~= "table" then engineering = nil end
 local _cm_ok, CombatMode = pcall(require, "shared/combat_mode_sylvanas")
 if not _cm_ok or type(CombatMode) ~= "table" then CombatMode = nil end
+local _snap_ok, Snapshot = pcall(require, "shared/snapshot_sylvanas")
+if not _snap_ok or type(Snapshot) ~= "table" then Snapshot = nil end
 
 local BASE_SPELLS = NS.DruidSpells or {}
 local SPELLS = BASE_SPELLS
@@ -380,6 +382,12 @@ local function should_wait_for_tick(state, required_energy)
 end
 
 local function should_snapshot_upgrade(current_ap, snapshotted_ap, remains, refresh_window, ratio)
+    -- Delegate to shared helper (preserves cat behavior: no-snapshot -> skip, extra_window 1.5)
+    if Snapshot then
+        return Snapshot.should_upgrade(current_ap, snapshotted_ap, remains, refresh_window, ratio,
+            { no_snapshot_refresh = false, extra_window = 1.5 })
+    end
+    -- Inline fallback (identical to prior behavior)
     if remains <= 0 then return true end
     if remains <= refresh_window then return true end
     if snapshotted_ap <= 0 then return false end
