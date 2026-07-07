@@ -1,8 +1,8 @@
--- holy_sylvanas.lua -- Priest Holy healing for TBC Anniversary (2.5.5).
--- WHAT: raid healer (Greater Heal, Flash Heal, CoH, Prayer of Mending, Renew).
+-- holy_sylvanas.lua — Priest Holy healing for TBC Anniversary (2.5.5).
+-- WHAT: raid healer (Greater Heal, Flash Heal, CoH, Prayer of Mending, Renew, Lightwell).
 -- WHEN: combat or pre-combat, with valid friendly targets.
--- WHY: TBC holy priest = PoM on CD + CoH (3+ hurt) + GH/Flash spot healing.
--- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
+-- WHY: TBC holy priest = PoM on CD + CoH (3+ hurt) + GH/Flash spot healing + Lightwell.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -15,7 +15,8 @@ if not load_player then return end
 local ok_cls, cls_id = pcall(function() return load_player:get_class() end)
 if not ok_cls or cls_id ~= enums.class_id.PRIEST then return end
 
-local SPELLS = NS.PriestSpells
+local SPELLS = NS.PriestSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 local function load_healing_helpers()
  if NS.PriestHealing then return NS.PriestHealing end
@@ -33,6 +34,31 @@ local Healing = load_healing_helpers()
 -- Preemptive heal module (Sonah-style predictive healing)
 local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
 
+-- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    AbolishDisease   = define("AbolishDisease",   { 552 }, "AbolishDisease"),
+    BindingHeal      = define("BindingHeal",      { 32546 }, "BindingHeal"),
+    CircleofHealing  = define("CircleofHealing",  { 34866, 34865, 34864, 34863, 34861 }, "CircleofHealing"),
+    CureDisease      = define("CureDisease",      { 528 }, "CureDisease"),
+    DesperatePrayer  = define("DesperatePrayer",  { 25437, 19243, 19242, 19241, 19240, 19238, 19236, 13908 }, "DesperatePrayer"),
+    DispelMagic      = define("DispelMagic",      { 988, 527 }, "DispelMagic"),
+    Fade             = define("Fade",             { 25429, 10942, 10941, 9592, 9579, 9578, 586 }, "Fade"),
+    FlashHeal        = define("FlashHeal",        { 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
+    GreaterHeal      = define("GreaterHeal",      { 25213, 25210, 25314, 10965, 10964, 10963, 2060 }, "GreaterHeal"),
+    HolyFire         = define("HolyFire",         { 25384, 15261, 15267, 15266, 15265, 15264, 15263, 15262, 14914 }, "HolyFire"),
+    InnerFocus       = define("InnerFocus",       { 14751 }, "InnerFocus"),
+    Lightwell        = define("Lightwell",        { 28275, 27871, 27870, 724 }, "Lightwell"),
+    PowerWordShield  = define("PowerWordShield",  { 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }, "PowerWordShield"),
+    PrayerofMending  = define("PrayerofMending",  { 33076 }, "PrayerofMending"),
+    PrayerOfHealing  = define("PrayerOfHealing",  { 25308, 25316, 10961, 10960, 996, 596 }, "PrayerOfHealing"),
+    Renew            = define("Renew",            { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }, "Renew"),
+    ShadowWordPain   = define("ShadowWordPain",   { 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }, "ShadowWordPain"),
+    Shadowfiend      = define("Shadowfiend",      { 34433 }, "Shadowfiend"),
+    Smite            = define("Smite",            { 25364, 25363, 10934, 10933, 6060, 1004, 984, 598, 591, 585 }, "Smite"),
+    SymbolOfHope     = define("SymbolOfHope",     { 32548 }, "SymbolOfHope"),
+}
+
 local format = string.format
 -- ipairs unused in holy (no ipairs iteration needed)
 local tostring = tostring
@@ -48,7 +74,7 @@ local PRAYER_OF_HEALING_RANKS = NS.PriestPRAYER_OF_HEALING_RANKS
 local BINDING_HEAL_RANKS = NS.PriestBINDING_HEAL_RANKS
 local cast_best_heal_rank = NS.cast_best_heal_rank or function() return false end
 
-local INNER_FOCUS_BUFF = 14751
+local INNER_FOCUS_BUFF = { 14751 }  -- matches ACTION.InnerFocus rank ID
 local SURGE_OF_LIGHT_BUFF = { 33151, 33154 }
 local HOLY_CONCENTRATION_BUFF = { 34753, 34754, 34859, 34860 }
 local PRAYER_OF_MENDING_BUFF = { 33076 } -- PoM buff on target (TBC rank 1)
@@ -100,6 +126,37 @@ local HOLY_OPTS_GH = { gh_coefficient = true, cast_time = 2.5, overheal_threshol
 local HOLY_OPTS_FH = { cast_time = 1.5, overheal_threshold = 1.3 }
 local HOLY_OPTS_POH = { poh_coefficient = true, cast_time = 3.0, overheal_threshold = 1.3 }
 
+-- ============================================================================
+-- Schema for safe_state (Pattern 14 nil-guard elimination).
+local HOLY_SCHEMA = {
+    lowest_hp = 100,
+    tank_hp = 100,
+    group_damaged_count = 0,
+    subgroup_damaged_count = 0,
+    surge_of_light = false,
+    clearcasting = false,
+    pom_ready = false,
+    coh_ready = false,
+    has_inner_focus = false,
+    swp_remaining = 0,
+    holy_fire_remaining = 0,
+    healthstone_ready = false,
+    has_fade_buff = false,
+    fade_ready = false,
+    encounter_id = 0,
+    flash_heal_ready = false,
+    prayer_of_healing_ready = false,
+    greater_heal_ready = false,
+    lightwell_ready = false,
+    shadowfiend_ready = false,
+    dispel_magic_ready = false,
+    cure_disease_ready = false,
+    abolish_disease_ready = false,
+    symbol_of_hope_ready = false,
+    friendly_target_ready = false,
+    mana_pct = 100,
+}
+
 local holy_state = {
  lowest = nil,
  lowest_hp = 100,
@@ -135,7 +192,7 @@ local try_cast, spell_exists, spell_ready, debuff_remains, health_pct, player_co
  "try_cast", "spell_exists", "spell_ready", "debuff_remains", "health_pct",
  "player_control_locked", "has_player_buff"
 )
-local function build_holy_state(context)
+local function build_state(context)
  context.settings = context.settings or EMPTY_SETTINGS
  local aoe_hp = context.settings.holy_aoe_hp or 80
  local lowest_entry = nil
@@ -145,10 +202,10 @@ local function build_holy_state(context)
  local damaged_count = 0
 
  local player = NS.GetPlayer()
- if not player then return holy_state end
+ if not player then return spec_kit.safe_state(holy_state, HOLY_SCHEMA) end
  -- Mounted bail: healer should not queue buffs/heals while mounted
  if player.is_mounted and player:is_mounted() then
-  return holy_state
+  return spec_kit.safe_state(holy_state, HOLY_SCHEMA)
  end
  -- Guard: player_control_locked may be nil in some environments
 local pcl_ok, pcl_result = pcall(function()
@@ -213,30 +270,30 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
 
  -- parity: Fade state
  holy_state.has_fade_buff = has_player_buff(FADE_BUFF)
- holy_state.fade_ready = spell_exists(SPELLS.Fade) and spell_ready(SPELLS.Fade)
+ holy_state.fade_ready = spell_exists(ACTION.Fade) and spell_ready(ACTION.Fade)
 
  -- parity: Encounter ID for Karazhan reactions
  holy_state.encounter_id = (NS.core and NS.core.get_map_id and NS.core.get_map_id())
   or 0
 
- holy_state.pom_ready = spell_exists(SPELLS.PrayerofMending) and spell_ready(SPELLS.PrayerofMending, (tank_entry and tank_entry.unit) or NS.PLAYER_UNIT)
- holy_state.coh_ready = spell_exists(SPELLS.CircleofHealing) and spell_ready(SPELLS.CircleofHealing, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
+ holy_state.pom_ready = spell_exists(ACTION.PrayerofMending) and spell_ready(ACTION.PrayerofMending, (tank_entry and tank_entry.unit) or NS.PLAYER_UNIT)
+ holy_state.coh_ready = spell_exists(ACTION.CircleofHealing) and spell_ready(ACTION.CircleofHealing, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
  holy_state.has_inner_focus = has_player_buff(INNER_FOCUS_BUFF)
- holy_state.flash_heal_ready = spell_exists(SPELLS.FlashHeal) and spell_ready(SPELLS.FlashHeal, NS.PLAYER_UNIT)
- holy_state.prayer_of_healing_ready = spell_exists(SPELLS.PrayerOfHealing) and spell_ready(SPELLS.PrayerOfHealing, NS.PLAYER_UNIT, { skip_range = true })
- holy_state.greater_heal_ready = spell_exists(SPELLS.GreaterHeal) and spell_ready(SPELLS.GreaterHeal, NS.PLAYER_UNIT)
+ holy_state.flash_heal_ready = spell_exists(ACTION.FlashHeal) and spell_ready(ACTION.FlashHeal, NS.PLAYER_UNIT)
+ holy_state.prayer_of_healing_ready = spell_exists(ACTION.PrayerOfHealing) and spell_ready(ACTION.PrayerOfHealing, NS.PLAYER_UNIT, { skip_range = true })
+ holy_state.greater_heal_ready = spell_exists(ACTION.GreaterHeal) and spell_ready(ACTION.GreaterHeal, NS.PLAYER_UNIT)
  -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
  local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(14752, 3.0) or false
  if not skip_aura then
   holy_state.swp_remaining = context.target and debuff_remains(context.target, SHADOW_WORD_PAIN_DEBUFF) or 0
   holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0
  end
- holy_state.lightwell_ready = spell_exists(SPELLS.Lightwell) and spell_ready(SPELLS.Lightwell, NS.PLAYER_UNIT)
- holy_state.shadowfiend_ready = spell_exists(SPELLS.Shadowfiend) and spell_ready(SPELLS.Shadowfiend, NS.PLAYER_UNIT)
- holy_state.dispel_magic_ready = spell_exists(SPELLS.DispelMagic) and spell_ready(SPELLS.DispelMagic, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
- holy_state.cure_disease_ready = spell_exists(SPELLS.CureDisease) and spell_ready(SPELLS.CureDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
- holy_state.abolish_disease_ready = spell_exists(SPELLS.AbolishDisease) and spell_ready(SPELLS.AbolishDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
- holy_state.symbol_of_hope_ready = spell_exists(SPELLS.SymbolOfHope) and spell_ready(SPELLS.SymbolOfHope, NS.PLAYER_UNIT)
+ holy_state.lightwell_ready = spell_exists(ACTION.Lightwell) and spell_ready(ACTION.Lightwell, NS.PLAYER_UNIT)
+ holy_state.shadowfiend_ready = spell_exists(ACTION.Shadowfiend) and spell_ready(ACTION.Shadowfiend, NS.PLAYER_UNIT)
+ holy_state.dispel_magic_ready = spell_exists(ACTION.DispelMagic) and spell_ready(ACTION.DispelMagic, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
+ holy_state.cure_disease_ready = spell_exists(ACTION.CureDisease) and spell_ready(ACTION.CureDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
+ holy_state.abolish_disease_ready = spell_exists(ACTION.AbolishDisease) and spell_ready(ACTION.AbolishDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
+ holy_state.symbol_of_hope_ready = spell_exists(ACTION.SymbolOfHope) and spell_ready(ACTION.SymbolOfHope, NS.PLAYER_UNIT)
  local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
  holy_state.friendly_target = ft
  holy_state.friendly_target_ready = ft ~= nil
@@ -246,7 +303,7 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
   NS.StopCast.update(player, context.settings)
  end
 
- return holy_state
+ return spec_kit.safe_state(holy_state, HOLY_SCHEMA)
 end
 
 local function _engaged_with_player(context)
@@ -310,7 +367,7 @@ local function pre_heal_matches(context, state)
   local ok, casting = pcall(function() return context.me:is_casting() end)
   if ok and casting then return false end
  end
- return spell_exists(SPELLS.GreaterHeal) and spell_ready(SPELLS.GreaterHeal, state.tank.unit)
+ return spell_exists(ACTION.GreaterHeal) and spell_ready(ACTION.GreaterHeal, state.tank.unit)
 end
 
 -- ============================================================================
@@ -356,12 +413,12 @@ end
 -- ============================================================================
 -- parity Feature: MountedProtection
 -- Safety net: prevent actions while mounted.
--- build_holy_state returns early when mounted, but this strategy acts as
+-- build_state returns early when mounted, but this strategy acts as
 -- an additional guard at the strategy evaluation level.
 -- ============================================================================
 local function mounted_protection_matches(context, state)
  if not context.me then return false end
- -- build_holy_state already returns early when mounted (state is empty),
+ -- build_state already returns early when mounted (state is empty),
  -- so other strategies won't fire. This is a named safety net.
  if context.me.is_mounted and context.me:is_mounted() then
   return true
@@ -394,7 +451,7 @@ end
 local strategies = {
  -- FriendlyTarget (Step 0): honor the player's manually-selected friendly target.
  -- TOP priority: works in and out of combat. Threshold-gated so full-health
- -- targets are ignored. State is populated in build_holy_state().
+ -- targets are ignored. State is populated in build_state().
  {
   name = "FriendlyTarget",
   matches = function(context, state)
@@ -404,7 +461,7 @@ local strategies = {
    if (ft.hp_pct or 100) >= (context.settings.holy_friendly_target_threshold or 90) then return false end
    if context.is_moving then return false end
    if context.player_control_locked then return false end
-   return spell_exists(SPELLS.GreaterHeal) and spell_ready(SPELLS.GreaterHeal, ft.unit)
+   return spell_exists(ACTION.GreaterHeal) and spell_ready(ACTION.GreaterHeal, ft.unit)
   end,
   execute = function(context, state)
    local ft = state.friendly_target
@@ -425,18 +482,18 @@ local strategies = {
     if not state.tank then return false end
     if (state.tank.effective_hp or 100) > (settings.holy_pws_hp or 30) then return false end
     if state.tank.has_weakened_soul then return false end
-    return spell_exists(SPELLS.PowerWordShield) and spell_ready(SPELLS.PowerWordShield, state.tank.unit)
+    return spell_exists(ACTION.PowerWordShield) and spell_ready(ACTION.PowerWordShield, state.tank.unit)
    end
    if not state.lowest then return false end
    if (state.lowest.effective_hp or 100) > (settings.holy_pws_hp or 30) then return false end
    if state.lowest.has_weakened_soul then return false end
-   return spell_exists(SPELLS.PowerWordShield) and spell_ready(SPELLS.PowerWordShield, state.lowest.unit)
+   return spell_exists(ACTION.PowerWordShield) and spell_ready(ACTION.PowerWordShield, state.lowest.unit)
   end,
   execute = function(context, state)
    if settings.disc_shield_tank_only and state.tank then
-    return try_cast(SPELLS.PowerWordShield, state.tank.unit, format("[HOLY] Emergency PW:S Tank %.0f%%", state.tank.effective_hp or 0))
+    return try_cast(ACTION.PowerWordShield, state.tank.unit, format("[HOLY] Emergency PW:S Tank %.0f%%", state.tank.effective_hp or 0))
    end
-   return try_cast(SPELLS.PowerWordShield, state.lowest.unit, format("[HOLY] Emergency PW:S %.0f%%", state.lowest.effective_hp or 0))
+   return try_cast(ACTION.PowerWordShield, state.lowest.unit, format("[HOLY] Emergency PW:S %.0f%%", state.lowest.effective_hp or 0))
   end,
  },
  {
@@ -446,7 +503,7 @@ local strategies = {
    if context.player_control_locked or context.is_moving then return false end
    local threshold = (context.settings and context.settings.holy_preemptive_threshold) or PreemptiveHeal.DEFAULT_THRESHOLD
    if not PreemptiveHeal.match(context, state, threshold, 2.5) then return false end
-   if not spell_exists(SPELLS.GreaterHeal) or not spell_ready(SPELLS.GreaterHeal, state._preemptive_target.unit) then return false end
+   if not spell_exists(ACTION.GreaterHeal) or not spell_ready(ACTION.GreaterHeal, state._preemptive_target.unit) then return false end
    return true
   end,
   execute = function(context, state)
@@ -492,7 +549,7 @@ local strategies = {
   execute = function(_, state)
    local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit) or NS.PLAYER_UNIT
    local hp = (state.tank and state.tank.effective_hp) or (state.lowest and state.lowest.effective_hp) or 100
-   return try_cast(SPELLS.PrayerofMending, target, format("[HOLY] Prayer of Mending %.0f%%", hp))
+   return try_cast(ACTION.PrayerofMending, target, format("[HOLY] Prayer of Mending %.0f%%", hp))
   end,
  },
  {
@@ -506,7 +563,7 @@ local strategies = {
   end,
   execute = function(_, state)
    local target = (state.lowest and state.lowest.unit) or (state.tank and state.tank.unit) or NS.PLAYER_UNIT
-   return try_cast(SPELLS.CircleofHealing, target, format("[HOLY] Circle of Healing count=%d", state.group_damaged_count or 0))
+   return try_cast(ACTION.CircleofHealing, target, format("[HOLY] Circle of Healing count=%d", state.group_damaged_count or 0))
   end,
  },
  {
@@ -517,7 +574,7 @@ local strategies = {
    if context.settings and context.settings.holy_use_binding_heal == false then return false end
    if context.hp > (context.settings.holy_binding_self_hp or 80) then return false end
    if not state.lowest or state.lowest.is_player then return false end
-   if not spell_exists(SPELLS.BindingHeal) or not spell_ready(SPELLS.BindingHeal, state.lowest.unit) then return false end
+   if not spell_exists(ACTION.BindingHeal) or not spell_ready(ACTION.BindingHeal, state.lowest.unit) then return false end
    -- Predictive overheal gate
    if NS.gate_overheal("BindingHeal", state.lowest.unit, 2.0, context.settings) then return false end
    return true
@@ -578,12 +635,12 @@ local strategies = {
    if context.player_control_locked then return false end
    if context.settings and context.settings.holy_use_inner_focus == false then return false end
    if state.has_inner_focus then return false end
-   if not spell_exists(SPELLS.InnerFocus) or not spell_ready(SPELLS.InnerFocus, NS.PLAYER_UNIT) then return false end
+   if not spell_exists(ACTION.InnerFocus) or not spell_ready(ACTION.InnerFocus, NS.PLAYER_UNIT) then return false end
    if not state.lowest then return false end
    return (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90)
   end,
   execute = function()
-   return try_cast(SPELLS.InnerFocus, NS.PLAYER_UNIT, "[HOLY] Inner Focus")
+   return try_cast(ACTION.InnerFocus, NS.PLAYER_UNIT, "[HOLY] Inner Focus")
   end,
  },
  {
@@ -597,7 +654,7 @@ local strategies = {
    return (state.group_damaged_count or 0) >= (context.settings.holy_aoe_count or 3)
   end,
   execute = function()
-   return try_cast(SPELLS.Lightwell, NS.PLAYER_UNIT, "[HOLY] Lightwell (raid sustain)")
+   return try_cast(ACTION.Lightwell, NS.PLAYER_UNIT, "[HOLY] Lightwell (raid sustain)")
   end,
  },
  {
@@ -653,11 +710,11 @@ local strategies = {
    if context.player_control_locked then return false end
    if context.settings and context.settings.holy_use_desperate_prayer == false then return false end
    if context.hp > (context.settings.holy_desp_prayer_hp or 30) then return false end
-   if not spell_exists(SPELLS.DesperatePrayer) or not spell_ready(SPELLS.DesperatePrayer, NS.PLAYER_UNIT) then return false end
+   if not spell_exists(ACTION.DesperatePrayer) or not spell_ready(ACTION.DesperatePrayer, NS.PLAYER_UNIT) then return false end
    return true
   end,
   execute = function()
-   return try_cast(SPELLS.DesperatePrayer, NS.PLAYER_UNIT, "[HOLY] Desperate Prayer")
+   return try_cast(ACTION.DesperatePrayer, NS.PLAYER_UNIT, "[HOLY] Desperate Prayer")
   end,
  },
  {
@@ -675,7 +732,7 @@ local strategies = {
    return context.mana_pct < (context.settings.shadowfiend_mana_threshold or 30)
   end,
   execute = function()
-   return try_cast(SPELLS.Shadowfiend, nil, "[HOLY] Shadowfiend (mana regen)", { skip_range = true })
+   return try_cast(ACTION.Shadowfiend, nil, "[HOLY] Shadowfiend (mana regen)", { skip_range = true })
   end,
  },
  {
@@ -696,7 +753,7 @@ local strategies = {
  {
   name = "DispelMagic",
   matches = function(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DispelMagic, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.DispelMagic, 3.0) then return false end
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if context.settings and context.settings.use_party_dispel == false then return false end
@@ -713,13 +770,13 @@ local strategies = {
   end,
   execute = function(_, state)
    local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit)
-   return try_cast(SPELLS.DispelMagic, target, "[HOLY] Dispel Magic")
+   return try_cast(ACTION.DispelMagic, target, "[HOLY] Dispel Magic")
   end,
  },
  {
   name = "CureDisease",
   matches = function(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CureDisease, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CureDisease, 3.0) then return false end
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if not state.cure_disease_ready then return false end
@@ -733,13 +790,13 @@ local strategies = {
   end,
   execute = function(_, state)
    local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit)
-   return try_cast(SPELLS.CureDisease, target, "[HOLY] Cure Disease")
+   return try_cast(ACTION.CureDisease, target, "[HOLY] Cure Disease")
   end,
  },
  {
   name = "AbolishDisease",
   matches = function(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.AbolishDisease, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.AbolishDisease, 3.0) then return false end
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if not state.abolish_disease_ready then return false end
@@ -752,7 +809,7 @@ local strategies = {
     return false
   end,
   execute = function(_, state)
-   return try_cast(SPELLS.AbolishDisease, state.tank.unit, "[HOLY] Abolish Disease (preventive)")
+   return try_cast(ACTION.AbolishDisease, state.tank.unit, "[HOLY] Abolish Disease (preventive)")
   end,
  },
  {
@@ -764,7 +821,7 @@ local strategies = {
    return true
   end,
   execute = function(_, _state)
-   return try_cast(SPELLS.SymbolOfHope, NS.PLAYER_UNIT, "[HOLY] Symbol of Hope")
+   return try_cast(ACTION.SymbolOfHope, NS.PLAYER_UNIT, "[HOLY] Symbol of Hope")
   end,
  },
  {
@@ -772,7 +829,7 @@ local strategies = {
   matches = function(context, state)
    if context.player_control_locked then return false end
    if not state.tank then return false end
-   if not spell_exists(SPELLS.Renew) or not spell_ready(SPELLS.Renew, state.tank.unit) then return false end
+   if not spell_exists(ACTION.Renew) or not spell_ready(ACTION.Renew, state.tank.unit) then return false end
    if not context.in_combat and context.settings.holy_prepull_renew == false then return false end
 
    -- Refresh timing gate: only refresh if < 3s remaining (avoid wasted ticks)
@@ -791,7 +848,7 @@ local strategies = {
    return true
   end,
   execute = function(_, state)
-   return try_cast(SPELLS.Renew, state.tank.unit, format("[HOLY] Renew Tank %.0f%%", state.tank.effective_hp or 0))
+   return try_cast(ACTION.Renew, state.tank.unit, format("[HOLY] Renew Tank %.0f%%", state.tank.effective_hp or 0))
   end,
  },
  {
@@ -800,7 +857,7 @@ local strategies = {
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if not state.lowest then return false end
-   if not spell_exists(SPELLS.Renew) or not spell_ready(SPELLS.Renew, state.lowest.unit) then return false end
+   if not spell_exists(ACTION.Renew) or not spell_ready(ACTION.Renew, state.lowest.unit) then return false end
 
    -- Refresh timing gate: only refresh if < 3s remaining (avoid wasted ticks)
    -- Use explicit nil-check to avoid Lua 0-falsy edge case with renew_remains
@@ -813,7 +870,7 @@ local strategies = {
    return (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90)
   end,
   execute = function(_, state)
-   return try_cast(SPELLS.Renew, state.lowest.unit, format("[HOLY] Renew %.0f%%", state.lowest.effective_hp or 0))
+   return try_cast(ACTION.Renew, state.lowest.unit, format("[HOLY] Renew %.0f%%", state.lowest.effective_hp or 0))
   end,
  },
  {
@@ -825,10 +882,10 @@ local strategies = {
    if not context.has_valid_enemy_target then return false end
    if not _engaged_with_player(context) then return false end
     if (state.lowest_hp or 100) < (context.settings.holy_flash_heal_hp or 50) then return false end
-   return spell_exists(SPELLS.Smite) and spell_ready(SPELLS.Smite, context.target)
+   return spell_exists(ACTION.Smite) and spell_ready(ACTION.Smite, context.target)
   end,
   execute = function(context)
-   return try_cast(SPELLS.Smite, context.target, "[HOLY] Surge of Light Smite")
+   return try_cast(ACTION.Smite, context.target, "[HOLY] Surge of Light Smite")
   end,
  },
  {
@@ -842,10 +899,10 @@ local strategies = {
     if (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90) then return false end
     if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 35 or 70)) then return false end
     if (state.swp_remaining or 0) > 0 then return false end
-   return spell_exists(SPELLS.ShadowWordPain) and spell_ready(SPELLS.ShadowWordPain, context.target)
+   return spell_exists(ACTION.ShadowWordPain) and spell_ready(ACTION.ShadowWordPain, context.target)
   end,
   execute = function(context)
-   return try_cast(SPELLS.ShadowWordPain, context.target, "[HOLY] Idle SW:P")
+   return try_cast(ACTION.ShadowWordPain, context.target, "[HOLY] Idle SW:P")
   end,
  },
  {
@@ -859,10 +916,10 @@ local strategies = {
     if (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90) then return false end
     if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 45 or 70)) then return false end
     if (state.holy_fire_remaining or 0) > 0 then return false end
-   return spell_exists(SPELLS.HolyFire) and spell_ready(SPELLS.HolyFire, context.target)
+   return spell_exists(ACTION.HolyFire) and spell_ready(ACTION.HolyFire, context.target)
   end,
   execute = function(context)
-   return try_cast(SPELLS.HolyFire, context.target, "[HOLY] Idle Holy Fire")
+   return try_cast(ACTION.HolyFire, context.target, "[HOLY] Idle Holy Fire")
   end,
  },
  {
@@ -875,10 +932,10 @@ local strategies = {
    if not _engaged_with_player(context) then return false end
     if (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90) then return false end
    if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 35 or 70)) then return false end
-   return spell_exists(SPELLS.Smite) and spell_ready(SPELLS.Smite, context.target)
+   return spell_exists(ACTION.Smite) and spell_ready(ACTION.Smite, context.target)
   end,
   execute = function(context)
-   return try_cast(SPELLS.Smite, context.target, "[HOLY] Idle Smite")
+   return try_cast(ACTION.Smite, context.target, "[HOLY] Idle Smite")
   end,
  },
  -- Mana < 5%: wand/auto-attack only — all spells forbidden (Research resource floor)
@@ -931,7 +988,7 @@ local strategies = {
   name = "Fade",
   matches = fade_matches,
   execute = function(_, state)
-   return try_cast(SPELLS.Fade, nil, "[HOLY] Fade (aggro drop)", { skip_range = true })
+   return try_cast(ACTION.Fade, nil, "[HOLY] Fade (aggro drop)", { skip_range = true })
   end,
  },
  -- parity Feature: Healthstone
@@ -953,7 +1010,7 @@ local strategies = {
   name = "MountedProtection",
   matches = mounted_protection_matches,
   execute = function()
-   return true -- No-op: mount check is handled in build_holy_state
+   return true -- No-op: mount check is handled in build_state
   end,
  },
  -- parity Feature: EncounterReactions
@@ -969,19 +1026,20 @@ local strategies = {
  },
 }
 
-NS.rotation_registry:register("holy", strategies, {
- get_state = build_holy_state,
+if NS.rotation_registry and NS.rotation_registry.register then
+ NS.rotation_registry:register("holy", strategies, {
+ get_state = build_state,
  format_context_log = function(_, state)
   return format(
    "lowest=%.0f tank=%.0f damaged=%d sol=%s clear=%s",
    state.lowest_hp or 100,
    state.tank_hp or 100,
    state.group_damaged_count or 0,
-   tostring(state.surge_of_light),
-   tostring(state.clearcasting)
- )
+   tostring(state.surge_of_light),   tostring(state.clearcasting)
+  )
  end,
 })
+end
 
 -- Holy priest rotation registered
 return strategies
