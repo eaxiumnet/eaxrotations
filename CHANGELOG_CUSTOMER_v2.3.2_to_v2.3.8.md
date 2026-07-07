@@ -145,4 +145,4 @@
 ---
 
 *All changes verified against the WoW TBC Classic 2.5.5.68101 client database.*
-*219 rotation tests and 13 leveling tests pass on every release.*
+*234 rotation tests and 13 leveling tests pass on every release.*
