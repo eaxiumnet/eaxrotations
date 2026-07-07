@@ -49,7 +49,6 @@ _G.EaxRotations = {
         BearForm = 5487,
         FrenziedRegeneration = 22842,
         Barkskin = 22812,
-        FerociousBite = 22568,
         MarkOfTheWild = 1126,
         GiftOfTheWild = 21849,
         Thorns = 467,
@@ -163,9 +162,9 @@ expect_no_crash("bear_vanilla: Maul with minimal context (L561, L562)", function
     return find_strategy("Maul").matches(base_ctx)
 end)
 
-expect_no_crash("bear_vanilla: FerociousBiteExecute with minimal context (L578, L580)", function()
-    return find_strategy("FerociousBiteExecute").matches({ in_combat = true, me = { _buff_up = false }, settings = {}, target = {} })
-end)
+-- FerociousBiteExecute test removed: strategy was stripped because Ferocious
+-- Bite is a cat-form ability (requires combo points) that has no place in a bear
+-- tank rotation. Vanilla bear uses Maul > Swipe > Demo Roar (no Mangle/Lacerate).
 
 -- ============================================================================
 -- REPORT

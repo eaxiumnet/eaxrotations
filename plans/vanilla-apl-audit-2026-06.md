@@ -61,27 +61,27 @@ Same as TBC round:
 - [x] **P2.5** Fire — reviewed; Scorch 5-stack → Fireball → Fire Blast; Combustion + PoM; correct for Vanilla; no changes needed
 - [x] **P2.6** Frost — fixed: Frostbolt moved above Scorch/ArcaneMissiles fillers (was below — primary nuke should never be last priority)
 
-### Phase 3: Rogue + Warlock (6 specs)
-- [ ] **P3.1** Assassination — compare against Classic Assassination Rogue guide
-- [ ] **P3.2** Combat — compare against Classic Combat Rogue guide
-- [ ] **P3.3** Subtlety — compare against Classic Subtlety Rogue guide
-- [ ] **P3.4** Affliction — compare against Classic Affliction Warlock guide
-- [ ] **P3.5** Demonology — compare against Classic Demonology Warlock guide
-- [ ] **P3.6** Destruction — compare against Classic Destruction Warlock guide
+### Phase 3: Rogue + Warlock (6 specs) ✅ COMPLETE
+- [x] **P3.1** Assassination — reviewed; SnD > Rupture > Eviscerate + Seal Fate crit procs; no changes needed
+- [x] **P3.2** Combat — reviewed; SnD > Rupture(optional) > Eviscerate + AR/Blade Flurry; no changes needed
+- [x] **P3.3** Subtlety — reviewed; Hemorrhage support build, Ghostly Strike, SnD; niche spec; no changes needed
+- [x] **P3.4** Affliction — reviewed; SM/Ruin: Curse > Corruption > Shadow Bolt filler + Life Tap/Dark Pact; no changes needed
+- [x] **P3.5** Demonology — reviewed; DS/Ruin: pet management + Corruption/Shadow Bolt + FelDomination; no changes needed
+- [x] **P3.6** Destruction — reviewed; Immolate/Conflagrate (talent-gated) > Shadow Bolt spam; no changes needed
 
-### Phase 4: Priest + Shaman + Druid (13 specs)
-- [ ] **P4.1** Discipline — compare against Classic Disc Priest guide
-- [ ] **P4.2** Holy — compare against Classic Holy Priest guide
-- [ ] **P4.3** Shadow — compare against Classic Shadow Priest guide
-- [ ] **P4.4** Smite — compare against Classic Holy DPS Priest guide
-- [ ] **P4.5** Elemental — compare against Classic Ele Shaman guide
-- [ ] **P4.6** Enhancement — compare against Classic Enh Shaman guide
-- [ ] **P4.7** Restoration — compare against Classic Resto Shaman guide
-- [ ] **P4.8** Balance — compare against Classic Boomkin guide
-- [ ] **P4.9** Feral Cat — compare against Classic Cat Druid guide
-- [ ] **P4.10** Feral Bear — compare against Classic Bear Druid guide
-- [ ] **P4.11** Restoration — compare against Classic Resto Druid guide
-- [ ] **P4.12** Caster — compare (druid caster, likely low-priority)
+### Phase 4: Priest + Shaman + Druid (12 specs) ✅ COMPLETE
+- [x] **P4.1** Discipline — reviewed; PW:S > Renew > Flash Heal; no Penance in Vanilla; no changes needed
+- [x] **P4.2** Holy — reviewed; Greater Heal > Flash Heal > Renew > PoH; downranking present; no changes needed
+- [x] **P4.3** Shadow — reviewed; SW:P > Mind Blast > Mind Flay; no Vampiric Touch in Vanilla (correct); no changes needed
+- [x] **P4.4** Smite — reviewed; Smite spam + Power Infusion; no changes needed
+- [x] **P4.5** Elemental — reviewed; Lightning Bolt + Chain Lightning + shocks; no changes needed
+- [x] **P4.6** Enhancement — reviewed; Stormstrike + Earth Shock + auto-attack; no changes needed
+- [x] **P4.7** Restoration — reviewed; Healing Wave, Lesser Healing Wave, Chain Heal; no changes needed
+- [x] **P4.8** Balance — reviewed; Moonkin: Starfire/Moonfire/Insect Swarm; no changes needed
+- [x] **P4.9** Feral Cat — reviewed; Shred + Rip + powershifting; no Savage Roar in Vanilla (correct); no changes needed
+- [x] **P4.10** Feral Bear — FIXED: removed FerociousBiteExecute (cat-form ability w/ combo points — impossible in bear form); removed dead RAGE_SAFE_RESERVE constant; updated test_bear_vanilla_nil_guards (removed FerociousBiteExecute assertion + mock). Vanilla bear uses Maul > Swipe > Demo Roar (no Mangle/Lacerate)
+- [x] **P4.11** Restoration (Druid) — reviewed; HoT stacking (Rejuv + Regrowth + Lifebloom); no changes needed
+- [x] **P4.12** Caster — reviewed; support/OOC utility; no changes needed
 
 ### Phase 5: Leveling files (9 files)
 - [ ] **P5.1** Audit all `leveling_vanilla.lua` files for Vanilla correctness

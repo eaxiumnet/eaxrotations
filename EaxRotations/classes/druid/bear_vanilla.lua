@@ -19,8 +19,6 @@ local ENRAGE = BASE_SPELLS.Enrage or (NS.spell_action and NS.spell_action({ 5229
 local MARK_OF_THE_WILD = BASE_SPELLS.MarkOfTheWild or (NS.spell_action and NS.spell_action({ 9885, 9884, 8907, 6756, 5234, 5232, 1126 }, "MarkOfTheWild"))
 local GIFT_OF_THE_WILD = BASE_SPELLS.GiftOfTheWild or (NS.spell_action and NS.spell_action({ 21850, 21849 }, "GiftOfTheWild"))
 local THORNS = BASE_SPELLS.Thorns or (NS.spell_action and NS.spell_action({ 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"))
-local FEROCIOUS_BITE = BASE_SPELLS.FerociousBite
-
 local STANCE_BEAR = 1
 local STANCE_CASTER = 0
 local RAGE_CAP = 100
@@ -30,13 +28,10 @@ local RAGE_MAUL = 15
 local RAGE_DEMO_ROAR = 10
 local RAGE_FRENZIED_REGEN = 10
 local RAGE_CHALLENGING_ROAR = 5
-local RAGE_BITE = 35
 local RAGE_POOL_PULL = 20
-local RAGE_SAFE_RESERVE = 20
 local DEMO_ROAR_REFRESH = 5
 local THORNS_REFRESH = 30
 local MOTW_REFRESH = 120
-local EXECUTE_HP = 20
 local MELEE_RANGE = 5
 local CHARGE_MIN_RANGE = 8
 local CHARGE_MAX_RANGE = 25
@@ -115,7 +110,6 @@ local bear_state = {
     faerie_ready = false,
     demo_ready = false,
     enrage_ready = false,
-    bite_ready = false,
     group_pressure = false,
     heavy_damage = false,
     emergency_damage = false,
@@ -393,8 +387,6 @@ local function build_state(context)
     state.faerie_ready = spell_ready(SPELLS.FaerieFireFeral, state.target)
     state.demo_ready = spell_ready(SPELLS.DemoralizingRoar, state.me)
     state.enrage_ready = spell_ready(ENRAGE, state.me)
-    state.bite_ready = spell_ready(FEROCIOUS_BITE, state.target)
-
     state.loose_target = state.has_valid_target and state.target_target_exists and not state.target_target_is_me
     state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
     state.potion_ready = first_ready_item(HEALING_POTION_IDS)
@@ -595,16 +587,6 @@ local function enrage_combat_matches(context, action)
     return action_ready(context, action)
 end
 
-local function ferocious_bite_matches(context, action)
-    local state = build_state(context)
-    if not can_use_bear_ability(state) then return false end
-    if state.is_target_boss or state.is_target_player then return false end
-    if (state.target_hp or 100) > EXECUTE_HP then return false end
-    if state.loose_target or (state.pack_loose or 0) > 0 then return false end
-    if (state.rage or 0) < RAGE_BITE + RAGE_SAFE_RESERVE then return false end
-    return action_ready(context, action)
-end
-
 local function taunt_execute(context, action)
     local ok = execute_action(context, action)
     if ok then bear_state.recent_taunt = bear_state.now end
@@ -634,7 +616,9 @@ local ACTIONS = {
     { name = "Swipe", spell = SPELLS.SwipeBear, target = "self", required_form = "bear", min_rage = RAGE_SWIPE, is_aoe = true, enemy_count = 2, requires_target = false, matches = swipe_cleave_matches },
     { name = "Maul", spell = SPELLS.Maul, required_form = "bear", min_rage = RAGE_MAUL, matches = maul_matches },
     { name = "EnrageCombat", spell = ENRAGE, target = "self", required_form = "bear", requires_target = false, matches = enrage_combat_matches },
-    { name = "FerociousBiteExecute", spell = FEROCIOUS_BITE, required_form = "bear", min_rage = RAGE_BITE, target_max_hp = EXECUTE_HP, matches = ferocious_bite_matches },
+    -- FerociousBiteExecute REMOVED: Ferocious Bite is a cat-form ability requiring combo
+    -- points. A bear tank has no combo points and cannot cast it. Vanilla bear uses
+    -- Maul > Swipe > Demo Roar per guide (no Mangle, no Lacerate in Classic).
 }
 
 local strategies = {}
