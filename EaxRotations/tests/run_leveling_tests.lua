@@ -1,3 +1,9 @@
+-- run_leveling_tests.lua — EAX Leveling Rotation Test Suite Runner.
+-- WHAT:  discovers and executes all leveling unit-test suites under EaxRotations/tests/.
+-- WHEN:  invoked via lua EaxRotations/tests/run_leveling_tests.lua.
+-- WHY:   single entry point for 13 leveling-suite validations; ensures no regressions.
+-- SAFETY: pure orchestration; no rotation logic; fails fast on first suite error.
+
 local runner = require("EaxRotations/tests/test_runner_lib")
 local mode, root = runner.parse_args(arg, "EaxRotations")
 
