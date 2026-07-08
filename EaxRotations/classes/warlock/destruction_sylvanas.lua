@@ -223,8 +223,8 @@ local function immolate_matches(context, action, state)
     state = state or {}
     -- SP-aware gating: skip Immolate when spell damage is below the threshold
     -- (conservative: defaults to 400 SP, configurable via destro_immolate_min_sp)
-    local s = context.settings or {}
-    local min_sp = s.destro_immolate_min_sp or IMMOLATE_MIN_SP_DEFAULT
+    local settings = context.settings or {}
+    local min_sp = settings.destro_immolate_min_sp or IMMOLATE_MIN_SP_DEFAULT
     if (state.spell_damage or 0) < min_sp then return false end
     if (state.immolate_remains or 0) > IMMOLATE_PANDEMIC_WINDOW then return false end
     if not (NS.should_refresh_dot and NS.should_refresh_dot((state.immolate_remains or 0), 1.5, context.ttd, 15)) then return false end
@@ -243,7 +243,7 @@ end
 local function shadowburn_matches(context, action, state)
     if not context.target then return false end
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
-    local hp_threshold = (context.settings and context.settings.destro_shadowburn_hp) or SHADOWBURN_HP_PCT
+    local hp_threshold = spec_kit.setting_number(context, "destro_shadowburn_hp", SHADOWBURN_HP_PCT)
     if not (NS.is_execute_phase and NS.is_execute_phase(context.target_hp, hp_threshold)) then return false end
     return NS.spell_ready(action.spell, context.target)
 end
@@ -383,7 +383,7 @@ local function summon_pet_matches(context, action, state)
     if pet and NS.unit_alive(pet) then return false end
     -- Spec-aware pet preference: only summon the preferred pet type
     -- This prevents summoning Imp (first in ACTIONS) when player wants Succubus
-    local pref = (context.settings and context.settings.destro_pet_preference) or "auto"
+    local pref = spec_kit.setting(context, "destro_pet_preference", "auto")
     if pref == "auto" then
         -- Default: Succubus for shadow builds (Shadow Bolt filler), Imp for fire (Incinerate filler)
         -- Heuristic: if Incinerate is learned (fire playstyle), prefer Imp; otherwise Succubus
@@ -530,7 +530,7 @@ end
 table.insert(strategies, 7, {
     name = "ManaGem",
     matches = function(context, state)
-        local threshold = (context.settings and context.settings.destro_mana_gem_threshold) or 35
+        local threshold = spec_kit.setting_number(context, "destro_mana_gem_threshold", 35)
         if (state.mana_pct or 100) > threshold then return false end
         return state.mana_gem_ready or false
     end,
@@ -549,9 +549,9 @@ table.insert(strategies, 7, {
 table.insert(strategies, 23, {
     name = "Healthstone",
     matches = function(context, state)
-        local threshold = (context.settings and context.settings.healthstone_hp) or 0
-        if (context.settings and context.settings.use_auto_consumables) == false then return false end
-        if (context.settings and context.settings.use_healthstones) == false then return false end
+        local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
+        if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
+        if not spec_kit.setting_bool(context, "use_healthstones", true) then return false end
             if threshold <= 0 then return false end
             if (context.hp or 100) > threshold then return false end
         if context.is_casting then return false end

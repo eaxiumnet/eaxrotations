@@ -429,7 +429,7 @@ local function build_state(context)
 -- Select which curse to use based on context and user settings
 local function select_curse(context, state)
     -- Respect explicit curse mode setting (from schema dropdown)
-    local curse_mode = context.settings and context.settings.warlock_curse_mode or "auto"
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
     if curse_mode == "agony" then
         if context.is_pvp and context.enemy_healer then return "tongues" end
         if context.is_pvp and context.melee_on_you then return "exhaustion" end
@@ -482,7 +482,7 @@ local strategies = {
     { name = "DamagePotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_damage_potion then return false end
           if not context.should_burst then return false end
           return true
@@ -538,9 +538,9 @@ local strategies = {
     {
         name = "Healthstone",
         matches = function(context, state)
-            local threshold = (context.settings and context.settings.healthstone_hp) or 0
-            if (context.settings and context.settings.use_auto_consumables) == false then return false end
-            if (context.settings and context.settings.use_healthstones) == false then return false end
+            local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
+            if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
+            if not spec_kit.setting_bool(context, "use_healthstones", true) then return false end
             if threshold <= 0 then return false end
             if (context.hp or 100) > threshold then return false end
             if context.is_casting then return false end
@@ -600,7 +600,7 @@ local strategies = {
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
             if (state.corruption_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_corruption_dmg or 0, state.corruption_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             -- DoT TTD gating
-            local ttd_threshold = (context.settings and context.settings.dot_ttd_threshold or 50) / 100
+            local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
             if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.corruption, ttd_threshold) then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, context.target) or false
         end,
@@ -659,7 +659,7 @@ local strategies = {
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
             if (state.ua_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_ua_dmg or 0, state.ua_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             -- DoT TTD gating
-            local ttd_threshold = (context.settings and context.settings.dot_ttd_threshold or 50) / 100
+            local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
             if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.unstable_affliction, ttd_threshold) then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.UnstableAffliction, context.target) or false
         end,
@@ -700,7 +700,7 @@ local strategies = {
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
             if (state.siphon_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_siphon_dmg or 0, state.siphon_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             -- DoT TTD gating
-            local ttd_threshold = (context.settings and context.settings.dot_ttd_threshold or 50) / 100
+            local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
             if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.siphon_life, ttd_threshold) then return false end
             -- Siphon Life is talent-gated; spell won't be ready if not learned
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.SiphonLife, context.target) or false
@@ -742,7 +742,7 @@ local strategies = {
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
             if (state.immolate_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_immolate_dmg or 0, state.immolate_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
             -- DoT TTD gating
-            local ttd_threshold = (context.settings and context.settings.dot_ttd_threshold or 50) / 100
+            local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
             if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.immolate, ttd_threshold) then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Immolate, context.target) or false
         end,
@@ -781,7 +781,7 @@ local strategies = {
             if not context.target then return false end
             if not state.amplify_curse_ready then return false end
             -- Gate: setting check
-            if context.settings and context.settings.aff_use_amplify_curse == false then return false end
+            if not spec_kit.setting_bool(context, "aff_use_amplify_curse", true) then return false end
             -- Only use on targets that live long enough (60s+ to warrant 3min CD)
             if context.ttd_known and context.ttd < 60 then return false end
             -- Check if a curse is about to be applied (CoD, CoA, or Curse of Elements)
@@ -806,7 +806,7 @@ local strategies = {
             if not context.target then return false end
             if not context.has_valid_enemy_target then return false end
             -- Respect curse mode — only fire when user chose "doom" or "auto"
-            local curse_mode = context.settings and context.settings.warlock_curse_mode or "auto"
+            local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
             if curse_mode ~= "auto" and curse_mode ~= "doom" then return false end
             -- Don't refresh if already applied and still ticking
             if (state.doom_remains or 0) > DOT_REFRESH_WINDOW then return false end
@@ -830,7 +830,7 @@ local strategies = {
             -- v2.5.1 FIX: respect curse mode dropdown — previously fired unconditionally
             -- in groups, overriding Agony/DPS curse preference. Only applies in "elements"
             -- or "auto" mode.
-            local curse_mode = context.settings and context.settings.warlock_curse_mode or "auto"
+            local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
             if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
             if (state and state.coe_remains or 0) > DOT_REFRESH_WINDOW then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target) or false
@@ -850,7 +850,7 @@ local strategies = {
             if not context.is_group then return false end
             -- v2.5.1 FIX: respect curse mode dropdown. Only applies in "shadow"
             -- or "auto" mode (auto prefers Shadow for Affliction in groups).
-            local curse_mode = context.settings and context.settings.warlock_curse_mode or "auto"
+            local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
             if curse_mode ~= "auto" and curse_mode ~= "shadow" then return false end
             if (state and state.cos_remains or 0) > DOT_REFRESH_WINDOW then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseShadow, context.target) or false
@@ -921,7 +921,7 @@ local strategies = {
         name = "SeedOfCorruption",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            local min_targets = context.settings and context.settings.aff_seed_targets or 3
+            local min_targets = spec_kit.setting_number(context, "aff_seed_targets", 3)
             if (state.enemy_count or 0) < min_targets then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.SeedOfCorruption, context.target) or false
         end,
@@ -966,7 +966,7 @@ local strategies = {
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
             local target_hp = context.target_hp_pct or 100
-            local execute_threshold = (context.settings and context.settings.destro_shadowburn_hp) or 20
+            local execute_threshold = spec_kit.setting_number(context, "destro_shadowburn_hp", 20)
             if target_hp > execute_threshold then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.Shadowburn, context.target) or false
         end,
@@ -1031,7 +1031,7 @@ local strategies = {
         name = "LifeTap",
         max_mana = 65,
         matches = function(context, state)
-            local threshold = math.min(context.settings and context.settings.aff_life_tap_mana or 30, 65)
+            local threshold = math.min(spec_kit.setting_number(context, "aff_life_tap_mana", 30), 65)
             if (state.mana_pct or 100) > threshold then return false end
             if (state.hp_pct or 100) < LIFE_TAP_SAFETY_HP then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.LifeTap, NS.PLAYER_UNIT, { skip_range = true }) or false
@@ -1047,7 +1047,7 @@ local strategies = {
     {
         name = "DarkPact",
         matches = function(context, state)
-            local threshold = context.settings and context.settings.aff_dark_pact_mana or 20
+            local threshold = spec_kit.setting_number(context, "aff_dark_pact_mana", 20)
             if (state.mana_pct or 100) > threshold then return false end
             if not state.pet_alive then return false end
             if (state.pet_mana or 0) < 20 then return false end
@@ -1064,7 +1064,7 @@ local strategies = {
     {
         name = "ManaPotion",
         matches = function(context, state)
-            local threshold = context.settings and context.settings.aff_mana_potion or 15
+            local threshold = spec_kit.setting_number(context, "aff_mana_potion", 15)
             if (state.mana_pct or 100) > threshold then return false end
             return state.mana_potion_id ~= nil
         end,
@@ -1235,7 +1235,7 @@ local strategies = {
             if not context.in_combat then return false end
             if not state.wand_learned then return false end
             -- v2.5.1: wand at 30% mana (was 15%) — catches "can't Life Tap" scenarios
-            local wand_threshold = context.settings and context.settings.aff_wand_mana or 30
+            local wand_threshold = spec_kit.setting_number(context, "aff_wand_mana", 30)
             if (state.mana_pct or 100) >= wand_threshold then return false end
             -- Only wand when Life Tap is unsafe (HP too low) OR Shadow Bolt would OOM us
             local hp_ok_for_tap = (state.hp_pct or 100) >= LIFE_TAP_SAFETY_HP

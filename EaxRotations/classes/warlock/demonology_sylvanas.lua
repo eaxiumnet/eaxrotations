@@ -562,7 +562,7 @@ local strategies = {
     { name = "DamagePotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_damage_potion then return false end
           if not context.should_burst then return false end
           return true
@@ -634,9 +634,9 @@ local strategies = {
     { name = "Incinerate", matches = incinerate_matches, execute = function(context) return NS.try_cast(ACTION.Incinerate, context.target, "[DEMONOLOGY] Incinerate") end },
     { name = "Healthstone",
       matches = function(context, state)
-          local threshold = (context.settings and context.settings.healthstone_hp) or 0
-          if (context.settings and context.settings.use_auto_consumables) == false then return false end
-          if (context.settings and context.settings.use_healthstones) == false then return false end
+          local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
+          if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
+          if not spec_kit.setting_bool(context, "use_healthstones", true) then return false end
           if threshold <= 0 then return false end
           if (context.hp or 100) > threshold then return false end
           if context.is_casting then return false end
