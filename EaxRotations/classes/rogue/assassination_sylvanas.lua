@@ -188,8 +188,7 @@ local function build_state(context)
 end
 
 local function shiv_purge_matches(context, state)
-    local settings = context.settings or {}
-    if settings.use_shiv_purge == false then return false end
+    if not spec_kit.setting_bool(context, "use_shiv_purge", true) then return false end
     if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
     if not context.in_combat then return false end
     if not (context.is_pvp or false) then return false end
@@ -197,7 +196,7 @@ local function shiv_purge_matches(context, state)
     if not (context.in_melee_range or false) then return false end
     if not state.shiv_ready then return false end
     if not state.shiv_purge_name then return false end
-    if settings.shiv_purge_pvp_only ~= false then
+    if spec_kit.setting_bool(context, "shiv_purge_pvp_only", true) then
         local ok, is_player = pcall(function() return context.target:is_player() end)
         if not (ok and is_player) then return false end
     end
@@ -226,7 +225,7 @@ local strategies = {
         name = "HealthPotion",
         matches = function(context)
             if not context.in_combat then return false end
-            if context.settings and context.settings.use_auto_potions == false then return false end
+            if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
             if not context.has_health_potion then return false end
             if (context.hp or 100) > 35 then return false end
             return true
@@ -241,7 +240,7 @@ local strategies = {
         name = "DamagePotion",
         matches = function(context)
             if not context.in_combat then return false end
-            if context.settings and context.settings.use_auto_potions == false then return false end
+            if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
             if not context.has_damage_potion then return false end
             if not context.should_burst then return false end
             return true
@@ -255,7 +254,7 @@ local strategies = {
     {
         name = "EvasionDefense",
         matches = function(context)
-            local hp = context.settings and context.settings.assassin_evasion_hp or 25
+            local hp = spec_kit.setting_number(context, "assassin_evasion_hp", 25)
             if (context.hp or 100) > hp then return false end
             return NS.spell_ready(ACTION.Evasion, NS.PLAYER_UNIT, { skip_range = true })
         end,
@@ -270,7 +269,7 @@ local strategies = {
     {
         name = "CloakOfShadows",
         matches = function(context)
-            local hp = context.settings and context.settings.assassin_clos_hp or 30
+            local hp = spec_kit.setting_number(context, "assassin_clos_hp", 30)
             if (context.hp or 100) > hp then return false end
             return NS.spell_ready(ACTION.CloakOfShadows, NS.PLAYER_UNIT, { skip_range = true })
         end,
@@ -349,11 +348,11 @@ local strategies = {
     {
         name = "ColdBloodEnvenom",
         matches = function(context, state)
-            if not (context.settings and context.settings.assassin_cold_blood_auto) then return false end
+            if not spec_kit.setting_bool(context, "assassin_cold_blood_auto", false) then return false end
             if state.energy_pool_finisher then return false end  -- pool energy below 25
             if not state.slice_dice_active or state.snd_needs_refresh then return false end
             if (state.combo or 0) < 5 then return false end
-            local min_stacks = context.settings and context.settings.assassin_envenom_stacks or 3
+            local min_stacks = spec_kit.setting_number(context, "assassin_envenom_stacks", 3)
             if (state.dp_stacks or 0) < min_stacks then return false end
             if state.has_cold_blood then return false end  -- already active
             -- Cold Blood first (off-GCD, use SPELLS table)
@@ -398,7 +397,7 @@ local strategies = {
             if state.energy_pool_finisher then return false end
             if not state.slice_dice_active or state.snd_needs_refresh then return false end
             if (state.combo or 0) < 4 then return false end
-            local min_stacks = context.settings and context.settings.assassin_envenom_stacks or 3
+            local min_stacks = spec_kit.setting_number(context, "assassin_envenom_stacks", 3)
             if (state.dp_stacks or 0) < min_stacks then return false end
             return NS.spell_ready(ACTION.Envenom, context.target)
         end,
@@ -428,7 +427,7 @@ local strategies = {
     {
         name = "ThistleTea",
         matches = function(context, state)
-            if not (context.settings and context.settings.assassin_thistle_tea) then return false end
+            if not spec_kit.setting_bool(context, "assassin_thistle_tea", false) then return false end
             if (state.energy or 100) > 40 then return false end  -- don't waste
             if (state.combo or 0) > 3 then return false end  -- better to pool for finisher
             return NS.spell_ready(ACTION.ThistleTea, NS.PLAYER_UNIT, { skip_range = true })

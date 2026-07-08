@@ -215,7 +215,6 @@ local function build_state(context)
   resto_state.chain_heal_optimal_target = nil
   resto_state.chain_heal_cluster_count = 0
  end
- local s = context.settings or {}
  resto_state.natures_swiftness_active = _ns_is_active()
  resto_state.has_water_shield = me and NS.buff_up and NS.buff_up(me, WATER_SHIELD_BUFF) or false
  resto_state.has_lightning_shield = me and NS.buff_up and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
@@ -250,9 +249,9 @@ local function build_state(context)
  resto_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
  resto_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
  -- Mana conservation tiers (configurable via schema)
- local mana_low_pct = s.restoration_mana_low_pct or MANA_LOW_DEFAULT
- local mana_conserve_pct = s.restoration_mana_conserve_pct or MANA_CONSERVE_DEFAULT
- local mana_emergency_pct = s.restoration_mana_emergency_pct or MANA_EMERGENCY_DEFAULT
+ local mana_low_pct = spec_kit.setting_number(context, "restoration_mana_low_pct", MANA_LOW_DEFAULT)
+ local mana_conserve_pct = spec_kit.setting_number(context, "restoration_mana_conserve_pct", MANA_CONSERVE_DEFAULT)
+ local mana_emergency_pct = spec_kit.setting_number(context, "restoration_mana_emergency_pct", MANA_EMERGENCY_DEFAULT)
  resto_state.mana_low = resto_state.mana_pct < mana_low_pct
  resto_state.mana_conserve = resto_state.mana_pct < mana_conserve_pct
  resto_state.mana_emergency = resto_state.mana_pct < mana_emergency_pct
@@ -295,7 +294,7 @@ local function build_state(context)
 end
 
 local function cooldowns_enabled(context)
- return not context.settings or context.settings.use_cooldowns ~= false
+ return spec_kit.setting_bool(context, "use_cooldowns", true)
 end
 
 
@@ -304,9 +303,8 @@ end
 -- Match functions
 -- ============================================================================
 local function water_shield_matches(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.WaterShield, 3.0) then return false end
- local shield_type = (context.settings and context.settings.restoration_shield_type) or "water"
- if shield_type ~= "water" then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.WaterShield, 3.0) then return false end    local shield_type = spec_kit.setting(context, "restoration_shield_type", "water")
+    if shield_type ~= "water" then return false end
  -- Water Shield costs 0 mana and returns mana — allow even during conserve
  -- Only block during mana emergency (ManaEmergencyWand catches it first)
  if state.mana_emergency then return false end
@@ -323,9 +321,8 @@ local function water_shield_matches(context, state)
 end
 
 local function lightning_shield_matches(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LightningShield, 3.0) then return false end
- local shield_type = (context.settings and context.settings.restoration_shield_type) or "water"
- if shield_type ~= "lightning" then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LightningShield, 3.0) then return false end    local shield_type = spec_kit.setting(context, "restoration_shield_type", "water")
+    if shield_type ~= "lightning" then return false end
  if state.has_lightning_shield then return false end
  if not state.lightning_shield_ready then return false end
  if (state.enemy_count or 0) < 1 then return false end
@@ -339,8 +336,7 @@ local function earth_shield_tank_matches(context, state)
  local target = state.tank.unit or NS.PLAYER_UNIT
  if not target then return false end
  if not state.earth_shield_ready then return false end
- -- Refresh when charges are low (configurable threshold, default ≤ 2)
- local charge_threshold = (context.settings and context.settings.restoration_earth_shield_charge_threshold) or EARTH_SHIELD_CHARGE_DEFAULT
+ -- Refresh when charges are low (configurable threshold, default ≤ 2)    local charge_threshold = spec_kit.setting_number(context, "restoration_earth_shield_charge_threshold", EARTH_SHIELD_CHARGE_DEFAULT)
  if NS.buff_up(target, EARTH_SHIELD_BUFF) then
   if (state.earth_shield_charges or 0) > charge_threshold then return false end
   -- Earth Shield is expiring soon and charges are low
@@ -362,8 +358,7 @@ end
 
 local function mana_tide_totem_matches(context, state)
  if not cooldowns_enabled(context) then return false end
- if not state.in_combat then return false end
- local threshold = (context.settings and context.settings.restoration_mana_tide_pct) or 60
+ if not state.in_combat then return false end    local threshold = spec_kit.setting_number(context, "restoration_mana_tide_pct", 60)
  -- Self mana must be below threshold
  if (state.mana_pct or 100) > threshold then return false end
  -- Also check group mana if available
@@ -404,10 +399,9 @@ end
 
 local function solo_damage_enabled(context, state, mana_floor)
  if not context.has_valid_enemy_target then return false end
- local settings = context.settings or {}
- if not (context.is_solo == true or context.is_leveling == true or settings.restoration_dps_when_idle == true) then return false end
- if state.lowest and (state.lowest.effective_hp or 100) < (settings.restoration_idle_hp or 88) then return false end
- if (state.mana_pct or context.mana_pct or 100) < (mana_floor or settings.restoration_dps_mana_floor or 35) then return false end
+ if not (context.is_solo == true or context.is_leveling == true or spec_kit.setting_bool(context, "restoration_dps_when_idle", false)) then return false end
+ if state.lowest and (state.lowest.effective_hp or 100) < spec_kit.setting_number(context, "restoration_idle_hp", 88) then return false end
+ if (state.mana_pct or context.mana_pct or 100) < (mana_floor or spec_kit.setting_number(context, "restoration_dps_mana_floor", 35)) then return false end
  return true
 end
 
@@ -526,7 +520,7 @@ local function disease_cleansing_totem_matches(context, state)
 end
 
 local function totem_strength_matches(context, state)
- if context.settings and context.settings.restoration_manage_totems == false then return false end
+ if not spec_kit.setting_bool(context, "restoration_manage_totems", true) then return false end
  if _totem_ready(ACTION.StrengthOfEarthTotem) then
   return true
  end
@@ -534,7 +528,7 @@ local function totem_strength_matches(context, state)
 end
 
 local function totem_mana_spring_matches(context, state)
- if context.settings and context.settings.restoration_manage_totems == false then return false end
+ if not spec_kit.setting_bool(context, "restoration_manage_totems", true) then return false end
  if _totem_ready(ACTION.ManaSpringTotem) then
   return true
  end
@@ -542,7 +536,7 @@ local function totem_mana_spring_matches(context, state)
 end
 
 local function totem_grace_air_matches(context, state)
- if context.settings and context.settings.restoration_manage_totems == false then return false end
+ if not spec_kit.setting_bool(context, "restoration_manage_totems", true) then return false end
  if _totem_ready(ACTION.GraceOfAirTotem) then
   return true
  end
@@ -550,7 +544,7 @@ local function totem_grace_air_matches(context, state)
 end
 
 local function totem_windfury_matches(context, state)
- if context.settings and context.settings.restoration_manage_totems == false then return false end
+ if not spec_kit.setting_bool(context, "restoration_manage_totems", true) then return false end
  if _totem_ready(ACTION.WindfuryTotem) then
   return true
  end
@@ -587,14 +581,13 @@ local function chain_heal_matches(context, state)
  if ch_target and ch_target.unit then
   -- AoEHeal found a cluster; use cluster count for gate
   if (state.chain_heal_cluster_count or 0) < 2 then return false end
-  if (ch_target.effective_hp or 100) > ((context.settings and context.settings.restoration_chain_heal_hp) or 65) then return false end
+  if (ch_target.effective_hp or 100) > spec_kit.setting_number(context, "restoration_chain_heal_hp", 65) then return false end
   if NS.gate_overheal("ChainHeal", ch_target.unit, 2.5, context.settings) then return false end
   return true
  end
  -- Fallback: naive lowest-HP targeting
  if not state.lowest or not state.lowest.unit then return false end
- if (state.chain_heal_target_count or 0) < 2 then return false end
- if (state.lowest.effective_hp or 100) > ((context.settings and context.settings.restoration_chain_heal_hp) or 65) then return false end
+ if (state.chain_heal_target_count or 0) < 2 then return false end  if (state.lowest.effective_hp or 100) > spec_kit.setting_number(context, "restoration_chain_heal_hp", 65) then return false end
  if NS.gate_overheal("ChainHeal", state.lowest.unit, 2.5, context.settings) then return false end
  return true
 end
@@ -621,7 +614,7 @@ local healing_strategies = {
   if not state.friendly_target_ready then return false end
   local ft = state.friendly_target
   if not ft then return false end
-  if (ft.hp_pct or 100) >= (context.settings.restoration_friendly_target_threshold or 90) then return false end
+  if (ft.hp_pct or 100) >= spec_kit.setting_number(context, "restoration_friendly_target_threshold", 90) then return false end
   if context.is_moving then return false end
   if context.player_control_locked then return false end
   if not state.healing_wave_ready then return false end
@@ -636,7 +629,7 @@ local healing_strategies = {
  { name = "ManaPotion",
   matches = function(context)
    if not context.in_combat then return false end
-   if context.settings and context.settings.use_auto_potions == false then return false end
+   if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
    if not context.has_mana_potion then return false end
    if (context.mana_pct or 100) > 20 then return false end
    return true
@@ -694,7 +687,7 @@ local healing_strategies = {
   if not state.in_combat then return false end
   if context.is_moving then return false end
   if not state.chain_heal_ready then return false end
-  local threshold = (context.settings and context.settings.restoration_preemptive_threshold) or PreemptiveHeal.DEFAULT_THRESHOLD
+  local threshold = spec_kit.setting_number(context, "restoration_preemptive_threshold", PreemptiveHeal.DEFAULT_THRESHOLD)
   if not PreemptiveHeal.match(context, state, threshold, 2.5) then return false end
   return true
  end, execute = function(context, state)
