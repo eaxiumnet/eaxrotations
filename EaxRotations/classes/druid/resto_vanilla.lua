@@ -7,6 +7,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.DruidSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.DruidHealing or require("classes/druid/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
@@ -293,7 +294,7 @@ local function solo_damage_enabled(context, state)
 end
 
 local strategies = {
-    { name = "BarkskinSelfPreservation", matches = function(context) local settings = context.settings or {}; local threshold = settings.barkskin_hp or 55; return (context.hp or 100) <= threshold and NS.spell_ready(SPELLS.Barkskin, PLAYER_UNIT, BARKSKIN_OPTS) end, execute = function() return NS.try_cast(SPELLS.Barkskin, PLAYER_UNIT, "[RESTO] Barkskin self", BARKSKIN_OPTS) end },
+    { name = "BarkskinSelfPreservation", matches = function(context) local threshold = spec_kit.setting_number(context, "barkskin_hp", 55); return (context.hp or 100) <= threshold and NS.spell_ready(SPELLS.Barkskin, PLAYER_UNIT, BARKSKIN_OPTS) end, execute = function() return NS.try_cast(SPELLS.Barkskin, PLAYER_UNIT, "[RESTO] Barkskin self", BARKSKIN_OPTS) end },
     { name = "BearFormFocusedByMelee", matches = function(context, state) return context.is_pvp and (context.hp or 100) <= 35 and state.melee_pressure_count > 0 and context.stance ~= STANCE_BEAR and NS.spell_ready(SPELLS.BearForm, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(SPELLS.BearForm, PLAYER_UNIT, "[RESTO] Bear Form under melee focus", SKIP_RANGE) end },
     { name = "NaturesGraspMelee", matches = function(context, state) return context.is_pvp and state.melee_pressure_count > 0 and not NS.has_player_buff(NATURES_GRASP_BUFF) and NS.spell_ready(LOCAL_SPELLS.NaturesGrasp, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(LOCAL_SPELLS.NaturesGrasp, PLAYER_UNIT, "[RESTO] Nature's Grasp melee peel", SKIP_RANGE) end },
     { name = "RemoveCurse", matches = function(_, state) return state.cursed_target and NS.spell_ready(SPELLS.RemoveCurse, state.cursed_target.unit) end, execute = function(_, state) return NS.try_cast(SPELLS.RemoveCurse, state.cursed_target.unit, "[RESTO] Remove Curse") end },
