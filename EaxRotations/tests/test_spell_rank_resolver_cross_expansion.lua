@@ -1,3 +1,9 @@
+-- test_spell_rank_resolver_cross_expansion.lua -- spell resolution rank fallback resolver cache cross-expansion tests.
+-- WHAT:  spell resolution rank fallback resolver cache cross-expansion tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Spell Rank Resolver Cross-Expansion Tests
 -- ============================================================================

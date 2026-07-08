@@ -1,3 +1,9 @@
+-- test_burst_logic_integration.lua -- burst window integration tests.
+-- WHAT:  burst window integration tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   End-to-end validation of multiple subsystems working together.
+-- SAFETY: May require more setup; keep mocks lightweight.
+
 -- ============================================================================
 -- Test: Burst Logic Integration
 -- ============================================================================

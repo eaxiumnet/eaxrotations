@@ -1,3 +1,9 @@
+-- test_combat_state_unknown_no_ooc.lua -- Combat state fields unknown state out-of-combat tests.
+-- WHAT:  Combat state fields unknown state out-of-combat tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Regression: unknown combat state must not be collapsed to OOC.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

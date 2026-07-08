@@ -1,3 +1,9 @@
+-- test_sticky_spell.lua -- sticky spell spell resolution tests.
+-- WHAT:  sticky spell spell resolution tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Sticky spell anti-flicker regression test.
 -- Validates sticky_spell_should_override priority rules, min_duration gating, and refresh.
 

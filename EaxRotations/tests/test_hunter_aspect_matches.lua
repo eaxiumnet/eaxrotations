@@ -1,3 +1,9 @@
+-- test_hunter_aspect_matches.lua -- Hunter aspect manager match validation tests.
+-- WHAT:  Hunter aspect manager match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Regression: hunter aspect upkeep must not depend on Call Pet readiness.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;api/?/?/?.lua;" .. package.path

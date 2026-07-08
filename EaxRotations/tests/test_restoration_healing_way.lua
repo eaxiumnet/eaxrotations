@@ -1,3 +1,9 @@
+-- test_restoration_healing_way.lua -- Restoration tests.
+-- WHAT:  Restoration tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Feature audit for restoration_sylvanas: Healing Way stacking + missing features.
 -- Documents gaps compared to reference implementation.
 

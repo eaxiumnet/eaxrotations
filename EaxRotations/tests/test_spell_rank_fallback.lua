@@ -1,3 +1,9 @@
+-- test_spell_rank_fallback.lua -- spell resolution rank fallback fallback logic tests.
+-- WHAT:  spell resolution rank fallback fallback logic tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Regression: when Sylvanas spell-known APIs return false for every rank,
 -- rich spell actions should return nil (PS build fallback removed in v2.1.x).
 -- On live TBC the spell_book APIs work, so the level-based fallback path

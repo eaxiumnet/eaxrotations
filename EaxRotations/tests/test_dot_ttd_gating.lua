@@ -1,3 +1,9 @@
+-- test_dot_ttd_gating.lua -- DoT time-to-death resource gating tests.
+-- WHAT:  DoT time-to-death resource gating tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates time-to-death gating to avoid clipping DoTs on short-lived targets.
+-- SAFETY: Uses synthetic TTD values.
+
 -- Test: DoT TTD Gating shared module.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

@@ -1,3 +1,9 @@
+-- test_elemental_weapon_buffs.lua -- Elemental weapon buffs tests.
+-- WHAT:  Elemental weapon buffs tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Feature audit for elemental_sylvanas: Weapon buff auto-apply + missing totem management.
 -- Documents gaps compared to reference implementation.
 

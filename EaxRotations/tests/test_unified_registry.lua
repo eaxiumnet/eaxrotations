@@ -1,3 +1,9 @@
+-- test_unified_registry.lua -- unified registry tests.
+-- WHAT:  unified registry tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates rotation registry registration and lookup integrity.
+-- SAFETY: Tests dispatcher plumbing without live client.
+
 -- Unified strategy registry regression test.
 -- Validates register_strategy, priority ordering, run_unified_strategies, and clear_strategies.
 

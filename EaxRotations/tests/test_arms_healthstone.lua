@@ -1,3 +1,9 @@
+-- test_arms_healthstone.lua -- Arms healthstone usage tests.
+-- WHAT:  Arms healthstone usage tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Unit tests for arms_sylvanas auto_charge gate and use_cooldowns gate.
 -- Tests: auto_charge setting gates Charge/Intercept, use_cooldowns gates cooldown abilities
 -- Note: Healthstone auto-use is not yet implemented in arms_sylvanas.lua (gap)

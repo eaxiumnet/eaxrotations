@@ -1,3 +1,9 @@
+-- test_healer_solo_fallback_matches.lua -- fallback logic match validation tests.
+-- WHAT:  fallback logic match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- behavior tests for healer solo damage fallback gates.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

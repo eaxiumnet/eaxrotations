@@ -1,3 +1,9 @@
+-- test_spell_id_table.lua -- spell resolution ID table tests.
+-- WHAT:  spell resolution ID table tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Unit tests for spell_id_table_sylvanas.lua
 -- Validates expansion-aware spell ID resolution for swapped spells.
 

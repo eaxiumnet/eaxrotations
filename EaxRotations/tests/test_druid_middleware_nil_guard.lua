@@ -1,3 +1,9 @@
+-- test_druid_middleware_nil_guard.lua -- Druid middleware nil-guard nil-guard tests.
+-- WHAT:  Druid middleware nil-guard nil-guard tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates nil-guard safety on all numeric state reads (Pattern 14).
+-- SAFETY: Must pass after any state table change.
+
 -- Unit tests for druid middleware BearFormPreCombat playstyle gate.
 -- Verifies that the bear-only gate prevents non-bear specs from auto-entering bear form OOC.
 

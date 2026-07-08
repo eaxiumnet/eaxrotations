@@ -1,3 +1,9 @@
+-- test_survival_concussive_misdirection.lua -- Survival concussive shot Misdirection tests.
+-- WHAT:  Survival concussive shot Misdirection tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Feature audit for survival_sylvanas: Concussive Shot kiting + Misdirection.
 -- These are documented gaps in the current implementation.
 -- Documents which features exist vs are missing in the rotation.

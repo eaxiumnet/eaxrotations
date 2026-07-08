@@ -1,3 +1,9 @@
+-- test_druid_caster_custom_matches.lua -- Druid caster form custom match validation tests.
+-- WHAT:  Druid caster form custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- behavior tests for Druid Caster leveling/solo gates.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

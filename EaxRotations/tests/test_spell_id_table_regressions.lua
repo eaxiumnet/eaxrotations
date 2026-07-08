@@ -1,3 +1,9 @@
+-- test_spell_id_table_regressions.lua -- spell resolution ID table tests.
+-- WHAT:  spell resolution ID table tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Regression checks for TBC spell/consumable IDs.
 -- This test is intentionally semantic: it accepts both legacy one-line
 -- NS.spell_action({ ... }, "Name") calls and structured

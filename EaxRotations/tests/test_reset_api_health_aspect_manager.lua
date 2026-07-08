@@ -1,3 +1,9 @@
+-- test_reset_api_health_aspect_manager.lua -- API lint health thresholds aspect manager manager tests.
+-- WHAT:  API lint health thresholds aspect manager manager tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Tests shared subsystem manager behavior and state transitions.
+-- SAFETY: Manager mocks provided by test runner.
+
 -- Test: NS.is_api_health_broken() / NS.reset_api_health() backward-compat stubs
 -- PS build API health tracking was removed in v2.1.x. These stubs are no-ops.
 -- The test verifies that aspect_manager still works (no regression from removal)

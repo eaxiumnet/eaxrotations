@@ -1,3 +1,9 @@
+-- test_runner_lib.lua -- test runner runner library tests.
+-- WHAT:  test runner runner library tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- =============================================================================
 -- test_runner_lib.lua
 --

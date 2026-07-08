@@ -1,3 +1,9 @@
+-- test_aspect_manager.lua -- aspect manager manager tests.
+-- WHAT:  aspect manager manager tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Tests shared subsystem manager behavior and state transitions.
+-- SAFETY: Manager mocks provided by test runner.
+
 -- Test: Aspect Manager shared module.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

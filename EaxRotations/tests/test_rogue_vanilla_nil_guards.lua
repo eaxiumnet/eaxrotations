@@ -1,3 +1,9 @@
+-- test_rogue_vanilla_nil_guards.lua -- Rogue Vanilla-era compatibility nil-guard tests.
+-- WHAT:  Rogue Vanilla-era compatibility nil-guard tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates nil-guard safety on all numeric state reads (Pattern 14).
+-- SAFETY: Must pass after any state table change.
+
 -- Regression test: rogue vanilla specs Pattern 14 nil-guards.
 -- Covers: combat_vanilla, assassination_vanilla, leveling_vanilla.
 -- subtlety_vanilla has its own dedicated test file.

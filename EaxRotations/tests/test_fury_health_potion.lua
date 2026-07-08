@@ -1,3 +1,9 @@
+-- test_fury_health_potion.lua -- Fury health thresholds potion helper tests.
+-- WHAT:  Fury health thresholds potion helper tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Feature audit for fury_sylvanas: Health potion fallback + Healthstone verification.
 -- Documents gaps compared to reference implementation.
 

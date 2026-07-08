@@ -1,3 +1,9 @@
+-- test_runtime_compat_aliases.lua -- runtime compat buff aliases tests.
+-- WHAT:  runtime compat buff aliases tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- smoke test for API-probe compatibility aliases.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path

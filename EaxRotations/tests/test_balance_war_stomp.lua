@@ -1,3 +1,9 @@
+-- test_balance_war_stomp.lua -- Balance tests.
+-- WHAT:  Balance tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Feature audit for balance_sylvanas: War Stomp AoE stun and other missing features.
 -- Documents gaps in utility spells compared to reference.
 

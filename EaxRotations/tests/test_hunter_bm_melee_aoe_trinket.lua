@@ -1,3 +1,9 @@
+-- test_hunter_bm_melee_aoe_trinket.lua -- Hunter AoE trinket usage tests.
+-- WHAT:  Hunter AoE trinket usage tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Unit tests for BM Hunter parity features.
 -- Tests: Raptor Strike melee weave, Concussive Shot range gate,
 --  Volley/Trap AoE detection, and Trinket activation with cooldown check.

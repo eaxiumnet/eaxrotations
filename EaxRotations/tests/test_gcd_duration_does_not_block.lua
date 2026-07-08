@@ -1,3 +1,9 @@
+-- test_gcd_duration_does_not_block.lua -- GCD handling tests.
+-- WHAT:  GCD handling tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- regression test for GCD duration vs GCD remaining.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path

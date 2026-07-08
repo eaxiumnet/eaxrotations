@@ -1,3 +1,9 @@
+-- test_shaman_enhancement_self_heal.lua -- Enhancement Shaman self-heal healing tests.
+-- WHAT:  Enhancement Shaman self-heal healing tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Regression: Enhancement self-heals must be HP-gated and must not fire at
 -- full health just because the heal spell is ready.
 

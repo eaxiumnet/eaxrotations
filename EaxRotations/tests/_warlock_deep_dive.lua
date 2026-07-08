@@ -1,3 +1,9 @@
+-- _warlock_deep_dive.lua -- Warlock deep dive tests.
+-- WHAT:  Warlock deep dive tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Explores edge cases and internal logic paths not covered by standard suites.
+-- SAFETY: Ad-hoc tests; may be run manually during deep debugging.
+
 -- ============================================================================
 -- Deep dive: Systematic OOC guard loop — combat-gated strategies
 -- ============================================================================

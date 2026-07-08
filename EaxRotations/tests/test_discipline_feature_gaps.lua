@@ -1,3 +1,9 @@
+-- test_discipline_feature_gaps.lua -- Discipline feature gap tests.
+-- WHAT:  Discipline feature gap tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Feature audit for discipline_sylvanas: verifies all strategies and parity gaps.
 -- 18 baseline + 3 ClassResearchTBC (PainSuppression, PowerInfusion, InnerFocus) + 4 parity = 25 total.
 

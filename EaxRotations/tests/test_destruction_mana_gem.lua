@@ -1,3 +1,9 @@
+-- test_destruction_mana_gem.lua -- Destruction mana management tests.
+-- WHAT:  Destruction mana management tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Feature audit for destruction_sylvanas: Mana Gem auto-use.
 -- Mana Gem auto-use at configurable threshold is a feature gap.
 

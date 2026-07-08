@@ -1,3 +1,9 @@
+-- test_auto_potion_strategies.lua -- auto-cast logic potion helper strategy tests.
+-- WHAT:  auto-cast logic potion helper strategy tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Integration tests for auto-potion strategies.
 -- Loads mage fire_vanilla.lua and exercises its ManaPotion strategy to verify:
 -- settings gate (use_auto_potions), combat gate, context-flag gate (has_mana_potion),

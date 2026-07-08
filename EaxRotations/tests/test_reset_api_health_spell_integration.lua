@@ -1,3 +1,9 @@
+-- test_reset_api_health_spell_integration.lua -- API lint health thresholds spell resolution integration tests.
+-- WHAT:  API lint health thresholds spell resolution integration tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   End-to-end validation of multiple subsystems working together.
+-- SAFETY: May require more setup; keep mocks lightweight.
+
 -- Test: SpellValidation + TalentInference integration with is_api_health_broken.
 -- Updated for v2.1.x: API health tracking was removed; is_api_health_broken is
 -- a constant false stub. This test verifies that SpellValidation and

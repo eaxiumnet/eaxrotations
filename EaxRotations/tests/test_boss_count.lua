@@ -1,3 +1,9 @@
+-- test_boss_count.lua -- boss logic boss counting tests.
+-- WHAT:  boss logic boss counting tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Unit tests for M.is_boss_fight() in targeting_sylvanas.lua
 --

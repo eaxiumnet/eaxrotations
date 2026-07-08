@@ -1,3 +1,9 @@
+-- test_multidot_engagement_filter.lua -- multi-dotting tests.
+-- WHAT:  multi-dotting tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Test: Multi-DoT Engagement Filter.
 
 package.path = 'EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;' .. package.path

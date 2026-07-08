@@ -1,3 +1,9 @@
+-- test_cooldown_planner.lua -- cooldown tracking cooldown planner tests.
+-- WHAT:  cooldown tracking cooldown planner tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Test: shared/cooldown_planner_sylvanas.lua alignment helpers.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

@@ -1,3 +1,9 @@
+-- test_arena_priority.lua -- arena priority logic tests.
+-- WHAT:  arena priority logic tests
+-- WHEN:  During PvP balance validation.
+-- WHY:   Ensures PvP-specific priority shifts and burst windows function correctly.
+-- SAFETY: Synthetic arena context.
+
 -- ============================================================================
 -- Test: Arena Priority Scoring
 

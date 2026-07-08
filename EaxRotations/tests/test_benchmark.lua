@@ -1,3 +1,9 @@
+-- test_benchmark.lua -- Test Benchmark tests.
+-- WHAT:  Test Benchmark tests
+-- WHEN:  During CI or manual performance validation.
+-- WHY:   Measures hot-path performance and prevents regression in frame-budget.
+-- SAFETY: Run in isolation; results are relative to baseline.
+
 -- ============================================================================
 -- Test: Performance Benchmark for Strategy Evaluation
 

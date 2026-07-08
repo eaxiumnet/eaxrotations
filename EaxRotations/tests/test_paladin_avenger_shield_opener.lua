@@ -1,3 +1,9 @@
+-- test_paladin_avenger_shield_opener.lua -- Paladin shield logic tests.
+-- WHAT:  Paladin shield logic tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Paladin Protection Avenger's Shield Opener (TK4)
 -- ----------------------------------------------------------------------------

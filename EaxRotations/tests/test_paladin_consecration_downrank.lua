@@ -1,3 +1,9 @@
+-- test_paladin_consecration_downrank.lua -- Paladin tests.
+-- WHAT:  Paladin tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Paladin Protection Consecration Downrank (TK3)
 -- ----------------------------------------------------------------------------

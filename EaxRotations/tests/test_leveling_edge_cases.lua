@@ -1,3 +1,9 @@
+-- test_leveling_edge_cases.lua -- leveling rotation edge-case tests.
+-- WHAT:  leveling rotation edge-case tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Explores edge cases and internal logic paths not covered by standard suites.
+-- SAFETY: Ad-hoc tests; may be run manually during deep debugging.
+
 -- leveling edge case unit tests.
 -- Tests resilience against nil NS.get_local_player, pcall failures,
 -- edge inputs, execute stability, and shared state hazards.

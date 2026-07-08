@@ -1,3 +1,9 @@
+-- test_holy_priest_feature_gaps.lua -- Holy Priest feature gap tests.
+-- WHAT:  Holy Priest feature gap tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Feature audit for holy_sylvanas: documents parity gaps vs present strategies.
 -- Verifies all 22 strategies (16 existing + 6 parity)
 

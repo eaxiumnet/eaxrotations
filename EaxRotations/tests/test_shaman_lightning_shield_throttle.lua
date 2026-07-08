@@ -1,3 +1,9 @@
+-- test_shaman_lightning_shield_throttle.lua -- Shaman Lightning Shield shield logic throttle logic tests.
+-- WHAT:  Shaman Lightning Shield shield logic throttle logic tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Regression: Shaman spec rotations should not spam Lightning Shield when
 -- aura detection fails or target changes cause state rebuilds.
 

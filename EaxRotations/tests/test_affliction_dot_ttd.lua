@@ -1,3 +1,9 @@
+-- test_affliction_dot_ttd.lua -- Affliction DoT time-to-death tests.
+-- WHAT:  Affliction DoT time-to-death tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates time-to-death gating to avoid clipping DoTs on short-lived targets.
+-- SAFETY: Uses synthetic TTD values.
+
 -- Test: Affliction Warlock DoT TTD gating.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

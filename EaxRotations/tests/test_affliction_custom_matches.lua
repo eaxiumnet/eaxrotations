@@ -1,3 +1,9 @@
+-- test_affliction_custom_matches.lua -- Affliction custom match validation tests.
+-- WHAT:  Affliction custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- unit tests for affliction_sylvanas custom matches functions.
 -- Complements test_affliction_life_tap.lua which already covers Life Tap.
 

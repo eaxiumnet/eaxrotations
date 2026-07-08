@@ -1,3 +1,9 @@
+-- test_ema_ttd_fallback.lua -- time-to-death fallback logic tests.
+-- WHAT:  time-to-death fallback logic tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates time-to-death gating to avoid clipping DoTs on short-lived targets.
+-- SAFETY: Uses synthetic TTD values.
+
 -- ============================================================================
 -- Test: EMA TTD nil-fallback path in build_context
 --

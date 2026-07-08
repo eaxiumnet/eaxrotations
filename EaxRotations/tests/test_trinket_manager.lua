@@ -1,3 +1,9 @@
+-- test_trinket_manager.lua -- trinket usage manager tests.
+-- WHAT:  trinket usage manager tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Tests shared subsystem manager behavior and state transitions.
+-- SAFETY: Manager mocks provided by test runner.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 -- trinket manager strategy matching regression test.
 

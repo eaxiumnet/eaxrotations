@@ -1,3 +1,9 @@
+-- test_melee_combat_math.lua -- Combat tests.
+-- WHAT:  Combat tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Test: Melee Combat Math (TBC 2.4.3)
 -- EaxRotations File Version: 1.0.0
 -- Pure math functions — no NS/api stubs needed.

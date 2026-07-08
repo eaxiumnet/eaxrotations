@@ -1,3 +1,9 @@
+-- test_enemy_count_hysteresis.lua -- enemy scan boss counting tests.
+-- WHAT:  enemy scan boss counting tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- enemy_count_hysteresis_sylvanas.lua regression test
 -- Tests: rapid emergence filtering, drop hold, sustained presence, nil safety
 

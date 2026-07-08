@@ -1,3 +1,9 @@
+-- test_elemental_clearcast_priority.lua -- Elemental priority logic tests.
+-- WHAT:  Elemental priority logic tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Shaman Elemental Clearcast Chain Lightning Priority (SH3)
 -- ----------------------------------------------------------------------------

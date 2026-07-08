@@ -1,3 +1,9 @@
+-- test_shadow_silence_interrupt.lua -- Shadow silence interrupt tests.
+-- WHAT:  Shadow silence interrupt tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Test: Silence interrupt strategy has been moved to interrupt_manager middleware.
 -- This test verifies the strategy is no longer present in the spec file,
 -- and that the silence_matches helper function still exists for middleware use.

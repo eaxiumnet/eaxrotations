@@ -1,3 +1,9 @@
+-- perf_benchmark_hotpath.lua -- performance hot-path benchmark tests.
+-- WHAT:  performance hot-path benchmark tests
+-- WHEN:  During CI or manual performance validation.
+-- WHY:   Measures hot-path performance and prevents regression in frame-budget.
+-- SAFETY: Run in isolation; results are relative to baseline.
+
 -- ============================================================================
 -- Performance Microbenchmark: Hot-Path Optimizations
 -- Measures CPU time saved by each optimization in isolation (A/B comparison).

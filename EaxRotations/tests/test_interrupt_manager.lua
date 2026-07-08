@@ -1,3 +1,9 @@
+-- test_interrupt_manager.lua -- manager tests.
+-- WHAT:  manager tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- interrupt manager strategy matching regression test.
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end

@@ -1,3 +1,9 @@
+-- test_assassination_dagger_requirement.lua -- Assassination dagger requirement tests.
+-- WHAT:  Assassination dagger requirement tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Rogue Assassination Dagger Requirement (RO4)
 -- ----------------------------------------------------------------------------

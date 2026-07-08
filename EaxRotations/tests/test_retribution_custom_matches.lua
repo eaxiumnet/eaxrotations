@@ -1,3 +1,9 @@
+-- test_retribution_custom_matches.lua -- Retribution custom match validation tests.
+-- WHAT:  Retribution custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- Gate test: Paladin Retribution custom matches functions.
 -- Covers UNCOVERED strategies (existing test handles swing-judgement gates):
 --   CrusaderStrike, Consecration, Exorcism, Ret_HammerWrath_Execute,

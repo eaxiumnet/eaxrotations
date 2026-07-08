@@ -1,3 +1,9 @@
+-- test_state_field_nil_guards_2026_06.lua -- state fields nil-guard tests.
+-- WHAT:  state fields nil-guard tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates nil-guard safety on all numeric state reads (Pattern 14).
+-- SAFETY: Must pass after any state table change.
+
 -- Regression test: state field nil-guards for bear, cat, arcane.
 --
 -- Verifies that match functions do NOT crash with "attempt to compare nil with

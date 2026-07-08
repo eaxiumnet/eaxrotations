@@ -1,3 +1,9 @@
+-- test_leveling_dispatcher_prepass.lua -- leveling rotation dispatcher tick tests.
+-- WHAT:  leveling rotation dispatcher tick tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Regression: under-70 characters may select the Leveling playstyle, but an
 -- explicit normal spec selection must remain authoritative.
 

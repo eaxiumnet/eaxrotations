@@ -34,6 +34,9 @@ pcall(function()
     if sh and type(sh.install) == "function" then sh.install(NS) end
 end)
 
+local spec_kit = nil
+pcall(function() spec_kit = require("shared/spec_kit_sylvanas") end)
+
 NS.core = core
 
 -- Expansion helpers (dual-version support for TBC and Classic)
@@ -2851,8 +2854,8 @@ end
 ---@return boolean allowed True if cooldown is allowed on this target.
 function NS.gate_cooldown_boss_only(context)
     if not context then return true end
-    local settings = context.settings
-    if not settings or settings.use_cooldowns_on_boss_only ~= true then return true end
+    local boss_only = (spec_kit and spec_kit.setting_bool(context, "use_cooldowns_on_boss_only", false)) or false
+    if boss_only ~= true then return true end
     return NS.unit_is_boss(context.target)
 end
 
@@ -5284,12 +5287,11 @@ function NS.run_unified_strategies(context)
     end
 
     -- Precompute tick-constant settings for strategy gating
-    local settings = context and context.settings or EMPTY
     local is_healer = HEALING_PLAYSTYLES[tostring(active or ""):lower()] == true
-    local utility_enabled = settings.utility_enabled
-    local healing_enabled = settings.healing_enabled
-    local damage_enabled = settings.damage_enabled
-    local use_cooldowns = settings.use_cooldowns
+    local utility_enabled = (spec_kit and spec_kit.setting_bool(context, "utility_enabled", true)) or true
+    local healing_enabled = (spec_kit and spec_kit.setting_bool(context, "healing_enabled", true)) or true
+    local damage_enabled = (spec_kit and spec_kit.setting_bool(context, "damage_enabled", true)) or true
+    local use_cooldowns = (spec_kit and spec_kit.setting_bool(context, "use_cooldowns", true)) or true
     local should_burst = context and context.should_burst
 
     for i = 1, #NS.unified_registry do
@@ -5480,7 +5482,7 @@ function NS.action_matches(context, action)
 
     end
 
-    if context.settings and context.settings.aoe_enabled == false and (action.enemy_count or action.is_aoe) then
+    if spec_kit and spec_kit.setting_bool(context, "aoe_enabled", true) == false and (action.enemy_count or action.is_aoe) then
 
         return false
 

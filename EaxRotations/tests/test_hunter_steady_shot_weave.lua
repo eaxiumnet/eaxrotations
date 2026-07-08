@@ -1,3 +1,9 @@
+-- test_hunter_steady_shot_weave.lua -- Hunter shot timer tests.
+-- WHAT:  Hunter shot timer tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Hunter Core Steady Shot Weave (HU2)
 -- ----------------------------------------------------------------------------

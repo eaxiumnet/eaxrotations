@@ -1,3 +1,9 @@
+-- test_hunter_pet_manager_wiring.lua -- Hunter manager tests.
+-- WHAT:  Hunter manager tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Pet Manager Wiring (HU5)
 -- ----------------------------------------------------------------------------

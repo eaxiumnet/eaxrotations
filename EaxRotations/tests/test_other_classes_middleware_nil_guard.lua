@@ -1,3 +1,9 @@
+-- test_other_classes_middleware_nil_guard.lua -- middleware nil-guard nil-guard tests.
+-- WHAT:  middleware nil-guard nil-guard tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates nil-guard safety on all numeric state reads (Pattern 14).
+-- SAFETY: Must pass after any state table change.
+
 -- ============================================================================
 -- pcall-based nil-guard regression tests for remaining class middlewares
 -- Classes: mage, warlock, hunter, priest, rogue, shaman

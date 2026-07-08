@@ -1,3 +1,9 @@
+-- test_affliction_summon_felhunter.lua -- Affliction summon logic felhunter summon tests.
+-- WHAT:  Affliction summon logic felhunter summon tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- unit tests for affliction_sylvanas SummonFelhunter strategy.
 -- Verifies: OOC-only, DS aura gate, execute calls try_cast with correct spell + target.
 

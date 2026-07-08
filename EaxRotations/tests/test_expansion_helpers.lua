@@ -1,3 +1,9 @@
+-- test_expansion_helpers.lua -- cross-expansion tests.
+-- WHAT:  cross-expansion tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Expansion helper regression test.
 -- Validates NS.get_expansion_max_level, NS.is_tbc, NS.is_vanilla for TBC and Classic.
 

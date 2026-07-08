@@ -1,3 +1,9 @@
+-- test_spec_kit.lua -- spec kit tests.
+-- WHAT:  spec kit tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- spec_kit_sylvanas.lua contract test.
 --
 -- Proves (without requiring the live engine):

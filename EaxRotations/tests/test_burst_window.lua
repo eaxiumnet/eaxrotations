@@ -1,3 +1,9 @@
+-- test_burst_window.lua -- burst window tests.
+-- WHAT:  burst window tests
+-- WHEN:  During PvP balance validation.
+-- WHY:   Ensures PvP-specific priority shifts and burst windows function correctly.
+-- SAFETY: Synthetic arena context.
+
 -- ============================================================================
 -- Test: Burst Window Detection
 

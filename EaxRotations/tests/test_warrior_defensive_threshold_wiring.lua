@@ -1,3 +1,9 @@
+-- test_warrior_defensive_threshold_wiring.lua -- Warrior tests.
+-- WHAT:  Warrior tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Warrior Protection Defensive Threshold Wiring (TK2)
 -- ----------------------------------------------------------------------------

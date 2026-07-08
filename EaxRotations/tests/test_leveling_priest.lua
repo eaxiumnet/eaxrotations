@@ -1,3 +1,9 @@
+-- test_leveling_priest.lua -- Priest leveling rotation tests.
+-- WHAT:  Priest leveling rotation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Unit tests for Priest leveling rotation
 -- Tests build_state, all 15 match functions, helper functions,
 -- strategy ordering, and edge case handling

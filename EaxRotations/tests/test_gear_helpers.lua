@@ -1,3 +1,9 @@
+-- test_gear_helpers.lua -- Test Gear Helpers tests.
+-- WHAT:  Test Gear Helpers tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- regression tests for equipped-item and set-bonus helper APIs.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path

@@ -1,3 +1,9 @@
+-- test_interrupt_spec_integration.lua -- integration tests.
+-- WHAT:  integration tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   End-to-end validation of multiple subsystems working together.
+-- SAFETY: May require more setup; keep mocks lightweight.
+
 -- Phase 2 interrupt spec integration tests.
 -- Tests the InterruptManager integration patterns used by:
 --   1. Warrior Protection (shield_bash_matches_fn)

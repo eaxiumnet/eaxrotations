@@ -1,3 +1,9 @@
+-- test_action_execute_skip_gcd_izi_primary.lua -- action execution execute skip-GCD skip-GCD GCD handling IZI primary tests.
+-- WHAT:  action execution execute skip-GCD skip-GCD GCD handling IZI primary tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Regression: action_execute skip_gcd path should use IZI before stubbed core.input.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

@@ -1,3 +1,9 @@
+-- test_healer_deficit_overheal.lua -- Test Healer Deficit Overheal tests.
+-- WHAT:  Test Healer Deficit Overheal tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Phase 1 test: HealerDeficit predictive overheal gate behavior.
 -- Tests the acceptance criteria from the Phase 1 plan:
 --   1. Low current HP still heals (overheal gate allows emergency HP through)

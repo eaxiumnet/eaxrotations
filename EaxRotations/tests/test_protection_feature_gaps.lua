@@ -1,3 +1,9 @@
+-- test_protection_feature_gaps.lua -- Protection feature gap tests.
+-- WHAT:  Protection feature gap tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Feature audit for protection_sylvanas: Bloodrage, VictoryRush, Rend, IntimidatingShout.
 -- Documents parity features and verifies all 4 gaps are now closed.
 

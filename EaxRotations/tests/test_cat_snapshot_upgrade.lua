@@ -1,3 +1,9 @@
+-- test_cat_snapshot_upgrade.lua -- Feral Cat snapshot buff upgrade tests.
+-- WHAT:  Feral Cat snapshot buff upgrade tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates snapshot-based buff tracking for feral bleed optimizations.
+-- SAFETY: Uses static aura timestamps.
+
 -- unit tests for cat_sylvanas bleed snapshot upgrade logic & high-AP window detection.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

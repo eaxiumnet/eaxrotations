@@ -1,3 +1,9 @@
+-- test_warrior_vanilla_nil_guards.lua -- Warrior Vanilla-era compatibility nil-guard tests.
+-- WHAT:  Warrior Vanilla-era compatibility nil-guard tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates nil-guard safety on all numeric state reads (Pattern 14).
+-- SAFETY: Must pass after any state table change.
+
 -- Regression test: warrior vanilla specs Pattern 14 nil-guards.
 -- Covers: arms_vanilla, fury_vanilla, protection_vanilla, leveling_vanilla.
 -- bear_vanilla has its own dedicated test file.

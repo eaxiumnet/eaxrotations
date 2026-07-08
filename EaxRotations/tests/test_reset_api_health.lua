@@ -1,3 +1,9 @@
+-- test_reset_api_health.lua -- API lint health thresholds tests.
+-- WHAT:  API lint health thresholds tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Test: NS.is_api_health_broken() and NS.reset_api_health() contract.
 -- Updated for v2.1.x: PS build API health tracking was removed; both functions
 -- are now no-op stubs (is_api_health_broken always returns false, reset is a no-op).

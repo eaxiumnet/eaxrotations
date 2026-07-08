@@ -1,3 +1,9 @@
+-- test_hunter_vanilla_nil_guards.lua -- Hunter Vanilla-era compatibility nil-guard tests.
+-- WHAT:  Hunter Vanilla-era compatibility nil-guard tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates nil-guard safety on all numeric state reads (Pattern 14).
+-- SAFETY: Must pass after any state table change.
+
 -- Regression test: hunter vanilla specs Pattern 14 nil-guards.
 -- Covers: beast_mastery_vanilla, marksmanship_vanilla, survival_vanilla, leveling_vanilla.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

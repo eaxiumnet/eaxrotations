@@ -1,3 +1,9 @@
+-- test_leveling_paladin.lua -- Paladin leveling rotation tests.
+-- WHAT:  Paladin leveling rotation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Unit tests for Paladin leveling rotation
 -- Tests build_state, all 16 match functions, strategy ordering,
 -- helper functions, and edge case handling

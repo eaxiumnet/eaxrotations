@@ -1,3 +1,9 @@
+-- test_leveling_load.lua -- leveling rotation tests.
+-- WHAT:  leveling rotation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Leveling rotation validation test.
 -- Loads ALL 9 class leveling rotations with a mock environment and verifies:
 --   1. Module loads without errors

@@ -1,3 +1,9 @@
+-- test_cooldown_registry.lua -- cooldown tracking rotation registry tests.
+-- WHAT:  cooldown tracking rotation registry tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates rotation registry registration and lookup integrity.
+-- SAFETY: Tests dispatcher plumbing without live client.
+
 -- Cooldown suggestion registry regression test.
 -- Validates register_cooldown, priority ordering, get_cooldown_suggestions, and category filtering.
 
