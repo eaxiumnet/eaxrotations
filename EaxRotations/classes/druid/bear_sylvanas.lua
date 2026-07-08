@@ -24,6 +24,9 @@ if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { healthstones = {}
 local TBC_ITEMS   = TBC.ITEMS or {}
 local TBC_POTIONS = TBC_ITEMS.potions or {}
 
+-- Static reusable opts table to avoid per-frame allocation in hot path (Pattern 4)
+local _opts = {}
+
 local SPELLS = NS.DruidSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 
@@ -190,10 +193,9 @@ local function action_ready(context, action)
     local target = (action.target == "self" or action.requires_target == false)
                     and (context.me or (NS.GetPlayer and NS.GetPlayer())) or context.target
     if not target then return false end
-    local opts = {}
-    if action.requires_target == false then opts.skip_range = true end
-    if action.cooldown then opts.expected_cooldown = action.cooldown end
-    return NS.spell_ready(action.spell, target, opts)
+    _opts.skip_range = (action.requires_target == false) or nil
+    _opts.expected_cooldown = action.cooldown or nil
+    return NS.spell_ready(action.spell, target, _opts)
 end
 
 local function execute_action(context, action)
@@ -201,11 +203,10 @@ local function execute_action(context, action)
     local target = (action.target == "self" or action.requires_target == false)
                     and (context.me or (NS.GetPlayer and NS.GetPlayer())) or context.target
     if not target then return false end
-    local opts = {}
-    if action.requires_target == false then opts.skip_range = true end
-    if action.cooldown then opts.expected_cooldown = action.cooldown end
+    _opts.skip_range = (action.requires_target == false) or nil
+    _opts.expected_cooldown = action.cooldown or nil
     if not NS.try_cast then return false end  -- test env fallback (no engine)
-    return NS.try_cast(action.spell, target, "[BEAR]", opts)
+    return NS.try_cast(action.spell, target, "[BEAR]", _opts)
 end
 
 local function execute_item(context, item_id, label)

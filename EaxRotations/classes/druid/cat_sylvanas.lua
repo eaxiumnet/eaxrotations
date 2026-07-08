@@ -22,6 +22,9 @@ local _snap_ok, Snapshot = pcall(require, "shared/snapshot_sylvanas")
 if not _snap_ok or type(Snapshot) ~= "table" then Snapshot = nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 
+-- Static reusable opts table to avoid per-frame allocation in hot path (Pattern 4)
+local _opts = {}
+
 local BASE_SPELLS = NS.DruidSpells or {}
 local SPELLS = BASE_SPELLS
 
@@ -498,10 +501,9 @@ local function execute_action(context, action)
     else
         target = context.target
     end
-    local opts = {}
-    if action.cooldown then opts.expected_cooldown = action.cooldown end
-    if action.skip_gcd then opts.skip_gcd = true end
-    return NS.try_cast(action.spell, target, "[CAT] " .. (action.name or ""), opts)
+    _opts.expected_cooldown = action.cooldown or nil
+    _opts.skip_gcd = action.skip_gcd or nil
+    return NS.try_cast(action.spell, target, "[CAT] " .. (action.name or ""), _opts)
 end
 
 local function record_shift(state)
