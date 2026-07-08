@@ -5,6 +5,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.PriestSpells or {}
 local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
@@ -86,8 +87,7 @@ local function get_offensive_dispel_target(context)
     end
     _cached_dispel_unit = nil
     _cached_dispel_priority = 0
-    local settings = context.settings or {}
-    local min_mana = settings.offensive_dispel_mana_floor or 30
+    local min_mana = spec_kit.setting_number(context, "offensive_dispel_mana_floor", 30)
     if (context.mana_pct or 100) < min_mana then return nil, 0 end
     local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
     local best_unit, best_priority = nil, 0
@@ -110,8 +110,7 @@ end
 -- Helper: find the best Mana Burn target (enemy healer with most mana)
 -- ============================================================================
 local function find_mana_burn_target(context)
-    local settings = context.settings or {}
-    local min_mana = settings.mana_burn_mana_floor or 40
+    local min_mana = spec_kit.setting_number(context, "mana_burn_mana_floor", 40)
     if (context.mana_pct or 100) < min_mana then return nil end
     local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
     local best_target, best_mana = nil, 0
@@ -143,12 +142,11 @@ local strategies = {
     {
         name = "MassDispel",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_mass_dispel == false then return false end
+            if not spec_kit.setting_bool(context, "use_mass_dispel", true) then return false end
             if not context.in_combat then return false end
             -- Mana check: Mass Dispel costs ~36% base mana
             local mana_pct = context.mana_pct or 100
-            local min_mana = settings.mass_dispel_mana_floor or 50
+            local min_mana = spec_kit.setting_number(context, "mass_dispel_mana_floor", 50)
             if mana_pct < min_mana then return false end
             -- Spell check
             if not (NS.is_spell_learned and NS.is_spell_learned(SPELLS.MassDispel)) then return false end
@@ -200,8 +198,7 @@ local strategies = {
         name = "OffensiveDispel",
         matches = function(context)
             _cached_dispel_fresh = false  -- invalidate cache each tick
-            local settings = context.settings or {}
-            if settings.use_offensive_dispel == false then return false end
+            if not spec_kit.setting_bool(context, "use_offensive_dispel", true) then return false end
             if not context.in_combat then return false end
             -- Check if Dispel Magic is available
             if not (NS.is_spell_learned and NS.is_spell_learned(SPELLS.DispelMagic)) then return false end
@@ -223,8 +220,7 @@ local strategies = {
     {
         name = "ManaBurn",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_mana_burn == false then return false end
+            if not spec_kit.setting_bool(context, "use_mana_burn", true) then return false end
             if not context.in_combat then return false end
             if context.is_moving then return false end
             -- Spell check
@@ -246,8 +242,7 @@ local strategies = {
     {
         name = "PvPPsychicScream",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_pvp_defensives == false then return false end
+            if not spec_kit.setting_bool(context, "use_pvp_defensives", true) then return false end
             if NS.should_kite and not NS.should_kite(context) then return false end
             if not NS.spell_ready(SPELLS.PsychicScream, context.me, { skip_range = true }) then return false end
             if (NS.GetEnemiesCount and NS.GetEnemiesCount(8) or 0) < 2 then return false end
@@ -262,7 +257,7 @@ local strategies = {
         name = "ThreatDrop",
         matches = function(context)
             if not context.in_combat then return false end
-            if context.settings and context.settings.use_threat_drop == false then return false end
+            if not spec_kit.setting_bool(context, "use_threat_drop", true) then return false end
             -- Only drop threat if a group ally is in combat nearby (Fade is useless solo)
             if not (NS.has_group_combat_ally_40 and NS.has_group_combat_ally_40()) then return false end
             if not (NS.spell_ready and SPELLS.Fade and NS.spell_ready(SPELLS.Fade, context.me, { skip_range = true })) then return false end
@@ -293,13 +288,12 @@ local strategies = {
     {
         name = "PartyDispelMagic",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_party_dispel == false then return false end
+            if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end
             if not context.in_combat then return false end
             
             -- Mana check
             local mana_pct = context.mana_pct or 100
-            local min_mana = settings.party_dispel_mana_floor or 30
+            local min_mana = spec_kit.setting_number(context, "party_dispel_mana_floor", 30)
             if mana_pct < min_mana then return false end
             
             -- Check if Dispel Magic is available
@@ -349,8 +343,7 @@ local strategies = {
     {
         name = "AbolishDisease",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_self_dispel == false then return false end
+            if not spec_kit.setting_bool(context, "use_self_dispel", true) then return false end
             if not context.in_combat then return false end
             if not context.me then return false end
             
@@ -364,7 +357,7 @@ local strategies = {
             
             -- Check mana
             local mana_pct = context.mana_pct or 100
-            local min_mana = settings.party_dispel_mana_floor or 30
+            local min_mana = spec_kit.setting_number(context, "party_dispel_mana_floor", 30)
             if mana_pct < min_mana then return false end
             
             return true
@@ -382,13 +375,12 @@ local strategies = {
     {
         name = "PartyAbolishDisease",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_party_dispel == false then return false end
+            if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end
             if not context.in_combat then return false end
             
             -- Check mana
             local mana_pct = context.mana_pct or 100
-            local min_mana = settings.party_dispel_mana_floor or 30
+            local min_mana = spec_kit.setting_number(context, "party_dispel_mana_floor", 30)
             if mana_pct < min_mana then return false end
             
             -- Check if Abolish Disease is available
@@ -428,14 +420,13 @@ local strategies = {
     {
         name = "Shadowfiend",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_shadowfiend == false then return false end
+            if not spec_kit.setting_bool(context, "use_shadowfiend", true) then return false end
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
             
             -- Mana threshold check
             local mana_pct = context.mana_pct or 100
-            local mana_threshold = settings.shadowfiend_mana_threshold or 30
+            local mana_threshold = spec_kit.setting_number(context, "shadowfiend_mana_threshold", 30)
             if mana_pct > mana_threshold then return false end
             
             -- Shadowfiend spell ID
@@ -463,8 +454,7 @@ local strategies = {
     {
         name = "EnhancedFade",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_enhanced_fade == false then return false end
+            if not spec_kit.setting_bool(context, "use_enhanced_fade", true) then return false end
             if not context.in_combat then return false end
             
             -- Check if Fade is ready
@@ -513,9 +503,8 @@ local strategies = {
         priority = 850,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            local threshold = settings.pws_hp or 0
+            local threshold = spec_kit.setting_number(context, "pws_hp", 0)
             if threshold <= 0 then return false end
             if (context.hp or 100) <= threshold then
                 -- Check if Weakened Soul debuff present (can't re-shield)
@@ -539,9 +528,8 @@ local strategies = {
         name = "InnerFire",
         priority = 450,
         matches = function(context)
-            local settings = context.settings or {}
             if context.in_combat then return false end
-            if settings.auto_inner_fire == false then return false end
+            if not spec_kit.setting_bool(context, "auto_inner_fire", true) then return false end
             local if_buffs = { 25431, 10952, 10951, 1006, 602, 7128, 588 }
             if NS.has_player_buff and NS.has_player_buff(if_buffs) then return false end
             local spell = SPELLS.InnerFire or { id = if_buffs, name = "InnerFire" }
@@ -561,9 +549,8 @@ local strategies = {
         name = "PowerWordFortitude",
         priority = 440,
         matches = function(context)
-            local settings = context.settings or {}
             if context.in_combat then return false end
-            if settings.auto_fortitude == false then return false end
+            if not spec_kit.setting_bool(context, "auto_fortitude", true) then return false end
             local fort_buffs = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
             if NS.has_player_buff and NS.has_player_buff(fort_buffs) then return false end
             local spell = SPELLS.PowerWordFortitude or { id = fort_buffs, name = "PowerWordFortitude" }
