@@ -296,6 +296,7 @@ local config = {
     class_name = "Warlock",
     default_playstyle = "affliction",
     playstyles = {
+        { name = "auto", display_name = "Auto (Talent)" },
         { name = "leveling", display_name = "Leveling" },
         { name = "affliction", display_name = "Affliction" },
         { name = "demonology", display_name = "Demonology" },

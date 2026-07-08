@@ -309,8 +309,10 @@ _G.EaxRotations.broken_api_throttled = function() return false end
 _G.EaxRotations.DRTracker = nil
 _G.EaxRotations.gate_cooldown_boss_only = function() return true end
 
-local arcane_strategies = dofile("EaxRotations/classes/mage/arcane_sylvanas.lua")
-assert_true(type(arcane_strategies) == "table", "arcane strategies should load")
+local arcane_result = dofile("EaxRotations/classes/mage/arcane_sylvanas.lua")
+assert_true(type(arcane_result) == "table", "arcane module should load")
+local arcane_strategies = arcane_result.strategies
+assert_true(type(arcane_strategies) == "table", "arcane strategies should be a table")
 assert_true(captured_get_state ~= nil, "arcane should capture get_state from registration")
 
 -- Build state from a context with nil mana_pct

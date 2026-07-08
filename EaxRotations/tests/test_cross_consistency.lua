@@ -47,12 +47,33 @@ local function extract_class_playstyles(text)
 end
 
 -- Extract playstyle dropdown values from schema_sylvanas.lua.
+-- Uses brace-counting to find the matching } for the options = { block.
+-- The old greedy regex }%s*}%s*, could span across multiple dropdown
+-- entries (e.g. warlock's curse_mode block after playstyle), causing
+-- wrong values to be extracted.
 local function extract_schema_playstyles(text)
     local ps_key = text:find('key%s*=%s*"playstyle"')
     if not ps_key then return nil, "playstyle dropdown not found" end
     local opts_start = text:find("options%s*=%s*{", ps_key)
     if not opts_start then return nil, "options block not found after playstyle key" end
-    local opts_end = text:find("}%s*}", opts_start)
+    -- Find the opening { of the options table
+    local brace_start = text:find("%{", opts_start)
+    if not brace_start then return nil, "options opening brace not found" end
+    -- Count braces to find matching close (depth hits 0)
+    local depth = 0
+    local opts_end = nil
+    for i = brace_start, #text do
+        local c = text:sub(i, i)
+        if c == "{" then
+            depth = depth + 1
+        elseif c == "}" then
+            depth = depth - 1
+            if depth == 0 then
+                opts_end = i
+                break
+            end
+        end
+    end
     if not opts_end then return nil, "options block not terminated" end
     local block = text:sub(opts_start, opts_end)
     local values = {}
@@ -153,7 +174,14 @@ for _, class in ipairs(classes) do
                 add_issue(class.key, "schema-not-in-class",
                     "In schema but not class_config: " .. set_to_string(extra_in_schema))
             end
-            local missing_in_reg = set_difference(class_set, reg_set)
+            -- Filter out meta-playstyles that aren't rotations: "auto" means
+            -- talent-based detection, "leveling" IS a registered rotation.
+            local class_rotations = {}
+            for _, k in ipairs(class_ps) do
+                if k ~= "auto" then class_rotations[#class_rotations + 1] = k end
+            end
+            local class_rot_set = to_set(class_rotations)
+            local missing_in_reg = set_difference(class_rot_set, reg_set)
             if next(missing_in_reg) then
                 add_issue(class.key, "class-not-registered",
                     "In class_config but no rotation registered: " .. set_to_string(missing_in_reg))
