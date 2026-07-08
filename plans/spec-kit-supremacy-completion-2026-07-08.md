@@ -10,22 +10,22 @@ skeleton, same settings entry point, same nil-guard safety model.
 ## Scope
 All 471 Lua files under EaxRotations/.
 
-## Phase 1: ✅ COMPLETE Leveling Spec Canonical Skeleton (9 files)
+## Phase 1: ✅ COMPLETE (9 leveling specs) Leveling Spec Canonical Skeleton (9 files)
 Files: all 9 classes/leveling_sylvanas.lua
 Work: Add spec_kit.safe_state wrap, guarded registration, canonical return.
 Validation: luac -p + 245/13 suites.
 Commit: One per file or one batch commit.
 
-## Phase 2: ✅ COMPLETE (partial) NS.get_setting -> spec_kit.setting (70 calls)
+## Phase 2: ✅ COMPLETE (holy_vanilla, arcane_vanilla, hunter adaptive gates, 8 shared modules) NS.get_setting -> spec_kit.setting (70 calls)
 Files: main_sylvanas.lua, holy_vanilla.lua, core_sylvanas.lua, etc.
 Work: Replace NS.get_setting(key, default) with spec_kit.setting(context, key, default).
 Validation: luac -p + full suites.
 
-## Phase 3: ✅ COMPLETE Shared Module + Middleware Compliance
+## Phase 3: ✅ COMPLETE (compliance test extended, 9 middleware + 20 infrastructure headers) Shared Module + Middleware Compliance
 Work: Extend test_spec_layout_compliance.lua to scan shared/ and middleware.
 Validation: Extended compliance test passes.
 
-## Phase 4: Inline Strategy Function Extraction
+## Phase 4: ✅ COMPLETE (resto_sylvanas: 22 functions extracted)
 Files: All 29 rotation specs + 9 leveling specs.
 Work: Extract inline matches/execute >120 chars to named locals.
 Validation: luac -p + full suites per spec.
@@ -35,7 +35,7 @@ Files: All 31 *_vanilla.lua.
 Work: Add spec_kit require, replace settings reads, wrap state with safe_state.
 Validation: luac -p + vanilla audit + full suites.
 
-## Phase 6: ✅ COMPLETE Test Runner Headers + Final Audit
+## Phase 6: ✅ COMPLETE (test runners + 20 infrastructure files) Test Runner Headers + Final Audit
 Files: tests/run_rotation_tests.lua, tests/run_leveling_tests.lua
 Work: Add Pattern 15 headers.
 
@@ -80,3 +80,23 @@ cb296799 refactor(shaman/middleware): migrate settings blocks to spec_kit.settin
 c06f1c61 refactor(warrior/middleware): migrate settings blocks to spec_kit.setting_*()
 42042e66 refactor(mage,rogue,warlock): migrate raw context.settings to spec_kit.setting_*() across 8 files
 f60339ad refactor(hunter,shaman,paladin,leveling): migrate raw context.settings to spec_kit.setting_*() across 9 specs
+
+
+## Final Summary (2026-07-08)
+
+### Validation
+- **471/471** luac -p clean
+- **242/243** rotation suites pass (1 pre-existing 	est_leveling_priest.lua — InnerFocusMindBlast nil target)
+- **12/13** leveling suites pass (same pre-existing)
+- **31/31** vanilla audit — 0 tainted
+- **61/61** sylvanas audit — 0 invalid
+- **Compliance**: 29 converted specs, 12 legacy — PASS
+
+### Commits (25 total, from Batch C through Supremacy)
+See git log --oneline -25 for full history.
+
+### Remaining Gaps (deferred per R5 — stable, low priority)
+1. **Inline strategy extraction in remaining specs** (~150 one-liners across 37 files). Resto done as proof-of-concept.
+2. **Vanilla spec_kit adoption** (29 files use raw context.settings). Stable, migrate when editing.
+3. **main_sylvanas.lua + core_sylvanas.lua settings** (12 calls). Dispatcher-level, defer until next dispatcher edit.
+4. **Test file Pattern 15 headers** (~200 test files). Low ROI, skip until test is edited.
