@@ -195,7 +195,7 @@ local function get_target_range(me, target, context)
 end
 
 local function is_behind_target(target, context, settings)
-    if NS.setting_bool(settings, "cat_shred_positional", true) == false then return true end
+    if spec_kit.setting_bool(context, "cat_shred_positional", true) == false then return true end
     if context and context.is_behind ~= nil then return context.is_behind == true end
     if NS.is_behind_target then return NS.is_behind_target(target) == true end
     return false
@@ -240,7 +240,6 @@ local _last_build_state_time = -1
 
 local function build_state(context)
     local state = cat_state
-    local settings = context.settings or NS.settings or {}
     local now = context.now
     if now and now == _last_build_state_time then return state end
     now = now or get_now()
@@ -248,7 +247,6 @@ local function build_state(context)
     state.now = now
     state.me = context.me or (NS.GetPlayer and NS.GetPlayer()) or nil
     state.target = context.target
-    state.settings = settings
     state.hp = context.hp or 100
     state.mana_pct = get_mana_pct(context)
     state.energy = get_energy(context)
@@ -317,7 +315,7 @@ local _strategies = {
     { name = "HealthPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if spec_kit.setting_bool(context, "use_auto_potions", true) == false then return false end
           if not context.has_health_potion then return false end
           if (context.hp or 100) > 35 then return false end
           return true
@@ -326,7 +324,7 @@ local _strategies = {
     { name = "ManaPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if spec_kit.setting_bool(context, "use_auto_potions", true) == false then return false end
           if not context.has_mana_potion then return false end
           if (context.mana_pct or 100) > 20 then return false end
           return true

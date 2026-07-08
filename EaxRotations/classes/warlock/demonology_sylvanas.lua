@@ -554,6 +554,13 @@ local function soul_link_matches(context, s)
     return true
 end
 
+local function rain_of_fire_execute(context)
+    local t = context.target
+    local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.RainOfFire), t, 8, 35)
+    if pos then return NS.try_cast_position(ACTION.RainOfFire, pos, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end
+    return NS.try_cast(ACTION.RainOfFire, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 })
+end
+
 -- ============================================================================
 -- Strategies
 -- ============================================================================
@@ -620,7 +627,7 @@ local strategies = {
     { name = "SeedOfCorruption", matches = seed_of_corruption_matches, execute = function(context) return NS.try_cast(ACTION.SeedOfCorruption, context.target, "[DEMONOLOGY] Seed of Corruption") end },
     { name = "SoulFire", matches = soul_fire_matches, execute = function(context) return NS.try_cast(ACTION.SoulFire, context.target, "[DEMONOLOGY] Soul Fire", { expected_cooldown = 1.5 }) end },
     { name = "DrainSoul", matches = drain_soul_matches, execute = function(context) return NS.try_cast(ACTION.DrainSoul, context.target, "[DEMONOLOGY] Drain Soul") end },
-    { name = "RainOfFire", matches = rain_of_fire_matches, execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.RainOfFire), t, 8, 35); if pos then return NS.try_cast_position(ACTION.RainOfFire, pos, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end; return NS.try_cast(ACTION.RainOfFire, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end },
+    { name = "RainOfFire", matches = rain_of_fire_matches, execute = rain_of_fire_execute },
     { name = "Hellfire", matches = hellfire_matches, execute = function(context) return NS.try_cast(ACTION.Hellfire, context.me, "[DEMONOLOGY] Hellfire", { skip_range = true }) end },
     { name = "DeathCoil", matches = function(context, state) return death_coil_matches(context, { name = "DeathCoil", spell = ACTION.DeathCoil }) end, execute = function(context) return NS.try_cast(ACTION.DeathCoil, context.target, "[DEMONOLOGY] Death Coil", { expected_cooldown = 120 }) end },
     { name = "LifeTap", matches = life_tap_matches, execute = function(context) return NS.try_cast(ACTION.LifeTap, context.me, "[DEMONOLOGY] Life Tap", { skip_range = true }) end },

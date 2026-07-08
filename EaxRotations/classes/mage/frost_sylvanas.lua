@@ -525,6 +525,17 @@ local function mana_gem_matches_fn(context, s)
     return true
 end
 
+local function blink_matches(context, s)
+    return s.in_combat and (context.self_rooted_snared or (NS.has_player_debuff and NS.has_player_debuff(COMMON_SNARES) or false)) and NS.spell_ready(ACTION.Blink)
+end
+
+local function blizzard_execute(context)
+    local t = context.target
+    local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.Blizzard), t, 8, 35)
+    if pos then return NS.try_cast_position(ACTION.Blizzard, pos, t, "[FROST] Blizzard") end
+    return NS.try_cast(ACTION.Blizzard, t, "[FROST] Blizzard")
+end
+
 -- ============================================================================
 -- Strategies
 -- ============================================================================
@@ -558,7 +569,7 @@ local strategies = {
           return false
       end,
     },
-    { name = "Blink", matches = function(context, s) return s.in_combat and (context.self_rooted_snared or (NS.has_player_debuff and NS.has_player_debuff(COMMON_SNARES) or false)) and NS.spell_ready(ACTION.Blink) end, execute = function() return NS.try_cast(ACTION.Blink, NS.PLAYER_UNIT, "[FROST] Blink", { skip_range = true }) end },
+    { name = "Blink", matches = blink_matches, execute = function() return NS.try_cast(ACTION.Blink, NS.PLAYER_UNIT, "[FROST] Blink", { skip_range = true }) end },
     { name = "ColdSnap", matches = cold_snap_wrapper, execute = function() return NS.try_cast(ACTION.ColdSnap, NS.PLAYER_UNIT, "[FROST] ColdSnap", { skip_range = true }) end },
     { name = "IcyVeins", matches = icy_veins_matches, execute = function() return NS.try_cast(ACTION.IcyVeins, NS.PLAYER_UNIT, "[FROST] IcyVeins", { skip_range = true, expected_cooldown = 180 }) end },
     { name = "WaterElemental", matches = water_elemental_matches, execute = function() return NS.try_cast(ACTION.WaterElemental, NS.PLAYER_UNIT, "[FROST] WaterElemental", { skip_range = true, expected_cooldown = 180 }) end },
@@ -576,7 +587,7 @@ local strategies = {
     { name = "ConeOfCold", matches = cone_of_cold_wrapper, execute = function(context) return NS.try_cast(ACTION.ConeOfCold, context.me or NS.GetPlayer(), "[FROST] ConeOfCold", { skip_range = true }) end },
     { name = "Polymorph", matches = polymorph_matches, execute = function(context) return NS.try_cast(ACTION.Polymorph, context.target, "[FROST] Polymorph") end },
     { name = "ArcaneExplosion", matches = arcane_explosion_matches, execute = function(context) return NS.try_cast(ACTION.ArcaneExplosion, context.me or NS.GetPlayer(), "[FROST] ArcaneExplosion", { skip_range = true }) end },
-    { name = "Blizzard", matches = blizzard_matches, execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.Blizzard), t, 8, 35); if pos then return NS.try_cast_position(ACTION.Blizzard, pos, t, "[FROST] Blizzard") end; return NS.try_cast(ACTION.Blizzard, t, "[FROST] Blizzard") end },
+    { name = "Blizzard", matches = blizzard_matches, execute = blizzard_execute },
     { name = "FireBlast", matches = fire_blast_matches, execute = function(context) return NS.try_cast(ACTION.FireBlast, context.target, "[FROST] FireBlast") end },
     { name = "Scorch", matches = scorch_matches, execute = function(context) return NS.try_cast(ACTION.Scorch, context.target, "[FROST] Scorch") end },
     { name = "ArcaneMissiles", matches = arcane_missiles_matches, execute = function(context) return NS.try_cast(ACTION.ArcaneMissiles, context.target, "[FROST] ArcaneMissiles") end },
