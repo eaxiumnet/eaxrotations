@@ -6,6 +6,7 @@
 -- DECISION: State-machine per spec; no on_update side-effects outside this module.
 
 local NS = _G.EaxRotations
+if not NS then return nil end
 local M = {}
 
 -- Platform-provided pet handler for engine-level pet state management

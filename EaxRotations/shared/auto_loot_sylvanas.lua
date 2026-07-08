@@ -299,7 +299,7 @@ function M.on_tick(context)
             end
         else
             local success = M.loot_corpse(entry, now)
-local spec_kit = require("shared/spec_kit_sylvanas")
+
             if success then break end
         end
     end

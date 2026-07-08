@@ -435,7 +435,7 @@ local healing_strategies = {
     { name = "FriendlyTarget", matches = function(context, state)
         if not context.in_combat then return false end
         if context.is_moving then return false end
-        if context.settings.restoration_use_friendly_target == false then return false end
+        if (context.settings and context.settings.restoration_use_friendly_target == false) then return false end
         local threshold = (context.settings and context.settings.restoration_friendly_target_threshold) or 90
         local ft = NS.get_friendly_target_entry(context)
         if not ft or not ft.unit then return false end
