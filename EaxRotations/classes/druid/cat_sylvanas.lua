@@ -400,8 +400,8 @@ local function get_target_range(me, target, context)
     return safe_method_arg(me, "get_distance", target, 0)
 end
 
-local function is_behind_target(target, context, settings)
-    if NS.setting_bool(settings, "cat_shred_positional", true) == false then return true end
+local function is_behind_target(target, context)
+    if spec_kit.setting_bool(context, "cat_shred_positional", true) == false then return true end
     if context and context.is_behind ~= nil then return context.is_behind == true end
     -- IZI SDK fast path: native behind check
     local me = NS.GetPlayer and NS.GetPlayer()
@@ -571,7 +571,7 @@ function build_state(context)
         state.has_dash = NS.buff_up(me, DASH_BUFF) or false
         state.has_barkskin = NS.buff_up(me, BARKSKIN_BUFF) or false
         state.has_track_humanoids = NS.buff_up(me, TRACK_HUMANOIDS_BUFF) or false
-        state.has_wolfshead = has_wolfshead_equipped(me) or NS.buff_up(me, WOLFSHEAD_BUFF) or NS.setting_bool(settings, "cat_wolfshead_helm", false)
+        state.has_wolfshead = has_wolfshead_equipped(me) or NS.buff_up(me, WOLFSHEAD_BUFF) or spec_kit.setting_bool(context, "cat_wolfshead_helm", false)
         state.has_bloodlust = NS.buff_up(me, BLOODLUST_BUFFS) or false
         state.rip_remains = NS.debuff_remains(target, RIP_DEBUFF) or 0
         state.rake_remains = NS.debuff_remains(target, RAKE_DEBUFF) or 0
@@ -581,7 +581,7 @@ function build_state(context)
         state.maim_remains = NS.debuff_remains(target, MAIM_DEBUFF) or 0
     end
     state.is_cat = NS.has_form and NS.has_form("cat") or context.stance == STANCE_CAT
-    state.is_behind = is_behind_target(target, context, settings)
+    state.is_behind = is_behind_target(target, context)
     state.attack_power = get_attack_power(context, me)
     if _not_same_unit(snapshot_state.rip_target, target) or state.rip_remains <= 0 then snapshot_state.rip_ap = 0 end
     if _not_same_unit(snapshot_state.rake_target, target) or state.rake_remains <= 0 then snapshot_state.rake_ap = 0 end
@@ -589,18 +589,18 @@ function build_state(context)
     state.rake_ap = snapshot_state.rake_ap
     state.has_high_ap_window = state.has_bloodlust or (state.attack_power > 0 and state.rip_ap > 0 and state.attack_power >= state.rip_ap * AP_UPGRADE_RATIO) or (state.attack_power > 0 and state.rake_ap > 0 and state.attack_power >= state.rake_ap * AP_UPGRADE_RATIO)
     update_energy_tick(state)
-    state.should_execute = state.target_hp <= NS.setting_number(settings, "cat_execute_hp", EXECUTE_HP)
+    state.should_execute = state.target_hp <= spec_kit.setting_number(context, "cat_execute_hp", EXECUTE_HP)
     local aoe_threshold = spec_kit.setting_number(context, "aoe_threshold", 3)
     state.should_aoe = (CombatMode and CombatMode.is_aoe(context.settings or {}, state.enemy_count, aoe_threshold))
         or (state.enemy_count >= aoe_threshold)
     state.should_tab_rake = state.enemy_count >= 2 and state.enemy_count <= 3
-    state.should_pool_for_rip = (state.combo_points or 0) >= NS.setting_number(settings, "cat_rip_cp", 5) and (state.energy or 0) < RIP_COST and target_lives(state, MIN_RIP_TTD)
+    state.should_pool_for_rip = (state.combo_points or 0) >= spec_kit.setting_number(context, "cat_rip_cp", 5) and (state.energy or 0) < RIP_COST and target_lives(state, MIN_RIP_TTD)
     state.should_pool_for_shred = (state.combo_points or 0) < 5 and (state.energy or 0) < SHRED_COST and (state.energy or 0) + ENERGY_PER_TICK >= SHRED_COST
     state.pooling = state.should_pool_for_rip or state.should_pool_for_shred
     state.should_powershift = false
-    if NS.setting_bool(settings, "cat_powershift_enabled", true) and state.is_cat and state.in_combat then
+    if spec_kit.setting_bool(context, "cat_powershift_enabled", true) and state.is_cat and state.in_combat then
         -- Wowsims-aligned: powershift at <=25 energy (APL uses <=30; 25 is conservative for live play)
-        local shift_energy = NS.setting_number(settings, "cat_powershift_energy", 25)
+        local shift_energy = spec_kit.setting_number(context, "cat_powershift_energy", 25)
         local shift_gain = state.has_wolfshead and POWERSHIFT_GAIN_WOLFSHEAD or POWERSHIFT_GAIN_FUROR
         local useful_after = (state.energy or 0) + shift_gain >= math.min(ENERGY_CAP, SHRED_COST)
         state.should_powershift = state.energy <= shift_energy and state.combo_points <= POWERSHIFT_SAFE_CP and state.mana_pct >= POWERSHIFT_MIN_MANA and useful_after

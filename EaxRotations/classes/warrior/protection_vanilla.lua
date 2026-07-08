@@ -91,7 +91,7 @@ local prot_state = {
     sunder_ready = false,
 }
 
-local setting = NS.setting
+local setting = spec_kit.setting
 
 local _last_build_state_time = -1
 local function build_state(context)
