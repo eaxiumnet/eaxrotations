@@ -5,6 +5,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local CCGateDB = CCBreakDB
 local SPELLS = NS.PaladinSpells or {}
@@ -120,9 +121,8 @@ local strategies = {
         priority = 1000,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            local threshold = settings.divine_shield_hp or 0
+            local threshold = spec_kit.setting_number(context, "divine_shield_hp", 0)
             if threshold <= 0 then return false end
             if (context.hp or 100) <= threshold then
                 local me = context.me
@@ -151,9 +151,8 @@ local strategies = {
         priority = 990,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            local threshold = settings.lay_on_hands_hp or 0
+            local threshold = spec_kit.setting_number(context, "lay_on_hands_hp", 0)
             if threshold <= 0 then return false end
             if (context.hp or 100) <= threshold then
                 local me = context.me
@@ -181,14 +180,13 @@ local strategies = {
         name = "Paladin_SealOfWisdom",
         priority = 420,
         matches = function(context)
-            local settings = context.settings or {}
-            if not settings.use_seal_of_wisdom_low_mana then return false end
+            if not spec_kit.setting_bool(context, "use_seal_of_wisdom_low_mana", true) then return false end
             if not context.in_combat then return false end
             -- Playstyle gate: seal swap to zero-damage seal is for holy only
-            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            local playstyle = spec_kit.setting(context, "playstyle", nil) or spec_kit.setting(context, "active_playstyle", "")
             if playstyle ~= "holy" then return false end
             -- Only switch when mana is below threshold
-            local threshold = settings.seal_of_wisdom_mana_pct or 20
+            local threshold = spec_kit.setting_number(context, "seal_of_wisdom_mana_pct", 20)
             if (context.mana_pct or 100) > threshold then return false end
             return true
         end,
@@ -209,8 +207,7 @@ local strategies = {
         name = "Paladin_Cleanse",
         priority = 200,
         matches = function(context)
-            local settings = context.settings or {}
-            if not settings.use_cleanse then return false end
+            if not spec_kit.setting_bool(context, "use_cleanse", true) then return false end
             if (context.is_mounted or false) then return false end
             local me = context.me
             if not me then return false end
@@ -271,9 +268,8 @@ local strategies = {
         name = "Paladin_HammerOfJustice",
         priority = 150,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            if settings.use_hammer_of_justice == false then return false end
+            if not spec_kit.setting_bool(context, "use_hammer_of_justice", true) then return false end
             if not context.target then return false end
             if not context.has_valid_enemy_target then return false end
             local target = context.target
@@ -312,8 +308,7 @@ local strategies = {
         name = "PaladinCCBreak",
         priority = 160,
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_cc_break == false then return false end
+            if not spec_kit.setting_bool(context, "use_cc_break", true) then return false end
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
@@ -422,8 +417,7 @@ local strategies = {
             return true
         end,
         execute = function(context)
-            local settings = context.settings or {}
-            local playstyle = settings.playstyle or settings.active_playstyle or "retribution"
+            local playstyle = spec_kit.setting(context, "playstyle", nil) or spec_kit.setting(context, "active_playstyle", "retribution")
 
             -- Ret: Sanctity Aura if known, else Devotion
             if playstyle == "retribution" then
@@ -499,8 +493,7 @@ local strategies = {
             return true
         end,
         execute = function(context)
-            local settings = context.settings or {}
-            local playstyle = settings.playstyle or settings.active_playstyle or "retribution"
+            local playstyle = spec_kit.setting(context, "playstyle", nil) or spec_kit.setting(context, "active_playstyle", "retribution")
 
             -- Ret: Blessing of Might
             if playstyle == "retribution" then
@@ -541,8 +534,7 @@ local strategies = {
         matches = function(context)
             if context.in_combat then return false end
             if (context.is_mounted or false) then return false end
-            local settings = context.settings or {}
-            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            local playstyle = spec_kit.setting(context, "playstyle", nil) or spec_kit.setting(context, "active_playstyle", "")
             if playstyle ~= "protection" then return false end
             local me = context.me
             if not me or not NS.buff_remains then return false end
@@ -578,16 +570,15 @@ local strategies = {
         priority = 72,
         matches = function(context)
             if not context.in_combat then return false end
-            local settings = context.settings or {}
-            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            local playstyle = spec_kit.setting(context, "playstyle", nil) or spec_kit.setting(context, "active_playstyle", "")
             if playstyle ~= "protection" then return false end
             local me = context.me
             if not me or not NS.buff_remains then return false end
             local manaPct = context.mana_pct or 100
-            if manaPct < (settings.combat_kings_refresh_mana or 30) then return false end
+            if manaPct < (spec_kit.setting_number(context, "combat_kings_refresh_mana", 30)) then return false end
             local kingsRemains = NS.buff_remains(me, BLESSING_KINGS_BUFF) or 0
             if kingsRemains == 0 then return false end
-            local threshold = settings.combat_kings_refresh_threshold or 60
+            local threshold = spec_kit.setting_number(context, "combat_kings_refresh_threshold", 60)
             if kingsRemains > threshold then return false end
             if not SPELLS.BlessingOfKings then return false end
             local now = NS.time_now and NS.time_now() or 0
@@ -614,13 +605,12 @@ local strategies = {
             if not context.in_combat then return false end
             local me = context.me
             if not me or not NS.buff_remains then return false end
-            local settings = context.settings or {}
             local manaPct = context.mana_pct or 100
-            if manaPct < (settings.combat_wisdom_refresh_mana or 30) then return false end
-            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            if manaPct < (spec_kit.setting_number(context, "combat_wisdom_refresh_mana", 30)) then return false end
+            local playstyle = spec_kit.setting(context, "playstyle", nil) or spec_kit.setting(context, "active_playstyle", "")
             if playstyle ~= "holy" then return false end
             if NS.buff_up and NS.buff_up(me, OTHER_BLESSINGS_FOR_WISDOM) then return false end
-            local threshold = settings.combat_wisdom_refresh_threshold or 120
+            local threshold = spec_kit.setting_number(context, "combat_wisdom_refresh_threshold", 120)
             local wisdomRemains = NS.buff_remains(me, BLESSING_WISDOM_BUFF) or 0
             if wisdomRemains <= threshold and SPELLS.BlessingOfWisdom then
                 local now = NS.time_now and NS.time_now() or 0
@@ -652,8 +642,7 @@ local strategies = {
         end,
         execute = function(context)
             local me = context.me
-            local settings = context.settings or {}
-            local threshold = settings.combat_wisdom_refresh_threshold or 120
+            local threshold = spec_kit.setting_number(context, "combat_wisdom_refresh_threshold", 120)
             -- Self first
             local selfRemains = NS.buff_remains(me, BLESSING_WISDOM_BUFF) or 0
             if selfRemains <= threshold and SPELLS.BlessingOfWisdom and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfWisdom, me, {}) then
@@ -691,11 +680,10 @@ local strategies = {
         priority = 70,
         matches = function(context)
             if not context.in_combat then return false end
-            local settings = context.settings or {}
-            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            local playstyle = spec_kit.setting(context, "playstyle", nil) or spec_kit.setting(context, "active_playstyle", "")
             if playstyle ~= "protection" then return false end
             local manaPct = context.mana_pct or 100
-            if manaPct < (settings.combat_kings_refresh_mana or 30) then return false end
+            if manaPct < (spec_kit.setting_number(context, "combat_kings_refresh_mana", 30)) then return false end
             local useGreater = false
             if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
                 if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
@@ -705,7 +693,7 @@ local strategies = {
                 for _, member in ipairs(members or {}) do
                     if member and NS.buff_remains then
                         local mRemains = NS.buff_remains(member, BLESSING_KINGS_BUFF) or 0
-                        if mRemains <= (settings.combat_kings_refresh_threshold or 60) then
+                        if mRemains <= (spec_kit.setting_number(context, "combat_kings_refresh_threshold", 60)) then
                             if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
                                 local now = NS.time_now and NS.time_now() or 0
                                 if (now - _last_group_bless_kings_match_time) < 3.0 then return false end
@@ -719,8 +707,7 @@ local strategies = {
             return false
         end,
         execute = function(context)
-            local settings = context.settings or {}
-            local threshold = settings.combat_kings_refresh_threshold or 60
+            local threshold = spec_kit.setting_number(context, "combat_kings_refresh_threshold", 60)
             local useGreater = false
             if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
                 if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
@@ -751,7 +738,6 @@ local strategies = {
         name = "Paladin_GroupBlessKings",
         priority = 65,
         matches = function(context)
-            local settings = context.settings or {}
             if context.in_combat then return false end
             if (context.is_mounted or false) then return false end
             if not SPELLS.BlessingOfKings then return false end
@@ -765,7 +751,7 @@ local strategies = {
                     if member and NS.buff_remains then
                         local mRemains = NS.buff_remains(member, BLESSING_KINGS_BUFF) or 0
                         local hasOther = NS.buff_up and NS.buff_up(member, OTHER_BLESSINGS_FOR_KINGS)
-                        if mRemains <= (settings.group_bless_kings_threshold or 120) then
+                        if mRemains <= (spec_kit.setting_number(context, "group_bless_kings_threshold", 120)) then
                             if (useGreater and SPELLS.GreaterBlessingOfKings) or SPELLS.BlessingOfKings then
                                 local now = NS.time_now and NS.time_now() or 0
                                 if (now - _last_group_bless_kings_match_time) < 3.0 then return false end
@@ -779,7 +765,6 @@ local strategies = {
             return false
         end,
         execute = function(context)
-            local settings = context.settings or {}
             local useGreater = false
             if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
                 if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
@@ -790,7 +775,7 @@ local strategies = {
                     if member and NS.buff_remains then
                         local mRemains = NS.buff_remains(member, BLESSING_KINGS_BUFF) or 0
                         local hasOther = NS.buff_up and NS.buff_up(member, OTHER_BLESSINGS_FOR_KINGS)
-                        if mRemains <= (settings.group_bless_kings_threshold or 120) then
+                        if mRemains <= (spec_kit.setting_number(context, "group_bless_kings_threshold", 120)) then
                             if useGreater and SPELLS.GreaterBlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.GreaterBlessingOfKings, member, {}) then
                                 return NS.try_cast(SPELLS.GreaterBlessingOfKings, member, "[PALADIN] Greater Kings (group, OOC)")
                             elseif SPELLS.BlessingOfKings and NS.spell_ready and NS.spell_ready(SPELLS.BlessingOfKings, member, {}) then
@@ -811,8 +796,7 @@ local strategies = {
     {
         name = "PvPCCGate",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_pvp_cc_gating == false then return false end
+            if not spec_kit.setting_bool(context, "use_pvp_cc_gating", true) then return false end
             if not context.in_combat then return false end
             local has_aoe = false
             for _, id in ipairs(PALADIN_AOE_IDS) do
