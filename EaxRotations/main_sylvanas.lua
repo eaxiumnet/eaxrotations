@@ -1,3 +1,9 @@
+-- main_sylvanas.lua — EAX Rotation dispatcher for Project Sylvanas TBC Anniversary (2.5.5).
+-- WHAT:  loads spec files, builds context, dispatches to strategy tables.
+-- WHEN:  on_update tick; handles playstyle switching and spec resolution.
+-- WHY:   single entry point for all 29 specs; centralizes engine wiring.
+-- SAFETY: nil-guards on all NS references; throttled playstyle detection.
+
 -- update dispatcher for class middleware and selected playstyle strategies.
 local NS = _G.EaxRotations
 if not NS then return nil end

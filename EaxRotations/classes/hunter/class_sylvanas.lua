@@ -1,3 +1,9 @@
+-- hunter/class_sylvanas.lua — Hunter class spells, constants, and shared helpers.
+-- WHAT:  spell ID tables, stance/form mappings, and class-specific utilities.
+-- WHEN:  loaded by all hunter specs; consumed via NS.HunterSpells.
+-- WHY:   single source of truth for hunter spell IDs and class constants.
+-- SAFETY: nil-guarded lookups; no runtime allocations.
+
 -- Hunter spell table, playstyle config, and child module loader.
 
 

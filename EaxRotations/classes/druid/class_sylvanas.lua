@@ -1,3 +1,9 @@
+-- druid/class_sylvanas.lua — Druid class spells, constants, and shared helpers.
+-- WHAT:  spell ID tables, stance/form mappings, and class-specific utilities.
+-- WHEN:  loaded by all druid specs; consumed via NS.DruidSpells.
+-- WHY:   single source of truth for druid spell IDs and class constants.
+-- SAFETY: nil-guarded lookups; no runtime allocations.
+
 -- Druid spell table, playstyle config, and child module loader.
 
 

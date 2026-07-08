@@ -1,3 +1,9 @@
+-- mage/class_sylvanas.lua — Mage class spells, constants, and shared helpers.
+-- WHAT:  spell ID tables, stance/form mappings, and class-specific utilities.
+-- WHEN:  loaded by all mage specs; consumed via NS.MageSpells.
+-- WHY:   single source of truth for mage spell IDs and class constants.
+-- SAFETY: nil-guarded lookups; no runtime allocations.
+
 -- Mage spell table, playstyle config, and child module loader.
 
 

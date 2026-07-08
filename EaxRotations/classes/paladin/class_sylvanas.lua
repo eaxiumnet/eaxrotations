@@ -1,3 +1,9 @@
+-- paladin/class_sylvanas.lua — Paladin class spells, constants, and shared helpers.
+-- WHAT:  spell ID tables, stance/form mappings, and class-specific utilities.
+-- WHEN:  loaded by all paladin specs; consumed via NS.PaladinSpells.
+-- WHY:   single source of truth for paladin spell IDs and class constants.
+-- SAFETY: nil-guarded lookups; no runtime allocations.
+
 -- Paladin spell table, playstyle config, and child module loader.
 
 

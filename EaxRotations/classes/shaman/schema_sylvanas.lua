@@ -1,3 +1,9 @@
+-- shaman/schema_sylvanas.lua — Shaman menu schema and settings defaults.
+-- WHAT:  defines menu widgets (checkboxes, sliders, keybinds) for shaman specs.
+-- WHEN:  loaded at addon init to register middleware menu entries.
+-- WHY:   centralized menu definition prevents duplicate widget IDs.
+-- SAFETY: nil-guarded menu references; default fallbacks for all settings.
+
 -- Shaman menu schema.
 
 local consumables = require("shared/schema_consumables_sylvanas")
