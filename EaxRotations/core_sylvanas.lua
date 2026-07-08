@@ -2160,6 +2160,20 @@ function NS.evaluate_cast(spell, unit, reason, opts)
                 return false
             end
         end
+
+        -- 5e. Boss school immunity (NPC-type immunities: Curator=arcane, Al'ar=fire, etc.)
+        --     Driven by NS.get_target_school_immunities (DBC-verified SchoolImmuneMask + phase judgments).
+        --     Gate: skip if the spell's school matches a boss's known immunity.
+        if NS.get_target_school_immunities then
+            local immunities = NS.get_target_school_immunities(target)
+            if immunities and next(immunities) then
+                local spell_school = type(spell) == "table" and spell._meta and spell._meta.school or nil
+                if spell_school and immunities[spell_school] then
+                    return false
+                end
+            end
+        end
+
     end
 
     -- 6. Player casting/channeling guard: don't queue casts while already casting
@@ -2216,6 +2230,16 @@ function NS.try_cast(spell, unit, reason, opts)
             return false
         end
     end
+
+    -- Movement assist: for cast-time spells, briefly pause movement + lock facing
+    -- to the target so the cast actually lands (movement_assist is a no-op for
+    -- instants — its MIN_CAST_TIME_FOR_ASSIST gate handles that).  Opt-out via
+    -- opts.skip_movement_assist for spells that should not interrupt movement
+    -- (e.g., Charge, Blink, instant-with-castbar traps).
+    if not opts.skip_movement_assist and type(NS.MovementAssist) == "table" and NS.MovementAssist.face_for_spell then
+        NS.MovementAssist.face_for_spell(id, target)
+    end
+
 
     NS.sticky_spell_should_override(id, reason or "unknown", 0)
 
@@ -5770,9 +5794,16 @@ function NS.action_execute(context, action, prefix)
 
         -- Use central cast guard (skips GCD per opts, checks cooldown/resource/range/anti-flicker/min_interval/reagent)
         if not NS.evaluate_cast(action.spell, target, reason, opts) then return false end
+        -- Movement assist: brief pause + face target for cast-time spells.
+        -- NS.MovementAssist is a table (registered in movement_assist_sylvanas.lua).
+        -- face_for_spell is a no-op for instant-cast spells (cast_time < 0.1s), so it is
+        -- safe to call for all spells here. Opt-out via opts.skip_movement_assist.
+        if not opts.skip_movement_assist and type(NS.MovementAssist) == "table" and NS.MovementAssist.face_for_spell then
+            NS.MovementAssist.face_for_spell(id, target)
+        end
         -- Movement assist: brief pause + face target for cast-time spells (Phase 5)
         do
-            local ma = NS.MovementAssist and NS.MovementAssist()
+            local ma = nil -- legacy broken call neutralized (NS.MovementAssist is a table, not a function)
             if ma and ma.face_for_spell then
                 ma:face_for_spell(id, target)
             end

@@ -3,6 +3,8 @@ local mode, root = runner.parse_args(arg, "EaxRotations")
 
 local tests = {
  "test_pvp_burst_window.lua",
+ "test_boss_school_immunity.lua",
+
  "test_try_cast_izi_primary.lua",
  "test_range_verification_oor_fallthrough.lua",
  "test_update_callback_void_registration.lua",

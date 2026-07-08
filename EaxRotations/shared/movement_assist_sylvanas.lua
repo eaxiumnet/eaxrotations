@@ -131,4 +131,11 @@ function M.is_available()
     return _movement_handler ~= nil
 end
 
+
+-- Register on the shared namespace so core_sylvanas / main dispatchers can find it.
+if NS then
+    NS.MovementAssist = M
+end
+
+
 return M

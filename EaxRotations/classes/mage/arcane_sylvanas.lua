@@ -1,17 +1,41 @@
--- arcane_sylvanas.lua -- Mage Arcane rotation for TBC Anniversary (2.5.5).
--- WHAT:  burst/conserve DPS spec (AB stacking, AP+PoM, wowsims-aligned burn/conserve).
+-- arcane_sylvanas.lua — Mage Arcane rotation for TBC Anniversary (2.5.5).
+-- WHAT:  burst/conserve DPS spec — AB stacking, AP+PoM, wowsims-aligned burn/conserve
+--         phase state machine with MTTE-based mana management.
 -- WHEN:  combat, with valid enemy target.
--- WHY:   mirrors wowsims APL: ConserveRotation (AB3->Frostbolt), ManaGem at mana gap,
+-- WHY:   mirrors wowsims APL: ConserveRotation (AB3→Frostbolt), ManaGem at mana gap,
 --         Evocation when AP+IV inactive & mana<20%, PoM at end of AP window.
--- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
+-- SAFETY: Pattern 14 nil-guards via spec_kit.safe_state; no on_update() allocs;
+--          phase state machine with hysteresis prevents flip-flopping.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.MageSpells or {}
+
+local spec_kit = require("shared/spec_kit_sylvanas")
+local define = spec_kit.define_action_for_class(SPELLS) or function(name, ids, label) return NS.spell_action and NS.spell_action(ids, label) or ids[1] end
+local ACTION = {
+    ArcaneBlast    = define("ArcaneBlast",    {30451}, "ArcaneBlast"),
+    ArcaneMissiles = define("ArcaneMissiles", {38699, 25345, 10212, 10211, 8418, 8417, 8416, 5145, 5144, 5143}, "ArcaneMissiles"),
+    ArcanePower    = define("ArcanePower",    {12042}, "ArcanePower"),
+    Blink          = define("Blink",          {1953}, "Blink"),
+    ColdSnap       = define("ColdSnap",       {11958}, "ColdSnap"),
+    Evocation      = define("Evocation",      {12051}, "Evocation"),
+    FireBlast      = define("FireBlast",      {27079, 27078, 10199, 10197, 8413, 8412, 2138, 2137, 2136}, "FireBlast"),
+    Fireball       = define("Fireball",       {27070, 25306, 10151, 10150, 10149, 10148, 8402, 8401, 8400, 3140, 145, 143, 133}, "Fireball"),
+    FrostNova      = define("FrostNova",      {27088, 10230, 6131, 865, 122}, "FrostNova"),
+    Frostbolt      = define("Frostbolt",      {27072, 25304, 10181, 10180, 10179, 8408, 8407, 8406, 7322, 837, 205, 116}, "Frostbolt"),
+    IceBarrier     = define("IceBarrier",     {33405, 27134, 13033, 13032, 13031, 11426}, "IceBarrier"),
+    IceBlock       = define("IceBlock",       {45438}, "IceBlock"),
+    IcyVeins       = define("IcyVeins",       {12472}, "IcyVeins"),
+    ManaShield     = define("ManaShield",     {27131, 10193, 10192, 10191, 8495, 8494, 1463}, "ManaShield"),
+    Polymorph      = define("Polymorph",      {12826, 12825, 12824, 118}, "Polymorph"),
+    PresenceOfMind = define("PresenceOfMind", {12043}, "PresenceOfMind"),
+    Slow           = define("Slow",           {31589}, "Slow"),
+}
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { mage = {} } } end
-local TBC_MAGE = (TBC.SPELLS and TBC.SPELLS.mage) or {}
+local TBC_MAGE = (TBC.SPELLS and TBC.ACTION.mage) or {}
 
 -- ============================================================================
 -- Buff / Debuff IDs
@@ -69,6 +93,21 @@ end
 -- ============================================================================
 -- Phase State Machine State
 -- ============================================================================
+local ARCANE_SCHEMA = {
+    phase = PHASE_CONSERVE,  ab_stacks = 0,  ab_remains = 0,
+    has_arcane_power = false,  has_presence_of_mind = false,
+    has_ice_barrier = false,  has_mana_shield = false,  has_clearcasting = false,
+    mana_pct = 100,  hp_pct = 100,  max_mana = 15000,
+    in_combat = false,  is_moving = false,  is_group = false,
+    target_casting = false,
+    min_mtte = 12,  mtte_burn = 999,  mtte_conserve = 999,
+    mana_gem_available = false,  evocation_available = false,
+    bloodlust_active = false,  can_burn = false,  should_conserve = false,
+    healthstone_ready = 0,  current_mana = 15000,  mana_regen = 0,
+    has_serpent_coil = false,  arcane_power_available = false,
+    icy_veins_remains = 0,  cold_snap_remains = 0,  combat_time = 0,
+}
+
 local arcane_state = {
     phase = PHASE_CONSERVE,
     ab_stacks = 0,
@@ -196,8 +235,8 @@ local function build_state(context)
         s.has_mana_shield = NS.buff_up and NS.buff_up(me, MANA_SHIELD_BUFF) or false
         s.bloodlust_active = NS.buff_up and NS.buff_up(me, BLOODLUST_BUFFS) or false
         s.has_serpent_coil = NS.buff_up and NS.buff_up(me, {37445}) or false
-        s.icy_veins_remains = NS.cooldown_remains and NS.cooldown_remains(SPELLS.IcyVeins) or 0
-        s.cold_snap_remains = NS.cooldown_remains and NS.cooldown_remains(SPELLS.ColdSnap) or 0
+        s.icy_veins_remains = NS.cooldown_remains and NS.cooldown_remains(ACTION.IcyVeins) or 0
+        s.cold_snap_remains = NS.cooldown_remains and NS.cooldown_remains(ACTION.ColdSnap) or 0
         -- Current mana for gem optimization
         s.current_mana = 0
         if me.get_power and type(me.get_power) == "function" then
@@ -212,10 +251,10 @@ local function build_state(context)
     end
 
     -- Cooldown availability
-    s.evocation_available = me and NS.spell_ready and NS.spell_ready(SPELLS.Evocation, me, { skip_range = true }) or false
+    s.evocation_available = me and NS.spell_ready and NS.spell_ready(ACTION.Evocation, me, { skip_range = true }) or false
     s.mana_gem_available = false
     if me then s.mana_gem_available = first_ready_mana_gem() ~= nil end
-    s.arcane_power_available = me and NS.spell_ready and NS.spell_ready(SPELLS.ArcanePower, me, { skip_range = true }) or false
+    s.arcane_power_available = me and NS.spell_ready and NS.spell_ready(ACTION.ArcanePower, me, { skip_range = true }) or false
     s.has_clearcasting = NS.buff_up and NS.buff_up(me, CLEARCASTING_BUFF) or false
 
     -- MTTE calculations using actual max mana
@@ -268,7 +307,7 @@ local function build_state(context)
         s.phase = PHASE_CONSERVE
     end
 
-    return s
+    return spec_kit.safe_state(s, ARCANE_SCHEMA)
 end
 
 
@@ -279,7 +318,7 @@ end
 
 --- Ice Barrier: cast when hp is low and barrier isn't up
 local function ice_barrier_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.IceBarrier, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.IceBarrier, 3.0) then return false end
     if s.has_ice_barrier then return false end
     if (s.hp_pct or 100) > 60 then return false end
     if not get_setting_bool(context, "use_defensives", true) then return false end
@@ -289,7 +328,7 @@ end
 
 --- Mana Shield: cast when hp is critically low and mana is available
 local function mana_shield_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ManaShield, 3.0) then return false end
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ManaShield, 3.0) then return false end
     if s.has_mana_shield then return false end
     if (s.hp_pct or 100) > 40 then return false end
     if (s.mana_pct or 0) < 30 then return false end
@@ -453,7 +492,7 @@ local function arcane_blast_matches(context, s)
         if max_stacks > 0 and (s.ab_stacks or 0) >= 1 then return false end
     end
 
-    return NS.spell_ready(SPELLS.ArcaneBlast, context.target)
+    return NS.spell_ready(ACTION.ArcaneBlast, context.target)
 end
 
 --- Fire Blast: instant filler, use on cooldown or while moving
@@ -482,7 +521,7 @@ local function arcane_missiles_matches(context, s)
     -- Wowsims APL does not use AM as filler; AB and Frostbolt are the primary spells.
     -- Keep AM as emergency low-mana filler only.
     if s.phase == PHASE_EMERGENCY and (s.mana_pct or 100) < 10 then
-        return NS.spell_ready(SPELLS.ArcaneMissiles, context.target)
+        return NS.spell_ready(ACTION.ArcaneMissiles, context.target)
     end
 
     return false
@@ -497,7 +536,7 @@ local function frostbolt_conserve_matches(context, s)
     if (s.ab_stacks or 0) < 3 then return false end
     local ab_cast_time = math.max(1.0, AB_BASE_CAST_TIME - AB_CAST_REDUCTION_PER_STACK * 3)
     if (s.ab_remains or 0) <= ab_cast_time then return false end  -- Buff about to drop, maintain with AB
-    return NS.spell_ready(SPELLS.Frostbolt, context.target)
+    return NS.spell_ready(ACTION.Frostbolt, context.target)
 end
 
 --- Fire Blast (execute): wowsims — cast when target about to die (remainingTime < AB cast time).
@@ -506,14 +545,14 @@ local function fire_blast_execute_matches(context, s)
     if not (context.ttd_known and context.ttd > 0) then return false end
     local ab_cast_time = math.max(1.0, AB_BASE_CAST_TIME - AB_CAST_REDUCTION_PER_STACK * (s.ab_stacks or 0))
     if context.ttd >= ab_cast_time then return false end
-    return NS.spell_ready(SPELLS.FireBlast, context.target)
+    return NS.spell_ready(ACTION.FireBlast, context.target)
 end
 
 --- Low-level bolt (Fireball/Frostbolt for leveling before AB is learned)
 local function low_level_bolt_matches(context, s)
     if not context.is_leveling then return false end
     if s.is_moving then return false end
-    if NS.spell_exists(SPELLS.ArcaneBlast) then return false end
+    if NS.spell_exists(ACTION.ArcaneBlast) then return false end
     return true
 end
 
@@ -524,25 +563,25 @@ local strategies = {
     -- Defensives (highest priority)
     { name = "IceBarrier",
       matches = ice_barrier_matches,
-      execute = function(context) return NS.try_cast(SPELLS.IceBarrier, context.me, "[ARCANE] IceBarrier") end },
+      execute = function(context) return NS.try_cast(ACTION.IceBarrier, context.me, "[ARCANE] IceBarrier") end },
     { name = "IceBlock",
       matches = function(context, s)
           local threshold = s.is_group and 30 or 20
-          return (s.hp_pct or 100) <= threshold and NS.spell_ready(SPELLS.IceBlock)
+          return (s.hp_pct or 100) <= threshold and NS.spell_ready(ACTION.IceBlock)
       end,
-      execute = function() return NS.try_cast(SPELLS.IceBlock, NS.PLAYER_UNIT, "[ARCANE] IceBlock", { skip_range = true }) end },
+      execute = function() return NS.try_cast(ACTION.IceBlock, NS.PLAYER_UNIT, "[ARCANE] IceBlock", { skip_range = true }) end },
     { name = "ColdSnap",
       matches = function(context, s)
           local threshold = s.is_group and 45 or 35
-          return (s.hp_pct or 100) <= threshold and not NS.spell_ready(SPELLS.IceBlock) and NS.spell_ready(SPELLS.ColdSnap)
+          return (s.hp_pct or 100) <= threshold and not NS.spell_ready(ACTION.IceBlock) and NS.spell_ready(ACTION.ColdSnap)
       end,
-      execute = function() return NS.try_cast(SPELLS.ColdSnap, NS.PLAYER_UNIT, "[ARCANE] ColdSnap", { skip_range = true }) end },
+      execute = function() return NS.try_cast(ACTION.ColdSnap, NS.PLAYER_UNIT, "[ARCANE] ColdSnap", { skip_range = true }) end },
     { name = "Blink",
-      matches = function(context, s) return s.in_combat and (context.self_rooted_snared or (NS.has_player_debuff and NS.has_player_debuff(COMMON_SNARES) or false)) and NS.spell_ready(SPELLS.Blink) end,
-      execute = function() return NS.try_cast(SPELLS.Blink, NS.PLAYER_UNIT, "[ARCANE] Blink", { skip_range = true }) end },
+      matches = function(context, s) return s.in_combat and (context.self_rooted_snared or (NS.has_player_debuff and NS.has_player_debuff(COMMON_SNARES) or false)) and NS.spell_ready(ACTION.Blink) end,
+      execute = function() return NS.try_cast(ACTION.Blink, NS.PLAYER_UNIT, "[ARCANE] Blink", { skip_range = true }) end },
     { name = "ManaShield",
       matches = mana_shield_matches,
-      execute = function(context) return NS.try_cast(SPELLS.ManaShield, context.me, "[ARCANE] ManaShield") end },
+      execute = function(context) return NS.try_cast(ACTION.ManaShield, context.me, "[ARCANE] ManaShield") end },
     { name = "Healthstone",
       matches = function(context, state)
           if not context.in_combat then return false end
@@ -561,10 +600,10 @@ local strategies = {
     -- CC / Utility
     { name = "Polymorph",
       matches = polymorph_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Polymorph, context.cc_target or context.target, "[ARCANE] Polymorph") end },
+      execute = function(context) return NS.try_cast(ACTION.Polymorph, context.cc_target or context.target, "[ARCANE] Polymorph") end },
     { name = "FrostNova",
       matches = frost_nova_matches,
-      execute = function(context) return NS.try_cast(SPELLS.FrostNova, context.target, "[ARCANE] FrostNova") end },
+      execute = function(context) return NS.try_cast(ACTION.FrostNova, context.target, "[ARCANE] FrostNova") end },
     { name = "Slow",
       matches = function(context, s)
           if not context.is_pvp then return false end
@@ -575,15 +614,15 @@ local strategies = {
           if dist <= 8 then return false end
           return true
       end,
-      execute = function(context) return NS.try_cast(SPELLS.Slow, context.target, "[ARCANE] Slow") end },
+      execute = function(context) return NS.try_cast(ACTION.Slow, context.target, "[ARCANE] Slow") end },
 
     -- Burst cooldowns (synced with burn phase)
     { name = "PresenceOfMind",
       matches = pom_matches,
-      execute = function(context) return NS.try_cast(SPELLS.PresenceOfMind, context.me, "[ARCANE] PresenceOfMind") end },
+      execute = function(context) return NS.try_cast(ACTION.PresenceOfMind, context.me, "[ARCANE] PresenceOfMind") end },
     { name = "ArcanePower",
       matches = arcane_power_matches,
-      execute = function(context) return NS.try_cast(SPELLS.ArcanePower, context.me, "[ARCANE] ArcanePower") end },
+      execute = function(context) return NS.try_cast(ACTION.ArcanePower, context.me, "[ARCANE] ArcanePower") end },
 
     -- Burst cooldowns
     { name = "IcyVeins",
@@ -592,10 +631,10 @@ local strategies = {
           if not context.target then return false end
           if s.phase ~= "burn" then return false end
           if s.icy_veins_remains and s.icy_veins_remains > 0 then return false end
-          return NS.spell_ready(SPELLS.IcyVeins, NS.PLAYER_UNIT, { skip_range = true })
+          return NS.spell_ready(ACTION.IcyVeins, NS.PLAYER_UNIT, { skip_range = true })
       end,
       execute = function()
-          return NS.try_cast(SPELLS.IcyVeins, NS.PLAYER_UNIT, "[ARCANE] IcyVeins", { skip_range = true })
+          return NS.try_cast(ACTION.IcyVeins, NS.PLAYER_UNIT, "[ARCANE] IcyVeins", { skip_range = true })
       end },
     { name = "ColdSnapIVReset",
       matches = function(context, s)
@@ -603,15 +642,15 @@ local strategies = {
           if s.phase ~= "burn" then return false end
           if s.cold_snap_remains and s.cold_snap_remains > 0 then return false end
           if not (s.icy_veins_remains and s.icy_veins_remains > 3) then return false end
-          return NS.spell_ready(SPELLS.ColdSnap, NS.PLAYER_UNIT, { skip_range = true })
+          return NS.spell_ready(ACTION.ColdSnap, NS.PLAYER_UNIT, { skip_range = true })
       end,
       execute = function()
-          return NS.try_cast(SPELLS.ColdSnap, NS.PLAYER_UNIT, "[ARCANE] ColdSnapIVReset", { skip_range = true })
+          return NS.try_cast(ACTION.ColdSnap, NS.PLAYER_UNIT, "[ARCANE] ColdSnapIVReset", { skip_range = true })
       end },
     -- Mana management
     { name = "Evocation",
       matches = evocation_matches,
-      execute = function() return NS.try_cast(SPELLS.Evocation, NS.PLAYER_UNIT, "[ARCANE] Evocation", { skip_range = true }) end },
+      execute = function() return NS.try_cast(ACTION.Evocation, NS.PLAYER_UNIT, "[ARCANE] Evocation", { skip_range = true }) end },
     { name = "ManaGem",
       matches = mana_gem_matches,
       execute = function() return use_mana_gem() end },
@@ -619,38 +658,41 @@ local strategies = {
     -- Primary nuke: Arcane Blast (stack management)
     { name = "ArcaneBlast",
       matches = arcane_blast_matches,
-      execute = function(context) return NS.try_cast(SPELLS.ArcaneBlast, context.target, "[ARCANE] ArcaneBlast") end },
+      execute = function(context) return NS.try_cast(ACTION.ArcaneBlast, context.target, "[ARCANE] ArcaneBlast") end },
 
     -- Execute: Fire Blast when target about to die (instant > casting)
     { name = "FireBlastExecute",
       matches = fire_blast_execute_matches,
-      execute = function(context) return NS.try_cast(SPELLS.FireBlast, context.target, "[ARCANE] FireBlast (execute)") end },
+      execute = function(context) return NS.try_cast(ACTION.FireBlast, context.target, "[ARCANE] FireBlast (execute)") end },
 
     -- Instant filler
     { name = "FireBlast",
       matches = fire_blast_matches,
-      execute = function(context) return NS.try_cast(SPELLS.FireBlast, context.target, "[ARCANE] FireBlast") end },
+      execute = function(context) return NS.try_cast(ACTION.FireBlast, context.target, "[ARCANE] FireBlast") end },
 
     -- Conserve rotation: Frostbolt at 3 AB stacks to maintain buff cheaply
     { name = "FrostboltConserve",
       matches = frostbolt_conserve_matches,
-      execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[ARCANE] Frostbolt (conserve)") end },
+      execute = function(context) return NS.try_cast(ACTION.Frostbolt, context.target, "[ARCANE] Frostbolt (conserve)") end },
 
     -- Clearcasting AM (only)
     { name = "ArcaneMissiles",
       matches = arcane_missiles_matches,
-      execute = function(context) return NS.try_cast(SPELLS.ArcaneMissiles, context.target, "[ARCANE] ArcaneMissiles") end },
+      execute = function(context) return NS.try_cast(ACTION.ArcaneMissiles, context.target, "[ARCANE] ArcaneMissiles") end },
 
     -- Leveling fillers (pre-AB)
     { name = "FireballLeveling",
       matches = function(context, s) return low_level_bolt_matches(context, s) end,
-      execute = function(context) return NS.try_cast(SPELLS.Fireball, context.target, "[ARCANE] Fireball") end },
+      execute = function(context) return NS.try_cast(ACTION.Fireball, context.target, "[ARCANE] Fireball") end },
     { name = "FrostboltLeveling",
       matches = function(context, s) return low_level_bolt_matches(context, s) end,
-      execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[ARCANE] Frostbolt") end },
+      execute = function(context) return NS.try_cast(ACTION.Frostbolt, context.target, "[ARCANE] Frostbolt") end },
 }
 
-NS.rotation_registry:register("arcane", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("arcane", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("Mage arcane rotation registered") end
 -- Mage arcane rotation registered (burn/conserve phase state machine + configurable AB stack limits)
-return strategies
+return { strategies = strategies, build_state = build_state }
 

@@ -41,7 +41,7 @@ _G.EaxRotations = {
     rotation_registry = { register = function() end },
 }
 
-local strategies = dofile("EaxRotations/classes/priest/smite_sylvanas.lua")
+local strategies = dofile("EaxRotations/classes/priest/smite_sylvanas.lua").strategies
 assert_true(strategies, "smite strategies should load")
 
 local function find_strategy(name)
