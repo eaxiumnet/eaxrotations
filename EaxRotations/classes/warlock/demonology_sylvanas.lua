@@ -352,6 +352,9 @@ end
 local function curse_of_doom_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfDoom, 2.0) then return false end
     if not context.target then return false end
+    -- Respect curse mode dropdown (parity with affliction v2.5.1)
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if curse_mode ~= "auto" and curse_mode ~= "doom" then return false end
     if not s.curse_of_doom_ready then return false end
     -- TTD gate: Curse of Doom has 60s CD and 60s DoT — only use on long-lived targets
     if context.ttd_known and context.ttd > 0 and context.ttd < 62 then return false end
@@ -509,6 +512,9 @@ local function curse_of_agony_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfAgony, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
+    -- Respect curse mode dropdown (parity with affliction v2.5.1)
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if curse_mode ~= "auto" and curse_mode ~= "agony" then return false end
     if not s.curse_of_agony_ready then return false end
     if NS.debuff_remains(context.target, CURSE_OF_AGONY_DEBUFF) > DOT_REFRESH_WINDOW then return false end
     if (s.target_hp_pct or 100) < EXECUTE_THRESHOLD then return false end
@@ -519,6 +525,9 @@ local function curse_of_elements_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseElements, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
+    -- Respect curse mode dropdown (parity with affliction v2.5.1)
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
     if not s.curse_of_elements_ready then return false end
     if NS.debuff_remains(context.target, CURSE_OF_ELEMENTS_DEBUFF) > DOT_REFRESH_WINDOW then return false end
     return true
