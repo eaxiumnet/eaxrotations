@@ -13,26 +13,9 @@ local function ensure_data()
     local ok, loader = pcall(require, "json_loader")
     if not ok or not loader or not loader.load_data_file then return false end
 
-<<<<<<< Updated upstream
-    local ok, raw = pcall(core.read_data_file, "tbc_db/creature_spawn_index.json")
-    if not ok or not raw or raw == "" then return false end
-
-    local ok2, parsed = pcall(function()
-        -- Convert JSON to valid Lua table syntax (keys need brackets, arrays need braces)
-        local lua = raw:gsub('%[', '{'):gsub('%]', '}')
-        lua = lua:gsub('("[^"]-")%s*:%s*', '[%1] = ')
-        local chunk = loadstring or load
-        local f = chunk("return " .. lua)
-        if f then return f() end
-        return nil
-    end)
-    if not ok2 or not parsed then return false end
-    if not parsed.by_entry then return false end
-=======
     local parsed = loader.load_data_file("tbc_db/creature_spawn_index.json")
     if not parsed or type(parsed) ~= "table" then return false end
     if not parsed.by_entry or type(parsed.by_entry) ~= "table" then return false end
->>>>>>> Stashed changes
 
     _spawn_data = parsed.by_entry
     local count = 0
