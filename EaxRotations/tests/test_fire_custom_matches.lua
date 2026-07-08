@@ -332,4 +332,90 @@ assert_false(polymorph.matches({ is_pvp = true, cc_target = nil }), "Polymorph s
 action_calls = {}
 assert_true(polymorph.matches({ is_pvp = true, cc_target = {} }), "Polymorph should match in PvP with cc_target")
 
+-- ============================================================================
+-- FireBlast: instant filler, delegates to spell_ready
+-- ============================================================================
+
+local fire_blast = find_strategy("FireBlast")
+
+-- No target -> spell_ready(nil) mock returns true but real gating needs a target;
+-- with mock spell_ready->true and a target present -> matches true
+action_calls = {}
+assert_true(fire_blast.matches({ target = {} }), "FireBlast should match with target present (spell_ready true)")
+
+-- ============================================================================
+-- ManaPotion: in combat + use_auto_potions + has_mana_potion + mana_pct <= 20
+-- ============================================================================
+
+local mana_potion = find_strategy("ManaPotion")
+
+-- OOC -> should NOT match
+assert_false(mana_potion.matches({ in_combat = false, has_mana_potion = true, mana_pct = 10 }), "ManaPotion should not match OOC")
+
+-- Mana too high -> should NOT match
+assert_false(mana_potion.matches({ in_combat = true, has_mana_potion = true, mana_pct = 50 }), "ManaPotion should not match when mana > 20%")
+
+-- No potion in bags -> should NOT match
+assert_false(mana_potion.matches({ in_combat = true, has_mana_potion = false, mana_pct = 10 }), "ManaPotion should not match without has_mana_potion")
+
+-- use_auto_potions disabled -> should NOT match
+assert_false(mana_potion.matches({ in_combat = true, has_mana_potion = true, mana_pct = 10, settings = { use_auto_potions = false } }), "ManaPotion should not match when use_auto_potions=false")
+
+-- All conditions met -> should match
+assert_true(mana_potion.matches({ in_combat = true, has_mana_potion = true, mana_pct = 15 }), "ManaPotion should match in combat at 15% mana with potion")
+
+-- ============================================================================
+-- ManaGem: in combat + mana_gem_available + mana_pct <= threshold (default 70)
+-- ============================================================================
+
+local mana_gem = find_strategy("ManaGem")
+
+-- OOC -> should NOT match
+assert_false(mana_gem.matches({ in_combat = false, mana_pct = 10 }, { mana_gem_available = true }), "ManaGem should not match OOC")
+
+-- No gem available -> should NOT match
+assert_false(mana_gem.matches({ in_combat = true, mana_pct = 10 }, { mana_gem_available = false }), "ManaGem should not match without mana_gem_available")
+
+-- Mana too high -> should NOT match
+assert_false(mana_gem.matches({ in_combat = true, mana_pct = 85 }, { mana_gem_available = true }), "ManaGem should not match when mana > 70% threshold")
+
+-- use_mana_gem disabled -> should NOT match
+assert_false(mana_gem.matches({ in_combat = true, mana_pct = 10, settings = { use_mana_gem = false } }, { mana_gem_available = true }), "ManaGem should not match when use_mana_gem=false")
+
+-- All conditions met -> should match
+assert_true(mana_gem.matches({ in_combat = true, mana_pct = 50 }, { mana_gem_available = true }), "ManaGem should match in combat at 50% mana with gem available")
+
+-- ============================================================================
+-- Healthstone: in combat + hp_pct <= 28 + healthstone_ready > 0
+-- ============================================================================
+
+local healthstone = find_strategy("Healthstone")
+
+-- OOC -> should NOT match
+assert_false(healthstone.matches({ in_combat = false }, { hp_pct = 20, healthstone_ready = 1 }), "Healthstone should not match OOC")
+
+-- HP too high -> should NOT match
+assert_false(healthstone.matches({ in_combat = true }, { hp_pct = 50, healthstone_ready = 1 }), "Healthstone should not match when hp > 28%")
+
+-- No healthstone ready -> should NOT match
+assert_false(healthstone.matches({ in_combat = true }, { hp_pct = 20, healthstone_ready = 0 }), "Healthstone should not match with healthstone_ready=0")
+
+-- All conditions met -> should match
+assert_true(healthstone.matches({ in_combat = true }, { hp_pct = 25, healthstone_ready = 22105 }), "Healthstone should match in combat at 25% hp with healthstone ready")
+
+-- ============================================================================
+-- RemoveCurse: toggle gate + remove_curse_ready state
+-- ============================================================================
+
+local remove_curse = find_strategy("RemoveCurse")
+
+-- Toggle disabled -> should NOT match
+assert_false(remove_curse.matches({ settings = { use_remove_curse_fire = false } }, { remove_curse_ready = true }), "RemoveCurse should not match when use_remove_curse_fire=false")
+
+-- Not ready -> should NOT match
+assert_false(remove_curse.matches({}, { remove_curse_ready = false }), "RemoveCurse should not match when remove_curse_ready=false")
+
+-- Ready + toggle default -> should match
+assert_true(remove_curse.matches({}, { remove_curse_ready = true }), "RemoveCurse should match when ready and toggle default (nil=on)")
+
 print("PASS test_fire_custom_matches")

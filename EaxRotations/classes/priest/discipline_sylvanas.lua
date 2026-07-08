@@ -222,11 +222,11 @@ local disc_state = {
 local function build_state(context)
  context.settings = context.settings or EMPTY_SETTINGS
  local me = context.me or NS.GetPlayer()
- if not me then return disc_state end
+ if not me then return spec_kit.safe_state(disc_state, DISC_SCHEMA) end
  disc_state.player_control_locked = context.player_control_locked == true
  -- Mounted bail: healer should not queue buffs/heals while mounted
  if me.is_mounted and me:is_mounted() then
-  return disc_state
+  return spec_kit.safe_state(disc_state, DISC_SCHEMA)
  end
  local target = context.target
  local entries, count = Healing.scan_healing_targets()

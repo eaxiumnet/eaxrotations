@@ -2,7 +2,7 @@
 -- WHAT:   PvP burst-window scoring (damage spike / DR low window detection).
 -- WHEN:   called per-tick when fighting opponent players
 -- WHY:    lets specs time damage cooldowns to enemy DR/debuff gaps
--- SAFETY: windowed heuristic; nil-guarded DR counter
+-- SAFETY: DR immunity + enemy-CD status delegate to native pvp_helper / EnemyCDTracker bridges (nil-guarded).
 -- DECISION: pure helper consumed via require() by specs; no on_update side-effects.
 
 local M = {}
@@ -95,8 +95,23 @@ local function target_has_defensive(context)
     return false
 end
 
--- DRTracker module was deleted; stub returns false until DR tracking is reimplemented
+-- DR immunity: delegates to the native pvp_helper DR bridge (NS.pvp_is_cc_immune,
+-- core_sylvanas.lua:2665) which returns true when a category's DR count reaches 3 (immune).
+-- The old DRTracker module was reimplemented behind that bridge; this stub is now wired to it.
+-- Burst-relevant categories (stun/incapacitate/fear/disorient) enable kill setups. When the
+-- target is DR-immune in any of them, CC will not stick, so the burst window is penalised.
+local BURST_RELEVANT_DR = { stun = true, incapacitate = true, fear = true, disorient = true }
 local function target_is_dr_immune(context)
+    local target = context and context.target
+    if not target then return false end
+    if not (NS and NS.pvp_is_cc_immune and NS.PVP_DR_CATEGORIES) then return false end
+    local cats = NS.PVP_DR_CATEGORIES or {}
+    for flag, name in pairs(cats) do
+        if type(flag) == "number" and type(name) == "string"
+            and BURST_RELEVANT_DR[name:lower()] then
+            if NS.pvp_is_cc_immune(target, flag) then return true end
+        end
+    end
     return false
 end
 
@@ -130,8 +145,31 @@ local function has_offensive_ready(context)
     return false, 0
 end
 
--- EnemyCDTracker module was deleted; stub returns "unknown" until enemy CD tracking is reimplemented
+-- Enemy defensive status: delegates to the native EnemyCDTracker adapter
+-- (NS.EnemyCDTracker.has_defensive_available, core_sylvanas.lua:196) which reports whether the
+-- enemy has a relevant defensive cooldown READY (off cooldown). When none is ready, their
+-- defensives are "down" (on cooldown / none tracked) -> favourable burst window. A PvP trinket
+-- on cooldown is a second "down" signal (the enemy cannot escape our burst CC setup).
+-- The old EnemyCDTracker module was reimplemented as a native adapter; this stub is now wired to it.
+-- Returns (status, count): "down", "ready", or "unknown" (when bridges are unavailable).
 local function enemy_defensive_status(context)
+    local target = context and context.target
+    if not target then return "unknown", 0 end
+    local down_count = 0
+    if NS and NS.EnemyCDTracker and NS.EnemyCDTracker.has_defensive_available then
+        if NS.EnemyCDTracker.has_defensive_available(target) == false then
+            down_count = down_count + 1
+        end
+    end
+    if NS and NS.pvp_is_player and NS.pvp_is_player(target)
+        and NS.pvp_trinket_used_recently
+        and NS.pvp_trinket_used_recently(target, 120) then
+        down_count = down_count + 1
+    end
+    if down_count > 0 then return "down", down_count end
+    if NS and NS.EnemyCDTracker and NS.EnemyCDTracker.has_defensive_available then
+        return "ready", 0
+    end
     return "unknown", 0
 end
 

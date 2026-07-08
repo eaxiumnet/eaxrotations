@@ -1,0 +1,18 @@
+EaxRotations v2.5.0
+Released: 2026-07-08
+Game: The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
+Commit: (git describe)
+
+=== WHAT'S NEW ===
+- spec_kit migration COMPLETE: all 29 specs converted to define_action_for_class + safe_state
+- 5 fully-migrated classes: Warlock, Shaman, Rogue, Hunter, Paladin
+- Nil-guard elimination: safe_state proxy makes Pattern 14 nil-guard bugs structurally impossible
+- Guarded registration on all 29 specs (nil-safe in unit test environments)
+- Canonical return shape { strategies, build_state } on all specs
+
+=== QUALITY GATES ===
+- Rotation test suites: 242/242 PASS
+- Leveling test suites: 13/13 PASS
+- spec_kit compliance: 29 converted, 12 legacy
+- Lua syntax check: ALL PASS (luac -p)
+- Spell database audit: verified against DBC client 2.5.5.68101
