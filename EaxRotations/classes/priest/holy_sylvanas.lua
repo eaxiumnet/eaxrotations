@@ -194,7 +194,7 @@ local try_cast, spell_exists, spell_ready, debuff_remains, health_pct, player_co
 )
 local function build_state(context)
  context.settings = context.settings or EMPTY_SETTINGS
- local aoe_hp = context.settings.holy_aoe_hp or 80
+ local aoe_hp = spec_kit.setting_number(context, "holy_aoe_hp", 80)
  local lowest_entry = nil
  local tank_entry = nil
  local lowest_hp = 100
@@ -319,8 +319,7 @@ local function _engaged_with_player(context)
 end
 
 local function holy_idle_damage_enabled(context)
- local settings = context and context.settings or EMPTY_SETTINGS
- if settings.holy_dps_when_idle == true then return true end
+ if spec_kit.setting_bool(context, "holy_dps_when_idle", false) then return true end
  return context and (context.is_solo == true or context.is_leveling == true)
 end
 
@@ -375,13 +374,13 @@ end
 -- Auto-use Fade when player has aggro and Fade is ready.
 -- ============================================================================
 local function fade_matches(context, state)
- local auto_fade = (context.settings and context.settings.priest_auto_fade) ~= false
+ local auto_fade = spec_kit.setting_bool(context, "priest_auto_fade", true)
  if not auto_fade then return false end
  if not context.in_combat then return false end
  if context.player_control_locked then return false end
  if state.has_fade_buff then return false end
  if not state.fade_ready then return false end
- local threshold = (context.settings and context.settings.priest_fade_threat_threshold) or 80
+ local threshold = spec_kit.setting_number(context, "priest_fade_threat_threshold", 80)
  if context.threat_pct and context.threat_pct >= threshold then return true end
  if context.threat_status and context.threat_status >= 2 then return true end
  -- Fallback: scan enemies targeting player
@@ -402,10 +401,10 @@ end
 -- Auto-use healthstone below HP threshold, off-GCD.
 -- ============================================================================
 local function healthstone_matches_parity(context, state)
- local auto_hs = (context.settings and context.settings.auto_healthstone) ~= false
+ local auto_hs = spec_kit.setting_bool(context, "auto_healthstone", true)
  if not auto_hs then return false end
  if not state.healthstone_ready then return false end
- local hs_hp = (context.settings and context.settings.healthstone_hp_threshold) or 30
+ local hs_hp = spec_kit.setting_number(context, "healthstone_hp_threshold", 30)
  if context.hp > hs_hp then return false end
  return true
 end
@@ -458,7 +457,7 @@ local strategies = {
    if not state.friendly_target_ready then return false end
    local ft = state.friendly_target
    if not ft then return false end
-   if (ft.hp_pct or 100) >= (context.settings.holy_friendly_target_threshold or 90) then return false end
+   if (ft.hp_pct or 100) >= spec_kit.setting_number(context, "holy_friendly_target_threshold", 90) then return false end
    if context.is_moving then return false end
    if context.player_control_locked then return false end
    return spell_exists(ACTION.GreaterHeal) and spell_ready(ACTION.GreaterHeal, ft.unit)
@@ -474,23 +473,22 @@ local strategies = {
  {
   name = "EmergencyPWS",
   matches = function(context, state)
-    local settings = context.settings or {}
    if context.player_control_locked then return false end
-   if settings.holy_use_pws == false then return false end
+   if not spec_kit.setting_bool(context, "holy_use_pws", true) then return false end
    -- Tank-only gate: when disc_shield_tank_only is set, only shield the tank
-   if settings.disc_shield_tank_only then
+   if spec_kit.setting_bool(context, "disc_shield_tank_only", false) then
     if not state.tank then return false end
-    if (state.tank.effective_hp or 100) > (settings.holy_pws_hp or 30) then return false end
+    if (state.tank.effective_hp or 100) > spec_kit.setting_number(context, "holy_pws_hp", 30) then return false end
     if state.tank.has_weakened_soul then return false end
     return spell_exists(ACTION.PowerWordShield) and spell_ready(ACTION.PowerWordShield, state.tank.unit)
    end
    if not state.lowest then return false end
-   if (state.lowest.effective_hp or 100) > (settings.holy_pws_hp or 30) then return false end
+   if (state.lowest.effective_hp or 100) > spec_kit.setting_number(context, "holy_pws_hp", 30) then return false end
    if state.lowest.has_weakened_soul then return false end
    return spell_exists(ACTION.PowerWordShield) and spell_ready(ACTION.PowerWordShield, state.lowest.unit)
   end,
   execute = function(context, state)
-   if settings.disc_shield_tank_only and state.tank then
+   if spec_kit.setting_bool(context, "disc_shield_tank_only", false) and state.tank then
     return try_cast(ACTION.PowerWordShield, state.tank.unit, format("[HOLY] Emergency PW:S Tank %.0f%%", state.tank.effective_hp or 0))
    end
    return try_cast(ACTION.PowerWordShield, state.lowest.unit, format("[HOLY] Emergency PW:S %.0f%%", state.lowest.effective_hp or 0))
@@ -501,7 +499,7 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked or context.is_moving then return false end
-   local threshold = (context.settings and context.settings.holy_preemptive_threshold) or PreemptiveHeal.DEFAULT_THRESHOLD
+   local threshold = spec_kit.setting_number(context, "holy_preemptive_threshold", PreemptiveHeal.DEFAULT_THRESHOLD)
    if not PreemptiveHeal.match(context, state, threshold, 2.5) then return false end
    if not spell_exists(ACTION.GreaterHeal) or not spell_ready(ACTION.GreaterHeal, state._preemptive_target.unit) then return false end
    return true
@@ -521,7 +519,7 @@ local strategies = {
    if context.player_control_locked or context.is_moving then return false end
    if not state.flash_heal_ready then return false end
    if not state.lowest then return false end
-    return (state.lowest_hp or 100) < (context.settings.holy_emergency_hp or 30)
+    return (state.lowest_hp or 100) < spec_kit.setting_number(context, "holy_emergency_hp", 30)
   end,
   execute = function(context, state)
    local target = state.lowest.unit
@@ -539,7 +537,7 @@ local strategies = {
   matches = function(context, state)
    if context.player_control_locked then return false end
    if not state.pom_ready then return false end
-   if not context.in_combat and context.settings.holy_prepull_pom == false then return false end
+   if not context.in_combat and spec_kit.setting_bool(context, "holy_prepull_pom", true) == false then return false end
    if not (state.tank ~= nil or state.lowest ~= nil) then return false end
    -- Skip if PoM already active on target (don't overwrite bounces in progress)
    local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit)
@@ -557,9 +555,9 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if context.settings and context.settings.holy_use_coh == false then return false end
+   if not spec_kit.setting_bool(context, "holy_use_coh", true) then return false end
    if not state.coh_ready then return false end
-   return (state.group_damaged_count or 0) >= (context.settings.holy_aoe_count or 3)
+   return (state.group_damaged_count or 0) >= spec_kit.setting_number(context, "holy_aoe_count", 3)
   end,
   execute = function(_, state)
    local target = (state.lowest and state.lowest.unit) or (state.tank and state.tank.unit) or NS.PLAYER_UNIT
@@ -571,8 +569,8 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked or context.is_moving then return false end
-   if context.settings and context.settings.holy_use_binding_heal == false then return false end
-   if context.hp > (context.settings.holy_binding_self_hp or 80) then return false end
+   if not spec_kit.setting_bool(context, "holy_use_binding_heal", true) then return false end
+   if context.hp > spec_kit.setting_number(context, "holy_binding_self_hp", 80) then return false end
    if not state.lowest or state.lowest.is_player then return false end
    if not spell_exists(ACTION.BindingHeal) or not spell_ready(ACTION.BindingHeal, state.lowest.unit) then return false end
    -- Predictive overheal gate
@@ -590,11 +588,11 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked or context.is_moving then return false end
-   if context.settings and context.settings.holy_use_poh == false then return false end
+   if not spec_kit.setting_bool(context, "holy_use_poh", true) then return false end
    if not state.prayer_of_healing_ready then return false end
    -- Use subgroup count for PoH (only counts your party in raids)
    local poh_count = state.subgroup_damaged_count or state.group_damaged_count
-   if poh_count < (context.settings.holy_aoe_count or 3) then return false end
+   if poh_count < spec_kit.setting_number(context, "holy_aoe_count", 3) then return false end
    -- Predictive overheal gate
    if NS.gate_overheal("PrayerOfHealing", state.lowest and state.lowest.unit or NS.PLAYER_UNIT, 3.0, context.settings) then return false end
    return true
@@ -633,11 +631,11 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if context.settings and context.settings.holy_use_inner_focus == false then return false end
+   if not spec_kit.setting_bool(context, "holy_use_inner_focus", true) then return false end
    if state.has_inner_focus then return false end
    if not spell_exists(ACTION.InnerFocus) or not spell_ready(ACTION.InnerFocus, NS.PLAYER_UNIT) then return false end
    if not state.lowest then return false end
-   return (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90)
+   return (state.lowest_hp or 100) < spec_kit.setting_number(context, "holy_renew_hp", 90)
   end,
   execute = function()
    return try_cast(ACTION.InnerFocus, NS.PLAYER_UNIT, "[HOLY] Inner Focus")
@@ -648,10 +646,10 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if context.settings and context.settings.holy_use_lightwell == false then return false end
+   if not spec_kit.setting_bool(context, "holy_use_lightwell", true) then return false end
    if not state.lightwell_ready then return false end
    -- Only place Lightwell when raid HP is under sustained pressure (3+ injured)
-   return (state.group_damaged_count or 0) >= (context.settings.holy_aoe_count or 3)
+   return (state.group_damaged_count or 0) >= spec_kit.setting_number(context, "holy_aoe_count", 3)
   end,
   execute = function()
    return try_cast(ACTION.Lightwell, NS.PLAYER_UNIT, "[HOLY] Lightwell (raid sustain)")
@@ -667,9 +665,9 @@ local strategies = {
    -- Pushback gate: skip GH when taking damage, fallback to FH
    if _check_pushback(context) then return false end
    -- Mana conservation: drop GH below 30% mana, use FH+Renew only
-   if context.mana_pct < (context.settings.holy_gh_mana_floor or 30) then return false end
-   local flash_hp = context.settings.holy_flash_heal_hp or 50
-   local renew_hp = context.settings.holy_renew_hp or 90
+   if context.mana_pct < spec_kit.setting_number(context, "holy_gh_mana_floor", 30) then return false end
+   local flash_hp = spec_kit.setting_number(context, "holy_flash_heal_hp", 50)
+   local renew_hp = spec_kit.setting_number(context, "holy_renew_hp", 90)
    if not ((state.lowest_hp or 100) < renew_hp and (state.lowest_hp or 100) >= flash_hp) then return false end
    -- Predictive overheal gate
    if NS.gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
@@ -690,8 +688,8 @@ local strategies = {
    if not state.flash_heal_ready then return false end
    if not state.lowest then return false end
    -- Mana conservation: drop direct heals below 15% mana, Renew only
-   if context.mana_pct < (context.settings.holy_fh_mana_floor or 15) then return false end
-   if not (state.lowest_hp < (context.settings.holy_flash_heal_hp or 50)) then return false end
+   if context.mana_pct < spec_kit.setting_number(context, "holy_fh_mana_floor", 15) then return false end
+   if not (state.lowest_hp < spec_kit.setting_number(context, "holy_flash_heal_hp", 50)) then return false end
    -- Predictive overheal gate
    if NS.gate_overheal("FlashHeal", state.lowest.unit, 1.5, context.settings) then return false end
    return true
@@ -708,8 +706,8 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if context.settings and context.settings.holy_use_desperate_prayer == false then return false end
-   if context.hp > (context.settings.holy_desp_prayer_hp or 30) then return false end
+   if not spec_kit.setting_bool(context, "holy_use_desperate_prayer", true) then return false end
+   if context.hp > spec_kit.setting_number(context, "holy_desp_prayer_hp", 30) then return false end
    if not spell_exists(ACTION.DesperatePrayer) or not spell_ready(ACTION.DesperatePrayer, NS.PLAYER_UNIT) then return false end
    return true
   end,
@@ -724,12 +722,10 @@ local strategies = {
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if context.settings and not context.settings.use_shadowfiend then
-    if context.settings and context.settings.use_shadowfiend == nil and context.settings.use_cooldowns == false then return false end
-   end
+   if not spec_kit.setting_bool(context, "use_shadowfiend", spec_kit.setting_bool(context, "use_cooldowns", true)) then return false end
    if not state.shadowfiend_ready then return false end
    -- Mana floor gate: only use Shadowfiend when mana is actually low
-   return context.mana_pct < (context.settings.shadowfiend_mana_threshold or 30)
+   return context.mana_pct < spec_kit.setting_number(context, "shadowfiend_mana_threshold", 30)
   end,
   execute = function()
    return try_cast(ACTION.Shadowfiend, nil, "[HOLY] Shadowfiend (mana regen)", { skip_range = true })
@@ -739,8 +735,8 @@ local strategies = {
   name = "ManaPotion",
   matches = function(context, state)
    if not context.in_combat then return false end
-   if context.settings and context.settings.use_mana_potions == false then return false end
-   local threshold = (context.settings and context.settings.mana_potion_threshold) or 20
+   if not spec_kit.setting_bool(context, "use_mana_potions", true) then return false end
+   local threshold = spec_kit.setting_number(context, "mana_potion_threshold", 20)
    return (state.mana_pct or context.mana_pct or 100) < threshold
   end,
   execute = function()
@@ -756,9 +752,9 @@ local strategies = {
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.DispelMagic, 3.0) then return false end
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if context.settings and context.settings.use_party_dispel == false then return false end
+   if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end
    if not state.dispel_magic_ready then return false end
-   if context.mana_pct < (context.settings.party_dispel_mana_floor or 30) then return false end
+   if context.mana_pct < spec_kit.setting_number(context, "party_dispel_mana_floor", 30) then return false end
    -- Dispel dangerous magic debuffs on tank first, then lowest ally
    if not state.tank and not state.lowest then return false end
    local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit)
@@ -780,7 +776,7 @@ local strategies = {
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if not state.cure_disease_ready then return false end
-   if context.mana_pct < (context.settings.party_dispel_mana_floor or 30) then return false end
+   if context.mana_pct < spec_kit.setting_number(context, "party_dispel_mana_floor", 30) then return false end
    if not state.lowest then return false end
    -- Gate: only cure if the target actually has a disease
    if Healing.has_disease then
@@ -800,7 +796,7 @@ local strategies = {
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if not state.abolish_disease_ready then return false end
-   if context.mana_pct < (context.settings.party_dispel_mana_floor or 30) then return false end
+   if context.mana_pct < spec_kit.setting_number(context, "party_dispel_mana_floor", 30) then return false end
     -- Only cast if tank actually has a disease (not pre-emptive -- wastes mana/GCD)
     if not state.tank then return false end
     if Healing.has_disease then
@@ -830,7 +826,7 @@ local strategies = {
    if context.player_control_locked then return false end
    if not state.tank then return false end
    if not spell_exists(ACTION.Renew) or not spell_ready(ACTION.Renew, state.tank.unit) then return false end
-   if not context.in_combat and context.settings.holy_prepull_renew == false then return false end
+   if not context.in_combat and spec_kit.setting_bool(context, "holy_prepull_renew", true) == false then return false end
 
    -- Refresh timing gate: only refresh if < 3s remaining (avoid wasted ticks)
    -- Use explicit nil-check to avoid Lua 0-falsy edge case with renew_remains
@@ -840,7 +836,7 @@ local strategies = {
    end
    if tank_renew > 3 then return false end
 
-   local threshold = context.settings.holy_renew_hp or 90
+   local threshold = spec_kit.setting_number(context, "holy_renew_hp", 90)
    if (state.tank.effective_hp or 100) > threshold and context.in_combat then
     return false
    end
@@ -867,7 +863,7 @@ local strategies = {
    end
    if lowest_renew > 3 then return false end
 
-   return (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90)
+   return (state.lowest_hp or 100) < spec_kit.setting_number(context, "holy_renew_hp", 90)
   end,
   execute = function(_, state)
    return try_cast(ACTION.Renew, state.lowest.unit, format("[HOLY] Renew %.0f%%", state.lowest.effective_hp or 0))
@@ -881,7 +877,7 @@ local strategies = {
    if not state.surge_of_light then return false end
    if not context.has_valid_enemy_target then return false end
    if not _engaged_with_player(context) then return false end
-    if (state.lowest_hp or 100) < (context.settings.holy_flash_heal_hp or 50) then return false end
+    if (state.lowest_hp or 100) < spec_kit.setting_number(context, "holy_flash_heal_hp", 50) then return false end
    return spell_exists(ACTION.Smite) and spell_ready(ACTION.Smite, context.target)
   end,
   execute = function(context)
@@ -896,8 +892,8 @@ local strategies = {
    if not holy_idle_damage_enabled(context) then return false end
    if not context.has_valid_enemy_target then return false end
    if not _engaged_with_player(context) then return false end
-    if (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90) then return false end
-    if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 35 or 70)) then return false end
+    if (state.lowest_hp or 100) < spec_kit.setting_number(context, "holy_renew_hp", 90) then return false end
+    if context.mana_pct < spec_kit.setting_number(context, "holy_dps_mana_floor", (context.is_solo and 35 or 70)) then return false end
     if (state.swp_remaining or 0) > 0 then return false end
    return spell_exists(ACTION.ShadowWordPain) and spell_ready(ACTION.ShadowWordPain, context.target)
   end,
@@ -913,8 +909,8 @@ local strategies = {
    if not holy_idle_damage_enabled(context) then return false end
    if not context.has_valid_enemy_target then return false end
    if not _engaged_with_player(context) then return false end
-    if (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90) then return false end
-    if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 45 or 70)) then return false end
+    if (state.lowest_hp or 100) < spec_kit.setting_number(context, "holy_renew_hp", 90) then return false end
+    if context.mana_pct < spec_kit.setting_number(context, "holy_dps_mana_floor", (context.is_solo and 45 or 70)) then return false end
     if (state.holy_fire_remaining or 0) > 0 then return false end
    return spell_exists(ACTION.HolyFire) and spell_ready(ACTION.HolyFire, context.target)
   end,
@@ -930,8 +926,8 @@ local strategies = {
    if not holy_idle_damage_enabled(context) then return false end
    if not context.has_valid_enemy_target then return false end
    if not _engaged_with_player(context) then return false end
-    if (state.lowest_hp or 100) < (context.settings.holy_renew_hp or 90) then return false end
-   if context.mana_pct < (context.settings.holy_dps_mana_floor or (context.is_solo and 35 or 70)) then return false end
+    if (state.lowest_hp or 100) < spec_kit.setting_number(context, "holy_renew_hp", 90) then return false end
+    if context.mana_pct < spec_kit.setting_number(context, "holy_dps_mana_floor", (context.is_solo and 35 or 70)) then return false end
    return spell_exists(ACTION.Smite) and spell_ready(ACTION.Smite, context.target)
   end,
   execute = function(context)

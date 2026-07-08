@@ -336,7 +336,7 @@ end
 
 local function find_priority_innervate(entries, count, context)
  -- Prefer other healers at low mana before self
- local healer_mana_floor = (context.settings and context.settings.resto_innervate_mana) or 30
+ local healer_mana_floor = spec_kit.setting_number(context, "resto_innervate_mana", 30)
  for i = 1, count do
   local entry = entries[i]
   local mana = entry and entry.unit and NS.mana_pct and NS.mana_pct(entry.unit) or 100
@@ -346,7 +346,7 @@ local function find_priority_innervate(entries, count, context)
   end
  end
  -- Fall back to self if own mana is critically low
- if (context.mana_pct or 100) <= ((context.settings and context.settings.resto_innervate_mana) or 30) then
+ if (context.mana_pct or 100) <= spec_kit.setting_number(context, "resto_innervate_mana", 30) then
   return context.me or NS.GetPlayer()
  end
  return nil
@@ -387,8 +387,7 @@ end
 
 local function build_state(context)
  local entries, count = Healing.scan_healing_targets()
- local settings = context.settings or NS.settings or {}
- local lifebloom_targets = settings.resto_lifebloom_targets or 3
+ local lifebloom_targets = spec_kit.setting_number(context, "resto_lifebloom_targets", 3)
  if lifebloom_targets < 1 then lifebloom_targets = 1 elseif lifebloom_targets > 3 then lifebloom_targets = 3 end
 
  resto_state.entries = entries
@@ -453,19 +452,19 @@ local function build_state(context)
  end
  resto_state.is_group = context.is_group or false
  resto_state.mana_pct = context.mana_pct or context.player_mana_pct or 100
- local mana_conserve_pct = (settings.resto_mana_conserve_pct ~= nil and settings.resto_mana_conserve_pct) or MANA_CONSERVE_PCT
- local mana_emergency_pct = (settings.resto_mana_emergency_pct ~= nil and settings.resto_mana_emergency_pct) or MANA_EMERGENCY_PCT
- local mana_critical_pct = (settings.resto_mana_critical_pct ~= nil and settings.resto_mana_critical_pct) or MANA_CRITICAL_PCT
+ local mana_conserve_pct = spec_kit.setting_number(context, "resto_mana_conserve_pct", MANA_CONSERVE_PCT)
+ local mana_emergency_pct = spec_kit.setting_number(context, "resto_mana_emergency_pct", MANA_EMERGENCY_PCT)
+ local mana_critical_pct = spec_kit.setting_number(context, "resto_mana_critical_pct", MANA_CRITICAL_PCT)
  resto_state.mana_conserve = resto_state.mana_pct <= mana_conserve_pct
  resto_state.mana_emergency = resto_state.mana_pct <= mana_emergency_pct
  resto_state.mana_critical = resto_state.mana_pct <= mana_critical_pct
 
- local swiftmend_hp = settings.resto_swiftmend_hp or 50
- local ns_hp = settings.resto_ns_hp or 30
- local tranquility_hp = settings.resto_tranquility_hp or 25
- local auto_dispel = settings.resto_auto_dispel ~= false
- local tank_rejuv_hp = settings.resto_rejuv_hp_tank or TANK_REJUV_HP
- local raid_rejuv_hp = settings.resto_rejuv_hp_raid or RAID_REJUV_HP
+ local swiftmend_hp = spec_kit.setting_number(context, "resto_swiftmend_hp", 50)
+ local ns_hp = spec_kit.setting_number(context, "resto_ns_hp", 30)
+ local tranquility_hp = spec_kit.setting_number(context, "resto_tranquility_hp", 25)
+ local auto_dispel = spec_kit.setting_bool(context, "resto_auto_dispel", true)
+ local tank_rejuv_hp = spec_kit.setting_number(context, "resto_rejuv_hp_tank", TANK_REJUV_HP)
+ local raid_rejuv_hp = spec_kit.setting_number(context, "resto_rejuv_hp_raid", RAID_REJUV_HP)
 
  for i = 1, count do
   local entry = entries[i]
@@ -476,8 +475,8 @@ local function build_state(context)
    else resto_state.lowest_dps = choose_better(resto_state.lowest_dps, entry) end
    if hp <= tranquility_hp then resto_state.tranquility_count = resto_state.tranquility_count + 1 end
    if hp <= ns_hp then resto_state.ns_target = choose_better(resto_state.ns_target, entry) end
-   if hp <= HEALING_TOUCH_HP and not predictive_overheal("HealingTouch", entry, 2.5, settings, 25) then resto_state.ht_target = choose_better(resto_state.ht_target, entry) end
-   if needs_regrowth(entry) and not predictive_overheal("Regrowth", entry, 2.0, settings, 35) then resto_state.regrowth_target = choose_better(resto_state.regrowth_target, entry) end
+   if hp <= HEALING_TOUCH_HP and not predictive_overheal("HealingTouch", entry, 2.5, context.settings, 25) then resto_state.ht_target = choose_better(resto_state.ht_target, entry) end
+   if needs_regrowth(entry) and not predictive_overheal("Regrowth", entry, 2.0, context.settings, 35) then resto_state.regrowth_target = choose_better(resto_state.regrowth_target, entry) end
    if needs_rejuvenation(entry, entry.is_tank and tank_rejuv_hp or raid_rejuv_hp) then resto_state.rejuv_target = choose_better(resto_state.rejuv_target, entry) end
    if should_let_lifebloom_bloom(entry, context) then resto_state.lifebloom_bloom = choose_better(resto_state.lifebloom_bloom, entry) end
    if auto_dispel and not resto_state.cursed_target and NS.has_dispel_type_debuff and NS.has_dispel_type_debuff(entry.unit, "Curse") then resto_state.cursed_target = entry end
@@ -521,10 +520,10 @@ end
 
 local function solo_damage_enabled(context, state)
  if not context or not context.has_valid_enemy_target then return false end
- if not (context.is_solo == true or context.is_leveling == true or (context.settings and context.settings.resto_dps_when_idle == true)) then return false end
+ if not (context.is_solo == true or context.is_leveling == true or spec_kit.setting_bool(context, "resto_dps_when_idle", false)) then return false end
  if context.is_moving and not NS.spell_ready(ACTION.Moonfire, context.target) then return false end
- if state and state.lowest and effective_hp(state.lowest) < ((context.settings and context.settings.resto_idle_hp) or 88) then return false end
- if (context.mana_pct or 100) < ((context.settings and context.settings.resto_dps_mana_floor) or 35) then return false end
+ if state and state.lowest and effective_hp(state.lowest) < spec_kit.setting_number(context, "resto_idle_hp", 88) then return false end
+ if (context.mana_pct or 100) < spec_kit.setting_number(context, "resto_dps_mana_floor", 35) then return false end
  if state and state.in_tree then return false end
  return true
 end
@@ -556,7 +555,7 @@ local strategies = {
   if not state.friendly_target_ready then return false end
   local ft = state.friendly_target
   if not ft then return false end
-  if (ft.hp_pct or 100) >= (context.settings.resto_friendly_target_threshold or 90) then return false end
+  if (ft.hp_pct or 100) >= spec_kit.setting_number(context, "resto_friendly_target_threshold", 90) then return false end
   if context.is_moving then return false end
   if context.player_control_locked then return false end
   if not NS.spell_ready(ACTION.Regrowth, ft.unit) then return false end
@@ -581,7 +580,7 @@ local strategies = {
        return false
    end,
  },
- { name = "BarkskinSelfPreservation", matches = function(context) local settings = context.settings or {}; local threshold = settings.barkskin_hp or 55; return (context.hp or 100) <= threshold and NS.spell_ready(ACTION.Barkskin, PLAYER_UNIT, BARKSKIN_OPTS) end, execute = function() return NS.try_cast(ACTION.Barkskin, PLAYER_UNIT, "[RESTO] Barkskin self", BARKSKIN_OPTS) end },
+ { name = "BarkskinSelfPreservation", matches = function(context) return (context.hp or 100) <= spec_kit.setting_number(context, "barkskin_hp", 55) and NS.spell_ready(ACTION.Barkskin, PLAYER_UNIT, BARKSKIN_OPTS) end, execute = function() return NS.try_cast(ACTION.Barkskin, PLAYER_UNIT, "[RESTO] Barkskin self", BARKSKIN_OPTS) end },
  { name = "BearFormFocusedByMelee", matches = function(context, state) return context.is_pvp and (context.hp or 100) <= 35 and state.melee_pressure_count > 0 and context.stance ~= STANCE_BEAR and NS.spell_ready(ACTION.BearForm, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(ACTION.BearForm, PLAYER_UNIT, "[RESTO] Bear Form under melee focus", SKIP_RANGE) end },
  { name = "NaturesGraspMelee", matches = function(context, state) return context.is_pvp and state.melee_pressure_count > 0 and not NS.has_player_buff(NATURES_GRASP_BUFF) and NS.spell_ready(ACTION.NaturesGrasp, PLAYER_UNIT, SKIP_RANGE) end, execute = function() return NS.try_cast(ACTION.NaturesGrasp, PLAYER_UNIT, "[RESTO] Nature's Grasp melee peel", SKIP_RANGE) end },
  { name = "RemoveCurse", matches = function(_, state)
@@ -600,7 +599,7 @@ local strategies = {
  { name = "PreemptiveRegrowth", matches = function(context, state)
   if not context.in_combat then return false end
   if context.is_moving then return false end
-  local threshold = (context.settings and context.settings.resto_preemptive_threshold) or PreemptiveHeal.DEFAULT_THRESHOLD
+  local threshold = spec_kit.setting_number(context, "resto_preemptive_threshold", PreemptiveHeal.DEFAULT_THRESHOLD)
   if not PreemptiveHeal.match(context, state, threshold, 2.0) then return false end
   if not NS.spell_ready(ACTION.Regrowth, state._preemptive_target.unit) then return false end
   return true
@@ -611,7 +610,7 @@ local strategies = {
  end },
  { name = "NaturesSwiftness", matches = function(_, state) return state.ns_target and not state.has_natures_swiftness and (state.ns_target.time_to_die or 999) <= 3.5 and NS.spell_ready(ACTION.NaturesSwiftness, PLAYER_UNIT, NS_OPTS) end, execute = function() return NS.try_cast(ACTION.NaturesSwiftness, PLAYER_UNIT, "[RESTO] Nature's Swiftness", NS_OPTS) end },
  { name = "NaturesSwiftnessHealingTouch", matches = function(context, state) return state.ns_target and state.has_natures_swiftness and NS.spell_ready(ACTION.HealingTouch, state.ns_target.unit) and not predictive_overheal("HealingTouch", state.ns_target, 1.5, context.settings, 25) end, execute = function(_, state) return NS.try_cast(ACTION.HealingTouch, state.ns_target.unit, "[RESTO] NS Healing Touch") end },
- { name = "TranquilityEmergency", matches = function(context, state) local needed = (context.settings and context.settings.resto_tranquility_count) or 3; if state.tranquility_count < needed then return false end; if NS.threat_status and NS.threat_status(context.me, context.target) >= 2 then return false end; return NS.spell_ready(ACTION.Tranquility, PLAYER_UNIT, TRANQUILITY_OPTS) end, execute = function() return NS.try_cast(ACTION.Tranquility, PLAYER_UNIT, "[RESTO] Tranquility emergency", TRANQUILITY_OPTS) end },
+ { name = "TranquilityEmergency", matches = function(context, state) local needed = spec_kit.setting_number(context, "resto_tranquility_count", 3); if state.tranquility_count < needed then return false end; if NS.threat_status and NS.threat_status(context.me, context.target) >= 2 then return false end; return NS.spell_ready(ACTION.Tranquility, PLAYER_UNIT, TRANQUILITY_OPTS) end, execute = function() return NS.try_cast(ACTION.Tranquility, PLAYER_UNIT, "[RESTO] Tranquility emergency", TRANQUILITY_OPTS) end },
  { name = "LeaveTreeForDirectHeal", matches = function(_, state) return state.should_dance_caster and state.in_tree and NS.spell_ready(ACTION.TreeOfLifeForm, PLAYER_UNIT, TREE_OPTS) end, execute = function(_, state) state.should_dance_caster = false return NS.try_cast(ACTION.TreeOfLifeForm, PLAYER_UNIT, "[RESTO] Leave Tree for direct spell", TREE_OPTS) end },
  { name = "HealingTouchMaxEmergency", matches = function(context, state)
   if context.is_moving or not state.ht_target then return false end
