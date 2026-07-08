@@ -1087,4 +1087,4 @@ if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("cat", strategies, { get_state = build_state })
 end
 if NS.log then NS.log("Druid cat rotation registered") end
-return strategies
+return { strategies = strategies, build_state = build_state }

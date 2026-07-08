@@ -101,7 +101,8 @@ package.loaded["shared/preemptive_heal_sylvanas"] = {
 -- ============================================================================
 -- Load spec
 -- ============================================================================
-local strategies = dofile("EaxRotations/classes/priest/holy_sylvanas.lua")
+local result = dofile("EaxRotations/classes/priest/holy_sylvanas.lua")
+local strategies = result.strategies or result
 assert_true(strategies, "holy spec should load and return strategies")
 
 local function find_strategy(name)

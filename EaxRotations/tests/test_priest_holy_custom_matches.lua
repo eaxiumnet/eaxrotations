@@ -80,7 +80,8 @@ package.loaded["classes/priest/healing_sylvanas"] = mock_healing
 -- Mock enums
 package.loaded["common/enums"] = { class_id = { PRIEST = 5 } }
 
-local strategies = dofile("EaxRotations/classes/priest/holy_sylvanas.lua")
+local result = dofile("EaxRotations/classes/priest/holy_sylvanas.lua")
+local strategies = result.strategies or result
 assert_true(strategies, "strategies table should load")
 
 local function find_strategy(name)

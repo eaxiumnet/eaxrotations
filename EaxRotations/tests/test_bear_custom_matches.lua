@@ -55,7 +55,8 @@ _G.EaxRotations = {
     end,
 }
 
-local strategies = dofile("EaxRotations/classes/druid/bear_sylvanas.lua")
+local result = dofile("EaxRotations/classes/druid/bear_sylvanas.lua")
+local strategies = result.strategies or result
 assert_true(strategies, "strategies table should load")
 
 local function find_strategy(name)

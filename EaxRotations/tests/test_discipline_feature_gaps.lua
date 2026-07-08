@@ -125,7 +125,8 @@ _G.EaxRotations = {
 }
 
 -- Load discipline_sylvanas.lua (returns strategies table directly)
-local strategies = dofile("EaxRotations/classes/priest/discipline_sylvanas.lua")
+local result = dofile("EaxRotations/classes/priest/discipline_sylvanas.lua")
+local strategies = result.strategies or result
 -- Note: the file returns nil if NS is missing; our mock ensures NS is set
 if type(strategies) ~= "table" or strategies[1] == nil then
  error("strategies table should load — got type: " .. type(strategies))

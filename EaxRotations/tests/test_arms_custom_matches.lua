@@ -61,7 +61,8 @@ _G.EaxRotations = {
     },
 }
 
-local strategies = dofile("EaxRotations/classes/warrior/arms_sylvanas.lua")
+local result = dofile("EaxRotations/classes/warrior/arms_sylvanas.lua")
+local strategies = result.strategies or result
 assert_true(strategies, "strategies table should load")
 
 local function find_strategy(name)

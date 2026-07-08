@@ -760,4 +760,4 @@ if NS.rotation_registry and NS.rotation_registry.register then
 end
 if NS.log then NS.log("Druid bear rotation registered (clean APL: no in-combat form shifting)") end
 
-return strategies
+return { strategies = strategies, build_state = build_state }
