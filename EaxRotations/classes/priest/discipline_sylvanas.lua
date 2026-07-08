@@ -239,9 +239,9 @@ local function build_state(context)
   disc_state.lowest = NS.healing_get_lowest_hp(entries, count, 92)
  end
  disc_state.tank = NS.healing_get_tank(entries, count) or disc_state.lowest
- disc_state.group_damaged_count = NS.healing_count_below_hp(entries, count, context.settings.discipline_aoe_hp or 85)
+ disc_state.group_damaged_count = NS.healing_count_below_hp(entries, count, spec_kit.setting_number(context, "discipline_aoe_hp", 85))
  -- Subgroup count for Prayer of Healing: in raids, only count your own party
- disc_state.subgroup_damaged_count = (Healing.count_subgroup_below_hp and Healing.count_subgroup_below_hp(context.settings.discipline_aoe_hp or 85)) or disc_state.group_damaged_count
+ disc_state.subgroup_damaged_count = (Healing.count_subgroup_below_hp and Healing.count_subgroup_below_hp(spec_kit.setting_number(context, "discipline_aoe_hp", 85))) or disc_state.group_damaged_count
  -- Power Infusion target: find highest DPS caster in group
  disc_state.pi_target = nil
  if context.in_combat and entries and count and count > 0 then
@@ -342,14 +342,12 @@ local function _engaged_with_player(context)
 end
 
 local function discipline_idle_damage_enabled(context)
- local settings = context and context.settings or EMPTY_SETTINGS
- if settings.discipline_dps_when_idle == true then return true end
+ if spec_kit.setting_bool(context, "discipline_dps_when_idle", false) then return true end
  return context and (context.is_solo == true or context.is_leveling == true)
 end
 
 local function group_stable_for_idle_damage(context, s)
- local settings = context and context.settings or EMPTY_SETTINGS
- if s.lowest and (s.lowest.effective_hp or 100) < (settings.discipline_idle_hp or 92) then return false end
+ if s.lowest and (s.lowest.effective_hp or 100) < spec_kit.setting_number(context, "discipline_idle_hp", 92) then return false end
  return true
 end
 
@@ -362,9 +360,8 @@ end
 -- This is the primary tank mitigation tool.
 -- ============================================================================
 local function pws_tank_matches(context, s)
- local settings = context.settings or EMPTY_SETTINGS
  if not s.tank then return false end
- if (s.tank.effective_hp or 100) > (settings.discipline_pws_hp or 35) then return false end
+ if (s.tank.effective_hp or 100) > spec_kit.setting_number(context, "discipline_pws_hp", 35) then return false end
  if s.tank.has_weakened_soul then return false end
  if not s.pws_ready then return false end
  -- Respect existing absorb: don't overwrite a healthy PW:S shield.
@@ -380,12 +377,11 @@ end
 -- When tank-only mode is active, this strategy never fires.
 -- ============================================================================
 local function pws_lowest_matches(context, s)
- local settings = context.settings or EMPTY_SETTINGS
- if settings.disc_shield_tank_only then return false end
+ if spec_kit.setting_bool(context, "disc_shield_tank_only", false) then return false end
  if not s.lowest then return false end
  -- Skip if the lowest target is already the tank (handled by pws_tank_matches)
  if s.tank and s.lowest == s.tank then return false end
- if (s.lowest.effective_hp or 100) > (settings.discipline_pws_hp or 35) then return false end
+ if (s.lowest.effective_hp or 100) > spec_kit.setting_number(context, "discipline_pws_hp", 35) then return false end
  if s.lowest.has_weakened_soul then return false end
  if not s.pws_ready then return false end
  if Healing.pws_absorb_remaining then
@@ -396,8 +392,7 @@ local function pws_lowest_matches(context, s)
 end
 
 local function pom_tank_matches(context, s)
- local settings = context.settings or EMPTY_SETTINGS
- if not context.in_combat and settings.disc_prepull_pom == false then return false end
+ if not context.in_combat and spec_kit.setting_bool(context, "disc_prepull_pom", true) == false then return false end
  local target = s.tank or s.lowest
  if not target then return false end
  if not s.pom_ready then return false end
@@ -409,7 +404,7 @@ end
 local function flash_heal_matches(context, s)
  if context.is_moving then return false end
  if not s.lowest then return false end
- if (s.lowest.effective_hp or 100) > (context.settings.discipline_flash_hp or 55) then return false end
+ if (s.lowest.effective_hp or 100) > spec_kit.setting_number(context, "discipline_flash_hp", 55) then return false end
  if (s.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
  if not s.flash_heal_ready then return false end
  -- Predictive overheal gate: don't cast FH if predicted deficit is smaller than the heal
@@ -427,8 +422,8 @@ local function greater_heal_matches(context, s)
  -- Falls back to faster heals (Flash Heal) during pushback windows
  if _check_pushback(context) then return false end
  local hp = s.lowest.effective_hp or 100
- if hp > (context.settings.discipline_greater_heal_hp or 82) then return false end
- if hp <= (context.settings.discipline_flash_hp or 55) then return false end
+ if hp > spec_kit.setting_number(context, "discipline_greater_heal_hp", 82) then return false end
+ if hp <= spec_kit.setting_number(context, "discipline_flash_hp", 55) then return false end
  if not s.greater_heal_ready then return false end
  -- Predictive overheal gate: don't cast GH if predicted deficit is smaller than the heal
  if NS.gate_overheal("GreaterHeal", s.lowest.unit, 2.5, context.settings) then return false end
@@ -438,7 +433,7 @@ end
 local function renew_tank_matches(context, s)
  if not s.tank then return false end
  if s.tank.has_renew then return false end
- if (s.tank.effective_hp or 100) > (context.settings.discipline_renew_hp or 90) then return false end
+ if (s.tank.effective_hp or 100) > spec_kit.setting_number(context, "discipline_renew_hp", 90) then return false end
  if not s.renew_ready then return false end
  return true
 end
@@ -446,7 +441,7 @@ end
 local function renew_lowest_matches(context, s)
  if not s.lowest then return false end
  if s.lowest.has_renew then return false end
- if (s.lowest.effective_hp or 100) > (context.settings.discipline_renew_hp or 90) then return false end
+ if (s.lowest.effective_hp or 100) > spec_kit.setting_number(context, "discipline_renew_hp", 90) then return false end
  if not s.renew_ready then return false end
  return true
 end
@@ -553,7 +548,7 @@ local function idle_swp_matches(context, s)
  if not context.has_valid_enemy_target then return false end
  if not _engaged_with_player(context) then return false end
  if not discipline_idle_damage_enabled(context) then return false end
- if (s.mana_pct or context.mana_pct or 100) < ((context.settings or EMPTY_SETTINGS).discipline_dps_mana_floor or 35) then return false end
+ if (s.mana_pct or context.mana_pct or 100) < spec_kit.setting_number(context, "discipline_dps_mana_floor", 35) then return false end
  if not group_stable_for_idle_damage(context, s) then return false end
  if NS.debuff_remains(context.target, SHADOW_WORD_PAIN_DEBUFF) > 0 then return false end
  if not s.shadow_word_pain_ready then return false end
@@ -566,7 +561,7 @@ local function idle_smite_matches(context, s)
  if not context.has_valid_enemy_target then return false end
  if not _engaged_with_player(context) then return false end
  if not discipline_idle_damage_enabled(context) then return false end
- if (s.mana_pct or context.mana_pct or 100) < ((context.settings or EMPTY_SETTINGS).discipline_dps_mana_floor or 35) then return false end
+ if (s.mana_pct or context.mana_pct or 100) < spec_kit.setting_number(context, "discipline_dps_mana_floor", 35) then return false end
  if not group_stable_for_idle_damage(context, s) then return false end
  if not s.smite_ready then return false end
  return true
@@ -578,7 +573,7 @@ local function holy_fire_matches(context, s)
  if not context.has_valid_enemy_target then return false end
  if not _engaged_with_player(context) then return false end
  if not discipline_idle_damage_enabled(context) then return false end
- if (s.mana_pct or context.mana_pct or 100) < ((context.settings or EMPTY_SETTINGS).discipline_dps_mana_floor or 45) then return false end
+ if (s.mana_pct or context.mana_pct or 100) < spec_kit.setting_number(context, "discipline_dps_mana_floor", 45) then return false end
  if not group_stable_for_idle_damage(context, s) then return false end
  if not s.holy_fire_ready then return false end
  return true
@@ -615,7 +610,7 @@ local function pain_suppression_matches(context, s)
  if not context.in_combat then return false end
  if not s.tank then return false end
  local tank_hp = s.tank.effective_hp or 100
- if tank_hp > (context.settings.discipline_pain_suppression_hp or 30) then return false end
+ if tank_hp > spec_kit.setting_number(context, "discipline_pain_suppression_hp", 30) then return false end
  if not s.pain_suppression_ready then return false end
  return true
 end
@@ -626,10 +621,9 @@ end
 local function power_infusion_matches(context, s)
  if not context.in_combat then return false end
  if not s.power_infusion_ready then return false end
- local settings = context.settings or EMPTY_SETTINGS
- if settings.discipline_use_power_infusion == false then return false end
+ if not spec_kit.setting_bool(context, "discipline_use_power_infusion", true) then return false end
  -- Gate: only use when all DPS are healthy
- if s.lowest and (s.lowest.effective_hp or 100) < (settings.discipline_pi_safety_hp or 80) then return false end
+ if s.lowest and (s.lowest.effective_hp or 100) < spec_kit.setting_number(context, "discipline_pi_safety_hp", 80) then return false end
  return true
 end
 
@@ -640,11 +634,10 @@ local function inner_focus_matches(context, s)
  if not context.in_combat then return false end
  if s.has_inner_focus then return false end
  if not s.inner_focus_ready then return false end
- local settings = context.settings or EMPTY_SETTINGS
- if settings.discipline_use_inner_focus == false then return false end
+ if not spec_kit.setting_bool(context, "discipline_use_inner_focus", true) then return false end
  -- Use when tank needs a big heal or raid needs PoH
  local tank_hp = s.tank and (s.tank.effective_hp or 100) or 100
- if tank_hp > (settings.discipline_if_hp or 65) and s.group_damaged_count < 4 then return false end
+ if tank_hp > spec_kit.setting_number(context, "discipline_if_hp", 65) and s.group_damaged_count < 4 then return false end
  return true
 end
 
@@ -688,12 +681,12 @@ end
 -- Auto-use Fade when player has aggro.
 -- ============================================================================
 local function fade_matches(context, s)
- local auto_fade = (context.settings and context.settings.priest_auto_fade) ~= false
+ local auto_fade = spec_kit.setting_bool(context, "priest_auto_fade", true)
  if not auto_fade then return false end
  if not context.in_combat then return false end
  if s.has_fade_buff then return false end
  if not s.fade_ready then return false end
- local threshold = (context.settings and context.settings.priest_fade_threat_threshold) or 80
+ local threshold = spec_kit.setting_number(context, "priest_fade_threat_threshold", 80)
  if context.threat_pct and context.threat_pct >= threshold then return true end
  if context.threat_status and context.threat_status >= 2 then return true end
  local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(20) or {}
@@ -721,10 +714,10 @@ end
 -- Auto-use healthstone below HP threshold, off-GCD.
 -- ============================================================================
 local function healthstone_matches(context, s)
- local auto_hs = (context.settings and context.settings.auto_healthstone) ~= false
+ local auto_hs = spec_kit.setting_bool(context, "auto_healthstone", true)
  if not auto_hs then return false end
  if not s.healthstone_ready then return false end
- local hs_hp = (context.settings and context.settings.healthstone_hp_threshold) or 30
+ local hs_hp = spec_kit.setting_number(context, "healthstone_hp_threshold", 30)
  if (s.hp_pct or 100) > hs_hp then return false end
  return true
 end
@@ -740,7 +733,7 @@ local healing_strategies = {
   if not s.friendly_target_ready then return false end
   local ft = s.friendly_target
   if not ft then return false end
-  if (ft.hp_pct or 100) >= (context.settings.disc_friendly_target_threshold or 90) then return false end
+  if (ft.hp_pct or 100) >= spec_kit.setting_number(context, "disc_friendly_target_threshold", 90) then return false end
   if context.is_moving then return false end
   if context.player_control_locked then return false end
   if not s.greater_heal_ready then return false end
@@ -765,7 +758,7 @@ local healing_strategies = {
  { name = "PreemptiveGreaterHeal", matches = function(context, s)
   if not context.in_combat then return false end
   if context.is_moving then return false end
-  local threshold = (context.settings and context.settings.discipline_preemptive_threshold) or PreemptiveHeal.DEFAULT_THRESHOLD
+  local threshold = spec_kit.setting_number(context, "discipline_preemptive_threshold", PreemptiveHeal.DEFAULT_THRESHOLD)
   if not PreemptiveHeal.match(context, s, threshold, 2.5) then return false end
   if not s.greater_heal_ready then return false end
   return true
@@ -815,16 +808,14 @@ local healing_strategies = {
  { name = "Shadowfiend", is_gcd_gated = false, is_burst = true, matches = function(context, s)
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
-   if context.settings and not context.settings.use_shadowfiend then
-    if context.settings and context.settings.use_shadowfiend == nil and context.settings.use_cooldowns == false then return false end
-   end
+   if not spec_kit.setting_bool(context, "use_shadowfiend", spec_kit.setting_bool(context, "use_cooldowns", true)) then return false end
    if not s.shadowfiend_ready then return false end
-   return (s.mana_pct or context.mana_pct or 100) < (context.settings.shadowfiend_mana_threshold or 30)
+   return (s.mana_pct or context.mana_pct or 100) < spec_kit.setting_number(context, "shadowfiend_mana_threshold", 30)
   end, execute = function() return NS.try_cast(ACTION.Shadowfiend, nil, "[DISCIPLINE] Shadowfiend (mana regen)", { skip_range = true }) end },
  { name = "ManaPotion", matches = function(context, s)
    if not context.in_combat then return false end
-   if context.settings and context.settings.use_mana_potions == false then return false end
-   local threshold = (context.settings and context.settings.mana_potion_threshold) or 20
+   if not spec_kit.setting_bool(context, "use_mana_potions", true) then return false end
+   local threshold = spec_kit.setting_number(context, "mana_potion_threshold", 20)
    return (s.mana_pct or context.mana_pct or 100) < threshold
   end, execute = function(_, s)
    if NS.ConsumableManager and NS.ConsumableManager.use_mana_potion then
