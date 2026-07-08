@@ -45,6 +45,8 @@ _G.EaxRotations = {
     debuff_remains = function(unit, ids) return 0 end,
     cooldown_remains = function(spell_value, fallback) return 0 end,
     is_interruptible = function(target) return true end,
+    broken_api_throttled = function() return false end,
+    get_debuff_stacks = function(unit, ids) return 0 end,
     log = function() end,
     GetPlayer = function() return {} end,
     PLAYER_UNIT = {},
@@ -164,5 +166,100 @@ action_calls = {}
 spell_ready_calls = {}
 local cleave_ok = cleave.matches({ target = {}, rage = 70, enemy_count = 2, enemies_count = 2, me = {} })
 if not cleave_ok then error("S2 FAIL: Cleave should match when rage=65 with MS imminent (65-15=50 >= 30)") end
+
+-- ============================================================================
+-- Charge: OOC + auto_charge + distance 8-25 + target not in combat + spell_ready
+-- ============================================================================
+
+local charge = find_strategy("Charge")
+
+-- In combat -> should NOT match (Charge is an opener)
+assert_false(charge.matches({ in_combat = true, target = {}, rage = 10, stance = 1, target_distance = 15 }), "Charge should not match when in combat")
+
+-- Too close (< 8 yd) -> should NOT match
+assert_false(charge.matches({ target = {}, rage = 10, stance = 1, in_combat = false, target_distance = 5 }), "Charge should not match when target < 8 yd")
+
+-- Too far (> 25 yd) -> should NOT match
+assert_false(charge.matches({ target = {}, rage = 10, stance = 1, in_combat = false, target_distance = 30 }), "Charge should not match when target > 25 yd")
+
+-- auto_charge disabled -> should NOT match
+assert_false(charge.matches({ target = {}, rage = 10, stance = 1, settings = { auto_charge = false }, in_combat = false, target_distance = 15 }), "Charge should not match when auto_charge=false")
+
+-- target already in combat (charge_only_ooc default true) -> should NOT match
+assert_false(charge.matches({ target = { is_in_combat = function() return true end }, rage = 10, stance = 1, in_combat = false, target_distance = 15 }), "Charge should not match when target already in combat (charge_only_ooc)")
+
+-- All conditions met (OOC, dist 15, target not in combat) -> should match
+assert_true(charge.matches({ target = { is_in_combat = function() return false end }, rage = 10, stance = 1, in_combat = false, target_distance = 15 }), "Charge should match OOC at 15 yd with target not in combat")
+
+-- ============================================================================
+-- Intercept: distance 8-25 + auto_charge + spell_ready
+-- ============================================================================
+
+local intercept = find_strategy("Intercept")
+
+-- Too close (< 8 yd) -> should NOT match
+assert_false(intercept.matches({ target = {}, rage = 10, stance = 3, target_distance = 5 }), "Intercept should not match when target < 8 yd")
+
+-- Too far (> 25 yd) -> should NOT match
+assert_false(intercept.matches({ target = {}, rage = 10, stance = 3, target_distance = 30 }), "Intercept should not match when target > 25 yd")
+
+-- auto_charge disabled -> should NOT match
+assert_false(intercept.matches({ target = {}, rage = 10, stance = 3, settings = { auto_charge = false }, target_distance = 15 }), "Intercept should not match when auto_charge=false")
+
+-- All conditions met (dist 15, berserker stance, rage 10) -> should match
+assert_true(intercept.matches({ target = {}, rage = 10, stance = 3, target_distance = 15 }), "Intercept should match at 15 yd in berserker stance with rage")
+
+-- ============================================================================
+-- SunderArmor: target_armor > 0 + use_sunder_armor + stacks < 5 + rage >= 15 + not execute + DEFENSIVE stance
+-- ============================================================================
+
+local sunder = find_strategy("SunderArmor")
+
+-- use_sunder_armor off (default false) -> should NOT match
+assert_false(sunder.matches({ target = {}, target_armor = 5000, rage = 30, stance = 2, target_hp = 80, settings = { use_sunder_armor = false } }), "SunderArmor should not match when use_sunder_armor=false (default)")
+
+-- No target armor -> should NOT match
+assert_false(sunder.matches({ target = {}, target_armor = 0, rage = 30, stance = 2, target_hp = 80, settings = { use_sunder_armor = true } }), "SunderArmor should not match when target_armor <= 0")
+
+-- 5 stacks -> should NOT match
+_G.EaxRotations.get_debuff_stacks = function() return 5 end
+assert_false(sunder.matches({ target = {}, target_armor = 5000, rage = 30, stance = 2, target_hp = 80, settings = { use_sunder_armor = true } }), "SunderArmor should not match at 5 stacks")
+_G.EaxRotations.get_debuff_stacks = function() return 0 end
+
+-- Execute phase -> should NOT match
+assert_false(sunder.matches({ target = {}, target_armor = 5000, rage = 30, stance = 2, target_hp = 15, settings = { use_sunder_armor = true } }), "SunderArmor should not match during execute phase")
+
+-- Wrong stance (BATTLE, Sunder requires DEFENSIVE) -> should NOT match
+assert_false(sunder.matches({ target = {}, target_armor = 5000, rage = 30, stance = 1, target_hp = 80, settings = { use_sunder_armor = true } }), "SunderArmor should not match in Battle stance (requires Defensive)")
+
+-- All conditions met (DEFENSIVE stance, armor>0, stacks 0, rage 30, use_sunder_armor on) -> should match
+assert_true(sunder.matches({ target = {}, target_armor = 5000, rage = 30, stance = 2, target_hp = 80, settings = { use_sunder_armor = true } }), "SunderArmor should match in Defensive stance with armor, low stacks, rage")
+
+-- ============================================================================
+-- ShieldWall: hp <= threshold (25 solo / 40 group) + DEFENSIVE stance
+-- ============================================================================
+
+local shield_wall = find_strategy("ShieldWall")
+
+-- HP too high (solo, threshold 25) -> should NOT match
+assert_false(shield_wall.matches({ target = {}, stance = 2, hp = 50, is_group = false }), "ShieldWall should not match at 50% hp solo (threshold 25)")
+
+-- HP low enough but wrong stance (BATTLE) -> should NOT match
+assert_false(shield_wall.matches({ target = {}, stance = 1, hp = 20, is_group = false }), "ShieldWall should not match in Battle stance (requires Defensive)")
+
+-- Solo at 20% hp in Defensive -> should match
+assert_true(shield_wall.matches({ target = {}, stance = 2, hp = 20, is_group = false }), "ShieldWall should match at 20% hp solo in Defensive stance")
+
+-- Group at 35% hp (threshold 40) in Defensive -> should match
+assert_true(shield_wall.matches({ target = {}, stance = 2, hp = 35, is_group = true }), "ShieldWall should match at 35% hp in group (threshold 40) in Defensive stance")
+
+-- ============================================================================
+-- EngineeringBomb: requires engineering helper module loaded -> false when absent
+-- ============================================================================
+
+local eng_bomb = find_strategy("EngineeringBomb")
+
+-- engineering module not loaded in test -> should NOT match (graceful nil-guard)
+assert_false(eng_bomb.matches({ target = {} }), "EngineeringBomb should not match when engineering helper absent (nil-guard)")
 
 print("PASS test_arms_custom_matches")

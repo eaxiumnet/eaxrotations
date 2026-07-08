@@ -68,6 +68,11 @@ local tests = {
  "test_hunter_steady_shot_weave.lua",
  "test_hunter_dead_zone.lua",
  "test_mm_trueshot_aura.lua",
+ -- Hunter custom matches gate sweeps (audit gap #3)
+ "test_beast_mastery_custom_matches.lua",
+ "test_marksmanship_custom_matches.lua",
+ "test_survival_custom_matches.lua",
+
 
  -- Priest tests
  "test_priest_holy_custom_matches.lua",
@@ -163,6 +168,8 @@ local tests = {
  "test_shaman_lightning_shield_throttle.lua",
  "test_shaman_enhancement_self_heal.lua",
  "test_elemental_custom_matches.lua",
+ "test_enhancement_custom_matches.lua",
+
  "test_threat_drop_party_gate.lua",
 
  -- Paladin
@@ -170,6 +177,10 @@ local tests = {
  "test_paladin_throttle_regression.lua",
  "test_paladin_consecration_downrank.lua",
  "test_paladin_avenger_shield_opener.lua",
+
+ -- Paladin custom matches gate sweeps (audit gap #3)
+ "test_retribution_custom_matches.lua",
+ "test_protection_custom_matches.lua",
 
  -- Mage
  "test_arcane_custom_matches.lua",
@@ -200,6 +211,9 @@ local tests = {
 
  -- Consumable manager settings + bag wiring (user-reported bugs 2026-06-29)
  "test_consumable_manager_settings.lua",
+
+ "test_subtlety_custom_matches.lua",
+ "test_assassination_custom_matches.lua",
 
  -- Rogue
  "test_combat_custom_matches.lua",
