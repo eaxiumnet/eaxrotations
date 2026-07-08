@@ -1,3 +1,9 @@
+-- test_playstyle_setting_seeds_active.lua -- Test Playstyle Setting Seeds Active tests.
+-- WHAT:  Test Playstyle Setting Seeds Active tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- regression test for stored schema playstyle seeding active_playstyle.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

@@ -1,3 +1,9 @@
+-- test_mm_trueshot_aura.lua -- aura handling tests.
+-- WHAT:  aura handling tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Hunter Marksmanship Trueshot Aura (HU3)
 -- ----------------------------------------------------------------------------

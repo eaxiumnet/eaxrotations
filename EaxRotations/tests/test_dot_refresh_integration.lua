@@ -1,3 +1,9 @@
+-- test_dot_refresh_integration.lua -- DoT refresh logic integration tests.
+-- WHAT:  DoT refresh logic integration tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   End-to-end validation of multiple subsystems working together.
+-- SAFETY: May require more setup; keep mocks lightweight.
+
 -- ============================================================================
 -- Test: DoT Refresh Integration
 -- ============================================================================

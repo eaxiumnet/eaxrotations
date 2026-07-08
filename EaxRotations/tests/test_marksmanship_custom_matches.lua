@@ -1,3 +1,9 @@
+-- test_marksmanship_custom_matches.lua -- Marksmanship custom match validation tests.
+-- WHAT:  Marksmanship custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- Gate test: Hunter Marksmanship custom matches functions.
 -- Covers: HuntersMark, RapidFire, KillCommand, MultiShot, SteadyShot, ArcaneShot, SerpentSting, CallPet.
 

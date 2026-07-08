@@ -1,3 +1,9 @@
+-- test_context_wired_fields_2026_06.lua -- combat context wired fields tests.
+-- WHAT:  combat context wired fields tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures combat context exposes all required fields for strategy evaluation.
+-- SAFETY: Context mocks must stay in sync with dispatcher.
+
 -- Regression test for context fields wired in June 2026 session.
 -- Verifies attack_power, crit_chance, target_armor, enemy_list, targets, and NS.DRTracker.
 

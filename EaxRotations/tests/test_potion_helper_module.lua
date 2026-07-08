@@ -1,3 +1,9 @@
+-- test_potion_helper_module.lua -- potion helper helper tests module tests.
+-- WHAT:  potion helper helper tests module tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Unit tests for the shared potion_helper_sylvanas module.
 -- Covers: ID lists, try_use_potion execution, pcall safety.
 

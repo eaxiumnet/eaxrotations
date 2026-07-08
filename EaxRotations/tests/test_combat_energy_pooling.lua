@@ -1,3 +1,9 @@
+-- test_combat_energy_pooling.lua -- Combat energy pooling tests.
+-- WHAT:  Combat energy pooling tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Rogue Combat Energy Pooling (RO3)
 -- ----------------------------------------------------------------------------

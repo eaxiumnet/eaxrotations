@@ -1,3 +1,9 @@
+-- test_cross_expansion_spell_validation.lua -- cross-expansion spell resolution validation suite.
+-- WHAT:  cross-expansion spell resolution validation suite
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Cross-Expansion Spell ID Validation
 -- ============================================================================

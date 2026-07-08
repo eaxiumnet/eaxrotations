@@ -1,3 +1,9 @@
+-- test_interrupt_manager_school_lock.lua -- manager tests school immunity tests.
+-- WHAT:  manager tests school immunity tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Interrupt Manager School Lock Tracking
 -- Verifies school lock recording, querying, expiry, and strategy gating.

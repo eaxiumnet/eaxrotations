@@ -1,3 +1,9 @@
+-- test_destruction_shadowburn.lua -- Destruction Shadowburn logic tests.
+-- WHAT:  Destruction Shadowburn logic tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- unit tests for destruction_sylvanas Shadowburn execute logic.
 -- Verifies Shadowburn fires only when target is in execute range and soul shard is available.
 

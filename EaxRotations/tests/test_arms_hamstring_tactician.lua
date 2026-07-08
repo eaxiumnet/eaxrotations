@@ -1,3 +1,9 @@
+-- test_arms_hamstring_tactician.lua -- Arms Hamstring logic Tactician procs tests.
+-- WHAT:  Arms Hamstring logic Tactician procs tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- unit tests for arms_sylvanas Hamstring Tactician weave gating.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

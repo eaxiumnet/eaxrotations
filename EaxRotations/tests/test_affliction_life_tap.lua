@@ -1,3 +1,9 @@
+-- test_affliction_life_tap.lua -- Affliction Life Tap tests.
+-- WHAT:  Affliction Life Tap tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- unit tests for affliction_sylvanas Life Tap sustain logic.
 -- Verifies Life Tap fires only when mana is below threshold and HP is safe.
 

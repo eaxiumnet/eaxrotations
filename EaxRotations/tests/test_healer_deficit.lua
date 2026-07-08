@@ -1,3 +1,9 @@
+-- test_healer_deficit.lua -- Test Healer Deficit tests.
+-- WHAT:  Test Healer Deficit tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Test: Predictive Healing Deficit Tracker
 -- EaxRotations File Version: 1.1.1
 local _G = _G

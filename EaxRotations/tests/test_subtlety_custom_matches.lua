@@ -1,3 +1,9 @@
+-- test_subtlety_custom_matches.lua -- Subtlety custom match validation tests.
+-- WHAT:  Subtlety custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- Gate test: Rogue Subtlety custom matches functions.
 -- Matches read passed state.* + context.* (BM/MM pattern).
 -- Covers: Evasion, SliceAndDice, Rupture, Eviscerate, KidneyShot, Vanish, Backstab, Hemorrhage.

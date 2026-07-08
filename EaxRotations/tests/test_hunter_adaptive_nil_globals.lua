@@ -1,3 +1,9 @@
+-- test_hunter_adaptive_nil_globals.lua -- Hunter nil-guard tests.
+-- WHAT:  Hunter nil-guard tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Regression test: hunter_adaptive_sylvanas.lua must load with WoW globals
 -- absent (no Sylvanas co-habiting WoW client runtime).

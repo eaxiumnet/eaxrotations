@@ -1,3 +1,9 @@
+-- test_hunter_melee_weave.lua -- Hunter tests.
+-- WHAT:  Hunter tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Test: Melee weave wiring in all 3 Hunter specs.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

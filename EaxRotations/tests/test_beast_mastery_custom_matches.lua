@@ -1,3 +1,9 @@
+-- test_beast_mastery_custom_matches.lua -- Beast Mastery custom match validation tests.
+-- WHAT:  Beast Mastery custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- Gate test: Hunter Beast Mastery custom matches functions.
 -- Covers: KillCommand, BestialWrath, SerpentSting, ArcaneShot, SteadyShot, MultiShot, Volley.
 

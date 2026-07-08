@@ -1,3 +1,9 @@
+-- test_buff_upgrade.lua -- buff management buff upgrade tests.
+-- WHAT:  buff management buff upgrade tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Buff Upgrade System — rank detection + upgrade trigger
 -- Contract: when a unit has a lower-rank buff active and the player knows a

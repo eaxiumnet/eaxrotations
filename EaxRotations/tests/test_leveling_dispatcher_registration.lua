@@ -1,3 +1,9 @@
+-- test_leveling_dispatcher_registration.lua -- leveling rotation dispatcher tick tests.
+-- WHAT:  leveling rotation dispatcher tick tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Regression: every class leveling module must register the "leveling"
 -- playstyle with the dispatcher. A module that only exposes on_update() loads
 -- successfully but never runs when selected from the playstyle dropdown.

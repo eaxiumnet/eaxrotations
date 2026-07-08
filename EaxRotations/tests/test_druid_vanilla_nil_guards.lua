@@ -1,3 +1,9 @@
+-- test_druid_vanilla_nil_guards.lua -- Druid Vanilla-era compatibility nil-guard tests.
+-- WHAT:  Druid Vanilla-era compatibility nil-guard tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates nil-guard safety on all numeric state reads (Pattern 14).
+-- SAFETY: Must pass after any state table change.
+
 -- Regression test: druid vanilla specs Pattern 14 nil-guards.
 -- Covers: balance_vanilla, cat_vanilla, caster_vanilla, resto_vanilla, leveling_vanilla.
 -- bear_vanilla has its own dedicated test file.

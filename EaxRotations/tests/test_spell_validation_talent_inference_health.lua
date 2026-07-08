@@ -1,3 +1,9 @@
+-- test_spell_validation_talent_inference_health.lua -- spell resolution validation suite talent inference health thresholds tests.
+-- WHAT:  spell resolution validation suite talent inference health thresholds tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Spell Validation and Talent Inference × reset_api_health integration
 -- ============================================================================

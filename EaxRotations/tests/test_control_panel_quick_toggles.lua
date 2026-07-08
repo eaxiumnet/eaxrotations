@@ -1,3 +1,9 @@
+-- test_control_panel_quick_toggles.lua -- control panel quick toggles tests.
+-- WHAT:  control panel quick toggles tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- static regression checks for global Control Panel quick toggles.
 
 local function assert_true(v, label)
@@ -44,6 +50,6 @@ assert_true(contains(dispatcher, 'not spec_kit.setting_bool(context, "damage_ena
 assert_true(contains(dispatcher, 'not spec_kit.setting_bool(context, "use_cooldowns"'), "cooldowns toggle should gate cooldown rows")
 assert_true(contains(dispatcher, '"is_casting", "is_casting_spell"'), "dispatcher should accept base API and IZI casting flags")
 
-assert_true(contains(core, "settings.aoe_enabled == false") and contains(core, "enemy_count or action.is_aoe"), "AoE toggle should gate action rows with enemy_count/is_aoe")
+assert_true(contains(core, 'spec_kit.setting_bool(context, "aoe_enabled", true) == false') and contains(core, "enemy_count or action.is_aoe"), "AoE toggle should gate action rows with enemy_count/is_aoe")
 
 print("PASS test_control_panel_quick_toggles")

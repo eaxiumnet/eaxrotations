@@ -1,3 +1,9 @@
+-- test_playstyle_tooltip_class_name.lua -- Test Playstyle Tooltip Class Name tests.
+-- WHAT:  Test Playstyle Tooltip Class Name tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- regression test: playstyle tooltip must not be hardcoded to "Warlock".
 
 local class_config = { class_name = "Warlock" }

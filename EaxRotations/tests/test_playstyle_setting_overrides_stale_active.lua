@@ -1,3 +1,9 @@
+-- test_playstyle_setting_overrides_stale_active.lua -- Test Playstyle Setting Overrides Stale Active tests.
+-- WHAT:  Test Playstyle Setting Overrides Stale Active tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- regression test for schema playstyle overriding stale active_playstyle at dispatch.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

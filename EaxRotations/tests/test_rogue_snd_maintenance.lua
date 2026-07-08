@@ -1,3 +1,9 @@
+-- test_rogue_snd_maintenance.lua -- Rogue Slice and Dice buff maintenance tests.
+-- WHAT:  Rogue Slice and Dice buff maintenance tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Rogue SnD Maintenance (RO2)
 -- ----------------------------------------------------------------------------

@@ -1,3 +1,9 @@
+-- test_cast_path_integration.lua -- cast path integration tests.
+-- WHAT:  cast path integration tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   End-to-end validation of multiple subsystems working together.
+-- SAFETY: May require more setup; keep mocks lightweight.
+
 -- Phase 4 test: queue-first cast path integration.
 -- Tests the acceptance criteria from the Phase 4 plan:
 --   1. Queue-first path is preferred over IZI and direct input

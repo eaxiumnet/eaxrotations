@@ -1,3 +1,9 @@
+-- test_balance_faerie_fire.lua -- Fire Faerie Fire tests.
+-- WHAT:  Fire Faerie Fire tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 --[[
 test_balance_faerie_fire.lua — Gap Coverage
 Verifies: Faerie Fire auto-application on cooldown

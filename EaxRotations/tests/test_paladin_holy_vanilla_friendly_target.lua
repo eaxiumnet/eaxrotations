@@ -1,3 +1,9 @@
+-- test_paladin_holy_vanilla_friendly_target.lua -- Holy Paladin Vanilla-era compatibility friendly target targeting tests.
+-- WHAT:  Holy Paladin Vanilla-era compatibility friendly target targeting tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Verifies Vanilla/Classic-era rotation compatibility and spell availability.
+-- SAFETY: Tests only Vanilla spell IDs and mechanics.
+
 -- test_paladin_holy_vanilla_friendly_target.lua — B6 FriendlyTarget for vanilla paladin holy.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 

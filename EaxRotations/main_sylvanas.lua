@@ -111,7 +111,6 @@ local _get_debuff_stacks = NS.get_debuff_stacks
 local _same_unit = NS.same_unit
 local _gcd_remains = NS.gcd_remains
 local _get_global_cooldown = NS.get_global_cooldown
-local _get_setting = NS.get_setting
 
 -- Talent build detection: cached API reference (nil if unavailable at load time)
 local _get_talent_info = core.game_ui and core.game_ui.get_talent_info
@@ -190,7 +189,7 @@ local function log_expansion_once(config, active)
 end
 
 local function reaction_delay_active(context)
-    local delay_ms = (NS.get_setting and NS.get_setting("reaction_delay_ms", 0)) or 0
+    local delay_ms = spec_kit.setting_number(nil, "reaction_delay_ms", 0)
     if delay_ms <= 0 then
         _reaction_delay_start = nil
         _reaction_was_on_gcd = false
@@ -312,12 +311,12 @@ end
 -- Auto-AoE Toggle Logic
 -- ============================================================================
 local function get_auto_aoe_threshold()
-    local threshold = NS.get_setting and NS.get_setting("auto_aoe_threshold", 3)
+    local threshold = spec_kit.setting_number(nil, "auto_aoe_threshold", 3)
     return type(threshold) == "number" and threshold or 3
 end
 
 local function auto_aoe_enabled()
-    return NS.get_setting and NS.get_setting("auto_aoe_enabled", true) or true
+    return spec_kit.setting_bool(nil, "auto_aoe_enabled", true)
 end
 
 local function auto_aoe_should_trigger(enemy_count)

@@ -1,3 +1,9 @@
+-- test_shadow_multidot.lua -- Shadow multi-dotting tests.
+-- WHAT:  Shadow multi-dotting tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Test: Shadow Priest Multi-DoT engine.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

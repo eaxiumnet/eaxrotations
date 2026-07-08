@@ -1,3 +1,9 @@
+-- test_quality_bar_compliance.lua -- quality compliance compliance check.
+-- WHAT:  quality compliance compliance check
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: §4 Quality Bar Compliance Audit (Static Patterns Only)
 -- ----------------------------------------------------------------------------

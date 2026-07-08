@@ -1,3 +1,9 @@
+-- test_paladin_vanilla_nil_guards.lua -- Paladin Vanilla-era compatibility nil-guard tests.
+-- WHAT:  Paladin Vanilla-era compatibility nil-guard tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates nil-guard safety on all numeric state reads (Pattern 14).
+-- SAFETY: Must pass after any state table change.
+
 -- Regression test: paladin vanilla specs Pattern 14 nil-guards.
 -- Covers: holy_vanilla, protection_vanilla, retribution_vanilla, leveling_vanilla.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

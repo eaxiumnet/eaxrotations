@@ -1,3 +1,9 @@
+-- test_evaluate_cast_casting_guard.lua -- cast path tests.
+-- WHAT:  cast path tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- TDD test for evaluate_cast check #6: player casting/channeling guard.
 -- Scenarios:
 --   S1: Player is casting → evaluate_cast returns false

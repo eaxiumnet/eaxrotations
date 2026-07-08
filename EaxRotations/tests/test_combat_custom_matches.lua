@@ -1,3 +1,9 @@
+-- test_combat_custom_matches.lua -- Combat custom match validation tests.
+-- WHAT:  Combat custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- unit tests for combat_sylvanas custom matches functions.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

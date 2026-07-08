@@ -1,3 +1,9 @@
+-- test_warlock_focus_target_fires.lua -- Warlock focus target targeting tests.
+-- WHAT:  Warlock focus target targeting tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- regression test for Warlock focus-target rotation startup.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

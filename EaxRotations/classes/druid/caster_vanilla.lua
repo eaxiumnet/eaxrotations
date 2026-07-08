@@ -6,13 +6,13 @@
 
 local NS = rawget(_G, "EaxRotations")
 if not NS then return nil end
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.DruidSpells or {}
 
 -- Vanilla-only spell IDs (no TBC ranks >= 27000)
 local MOONFIRE_DEBUFF = { 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
 local FAERIE_FIRE_DEBUFF = { 9907, 9749, 778, 770 }
 local THORNS_BUFF = { 9910, 9756, 8914, 1075, 782, 467 }
-local EMPTY_SETTINGS = {}
 
 local caster_state = {
     moonfire_remains = 0,
@@ -37,14 +37,11 @@ local function build_state(context)
 end
 
 local function explicit_caster_selected(context)
-    local settings = context and context.settings or EMPTY_SETTINGS
     return context and (
-        ((context.settings and context.settings.playstyle) or "auto") == "caster"
-        or settings.active_playstyle == "caster"
-        or settings.playstyle == "caster"
+        spec_kit.setting(context, "playstyle", "auto") == "caster"
+        or spec_kit.setting(context, "active_playstyle", "") == "caster"
     )
 end
-
 local function caster_context_allowed(context)
     if not context then return false end
     if context.is_solo == true or context.is_leveling == true then return true end

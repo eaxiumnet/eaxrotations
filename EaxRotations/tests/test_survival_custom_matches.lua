@@ -1,3 +1,9 @@
+-- test_survival_custom_matches.lua -- Survival custom match validation tests.
+-- WHAT:  Survival custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- Gate test: Hunter Survival custom matches functions.
 -- Covers: KillCommand, MultiShot, SteadyShot, ArcaneShot, SerpentSting, ExplosiveTrap, WyvernSting, MongooseBite.
 

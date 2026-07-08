@@ -1,3 +1,9 @@
+-- test_assassination_custom_matches.lua -- Assassination custom match validation tests.
+-- WHAT:  Assassination custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- Gate test: Rogue Assassination custom matches functions.
 -- Covers: SliceAndDice, RuptureBleed, EnvenomFinisher, ColdBloodEnvenom,
 --         ExposeArmor, DeadlyThrow, BlindCC, PvP_SprintGapClose.

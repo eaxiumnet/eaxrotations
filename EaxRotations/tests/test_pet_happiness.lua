@@ -1,3 +1,9 @@
+-- test_pet_happiness.lua -- Test Pet Happiness tests.
+-- WHAT:  Test Pet Happiness tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Test: Hunter pet happiness auto-feed (middleware FeedPet strategy)
 --
 -- Exercises:

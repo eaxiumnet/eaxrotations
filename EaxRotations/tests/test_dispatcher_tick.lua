@@ -1,3 +1,9 @@
+-- test_dispatcher_tick.lua -- dispatcher tick tests.
+-- WHAT:  dispatcher tick tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- ============================================================================
 -- Test: Rotation Dispatcher Tick Integration
 

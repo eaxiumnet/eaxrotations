@@ -1,3 +1,9 @@
+-- test_shaman_resto_vanilla_friendly_target.lua -- Restoration Shaman Vanilla-era compatibility friendly target targeting tests.
+-- WHAT:  Restoration Shaman Vanilla-era compatibility friendly target targeting tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Verifies Vanilla/Classic-era rotation compatibility and spell availability.
+-- SAFETY: Tests only Vanilla spell IDs and mechanics.
+
 -- test_shaman_resto_vanilla_friendly_target.lua — B6 FriendlyTarget for vanilla resto shaman.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 

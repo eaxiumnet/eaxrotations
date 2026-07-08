@@ -1,3 +1,9 @@
+-- test_talent_context.lua -- talent inference combat context tests.
+-- WHAT:  talent inference combat context tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures combat context exposes all required fields for strategy evaluation.
+-- SAFETY: Context mocks must stay in sync with dispatcher.
+
 -- Test: talent_build context field from core.game_ui.get_talent_info()
 --
 -- Scenarios:

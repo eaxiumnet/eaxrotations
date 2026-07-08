@@ -1,3 +1,9 @@
+-- test_elemental_custom_matches.lua -- Elemental custom match validation tests.
+-- WHAT:  Elemental custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- unit tests for elemental_sylvanas custom matches functions.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

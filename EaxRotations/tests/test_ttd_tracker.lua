@@ -1,3 +1,9 @@
+-- test_ttd_tracker.lua -- time-to-death tracker logic tests.
+-- WHAT:  time-to-death tracker logic tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates time-to-death gating to avoid clipping DoTs on short-lived targets.
+-- SAFETY: Uses synthetic TTD values.
+
 -- TTD Tracker regression tests.
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end

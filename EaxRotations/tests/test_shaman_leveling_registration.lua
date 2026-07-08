@@ -1,3 +1,9 @@
+-- test_shaman_leveling_registration.lua -- Shaman leveling rotation tests.
+-- WHAT:  Shaman leveling rotation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Regression: Shaman leveling must be registered with the dispatcher and use
 -- NS.ShamanSpells, not the legacy empty NS.SPELLS table.
 

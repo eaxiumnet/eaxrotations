@@ -1,3 +1,9 @@
+-- test_leveling_shared.lua -- leveling rotation tests.
+-- WHAT:  leveling rotation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- leveling shared unit tests.
 -- Covers all 8 exported functions in shared/leveling_sylvanas.lua:
 --   create_context_guard, execute_wand, create_wand_matches,

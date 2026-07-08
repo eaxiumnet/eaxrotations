@@ -1,3 +1,9 @@
+-- test_subtlety_vanilla_nil_guards.lua -- Subtlety Vanilla-era compatibility nil-guard tests.
+-- WHAT:  Subtlety Vanilla-era compatibility nil-guard tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates nil-guard safety on all numeric state reads (Pattern 14).
+-- SAFETY: Must pass after any state table change.
+
 -- Regression test: subtlety_vanilla.lua Pattern 14 nil-guards.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 

@@ -1,3 +1,9 @@
+-- bench_fixes_1_2.lua -- benchmark fix validation tests.
+-- WHAT:  benchmark fix validation tests
+-- WHEN:  During CI or manual performance validation.
+-- WHY:   Measures hot-path performance and prevents regression in frame-budget.
+-- SAFETY: Run in isolation; results are relative to baseline.
+
 -- ============================================================================
 -- Synthetic microbenchmark: Fix #1 + Fix #2 dispatch patterns
 -- ============================================================================

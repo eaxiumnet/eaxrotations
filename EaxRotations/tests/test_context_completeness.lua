@@ -1,3 +1,9 @@
+-- test_context_completeness.lua -- combat context completeness tests.
+-- WHAT:  combat context completeness tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures combat context exposes all required fields for strategy evaluation.
+-- SAFETY: Context mocks must stay in sync with dispatcher.
+
 -- Context completeness regression test.
 -- Validates that build_context populates all required fields from SUPER_PROMPT spec.
 

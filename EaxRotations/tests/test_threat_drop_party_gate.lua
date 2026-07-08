@@ -1,3 +1,9 @@
+-- test_threat_drop_party_gate.lua -- threat management threat-drop party gate tests.
+-- WHAT:  threat management threat-drop party gate tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- regression test for Fade, Feign Death, Cower, and Soulshatter gating.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path

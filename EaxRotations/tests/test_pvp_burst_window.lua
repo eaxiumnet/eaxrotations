@@ -1,3 +1,9 @@
+-- test_pvp_burst_window.lua -- PvP logic burst window tests.
+-- WHAT:  PvP logic burst window tests
+-- WHEN:  During PvP balance validation.
+-- WHY:   Ensures PvP-specific priority shifts and burst windows function correctly.
+-- SAFETY: Synthetic arena context.
+
 -- Test: shared/pvp_burst_window_sylvanas.lua DR-immunity + enemy-defensive wiring.
 -- Verifies the two formerly-stubbed helpers now delegate to the native pvp_helper /
 -- EnemyCDTracker bridges, and degrade to safe defaults (false / "unknown") when those

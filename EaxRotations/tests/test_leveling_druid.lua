@@ -1,3 +1,9 @@
+-- test_leveling_druid.lua -- Druid leveling rotation tests.
+-- WHAT:  Druid leveling rotation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Unit tests for Druid leveling rotation
 -- Tests build_state, all 12 match functions, strategy ordering,
 -- helper functions, and edge case handling

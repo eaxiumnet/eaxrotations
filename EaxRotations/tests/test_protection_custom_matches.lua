@@ -1,3 +1,9 @@
+-- test_protection_custom_matches.lua -- Protection custom match validation tests.
+-- WHAT:  Protection custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- Gate test: Paladin Protection custom matches functions.
 -- Covers: SealRighteousness, SealOfCommandAoE, HammerOfWrath, AvengingWrath,
 --         Exorcism, HolyWrath, FlashOfLight, HolyLight, SealOfWisdom, DivineProtection.

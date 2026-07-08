@@ -6,6 +6,7 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 
 local BASE_SPELLS = NS.DruidSpells or {}

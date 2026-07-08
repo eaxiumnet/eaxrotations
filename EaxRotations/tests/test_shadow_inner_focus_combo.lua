@@ -1,3 +1,9 @@
+-- test_shadow_inner_focus_combo.lua -- Shadow Inner Focus focus target combo points tests.
+-- WHAT:  Shadow Inner Focus focus target combo points tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- Test: Shadow Priest Inner Focus + Mind Blast combo.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

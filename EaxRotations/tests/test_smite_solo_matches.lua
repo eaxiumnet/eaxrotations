@@ -1,3 +1,9 @@
+-- test_smite_solo_matches.lua -- Smite match validation tests.
+-- WHAT:  Smite match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- regression checks for Smite Priest solo/leveling/PvP support rows.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

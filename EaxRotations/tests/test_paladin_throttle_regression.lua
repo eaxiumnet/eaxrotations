@@ -1,3 +1,9 @@
+-- test_paladin_throttle_regression.lua -- Paladin throttle logic regression coverage tests.
+-- WHAT:  Paladin throttle logic regression coverage tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- test_paladin_throttle_regression.lua
 -- Minimal regression: verify 3s match-end throttles on key strategies.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

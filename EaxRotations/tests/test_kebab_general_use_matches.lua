@@ -1,3 +1,9 @@
+-- test_kebab_general_use_matches.lua -- match validation tests.
+-- WHAT:  match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- behavior tests for Warrior Kebab general-use decisions.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

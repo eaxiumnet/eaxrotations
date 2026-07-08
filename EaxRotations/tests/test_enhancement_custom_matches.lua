@@ -1,3 +1,9 @@
+-- test_enhancement_custom_matches.lua -- Enhancement custom match validation tests.
+-- WHAT:  Enhancement custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- Gate test: Shaman Enhancement custom matches functions.
 -- These read module-level enh_state (populated by build_state), so we drive them
 -- via cap_gs(context) then call strategy.matches(context).

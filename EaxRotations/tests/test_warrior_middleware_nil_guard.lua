@@ -1,3 +1,9 @@
+-- test_warrior_middleware_nil_guard.lua -- Warrior middleware nil-guard nil-guard tests.
+-- WHAT:  Warrior middleware nil-guard nil-guard tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates nil-guard safety on all numeric state reads (Pattern 14).
+-- SAFETY: Must pass after any state table change.
+
 -- Unit tests for warrior middleware nil-guard pattern.
 -- Verifies that nil-guards (and patterns) prevent crashes when NS functions are unavailable.
 -- Each pcall-based regression test proves: removing the guard would crash, the guard prevents it.

@@ -1,3 +1,9 @@
+-- test_spell_resolver_cache.lua -- spell resolution resolver cache cache logic tests.
+-- WHAT:  spell resolution resolver cache cache logic tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- spell resolver cache hit/miss and TTL expiry regression test.
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end

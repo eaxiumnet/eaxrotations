@@ -1,3 +1,9 @@
+-- test_ttd_normalization.lua -- time-to-death tests.
+-- WHAT:  time-to-death tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Validates time-to-death gating to avoid clipping DoTs on short-lived targets.
+-- SAFETY: Uses synthetic TTD values.
+
 -- Phase 3 test: TTD normalization patterns across specs.
 -- Tests the acceptance criteria from the Phase 3 plan:
 --   1. DoT skipped when known TTD is below DoT value window

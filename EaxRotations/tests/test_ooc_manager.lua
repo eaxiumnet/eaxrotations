@@ -1,3 +1,9 @@
+-- test_ooc_manager.lua -- out-of-combat manager tests.
+-- WHAT:  out-of-combat manager tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 -- ============================================================================
 -- Test: OOC Manager — GCD check and broken_api_throttled guard

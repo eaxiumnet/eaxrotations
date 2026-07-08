@@ -1,3 +1,9 @@
+-- test_hunter_shot_timer_integration.lua -- Hunter shot timer timer tests integration tests.
+-- WHAT:  Hunter shot timer timer tests integration tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   End-to-end validation of multiple subsystems working together.
+-- SAFETY: May require more setup; keep mocks lightweight.
+
 -- Test: Shot timer wiring in all 3 Hunter specs.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

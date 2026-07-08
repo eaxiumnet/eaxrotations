@@ -1,3 +1,9 @@
+-- test_racial_manager.lua -- racial manager manager tests.
+-- WHAT:  racial manager manager tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Tests shared subsystem manager behavior and state transitions.
+-- SAFETY: Manager mocks provided by test runner.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 -- racial manager behavior regression test for orc and dwarf racials.
 

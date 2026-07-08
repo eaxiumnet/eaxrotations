@@ -1,3 +1,9 @@
+-- test_demonology_custom_matches.lua -- Demonology custom match validation tests.
+-- WHAT:  Demonology custom match validation tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Ensures spec-specific match functions behave correctly under mocked combat state.
+-- SAFETY: Uses synthetic context; no live game data required.
+
 -- unit tests for demonology_sylvanas custom matches functions.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path

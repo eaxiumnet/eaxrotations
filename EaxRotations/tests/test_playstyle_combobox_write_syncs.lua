@@ -1,3 +1,9 @@
+-- test_playstyle_combobox_write_syncs.lua -- Test Playstyle Combobox Write Syncs tests.
+-- WHAT:  Test Playstyle Combobox Write Syncs tests
+-- WHEN:  During rotation test suite execution.
+-- WHY:   Protects against regressions in rotation logic and state handling.
+-- SAFETY: Pure unit tests with mocked API context.
+
 -- regression test: combobox sync must not overwrite user selection on first call.
 
 local playstyle_keys = {"leveling", "affliction", "demonology", "destruction"}
