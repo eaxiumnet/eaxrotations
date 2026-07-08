@@ -166,7 +166,8 @@ function M.setting(context, key, default)
     end
     local NS = M.ns()
     if NS and type(NS.get_setting) == "function" then
-        return NS.get_setting(key, default)
+        local ok, result = pcall(NS.get_setting, key, default)
+        if ok and result ~= nil then return result end
     end
     return default
 end

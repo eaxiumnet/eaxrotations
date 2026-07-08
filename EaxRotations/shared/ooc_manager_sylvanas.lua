@@ -64,6 +64,7 @@
 
 local _G = _G
 local NS = _G.EaxRotations
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 local M = {}
 
@@ -277,7 +278,7 @@ local function context_or_default(context)
         settings = NS and NS.settings or EMPTY,
         in_combat = is_in_combat and safe(is_in_combat, me) == true or false,
         mana_pct = NS and NS.mana_pct and NS.mana_pct(me) or 100,
-        active_playstyle = NS and NS.get_setting and NS.get_setting("active_playstyle") or nil,
+        active_playstyle = spec_kit.setting(nil, "active_playstyle", nil),
     }
 end
 

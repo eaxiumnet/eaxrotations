@@ -7,6 +7,7 @@
 
 local _G = _G
 local NS = _G.EaxRotations
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 local M = {}
 
@@ -125,11 +126,11 @@ end
 
 local function seed_default_settings()
     if not NS or type(NS.set_setting) ~= "function" or type(NS.get_setting) ~= "function" then return end
-    if NS.get_setting("use_trinket_1", nil) == nil then NS.set_setting("use_trinket_1", true) end
-    if NS.get_setting("use_trinket_2", nil) == nil then NS.set_setting("use_trinket_2", true) end
-    if NS.get_setting("use_trinket_offensive", nil) == nil then NS.set_setting("use_trinket_offensive", true) end
-    if NS.get_setting("use_trinket_defensive", nil) == nil then NS.set_setting("use_trinket_defensive", true) end
-    if NS.get_setting("trinket_defensive_hp", nil) == nil then NS.set_setting("trinket_defensive_hp", DEFAULT_DEFENSIVE_HP) end
+    if spec_kit.setting(nil, "use_trinket_1", nil) == nil then NS.set_setting("use_trinket_1", true) end
+    if spec_kit.setting(nil, "use_trinket_2", nil) == nil then NS.set_setting("use_trinket_2", true) end
+    if spec_kit.setting(nil, "use_trinket_offensive", nil) == nil then NS.set_setting("use_trinket_offensive", true) end
+    if spec_kit.setting(nil, "use_trinket_defensive", nil) == nil then NS.set_setting("use_trinket_defensive", true) end
+    if spec_kit.setting(nil, "trinket_defensive_hp", nil) == nil then NS.set_setting("trinket_defensive_hp", DEFAULT_DEFENSIVE_HP) end
 end
 
 local function trinket_slots()

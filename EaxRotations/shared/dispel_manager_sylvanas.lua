@@ -8,6 +8,7 @@
 
 local _G = _G
 local NS = _G.EaxRotations
+local spec_kit = require("shared/spec_kit_sylvanas")
 if not NS then return end
 
 local M = {}
