@@ -11,7 +11,15 @@ if not NS then return nil end
 local SPELLS = NS.MageSpells or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
-local define = spec_kit.define_action_for_class(SPELLS) or function(name, ids, label) return NS.spell_action and NS.spell_action(ids, label) or ids[1] end
+local _base_define = spec_kit.define_action_for_class(SPELLS)
+-- Nil-safe wrapper: in unit-test environments SPELLS is empty → _base_define
+-- returns nil; fall back to NS.spell_action or a raw { id, name } table.
+local function define(name, ids, label)
+    local result = _base_define(name, ids, label)
+    if result then return result end
+    if NS.spell_action then return NS.spell_action(ids, label) end
+    return { id = ids, name = name }
+end
 local ACTION = {
     ArcaneBlast    = define("ArcaneBlast",    {30451}, "ArcaneBlast"),
     ArcaneMissiles = define("ArcaneMissiles", {38699, 25345, 10212, 10211, 8418, 8417, 8416, 5145, 5144, 5143}, "ArcaneMissiles"),
@@ -35,7 +43,7 @@ local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { mage = {} } } end
-local TBC_MAGE = (TBC.SPELLS and TBC.ACTION.mage) or {}
+local TBC_MAGE = (TBC.SPELLS and TBC.SPELLS.mage) or {}
 
 -- ============================================================================
 -- Buff / Debuff IDs

@@ -28,7 +28,15 @@ local _is_undead = _player_race == 5
 local SPELLS = NS.PriestSpells
 
 local spec_kit = require("shared/spec_kit_sylvanas")
-local define = spec_kit.define_action_for_class(SPELLS)
+local _base_define = spec_kit.define_action_for_class(SPELLS)
+-- Nil-safe wrapper: in unit-test environments PriestSpells is nil → _base_define
+-- returns nil; fall back to NS.spell_action or a raw { id, name } table.
+local function define(name, ids, label)
+    local result = _base_define(name, ids, label)
+    if result then return result end
+    if NS.spell_action then return NS.spell_action(ids, label) end
+    return { id = ids, name = name }
+end
 local ACTION = {
     DevouringPlague = define("DevouringPlague", {25467, 19280, 19279, 19278, 19277, 19276, 2944}, "DevouringPlague"),
     HolyFire        = define("HolyFire",        {25384, 15261, 15267, 15266, 15265, 15264, 15263, 15262, 14914}, "HolyFire"),
