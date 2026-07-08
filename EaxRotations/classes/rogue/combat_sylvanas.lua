@@ -109,10 +109,10 @@ local function get_next_tick_in(energy, settings)
 end
 
 local function should_pool_energy(context)
-    if not (context.settings and context.settings.combat_energy_tick_sync) then return false end
+    if not spec_kit.setting_bool(context, "combat_energy_tick_sync", false) then return false end
     
     local energy = context.energy or 0
-    local offset = (context.settings and context.settings.combat_energy_tick_offset or 100) / 1000
+    local offset = spec_kit.setting_number(context, "combat_energy_tick_offset", 100) / 1000
     local next_tick_in = get_next_tick_in(energy, context.settings)
     
     -- If tick is coming in very soon, wait for it unless we are capping
@@ -127,27 +127,26 @@ end
 
 local function should_spend_energy(context, cost)
     local energy = context.energy or 0
-    local settings = context.settings or {}
-    local offset = (settings.combat_energy_tick_offset or 100) / 1000
-    local next_tick_in = get_next_tick_in(energy, settings)
-    
+    local offset = spec_kit.setting_number(context, "combat_energy_tick_offset", 100) / 1000
+    local next_tick_in = get_next_tick_in(energy, context.settings)
+
     -- Capping risk: if next tick will put us over cap, spend NOW
     local projected_energy = energy + ENERGY_PER_TICK
     if projected_energy > get_energy_cap(context.me) then
         return true
     end
-    
+
     -- Logic: only spend if we just had a tick or the next one is far away
     if next_tick_in > offset + 0.3 then
         return true
     end
-    
+
     -- Or if we are in the "Advance" window (offset)
     if next_tick_in <= offset then
         return true
     end
 
-    return not (settings.combat_energy_tick_sync)
+    return not spec_kit.setting_bool(context, "combat_energy_tick_sync", false)
 end
 
 -- ============================================================================
@@ -292,7 +291,7 @@ local function build_state(context)
     combat_state.heroism_active = me and NS.buff_up(me, HEROISM_BUFF) or false
     combat_state.threat_pct = context.threat_pct or 0
     combat_state.snd_needs_refresh = combat_state.has_snd and combat_state.snd_remains <= SND_REFRESH_WINDOW
-    combat_state.expose_assigned = context.settings and context.settings.combat_expose_assigned or false
+    combat_state.expose_assigned = spec_kit.setting_bool(context, "combat_expose_assigned", false)
 
     -- Shiv Purge (PvP buff dispel via Wound Poison)
     combat_state.shiv_ready = target and NS.spell_ready(ACTION.Shiv, target, { expected_cooldown = 10 }) or false
@@ -306,7 +305,7 @@ local function build_state(context)
 end
 
 local function cooldowns_enabled(context)
-    return not context.settings or context.settings.use_cooldowns ~= false
+    return spec_kit.setting_bool(context, "use_cooldowns", true)
 end
 
 -- ============================================================================
@@ -329,7 +328,7 @@ local function adrenaline_rush_wrapper(context, s)
     if (s.energy or 100) > 40 then return false end
     -- Optimal: USE AR during Heroism for maximum combo point generation
     -- Setting defaults to false (use during Heroism) — override via combat_adrenaline_rush_heroism=true to delay
-    local delay_during_heroism = context.settings and context.settings.combat_adrenaline_rush_heroism == true
+    local delay_during_heroism = spec_kit.setting_bool(context, "combat_adrenaline_rush_heroism", false)
     if delay_during_heroism and s.heroism_active then return false end
     return true
 end
@@ -343,7 +342,7 @@ local function blade_flurry_wrapper(context, s)
     -- Wowsims APL: Blade Flurry requires Slice and Dice active (don't waste BF time without attack speed buff)
     if not s.has_snd then return false end
     -- TBC Blade Flurry is also a single-target DPS cooldown due to attack speed.
-    local min_targets = (context.settings and context.settings.combat_blade_flurry_count) or 1
+    local min_targets = spec_kit.setting_number(context, "combat_blade_flurry_count", 1)
     if (s.target_count or 0) < min_targets then return false end
     return true
 end
@@ -362,7 +361,7 @@ local function rupture_wrapper(context, s)
     if not s.rupture_ready then return false end
     if s.energy_pool_finisher then return false end
     -- Research: only Rupture when target lives > ttd floor (avoid wasted DoT ticks)
-    local ttd_floor = (context.settings and context.settings.combat_rupture_ttd) or RUPTURE_TTD_FLOOR
+    local ttd_floor = spec_kit.setting_number(context, "combat_rupture_ttd", RUPTURE_TTD_FLOOR)
     if context.ttd_known and context.ttd < ttd_floor then return false end
     if not context.target then return false end
     local rupture_remains = NS.debuff_remains(context.target, RUPTURE_DEBUFF) or 0
@@ -392,8 +391,7 @@ end
 
 local function shiv_purge_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Shiv, 2.0) then return false end
-    local settings = context.settings or {}
-    if settings.use_shiv_purge == false then return false end
+    if not spec_kit.setting_bool(context, "use_shiv_purge", true) then return false end
     if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
     if not s.in_combat then return false end
     if not (context.is_pvp or false) then return false end
@@ -401,7 +399,7 @@ local function shiv_purge_matches(context, s)
     if not (context.in_melee_range or false) then return false end
     if not s.shiv_ready then return false end
     if not s.shiv_purge_name then return false end
-    if settings.shiv_purge_pvp_only ~= false then
+    if spec_kit.setting_bool(context, "shiv_purge_pvp_only", true) then
         local ok, is_player = pcall(function() return context.target:is_player() end)
         if not (ok and is_player) then return false end
     end
@@ -422,7 +420,7 @@ end
 local function vanish_matches(context, s)
     if not s.in_combat then return false end
     if not s.vanish_ready then return false end
-    local vanish_hp = (context.settings and context.settings.combat_vanish_hp) or 20
+    local vanish_hp = spec_kit.setting_number(context, "combat_vanish_hp", 20)
     -- Research: Vanish as emergency threat drop when HP critical
     if (s.hp_pct or 100) > vanish_hp then return false end
     return true
@@ -432,7 +430,7 @@ local function feint_matches(context, s)
     if not s.in_combat then return false end
     if not s.feint_ready then return false end
     -- Research: Feint is a threat drop — only fire when threat is known and high
-    local feint_threat = (context.settings and context.settings.combat_feint_threat) or 90
+    local feint_threat = spec_kit.setting_number(context, "combat_feint_threat", 90)
     if (s.threat_pct or 0) <= 0 or (s.threat_pct or 0) < feint_threat then return false end
     return true
 end
@@ -473,7 +471,7 @@ local function evasion_matches(context, s)
     local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(ACTION.Evasion) or 0
     if cd > 0 then return false end
     local default_hp = s.is_group and 45 or 30
-    local evasion_hp = (context.settings and context.settings.combat_evasion_hp) or default_hp
+    local evasion_hp = spec_kit.setting_number(context, "combat_evasion_hp", default_hp)
     return (s.hp_pct or 100) <= evasion_hp
 end
 
@@ -483,7 +481,7 @@ local function cloak_of_shadows_matches(context, s)
     local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(ACTION.CloakOfShadows) or 0
     if cd > 0 then return false end
     local default_hp = s.is_group and 35 or 20
-    local cloak_hp = (context.settings and context.settings.combat_cloak_hp) or default_hp
+    local cloak_hp = spec_kit.setting_number(context, "combat_cloak_hp", default_hp)
     return (s.hp_pct or 100) <= cloak_hp
 end
 
@@ -524,7 +522,7 @@ local function blind_matches(context, s)
     if not (NS.is_spell_learned and NS.is_spell_learned(2094)) then return false end
     local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(ACTION.Blind) or 0
     if cd > 0 then return false end
-    local blind_hp = (context.settings and context.settings.combat_blind_hp) or 40
+    local blind_hp = spec_kit.setting_number(context, "combat_blind_hp", 40)
     return (s.hp_pct or 100) <= blind_hp
 end
 
@@ -535,7 +533,7 @@ local strategies = {
     { name = "HealthPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_health_potion then return false end
           if (context.hp or 100) > 35 then return false end
           return true
@@ -544,7 +542,7 @@ local strategies = {
     { name = "DamagePotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_damage_potion then return false end
           if not context.should_burst then return false end
           return true
