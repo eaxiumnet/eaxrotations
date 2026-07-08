@@ -1,33 +1,38 @@
-# EAX Rotations v2.4.0
+# EAX Rotations v2.5.0
 
-**Released:** 2026-07-05
-**Game:** The Burning Crusade Classic (2.5.5)
-**Download:** `dist/EaxRotations-v2.4.0.zip`
+**Released:** 2026-07-08
+**Game:** The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
+**Download:** [EaxRotations-v2.5.0.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.5.0)
 
 ---
 
-## What's New: Wowsims APL Alignment
+## What's New: Spec Standardization & Polish
 
-**Every DPS rotation has been audited against the authoritative wowsims theorycrafting APLs and aligned to match optimal play.**
+**All 29 class specializations have been rebuilt on a shared foundation that makes the rotation engine more reliable, safer, and easier to maintain.**
 
-This is a major fidelity release. All 15 DPS specs were compared line-by-line against the `wowsims/tbc-new` and `wowsims/classic` APL JSON files, and either improved to match or verified as already correct.
+This is a massive internal refactoring — you won't see a single button change, but every spec is now more robust against edge cases. The result: fewer "the bot just stopped" moments and faster bug fixes in the future.
 
-Full release notes: [RELEASE_NOTES_v2.4.0.md](RELEASE_NOTES_v2.4.0.md)
+Full customer-facing changelog: [CHANGELOG_CUSTOMER.md](CHANGELOG_CUSTOMER.md)
 
-### Headline improvements
+### Headline changes since v2.4.0
 
-| Spec | Change |
-|------|--------|
-| **Arcane Mage** | Full burn/conserve rotation: AB3→Frostbolt conserve, PoM at end of Arcane Power, wowsims mana-gem logic |
-| **Affliction Warlock** | Drain Soul + Shadowburn execute at <5% HP; Immolate moved from priority #13 → #8 |
-| **Hunter (all 3)** | Viper/Hawk thresholds (5%/25%, was 20%/30%); Aimed Shot opener at ≤0.5s |
-| **Shadow Priest** | Shadowfiend fight-length-aware timing; **Starshards moved above Mind Flay (was dead code!)** |
-| **Fury Warrior** | Opt-in Overpower weaving stance-dance (wowsims "Overpower Weaving" group) |
-| **Balance Druid** | Starfire is now primary nuke (was Wrath); mana gem strategy added |
-| **Feral Cat** | Powershift threshold 20→25 (closer to wowsims' 30) |
-| **Combat Rogue** | Blade Flurry requires Slice and Dice; Adrenaline Rush at ≤40 energy |
+| Category | Change |
+|----------|--------|
+| **Bear Druid** | Complete rebuild — pure bear-form tank, no accidental form-shifting |
+| **Protection Paladin** | Wowsims-aligned priority: Holy Shield > Judgement > Consecration |
+| **Holy Paladin** | Triage-scored healing, downranked Holy Light, Divine Favor + Holy Shock burst combo |
+| **Hunter (all 3)** | Auto-shot timer prevents clipping, melee weaving on all specs, Viper/Hawk auto-swap |
+| **All specs** | Healthstone automation (<28% HP), Engineering bomb support, Cooldown Planner power-window alignment |
+| **Healers** | Stop-Cast Engine cancels overhealing casts, Triage scoring picks best heal target |
+| **EaxFishing** | v2.5.1 — Stealth suspicion decays over time, debug logging throttled, suspicion resets on toggle |
 
-Plus a new **Cooldown Planner** shared module that aligns personal offensive CDs (Death Wish, Avenging Wrath, Combustion, etc.) with Bloodlust/Heroism/Drums power windows across all specs.
+### Bug fixes
+
+- Out-of-range spells no longer stall the rotation — they fall through to next priority
+- Party buffs and dispels correctly skip range checks
+- Bear Druid no longer attempts cat/caster spells in combat
+- Pets no longer pull neutral mobs unintentionally
+- Switching targets correctly resets Time-To-Death tracking
 
 ---
 
@@ -35,22 +40,26 @@ Plus a new **Cooldown Planner** shared module that aligns personal offensive CDs
 
 | Gate | Result |
 |------|--------|
-| Rotation test suites | **220/220 pass** |
+| Rotation test suites | **242/242 pass** |
 | Leveling test suites | **13/13 pass** |
-| Spell database audit | **61/61 clean** (verified against DBC client 2.5.5.68101) |
+| Spell database audit | **61 TBC + 31 Vanilla clean** (verified against DBC 2.5.5.68101) |
+| spec_kit compliance | **29/29 specs converted** |
 
 ---
 
 ## How to Install
 
-1. Download `EaxRotations-v2.4.0.zip`
+1. Download `EaxRotations-v2.5.0.zip` from the link above
 2. Delete your current `EaxRotations` folder
 3. Extract the new one in its place
 4. Your settings carry over automatically — no reset needed
 
 ---
 
-## Previous Release
+## Previous Releases
 
-See [RELEASE_NOTES_v2.3.12.md](RELEASE_NOTES_v2.3.12.md) for the Healthstone automation + pet handling release.
-Full history: [CHANGELOG.md](CHANGELOG.md)
+- **v2.4.0** (July 5) — Wowsims APL alignment for all 15 DPS specs
+- **v2.3.15** (July 5) — Cooldown Planner power-window alignment
+- **v2.3.12** (July 4) — Healthstone automation + pet handling overhaul
+
+Full history: [CHANGELOG.md](CHANGELOG.md) | Customer-friendly: [CHANGELOG_CUSTOMER.md](CHANGELOG_CUSTOMER.md)

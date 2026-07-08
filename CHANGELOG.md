@@ -2,6 +2,52 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.5.0] — Spec Standardization & Polish (2026-07-08)
+
+**All 29 class specializations rebuilt on a shared spec_kit foundation.**
+Every spec was migrated to `spec_kit.safe_state` + `define_action_for_class`,
+making Pattern 14 nil-guard bugs structurally impossible and standardizing the
+spec-file layout across the entire codebase.
+
+### spec_kit Migration — 29 Specs Complete
+- 5 fully-migrated classes: Warlock (3/3), Shaman (3/3), Rogue (3/3), Hunter (3/3), Paladin (3/3)
+- All 29 TBC specs now use guarded registration + canonical return shape
+- `safe_state` proxy eliminates the nil-guard bug class entirely (Pattern 14)
+- Over 600 `SPELLS.X` references replaced with `ACTION.X` via `define_action_for_class`
+
+### New Spec Work
+- **Druid Bear** — Complete clean rebuild as pure bear-form tank (no form shifting in combat)
+- **Paladin Protection** — Wowsims-aligned priority order: Holy Shield > Judgement > Consecration
+- **Paladin Holy** — Triage-scored healing, downranked Holy Light (R4/R7/R9/R11), DF+HS burst combo
+
+### New Shared Modules
+- `swing_diagnostics_sylvanas.lua` — CLEU-backed swing timer, parry-haste, Overpower dodge proc detection
+- `snapshot_sylvanas.lua` — DoT/finisher snapshot upgrade gating (cat Rip/Rake)
+- `combat_mode_sylvanas.lua` — ST/AoE/Auto override aligned with wowsims APL
+
+### EaxFishing v2.5.1
+- Debug logging gated behind master toggle (no more console spam)
+- Stealth suspicion level decays over time in quiet areas (fixes bot freezing)
+- Suspicion fully resets when toggling fishing off/on
+- Verbose status line shows why the bot paused
+
+### Bug Fixes
+- Out-of-range spells fall through to next priority instead of stalling
+- Party buffs and dispels skip range checks correctly
+- Bear Druid no longer attempts cat/caster spells in combat
+- Marksmanship Hunter no longer tries to cast Bestial Wrath
+- Target switching correctly resets TTD tracking
+- Pets no longer pull neutral mobs unintentionally
+- War Stomp (Tauren) correctly gated behind range
+- Seal twist diagnostics fixed in Retribution Paladin
+
+### Test Baseline
+- 242 rotation suites + 13 leveling suites green (up from 220)
+- Spell audit: 61 TBC + 31 Vanilla files clean
+- spec_kit compliance: 29 converted, 12 legacy
+
+---
+
 ## [2.4.0] — Wowsims APL Alignment Release (2026-07-05)
 
 **The wowsims alignment release.** Every major DPS spec has been audited against authoritative wowsims/tbc-new APL JSON files and either improved to match or verified as already correct. Includes a new shared cooldown planner module and 10+ spec-level fidelity improvements.
