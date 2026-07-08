@@ -892,7 +892,7 @@ local strategies = {
         name = "AdaptiveRotation",
         matches = function(context)
             if not NS.HunterAdaptive then return false end
-            if not (type(NS.get_setting) == "function" and NS.get_setting("use_adaptive_rotation", false)) then return false end
+            if not (spec_kit.setting_bool(context, "use_adaptive_rotation", false)) then return false end
             if not context.in_combat or not context.target then return false end
             return true
         end,

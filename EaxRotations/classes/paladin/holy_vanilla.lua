@@ -8,6 +8,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.PaladinHealing or require("classes/paladin/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
@@ -236,7 +237,7 @@ local function blessing_missing_or_expiring(entry, ids, threshold)
 end
 
 local function choose_holy_light_rank(context, entry)
-    local mode = (context.settings["holy_light_rank"] or NS.get_setting("holy_light_rank", "max") or "max")
+    local mode = spec_kit.setting(context, "holy_light_rank", "max")
     local hp = hp_of(entry)
     local deficit = deficit_of(entry)
     if mode == "rank4" then return HolyLightRank4, "Holy Light R4" end
@@ -252,8 +253,8 @@ local function choose_smart_heal(context, s, entry)
     if not can_help(entry) then return nil end
     local hp = hp_of(entry)
     local deficit = deficit_of(entry)
-    local flash_hp = (context.settings["holy_flash_light_hp"] or NS.get_setting("holy_flash_light_hp", 85) or 85)
-    local shock_hp = (context.settings["holy_shock_hp"] or NS.get_setting("holy_shock_hp", 40) or 40)
+    local flash_hp = spec_kit.setting(context, "holy_flash_light_hp", 85)
+    local shock_hp = spec_kit.setting(context, "holy_shock_hp", 40)
     if (context and context.is_moving or s.moving) and hp <= flash_hp and NS.spell_ready(SPELLS.HolyShock, entry.unit, EMPTY_OPTS) then
         s.heal_spell = SPELLS.HolyShock
         s.heal_label = "Holy Shock moving"
@@ -290,18 +291,18 @@ local function choose_blessing(context, s)
     s.blessing_target = nil
     s.blessing_spell = nil
     s.blessing_label = nil
-    if (context.settings["holy_refresh_enabled"] or NS.get_setting("holy_refresh_enabled", true) or true) == false then return end
-    if (s.mana_pct or 100) < (context.settings["holy_refresh_mana"] or NS.get_setting("holy_refresh_mana", BLESSING_MIN_MANA) or BLESSING_MIN_MANA) then return end
-    local threshold = (context.settings["holy_refresh_threshold"] or NS.get_setting("holy_refresh_threshold", BLESSING_REFRESH_SEC) or BLESSING_REFRESH_SEC)
+    if spec_kit.setting(context, "holy_refresh_enabled", true) == false then return end
+    if (s.mana_pct or 100) < spec_kit.setting(context, "holy_refresh_mana", BLESSING_MIN_MANA) then return end
+    local threshold = spec_kit.setting(context, "holy_refresh_threshold", BLESSING_REFRESH_SEC)
     local use_greater = should_use_greater_blessing(s)
 
-    if (context.settings["holy_blessing_light"] or NS.get_setting("holy_blessing_light", true) or true) ~= false and can_help(s.tank) and blessing_missing_or_expiring(s.tank, BUFF_BLESSING_LIGHT, threshold) then
+    if spec_kit.setting(context, "holy_blessing_light", true) ~= false and can_help(s.tank) and blessing_missing_or_expiring(s.tank, BUFF_BLESSING_LIGHT, threshold) then
         s.blessing_target = s.tank
         s.blessing_spell = use_greater and GreaterBlessingOfLight or BlessingOfLight
         s.blessing_label = use_greater and "Greater Blessing of Light" or "Blessing of Light"
         return
     end
-    if (context.settings["holy_blessing_wisdom"] or NS.get_setting("holy_blessing_wisdom", true) or true) ~= false then
+    if spec_kit.setting(context, "holy_blessing_wisdom", true) ~= false then
         for i = 1, s.count do
             local entry = s.entries[i]
             if entry_is_mana_user(entry) and blessing_missing_or_expiring(entry, BUFF_BLESSING_WISDOM, threshold) then
@@ -486,7 +487,7 @@ local strategies = {
     {
         name = "CleanseTankPriority",
         matches = function(context, s)
-            if (context.settings["holy_auto_cleanse"] or NS.get_setting("holy_auto_cleanse", true) or true) == false then return false end
+            if spec_kit.setting(context, "holy_auto_cleanse", true) == false then return false end
             if not entry_needs_cleanse(s.tank) then return false end
             return can_cast_on(SPELLS.Cleanse, s.tank)
         end,
@@ -497,7 +498,7 @@ local strategies = {
     {
         name = "PurifySelf",
         matches = function(context, s)
-            if (context.settings["holy_auto_cleanse"] or NS.get_setting("holy_auto_cleanse", true) or true) == false then return false end
+            if spec_kit.setting(context, "holy_auto_cleanse", true) == false then return false end
             return can_cast_on(Purify, s.purify_target)
         end,
         execute = function(_, s)
@@ -507,7 +508,7 @@ local strategies = {
     {
         name = "CleanseParty",
         matches = function(context, s)
-            if (context.settings["holy_auto_cleanse"] or NS.get_setting("holy_auto_cleanse", true) or true) == false then return false end
+            if spec_kit.setting(context, "holy_auto_cleanse", true) == false then return false end
             return can_cast_on(SPELLS.Cleanse, s.cleanse_target)
         end,
         execute = function(_, s)
@@ -528,7 +529,7 @@ local strategies = {
         matches = function(context, s)
             local target = s.lowest or s.tank
             if not can_help(target) or s.has_divine_favor then return false end
-            if hp_of(target) > (context.settings["holy_divine_favor_hp"] or NS.get_setting("holy_divine_favor_hp", 45) or 45) then return false end
+            if hp_of(target) > spec_kit.setting(context, "holy_divine_favor_hp", 45) then return false end
             return NS.spell_ready(SPELLS.DivineFavor, NS.PLAYER_UNIT, SELF_OPTS)
         end,
         execute = function()
@@ -540,7 +541,7 @@ local strategies = {
         matches = function(context, s)
             if not can_help(s.lowest) then return false end
             local moving = s.moving or context and context.is_moving
-            if hp_of(s.lowest) > (context.settings["holy_shock_hp"] or NS.get_setting("holy_shock_hp", 40) or 40) and not moving then return false end
+            if hp_of(s.lowest) > spec_kit.setting(context, "holy_shock_hp", 40) and not moving then return false end
             return NS.spell_ready(SPELLS.HolyShock, s.lowest.unit, EMPTY_OPTS)
         end,
         execute = function(_, s)
@@ -643,7 +644,7 @@ local strategies = {
     {
         name = "BlessingOfLightTank",
         matches = function(context, s)
-            if (context.settings["holy_blessing_light"] or NS.get_setting("holy_blessing_light", true) or true) == false then return false end
+            if spec_kit.setting(context, "holy_blessing_light", true) == false then return false end
             if not can_help(s.tank) or not blessing_missing_or_expiring(s.tank, BUFF_BLESSING_LIGHT, BLESSING_REFRESH_SEC) then return false end
             return NS.spell_ready(BlessingOfLight, s.tank.unit, EMPTY_OPTS)
         end,
@@ -678,7 +679,7 @@ local strategies = {
         name = "FlashOfLightEfficientTopoff",
         matches = function(context, s)
             if not can_help(s.lowest) then return false end
-            if hp_of(s.lowest) > (context.settings["holy_flash_light_hp"] or NS.get_setting("holy_flash_light_hp", 85) or 85) then return false end
+            if hp_of(s.lowest) > spec_kit.setting(context, "holy_flash_light_hp", 85) then return false end
             return NS.spell_ready(SPELLS.FlashOfLight, s.lowest.unit, EMPTY_OPTS)
         end,
         execute = function(_, s)
