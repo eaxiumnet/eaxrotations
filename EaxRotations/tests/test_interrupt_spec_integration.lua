@@ -12,6 +12,7 @@
 --   - Cast window gating at various percentages
 --   - Humanization delay behavior
 
+package.path = package.path .. ";C:\\newbot\\scripts\\EaxRotations\\?.lua"
 local spec_kit = require("shared/spec_kit_sylvanas")
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 local function assert_false(v, label) if v then error(label or "assert_false failed: expected false", 2) end end
