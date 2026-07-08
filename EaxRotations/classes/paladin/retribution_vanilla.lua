@@ -102,6 +102,16 @@ local ret_state = {
 
 local get_setting = NS.setting
 
+-- Out-of-combat seal refresh gate. When seal_refresh_ooc is false,
+-- seal re-application strategies are skipped while not in combat.
+-- In-combat seal casts are always allowed. Default true preserves
+-- legacy "always keep seal up" behaviour.
+local function seal_refresh_allowed(context)
+    if context and context.in_combat then return true end
+    local val = get_setting(context, "seal_refresh_ooc", true)
+    return val ~= false
+end
+
 local function has_player_buff(ids)
     return NS.has_player_buff and NS.has_player_buff(ids) or false
 end
@@ -361,7 +371,8 @@ add_strategy(strategies, "Ret_JudgeCrusader", 720, function(context, state)
     return not state.target_has_crusader and state.has_crusader and NS.spell_ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 }) or false
 end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Seal of the Crusader", { expected_cooldown = 10 }) end)
 
-add_strategy(strategies, "Ret_ApplyCrusaderSeal", 710, function(_, state)
+add_strategy(strategies, "Ret_ApplyCrusaderSeal", 710, function(context, state)
+    if not seal_refresh_allowed(context) then return false end
     return not state.target_has_crusader and not state.has_crusader and not state.has_damage_seal and NS.spell_ready(SealCrusader, PLAYER, { skip_range = true }) or false
 end, function() return cast(SealCrusader, PLAYER, "[RET] Seal of the Crusader", { skip_range = true }) end)
 
@@ -369,7 +380,8 @@ add_strategy(strategies, "Ret_JudgeDamageSeal", 690, function(context, state)
     return state.has_damage_seal and (state.mana_pct or 100) >= 12 and NS.spell_ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 }) or false
 end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judgement damage seal", { expected_cooldown = 10 }) end)
 
-add_strategy(strategies, "Ret_SealCommand_Primary", 660, function(_, state)
+add_strategy(strategies, "Ret_SealCommand_Primary", 660, function(context, state)
+    if not seal_refresh_allowed(context) then return false end
     return state.preferred_damage_seal == "command" and not state.has_command and NS.spell_ready(SPELLS.SealCommand, PLAYER, { skip_range = true }) or false
 end, function() return cast(SPELLS.SealCommand, PLAYER, "[RET] Seal of Command primary", { skip_range = true }) end)
 
@@ -447,11 +459,13 @@ add_strategy(strategies, "Ret_BlessingKings_Party", 510, function(context, state
 end, function(_, state) return cast(SPELLS.BlessingOfKings, state.utility_target, "[RET] Blessing of Kings party") end)
 
 add_strategy(strategies, "Ret_SealCommand_AoE", 490, function(context, state)
+    if not seal_refresh_allowed(context) then return false end
     local min_targets = get_setting(context, "command_cleave_min_targets", 2)
     return (state.enemy_count or 0) >= min_targets and not state.has_command and NS.spell_ready(SPELLS.SealCommand, PLAYER, { skip_range = true }) or false
 end, function() return cast(SPELLS.SealCommand, PLAYER, "[RET] Seal of Command cleave", { skip_range = true }) end)
 
-add_strategy(strategies, "Ret_SealRighteousness_Filler", 470, function(_, state)
+add_strategy(strategies, "Ret_SealRighteousness_Filler", 470, function(context, state)
+    if not seal_refresh_allowed(context) then return false end
     return not state.has_damage_seal and not state.has_wisdom and NS.spell_ready(SPELLS.SealRighteousness, PLAYER, { skip_range = true }) or false
 end, function() return cast(SPELLS.SealRighteousness, PLAYER, "[RET] Seal of Righteousness filler", { skip_range = true }) end)
 
@@ -459,7 +473,8 @@ add_strategy(strategies, "Ret_Judgement_RighteousnessFiller", 460, function(cont
     return state.has_righteousness and (state.mana_pct or 0) >= 25 and NS.spell_ready(SPELLS.Judgement, context.target, { expected_cooldown = 10 }) or false
 end, function(context) return cast(SPELLS.Judgement, context.target, "[RET] Judge Righteousness filler", { expected_cooldown = 10 }) end)
 
-add_strategy(strategies, "Ret_SealCommand_Fallback", 450, function(_, state)
+add_strategy(strategies, "Ret_SealCommand_Fallback", 450, function(context, state)
+    if not seal_refresh_allowed(context) then return false end
     return not state.has_damage_seal and NS.spell_ready(SPELLS.SealCommand, PLAYER, { skip_range = true }) or false
 end, function() return cast(SPELLS.SealCommand, PLAYER, "[RET] Seal of Command fallback", { skip_range = true }) end)
 

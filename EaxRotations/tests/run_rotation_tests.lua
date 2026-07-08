@@ -189,6 +189,8 @@ local tests = {
  -- Paladin custom matches gate sweeps (audit gap #3)
  "test_retribution_custom_matches.lua",
  "test_protection_custom_matches.lua",
+  -- Player-reported bug fixes
+  "test_paladin_vanilla_seal_ooc_gate.lua",
 
  -- Mage
  "test_arcane_custom_matches.lua",
@@ -198,6 +200,7 @@ local tests = {
  -- Warlock
  "test_demonology_custom_matches.lua",
  "test_affliction_custom_matches.lua",
+  "test_demonology_curse_mode_gates.lua",
 
  -- Discipline
  "test_discipline_custom_matches.lua",
