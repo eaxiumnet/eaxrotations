@@ -176,8 +176,6 @@ local state = {
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
-    local settings = context.settings or {}
-
     -- Core state
     state.is_group = context.is_group or false
     state.is_mounted = context.is_mounted or false
@@ -250,30 +248,30 @@ local function build_state(context)
     state.trinket_1_ready = state.trinket_1_id ~= nil and is_item_ready(me, state.trinket_1_id)
     state.trinket_2_ready = state.trinket_2_id ~= nil and is_item_ready(me, state.trinket_2_id)
 
-    -- parity settings
-    state.aspect_mode = settings.aspect_mode or "auto"
-    state.sting_mode = settings.sting_mode or "serpent"
-    state.fd_mode = settings.fd_mode or settings.use_threat_drop and "high_threat" or "off"
-    state.multishot_mode = settings.multishot_mode or settings.aoe_threshold or 2
-    state.pull_mode = settings.pull_mode or "combat_only"
-    state.use_cooldowns = settings.use_cooldowns ~= false
-    state.use_misdirection = settings.use_misdirection == true
-    state.shot_buffer = settings.shot_buffer or 150
-    state.sticky_target = settings.sticky_target == true
-    state.prioritize_markers = settings.prioritize_markers == true
+    -- parity settings (via spec_kit)
+    state.aspect_mode = spec_kit.setting(context, "aspect_mode", "auto")
+    state.sting_mode = spec_kit.setting(context, "sting_mode", "serpent")
+    state.fd_mode = spec_kit.setting(context, "fd_mode", (spec_kit.setting_bool(context, "use_threat_drop", false) and "high_threat" or "off"))
+    state.multishot_mode = spec_kit.setting_number(context, "multishot_mode", spec_kit.setting_number(context, "aoe_threshold", 2))
+    state.pull_mode = spec_kit.setting(context, "pull_mode", "combat_only")
+    state.use_cooldowns = spec_kit.setting_bool(context, "use_cooldowns", true)
+    state.use_misdirection = spec_kit.setting_bool(context, "use_misdirection", false)
+    state.shot_buffer = spec_kit.setting_number(context, "shot_buffer", 150)
+    state.sticky_target = spec_kit.setting_bool(context, "sticky_target", false)
+    state.prioritize_markers = spec_kit.setting_bool(context, "prioritize_markers", false)
 
     -- Melee & AoE settings (parity parity)
-    state.use_melee = settings.use_melee ~= false
-    state.hunter_melee_weave = settings.hunter_melee_weave ~= false
-    state.hunter_shot_timer_buffer = settings.hunter_shot_timer_buffer or 150
-    state.use_volley = settings.use_volley == true
-    state.use_explosive_trap = settings.use_explosive_trap == true
-    state.aoe_threshold = settings.aoe_threshold or settings.volley_threshold or 3
-    state.trinket_mode = settings.trinket_mode or "off"
-    state.auto_aspect = settings.hunter_auto_aspect ~= false
+    state.use_melee = spec_kit.setting_bool(context, "use_melee", true)
+    state.hunter_melee_weave = spec_kit.setting_bool(context, "hunter_melee_weave", true)
+    state.hunter_shot_timer_buffer = spec_kit.setting_number(context, "hunter_shot_timer_buffer", 150)
+    state.use_volley = spec_kit.setting_bool(context, "use_volley", false)
+    state.use_explosive_trap = spec_kit.setting_bool(context, "use_explosive_trap", false)
+    state.aoe_threshold = spec_kit.setting_number(context, "aoe_threshold", spec_kit.setting_number(context, "volley_threshold", 3))
+    state.trinket_mode = spec_kit.setting(context, "trinket_mode", "off")
+    state.auto_aspect = spec_kit.setting_bool(context, "hunter_auto_aspect", true)
     -- Wowsims-aligned Viper/Hawk thresholds: enter Viper at 5%, exit at 25%
-    state.viper_mana_threshold = settings.hunter_viper_mana_threshold or 5
-    state.viper_exit_threshold = settings.hunter_viper_exit_threshold or 25
+    state.viper_mana_threshold = spec_kit.setting_number(context, "hunter_viper_mana_threshold", 5)
+    state.viper_exit_threshold = spec_kit.setting_number(context, "hunter_viper_exit_threshold", 25)
     state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
     state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
@@ -467,7 +465,7 @@ end
 local function readiness_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not cooldowns_allowed(context) then return false end
-    if context.settings and context.settings.use_readiness == false then return false end
+    if not spec_kit.setting_bool(context, "use_readiness", true) then return false end
     if not s.readiness_ready then return false end
     -- Only use if Rapid Fire is on cooldown with >= 60 s remaining
     if (s.rapid_fire_cd or 0) < 60 then return false end
@@ -733,7 +731,7 @@ local strategies = {
     { name = "HealthPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_health_potion then return false end
           if (context.hp or 100) > 35 then return false end
           return true
@@ -743,7 +741,7 @@ local strategies = {
     { name = "ManaPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_mana_potion then return false end
           if (context.mana_pct or 100) > 25 then return false end
           return true

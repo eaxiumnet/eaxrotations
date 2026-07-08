@@ -214,16 +214,15 @@ local function build_state(context)
     sv_state.enemy_count = context.enemy_count or context.enemies_count or 1
     sv_state.pre_steady_leveling = ((context.player_level or 70) < 62) or (context.is_leveling == true and not sv_state.steady_shot_ready)
     sv_state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
-    local settings = context.settings or {}
-    sv_state.hunter_melee_weave = settings.hunter_melee_weave ~= false
-    sv_state.hunter_shot_timer_buffer = settings.hunter_shot_timer_buffer or 150
+    sv_state.hunter_melee_weave = spec_kit.setting_bool(context, "hunter_melee_weave", true)
+    sv_state.hunter_shot_timer_buffer = spec_kit.setting_number(context, "hunter_shot_timer_buffer", 150)
     sv_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
     return spec_kit.safe_state(sv_state, SV_SCHEMA)
 end
 
 local function cooldowns_enabled(context)
-    return not context.settings or context.settings.use_cooldowns ~= false
+    return spec_kit.setting_bool(context, "use_cooldowns", true)
 end
 
 -- ============================================================================
@@ -361,7 +360,7 @@ end
 
 local function snake_trap_matches(context, s)
     if not s.snake_trap_ready then return false end
-    if context.settings and context.settings.use_snake_trap == false then return false end
+    if not spec_kit.setting_bool(context, "use_snake_trap", true) then return false end
     if not s.in_combat then return false end
     if (s.enemy_count or 0) < 2 then return false end
     return true
@@ -384,7 +383,7 @@ end
 
 local function readiness_matches(context, s)
     if not cooldowns_enabled(context) then return false end
-    if context.settings and context.settings.use_readiness == false then return false end
+    if not spec_kit.setting_bool(context, "use_readiness", true) then return false end
     if not s.in_combat then return false end
     if not s.readiness_ready then return false end
     -- Use after Rapid Fire has been used (on CD with >= 60 s remaining) to reset it for 2nd burst window
@@ -514,7 +513,7 @@ local strategies = {
     { name = "HealthPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_health_potion then return false end
           if (context.hp or 100) > 35 then return false end
           return true
@@ -524,7 +523,7 @@ local strategies = {
     { name = "ManaPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_mana_potion then return false end
           if (context.mana_pct or 100) > 25 then return false end
           return true

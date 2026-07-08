@@ -269,37 +269,36 @@ local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
 
-    -- -- Settings cache
-    local s = context.settings or {}
-    enh_state.combat_mode = s.enhancement_combat_mode or "auto"
-    enh_state.earth_shock_mode = s.enhancement_earth_shock_mode or "interrupts"
-    enh_state.shield_type = s.enhancement_shield_type or "auto"
-    enh_state.aoe_threshold = s.enhancement_aoe_threshold or 3
-    enh_state.self_heal_hp = s.enhancement_self_heal_hp or 40
-    enh_state.chain_heal_hp = s.enhancement_chain_heal_hp or 35
-    enh_state.kick_min_pct = s.enhancement_interrupt_kick_min or 40
-    enh_state.kick_max_pct = s.enhancement_interrupt_kick_max or 80
-    enh_state.ghost_wolf_ooc = s.enhancement_ghost_wolf_ooc ~= false
-    enh_state.water_shield_mana = s.enhancement_water_shield_mana or 60
-    enh_state.lightning_shield_mana = s.enhancement_lightning_shield_mana or 80
-    enh_state.manage_totems = s.enhancement_manage_totems ~= false
-    enh_state.totem_twisting = s.enhancement_totem_twisting ~= false
-    enh_state.interrupt_mode = s.enhancement_interrupt_mode or "target"
-    enh_state.totem_range = s.enhancement_totem_range or 30
-    enh_state.fs_multi_target = s.enhancement_fs_multi_target ~= false
-    enh_state.hold_shocks_focus = s.enhancement_hold_shocks_focus == true
-    enh_state.sr_melee_only = s.enhancement_sr_melee_only ~= false
-    enh_state.auto_attack = s.enhancement_auto_attack ~= false
-    enh_state.auto_totemic_call = s.enhancement_auto_totemic_call ~= false
-    enh_state.gift_of_the_naaru_enabled = s.enhancement_cd_gift_of_the_naaru ~= false
+    -- -- Settings cache (via spec_kit)
+    enh_state.combat_mode = spec_kit.setting(context, "enhancement_combat_mode", "auto")
+    enh_state.earth_shock_mode = spec_kit.setting(context, "enhancement_earth_shock_mode", "interrupts")
+    enh_state.shield_type = spec_kit.setting(context, "enhancement_shield_type", "auto")
+    enh_state.aoe_threshold = spec_kit.setting_number(context, "enhancement_aoe_threshold", 3)
+    enh_state.self_heal_hp = spec_kit.setting_number(context, "enhancement_self_heal_hp", 40)
+    enh_state.chain_heal_hp = spec_kit.setting_number(context, "enhancement_chain_heal_hp", 35)
+    enh_state.kick_min_pct = spec_kit.setting_number(context, "enhancement_interrupt_kick_min", 40)
+    enh_state.kick_max_pct = spec_kit.setting_number(context, "enhancement_interrupt_kick_max", 80)
+    enh_state.ghost_wolf_ooc = spec_kit.setting_bool(context, "enhancement_ghost_wolf_ooc", true)
+    enh_state.water_shield_mana = spec_kit.setting_number(context, "enhancement_water_shield_mana", 60)
+    enh_state.lightning_shield_mana = spec_kit.setting_number(context, "enhancement_lightning_shield_mana", 80)
+    enh_state.manage_totems = spec_kit.setting_bool(context, "enhancement_manage_totems", true)
+    enh_state.totem_twisting = spec_kit.setting_bool(context, "enhancement_totem_twisting", true)
+    enh_state.interrupt_mode = spec_kit.setting(context, "enhancement_interrupt_mode", "target")
+    enh_state.totem_range = spec_kit.setting_number(context, "enhancement_totem_range", 30)
+    enh_state.fs_multi_target = spec_kit.setting_bool(context, "enhancement_fs_multi_target", true)
+    enh_state.hold_shocks_focus = spec_kit.setting_bool(context, "enhancement_hold_shocks_focus", false)
+    enh_state.sr_melee_only = spec_kit.setting_bool(context, "enhancement_sr_melee_only", true)
+    enh_state.auto_attack = spec_kit.setting_bool(context, "enhancement_auto_attack", true)
+    enh_state.auto_totemic_call = spec_kit.setting_bool(context, "enhancement_auto_totemic_call", true)
+    enh_state.gift_of_the_naaru_enabled = spec_kit.setting_bool(context, "enhancement_cd_gift_of_the_naaru", true)
 
     -- -- Resource state
     enh_state.is_group = context.is_group or false
     enh_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     enh_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     enh_state.now_ms = NS.game_time_ms()
-    enh_state.mana_low = enh_state.mana_pct < (s.enhancement_mana_low_pct or 20)
-    enh_state.mana_emergency = enh_state.mana_pct < (s.enhancement_mana_emergency_pct or 10)
+    enh_state.mana_low = enh_state.mana_pct < spec_kit.setting_number(context, "enhancement_mana_low_pct", 20)
+    enh_state.mana_emergency = enh_state.mana_pct < spec_kit.setting_number(context, "enhancement_mana_emergency_pct", 10)
     enh_state.in_combat = context.in_combat or false
     enh_state.enemy_count = context.enemy_count or context.enemies_count or 1
     enh_state.is_moving = me and me:is_moving() or false
@@ -328,8 +327,8 @@ local function build_state(context)
         if NS.is_spell_learned and NS.is_spell_learned(ACTION.RockbiterWeapon or 8017) then return "rockbiter" end
         return "windfury"  -- ultimate fallback
     end
-    local mh_choice = s.enhancement_main_hand_ench or "windfury"
-    local oh_choice = s.enhancement_off_hand_ench or "flametongue"
+    local mh_choice = spec_kit.setting(context, "enhancement_main_hand_ench", "windfury")
+    local oh_choice = spec_kit.setting(context, "enhancement_off_hand_ench", "flametongue")
     enh_state.auto_mh_buff = (mh_choice == "auto") and best_weapon_buff_for_level(enh_state.player_level) or mh_choice
     enh_state.auto_oh_buff = (oh_choice == "auto") and best_weapon_buff_for_level(enh_state.player_level) or oh_choice
 
@@ -515,12 +514,12 @@ local function can_drop_totem(ctx, spell, slot, buff_ids)
 end
 
 local function cooldowns_enabled(context)
-    return not context.settings or context.settings.use_cooldowns ~= false
+    return spec_kit.setting_bool(context, "use_cooldowns", true)
 end
 
 -- v1.2.1: racial match functions
 local function blood_fury_matches(ctx)
-    if ctx.settings and ctx.settings.enhancement_cd_blood_fury == false then return false end
+    if not spec_kit.setting_bool(ctx, "enhancement_cd_blood_fury", true) then return false end
     local me = ctx.me or NS.GetPlayer()
     if not me then return false end
     if not NS.spell_ready({ 33697, 20572 }, me, { skip_range = true }) then return false end
@@ -528,7 +527,7 @@ local function blood_fury_matches(ctx)
 end
 
 local function berserking_matches(ctx)
-    if ctx.settings and ctx.settings.enhancement_cd_berserking == false then return false end
+    if not spec_kit.setting_bool(ctx, "enhancement_cd_berserking", true) then return false end
     local me = ctx.me or NS.GetPlayer()
     if not me then return false end
     if not NS.spell_ready({ 20554, 26297 }, me, { skip_range = true }) then return false end
@@ -639,8 +638,7 @@ local function fire_nova_replacement_matches(ctx)
     
     -- [ARTISTRY] Improved replacement logic:
     -- If we are in "fire_weaving" mode, replacement is handled by the primary fire_totem_resolve.
-    local s = ctx.settings or {}
-    if s.enhancement_fire_totem == "fire_weaving" then return false end
+    if spec_kit.setting(ctx, "enhancement_fire_totem", "searing") == "fire_weaving" then return false end
     
     if ctx.target and NS.debuff_up and NS.debuff_up(ctx.target, FLAME_SHOCK_DEBUFF) then
         return can_drop_totem(ctx, ACTION.MagmaTotem, 1, ACTION.MagmaTotem)
@@ -658,7 +656,7 @@ local function windfury_twist_matches(ctx)
     if not enh_state.totem_twisting then return false end
     if not enh_state.in_combat then return false end
     if enh_state.mana_low then return false end
-    local mana_floor = (ctx.settings or {}).enhancement_twist_mana_threshold or 40
+    local mana_floor = spec_kit.setting_number(ctx, "enhancement_twist_mana_threshold", 40)
     if (enh_state.mana_pct or 0) < mana_floor then return false end
     if not enh_state.windfury_totem_ready then return false end
     if totem_state.next_air ~= "windfury" then return false end
@@ -671,7 +669,7 @@ local function grace_air_twist_matches(ctx)
     if not enh_state.totem_twisting then return false end
     if not enh_state.in_combat then return false end
     if enh_state.mana_low then return false end
-    local mana_floor = (ctx.settings or {}).enhancement_twist_mana_threshold or 40
+    local mana_floor = spec_kit.setting_number(ctx, "enhancement_twist_mana_threshold", 40)
     if (enh_state.mana_pct or 0) < mana_floor then return false end
     if not enh_state.grace_of_air_totem_ready then return false end
     if totem_state.next_air ~= "grace" then return false end
@@ -722,8 +720,7 @@ end
 -- Weapon buff match functions (per-slot)
 -- ============================================================================
 local function mh_weapon_matches(ctx)
-    local s = ctx.settings or {}
-    local choice = s.enhancement_main_hand_ench or "windfury"
+    local choice = spec_kit.setting(ctx, "enhancement_main_hand_ench", "windfury")
     if choice == "none" then return false end
     if enh_state.in_combat then return false end
     -- Resolve "auto" to level-appropriate buff
@@ -740,8 +737,7 @@ local function mh_weapon_matches(ctx)
 end
 
 local function oh_weapon_matches(ctx)
-    local s = ctx.settings or {}
-    local choice = s.enhancement_off_hand_ench or "flametongue"
+    local choice = spec_kit.setting(ctx, "enhancement_off_hand_ench", "flametongue")
     if choice == "none" then return false end
     if enh_state.in_combat then return false end
     -- Resolve "auto" to level-appropriate buff
@@ -765,7 +761,7 @@ local function shamanistic_rage_matches(ctx)
     if enh_state.has_shamanistic_rage then return false end
     if not enh_state.shamanistic_rage_ready then return false end
     -- v1.2.1: per-CD toggle
-    if ctx.settings and ctx.settings.enhancement_cd_shamanistic_rage == false then return false end
+    if not spec_kit.setting_bool(ctx, "enhancement_cd_shamanistic_rage", true) then return false end
     if not NS.gate_cooldown_boss_only(ctx) then return false end
     -- TTD gate: don't waste 2min CD on a dying target
     if ctx.ttd_known and ctx.ttd < 8 then return false end
@@ -788,7 +784,7 @@ end
 
 local function bloodlust_matches(ctx)
     if not cooldowns_enabled(ctx) then return false end
-    if ctx.settings and ctx.settings.enhancement_cd_bloodlust == false then return false end
+    if not spec_kit.setting_bool(ctx, "enhancement_cd_bloodlust", true) then return false end
     if not enh_state.in_combat then return false end
     if enh_state.has_bloodlust then return false end
     if not enh_state.bloodlust_ready then return false end
@@ -798,7 +794,7 @@ end
 
 local function mana_tide_totem_matches(ctx)
     if not cooldowns_enabled(ctx) then return false end
-    if ctx.settings and ctx.settings.enhancement_cd_mana_tide == false then return false end
+    if not spec_kit.setting_bool(ctx, "enhancement_cd_mana_tide", true) then return false end
     if not enh_state.mana_tide_totem_ready then return false end
     if (enh_state.mana_pct or 100) > 60 then return false end
     return true
@@ -914,7 +910,7 @@ end
 --- Ghost Wolf OOC
 local function ghost_wolf_matches(ctx)
     -- v1.2.1: respect global OOC Buffs toggle
-    if ctx.settings and ctx.settings.use_ooc_buffs == false then return false end
+    if not spec_kit.setting_bool(ctx, "use_ooc_buffs", true) then return false end
     if not enh_state.ghost_wolf_ooc then return false end
     if enh_state.in_combat then return false end
     if enh_state.has_ghost_wolf then return false end
@@ -1009,8 +1005,7 @@ local function windfury_maintain_execute()
 end
 
 local function earth_totem_resolve(ctx)
-    local s = ctx.settings or {}
-    local desired = s.enhancement_earth_totem or "strength"
+    local desired = spec_kit.setting(ctx, "enhancement_earth_totem", "strength")
     if earth_totem_matches(ctx, desired) then
         enh_state.earth_totem_desired = desired
         local result = earth_totem_execute()
@@ -1020,8 +1015,7 @@ local function earth_totem_resolve(ctx)
 end
 
 local function water_totem_resolve(ctx)
-    local s = ctx.settings or {}
-    local desired = s.enhancement_water_totem or "mana_spring"
+    local desired = spec_kit.setting(ctx, "enhancement_water_totem", "mana_spring")
     if water_totem_matches(ctx, desired) then
         enh_state.water_totem_desired = desired
         local result = water_totem_execute()
@@ -1031,8 +1025,7 @@ local function water_totem_resolve(ctx)
 end
 
 local function fire_totem_resolve(ctx)
-    local s = ctx.settings or {}
-    local desired = s.enhancement_fire_totem or "searing"
+    local desired = spec_kit.setting(ctx, "enhancement_fire_totem", "searing")
 
     -- Check Fire Nova replacement first
     if fire_nova_replacement_matches(ctx) then
@@ -1052,8 +1045,7 @@ end
 -- Weapon buff executes
 -- ============================================================================
 local function mh_weapon_execute(ctx)
-    local s = ctx.settings or {}
-    local choice = s.enhancement_main_hand_ench or "windfury"
+    local choice = spec_kit.setting(ctx, "enhancement_main_hand_ench", "windfury")
     local resolved = (choice == "auto") and enh_state.auto_mh_buff or choice
     local spell_list
     if resolved == "windfury" then spell_list = WINDFURY_WEAPON_SPELLS
@@ -1066,8 +1058,7 @@ local function mh_weapon_execute(ctx)
 end
 
 local function oh_weapon_execute(ctx)
-    local s = ctx.settings or {}
-    local choice = s.enhancement_off_hand_ench or "flametongue"
+    local choice = spec_kit.setting(ctx, "enhancement_off_hand_ench", "flametongue")
     local resolved = (choice == "auto") and enh_state.auto_oh_buff or choice
     local spell_list
     if resolved == "windfury" then spell_list = WINDFURY_WEAPON_SPELLS
@@ -1094,7 +1085,7 @@ end
 ---@param ctx table
 ---@return boolean
 local function auto_attack_matches(ctx)
-    if ctx.settings and ctx.settings.enhancement_auto_attack == false then return false end
+    if not spec_kit.setting_bool(ctx, "enhancement_auto_attack", true) then return false end
     if not ctx.in_combat then return false end
     local target = ctx.target
     if not target or not target:is_valid() or target:is_dead() then return false end
@@ -1115,7 +1106,7 @@ end
 ---@param ctx table
 ---@return boolean
 local function totemic_call_matches(ctx)
-    if ctx.settings and ctx.settings.enhancement_auto_totemic_call == false then return false end
+    if not spec_kit.setting_bool(ctx, "enhancement_auto_totemic_call", true) then return false end
     if not enh_state.totemic_call_ready then return false end
 
     local me = ctx.me
@@ -1174,7 +1165,7 @@ local strategies = {
     { name = "ManaPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_mana_potion then return false end
           if (context.mana_pct or 100) > 20 then return false end
           return true
@@ -1218,9 +1209,9 @@ local strategies = {
     -- 3. Totems (priority: Totemic Call -> Fire Nova -> Earth -> Water -> Fire -> Air)
     { name = "TotemicCall", matches = totemic_call_matches, execute = totemic_call_execute },
     { name = "FireNovaReplacement", matches = fire_nova_replacement_matches, execute = fire_nova_replacement_execute },
-    { name = "EarthTotem", matches = function(ctx) return earth_totem_matches(ctx, (ctx.settings or {}).enhancement_earth_totem or "strength") end, execute = function(ctx) return earth_totem_resolve(ctx) end },
-    { name = "WaterTotem", matches = function(ctx) return water_totem_matches(ctx, (ctx.settings or {}).enhancement_water_totem or "mana_spring") end, execute = function(ctx) return water_totem_resolve(ctx) end },
-    { name = "FireTotem", matches = function(ctx) return fire_totem_matches(ctx, (ctx.settings or {}).enhancement_fire_totem or "searing") end, execute = function(ctx) return fire_totem_resolve(ctx) end },
+    { name = "EarthTotem",      matches = function(ctx) return earth_totem_matches(ctx, spec_kit.setting(ctx, "enhancement_earth_totem", "strength")) end, execute = function(ctx) return earth_totem_resolve(ctx) end },
+    { name = "WaterTotem", matches = function(ctx) return water_totem_matches(ctx, spec_kit.setting(ctx, "enhancement_water_totem", "mana_spring")) end, execute = function(ctx) return water_totem_resolve(ctx) end },
+    { name = "FireTotem", matches = function(ctx) return fire_totem_matches(ctx, spec_kit.setting(ctx, "enhancement_fire_totem", "searing")) end, execute = function(ctx) return fire_totem_resolve(ctx) end },
 
     -- 4. Air totem (twisting or maintain)
     { name = "WindfuryTotemTwist", matches = windfury_twist_matches, execute = windfury_twist_execute },

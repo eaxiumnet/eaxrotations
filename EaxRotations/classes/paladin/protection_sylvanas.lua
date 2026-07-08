@@ -341,7 +341,7 @@ local function unit_has_buff(unit, ids)
 end
 
 local function cooldowns_enabled(context)
- return not context.settings or context.settings.use_cooldowns == true
+ return spec_kit.setting_bool(context, "use_cooldowns", false)
 end
 
 -- ============================================================================
@@ -631,7 +631,7 @@ local strategies = {
  { name = "ManaPotion",
   matches = function(context)
    if not context.in_combat then return false end
-   if context.settings and context.settings.use_auto_potions == false then return false end
+   if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
    if not context.has_mana_potion then return false end
    if (context.mana_pct or 100) > 20 then return false end
    return true
