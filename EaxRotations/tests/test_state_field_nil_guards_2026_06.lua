@@ -167,7 +167,8 @@ _G.EaxRotations.cooldown_remains = function() return 0 end
 _G.EaxRotations.has_form = function(form) return form == "bear" end
 _G.EaxRotations.safe_field = nil  -- test without safe_field
 
-local bear_strategies = dofile("EaxRotations/classes/druid/bear_sylvanas.lua")
+local bear_result = dofile("EaxRotations/classes/druid/bear_sylvanas.lua")
+local bear_strategies = bear_result.strategies or bear_result
 assert_true(type(bear_strategies) == "table", "bear strategies should load")
 
 -- Helper to find strategy by name
@@ -224,7 +225,8 @@ end)
 -- ============================================================================
 print("--- Feral Cat: energy/combo_points nil-guards ---")
 
-local cat_strategies = dofile("EaxRotations/classes/druid/cat_sylvanas.lua")
+local cat_result = dofile("EaxRotations/classes/druid/cat_sylvanas.lua")
+local cat_strategies = cat_result.strategies or cat_result
 assert_true(type(cat_strategies) == "table", "cat strategies should load")
 
 local function find_cat_strategy(name)

@@ -126,7 +126,8 @@ end
 -- shared_helpers captured its NS upvalue at require time (the same mock table);
 -- arms_sylvanas.lua reads _G.EaxRotations at dofile time (same table). One mock.
 
-local strategies = dofile("EaxRotations/classes/warrior/arms_sylvanas.lua")
+local result = dofile("EaxRotations/classes/warrior/arms_sylvanas.lua")
+local strategies = result.strategies or result
 assert_true(strategies, "arms strategies table should load")
 assert_true(_registry_opts and type(_registry_opts.get_state) == "function",
     "rotation_registry should capture get_state (build_state) from arms")

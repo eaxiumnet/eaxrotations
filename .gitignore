@@ -57,6 +57,7 @@ tools/*
 !tools/run_all_checks.sh
 !tools/run_all_checks.bat
 node_modules/
+wowsims_classic/
 
 # ---- Loose files to ignore ----
 *.py

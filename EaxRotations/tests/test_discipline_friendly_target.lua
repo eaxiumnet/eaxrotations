@@ -47,7 +47,8 @@ package.loaded["classes/priest/healing_sylvanas"] = { scan_healing_targets = fun
 package.loaded["common/enums"] = { class_id = { PRIEST = 5 } }
 package.loaded["shared/preemptive_heal_sylvanas"] = { DEFAULT_THRESHOLD = 75, match = function() return false end, execute = function() return false end }
 
-local strategies = dofile("EaxRotations/classes/priest/discipline_sylvanas.lua")
+local result = dofile("EaxRotations/classes/priest/discipline_sylvanas.lua")
+local strategies = result.strategies or result
 local function find(name) for i = 1, #strategies do if strategies[i].name == name then return strategies[i] end end error("not found: "..name) end
 local ft = find("FriendlyTarget")
 assert_true(ft, "FriendlyTarget strategy should exist")

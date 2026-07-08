@@ -61,7 +61,8 @@ _G.EaxRotations = {
     gate_cooldown_boss_only = function() return true end,
 }
 
-local strategies = dofile("EaxRotations/classes/mage/fire_sylvanas.lua")
+local result = dofile("EaxRotations/classes/mage/fire_sylvanas.lua")
+local strategies = result.strategies or result
 assert_true(strategies, "strategies table should load")
 
 local function find_strategy(name)

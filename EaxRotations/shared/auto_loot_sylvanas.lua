@@ -8,7 +8,8 @@
 --         GCD or channeling; bag-full pause; player-corpse skip. No banned APIs.
 -- =============================================================================
 
-local M = {}
+local M = {}
+local NS = _G.EaxRotations
 
 -- ── Static tables (reused every tick) ───────────────────────────────────────
 local _nearby_corpses = { n = 0 }

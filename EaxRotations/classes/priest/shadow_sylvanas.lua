@@ -1179,5 +1179,5 @@ if NS.rotation_registry and NS.rotation_registry.register then
 end
 -- Priest shadow rotation registered
 
-return strategies
+return { strategies = strategies, build_state = build_state }
 

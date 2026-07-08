@@ -585,6 +585,6 @@ if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("destruction", strategies, { get_state = build_state })
 end
 -- Warlock destruction rotation registered (build_state, explicit strategies, Backlash/Backdraft, execute, AoE, defensives, utility)
-return strategies
+return { strategies = strategies, build_state = build_state }
 
 

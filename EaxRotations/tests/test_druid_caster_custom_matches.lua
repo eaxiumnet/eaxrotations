@@ -28,7 +28,8 @@ _G.EaxRotations = {
     rotation_registry = { register = function() end },
 }
 
-local strategies = dofile("EaxRotations/classes/druid/caster_sylvanas.lua")
+local result = dofile("EaxRotations/classes/druid/caster_sylvanas.lua")
+local strategies = result.strategies or result
 assert_true(strategies, "caster strategies should load")
 
 local function find_strategy(name)

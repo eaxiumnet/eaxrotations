@@ -86,7 +86,8 @@ package.loaded["shared/dot_ttd_gating_sylvanas"] = {
     DOT_DURATIONS = { vampiric_touch = 15, shadow_word_pain = 18 },
 }
 
-local strategies = dofile("EaxRotations/classes/priest/shadow_sylvanas.lua")
+local result = dofile("EaxRotations/classes/priest/shadow_sylvanas.lua")
+local strategies = result.strategies or result
 assert_true(strategies, "strategies should load")
 
 local function find_strategy(name)

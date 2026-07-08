@@ -123,7 +123,8 @@ _G.EaxRotations = {
 }
 
 -- Load holy_sylvanas.lua (should register strategies via rotation_registry)
-local strategies = dofile("EaxRotations/classes/priest/holy_sylvanas.lua")
+local result = dofile("EaxRotations/classes/priest/holy_sylvanas.lua")
+local strategies = result.strategies or result
 if not strategies or #strategies == 0 then
     strategies = _G.EaxRotations._last_registered_strategies or {}
 end

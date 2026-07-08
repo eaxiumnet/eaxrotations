@@ -1038,4 +1038,4 @@ if NS.rotation_registry and NS.rotation_registry.register then
 end
 
 -- Holy priest rotation registered
-return strategies
+return { strategies = strategies, build_state = build_state }
