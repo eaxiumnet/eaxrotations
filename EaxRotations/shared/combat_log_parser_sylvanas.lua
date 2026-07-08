@@ -183,6 +183,7 @@ local function push_entry(entry)
     tail = tail + 1
     entries[tail] = entry
     prune(entry.timestamp)
+    M._notify_subscribers(entry)
 end
 
 local function iter_window(seconds)
@@ -586,14 +587,6 @@ function M._notify_subscribers(entry)
             pcall(cb, entry)
         end
     end
-end
-
-local _original_push_entry = push_entry
-local function push_entry(entry)
-    tail = tail + 1
-    entries[tail] = entry
-    prune(entry.timestamp)
-    M._notify_subscribers(entry)
 end
 
 return M

@@ -29,6 +29,7 @@ end
 ---@param energy number Current energy value
 ---@param now number Current timestamp (seconds)
 function M.update(state, energy, now)
+    if not state then return end
     local delta = energy - state.last_energy
     if delta > 0 and delta <= 25 then
         state.last_tick_time = now
@@ -43,6 +44,7 @@ end
 ---@param now number Current timestamp (seconds)
 ---@return number seconds Until next tick (0 to TICK_INTERVAL)
 function M.estimate_next_tick(state, now)
+    if not state then return M.TICK_INTERVAL end
     if not state.tick_confident or (state.last_tick_time or 0) <= 0 then
         return M.TICK_INTERVAL
     end
@@ -61,6 +63,7 @@ end
 ---@param seconds number Seconds to predict
 ---@return number predicted_energy Capped at 100
 function M.predicted_energy(state, energy, seconds)
+    if not state then return energy end
     return math.min(100, energy + (seconds / M.TICK_INTERVAL) * M.TICK_ENERGY)
 end
 

@@ -208,7 +208,7 @@ function M.as_middleware_strategy(SPELLS)
     return {
         name = "Purge",
         matches = function(context)
-            if context.settings.use_purge == false then return false end
+            if (context.settings and context.settings.use_purge == false) then return false end
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
             if not M.has_purgeable_buff(context.target) then return false end

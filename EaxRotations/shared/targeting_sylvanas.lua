@@ -164,15 +164,28 @@ end
 --- Get enemies list using documented API (NS.GetEnemiesInRange) with fallback.
 ---@param range number
 ---@return table enemies, number count
+local _last_enemy_scan = 0
+local _enemy_scan_interval = 0.5
+local _cached_enemies = {}
+local _cached_count = 0
 local function get_enemies(range)
     if NS.GetEnemiesInRange then
         local list = NS.GetEnemiesInRange(range)
         if type(list) == "table" then return list, list.n or #list end
     end
-    -- Fallback: scan visible objects
+    -- Fallback: scan visible objects (throttled to avoid per-frame API thrash)
+    local now = _core_time()
+    if now - _last_enemy_scan < _enemy_scan_interval then
+        return _cached_enemies, _cached_count
+    end
     if core and core.object_manager and type(core.object_manager.get_visible_objects) == "function" then
         local list = core.object_manager.get_visible_objects()
-        if type(list) == "table" then return list, #list end
+        if type(list) == "table" then
+            _last_enemy_scan = now
+            _cached_enemies = list
+            _cached_count = #list
+            return list, #list
+        end
     end
     return {}, 0
 end

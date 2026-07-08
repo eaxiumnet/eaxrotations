@@ -434,6 +434,7 @@ function M.create_interrupt_strategy(spell_entry, target_validator)
         execute = function(context)
             local target = context and context.target or nil
             if not target then return false end
+            if not (NS and NS.try_cast) then return false end
             local ok = NS.try_cast(spell, target, INTERRUPT_REASON, { expected_cooldown = entry.cooldown })
             if ok and _interrupt_id then M.record_school_lock(target, _interrupt_id) end
             return ok
