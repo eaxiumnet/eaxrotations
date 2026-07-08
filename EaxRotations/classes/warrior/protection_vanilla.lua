@@ -198,7 +198,7 @@ end
 
 local function execute_matches_fn(context, state)
     if not NS.is_execute_phase then return false end
-    if not NS.is_execute_phase(state.target_hp, 20) then return false end
+    if not NS.is_execute_phase(state.target_hp or 100, 20) then return false end
     -- Vanilla Execute requires Battle or Berserker Stance (not Defensive); a Defensive-Stance
     -- prot tank skips cleanly rather than wasting a tick on a cast the game will block.
     if state.stance ~= STANCE.BATTLE and state.stance ~= STANCE.BERSERKER then return false end

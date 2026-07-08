@@ -211,20 +211,20 @@ local function estimate_next_tick(state)
 end
 
 local function update_energy_tick(state)
-    local delta = state.energy - state.last_energy
+    local delta = (state.energy or 0) - (state.last_energy or 0)
     if delta > 0 and delta <= 25 and (state.now - state.last_shift_time) > POWERSHIFT_IGNORE_WINDOW then
         state.last_tick_time = state.now
         state.tick_confident = true
     end
-    state.last_energy = state.energy
+    state.last_energy = state.energy or 0
     state.next_tick_in = estimate_next_tick(state)
-    state.projected_energy = math.min(ENERGY_CAP, state.energy + ENERGY_PER_TICK)
+    state.projected_energy = math.min(ENERGY_CAP, (state.energy or 0) + ENERGY_PER_TICK)
 end
 
 local function should_wait_for_tick(state, required_energy)
     if (state.energy or 0) >= required_energy then return false end
     if state.next_tick_in > 0.45 then return false end
-    return state.energy + ENERGY_PER_TICK >= required_energy
+    return (state.energy or 0) + ENERGY_PER_TICK >= required_energy
 end
 
 local function should_snapshot_upgrade(current_ap, snapshotted_ap, remains, refresh_window, ratio)
@@ -289,9 +289,9 @@ local function build_state(context)
     state.should_powershift = false
     state.should_pool_for_rip = false
     state.should_pool_for_shred = false
-    state.should_execute = state.target_hp <= EXECUTE_HP
+    state.should_execute = (state.target_hp or 100) <= EXECUTE_HP
     state.should_tab_rake = false
-    state.should_aoe = state.enemy_count >= 3
+    state.should_aoe = (state.enemy_count or 0) >= 3
 
     return state
 end

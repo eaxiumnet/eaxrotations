@@ -306,7 +306,7 @@ end
 local function update_rage_tracking(state)
     local now = state.now
     local elapsed = now - (state.last_rage_time or 0)
-    state.rage_delta = state.rage - (state.last_rage or state.rage)
+    state.rage_delta = (state.rage or 0) - (state.last_rage or state.rage or 0)
     if elapsed > 0 and elapsed < 5 then
         state.rage_per_second = state.rage_delta / elapsed
     else
@@ -314,7 +314,7 @@ local function update_rage_tracking(state)
     end
     state.last_rage = state.rage
     state.last_rage_time = now
-    state.rage_deficit = RAGE_CAP - state.rage
+    state.rage_deficit = RAGE_CAP - (state.rage or 0)
 end
 
 -- Throttle build_state to once per frame to avoid rebuilding state N times
@@ -392,8 +392,8 @@ local function build_state(context)
 
     scan_pack(state)
     state.group_pressure = (state.enemy_count or 1) >= (state.aoe_threshold or 3) or (state.pack_loose or 0) > 0
-    state.heavy_damage = state.hp <= (state.frenzied_regen_hp or 35) or (state.hp <= (state.barkskin_hp or 55) and ((state.enemy_count or 1) >= 2 or (state.pack_elites or 0) > 0))
-    state.emergency_damage = state.hp <= 30 and state.pack_loose > 0
+    state.heavy_damage = (state.hp or 100) <= (state.frenzied_regen_hp or 35) or ((state.hp or 100) <= (state.barkskin_hp or 55) and ((state.enemy_count or 1) >= 2 or (state.pack_elites or 0) > 0))
+    state.emergency_damage = (state.hp or 100) <= 30 and (state.pack_loose or 0) > 0
 
     update_rage_tracking(state)
     return state

@@ -245,7 +245,7 @@ local bite_matches = function(context, state)
     if not state.bite_ready then return false end
     if (state.energy or 0) < 35 then return false end
     if (state.combo_points or 0) < BITE_CP_MIN then return false end
-    if state.combo_points >= RIP_CP_MIN and state.rip_ready and state.rip_remains <= 0 and state.target_ttd_known and state.target_ttd > MIN_RIP_TTD then return false end
+    if (state.combo_points or 0) >= RIP_CP_MIN and state.rip_ready and state.rip_remains <= 0 and state.target_ttd_known and state.target_ttd > MIN_RIP_TTD then return false end
     return true
 end
 
