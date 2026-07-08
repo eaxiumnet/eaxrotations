@@ -139,13 +139,6 @@ local AP_UPGRADE_RATIO = 1.08
 local STRONG_AP_UPGRADE_RATIO = 1.15
 local HIGH_AP_UPGRADE_RATIO = 1.05
 
--- IZI SDK cache for energy prediction (optional, falls back to manual)
-local _izi = nil
-do
-    local ok, mod = pcall(require, "common/izi_sdk")
-    if ok and type(mod) == "table" then _izi = mod end
-end
-
 local RIP_DEBUFF = { 27008, 1079 }
 local RAKE_DEBUFF = { 27003, 9904, 1824, 1823, 1822 }
 local MANGLE_DEBUFF = { 33876, 33983, 33982, 33878, 33986, 33987 }

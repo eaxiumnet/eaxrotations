@@ -13,6 +13,11 @@ local _core = (NS and NS.core) or rawget(_G, "core")
 local _get_totem_info = _core and _core.spell_book and _core.spell_book.get_totem_info
 local _get_visible_objects = _core and _core.object_manager and _core.object_manager.get_visible_objects
 
+-- Totem scan throttle (per-frame API safety)
+local _totem_scan_last = 0
+local _totem_scan_interval = 1.0
+local _totem_scan_result = false
+
 -- Use NS.is_auto_attacking() and NS.start_auto_attack() (core_sylvanas.lua wrappers)
 
 -- ============================================================================
@@ -851,15 +856,25 @@ local function totemic_call_matches(ctx)
     end
     if not has_totem then return false end
 
-    -- Scan visible objects for distant totems
+    -- Scan visible objects for distant totems (throttled + pcall + bounded)
     -- Filter by get_owner(): only summoned creatures (totems, not players/NPCs) have owners
     -- Lua proxy references can't be compared with ==, so we just check existence (nil-safe)
-    local objects = _get_visible_objects()
-    if not objects then return false end
+    local now = (_core and _core.time and _core.time()) or 0
+    if now - _totem_scan_last < _totem_scan_interval then
+        return _totem_scan_result
+    end
+    _totem_scan_last = now
+
+    local ok, objects = pcall(_get_visible_objects)
+    if not ok or type(objects) ~= "table" then
+        _totem_scan_result = false
+        return false
+    end
 
     local threshold_sq = TOTEM_CALL_DISTANCE * TOTEM_CALL_DISTANCE  -- 400 (20 yards)
+    local max_scan = math.min(#objects, 50)
 
-    for i = 1, #objects do
+    for i = 1, max_scan do
         local obj = objects[i]
         if obj and obj:is_valid() then
             -- Skip objects without an owner (players, NPCs, critters)
@@ -870,6 +885,7 @@ local function totemic_call_matches(ctx)
                     local dx = obj_pos.x - my_pos.x
                     local dy = obj_pos.y - my_pos.y
                     if dx*dx + dy*dy > threshold_sq then
+                        _totem_scan_result = true
                         return true  -- Totem too far, recall
                     end
                 end
@@ -877,6 +893,7 @@ local function totemic_call_matches(ctx)
         end
     end
 
+    _totem_scan_result = false
     return false
 end
 

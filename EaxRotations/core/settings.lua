@@ -43,16 +43,6 @@ function M.install(NS, deps)
     _SETTINGS_CACHE_TTL = 0.20 -- 200ms throttle
     _settings_cache_time = time_now
 
-    -- DEPRECATED no-op alias.
-    function NS.get_setting_cached(key, default)
-        return NS.get_setting(key, default)
-    end
-
-    function NS.register_izi_buff_events()
-        -- No-op (buff_manager handles caching internally).
-        return true
-    end
-
     function NS.get_setting(key, default)
         -- Primary: settings_manager.
         if settings_manager then

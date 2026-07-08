@@ -89,6 +89,10 @@ end
 -- ---------------------------------------------------------------------------
 -- Pet scanning
 -- ---------------------------------------------------------------------------
+-- Throttle for visible-objects fallback (per-frame API safety)
+local _pet_vis_scan_last = 0
+local _pet_vis_scan_interval = 1.0
+
 -- Static table for pet scanning (Pattern 4: no per-frame allocs)
 local _pet_scan = { n = 0 }
 
@@ -117,11 +121,14 @@ local function scan_pets(me)
         end
     end
 
-    -- Fallback: scan visible objects and check if they are pets of party members
+    -- Fallback: scan visible objects and check if they are pets of party members (throttled)
     if _pet_scan.n == 0 and om and type(om.get_visible_objects) == "function" then
-        local ok_vis, visible = pcall(om.get_visible_objects, om)
-        if ok_vis and type(visible) == "table" then
-            for _, obj in ipairs(visible) do
+        local now = (core and core.time and core.time()) or 0
+        if now - _pet_vis_scan_last >= _pet_vis_scan_interval then
+            _pet_vis_scan_last = now
+            local ok_vis, visible = pcall(om.get_visible_objects, om)
+            if ok_vis and type(visible) == "table" then
+                for _, obj in ipairs(visible) do
                 if obj and unit_alive(obj) then
                     local ok_pet, is_pet = pcall(function()
                         if obj.is_pet then return obj:is_pet() end
@@ -136,6 +143,7 @@ local function scan_pets(me)
                 end
             end
         end
+    end
     end
 
     return _pet_scan, _pet_scan.n

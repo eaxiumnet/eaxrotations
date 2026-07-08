@@ -5861,14 +5861,20 @@ function NS.action_execute(context, action, prefix)
 
     if NS.gcd_remains() > 0 then return false end
 
-    -- Movement assist: brief pause + face target for cast-time spells (Phase 5)
-    do
-        local spell_id = NS.get_spell_id(action.spell)
-        local ma = NS.MovementAssist and NS.MovementAssist()
-        if spell_id and ma and ma.face_for_spell then
-            ma:face_for_spell(spell_id, target)
+        -- Movement assist: brief pause + face target for cast-time spells (Phase 5)
+        do
+            local spell_id = NS.get_spell_id(action.spell)
+            local ma = nil
+            if type(NS.MovementAssist) == "table" then
+                ma = NS.MovementAssist
+            elseif type(NS.MovementAssist) == "function" then
+                local ok, result = pcall(NS.MovementAssist)
+                if ok then ma = result end
+            end
+            if spell_id and ma and ma.face_for_spell then
+                ma:face_for_spell(spell_id, target)
+            end
         end
-    end
 
     local ok = NS.try_cast(action.spell, target, reason, opts)
 
