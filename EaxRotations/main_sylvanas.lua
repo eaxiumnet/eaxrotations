@@ -262,7 +262,10 @@ local BOSS_SCHOOL_IMMUNITIES = {
     [21216] = { nature = true },
     -- Void Reaver (TK) — Arcane immune (spell reflect, effectively immune)
     [19516] = { arcane = true },
-    -- Al'ar (TK) — removed: not actually fire immune in TBC
+    -- Al'ar (TK) — Fire immune (DBC SchoolImmuneMask=4; previously mislabeled "not fire immune")
+    [19514] = { fire = true },
+
+    -- (stale "not fire immune" comment removed — Al'ar entry added above)
     -- Rage Winterchill (Hyjal) — Frost immune (lich)
     [17767] = { frost = true },
 }
@@ -289,6 +292,12 @@ local function get_target_school_immunities(target)
         return BOSS_SCHOOL_IMMUNITIES[id] or {}
     end
     return {}
+end
+
+-- Expose on the namespace so NS.evaluate_cast (core_sylvanas.lua) can consult
+-- the boss school-immunity DB. Nil-guarded: only set if the function exists.
+if NS then
+    NS.get_target_school_immunities = get_target_school_immunities
 end
 
 -- ============================================================================
