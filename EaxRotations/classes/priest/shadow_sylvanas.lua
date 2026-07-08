@@ -1054,6 +1054,20 @@ local function fortitude_matches(context, s)
     return true
 end
 
+local function swd_cc_break_execute(context, s)
+    if s.mf_channeling then
+        if NS.stop_casting then NS.stop_casting() end
+        if NS.cancel_current_cast then NS.cancel_current_cast() end
+    end
+    return NS.try_cast(ACTION.ShadowWordDeath, context.target, string.format("[SHADOW] SWD CC Break -> %s", s.enemy_cc_spell_name or s.breakable_cc_name or "CC"))
+end
+
+local function mana_emergency_wand_execute(context)
+    if not context.target then return false end
+    if NS.is_auto_attacking and NS.is_auto_attacking(context.me) then return true end
+    return NS.start_auto_attack and NS.start_auto_attack(context.target, NS.AUTO_ATTACK_WAND) == true
+end
+
 -- ============================================================================
 -- Strategies
 -- ============================================================================
@@ -1062,7 +1076,7 @@ local strategies = {
     { name = "PowerWordFortitude", matches = fortitude_matches, execute = function(context, s) return NS.try_cast(ACTION.PowerWordFortitude, s.fortitude_target, "[SHADOW] PowerWordFortitude") end },
     { name = "PreCombatPull", matches = pre_combat_pull_matches, execute = function(context) return NS.try_cast(ACTION.VampiricTouch, context.target, "[SHADOW] PreCombatPull") end },
     { name = "Shadowform", matches = shadowform_matches, execute = function(context) return NS.try_cast(ACTION.Shadowform, NS.PLAYER_UNIT, "[SHADOW] Shadowform", { skip_range = true }) end },
-    { name = "SWDCCBreak", matches = swd_cc_break_matches, execute = function(context, s) if s.mf_channeling then if NS.stop_casting then NS.stop_casting() end; if NS.cancel_current_cast then NS.cancel_current_cast() end end; return NS.try_cast(ACTION.ShadowWordDeath, context.target, string.format("[SHADOW] SWD CC Break â†’ %s", s.enemy_cc_spell_name or s.breakable_cc_name or "CC")) end },
+    { name = "SWDCCBreak", matches = swd_cc_break_matches, execute = swd_cc_break_execute },
     { name = "Shadowfiend", matches = shadowfiend_matches, execute = function(context) return NS.try_cast(ACTION.Shadowfiend, context.target, "[SHADOW] Shadowfiend") end },
     { name = "VampiricTouch", matches = vampiric_touch_matches, execute = function(context) local ok = NS.try_cast(ACTION.VampiricTouch, context.target, "[SHADOW] VampiricTouch"); if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end; return ok end },
     { name = "ShadowWordPain", matches = shadow_word_pain_matches, execute = function(context) local ok = NS.try_cast(ACTION.ShadowWordPain, context.target, "[SHADOW] ShadowWordPain"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
@@ -1154,7 +1168,7 @@ local strategies = {
     { name = "FlashHeal", matches = flash_heal_matches, execute = function(context) return NS.try_cast(ACTION.FlashHeal, NS.PLAYER_UNIT, "[SHADOW] FlashHeal", { skip_range = true }) end },
     { name = "HolyNovaAoE", matches = holy_nova_aoe_matches, execute = function(context) return NS.try_cast(ACTION.HolyNova, context.target, "[SHADOW] HolyNova") end },
     -- Emergency wand fallback when mana below conserve floor (last resort)
-    { name = "ManaEmergencyWand", matches = mana_emergency_wand_matches, execute = function(context) if not context.target then return false end; if NS.is_auto_attacking and NS.is_auto_attacking(context.me) then return true end; return NS.start_auto_attack and NS.start_auto_attack(context.target, NS.AUTO_ATTACK_WAND) == true end },
+    { name = "ManaEmergencyWand", matches = mana_emergency_wand_matches, execute = mana_emergency_wand_execute },
     { name = "RacialBerserking", matches = racial_matches, execute = function(context) return NS.try_cast(ACTION.Berserking, NS.PLAYER_UNIT, "[SHADOW] Berserking", { skip_range = true }) end },
     { name = "RacialBloodFury", matches = racial_matches, execute = function(context) return NS.try_cast(ACTION.BloodFury, NS.PLAYER_UNIT, "[SHADOW] BloodFury", { skip_range = true }) end },
     { name = "RacialArcaneTorrent", matches = racial_matches, execute = function(context) return NS.try_cast(ACTION.ArcaneTorrent, NS.PLAYER_UNIT, "[SHADOW] ArcaneTorrent", { skip_range = true }) end },

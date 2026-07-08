@@ -7,6 +7,7 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.HunterSpells or {}
 local pet_manager = require("shared/pet_manager_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
@@ -126,7 +127,7 @@ local function build_state(context)
 end
 
 local function cooldowns_enabled(context)
-    return not context.settings or context.settings.use_cooldowns ~= false
+    return spec_kit.setting_bool(context, "use_cooldowns", true)
 end
 
 -- ============================================================================
@@ -287,7 +288,7 @@ local strategies = {
     { name = "HealthPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if spec_kit.setting_bool(context, "use_auto_potions", true) == false then return false end
           if not context.has_health_potion then return false end
           if (context.hp or 100) > 35 then return false end
           return true
@@ -296,7 +297,7 @@ local strategies = {
     { name = "ManaPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if spec_kit.setting_bool(context, "use_auto_potions", true) == false then return false end
           if not context.has_mana_potion then return false end
           if (context.mana_pct or 100) > 25 then return false end
           return true
