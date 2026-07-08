@@ -306,13 +306,12 @@ end
 
 local function kick_matches(context, state)
     -- Route through InterruptManager for cast window + humanization
-    local settings = context.settings or {}
-    if settings.use_interrupts == false then return false end
+    if not spec_kit.setting_bool(context, "use_interrupts", true) then return false end
     local mgr = NS.InterruptManager
     if mgr then
         if not NS.try_interrupt(context.target) then return false end
-        if not mgr.cast_has_interrupt_window(context.target, settings) then return false end
-        if not mgr.humanize_interrupt_elapsed(context.target, settings) then return false end
+        if not mgr.cast_has_interrupt_window(context.target, context.settings or {}) then return false end
+        if not mgr.humanize_interrupt_elapsed(context.target, context.settings or {}) then return false end
     else
         if not target_is_casting(context.target) then return false end
     end
@@ -321,8 +320,7 @@ local function kick_matches(context, state)
 end
 
 local function shiv_purge_matches(context, state)
-    local settings = context.settings or {}
-    if settings.use_shiv_purge == false then return false end
+    if not spec_kit.setting_bool(context, "use_shiv_purge", true) then return false end
     if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
     if not context.in_combat then return false end
     if not (context.is_pvp or false) then return false end
@@ -330,7 +328,7 @@ local function shiv_purge_matches(context, state)
     if not (context.in_melee_range or false) then return false end
     if not state.shiv_ready then return false end
     if not state.shiv_purge_name then return false end
-    if settings.shiv_purge_pvp_only ~= false then
+    if spec_kit.setting_bool(context, "shiv_purge_pvp_only", true) then
         local ok, is_player = pcall(function() return context.target:is_player() end)
         if not (ok and is_player) then return false end
     end
@@ -503,7 +501,7 @@ local strategies = {
     { name = "HealthPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_health_potion then return false end
           if (context.hp or 100) > 35 then return false end
           return true
@@ -512,7 +510,7 @@ local strategies = {
     { name = "DamagePotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_damage_potion then return false end
           if not context.should_burst then return false end
           return true
