@@ -1,214 +1,136 @@
 # EaxRotations Changelog
 
-*Player-facing updates. No code, no filenames � just what changed and why it matters.*
+## v2.5.0 — Spec Standardization & Polish (July 8, 2026)
+
+> **Release zip:** [EaxRotations-v2.5.0.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.5.0)
+> **Game:** The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
+> **Tested with:** 242 rotation suites + 13 leveling suites (all passing)
 
 ---
 
-## v2.3.12 � July 4, 2026
+### 🏗️ Under the Hood: Complete Spec Standardization
 
-### ? Feature: Healthstone Automation � All 29 Specs
+Every one of the 29 class specializations has been rebuilt on a shared foundation that makes the rotation engine more reliable, easier to maintain, and safer across every spec. This is a massive internal refactoring — you won't see a single button change, but every spec is now more robust against edge cases (nil spell IDs, missing buff data, broken API responses on private servers).
 
-**Every rotation now automatically uses a Healthstone when you drop below 28% HP in combat.**
-
-Before this release, only 19 of 29 specs had healthstone automation. Now it covers everyone: Hunter (all 3), Shaman (all 3), Warrior (Arms/Protection), Rogue (Subtlety), and Priest (Smite) join the existing coverage.
-
-**How it works:** The rotation scans your bags for any Healthstone (Major 22105, Greater 22104, Lesser 22103, Minor 19013/19012/19011, or base 5512). When you are in combat and drop below 28% HP, it uses the best one you have. No menu setting needed � it just works.
+**What this means for you:** fewer "the bot just stopped" moments, faster bug fixes in the future, and consistent behavior across all specs.
 
 ---
 
-### ? Feature: Affliction Warlock � Death Coil Survival
+### ⚔️ Class & Spec Changes (since v2.3.11)
 
-**Affliction Warlock now automatically uses Death Coil when you drop below 30% HP in combat.**
+#### Druid
+- **Bear:** Completely rebuilt as a pure bear-form tank rotation. No more accidental form-shifting mid-combat. Demoralizing Roar and Faerie Fire (Feral) debuffs maintained automatically. Swipe for AoE/cleave, Maul as rage dump. Frenzied Regen and Barkskin used defensively.
+- **Cat:** Powershift energy threshold raised from 20 to 25 (closer to optimal play). New snapshot module prevents overwriting stronger Rip/Rake bleeds with weaker ones.
+- **Balance:** Starfire is now the primary nuke (was Wrath). Wrath used only for mana conservation. Mana gem strategy added for longer fights.
 
-Death Coil is a powerful emergency button: it fears the target and heals you for the damage dealt. Destruction and Demonology Warlocks already had this, but Affliction was missing it. Now all three Warlock specs are covered.
+#### Hunter
+- **All specs:** Aspect of the Viper now kicks in at 5% mana (was 20%) and switches back to Hawk at 25% (was 30%) — aligned with simulation data. Aimed Shot opener fires at ≤0.5s before pull. Auto-shot timer prevents clipping on all three specs. Melee weaving (Raptor Strike + Wing Clip at melee range) available on all specs.
+- **Beast Mastery:** Bestial Wrath now aligns with Bloodlust/Heroism/Drums power windows instead of firing on cooldown. Kill Command is off-GCD and top priority. Intimidation pet stun included. Rapid Fire and Readiness used intelligently.
+- **Marksmanship:** Trueshot Aura maintained automatically. Silencing Shot included for interrupt support.
+- **Survival:** Wyvern Sting, Explosive Trap, and Immolation Trap included. Concussive Shot for kiting, Misdirection support in pull windows.
 
----
+#### Mage
+- **Arcane:** Full burn/conserve rotation — Arcane Blast x3 into Frostbolt conserve phase. Presence of Mind used at the end of Arcane Power. Mana gem usage aligned with simulation data.
+- **Fire:** Combustion aligned with Bloodlust/Drums/major cooldown windows. Scorch debuff maintained automatically.
+- **Frost:** Frostbolt as primary filler with Shatter combos.
 
-### ? Feature: Hunter � Deterrence Emergency Defensive
+#### Paladin
+- **Holy:** Triage-scored target selection picks the most urgent heal target. Downranked Holy Light (R4/R7/R9/R11) chosen automatically based on health deficit. Divine Favor + Holy Shock guaranteed-crit burst combo. Light's Grace chain maintained for haste uptime. Auto-blessing (Light/Wisdom/Kings), auto-aura (Concentration/Devotion/Resistance), and auto-cleanse. Seal-twist for Judgement of Wisdom/Light support on bosses.
+- **Protection:** Holy Shield maintained at 100% uptime with charge tracking. Consecration downranked based on mana. Avenger's Shield used as both opener and combat ability. Seal of Wisdom auto-swap at low mana. Righteous Defense peels allies. Blessing of Sanctuary and Devotion Aura maintained OOC.
+- **Retribution:** Post-swing Judgement prevents seal clipping. Seal twist diagnostics log twist quality. Seal of Blood/Command/Martyr supported with auto-detection. Avenging Wrath and engineering bombs included.
 
-**All three Hunter specs now automatically activate Deterrence when you drop below 25% HP in combat.**
+#### Priest
+- **Holy:** Triage-scored healing with downranked Greater Heal/Flash Heal. Lightwell, Circle of Healing, and Guardian Spirit included. Friendly target support.
+- **Discipline:** Power Word: Shield absorb tracking with smart refresh. Pain Suppression for tanks. Divine Spirit and Power Infusion support. Friendly target support.
+- **Shadow:** Shadowfiend timing aligned with fight length. Starshards moved above Mind Flay in priority (was dead code!). Multi-DoT engine maintains Vampiric Touch and Shadow Word: Pain on multiple targets. Inner Focus + Mind Blast combo. Vampiric Embrace maintained on bosses.
 
-Deterrence is a 5-minute survival cooldown that massively increases your dodge and parry chance. When a melee mob closes the gap and your health is critical, the rotation pops it automatically � no button press required. Covers Beast Mastery, Marksmanship, and Survival.
+#### Rogue
+- **Combat:** Blade Flurry now requires Slice and Dice active before use. Adrenaline Rush gated at ≤40 energy. SnD maintenance at all combo point levels.
+- **Assassination:** Mutilate requires daggers in both hands. Envenom used at 4+ combo points. Cold Blood + Envenom combo.
+- **Subtlety:** Hemorrhage debuff maintained. Shadowstep + Ambush opener. Premeditation and Preparation for cooldown resets. Shiv for poison application.
 
+#### Shaman
+- **Elemental:** Lightning Bolt as primary nuke with Chain Lightning on cooldown. Clearcasting priority ensures Elemental Mastery + Chain Lightning combos. Totem of Wrath maintained. Lightning Shield throttle prevents recast spam.
+- **Enhancement:** Totem twisting (Windfury/Grace of Air) on 10s cycle with mana floor. Auto weapon buffs by level (Rockbiter → Flametongue → Windfury). Intelligent shield switching (Lightning Shield >60% mana, Water Shield <40%). Shamanistic Rage aligned with power windows.
+- **Restoration:** Earth Shield and Riptide maintained. Chain Heal smart-targeting. Triage-scored healing. Healing Way maintained on tanks.
 
----
+#### Warlock
+- **Affliction:** Drain Soul + Shadowburn execute at <25% HP. Immolate priority raised. Curse of Shadows/Agony/Doom applied appropriately. Life Tap managed for mana. Felhunter auto-summoned.
+- **Demonology:** Demonic Sacrifice support. Felguard maintained. Soul Link for survivability. Metamorphosis support.
+- **Destruction:** Shadowburn execute. Immolate → Conflagrate combo. Soul Fire with Decimation procs. Mana gem usage.
 
-### ? Feature: Target-Switch State Hygiene
-
-**Switching targets now correctly resets TTD (Time-To-Death) tracking.**
-
-Previously, TTD data from your old target (DPS averages, debuff timers) would leak onto your new target for the first few seconds after a switch. This caused wrong decisions � for example, refreshing a DoT early because the old target's TTD was short, or skipping an execute because the old target's HP was high.
-
-Now, the moment you switch target, the TTD tracker and EMA tracker are reset. Clean slate, correct decisions.
-
----
-
-### ?? Fixed: Priest � Tab-Target Safety
-
-**Shadow, Holy, and Discipline priests no longer accidentally pull unengaged mobs when tab-targeting.**
-
-Spread-DoT and idle-damage strategies (Multi-Dot, SW:P spread, idle Smite / Holy Fire) now verify the target has actually engaged with you or your party before casting. Prevents dots from landing on patrols, wanderers, or neutral mobs you just happened to tab onto.
-
-**Holy & Discipline bonus:** Party Fortitude � out of combat, the rotation scans your group and casts Power Word: Fortitude on any party member missing the buff. No more manually buffing everyone after a rez.
-
----
-
-### ?? Fixed: Rotation Toggle Survives Reload
-
-**Turning the rotation OFF now stays OFF after a UI reload.**
-
-Previously, disabling the rotation via keybind and then reloading UI caused the rotation to run for 1-2 ticks before the toggle state synced back. This could trigger accidental spell casts immediately on reload. Fixed by reading the toggle state directly from the persisted widget instead of the ephemeral settings store.
-
----
-
-### ✨ Improved: Pet Handling — Hunter, Warlock, Mage
-
-**Your pets now attack and cast abilities automatically.**
-
-**Hunter pets:** Now auto-attack the target and cast Growl (taunt), Claw/Bite (damage), and special abilities like Dash, Dive, Howl, Screech, and Thunderstomp on cooldown. The pet also respects engagement safety — it won't attack unengaged patrols.
-
-**Warlock pets:** Now auto-attack and cast their primary abilities. Imp casts Firebolt, Felguard casts Cleave (and Intercept when the target is far away), Succubus casts Lash of Pain, Voidwalker casts Suffering (taunt), and Felhunter casts Bite.
-
-**Mage Water Elemental:** Frost Mages now get full Water Elemental support. The elemental auto-attacks with Waterbolt and casts its AoE Freeze root on cooldown (skips if the target is already rooted). This is a TBC Classic Anniversary backport from Wrath — the talent (Summon Water Elemental) and both pet abilities are verified in the game client.
-
-**Engagement safety:** All pets now check if the target is actually engaged before attacking. This prevents your pet from accidentally pulling patrols or wandering mobs when you tab-target around.
+#### Warrior
+- **Arms:** Mortal Strike on cooldown, Overpower on dodge procs (CLEU-backed detection), Execute below 20%. Hamstring for kiting. Sweeping Strikes for AoE. Healthstone support.
+- **Fury:** Bloodthirst on cooldown, Whirlwind for AoE. Opt-in Overpower weaving via stance dance. Rampage maintained. Death Wish aligned with Bloodlust/Heroism. Healthstone support.
+- **Protection:** Shield Slam and Revenge on cooldown. Devastate for Sunder Armor stacks. Thunder Clap and Demoralizing Shout maintained. Shield Block for mitigation. Last Stand and Shield Wall as emergency cooldowns.
 
 ---
 
-### 🐛 Fixed: BM Hunter — Intimidation Missing
+### 🛠️ New Features & Systems (since v2.3.11)
 
-**Beast Mastery Hunter Intimidation (pet stun) is now part of the rotation.**
+- **Cooldown Planner:** Personal offensive cooldowns (Death Wish, Avenging Wrath, Combustion, Bestial Wrath, etc.) now align with Bloodlust/Heroism/Drums power windows instead of firing on internal cooldown. Conservative timeouts and TTD fallbacks prevent wasted cooldowns on dying targets.
 
-Intimidation is a BM talent that commands your pet to stun the target on its next melee hit. It was in the spell table but never had a rotation strategy — it now fires automatically when off cooldown, in combat, and your pet is alive.
+- **Healthstone Automation:** All 29 specs automatically use Healthstones below 28% HP in combat. No configuration needed.
 
-## v2.3.11 — July 4, 2026
+- **Combat Mode Override:** Force Single-Target, AoE, or Auto mode on any spec. When set to Auto, the rotation picks the right mode based on enemy count.
 
-### 🐛 Fixed: Druid Cat — Travel Form Spam
+- **Snap Threat:** Protection Paladins and Warriors use an immediate high-threat opener (Avenger's Shield / Shield Slam) the moment combat starts.
 
-**The problem:** Feral Cat druids were seeing their rotation rapidly flip between Cat Form and Travel Form every few seconds while out of combat. This burned mana, locked the global cooldown, and made it impossible to set up a clean Prowl opener.
+- **Stop-Cast Engine:** Healers cancel overhealing casts mid-flight to save mana. Works on Holy Paladin, Holy Priest, Discipline Priest, Restoration Shaman, and Restoration Druid.
 
-**The fix:**
-- Form-switching now has a longer cooldown, preventing the rapid back-and-forth
-- Travel Form auto-cast is now **off by default** — you can turn it on in settings if you want it
-- Travel Form only fires when you're actually moving
-- If you're already in Travel Form running toward a distant target, the rotation won't force you back into Cat Form
+- **Pet Handling Overhaul:** Hunters, Warlocks, and Mages (Water Elemental) now have full pet automation — attacks, taunts, Growl, special abilities, and auto-heal (Mend Pet / Health Funnel). Pets switch between aggressive/defensive/passive based on combat state and HP.
 
-**How to enable Travel Form auto-cast:**
-EaxRotations Menu → Class Settings → Cat → check **"Auto Travel Form"**
+- **Triage Scoring:** Healers use a scoring system that factors in health deficit, role (tank > healer > DPS), and distance to pick the best heal target — not just the lowest HP.
 
----
+- **Swing Timer:** Melee specs now track auto-attack swings to avoid clipping. Parry-haste awareness for tank specs. Overpower procs detected from combat log events.
 
-## v2.3.10 — July 4, 2026
+- **Engineering Bomb Support:** All specs can use engineering bombs (Sapper Charges, Grenades) aligned with AoE windows.
 
-### 🐛 Fixed: Hunter — Aspect of the Hawk / Viper Missing
-
-Hunter rotations were not correctly maintaining Aspect of the Hawk (or Viper when low on mana) through the class middleware. The aspect manager strategies were not being registered properly, causing some hunters to fight without their primary attack-power buff.
+- **Fully Automated Dispel:** 5-class support (Paladin Cleanse, Priest Dispel Magic, Druid Remove Curse, Shaman Purge, Mage Remove Curse). Tank-gated with 3s throttle to prevent spam.
 
 ---
 
-## v2.3.9 — July 3, 2026
+### 🎣 EaxFishing v2.5.1 (bundled)
 
-### 🐛 Fixed: Shadow Priest — Mind Flay Firing Too Early
-
-Mind Flay was sometimes opening on fresh targets before Shadow Word: Pain and Mind Blast had been applied. It now correctly waits until the target has engaged (either by attacking you or a party member) before channeling Mind Flay.
-
----
-
-## v2.3.8 — July 3, 2026
-
-### 🐛 Fixed: Mage — Fire — Clearcasting Not Working
-
-The Clearcasting proc (from Arcane Concentration) was not being consumed by Fireball. The rotation now tracks Clearcasting properly and will fire an instant-cast Fireball when the proc is active.
-
-### 🐛 Fixed: Warrior — Arms — Death Wish Not Bursting on Bosses
-
-Death Wish was not firing during boss fights when it should have been. The rotation now correctly detects boss targets and uses Death Wish as a burst cooldown.
-
-### 🐛 Fixed: Druid — Bear — Nature's Grasp Not Firing When Rooted
-
-In PvP, when the bear was rooted or snared, Nature's Grasp was not automatically casting to peel melee attackers. It now fires correctly when crowd-controlled.
-
-### 🐛 Fixed: Warlock — Demonology — Pet Strategies Stalling
-
-Pet-related strategies were using stale state information, causing Felguard / Voidwalker abilities to not cast reliably. Pet state is now refreshed correctly every tick.
+- Debug logging now gated behind a master toggle — no more console spam
+- Stealth suspicion level decays over time when no players are nearby (fixes bot freezing after a few minutes of player traffic)
+- Suspicion fully resets when you toggle fishing off and back on
+- Verbose status line (~1.5s interval) shows stealth multiplier, suspicion, encounters, and throttle — so you can see why the bot paused
+- Bobber bite detection logged only on actual bites (no more spam)
 
 ---
 
-## v2.3.7 — July 2, 2026
+### 🐛 Bug Fixes (since v2.3.11)
 
-### ✨ Improved: Healer Dispel Throttle
-
-All four healer specs (Holy Paladin, Discipline Priest, Restoration Druid, Restoration Shaman) now throttle dispels and cleanses to a 3-second interval. This prevents rapid-fire casting when debuff data is updating slowly, saving mana and GCDs.
-
----
-
-## v2.3.0–2.3.6 — July 2, 2026
-
-### ✨ Major: Server-Authoritative Swing Timer
-
-**For melee specs:** Retribution Paladin, Enhancement Shaman, Arms Warrior, Fury Warrior
-
-The rotation now reads the exact server swing timestamp from combat log events instead of guessing. This means:
-- **Seal Twisting** is judged against real server data — no more phantom twists from latency
-- **Stormstrike alignment** (Enhancement) and **Heroic Strike trick timing** (Warrior) are now precise
-- Falls back automatically to native prediction if combat log data is unavailable
-
-### ✨ Instant Snap Threat on Pull
-
-**For tanks:** Protection Paladin, Protection Warrior
-
-Your opener (Judgement / Shield Slam) now fires the exact moment combat begins, giving you a 50–100ms head start before DPS opens. Reduces early aggro loss on trash and boss pulls.
-
-### ✨ Light's Grace Chaining (Holy Paladin)
-
-When Light's Grace has less than 2.5 seconds remaining, the rotation automatically queues another Holy Light to keep the 0.5-second cast-time reduction rolling. Only fires in combat and stays below emergency spells (Divine Favor + Holy Shock) on priority.
-
-### ✨ Blessing of Kings Party Buff (Protection Paladin)
-
-Out of combat, the rotation scans party members and applies Blessing of Kings to anyone missing the buff. Gated by a setting (default enabled).
-
-### ✨ Configurable DoT Refresh Windows (Shadow Priest)
-
-Replaced hardcoded refresh thresholds with user-configurable sliders:
-
-| Setting | Range | Default |
-|---------|-------|---------|
-| Vampiric Touch Refresh Window | 0.5s – 3.0s | 1.5s |
-| Shadow Word: Pain Refresh Window | 0.5s – 3.0s | 1.5s |
-
-Lower values = refresh closer to expiration (better for low latency). Higher values = refresh earlier (safer for movement-heavy fights).
-
-### ✨ PvP DR Gating
-
-Stun abilities now check diminishing returns before casting:
-- **Hammer of Justice** (Holy / Prot Paladin)
-- **Cheap Shot** (Combat Rogue)
-- **Kidney Shot** (Combat / Subtlety Rogue)
-
-This prevents wasting a full-duration stun on a target that is already DR-immune.
-
-### ✨ Warrior Fear Break
-
-Death Wish and Berserker Rage now automatically fire when the warrior is feared, sapped, or incapacitated. Death Wish works in any stance (unlike Berserker Rage which requires Berserker Stance).
-
-### ✨ Druid Barkskin Configurability (Restoration)
-
-The Barkskin HP threshold is no longer hardcoded at 55%. The rotation now respects the slider value you've set in the menu.
-
-### ✨ Shaman Tremor Totem PvP Coverage (Enhancement)
-
-Tremor Totem now drops automatically when any nearby party member has a fear debuff (Warlock Fear, Priest Psychic Scream, etc.), not just against known fear-casting boss NPCs.
+- Out-of-range spells no longer stall the rotation — they fall through to the next priority
+- Party buffs and dispels correctly skip range checks so out-of-range allies don't block the rotation
+- Pummel, Shadowfiend, and Feed Pet no longer incorrectly apply range restrictions
+- Bear Druid no longer attempts cat-form or caster-form spells in combat
+- Marksmanship Hunter no longer tries to cast Bestial Wrath (BM-only ability)
+- Switching targets correctly resets Time-To-Death tracking
+- Pets no longer pull neutral mobs or patrols unintentionally
+- War Stomp (Tauren racial) now correctly gated behind range
+- Seal twist diagnostics in Retribution Paladin fixed
 
 ---
 
-## Installation
+### 📊 Quality Gates (v2.5.0)
 
-1. Download the latest `EaxRotations-vX.X.X.zip` from [Releases](https://github.com/eaxiumnet/eaxrotations/releases)
-2. Extract to your Project Sylvanas `Scripts/` folder
-3. Reload UI or restart the game
-
-All updates are backward compatible — no settings reset required.
+| Gate | Result |
+|------|--------|
+| Rotation test suites | **242 / 242 passing** |
+| Leveling test suites | **13 / 13 passing** |
+| Spell database audit | **61 TBC + 31 Vanilla files clean** |
+| All spell IDs verified | Against DBC client 2.5.5.68101 |
 
 ---
 
-*Report issues: https://github.com/eaxiumnet/eaxrotations/issues*
+### 🔄 Previous Versions
+
+- **v2.4.0** (July 5, 2026) — Wowsims APL alignment for all 15 DPS specs
+- **v2.3.15** (July 5, 2026) — Cooldown Planner power-window alignment
+- **v2.3.12** (July 4, 2026) — Healthstone automation + pet handling overhaul
+
+---
+
+*For technical release notes, see `RELEASE_NOTES_v2.4.0.md` and `RELEASE_NOTES_v2.3.12.md`.*
