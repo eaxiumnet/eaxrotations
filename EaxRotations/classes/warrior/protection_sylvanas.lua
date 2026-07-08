@@ -128,12 +128,7 @@ end
 -- Disarm target classes: melee classes that lose weapon-based damage when disarmed
 local DISARM_CLASS_IDS = CONSTANTS.DISARM_CLASS_IDS or { [1] = true, [2] = true, [4] = true, [7] = true }
 
-local setting = NS.setting or function(context, key, fallback)
- local settings = context and context.settings
- if settings and settings[key] ~= nil then return settings[key] end
- if NS.get_setting then return NS.get_setting(key, fallback) end
- return fallback
-end
+-- settings now delegated to spec_kit.setting_*() (Pattern 8)
 
 -- Enemy scanning API (cached at module load)
 local _get_visible_objects = core and core.object_manager and core.object_manager.get_visible_objects or nil
@@ -166,7 +161,7 @@ local function get_threat_targets(context, me, target)
  if not _get_visible_objects then return _threat_enemies, _threat_enemy_count end
  local ok, visible_objects = pcall(_get_visible_objects)
  if not ok or not visible_objects then return _threat_enemies, _threat_enemy_count end
- local tab_range = setting(context, "prot_tab_range", 20)
+ local tab_range = spec_kit.setting_number(context, "prot_tab_range", 20)
  local range_sq = (tab_range or 20) * (tab_range or 20)
  for _, obj in ipairs(visible_objects) do
   if obj and NS.not_same_unit(obj, target) then
@@ -333,7 +328,7 @@ local function build_state(context)
  end
 
  -- Threat tab targeting: scan nearby enemies for Taunt/MockingBlow cycling
- if prot_state.in_combat and setting(context, "prot_tab_targeting", true) then
+ if prot_state.in_combat and spec_kit.setting_bool(context, "prot_tab_targeting", true) then
   local now = (core and core.time and core.time()) or 0
   if now - _last_threat_scan >= _threat_scan_interval then
    _last_threat_scan = now
@@ -527,7 +522,7 @@ end
 
 local function commanding_shout_matches_fn(context, state)
  if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CommandingShout, 3.0) then return false end
- if not setting(context, "use_commanding_shout", false) then return false end
+ if not spec_kit.setting_bool(context, "use_commanding_shout", false) then return false end
  if state.has_commanding_shout then return false end
  if state.has_battle_shout then return false end
  if not state.commanding_ready then return false end
@@ -622,7 +617,7 @@ end
 
 local function taunt_secondary_matches_fn(context, state)
  if not state.mocking_ready then return false end
- if not setting(context, "prot_tab_targeting", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_tab_targeting", true) then return false end
  if (state.enemy_count or 0) < 3 then return false end
  -- Smart taunt: only mocking blow elites/bosses (classification >= 1)
  if (context.target_classification or 0) < 1 then return false end
@@ -684,12 +679,12 @@ local function intervene_matches_fn(context, state)
  if not state.intervene_ready then return false end
  if not state.in_combat then return false end
  if not state.is_group then return false end
- if not setting(context, "warrior_use_intervene", true) then return false end
- if setting(context, "warrior_intervene_pvp_only", true) and not state.is_pvp then return false end
+ if not spec_kit.setting_bool(context, "warrior_use_intervene", true) then return false end
+ if spec_kit.setting_bool(context, "warrior_intervene_pvp_only", true) and not state.is_pvp then return false end
  if (state.rage or 0) < 10 then return false end
  local ally = state.lowest_allied or state.tank
  if not ally or not ally.unit then return false end
- local hp_threshold = setting(context, "warrior_intervene_hp_threshold", 60)
+ local hp_threshold = spec_kit.setting_number(context, "warrior_intervene_hp_threshold", 60)
  if (ally.effective_hp or 100) > hp_threshold then return false end
  local me = context.me or (NS.GetPlayer and NS.GetPlayer())
  if not me then return false end

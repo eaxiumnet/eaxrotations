@@ -6,6 +6,7 @@
 local M = {}
 local NS = _G.EaxRotations
 if not NS then return M end
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- ============================================================================
 -- Configurable constants (defaults match both Fury and Arms; override per-spec)
@@ -24,13 +25,9 @@ M.last_stance_cast_at = 0
 -- Helper functions
 -- ============================================================================
 
--- setting: resolve a config value from context settings or NS.get_setting.
--- Falls back to NS.setting if the shared module version is unavailable.
+-- setting: delegates to spec_kit.setting() (Pattern 8 centralized menu access).
 function M.setting(context, key, fallback)
-    local settings = context and context.settings
-    if settings and settings[key] ~= nil then return settings[key] end
-    if NS.get_setting then return NS.get_setting(key, fallback) end
-    return fallback
+    return spec_kit.setting(context, key, fallback)
 end
 
 -- bool_call: safely call a boolean method on a unit via pcall.
@@ -52,7 +49,7 @@ end
 
 -- desired_stance: resolve stance preference from settings.
 function M.desired_stance(context)
-    local preference = M.setting(context, "stance_preference", "auto")
+    local preference = spec_kit.setting(context, "stance_preference", "auto")
     if preference == "battle" or preference == STANCE.BATTLE then return STANCE.BATTLE end
     if preference == "defensive" or preference == STANCE.DEFENSIVE then return STANCE.DEFENSIVE end
     if preference == "berserker" or preference == STANCE.BERSERKER then return STANCE.BERSERKER end
