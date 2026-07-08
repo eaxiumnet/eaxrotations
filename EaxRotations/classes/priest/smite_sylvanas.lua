@@ -71,7 +71,6 @@ local WEAKENED_SOUL_DEBUFF = { 6788 }
 -- Base cast times with Divine Fury talent: Smite 2.0s, Holy Fire 3.0s
 local SMITE_CAST_BASE = 2.0
 local HF_CAST_BASE = 3.0
-local EMPTY_SETTINGS = {}
 local SKIP_RANGE = { skip_range = true }
 local PSYCHIC_SCREAM_OPTS = { skip_range = true, expected_cooldown = 30 }
 local SHADOWFIEND_OPTS = { expected_cooldown = 300 }
@@ -140,7 +139,6 @@ local SMITE_SCHEMA = {
 }
 
 local function build_smite_state(context)
-    context.settings = context.settings or EMPTY_SETTINGS
     local target = context.target
     local player = NS.GetPlayer()
 
@@ -170,7 +168,7 @@ local function build_smite_state(context)
     smite_state.hf_ready = spell_exists(ACTION.HolyFire) and spell_ready(ACTION.HolyFire, target)
     smite_state.mb_ready = spell_exists(ACTION.MindBlast) and spell_ready(ACTION.MindBlast, target)
     smite_state.swd_ready = spell_exists(ACTION.ShadowWordDeath) and spell_ready(ACTION.ShadowWordDeath, target)
-    smite_state.swd_safe = context.hp > (context.settings.smite_swd_hp or 40)
+    smite_state.swd_safe = context.hp > spec_kit.setting_number(context, "smite_swd_hp", 40)
     smite_state.inner_focus_ready = spell_exists(ACTION.InnerFocus) and spell_ready(ACTION.InnerFocus, NS.PLAYER_UNIT)
     smite_state.inner_fire_ready = spell_exists(ACTION.InnerFire) and spell_ready(ACTION.InnerFire, NS.PLAYER_UNIT, SKIP_RANGE)
     smite_state.power_word_shield_ready = spell_exists(ACTION.PowerWordShield) and spell_ready(ACTION.PowerWordShield, NS.PLAYER_UNIT, SKIP_RANGE)
@@ -183,8 +181,8 @@ local function build_smite_state(context)
     smite_state.enemy_count = context.enemy_count or context.enemies_count or 1
 
     -- Mana conservation tiers (Research: <30% downrank, <15% HF only, <5% wand only)
-    smite_state.mana_low = smite_state.mana_pct < (context.settings.smite_mana_floor or 30)
-    smite_state.mana_emergency = smite_state.mana_pct < (context.settings.smite_wand_floor or 5)
+    smite_state.mana_low = smite_state.mana_pct < spec_kit.setting_number(context, "smite_mana_floor", 30)
+    smite_state.mana_emergency = smite_state.mana_pct < spec_kit.setting_number(context, "smite_wand_floor", 5)
 
     -- Threat safety (NS.is_threat_safe when available)
     smite_state.threat_safe = type(NS.is_threat_safe) == "function" and NS.is_threat_safe() or true
@@ -205,12 +203,11 @@ end
 local function group_is_stable(context)
     if not context then return false end
     local lowest = (context.lowest_ally_hp or context.lowest_group_hp or 100)
-    return lowest >= ((context.settings or EMPTY_SETTINGS).smite_group_safe_hp or 80)
+    return lowest >= spec_kit.setting_number(context, "smite_group_safe_hp", 80)
 end
 
 local function can_take_smite_action(context)
     if not context then return false end
-    context.settings = context.settings or EMPTY_SETTINGS
     if not context.has_valid_enemy_target then return false end
     if context.player_control_locked then return false end
     if (context.target_phys_immune or false) then return false end
@@ -250,8 +247,7 @@ local strategies = {
             if context.player_control_locked then return false end
             if not solo_like_context(context) then return false end
             if state.has_weakened_soul then return false end
-            local settings = context.settings or EMPTY_SETTINGS
-            if (state.hp_pct or 100) > (settings.smite_solo_pws_hp or 55) then return false end
+            if (state.hp_pct or 100) > spec_kit.setting_number(context, "smite_solo_pws_hp", 55) then return false end
             return state.power_word_shield_ready
         end,
         execute = function(context, state)
@@ -266,8 +262,7 @@ local strategies = {
             if context.player_control_locked then return false end
             if not solo_like_context(context) then return false end
             if state.has_renew then return false end
-            local settings = context.settings or EMPTY_SETTINGS
-            if (state.hp_pct or 100) > (settings.smite_solo_renew_hp or 72) then return false end
+            if (state.hp_pct or 100) > spec_kit.setting_number(context, "smite_solo_renew_hp", 72) then return false end
             return state.renew_ready
         end,
         execute = function(context, state)
@@ -282,11 +277,10 @@ local strategies = {
             if not context.in_combat then return false end
             if context.player_control_locked then return false end
             if not solo_like_context(context) then return false end
-            local settings = context.settings or EMPTY_SETTINGS
-            if context.is_pvp and (state.hp_pct or 100) <= (settings.smite_pvp_scream_hp or 65) then
+            if context.is_pvp and (state.hp_pct or 100) <= spec_kit.setting_number(context, "smite_pvp_scream_hp", 65) then
                 return state.psychic_scream_ready
             end
-            if (state.enemy_count or 0) >= (settings.smite_solo_scream_enemies or 2) and (state.hp_pct or 100) <= (settings.smite_solo_scream_hp or 75) then
+            if (state.enemy_count or 0) >= spec_kit.setting_number(context, "smite_solo_scream_enemies", 2) and (state.hp_pct or 100) <= spec_kit.setting_number(context, "smite_solo_scream_hp", 75) then
                 return state.psychic_scream_ready
             end
             return false
@@ -317,8 +311,8 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
-            if context.settings and context.settings.smite_use_shadowfiend == false then return false end
-            if state.mana_pct > (context.settings.smite_shadowfiend_mana or 35) then return false end
+            if spec_kit.setting_bool(context, "smite_use_shadowfiend", true) == false then return false end
+            if state.mana_pct > spec_kit.setting_number(context, "smite_shadowfiend_mana", 35) then return false end
             return state.shadowfiend_ready
         end,
         execute = function(context)
@@ -388,7 +382,7 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
-            if context.settings and context.settings.smite_use_power_infusion == false then return false end
+            if spec_kit.setting_bool(context, "smite_use_power_infusion", true) == false then return false end
             if state.mana_emergency then return false end
             -- Only use when Holy Fire is ready (max burst value)
             if not state.hf_ready then return false end
@@ -407,12 +401,12 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
-            if context.settings and context.settings.smite_use_inner_focus == false then return false end
+            if spec_kit.setting_bool(context, "smite_use_inner_focus", true) == false then return false end
             if state.has_inner_focus then return false end
             if not state.inner_focus_ready then return false end
             -- Pair with HF, then MB (if enabled), then Smite as last resort
             return state.hf_ready
-                or (state.mb_ready and context.settings.smite_use_mb ~= false)
+                or (state.mb_ready and spec_kit.setting_bool(context, "smite_use_mb", true) ~= false)
                 or (spell_exists(ACTION.Smite) and spell_ready(ACTION.Smite, context.target))
         end,
         execute = function()
@@ -428,7 +422,7 @@ local strategies = {
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
             if state.mana_emergency then return false end
-            if context.settings and context.settings.smite_use_starshards == false then return false end
+            if spec_kit.setting_bool(context, "smite_use_starshards", true) == false then return false end
             return spell_exists(ACTION.Starshards) and spell_ready(ACTION.Starshards, context.target)
         end,
         execute = function(context)
@@ -444,7 +438,7 @@ local strategies = {
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
             if state.mana_emergency then return false end
-            if context.settings and context.settings.smite_use_devouring_plague == false then return false end
+            if spec_kit.setting_bool(context, "smite_use_devouring_plague", true) == false then return false end
             if context.ttd_known and context.ttd > 0 and context.ttd < 8 then return false end
             if state.dp_remaining > 3 then return false end
             return spell_exists(ACTION.DevouringPlague) and spell_ready(ACTION.DevouringPlague, context.target)
@@ -460,12 +454,12 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
-            if context.settings and context.settings.smite_use_mb == false then return false end
+            if spec_kit.setting_bool(context, "smite_use_mb", true) == false then return false end
             if context.is_moving then return false end
             if state.mana_emergency then return false end
             if state.mana_low then return false end
             -- Threat safety: skip optional shadow spells if tank threat unsafe
-            if context.settings.smite_threat_safe ~= false and not state.threat_safe then return false end
+            if spec_kit.setting_bool(context, "smite_threat_safe", true) ~= false and not state.threat_safe then return false end
             return state.mb_ready
         end,
         execute = function(context)
@@ -479,11 +473,11 @@ local strategies = {
         matches = function(context, state)
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
-            if context.settings and context.settings.smite_use_swd == false then return false end
+            if spec_kit.setting_bool(context, "smite_use_swd", true) == false then return false end
             if state.mana_emergency then return false end
             if not state.swd_safe then return false end
             -- Threat safety: skip optional shadow spells if tank threat unsafe
-            if context.settings.smite_threat_safe ~= false and not state.threat_safe then return false end
+            if spec_kit.setting_bool(context, "smite_threat_safe", true) ~= false and not state.threat_safe then return false end
             return state.swd_ready
         end,
         execute = function(context)
@@ -517,7 +511,7 @@ local strategies = {
             if context.is_moving then return false end
             if state.mana_emergency then return false end
             -- Mana low (<30%): only Smite + HF; skip Smite below 15%
-            if state.mana_low and state.mana_pct < (context.settings.smite_conserve_mana_floor or 15) then return false end
+            if state.mana_low and state.mana_pct < spec_kit.setting_number(context, "smite_conserve_mana_floor", 15) then return false end
             return spell_exists(ACTION.Smite) and spell_ready(ACTION.Smite, context.target)
         end,
         execute = function(context)

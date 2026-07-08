@@ -192,16 +192,7 @@ local function calc_mtte(mana_pct, ab_stacks, max_mana)
     return est_mana / mps
 end
 
---- Get a numeric setting value
---- @param context table Rotation context
---- @param key string Setting key
-local get_setting_num = NS.setting or function(context, key, default)
-    local settings = context and context.settings
-    if settings and settings[key] ~= nil then return settings[key] end
-    if NS.get_setting then return NS.get_setting(key, default) end
-    return default
-end
-local get_setting_bool = get_setting_num
+-- Settings access via spec_kit (Pattern 8 / canonical Pattern 16)
 
 -- ============================================================================
 -- State Builder (called once per frame by the framework)
@@ -272,8 +263,8 @@ local function build_state(context)
 
     -- Wowsims APL-aligned phase decision
     -- Conserve Start = 20%, Conserve End = 30%, Delay Major CDs = 10s
-    local burn_enabled = get_setting_bool(context, "arcane_use_burn", true)
-    local min_mtte = get_setting_num(context, "arcane_mtte_min", 12)
+    local burn_enabled = spec_kit.setting_bool(context, "arcane_use_burn", true)
+    local min_mtte = spec_kit.setting_number(context, "arcane_mtte_min", 12)
     s.min_mtte = min_mtte
 
     -- Emergency: mana critically low
@@ -329,8 +320,8 @@ local function ice_barrier_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.IceBarrier, 3.0) then return false end
     if s.has_ice_barrier then return false end
     if (s.hp_pct or 100) > 60 then return false end
-    if not get_setting_bool(context, "use_defensives", true) then return false end
-    if not get_setting_bool(context, "use_ice_barrier", true) then return false end
+    if not spec_kit.setting_bool(context, "use_defensives", true) then return false end
+    if not spec_kit.setting_bool(context, "use_ice_barrier", true) then return false end
     return true
 end
 
@@ -340,8 +331,8 @@ local function mana_shield_matches(context, s)
     if s.has_mana_shield then return false end
     if (s.hp_pct or 100) > 40 then return false end
     if (s.mana_pct or 0) < 30 then return false end
-    if not get_setting_bool(context, "use_defensives", true) then return false end
-    if not get_setting_bool(context, "use_mana_shield", true) then return false end
+    if not spec_kit.setting_bool(context, "use_defensives", true) then return false end
+    if not spec_kit.setting_bool(context, "use_mana_shield", true) then return false end
     return true
 end
 
@@ -372,7 +363,7 @@ end
 local function pom_matches(context, s)
     if s.has_presence_of_mind then return false end
     if not s.in_combat then return false end
-    if not get_setting_bool(context, "use_cooldowns", true) then return false end
+    if not spec_kit.setting_bool(context, "use_cooldowns", true) then return false end
     -- Wowsims: PoM when AP is active and about to expire (<= AB cast time remaining)
     if s.has_arcane_power then
         local ab_cast_time = math.max(1.0, AB_BASE_CAST_TIME - AB_CAST_REDUCTION_PER_STACK * (s.ab_stacks or 0))
@@ -396,9 +387,9 @@ end
 local function arcane_power_matches(context, s)
     if s.has_arcane_power then return false end
     if not s.in_combat then return false end
-    if not get_setting_bool(context, "use_cooldowns", true) then return false end
+    if not spec_kit.setting_bool(context, "use_cooldowns", true) then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
-    if not get_setting_bool(context, "arcane_use_burn", true) then return false end
+    if not spec_kit.setting_bool(context, "arcane_use_burn", true) then return false end
     -- Only use AP during burn phase or when a major power window is active
     local cd_window = s.bloodlust_active
         or ((s.icy_veins_remains or 0) > 0)
@@ -417,9 +408,9 @@ end
 --- Evocation: wowsims-aligned — fire when AP and IV are inactive and mana < Conserve Start (20%).
 local function evocation_matches(context, s)
     if not s.in_combat then return false end
-    if not get_setting_bool(context, "use_evocation", true) then return false end
+    if not spec_kit.setting_bool(context, "use_evocation", true) then return false end
     if not s.evocation_available then return false end
-    local evo_mana = get_setting_num(context, "arcane_evocation_mana", 20)
+    local evo_mana = spec_kit.setting_number(context, "arcane_evocation_mana", 20)
     -- Wowsims: Evocation when AP inactive, IV inactive, and mana < Conserve Start
     local ap_inactive = not s.has_arcane_power
     local iv_inactive = (s.icy_veins_remains or 0) <= 0
@@ -441,7 +432,7 @@ end
 -- With Serpent-Coil Braid: maxMana > currentMana + 3100 + regen
 -- Without: maxMana > currentMana + 2500 + regen
 local function mana_gem_matches(context, s)
-    if not get_setting_bool(context, "use_mana_gem", true) then return false end
+    if not spec_kit.setting_bool(context, "use_mana_gem", true) then return false end
     if not s.mana_gem_available then return false end
     local gem_restore = s.has_serpent_coil and 3100 or 2500
     local current_mana = s.current_mana or (s.max_mana or 15000) * (s.mana_pct or 100) / 100
@@ -451,7 +442,7 @@ local function mana_gem_matches(context, s)
         return true
     end
     -- Fallback: old threshold for backward compat
-    local gem_mana = get_setting_num(context, "arcane_mana_gem_mana", 55)
+    local gem_mana = spec_kit.setting_number(context, "arcane_mana_gem_mana", 55)
     if (s.mana_pct or 100) <= gem_mana then
         return true
     end
@@ -467,9 +458,9 @@ local function arcane_blast_matches(context, s)
     -- Phase-based stack limits
     local max_stacks
     if s.phase == PHASE_BURN then
-        max_stacks = get_setting_num(context, "arcane_burn_max_stacks", 4)
+        max_stacks = spec_kit.setting_number(context, "arcane_burn_max_stacks", 4)
     else
-        max_stacks = get_setting_num(context, "arcane_conserve_max_stacks", 3)
+        max_stacks = spec_kit.setting_number(context, "arcane_conserve_max_stacks", 3)
         -- Emergency: always 0 stacks
         if s.phase == PHASE_EMERGENCY then max_stacks = 0 end
     end
@@ -510,8 +501,8 @@ local function fire_blast_matches(context, s)
     if s.is_moving then return true end
     -- Priority when AB is at max stacks (weave instant between AB casts)
     local max_stacks = s.phase == PHASE_BURN
-        and get_setting_num(context, "arcane_burn_max_stacks", 3)
-        or get_setting_num(context, "arcane_conserve_max_stacks", 0)
+        and spec_kit.setting_number(context, "arcane_burn_max_stacks", 3)
+        or spec_kit.setting_number(context, "arcane_conserve_max_stacks", 0)
     if (s.ab_stacks or 0) >= max_stacks then return true end
     -- Otherwise fire blast as filler
     return true
