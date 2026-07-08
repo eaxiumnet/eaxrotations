@@ -4,6 +4,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
@@ -18,9 +19,8 @@ local function defensive_spell_ready(spell, context)
 end
 
 local function should_use_warrior_defensive(context)
-    local settings = context.settings or {}
-    local threshold = settings.defensive_hp_threshold or 30
-    if settings.use_defensives == false then return false end
+    local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", 30)
+    if not spec_kit.setting_bool(context, "use_defensives", true) then return false end
     return context.in_combat == true and (context.hp or 100) < threshold
 end
 
@@ -104,17 +104,15 @@ local strategies = {
         name = "Defensive",
         matches = function(context)
             if not should_use_warrior_defensive(context) then return false end
-            local settings = context.settings or {}
             if context.stance ~= STANCE.DEFENSIVE and not defensive_stance_ready(context) then return false end
-            return (settings.use_last_stand ~= false and defensive_spell_ready(SPELLS.LastStand, context))
-                or (settings.use_shield_wall ~= false and defensive_spell_ready(SPELLS.ShieldWall, context))
+            return (spec_kit.setting_bool(context, "use_last_stand", true) and defensive_spell_ready(SPELLS.LastStand, context))
+                or (spec_kit.setting_bool(context, "use_shield_wall", true) and defensive_spell_ready(SPELLS.ShieldWall, context))
         end,
         execute = function(context)
-            local settings = context.settings or {}
-            if settings.use_last_stand ~= false and defensive_spell_ready(SPELLS.LastStand, context) then
+            if spec_kit.setting_bool(context, "use_last_stand", true) and defensive_spell_ready(SPELLS.LastStand, context) then
                 return cast_warrior_defensive(context, SPELLS.LastStand, "[WARRIOR] Last Stand")
             end
-            if settings.use_shield_wall ~= false and defensive_spell_ready(SPELLS.ShieldWall, context) then
+            if spec_kit.setting_bool(context, "use_shield_wall", true) and defensive_spell_ready(SPELLS.ShieldWall, context) then
                 return cast_warrior_defensive(context, SPELLS.ShieldWall, "[WARRIOR] Shield Wall")
             end
             return false
@@ -124,8 +122,7 @@ local strategies = {
     {
         name = "SelfBuff",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_self_buffs == false or settings.use_battle_shout == false then return false end
+            if not spec_kit.setting_bool(context, "use_self_buffs", true) or not spec_kit.setting_bool(context, "use_battle_shout", true) then return false end
             -- BUGFIX (2026-06-29): previously this called ``NS.has_player_buff``
             -- without nil-guarding the API.  On PS builds where the function
             -- is missing, every tick would crash the dispatcher.  Now we check
@@ -144,8 +141,7 @@ local strategies = {
     {
         name = "PvPIntercept",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_pvp_defensives == false then return false end
+            if not spec_kit.setting_bool(context, "use_pvp_defensives", true) then return false end
             if not (context.is_pvp or (context.settings and context.settings.pvp_mode)) then return false end
             if not context.in_combat then return false end
             -- Intercept is a gap-closer: fire when the target is OUT of melee range
@@ -164,8 +160,7 @@ local strategies = {
 {
         name = "PvPHamstring",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_pvp_defensives == false then return false end
+            if not spec_kit.setting_bool(context, "use_pvp_defensives", true) then return false end
             local target = context.target
             if not (target and NS.is_melee_target and NS.is_melee_target(target, context.me)) then return false end
             if not unit_is_moving(target) then return false end
@@ -187,8 +182,7 @@ local strategies = {
         name = "SmartHSDequeue",
         matches = function(context)
             if not context.in_combat then return false end
-            local settings = context.settings or {}
-            if settings.hs_trick == false then return false end
+            if not spec_kit.setting_bool(context, "hs_trick", true) then return false end
             if not context.has_valid_enemy_target then return false end
             local me = context.me
             if not me then return false end
@@ -265,12 +259,11 @@ local strategies = {
     {
         name = "SpellReflection",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.warrior_use_spell_reflection == false then return false end
+            if not spec_kit.setting_bool(context, "warrior_use_spell_reflection", true) then return false end
             if not context.target then return false end
             
             -- PvP only mode check
-            local pvp_only = settings.warrior_reflect_pvp_only ~= false
+            local pvp_only = spec_kit.setting_bool(context, "warrior_reflect_pvp_only", true)
             if pvp_only and not (context.is_pvp or false) then return false end
             
             -- Spell Reflection spell ID
@@ -337,8 +330,7 @@ local strategies = {
     {
         name = "CancelExternalBuff",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.warrior_cancel_external_buff == false then return false end
+            if not spec_kit.setting_bool(context, "warrior_cancel_external_buff", true) then return false end
             if not context.me then return false end
             
             -- Check if we have Power Word: Shield (blocks rage generation)
@@ -393,8 +385,7 @@ local strategies = {
     {
         name = "PvPDefensiveStance",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_pvp_defensives == false then return false end
+            if not spec_kit.setting_bool(context, "use_pvp_defensives", true) then return false end
             if not context.is_pvp then return false end
             if not context.target then return false end
             if context.in_melee_range then return false end  -- Already in range
@@ -423,7 +414,7 @@ local strategies = {
             if intercept_ready or charge_ready then return false end
             
             -- Don't switch if we're tanking in PvE unless enabled
-            if not context.is_pvp and settings.warrior_defensive_stance_pve ~= true then
+            if not context.is_pvp and not spec_kit.setting_bool(context, "warrior_defensive_stance_pve", false) then
                 return false
             end
             
@@ -442,8 +433,7 @@ local strategies = {
     {
         name = "ShieldSlamPurge",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_shield_slam_purge == false then return false end
+            if not spec_kit.setting_bool(context, "use_shield_slam_purge", true) then return false end
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
             if not context.target then return false end
@@ -451,7 +441,7 @@ local strategies = {
             -- Shield Slam is a melee attack — must be in range
             if not context.in_melee_range then return false end
             -- Target must be a player (PvP only — Shield Slam purge is niche in PvE)
-            if settings.shield_slam_purge_pvp_only ~= false then
+            if spec_kit.setting_bool(context, "shield_slam_purge_pvp_only", true) then
                 local ok, is_player = pcall(function() return context.target:is_player() end)
                 if not (ok and is_player) then return false end
             end
@@ -485,8 +475,7 @@ local strategies = {
     {
         name = "WarriorDisarm",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_disarm == false then return false end
+            if not spec_kit.setting_bool(context, "use_disarm", true) then return false end
             -- Skip entirely if Disarm not learned (level < 22)
             if not (NS.is_spell_learned and NS.is_spell_learned(676)) then return false end
             if not context.in_combat then return false end
@@ -495,7 +484,7 @@ local strategies = {
             if not context.target then return false end
             if not context.in_melee_range then return false end
             -- Target must be a player
-            if settings.disarm_pvp_only ~= false then
+            if spec_kit.setting_bool(context, "disarm_pvp_only", true) then
                 local ok, is_player = pcall(function() return context.target:is_player() end)
                 if not (ok and is_player) then return false end
             end
@@ -504,7 +493,7 @@ local strategies = {
             if not (ok and type(class_id) == "number") then return false end
             if not DISARM_CLASS_IDS[class_id] then return false end
             -- Trigger mode: on_burst requires target has priority dispellable buffs
-            local trigger = settings.disarm_trigger or "on_burst"
+            local trigger = spec_kit.setting(context, "disarm_trigger", "on_burst")
             if trigger == "on_burst" then
                 local best_id, best_priority, best_name = CCGateDB.find_best_dispel_target(context.target, NS)
                 if not best_id or (best_priority or 0) < 3 then return false end  -- High+ tier only
@@ -536,8 +525,7 @@ local strategies = {
     {
         name = "PvPCCGate",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_pvp_cc_gating == false then return false end
+            if not spec_kit.setting_bool(context, "use_pvp_cc_gating", true) then return false end
             if not context.in_combat then return false end
             -- Only worth scanning when the warrior actually has an AoE ability learned.
             for _, id in ipairs(WARRIOR_AOE_IDS) do
