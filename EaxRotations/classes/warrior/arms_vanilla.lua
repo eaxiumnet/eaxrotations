@@ -138,7 +138,7 @@ local arms_state = {
     healthstone_id = nil,
 }
 
-local setting = NS.setting
+local setting = spec_kit.setting
 
 local function player_target(context, action_row)
     if action_row and action_row.target == "self" then return context.me or NS.GetPlayer() end

@@ -28,6 +28,7 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.PaladinSpells or {}
 
@@ -50,7 +51,7 @@ local CONSECRATION_AOE_THRESHOLD = 3
 -- ============================================================================
 -- Settings helper
 -- ============================================================================
-local get_setting = NS.setting
+local get_setting = spec_kit.setting
 
 -- ============================================================================
 -- Time-based gates (buff detection via Sylvanas API returns nil)

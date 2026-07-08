@@ -148,7 +148,7 @@ local function target_debuff_remains(target, ids)
     return NS.debuff_remains(target, ids) or 0
 end
 
-local setting = NS.setting
+local setting = spec_kit.setting
 
 local function option(context, key, default)
     local value = setting(context, key, default)

@@ -8,6 +8,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+local spec_kit = require("shared/spec_kit_sylvanas")
+
 local SPELLS = NS.PaladinSpells or {}
 local PLAYER = NS.PLAYER_UNIT
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
@@ -100,7 +102,7 @@ local ret_state = {
     can_use_blood = false,
 }
 
-local get_setting = NS.setting
+local get_setting = spec_kit.setting
 
 -- Out-of-combat seal refresh gate. When seal_refresh_ooc is false,
 -- seal re-application strategies are skipped while not in combat.
