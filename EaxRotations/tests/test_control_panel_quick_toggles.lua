@@ -38,10 +38,10 @@ assert_true(contains(main, "control_panel_helper:on_update(menu_elements)"), "co
 assert_true(contains(main, 'get_keybind_toggle_state(menu_elements.enable_script_check'), "master rotation toggle should read widget directly for persistence")
 
 assert_true(contains(dispatcher, "strategy_allowed"), "dispatcher should gate strategies from quick toggles")
-assert_true(contains(dispatcher, "settings.utility_enabled == false"), "utility toggle should gate utility rows")
-assert_true(contains(dispatcher, "settings.healing_enabled == false"), "healing toggle should gate healing rows")
-assert_true(contains(dispatcher, "settings.damage_enabled == false"), "damage toggle should gate damage rows")
-assert_true(contains(dispatcher, "settings.use_cooldowns == false"), "cooldowns toggle should gate cooldown rows")
+assert_true(contains(dispatcher, 'not spec_kit.setting_bool(context, "utility_enabled"'), "utility toggle should gate utility rows")
+assert_true(contains(dispatcher, 'not spec_kit.setting_bool(context, "healing_enabled"'), "healing toggle should gate healing rows")
+assert_true(contains(dispatcher, 'not spec_kit.setting_bool(context, "damage_enabled"'), "damage toggle should gate damage rows")
+assert_true(contains(dispatcher, 'not spec_kit.setting_bool(context, "use_cooldowns"'), "cooldowns toggle should gate cooldown rows")
 assert_true(contains(dispatcher, '"is_casting", "is_casting_spell"'), "dispatcher should accept base API and IZI casting flags")
 
 assert_true(contains(core, "settings.aoe_enabled == false") and contains(core, "enemy_count or action.is_aoe"), "AoE toggle should gate action rows with enemy_count/is_aoe")

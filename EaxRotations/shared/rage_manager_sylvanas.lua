@@ -12,15 +12,7 @@ if not NS then return end
 local M = {}
 NS.RageManager = M
 
--- ---------------------------------------------------------------------------
--- Settings helper
--- ---------------------------------------------------------------------------
-local function setting(context, key, fallback)
-    local s = context and context.settings
-    if s and s[key] ~= nil then return s[key] end
-    if NS.get_setting then return NS.get_setting(key, fallback) end
-    return fallback
-end
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- ---------------------------------------------------------------------------
 -- Core ability reservation constants (avoid starving core rotation)
@@ -81,10 +73,10 @@ function M.should_heroic_strike(context, state, spec)
     state = state or {}
     spec = spec or "arms"
 
-    local dump_mode = setting(context, "rage_dump_ability", "auto")
+    local dump_mode = spec_kit.setting(context, "rage_dump_ability", "auto")
     if dump_mode == "cleave" then return false end
 
-    local threshold = setting(context, "rage_dump_threshold", 80)
+    local threshold = spec_kit.setting_number(context, "rage_dump_threshold", 80)
     local rage = state.rage or context.rage or 0
     if rage < threshold then return false end
 
@@ -93,8 +85,7 @@ function M.should_heroic_strike(context, state, spec)
 
     -- Fury-specific: HS trick — queue when OH swing is imminent
     if spec == "fury" then
-        local settings = context.settings or {}
-        if settings.hs_trick then
+        if spec_kit.setting_bool(context, "hs_trick", true) then
             local me = context.me or NS.GetPlayer and NS.GetPlayer()
             if me and NS.swing_time_until then
                 local oh_remaining = NS.swing_time_until(me, 2) or 999
@@ -127,13 +118,13 @@ function M.should_cleave(context, state, enemy_count, spec)
     state = state or {}
     spec = spec or "arms"
 
-    local dump_mode = setting(context, "rage_dump_ability", "auto")
+    local dump_mode = spec_kit.setting(context, "rage_dump_ability", "auto")
     if dump_mode == "heroic_strike" then return false end
 
     enemy_count = enemy_count or state.enemy_count or context.enemy_count or 1
     if enemy_count < 2 then return false end
 
-    local threshold = setting(context, "rage_dump_threshold", 80)
+    local threshold = spec_kit.setting_number(context, "rage_dump_threshold", 80)
     local rage = state.rage or context.rage or 0
     if rage < threshold then return false end
 

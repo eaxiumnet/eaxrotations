@@ -1,7 +1,11 @@
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;./?.lua;" .. package.path
+
 -- test_rage_manager.lua — Unit tests for rage_manager_sylvanas.
 -- WHAT:  Verify RageManager.should_heroic_strike, should_cleave, recommend_dump.
 -- WHEN:  load-time verification.
 -- WHY:   Prevent regression in rage dump logic.
+
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;./?.lua;" .. package.path
 
 local function run_test()
     local _G = _G
