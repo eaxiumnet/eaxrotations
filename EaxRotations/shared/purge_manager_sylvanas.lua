@@ -129,14 +129,6 @@ local function _get_purgeable_buff_ids()
     return ids
 end
 
---- IZI SDK fast path for purgeable detection.
--- Uses unit:is_purgable() when available, falls back to manual scanning.
-local _izi = nil
-do
-    local ok, mod = pcall(require, "common/izi_sdk")
-    if ok and type(mod) == "table" then _izi = mod end
-end
-
 --- Check if enemy has magic buffs that should be purged.
 -- Uses IZI is_purgable() when available, falls back to batch NS.buff_up().
 -- @param target table - Enemy unit object

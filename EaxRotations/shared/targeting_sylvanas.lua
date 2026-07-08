@@ -179,8 +179,8 @@ local function get_enemies(range)
         return _cached_enemies, _cached_count
     end
     if core and core.object_manager and type(core.object_manager.get_visible_objects) == "function" then
-        local list = core.object_manager.get_visible_objects()
-        if type(list) == "table" then
+        local ok, list = pcall(core.object_manager.get_visible_objects)
+        if ok and type(list) == "table" then
             _last_enemy_scan = now
             _cached_enemies = list
             _cached_count = #list

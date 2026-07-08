@@ -161,9 +161,13 @@ local function get_threat_targets(context, me, target)
  if not _get_visible_objects then return _threat_enemies, _threat_enemy_count end
  local ok, visible_objects = pcall(_get_visible_objects)
  if not ok or not visible_objects then return _threat_enemies, _threat_enemy_count end
- local tab_range = spec_kit.setting_number(context, "prot_tab_range", 20)
- local range_sq = (tab_range or 20) * (tab_range or 20)
- for _, obj in ipairs(visible_objects) do
+  local tab_range = spec_kit.setting_number(context, "prot_tab_range", 20)
+  local range_sq = (tab_range or 20) * (tab_range or 20)
+  local scan_count = 0
+  local max_scan = 100
+  for _, obj in ipairs(visible_objects) do
+   scan_count = scan_count + 1
+   if scan_count > max_scan then break end
   if obj and NS.not_same_unit(obj, target) then
    -- Filter: must be enemy to player
    local ok_enemy, is_enemy = pcall(function() return obj:is_enemy_with(me) end)

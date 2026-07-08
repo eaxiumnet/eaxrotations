@@ -13,6 +13,13 @@ if not NS then return nil end
 local SPELLS = NS.WarlockSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 
+-- IZI SDK optional cache for pet access
+local _izi = nil
+do
+    local ok, mod = pcall(require, "common/izi_sdk")
+    if ok and type(mod) == "table" then _izi = mod end
+end
+
 -- Centralized spell resolver via spec_kit (rank IDs from warlock/class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
@@ -266,8 +273,8 @@ local function needs_felguard(context, action)
     if NS.buff_up and NS.buff_up(me, {18789, 18790, 18791, 18792, 35701}) then return false end
     local ok, has_pet = pcall(function() return me:has_pet() end)
     if not ok then
-        if _G.izi and _G.izi.pet then
-            local pet = _G.izi.pet()
+        if _izi and _izi.pet then
+            local pet = _izi.pet()
             if not (pet and pet:is_valid()) then
                 return true
             end
@@ -289,8 +296,8 @@ local function needs_imp_fallback(context)
     if NS.buff_up and NS.buff_up(me, {18789, 18790, 18791, 18792, 35701}) then return false end
     local ok, has_pet = pcall(function() return me:has_pet() end)
     if not ok then
-        if _G.izi and _G.izi.pet then
-            local pet = _G.izi.pet()
+        if _izi and _izi.pet then
+            local pet = _izi.pet()
             if pet and pet:is_valid() then return false end
         end
     elseif has_pet then
@@ -304,8 +311,8 @@ local function pet_needs_healing(context)
     if not me then return false end
     local ok, pet = pcall(function() return me:get_pet() end)
     if not ok then
-        if _G.izi and _G.izi.pet then
-            pet = _G.izi.pet()
+        if _izi and _izi.pet then
+            pet = _izi.pet()
         else
             return false
         end

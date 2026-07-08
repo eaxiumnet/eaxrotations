@@ -47,7 +47,6 @@ _G.EaxRotations = {
     is_api_health_broken = function() return false end,
     is_item_ready = function(id) return false end,
     has_item = function(id) return false end,
-    get_spell_damage = function() return 0 end,
     log = function() end,
     time_now = function() return 1000 end,
     cooldown_remains = function(spell, cd) return 0 end,
