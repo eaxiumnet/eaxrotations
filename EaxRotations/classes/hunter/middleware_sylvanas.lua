@@ -5,6 +5,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local aspect_manager = require("shared/aspect_manager_sylvanas")
 local SPELLS = NS.HunterSpells or {}
 local strategies = {
@@ -15,8 +16,7 @@ local strategies = {
     {
         name = "ThreatDrop",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_threat_drop == false then return false end
+            if not spec_kit.setting_bool(context, "use_threat_drop", true) then return false end
             if not context.in_combat then return false end
             local threat_level = context.threat_level or context.threat_situation or 0
             if threat_level < 2 and not context.has_aggro then return false end
@@ -31,17 +31,16 @@ local strategies = {
     {
         name = "ViperSting",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_viper_sting_pve == false and settings.use_viper_sting_pvp == false then return false end
+            if not spec_kit.setting_bool(context, "use_viper_sting_pve", true) and not spec_kit.setting_bool(context, "use_viper_sting_pvp", true) then return false end
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
 
             -- PvP Viper Sting check
             local is_pvp = context.is_pvp or false
             if is_pvp then
-                if settings.use_viper_sting_pvp == false then return false end
+                if not spec_kit.setting_bool(context, "use_viper_sting_pvp", true) then return false end
             else
-                if settings.use_viper_sting_pve == false then return false end
+                if not spec_kit.setting_bool(context, "use_viper_sting_pve", true) then return false end
             end
 
             -- Check target has mana (skip non-mana users)
@@ -51,7 +50,7 @@ local strategies = {
             if not ok_pt or power_type ~= 0 then return false end -- 0 = MANA
 
             -- Check HP threshold — skip Viper Sting on low HP targets (focus damage instead)
-            local hp_threshold = settings.viper_sting_hp_threshold or 30
+            local hp_threshold = spec_kit.setting_number(context, "viper_sting_hp_threshold", 30)
             local target_hp = context.target_hp or 100
             if target_hp < hp_threshold then return false end
 
@@ -95,8 +94,7 @@ local strategies = {
     {
         name = "FreezingTrap",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.freezing_trap_pve == false then return false end
+            if not spec_kit.setting_bool(context, "freezing_trap_pve", true) then return false end
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
 
@@ -135,13 +133,12 @@ local strategies = {
     {
         name = "Misdirection",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_misdirection == false then return false end
+            if not spec_kit.setting_bool(context, "use_misdirection", true) then return false end
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
 
             local combat_time = context.combat_time or 0
-            local pull_window = settings.misdirection_pull_window or 6
+            local pull_window = spec_kit.setting_number(context, "misdirection_pull_window", 6)
 
             -- Only during pull window or if explicit threat risk
             if combat_time > pull_window then
@@ -167,8 +164,7 @@ local strategies = {
             local target = nil
 
             -- Try focus target first if enabled
-            local settings = context.settings or {}
-            if settings.misdirection_on_focus ~= false then
+            if spec_kit.setting_bool(context, "misdirection_on_focus", true) then
                 if NS.GetFocus then
                     target = NS.GetFocus()
                 end
@@ -199,8 +195,7 @@ local strategies = {
         name = "RapidFire",
         priority = 780,
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_rapid_fire == false then return false end
+            if not spec_kit.setting_bool(context, "use_rapid_fire", true) then return false end
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
             local spell = SPELLS.RapidFire or { id = { 3045 }, name = "RapidFire" }
@@ -235,11 +230,10 @@ local strategies = {
         priority = 850,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            if settings.use_auto_consumables == false then return false end
-            if settings.use_healthstones == false and settings.use_health_potions == false then return false end
-            local threshold = settings.healthstone_hp or 0
+            if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
+            if not spec_kit.setting_bool(context, "use_healthstones", true) and not spec_kit.setting_bool(context, "use_health_potions", true) then return false end
+            local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
             if threshold <= 0 then return false end
             if (context.hp or 100) > threshold then return false end
             -- Fast-path bag check (uses the in-process cache when available).
@@ -272,12 +266,11 @@ local strategies = {
         priority = 700,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            if settings.auto_mend_pet == false then return false end
+            if not spec_kit.setting_bool(context, "auto_mend_pet", true) then return false end
             -- Check if pet needs healing
             local pet_hp_pct = NS.get_pet_hp and NS.get_pet_hp() or 100
-            if pet_hp_pct > (settings.mend_pet_hp or 50) then return false end
+            if pet_hp_pct > spec_kit.setting_number(context, "mend_pet_hp", 50) then return false end
             -- Check if Mend Pet is already active (HoT)
             local mp_buffs = { 27046, 13544, 13543, 13542, 3662, 3661, 3111, 136 }
             local pet = NS.get_pet and NS.get_pet()
@@ -303,9 +296,8 @@ local strategies = {
         priority = 400,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if context.in_combat then return false end
-            if settings.auto_revive_pet == false then return false end
+            if not spec_kit.setting_bool(context, "auto_revive_pet", true) then return false end
             -- Check if pet is dead
             if NS.has_pet and NS.has_pet() then return false end
             return NS.spell_ready and NS.spell_ready(SPELLS.RevivePet, context.me, { skip_range = true })
@@ -323,9 +315,8 @@ local strategies = {
         priority = 390,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if context.in_combat then return false end
-            if settings.auto_call_pet == false then return false end
+            if not spec_kit.setting_bool(context, "auto_call_pet", true) then return false end
             if NS.has_pet and NS.has_pet() then return false end
             return NS.spell_ready and NS.spell_ready(SPELLS.CallPet, context.me, { skip_range = true })
         end,
@@ -342,8 +333,7 @@ local strategies = {
         priority = 380,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.auto_feed_pet == false then return false end
+            if not spec_kit.setting_bool(context, "auto_feed_pet", true) then return false end
             if context.in_combat then return false end
             local happiness = context.pet_happiness
             if happiness == nil then return false end
@@ -382,10 +372,9 @@ local strategies = {
         name = "HuntersMark",
         priority = 600,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
-            if settings.auto_hunters_mark == false then return false end
+            if not spec_kit.setting_bool(context, "auto_hunters_mark", true) then return false end
             local target = context.target
             if not target then return false end
             -- Check if Hunter's Mark is already on target
