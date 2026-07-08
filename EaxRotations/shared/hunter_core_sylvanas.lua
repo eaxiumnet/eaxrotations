@@ -68,7 +68,7 @@ function M.get_weapon_speed()
             return speed
         end
     end
-    return shot_state.weapon_speed > 0 and shot_state.weapon_speed or DEFAULT_WEAPON_SPEED
+    return (shot_state.weapon_speed or 0) > 0 and shot_state.weapon_speed or DEFAULT_WEAPON_SPEED
 end
 
 --- Get the player's base ranged weapon speed (from item).

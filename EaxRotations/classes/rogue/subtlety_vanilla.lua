@@ -187,8 +187,8 @@ end
 
 local function hemo_refresh_needed(context, state)
     if not has_enemy(context) then return false end
-    if state.hemo_remains <= 0 then return true end
-    if setting(context, "hemo_debuff_priority", true) and state.hemo_remains < HEMO_REFRESH then return true end
+    if (state.hemo_remains or 0) <= 0 then return true end
+    if setting(context, "hemo_debuff_priority", true) and (state.hemo_remains or 0) < HEMO_REFRESH then return true end
     return false
 end
 

@@ -43,7 +43,7 @@ end
 ---@param now number Current timestamp (seconds)
 ---@return number seconds Until next tick (0 to TICK_INTERVAL)
 function M.estimate_next_tick(state, now)
-    if not state.tick_confident or state.last_tick_time <= 0 then
+    if not state.tick_confident or (state.last_tick_time or 0) <= 0 then
         return M.TICK_INTERVAL
     end
     local elapsed = now - state.last_tick_time

@@ -225,7 +225,7 @@ local function blade_flurry_wrapper(context, s)
     if not s.blade_flurry_ready then return false end
     -- Research: only use when 2+ targets within 5y (avoid wasted CD on single target)
     local min_targets = (context.settings and context.settings.combat_blade_flurry_count) or 2
-    if s.target_count < min_targets then return false end
+    if (s.target_count or 0) < min_targets then return false end
     return true
 end
 
@@ -234,7 +234,7 @@ local function slice_and_dice_wrapper(context, s)
     if not s.slice_and_dice_ready then return false end
     -- Research: maintain 100% uptime; refresh when <3s remains
     if s.has_snd and not s.snd_needs_refresh then return false end
-    if s.combo_points < 2 then return false end
+    if (s.combo_points or 0) < 2 then return false end
     return true
 end
 
@@ -249,16 +249,16 @@ local function rupture_wrapper(context, s)
     if not context.target then return false end
     local rupture_remains = NS.debuff_remains(context.target, RUPTURE_DEBUFF) or 0
     if rupture_remains > RUPTURE_REFRESH_WINDOW then return false end
-    if s.combo_points < 5 then return false end
+    if (s.combo_points or 0) < 5 then return false end
     return true
 end
 
 local function eviscerate_matches(context, s)
     if not s.eviscerate_ready then return false end
     if s.energy_pool_finisher then return false end
-    if s.energy < 35 then return false end  -- hard floor: spell costs 35 energy
+    if (s.energy or 0) < 35 then return false end  -- hard floor: spell costs 35 energy
     -- Research: only Eviscerate at 4-5 CP (not wasted at 2-3 CP)
-    if s.combo_points < 4 then return false end
+    if (s.combo_points or 0) < 4 then return false end
     return true
 end
 
@@ -294,7 +294,7 @@ local function vanish_matches(context, s)
     if not s.vanish_ready then return false end
     local vanish_hp = (context.settings and context.settings.combat_vanish_hp) or 20
     -- Research: Vanish as emergency threat drop when HP critical
-    if s.hp_pct > vanish_hp then return false end
+    if (s.hp_pct or 100) > vanish_hp then return false end
     return true
 end
 
@@ -303,7 +303,7 @@ local function feint_matches(context, s)
     if not s.feint_ready then return false end
     -- Research: Feint is a threat drop ? only fire when threat is known and high
     local feint_threat = (context.settings and context.settings.combat_feint_threat) or 90
-    if s.threat_pct <= 0 or s.threat_pct < feint_threat then return false end
+    if (s.threat_pct or 0) <= 0 or (s.threat_pct or 0) < feint_threat then return false end
     return true
 end
 
