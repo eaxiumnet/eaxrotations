@@ -61,7 +61,7 @@ _G.EaxRotations = {
     },
 }
 
-local strategies = dofile("EaxRotations/classes/mage/arcane_sylvanas.lua")
+local strategies = dofile("EaxRotations/classes/mage/arcane_sylvanas.lua").strategies
 assert_true(strategies, "strategies table should load")
 
 local function find_strategy(name)

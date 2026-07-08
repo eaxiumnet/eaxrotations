@@ -1,8 +1,11 @@
--- smite_sylvanas.lua -- Priest Holy DPS for TBC Anniversary (2.5.5).
--- WHAT:  holy damage spec (Holy Fire, Smite, Surge of Light, Power Infusion).
+-- smite_sylvanas.lua — Priest Holy DPS for TBC Anniversary (2.5.5).
+-- WHAT:  holy damage spec — Holy Fire > Surge-of-Light Smite > SW:P > Mind Blast,
+--         with Power Infusion + Inner Focus burst, racials (Starshards, Devouring Plague),
+--         and mana conservation tiers (downrank at <30%, wand-only at <5%).
 -- WHEN:  combat, with valid enemy target.
--- WHY:   niche TBC build: Holy Fire > Surge-of-Light Smite > SW:P > Mind Blast.
--- SAFETY: all state fields nil-guarded via build_state() defaults; no on_update() allocs.
+-- WHY:   niche TBC build prioritizing holy spell damage with shadow utility.
+-- SAFETY: Pattern 14 nil-guards via spec_kit.safe_state; no on_update() allocs;
+--          broken-API guard on aura checks; threat-safety gate on shadow spells.
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -23,6 +26,26 @@ local _is_night_elf = _player_race == 4
 local _is_undead = _player_race == 5
 
 local SPELLS = NS.PriestSpells
+
+local spec_kit = require("shared/spec_kit_sylvanas")
+local define = spec_kit.define_action_for_class(SPELLS)
+local ACTION = {
+    DevouringPlague = define("DevouringPlague", {25467, 19280, 19279, 19278, 19277, 19276, 2944}, "DevouringPlague"),
+    HolyFire        = define("HolyFire",        {25384, 15261, 15267, 15266, 15265, 15264, 15263, 15262, 14914}, "HolyFire"),
+    HolyNova        = define("HolyNova",        {25331, 25329, 27805, 27804, 27803, 27801, 27800, 27799, 15431, 15430, 15237}, "HolyNova"),
+    InnerFire       = define("InnerFire",       {25431, 10952, 10951, 1006, 602, 7128, 588}, "InnerFire"),
+    InnerFocus      = define("InnerFocus",      {14751}, "InnerFocus"),
+    MindBlast       = define("MindBlast",       {25375, 25372, 10947, 10946, 10945, 8106, 8105, 8104, 8103, 8102, 8092}, "MindBlast"),
+    PowerInfusion   = define("PowerInfusion",   {10060}, "PowerInfusion"),
+    PowerWordShield = define("PowerWordShield", {25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17}, "PowerWordShield"),
+    PsychicScream   = define("PsychicScream",   {10890, 10888, 8124, 8122}, "PsychicScream"),
+    Renew           = define("Renew",           {25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139}, "Renew"),
+    ShadowWordPain  = define("ShadowWordPain",  {25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589}, "ShadowWordPain"),
+    ShadowWordDeath = define("ShadowWordDeath", {32996, 32379}, "ShadowWordDeath"),
+    Shadowfiend     = define("Shadowfiend",     {34433}, "Shadowfiend"),
+    Smite           = define("Smite",           {25364, 25363, 10934, 10933, 6060, 1004, 984, 598, 591, 585}, "Smite"),
+    Starshards      = define("Starshards",      {25446, 19305, 19304, 19303, 19302, 19299, 19296, 10797}, "Starshards"),
+}
 
 local format = string.format
 
@@ -90,7 +113,22 @@ local smite_state = {
     mana_low = false,
     threat_safe = true,
     enemy_count = 1,
+    is_group = false,
     healthstone_ready = 0,
+}
+
+local SMITE_SCHEMA = {
+    swp_active = false,  swp_remaining = 0,  surge_of_light = false,
+    hf_ready = true,  mb_ready = true,  swd_ready = true,  swd_safe = false,
+    in_weave_window = false,  dp_remaining = 0,
+    has_inner_focus = false,  has_inner_fire = false,  inner_fire_remains = 0,
+    has_renew = false,  has_weakened_soul = false,
+    inner_focus_ready = true,  inner_fire_ready = true,
+    power_word_shield_ready = true,  renew_ready = true,
+    psychic_scream_ready = true,  shadowfiend_ready = true,
+    hp_pct = 100,  mana_pct = 100,
+    mana_emergency = false,  mana_low = false,
+    threat_safe = true,  enemy_count = 0,  is_group = false,  healthstone_ready = 0,
 }
 
 local function build_smite_state(context)
@@ -121,16 +159,16 @@ local function build_smite_state(context)
         smite_state.has_renew = buff_up(NS.PLAYER_UNIT, RENEW_BUFF)
         smite_state.has_weakened_soul = NS.debuff_up and NS.debuff_up(NS.PLAYER_UNIT, WEAKENED_SOUL_DEBUFF) or false
     end
-    smite_state.hf_ready = spell_exists(SPELLS.HolyFire) and spell_ready(SPELLS.HolyFire, target)
-    smite_state.mb_ready = spell_exists(SPELLS.MindBlast) and spell_ready(SPELLS.MindBlast, target)
-    smite_state.swd_ready = spell_exists(SPELLS.ShadowWordDeath) and spell_ready(SPELLS.ShadowWordDeath, target)
+    smite_state.hf_ready = spell_exists(ACTION.HolyFire) and spell_ready(ACTION.HolyFire, target)
+    smite_state.mb_ready = spell_exists(ACTION.MindBlast) and spell_ready(ACTION.MindBlast, target)
+    smite_state.swd_ready = spell_exists(ACTION.ShadowWordDeath) and spell_ready(ACTION.ShadowWordDeath, target)
     smite_state.swd_safe = context.hp > (context.settings.smite_swd_hp or 40)
-    smite_state.inner_focus_ready = spell_exists(SPELLS.InnerFocus) and spell_ready(SPELLS.InnerFocus, NS.PLAYER_UNIT)
-    smite_state.inner_fire_ready = spell_exists(SPELLS.InnerFire) and spell_ready(SPELLS.InnerFire, NS.PLAYER_UNIT, SKIP_RANGE)
-    smite_state.power_word_shield_ready = spell_exists(SPELLS.PowerWordShield) and spell_ready(SPELLS.PowerWordShield, NS.PLAYER_UNIT, SKIP_RANGE)
-    smite_state.renew_ready = spell_exists(SPELLS.Renew) and spell_ready(SPELLS.Renew, NS.PLAYER_UNIT, SKIP_RANGE)
-    smite_state.psychic_scream_ready = spell_exists(SPELLS.PsychicScream) and spell_ready(SPELLS.PsychicScream, NS.PLAYER_UNIT, PSYCHIC_SCREAM_OPTS)
-    smite_state.shadowfiend_ready = spell_exists(SPELLS.Shadowfiend) and spell_ready(SPELLS.Shadowfiend, target, SHADOWFIEND_OPTS)
+    smite_state.inner_focus_ready = spell_exists(ACTION.InnerFocus) and spell_ready(ACTION.InnerFocus, NS.PLAYER_UNIT)
+    smite_state.inner_fire_ready = spell_exists(ACTION.InnerFire) and spell_ready(ACTION.InnerFire, NS.PLAYER_UNIT, SKIP_RANGE)
+    smite_state.power_word_shield_ready = spell_exists(ACTION.PowerWordShield) and spell_ready(ACTION.PowerWordShield, NS.PLAYER_UNIT, SKIP_RANGE)
+    smite_state.renew_ready = spell_exists(ACTION.Renew) and spell_ready(ACTION.Renew, NS.PLAYER_UNIT, SKIP_RANGE)
+    smite_state.psychic_scream_ready = spell_exists(ACTION.PsychicScream) and spell_ready(ACTION.PsychicScream, NS.PLAYER_UNIT, PSYCHIC_SCREAM_OPTS)
+    smite_state.shadowfiend_ready = spell_exists(ACTION.Shadowfiend) and spell_ready(ACTION.Shadowfiend, target, SHADOWFIEND_OPTS)
     smite_state.hp_pct = context.hp or 100
     smite_state.is_group = context.is_group or false
     smite_state.mana_pct = context.mana_pct or 100
@@ -149,7 +187,7 @@ local function build_smite_state(context)
         and swp_dur < HF_CAST_BASE
 
     smite_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
-    return smite_state
+    return spec_kit.safe_state(smite_state, SMITE_SCHEMA)
 end
 
 local function solo_like_context(context)
@@ -193,7 +231,7 @@ local strategies = {
             local tag = state.has_inner_fire
                 and format("[SMITE] Inner Fire refresh (%.0fs)", state.inner_fire_remains)
                 or "[SMITE] Inner Fire"
-            return try_cast(SPELLS.InnerFire, PLAYER_UNIT, tag)
+            return try_cast(ACTION.InnerFire, PLAYER_UNIT, tag)
         end,
     },
 
@@ -209,7 +247,7 @@ local strategies = {
             return state.power_word_shield_ready
         end,
         execute = function(context, state)
-            return try_cast(SPELLS.PowerWordShield, PLAYER_UNIT, format("[SMITE] Solo PW:S %.0f%%", state.hp_pct or 0))
+            return try_cast(ACTION.PowerWordShield, PLAYER_UNIT, format("[SMITE] Solo PW:S %.0f%%", state.hp_pct or 0))
         end,
     },
 
@@ -225,7 +263,7 @@ local strategies = {
             return state.renew_ready
         end,
         execute = function(context, state)
-            return try_cast(SPELLS.Renew, PLAYER_UNIT, format("[SMITE] Solo Renew %.0f%%", state.hp_pct or 0))
+            return try_cast(ACTION.Renew, PLAYER_UNIT, format("[SMITE] Solo Renew %.0f%%", state.hp_pct or 0))
         end,
     },
 
@@ -246,7 +284,7 @@ local strategies = {
             return false
         end,
         execute = function()
-            return try_cast(SPELLS.PsychicScream, PLAYER_UNIT, "[SMITE] Psychic Scream peel")
+            return try_cast(ACTION.PsychicScream, PLAYER_UNIT, "[SMITE] Psychic Scream peel")
         end,
     },
 
@@ -276,7 +314,7 @@ local strategies = {
             return state.shadowfiend_ready
         end,
         execute = function(context)
-            return try_cast(SPELLS.Shadowfiend, context.target, "[SMITE] Shadowfiend mana")
+            return try_cast(ACTION.Shadowfiend, context.target, "[SMITE] Shadowfiend mana")
         end,
     },
 
@@ -297,7 +335,7 @@ local strategies = {
             local tag = state.in_weave_window
                 and format("[SMITE] HF Weave SW:P rem: %.1fs", state.swp_remaining)
                 or "[SMITE] Holy Fire"
-            return try_cast(SPELLS.HolyFire, context.target, tag)
+            return try_cast(ACTION.HolyFire, context.target, tag)
         end,
     },
 
@@ -311,7 +349,7 @@ local strategies = {
             return state.surge_of_light
         end,
         execute = function(context)
-            return try_cast(SPELLS.Smite, context.target, "[SMITE] Surge of Light Smite (instant)")
+            return try_cast(ACTION.Smite, context.target, "[SMITE] Surge of Light Smite (instant)")
         end,
     },
 
@@ -326,10 +364,10 @@ local strategies = {
             if state.swp_active then return false end
             if state.mana_low and not group_is_stable(context) then return false end
             if context.ttd_known and context.ttd > 0 and context.ttd < 6 then return false end
-            return spell_exists(SPELLS.ShadowWordPain) and spell_ready(SPELLS.ShadowWordPain, context.target)
+            return spell_exists(ACTION.ShadowWordPain) and spell_ready(ACTION.ShadowWordPain, context.target)
         end,
         execute = function(context)
-            return try_cast(SPELLS.ShadowWordPain, context.target, "[SMITE] SW:P")
+            return try_cast(ACTION.ShadowWordPain, context.target, "[SMITE] SW:P")
         end,
     },
 
@@ -346,10 +384,10 @@ local strategies = {
             if state.mana_emergency then return false end
             -- Only use when Holy Fire is ready (max burst value)
             if not state.hf_ready then return false end
-            return spell_exists(SPELLS.PowerInfusion) and spell_ready(SPELLS.PowerInfusion, PLAYER_UNIT, SKIP_RANGE)
+            return spell_exists(ACTION.PowerInfusion) and spell_ready(ACTION.PowerInfusion, PLAYER_UNIT, SKIP_RANGE)
         end,
         execute = function()
-            return try_cast(SPELLS.PowerInfusion, PLAYER_UNIT, "[SMITE] Power Infusion + Holy Fire")
+            return try_cast(ACTION.PowerInfusion, PLAYER_UNIT, "[SMITE] Power Infusion + Holy Fire")
         end,
     },
 
@@ -367,10 +405,10 @@ local strategies = {
             -- Pair with HF, then MB (if enabled), then Smite as last resort
             return state.hf_ready
                 or (state.mb_ready and context.settings.smite_use_mb ~= false)
-                or (spell_exists(SPELLS.Smite) and spell_ready(SPELLS.Smite, context.target))
+                or (spell_exists(ACTION.Smite) and spell_ready(ACTION.Smite, context.target))
         end,
         execute = function()
-            return try_cast(SPELLS.InnerFocus, PLAYER_UNIT, "[SMITE] Inner Focus")
+            return try_cast(ACTION.InnerFocus, PLAYER_UNIT, "[SMITE] Inner Focus")
         end,
     },
 
@@ -383,10 +421,10 @@ local strategies = {
             if not can_take_smite_action(context) then return false end
             if state.mana_emergency then return false end
             if context.settings and context.settings.smite_use_starshards == false then return false end
-            return spell_exists(SPELLS.Starshards) and spell_ready(SPELLS.Starshards, context.target)
+            return spell_exists(ACTION.Starshards) and spell_ready(ACTION.Starshards, context.target)
         end,
         execute = function(context)
-            return try_cast(SPELLS.Starshards, context.target, "[SMITE] Starshards")
+            return try_cast(ACTION.Starshards, context.target, "[SMITE] Starshards")
         end,
     },
 
@@ -401,10 +439,10 @@ local strategies = {
             if context.settings and context.settings.smite_use_devouring_plague == false then return false end
             if context.ttd_known and context.ttd > 0 and context.ttd < 8 then return false end
             if state.dp_remaining > 3 then return false end
-            return spell_exists(SPELLS.DevouringPlague) and spell_ready(SPELLS.DevouringPlague, context.target)
+            return spell_exists(ACTION.DevouringPlague) and spell_ready(ACTION.DevouringPlague, context.target)
         end,
         execute = function(context)
-            return try_cast(SPELLS.DevouringPlague, context.target, "[SMITE] Devouring Plague")
+            return try_cast(ACTION.DevouringPlague, context.target, "[SMITE] Devouring Plague")
         end,
     },
 
@@ -423,7 +461,7 @@ local strategies = {
             return state.mb_ready
         end,
         execute = function(context)
-            return try_cast(SPELLS.MindBlast, context.target, "[SMITE] Mind Blast")
+            return try_cast(ACTION.MindBlast, context.target, "[SMITE] Mind Blast")
         end,
     },
 
@@ -441,7 +479,7 @@ local strategies = {
             return state.swd_ready
         end,
         execute = function(context)
-            return try_cast(SPELLS.ShadowWordDeath, context.target,
+            return try_cast(ACTION.ShadowWordDeath, context.target,
                 format("[SMITE] SW:D HP: %.0f%%", context.hp or 0))
         end,
     },
@@ -455,10 +493,10 @@ local strategies = {
             if context.is_moving then return false end
             if state.mana_emergency then return false end
             if state.mana_low then return false end
-            return (state.enemy_count or 0) >= 3 and spell_exists(SPELLS.HolyNova) and spell_ready(SPELLS.HolyNova, PLAYER_UNIT, { skip_range = true })
+            return (state.enemy_count or 0) >= 3 and spell_exists(ACTION.HolyNova) and spell_ready(ACTION.HolyNova, PLAYER_UNIT, { skip_range = true })
         end,
         execute = function(context)
-            return try_cast(SPELLS.HolyNova, context.target, "[SMITE] Holy Nova (3+)")
+            return try_cast(ACTION.HolyNova, context.target, "[SMITE] Holy Nova (3+)")
         end,
     },
 
@@ -472,36 +510,38 @@ local strategies = {
             if state.mana_emergency then return false end
             -- Mana low (<30%): only Smite + HF; skip Smite below 15%
             if state.mana_low and state.mana_pct < (context.settings.smite_conserve_mana_floor or 15) then return false end
-            return spell_exists(SPELLS.Smite) and spell_ready(SPELLS.Smite, context.target)
+            return spell_exists(ACTION.Smite) and spell_ready(ACTION.Smite, context.target)
         end,
         execute = function(context)
-            return try_cast(SPELLS.Smite, context.target, "[SMITE] Smite")
+            return try_cast(ACTION.Smite, context.target, "[SMITE] Smite")
         end,
     },
 }
 
-NS.rotation_registry:register("smite", strategies, {
-    get_state = build_smite_state,
-    format_context_log = function(context, state)
-        return format(
-            "swp=%.1f surge=%s hf=%s mb=%s swd=%s weave=%s dp=%.1f IF=%s ifRem=%.0f hp=%.0f mana=%.0f low=%s emerg=%s threat=%s",
-            state.swp_remaining or 0,
-            tostring(state.surge_of_light),
-            tostring(state.hf_ready),
-            tostring(state.mb_ready),
-            tostring(state.swd_ready),
-            tostring(state.in_weave_window),
-            state.dp_remaining or 0,
-            tostring(state.has_inner_focus),
-            state.inner_fire_remains or 0,
-            state.hp_pct or 0,
-            context.mana_pct or 0,
-            tostring(state.mana_low),
-            tostring(state.mana_emergency),
-            tostring(state.threat_safe)
-        )
-    end,
-})
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("smite", strategies, {
+        get_state = build_smite_state,
+        format_context_log = function(context, state)
+            return format(
+                "swp=%.1f surge=%s hf=%s mb=%s swd=%s weave=%s dp=%.1f IF=%s ifRem=%.0f hp=%.0f mana=%.0f low=%s emerg=%s threat=%s",
+                state.swp_remaining or 0,
+                tostring(state.surge_of_light),
+                tostring(state.hf_ready),
+                tostring(state.mb_ready),
+                tostring(state.swd_ready),
+                tostring(state.in_weave_window),
+                state.dp_remaining or 0,
+                tostring(state.has_inner_focus),
+                state.inner_fire_remains or 0,
+                state.hp_pct or 0,
+                context.mana_pct or 0,
+                tostring(state.mana_low),
+                tostring(state.mana_emergency),
+                tostring(state.threat_safe)
+            )
+        end,
+    })
+end
+if NS.log then NS.log("Smite priest rotation registered") end
 
--- Smite priest rotation registered (solo/leveling/PvP support)
-return strategies
+return { strategies = strategies, build_state = build_smite_state }
