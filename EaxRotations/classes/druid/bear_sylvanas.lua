@@ -128,6 +128,8 @@ local bear_state = {
     target_hp = 100,  target_ttd = 999,  target_range = 40,  in_melee = false,
     enemy_count = 1,  aoe_threshold = 3,
     maul_rage = 50,  barkskin_hp = 55,  frenzied_regen_hp = 35,
+    use_barkskin = false,
+    use_challenging_roar = false,
     demo_roar_enabled = true,
     use_cooldowns = true,
     use_self_buffs = true,
@@ -373,6 +375,8 @@ local function build_state(context)
                                    is_group and 70 or 55)
     state.frenzied_regen_hp = spec_kit.setting_number(context, "bear_frenzied_regen_hp",
                                    is_group and 50 or 35)
+    state.use_barkskin        = spec_kit.setting_bool(context, "bear_use_barkskin", false)
+    state.use_challenging_roar= spec_kit.setting_bool(context, "bear_use_challenging_roar", false)
     state.demo_roar_enabled = spec_kit.setting_bool(context, "bear_demo_roar", true)
     -- Toggleable settings (Pattern 8: nil-guarded, default to enabled)
     state.use_cooldowns     = spec_kit.setting_bool(context, "use_cooldowns", true)
@@ -494,6 +498,8 @@ end
 local function healthstone_matches(context)
     local s = build_state(context)
     if not s.in_combat then return false end
+    if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
+    if not spec_kit.setting_bool(context, "use_healthstones", true) then return false end
     if (s.hp or 100) > 28 then return false end
     return (s.healthstone_ready or 0) > 0
 end
@@ -501,6 +507,8 @@ end
 local function potion_matches(context)
     local s = build_state(context)
     if not s.in_combat then return false end
+    if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
+    if not spec_kit.setting_bool(context, "use_health_potions", true) then return false end
     if (s.healthstone_ready or 0) > 0 and (s.hp or 100) <= 28 then return false end
     if (s.hp or 100) > 32 then return false end
     return (s.potion_ready or 0) > 0
@@ -519,7 +527,8 @@ end
 local function barkskin_matches(context, action)
     local s = build_state(context)
     if not s.in_combat then return false end
-    if not s.use_cooldowns then return false end   -- gated on Cooldowns setting
+    if not s.use_barkskin then return false end    -- gated on dedicated toggle (default OFF)
+    if s.is_bear then return false end             -- Barkskin breaks bear form in TBC
     if s.has_barkskin then return false end
     if (s.hp or 100) > s.barkskin_hp then return false end
     if (s.hp or 100) <= 15 then return false end   -- save for Frenzied Regen
@@ -531,7 +540,7 @@ end
 local function challenging_roar_matches(context, action)
     local s = build_state(context)
     if not s.is_bear or not s.in_combat then return false end
-    if not s.use_cooldowns then return false end   -- gated on Cooldowns setting
+    if not s.use_challenging_roar then return false end  -- gated on dedicated toggle (default OFF)
     if (s.enemy_count or 0) < 3 then return false end
     return action_ready(context, action)
 end

@@ -45,6 +45,8 @@ return {
                     { key = "bear_maul_rage", type = "slider", label = "Maul Rage", min = 30, max = 80, default = 50 },
                     { key = "bear_barkskin_hp", type = "slider", label = "Barkskin HP%", min = 0, max = 100, default = 55 },
                     { key = "bear_frenzied_regen_hp", type = "slider", label = "Frenzied Regen HP%", min = 0, max = 100, default = 35 },
+                    { key = "bear_use_barkskin", type = "checkbox", label = "Barkskin (breaks form)", default = false, tooltip = "WARNING: Barkskin forces you out of Bear form in TBC. Only enable if you pre-shift manually." },
+                    { key = "bear_use_challenging_roar", type = "checkbox", label = "Challenging Roar", default = false, tooltip = "AoE taunt — situational (10min CD). Enable only when you want the rotation to use it." },
                     { key = "bear_demo_roar", type = "checkbox", label = "Demoralizing Roar", default = true },
                     { key = "auto_bear_form_ooc", type = "checkbox", label = "Auto Bear Form OOC", default = true },
                 },
@@ -54,6 +56,8 @@ return {
                 settings = {
                     { key = "cat_powershift_enabled", type = "checkbox", label = "Powershifting", default = true },
                     { key = "cat_powershift_energy", type = "slider", label = "Powershift Energy", min = 10, max = 50, default = 20 },
+                    { key = "cat_auto_travel_form", type = "checkbox", label = "Auto Travel Form OOC", default = false, tooltip = "Automatically shift to Travel Form when out of combat, moving, and target is far away." },
+                    { key = "cat_shred_positional", type = "checkbox", label = "Shred Positional Check", default = true, tooltip = "Require being behind target to cast Shred. Disable if you play without positional awareness or on buggy servers." },
                     { key = "cat_execute_hp", type = "slider", label = "Ferocious Bite HP%", min = 0, max = 100, default = 25 },
                     { key = "cat_rip_cp", type = "slider", label = "Rip Combo Points", min = 3, max = 5, default = 5 },
                     { key = "cat_ferocious_bite_cp", type = "slider", label = "Bite Combo Points", min = 3, max = 5, default = 5 },
