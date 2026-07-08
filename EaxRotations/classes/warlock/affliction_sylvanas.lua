@@ -669,6 +669,23 @@ local strategies = {
             return ok
         end,
     },
+    -- Unstable Affliction Spread — multi-DoT via IZI spread_dot (v2.5.1)
+    {
+        name = "UnstableAfflictionSpread",
+        matches = function(context, state)
+            if not _izi then return false end
+            -- Fire when primary target already has UA; spread to additional targets
+            if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
+            if not target then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.UnstableAffliction, target) or false
+        end,
+        execute = function(context)
+            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
+            if not target then return false end
+            return NS.try_cast(ACTION.UnstableAffliction, target, "[AFFL] Unstable Affliction Spread")
+        end,
+    },
 
     -- ------------------------------------------------------------------------
     -- 7. Siphon Life (DoT + self-heal, if talented)
@@ -735,6 +752,24 @@ local strategies = {
             return ok
         end,
     },
+    -- Immolate Spread — multi-DoT via IZI spread_dot (v2.5.1)
+    {
+        name = "ImmolateSpread",
+        matches = function(context, state)
+            if not _izi then return false end
+            -- Fire when primary target already has Immolate; spread to additional targets
+            if (state.immolate_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            if context.ttd_known and context.ttd < 5 then return false end
+            local target = find_dot_target(IMMOLATE_DEBUFF[1])
+            if not target then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Immolate, target) or false
+        end,
+        execute = function(context)
+            local target = find_dot_target(IMMOLATE_DEBUFF[1])
+            if not target then return false end
+            return NS.try_cast(ACTION.Immolate, target, "[AFFL] Immolate Spread")
+        end,
+    },
 
     -- ------------------------------------------------------------------------
     -- 9a. Amplify Curse (before CoD/CoA/CoE — 3 min cooldown)
@@ -770,6 +805,9 @@ local strategies = {
         matches = function(context, state)
             if not context.target then return false end
             if not context.has_valid_enemy_target then return false end
+            -- Respect curse mode — only fire when user chose "doom" or "auto"
+            local curse_mode = context.settings and context.settings.warlock_curse_mode or "auto"
+            if curse_mode ~= "auto" and curse_mode ~= "doom" then return false end
             -- Don't refresh if already applied and still ticking
             if (state.doom_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Only on long-lived targets (Doom takes 60s to tick)
@@ -782,14 +820,18 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 8a. Curse of Elements (raid debuff — higher priority than CoA in groups)
+    -- 8a. Curse of Elements (raid debuff — gated by curse mode setting)
     -- ------------------------------------------------------------------------
     {
         name = "CurseOfElements",
         matches = function(context, state)
             if not context.target then return false end
-            -- Only in group content when no other warlock has it
             if not context.is_group then return false end
+            -- v2.5.1 FIX: respect curse mode dropdown — previously fired unconditionally
+            -- in groups, overriding Agony/DPS curse preference. Only applies in "elements"
+            -- or "auto" mode.
+            local curse_mode = context.settings and context.settings.warlock_curse_mode or "auto"
+            if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
             if (state and state.coe_remains or 0) > DOT_REFRESH_WINDOW then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target) or false
         end,
@@ -799,14 +841,17 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 8b. Curse of Shadow (raid debuff for Shadow damage — Affliction's primary curse in raids)
+    -- 8b. Curse of Shadow (Shadow damage debuff — gated by curse mode setting)
     -- ------------------------------------------------------------------------
     {
         name = "CurseOfShadow",
         matches = function(context, state)
             if not context.target then return false end
-            -- Only in group content when no other warlock has it
             if not context.is_group then return false end
+            -- v2.5.1 FIX: respect curse mode dropdown. Only applies in "shadow"
+            -- or "auto" mode (auto prefers Shadow for Affliction in groups).
+            local curse_mode = context.settings and context.settings.warlock_curse_mode or "auto"
+            if curse_mode ~= "auto" and curse_mode ~= "shadow" then return false end
             if (state and state.cos_remains or 0) > DOT_REFRESH_WINDOW then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseShadow, context.target) or false
         end,
@@ -932,6 +977,8 @@ local strategies = {
 
     -- ------------------------------------------------------------------------
     -- 12. Shadow Bolt (filler)
+    -- v2.5.1: ShadowBoltFiller now gates on mana — when mana is too low to cast
+    -- Shadow Bolt and Life Tap is unsafe, falls through to Wand instead.
     -- ------------------------------------------------------------------------
     {
         name = "PreCombatPull",
@@ -962,8 +1009,14 @@ local strategies = {
 
     {
         name = "ShadowBoltFiller",
-        matches = function(context)
+        matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
+            -- v2.5.1: don't try to cast Shadow Bolt when mana is critically low —
+            -- let Wand catch it instead. Shadow Bolt costs ~380 mana at max rank;
+            -- if we have less than 5% mana and can't Life Tap (HP unsafe), skip.
+            local mana = state and state.mana_pct or (context.mana_pct or 100)
+            local hp = state and state.hp_pct or (context.hp or 100)
+            if mana < 5 and hp < LIFE_TAP_SAFETY_HP then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ShadowBolt, context.target) or false
         end,
         execute = function(context)
@@ -1173,14 +1226,20 @@ local strategies = {
 
     -- ------------------------------------------------------------------------
     -- 26. Wand (Shoot) — mana conservation fallback
+    -- v2.5.1: raised default threshold from 15% → 30% so wand kicks in sooner
+    -- when Life Tap is unsafe (HP too low) and Shadow Bolt is uncastable.
     -- ------------------------------------------------------------------------
     {
         name = "Wand",
         matches = function(context, state)
             if not context.in_combat then return false end
             if not state.wand_learned then return false end
-            local wand_threshold = context.settings and context.settings.aff_wand_mana or 15
+            -- v2.5.1: wand at 30% mana (was 15%) — catches "can't Life Tap" scenarios
+            local wand_threshold = context.settings and context.settings.aff_wand_mana or 30
             if (state.mana_pct or 100) >= wand_threshold then return false end
+            -- Only wand when Life Tap is unsafe (HP too low) OR Shadow Bolt would OOM us
+            local hp_ok_for_tap = (state.hp_pct or 100) >= LIFE_TAP_SAFETY_HP
+            if hp_ok_for_tap then return false end  -- prefer Life Tap → Shadow Bolt over wand
             if not context.has_valid_enemy_target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.Shoot, context.target) or false
         end,

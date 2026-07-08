@@ -1213,6 +1213,8 @@ function M.on_rotation_update()
     local registry = NS.rotation_registry
     local config = registry and registry.class_config or nil
     local requested_playstyle = NS.get_setting("playstyle", nil)
+    -- v2.5.1: treat "auto" as no-preference (delegate to talent inference)
+    if requested_playstyle == "auto" then requested_playstyle = nil end
     local active_source = (type(requested_playstyle) == "string" and requested_playstyle ~= "") and requested_playstyle
         or NS.get_setting("active_playstyle", config and config.default_playstyle)
     local active = normalize_playstyle(registry, active_source)
@@ -1288,6 +1290,8 @@ function M.on_rotation_update_unified()
     local registry = NS.rotation_registry
     local config = registry and registry.class_config or nil
     local requested_playstyle = NS.get_setting("playstyle", nil)
+    -- v2.5.1: treat "auto" as no-preference (delegate to talent inference)
+    if requested_playstyle == "auto" then requested_playstyle = nil end
     local active_source = (type(requested_playstyle) == "string" and requested_playstyle ~= "") and requested_playstyle
         or NS.get_setting("active_playstyle", config and config.default_playstyle)
     local active = normalize_playstyle(registry, active_source)

@@ -9,12 +9,13 @@ return {
             {
                 header = "Rotation",
                 settings = {
-                    { key = "playstyle", type = "dropdown", label = "Playstyle", default = "leveling", options = {
+                    { key = "playstyle", type = "dropdown", label = "Playstyle", default = "auto", options = {
+                            { text = "Auto (Talent-Based)", value = "auto" },
                             { text = "Leveling", value = "leveling" },
                             { text = "Affliction", value = "affliction" },
                             { text = "Demonology", value = "demonology" },
                             { text = "Destruction", value = "destruction" },
-                    } },
+                    }, tooltip = "Auto = detects spec from your talent tree. Choose a specific spec to lock it in manually." },
                     { key = "use_cooldowns", type = "checkbox", label = "Cooldowns", default = true },
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
@@ -95,7 +96,7 @@ return {
                     { key = "aff_life_tap_mana", type = "slider", label = "Life Tap Mana %", min = 0, max = 65, default = 30 },
                     { key = "aff_dark_pact_mana", type = "slider", label = "Dark Pact Mana %", min = 0, max = 100, default = 20 },
                     { key = "aff_mana_potion", type = "slider", label = "Mana Potion at %", min = 0, max = 100, default = 15 },
-                    { key = "aff_wand_mana", type = "slider", label = "Wand Mana %", min = 0, max = 100, default = 15 },
+                    { key = "aff_wand_mana", type = "slider", label = "Wand Mana %", min = 0, max = 100, default = 30, tooltip = "Switch to wand when mana is below this threshold and Life Tap is unsafe (HP too low)." },
                 },
             },
             {
