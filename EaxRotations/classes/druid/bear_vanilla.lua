@@ -10,6 +10,7 @@ local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { healthstones = {}, potions = {} } } end
 local TBC_ITEMS = TBC.ITEMS or {}
 local TBC_POTIONS = TBC_ITEMS.potions or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 local BASE_SPELLS = NS.DruidSpells or {}
 local SPELLS = BASE_SPELLS
@@ -323,7 +324,6 @@ local _last_build_state_time = -1
 
 local function build_state(context)
     local state = bear_state
-    local settings = context.settings or NS.settings or {}
     local now = context.now
     if now and now == _last_build_state_time then return state end
     now = now or (NS.time_now and NS.time_now() or 0)
@@ -331,7 +331,6 @@ local function build_state(context)
     state.now = now
     state.me = context.me or (NS.GetPlayer and NS.GetPlayer()) or nil
     state.target = context.target
-    state.settings = settings
     state.hp = context.hp or 100
     state.rage = context.rage or 0
     state.stance = context.stance or (NS.get_player_stance and NS.get_player_stance()) or STANCE_CASTER
@@ -342,11 +341,11 @@ local function build_state(context)
     state.target_range = context.target_range or context.target_distance or 40
     state.in_melee = context.in_melee_range == true or state.target_range <= MELEE_RANGE
     state.enemy_count = context.enemy_count or context.enemies_count or 1
-    state.aoe_threshold = NS.setting_number(settings, "bear_aoe_threshold", NS.setting_number(settings, "aoe_threshold", 3))
-    state.maul_rage = NS.setting_number(settings, "bear_maul_rage", 40)
-    state.barkskin_hp = NS.setting_number(settings, "bear_barkskin_hp", 55)
-    state.frenzied_regen_hp = NS.setting_number(settings, "bear_frenzied_regen_hp", 35)
-    state.demo_roar_enabled = NS.setting_bool(settings, "bear_demo_roar", true)
+    state.aoe_threshold = spec_kit.setting_number(context, "bear_aoe_threshold", spec_kit.setting_number(context, "aoe_threshold", 3))
+    state.maul_rage = spec_kit.setting_number(context, "bear_maul_rage", 40)
+    state.barkskin_hp = spec_kit.setting_number(context, "bear_barkskin_hp", 55)
+    state.frenzied_regen_hp = spec_kit.setting_number(context, "bear_frenzied_regen_hp", 35)
+    state.demo_roar_enabled = spec_kit.setting_bool(context, "bear_demo_roar", true)
     state.should_burst = context.should_burst == true
     state.has_valid_target = context.has_valid_enemy_target ~= false and state.target ~= nil
     if NS.has_form then
