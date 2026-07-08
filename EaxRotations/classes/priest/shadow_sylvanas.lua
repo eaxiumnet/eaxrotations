@@ -85,17 +85,11 @@ local MIN_TTD_FOR_CD_INNER_FOCUS = 45     -- Don't burn Inner Focus if combat en
 -- Configurable DoT refresh windows
 -- ============================================================================
 local function vt_clip_threshold(context)
-    local s = context and context.settings
-    if s and s.shadow_vt_refresh_window ~= nil then return s.shadow_vt_refresh_window end
-    if NS.get_setting then return NS.get_setting("shadow_vt_refresh_window", 1.5) end
-    return 1.5
+    return spec_kit.setting_number(context, "shadow_vt_refresh_window", 1.5)
 end
 
 local function swp_clip_threshold(context)
-    local s = context and context.settings
-    if s and s.shadow_swp_refresh_window ~= nil then return s.shadow_swp_refresh_window end
-    if NS.get_setting then return NS.get_setting("shadow_swp_refresh_window", 1.5) end
-    return 1.5
+    return spec_kit.setting_number(context, "shadow_swp_refresh_window", 1.5)
 end
 
 -- Snapshot-aware refresh constants
@@ -149,7 +143,7 @@ end
 -- of recasting on context.target (which already has the DoT).
 local function _find_multidot_target(context, debuff_ids, range)
     if not context or not NS.GetEnemiesInRange then return nil end
-    range = range or (context.settings and context.settings.shadow_multidot_range) or 30
+    range = range or spec_kit.setting_number(context, "shadow_multidot_range", 30)
     local enemies = NS.GetEnemiesInRange(range)
     if type(enemies) ~= "table" or #enemies == 0 then return nil end
     local current = context.target
@@ -363,9 +357,7 @@ local function build_state(context)
     local target = context.target
     local me = NS.GetPlayer()
     if not me then return spec_kit.safe_state(shadow_state, SHADOW_SCHEMA) end
-    local settings = context.settings or {}
-    local mounted_bail = settings.shadow_mounted_bail
-    if mounted_bail == nil or mounted_bail == true then
+    if spec_kit.setting_bool(context, "shadow_mounted_bail", true) then
         if me.is_mounted and me:is_mounted() then
             shadow_state.mounted = true
             return spec_kit.safe_state(shadow_state, SHADOW_SCHEMA)
@@ -408,7 +400,7 @@ local function build_state(context)
     shadow_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
     shadow_state.has_inner_fire = me and NS.buff_up(me, INNER_FIRE_BUFF) or false
     -- Combat mode: explicit setting or auto-detect
-    local mode = settings.shadow_combat_mode or "auto"
+    local mode = spec_kit.setting(context, "shadow_combat_mode", "auto")
     if mode == "auto" then
         local enemy_count = shadow_state.enemy_count or 0
         if enemy_count >= 5 then mode = "aoe"
@@ -417,17 +409,17 @@ local function build_state(context)
     end
     shadow_state.combat_mode = mode
     -- Configurable refresh windows
-    shadow_state.vt_refresh_window = settings.shadow_vt_refresh_window or 1.5
-    shadow_state.swp_refresh_window = settings.shadow_swp_refresh_window or 1.5
-    shadow_state.dp_refresh_window = settings.shadow_dp_refresh_window or 3
+    shadow_state.vt_refresh_window = spec_kit.setting_number(context, "shadow_vt_refresh_window", 1.5)
+    shadow_state.swp_refresh_window = spec_kit.setting_number(context, "shadow_swp_refresh_window", 1.5)
+    shadow_state.dp_refresh_window = spec_kit.setting_number(context, "shadow_dp_refresh_window", 3)
     -- Configurable safety thresholds
-    shadow_state.swd_safety_hp = settings.shadow_swd_safety_hp or 80
-    shadow_state.shield_hp = settings.shadow_shield_hp or 35
-    shadow_state.flash_heal_hp = settings.shadow_flash_heal_hp or 25
+    shadow_state.swd_safety_hp = spec_kit.setting_number(context, "shadow_swd_safety_hp", 80)
+    shadow_state.shield_hp = spec_kit.setting_number(context, "shadow_shield_hp", 35)
+    shadow_state.flash_heal_hp = spec_kit.setting_number(context, "shadow_flash_heal_hp", 25)
     -- Multi-DoT settings
-    shadow_state.multidot_mode = settings.shadow_multidot_mode or 1
-    shadow_state.multidot_max = settings.shadow_multidot_max_targets or 3
-    shadow_state.multidot_range = settings.shadow_multi_dot_range or 30
+    shadow_state.multidot_mode = spec_kit.setting_number(context, "shadow_multidot_mode", 1)
+    shadow_state.multidot_max = spec_kit.setting_number(context, "shadow_multidot_max_targets", 3)
+    shadow_state.multidot_range = spec_kit.setting_number(context, "shadow_multidot_range", 30)
     -- Has Weakened Soul (cannot receive PW:Shield)
     shadow_state.has_weakened_soul = me and NS.debuff_up and NS.debuff_up(me, WEAKENED_SOUL_DEBUFF) or false
     
@@ -442,8 +434,8 @@ local function build_state(context)
     shadow_state.weaving_stacks = target and NS.get_debuff_stacks and NS.get_debuff_stacks(target, SHADOW_WEAVING_DEBUFF) or 0
 
     -- Mana conservation floors (from Research: <30% drop MB, <15% wand only)
-    local mb_mana_floor = settings.shadow_mb_mana_floor or 30
-    local conserve_mana_floor = settings.shadow_conserve_mana_floor or 15
+    local mb_mana_floor = spec_kit.setting_number(context, "shadow_mb_mana_floor", 30)
+    local conserve_mana_floor = spec_kit.setting_number(context, "shadow_conserve_mana_floor", 15)
     shadow_state.mana_low = shadow_state.mana_pct < mb_mana_floor
     shadow_state.mana_emergency = shadow_state.mana_pct < conserve_mana_floor
 
@@ -453,7 +445,7 @@ local function build_state(context)
     shadow_state.breakable_cc_name = nil
     shadow_state.enemy_casting_cc = false
     shadow_state.enemy_cc_spell_name = nil
-    if settings.shadow_swd_cc_break ~= false then
+    if spec_kit.setting_bool(context, "shadow_swd_cc_break", true) then
         shadow_state.has_breakable_cc, shadow_state.breakable_cc_name = CCBreakDB.is_breakable_cc_active(me, NS)
         if not shadow_state.has_breakable_cc then
             -- Preemptive scan: check if any nearby enemy is casting a CC on us
@@ -484,7 +476,7 @@ local function build_state(context)
 
     -- Threat safety: gate burst behind tank threat lead
     -- Uses NS.is_threat_safe if available, otherwise assumes safe
-    local threat_safe_enabled = (settings.shadow_threat_safe == nil and true) or settings.shadow_threat_safe
+    local threat_safe_enabled = spec_kit.setting_bool(context, "shadow_threat_safe", true)
     if threat_safe_enabled and NS.is_threat_safe then
         shadow_state.threat_safe = NS.is_threat_safe(context)
     else
@@ -748,8 +740,7 @@ local function inner_fire_matches(context, s)
     if not s.inner_fire_known then return false end
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.InnerFire, 3.0) then return false end
     if s.has_inner_fire then return false end
-    local settings = context.settings or {}
-    if settings.shadow_use_inner_fire == false then return false end
+    if not spec_kit.setting_bool(context, "shadow_use_inner_fire", true) then return false end
     -- OOC only: casting Inner Fire in combat wastes a GCD that could be VT/SWP
     if context.in_combat then return false end
     return true
@@ -806,7 +797,7 @@ local function vampiric_touch_matches(context, s)
     -- TTD gate: skip VT if target dying soon (1.5s cast + 15s to get full value)
     if context.ttd_known and context.ttd > 0 and context.ttd < 6 then return false end
     -- DoT TTD gating: skip reapplication if target dies before threshold % of DoT duration
-    local ttd_threshold = (context.settings and context.settings.shadow_dot_ttd_threshold or 50) / 100
+    local ttd_threshold = spec_kit.setting_number(context, "shadow_dot_ttd_threshold", 50) / 100
     if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.vampiric_touch, ttd_threshold) then return false end
     -- Mana emergency: drop all spells (wand only)
     if s.mana_emergency then return false end
@@ -833,7 +824,7 @@ local function shadow_word_pain_matches(context, s)
     local ratio = s.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
     if s.swp_remaining > 0 and not should_snapshot_upgrade(s.spell_damage, s.snapshot_swp_dmg, s.swp_remaining, sw_window, ratio) then return false end
     -- DoT TTD gating: skip reapplication if target dies before threshold % of DoT duration
-    local ttd_threshold = (context.settings and context.settings.shadow_dot_ttd_threshold or 50) / 100
+    local ttd_threshold = spec_kit.setting_number(context, "shadow_dot_ttd_threshold", 50) / 100
     if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.shadow_word_pain, ttd_threshold) then return false end
     return true
 end
@@ -866,8 +857,7 @@ local function inner_focus_matches(context, s)
     if s.has_inner_focus then return false end
     if s.mana_low then return false end  -- don't burn IF if MB is gated by mana
     -- Inner Focus + Mind Blast combo: hold IF for MB when both are ready or MB is off soon
-    local combo_enabled = context.settings and context.settings.shadow_if_mb_combo
-    if combo_enabled == nil then combo_enabled = true end
+    local combo_enabled = spec_kit.setting_bool(context, "shadow_if_mb_combo", true)
     if combo_enabled then
         -- If MB is ready now, queue IF immediately (next GCD will be MB)
         if s.mb_ready then return true end
@@ -931,8 +921,7 @@ local function swd_cc_break_matches(context, s)
     -- CC Break is exempt from MF clipping gate (must break CC immediately)
     if not s.swd_ready then return false end
     if not context.has_valid_enemy_target then return false end
-    local settings = context.settings or {}
-    if settings.shadow_swd_cc_break == false then return false end
+    if not spec_kit.setting_bool(context, "shadow_swd_cc_break", true) then return false end
     -- Primary path: enemy is casting a CC on us â€” preempt with SW:D
     if s.enemy_casting_cc and s.enemy_cc_spell_name then
         return true
@@ -1097,12 +1086,12 @@ local strategies = {
     { name = "PsychicScream", matches = psychic_scream_matches, execute = function(context) return NS.try_cast(ACTION.PsychicScream, context.target, "[SHADOW] PsychicScream") end },
     { name = "Fade",
       matches = function(context, state)
-          local auto_fade = (context.settings and context.settings.priest_auto_fade) ~= false
+          local auto_fade = spec_kit.setting_bool(context, "priest_auto_fade", true)
           if not auto_fade then return false end
           if not context.in_combat then return false end
           if state.has_fade_buff then return false end
           if not state.fade_ready then return false end
-          local threshold = (context.settings and context.settings.priest_fade_threat_threshold) or 80
+          local threshold = spec_kit.setting_number(context, "priest_fade_threat_threshold", 80)
           if context.threat_pct and context.threat_pct >= threshold then return true end
           if context.threat_status and context.threat_status >= 2 then return true end
           return false
@@ -1111,9 +1100,9 @@ local strategies = {
     },
     { name = "Healthstone",
       matches = function(context, state)
-          local auto_hs = (context.settings and context.settings.auto_healthstone) ~= false
+          local auto_hs = spec_kit.setting_bool(context, "auto_healthstone", true)
           if not auto_hs then return false end
-          local threshold = (context.settings and context.settings.healthstone_hp_threshold) or 30
+          local threshold = spec_kit.setting_number(context, "healthstone_hp_threshold", 30)
           if (context.hp or 100) > threshold then return false end
           if context.is_casting then return false end
           return state and state.healthstone_ready == true
