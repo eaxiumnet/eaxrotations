@@ -4,6 +4,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.RogueSpells or {}
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local CCGateDB = CCBreakDB  -- Same module for CC break + CC gate
@@ -76,8 +77,7 @@ local strategies = {
     {
         name = "RogueShivPurge",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_shiv_purge == false then return false end
+            if spec_kit.setting_bool(context, "use_shiv_purge", true) == false then return false end
             -- Skip entirely if Shiv not learned (level < 28)
             if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
             if not context.in_combat then return false end
@@ -87,7 +87,7 @@ local strategies = {
             -- Shiv is a melee off-hand attack — must be in range
             if not context.in_melee_range then return false end
             -- Target must be a player (PvP only — Shiv purge is niche in PvE)
-            if settings.shiv_purge_pvp_only ~= false then
+            if spec_kit.setting_bool(context, "shiv_purge_pvp_only", true) ~= false then
                 local ok, is_player = pcall(function() return context.target:is_player() end)
                 if not (ok and is_player) then return false end
             end
@@ -109,8 +109,7 @@ local strategies = {
     {
         name = "RogueCCBreak",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_cc_break == false then return false end
+            if spec_kit.setting_bool(context, "use_cc_break", true) == false then return false end
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
@@ -170,8 +169,7 @@ local strategies = {
         name = "ThreatDrop",
         matches = function(context)
             if not context.in_combat then return false end
-            local settings = context.settings or {}
-            if settings.use_threat_drop == false then return false end
+            if spec_kit.setting_bool(context, "use_threat_drop", true) == false then return false end
             return true
         end,
         execute = function(context)
@@ -187,10 +185,9 @@ local strategies = {
     {
         name = "CloakOfShadows",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.rogue_use_cloak == false then return false end
+            if spec_kit.setting_bool(context, "rogue_use_cloak", true) == false then return false end
             
-            local hp_threshold = settings.rogue_cloak_hp or 45
+            local hp_threshold = spec_kit.setting_number(context, "rogue_cloak_hp", 45)
             local hp = context.player_hp or 100
             if hp > hp_threshold then return false end
             
@@ -222,10 +219,9 @@ local strategies = {
     {
         name = "Evasion",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.rogue_use_evasion == false then return false end
+            if spec_kit.setting_bool(context, "rogue_use_evasion", true) == false then return false end
             
-            local hp_threshold = settings.rogue_evasion_hp or 35
+            local hp_threshold = spec_kit.setting_number(context, "rogue_evasion_hp", 35)
             local hp = context.player_hp or 100
             if hp > hp_threshold then return false end
             
@@ -254,10 +250,9 @@ local strategies = {
     {
         name = "VanishDefensive",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.rogue_use_vanish_defensive == false then return false end
+            if spec_kit.setting_bool(context, "rogue_use_vanish_defensive", true) == false then return false end
             
-            local hp_threshold = settings.rogue_vanish_hp or 20
+            local hp_threshold = spec_kit.setting_number(context, "rogue_vanish_hp", 20)
             local hp = context.player_hp or 100
             if hp > hp_threshold then return false end
             
@@ -265,7 +260,7 @@ local strategies = {
             if not context.in_combat then return false end
             
             -- Don't vanish in raid boss fights unless explicitly enabled
-            if (context.is_raid_boss or false) and settings.rogue_vanish_in_raid ~= true then
+            if (context.is_raid_boss or false) and spec_kit.setting_bool(context, "rogue_vanish_in_raid", false) ~= true then
                 return false
             end
             
@@ -286,13 +281,12 @@ local strategies = {
     {
         name = "ThistleTea",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.rogue_use_thistle_tea == false then return false end
+            if spec_kit.setting_bool(context, "rogue_use_thistle_tea", true) == false then return false end
             if not context.in_combat then return false end
             
             -- Check energy (low energy during burst)
             local energy = context.energy or 100
-            local threshold = settings.rogue_thistle_tea_energy or 30
+            local threshold = spec_kit.setting_number(context, "rogue_thistle_tea_energy", 30)
             if energy > threshold then return false end
             
             -- Check if Thistle Tea item is available
@@ -321,8 +315,7 @@ local strategies = {
     {
         name = "PvPCCGate",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_pvp_cc_gating == false then return false end
+            if spec_kit.setting_bool(context, "use_pvp_cc_gating", true) == false then return false end
             if not context.in_combat then return false end
             local has_aoe = false
             for _, id in ipairs(ROGUE_AOE_IDS) do

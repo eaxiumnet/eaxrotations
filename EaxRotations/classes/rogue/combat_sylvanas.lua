@@ -82,11 +82,11 @@ local HEROISM_BUFF = { 2825, 32182 }
 local _last_energy = 0
 local _last_tick_time = 0
 
-local function get_next_tick_in(energy, settings)
+local function get_next_tick_in(energy)
     local now = NS.time_now and NS.time_now() or 0
     local energy_gained = energy - _last_energy
-    
-    -- Heuristic: TBC energy ticks are usually 20. 
+
+    -- Heuristic: TBC energy ticks are usually 20.
     -- If gain is 20 (or slightly different due to haste/procs?), it's likely a server tick.
     -- AR gain is higher (40?), Tea is 100.
     if energy_gained >= 19 and energy_gained <= 21 then
@@ -94,7 +94,7 @@ local function get_next_tick_in(energy, settings)
         _last_energy = energy
         return ENERGY_TICK
     end
-    
+
     if energy_gained > 0 then
         _last_energy = energy
     end
@@ -113,7 +113,7 @@ local function should_pool_energy(context)
     
     local energy = context.energy or 0
     local offset = spec_kit.setting_number(context, "combat_energy_tick_offset", 100) / 1000
-    local next_tick_in = get_next_tick_in(energy, context.settings)
+    local next_tick_in = get_next_tick_in(energy)
     
     -- If tick is coming in very soon, wait for it unless we are capping
     if next_tick_in <= offset + 0.1 then
@@ -128,7 +128,7 @@ end
 local function should_spend_energy(context, cost)
     local energy = context.energy or 0
     local offset = spec_kit.setting_number(context, "combat_energy_tick_offset", 100) / 1000
-    local next_tick_in = get_next_tick_in(energy, context.settings)
+    local next_tick_in = get_next_tick_in(energy)
 
     -- Capping risk: if next tick will put us over cap, spend NOW
     local projected_energy = energy + ENERGY_PER_TICK

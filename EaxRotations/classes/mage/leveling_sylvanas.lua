@@ -16,6 +16,7 @@ if not NS then return nil end
 local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
 local SPELLS = NS.MageSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- ============================================================================
 -- Constants
@@ -93,7 +94,6 @@ end
 
 local function build_state(context)
     if not context then return nil end
-    local settings = context.settings or EMPTY_SETTINGS
     local me = context.me
     local state = {}
 
@@ -111,18 +111,17 @@ local function build_state(context)
     state.is_moving = context.is_moving or false
 
     -- Settings from schema (with sensible defaults)
-    local settings = context.settings or EMPTY_SETTINGS
-    state.wand_threshold = settings.leveling_wand_threshold or 30
-    state.polymorph_hp = settings.leveling_polymorph_hp or 40
-    state.use_arcane_missiles = settings.leveling_arcane_missiles_use ~= false
-    state.use_scorch = settings.leveling_scorch_use ~= false
-    state.use_interrupt = settings.use_interrupt ~= false
-    state.use_fire_blast = settings.leveling_fire_blast_use ~= false
-    state.use_fireball = settings.leveling_fireball_use ~= false
+    state.wand_threshold = spec_kit.setting_number(context, "leveling_wand_threshold", 30)
+    state.polymorph_hp = spec_kit.setting_number(context, "leveling_polymorph_hp", 40)
+    state.use_arcane_missiles = spec_kit.setting_bool(context, "leveling_arcane_missiles_use", true)
+    state.use_scorch = spec_kit.setting_bool(context, "leveling_scorch_use", true)
+    state.use_interrupt = spec_kit.setting_bool(context, "use_interrupt", true)
+    state.use_fire_blast = spec_kit.setting_bool(context, "leveling_fire_blast_use", true)
+    state.use_fireball = spec_kit.setting_bool(context, "leveling_fireball_use", true)
 
     -- Mana gem state
-    state.use_mana_gem = settings.use_mana_gem ~= false
-    state.mana_gem_threshold = settings.mana_gem_mana_pct or 70
+    state.use_mana_gem = spec_kit.setting_bool(context, "use_mana_gem", true)
+    state.mana_gem_threshold = spec_kit.setting_number(context, "mana_gem_mana_pct", 70)
 
     -- Check if conjure mana gem spell is learned
     state.conjure_gem_ready = false
