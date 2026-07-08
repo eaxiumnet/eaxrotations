@@ -4,6 +4,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = {} } end
@@ -32,8 +33,7 @@ local function get_devour_magic_target(context)
     end
     _cached_devour_unit = nil
     _cached_devour_priority = 0
-    local settings = context.settings or {}
-    local min_mana = settings.devour_magic_mana_floor or 20
+    local min_mana = spec_kit.setting_number(context, "devour_magic_mana_floor", 20)
     if (context.mana_pct or 100) < min_mana then return nil, 0 end
     local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
     local best_unit, best_priority = nil, 0
@@ -79,8 +79,7 @@ local strategies = {
         name = "WarlockCCBreak",
         matches = function(context)
             _cached_cc_break_fresh = false  -- invalidate per-tick cache
-            local settings = context.settings or {}
-            if settings.use_cc_break == false then return false end
+            if spec_kit.setting_bool(context, "use_cc_break", true) == false then return false end
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
@@ -145,8 +144,7 @@ local strategies = {
         name = "DevourMagic",
         matches = function(context)
             _cached_devour_fresh = false  -- invalidate per-tick cache
-            local settings = context.settings or {}
-            if settings.use_devour_magic == false then return false end
+            if spec_kit.setting_bool(context, "use_devour_magic", true) == false then return false end
             if not context.in_combat then return false end
             -- Spell check: Devour Magic requires Felhunter pet
             if not (NS.is_spell_learned and NS.is_spell_learned(19505)) then return false end
@@ -163,8 +161,7 @@ local strategies = {
     },        {
             name = "PvPHowlofTerror",
             matches = function(context)
-                local settings = context.settings or {}
-                if settings.use_pvp_defensives == false then return false end
+                if spec_kit.setting_bool(context, "use_pvp_defensives", true) == false then return false end
                 if NS.should_kite and not NS.should_kite(context) then return false end
                 if (NS.GetEnemiesCount and NS.GetEnemiesCount(8) or 0) < 2 then return false end
                 return true
@@ -175,7 +172,7 @@ local strategies = {
     },        {
             name = "ThreatDrop",
             matches = function(context)
-                if context.settings and context.settings.use_threat_drop == false then return false end
+                if spec_kit.setting_bool(context, "use_threat_drop", true) == false then return false end
                 if not context.in_combat then return false end
                 -- Only when threat is high (80%+)
                 if context.threat_pct and context.threat_pct < 80 then return false end
@@ -203,14 +200,13 @@ local strategies = {
         priority = 1000,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
             -- BUGFIX (2026-06-29): respect the master ``use_auto_consumables``
             -- AND a new ``use_death_coil`` per-spell toggle.  Previously this
             -- strategy fired at low HP regardless of either setting.
-            if settings.use_auto_consumables == false then return false end
-            if settings.use_death_coil == false then return false end
-            local threshold = settings.death_coil_hp or 0
+            if spec_kit.setting_bool(context, "use_auto_consumables", true) == false then return false end
+            if spec_kit.setting_bool(context, "use_death_coil", true) == false then return false end
+            local threshold = spec_kit.setting_number(context, "death_coil_hp", 0)
             if threshold <= 0 then return false end
             if (context.hp or 100) <= threshold then
                 return true
@@ -238,7 +234,6 @@ local strategies = {
         priority = 850,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
             -- BUGFIX (2026-06-29): respect the master + per-category toggles.
             -- Previously this strategy ignored ``use_auto_consumables`` and
@@ -246,9 +241,9 @@ local strategies = {
             -- HP regardless of the user's preference.  Also add a fast-path
             -- bag check before matches returns true so the dispatcher doesn't
             -- iterate ``HEALTHSTONE_ITEMS`` for a player with nothing in bags.
-            if settings.use_auto_consumables == false then return false end
-            if settings.use_healthstones == false then return false end
-            local threshold = settings.healthstone_hp or 0
+            if spec_kit.setting_bool(context, "use_auto_consumables", true) == false then return false end
+            if spec_kit.setting_bool(context, "use_healthstones", true) == false then return false end
+            local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
             if threshold <= 0 then return false end
             if (context.hp or 100) > threshold then return false end
             -- Fast-path bag scan (cached) so we don't trigger the execute
@@ -309,11 +304,10 @@ local strategies = {
         priority = 900,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            if settings.use_shadow_ward == false then return false end
+            if spec_kit.setting_bool(context, "use_shadow_ward", true) == false then return false end
             local hp = context.hp or 100
-            local threshold = settings.shadow_ward_hp or 70
+            local threshold = spec_kit.setting_number(context, "shadow_ward_hp", 70)
             if hp > threshold then return false end
             -- Check if Shadow Ward buff already active
             if NS.has_player_buff and NS.has_player_buff(SHADOW_WARD_IDS) then return false end
@@ -341,11 +335,10 @@ local strategies = {
         priority = 950,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            if settings.use_fel_domination == false then return false end
+            if spec_kit.setting_bool(context, "use_fel_domination", true) == false then return false end
             local hp = context.hp or 100
-            if hp > (settings.fel_domination_hp or 35) then return false end
+            if hp > spec_kit.setting_number(context, "fel_domination_hp", 35) then return false end
             -- Only if pet is dead
             if NS.has_pet and NS.has_pet() then return false end
             local spell = { id = { 18708 }, name = "FelDomination" }
@@ -365,11 +358,10 @@ local strategies = {
         priority = 925,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            if settings.use_demonic_sacrifice == false then return false end
+            if spec_kit.setting_bool(context, "use_demonic_sacrifice", true) == false then return false end
             local hp = context.hp or 100
-            if hp > (settings.demonic_sacrifice_hp or 20) then return false end
+            if hp > spec_kit.setting_number(context, "demonic_sacrifice_hp", 20) then return false end
             -- Must have a pet alive to sacrifice
             if not NS.has_pet or not NS.has_pet() then return false end
             local spell = { id = { 18788 }, name = "DemonicSacrifice" }
@@ -389,16 +381,15 @@ local strategies = {
         priority = 800,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            if settings.use_health_funnel == false then return false end
+            if spec_kit.setting_bool(context, "use_health_funnel", true) == false then return false end
             local hp = context.hp or 100
-            local hp_threshold = settings.health_funnel_hp or 60
+            local hp_threshold = spec_kit.setting_number(context, "health_funnel_hp", 60)
             if hp < hp_threshold then return false end
             -- Check pet exists and is low
             if not NS.has_pet or not NS.has_pet() then return false end
             local pet_hp_pct = NS.get_pet_hp and NS.get_pet_hp() or 100
-            if pet_hp_pct > (settings.health_funnel_pet_hp or 40) then return false end
+            if pet_hp_pct > spec_kit.setting_number(context, "health_funnel_pet_hp", 40) then return false end
             local spell = { id = { 27259, 11695, 11694, 11693, 3700, 3699, 3698, 755 }, name = "HealthFunnel" }
             if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
             return false
@@ -418,9 +409,8 @@ local strategies = {
         priority = 500,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if context.in_combat then return false end
-            if settings.auto_create_healthstone == false then return false end
+            if spec_kit.setting_bool(context, "auto_create_healthstone", true) == false then return false end
             -- Retry throttle: don't retry for 3s after last failure (e.g. missing reagent)
             local now = NS.time_now and NS.time_now() or 0
             if (now - _last_create_hs_retry) < 3 then return false end
@@ -463,9 +453,8 @@ local strategies = {
         priority = 490,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if context.in_combat then return false end
-            if settings.auto_create_soulstone == false then return false end
+            if spec_kit.setting_bool(context, "auto_create_soulstone", true) == false then return false end
             -- Check if Soulstone buff is already active
             local ss_buffs = { 27238, 20756, 20755, 20752, 693 }
             if NS.has_player_buff and NS.has_player_buff(ss_buffs) then return false end
@@ -494,9 +483,8 @@ local strategies = {
         priority = 480,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if context.in_combat then return false end
-            if settings.auto_demon_armor == false then return false end
+            if spec_kit.setting_bool(context, "auto_demon_armor", true) == false then return false end
             -- Prefer Fel Armor (TBC level 62+) if learned; fall back to Demon Armor
             local fel_armor_ids = { 28189, 28176 }
             local demon_armor_ids = { 27260, 11735, 11734, 11733, 1086, 706 }

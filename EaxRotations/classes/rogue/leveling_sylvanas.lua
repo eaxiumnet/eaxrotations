@@ -31,6 +31,7 @@ local is_leveling_context = leveling.create_context_guard()
 -- ============================================================================
 local SPELLS = NS.RogueSpells or NS.SPELLS or {}
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local HAS_STEALTH = NS.spell_exists and NS.spell_exists(SPELLS.Stealth and SPELLS.Stealth[1] or 1784)
 local HAS_SAP = NS.spell_exists and NS.spell_exists(SPELLS.Sap and SPELLS.Sap[1] or 6770)
 local HAS_KICK = NS.spell_exists and NS.spell_exists(SPELLS.Kick and SPELLS.Kick[1] or 1766)
@@ -133,12 +134,11 @@ function rogue_leveling.build_state(context)
     state.stealthed = has_buff(STEALTH_BUFF)
 
     -- Settings from context (fallback to shared wand threshold)
-    local settings = context.settings or {}
-    state.use_cooldowns = settings.use_cooldowns ~= false
-    state.use_blade_flurry = settings.leveling_use_blade_flurry ~= false
-    state.blade_flurry_min_enemies = settings.leveling_blade_flurry_enemies or 3
-    state.vanish_hp = settings.leveling_vanish_hp or 15
-    state.use_expose_armor = settings.leveling_use_expose_armor == true
+    state.use_cooldowns = spec_kit.setting_bool(context, "use_cooldowns", true)
+    state.use_blade_flurry = spec_kit.setting_bool(context, "leveling_use_blade_flurry", true)
+    state.blade_flurry_min_enemies = spec_kit.setting_number(context, "leveling_blade_flurry_enemies", 3)
+    state.vanish_hp = spec_kit.setting_number(context, "leveling_vanish_hp", 15)
+    state.use_expose_armor = spec_kit.setting_bool(context, "leveling_use_expose_armor", false)
 
     return state
 end
@@ -221,14 +221,13 @@ local shiv_purge_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.is_pvp then return false end
-    local settings = context.settings or {}
-    if settings.use_shiv_purge == false then return false end
+    if spec_kit.setting_bool(context, "use_shiv_purge", true) == false then return false end
     -- Skip entirely if Shiv not learned (level < 28)
     if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
     if not state.in_melee_range then return false end
     if not state.shiv_ready then return false end
     -- PvP only gating: only purge enemy players
-    if settings.shiv_purge_pvp_only ~= false then
+    if spec_kit.setting_bool(context, "shiv_purge_pvp_only", true) ~= false then
         local ok, is_player = pcall(function() return state.target:is_player() end)
         if not (ok and is_player) then return false end
     end

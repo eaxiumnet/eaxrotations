@@ -223,8 +223,7 @@ local function immolate_matches(context, action, state)
     state = state or {}
     -- SP-aware gating: skip Immolate when spell damage is below the threshold
     -- (conservative: defaults to 400 SP, configurable via destro_immolate_min_sp)
-    local settings = context.settings or {}
-    local min_sp = settings.destro_immolate_min_sp or IMMOLATE_MIN_SP_DEFAULT
+    local min_sp = spec_kit.setting_number(context, "destro_immolate_min_sp", IMMOLATE_MIN_SP_DEFAULT)
     if (state.spell_damage or 0) < min_sp then return false end
     if (state.immolate_remains or 0) > IMMOLATE_PANDEMIC_WINDOW then return false end
     if not (NS.should_refresh_dot and NS.should_refresh_dot((state.immolate_remains or 0), 1.5, context.ttd, 15)) then return false end

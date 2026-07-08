@@ -5,6 +5,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local SPELLS = NS.MageSpells or {}
 local _mana_gem_last = 0
@@ -30,8 +31,7 @@ local function get_spellsteal_target(context)
     end
     _cached_steal_unit = nil
     _cached_steal_priority = 0
-    local settings = context.settings or {}
-    local min_mana = settings.spellsteal_mana_floor or 30
+    local min_mana = spec_kit.setting_number(context, "spellsteal_mana_floor", 30)
     if (context.mana_pct or 100) < min_mana then return nil, 0 end
     local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
     local best_unit, best_priority = nil, 0
@@ -62,9 +62,8 @@ local function self_spell_ready(spell, context)
 end
 
 local function should_use_mage_defensive(context)
-    local settings = context.settings or {}
-    local threshold = settings.defensive_hp_threshold or 30
-    if settings.use_defensives == false then return false end
+    local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", 30)
+    if spec_kit.setting_bool(context, "use_defensives", true) == false then return false end
     return context.in_combat == true and (context.hp or 100) < threshold
 end
 
@@ -116,8 +115,7 @@ local strategies = {
     {
         name = "MageCCBreak",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_cc_break == false then return false end
+            if spec_kit.setting_bool(context, "use_cc_break", true) == false then return false end
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
@@ -134,7 +132,7 @@ local strategies = {
                         local ok, etarget = pcall(function() return enemy:get_target() end)
                         if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
                             -- Ice Block: preemptive immunity (expensive, use only vs big CC)
-                            if settings.use_ice_block ~= false then
+                            if spec_kit.setting_bool(context, "use_ice_block", true) ~= false then
                                 local ib_id = nil
                                 for _, id in ipairs(ICE_BLOCK_IDS) do
                                     if NS.is_spell_learned and NS.is_spell_learned(id) then ib_id = id; break end
@@ -191,8 +189,7 @@ local strategies = {
         name = "Spellsteal",
         matches = function(context)
             _cached_steal_fresh = false  -- invalidate per-tick cache
-            local settings = context.settings or {}
-            if settings.use_spellsteal == false then return false end
+            if spec_kit.setting_bool(context, "use_spellsteal", true) == false then return false end
             if not context.in_combat then return false end
             -- Spell check: Spellsteal is learned at level 68
             if not (NS.is_spell_learned and NS.is_spell_learned(30449)) then return false end
@@ -212,25 +209,23 @@ local strategies = {
         name = "Defensive",
         matches = function(context)
             if not should_use_mage_defensive(context) then return false end
-            local settings = context.settings or {}
-            local mana_threshold = settings.mana_shield_mana_threshold or 50
+            local mana_threshold = spec_kit.setting_number(context, "mana_shield_mana_threshold", 50)
             -- BUGFIX (2026-06-29): nil-guard NS.has_player_buff.  ``not nil``
             -- is true, which would falsely report "no Mana Shield buff" and
             -- recast every tick when the API is missing.  Default to ``true``
             -- (= "buff is up, skip recast") so the safe-failure mode matches
             -- the has_armor_buff helper above.
             local has_ms = NS.has_player_buff and NS.has_player_buff(SPELLS.ManaShield) and true or false
-            return (settings.use_ice_block ~= false and self_spell_ready(SPELLS.IceBlock, context))
-                or (settings.use_mana_shield ~= false and (context.mana_pct or 0) >= mana_threshold and not has_ms and self_spell_ready(SPELLS.ManaShield, context))
+            return (spec_kit.setting_bool(context, "use_ice_block", true) ~= false and self_spell_ready(SPELLS.IceBlock, context))
+                or (spec_kit.setting_bool(context, "use_mana_shield", true) ~= false and (context.mana_pct or 0) >= mana_threshold and not has_ms and self_spell_ready(SPELLS.ManaShield, context))
         end,
         execute = function(context)
-            local settings = context.settings or {}
-            local mana_threshold = settings.mana_shield_mana_threshold or 50
-            if settings.use_ice_block ~= false and self_spell_ready(SPELLS.IceBlock, context) then
+            local mana_threshold = spec_kit.setting_number(context, "mana_shield_mana_threshold", 50)
+            if spec_kit.setting_bool(context, "use_ice_block", true) ~= false and self_spell_ready(SPELLS.IceBlock, context) then
                 return NS.try_cast(SPELLS.IceBlock, (context.me or NS.GetPlayer()), "[MAGE] Ice Block", { skip_range = true }) == true
             end
             local has_ms = NS.has_player_buff and NS.has_player_buff(SPELLS.ManaShield) and true or false
-            if settings.use_mana_shield ~= false and (context.mana_pct or 0) >= mana_threshold and not has_ms and self_spell_ready(SPELLS.ManaShield, context) then
+            if spec_kit.setting_bool(context, "use_mana_shield", true) ~= false and (context.mana_pct or 0) >= mana_threshold and not has_ms and self_spell_ready(SPELLS.ManaShield, context) then
                 return NS.try_cast(SPELLS.ManaShield, (context.me or NS.GetPlayer()), "[MAGE] Mana Shield", { skip_range = true }) == true
             end
             return false
@@ -240,8 +235,7 @@ local strategies = {
     {
         name = "SelfBuff",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_self_buffs == false then return false end
+            if spec_kit.setting_bool(context, "use_self_buffs", true) == false then return false end
             -- BUGFIX (2026-06-29): nil-guard NS.has_player_buff so a missing
             -- API doesn't crash the dispatch.  ``not nil`` is true which would
             -- falsely report "no Arcane Intellect buff" and recast every tick.
@@ -268,15 +262,14 @@ local strategies = {
     },    {
         name = "PvPIceBlock",
         matches = function(context)
-            local settings = context.settings or {}
             -- BUGFIX (2026-06-29): PvPIceBlock used to fire unconditionally on
             -- kite-or-low-HP regardless of the user's ``use_ice_block`` toggle.
             -- The user reported this as part of the wider middleware-not-honoring-
             -- toggles issue.  Now respects both the per-spell and PvP toggles,
             -- matching the pattern used by the ``Defensive`` strategy immediately
             -- above.
-            if settings.use_ice_block == false then return false end
-            if settings.use_pvp_defensives == false then return false end
+            if spec_kit.setting_bool(context, "use_ice_block", true) == false then return false end
+            if spec_kit.setting_bool(context, "use_pvp_defensives", true) == false then return false end
             if not NS.should_kite or not NS.should_kite(context) or (context.hp or 100) >= 30 then return false end
             return true
         end,
@@ -291,8 +284,7 @@ local strategies = {
     {
         name = "IceBarrier",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_ice_barrier == false then return false end
+            if spec_kit.setting_bool(context, "use_ice_barrier", true) == false then return false end
             if not (context.in_combat and context.me) then return false end
             -- Check if Ice Barrier buff is active (114 # Ice Shield in TBC)
             local barrier_buffs = { 13032, 13031, 13033 }
@@ -313,10 +305,9 @@ local strategies = {
     {
         name = "Evocation",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_evocation == false then return false end
+            if spec_kit.setting_bool(context, "use_evocation", true) == false then return false end
             if not context.in_combat then return false end
-            local threshold = settings.evocation_mana_pct or 20
+            local threshold = spec_kit.setting_number(context, "evocation_mana_pct", 20)
             if (context.mana_pct or 0) > threshold then return false end
             -- Don't cast while moving (channeled spell)
             local me = context.me or NS.GetPlayer()
@@ -341,10 +332,9 @@ local strategies = {
     {
         name = "ManaGem",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_mana_gem == false then return false end
+            if spec_kit.setting_bool(context, "use_mana_gem", true) == false then return false end
             if not context.in_combat then return false end
-            local threshold = settings.mana_gem_mana_pct or 70
+            local threshold = spec_kit.setting_number(context, "mana_gem_mana_pct", 70)
             if (context.mana_pct or 0) > threshold then return false end
             local now = NS.time_now and NS.time_now() or 0
             if now - (_mana_gem_last or 0) < 30 then return false end
@@ -367,8 +357,7 @@ local strategies = {
     {
         name = "RemoveCurse",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.auto_remove_curse == false then return false end
+            if spec_kit.setting_bool(context, "auto_remove_curse", true) == false then return false end
             if not context.in_combat then return false end
             return find_curse_target(context) ~= nil
         end,
@@ -390,9 +379,8 @@ local strategies = {
         name = "ConjureWater",
         priority = 450,
         matches = function(context)
-            local settings = context.settings or {}
             if context.in_combat then return false end
-            if settings.auto_conjure_water == false then return false end
+            if spec_kit.setting_bool(context, "auto_conjure_water", true) == false then return false end
             -- Throttle: don't spam conjure
             local now = NS.time_now and NS.time_now() or 0
             if (now - (_last_conjure_water or 0)) < 10 then return false end
@@ -414,9 +402,8 @@ local strategies = {
         name = "ConjureFood",
         priority = 440,
         matches = function(context)
-            local settings = context.settings or {}
             if context.in_combat then return false end
-            if settings.auto_conjure_food == false then return false end
+            if spec_kit.setting_bool(context, "auto_conjure_food", true) == false then return false end
             local now = NS.time_now and NS.time_now() or 0
             if (now - (_last_conjure_food or 0)) < 10 then return false end
             local spell = SPELLS.ConjureFood or { id = { 27091, 10145, 10144, 10143, 5506, 587 }, name = "ConjureFood" }
@@ -438,9 +425,8 @@ local strategies = {
         priority = 850,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            local threshold = settings.healthstone_hp or 0
+            local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
             if threshold <= 0 then return false end
             if (context.hp or 100) <= threshold then return true end
             return false

@@ -14,6 +14,7 @@ if not NS then return nil end
 local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
 local SPELLS = NS.WarlockSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- ============================================================================
 -- Constants
@@ -66,8 +67,7 @@ local function leveling_context_allowed(context)
     if not context then return false end
     if context.is_solo == true or context.is_leveling == true then return true end
     -- Also allow if user explicitly selected leveling playstyle
-    local settings = context.settings or EMPTY_SETTINGS
-    return settings.playstyle == "leveling" or settings.active_playstyle == "leveling"
+    return spec_kit.setting(context, "playstyle", "") == "leveling" or spec_kit.setting(context, "active_playstyle", "") == "leveling"
 end
 
 -- ============================================================================
@@ -81,7 +81,6 @@ local function build_state(context)
     local now = context.now or (NS.time_now and NS.time_now() or 0)
     if now == _last_build_state_time then return leveling_state end
     if context.now then _last_build_state_time = now end
-    local settings = context.settings or EMPTY_SETTINGS
     local me = context.me
     local pet = context.pet
 
@@ -95,14 +94,14 @@ local function build_state(context)
     leveling_state.pet = pet
 
     -- Settings from schema
-    leveling_state.use_interrupt = settings.use_interrupt ~= false
-    leveling_state.wand_threshold = settings.leveling_wand_threshold or 30
-    leveling_state.life_tap_mana = settings.leveling_life_tap_mana or 30
-    leveling_state.drain_soul_execute = settings.leveling_drain_soul_execute or 25
-    leveling_state.use_immolate = settings.leveling_use_immolate ~= false
-    leveling_state.use_corruption = settings.leveling_use_corruption ~= false
-    leveling_state.use_curse_of_agony = settings.leveling_use_curse_of_agony ~= false
-    leveling_state.drain_life_hp = settings.leveling_drain_life_hp or 60
+    leveling_state.use_interrupt = spec_kit.setting_bool(context, "use_interrupt", true)
+    leveling_state.wand_threshold = spec_kit.setting_number(context, "leveling_wand_threshold", 30)
+    leveling_state.life_tap_mana = spec_kit.setting_number(context, "leveling_life_tap_mana", 30)
+    leveling_state.drain_soul_execute = spec_kit.setting_number(context, "leveling_drain_soul_execute", 25)
+    leveling_state.use_immolate = spec_kit.setting_bool(context, "leveling_use_immolate", true)
+    leveling_state.use_corruption = spec_kit.setting_bool(context, "leveling_use_corruption", true)
+    leveling_state.use_curse_of_agony = spec_kit.setting_bool(context, "leveling_use_curse_of_agony", true)
+    leveling_state.drain_life_hp = spec_kit.setting_number(context, "leveling_drain_life_hp", 60)
 
     -- Spell readiness (each returns false if spell not learned)
     leveling_state.shadow_bolt_ready = safe_is_spell_ready(SPELLS.ShadowBolt, context.target)
