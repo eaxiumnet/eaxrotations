@@ -15,6 +15,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PriestSpells or {}
 local leveling = require("shared/leveling_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- ============================================================================
 -- Constants
@@ -165,8 +166,8 @@ function build_state(context)
     state.is_channeling = (context.is_channeling or context.is_casting) or false
 
     -- Configured thresholds
-    state.heal_hp = (context.settings and context.settings.leveling_heal_hp) or 60
-    state.wand_threshold = (context.settings and context.settings.leveling_wand_threshold) or 30
+    state.heal_hp = spec_kit.setting_number(context, "leveling_heal_hp", 60)
+    state.wand_threshold = spec_kit.setting_number(context, "leveling_wand_threshold", 30)
 
     -- Count nearby enemies
     state.enemies = context.enemies_count or 0
@@ -177,15 +178,15 @@ function build_state(context)
     state.mana_pct = context.mana_pct or 100
 
     -- Shadowform toggle setting (default: true = auto-enter Shadowform when available)
-    state.use_shadowform = (context.settings and context.settings.leveling_use_shadowform) ~= false
+    state.use_shadowform = spec_kit.setting_bool(context, "leveling_use_shadowform", true)
 
     -- Shadowfiend settings (schema_sylvanas.lua lines 31-32)
-    state.use_shadowfiend = (context.settings and context.settings.use_shadowfiend) ~= false
-    state.shadowfiend_mana_threshold = (context.settings and context.settings.shadowfiend_mana_threshold) or SHADOWFIEND_MANA_DEFAULT
+    state.use_shadowfiend = spec_kit.setting_bool(context, "use_shadowfiend", true)
+    state.shadowfiend_mana_threshold = spec_kit.setting_number(context, "shadowfiend_mana_threshold", SHADOWFIEND_MANA_DEFAULT)
 
     -- Desperate Prayer settings (schema_sylvanas.lua lines 103-104)
-    state.use_desperate_prayer = (context.settings and context.settings.leveling_use_desperate_prayer) ~= false
-    state.desp_prayer_hp = (context.settings and context.settings.leveling_desp_prayer_hp) or DESPERATE_PRAYER_HP_DEFAULT
+    state.use_desperate_prayer = spec_kit.setting_bool(context, "leveling_use_desperate_prayer", true)
+    state.desp_prayer_hp = spec_kit.setting_number(context, "leveling_desp_prayer_hp", DESPERATE_PRAYER_HP_DEFAULT)
 
     return state
 end
@@ -550,7 +551,7 @@ local strategies = {
             if not state then return false end
             if not state.symbol_of_hope_ready then return false end
             if not context.is_group then return false end
-            if context.settings and context.settings.use_symbol_of_hope == false then return false end
+            if not spec_kit.setting_bool(context, "use_symbol_of_hope", true) then return false end
             if state.in_combat and (state.mana_pct or 100) < 20 then return false end
             return true
         end,

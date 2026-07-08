@@ -221,16 +221,15 @@ local function build_state(context)
     mm_state.volley_ready = target and NS.spell_ready(VOLLEY_IDS, target) or false
     mm_state.explosive_trap_ready = me and NS.spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     mm_state.wing_clip_active = target and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
-    mm_state.use_misdirection = context.settings and context.settings.use_misdirection == true
+    mm_state.use_misdirection = spec_kit.setting_bool(context, "use_misdirection", false)
     mm_state.is_group = context.is_group or false
     mm_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     mm_state.in_combat = context.in_combat or false
     mm_state.enemy_count = context.enemy_count or context.enemies_count or 1
     mm_state.is_ooc = not mm_state.in_combat
     mm_state.pre_steady_leveling = ((context.player_level or 70) < 62) or (context.is_leveling == true and not mm_state.steady_shot_ready)
-    local settings = context.settings or {}
-    mm_state.hunter_melee_weave = settings.hunter_melee_weave ~= false
-    mm_state.hunter_shot_timer_buffer = settings.hunter_shot_timer_buffer or 150
+    mm_state.hunter_melee_weave = spec_kit.setting_bool(context, "hunter_melee_weave", true)
+    mm_state.hunter_shot_timer_buffer = spec_kit.setting_number(context, "hunter_shot_timer_buffer", 150)
     mm_state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
     mm_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
@@ -238,7 +237,7 @@ local function build_state(context)
 end
 
 local function cooldowns_enabled(context)
-    return not context.settings or context.settings.use_cooldowns ~= false
+    return spec_kit.setting_bool(context, "use_cooldowns", true)
 end
 
 -- ============================================================================
@@ -311,7 +310,7 @@ local function aspect_hawk_matches(context, s)
     if s.has_aspect_hawk then return false end
     -- Wowsims-aligned: exit Viper at 25% (enter at 5% via aspect_viper_matches)
     if s.has_aspect_viper then
-        local viper_end = (context.settings and context.settings.mana_viper_end) or 25
+        local viper_end = spec_kit.setting_number(context, "mana_viper_end", 25)
         if (s.mana_pct or 100) <= viper_end then return false end
     end
     -- Throttle: prevent thrashing due to WoW API buff detection delay
@@ -382,7 +381,7 @@ end
 
 local function readiness_matches(context, s)
     if not cooldowns_enabled(context) then return false end
-    if context.settings and context.settings.use_readiness == false then return false end
+    if not spec_kit.setting_bool(context, "use_readiness", true) then return false end
     if not s.in_combat then return false end
     if not s.readiness_ready then return false end
     -- TTD gate: don't waste 5min CD on a dying target
@@ -447,7 +446,7 @@ local strategies = {
     { name = "HealthPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_health_potion then return false end
           if (context.hp or 100) > 35 then return false end
           return true
@@ -456,7 +455,7 @@ local strategies = {
     { name = "ManaPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_mana_potion then return false end
           if (context.mana_pct or 100) > 25 then return false end
           return true

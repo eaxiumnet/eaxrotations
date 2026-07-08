@@ -14,6 +14,7 @@ if not NS then return nil end
 local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
 local L = require("shared/leveling_helpers_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- ============================================================================
 -- Module table
@@ -136,12 +137,11 @@ function warrior_leveling.build_state(context)
     end)
     state.sunder_stacks = (_sunder_ok and type(_sunder_stacks) == "number") and _sunder_stacks or 0
 
-    -- Settings
-    local settings = context.settings or {}
-    state.use_execute = settings.leveling_use_execute ~= false
-    state.use_rend = settings.leveling_use_rend ~= false
-    state.use_thunder_clap = settings.leveling_use_thunder_clap ~= false
-    state.exec_hp = settings.leveling_exec_hp or 20
+    -- Settings (via spec_kit)
+    state.use_execute = spec_kit.setting_bool(context, "leveling_use_execute", true)
+    state.use_rend = spec_kit.setting_bool(context, "leveling_use_rend", true)
+    state.use_thunder_clap = spec_kit.setting_bool(context, "leveling_use_thunder_clap", true)
+    state.exec_hp = spec_kit.setting_number(context, "leveling_exec_hp", 20)
 
     return state
 end
@@ -333,12 +333,11 @@ local shield_slam_purge_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.is_pvp then return false end
-    local settings = context.settings or {}
-    if settings.use_shield_slam_purge == false then return false end
+    if not spec_kit.setting_bool(context, "use_shield_slam_purge", true) then return false end
     if not state.in_melee_range then return false end
     if not state.shield_slam_ready then return false end
     -- PvP only gating: only purge enemy players
-    if settings.shield_slam_purge_pvp_only ~= false then
+    if spec_kit.setting_bool(context, "shield_slam_purge_pvp_only", true) then
         local ok, is_player = pcall(function() return state.target:is_player() end)
         if not (ok and is_player) then return false end
     end
@@ -358,18 +357,17 @@ local disarm_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.is_pvp then return false end
-    local settings = context.settings or {}
-    if settings.use_disarm == false then return false end
+    if not spec_kit.setting_bool(context, "use_disarm", true) then return false end
     if not state.in_melee_range then return false end
     if not state.disarm_ready then return false end
     if not state.disarm_class_ok then return false end
     -- Player-only gate
-    if settings.disarm_pvp_only ~= false then
+    if spec_kit.setting_bool(context, "disarm_pvp_only", true) then
         local ok, is_player = pcall(function() return state.target:is_player() end)
         if not (ok and is_player) then return false end
     end
     -- Trigger mode
-    local trigger = settings.disarm_trigger or "on_burst"
+    local trigger = spec_kit.setting(context, "disarm_trigger", "on_burst")
     if trigger == "on_burst" then
         if not state.disarm_burst_name then return false end
         context._disarm_burst_name = state.disarm_burst_name
@@ -383,8 +381,7 @@ end
 local pvp_cc_gate_matches = function(context, state)
     if not context then return false end
     if not state then return false end
-    local settings = context.settings or {}
-    if settings.use_pvp_cc_gating == false then return false end
+    if not spec_kit.setting_bool(context, "use_pvp_cc_gating", true) then return false end
     if not state.in_combat then return false end
     local has_aoe = false
     for _, id in ipairs(WARRIOR_AOE_IDS) do

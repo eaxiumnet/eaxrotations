@@ -17,6 +17,8 @@ if not NS then return nil end
 
 local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
+local spec_kit = require("shared/spec_kit_sylvanas")
+if not spec_kit then return nil end
 
 -- ============================================================================
 -- Module table
@@ -168,12 +170,11 @@ function druid_leveling.build_state(context)
     state.has_mark_of_wild = has_buff(MARK_OF_THE_WILD_BUFF)
     state.has_thorns = has_buff(THORNS_BUFF)
 
-    -- Settings
-    local settings = context.settings or {}
-    state.wand_threshold = settings.leveling_wand_threshold or 30
-    state.heal_hp = settings.leveling_heal_hp or 40
-    state.bear_hp = settings.leveling_bear_hp or 40
-    state.use_feral = settings.leveling_use_feral ~= false  -- default: enabled
+    -- Settings (via spec_kit)
+    state.wand_threshold = spec_kit.setting_number(context, "leveling_wand_threshold", 30)
+    state.heal_hp = spec_kit.setting_number(context, "leveling_heal_hp", 40)
+    state.bear_hp = spec_kit.setting_number(context, "leveling_bear_hp", 40)
+    state.use_feral = spec_kit.setting_bool(context, "leveling_use_feral", true)  -- default: enabled
 
     return state
 end
