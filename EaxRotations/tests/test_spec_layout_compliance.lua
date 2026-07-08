@@ -157,10 +157,12 @@ for _, path in ipairs(spec_files) do
             add_issue(issues, path, "converted-unguarded-registration", "guarded registration form not found")
         end
 
-        -- build_state symbol exists (function definition).
-        if not (has_lit(text, "function build_state") or
-                text:find("build_state%s*=%s*function", 1) ~= nil) then
-            add_issue(issues, path, "converted-missing-build_state", "build_state function not found")
+        -- build_state symbol exists (function definition or aliased in return).
+        local has_build_state_fn = has_lit(text, "function build_state") or
+            text:find("build_state%s*=%s*function", 1) ~= nil
+        local has_build_state_alias = text:find("build_state%s*=", 1) ~= nil
+        if not (has_build_state_fn or has_build_state_alias) then
+            add_issue(issues, path, "converted-missing-build_state", "build_state function or alias not found")
         end
 
         -- Valid return shape: "return strategies", "return module" (table with
