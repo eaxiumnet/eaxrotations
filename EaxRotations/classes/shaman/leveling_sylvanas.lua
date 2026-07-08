@@ -17,6 +17,7 @@ if not leveling then return nil end
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { shaman = {} } } end
 local TBC_SHAMAN = (TBC.SPELLS and TBC.SPELLS.shaman) or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- ============================================================================
 -- Module table
@@ -226,20 +227,19 @@ function shaman_leveling.build_state(context)
     end
 
     -- Settings
-    local settings = context.settings or {}
-    state.wand_threshold = settings.leveling_wand_threshold or 30
-    state.heal_hp = settings.leveling_heal_hp or 50
-    state.use_shocks = settings.leveling_use_shocks ~= false
-    state.default_shock = settings.leveling_default_shock or "flame"  -- "flame", "earth", "frost"
-    state.use_weapon_imbue = settings.leveling_use_weapon_imbue ~= false
-    state.weapon_imbue = select_weapon_imbue(settings.leveling_weapon_imbue)
-    state.use_totems = settings.leveling_use_totems ~= false
-    state.use_searing_totem = settings.leveling_use_searing_totem ~= false
-    state.use_strength_totem = settings.leveling_use_strength_totem ~= false
-    state.use_water_totem = settings.leveling_use_water_totem ~= false
-    state.use_stormstrike = settings.leveling_use_stormstrike ~= false
-    state.water_shield_mana = settings.leveling_water_shield_mana or 40
-    state.shamanistic_rage_mana = settings.leveling_shamanistic_rage_mana or 30
+    state.wand_threshold = spec_kit.setting_number(context, "leveling_wand_threshold", 30)
+    state.heal_hp = spec_kit.setting_number(context, "leveling_heal_hp", 50)
+    state.use_shocks = spec_kit.setting_bool(context, "leveling_use_shocks", true)
+    state.default_shock = spec_kit.setting(context, "leveling_default_shock", "flame")  -- "flame", "earth", "frost"
+    state.use_weapon_imbue = spec_kit.setting_bool(context, "leveling_use_weapon_imbue", true)
+    state.weapon_imbue = select_weapon_imbue(spec_kit.setting(context, "leveling_weapon_imbue", nil))
+    state.use_totems = spec_kit.setting_bool(context, "leveling_use_totems", true)
+    state.use_searing_totem = spec_kit.setting_bool(context, "leveling_use_searing_totem", true)
+    state.use_strength_totem = spec_kit.setting_bool(context, "leveling_use_strength_totem", true)
+    state.use_water_totem = spec_kit.setting_bool(context, "leveling_use_water_totem", true)
+    state.use_stormstrike = spec_kit.setting_bool(context, "leveling_use_stormstrike", true)
+    state.water_shield_mana = spec_kit.setting_number(context, "leveling_water_shield_mana", 40)
+    state.shamanistic_rage_mana = spec_kit.setting_number(context, "leveling_shamanistic_rage_mana", 30)
 
     return state
 end
