@@ -95,7 +95,7 @@ end
 -- ============================================================================
 -- Settings helper
 -- ============================================================================
-local get_setting = NS.setting or function(_, _, def) return def end
+
 
 -- ============================================================================
 -- Time-based gates (buff detection via Sylvanas API returns nil)
@@ -244,8 +244,8 @@ local function build_state(context)
  prot_state.is_group = context.is_group or false
  prot_state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me)) or 100
  -- JoW emergency mode with hysteresis: enter below threshold, exit only above threshold + 5%
- local jow_enabled = get_setting(context, "prot_jow_enabled", true)
- local jow_threshold = get_setting(context, "prot_jow_mana_threshold", 20)
+ local jow_enabled = spec_kit.setting_bool(context, "prot_jow_enabled", true)
+ local jow_threshold = spec_kit.setting_number(context, "prot_jow_mana_threshold", 20)
  if jow_enabled then
   if (prot_state.mana_pct or 100) < jow_threshold then
    prot_state.judgement_wisdom_mode = true
@@ -364,7 +364,7 @@ local function has_combat_target(context)
 end
 
 local function holy_shield_matches(context, state)
- if not get_setting(context, "prot_holy_shield", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_holy_shield", true) then return false end
  if not has_combat_target(context) then return false end
  if not state.holy_shield_ready then return false end
  -- Holy Shield has 8 charges (10 with Imp Holy Shield talent).
@@ -372,34 +372,34 @@ local function holy_shield_matches(context, state)
  -- Refresh when charges drop below configurable threshold.
  if state.has_holy_shield then
   local charges = state.holy_shield_charges or 0
-  local refresh_at = get_setting(context, "prot_holy_shield_charges", 2)
+  local refresh_at = spec_kit.setting_number(context, "prot_holy_shield_charges", 2)
   if charges > refresh_at then return false end
  end
  return true
 end
 
 local function consecration_matches(context, state)
- if not get_setting(context, "prot_consecration", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_consecration", true) then return false end
  if not has_combat_target(context) then return false end
  if not state.consecration_ready then return false end
  -- Don't break CC with Consecration
  if state.cc_nearby then return false end
  -- Mana conservation: skip Consecration below configurable floor
- local min_mana = get_setting(context, "prot_consecration_min_mana", CONSECRATION_MIN_MANA)
+ local min_mana = spec_kit.setting_number(context, "prot_consecration_min_mana", CONSECRATION_MIN_MANA)
  if (state.mana_pct or 100) < min_mana then return false end
  -- AoE threshold: only use single-target if Consecration is already ticking
- local min_targets = get_setting(context, "prot_consecration_targets", CONSECRATION_AOE_THRESHOLD)
+ local min_targets = spec_kit.setting_number(context, "prot_consecration_targets", CONSECRATION_AOE_THRESHOLD)
  if (state.enemy_count or 0) < min_targets and (state.consecration_remains or 0) > 2 then return false end
  return true
 end
 
 local function avenger_shield_matches(context, state)
- if not get_setting(context, "prot_avenger_shield", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_avenger_shield", true) then return false end
  if not state.avenger_ready then return false end
  -- Skip Avenger's Shield near CC'd mobs (bouncing breaks CC)
  if state.cc_nearby then return false end
  -- Opener mode: pre-pull when target exists but not yet in combat
- local is_opener = get_setting(context, "prot_avenger_opener", true)
+ local is_opener = spec_kit.setting_bool(context, "prot_avenger_opener", true)
   and context.has_valid_enemy_target
   and not context.in_combat
  -- Normal mode: in combat with valid target
@@ -409,7 +409,7 @@ local function avenger_shield_matches(context, state)
 end
 
 local function judgement_matches(context, state)
- if not get_setting(context, "prot_judgement", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_judgement", true) then return false end
  if not has_combat_target(context) then return false end
  if not state.judgement_ready then return false end
  if not state.has_seal then return false end
@@ -429,7 +429,7 @@ end
 -- [EaxRotations:TRACE]. 3s guard at matches-end eliminates the cycle.
 local _last_seal_righteousness_match_time = 0
 local function seal_righteousness_matches(context, state)
- if not get_setting(context, "prot_seal_of_righteousness", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_seal_of_righteousness", true) then return false end
  if state.has_seal then return false end
  if state.has_seal_command then return false end
  local now = NS.time_now and NS.time_now() or 0
@@ -442,7 +442,7 @@ local _last_seal_command_aoe_match_time = 0
 local _last_divine_protection_prot_match_time = 0
 local _last_lay_on_hands_prot_match_time = 0
 local function seal_command_aoe_matches(context, state)
- if not get_setting(context, "prot_seal_of_command", false) then return false end
+ if not spec_kit.setting_bool(context, "prot_seal_of_command", false) then return false end
  if not has_combat_target(context) then return false end
  if (state.enemy_count or 0) < 3 then return false end
  if state.has_seal or state.has_seal_command then return false end
@@ -454,16 +454,16 @@ local function seal_command_aoe_matches(context, state)
 end
 
 local function hammer_of_wrath_matches(context, state)
- if not get_setting(context, "prot_hammer_of_wrath", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_hammer_of_wrath", true) then return false end
  if not has_combat_target(context) then return false end
  if not state.hammer_of_wrath_ready then return false end
- local execute_hp = get_setting(context, "prot_hammer_of_wrath_hp", 20)
+ local execute_hp = spec_kit.setting_number(context, "prot_hammer_of_wrath_hp", 20)
  if (state.target_hp_pct or 100) > execute_hp then return false end
  return true
 end
 
 local function avenging_wrath_matches(context, state)
- if not get_setting(context, "prot_avenging_wrath", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_avenging_wrath", true) then return false end
  if not cooldowns_enabled(context) then return false end
  if state.has_forbearance then return false end
  if not state.avenging_wrath_ready then return false end
@@ -473,7 +473,7 @@ local function avenging_wrath_matches(context, state)
 end
 
 local function exorcism_matches(context, state)
- if not get_setting(context, "prot_exorcism", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_exorcism", true) then return false end
  if not has_combat_target(context) then return false end
  if not state.exorcism_ready then return false end
  if not state.target_creature_type then return false end
@@ -482,7 +482,7 @@ local function exorcism_matches(context, state)
 end
 
 local function holy_wrath_matches(context, state)
- if not get_setting(context, "prot_holy_wrath", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_holy_wrath", true) then return false end
  if not has_combat_target(context) then return false end
  -- Holy Wrath is AoE; only cast when 2+ demon/undead targets present
  if (state.enemy_count or 0) < 2 then return false end
@@ -493,7 +493,7 @@ local function holy_wrath_matches(context, state)
 end
 
 local function divine_protection_matches(context, state)
- local threshold = get_setting(context, "prot_divine_protection_hp", 25)
+ local threshold = spec_kit.setting_number(context, "prot_divine_protection_hp", 25)
  if (state.hp_pct or 100) > threshold then return false end
  if state.has_forbearance then return false end
  if state.has_divine_shield then return false end
@@ -505,7 +505,7 @@ local function divine_protection_matches(context, state)
 end
 
 local function divine_shield_matches(context, state)
- local threshold = get_setting(context, "prot_divine_shield_hp", 15)
+ local threshold = spec_kit.setting_number(context, "prot_divine_shield_hp", 15)
  if (state.hp_pct or 100) > threshold then return false end
  if state.has_forbearance then return false end
  if state.has_divine_shield then return false end
@@ -514,7 +514,7 @@ local function divine_shield_matches(context, state)
 end
 
 local function lay_on_hands_matches(context, state)
- local threshold = get_setting(context, "prot_lay_on_hands_hp", 10)
+ local threshold = spec_kit.setting_number(context, "prot_lay_on_hands_hp", 10)
  if (state.hp_pct or 100) > threshold then return false end
  if not state.lay_on_hands_ready then return false end
  local now = NS.time_now and NS.time_now() or 0
@@ -525,7 +525,7 @@ end
 
 local function hammer_of_justice_matches(context, state)
  if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
- if not get_setting(context, "prot_hammer_of_justice", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_hammer_of_justice", true) then return false end
  if not state.target_casting then return false end
  if not state.hammer_of_justice_ready then return false end
  return true
@@ -536,35 +536,35 @@ local function holy_shock_matches(context, state)
  if not state.holy_shock_ready then return false end
  -- Don't burn Holy Shock offensively when the tank needs self-healing;
  -- let Flash of Light / Holy Light (positioned below) get priority instead.
- local fol_threshold = get_setting(context, "prot_flash_of_light_hp", 40)
+ local fol_threshold = spec_kit.setting_number(context, "prot_flash_of_light_hp", 40)
  if (state.hp_pct or 100) <= fol_threshold then return false end
  return true
 end
 
 local function flash_of_light_matches(context, state)
- local threshold = get_setting(context, "prot_flash_of_light_hp", 40)
+ local threshold = spec_kit.setting_number(context, "prot_flash_of_light_hp", 40)
  if (state.hp_pct or 100) > threshold then return false end
  if not state.flash_of_light_ready then return false end
  return true
 end
 
 local function holy_light_matches(context, state)
- local threshold = get_setting(context, "prot_holy_light_hp", 25)
+ local threshold = spec_kit.setting_number(context, "prot_holy_light_hp", 25)
  if (state.hp_pct or 100) > threshold then return false end
  if not state.holy_light_ready then return false end
  return true
 end
 
 local function cleanse_matches(context, state)
- if not get_setting(context, "prot_cleanse", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_cleanse", true) then return false end
  if not state.needs_cleanse then return false end
  if not state.cleanse_ready then return false end
  return true
 end
 
 local function seal_of_wisdom_matches(context, state)
- if not get_setting(context, "prot_seal_of_wisdom", true) then return false end
- local mana_threshold = get_setting(context, "prot_seal_of_wisdom_mana", 30)
+ if not spec_kit.setting_bool(context, "prot_seal_of_wisdom", true) then return false end
+ local mana_threshold = spec_kit.setting_number(context, "prot_seal_of_wisdom_mana", 30)
  if (state.mana_pct or 100) > mana_threshold then return false end
  if state.has_seal then return false end
  if not state.seal_of_wisdom_ready then return false end
@@ -573,7 +573,7 @@ end
 
 local _last_devotion_aura_prot_match_time = 0
 local function devotion_aura_matches(context, state)
- if not get_setting(context, "prot_devotion_aura", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_devotion_aura", true) then return false end
  -- Don't block combat rotation with aura maintenance when in combat
  if has_combat_target(context) then return false end
  if state.has_devotion_aura then return false end
@@ -591,7 +591,7 @@ end
 -- when buff state lags behind matches calls). 3s is invisible vs 30min blessing duration.
 local _last_blessing_sanctuary_match_time = 0
 local function blessing_of_sanctuary_matches(context, state)
- if not get_setting(context, "prot_blessing_sanctuary", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_blessing_sanctuary", true) then return false end
  -- Don't block combat rotation with blessing maintenance when in combat
  if has_combat_target(context) then return false end
  if state.has_blessing_sanctuary then return false end
@@ -671,12 +671,12 @@ local strategies = {
  { name = "DivineShield", matches = divine_shield_matches, execute = function(context) return NS.try_cast(ACTION.DivineShield, context.me, "[PROTECTION] DivineShield") end },
  { name = "LayOnHands", matches = lay_on_hands_matches, execute = function(context) return NS.try_cast(ACTION.LayOnHands, context.me, "[PROTECTION] LayOnHands") end },
  -- Peel
- { name = "RighteousDefense", matches = function(context, state) return get_setting(context, "prot_righteous_defense", true) and state.ally_threatened ~= nil and state.righteous_defense_ready and (context.target_classification or 0) >= 1 end, execute = function(context, state) return NS.try_cast(ACTION.RighteousDefense, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end },
- { name = "BlessingOfProtectionAlly", matches = function(context, state) return get_setting(context, "prot_blessing_of_protection", true) and state.low_hp_ally ~= nil and NS.spell_ready(ACTION.BlessingOfProtection, state.low_hp_ally, {}) or false end, execute = function(context, state) return NS.try_cast(ACTION.BlessingOfProtection, state.low_hp_ally, "[PROTECTION] BoP emergency peel") end },
+ { name = "RighteousDefense", matches = function(context, state)  return spec_kit.setting_bool(context, "prot_righteous_defense", true) and state.ally_threatened ~= nil and state.righteous_defense_ready and (context.target_classification or 0) >= 1 end, execute = function(context, state) return NS.try_cast(ACTION.RighteousDefense, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end },
+ { name = "BlessingOfProtectionAlly", matches = function(context, state)  return spec_kit.setting_bool(context, "prot_blessing_of_protection", true) and state.low_hp_ally ~= nil and NS.spell_ready(ACTION.BlessingOfProtection, state.low_hp_ally, {}) or false end, execute = function(context, state) return NS.try_cast(ACTION.BlessingOfProtection, state.low_hp_ally, "[PROTECTION] BoP emergency peel") end },
  -- OOC party buff maintenance
  { name = "BlessingOfKingsParty", matches = function(context, state)
   if context.in_combat then return false end
-  if not get_setting(context, "prot_bok_party", true) then return false end
+  if not spec_kit.setting_bool(context, "prot_bok_party", true) then return false end
   if not state.is_group then return false end
   if not NS.spell_ready(ACTION.BlessingOfKings, NS.PLAYER_UNIT, { skip_range = true }) then return false end
   state.utility_target = find_ally(context, function(unit) return not unit_has_buff(unit, BLESSING_KINGS_BUFF) end)

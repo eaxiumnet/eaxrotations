@@ -77,13 +77,7 @@ local function spell_action(ids, label)
  return type(ids) == "table" and ids[1] or ids
 end
 
--- Pattern 14: NS.get_setting may be nil at runtime (test mocks, early init).
-local function safe_setting(context, key, fallback)
- local ctx_settings = context and context.settings
- if type(ctx_settings) == "table" and ctx_settings[key] ~= nil then return ctx_settings[key] end
- if type(NS.get_setting) == "function" then return NS.get_setting(key, fallback) end
- return fallback
-end
+-- Pattern 14: centralized spec_kit.setting_*() (nil-guarded against missing NS)
 
 -- TBC Holy spells not exposed by the base Paladin class map.
 local BlessingOfLight = ACTION.BlessingOfLight or spell_action({ 27144, 19979, 19978, 19977 }, "BlessingOfLight")
@@ -322,7 +316,7 @@ local function blessing_missing_or_expiring(entry, ids, threshold)
 end
 
 local function choose_holy_light_rank(context, entry)
- local mode = safe_setting(context, "holy_light_rank", "max")
+ local mode = spec_kit.setting(context, "holy_light_rank", "max")
  local hp = hp_of(entry)
  local deficit = deficit_of(entry)
  if mode == "rank4" then return HolyLightRank4, "Holy Light R4" end
@@ -338,8 +332,8 @@ local function choose_smart_heal(context, s, entry)
  if not can_help(entry) then return nil end
  local hp = hp_of(entry)
  local deficit = deficit_of(entry)
- local flash_hp = safe_setting(context, "holy_flash_light_hp", 85)
- local shock_hp = safe_setting(context, "holy_shock_hp", 40)
+ local flash_hp = spec_kit.setting_number(context, "holy_flash_light_hp", 85)
+ local shock_hp = spec_kit.setting_number(context, "holy_shock_hp", 40)
  if (context and context.is_moving or s.moving) and hp <= flash_hp and NS.spell_ready(ACTION.HolyShock, entry.unit, EMPTY_OPTS) then
   s.heal_spell = ACTION.HolyShock
   s.heal_label = "Holy Shock moving"
@@ -351,7 +345,7 @@ local function choose_smart_heal(context, s, entry)
   return ACTION.HolyShock
  end
  -- Light's Grace reduces Holy Light cast time to 2.0s, making it more efficient
- local hl_base_threshold = safe_setting(context, "holy_light_hp", 70)
+ local hl_base_threshold = spec_kit.setting_number(context, "holy_light_hp", 70)
  local hl_hp_threshold = s.has_lights_grace and (hl_base_threshold + 10) or hl_base_threshold
  if (hp <= hl_hp_threshold or deficit >= LIGHT_HEAL_DEFICIT) and (s.mana_pct or 100) >= LOW_MANA_PCT then
   -- Predictive overheal gate for Holy Light
@@ -392,18 +386,18 @@ local function choose_blessing(context, s)
  s.blessing_target = nil
  s.blessing_spell = nil
  s.blessing_label = nil
- if safe_setting(context, "holy_refresh_enabled", true) == false then return end
- if (s.mana_pct or 100) < safe_setting(context, "holy_refresh_mana", BLESSING_MIN_MANA) then return end
- local threshold = safe_setting(context, "holy_refresh_threshold", BLESSING_REFRESH_SEC)
+ if spec_kit.setting_bool(context, "holy_refresh_enabled", true) == false then return end
+ if (s.mana_pct or 100) < spec_kit.setting_number(context, "holy_refresh_mana", BLESSING_MIN_MANA) then return end
+ local threshold = spec_kit.setting_number(context, "holy_refresh_threshold", BLESSING_REFRESH_SEC)
  local use_greater = should_use_greater_blessing(s)
 
- if safe_setting(context, "holy_blessing_light", true) ~= false and can_help(s.tank) and blessing_missing_or_expiring(s.tank, BUFF_BLESSING_LIGHT, threshold) then
+ if spec_kit.setting_bool(context, "holy_blessing_light", true) ~= false and can_help(s.tank) and blessing_missing_or_expiring(s.tank, BUFF_BLESSING_LIGHT, threshold) then
   s.blessing_target = s.tank
   s.blessing_spell = use_greater and GreaterBlessingOfLight or BlessingOfLight
   s.blessing_label = use_greater and "Greater Blessing of Light" or "Blessing of Light"
   return
  end
- if safe_setting(context, "holy_blessing_wisdom", true) ~= false then
+ if spec_kit.setting_bool(context, "holy_blessing_wisdom", true) ~= false then
   for i = 1, s.count do
    local entry = s.entries[i]
    if entry_is_mana_user(entry) and blessing_missing_or_expiring(entry, BUFF_BLESSING_WISDOM, threshold) then
@@ -587,7 +581,7 @@ local strategies = {
    if not s.friendly_target_ready then return false end
    local ft = s.friendly_target
    if not ft or not ft.unit then return false end
-   if (ft.hp_pct or 100) >= safe_setting(context, "holy_friendly_target_threshold", 90) then return false end
+   if (ft.hp_pct or 100) >= spec_kit.setting_number(context, "holy_friendly_target_threshold", 90) then return false end
    if context.is_moving then return false end
    if context.player_control_locked then return false end
    s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, ft)
@@ -636,7 +630,7 @@ local strategies = {
  {
   name = "CleanseTankPriority",
   matches = function(context, s)
-   if safe_setting(context, "holy_auto_cleanse", true) == false then return false end
+   if spec_kit.setting_bool(context, "holy_auto_cleanse", true) == false then return false end
    if not entry_needs_cleanse(s.tank) then return false end
    return can_cast_on(ACTION.Cleanse, s.tank)
   end,
@@ -648,7 +642,7 @@ local strategies = {
   name = "PurifySelf",
   matches = function(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Purify, 3.0) then return false end
-   if safe_setting(context, "holy_auto_cleanse", true) == false then return false end
+   if spec_kit.setting_bool(context, "holy_auto_cleanse", true) == false then return false end
    return can_cast_on(Purify, s.purify_target)
   end,
   execute = function(_, s)
@@ -659,7 +653,7 @@ local strategies = {
   name = "CleanseParty",
   matches = function(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Cleanse, 3.0) then return false end
-   if safe_setting(context, "holy_auto_cleanse", true) == false then return false end
+   if spec_kit.setting_bool(context, "holy_auto_cleanse", true) == false then return false end
    return can_cast_on(ACTION.Cleanse, s.cleanse_target)
   end,
   execute = function(_, s)
@@ -680,7 +674,7 @@ local strategies = {
   matches = function(context, s)
    local target = s.lowest or s.tank
    if not can_help(target) or s.has_divine_favor then return false end
-   if hp_of(target) > safe_setting(context, "holy_divine_favor_hp", 45) then return false end
+   if hp_of(target) > spec_kit.setting_number(context, "holy_divine_favor_hp", 45) then return false end
    return NS.spell_ready(ACTION.DivineFavor, NS.PLAYER_UNIT, SELF_OPTS)
   end,
   execute = function()
@@ -693,7 +687,7 @@ local strategies = {
    if not s.has_divine_favor then return false end
    local target = s.lowest or s.tank
    if not can_help(target) then return false end
-   if hp_of(target) > safe_setting(context, "holy_shock_hp", 40) then return false end
+   if hp_of(target) > spec_kit.setting_number(context, "holy_shock_hp", 40) then return false end
    return NS.spell_ready(ACTION.HolyShock, target.unit, EMPTY_OPTS)
   end,
   execute = function(_, s)
@@ -718,7 +712,7 @@ local strategies = {
  {
   name = "AvengingWrathHeavyHealing",
   matches = function(context, s)
-   if not safe_setting(context, "holy_avenging_wrath", true) then return false end
+   if not spec_kit.setting_bool(context, "holy_avenging_wrath", true) then return false end
    if not (context and context.in_combat) then return false end
    -- Fire during heavy healing OR PvP burst-heal window
    if not s.heavy_healing then
@@ -742,7 +736,7 @@ local strategies = {
   matches = function(context, s)
    if not can_help(s.lowest) then return false end
    local moving = s.moving or context and context.is_moving
-   if hp_of(s.lowest) > safe_setting(context, "holy_shock_hp", 40) and not moving then return false end
+   if hp_of(s.lowest) > spec_kit.setting_number(context, "holy_shock_hp", 40) and not moving then return false end
    if not (NS.spell_ready and NS.spell_ready(ACTION.HolyShock, s.lowest.unit, EMPTY_OPTS)) then return false end
    -- Predictive overheal gate: Holy Shock is instant but still gated at higher HP
    if NS.gate_overheal("HolyShock", s.lowest.unit, 1.5, context.settings) then return false end
@@ -786,7 +780,7 @@ local strategies = {
  {
   name = "LightGraceChain",
   matches = function(context, s)
-   if not safe_setting(context, "holy_lg_chain_enabled", true) then return false end
+   if not spec_kit.setting_bool(context, "holy_lg_chain_enabled", true) then return false end
    if not (context and context.in_combat) then return false end
    if (s.lights_grace_remains or 0) <= 0 then return false end
    if (s.lights_grace_remains or 0) >= 2.5 then return false end
@@ -858,7 +852,7 @@ local strategies = {
  {
   name = "BlessingOfLightTank",
   matches = function(context, s)
-   if safe_setting(context, "holy_blessing_light", true) == false then return false end
+   if spec_kit.setting_bool(context, "holy_blessing_light", true) == false then return false end
    if not can_help(s.tank) or not blessing_missing_or_expiring(s.tank, BUFF_BLESSING_LIGHT, BLESSING_REFRESH_SEC) then return false end
    return NS.spell_ready(BlessingOfLight, s.tank.unit, EMPTY_OPTS)
   end,
@@ -900,7 +894,7 @@ local strategies = {
   name = "FlashOfLightEfficientTopoff",
   matches = function(context, s)
    if not can_help(s.lowest) then return false end
-   if hp_of(s.lowest) > safe_setting(context, "holy_flash_light_hp", 85) then return false end
+   if hp_of(s.lowest) > spec_kit.setting_number(context, "holy_flash_light_hp", 85) then return false end
    if not (NS.spell_ready and NS.spell_ready(ACTION.FlashOfLight, s.lowest.unit, EMPTY_OPTS)) then return false end
    -- Predictive overheal gate: skip FoL if predicted deficit is small
    if NS.gate_overheal("FlashOfLight", s.lowest.unit, 1.5, context.settings) then return false end
