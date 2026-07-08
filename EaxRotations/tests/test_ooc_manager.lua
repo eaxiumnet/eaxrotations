@@ -1,3 +1,4 @@
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 -- ============================================================================
 -- Test: OOC Manager — GCD check and broken_api_throttled guard
 -- ============================================================================

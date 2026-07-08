@@ -1,3 +1,4 @@
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 -- test_stance_manager.lua — Unit tests for stance_manager_sylvanas.
 -- WHAT:  Verify StanceManager.get_optimal_stance and should_switch.
 -- WHEN:  load-time verification.

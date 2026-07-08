@@ -1,3 +1,4 @@
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 -- test_dispel_manager.lua — Unit tests for dispel_manager_sylvanas.
 -- WHAT:  Verify DispelManager.can_dispel, is_throttled, should_dispel.
 -- WHEN:  load-time verification.

@@ -32,6 +32,7 @@
 --    NS.HunterAdaptive.RecordFire(spellName)
 
 local NS = _G.EaxRotations
+local spec_kit = require("shared/spec_kit_sylvanas")
 if not NS then return nil end
 local core = require("api/core")
 local SPELLS = NS.HunterSpells or {}
@@ -280,7 +281,7 @@ local CLIP_BUDGETS = {
 -- SETTINGS ACCESS
 -- ============================================================================
 local function setting(key, default)
-    return NS.get_setting and NS.get_setting(key, default) or default
+    return spec_kit.setting(nil, key, default)
 end
 
 local function resetInhouseShootTimer(reason)

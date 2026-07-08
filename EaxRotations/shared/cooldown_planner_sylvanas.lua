@@ -8,6 +8,7 @@
 -- DECISION: consumed by specs and trinket_manager via require().
 
 local NS = _G.EaxRotations
+local spec_kit = require("shared/spec_kit_sylvanas")
 local M = {}
 
 -- ============================================================================
@@ -53,8 +54,7 @@ end
 
 local function setting(settings, key, default)
   if settings and settings[key] ~= nil then return settings[key] end
-  if NS and NS.get_setting then return NS.get_setting(key, default) end
-  return default
+  return spec_kit.setting(nil, key, default)
 end
 
 local function buff_up(unit, ids)

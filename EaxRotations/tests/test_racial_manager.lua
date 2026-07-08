@@ -1,3 +1,4 @@
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 -- racial manager behavior regression test for orc and dwarf racials.
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
