@@ -13,6 +13,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
+
 local leveling = require("shared/leveling_sylvanas")
 
 -- ============================================================================
@@ -88,7 +90,6 @@ end
 
 local function build_state(context)
     if not context then return nil end
-    local settings = context.settings or {}
     leveling.build_common_state(context, leveling_state)
     leveling_state.has_any_seal = false
     leveling_state.needs_cleanse = needs_cleanse(context.me)
