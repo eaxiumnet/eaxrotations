@@ -423,7 +423,7 @@ require("shared/hunter_adaptive_sylvanas")
 function NS.create_adaptive_rotation_strategy(target_func)
     return function(context)
         if not NS.HunterAdaptive then return false end
-        if not spec_kit.setting_bool(context, "use_adaptive_rotation", false) then return false end
+        if not NS.setting_bool(context.settings or {}, "use_adaptive_rotation", false) then return false end
         if not context.in_combat then return false end
         if not context.target then return false end
         local target = (target_func and target_func(context)) or context.target
