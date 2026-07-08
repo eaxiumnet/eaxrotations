@@ -1,3 +1,5 @@
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;./?.lua;" .. package.path
+
 -- ============================================================================
 -- Test: consumable_manager — settings + bag wiring
 -- WHAT:  Regression test for the 2026-06-29 user-reported bugs:

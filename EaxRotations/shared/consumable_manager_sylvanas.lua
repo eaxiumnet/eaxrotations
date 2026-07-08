@@ -7,6 +7,7 @@
 
 local _G = _G
 local NS = _G.EaxRotations
+local spec_kit = require("shared/spec_kit_sylvanas")
 local M = {}
 
 local type = type
@@ -299,12 +300,10 @@ end
 function M.use_mana_potion(context)
     if not context then return false end
     -- Honour both the master toggle and the per-category toggle.
-    local settings = context.settings or {}
-    if settings.use_auto_consumables == false then return false end
-    if settings.use_mana_potions == false then return false end
+    if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
+    if not spec_kit.setting_bool(context, "use_mana_potions", true) then return false end
     -- Threshold is configurable; default 40% (legacy behaviour).
-    local threshold = settings.mana_potion_threshold
-    if type(threshold) ~= "number" then threshold = 40 end
+    local threshold = spec_kit.setting_number(context, "mana_potion_threshold", 40)
     if (context.mana_pct or 100) > threshold then return false end
     local ids = build_mana_potion_ids()
     for i = 1, #ids do
@@ -334,12 +333,10 @@ function M.use_health_potion(context)
     -- call to on_update when HP <= 35%, with NO master toggle and NO per-setting
     -- gate. The user reported that disabling "Auto Consumables" did not stop the
     -- rotation from chugging health potions. Now both gates are honoured.
-    local settings = context.settings or {}
-    if settings.use_auto_consumables == false then return false end
-    if settings.use_health_potions == false then return false end
+    if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
+    if not spec_kit.setting_bool(context, "use_health_potions", true) then return false end
     -- Threshold is configurable; default 35% (legacy).
-    local threshold = settings.health_potion_threshold
-    if type(threshold) ~= "number" then threshold = 35 end
+    local threshold = spec_kit.setting_number(context, "health_potion_threshold", 35)
     if (context.hp or 100) > threshold then return false end
     -- Fast-path: if we have NO health potions in bags, return immediately.
     -- (Per the user's report: "we didnt check our bags before changing to auto
@@ -510,9 +507,8 @@ function M.use_rune(context)
     if not context then return false end
     -- BUGFIX (2026-06-29): same auto-consume disable bug as use_health_potion —
     -- used to fire on low mana regardless of the master toggle. Now respects both.
-    local settings = context.settings or {}
-    if settings.use_auto_consumables == false then return false end
-    if settings.use_dark_runes == false then return false end
+    if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
+    if not spec_kit.setting_bool(context, "use_dark_runes", true) then return false end
     if (context.mana_pct or 100) > 40 then return false end
     if not has_any_item_in_bags(build_rune_ids()) then return false end
     local ids = build_rune_ids()
@@ -562,8 +558,7 @@ function M.should_check(context)
     -- disabled auto-consumables.  ``should_check`` is the gate that feeds
     -- both the run_list trace and the per-cycle work; it must agree with
     -- the executor's gate.
-    local settings = context.settings or {}
-    if settings.use_auto_consumables == false then return false end
+    if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
     -- Skip while already drinking or eating (don't spam consumables mid-channel)
     if player_has_any_buff(ACTIVE_BUFFS.drink) or player_has_any_buff(ACTIVE_BUFFS.refreshment) then return false end
     if player_has_any_buff(ACTIVE_BUFFS.food) then return false end
@@ -665,10 +660,7 @@ function M.on_update(context)
     _last_check = now
 
     -- Check user settings
-    local settings = context.settings or {}
-    local enabled = settings.use_auto_consumables
-    if enabled == nil then enabled = true end
-    if enabled == false then return false end
+    if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
 
     -- BUGFIX (2026-06-29): "we didnt check our bags before changing to auto
     -- consume."  Before any category work, do a single bag scan to determine
@@ -689,14 +681,14 @@ function M.on_update(context)
         -- if the player actually has at least one item from that category's
         -- list.  This is what the user asked for: "check our bags before
         -- changing to auto consume".
-        if settings.use_flasks ~= false and has_consumable_in_bags(FLASKS) and M.use_flask(context) then return true end
-        if settings.use_elixirs ~= false and has_consumable_in_bags(ELIXIRS) and M.use_elixir(context) then return true end
-        if settings.use_food ~= false and (has_consumable_in_bags(FOOD) or has_consumable_in_bags(DRINKS)) then
+        if spec_kit.setting_bool(context, "use_flasks", true) and has_consumable_in_bags(FLASKS) and M.use_flask(context) then return true end
+        if spec_kit.setting_bool(context, "use_elixirs", true) and has_consumable_in_bags(ELIXIRS) and M.use_elixir(context) then return true end
+        if spec_kit.setting_bool(context, "use_food", true) and (has_consumable_in_bags(FOOD) or has_consumable_in_bags(DRINKS)) then
             if M.use_food(context) then return true end
             if M.use_drink(context) then return true end
         end
-        if settings.use_scrolls ~= false and has_consumable_in_bags(SCROLLS) and M.use_scroll(context) then return true end
-        if settings.use_weapon_buffs ~= false and has_consumable_in_bags(WEAPON_BUFFS) and M.use_weapon_buff(context) then return true end
+        if spec_kit.setting_bool(context, "use_scrolls", true) and has_consumable_in_bags(SCROLLS) and M.use_scroll(context) then return true end
+        if spec_kit.setting_bool(context, "use_weapon_buffs", true) and has_consumable_in_bags(WEAPON_BUFFS) and M.use_weapon_buff(context) then return true end
         return false
     end
 
@@ -704,16 +696,16 @@ function M.on_update(context)
     -- Each per-setting gate is explicit; the self-gating ``use_health_potion``
     -- and ``use_rune`` are still called but they short-circuit immediately
     -- when their per-setting is false, so this is fine.
-    if settings.use_healthstones ~= false and has_consumable_in_bags(HEALTHSTONES) and M.use_healthstone(context) then return true end
+    if spec_kit.setting_bool(context, "use_healthstones", true) and has_consumable_in_bags(HEALTHSTONES) and M.use_healthstone(context) then return true end
     if has_consumable_in_bags(build_health_potion_ids()) and M.use_health_potion(context) then return true end
-    if settings.use_bandages ~= false and has_consumable_in_bags(BANDAGES) and M.use_bandage(context) then return true end
+    if spec_kit.setting_bool(context, "use_bandages", true) and has_consumable_in_bags(BANDAGES) and M.use_bandage(context) then return true end
     if has_consumable_in_bags(build_mana_potion_ids()) and M.use_mana_potion(context) then return true end
 
     -- Combat potions (once per fight, use at open)
-    if settings.use_combat_potions ~= false and has_consumable_in_bags(COMBAT_POTIONS) and M.use_combat_potion(context) then return true end
+    if spec_kit.setting_bool(context, "use_combat_potions", true) and has_consumable_in_bags(COMBAT_POTIONS) and M.use_combat_potion(context) then return true end
 
     -- Drums / runes as filler
-    if settings.use_drums ~= false and has_consumable_in_bags(DRUMS) and M.use_drums(context) then return true end
+    if spec_kit.setting_bool(context, "use_drums", true) and has_consumable_in_bags(DRUMS) and M.use_drums(context) then return true end
     if has_consumable_in_bags(build_rune_ids()) and M.use_rune(context) then return true end
 
     return false

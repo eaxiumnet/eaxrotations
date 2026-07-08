@@ -2,6 +2,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+local spec_kit = require("shared/spec_kit_sylvanas")
+
 local M = {}
 local _context = {}
 _context.lowest = { unit = nil, hp = 100 }
@@ -1061,7 +1063,7 @@ local HEALING_NAMES = {
     "heal", "renew", "mending", "lifebloom", "rejuvenation", "regrowth",
     "powerwordshield", "pws", "circleofhealing", "prayerofhealing",
     "bindingheal", "holyshock", "layonhands", "earthshield", "smartgroupheal",
-    "smartheal", "naturesswiftness",
+    "smartheal", "naturesswiftness", "tranquility", "divineillumination",
 }
 
 local DAMAGE_NAMES = {
@@ -1075,7 +1077,7 @@ local COOLDOWN_NAMES = {
     "avengingwrath", "combustion", "icyveins", "arcanepower", "rapidfire",
     "bestialwrath", "bloodfury", "berserking", "innervate", "shadowfiend",
     "innerfocus", "sweepingstrikes", "recklessness", "deathwish",
-    "bladeflurry", "adrenalinerush", "bloodlust", "shamanisticrage",
+    "bladeflurry", "adrenalinerush", "bloodlust", "shamanisticrage", "powerinfusion", "berserker", "trinket",
 }
 
 local UTILITY_NAMES = {
@@ -1084,7 +1086,7 @@ local UTILITY_NAMES = {
     "evasion", "sprint", "cower", "righteousfury", "battletrance",
     "battleshout", "commandingshout", "watershield", "shadowform",
     "bearform", "catform", "moonkinform", "stance", "thunderclap",
-    "demoshout", "demoralizing", "sunder", "faeriefire",
+    "demoshout", "demoralizing", "sunder", "faeriefire", "soulshatter", "soulstone",
 }
 
 local DEFENSIVE_NAMES = {
@@ -1120,15 +1122,14 @@ local function strategy_category(strategy, list_name, active)
 end
 
 local function strategy_allowed(strategy, list_name, active, context)
-    local settings = context.settings or {}
     local category = strategy_category(strategy, list_name, active)
     local is_healer = HEALING_PLAYSTYLES[tostring(active or ""):lower()] == true
 
     if is_healer and category == "damage" then return false, "healer_damage_blocked", category end
-    if settings.utility_enabled == false and category == "utility" then return false, "utility_disabled", category end
-    if settings.healing_enabled == false and (category == "healing" or (is_healer and category == "cooldown")) then return false, "healing_disabled", category end
-    if settings.damage_enabled == false and (category == "damage" or (category == "cooldown" and not is_healer)) then return false, "damage_disabled", category end
-    if settings.use_cooldowns == false and category == "cooldown" and not context.should_burst then return false, "cooldowns_disabled", category end
+    if not spec_kit.setting_bool(context, "utility_enabled", true) and category == "utility" then return false, "utility_disabled", category end
+    if not spec_kit.setting_bool(context, "healing_enabled", true) and (category == "healing" or (is_healer and category == "cooldown")) then return false, "healing_disabled", category end
+    if not spec_kit.setting_bool(context, "damage_enabled", true) and (category == "damage" or (category == "cooldown" and not is_healer)) then return false, "damage_disabled", category end
+    if not spec_kit.setting_bool(context, "use_cooldowns", true) and category == "cooldown" and not context.should_burst then return false, "cooldowns_disabled", category end
     return true, "allowed", category
 end
 

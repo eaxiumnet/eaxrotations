@@ -8,6 +8,8 @@
 local NS = _G.EaxRotations
 if not NS then return {} end
 
+local spec_kit = require("shared/spec_kit_sylvanas")
+
 local M = {}
 
 --- Should we switch to Aspect of the Hawk?
@@ -99,13 +101,12 @@ function M.viper_middleware_strategy(spells)
         name = "AspectOfTheViper",
         matches = function(context)
             if not context.in_combat then return false end
-            local settings = context.settings or {}
-            if settings.auto_aspect == false then return false end
+            if not spec_kit.setting_bool(context, "auto_aspect", true) then return false end
             local me = context.me
             if not me then return false end
             if NS.buff_up and NS.buff_up(me, { 34074 }) then return false end
             local mana_pct = context.mana_pct or (me.get_mana_percentage and me:get_mana_percentage()) or 100
-            local threshold = settings.viper_mana_threshold or 20
+            local threshold = spec_kit.setting_number(context, "viper_mana_threshold", 20)
             if mana_pct > threshold then return false end
             return NS.spell_ready and NS.spell_ready(spells.AspectOfTheViper, me, { skip_range = true })
         end,
@@ -125,13 +126,12 @@ function M.hawk_middleware_strategy(spells)
         name = "AspectOfTheHawk",
         matches = function(context)
             if not context.in_combat then return false end
-            local settings = context.settings or {}
-            if settings.auto_aspect == false then return false end
+            if not spec_kit.setting_bool(context, "auto_aspect", true) then return false end
             local me = context.me
             if not me then return false end
             if NS.buff_up and NS.buff_up(me, ASPECT_HAWK_IDS) then return false end
             local mana_pct = context.mana_pct or (me.get_mana_percentage and me:get_mana_percentage()) or 100
-            local threshold = (settings.viper_mana_threshold or 20) + 10
+            local threshold = spec_kit.setting_number(context, "viper_mana_threshold", 20) + 10
             if mana_pct <= threshold then return false end
             return NS.spell_ready and NS.spell_ready(spells.AspectOfTheHawk, me, { skip_range = true })
         end,

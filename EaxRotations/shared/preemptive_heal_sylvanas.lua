@@ -21,6 +21,8 @@ if not NS then return end
 local math_max = math.max
 local type = type
 
+local spec_kit = require("shared/spec_kit_sylvanas")
+
 local M = {}
 NS.PreemptiveHeal = M
 
@@ -217,12 +219,11 @@ end
 ---@param horizon_seconds number  Prediction horizon in seconds (default 2.5)
 ---@param settings table|nil      NS.settings or context.settings
 ---@return table|nil entry        The entry with the lowest predicted HP%
-function M.get_lowest(entries, count, usePredictive, horizon_seconds, settings)
+function M.get_lowest(entries, count, usePredictive, horizon_seconds, context)
     if not entries or not count or count <= 0 then return nil end
     horizon_seconds = type(horizon_seconds) == "number" and horizon_seconds or 2.5
-    settings = settings or (NS.settings or {})
 
-    if settings.healer_predict_enabled == false then
+    if not spec_kit.setting_bool(context, "healer_predict_enabled", true) then
         usePredictive = false
     end
 
@@ -234,7 +235,7 @@ function M.get_lowest(entries, count, usePredictive, horizon_seconds, settings)
         if entry then
             local hp
             if usePredictive then
-                hp = M.predictive_hp_pct(entry, horizon_seconds, settings)
+                hp = M.predictive_hp_pct(entry, horizon_seconds, context and context.settings)
             else
                 hp = entry.effective_hp or 100
             end
@@ -260,8 +261,7 @@ function M.match(context, state, threshold, cast_time)
     if not context.in_combat then return false end
     if context.player_control_locked or context.is_moving then return false end
 
-    local settings = context.settings or {}
-    threshold = threshold or settings.preemptive_heal_threshold or M.DEFAULT_THRESHOLD
+    threshold = threshold or spec_kit.setting_number(context, "preemptive_heal_threshold", M.DEFAULT_THRESHOLD)
     cast_time = cast_time or 2.5
 
     local entries = state.entries or (state.entries_raw)
@@ -269,7 +269,7 @@ function M.match(context, state, threshold, cast_time)
     if not entries or count <= 0 then return false end
 
     -- Find the unit with the lowest predicted HP%
-    local target_entry = M.get_lowest(entries, count, true, cast_time, settings)
+    local target_entry = M.get_lowest(entries, count, true, cast_time, context)
     if not target_entry or not target_entry.unit then return false end
 
     -- Skip if the most-at-risk unit is already the tank (tank gets priority
@@ -277,7 +277,7 @@ function M.match(context, state, threshold, cast_time)
     if target_entry.is_tank and state.tank then
         -- Only skip if tank already has Earth Shield, WS, HoTs etc.
         -- That is checked elsewhere; allow if the tank predicted HP is really low.
-        local predicted_hp = M.predictive_hp_pct(target_entry, cast_time, settings)
+        local predicted_hp = M.predictive_hp_pct(target_entry, cast_time, context and context.settings)
         if predicted_hp >= threshold * 0.8 then return false end
     end
 
@@ -289,7 +289,7 @@ function M.match(context, state, threshold, cast_time)
 
     -- Gate: mana floor — don't spend mana on preemptive heals when low
     local mana_pct = context.mana_pct or state.mana_pct or 100
-    local mana_floor = settings.preemptive_heal_mana_floor or 40
+    local mana_floor = spec_kit.setting_number(context, "preemptive_heal_mana_floor", 40)
     if mana_pct < mana_floor then return false end
 
     -- Cache the selected target on the state for the execute function
@@ -314,7 +314,7 @@ function M.execute(context, state, spell_id_or_table, label, opts)
     local predicted_hp = M.predictive_hp_pct(target_entry, opts and opts.cast_time or 2.5, context.settings)
 
     -- Final gate: if predicted HP is above threshold, skip (another healer got it)
-    local threshold = (context.settings and context.settings.preemptive_heal_threshold) or M.DEFAULT_THRESHOLD
+    local threshold = spec_kit.setting_number(context, "preemptive_heal_threshold", M.DEFAULT_THRESHOLD)
     if predicted_hp >= threshold then return false end
 
     -- Overheal gate using HealerDeficit
