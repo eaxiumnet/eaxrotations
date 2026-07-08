@@ -10,6 +10,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local auto_tremor = require("shared/auto_tremor_sylvanas")
 local purge_manager = require("shared/purge_manager_sylvanas")
 local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
@@ -67,8 +68,7 @@ local strategies = {
     {
         name = "AutoTremorTotem",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_auto_tremor_totem == false then return false end
+            if not spec_kit.setting_bool(context, "use_auto_tremor_totem", true) then return false end
             if not context.target then return false end
             return auto_tremor.is_fear_boss(context.target)
         end,
@@ -83,19 +83,18 @@ local strategies = {
     {
         name = "Purge",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_purge == false then return false end
+            if not spec_kit.setting_bool(context, "use_purge", true) then return false end
             if not context.target then return false end
             
             -- Check PvP only setting
-            local pvp_only = settings.purge_pvp_only
+            local pvp_only = spec_kit.setting_bool(context, "purge_pvp_only", false)
             if pvp_only == true then  -- Only restrict if explicitly enabled
                 if not (context.is_pvp or false) then return false end
             end
             
             -- Check mana floor
             local mana_pct = context.mana_pct or 100
-            local min_mana = settings.purge_min_mana_pct or 20
+            local min_mana = spec_kit.setting_number(context, "purge_min_mana_pct", 20)
             if mana_pct < min_mana then return false end
 
             -- Priority DB scan: strip Bloodlust, BoP, Recklessness, etc. first
@@ -128,13 +127,12 @@ local strategies = {
     {
         name = "CurePoison",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_self_dispel == false then return false end
+            if not spec_kit.setting_bool(context, "use_self_dispel", true) then return false end
             if not has_poison_debuff() then return false end
             
             -- Check mana floor
             local mana_pct = context.mana_pct or 100
-            local min_mana = settings.dispel_min_mana_pct or 20
+            local min_mana = spec_kit.setting_number(context, "dispel_min_mana_pct", 20)
             if mana_pct < min_mana then return false end
             
             -- Check if Cure Poison is learned and ready
@@ -170,13 +168,12 @@ local strategies = {
     {
         name = "CureDisease",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_self_dispel == false then return false end
+            if not spec_kit.setting_bool(context, "use_self_dispel", true) then return false end
             if not has_disease_debuff() then return false end
             
             -- Check mana floor
             local mana_pct = context.mana_pct or 100
-            local min_mana = settings.dispel_min_mana_pct or 20
+            local min_mana = spec_kit.setting_number(context, "dispel_min_mana_pct", 20)
             if mana_pct < min_mana then return false end
             
             -- Check if Cure Disease is learned and ready
@@ -213,9 +210,8 @@ local strategies = {
         name = "LightningShield",
         priority = 450,
         matches = function(context)
-            local settings = context.settings or {}
             if context.in_combat then return false end
-            if settings.auto_lightning_shield == false then return false end
+            if not spec_kit.setting_bool(context, "auto_lightning_shield", true) then return false end
             local ls_buffs = { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
             if NS.has_player_buff and NS.has_player_buff(ls_buffs) then return false end
             local spell = SPELLS.LightningShield or { id = ls_buffs, name = "LightningShield" }
@@ -236,8 +232,7 @@ local strategies = {
         name = "Bloodlust",
         priority = 750,
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_bloodlust == false then return false end
+            if not spec_kit.setting_bool(context, "use_bloodlust", true) then return false end
             if not context.in_combat then return false end
             if not context.has_valid_enemy_target then return false end
             local spell = SPELLS.Bloodlust or { id = { 2825 }, name = "Bloodlust" }
@@ -258,9 +253,8 @@ local strategies = {
         priority = 850,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            local threshold = settings.self_heal_hp or 0
+            local threshold = spec_kit.setting_number(context, "self_heal_hp", 0)
             if threshold <= 0 then return false end
             if (context.hp or 100) <= threshold then
                 local spell = SPELLS.LesserHealingWave or { id = { 25420, 10468, 10467, 10466, 8010, 8008, 8004 }, name = "LesserHealingWave" }
