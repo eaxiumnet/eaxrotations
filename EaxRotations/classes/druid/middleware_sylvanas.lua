@@ -5,6 +5,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local CCGateDB = CCBreakDB
 local SPELLS = NS.DruidSpells or {}
@@ -202,8 +203,7 @@ local strategies = {
     {
         name = "DruidCCBreak",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_cc_break == false then return false end
+            if not spec_kit.setting_bool(context, "use_cc_break", true) then return false end
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
@@ -265,19 +265,18 @@ local strategies = {
     {
         name = "FormAwareConsumables",
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
             if NS.buff_up(context.me, { 5215, 5217, 5216, 5218, 9839, 9840, 9841, 24249, 24389, 24404 }) then return false end
             if not can_use_items(context.stance) then return false end
             if not can_afford_reshift(context.stance) then return false end
 
             -- Check healthstone
-            if settings.use_healthstone and context.hp and context.hp <= (settings.healthstone_hp or 30) then
+            if spec_kit.setting_bool(context, "use_healthstone", true) and context.hp and context.hp <= spec_kit.setting_number(context, "healthstone_hp", 30) then
                 if NS.is_item_ready and NS.is_item_ready(22103) then return true end
             end
 
             -- Check healing potion
-            if settings.use_healing_potion and context.hp and context.hp <= (settings.healing_potion_hp or 35) then
+            if spec_kit.setting_bool(context, "use_healing_potion", true) and context.hp and context.hp <= spec_kit.setting_number(context, "healing_potion_hp", 35) then
                 if NS.is_item_ready and NS.is_item_ready(22829) then return true end
                 if NS.is_item_ready and NS.is_item_ready(22850) then return true end
             end
@@ -285,11 +284,10 @@ local strategies = {
             return false
         end,
         execute = function(context)
-            local settings = context.settings or {}
             local stance = context.stance
 
             -- Try healthstone first
-            if settings.use_healthstone and context.hp and context.hp <= (settings.healthstone_hp or 30) then
+            if spec_kit.setting_bool(context, "use_healthstone", true) and context.hp and context.hp <= spec_kit.setting_number(context, "healthstone_hp", 30) then
                 if NS.is_item_ready and NS.is_item_ready(22103) then
                     if NS.use_item_by_id and NS.use_item_by_id(22103, context.me) then
                         -- Reshift back to form if needed
@@ -305,7 +303,7 @@ local strategies = {
             end
 
             -- Try healing potion
-            if settings.use_healing_potion and context.hp and context.hp <= (settings.healing_potion_hp or 35) then
+            if spec_kit.setting_bool(context, "use_healing_potion", true) and context.hp and context.hp <= spec_kit.setting_number(context, "healing_potion_hp", 35) then
                 if NS.is_item_ready and NS.is_item_ready(22829) then
                     if NS.use_item_by_id and NS.use_item_by_id(22829, context.me) then
                         -- Reshift back to form if needed
@@ -342,13 +340,12 @@ local strategies = {
     {
         name = "PartyDispel",
         matches = function(context)
-            local settings = context.settings or {}
             -- Shared global kill switch
-            if settings.auto_dispel == false then return false end
+            if not spec_kit.setting_bool(context, "auto_dispel", true) then return false end
             -- Playstyle-specific AND gate: respect balance_auto_dispel / resto_auto_dispel
-            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            local playstyle = spec_kit.setting(context, "playstyle", nil) or spec_kit.setting(context, "active_playstyle", nil) or ""
             local playstyle_key = playstyle .. "_auto_dispel"
-            if settings[playstyle_key] == false then return false end
+            if spec_kit.setting(context, playstyle_key, nil) == false then return false end
             if not context.in_combat then return false end
             -- Check self for curse or poison
             local me = context.me or NS.GetPlayer()
@@ -445,8 +442,7 @@ local strategies = {
     {
         name = "MarkOfTheWild",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_self_buffs == false then return false end
+            if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
             -- Form-aware: MotW is caster-only, skip if in Bear/Cat form
             if not can_cast_in_current_form(26990) then return false end
             local motw_buffs = { 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126, 21850, 21849 }
@@ -465,8 +461,7 @@ local strategies = {
     {
         name = "Thorns",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_self_buffs == false then return false end
+            if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
             -- Form-aware: Thorns is caster-only, skip if in Bear/Cat form
             if not can_cast_in_current_form(26992) then return false end
             local thorns_buffs = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
@@ -485,11 +480,10 @@ local strategies = {
     {
         name = "BearFormPreCombat",
         matches = function(context)
-            local settings = context.settings or {}
             if context.in_combat then return false end
-            if settings.auto_bear_form_ooc == false then return false end
+            if not spec_kit.setting_bool(context, "auto_bear_form_ooc", true) then return false end
             -- Playstyle gate: auto bear form is for bear tanks only
-            local playstyle = settings.playstyle or settings.active_playstyle or ""
+            local playstyle = spec_kit.setting(context, "playstyle", nil) or spec_kit.setting(context, "active_playstyle", nil) or ""
             if playstyle ~= "bear" then return false end
             -- Check if already in Bear Form (buff check)
             local bear_buffs = { 9634, 5487 }
@@ -510,9 +504,12 @@ local strategies = {
         priority = 850,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
             if not context.in_combat then return false end
-            local threshold = settings.barkskin_hp or 0
+            -- Barkskin is caster-form only in TBC and breaks bear/cat form.
+            -- Only fire when NOT in a shifted form.
+            local shifted_form_buffs = { 9634, 5487, 768, 24858, 33891 }
+            if NS.has_player_buff and NS.has_player_buff(shifted_form_buffs) then return false end
+            local threshold = spec_kit.setting_number(context, "barkskin_hp", 0)
             if threshold <= 0 then return false end
             if (context.hp or 100) <= threshold then
                 local bs_buffs = { 22812 }
@@ -535,16 +532,18 @@ local strategies = {
         name = "Innervate",
         priority = 750,
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_innervate == false then return false end
+            if not spec_kit.setting_bool(context, "use_innervate", true) then return false end
             if not context.in_combat then return false end
+            -- Innervate requires caster form in TBC; do NOT break bear/cat/moonkin/tree.
+            local shifted_form_buffs = { 9634, 5487, 768, 24858, 33891 }
+            if NS.has_player_buff and NS.has_player_buff(shifted_form_buffs) then return false end
             local spell = SPELLS.Innervate or { id = { 29166 }, name = "Innervate" }
             if not (NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })) then return false end
             -- Check if Innervate buff already on anyone we care about
             local innervate_buff = { 29166 }
             if NS.has_player_buff and NS.has_player_buff(innervate_buff) then return false end
             local mana_pct = context.mana_pct or 100
-            local threshold = settings.innervate_mana_pct or 30
+            local threshold = spec_kit.setting_number(context, "innervate_mana_pct", 30)
             if mana_pct <= threshold then return true end
             -- Also cast if a healer party member is low mana
             if NS.GetPartyMembers then
@@ -568,7 +567,7 @@ local strategies = {
             -- Prefer low-mana healer
             local HEALER_CLASS_IDS = { [2] = true, [5] = true, [7] = true, [11] = true }
             if NS.GetPartyMembers then
-                local threshold = (context.settings or {}).innervate_mana_pct or 30
+                local threshold = spec_kit.setting_number(context, "innervate_mana_pct", 30)
                 for _, member in ipairs(NS.GetPartyMembers() or {}) do
                     if member then
                         local class_id = nil
@@ -596,8 +595,7 @@ local strategies = {
         priority = 1000,
         is_defensive = true,
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_rebirth == false then return false end
+            if not spec_kit.setting_bool(context, "use_rebirth", true) then return false end
             if not context.in_combat then return false end
             -- Must be in caster form (not Bear/Cat/Moonkin/Tree)
             local form_buffs = { 9634, 5487, 768, 24858, 33891 }
@@ -642,8 +640,7 @@ local strategies = {
     {
         name = "PvPCCGate",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_pvp_cc_gating == false then return false end
+            if not spec_kit.setting_bool(context, "use_pvp_cc_gating", true) then return false end
             if not context.in_combat then return false end
             local has_aoe = false
             for _, id in ipairs(DRUID_AOE_IDS) do
