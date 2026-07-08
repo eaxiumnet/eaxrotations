@@ -1,3 +1,9 @@
+-- run_rotation_tests.lua — EAX Rotation Test Suite Runner.
+-- WHAT:  discovers and executes all rotation unit-test suites under EaxRotations/tests/.
+-- WHEN:  invoked via lua EaxRotations/tests/run_rotation_tests.lua.
+-- WHY:   single entry point for 245 rotation-suite validations; ensures no regressions.
+-- SAFETY: pure orchestration; no rotation logic; fails fast on first suite error.
+
 local runner = require("EaxRotations/tests/test_runner_lib")
 local mode, root = runner.parse_args(arg, "EaxRotations")
 
