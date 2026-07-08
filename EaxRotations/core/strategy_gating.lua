@@ -22,7 +22,7 @@ M.HEALING_NAMES = {
     "heal", "renew", "mending", "lifebloom", "rejuvenation", "regrowth",
     "powerwordshield", "pws", "circleofhealing", "prayerofhealing",
     "bindingheal", "holyshock", "layonhands", "earthshield", "smartgroupheal",
-    "smartheal", "naturesswiftness",
+    "smartheal", "naturesswiftness", "tranquility",
 }
 
 M.DAMAGE_NAMES = {
@@ -34,9 +34,10 @@ M.DAMAGE_NAMES = {
 
 M.COOLDOWN_NAMES = {
     "avengingwrath", "combustion", "icyveins", "arcanepower", "rapidfire",
-    "bestialwrath", "bloodfury", "berserking", "innervate", "shadowfiend",
+    "bestialwrath", "bloodfury", "berserking", "berserker", "innervate", "shadowfiend",
     "innerfocus", "sweepingstrikes", "recklessness", "deathwish",
     "bladeflurry", "adrenalinerush", "bloodlust", "shamanisticrage",
+    "trinket", "powerinfusion",
 }
 
 M.UTILITY_NAMES = {
@@ -45,12 +46,13 @@ M.UTILITY_NAMES = {
     "evasion", "sprint", "cower", "righteousfury", "battletrance",
     "battleshout", "commandingshout", "watershield", "shadowform",
     "bearform", "catform", "moonkinform", "stance", "thunderclap",
-    "demoshout", "demoralizing", "sunder", "faeriefire",
+    "demoshout", "demoralizing", "sunder", "faeriefire", "shatter",
 }
 
 M.DEFENSIVE_NAMES = {
     "shieldblock", "barkskin", "iceblock", "manashield", "divineshield",
     "frenziedregeneration", "shieldwall", "laststand", "holyshield",
+    "soulstone",
 }
 
 --- Check if a string contains any of the needle substrings (literal, case-sensitive).

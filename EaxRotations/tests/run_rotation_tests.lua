@@ -343,6 +343,13 @@ local tests = {
  -- reset_api_health tests (previously not registered)
  "test_reset_api_health.lua",
  "test_reset_api_health_spell_integration.lua",
+
+ -- Orphaned tests (discovered 2026-07-08 audit)
+ "test_autoloot_sylvanas.lua",
+ "test_context_wired_fields_2026_06.lua",
+ "test_execute_phase.lua",
+ "test_multidot_engagement_filter.lua",
+ "test_strategy_categorization_validator.lua",
 }
 
 local function first_failure_line(output)
