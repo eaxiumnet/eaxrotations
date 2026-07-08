@@ -548,6 +548,7 @@ function build_state(context)
     state.now_ms = get_now_ms()
     state.me = me
     state.target = target
+    state.settings = context.settings or {}
 
     state.hp = context.hp or (NS.health_pct and NS.health_pct(me)) or 100
     state.mana_pct = get_mana_pct(context)
