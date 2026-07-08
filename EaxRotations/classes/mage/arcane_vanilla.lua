@@ -9,6 +9,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.MageSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- ============================================================================
 -- Buff / Debuff IDs
@@ -118,16 +119,7 @@ local function calc_mtte(mana_pct, ab_stacks, max_mana)
     return est_mana / mps
 end
 
---- Get a numeric setting value
---- @param context table Rotation context
---- @param key string Setting key
-local get_setting_num = NS.setting or function(context, key, default)
-    local settings = context and context.settings
-    if settings and settings[key] ~= nil then return settings[key] end
-    if NS.get_setting then return NS.get_setting(key, default) end
-    return default
-end
-local get_setting_bool = get_setting_num
+-- Settings access via spec_kit
 
 -- ============================================================================
 -- State Builder (called once per frame by the framework)
@@ -169,10 +161,10 @@ local function build_state(context)
     s.mtte_conserve = calc_mtte(s.mana_pct, 0, s.max_mana)
 
     -- Phase decision
-    local burn_enabled = get_setting_bool(context, "arcane_use_burn", true)
-    local burn_threshold = get_setting_num(context, "arcane_burn_mana_threshold", 65)
-    local conserve_threshold = get_setting_num(context, "arcane_conserve_mana_threshold", 25)
-    local min_mtte = get_setting_num(context, "arcane_mtte_min", 12)
+    local burn_enabled = spec_kit.setting_bool(context, "arcane_use_burn", true)
+    local burn_threshold = spec_kit.setting(context, "arcane_burn_mana_threshold", 65)
+    local conserve_threshold = spec_kit.setting(context, "arcane_conserve_mana_threshold", 25)
+    local min_mtte = spec_kit.setting(context, "arcane_mtte_min", 12)
     s.min_mtte = min_mtte
 
     -- Emergency: mana critically low
@@ -232,8 +224,8 @@ local function ice_barrier_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.IceBarrier, 3.0) then return false end
     if s.has_ice_barrier then return false end
     if (s.hp_pct or 100) > 60 then return false end
-    if not get_setting_bool(context, "use_defensives", true) then return false end
-    if not get_setting_bool(context, "use_ice_barrier", true) then return false end
+    if not spec_kit.setting_bool(context, "use_defensives", true) then return false end
+    if not spec_kit.setting_bool(context, "use_ice_barrier", true) then return false end
     return true
 end
 
@@ -243,8 +235,8 @@ local function mana_shield_matches(context, s)
     if s.has_mana_shield then return false end
     if (s.hp_pct or 100) > 40 then return false end
     if (s.mana_pct or 0) < 30 then return false end
-    if not get_setting_bool(context, "use_defensives", true) then return false end
-    if not get_setting_bool(context, "use_mana_shield", true) then return false end
+    if not spec_kit.setting_bool(context, "use_defensives", true) then return false end
+    if not spec_kit.setting_bool(context, "use_mana_shield", true) then return false end
     return true
 end
 
@@ -252,7 +244,7 @@ end
 local function counterspell_matches(context, s)
     if not context.target then return false end
     if not s.target_casting then return false end
-    if not get_setting_bool(context, "use_interrupt", true) then return false end
+    if not spec_kit.setting_bool(context, "use_interrupt", true) then return false end
     return true
 end
 
@@ -279,7 +271,7 @@ end
 local function pom_matches(context, s)
     if s.has_presence_of_mind then return false end
     if not s.in_combat then return false end
-    if not get_setting_bool(context, "use_cooldowns", true) then return false end
+    if not spec_kit.setting_bool(context, "use_cooldowns", true) then return false end
     -- Only use PoM during burn phase or bloodlust
     if s.phase ~= PHASE_BURN and not s.bloodlust_active then return false end
     -- Use PoM while moving to maintain DPS
@@ -291,9 +283,9 @@ end
 local function arcane_power_matches(context, s)
     if s.has_arcane_power then return false end
     if not s.in_combat then return false end
-    if not get_setting_bool(context, "use_cooldowns", true) then return false end
+    if not spec_kit.setting_bool(context, "use_cooldowns", true) then return false end
     if not NS.gate_cooldown_boss_only(context) then return false end
-    if not get_setting_bool(context, "arcane_use_burn", true) then return false end
+    if not spec_kit.setting_bool(context, "arcane_use_burn", true) then return false end
     -- Only use AP during burn phase or bloodlust
     if s.phase ~= PHASE_BURN and not s.bloodlust_active then return false end
     -- Require sufficient mana to sustain the full duration
@@ -308,9 +300,9 @@ end
 --- Evocation: mana recovery during conserve/emergency
 local function evocation_matches(context, s)
     if not s.in_combat then return false end
-    if not get_setting_bool(context, "use_evocation", true) then return false end
+    if not spec_kit.setting_bool(context, "use_evocation", true) then return false end
     if not s.evocation_available then return false end
-    local evo_mana = get_setting_num(context, "arcane_evocation_mana", 20)
+    local evo_mana = spec_kit.setting(context, "arcane_evocation_mana", 20)
     -- Emergency: very low mana
     if (s.mana_pct or 100) <= evo_mana then
         return true
@@ -324,9 +316,9 @@ end
 
 --- Mana Gem: use proactively during burn when mana is dropping
 local function mana_gem_matches(context, s)
-    if not get_setting_bool(context, "use_mana_gem", true) then return false end
+    if not spec_kit.setting_bool(context, "use_mana_gem", true) then return false end
     if not s.mana_gem_available then return false end
-    local gem_mana = get_setting_num(context, "arcane_mana_gem_mana", 55)
+    local gem_mana = spec_kit.setting(context, "arcane_mana_gem_mana", 55)
     -- Use during burn when mana drops below threshold
     if s.phase == PHASE_BURN and (s.mana_pct or 100) <= gem_mana then
         return true
