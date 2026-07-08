@@ -1,3 +1,9 @@
+-- druid/middleware_sylvanas.lua — Druid rotation middleware (form detection, OOC buffs, interrupts).
+-- WHAT:  pre-strategy middleware that sets form state, OOC buff priorities, and interrupt flags.
+-- WHEN:  every tick before strategy evaluation.
+-- WHY:   centralizes druid-specific context enrichment so specs stay focused on rotation logic.
+-- SAFETY: nil-guards on all menu references; no allocations in on_update path.
+
 -- Druid shared middleware.
 
 

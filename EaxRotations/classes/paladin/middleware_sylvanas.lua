@@ -1,3 +1,9 @@
+-- paladin/middleware_sylvanas.lua — Paladin rotation middleware (seal, blessing, aura).
+-- WHAT:  pre-strategy middleware that enriches context with seal state, blessing coverage, and aura.
+-- WHEN:  every tick before strategy evaluation.
+-- WHY:   centralizes paladin-specific context enrichment so specs stay focused on rotation logic.
+-- SAFETY: nil-guards on all menu references; no allocations in on_update path.
+
 -- Paladin shared middleware.
 
 

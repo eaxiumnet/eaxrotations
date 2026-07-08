@@ -1,3 +1,9 @@
+-- warlock/middleware_sylvanas.lua — Warlock rotation middleware (pet, shards, curses).
+-- WHAT:  pre-strategy middleware that enriches context with pet state, shard count, and curse coverage.
+-- WHEN:  every tick before strategy evaluation.
+-- WHY:   centralizes warlock-specific context enrichment so specs stay focused on rotation logic.
+-- SAFETY: nil-guards on all menu references; no allocations in on_update path.
+
 -- Warlock shared middleware.
 
 local NS = _G.EaxRotations

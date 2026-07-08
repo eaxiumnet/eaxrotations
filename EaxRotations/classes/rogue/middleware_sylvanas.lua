@@ -1,3 +1,9 @@
+-- rogue/middleware_sylvanas.lua — Rogue rotation middleware (stealth, poisons, combo points).
+-- WHAT:  pre-strategy middleware that enriches context with stealth state, poison coverage, and CP tracking.
+-- WHEN:  every tick before strategy evaluation.
+-- WHY:   centralizes rogue-specific context enrichment so specs stay focused on rotation logic.
+-- SAFETY: nil-guards on all menu references; no allocations in on_update path.
+
 -- Rogue shared middleware.
 
 local NS = _G.EaxRotations
