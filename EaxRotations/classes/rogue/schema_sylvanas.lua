@@ -1,3 +1,9 @@
+-- rogue/schema_sylvanas.lua — Rogue menu schema and settings defaults.
+-- WHAT:  defines menu widgets (checkboxes, sliders, keybinds) for rogue specs.
+-- WHEN:  loaded at addon init to register middleware menu entries.
+-- WHY:   centralized menu definition prevents duplicate widget IDs.
+-- SAFETY: nil-guarded menu references; default fallbacks for all settings.
+
 -- Rogue menu schema.
 
 local consumables = require("shared/schema_consumables_sylvanas")

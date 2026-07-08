@@ -1,3 +1,9 @@
+-- shaman/class_sylvanas.lua — Shaman class spells, constants, and shared helpers.
+-- WHAT:  spell ID tables, stance/form mappings, and class-specific utilities.
+-- WHEN:  loaded by all shaman specs; consumed via NS.ShamanSpells.
+-- WHY:   single source of truth for shaman spell IDs and class constants.
+-- SAFETY: nil-guarded lookups; no runtime allocations.
+
 -- Shaman spell table, playstyle config, and child module loader.
 
 local NS = _G.EaxRotations

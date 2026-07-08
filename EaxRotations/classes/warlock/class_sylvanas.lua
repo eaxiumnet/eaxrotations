@@ -1,3 +1,9 @@
+-- warlock/class_sylvanas.lua — Warlock class spells, constants, and shared helpers.
+-- WHAT:  spell ID tables, stance/form mappings, and class-specific utilities.
+-- WHEN:  loaded by all warlock specs; consumed via NS.WarlockSpells.
+-- WHY:   single source of truth for warlock spell IDs and class constants.
+-- SAFETY: nil-guarded lookups; no runtime allocations.
+
 -- Warlock spell table, playstyle config, and child module loader.
 
 local NS = _G.EaxRotations

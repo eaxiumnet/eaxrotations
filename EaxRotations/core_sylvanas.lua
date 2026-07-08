@@ -1,3 +1,9 @@
+-- core_sylvanas.lua — EAX Core helpers (buff_points, spell_ready, safe_state, etc.).
+-- WHAT:  shared utility functions consumed by all specs and middleware.
+-- WHEN:  loaded at startup; called every tick by specs.
+-- WHY:   centralizes common patterns (buff checking, cooldown queries, unit access).
+-- SAFETY: nil-guards on all API calls; pcall wrappers for fragile aura reads.
+
 -- shared runtime for settings, spell safety, aura helpers, healing scans, and strategy registration.
 
 local _G = _G

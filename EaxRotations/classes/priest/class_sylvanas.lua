@@ -1,3 +1,9 @@
+-- priest/class_sylvanas.lua — Priest class spells, constants, and shared helpers.
+-- WHAT:  spell ID tables, stance/form mappings, and class-specific utilities.
+-- WHEN:  loaded by all priest specs; consumed via NS.PriestSpells.
+-- WHY:   single source of truth for priest spell IDs and class constants.
+-- SAFETY: nil-guarded lookups; no runtime allocations.
+
 -- Priest spell table, playstyle config, and child module loader.
 
 local NS = _G.EaxRotations

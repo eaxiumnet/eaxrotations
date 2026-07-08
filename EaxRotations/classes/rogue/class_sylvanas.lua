@@ -1,3 +1,9 @@
+-- rogue/class_sylvanas.lua — Rogue class spells, constants, and shared helpers.
+-- WHAT:  spell ID tables, stance/form mappings, and class-specific utilities.
+-- WHEN:  loaded by all rogue specs; consumed via NS.RogueSpells.
+-- WHY:   single source of truth for rogue spell IDs and class constants.
+-- SAFETY: nil-guarded lookups; no runtime allocations.
+
 -- Rogue spell table, playstyle config, and child module loader.
 
 local NS = _G.EaxRotations
