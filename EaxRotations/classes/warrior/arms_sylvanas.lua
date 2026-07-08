@@ -371,7 +371,7 @@ local function build_state(context)
     arms_state.target_hp = context.target_hp or 100
     arms_state.stance = context.stance or STANCE.BATTLE
     arms_state.enemy_count = context.enemy_count or context.enemies_count or 1
-    arms_state.is_pvp = context.is_pvp or (context.settings and context.settings.pvp_mode) or false
+    arms_state.is_pvp = context.is_pvp or spec_kit.setting_bool(context, "pvp_mode", false)
     arms_state.in_combat = context.in_combat or false
     arms_state.is_moving = context.is_moving or false
     arms_state.target_distance = context.target_distance or context.target_range or context.distance or 0
@@ -818,7 +818,7 @@ end
 local STRATEGY_SPECS = {
     { "HealthPotion", function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_health_potion then return false end
           if (context.hp or 100) > 35 then return false end
           return true
@@ -827,7 +827,7 @@ local STRATEGY_SPECS = {
       end },
     { "DamagePotion", function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_damage_potion then return false end
           if not context.should_burst then return false end
           return true

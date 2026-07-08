@@ -531,10 +531,9 @@ end
 
 local function shield_wall_matches_fn(context, state)
  if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShieldWall, 3.0) then return false end
- local settings = context.settings or {}
- if settings.use_shield_wall == false then return false end
+ if spec_kit.setting_bool(context, "use_shield_wall", true) == false then return false end
  local default_threshold = state.is_group and 50 or 35
- local threshold = settings.defensive_hp_threshold or default_threshold
+ local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
  if (state.hp or 100) > threshold then return false end
  if state.has_shield_wall then return false end
  return true
@@ -542,25 +541,23 @@ end
 
 local function last_stand_matches_fn(context, state)
  if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LastStand, 3.0) then return false end
- local settings = context.settings or {}
- if settings.use_last_stand == false then return false end
+ if spec_kit.setting_bool(context, "use_last_stand", true) == false then return false end
  local default_threshold = state.is_group and 50 or 35
- local threshold = settings.defensive_hp_threshold or default_threshold
+ local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
  if (state.hp or 100) > threshold then return false end
  if state.has_last_stand then return false end
  return true
 end
 
 local function shield_bash_matches_fn(context, state)
- local settings = context.settings or {}
- if settings.use_interrupts == false then return false end
+ if spec_kit.setting_bool(context, "use_interrupts", true) == false then return false end
  -- Route through InterruptManager for cast window + humanization
  local mgr = NS.InterruptManager
  local target = context.target
  if mgr then
   if not NS.try_interrupt(target) then return false end
-  if not mgr.cast_has_interrupt_window(target, settings) then return false end
-  if not mgr.humanize_interrupt_elapsed(target, settings) then return false end
+  if not mgr.cast_has_interrupt_window(target, context.settings or {}) then return false end
+  if not mgr.humanize_interrupt_elapsed(target, context.settings or {}) then return false end
  else
   -- Fallback: bare cast-state checks
   if not state.target_is_casting then return false end
@@ -653,8 +650,7 @@ local function disarm_matches_fn(context, state)
  if not state.disarm_ready then return false end
  if not state.is_pvp then return false end
  if not state.disarm_class_ok then return false end
- local settings = context.settings or {}
- local trigger = settings.disarm_trigger or "on_burst"
+ local trigger = spec_kit.setting(context, "disarm_trigger", "on_burst")
  if trigger == "on_burst" then
   if not state.disarm_burst_name then return false end
   context._disarm_burst_name = state.disarm_burst_name
@@ -770,7 +766,7 @@ local strategies = {
  { name = "HealthPotion",
   matches = function(context)
    if not context.in_combat then return false end
-   if context.settings and context.settings.use_auto_potions == false then return false end
+   if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
    if not context.has_health_potion then return false end
    if (context.hp or 100) > 35 then return false end
    return true
@@ -779,7 +775,7 @@ local strategies = {
  { name = "DamagePotion",
   matches = function(context)
    if not context.in_combat then return false end
-   if context.settings and context.settings.use_auto_potions == false then return false end
+   if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
    if not context.has_damage_potion then return false end
    if not context.should_burst then return false end
    return true
@@ -836,14 +832,13 @@ local strategies = {
  {
   name = "ShieldSlamPurge",
   matches = function(context, state)
-   local settings = context.settings or {}
-   if settings.use_shield_slam_purge == false then return false end
+   if spec_kit.setting_bool(context, "use_shield_slam_purge", true) == false then return false end
    if not context.is_pvp then return false end
    if not context.in_combat then return false end
    if not state.ss_ready then return false end
    if not state.ss_purge_name then return false end
    -- Player-only gate
-   if settings.shield_slam_purge_pvp_only ~= false then
+   if spec_kit.setting_bool(context, "shield_slam_purge_pvp_only", true) then
     local ok, is_player = pcall(function() return context.target:is_player() end)
     if not (ok and is_player) then return false end
    end
@@ -997,11 +992,10 @@ local strategies = {
  {
   name = "Disarm",
   matches = function(context, state)
-   local settings = context.settings or {}
-   if settings.use_disarm == false then return false end
+   if spec_kit.setting_bool(context, "use_disarm", true) == false then return false end
    if not (NS.is_spell_learned and NS.is_spell_learned(676)) then return false end
    if not context.in_combat then return false end
-   if settings.disarm_pvp_only ~= false then
+   if spec_kit.setting_bool(context, "disarm_pvp_only", true) then
     local ok, is_player = pcall(function() return context.target:is_player() end)
     if not (ok and is_player) then return false end
    end

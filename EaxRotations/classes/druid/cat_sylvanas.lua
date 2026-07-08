@@ -534,7 +534,6 @@ end
 
 function build_state(context)
     local state = cat_state
-    local settings = context.settings or {}
     local me = context.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context.target
     local has_energy_context = context.energy ~= nil or context.me ~= nil or NS.power_current ~= nil or NS.energy ~= nil
@@ -549,7 +548,7 @@ function build_state(context)
     state.now_ms = get_now_ms()
     state.me = me
     state.target = target
-    state.settings = settings
+
     state.hp = context.hp or (NS.health_pct and NS.health_pct(me)) or 100
     state.mana_pct = get_mana_pct(context)
     state.energy = has_energy_context and get_energy(context) or ENERGY_CAP
@@ -560,7 +559,7 @@ function build_state(context)
     state.target_ttd_known = (context.ttd ~= nil) or (context.target_ttd ~= nil)
     state.target_range = get_target_range(me, target, context)
     state.in_combat = context.in_combat == true
-    state.is_pvp = context.is_pvp == true or (settings and settings.pvp_mode == true)
+    state.is_pvp = context.is_pvp == true or spec_kit.setting_bool(context, "pvp_mode", false)
     state.is_player_target = is_target_player(target, context)
     -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
@@ -590,8 +589,9 @@ function build_state(context)
     state.has_high_ap_window = state.has_bloodlust or (state.attack_power > 0 and state.rip_ap > 0 and state.attack_power >= state.rip_ap * AP_UPGRADE_RATIO) or (state.attack_power > 0 and state.rake_ap > 0 and state.attack_power >= state.rake_ap * AP_UPGRADE_RATIO)
     update_energy_tick(state)
     state.should_execute = state.target_hp <= NS.setting_number(settings, "cat_execute_hp", EXECUTE_HP)
-    state.should_aoe = (CombatMode and CombatMode.is_aoe(settings, state.enemy_count, settings.aoe_threshold or 3))
-        or (state.enemy_count >= (settings.aoe_threshold or 3))
+    local aoe_threshold = spec_kit.setting_number(context, "aoe_threshold", 3)
+    state.should_aoe = (CombatMode and CombatMode.is_aoe(context.settings or {}, state.enemy_count, aoe_threshold))
+        or (state.enemy_count >= aoe_threshold)
     state.should_tab_rake = state.enemy_count >= 2 and state.enemy_count <= 3
     state.should_pool_for_rip = (state.combo_points or 0) >= NS.setting_number(settings, "cat_rip_cp", 5) and (state.energy or 0) < RIP_COST and target_lives(state, MIN_RIP_TTD)
     state.should_pool_for_shred = (state.combo_points or 0) < 5 and (state.energy or 0) < SHRED_COST and (state.energy or 0) + ENERGY_PER_TICK >= SHRED_COST
@@ -671,7 +671,7 @@ end
 
 local function barkskin_matches(context, action)
     local state = build_state(context)
-    local threshold = NS.setting_number(state.settings, "cat_barkskin_hp", 85)
+    local threshold = spec_kit.setting_number(context, "cat_barkskin_hp", 85)
     if (state.hp or 100) > threshold then return false end
     if state.has_barkskin then return false end
     return true
@@ -688,7 +688,7 @@ end
 local function travel_form_matches(context, action)
     local state = build_state(context)
     -- Default off — users opt-in via setting to prevent surprise form spam.
-    if not NS.setting_bool(state.settings, "cat_auto_travel_form", false) then return false end
+    if not spec_kit.setting_bool(context, "cat_auto_travel_form", false) then return false end
     if state.in_combat then return false end
     if NS.has_form and NS.has_form("travel") then return false end
     if context.stance == 4 then return false end
@@ -730,7 +730,7 @@ end
 
 local function rip_matches(context, action)
     local state = build_state(context)
-    local required_cp = NS.setting_number(state.settings, "cat_rip_cp", 5)
+    local required_cp = spec_kit.setting_number(context, "cat_rip_cp", 5)
     if not state.target then return false end
     if context.combo_points ~= nil and state.combo_points < required_cp then return false end
     if not target_lives(state, MIN_RIP_TTD) then return false end
@@ -749,7 +749,7 @@ end
 -- Source: wowsims_classic/sim/druid/feral/rotation.go canRipTrick
 local function rip_trick_matches(context, action)
     local state = build_state(context)
-    if not NS.setting_bool(state.settings, "cat_use_rip_trick", false) then return false end
+    if not spec_kit.setting_bool(context, "cat_use_rip_trick", false) then return false end
     if not state.target then return false end
     if not state.is_cat or not state.in_combat then return false end
     if (state.mana_pct or 100) < POWERSHIFT_MIN_MANA then return false end
@@ -776,7 +776,7 @@ end
 -- Source: wowsims_classic/sim/druid/feral/rotation.go canShredTrick
 local function shred_trick_matches(context, action)
     local state = build_state(context)
-    if not NS.setting_bool(state.settings, "cat_use_shred_trick", false) then return false end
+    if not spec_kit.setting_bool(context, "cat_use_shred_trick", false) then return false end
     if not state.target then return false end
     if not state.is_cat or not state.in_combat then return false end
     if not state.is_behind then return false end
@@ -793,7 +793,7 @@ end
 
 local function rip_snapshot_matches(context, action)
     local state = build_state(context)
-    local required_cp = NS.setting_number(state.settings, "cat_rip_cp", 5)
+    local required_cp = spec_kit.setting_number(context, "cat_rip_cp", 5)
     if state.combo_points < required_cp then return false end
     if state.rip_remains <= RIP_REFRESH_WINDOW then return false end
     if not target_lives(state, MIN_RIP_TTD) then return false end
@@ -806,7 +806,7 @@ end
 
 local function bite_matches(context, action)
     local state = build_state(context)
-    local required_cp = NS.setting_number(state.settings, "cat_ferocious_bite_cp", 5)
+    local required_cp = spec_kit.setting_number(context, "cat_ferocious_bite_cp", 5)
     if state.combo_points < required_cp then return false end
     if state.rip_remains <= RIP_REFRESH_WINDOW and target_lives(state, MIN_RIP_TTD) then return false end
     -- TTD awareness: prefer Ferocious Bite when target dying soon (instant > DoT)
@@ -819,9 +819,9 @@ end
 local function bite_trick_matches(context, action)
     local state = build_state(context)
     if not state.in_combat then return false end
-    if NS.setting_bool and NS.setting_bool(state.settings, "cat_use_ferocious_bite", true) == false then return false end
+    if spec_kit.setting_bool(context, "cat_use_ferocious_bite", true) == false then return false end
     if (state.combo_points or 0) < 5 then return false end
-    local bite_max_energy = NS.setting_number and NS.setting_number(state.settings, "cat_bite_max_energy", 39) or 39
+    local bite_max_energy = spec_kit.setting_number(context, "cat_bite_max_energy", 39)
     if (state.energy or 0) > bite_max_energy then return false end
     if (state.energy or 0) < BITE_COST then return false end
     if state.next_tick_in <= 0.1 then return false end
@@ -944,7 +944,7 @@ end
 
 local function emergency_powershift_matches(context, action)
     local state = build_state(context)
-    if not NS.setting_bool(state.settings, "cat_powershift_enabled", true) then return false end
+    if not spec_kit.setting_bool(context, "cat_powershift_enabled", true) then return false end
     if not state.is_cat or not state.in_combat then return false end
     if (state.energy or 0) > 10 then return false end
     if (state.mana_pct or 100) < POWERSHIFT_MIN_MANA then return false end
@@ -964,7 +964,7 @@ end
 local function wait_execute(context)
     local state = build_state(context)
     if not state.should_execute then return false end
-    if state.combo_points < NS.setting_number(state.settings, "cat_ferocious_bite_cp", 5) then return false end
+    if state.combo_points < spec_kit.setting_number(context, "cat_ferocious_bite_cp", 5) then return false end
     if state.energy >= BITE_COST then return false end
     return true
 end
@@ -1020,7 +1020,7 @@ local strategies = {
     { name = "HealthPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_health_potion then return false end
           if (context.hp or 100) > 35 then return false end
           return true
@@ -1029,7 +1029,7 @@ local strategies = {
     { name = "ManaPotion",
       matches = function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_mana_potion then return false end
           if (context.mana_pct or 100) > 20 then return false end
           return true
@@ -1046,7 +1046,7 @@ local strategies = {
       execute = function(context) return engineering.use_best_bomb(context) end },
     { name = "RemoveCurse",
       matches = function(context)
-          if not (context.settings and context.settings.cat_auto_dispel) then return false end
+          if not spec_kit.setting_bool(context, "cat_auto_dispel", false) then return false end
           return NS.spell_ready(ACTION.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
       end,
       execute = function() return NS.try_cast(ACTION.RemoveCurse, NS.PLAYER_UNIT, "[CAT] Remove Curse self", { skip_range = true }) end },
