@@ -354,7 +354,7 @@ local function build_state(context)
     fury_state.target_hp = context.target_hp or 100
     fury_state.stance = context.stance or STANCE.BERSERKER
     fury_state.enemy_count = context.enemy_count or context.enemies_count or 1
-    fury_state.is_pvp = context.is_pvp or (context.settings and context.settings.pvp_mode) or false
+    fury_state.is_pvp = context.is_pvp or spec_kit.setting_bool(context, "pvp_mode", false)
     fury_state.in_combat = context.in_combat or false
     fury_state.is_moving = context.is_moving or false
     fury_state.target_distance = context.target_distance or context.target_range or context.distance or 0
@@ -602,7 +602,7 @@ end
 -- that requires precise stance-dance timing.
 -- Source: wowsims/tbc-new/ui/warrior/dps/apls/fury.apl.json (Overpower Weaving group)
 local function overpower_matches(context, state)
-    if not NS.setting_bool(context.settings, "fury_overpower_weave", false) then return false end
+    if not spec_kit.setting_bool(context, "fury_overpower_weave", false) then return false end
     if not state.overpower_ready then return false end
     -- Delay Check: BT and WW both >=1.5s from ready (don't delay core abilities)
     if (state.bt_cd or 99) < 1.5 then return false end
@@ -723,8 +723,8 @@ local function heroic_strike_matches(context, state)
     -- HS Trick: proactively queue when OH swing is imminent (before rage threshold)
     -- Dequeue middleware handles safety
     local me = context.me or NS.GetPlayer()
-    local settings = context.settings or {}
-    if settings.hs_trick and me then
+    local hs_trick = spec_kit.setting_bool(context, "hs_trick", false)
+    if hs_trick and me then
         local oh_remaining = (me and NS.swing_time_until and NS.swing_time_until(me, 2)) or 999
         local mh_remaining = (me and NS.swing_time_until and NS.swing_time_until(me)) or 999
         if oh_remaining > 0 and oh_remaining <= 0.4 then
@@ -736,7 +736,7 @@ local function heroic_strike_matches(context, state)
     -- Normal HS threshold
     local hs_rage = spec_kit.setting_number(context, "heroic_strike_rage", HEROIC_STRIKE_RAGE)
     -- HS Trick lower threshold when dual-wielding (dequeue middleware handles safety)
-    if settings.hs_trick and state.has_offhand then
+    if hs_trick and state.has_offhand then
         hs_rage = 30
     end
     if (state.rage or 0) < hs_rage then return false end
@@ -894,7 +894,7 @@ local STRATEGY_SPECS = {
     -- Auto-potions (context-based, O(1) gate)
     { "HealthPotion", function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_health_potion then return false end
           if (context.hp or 100) > 35 then return false end
           return true
@@ -903,7 +903,7 @@ local STRATEGY_SPECS = {
       end },
     { "DamagePotion", function(context)
           if not context.in_combat then return false end
-          if context.settings and context.settings.use_auto_potions == false then return false end
+          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
           if not context.has_damage_potion then return false end
           if not context.should_burst then return false end
           return true

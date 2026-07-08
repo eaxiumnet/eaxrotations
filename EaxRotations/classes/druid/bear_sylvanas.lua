@@ -333,7 +333,6 @@ local _last_build_time = -1
 local function build_state(context)
     local state    = bear_state
     local is_group = context.is_group or false
-    local settings = context.settings or NS.settings or {}
     local now      = context.now
     if now and now == _last_build_time then return state end   -- frame cache
     now = now or (NS.time_now and NS.time_now() or 0)
@@ -367,19 +366,19 @@ local function build_state(context)
     end
 
     -- settings (Pattern 8: nil-guarded via NS.setting_number / NS.setting_bool)
-    state.aoe_threshold     = NS.setting_number(settings, "bear_aoe_threshold",
-                                   NS.setting_number(settings, "aoe_threshold", 3))
-    state.maul_rage         = NS.setting_number(settings, "bear_maul_rage", 50)
-    state.barkskin_hp       = NS.setting_number(settings, "bear_barkskin_hp",
+    state.aoe_threshold     = spec_kit.setting_number(context, "bear_aoe_threshold",
+                                   spec_kit.setting_number(context, "aoe_threshold", 3))
+    state.maul_rage         = spec_kit.setting_number(context, "bear_maul_rage", 50)
+    state.barkskin_hp       = spec_kit.setting_number(context, "bear_barkskin_hp",
                                    is_group and 70 or 55)
-    state.frenzied_regen_hp = NS.setting_number(settings, "bear_frenzied_regen_hp",
+    state.frenzied_regen_hp = spec_kit.setting_number(context, "bear_frenzied_regen_hp",
                                    is_group and 50 or 35)
-    state.demo_roar_enabled = NS.setting_bool(settings, "bear_demo_roar", true)
+    state.demo_roar_enabled = spec_kit.setting_bool(context, "bear_demo_roar", true)
     -- Toggleable settings (Pattern 8: nil-guarded, default to enabled)
-    state.use_cooldowns     = NS.setting_bool(settings, "use_cooldowns", true)
-    state.use_self_buffs    = NS.setting_bool(settings, "use_self_buffs", true)
-    state.auto_bear_form    = NS.setting_bool(settings, "auto_bear_form_ooc", true)
-    state.use_pvp_cc_gate   = NS.setting_bool(settings, "use_pvp_cc_gating", true)
+    state.use_cooldowns     = spec_kit.setting_bool(context, "use_cooldowns", true)
+    state.use_self_buffs    = spec_kit.setting_bool(context, "use_self_buffs", true)
+    state.auto_bear_form    = spec_kit.setting_bool(context, "auto_bear_form_ooc", true)
+    state.use_pvp_cc_gate   = spec_kit.setting_bool(context, "use_pvp_cc_gating", true)
 
     -- auras (nil-safe; broken-API guard for crashy private servers)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
@@ -555,8 +554,7 @@ end
 
 local function bash_interrupt_matches(context, action)
     local s = build_state(context)
-    local settings = context.settings or {}
-    if settings.use_interrupt == false then return false end
+    if not spec_kit.setting_bool(context, "use_interrupt", true) then return false end
     if not s.is_bear or not s.has_valid_target then return false end
     if (s.rage or 0) < RAGE_BASH then return false end
     -- Route through InterruptManager when available for cast-window + humanization

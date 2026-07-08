@@ -26,8 +26,6 @@ local ACTION = {
 local MOONFIRE_DEBUFF = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
 local FAERIE_FIRE_DEBUFF = { 26993, 9907, 9749, 778, 770 }
 local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
-local EMPTY_SETTINGS = {}
-
 -- Schema for safe_state (Pattern 14 nil-guard elimination).
 local CASTER_SCHEMA = {
     moonfire_remains = 0,
@@ -73,11 +71,9 @@ end
 -- ============================================================================
 
 local function explicit_caster_selected(context)
-    local settings = context and context.settings or EMPTY_SETTINGS
     return context and (
-        ((context.settings and context.settings.playstyle) or "auto") == "caster"
-        or settings.active_playstyle == "caster"
-        or settings.playstyle == "caster"
+        spec_kit.setting(context, "playstyle", "auto") == "caster"
+        or spec_kit.setting(context, "active_playstyle", "auto") == "caster"
     )
 end
 
