@@ -244,7 +244,7 @@ local strategies = {
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
             if context.settings and context.settings.smite_use_shadowfiend == false then return false end
-            if state.mana_pct > (context.settings.smite_shadowfiend_mana or 35) then return false end
+            if (state.mana_pct or 100) > (context.settings.smite_shadowfiend_mana or 35) then return false end
             return state.shadowfiend_ready
         end,
         execute = function(context)
@@ -443,7 +443,7 @@ local strategies = {
             if context.is_moving then return false end
             if state.mana_emergency then return false end
             -- Mana low (<30%): only Smite + HF; skip Smite below 15%
-            if state.mana_low and state.mana_pct < (context.settings.smite_conserve_mana_floor or 15) then return false end
+            if state.mana_low and (state.mana_pct or 100) < (context.settings.smite_conserve_mana_floor or 15) then return false end
             return spell_exists(SPELLS.Smite) and spell_ready(SPELLS.Smite, context.target)
         end,
         execute = function(context)
