@@ -98,11 +98,18 @@ core_mod.izi = {
     draw_circle = function() end, draw_line = function() end,
 }
 
--- To test NS.DRTracker, we need to load its module before build_context runs.
--- The module self-registers NS.DRTracker on load, and main_sylvanas.lua does NOT
--- require it directly (it's loaded by main.lua in production).
--- For the test, we load it manually.
+-- To test NS.DRTracker, we mock it directly (the real module is loaded by
+-- the Sylvanas framework in production, not by our code).
 pcall(require, "shared/dr_tracker_sylvanas")
+if not _G.EaxRotations then _G.EaxRotations = {} end
+if not _G.EaxRotations.DRTracker then
+    _G.EaxRotations.DRTracker = {
+        get_dr_multiplier = function() return 1.0 end,
+        get_dr_count    = function() return 0 end,
+        is_dr_immune    = function() return false end,
+        CATEGORIES      = { STUN = "stun", FEAR = "fear", INCAPACITATE = "incapacitate", DISORIENT = "disorient", CYCLONE = "cyclone" },
+    }
+end
 
 local disp = dofile("EaxRotations/main_sylvanas.lua")
 assert_not_nil(disp, "dispatcher should load")

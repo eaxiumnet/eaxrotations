@@ -8,6 +8,7 @@
 --        flag). A name that doesn't match any keyword silently defaults to "damage",
 --        which means use_defensives/use_cooldowns toggles won't gate it correctly.
 -- SAFETY: pure file-read static analysis; loads the real strategy_gating module.
+-- Uses lfs (LuaFileSystem) for cross-platform directory scanning.
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/??.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
@@ -17,7 +18,11 @@ assert_true(sg_ok and type(sg) == "table", "cannot load core/strategy_gating")
 
 -- ============================================================================
 -- File collection: all spec + middleware files that declare strategies.
+-- Uses lfs for cross-platform recursive directory scanning.
 -- ============================================================================
+local lfs_ok, lfs = pcall(require, "lfs")
+assert_true(lfs_ok, "lfs (LuaFileSystem) is required for cross-platform directory scanning")
+
 local function read_file(path)
     local f = io.open(path, "rb"); if not f then return nil end
     local text = f:read("*a") or ""; f:close(); return text
@@ -34,17 +39,22 @@ local SPEC_DIRS = {
 local function collect_target_files()
     local out = {}
     for _, dir in ipairs(SPEC_DIRS) do
-        local p = io.popen('cmd /c "dir /s /b "' .. dir .. '\\*.lua" 2>nul"')
-        if p then
-            for line in p:lines() do
-                local norm = line:gsub("\\", "/")
-                if norm:match("_sylvanas%.lua$") and not norm:match("/tests/")
-                   -- Exclude class_sylvanas.lua: these define spell objects, not strategies.
-                   and not norm:match("class_sylvanas%.lua$") then
-                    out[#out + 1] = norm
+        local function scan(d)
+            for entry in lfs.dir(d) do
+                if entry ~= "." and entry ~= ".." then
+                    local path = d .. "/" .. entry
+                    local attr = lfs.attributes(path)
+                    if attr and attr.mode == "directory" then
+                        scan(path)
+                    elseif entry:match("_sylvanas%.lua$") and not entry:match("^class_sylvanas%.lua$") then
+                        out[#out + 1] = path
+                    end
                 end
             end
-            p:close()
+        end
+        local attr = lfs.attributes(dir)
+        if attr and attr.mode == "directory" then
+            scan(dir)
         end
     end
     return out
