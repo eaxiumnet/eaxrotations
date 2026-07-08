@@ -232,7 +232,7 @@ local strategies = {
         matches = function(context, state)
             if not (context.settings and context.settings.assassin_cold_blood_auto) then return false end
             if state.energy_pool_finisher then return false end  -- pool energy below 25
-            if state.combo < 5 then return false end
+            if (state.combo or 0) < 5 then return false end
             if state.has_cold_blood then return false end  -- already active
             -- Cold Blood first (off-GCD, use SPELLS table)
             if not NS.spell_ready(SPELLS.ColdBlood, NS.PLAYER_UNIT, { skip_range = true }) then return false end
@@ -258,7 +258,7 @@ local strategies = {
         matches = function(context, state)
             -- Refresh when about to drop (< 3s) even if active
             if state.slice_dice_active and not state.snd_needs_refresh then return false end
-            if state.combo < 2 then return false end
+            if (state.combo or 0) < 2 then return false end
             return NS.spell_ready(SPELLS.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function(context, state)
@@ -277,8 +277,8 @@ local strategies = {
         name = "RuptureBleed",
         matches = function(context, state)
             if state.energy_pool_finisher then return false end  -- pool energy below 25
-            if state.combo < 4 then return false end
-            if state.rupture_remains > DOT_REFRESH_WINDOW then return false end
+            if (state.combo or 0) < 4 then return false end
+            if (state.rupture_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Bleed-immune targets can't be ruptured
             if context.target_bleed_immune then return false end
             -- Only on long-lived targets (TTD > 12s)
@@ -296,7 +296,7 @@ local strategies = {
     {
         name = "KidneyShotCC",
         matches = function(context, state)
-            if state.combo < 3 then return false end
+            if (state.combo or 0) < 3 then return false end
             if not context.is_pvp then return false end
             -- Don't DR stun if already stunned recently
             if context.target_dr_stun and context.target_dr_stun > 0 then return false end
@@ -315,7 +315,7 @@ local strategies = {
         matches = function(context, state)
             if not (context.settings and context.settings.assassin_thistle_tea) then return false end
             if (state.energy or 0) > 40 then return false end  -- don't waste
-            if state.combo > 3 then return false end  -- better to pool for finisher
+            if (state.combo or 0) > 3 then return false end  -- better to pool for finisher
             return NS.spell_ready(SPELLS.ThistleTea, NS.PLAYER_UNIT, { skip_range = true })
         end,
         execute = function()
@@ -341,7 +341,7 @@ local strategies = {
         name = "EviscerateFallback",
         matches = function(context, state)
             if state.energy_pool_finisher then return false end  -- pool energy below 25
-            if state.combo < 5 then return false end
+            if (state.combo or 0) < 5 then return false end
             -- Primary finisher when Rupture isn't optimal
             return NS.spell_ready(SPELLS.Eviscerate, context.target)
         end,
@@ -358,7 +358,7 @@ local strategies = {
         matches = function(context, state)
             local target = context.target
             if not target then return false end
-            if state.combo < 3 then return false end
+            if (state.combo or 0) < 3 then return false end
             -- Skip if target has no armor (API unavailable or already fully reduced)
             if (context.target_armor or 0) <= 0 then return false end
             if context.has_sunder then return false end

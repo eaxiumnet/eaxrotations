@@ -228,7 +228,7 @@ function M.should_dispel(context, state)
 
     -- Skip dispelling during critical healing moments
     if state and state.tank and state.tank_hp then
-        if state.tank_hp < TANK_CRITICAL_HP then return false, nil, nil end
+        if (state.tank_hp or 100) < TANK_CRITICAL_HP then return false, nil, nil end
     end
     if state and state.lowest_hp and state.lowest_hp < TANK_CRITICAL_HP then
         return false, nil, nil

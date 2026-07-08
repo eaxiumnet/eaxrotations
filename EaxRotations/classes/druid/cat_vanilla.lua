@@ -223,7 +223,7 @@ end
 
 local function should_wait_for_tick(state, required_energy)
     if (state.energy or 0) >= required_energy then return false end
-    if state.next_tick_in > 0.45 then return false end
+    if (state.next_tick_in or 999) > 0.45 then return false end
     return (state.energy or 0) + ENERGY_PER_TICK >= required_energy
 end
 

@@ -195,7 +195,7 @@ local faerie_fire_feral_matches = function(context, state)
     if not state.target then return false end
     if not state.is_cat and not state.is_bear then return false end
     if not state.faerie_fire_feral_ready then return false end
-    if state.faerie_fire_feral_remains > 10 then return false end
+    if (state.faerie_fire_feral_remains or 0) > 10 then return false end
     return true
 end
 
@@ -207,8 +207,8 @@ local rake_matches = function(context, state)
     if not state.rake_ready then return false end
     if (state.energy or 0) < 35 then return false end
     if (state.combo_points or 0) >= 5 then return false end
-    if state.target_ttd > 0 and state.target_ttd < MIN_RAKE_TTD then return false end
-    if state.rake_remains > 3 then return false end
+    if (state.target_ttd or 999) > 0 and (state.target_ttd or 999) < MIN_RAKE_TTD then return false end
+    if (state.rake_remains or 0) > 3 then return false end
     return true
 end
 
@@ -232,8 +232,8 @@ local rip_matches = function(context, state)
     if not state.rip_ready then return false end
     if (state.energy or 0) < 30 then return false end
     if (state.combo_points or 0) < RIP_CP_MIN then return false end
-    if state.target_ttd > 0 and state.target_ttd < MIN_RIP_TTD then return false end
-    if state.rip_remains > 2 then return false end
+    if (state.target_ttd or 999) > 0 and (state.target_ttd or 999) < MIN_RIP_TTD then return false end
+    if (state.rip_remains or 0) > 2 then return false end
     return true
 end
 
@@ -245,7 +245,7 @@ local bite_matches = function(context, state)
     if not state.bite_ready then return false end
     if (state.energy or 0) < 35 then return false end
     if (state.combo_points or 0) < BITE_CP_MIN then return false end
-    if (state.combo_points or 0) >= RIP_CP_MIN and state.rip_ready and state.rip_remains <= 0 and state.target_ttd_known and state.target_ttd > MIN_RIP_TTD then return false end
+    if (state.combo_points or 0) >= RIP_CP_MIN and state.rip_ready and (state.rip_remains or 0) <= 0 and state.target_ttd_known and (state.target_ttd or 999) > MIN_RIP_TTD then return false end
     return true
 end
 
@@ -258,7 +258,7 @@ local claw_matches = function(context, state)
     if (state.combo_points or 0) >= 5 then return false end
     if (state.energy or 0) < 45 then return false end
     if state.shred_ready and state.is_behind and (state.energy or 0) >= 42 then return false end
-    if state.rake_ready and state.rake_remains <= 3 and (state.energy or 0) >= 35 then return false end
+    if state.rake_ready and (state.rake_remains or 0) <= 3 and (state.energy or 0) >= 35 then return false end
     return true
 end
 

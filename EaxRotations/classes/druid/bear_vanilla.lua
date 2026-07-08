@@ -474,15 +474,15 @@ local function healthstone_matches(context)
     local state = build_state(context)
     if not state.in_combat then return false end
     if (state.hp or 100) > 28 then return false end
-    return state.healthstone_ready > 0
+    return (state.healthstone_ready or 0) > 0
 end
 
 local function potion_matches(context)
     local state = build_state(context)
     if not state.in_combat then return false end
-    if state.healthstone_ready > 0 and (state.hp or 100) <= 28 then return false end
+    if (state.healthstone_ready or 0) > 0 and (state.hp or 100) <= 28 then return false end
     if (state.hp or 100) > 32 then return false end
-    return state.potion_ready > 0
+    return (state.potion_ready or 0) > 0
 end
 
 local function frenzied_regen_matches(context, action)
@@ -517,7 +517,7 @@ local function growl_matches(context, action)
     if not state.loose_target then return false end
     if state.target_target_is_tank then return false end
     if state.target_target_is_player or state.target_target_is_healer then
-        if state.now - state.recent_taunt < TAUNT_COOLDOWN_WINDOW then return false end
+        if (state.now or 0) - (state.recent_taunt or 0) < TAUNT_COOLDOWN_WINDOW then return false end
         return action_ready(context, action)
     end
     return false
@@ -546,7 +546,7 @@ local function demo_roar_matches(context, action)
     if not state.is_bear or not state.in_combat or not state.demo_roar_enabled then return false end
     if (state.enemy_count or 0) <= 0 then return false end
     if (state.demo_remains or 0) > DEMO_ROAR_REFRESH and not state.pack_needs_demo then return false end
-    if (state.enemy_count or 0) < 2 and not state.is_target_boss and state.target_ttd < 10 then return false end
+    if (state.enemy_count or 0) < 2 and not state.is_target_boss and (state.target_ttd or 999) < 10 then return false end
     return action_ready(context, action)
 end
 

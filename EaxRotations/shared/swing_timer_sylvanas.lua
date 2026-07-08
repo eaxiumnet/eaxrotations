@@ -103,7 +103,7 @@ end
 -- Get main-hand swing progress (0.0 to 1.0)
 function M.get_mh_progress()
     local t = now()
-    if swing_state.mh_duration == 0 then return 0 end
+    if (swing_state.mh_duration or 0) == 0 then return 0 end
     
     local elapsed = t - swing_state.mh_start
     local progress = elapsed / swing_state.mh_duration
@@ -113,7 +113,7 @@ end
 -- Get off-hand swing progress
 function M.get_oh_progress()
     local t = now()
-    if swing_state.oh_duration == 0 then return 0 end
+    if (swing_state.oh_duration or 0) == 0 then return 0 end
     
     local elapsed = t - swing_state.oh_start
     local progress = elapsed / swing_state.oh_duration
@@ -123,7 +123,7 @@ end
 -- Get ranged swing progress
 function M.get_ranged_progress()
     local t = now()
-    if swing_state.ranged_duration == 0 then return 0 end
+    if (swing_state.ranged_duration or 0) == 0 then return 0 end
     
     local elapsed = t - swing_state.ranged_start
     local progress = elapsed / swing_state.ranged_duration

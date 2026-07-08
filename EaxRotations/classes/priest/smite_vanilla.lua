@@ -173,7 +173,7 @@ local strategies = {
             if context.player_control_locked then return false end
             if not state.inner_fire_ready then return false end
             -- Always maintain; refresh when < 5s remains
-            if state.has_inner_fire and state.inner_fire_remains > 5 then return false end
+            if state.has_inner_fire and (state.inner_fire_remains or 0) > 5 then return false end
             return true
         end,
         execute = function(context, state)
@@ -372,7 +372,7 @@ local strategies = {
             if state.mana_emergency then return false end
             if context.settings and context.settings.smite_use_devouring_plague == false then return false end
             if context.ttd > 0 and context.ttd < 8 then return false end
-            if state.dp_remaining > 3 then return false end
+            if (state.dp_remaining or 0) > 3 then return false end
             return spell_exists(SPELLS.DevouringPlague) and spell_ready(SPELLS.DevouringPlague, context.target)
         end,
         execute = function(context)

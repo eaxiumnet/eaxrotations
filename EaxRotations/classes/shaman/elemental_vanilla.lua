@@ -119,7 +119,7 @@ local function lightning_shield_matches_fn(context, state)
     if state.mana_emergency then return false end
     if s.elemental_lightning_shield == false then return false end
     if state.lightning_shield_up then return false end
-    if state.now_ms - runtime.last_lightning_shield_ms < SHIELD_REFRESH_UNKNOWN_MS then return false end
+    if (state.now_ms or 0) - (runtime.last_lightning_shield_ms or 0) < SHIELD_REFRESH_UNKNOWN_MS then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.LightningShield, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
 
