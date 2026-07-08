@@ -203,12 +203,7 @@ local arms_state = {
 }
 
 -- Helper functions (extracted to shared_helpers_sylvanas; fallbacks kept if module missing)
-local setting = NS.setting or WH.setting or function(context, key, fallback)
-    local settings = context and context.settings
-    if settings and settings[key] ~= nil then return settings[key] end
-    if NS.get_setting then return NS.get_setting(key, fallback) end
-    return fallback
-end
+-- settings now delegated to spec_kit.setting_*() (Pattern 8)
 
 local function player_target(context, action)
     if action and action.target == "self" then return context.me or NS.GetPlayer() end
@@ -241,7 +236,7 @@ local execute_phase = WH.execute_phase or function(context, state)
 end
 
 local desired_stance = WH.desired_stance or function(context)
-    local preference = setting(context, "stance_preference", "auto")
+    local preference = spec_kit.setting(context, "stance_preference", "auto")
     if preference == "battle" or preference == STANCE.BATTLE then return STANCE.BATTLE end
     if preference == "defensive" or preference == STANCE.DEFENSIVE then return STANCE.DEFENSIVE end
     if preference == "berserker" or preference == STANCE.BERSERKER then return STANCE.BERSERKER end
@@ -485,7 +480,7 @@ end
 
 local function execute_matches(context, state)
     if not execute_phase(context, state) then return false end
-    local min_rage = setting(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
+    local min_rage = spec_kit.setting_number(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
     if context.rage ~= nil and state.rage < min_rage then return false end
     return action(context, build_action("Execute", ACTION.Execute, { min_rage = 15 }))
 end
@@ -529,7 +524,7 @@ local function rend_matches(context, state)
 end
 
 local function slam_matches(context, state)
-    if setting(context, "slam_weave_enabled", true) == false then return false end
+    if spec_kit.setting_bool(context, "slam_weave_enabled", true) == false then return false end
     if state.is_moving then return false end
     local rage = state.rage or 0
     if rage < SLAM_RAGE then return false end
@@ -544,7 +539,7 @@ end
 local function sweeping_strikes_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SweepingStrikes, 3.0) then return false end
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
-    local min_count = setting(context, "sweeping_strikes_count", SWEEPING_STRIKES_COUNT)
+    local min_count = spec_kit.setting_number(context, "sweeping_strikes_count", SWEEPING_STRIKES_COUNT)
     if state.enemy_count < min_count then return false end
     if state.has_sweeping_strikes then return false end
     -- TTD gate: don't waste AoE CD if target is about to die
@@ -554,7 +549,7 @@ end
 
 local function commanding_shout_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CommandingShout, 3.0) then return false end
-    if not setting(context, "use_commanding_shout", false) then return false end
+    if not spec_kit.setting_bool(context, "use_commanding_shout", false) then return false end
     if state.has_commanding_shout then return false end
     if state.rage < 10 then return false end
     return action(context, build_action("CommandingShout", ACTION.CommandingShout, { target = "self", kind = "buff", buff = COMMANDING_SHOUT_BUFF, requires_target = false, min_rage = 10 }))
@@ -563,7 +558,7 @@ end
 local function sunder_armor_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
     if (context.target_armor or 0) <= 0 then return false end
-    if not setting(context, "use_sunder_armor", false) then return false end
+    if not spec_kit.setting_bool(context, "use_sunder_armor", false) then return false end
     if state.sunder_stacks >= 5 then return false end
     if state.rage < 15 then return false end
     if state.execute_phase then return false end
@@ -601,7 +596,7 @@ local function would_starve_arms(context, state, cost)
         if (rage - cost) < OVERPOWER_RAGE then return true end
     end
     if state.execute_phase then
-        local execute_min = setting(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
+        local execute_min = spec_kit.setting_number(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
         if (rage - cost) < execute_min then return true end
     end
     local mh_until = state.mh_until or 999
@@ -633,13 +628,13 @@ local function hamstring_matches(context, state)
         return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
     end
     -- Tactician fishing — spam Hamstring when MS is on CD and rage is high
-    local tactician_enabled = setting(context, "hamstring_tactician_weave", true)
-    local weave_rage = setting(context, "hamstring_weave_rage", HAMSTRING_SPAM_RAGE)
+    local tactician_enabled = spec_kit.setting_bool(context, "hamstring_tactician_weave", true)
+    local weave_rage = spec_kit.setting_number(context, "hamstring_weave_rage", HAMSTRING_SPAM_RAGE)
     if tactician_enabled and not state.execute_phase and state.rage >= weave_rage and state.ms_cd > 1.5 then
         return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10 }))
     end
     -- Fleeing mobs (snare utility)
-    if setting(context, "hamstring_fleeing_mobs", true) and state.hamstring_remains <= 3 then
+    if spec_kit.setting_bool(context, "hamstring_fleeing_mobs", true) and state.hamstring_remains <= 3 then
         if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
         return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
     end
@@ -682,7 +677,7 @@ end
 local function intercept_matches(context, state)
     if state.target_distance < 8 or state.target_distance > 25 then return false end
     -- Respect auto_charge toggle (When auto_charge is off, Intercept is disabled)
-    local auto_charge = setting(context, "auto_charge", true)
+    local auto_charge = spec_kit.setting_bool(context, "auto_charge", true)
     if not auto_charge then return false end
     -- v2.1.7/v2.1.8: Charge opener protection — don't Intercept if we just Charged
     if not (NS.spell_ready(ACTION.Intercept, context.target) or false) then return false end
@@ -690,12 +685,12 @@ local function intercept_matches(context, state)
 end
 
 local function charge_matches(context, state)
-    local auto_charge = setting(context, "auto_charge", true)
+    local auto_charge = spec_kit.setting_bool(context, "auto_charge", true)
     if not auto_charge then return false end
     if state.in_combat then return false end
     if state.target_distance < 8 or state.target_distance > 25 then return false end
     -- Charge Only OOC Mobs: skip if target is already in combat with someone else
-    local charge_only_ooc = setting(context, "charge_only_ooc", true)
+    local charge_only_ooc = spec_kit.setting_bool(context, "charge_only_ooc", true)
     if charge_only_ooc and (context.target and bool_call(context.target, "is_in_combat")) then return false end
     if not (NS.spell_ready(ACTION.Charge, context.target) or false) then return false end
     return action(context, build_action("Charge", ACTION.Charge, { required_stance = STANCE.BATTLE, cooldown = 15 }))
@@ -749,7 +744,7 @@ local function defensive_stance_matches(context, state)
 end
 
 local function cooldowns_allowed(context, state)
-    local setting_use = setting(context, "use_cooldowns", true)
+    local setting_use = spec_kit.setting_bool(context, "use_cooldowns", true)
     if not setting_use then return false end
     return true
 end
@@ -815,7 +810,7 @@ local function healthstone_matches(context, state)
     if not state.healthstone_ready then return false end
     if state.hp > HEALTHSTONE_HP_THRESHOLD then return false end
     -- Respect menu setting
-    local hs_hp = setting(context, "healthstone_hp", HEALTHSTONE_HP_THRESHOLD)
+    local hs_hp = spec_kit.setting_number(context, "healthstone_hp", HEALTHSTONE_HP_THRESHOLD)
     if state.hp > hs_hp then return false end
     return true
 end

@@ -261,12 +261,7 @@ local fury_state = {
 }
 
 -- Helper functions (extracted to shared_helpers_sylvanas; fallbacks kept if module missing)
-local setting = NS.setting or WH.setting or function(context, key, fallback)
-    local settings = context and context.settings
-    if settings and settings[key] ~= nil then return settings[key] end
-    if NS.get_setting then return NS.get_setting(key, fallback) end
-    return fallback
-end
+-- settings now delegated to spec_kit.setting_*() (Pattern 8)
 
 local bool_call = WH.bool_call or function(unit, method)
     if not unit or type(unit[method]) ~= "function" then return false end
@@ -295,7 +290,7 @@ local stance_swap_safe = WH.stance_swap_safe or function(state, cost)
 end
 
 local desired_stance = WH.desired_stance or function(context)
-    local preference = setting(context, "stance_preference", "auto")
+    local preference = spec_kit.setting(context, "stance_preference", "auto")
     if preference == "battle" or preference == STANCE.BATTLE then return STANCE.BATTLE end
     if preference == "defensive" or preference == STANCE.DEFENSIVE then return STANCE.DEFENSIVE end
     if preference == "berserker" or preference == STANCE.BERSERKER then return STANCE.BERSERKER end
@@ -491,11 +486,11 @@ end
 
 -- Charge: OOC with pull protection, respects toggle, stays in Battle Stance
 local function charge_matches(context, state)
-    local auto_charge = setting(context, "auto_charge", true)
+    local auto_charge = spec_kit.setting_bool(context, "auto_charge", true)
     if not auto_charge then return false end
     if state.in_combat then return false end
     -- Charge Only OOC Mobs protection: skip if target is already in combat
-    local ooc_only = setting(context, "charge_ooc_only", true)
+    local ooc_only = spec_kit.setting_bool(context, "charge_ooc_only", true)
     if ooc_only and context.target then
         local target_in_combat = bool_call(context.target, "is_in_combat") or false
         if target_in_combat then return false end
@@ -529,9 +524,9 @@ end
 
 -- Healthstone / HealthPotion: auto-use consumable at low HP (healthstone preferred, potion fallback)
 local function healthstone_matches(context, state)
-    local hs_enabled = setting(context, "use_healthstones", true)
+    local hs_enabled = spec_kit.setting_bool(context, "use_healthstones", true)
     if not hs_enabled then return false end
-    local hs_hp = setting(context, "healthstone_hp", 35)
+    local hs_hp = spec_kit.setting_number(context, "healthstone_hp", 35)
     if (state.hp or 100) > hs_hp then return false end
     -- Healthstone preferred, then health potion as fallback
     if state.healthstone_ready and state.healthstone_id then
@@ -545,7 +540,7 @@ end
 
 -- Recklessness: 30min burst CD — stack with Bloodlust/Drums/other major CDs.
 local function recklessness_matches(context, state)
-    local cds_enabled = setting(context, "use_cooldowns", true)
+    local cds_enabled = spec_kit.setting_bool(context, "use_cooldowns", true)
     if not cds_enabled or not state.recklessness_ready then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not state.in_combat then return false end
@@ -567,7 +562,7 @@ local function death_wish_matches(context, state)
     if is_cc and cc_type == "fear" then
         return action(context, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false, cooldown = 180 }))
     end
-    local cds_enabled = setting(context, "use_cooldowns", true)
+    local cds_enabled = spec_kit.setting_bool(context, "use_cooldowns", true)
     if not cds_enabled or not state.death_wish_ready then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if (state.hp or 100) < 45 then return false end
@@ -655,7 +650,7 @@ end
 -- Bloodthirst: core Fury ability
 local function bt_matches(context, state)
     -- WW priority: yield to Whirlwind when enough enemies nearby and WW is ready
-    local ww_prio = setting(context, "fury_ww_prio_count", 2)
+    local ww_prio = spec_kit.setting_number(context, "fury_ww_prio_count", 2)
     if ww_prio > 0 and (state.enemy_count or 0) >= ww_prio and (context.rage or 0) >= 25 and state.ww_ready then
         return false
     end
@@ -669,9 +664,9 @@ local function sunder_armor_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
     if (context.target_armor or 0) <= 0 then return false end
     if execute_phase(context, state) then return false end
-    local sunder_mode = setting(context, "sunder_mode", "off")
+    local sunder_mode = spec_kit.setting(context, "sunder_mode", "off")
     if sunder_mode == "off" then return false end
-    local max_stacks = setting(context, "sunder_stacks", 3)
+    local max_stacks = spec_kit.setting_number(context, "sunder_stacks", 3)
     if (state.sunder_stacks or 0) >= max_stacks then return false end
     -- Low priority mode: only cast if rage is high
     if sunder_mode == "low" and (state.rage or 0) < 60 then return false end
@@ -681,7 +676,7 @@ end
 -- Sweeping Strikes: AoE prep
 local function sweeping_strikes_matches(context, state)
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
-    local min_count = setting(context, "sweeping_strikes_count", 2)
+    local min_count = spec_kit.setting_number(context, "sweeping_strikes_count", 2)
     if (state.enemy_count or 0) < min_count then return false end
     if state.has_sweeping_strikes then return false end
     if state.stance ~= STANCE.BATTLE then return false end
@@ -699,14 +694,14 @@ end
 -- Execute: finish phase
 local function execute_matches(context, state)
     if not execute_phase(context, state) then return false end
-    local min_rage = setting(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
+    local min_rage = spec_kit.setting_number(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
     if (state.rage or 0) < min_rage then return false end
     return action(context, build_action("Execute", ACTION.Execute, { required_stance = STANCE.BERSERKER, min_rage = 15 }))
 end
 
 -- Slam: weave between swings (when Bloodthirst on CD)
 local function slam_matches(context, state)
-    if setting(context, "slam_weave_enabled", true) == false then return false end
+    if spec_kit.setting_bool(context, "slam_weave_enabled", true) == false then return false end
     if state.is_moving then return false end
     if (state.rage or 0) < SLAM_RAGE_COST then return false end
     if (state.bt_cd or 99) <= 1.5 then return false end
@@ -739,7 +734,7 @@ local function heroic_strike_matches(context, state)
         end
     end
     -- Normal HS threshold
-    local hs_rage = setting(context, "heroic_strike_rage", HEROIC_STRIKE_RAGE)
+    local hs_rage = spec_kit.setting_number(context, "heroic_strike_rage", HEROIC_STRIKE_RAGE)
     -- HS Trick lower threshold when dual-wielding (dequeue middleware handles safety)
     if settings.hs_trick and state.has_offhand then
         hs_rage = 30
@@ -753,7 +748,7 @@ local function cleave_matches(context, state)
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     if should_reserve_for_sweeping(context, state) then return false end
     if (state.enemy_count or 0) < 2 then return false end
-    local cleave_rage = setting(context, "cleave_rage", CLEAVE_RAGE)
+    local cleave_rage = spec_kit.setting_number(context, "cleave_rage", CLEAVE_RAGE)
     local rage = state.rage or 0
     if rage < cleave_rage then return false end
     if would_starve_core_fury(context, state, 15) then return false end
@@ -802,8 +797,8 @@ local function hamstring_matches(context, state)
         return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
     end
     -- Sword Spec weave: generate extra attacks when rage is high and BT/WW on CD
-    if setting(context, "fury_use_hamstring", false) then
-        local min_rage = setting(context, "fury_hamstring_rage", 50)
+    if spec_kit.setting_bool(context, "fury_use_hamstring", false) then
+        local min_rage = spec_kit.setting_number(context, "fury_hamstring_rage", 50)
         if (state.rage or 0) >= min_rage then
             -- Only weave when core abilities are on CD
             if (state.bt_cd or 99) > 1.5 and (state.ww_cd or 99) > 1.5 and not state.execute_phase then
@@ -822,7 +817,7 @@ local DESYNC_SLAM_WINDOW = 1.6
 local desync_last_attempt = 0
 
 local function swing_desync_matches(context, state)
-    if not setting(context, "fury_swing_desync", false) then return false end
+    if not spec_kit.setting_bool(context, "fury_swing_desync", false) then return false end
     if state.is_moving then return false end
     if not state.has_offhand then return false end
     -- Cooldown between desync attempts
@@ -850,7 +845,7 @@ end
 -- Intercept: in-combat gap closer (respects auto_charge toggle — v2.2.0 fix)
 local function intercept_matches(context, state)
     if not state.in_combat then return false end
-    local auto_charge = setting(context, "auto_charge", true)
+    local auto_charge = spec_kit.setting_bool(context, "auto_charge", true)
     if not auto_charge then return false end
     if (state.target_distance or 0) < 8 or (state.target_distance or 0) > 25 then return false end
     -- v2.1.7 / v2.1.8: Charge opener protection — don't Intercept if we just Charged
@@ -884,7 +879,7 @@ local function battle_stance_matches(context, state)
     if NS.has_form and NS.has_form("battle") then return false end
     if desired_stance(context) == STANCE.BATTLE then return action(context, battle_stance_action()) end
     if state.overpower_ready and stance_swap_safe(state, 5) then return action(context, battle_stance_action()) end
-    local ss_count = setting(context, "sweeping_strikes_count", 2)
+    local ss_count = spec_kit.setting_number(context, "sweeping_strikes_count", 2)
     if state.sweeping_ready and not state.has_sweeping_strikes and (state.enemy_count or 0) >= ss_count and stance_swap_safe(state, 30) then
         return action(context, battle_stance_action())
     end
