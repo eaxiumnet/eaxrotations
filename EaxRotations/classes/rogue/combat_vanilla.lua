@@ -6,6 +6,8 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.RogueSpells or {}
 
@@ -36,7 +38,7 @@ local RUPTURE_TTD_FLOOR = 12
 local _last_energy = 0
 local _last_tick_time = 0
 
-local function get_next_tick_in(energy, settings)
+local function get_next_tick_in(energy)
     local now = NS.time_now and NS.time_now() or 0
     local energy_gained = energy - _last_energy
 
@@ -66,8 +68,8 @@ local function should_pool_energy(context)
     if not (context.settings and context.settings.combat_energy_tick_sync) then return false end
 
     local energy = context.energy or 0
-    local offset = (context.settings and context.settings.combat_energy_tick_offset or 100) / 1000
-    local next_tick_in = get_next_tick_in(energy, context.settings)
+    local offset = spec_kit.setting_number(context, "combat_energy_tick_offset", 100) / 1000
+    local next_tick_in = get_next_tick_in(energy)
 
     -- If tick is coming in very soon, wait for it unless we are capping
     if next_tick_in <= offset + 0.1 then
@@ -81,9 +83,8 @@ end
 
 local function should_spend_energy(context, cost)
     local energy = context.energy or 0
-    local settings = context.settings or {}
-    local offset = (settings.combat_energy_tick_offset or 100) / 1000
-    local next_tick_in = get_next_tick_in(energy, settings)
+    local offset = spec_kit.setting_number(context, "combat_energy_tick_offset", 100) / 1000
+    local next_tick_in = get_next_tick_in(energy)
 
     -- Capping risk: if next tick will put us over cap, spend NOW
     local projected_energy = energy + ENERGY_PER_TICK
@@ -101,7 +102,7 @@ local function should_spend_energy(context, cost)
         return true
     end
 
-    return not (settings.combat_energy_tick_sync)
+    return not spec_kit.setting_bool(context, "combat_energy_tick_sync", false)
 end
 
 -- ============================================================================

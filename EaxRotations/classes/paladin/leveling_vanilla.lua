@@ -51,7 +51,6 @@ end
 
 local function build_state(context)
     if not context then return nil end
-    local settings = context.settings or {}
     leveling.build_common_state(context, leveling_state)
     leveling_state.has_any_seal = false
     leveling_state.needs_cleanse = needs_cleanse(context.me)

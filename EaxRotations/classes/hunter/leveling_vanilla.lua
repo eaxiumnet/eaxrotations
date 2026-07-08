@@ -6,6 +6,8 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.HunterSpells or {}
 local leveling = require("shared/leveling_sylvanas")
 
@@ -38,13 +40,12 @@ end
 
 local function build_state(context)
     if not context then return nil end
-    local settings = context.settings or {}
     leveling.build_common_state(context, leveling_state)
 
     leveling_state.has_aspect_hawk = safe_buff_up(context.me, ASPECT_HAWK_BUFF)
     leveling_state.low_mana = (context.mana_pct or 100) < 15  -- Preserve mana for emergency CC
-    leveling_state.serpent_sting_use = settings.leveling_serpent_sting_use ~= false
-    leveling_state.hunters_mark_use = settings.leveling_hunters_mark_use ~= false
+    leveling_state.serpent_sting_use = spec_kit.setting_bool(context, "leveling_serpent_sting_use", true)
+    leveling_state.hunters_mark_use = spec_kit.setting_bool(context, "leveling_hunters_mark_use", true)
 
     leveling_state.serpent_sting_ready = safe_spell_ready(SPELLS.SerpentSting, context.target)
     leveling_state.hunters_mark_ready = safe_spell_ready(SPELLS.HuntersMark, context.target)

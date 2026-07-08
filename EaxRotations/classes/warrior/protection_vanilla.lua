@@ -6,6 +6,8 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 
 local potion_helper = require("shared/potion_helper_sylvanas")
@@ -462,8 +464,7 @@ local strategies = {
     {
         name = "Disarm",
         matches = function(context)
-            local settings = context.settings or {}
-            if settings.use_disarm == false then return false end
+            if not spec_kit.setting_bool(context, "use_disarm", true) then return false end
             if not (NS.is_spell_learned and NS.is_spell_learned(676)) then return false end
             if not context.in_combat then return false end
             return disarm_matches_fn(context, build_state(context))
