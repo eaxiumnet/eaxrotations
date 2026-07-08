@@ -6,6 +6,8 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 local Healing = NS.ShamanHealing or require("classes/shaman/healing_sylvanas")
@@ -90,7 +92,7 @@ local function build_state(context)
 
     resto_state.lowest = NS.healing_get_lowest_hp(entries, count, 92)
     resto_state.tank = NS.healing_get_tank(entries, count) or resto_state.lowest
-    local s = context.settings or {}
+    local s = context.settings
     resto_state.natures_swiftness_active = _ns_is_active()
     resto_state.has_lightning_shield = me and NS.buff_up and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
     resto_state.lightning_shield_ready = me and NS.spell_ready(LIGHTNING_SHIELD_SPELL, me, { skip_range = true }) or false
@@ -207,10 +209,9 @@ end
 
 local function solo_damage_enabled(context, state, mana_floor)
     if not context.has_valid_enemy_target then return false end
-    local settings = context.settings or {}
-    if not (context.is_solo == true or context.is_leveling == true or settings.restoration_dps_when_idle == true) then return false end
-    if state.lowest and (state.lowest.effective_hp or 100) < (settings.restoration_idle_hp or 88) then return false end
-    if (state.mana_pct or context.mana_pct or 100) < (mana_floor or settings.restoration_dps_mana_floor or 35) then return false end
+    if not (context.is_solo == true or context.is_leveling == true or spec_kit.setting_bool(context, "restoration_dps_when_idle", false)) then return false end
+    if state.lowest and (state.lowest.effective_hp or 100) < (spec_kit.setting_number(context, "restoration_idle_hp", 88)) then return false end
+    if (state.mana_pct or context.mana_pct or 100) < (mana_floor or spec_kit.setting_number(context, "restoration_dps_mana_floor", 35)) then return false end
     return true
 end
 

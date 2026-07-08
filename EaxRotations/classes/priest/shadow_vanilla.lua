@@ -27,6 +27,8 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.PriestSpells or {}
 
 local mf_tick = require("shared/mf_tick_compute_sylvanas")
@@ -165,9 +167,8 @@ local function build_state(context)
     local target = context.target
     local me = NS.GetPlayer()
     if not me then return shadow_state end
-    local settings = context.settings or {}
-    local mounted_bail = settings.shadow_mounted_bail
-    if mounted_bail == nil or mounted_bail == true then
+    local mounted_bail = spec_kit.setting_bool(context, "shadow_mounted_bail", true)
+    if mounted_bail then
         if me.is_mounted and me:is_mounted() then
             shadow_state.mounted = true
             return shadow_state
@@ -205,7 +206,7 @@ local function build_state(context)
     shadow_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
     shadow_state.has_inner_fire = me and NS.buff_up(me, INNER_FIRE_BUFF) or false
     -- Combat mode: explicit setting or auto-detect
-    local mode = settings.shadow_combat_mode or "auto"
+    local mode = spec_kit.setting(context, "shadow_combat_mode", "auto")
     if mode == "auto" then
         local enemy_count = shadow_state.enemy_count or 0
         if enemy_count >= 5 then mode = "aoe"
@@ -214,12 +215,12 @@ local function build_state(context)
     end
     shadow_state.combat_mode = mode
     -- Configurable refresh windows
-    shadow_state.vt_refresh_window = settings.shadow_vt_refresh_window or 3
-    shadow_state.swp_refresh_window = settings.shadow_swp_refresh_window or 3
-    shadow_state.dp_refresh_window = settings.shadow_dp_refresh_window or 3
+    shadow_state.vt_refresh_window = spec_kit.setting_number(context, "shadow_vt_refresh_window", 3)
+    shadow_state.swp_refresh_window = spec_kit.setting_number(context, "shadow_swp_refresh_window", 3)
+    shadow_state.dp_refresh_window = spec_kit.setting_number(context, "shadow_dp_refresh_window", 3)
     -- Configurable safety thresholds
-    shadow_state.shield_hp = settings.shadow_shield_hp or 35
-    shadow_state.flash_heal_hp = settings.shadow_flash_heal_hp or 25
+    shadow_state.shield_hp = spec_kit.setting_number(context, "shadow_shield_hp", 35)
+    shadow_state.flash_heal_hp = spec_kit.setting_number(context, "shadow_flash_heal_hp", 25)
     -- Has Weakened Soul (cannot receive PW:Shield)
     shadow_state.has_weakened_soul = me and NS.debuff_up and NS.debuff_up(me, WEAKENED_SOUL_DEBUFF) or false
     
@@ -235,14 +236,14 @@ local function build_state(context)
     shadow_state.weaving_stacks = target and NS.get_debuff_stacks and NS.get_debuff_stacks(target, SHADOW_WEAVING_DEBUFF) or 0
 
     -- Mana conservation floors (from Research: <30% drop MB, <15% wand only)
-    local mb_mana_floor = settings.shadow_mb_mana_floor or 30
-    local conserve_mana_floor = settings.shadow_conserve_mana_floor or 15
+    local mb_mana_floor = spec_kit.setting_number(context, "shadow_mb_mana_floor", 30)
+    local conserve_mana_floor = spec_kit.setting_number(context, "shadow_conserve_mana_floor", 15)
     shadow_state.mana_low = shadow_state.mana_pct < mb_mana_floor
     shadow_state.mana_emergency = shadow_state.mana_pct < conserve_mana_floor
 
     -- Threat safety: gate burst behind tank threat lead
     -- Uses NS.is_threat_safe if available, otherwise assumes safe
-    local threat_safe_enabled = (settings.shadow_threat_safe == nil and true) or settings.shadow_threat_safe
+    local threat_safe_enabled = spec_kit.setting_bool(context, "shadow_threat_safe", true)
     if threat_safe_enabled and NS.is_threat_safe then
         shadow_state.threat_safe = NS.is_threat_safe(context)
     else
@@ -326,8 +327,7 @@ local function inner_fire_matches(context, s)
     if not s.inner_fire_known then return false end
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.InnerFire, 3.0) then return false end
     if s.has_inner_fire then return false end
-    local settings = context.settings or {}
-    if settings.shadow_use_inner_fire == false then return false end
+    if not spec_kit.setting_bool(context, "shadow_use_inner_fire", true) then return false end
     return true
 end
 

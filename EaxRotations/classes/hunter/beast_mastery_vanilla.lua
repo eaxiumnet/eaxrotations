@@ -6,6 +6,8 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.HunterSpells or {}
 local hunter_core = require("shared/hunter_core_sylvanas")
 local targeting = require("shared/targeting_sylvanas")
@@ -84,7 +86,6 @@ local state = {
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
-    local settings = context.settings or {}
 
     -- Core state
     state.is_mounted = context.is_mounted or false
@@ -153,23 +154,23 @@ local function build_state(context)
     state.trinket_2_ready = state.trinket_2_id ~= nil and is_item_ready(me, state.trinket_2_id)
 
     -- parity settings
-    state.aspect_mode = settings.aspect_mode or "auto"
-    state.sting_mode = settings.sting_mode or "serpent"
-    state.fd_mode = settings.fd_mode or settings.use_threat_drop and "high_threat" or "off"
-    state.multishot_mode = settings.multishot_mode or settings.aoe_threshold or 2
-    state.pull_mode = settings.pull_mode or "combat_only"
-    state.use_cooldowns = settings.use_cooldowns ~= false
-    state.use_misdirection = settings.use_misdirection == true
-    state.shot_buffer = settings.shot_buffer or 150
-    state.sticky_target = settings.sticky_target == true
-    state.prioritize_markers = settings.prioritize_markers == true
+    state.aspect_mode = spec_kit.setting(context, "aspect_mode", "auto")
+    state.sting_mode = spec_kit.setting(context, "sting_mode", "serpent")
+    state.fd_mode = spec_kit.setting(context, "fd_mode", (spec_kit.setting_bool(context, "use_threat_drop", false) and "high_threat" or "off"))
+    state.multishot_mode = spec_kit.setting_number(context, "multishot_mode", spec_kit.setting_number(context, "aoe_threshold", 2))
+    state.pull_mode = spec_kit.setting(context, "pull_mode", "combat_only")
+    state.use_cooldowns = spec_kit.setting_bool(context, "use_cooldowns", true)
+    state.use_misdirection = spec_kit.setting_bool(context, "use_misdirection", false)
+    state.shot_buffer = spec_kit.setting_number(context, "shot_buffer", 150)
+    state.sticky_target = spec_kit.setting_bool(context, "sticky_target", false)
+    state.prioritize_markers = spec_kit.setting_bool(context, "prioritize_markers", false)
 
     -- Melee & AoE settings (parity parity)
-    state.use_melee = settings.use_melee ~= false
-    state.use_volley = settings.use_volley == true
-    state.use_explosive_trap = settings.use_explosive_trap == true
-    state.aoe_threshold = settings.aoe_threshold or settings.volley_threshold or 3
-    state.trinket_mode = settings.trinket_mode or "off"
+    state.use_melee = spec_kit.setting_bool(context, "use_melee", true)
+    state.use_volley = spec_kit.setting_bool(context, "use_volley", false)
+    state.use_explosive_trap = spec_kit.setting_bool(context, "use_explosive_trap", false)
+    state.aoe_threshold = spec_kit.setting_number(context, "aoe_threshold", spec_kit.setting_number(context, "volley_threshold", 3))
+    state.trinket_mode = spec_kit.setting(context, "trinket_mode", "off")
 
     return state
 end

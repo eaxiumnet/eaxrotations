@@ -7,6 +7,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+local spec_kit = require("shared/spec_kit_sylvanas")
+
 local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
 
@@ -118,12 +120,10 @@ function warrior_leveling.build_state(context)
     -- Buff checks
     state.has_battle_shout = has_buff(BATTLE_SHOUT_BUFF)
 
-    -- Settings
-    local settings = context.settings or {}
-    state.use_execute = settings.leveling_use_execute ~= false
-    state.use_rend = settings.leveling_use_rend ~= false
-    state.use_thunder_clap = settings.leveling_use_thunder_clap ~= false
-    state.exec_hp = settings.leveling_exec_hp or 20
+    state.use_execute = spec_kit.setting_bool(context, "leveling_use_execute", true)
+    state.use_rend = spec_kit.setting_bool(context, "leveling_use_rend", true)
+    state.use_thunder_clap = spec_kit.setting_bool(context, "leveling_use_thunder_clap", true)
+    state.exec_hp = spec_kit.setting_number(context, "leveling_exec_hp", 20)
 
     return state
 end
@@ -292,8 +292,7 @@ local disarm_matches = function(context, state)
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.is_pvp then return false end
-    local settings = context.settings or {}
-    if settings.use_disarm == false then return false end
+    if not spec_kit.setting_bool(context, "use_disarm", true) then return false end
     if not state.in_melee_range then return false end
     if not state.disarm_ready then return false end
     if not state.disarm_class_ok then return false end
@@ -313,8 +312,7 @@ end
 local pvp_cc_gate_matches = function(context, state)
     if not context then return false end
     if not state then return false end
-    local settings = context.settings or {}
-    if settings.use_pvp_cc_gating == false then return false end
+    if not spec_kit.setting_bool(context, "use_pvp_cc_gating", true) then return false end
     if not state.in_combat then return false end
     local has_aoe = false
     for _, id in ipairs(WARRIOR_AOE_IDS) do

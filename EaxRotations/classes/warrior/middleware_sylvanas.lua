@@ -236,8 +236,8 @@ local strategies = {
                     local playstyle = context.settings and context.settings.playstyle or "fury"
                     local exec_key = playstyle .. "_execute_phase"
                     local hs_exec_key = playstyle .. "_hs_during_execute"
-                    local settings = context.settings or {}
-                    if settings[exec_key] and not settings[hs_exec_key] then
+                    local s = context.settings
+                    if s and s[exec_key] and not (s[hs_exec_key] == false) then
                         should_dequeue = true
                         reason = "Execute phase"
                     end

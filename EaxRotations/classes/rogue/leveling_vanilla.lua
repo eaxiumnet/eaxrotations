@@ -7,6 +7,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+local spec_kit = require("shared/spec_kit_sylvanas")
+
 local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
 
@@ -95,11 +97,10 @@ function rogue_leveling.build_state(context)
     state.has_slice_and_dice = has_buff(SLICE_AND_DICE_BUFF)
     state.stealthed = has_buff(STEALTH_BUFF)
 
-    local settings = context.settings or {}
-    state.use_cooldowns = settings.use_cooldowns ~= false
-    state.use_blade_flurry = settings.leveling_use_blade_flurry ~= false
-    state.blade_flurry_min_enemies = settings.leveling_blade_flurry_enemies or 3
-    state.vanish_hp = settings.leveling_vanish_hp or 15
+    state.use_cooldowns = spec_kit.setting_bool(context, "use_cooldowns", true)
+    state.use_blade_flurry = spec_kit.setting_bool(context, "leveling_use_blade_flurry", true)
+    state.blade_flurry_min_enemies = spec_kit.setting_number(context, "leveling_blade_flurry_enemies", 3)
+    state.vanish_hp = spec_kit.setting_number(context, "leveling_vanish_hp", 15)
 
     return state
 end
