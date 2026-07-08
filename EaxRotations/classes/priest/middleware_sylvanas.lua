@@ -1,3 +1,9 @@
+-- priest/middleware_sylvanas.lua — Priest rotation middleware (form, buffs, dispel).
+-- WHAT:  pre-strategy middleware that enriches context with shadowform state, buff coverage, and dispel flags.
+-- WHEN:  every tick before strategy evaluation.
+-- WHY:   centralizes priest-specific context enrichment so specs stay focused on rotation logic.
+-- SAFETY: nil-guards on all menu references; no allocations in on_update path.
+
 -- Priest shared middleware.
 -- ============================================================================
 

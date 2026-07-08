@@ -1,3 +1,9 @@
+-- mage/middleware_sylvanas.lua — Mage rotation middleware (buffs, evocation, spellsteal).
+-- WHAT:  pre-strategy middleware that enriches context with buff state and mana recovery flags.
+-- WHEN:  every tick before strategy evaluation.
+-- WHY:   centralizes mage-specific context enrichment so specs stay focused on rotation logic.
+-- SAFETY: nil-guards on all menu references; no allocations in on_update path.
+
 -- Mage shared middleware.
 
 

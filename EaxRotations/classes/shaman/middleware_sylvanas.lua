@@ -1,3 +1,9 @@
+-- shaman/middleware_sylvanas.lua — Shaman rotation middleware (totems, weapon imbue, shields).
+-- WHAT:  pre-strategy middleware that enriches context with totem state, weapon imbue, and shield status.
+-- WHEN:  every tick before strategy evaluation.
+-- WHY:   centralizes shaman-specific context enrichment so specs stay focused on rotation logic.
+-- SAFETY: nil-guards on all menu references; no allocations in on_update path.
+
 -- ============================================================================
 -- Shaman Middleware: Tier 1 Gap Analysis Features
 -- Features Added:

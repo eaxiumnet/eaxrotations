@@ -1,3 +1,9 @@
+-- hunter/middleware_sylvanas.lua — Hunter rotation middleware (aspect, pet, shot timer).
+-- WHAT:  pre-strategy middleware that enriches context with aspect state, pet status, and shot timing.
+-- WHEN:  every tick before strategy evaluation.
+-- WHY:   centralizes hunter-specific context enrichment so specs stay focused on rotation logic.
+-- SAFETY: nil-guards on all menu references; no allocations in on_update path.
+
 -- Hunter shared middleware.
 
 
