@@ -1,3 +1,9 @@
+-- diagnostics.lua — Logging and diagnostic helpers for EaxRotations.
+-- WHAT:  NS.log / NS.log_warning / NS.log_error + API-health stubs + spell dump.
+-- WHEN:  installed by core_sylvanas.lua during addon load (must be FIRST install).
+-- WHY:   separates logging from core logic; NS.log is required by other domains.
+-- SAFETY: safe fallbacks when core.log is unavailable; never errors on nil fields.
+
 -- =============================================================================
 -- core/diagnostics.lua
 --

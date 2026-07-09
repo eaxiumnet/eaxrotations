@@ -1,3 +1,9 @@
+-- cliptracker_sylvanas.lua — Hunter shot timing tracker for Beast Mastery / Marksmanship.
+-- WHAT:  delegates auto-shot timing to HunterCore with 500ms buffer tracking.
+-- WHEN:  loaded by BM/MM spec files; records shot events during combat.
+-- WHY:   unified timing prevents duplicate auto-shot casts and enables weave logic.
+-- SAFETY: no direct API calls; delegates all timing to HunterCore module.
+
 -- Hunter shot timing state.
 -- Delegates to HunterCore for unified timing with 500ms auto-shot buffer.
 

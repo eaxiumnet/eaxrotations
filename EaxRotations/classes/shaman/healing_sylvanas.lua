@@ -1,3 +1,10 @@
+-- healing_sylvanas.lua — Shaman Healing Utilities for Restoration.
+-- WHAT:  party/raid scanning, ChainHeal/LHW/HW selection, and overheal gating.
+-- WHEN:  loaded by restoration_sylvanas.lua during addon load.
+-- WHY:   centralizes healing target selection and predictive overheal logic.
+-- SAFETY: NS guard at load; predictive_overheal passes spell_id for downrank penalty;
+--          _spell_id() helper handles production + test-stub compatibility.
+
 -- ============================================================================
 -- Shaman Healing Utilities (EaxRotations)
 -- Party/raid scanning and healing utilities for Restoration Shaman
