@@ -1,12 +1,115 @@
-# Developer Changelog — EaxRotations v2.6.0
+# Developer Changelog — EaxRotations v2.6.1
 
 **Date:** 2026-07-09
 **Branch:** main
-**Commits:** FSR integration, downranking expansion, hit cap tracker
+**Commits:** Oracle round 4 verification — gate_overheal downrank penalty, comprehensive spec audits
 
 ---
 
-## Architecture Changes
+## Verification Fixes (Oracle Round 4)
+
+### gate_overheal Downrank Penalty
+
+**Problem:** `NS.gate_overheal()` did not pass the actual `spell_id` to `HealerDeficit.gate_spell_overheal()`, so the downrank penalty was never applied to overheal calculations. All 13 call sites were passing 4 arguments instead of 5.
+
+**Fix:**
+- `core_sylvanas.lua:134`: Added `spell_id` parameter to `NS.gate_overheal()` wrapper
+- `healer_deficit_sylvanas.lua:358-363`: Apply `PreemptiveHeal.get_penalty_adjusted_heal(spell_id, size)` when `spell_id` is provided
+- Updated all 13 call sites across 4 specs:
+  - **Shaman Resto** (2): Pass tiered Healing Wave spell_id (max/mid/low)
+  - **Priest Holy** (3): Pass tiered Greater Heal / Flash Heal spell_id
+  - **Priest Discipline** (6): Pass tiered GH or fixed spell_id (FH, BH, CoH, PoH)
+  - **Paladin Holy** (7): Pass ranked Holy Light / Holy Shock / Flash of Light spell_id
+
+**Safe spell-ID extraction:** Added `_spell_id()` helper to `discipline_sylvanas.lua` and `holy_sylvanas.lua` to handle both production `spell_action` objects (with `:id()` method) and test stubs (plain numbers/tables).
+
+**Test impact:** All 249 rotation + 13 leveling suites pass.
+
+---
+
+## Comprehensive Spec Audits
+
+### 1. Five-Second Mana Rule (FSR)
+
+| Spec | Status | Notes |
+|------|--------|-------|
+| Priest Holy | ✅ | FSRPause strategy; combat, <35% mana, inside FSR, positive delta |
+| Priest Discipline | ✅ | Same pattern; positioned after GreaterHeal |
+| Paladin Holy | ✅ | Same pattern; positioned after SmartHeal |
+| Shaman Restoration | ✅ | Same pattern; positioned after ChainHeal |
+| Druid Restoration | ✅ | Same pattern; positioned after NS+HT |
+
+**Gaps identified:**
+- `fsr_manager.choose_downrank()` exists but is **unused** — downranking is inline in each spec
+- `fsr_manager.get_cast_opportunity_cost()` exists but is **unused**
+- No FSR-aware downranking integration (when FSRPause fires, rotation skips casting instead of falling back to cheaper instant heals)
+
+### 2. APL / wowsims / SimC Alignment
+
+| Category | Count | Status |
+|----------|-------|--------|
+| DPS specs with wowsims APL alignment | 18/18 | ✅ All aligned |
+| Healer specs with APL source | 0/5 | ⚠️ No wowsims healer APLs exist; guide-sourced |
+| Formal APL verification docs | 3/29 | ⚠️ Only Arms, Combat, Shadow have `docs/apl-verification-*.md` |
+| Broken docs entry | 1 | ✅ Fixed Fury TBC priority list in `docs/rotations/warrior.md` |
+
+**Key finding:** wowsims/tbc-new has **no APL directories for healer specs** — healing is not APL-modeled. Healer specs are sourced from Icy Veins / Warcraft Tavern / class Discord guides.
+
+### 3. API / apidocs Compliance
+
+| Check | Result |
+|-------|--------|
+| `menu.x:get()` unguarded | ✅ **Zero matches** across all files |
+| `math.sqrt` in production | ✅ **Zero matches** |
+| Banned APIs (`ffi.C`, `io.popen`, `os.execute`, `debug.*`) | ✅ **Zero matches** in production |
+| `core.object_manager.get_local_player` in specs | ✅ **Zero matches** — only in framework/shared fallbacks |
+| Pattern 14 (nil-guarded state) | ✅ All 29 specs use `spec_kit.safe_state()` |
+| Pattern 15 (file headers) | ✅ All 29 specs have WHAT/WHEN/WHY/SAFETY headers |
+| Pattern 16 (spec_kit adoption) | ✅ All 29 specs use `spec_kit.define_action_for_class()` |
+
+**Gaps:** 4 helper modules lack Pattern 15 headers (non-critical).
+
+### 4. IZI SDK Usage
+
+| Check | Result |
+|-------|--------|
+| Specs with direct `require("common/izi_sdk")` | 2/29 (warlock/affliction, warlock/demonology) |
+| Specs using `NS.try_cast()` | 29/29 ✅ |
+| Specs using raw `core.input.cast_target_spell()` | 0/29 ✅ |
+
+**Key finding:** All casting goes through `NS.try_cast()`, which internally uses IZI as its primary backend (per `core_sylvanas.lua:2288-2301`). Specs do not need to import IZI directly unless using specialized features like `izi.pet()` or `izi.spread_dot()`.
+
+---
+
+## Files Changed
+
+### Modified Spec Files
+- `EaxRotations/classes/shaman/restoration_sylvanas.lua` — gate_overheal spell_id
+- `EaxRotations/classes/priest/holy_sylvanas.lua` — gate_overheal spell_id
+- `EaxRotations/classes/priest/discipline_sylvanas.lua` — gate_overheal spell_id + `_spell_id()` helper
+- `EaxRotations/classes/paladin/holy_sylvanas.lua` — gate_overheal spell_id + `_spell_id()` helper
+
+### Modified Core/Shared
+- `EaxRotations/core_sylvanas.lua` — `gate_overheal` signature adds `spell_id`
+- `EaxRotations/shared/healer_deficit_sylvanas.lua` — downrank penalty application
+
+### Modified Docs
+- `docs/rotations/warrior.md` — fixed Fury TBC priority list (was "1. Fury:")
+
+---
+
+## Verification Checklist
+
+- [x] `luac -p` passes on all modified files
+- [x] `lua EaxRotations/tests/run_rotation_tests.lua` — 249/249 PASS
+- [x] `lua EaxRotations/tests/run_leveling_tests.lua` — 13/13 PASS
+- [x] No deprecated API usage introduced
+- [x] All menu references nil-guarded
+- [x] Pattern 14 compliance verified (spec_kit.safe_state)
+
+---
+
+*Generated: 2026-07-09*
 
 ### New Shared Modules
 

@@ -38,7 +38,35 @@ Gated for: dungeon, raid, pvp, leveling
 
 ### Priority Order
 
-1. Fury:
+1. HealthPotion
+2. DamagePotion
+3. Healthstone
+4. Intercept
+5. Hamstring
+6. Pummel
+7. BerserkerStance
+8. BattleStance
+9. BattleShout
+10. BerserkerRage
+11. Bloodrage
+12. EngineeringBomb
+13. VictoryRush
+14. Charge
+15. Recklessness
+16. DeathWish
+17. SweepingStrikes
+18. Rampage
+19. Execute
+20. Bloodthirst
+21. Whirlwind
+22. Overpower
+23. Slam
+24. SwingDesync
+25. SunderArmor
+26. DemoralizingShout
+27. Cleave
+28. HeroicStrike
+29. HitCapPriority
 
 ### Features
 

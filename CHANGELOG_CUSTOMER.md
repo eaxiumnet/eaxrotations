@@ -1,5 +1,29 @@
 # EaxRotations Changelog
 
+## v2.5.1 — Healer Overheal Gate & Downrank Penalty (July 9, 2026)
+
+> **Release zip:** [EaxRotations-v2.5.1.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.5.1)
+> **Game:** The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
+> **Tested with:** 249 rotation suites + 13 leveling suites (all passing)
+
+---
+
+### 🏥 Healer Improvements
+
+#### Smarter Overheal Protection
+
+The overheal gate now accounts for **downranked heals**. When you cast a lower-rank heal (e.g., Holy Light Rank 4 instead of Rank 11), the gate correctly estimates the smaller heal size and is less likely to block it unnecessarily.
+
+**Specs affected:**
+- **Holy Paladin** — Holy Light (R4/R7/R9/R11) and Flash of Light
+- **Holy Priest** — Greater Heal and Flash Heal (tiered ranks)
+- **Discipline Priest** — Greater Heal, Flash Heal, Binding Heal, Circle of Healing, Prayer of Healing
+- **Restoration Shaman** — Healing Wave (tiered ranks)
+
+**What this means for you:** fewer "heal was blocked when it shouldn't have been" moments, especially at low mana when you're casting downranked spells to conserve.
+
+---
+
 ## v2.5.0 — Spec Standardization & Polish (July 8, 2026)
 
 > **Release zip:** [EaxRotations-v2.5.0.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.5.0)
