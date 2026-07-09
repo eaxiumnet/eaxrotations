@@ -14,6 +14,14 @@ local EMPTY_SETTINGS = {}
 
 -- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
+
+-- Safe spell-ID extraction: handles production spell_action objects (with :id())
+-- and test stubs that return raw numbers or plain tables.
+local function _spell_id(spell_obj)
+    if type(spell_obj) == "number" then return spell_obj end
+    if type(spell_obj) == "table" and type(spell_obj.id) == "function" then return spell_obj:id() end
+    return nil
+end
 local ACTION = {
     BindingHeal       = define("BindingHeal",       { 32546 }, "BindingHeal"),
     CircleofHealing   = define("CircleofHealing",   { 34866, 34865, 34864, 34863, 34861 }, "CircleofHealing"),
@@ -420,8 +428,8 @@ local function flash_heal_matches(context, s)
  if (s.lowest.effective_hp or 100) > spec_kit.setting_number(context, "discipline_flash_hp", 55) then return false end
  if (s.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
  if not s.flash_heal_ready then return false end
- -- Predictive overheal gate: don't cast FH if predicted deficit is smaller than the heal
- if NS.gate_overheal("FlashHeal", s.lowest.unit, 1.5, context.settings) then return false end
+  -- Predictive overheal gate: don't cast FH if predicted deficit is smaller than the heal
+  if NS.gate_overheal("FlashHeal", s.lowest.unit, 1.5, context.settings, _spell_id(ACTION.FlashHeal)) then return false end
  return true
 end
 
@@ -438,8 +446,10 @@ local function greater_heal_matches(context, s)
  if hp > spec_kit.setting_number(context, "discipline_greater_heal_hp", 82) then return false end
  if hp <= spec_kit.setting_number(context, "discipline_flash_hp", 55) then return false end
  if not s.greater_heal_ready then return false end
- -- Predictive overheal gate: don't cast GH if predicted deficit is smaller than the heal
- if NS.gate_overheal("GreaterHeal", s.lowest.unit, 2.5, context.settings) then return false end
+  -- Predictive overheal gate: don't cast GH if predicted deficit is smaller than the heal
+  local mana_pct = s.mana_pct or context.mana_pct or 100
+  local spell_id = (mana_pct > 30) and GREATER_HEAL_MAX or ((mana_pct > 15) and GREATER_HEAL_CONSERVE or GREATER_HEAL_EFFICIENT)
+  if NS.gate_overheal("GreaterHeal", s.lowest.unit, 2.5, context.settings, spell_id) then return false end
  return true
 end
 
@@ -465,8 +475,8 @@ local function binding_heal_matches(context, s)
  if (s.lowest.effective_hp or 100) > 50 then return false end
  if (s.hp_pct or 100) > 70 then return false end
  if not s.binding_heal_ready then return false end
- -- Predictive overheal gate: don't cast BH if predicted deficit is smaller than the heal
- if NS.gate_overheal("BindingHeal", s.lowest.unit, 2.0, context.settings) then return false end
+  -- Predictive overheal gate: don't cast BH if predicted deficit is smaller than the heal
+  if NS.gate_overheal("BindingHeal", s.lowest.unit, 2.0, context.settings, _spell_id(ACTION.BindingHeal)) then return false end
  return true
 end
 
@@ -474,9 +484,9 @@ local function circle_of_healing_matches(context, s)
  if context.is_moving then return false end
  if s.group_damaged_count < 3 then return false end
  if not s.circle_of_healing_ready then return false end
- -- Predictive overheal gate: skip CoH if even the lowest target doesn't need it
- local coh_target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
- if NS.gate_overheal("CircleOfHealing", coh_target, 1.5, context.settings) then return false end
+  -- Predictive overheal gate: skip CoH if even the lowest target doesn't need it
+  local coh_target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
+  if NS.gate_overheal("CircleOfHealing", coh_target, 1.5, context.settings, _spell_id(ACTION.CircleofHealing)) then return false end
  return true
 end
 
@@ -486,9 +496,9 @@ local function prayer_of_healing_matches(context, s)
  local poh_count = s.subgroup_damaged_count or s.group_damaged_count
  if poh_count < 4 then return false end
  if not s.prayer_of_healing_ready then return false end
- -- Predictive overheal gate: skip PoH if even the lowest target doesn't need a per-tick heal
- local poh_target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
- if NS.gate_overheal("PrayerOfHealing", poh_target, 3.0, context.settings) then return false end
+  -- Predictive overheal gate: skip PoH if even the lowest target doesn't need a per-tick heal
+  local poh_target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
+  if NS.gate_overheal("PrayerOfHealing", poh_target, 3.0, context.settings, _spell_id(ACTION.PrayerOfHealing)) then return false end
  return true
 end
 
@@ -750,8 +760,10 @@ local healing_strategies = {
   if context.is_moving then return false end
   if context.player_control_locked then return false end
   if not s.greater_heal_ready then return false end
-  if _check_pushback(context) then return false end
-  if NS.gate_overheal and NS.gate_overheal("GreaterHeal", ft.unit, 2.5, context.settings) then return false end
+   if _check_pushback(context) then return false end
+   local mana_pct = s.mana_pct or context.mana_pct or 100
+   local spell_id = (mana_pct > 30) and GREATER_HEAL_MAX or ((mana_pct > 15) and GREATER_HEAL_CONSERVE or GREATER_HEAL_EFFICIENT)
+   if NS.gate_overheal and NS.gate_overheal("GreaterHeal", ft.unit, 2.5, context.settings, spell_id) then return false end
   return true
  end, execute = function(context, s)
   local ft = s.friendly_target

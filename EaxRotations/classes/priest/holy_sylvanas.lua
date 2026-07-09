@@ -637,8 +637,10 @@ local strategies = {
    if not state.lowest then return false end
    -- Pushback gate: skip long-cast heals when taking damage
    if _check_pushback(context) then return false end
-   -- Predictive overheal gate: don't waste clearcast GH if predicted deficit is small
-   if NS.gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
+    -- Predictive overheal gate: don't waste clearcast GH if predicted deficit is small
+    local mana_pct = state.mana_pct or context.mana_pct or 100
+    local spell_id = (mana_pct > 30) and GREATER_HEAL_MAX or ((mana_pct > 15) and GREATER_HEAL_CONSERVE or GREATER_HEAL_EFFICIENT)
+    if NS.gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings, spell_id) then return false end
     return (state.lowest_hp or 100) < 95
   end,
   execute = function(context, state)
@@ -693,8 +695,10 @@ local strategies = {
    local flash_hp = spec_kit.setting_number(context, "holy_flash_heal_hp", 50)
    local renew_hp = spec_kit.setting_number(context, "holy_renew_hp", 90)
    if not ((state.lowest_hp or 100) < renew_hp and (state.lowest_hp or 100) >= flash_hp) then return false end
-   -- Predictive overheal gate
-   if NS.gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
+    -- Predictive overheal gate
+    local mana_pct = state.mana_pct or context.mana_pct or 100
+    local spell_id = (mana_pct > 30) and GREATER_HEAL_MAX or ((mana_pct > 15) and GREATER_HEAL_CONSERVE or GREATER_HEAL_EFFICIENT)
+    if NS.gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings, spell_id) then return false end
    return true
   end,
    execute = function(context, state)
@@ -737,8 +741,10 @@ local strategies = {
    -- Mana conservation: drop direct heals below 15% mana, Renew only
    if context.mana_pct < spec_kit.setting_number(context, "holy_fh_mana_floor", 15) then return false end
    if not (state.lowest_hp < spec_kit.setting_number(context, "holy_flash_heal_hp", 50)) then return false end
-   -- Predictive overheal gate
-   if NS.gate_overheal("FlashHeal", state.lowest.unit, 1.5, context.settings) then return false end
+    -- Predictive overheal gate
+    local mana_pct = state.mana_pct or context.mana_pct or 100
+    local spell_id = (mana_pct > 30) and FLASH_HEAL_MAX or ((mana_pct > 15) and FLASH_HEAL_CONSERVE or FLASH_HEAL_EFFICIENT)
+    if NS.gate_overheal("FlashHeal", state.lowest.unit, 1.5, context.settings, spell_id) then return false end
    return true
   end,
    execute = function(context, state)

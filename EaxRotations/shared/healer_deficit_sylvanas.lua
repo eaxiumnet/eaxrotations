@@ -349,12 +349,19 @@ end
 --@param cast_time number   Seconds until heal lands.
 --@param settings  table|nil
 --@return boolean would_overheal
-function M.gate_spell_overheal(spell_key, unit, cast_time, settings)
+function M.gate_spell_overheal(spell_key, unit, cast_time, settings, spell_id)
     if not unit then return false end
     settings = settings or (NS.settings or {})
     if settings.healer_predict_enabled == false then return false end
     local size = spell_key and HEAL_SIZE_TBC[spell_key]
     if not size then return false end
+    -- Apply downranking penalty if spell_id provided
+    if spell_id and NS.PreemptiveHeal and type(NS.PreemptiveHeal.get_penalty_adjusted_heal) == "function" then
+        local adjusted, penalty = NS.PreemptiveHeal.get_penalty_adjusted_heal(spell_id, size)
+        if adjusted and adjusted > 0 then
+            size = adjusted
+        end
+    end
     return M.heal_would_overheal(unit, size, cast_time, settings)
 end
 

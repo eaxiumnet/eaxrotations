@@ -13,6 +13,14 @@ local SPELLS = NS.PaladinSpells or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
 local define = spec_kit.define_action_for_class(SPELLS)
+
+-- Safe spell-ID extraction: handles production spell_action objects (with :id())
+-- and test stubs that return raw numbers or plain tables.
+local function _spell_id(spell_obj)
+    if type(spell_obj) == "number" then return spell_obj end
+    if type(spell_obj) == "table" and type(spell_obj.id) == "function" then return spell_obj:id() end
+    return nil
+end
 local ACTION = {
     AvengingWrath          = define("AvengingWrath",          {31884}, "AvengingWrath"),
     BlessingOfFreedom      = define("BlessingOfFreedom",      {1044}, "BlessingOfFreedom"),
@@ -352,7 +360,8 @@ local function choose_smart_heal(context, s, entry)
  local hl_hp_threshold = s.has_lights_grace and (hl_base_threshold + 10) or hl_base_threshold
  if (hp <= hl_hp_threshold or deficit >= LIGHT_HEAL_DEFICIT) and (s.mana_pct or 100) >= LOW_MANA_PCT then
   -- Predictive overheal gate for Holy Light
-  if NS.gate_overheal("HolyLight", entry.unit, 2.5, context.settings) then
+  local hl_spell, _ = choose_holy_light_rank(context, entry)
+  if NS.gate_overheal("HolyLight", entry.unit, 2.5, context.settings, _spell_id(hl_spell)) then
    -- Fall through to Flash of Light instead
    if hp <= flash_hp and NS.spell_ready(ACTION.FlashOfLight, entry.unit, EMPTY_OPTS) then
     if (s.mana_pct or 100) < 15 and NS.spell_ready(FlashOfLightRank6, entry.unit, EMPTY_OPTS) then
@@ -602,7 +611,7 @@ local strategies = {
    if context.player_control_locked then return false end
    s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, ft)
    if not (NS.spell_ready and NS.spell_ready(s.holy_light_spell, ft.unit, EMPTY_OPTS)) then return false end
-   if NS.gate_overheal("HolyLight", ft.unit, 2.5, context.settings) then return false end
+   if NS.gate_overheal("HolyLight", ft.unit, 2.5, context.settings, _spell_id(s.holy_light_spell)) then return false end
    return true
   end,
   execute = function(context, s)
@@ -755,7 +764,7 @@ local strategies = {
    if hp_of(s.lowest) > spec_kit.setting_number(context, "holy_shock_hp", 40) and not moving then return false end
    if not (NS.spell_ready and NS.spell_ready(ACTION.HolyShock, s.lowest.unit, EMPTY_OPTS)) then return false end
    -- Predictive overheal gate: Holy Shock is instant but still gated at higher HP
-   if NS.gate_overheal("HolyShock", s.lowest.unit, 1.5, context.settings) then return false end
+   if NS.gate_overheal("HolyShock", s.lowest.unit, 1.5, context.settings, _spell_id(ACTION.HolyShock)) then return false end
    return true
   end,
   execute = function(_, s)
@@ -769,7 +778,7 @@ local strategies = {
    s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.lowest)
    if not (NS.spell_ready and NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS)) then return false end
    -- Predictive overheal gate
-   if NS.gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings) then return false end
+   if NS.gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings, _spell_id(s.holy_light_spell)) then return false end
    return true
   end,
   execute = function(_, s)
@@ -783,7 +792,7 @@ local strategies = {
    s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.lowest)
    if not (NS.spell_ready and NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS)) then return false end
    -- Predictive overheal gate: even with Divine Favor, avoid wasteful overheal
-   if NS.gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings) then return false end
+   if NS.gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings, _spell_id(s.holy_light_spell)) then return false end
    return true
   end,
   execute = function(_, s)
@@ -886,7 +895,7 @@ local strategies = {
    if s.heal_spell then
     local spell_key = (s.heal_spell == ACTION.HolyLight) and "HolyLight" or "FlashOfLight"
     local cast_time = (s.heal_spell == ACTION.HolyLight) and 2.5 or 1.5
-    if NS.gate_overheal(spell_key, s.tank.unit, cast_time, context.settings) then return false end
+    if NS.gate_overheal(spell_key, s.tank.unit, cast_time, context.settings, _spell_id(s.heal_spell)) then return false end
    end
    return true
   end,
@@ -928,7 +937,7 @@ local strategies = {
    if hp_of(s.lowest) > spec_kit.setting_number(context, "holy_flash_light_hp", 85) then return false end
    if not (NS.spell_ready and NS.spell_ready(ACTION.FlashOfLight, s.lowest.unit, EMPTY_OPTS)) then return false end
    -- Predictive overheal gate: skip FoL if predicted deficit is small
-   if NS.gate_overheal("FlashOfLight", s.lowest.unit, 1.5, context.settings) then return false end
+   if NS.gate_overheal("FlashOfLight", s.lowest.unit, 1.5, context.settings, _spell_id(ACTION.FlashOfLight)) then return false end
    return true
   end,
   execute = function(_, s)
