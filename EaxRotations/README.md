@@ -147,8 +147,8 @@ See `AGENTS.md` Pattern 16 for the full annotated skeleton.
 
 | Status | Files | Count |
 |--------|-------|-------|
-| Converted | `arms_sylvanas.lua`, `fury_sylvanas.lua`, `protection_sylvanas.lua`, `kebab_sylvanas.lua`, `balance_sylvanas.lua`, `cat_sylvanas.lua`, `bear_sylvanas.lua`, `caster_sylvanas.lua`, `resto_sylvanas.lua`, `discipline_sylvanas.lua`, `holy_sylvanas.lua`, `shadow_sylvanas.lua`, `fire_sylvanas.lua`, `destruction_sylvanas.lua`, `frost_sylvanas.lua`, `restoration_sylvanas.lua`, `affliction_sylvanas.lua`, `combat_sylvanas.lua`, `demonology_sylvanas.lua`, `elemental_sylvanas.lua` | 20 |
-| Pending | all other spec + leveling files | 21 |
+| Converted | `arms_sylvanas.lua`, `fury_sylvanas.lua`, `protection_sylvanas.lua`, `kebab_sylvanas.lua`, `balance_sylvanas.lua`, `cat_sylvanas.lua`, `bear_sylvanas.lua`, `caster_sylvanas.lua`, `resto_sylvanas.lua`, `discipline_sylvanas.lua`, `holy_sylvanas.lua`, `shadow_sylvanas.lua`, `smite_sylvanas.lua`, `fire_sylvanas.lua`, `destruction_sylvanas.lua`, `frost_sylvanas.lua`, `restoration_sylvanas.lua`, `affliction_sylvanas.lua`, `combat_sylvanas.lua`, `demonology_sylvanas.lua`, `elemental_sylvanas.lua`, `enhancement_sylvanas.lua`, `assassination_sylvanas.lua`, `marksmanship_sylvanas.lua`, `retribution_sylvanas.lua`, `subtlety_sylvanas.lua`, `survival_sylvanas.lua`, `beast_mastery_sylvanas.lua`, `arcane_sylvanas.lua` | 31 |
+| Pending | 9 leveling files + 1 adjunct (`healing_sylvanas.lua`) | 10 |
 
 > Enforced by `tests/test_spec_layout_compliance.lua`. To mark a spec as converted, add it to the `CONVERTED` table in that test after conversion + full test gate.
 > Convert a spec **only when already editing it** — never big-bang (AGENTS.md Pattern 16).
