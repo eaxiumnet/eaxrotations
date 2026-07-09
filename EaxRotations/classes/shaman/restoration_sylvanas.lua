@@ -583,9 +583,11 @@ local function healing_way_matches(context, state)
  if (state.healing_way_remains or 0) > 8 then return false end
  if not state.healing_wave_ready then return false end
  if not NS.spell_ready(ACTION.HealingWave, state.tank.unit, { skip_range = true }) then return false end
- -- Predictive overheal gate: don't cast a full Healing Wave just to maintain stacks
- -- if the tank doesn't actually need the healing
- if NS.gate_overheal("HealingWave", state.tank.unit, 2.5, context.settings) then return false end
+  -- Predictive overheal gate: don't cast a full Healing Wave just to maintain stacks
+  -- if the tank doesn't actually need the healing
+  local mana_pct = state.mana_pct or context.mana_pct or 100
+  local spell_id = (mana_pct > 30) and HEALING_WAVE_MAX or ((mana_pct > 15) and HEALING_WAVE_MID or HEALING_WAVE_LOW)
+  if NS.gate_overheal("HealingWave", state.tank.unit, 2.5, context.settings, spell_id) then return false end
  return true
 end
 
@@ -651,8 +653,10 @@ local healing_strategies = {
   if context.is_moving then return false end
   if context.player_control_locked then return false end
   if not state.healing_wave_ready then return false end
-  if not (NS.spell_ready and NS.spell_ready(ACTION.HealingWave, ft.unit, { skip_range = true })) then return false end
-  if NS.gate_overheal and NS.gate_overheal("HealingWave", ft.unit, 2.5, context.settings) then return false end
+   if not (NS.spell_ready and NS.spell_ready(ACTION.HealingWave, ft.unit, { skip_range = true })) then return false end
+   local mana_pct = state.mana_pct or context.mana_pct or 100
+   local spell_id = (mana_pct > 30) and HEALING_WAVE_MAX or ((mana_pct > 15) and HEALING_WAVE_MID or HEALING_WAVE_LOW)
+   if NS.gate_overheal and NS.gate_overheal("HealingWave", ft.unit, 2.5, context.settings, spell_id) then return false end
   return true
   end, execute = function(context, state)
    local ft = state.friendly_target

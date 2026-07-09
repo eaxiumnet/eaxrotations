@@ -131,10 +131,10 @@ if not _spell_queue_ok or type(_spell_queue) ~= "table" then _spell_queue = nil 
 ---@param call_time number Cast time in seconds
 ---@param settings table Settings table
 ---@return boolean overheal True if spell would overheal
-function NS.gate_overheal(spell_key, unit, call_time, settings)
+function NS.gate_overheal(spell_key, unit, call_time, settings, spell_id)
     local hd = NS.HealerDeficit
     if not hd or not hd.gate_spell_overheal then return false end
-    return hd.gate_spell_overheal(spell_key, unit, call_time, settings)
+    return hd.gate_spell_overheal(spell_key, unit, call_time, settings, spell_id)
 end
 
 -- cooldown_tracker: native engine-level cooldown observation (replaces enemy_cd_tracker)
