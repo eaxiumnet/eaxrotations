@@ -1751,15 +1751,15 @@ end
 
 -- Invalidate spell cache on any spell cast (new spells may have been learned)
 
-if core.register_on_spell_cast_callback then
+    if core and core.register_on_spell_cast_callback then
 
-    pcall(core.register_on_spell_cast_callback, function()
+        pcall(function() core.register_on_spell_cast_callback(function()
 
-        NS.refresh_spell_cache()
+            NS.refresh_spell_cache()
 
-    end)
+        end) end)
 
-end
+    end
 
 function NS.is_spell_learned(spell)
 
@@ -3734,9 +3734,9 @@ function NS.is_pvp_zone()
 
     -- Primary: map ID
 
-    if type(core.get_map_id) == "function" then
+    if core and type(core.get_map_id) == "function" then
 
-        local ok, map_id = pcall(core.get_map_id)
+        local ok, map_id = pcall(function() return core.get_map_id() end)
 
         if ok and _BG_MAP_IDS[map_id] then
 
@@ -3750,9 +3750,9 @@ function NS.is_pvp_zone()
 
     -- Fallback: arena frames present
 
-    if core.object_manager and type(core.object_manager.get_arena_frames) == "function" then
+    if core and core.object_manager and type(core.object_manager.get_arena_frames) == "function" then
 
-        local ok, frames = pcall(core.object_manager.get_arena_frames)
+        local ok, frames = pcall(function() return core.object_manager.get_arena_frames() end)
 
         if ok and type(frames) == "table" and #frames > 0 then
 
@@ -4030,7 +4030,8 @@ end
 
 function NS.get_player_stance()
     -- Primary: engine-level shapeshift form ID (works on PS builds where buff APIs are broken)
-    local ok, form_id = pcall(core.spell_book.get_shapeshift_form_id)
+    if not (core and core.spell_book) then return 0 end
+    local ok, form_id = pcall(function() return core.spell_book.get_shapeshift_form_id() end)
     if ok and form_id and form_id > 0 then
         if form_id == 1 then return 1 end  -- Battle Stance
         if form_id == 2 then return 2 end  -- Defensive Stance
@@ -5959,10 +5960,10 @@ function NS.dump_player_info()
 
     NS.log("MapName: " .. tostring(core.get_map_name and core.get_map_name() or "?"))
 
-    local ok_zone, zone_text = pcall(core.get_zone_text)
+    local ok_zone, zone_text = pcall(function() return core.get_zone_text() end)
     NS.log("Zone: " .. tostring(ok_zone and zone_text or "?"))
 
-    local ok_subzone, subzone_text = pcall(core.get_subzone_text)
+    local ok_subzone, subzone_text = pcall(function() return core.get_subzone_text() end)
     NS.log("SubZone: " .. tostring(ok_subzone and subzone_text or "?"))
 
     NS.log("InCombat: " .. tostring(sf(me, "is_in_combat") and me:is_in_combat() or "?"))

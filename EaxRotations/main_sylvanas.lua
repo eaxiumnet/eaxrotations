@@ -439,8 +439,9 @@ end
 local function unit_number(unit, field)
     if not unit or not NS.safe_field then return nil end
     local fn = NS.safe_field(unit, field)
-    local value = fn and fast(fn, unit) or nil
-    return type(value) == "number" and value or nil
+    if not fn then return nil end
+    local ok, value = pcall(fast, fn, unit)
+    return ok and type(value) == "number" and value or nil
 end
 
 local function core_string(field)
@@ -600,12 +601,14 @@ local function build_context()
     _context.target = target
     _context.target_casting = target and (unit_bool(target, "is_casting") or unit_bool(target, "is_channeling") or false) or false
     _context.target_ttd = ttd
-    _context.has_aggro = (target and me) and (function()
+    _context.has_aggro = false
+    if target and me then
         local get_threat = NS.safe_field and NS.safe_field(target, "get_threat_situation")
-        if not get_threat then return false end
-        local ok, result = pcall(get_threat, target, me)
-        return ok and type(result) == "number" and result >= 2
-    end)() or false
+        if get_threat then
+            local ok, result = pcall(get_threat, target, me)
+            _context.has_aggro = ok and type(result) == "number" and result >= 2
+        end
+    end
     _context.in_combat = in_combat
     _context.combat_state_known = combat_state_known
     -- OOC safety: refuse auto-selected targets when out of combat (any zone).
@@ -842,8 +845,10 @@ local function build_context()
     -- Derived context fields (for specs that consume nil-unsafe guards)
     -- ============================================================================
     -- Threat percentage (0-100) for threat-sensitive specs (rogue, warlock, shaman)
+    -- NS.threat_status returns raw status (0-3); scale to 0-100 for spec compatibility
     if target and me then
-        _context.threat_pct = NS.threat_status and NS.threat_status(target, me) or 0
+        local raw_threat = NS.threat_status and NS.threat_status(target, me) or 0
+        _context.threat_pct = (raw_threat / 3) * 100
     else
         _context.threat_pct = 0
     end
