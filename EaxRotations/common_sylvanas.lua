@@ -1,3 +1,9 @@
+-- common_sylvanas.lua — Shared schema helpers for EaxRotations.
+-- WHAT:  checkbox/slider/combobox factory functions used by class schema files.
+-- WHEN:  addon load; schema files call these during their own load.
+-- WHY:   centralizes widget metadata so schema files stay data-only (no render logic).
+-- SAFETY: no menu.x:get() here — these are constructors, not accessors.
+
 -- Shared schema helpers for EaxRotations.
 -- Keep this file Sylvanas-native and independent from any external rotation UI.
 

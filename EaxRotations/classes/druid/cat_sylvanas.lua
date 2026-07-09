@@ -31,6 +31,7 @@ local SPELLS = BASE_SPELLS
 -- Centralized spell resolver via spec_kit (replaces per-spec spell() helper).
 local define = spec_kit.define_action_for_class(SPELLS)
 -- Form detection diagnostic: logs all detection methods once at startup (debug only)
+local _get_shapeshift_form_id = (core and core.spell_book and core.spell_book.get_shapeshift_form_id) or nil
 local _form_diag_logged = false
 local function dump_form_detection()
     if _form_diag_logged then return end
@@ -41,10 +42,10 @@ local function dump_form_detection()
     local cat_form_buff_id = 768
     local bear_form_buff_ids = { 5487, 9634 }
     local moonkin_form_buff_id = 24858
-    -- Method 1: engine-level get_shapeshift_form_id
+    -- Method 1: engine-level get_shapeshift_form_id (cached at module load per Pattern 2)
     local form_id = -1
-    if core and core.spell_book and core.spell_book.get_shapeshift_form_id then
-        local ok, id = pcall(core.spell_book.get_shapeshift_form_id)
+    if _get_shapeshift_form_id then
+        local ok, id = pcall(_get_shapeshift_form_id)
         if ok then form_id = id end
     end
     NS.log("[FORM_DIAG] 1. get_shapeshift_form_id() = " .. tostring(form_id) .. " (0=caster,1=bear,3=cat,4=travel)")

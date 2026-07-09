@@ -1,3 +1,9 @@
+-- main.lua — EaxRotations bootstrap and dispatcher for Project Sylvanas.
+-- WHAT:  loads shared modules, registers per-class specs, wires on_update/on_combat callbacks.
+-- WHEN:  addon load (not per-tick).
+-- WHY:   central dispatcher that routes to class-specific rotation files via NS.rotation_registry.
+-- SAFETY: no per-frame allocations; all heavy work delegated to spec files; throttled scans only.
+
 -- bootstrap for shared runtime, UI, and class loading.
 
 -- ============================================================================

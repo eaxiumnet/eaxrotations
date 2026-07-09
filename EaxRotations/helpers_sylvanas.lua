@@ -1,3 +1,9 @@
+-- helpers_sylvanas.lua — NS helper import utility for EaxRotations.
+-- WHAT:  provides NS.import_helpers() so class files can bulk-import common NS functions.
+-- WHEN:  addon load; class files call during their own load.
+-- WHY:   reduces boilerplate: `local spell_exists, spell_ready = NS.import_helpers("spell_exists", "spell_ready")`.
+-- SAFETY: returns nil-safe fallbacks for every missing helper; never errors on missing NS fields.
+
 -- runtime module.
 
 -- ============================================================================
