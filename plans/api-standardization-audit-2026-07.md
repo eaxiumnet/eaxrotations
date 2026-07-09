@@ -350,5 +350,5 @@ commit N+1: docs(AGENTS.md): update Pattern 16 migration state table
 - [x] Wave 1C: Core files audited — no hot-path violations; 4/6 got Pattern 15 headers
 - [x] Wave 1D: Class infrastructure audited — no bare menu access in middleware/schema
 - [x] Wave 1E: Test files audited — proper NS mocking with _G.core
-- [ ] Phase 2: Compliance tests extended
-- [x] Phase 3: Full validation suite green (249/249 + 13/13 PASS)
+- [x] Phase 2: Compliance tests extended (class/schema/test-registration coverage)
+- [x] Phase 3: Full validation suite green (252/252 + 13/13 PASS)

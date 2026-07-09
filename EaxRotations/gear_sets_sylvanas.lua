@@ -1,4 +1,8 @@
--- TBC armor/weapon set item IDs and set-bonus spell IDs.
+-- gear_sets_sylvanas.lua — TBC armor/weapon set item IDs and set-bonus spell IDs.
+-- WHAT:  Static lookup tables for raid tier sets, dungeon sets, and PvP sets.
+-- WHEN:  Loaded at startup by core_sylvanas.lua; queried for set-bonus activation.
+-- WHY:   Centralizes set data so specs can check "do I have 4pc T5?" without hardcoding IDs.
+-- SAFETY: Pure data — no API calls, no runtime state, no nil-guard needed for table reads.
 
 local _G = _G
 local NS = _G.EaxRotations or {}
