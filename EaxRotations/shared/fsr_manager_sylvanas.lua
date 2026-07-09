@@ -40,9 +40,8 @@ end
 -- ---------------------------------------------------------------------------
 
 function M.on_cast(spell_id, mana_cost)
-  mana_cost = mana_cost or 0
-  if mana_cost > 0 then
-    _last_cast_time = _time_now()
+  _last_cast_time = _time_now()
+  if mana_cost and mana_cost > 0 then
     _last_cast_mana_cost = mana_cost
   end
 end

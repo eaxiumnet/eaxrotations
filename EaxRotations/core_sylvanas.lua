@@ -2057,7 +2057,14 @@ local function mark_spell_cast(id)
     _last_spell_cast["_global_gcd"] = _last_spell_cast[id]
     -- Wire FSR tracking on every successful cast
     if NS.FsrManager and type(NS.FsrManager.on_cast) == "function" then
-        NS.FsrManager.on_cast(id)
+        local mana_cost = 0
+        if NS.SpellCorpus and type(NS.SpellCorpus.get_spell_cost) == "function" then
+            local cost, cost_type = NS.SpellCorpus.get_spell_cost(id)
+            if cost and cost > 0 then
+                mana_cost = cost
+            end
+        end
+        NS.FsrManager.on_cast(id, mana_cost)
     end
 end
 

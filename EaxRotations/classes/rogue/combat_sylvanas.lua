@@ -589,9 +589,12 @@ local strategies = {
     { name = "HitCapPriority",
       matches = function(context, s)
           if not s.hit_cap_rating_needed then return false end
-          return false
+          local deficit = s.hit_cap_rating_needed - (context.hit_rating or 0)
+          if deficit <= 30 then return false end
+          if NS.log then NS.log(string.format("[COMBAT] Hit cap deficit %d — gating missable abilities", deficit)) end
+          return true
       end,
-      execute = function() return false end },
+      execute = function() return true end },
 }
 
 if NS.rotation_registry and NS.rotation_registry.register then

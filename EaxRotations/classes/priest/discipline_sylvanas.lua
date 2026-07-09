@@ -802,9 +802,9 @@ local healing_strategies = {
     local pause_ok, reason = FsrManager.should_pause_for_fsr(s, context)
     return pause_ok
    end,
-   execute = function(_, s)
-    return false
-   end },
+    execute = function(_, s)
+     return true
+    end },
   { name = "BindingHeal", matches = binding_heal_matches, execute = function(context, s) return NS.try_cast(ACTION.BindingHeal, s.lowest.unit, "[DISCIPLINE] Binding Heal") end },
  { name = "CircleOfHealing", matches = circle_of_healing_matches, execute = function() return NS.try_cast(ACTION.CircleofHealing, NS.PLAYER_UNIT, "[DISCIPLINE] CircleOfHealing") end },
  { name = "PrayerOfHealing", matches = prayer_of_healing_matches, execute = function() return NS.try_cast(ACTION.PrayerOfHealing, NS.PLAYER_UNIT, "[DISCIPLINE] PrayerOfHealing") end },

@@ -722,9 +722,9 @@ local strategies = {
     local pause_ok, reason = FsrManager.should_pause_for_fsr(state, context)
     return pause_ok
    end,
-   execute = function(_, state)
-    return false
-   end,
+    execute = function(_, state)
+     return true
+    end,
   },
   {
    name = "FlashHeal",
