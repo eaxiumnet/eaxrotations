@@ -617,13 +617,13 @@ local function chain_heal_matches(context, state)
   -- AoEHeal found a cluster; use cluster count for gate
   if (state.chain_heal_cluster_count or 0) < 2 then return false end
   if (ch_target.effective_hp or 100) > spec_kit.setting_number(context, "restoration_chain_heal_hp", 65) then return false end
-  if NS.gate_overheal("ChainHeal", ch_target.unit, 2.5, context.settings) then return false end
+   if NS.gate_overheal("ChainHeal", ch_target.unit, 2.5, context.settings, ACTION.ChainHeal:id()) then return false end
   return true
  end
  -- Fallback: naive lowest-HP targeting
  if not state.lowest or not state.lowest.unit then return false end
  if (state.chain_heal_target_count or 0) < 2 then return false end  if (state.lowest.effective_hp or 100) > spec_kit.setting_number(context, "restoration_chain_heal_hp", 65) then return false end
- if NS.gate_overheal("ChainHeal", state.lowest.unit, 2.5, context.settings) then return false end
+  if NS.gate_overheal("ChainHeal", state.lowest.unit, 2.5, context.settings, ACTION.ChainHeal:id()) then return false end
  return true
 end
 
