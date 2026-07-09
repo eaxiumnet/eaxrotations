@@ -112,9 +112,10 @@ M.stats = {
 
 -- ── Core: scan for lootable corpses ─────────────────────────────────────────
 function M.find_corpses(me, me_pos, range)
-    _nearby_corpses.n = 0
-    if not me or not me_pos then return _nearby_corpses, 0 end
-
+    for i = 1, _nearby_corpses.n do _nearby_corpses[i] = nil end
+    _nearby_corpses.n = 0
+
+    if not me or not me_pos then return _nearby_corpses, 0 end
     local range_sq = range * range
     local now = NS.time_now and NS.time_now() or 0
     local skip_players = get_setting(M.SETTINGS.skip_players, M.DEFAULTS.skip_players)
