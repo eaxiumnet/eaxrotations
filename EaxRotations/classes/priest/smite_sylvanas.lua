@@ -138,7 +138,7 @@ local SMITE_SCHEMA = {
     threat_safe = true,  enemy_count = 0,  is_group = false,  healthstone_ready = 0,
 }
 
-local function build_smite_state(context)
+local function build_state(context)
     local target = context.target
     local player = NS.GetPlayer()
 

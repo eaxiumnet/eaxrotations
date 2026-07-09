@@ -5,8 +5,6 @@
 -- SAFETY: Pure unit tests with mocked API context.
 
 -- =============================================================================
--- test_runner_lib.lua
---
 -- Shared helpers for the EaxRotations test runners
 -- (run_rotation_tests.lua, run_leveling_tests.lua).
 --

@@ -1,10 +1,8 @@
--- ============================================================================
--- What: Standalone runner that audits vanilla spec files for TBC spell IDs.
--- When: lua EaxRotations/tests/run_vanilla_audit_tests.lua
--- Why: Catches copy-paste contamination where TBC spell ranks leak into Classic.
--- Exit: 0 = clean; 1 = TBC contamination found.
--- Safety: Read-only text scan. No dofile(), no mock setup.
--- ============================================================================
+-- run_vanilla_audit_tests.lua -- Audit vanilla spec files for TBC spell contamination.
+-- WHAT:  Scans vanilla spec files for TBC spell IDs that leaked into Classic.
+-- WHEN:  Run manually or in CI before releases.
+-- WHY:   Catches copy-paste contamination where TBC ranks leak into Classic.
+-- SAFETY: Read-only text scan. No dofile(), no mock setup.
 
 local TBC_IDS = {
     [469] = "Commanding Shout (TBC)",
