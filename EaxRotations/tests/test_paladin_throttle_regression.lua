@@ -4,7 +4,6 @@
 -- WHY:   Protects against regressions in rotation logic and state handling.
 -- SAFETY: Pure unit tests with mocked API context.
 
--- test_paladin_throttle_regression.lua
 -- Minimal regression: verify 3s match-end throttles on key strategies.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 local assert_true = function(v, l) if not v then error(l or "fail", 2) end end

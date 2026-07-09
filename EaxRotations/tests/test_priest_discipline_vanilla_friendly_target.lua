@@ -4,7 +4,7 @@
 -- WHY:   Verifies Vanilla/Classic-era rotation compatibility and spell availability.
 -- SAFETY: Tests only Vanilla spell IDs and mechanics.
 
--- test_priest_discipline_vanilla_friendly_target.lua — B6 FriendlyTarget for vanilla discipline priest.
+-- B6 FriendlyTarget for vanilla discipline priest.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end

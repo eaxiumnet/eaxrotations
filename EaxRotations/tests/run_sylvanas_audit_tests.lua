@@ -1,13 +1,8 @@
--- ============================================================================
--- What: Audit sylvanas.lua rotation files for spell IDs that do NOT exist
---       in the WoW client 2.5.5.68101 DBC database (via wowhead_data_bridge).
--- When: lua EaxRotations/tests/run_sylvanas_audit_tests.lua
--- Why:  Catches invalid spell IDs (e.g., 61336, 25285) that pass vanilla
---       audit but are bogus for TBC Anniversary. This is the positive check;
---       run_vanilla_audit_tests is the negative (TBC-contamination) check.
--- Exit: 0 = clean; 1 = invalid IDs found.
--- Safety: Read-only text scan + bridge lookup. No dofile(), no io writes.
--- ============================================================================
+-- run_sylvanas_audit_tests.lua -- Audit sylvanas.lua rotation files for invalid spell IDs.
+-- WHAT:  Scans rotation files for spell IDs absent from WoW 2.5.5.68101 DBC.
+-- WHEN:  Run manually or in CI before releases.
+-- WHY:   Catches invalid spell IDs that pass vanilla audit but are bogus for TBC Anniversary.
+-- SAFETY: Read-only text scan + bridge lookup. No dofile(), no io writes.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;" .. package.path
 

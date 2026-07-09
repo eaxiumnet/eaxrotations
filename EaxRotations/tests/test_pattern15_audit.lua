@@ -155,6 +155,7 @@ local all_files = {}
 for _, f in ipairs(scan_dir("EaxRotations", "%.lua$")) do all_files[#all_files + 1] = f end
 for _, f in ipairs(scan_dir("EaxRotations/core", "%.lua$")) do all_files[#all_files + 1] = f end
 for _, f in ipairs(scan_dir("EaxRotations/shared", "%.lua$")) do all_files[#all_files + 1] = f end
+for _, f in ipairs(scan_dir("EaxRotations/tests", "%.lua$")) do all_files[#all_files + 1] = f end
 local classes = { "druid", "hunter", "mage", "paladin", "priest", "rogue", "shaman", "warlock", "warrior" }
 for _, class in ipairs(classes) do
     for _, f in ipairs(scan_dir("EaxRotations/classes/" .. class, "_sylvanas%.lua$")) do

@@ -26,7 +26,6 @@ local spec_files = {
     "EaxRotations/classes/druid/bear_sylvanas.lua",
     "EaxRotations/classes/druid/cat_sylvanas.lua",
     "EaxRotations/classes/druid/caster_sylvanas.lua",
-    "EaxRotations/classes/druid/healing_sylvanas.lua",
     "EaxRotations/classes/druid/leveling_sylvanas.lua",
     "EaxRotations/classes/druid/resto_sylvanas.lua",
     "EaxRotations/classes/hunter/beast_mastery_sylvanas.lua",
@@ -98,6 +97,7 @@ local CONVERTED = {
     ["EaxRotations/classes/paladin/protection_sylvanas.lua"] = true,
     ["EaxRotations/classes/hunter/beast_mastery_sylvanas.lua"] = true,
     ["EaxRotations/classes/paladin/holy_sylvanas.lua"] = true,
+    ["EaxRotations/classes/mage/arcane_sylvanas.lua"] = true,
 }
 
 local function add_issue(issues, path, rule, detail)
@@ -138,6 +138,37 @@ for _, path in ipairs(spec_files) do
     end
     if not has_safety then
         add_issue(issues, path, "missing-header-SAFETY", "Pattern 15 SAFETY: key not found in first 30 lines")
+    end
+
+    -- (a2) ALL specs: banned APIs, math.sqrt, bare menu access.
+    local all_lines = first_n_lines(text, 9999)
+    for _, ln in ipairs(all_lines) do
+        if not ln:match("^%-%-") then
+            if ln:find("ffi%.C", 1) or ln:find("io%.popen", 1) or ln:find("os%.execute", 1) then
+                add_issue(issues, path, "banned-api", "banned API (ffi.C / io.popen / os.execute) found in spec")
+                break
+            end
+        end
+    end
+    for _, ln in ipairs(all_lines) do
+        if not ln:match("^%-%-") and ln:find("debug%.", 1) then
+            add_issue(issues, path, "banned-api-debug", "debug.* usage found in spec (not comment)")
+            break
+        end
+    end
+    for _, ln in ipairs(all_lines) do
+        if not ln:match("^%-%-") and ln:find("math%.sqrt", 1, true) then
+            add_issue(issues, path, "math.sqrt", "math.sqrt found in spec — use squared distance (Pattern 3)")
+            break
+        end
+    end
+    if not path:find("schema_sylvanas") then
+        for _, ln in ipairs(all_lines) do
+            if not ln:match("^%-%-") and ln:find("menu%.[a-zA-Z_]+%:get%(", 1) then
+                add_issue(issues, path, "bare-menu-access", "bare menu.x:get() found in spec outside schema file")
+                break
+            end
+        end
     end
 
     -- (b) CONVERTED specs only: canonical mechanical contract.
