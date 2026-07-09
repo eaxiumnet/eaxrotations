@@ -13,15 +13,16 @@
 We completed a full audit of every Lua file in EaxRotations to ensure consistent, safe API usage across the entire codebase.
 
 **What was checked:**
-- All 29 rotation specs + 9 leveling specs + shared modules + core files
-- Banned APIs (`ffi.C`, `io.popen`, `os.execute`, `debug.*`) — none found
+- All 29 rotation specs + 9 leveling specs + 85 shared modules + 6 core files + 9 middleware files
+- Banned APIs (`ffi.C`, `io.popen`, `os.execute`, `debug.*`) — none found in production
 - Distance calculations — all use squared distance (no slow `math.sqrt`)
-- Menu access — all properly nil-guarded
-- API caching — hot-path calls cached at module load
+- Menu access — all properly nil-guarded (no bare `menu.x:get()` outside schema files)
+- API caching — hot-path calls cached at module load (Pattern 2)
 
 **What was fixed:**
-- Added descriptive headers to 3 core files (`main.lua`, `common_sylvanas.lua`, `helpers_sylvanas.lua`)
+- Added descriptive headers to 14 files (3 core files + 5 core modules + 4 class helper files + `header.lua`)
 - Fixed 1 instance of uncached API access in Druid Cat form detection
+- Extended compliance test to cover 103 shared/core/middleware files
 
 **What this means for you:** more consistent behavior, easier maintenance, and fewer edge-case bugs.
 

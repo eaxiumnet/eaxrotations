@@ -2,19 +2,29 @@
 
 **Date:** 2026-07-09
 **Branch:** main
-**Commits:** API standardization audit — Pattern 15 headers, Pattern 2 caching fix
+**Commits:** API standardization audit — Pattern 15 headers, Pattern 2 caching fix, compliance test extension
 
 ---
 
-## API Standardization Audit (Phase 0)
+## API Standardization Audit (Phase 0-3 Complete)
 
-### Pattern 15 Headers Added
+### Pattern 15 Headers Added (14 files total)
 
 | File | Header Added |
 |------|-------------|
 | `main.lua` | WHAT/WHEN/WHY/SAFETY |
 | `common_sylvanas.lua` | WHAT/WHEN/WHY/SAFETY |
 | `helpers_sylvanas.lua` | WHAT/WHEN/WHY/SAFETY |
+| `header.lua` | WHAT/WHEN/WHY/SAFETY |
+| `core/cooldowns.lua` | WHAT/WHEN/WHY/SAFETY |
+| `core/diagnostics.lua` | WHAT/WHEN/WHY/SAFETY |
+| `core/items.lua` | WHAT/WHEN/WHY/SAFETY |
+| `core/settings.lua` | WHAT/WHEN/WHY/SAFETY |
+| `core/units.lua` | WHAT/WHEN/WHY/SAFETY |
+| `classes/hunter/cliptracker_sylvanas.lua` | WHAT/WHEN/WHY/SAFETY |
+| `classes/priest/healing_sylvanas.lua` | WHAT/WHEN/WHY/SAFETY |
+| `classes/shaman/healing_sylvanas.lua` | WHAT/WHEN/WHY/SAFETY |
+| `classes/warrior/shared_helpers_sylvanas.lua` | WHAT/WHEN/WHY/SAFETY |
 
 ### Pattern 2 API Caching Fix
 
@@ -22,23 +32,29 @@
 |------|-----|
 | `druid/cat_sylvanas.lua:46` | Cached `core.spell_book.get_shapeshift_form_id` at module load (was raw inline call) |
 
-### Phase 0 Grep Audit Results
+### Compliance Test Extension (Phase 2)
+
+- `test_spec_layout_compliance.lua` extended to cover 103 shared/core/middleware files
+- Checks: Pattern 15 header, banned APIs, math.sqrt, bare menu access
+- Fixed false-positive handling: comment lines skipped for all checks
+- Result: 29 converted specs + 12 legacy + 103 shared/core/middleware PASS
+
+### Phase 0-3 Audit Results
 
 | Audit | Result |
 |-------|--------|
-| Banned APIs (`ffi.C`, `io.popen`, `os.execute`, `debug.*`) | ✅ Zero in production |
-| `math.sqrt` | ✅ Zero in production |
-| Bare `menu.x:get()` | ✅ Zero in spec/middleware/shared |
-| `buff_points` without nil guard | ✅ All guarded |
-| State bare comparisons (legacy) | ✅ Zero |
-| Static table allocation in loops | ✅ Zero |
-| Test raw `core.*` mocks | ✅ All legitimate |
-
-### Files Changed
-- `EaxRotations/main.lua` — Pattern 15 header
-- `EaxRotations/common_sylvanas.lua` — Pattern 15 header
-- `EaxRotations/helpers_sylvanas.lua` — Pattern 15 header
-- `EaxRotations/classes/druid/cat_sylvanas.lua` — Pattern 2 API caching
+| Banned APIs (`ffi.C`, `io.popen`, `os.execute`, `debug.*`) | Zero in production |
+| `math.sqrt` | Zero in production |
+| Bare `menu.x:get()` | Zero outside schema files |
+| `buff_points` without nil guard | All guarded |
+| State bare comparisons (legacy) | Zero |
+| Static table allocation in loops | Zero |
+| Test raw `core.*` mocks | All legitimate |
+| Legacy spec conversion (Wave 1A) | All 11 specs already use spec_kit |
+| Shared module API caching (Wave 1B) | Defensive pcall fallbacks only |
+| Core file audit (Wave 1C) | No hot-path violations |
+| Class infrastructure (Wave 1D) | No bare menu access in middleware |
+| Test file audit (Wave 1E) | Proper NS mocking |
 
 ### Verification
 - `luac -p`: 476/476 PASS
