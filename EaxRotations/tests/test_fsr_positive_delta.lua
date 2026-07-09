@@ -3,10 +3,14 @@
 -- WHEN:  Run as part of rotation test suite.
 -- WHY:   Oracle identified FSR positive-delta path was untested.
 
-local NS = _G.EaxRotations or {}
-NS.time_now = NS.time_now or function() return os.clock() end
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
--- Mock the APIs that FsrManager needs
+local mock_time = 1000
+_G.EaxRotations = _G.EaxRotations or {}
+_G.EaxRotations.time_now = function() return mock_time end
+_G.core = _G.core or {}
+_G.core.spell_book = _G.core.spell_book or {}
+
 local _orig_get_base = nil
 local _orig_get_casting = nil
 
@@ -22,22 +26,25 @@ local function teardown_mock()
     core.spell_book.get_casting_power_regen = _orig_get_casting
 end
 
--- Load FsrManager fresh (it lazy-loads the APIs)
 package.loaded["shared/fsr_manager_sylvanas"] = nil
 local FsrManager = require("shared/fsr_manager_sylvanas")
 
 assert(FsrManager, "FsrManager must load")
 
--- Test 1: is_inside_fsr after cast
 setup_mock()
+
 FsrManager.on_cast(1, 500)
 assert(FsrManager.is_inside_fsr() == true, "Expected inside FSR immediately after cast")
 
--- Test 2: get_regen_delta with mocked APIs
+mock_time = 1003.5
+assert(FsrManager.is_inside_fsr() == true, "Expected still inside FSR after 3.5s")
+
+local fsr_remaining = FsrManager.seconds_until_fsr()
+assert(fsr_remaining <= 2.0, string.format("Expected fsr_remaining <= 2.0, got %.2f", fsr_remaining))
+
 local delta = FsrManager.get_regen_delta()
 assert(delta > 0, string.format("Expected positive regen delta, got %.0f", delta))
 
--- Test 3: should_pause_for_fsr returns true when conditions met
 local mock_state = {
     mana_pct = 25,
     lowest_hp_pct = 60,
@@ -49,12 +56,10 @@ local mock_context = {
 local pause_ok, reason = FsrManager.should_pause_for_fsr(mock_state, mock_context)
 assert(pause_ok == true, string.format("Expected should_pause_for_fsr=true, got %s (reason: %s)", tostring(pause_ok), reason or "nil"))
 
--- Test 4: should_pause_for_fsr returns false when mana is high
 mock_state.mana_pct = 50
 pause_ok, reason = FsrManager.should_pause_for_fsr(mock_state, mock_context)
 assert(pause_ok == false, "Expected should_pause_for_fsr=false when mana > 35%")
 
--- Test 5: should_pause_for_fsr returns false when emergency
 mock_state.mana_pct = 25
 mock_state.lowest_hp_pct = 35
 pause_ok, reason = FsrManager.should_pause_for_fsr(mock_state, mock_context)

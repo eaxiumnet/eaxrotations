@@ -116,7 +116,8 @@ local tests = {
  "test_interrupt_manager.lua",
  "test_interrupt_manager_school_lock.lua",
  "test_burst_logic_integration.lua",
- "test_mage_tbc_corrections.lua",
+  "test_mage_tbc_corrections.lua",
+  "test_fsr_positive_delta.lua",
  "test_api_lint.lua",
  "test_rotation_static_compliance.lua",
  "test_rotation_strategy_compliance.lua",
@@ -282,7 +283,8 @@ local tests = {
  "test_subtlety_vanilla_nil_guards.lua",
 
  -- Vanilla nil-guard regression tests (Pattern 14 coverage for all 38 remaining specs)
- "test_warrior_vanilla_nil_guards.lua",
+  "test_warrior_vanilla_nil_guards.lua",
+  "test_warrior_leveling_vanilla_spells.lua",
  "test_druid_vanilla_nil_guards.lua",
  "test_rogue_vanilla_nil_guards.lua",
  "test_paladin_vanilla_nil_guards.lua",
@@ -338,7 +340,8 @@ local tests = {
  "test_leveling_shaman.lua",
  "test_leveling_shared.lua",
  "test_leveling_warlock.lua",
- "test_leveling_warrior.lua",
+  "test_leveling_warrior.lua",
+  "test_leveling_compliance.lua",
 
  -- reset_api_health tests (previously not registered)
  "test_reset_api_health.lua",
