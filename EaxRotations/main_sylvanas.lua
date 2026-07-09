@@ -112,8 +112,13 @@ local _same_unit = NS.same_unit
 local _gcd_remains = NS.gcd_remains
 local _get_global_cooldown = NS.get_global_cooldown
 
--- Talent build detection: cached API reference (nil if unavailable at load time)
-local _get_talent_info = core.game_ui and core.game_ui.get_talent_info
+-- Talent build detection: resolve API reference dynamically (may be nil at load, available later)
+local function _get_talent_info(...)
+    local fn = core.game_ui and core.game_ui.get_talent_info
+    if type(fn) == "function" then
+        return fn(...)
+    end
+end
 local _cached_talent_build = nil
 local _cached_talent_build_time = 0
 
@@ -522,7 +527,12 @@ local function build_context()
     local _enemies_cache = throttled_enemies()
     local count = (_enemies_cache and _enemies_cache.n) or (_enemies_cache and #_enemies_cache) or 0
     local engine_ttd = enemy_ok and target_time_to_die(target) or nil
-    local instance_type = tostring(core_string("get_instance_type") or "none"):lower()
+    local instance_type_raw = core_string("get_instance_type")
+    if type(instance_type_raw) ~= "string" then
+        -- Some PS builds return numeric instance type IDs; coerce to string
+        instance_type_raw = tostring(instance_type_raw or "none")
+    end
+    local instance_type = instance_type_raw:lower()
     local player_level = unit_number(me, "get_effective_level") or unit_number(me, "get_level") or 70
     local target_level = target and (unit_number(target, "get_effective_level") or unit_number(target, "get_level")) or nil
     local target_classification = target and unit_number(target, "get_classification") or nil
@@ -650,7 +660,13 @@ local function build_context()
     })
     _context.burst_reason = _context.should_burst and "burst_conditions_met" or nil
     -- target_distance uses get_distance when available, otherwise falls back to melee range check
-    _context.in_melee_range = target and target.is_in_melee_range and target:is_in_melee_range(5) or false
+    -- is_in_melee_range is a player method, not a target method
+    local in_melee = false
+    if me and me.is_in_melee_range then
+        local ok, im = pcall(me.is_in_melee_range, me, target, 5)
+        in_melee = ok and im == true
+    end
+    _context.in_melee_range = in_melee
     local dist_ok, dist_val = pcall(function() return target and NS.safe_field(target, "get_distance") and target:get_distance(me) end)
     _context.target_range = (dist_ok and type(dist_val) == "number") and dist_val or (_context.in_melee_range and 5 or 40)
     _context.target_distance = _context.target_range
@@ -658,7 +674,7 @@ local function build_context()
     _context.enemy_count = count
     _context.enemies_count = count
     -- Tune hysteresis from player settings if available; defaults remain 500/2000ms.
-    local _hyst_settings = _settings and _settings.hysteresis or nil
+    local _hyst_settings = NS.settings and NS.settings.hysteresis or nil
     if type(_hyst_settings) == "table" then
         EnemyCountHysteresis.configure({
             rise_hold_ms = _hyst_settings.rise_hold_ms,
@@ -687,7 +703,18 @@ local function build_context()
     _context.pet_happiness = ph_data and ph_data.happiness or nil
     _context.stance = _get_player_stance() or 0
     _context.player_class = NS.player_class_id
-    _context.has_totems = _context.in_combat
+    -- Check for active totems via get_totem_info (shaman only)
+    local has_totems = false
+    if me and NS.player_class_id == 7 and core and core.spell_book and core.spell_book.get_totem_info then
+        for slot = 1, 4 do
+            local ok, info = pcall(core.spell_book.get_totem_info, slot)
+            if ok and info and info.have_totem then
+                has_totems = true
+                break
+            end
+        end
+    end
+    _context.has_totems = has_totems
     _context.is_moving = unit_bool(me, "is_moving")
     _context.is_casting = unit_bool(me, "is_casting", "is_casting_spell")
     _context.is_channeling = unit_bool(me, "is_channeling", "is_channelling_spell")
@@ -816,10 +843,7 @@ local function build_context()
     -- ============================================================================
     -- Threat percentage (0-100) for threat-sensitive specs (rogue, warlock, shaman)
     if target and me then
-        local ok_ts, ts = pcall(function() return target:get_threat_situation() end)
-        local ts_num = (ok_ts and type(ts) == "number") and ts or 0
-        -- Threat zones: 0=none, 1=low, 2=medium, 3=aggro; scale to 0-100%
-        _context.threat_pct = (ts_num / 3) * 100
+        _context.threat_pct = NS.threat_status and NS.threat_status(target, me) or 0
     else
         _context.threat_pct = 0
     end
@@ -974,7 +998,9 @@ local function build_context()
     -- Talent build: per-tree invested points from classic talent API.
     -- Throttled: recomputed OOC (every 5s) or every 30s in combat.
     -- Nil when API unavailable (backward compatible).
-    if _get_talent_info then
+    -- Check talent API availability at call time (not just load time)
+    local _has_talent_api = core and core.game_ui and type(core.game_ui.get_talent_info) == "function"
+    if _has_talent_api then
         local now_tb = _time_now()
         local tb_age = now_tb - (_cached_talent_build_time or 0)
         local recompute = not _cached_talent_build or (not in_combat and tb_age > 5) or tb_age > 30
@@ -996,6 +1022,8 @@ local function build_context()
         end
         _context.talent_build = _cached_talent_build
     else
+        _cached_talent_build = nil
+        _cached_talent_build_time = 0
         _context.talent_build = nil
     end
     _context.now = NS.time_now()

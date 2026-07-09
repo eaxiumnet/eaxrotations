@@ -1027,7 +1027,8 @@ function NS.register_on_update_callback(callback)
             -- messages and silent pcall errors in shared modules.
             local _om = core and core.object_manager
             if not (_om and _om.get_local_player) then return false end
-            if not _om.get_local_player() then return false end
+            local ok_lp, player = pcall(_om.get_local_player)
+            if not ok_lp or not player then return false end
 
             -- Fan out to all registered callbacks (all throttled together)
             for i = 1, #_shared_callbacks do
@@ -3186,8 +3187,8 @@ local function _aura_query(unit, ids, aura_type, default, use_lookup,
 
     -- 1. Primary: buff_manager with 50ms cache
     if _buff_manager then
-        local data = _buff_manager[bm_method](_buff_manager, unit, list, 50)
-        if data and data.is_active ~= false then
+        local bm_ok, data = pcall(_buff_manager[bm_method], _buff_manager, unit, list, 50)
+        if bm_ok and data and data.is_active ~= false then
             local result = extract_bm(data)
             if result ~= nil then return result end
         end
@@ -3738,22 +3739,6 @@ function NS.is_pvp_zone()
         local ok, map_id = pcall(core.get_map_id)
 
         if ok and _BG_MAP_IDS[map_id] then
-
-            _cached_pvp_zone_result = true
-
-            return true
-
-        end
-
-    end
-
-    -- Fallback: instance ID (many BGs share instance IDs)
-
-    if type(core.get_instance_id) == "function" then
-
-        local ok, instance_id = pcall(core.get_instance_id)
-
-        if ok and type(instance_id) == "number" and instance_id > 0 then
 
             _cached_pvp_zone_result = true
 
@@ -4940,19 +4925,24 @@ end
 
 local healing_unit_buffer = {}
 
+local _collect_healing_units_buf = {}
 function NS.collect_healing_units()
 
     local count = NS.build_healing_entries(healing_unit_buffer)
 
-    local units = {}
-
     for i = 1, count do
 
-        units[i] = healing_unit_buffer[i] and healing_unit_buffer[i].unit or nil
+        _collect_healing_units_buf[i] = healing_unit_buffer[i] and healing_unit_buffer[i].unit or nil
 
     end
 
-    return units
+    for i = count + 1, #_collect_healing_units_buf do
+
+        _collect_healing_units_buf[i] = nil
+
+    end
+
+    return _collect_healing_units_buf
 
 end
 
@@ -5761,7 +5751,7 @@ function NS.action_execute(context, action, prefix)
             -- Fallback: direct core.input.cast_position_spell
             local cast_pos_fn = core.input and core.input.cast_position_spell
             if type(cast_pos_fn) ~= "function" then return false end
-            if safe(cast_pos_fn, id, position) == false then return false end
+            if safe(cast_pos_fn, id, position) ~= true then return false end
 
             mark_spell_cast(id)
 
@@ -5803,15 +5793,17 @@ function NS.action_execute(context, action, prefix)
         -- Use central cast guard (skips GCD per opts, checks cooldown/resource/range/anti-flicker/min_interval/reagent)
         if not NS.evaluate_cast(action.spell, target, reason, opts) then return false end
         -- Movement assist: brief pause + face target for cast-time spells.
-        -- NS.MovementAssist is a table (registered in movement_assist_sylvanas.lua).
-        -- face_for_spell is a no-op for instant-cast spells (cast_time < 0.1s), so it is
-        -- safe to call for all spells here. Opt-out via opts.skip_movement_assist.
-        if not opts.skip_movement_assist and type(NS.MovementAssist) == "table" and NS.MovementAssist.face_for_spell then
-            NS.MovementAssist.face_for_spell(id, target)
-        end
-        -- Movement assist: brief pause + face target for cast-time spells (Phase 5)
-        do
-            local ma = nil -- legacy broken call neutralized (NS.MovementAssist is a table, not a function)
+        -- NS.MovementAssist may be a function (lazy loader) or table (module).
+        -- face_for_spell is a no-op for instant-cast spells (cast_time < 0.1s).
+        -- Opt-out via opts.skip_movement_assist.
+        if not opts.skip_movement_assist then
+            local ma = nil
+            if type(NS.MovementAssist) == "table" then
+                ma = NS.MovementAssist
+            elseif type(NS.MovementAssist) == "function" then
+                local ok, result = pcall(NS.MovementAssist)
+                if ok then ma = result end
+            end
             if ma and ma.face_for_spell then
                 ma:face_for_spell(id, target)
             end
