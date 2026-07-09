@@ -127,6 +127,16 @@ local HOLY_OPTS_GH = { gh_coefficient = true, cast_time = 2.5, overheal_threshol
 local HOLY_OPTS_FH = { cast_time = 1.5, overheal_threshold = 1.3 }
 local HOLY_OPTS_POH = { poh_coefficient = true, cast_time = 3.0, overheal_threshold = 1.3 }
 
+-- Greater Heal tiered ranks for mana-based downranking
+local GREATER_HEAL_MAX = 25213      -- Rank 7 (max)
+local GREATER_HEAL_CONSERVE = 25210 -- Rank 6 (conserve)
+local GREATER_HEAL_EFFICIENT = 25314 -- Rank 5 (efficient)
+
+-- Flash Heal tiered ranks for mana-based downranking
+local FLASH_HEAL_MAX = 25235        -- Rank 9 (max)
+local FLASH_HEAL_CONSERVE = 25233   -- Rank 8 (conserve)
+local FLASH_HEAL_EFFICIENT = 10917  -- Rank 7 (efficient)
+
 -- ============================================================================
 -- Schema for safe_state (Pattern 14 nil-guard elimination).
 local HOLY_SCHEMA = {
@@ -687,12 +697,19 @@ local strategies = {
    if NS.gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings) then return false end
    return true
   end,
-  execute = function(context, state)
-   local target = state.lowest.unit
-   local chosen_spell, spell_label = cast_best_heal_rank(GREATER_HEAL_RANKS, target, context, "GH", HOLY_OPTS_GH)
-   if not chosen_spell then return false end
-   return try_cast(chosen_spell, target, format("[HOLY] %s %.0f%%", spell_label, state.lowest.effective_hp or 0))
-  end,
+   execute = function(context, state)
+    local target = state.lowest.unit
+    local mana_pct = state.mana_pct or context.mana_pct or 100
+    local spell_id
+    if mana_pct > 30 then
+     spell_id = GREATER_HEAL_MAX
+    elseif mana_pct > 15 then
+     spell_id = GREATER_HEAL_CONSERVE
+    else
+     spell_id = GREATER_HEAL_EFFICIENT
+    end
+    return try_cast(spell_id, target, format("[HOLY] Greater Heal %.0f%% (rank %s)", state.lowest.effective_hp or 0, mana_pct > 30 and "7" or (mana_pct > 15 and "6" or "5")))
+   end,
   },
   {
    name = "FSRPause",
@@ -723,12 +740,19 @@ local strategies = {
    if NS.gate_overheal("FlashHeal", state.lowest.unit, 1.5, context.settings) then return false end
    return true
   end,
-  execute = function(context, state)
-   local target = state.lowest.unit
-   local chosen_spell, spell_label = cast_best_heal_rank(FLASH_HEAL_RANKS, target, context, "FH", HOLY_OPTS_FH)
-   if not chosen_spell then return false end
-   return try_cast(chosen_spell, target, format("[HOLY] %s %.0f%%", spell_label, state.lowest.effective_hp or 0))
-  end,
+   execute = function(context, state)
+    local target = state.lowest.unit
+    local mana_pct = state.mana_pct or context.mana_pct or 100
+    local spell_id
+    if mana_pct > 30 then
+     spell_id = FLASH_HEAL_MAX
+    elseif mana_pct > 15 then
+     spell_id = FLASH_HEAL_CONSERVE
+    else
+     spell_id = FLASH_HEAL_EFFICIENT
+    end
+    return try_cast(spell_id, target, format("[HOLY] Flash Heal %.0f%% (rank %s)", state.lowest.effective_hp or 0, mana_pct > 30 and "9" or (mana_pct > 15 and "8" or "7")))
+   end,
  },
  {
   name = "DesperatePrayer",

@@ -2055,6 +2055,10 @@ local function mark_spell_cast(id)
     _last_spell_cast_cleanup_time = cleanup_old_entries(_last_spell_cast, _last_spell_cast_cleanup_time, _SPELL_CAST_CLEANUP_INTERVAL, _SPELL_CAST_MAX_AGE)
     _last_spell_cast[id] = NS.time_now()
     _last_spell_cast["_global_gcd"] = _last_spell_cast[id]
+    -- Wire FSR tracking on every successful cast
+    if NS.FsrManager and type(NS.FsrManager.on_cast) == "function" then
+        NS.FsrManager.on_cast(id)
+    end
 end
 
 -- ============================================================================
