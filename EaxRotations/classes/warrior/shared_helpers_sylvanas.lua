@@ -4,7 +4,6 @@
 -- WHY:   eliminates duplicated boilerplate across fury/arms/protection_sylvanas.lua.
 -- SAFETY: configurable constants (M.*) so each spec can override; NS-guarded.
 
--- shared_helpers_sylvanas -- Shared helpers for Warrior spec files (Fury, Arms, Protection).
 -- Extracted from duplicated boilerplate in fury_sylvanas.lua and arms_sylvanas.lua.
 -- Constants like TACTICAL_MASTERY_CAP, STANCE_CAST_LOCKOUT, and CAST_TAG are
 -- configurable fields on the returned module so each spec can override them.
