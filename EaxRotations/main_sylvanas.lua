@@ -1357,6 +1357,7 @@ function M.on_rotation_update_unified()
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true
         end
+        if not context.is_leveling then return false end
     end
     if context.on_gcd and context.in_combat and context.is_casting then
         return true
