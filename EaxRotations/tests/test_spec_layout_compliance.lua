@@ -10,6 +10,9 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
+local lfs = require("lfs")
+assert(lfs, "lfs (LuaFileSystem) is required for cross-platform directory scanning")
+
 local function read_file(path)
     local f = assert(io.open(path, "rb"), "open failed: " .. path)
     local text = f:read("*a") or ""
@@ -179,48 +182,52 @@ end
 
 -- (c) SHARED + CORE + TOP-LEVEL + CLASS INFRASTRUCTURE files.
 -- Dynamically scanned so new files are automatically checked (no hardcoded lists).
-local function scan_dir(dir)
+local function scan_dir(dir, pattern)
     local files = {}
-    local pattern = dir:gsub("/", "\\") .. "\\*.lua"
-    local f = io.popen('dir /b "' .. pattern .. '" 2>nul')
-    if f then
-        for filename in f:lines() do
-            files[#files + 1] = dir .. "/" .. filename
+    local attr = lfs.attributes(dir)
+    if attr and attr.mode == "directory" then
+        for entry in lfs.dir(dir) do
+            if entry ~= "." and entry ~= ".." then
+                local full = dir .. "/" .. entry
+                local fattr = lfs.attributes(full)
+                if fattr and fattr.mode == "file" then
+                    if not pattern or entry:match(pattern) then
+                        files[#files + 1] = full
+                    end
+                end
+            end
         end
-        f:close()
     end
     return files
 end
 
 local shared_core_files = {}
-for _, f in ipairs(scan_dir("EaxRotations")) do
+for _, f in ipairs(scan_dir("EaxRotations", "%.lua$")) do
     shared_core_files[#shared_core_files + 1] = f
 end
-for _, f in ipairs(scan_dir("EaxRotations/core")) do
+for _, f in ipairs(scan_dir("EaxRotations/core", "%.lua$")) do
     shared_core_files[#shared_core_files + 1] = f
 end
-for _, f in ipairs(scan_dir("EaxRotations/shared")) do
+for _, f in ipairs(scan_dir("EaxRotations/shared", "%.lua$")) do
     shared_core_files[#shared_core_files + 1] = f
 end
 
 local classes = { "druid", "hunter", "mage", "paladin", "priest", "rogue", "shaman", "warlock", "warrior" }
 for _, class in ipairs(classes) do
     local dir = "EaxRotations/classes/" .. class
-    local f = io.popen('dir /b "' .. dir:gsub("/", "\\") .. '\\*_sylvanas.lua" 2>nul')
-    if f then
-        for filename in f:lines() do
-            local full = dir .. "/" .. filename
-            local is_spec = false
-            for _, spec_path in ipairs(spec_files) do
-                if spec_path == full then is_spec = true; break end
-            end
-            if not is_spec and not filename:find("_vanilla%.lua$") then
-                shared_core_files[#shared_core_files + 1] = full
-            end
+    for _, full in ipairs(scan_dir(dir, "_sylvanas%.lua$")) do
+        local filename = full:match("([^/]+)$") or full
+        local is_spec = false
+        for _, spec_path in ipairs(spec_files) do
+            if spec_path == full then is_spec = true; break end
         end
-        f:close()
+        if not is_spec and not filename:find("_vanilla%.lua$") then
+            shared_core_files[#shared_core_files + 1] = full
+        end
     end
 end
+
+assert(#shared_core_files > 0, "scan_dir returned 0 files — lfs may not be working")
 
 local shared_checked = 0
 for _, path in ipairs(shared_core_files) do
@@ -295,14 +302,12 @@ end
 local vanilla_files = {}
 for _, class in ipairs(classes) do
     local dir = "EaxRotations/classes/" .. class
-    local f = io.popen('dir /b "' .. dir:gsub("/", "\\") .. '\\*_vanilla.lua" 2>nul')
-    if f then
-        for filename in f:lines() do
-            vanilla_files[#vanilla_files + 1] = dir .. "/" .. filename
-        end
-        f:close()
+    for _, full in ipairs(scan_dir(dir, "_vanilla%.lua$")) do
+        vanilla_files[#vanilla_files + 1] = full
     end
 end
+
+assert(#vanilla_files > 0, "vanilla scan returned 0 files")
 
 local vanilla_checked = 0
 for _, path in ipairs(vanilla_files) do
@@ -346,16 +351,12 @@ for _, path in ipairs(vanilla_files) do
 end
 
 -- (e) Test file registration check: every test_*.lua in EaxRotations/tests/
--- must be listed in run_rotation_tests.lua (excluding the runner itself and
--- run_leveling_tests.lua which is a separate runner).
+-- must be listed in run_rotation_tests.lua (excluding the runner itself).
 local runner_text = read_file("EaxRotations/tests/run_rotation_tests.lua")
 local test_dir_files = {}
-local test_dir = io.popen('dir /b "EaxRotations\\tests\\test_*.lua"')
-if test_dir then
-    for filename in test_dir:lines() do
-        test_dir_files[filename] = true
-    end
-    test_dir:close()
+for _, full in ipairs(scan_dir("EaxRotations/tests", "^test_[^_]+%.lua$")) do
+    local filename = full:match("([^/]+)$") or full
+    test_dir_files[filename] = true
 end
 
 local runner_missing = {}
@@ -369,6 +370,29 @@ if #runner_missing > 0 then
     table.sort(runner_missing)
     add_issue(issues, "EaxRotations/tests/run_rotation_tests.lua", "unregistered-test-files",
         "test files not registered in runner: " .. table.concat(runner_missing, ", "))
+end
+
+-- (f) Test files: banned-API scan (close self-exemption loophole).
+local test_banned_found = {}
+for _, full in ipairs(scan_dir("EaxRotations/tests", "%.lua$")) do
+    local text = read_file(full)
+    local filename = full:match("([^/]+)$") or full
+    if filename ~= "test_runner_lib.lua" then
+        for _, ln in ipairs(first_n_lines(text, 9999)) do
+        if not ln:match("^%-%-") then
+            -- Flag actual calls, not references inside string literals.
+            if ln:find("ffi%.C%(", 1) or ln:find("io%.popen%(", 1) or ln:find("os%.execute%(", 1) then
+                    test_banned_found[#test_banned_found + 1] = filename
+                    break
+                end
+            end
+        end
+    end
+end
+if #test_banned_found > 0 then
+    table.sort(test_banned_found)
+    add_issue(issues, "EaxRotations/tests/", "banned-api-in-test",
+        "banned API (ffi.C / io.popen / os.execute) found in test files: " .. table.concat(test_banned_found, ", "))
 end
 
 if #issues > 0 then
