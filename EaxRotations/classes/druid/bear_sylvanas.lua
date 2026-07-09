@@ -343,7 +343,7 @@ local function build_state(context)
     if context.now then _last_build_time = now end
 
     state.is_group = is_group
-    state.settings = settings
+    state.settings = context.settings
     state.me        = context.me or (NS.GetPlayer and NS.GetPlayer()) or nil
     state.target    = context.target
     state.hp        = context.hp or 100

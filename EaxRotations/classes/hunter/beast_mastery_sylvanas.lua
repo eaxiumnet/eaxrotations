@@ -436,7 +436,7 @@ local function bestial_wrath_matches(context, s)
     if not s.pet_alive then return false end
     if not s.bestial_wrath_ready then return false end
     -- TTD gate: don't waste 2min CD on a dying target
-    if context.ttd_known and context.ttd < 15 then return false end
+    if context.ttd_known and (context.ttd or 0) < 15 then return false end
     -- Stack with major CDs; timeout fallback so BW fires by ~45s
     local align = s.major_cd_window or false
     local combat_time = context.combat_time or 0

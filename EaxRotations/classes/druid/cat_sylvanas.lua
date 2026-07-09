@@ -516,6 +516,8 @@ local function record_bleed_snapshot(action_name, state)
     end
 end
 
+local build_state
+
 local function cast_and_record(context, action)
     local state = build_state(context)
     local ok = execute_action(context, action)
@@ -527,7 +529,7 @@ local function cast_and_record(context, action)
     return ok
 end
 
-function build_state(context)
+build_state = function(context)
     local state = cat_state
     local me = context.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context.target

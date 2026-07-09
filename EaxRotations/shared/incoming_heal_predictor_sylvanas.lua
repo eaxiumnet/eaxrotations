@@ -358,7 +358,8 @@ function M._on_combat_log_entry(entry)
 
     -- Heuristic: if this healer has healed this target 3+ times recently,
     -- predict another heal of the same type arriving after estimated cast time.
-    if pt.count >= 3 then
+    -- Throttle: only add one prediction per (target, healer) pair per scan interval.
+    if pt.count >= 3 and (now_s() - (pt.last_prediction or 0)) >= SCAN_INTERVAL then
         local spell_name = entry.spell_name or "Heal"
         local info = spell_info(entry.spell_id)
         local cast_time = (info and info.cast_time) or 1.5
@@ -368,6 +369,7 @@ function M._on_combat_log_entry(entry)
         local next_amount = pt.avg_amount * 0.8  -- conservative: 80% of average
 
         add_prediction(target_guid, next_amount, next_arrival, healer_guid, spell_name)
+        pt.last_prediction = now_s()
     end
 end
 
@@ -408,18 +410,17 @@ function M.scan_party_casts(now)
     if core and core.object_manager and core.object_manager.get_visible_objects then
         local ok, visible = pcall(core.object_manager.get_visible_objects)
         if ok and type(visible) == "table" then
+            -- Deduplicate using a guid set for O(1) lookup
+            local seen_guids = {}
+            for i = 1, count do
+                local g = unit_guid(units[i])
+                if g then seen_guids[g] = true end
+            end
             for _, u in ipairs(visible) do
                 if u and is_party_or_raid(u) then
-                    -- Deduplicate
-                    local dup = false
                     local this_guid = unit_guid(u)
-                    for i = 1, count do
-                        if unit_guid(units[i]) == this_guid then
-                            dup = true
-                            break
-                        end
-                    end
-                    if not dup then
+                    if this_guid and not seen_guids[this_guid] then
+                        seen_guids[this_guid] = true
                         count = count + 1
                         units[count] = u
                     end

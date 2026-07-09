@@ -144,14 +144,45 @@ function M.scan_unit_debuffs(unit)
             end
         end
     end
-    -- Fallback: check known magic debuff IDs
-    local class_key = get_player_class_key()
-    if class_key == "PRIEST" then
-        -- Check for magic debuffs via has_debuff on common magic debuff IDs
+    -- Fallback: scan all debuffs on the unit and categorize by type
+    -- Uses unit:get_debuffs() when available, falls back to known magic IDs
+    local all_debuffs = nil
+    if unit and unit.get_debuffs then
+        local ok, debuffs = pcall(unit.get_debuffs, unit)
+        if ok and type(debuffs) == "table" then
+            all_debuffs = debuffs
+        end
+    end
+    if all_debuffs then
+        for _, debuff in ipairs(all_debuffs) do
+            local dtype = debuff and debuff.type
+            if dtype and M.can_dispel(dtype) then
+                local spell_id = M.get_dispel_spell(dtype)
+                if spell_id then return dtype, spell_id end
+            end
+        end
+    else
+        -- Narrow fallback: known magic debuff IDs for all dispel classes
         local MAGIC_DEBUFF_IDS = {
             118, 12824, 12825, 12826,  -- Polymorph
             5782, 6213, 6215,          -- Fear
             2637,                      -- Hibernate
+            12294,                     -- Mortal Strike
+            30459, 30460, 30461,       -- Searing Pain
+            1714, 11719,               -- Curse of Tongues
+            1490, 11708,               -- Curse of the Elements
+            702, 1108,                 -- Curse of Weakness
+            3600,                      -- Earthbind
+            12528,                     -- Counterspell - Silence
+            18469, 55021,              -- Silence (Improved Counterspell, Arcane Torrent)
+            12826,                     -- Polymorph
+            13338,                     -- Curse of Mending
+            11733,                     -- Curse of Shadow
+            589, 594, 970,             -- Shadow Word: Pain
+            348, 172,                  -- Immolate, Corruption
+            703,                      -- Garrote
+            2094, 21060,               -- Blind
+            11297, 11297,              -- Sap
         }
         for _, id in ipairs(MAGIC_DEBUFF_IDS) do
             if NS.has_debuff and NS.has_debuff(unit, id) then

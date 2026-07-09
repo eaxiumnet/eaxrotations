@@ -261,7 +261,7 @@ local function rapid_fire_matches(context, s)
     if not s.in_combat then return false end
     if not s.rapid_fire_ready then return false end
     -- TTD gate: don't waste 3min CD on a dying target
-    if context.ttd_known and context.ttd < 15 then return false end
+    if context.ttd_known and (context.ttd or 0) < 15 then return false end
     return true
 end
 
@@ -385,7 +385,7 @@ local function readiness_matches(context, s)
     if not s.in_combat then return false end
     if not s.readiness_ready then return false end
     -- TTD gate: don't waste 5min CD on a dying target
-    if context.ttd_known and context.ttd < 20 then return false end
+    if context.ttd_known and (context.ttd or 0) < 20 then return false end
     -- Use after Rapid Fire has been used (on CD) to reset it for a 2nd burst window
     -- MM does not have Bestial Wrath; only gate on Rapid Fire CD remaining
     if (s.rapid_fire_cd or 0) < 60 then return false end
@@ -398,7 +398,7 @@ local function trueshot_aura_matches(context, s)
     if s.trueshot_aura_active then return false end
     if not s.trueshot_aura_ready then return false end
     -- TTD gate: don't waste 2min CD on a dying target
-    if context.ttd_known and context.ttd < 10 then return false end
+    if context.ttd_known and (context.ttd or 0) < 10 then return false end
     return true
 end
 

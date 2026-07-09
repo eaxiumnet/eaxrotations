@@ -9,7 +9,8 @@
 -- =============================================================================
 
 local M = {}
-local NS = _G.EaxRotations
+local NS = _G.EaxRotations
+local core = _G.core or {}
 
 -- ── Static tables (reused every tick) ───────────────────────────────────────
 local _nearby_corpses = { n = 0 }
