@@ -287,6 +287,26 @@ local shared_core_files = {
     "EaxRotations/classes/shaman/middleware_sylvanas.lua",
     "EaxRotations/classes/warlock/middleware_sylvanas.lua",
     "EaxRotations/classes/warrior/middleware_sylvanas.lua",
+    -- Class infrastructure files
+    "EaxRotations/classes/druid/class_sylvanas.lua",
+    "EaxRotations/classes/hunter/class_sylvanas.lua",
+    "EaxRotations/classes/mage/class_sylvanas.lua",
+    "EaxRotations/classes/paladin/class_sylvanas.lua",
+    "EaxRotations/classes/priest/class_sylvanas.lua",
+    "EaxRotations/classes/rogue/class_sylvanas.lua",
+    "EaxRotations/classes/shaman/class_sylvanas.lua",
+    "EaxRotations/classes/warlock/class_sylvanas.lua",
+    "EaxRotations/classes/warrior/class_sylvanas.lua",
+    -- Schema files (bare menu access is allowed here)
+    "EaxRotations/classes/druid/schema_sylvanas.lua",
+    "EaxRotations/classes/hunter/schema_sylvanas.lua",
+    "EaxRotations/classes/mage/schema_sylvanas.lua",
+    "EaxRotations/classes/paladin/schema_sylvanas.lua",
+    "EaxRotations/classes/priest/schema_sylvanas.lua",
+    "EaxRotations/classes/rogue/schema_sylvanas.lua",
+    "EaxRotations/classes/shaman/schema_sylvanas.lua",
+    "EaxRotations/classes/warlock/schema_sylvanas.lua",
+    "EaxRotations/classes/warrior/schema_sylvanas.lua",
 }
 
 local shared_checked = 0
@@ -356,6 +376,32 @@ for _, path in ipairs(shared_core_files) do
             add_issue(issues, path, "bare-menu-access", "bare menu.x:get() found in code outside schema file")
         end
     end
+end
+
+-- (d) Test file registration check: every test_*.lua in EaxRotations/tests/
+-- must be listed in run_rotation_tests.lua (excluding the runner itself and
+-- run_leveling_tests.lua which is a separate runner).
+local runner_text = read_file("EaxRotations/tests/run_rotation_tests.lua")
+local test_dir_files = {}
+local test_dir = io.popen('dir /b "EaxRotations\\tests\\test_*.lua"')
+if test_dir then
+    for filename in test_dir:lines() do
+        test_dir_files[filename] = true
+    end
+    test_dir:close()
+end
+
+local runner_missing = {}
+for filename, _ in pairs(test_dir_files) do
+    if filename ~= "test_runner_lib.lua" and not has_lit(runner_text, filename) then
+        runner_missing[#runner_missing + 1] = filename
+    end
+end
+
+if #runner_missing > 0 then
+    table.sort(runner_missing)
+    add_issue(issues, "EaxRotations/tests/run_rotation_tests.lua", "unregistered-test-files",
+        "test files not registered in runner: " .. table.concat(runner_missing, ", "))
 end
 
 if #issues > 0 then
