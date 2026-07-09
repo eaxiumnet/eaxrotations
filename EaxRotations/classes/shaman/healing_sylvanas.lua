@@ -133,14 +133,22 @@ local function entry_hp(entry)
     return 100
 end
 
-local function predictive_overheal(spell_key, entry, cast_time, settings, emergency_hp)
+-- Safe spell-ID extraction: handles production spell_action objects (with :id())
+-- and test stubs that return raw numbers or plain tables.
+local function _spell_id(spell_obj)
+    if type(spell_obj) == "number" then return spell_obj end
+    if type(spell_obj) == "table" and type(spell_obj.id) == "function" then return spell_obj:id() end
+    return nil
+end
+
+local function predictive_overheal(spell_key, entry, cast_time, settings, emergency_hp, spell_id)
     if not entry or not entry.unit then return false end
     if entry_hp(entry) <= (emergency_hp or 30) then return false end
     if (entry.time_to_die or 999) <= cast_time then return false end
     if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
-        return NS.HealerDeficit.gate_spell_overheal(spell_key, entry.unit, cast_time, settings)
+        return NS.HealerDeficit.gate_spell_overheal(spell_key, entry.unit, cast_time, settings, spell_id)
     end
-    return NS.gate_overheal and NS.gate_overheal(spell_key, entry.unit, cast_time, settings) or false
+    return NS.gate_overheal and NS.gate_overheal(spell_key, entry.unit, cast_time, settings, spell_id) or false
 end
 
 local function chain_heal_overheal(entry, settings)
@@ -150,7 +158,7 @@ local function chain_heal_overheal(entry, settings)
     if NS.HealerDeficit and NS.HealerDeficit.heal_would_overheal then
         return NS.HealerDeficit.heal_would_overheal(entry.unit, 1800, 2.5, settings)
     end
-    return predictive_overheal("ChainHeal", entry, 2.5, settings, 35)
+    return predictive_overheal("ChainHeal", entry, 2.5, settings, 35, _spell_id(SHAMAN_SPELLS.ChainHeal))
 end
 
 local heal_result = { spell = nil, label = "", spell_type = "" }
@@ -184,7 +192,7 @@ local function select_heal(context, state, target, options)
     -- Low HP: < 50% -- Lesser Healing Wave (fast cast, efficient)
     if hp < 50 then
         -- Predictive overheal gate: skip LHW if predicted deficit is small
-        if predictive_overheal("LesserHealingWave", target, 1.5, context.settings, 30) then return nil end
+        if predictive_overheal("LesserHealingWave", target, 1.5, context.settings, 30, _spell_id(SHAMAN_SPELLS.LesserHealingWave)) then return nil end
         heal_result.spell = SHAMAN_SPELLS.LesserHealingWave or nil
         heal_result.label = "LHW"
         heal_result.spell_type = "LesserHealingWave"
@@ -194,7 +202,7 @@ local function select_heal(context, state, target, options)
     -- Medium HP: < 70% -- Healing Wave (slow, mana efficient)
     if hp < 70 then
         -- Predictive overheal gate: skip slow HW cast if deficit is too small
-        if predictive_overheal("HealingWave", target, 2.5, context.settings, 35) then return nil end
+        if predictive_overheal("HealingWave", target, 2.5, context.settings, 35, _spell_id(SHAMAN_SPELLS.HealingWave)) then return nil end
         heal_result.spell = SHAMAN_SPELLS.HealingWave or nil
         heal_result.label = "HW"
         heal_result.spell_type = "HealingWave"

@@ -597,8 +597,8 @@ local strategies = {
    if context.hp > spec_kit.setting_number(context, "holy_binding_self_hp", 80) then return false end
    if not state.lowest or state.lowest.is_player then return false end
    if not spell_exists(ACTION.BindingHeal) or not spell_ready(ACTION.BindingHeal, state.lowest.unit) then return false end
-   -- Predictive overheal gate
-   if NS.gate_overheal("BindingHeal", state.lowest.unit, 2.0, context.settings) then return false end
+    -- Predictive overheal gate
+    if NS.gate_overheal("BindingHeal", state.lowest.unit, 2.0, context.settings, ACTION.BindingHeal:id()) then return false end
    return true
   end,
   execute = function(context, state)
@@ -617,8 +617,8 @@ local strategies = {
    -- Use subgroup count for PoH (only counts your party in raids)
    local poh_count = state.subgroup_damaged_count or state.group_damaged_count
    if poh_count < spec_kit.setting_number(context, "holy_aoe_count", 3) then return false end
-   -- Predictive overheal gate
-   if NS.gate_overheal("PrayerOfHealing", state.lowest and state.lowest.unit or NS.PLAYER_UNIT, 3.0, context.settings) then return false end
+    -- Predictive overheal gate
+    if NS.gate_overheal("PrayerOfHealing", state.lowest and state.lowest.unit or NS.PLAYER_UNIT, 3.0, context.settings, ACTION.PrayerOfHealing:id()) then return false end
    return true
   end,
   execute = function(context, state)
