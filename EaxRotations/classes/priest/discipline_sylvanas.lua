@@ -8,8 +8,8 @@ if not NS then return nil end
 local SPELLS = NS.PriestSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 local Healing = NS.PriestHealing or require("classes/priest/healing_sylvanas")
--- Preemptive heal module (Sonah-style predictive healing)
 local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
+local FsrManager = require("shared/fsr_manager_sylvanas")
 local EMPTY_SETTINGS = {}
 
 -- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
@@ -168,6 +168,8 @@ local DISC_SCHEMA = {
     has_prayer_of_fortitude = false,
     player_control_locked = false,
     target_casting = false,
+    -- FSR state (Five-Second Rule)
+    fsr_inside = false, fsr_seconds = 0, fsr_regen_delta = 0,
 }
 
 local disc_state = {
@@ -321,12 +323,23 @@ local function build_state(context)
  disc_state.friendly_target = ft
  disc_state.friendly_target_ready = ft ~= nil
 
- -- parity: Smart Stop-Cast — cancel overhealing casts mid-flight
- if NS.StopCast and type(NS.StopCast.update) == "function" then
-  NS.StopCast.update(me, context.settings)
- end
+  -- parity: Smart Stop-Cast — cancel overhealing casts mid-flight
+  if NS.StopCast and type(NS.StopCast.update) == "function" then
+   NS.StopCast.update(me, context.settings)
+  end
 
- return spec_kit.safe_state(disc_state, DISC_SCHEMA)
+  -- FSR (Five-Second Rule) tracking for mana efficiency
+  if FsrManager then
+   disc_state.fsr_inside = FsrManager.is_inside_fsr()
+   disc_state.fsr_seconds = FsrManager.seconds_until_fsr()
+   disc_state.fsr_regen_delta = FsrManager.get_regen_delta()
+  else
+   disc_state.fsr_inside = false
+   disc_state.fsr_seconds = 0
+   disc_state.fsr_regen_delta = 0
+  end
+
+  return spec_kit.safe_state(disc_state, DISC_SCHEMA)
 end
 
 local function _engaged_with_player(context)
@@ -767,19 +780,32 @@ local healing_strategies = {
   if not target_entry or not target_entry.unit then return false end
   return PreemptiveHeal.execute(context, s, ACTION.GreaterHeal, string.format("[DISCIPLINE] Preemptive GH %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.5, heal_size = 3500 })
  end },
- { name = "GreaterHeal", matches = greater_heal_matches, execute = function(context, s)
-  local mana_pct = s.mana_pct or context.mana_pct or 100
-  local spell_id
-  if mana_pct > 30 then
-   spell_id = GREATER_HEAL_MAX
-  elseif mana_pct > 15 then
-   spell_id = GREATER_HEAL_CONSERVE
-  else
-   spell_id = GREATER_HEAL_EFFICIENT
-  end
-  return NS.try_cast(spell_id, s.lowest.unit, string.format("[DISCIPLINE] Greater Heal %.0f%% (rank %s)", s.lowest.effective_hp or 0, mana_pct > 30 and "7" or (mana_pct > 15 and "6" or "5")))
- end },
- { name = "BindingHeal", matches = binding_heal_matches, execute = function(context, s) return NS.try_cast(ACTION.BindingHeal, s.lowest.unit, "[DISCIPLINE] Binding Heal") end },
+  { name = "GreaterHeal", matches = greater_heal_matches, execute = function(context, s)
+   local mana_pct = s.mana_pct or context.mana_pct or 100
+   local spell_id
+   if mana_pct > 30 then
+    spell_id = GREATER_HEAL_MAX
+   elseif mana_pct > 15 then
+    spell_id = GREATER_HEAL_CONSERVE
+   else
+    spell_id = GREATER_HEAL_EFFICIENT
+   end
+   return NS.try_cast(spell_id, s.lowest.unit, string.format("[DISCIPLINE] Greater Heal %.0f%% (rank %s)", s.lowest.effective_hp or 0, mana_pct > 30 and "7" or (mana_pct > 15 and "6" or "5")))
+  end },
+  { name = "FSRPause",
+   matches = function(context, s)
+    if not FsrManager then return false end
+    if not context.in_combat then return false end
+    if (s.mana_pct or 100) > 35 then return false end
+    if not s.fsr_inside then return false end
+    if (s.fsr_regen_delta or 0) <= 0 then return false end
+    local pause_ok, reason = FsrManager.should_pause_for_fsr(s, context)
+    return pause_ok
+   end,
+   execute = function(_, s)
+    return false
+   end },
+  { name = "BindingHeal", matches = binding_heal_matches, execute = function(context, s) return NS.try_cast(ACTION.BindingHeal, s.lowest.unit, "[DISCIPLINE] Binding Heal") end },
  { name = "CircleOfHealing", matches = circle_of_healing_matches, execute = function() return NS.try_cast(ACTION.CircleofHealing, NS.PLAYER_UNIT, "[DISCIPLINE] CircleOfHealing") end },
  { name = "PrayerOfHealing", matches = prayer_of_healing_matches, execute = function() return NS.try_cast(ACTION.PrayerOfHealing, NS.PLAYER_UNIT, "[DISCIPLINE] PrayerOfHealing") end },
  { name = "RenewTank", matches = renew_tank_matches, execute = function(context, s) return NS.try_cast(ACTION.Renew, s.tank.unit, string.format("[DISCIPLINE] Renew tank %.0f%%", s.tank.effective_hp or 0)) end },

@@ -46,6 +46,7 @@ local ACTION = {
     ShadowResistanceAura   = define("ShadowResistanceAura",   {27151, 19896, 19895, 19876}, "ShadowResistanceAura"),
 }
 local potion_helper = require("shared/potion_helper_sylvanas")
+local FsrManager = require("shared/fsr_manager_sylvanas")
 local Healing = NS.PaladinHealing or require("classes/paladin/healing_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
@@ -165,6 +166,8 @@ local HOLY_SCHEMA = {
     has_fire_aura = false,  has_frost_aura = false,  has_shadow_aura = false,
     has_lights_grace = false,  lights_grace_remains = 0,
     target_has_jol = false,  target_has_jow = false,
+    -- FSR state (Five-Second Rule)
+    fsr_inside = false,  fsr_seconds = 0,  fsr_regen_delta = 0,
 }
 
 local state = {
@@ -546,11 +549,24 @@ local function build_state(context)
  state.friendly_target = ft
  state.friendly_target_ready = ft ~= nil
 
- -- parity: Smart Stop-Cast — cancel overhealing casts mid-flight
- local me = context.me or NS.GetPlayer and NS.GetPlayer() or nil
- if me and NS.StopCast and type(NS.StopCast.update) == "function" then
-  NS.StopCast.update(me, context.settings)
- end    return spec_kit.safe_state(state, HOLY_SCHEMA)
+  -- parity: Smart Stop-Cast — cancel overhealing casts mid-flight
+  local me = context.me or NS.GetPlayer and NS.GetPlayer() or nil
+  if me and NS.StopCast and type(NS.StopCast.update) == "function" then
+   NS.StopCast.update(me, context.settings)
+  end
+  
+  -- FSR (Five-Second Rule) tracking for mana efficiency
+  if FsrManager then
+   state.fsr_inside = FsrManager.is_inside_fsr()
+   state.fsr_seconds = FsrManager.seconds_until_fsr()
+   state.fsr_regen_delta = FsrManager.get_regen_delta()
+  else
+   state.fsr_inside = false
+   state.fsr_seconds = 0
+   state.fsr_regen_delta = 0
+  end
+  
+  return spec_kit.safe_state(state, HOLY_SCHEMA)
 end
 
 local function has_valid_enemy(context)
@@ -878,20 +894,35 @@ local strategies = {
    return cast_on(s.heal_spell, s.tank, format("[HOLY] %s tank %.0f%%", s.heal_label, hp_of(s.tank)))
   end,
  },
- {
-  name = "SmartHeal",
-  matches = function(context, s)
-   local target = s.heal_target or s.lowest or s.tank
-   if not can_help(target) then return false end
-   s.heal_target = target
-   return choose_smart_heal(context, s, target) and NS.spell_ready(s.heal_spell, target.unit, EMPTY_OPTS)
-  end,
-  execute = function(_, s)
-   return cast_on(s.heal_spell, s.heal_target, format("[HOLY] %s %.0f%%", s.heal_label, hp_of(s.heal_target)))
-  end,
- },
- {
-  name = "FlashOfLightEfficientTopoff",
+  {
+   name = "SmartHeal",
+   matches = function(context, s)
+    local target = s.heal_target or s.lowest or s.tank
+    if not can_help(target) then return false end
+    s.heal_target = target
+    return choose_smart_heal(context, s, target) and NS.spell_ready(s.heal_spell, target.unit, EMPTY_OPTS)
+   end,
+   execute = function(_, s)
+    return cast_on(s.heal_spell, s.heal_target, format("[HOLY] %s %.0f%%", s.heal_label, hp_of(s.heal_target)))
+   end,
+  },
+  {
+   name = "FSRPause",
+   matches = function(context, s)
+    if not FsrManager then return false end
+    if not context.in_combat then return false end
+    if (s.mana_pct or 100) > 35 then return false end
+    if not s.fsr_inside then return false end
+    if (s.fsr_regen_delta or 0) <= 0 then return false end
+    local pause_ok, reason = FsrManager.should_pause_for_fsr(s, context)
+    return pause_ok
+   end,
+   execute = function(_, s)
+    return false
+   end,
+  },
+  {
+   name = "FlashOfLightEfficientTopoff",
   matches = function(context, s)
    if not can_help(s.lowest) then return false end
    if hp_of(s.lowest) > spec_kit.setting_number(context, "holy_flash_light_hp", 85) then return false end

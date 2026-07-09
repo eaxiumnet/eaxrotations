@@ -12,6 +12,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local FsrManager = require("shared/fsr_manager_sylvanas")
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local SPELLS = NS.ShamanSpells or {}
@@ -82,6 +83,15 @@ local MANA_EMERGENCY_DEFAULT = 5
 -- Earth Shield charge refresh threshold
 local EARTH_SHIELD_CHARGE_DEFAULT = 2
 
+-- Healing Wave rank tiers for mana-based downranking
+local HEALING_WAVE_MAX = 25396      -- Rank 12 (max)
+local HEALING_WAVE_CONSERVE = 25391 -- Rank 11 (conserve)
+local HEALING_WAVE_EFFICIENT = 25357 -- Rank 10 (efficient)
+
+-- Lesser Healing Wave rank tiers
+local LESSER_HEALING_WAVE_MAX = 25420     -- Rank 7 (max)
+local LESSER_HEALING_WAVE_CONSERVE = 10468 -- Rank 6 (conserve)
+
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local function first_ready_item(ids)
     if not inventory_helper then return nil end
@@ -125,6 +135,8 @@ local RESTO_SCHEMA = {
     healthstone_ready = 0,
     -- Boolean
     friendly_target_ready = false,
+    -- FSR state (Five-Second Rule)
+    fsr_inside = false, fsr_seconds = 0, fsr_regen_delta = 0,
 }
 
 -- ============================================================================
@@ -284,13 +296,24 @@ local function build_state(context)
  resto_state.friendly_target = ft
  resto_state.friendly_target_ready = ft ~= nil
 
- -- parity: Smart Stop-Cast — cancel overhealing casts mid-flight
- if NS.StopCast and type(NS.StopCast.update) == "function" then
-  NS.StopCast.update(me, context.settings)
- end
- resto_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
+  -- parity: Smart Stop-Cast — cancel overhealing casts mid-flight
+  if NS.StopCast and type(NS.StopCast.update) == "function" then
+   NS.StopCast.update(me, context.settings)
+  end
+  resto_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
- return spec_kit.safe_state(resto_state, RESTO_SCHEMA)
+  -- FSR (Five-Second Rule) tracking for mana efficiency
+  if FsrManager then
+   resto_state.fsr_inside = FsrManager.is_inside_fsr()
+   resto_state.fsr_seconds = FsrManager.seconds_until_fsr()
+   resto_state.fsr_regen_delta = FsrManager.get_regen_delta()
+  else
+   resto_state.fsr_inside = false
+   resto_state.fsr_seconds = 0
+   resto_state.fsr_regen_delta = 0
+  end
+
+  return spec_kit.safe_state(resto_state, RESTO_SCHEMA)
 end
 
 local function cooldowns_enabled(context)
@@ -568,7 +591,16 @@ end
 
 local function healing_way_execute(context, state)
  if not state.tank then return false end
- return NS.try_cast(ACTION.HealingWave, state.tank.unit, string.format("[RESTO] HealingWay (stack %d/3)", state.healing_way_stacks))
+ local mana_pct = state.mana_pct or context.mana_pct or 100
+ local spell_id
+ if mana_pct > 30 then
+  spell_id = HEALING_WAVE_MAX
+ elseif mana_pct > 15 then
+  spell_id = HEALING_WAVE_CONSERVE
+ else
+  spell_id = HEALING_WAVE_EFFICIENT
+ end
+ return NS.try_cast(spell_id, state.tank.unit, string.format("[RESTO] HealingWay (stack %d/3) rank %s", state.healing_way_stacks, mana_pct > 30 and "12" or (mana_pct > 15 and "11" or "10")))
 end
 
 -- ============================================================================
@@ -621,11 +653,20 @@ local healing_strategies = {
   if not (NS.spell_ready and NS.spell_ready(ACTION.HealingWave, ft.unit, { skip_range = true })) then return false end
   if NS.gate_overheal and NS.gate_overheal("HealingWave", ft.unit, 2.5, context.settings) then return false end
   return true
- end, execute = function(context, state)
-  local ft = state.friendly_target
-  if not ft or not ft.unit then return false end
-  return NS.try_cast(ACTION.HealingWave, ft.unit, string.format("[RESTO] Healing Wave (friendly target) %.0f%%", ft.hp_pct or 100))
- end },
+  end, execute = function(context, state)
+   local ft = state.friendly_target
+   if not ft or not ft.unit then return false end
+   local mana_pct = state.mana_pct or context.mana_pct or 100
+   local spell_id
+   if mana_pct > 30 then
+    spell_id = HEALING_WAVE_MAX
+   elseif mana_pct > 15 then
+    spell_id = HEALING_WAVE_CONSERVE
+   else
+    spell_id = HEALING_WAVE_EFFICIENT
+   end
+   return NS.try_cast(spell_id, ft.unit, string.format("[RESTO] Healing Wave (friendly target) %.0f%% rank %s", ft.hp_pct or 100, mana_pct > 30 and "12" or (mana_pct > 15 and "11" or "10")))
+  end },
  { name = "ManaPotion",
   matches = function(context)
    if not context.in_combat then return false end
@@ -695,8 +736,21 @@ local healing_strategies = {
   if not target_entry or not target_entry.unit then return false end
   return PreemptiveHeal.execute(context, state, ACTION.ChainHeal, string.format("[RESTO] Preemptive CH %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.5, heal_size = 1800 })
  end },
- { name = "ChainHeal", matches = chain_heal_matches, execute = chain_heal_execute },
- { name = "SmartHeal", matches = smart_heal_matches, execute = function(context, state)
+  { name = "ChainHeal", matches = chain_heal_matches, execute = chain_heal_execute },
+  { name = "FSRPause",
+   matches = function(context, state)
+    if not FsrManager then return false end
+    if not state.in_combat then return false end
+    if (state.mana_pct or 100) > 35 then return false end
+    if not state.fsr_inside then return false end
+    if (state.fsr_regen_delta or 0) <= 0 then return false end
+    local pause_ok, reason = FsrManager.should_pause_for_fsr(state, context)
+    return pause_ok
+   end,
+   execute = function(_, state)
+    return false
+   end },
+  { name = "SmartHeal", matches = smart_heal_matches, execute = function(context, state)
   local heal = (context._shaman_heal or false) or Healing.select_heal(context, state, state.lowest)
   if not heal or not heal.spell then return false end
   if not state.lowest or not state.lowest.unit then return false end

@@ -2,6 +2,34 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.6.0] — FSR, Downranking & Hit Cap Awareness (2026-07-09)
+
+### Five-Second Rule (FSR) — All 5 Healer Specs
+- New shared module: `shared/fsr_manager_sylvanas.lua` — tracks last cast time, FSR window, regen delta
+- FSR-aware casting recommendations: pauses casts when regen value > heal urgency
+- Integrated into: Druid Resto, Paladin Holy, Priest Discipline, Priest Holy, Shaman Resto
+- Each healer spec now exposes `state.fsr_inside`, `state.fsr_seconds`, `state.fsr_regen_delta`
+- `FSRPause` strategy added to 4 specs (Druid Resto, Paladin Holy, Priest Disc/Holy, Shaman Resto)
+
+### Downranking Expansion
+- **Shaman Resto** — Tiered Healing Wave ranks based on mana %:
+  - >30% mana: Rank 12 (max)
+  - 15-30% mana: Rank 11 (conserve)
+  - <15% mana: Rank 10 (efficient)
+- FriendlyTarget Healing Wave also uses tiered ranks
+- Existing downranking preserved: Paladin Holy (R4/R7/R9/R11), Priest Discipline (GH 5/6/7), Priest Holy (dynamic via `cast_best_heal_rank`)
+
+### Hit Cap / Expertise / Haste Tracker
+- New shared module: `shared/hit_cap_tracker_sylvanas.lua` — static TBC thresholds for all specs
+- Hit cap data: 9% (142 rating) melee, 16% (202 rating) casters
+- Expertise caps: 26 soft (dodge removal), 56 hard (parry removal)
+- Wired into **Arms Warrior** and **Combat Rogue** as proof-of-concept
+- State fields: `hit_cap_pct`, `hit_cap_rating_needed`, `expertise_soft_cap`, `expertise_hard_cap`
+
+### Test Updates
+- Updated `test_holy_priest_feature_gaps.lua` and `test_discipline_feature_gaps.lua` for FSRPause strategy count
+- Full suite: 249/249 rotation + 13/13 leveling suites PASS
+
 ## [2.5.0] — Spec Standardization & Polish (2026-07-08)
 
 **All 29 class specializations rebuilt on a shared spec_kit foundation.**

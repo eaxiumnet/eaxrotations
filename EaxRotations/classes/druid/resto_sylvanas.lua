@@ -10,7 +10,8 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.DruidHealing or require("classes/druid/healing_sylvanas")
 -- Preemptive heal module (Sonah-style predictive healing)
-local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
+local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
+local FsrManager = require("shared/fsr_manager_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
@@ -125,8 +126,11 @@ local RESTO_SCHEMA = {
     mana_conserve = false,
     mana_emergency = false,
     mana_critical = false,
-    is_group = false,
-}
+    is_group = false,
+
+    -- FSR state (Five-Second Rule)
+    fsr_inside = false, fsr_seconds = 0, fsr_regen_delta = 0,
+}
 
 local resto_state = {
  entries = nil,
@@ -515,7 +519,20 @@ local function build_state(context)
  local me = context.me or NS.GetPlayer and NS.GetPlayer() or nil
  if me and NS.StopCast and type(NS.StopCast.update) == "function" then
   NS.StopCast.update(me, context.settings)
- end  return spec_kit.safe_state(resto_state, RESTO_SCHEMA)
+  end
+
+  -- FSR (Five-Second Rule) tracking for mana efficiency
+  if FsrManager then
+   resto_state.fsr_inside = FsrManager.is_inside_fsr()
+   resto_state.fsr_seconds = FsrManager.seconds_until_fsr()
+   resto_state.fsr_regen_delta = FsrManager.get_regen_delta()
+  else
+   resto_state.fsr_inside = false
+   resto_state.fsr_seconds = 0
+   resto_state.fsr_regen_delta = 0
+  end
+
+  return spec_kit.safe_state(resto_state, RESTO_SCHEMA)
 end
 
 local function solo_damage_enabled(context, state)
@@ -683,7 +700,22 @@ local strategies = {
   if not NS.spell_ready(ACTION.HealingTouch, state.ht_target.unit) then return false end
   if predictive_overheal("HealingTouch", state.ht_target, 2.5, context.settings, 25) then return false end
   return true
- end, execute = function(_, state) return NS.try_cast(ACTION.HealingTouch, state.ht_target.unit, "[RESTO] Healing Touch emergency") end },
+  end, execute = function(_, state) return NS.try_cast(ACTION.HealingTouch, state.ht_target.unit, "[RESTO] Healing Touch emergency") end },
+
+  { name = "FSRPause",
+   matches = function(context, state)
+    if not FsrManager then return false end
+    if not context.in_combat then return false end
+    if (state.mana_pct or 100) > 35 then return false end
+    if not state.fsr_inside then return false end
+    if (state.fsr_regen_delta or 0) <= 0 then return false end
+    local pause_ok, reason = FsrManager.should_pause_for_fsr(state, context)
+    return pause_ok
+   end,
+   execute = function(_, state)
+    return false
+   end,
+  },
  -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
  -- Placed after the emergency tier (Swiftmend / NS / NS+HT / Tranquility /
  -- HealingTouchMaxEmergency) so life-critical saves win, but before routine

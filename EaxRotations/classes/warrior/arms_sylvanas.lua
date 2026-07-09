@@ -17,6 +17,7 @@ end
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
+local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
 local _eng_ok, engineering = pcall(require, "shared/engineering_helper_sylvanas")
 if not _eng_ok or type(engineering) ~= "table" then engineering = nil end
@@ -350,7 +351,11 @@ local ARMS_SCHEMA = {
     mh_until = 999,
     mh_progress = 0,
     healthstone_ready = false,
-    aoe_cc_nearby = false,          -- set from context.warrior_aoe_cc_nearby (PvPCCGate middleware)
+    aoe_cc_nearby = false,
+    hit_cap_pct = 9,
+    hit_cap_rating_needed = 142,
+    expertise_soft_cap = 26,
+    expertise_hard_cap = 56,
 }
 
 local _last_build_state_time = -1
@@ -449,6 +454,19 @@ local function build_state(context)
     arms_state.mh_progress = (me and NS.swing_progress and NS.swing_progress(me)) or 0
 
     arms_state.aoe_cc_nearby = context.warrior_aoe_cc_nearby or false
+    -- Hit cap / expertise awareness
+    if HitCap then
+        local hit_info = HitCap.get_hit_cap("warrior_melee")
+        if hit_info then
+            arms_state.hit_cap_pct = hit_info.pct_needed
+            arms_state.hit_cap_rating_needed = hit_info.rating_needed
+        end
+        local exp_info = HitCap.get_expertise_cap()
+        if exp_info then
+            arms_state.expertise_soft_cap = exp_info.soft_expertise
+            arms_state.expertise_hard_cap = exp_info.hard_expertise
+        end
+    end
     -- safe_state proxy: structural nil-guard elimination (Pattern 14)
     -- Once wrapped, all match() functions can read state.X without nil-guards.
     return spec_kit.safe_state(arms_state, ARMS_SCHEMA)

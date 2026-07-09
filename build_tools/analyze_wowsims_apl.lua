@@ -1,63 +1,3 @@
--- analyze_wowsims_apl.lua — Parse wowsims/classic APL JSON and compare to our rotations.
--- WHAT:  reads APL JSON, extracts spell priority list, maps spell IDs to names.
--- WHEN:  run after wowsims/classic update to audit our rotations against sim APLs.
--- WHY:   wowsims APLs are community-optimized; gaps against them = optimization opportunities.
--- USAGE: cd repo_root && lua build_tools/analyze_wowsims_apl.lua [spec_name]
-
-local json = {
-  decode = function(s)
-    -- Minimal JSON decoder for APL files (no nested arrays of objects beyond priorityList)
-    local function parse_val(str, i)
-      local c = str:sub(i, i)
-      if c == '"' then
-        local j = i + 1
-        while j <= #str do
-          local ch = str:sub(j, j)
-          if ch == '\\' then j = j + 2
-          elseif ch == '"' then return str:sub(i+1, j-1):gsub('\\(.)', '%1'), j + 1
-          else j = j + 1 end
-        end
-      elseif c == '{' then
-        local obj, j = {}, i + 1
-        while true do
-          j = j + (str:sub(j, j):match("%s") and 1 or 0)
-          if str:sub(j, j) == '}' then return obj, j + 1 end
-          local key; key, j = parse_val(str, j)
-          j = str:find(':', j) + 1
-          local val; val, j = parse_val(str, j)
-          obj[key] = val
-          j = j + (str:sub(j, j):match("%s") and 1 or 0)
-          if str:sub(j, j) == ',' then j = j + 1 end
-        end
-      elseif c == '[' then
-        local arr, j = {}, i + 1
-        while true do
-          j = j + (str:sub(j, j):match("%s") and 1 or 0)
-          if str:sub(j, j) == ']' then return arr, j + 1 end
-          local val; val, j = parse_val(str, j)
-          arr[#arr + 1] = val
-          j = j + (str:sub(j, j):match("%s") and 1 or 0)
-          if str:sub(j, j) == ',' then j = j + 1 end
-        end
-      elseif c == 't' and str:sub(i, i+3) == 'true' then return true, i + 4
-      elseif c == 'f' and str:sub(i, i+4) == 'false' then return false, i + 5
-      elseif c == 'n' and str:sub(i, i+3) == 'null' then return nil, i + 4
-      else
-        local num, nxt = str:match("^(-?%d+%.?%d*)", i)
-        if num then return tonumber(num), i + #num end
-      end
-      return nil, i
-    end
-    local function skip_ws(str, i)
-      while i <= #str and str:sub(i, i):match("%s") do i = i + 1 end
-      return i
-    end
-    local i = skip_ws(s, 1)
-    local val, j = parse_val(s, i)
-    return val
-  end
-}
-
 local function read_file(path)
   local f = io.open(path, "r")
   if not f then return nil end
@@ -67,7 +7,6 @@ local function read_file(path)
 end
 
 local function spell_id_to_name(spell_id)
-  -- Try to resolve from DBC or spell_db
   local db_path = "wowheadScrape/dbc_extract/lua/spell_db.lua"
   local db = read_file(db_path)
   if db then
@@ -78,211 +17,221 @@ local function spell_id_to_name(spell_id)
   return "Spell_" .. spell_id
 end
 
-local function extract_spell_from_action(action)
-  if not action then return nil end
-  if action.castSpell and action.castSpell.spellId then
-    local sid = action.castSpell.spellId.spellId or action.castSpell.spellId.itemId
-    if sid then
-      local name = spell_id_to_name(sid)
-      return name, sid
-    end
-  end
-  if action.autocastOtherCooldowns then return "[Autocast Cooldowns]", nil end
-  return nil
-end
-
-local function has_condition(action)
-  if not action then return false end
-  if action.condition then
-    if action.condition.const and action.condition.const.val == "false" then return false end
-    return true
-  end
-  return false
-end
-
-local function format_condition(cond, depth)
-  depth = depth or 0
-  if not cond then return "" end
-  if depth > 3 then return "..." end
-  if cond.cmp then
-    local lhs = format_condition(cond.cmp.lhs, depth + 1)
-    local rhs = format_condition(cond.cmp.rhs, depth + 1)
-    return lhs .. " " .. (cond.cmp.op or "?") .. " " .. rhs
-  elseif cond.const then
-    return cond.const.val or ""
-  elseif cond.and_ then
-    local parts = {}
-    for _, v in ipairs(cond.and_.vals or {}) do
-      parts[#parts + 1] = format_condition(v, depth + 1)
-    end
-    return table.concat(parts, " && ")
-  elseif cond.or_ then
-    local parts = {}
-    for _, v in ipairs(cond.or_.vals or {}) do
-      parts[#parts + 1] = format_condition(v, depth + 1)
-    end
-    return table.concat(parts, " || ")
-  elseif cond.not_ then
-    return "!" .. format_condition(cond.not_.val, depth + 1)
-  elseif cond.auraIsActive then
-    return "aura_active(" .. (cond.auraIsActive.auraId and cond.auraIsActive.auraId.spellId or "?") .. ")"
-  elseif cond.isExecutePhase then
-    return "execute_phase(" .. (cond.isExecutePhase.threshold or "?") .. ")"
-  elseif cond.numberTargets then
-    return "targets"
-  elseif cond.currentRage then
-    return "rage"
-  elseif cond.remainingTime then
-    return "remaining_time"
-  elseif cond.spellTimeToReady then
-    return "cd(" .. (cond.spellTimeToReady.spellId and cond.spellTimeToReady.spellId.spellId or "?") .. ")"
-  elseif cond.auraNumStacks then
-    return "stacks(" .. (cond.auraNumStacks.auraId and cond.auraNumStacks.auraId.spellId or "?") .. ")"
-  end
-  return "?"
-end
-
-local APL_DIRS = {
-  warrior = "wowsims_classic/ui/warrior/apls",
-  hunter = "wowsims_classic/ui/hunter/apls",
-  mage = "wowsims_classic/ui/mage/apls",
-  paladin = "wowsims_classic/ui/retribution_paladin/apls",
-  priest = "wowsims_classic/ui/shadow_priest/apls",
-  rogue = "wowsims_classic/ui/rogue/apls",
-  shaman = "wowsims_classic/ui/elemental_shaman/apls",
-  druid = "wowsims_classic/ui/balance_druid/apls",
-  warlock = "wowsims_classic/ui/warlock/apls",
-}
-
-local APL_ALIASES = {
-  fury = { "dps_reck.apl.json", "dps_no_reck.apl.json" },
-  arms = { "arms.apl.json", "dps_reck.apl.json", "dps_no_reck.apl.json" },
-  protection = { "default.apl.json", "basic_prot.apl.json", "p5prot.apl.json" },
-  marksmanship = { "p1.apl.json" },
-  beast_mastery = { "p1.apl.json" },
-  survival = { "p1.apl.json" },
-  arcane = { "p1.apl.json", "arcane.apl.json" },
-  fire = { "p1.apl.json" },
-  frost = { "p1.apl.json" },
-  retribution = { "basic_ret.apl.json" },
-  holy = { "basic_prot.apl.json" },
-  shadow = { "p1.apl.json" },
-  combat = { "combat_sinister_strike.apl.json", "swords.apl.json" },
-  assassination = { "combat_backstab.apl.json" },
-  subtlety = { "combat_sinister_strike.apl.json" },
-  elemental = { "default.apl.json" },
-  enhancement = { "default.apl.json" },
-  restoration = { "default.apl.json" },
-  balance = { "balance.apl.json", "p1.apl.json" },
-  bear = { "feral.apl.json", "default.apl.json" },
-  cat = { "feral.apl.json", "p1.apl.json" },
-  resto = { "default.apl.json" },
-  affliction = { "rotation.apl.json", "affliction.apl.json" },
-  demonology = { "rotation.apl.json", "demonology.apl.json" },
-  destruction = { "rotation.apl.json", "destro_fire.apl.json", "destruction.apl.json" },
-}
-
-local SPEC_MAP = {
-  arms = "warrior",
-  fury = "warrior",
-  protection = "warrior",
-  beast_mastery = "hunter",
-  marksmanship = "hunter",
-  survival = "hunter",
-  arcane = "mage",
-  fire = "mage",
-  frost = "mage",
-  retribution = "paladin",
-  holy = "paladin",
-  protection_paladin = "paladin",
-  shadow = "priest",
-  discipline = "priest",
-  holy_priest = "priest",
-  combat = "rogue",
-  assassination = "rogue",
-  subtlety = "rogue",
-  elemental = "shaman",
-  enhancement = "shaman",
-  restoration = "shaman",
-  balance = "druid",
-  feral = "druid",
-  resto = "druid",
-  affliction = "warlock",
-  demonology = "warlock",
-  destruction = "warlock",
-}
-
-local function analyze_apl_file(apl_path)
-  local content = read_file(apl_path)
+local function extract_apl_actions(content)
   if not content then return nil end
-  local ok, apl = pcall(json.decode, content)
-  if not ok or not apl.priorityList then return nil end
-
-  local spells = {}
-  for i, entry in ipairs(apl.priorityList) do
-    local action = entry.action
-    if not entry.hide then
-      local name, id = extract_spell_from_action(action)
-      if name then
-        local cond = ""
-        if has_condition(action) then
-          cond = format_condition(action.condition)
+  
+  local plist = content:match('"priorityList"%s*:%s*(%[.-%])')
+  if not plist then return nil end
+  
+  local actions = {}
+  local pos = 1
+  
+  while true do
+    local entry_start = plist:find('{', pos)
+    if not entry_start then break end
+    
+    -- Find matching closing brace for this entry
+    local depth = 1
+    local entry_end = entry_start + 1
+    while depth > 0 and entry_end <= #plist do
+      local ch = plist:sub(entry_end, entry_end)
+      if ch == '{' then
+        depth = depth + 1
+      elseif ch == '}' then
+        depth = depth - 1
+      elseif ch == '"' then
+        -- Skip string
+        local j = entry_end + 1
+        while j <= #plist do
+          local sch = plist:sub(j, j)
+          if sch == '\\' then j = j + 2
+          elseif sch == '"' then break
+          else j = j + 1 end
         end
-        spells[#spells + 1] = {
-          rank = i,
-          name = name,
-          spell_id = id,
-          condition = cond,
+        entry_end = j
+      end
+      entry_end = entry_end + 1
+    end
+    
+    local entry_str = plist:sub(entry_start, entry_end - 1)
+    
+    -- Check if hidden
+    local hide = entry_str:find('"hide"%s*:%s*true') ~= nil
+    
+    -- Extract spell ID
+    local spell_id = entry_str:match('"spellId"%s*:%s*{%s*"spellId"%s*:%s*(%d+)')
+    if not spell_id then
+      spell_id = entry_str:match('"spellId"%s*:%s*{%s*"itemId"%s*:%s*(%d+)')
+    end
+    
+    -- Extract condition
+    local has_cond = entry_str:find('"condition"') ~= nil
+    
+    -- Extract group reference
+    local group_name = entry_str:match('"groupReference"%s*:%s*{%s*"groupName"%s*:%s*"([^"]+)"')
+    
+    if not hide then
+      if spell_id then
+        local name = spell_id_to_name(tonumber(spell_id))
+        actions[#actions + 1] = { 
+          name = name, 
+          spell_id = tonumber(spell_id), 
+          condition = has_cond,
+          group = group_name
+        }
+      elseif group_name then
+        actions[#actions + 1] = {
+          name = "[" .. group_name .. "]",
+          spell_id = nil,
+          condition = has_cond,
+          group = group_name
         }
       end
     end
+    
+    pos = entry_end
   end
-  return spells
+  
+  return actions
 end
 
--- Compare our rotation strategies against wowsims APL
+local APL_DIRS = {
+  tbc = {
+    warrior = "tbc-new/ui/warrior/dps/apls",
+    warrior_protection = "tbc-new/ui/warrior/protection/apls",
+    hunter = "tbc-new/ui/hunter/dps/apls",
+    mage = "tbc-new/ui/mage/dps/apls",
+    paladin = "tbc-new/ui/paladin/retribution/apls",
+    paladin_protection = "tbc-new/ui/paladin/protection/apls",
+    priest = "tbc-new/ui/priest/dps/apls",
+    rogue = "tbc-new/ui/rogue/dps/apls",
+    shaman = "tbc-new/ui/shaman/elemental/apls",
+    shaman_enhancement = "tbc-new/ui/shaman/enhancement/apls",
+    druid = "tbc-new/ui/druid/balance/apls",
+    druid_feralcat = "tbc-new/ui/druid/feralcat/apls",
+    druid_feralbear = "tbc-new/ui/druid/feralbear/apls",
+    warlock = "tbc-new/ui/warlock/dps/apls",
+  },
+  classic = {
+    warrior = "wowsims_classic/ui/warrior/apls",
+    hunter = "wowsims_classic/ui/hunter/apls",
+    mage = "wowsims_classic/ui/mage/apls",
+    paladin = "wowsims_classic/ui/retribution_paladin/apls",
+    priest = "wowsims_classic/ui/shadow_priest/apls",
+    rogue = "wowsims_classic/ui/rogue/apls",
+    shaman = "wowsims_classic/ui/elemental_shaman/apls",
+    druid = "wowsims_classic/ui/balance_druid/apls",
+    warlock = "wowsims_classic/ui/warlock/apls",
+  },
+}
+
+local APL_ALIASES = {
+  fury = { "fury.apl.json" },
+  arms = { "arms.apl.json" },
+  protection = { "default.apl.json" },
+  marksmanship = { "default.apl.json" },
+  beast_mastery = { "default.apl.json" },
+  survival = { "default.apl.json" },
+  arcane = { "arcane.apl.json" },
+  fire = { "blank.apl.json", "test.apl.json" },
+  frost = { "blank.apl.json", "test.apl.json" },
+  retribution = { "default.apl.json" },
+  protection_paladin = { "default.apl.json" },
+  shadow = { "default.apl.json" },
+  combat = { "swords.apl.json" },
+  assassination = { "swords.apl.json" },
+  subtlety = { "swords.apl.json" },
+  elemental = { "default.apl.json" },
+  enhancement = { "default.apl.json" },
+  restoration = { "default.apl.json" },
+  balance = { "default.apl.json" },
+  bear = { "default.apl.json" },
+  cat = { "default.apl.json" },
+  resto = { "default.apl.json" },
+  affliction = { "affliction.apl.json" },
+  demonology = { "demonology.apl.json" },
+  destruction = { "destruction.apl.json" },
+  destro_fire = { "destro_fire.apl.json" },
+}
+
+local SPEC_MAP = {
+  arms = "warrior", fury = "warrior", protection = "warrior",
+  beast_mastery = "hunter", marksmanship = "hunter", survival = "hunter",
+  arcane = "mage", fire = "mage", frost = "mage",
+  retribution = "paladin", holy = "paladin", protection_paladin = "paladin",
+  shadow = "priest", discipline = "priest", holy_priest = "priest",
+  combat = "rogue", assassination = "rogue", subtlety = "rogue",
+  elemental = "shaman", enhancement = "shaman", restoration = "shaman",
+  balance = "druid", feral = "druid", resto = "druid",
+  affliction = "warlock", demonology = "warlock", destruction = "warlock",
+}
+
+local function get_apl_dir(class, expansion)
+  expansion = expansion or "tbc"
+  local dirs = APL_DIRS[expansion]
+  if not dirs then return nil end
+  if class == "warrior" then return dirs.warrior end
+  if class == "paladin" then return dirs.paladin end
+  if class == "shaman" then return dirs.shaman end
+  if class == "druid" then return dirs.druid end
+  return dirs[class]
+end
+
+local function get_apl_aliases(spec_name, expansion)
+  expansion = expansion or "tbc"
+  return APL_ALIASES[spec_name] or { "default.apl.json", spec_name .. ".apl.json" }
+end
+
+local function extract_strategies(our_content)
+  local strats = {}
+  for line in our_content:gmatch("[^\r\n]+") do
+    local name = line:match('^[%s]*{[%s]*"([^"]+)"[%s]*,')
+    if not name then name = line:match('name[%s]*=[%s]*"([^"]+)"') end
+    if not name then name = line:match('{[%s]*name[%s]*=[%s]*"([^"]+)"') end
+    if name and not name:match("^Unavailable") then
+      strats[#strats + 1] = name
+    end
+  end
+  return strats
+end
+
 local function compare_with_our_rotation(spec_name, expansion)
   expansion = expansion or "sylvanas"
   local class = SPEC_MAP[spec_name]
   if not class then return nil end
 
-  -- Find our spec file
   local our_path = "EaxRotations/classes/" .. class .. "/" .. spec_name .. "_" .. expansion .. ".lua"
   local our_content = read_file(our_path)
   if not our_content then return nil end
 
-  -- Extract our strategy names
-  local our_strats = {}
-  for line in our_content:gmatch("[^\r\n]+") do
-    local name = line:match('name%s*=%s*"([^"]+)"')
-    if name and not name:match("^Unavailable") then
-      our_strats[#our_strats + 1] = name
-    end
-  end
+  local our_strats = extract_strategies(our_content)
 
-  -- Find wowsims APL files for this class
-  local apl_dir = APL_DIRS[class]
+  local repo_expansion = "tbc"
+  if our_path:match("_classic") then repo_expansion = "classic" end
+
+  local apl_dir = get_apl_dir(class, repo_expansion)
   if not apl_dir then return nil end
 
   local results = {}
-  local tried = APL_ALIASES[spec_name] or { "default.apl.json", "p1.apl.json", spec_name .. ".apl.json" }
+  local tried = get_apl_aliases(spec_name, repo_expansion)
 
   for _, file in ipairs(tried) do
-    local apl_spells = analyze_apl_file(apl_dir .. "/" .. file)
-    if apl_spells then
+    local apl_content = read_file(apl_dir .. "/" .. file)
+    local apl_spells = extract_apl_actions(apl_content)
+    if apl_spells and #apl_spells > 0 then
       results[#results + 1] = { file = file, apl = apl_spells }
-      break  -- Use first match
+      break
     end
   end
 
-  -- Fallback: scan directory
   if #results == 0 then
     local handle = io.popen('dir /b "' .. apl_dir:gsub("/", "\\") .. '" 2>nul')
     if handle then
       for file in handle:lines() do
         if file:match("%.apl%.json$") then
-          local apl_spells = analyze_apl_file(apl_dir .. "/" .. file)
-          if apl_spells then
+          local apl_content = read_file(apl_dir .. "/" .. file)
+          local apl_spells = extract_apl_actions(apl_content)
+          if apl_spells and #apl_spells > 0 then
             results[#results + 1] = { file = file, apl = apl_spells }
           end
         end
@@ -294,8 +243,8 @@ local function compare_with_our_rotation(spec_name, expansion)
   return { spec = spec_name, class = class, our_strats = our_strats, wowsims = results }
 end
 
--- Main
 local target_spec = arg[1]
+local expansion_arg = arg[2] or "tbc"
 
 if target_spec then
   local result = compare_with_our_rotation(target_spec, "sylvanas")
@@ -304,7 +253,8 @@ if target_spec then
     return
   end
 
-  print("=== " .. target_spec:gsub("_", " "):gsub("^%l", string.upper) .. " (TBC) ===")
+  local label = expansion_arg == "classic" and "Classic" or "TBC"
+  print("=== " .. target_spec:gsub("_", " "):gsub("^%l", string.upper) .. " (" .. label .. ") ===")
   print("\nOur strategies (" .. #result.our_strats .. "):")
   for i, s in ipairs(result.our_strats) do
     print("  " .. i .. ". " .. s)
@@ -313,27 +263,36 @@ if target_spec then
   for _, wsim in ipairs(result.wowsims) do
     print("\nWoWSims APL: " .. wsim.file .. " (" .. #wsim.apl .. " actions)")
     for i, a in ipairs(wsim.apl) do
-      local cond = a.condition ~= "" and "  [if " .. a.condition .. "]" or ""
+      local cond = a.condition and "  [condition]" or ""
       print("  " .. i .. ". " .. a.name .. cond)
     end
   end
 else
-  -- List all available APL files
-  print("WoWSims Classic APL files found:")
-  for class, dir in pairs(APL_DIRS) do
-    local handle = io.popen('dir /b "' .. dir:gsub("/", "\\") .. '" 2>nul')
-    if handle then
-      for file in handle:lines() do
-        if file:match("%.apl%.json$") then
-          local spells = analyze_apl_file(dir .. "/" .. file)
-          if spells then
-            print("  " .. class .. "/" .. file .. " -> " .. #spells .. " actions")
+  local function list_apl_files(label, dirs)
+    print("\n" .. label .. " APL files found:")
+    for class, dir in pairs(dirs) do
+      if type(dir) == "string" then
+        local handle = io.popen('dir /b "' .. dir:gsub("/", "\\") .. '" 2>nul')
+        if handle then
+          for file in handle:lines() do
+            if file:match("%.apl%.json$") then
+              local apl_content = read_file(dir .. "/" .. file)
+              local spells = extract_apl_actions(apl_content)
+              if spells and #spells > 0 then
+                print("  " .. class .. "/" .. file .. " -> " .. #spells .. " actions")
+              end
+            end
           end
+          handle:close()
         end
       end
-      handle:close()
     end
   end
-  print("\nUsage: lua build_tools/analyze_wowsims_apl.lua <spec_name>")
+
+  list_apl_files("WoWSims TBC", APL_DIRS.tbc)
+  list_apl_files("WoWSims Classic", APL_DIRS.classic)
+
+  print("\nUsage: lua build_tools/analyze_wowsims_apl.lua <spec_name> [expansion]")
+  print("  expansion: tbc (default) | classic")
   print("  e.g., lua build_tools/analyze_wowsims_apl.lua fury")
 end
