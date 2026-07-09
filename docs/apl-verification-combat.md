@@ -84,4 +84,4 @@ Reference file: `wowsims_classic/ui/rogue/apls/combat_p1.json`
 
 ---
 
-*Verified against wowsims APL JSON: `wowsims_classic/ui/rogue/apls/combat_p1.json`*
+*Verified against wowsims TBC APL JSON: `tbc-new/ui/rogue/apls/combat_p1.json`*

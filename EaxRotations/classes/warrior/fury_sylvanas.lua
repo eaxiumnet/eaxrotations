@@ -16,6 +16,7 @@ if _cleu then
 end
 local potion_helper = require("shared/potion_helper_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
+local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 local _eng_ok, engineering = pcall(require, "shared/engineering_helper_sylvanas")
@@ -190,7 +191,11 @@ local FURY_SCHEMA = {
     target_in_combat = false,
     charge_lock_until = 0,
     intercept_fired_at = 0,
-    aoe_cc_nearby = false,          -- set from context.warrior_aoe_cc_nearby (PvPCCGate middleware)
+    aoe_cc_nearby = false,
+    hit_cap_pct = 9,
+    hit_cap_rating_needed = 142,
+    expertise_soft_cap = 26,
+    expertise_hard_cap = 56,
 }
 
 local stance_lockout_active = WH.stance_lockout_active or function()
@@ -465,6 +470,18 @@ local function build_state(context)
     fury_state.planner_ready = planner ~= nil
 
     fury_state.aoe_cc_nearby = context.warrior_aoe_cc_nearby or false
+    if HitCap then
+        local hit_info = HitCap.get_hit_cap("warrior_melee")
+        if hit_info then
+            fury_state.hit_cap_pct = hit_info.pct_needed
+            fury_state.hit_cap_rating_needed = hit_info.rating_needed
+        end
+        local exp_info = HitCap.get_expertise_cap()
+        if exp_info then
+            fury_state.expertise_soft_cap = exp_info.soft_expertise
+            fury_state.expertise_hard_cap = exp_info.hard_expertise
+        end
+    end
     -- safe_state proxy: structural nil-guard elimination (Pattern 14)
     return spec_kit.safe_state(fury_state, FURY_SCHEMA)
 end
@@ -989,6 +1006,21 @@ for i = 1, #STRATEGY_SPECS do
         end,
     }
 end
+
+strategies[#strategies + 1] = {
+    name = "HitCapPriority",
+    matches = function(context)
+        local state = _build(context or {})
+        if not state.hit_cap_rating_needed then return false end
+        local hit_rating = context.hit_rating
+        if not hit_rating then return false end
+        local deficit = state.hit_cap_rating_needed - hit_rating
+        if deficit <= 30 then return false end
+        if NS.log then NS.log(string.format("[FURY] Hit cap deficit %d — gating missable abilities", deficit)) end
+        return true
+    end,
+    execute = function() return true end,
+}
 
 -- Guarded registration (nil-safe in unit tests)
 if NS.rotation_registry and NS.rotation_registry.register then

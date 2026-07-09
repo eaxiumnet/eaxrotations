@@ -761,7 +761,8 @@ local strategies = {
    else
     spell_id = HEALING_TOUCH_EFFICIENT
    end
-   return NS.try_cast(spell_id, state.lowest.unit, string.format("[RESTO] Downrank Healing Touch rank %s", mana_pct > 30 and "13" or (mana_pct > 15 and "12" or "11")))
+   local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(spell_id, 3000)
+   return NS.try_cast(spell_id, state.lowest.unit, string.format("[RESTO] Downrank Healing Touch rank %s (penalty %.0f%%)", mana_pct > 30 and "13" or (mana_pct > 15 and "12" or "11"), (penalty or 1) * 100))
   end },
  { name = "TreeOfLifeMaintain", matches = function(_, state) return state.can_tree and not state.in_tree and state.tree_aura_count >= 2 end, execute = function() return NS.try_cast(ACTION.TreeOfLifeForm, PLAYER_UNIT, "[RESTO] Tree of Life aura", TREE_OPTS) end },
   { name = "CycloneEnemyHealer", matches = CycloneEnemyHealer_matches, execute = CycloneEnemyHealer_execute },

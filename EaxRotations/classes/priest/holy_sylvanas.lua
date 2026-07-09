@@ -708,7 +708,8 @@ local strategies = {
     else
      spell_id = GREATER_HEAL_EFFICIENT
     end
-    return try_cast(spell_id, target, format("[HOLY] Greater Heal %.0f%% (rank %s)", state.lowest.effective_hp or 0, mana_pct > 30 and "7" or (mana_pct > 15 and "6" or "5")))
+    local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(spell_id, 3500)
+    return try_cast(spell_id, target, format("[HOLY] Greater Heal %.0f%% (rank %s, penalty %.0f%%)", state.lowest.effective_hp or 0, mana_pct > 30 and "7" or (mana_pct > 15 and "6" or "5"), (penalty or 1) * 100))
    end,
   },
   {
@@ -751,7 +752,8 @@ local strategies = {
     else
      spell_id = FLASH_HEAL_EFFICIENT
     end
-    return try_cast(spell_id, target, format("[HOLY] Flash Heal %.0f%% (rank %s)", state.lowest.effective_hp or 0, mana_pct > 30 and "9" or (mana_pct > 15 and "8" or "7")))
+    local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(spell_id, 1500)
+    return try_cast(spell_id, target, format("[HOLY] Flash Heal %.0f%% (rank %s, penalty %.0f%%)", state.lowest.effective_hp or 0, mana_pct > 30 and "9" or (mana_pct > 15 and "8" or "7"), (penalty or 1) * 100))
    end,
  },
  {

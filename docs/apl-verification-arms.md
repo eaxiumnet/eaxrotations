@@ -86,4 +86,4 @@ Reference file: `wowsims_classic/ui/warrior/apls/arms_p1.json`
 
 ---
 
-*Verified against wowsims APL JSON: `wowsims_classic/ui/warrior/apls/arms_p1.json`*
+*Verified against wowsims TBC APL JSON: `tbc-new/ui/warrior/apls/arms_p1.json`*

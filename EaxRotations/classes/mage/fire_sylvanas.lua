@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.MageSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local HitCap = require("shared/hit_cap_tracker_sylvanas")
 
 -- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -76,6 +77,8 @@ local FIRE_SCHEMA = {
     has_clearcasting = false,
     bloodlust_active = false,
     major_cd_window = false,
+    hit_cap_pct = 16,
+    hit_cap_rating_needed = 202,
 }
 
 local fire_state = {
@@ -129,6 +132,13 @@ local function build_state(context)
     fire_state.bloodlust_active = me and NS.buff_up and NS.buff_up(me, BLOODLUST_HEROISM_BUFFS) or false
     fire_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
     fire_state.major_cd_window = fire_state.bloodlust_active or fire_state.major_cd_active
+    if HitCap then
+        local hit_info = HitCap.get_hit_cap("mage_caster")
+        if hit_info then
+            fire_state.hit_cap_pct = hit_info.pct_needed
+            fire_state.hit_cap_rating_needed = hit_info.rating_needed
+        end
+    end
     return spec_kit.safe_state(fire_state, FIRE_SCHEMA)
 end
 
@@ -414,6 +424,17 @@ local strategies = {
     { name = "Evocation",
       matches = evocation_matches_fn,
       execute = function() return NS.try_cast(ACTION.Evocation, NS.PLAYER_UNIT, "[FIRE] Evocation") end },
+    { name = "HitCapPriority",
+      matches = function(context, s)
+          if not s.hit_cap_rating_needed then return false end
+          local hit_rating = context.hit_rating
+          if not hit_rating then return false end
+          local deficit = s.hit_cap_rating_needed - hit_rating
+          if deficit <= 30 then return false end
+          if NS.log then NS.log(string.format("[FIRE] Hit cap deficit %d — gating missable abilities", deficit)) end
+          return true
+      end,
+      execute = function() return true end },
 }
 
 if NS.rotation_registry and NS.rotation_registry.register then
