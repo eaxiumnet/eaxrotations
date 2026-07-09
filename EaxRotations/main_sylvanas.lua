@@ -459,8 +459,9 @@ end
 
 
 local function build_context()
+    local _lowest = _context.lowest
     for k in pairs(_context) do _context[k] = nil end
-    _context.lowest = _context.lowest or {}
+    _context.lowest = _lowest
     _context.lowest.unit = nil
     _context.lowest.hp = 100
     local me = _get_player()
@@ -839,7 +840,14 @@ local function build_context()
     _context.target_frost_immune = school_immunities.frost == true
     _context.target_shadow_immune = school_immunities.shadow == true
     _context.target_holy_immune = school_immunities.holy == true
-    _context.target_is_player = target and NS.safe_field and NS.safe_field(target, "is_player") and fast(target.is_player, target) == true or false
+    _context.target_is_player = false
+    if target and NS.safe_field then
+        local fn = NS.safe_field(target, "is_player")
+        if fn then
+            local ok, result = pcall(fast, fn, target)
+            _context.target_is_player = ok and result == true
+        end
+    end
     _context.target_is_boss = is_target_boss
     -- ============================================================================
     -- Derived context fields (for specs that consume nil-unsafe guards)
@@ -926,10 +934,12 @@ local function build_context()
     -- PvP: Enemy healer detection for curse selection (warlock specs)
     _context.enemy_healer = false
     if _context.is_pvp and target and NS.safe_field then
-        local get_class = NS.safe_field and NS.safe_field(target, "get_class")
-        local class_id = get_class and fast(get_class, target) or nil
-        if class_id and HEALER_CLASS_IDS[class_id] then
-            _context.enemy_healer = true
+        local get_class = NS.safe_field(target, "get_class")
+        if get_class then
+            local ok, class_id = pcall(fast, get_class, target)
+            if ok and class_id and HEALER_CLASS_IDS[class_id] then
+                _context.enemy_healer = true
+            end
         end
     end
     -- PvP: Melee enemy targeting player for defensive curse/Howl (warlock specs)
@@ -941,9 +951,9 @@ local function build_context()
             for i = 1, n do
                 local e = enemies[i]
                 if e and _unit_alive(e) then
-                    local get_class = NS.safe_field and NS.safe_field(e, "get_class")
-                    local class_id = get_class and fast(get_class, e) or nil
-                    if class_id and MELEE_CLASS_IDS[class_id] then
+                    local get_class_e = NS.safe_field and NS.safe_field(e, "get_class")
+                    local ok_ec, class_id = pcall(fast, get_class_e, e)
+                    if ok_ec and class_id and MELEE_CLASS_IDS[class_id] then
                         local get_target_fn = NS.safe_field(e, "get_target")
                         if get_target_fn then
                             local ok, e_target = pcall(get_target_fn, e)
@@ -958,7 +968,14 @@ local function build_context()
         end
     end
     -- Is the player mounted? (guards OOC buffs, aspect switching)
-    _context.is_mounted = me and NS.safe_field and NS.safe_field(me, "is_mounted") and fast(me.is_mounted, me) == true or false
+    _context.is_mounted = false
+    if me and NS.safe_field then
+        local fn = NS.safe_field(me, "is_mounted")
+        if fn then
+            local ok, result = pcall(fast, fn, me)
+            _context.is_mounted = ok and result == true
+        end
+    end
     -- Is player control locked? (fear, charm, mind control — stop casting/gcd)
     _context.player_control_locked = _player_control_locked and _player_control_locked() or false
     _context.combat_length_forecast = _context.ttd or 999
@@ -1191,9 +1208,21 @@ local function run_list(name, list, options, context)
                 NS.log_warning(name .. " Strategy '" .. tostring(strategy.name or i) .. "' Is Missing An Execute Action")
             else
                 local ok = true
-                if type(strategy.matches) == "function" then ok = strategy.matches(context, state) == true end
+                if type(strategy.matches) == "function" then
+                    local ok_match, match_result = pcall(strategy.matches, context, state)
+                    if not ok_match then
+                        NS.log_warning(name .. " matches error in '" .. tostring(strategy.name or i) .. "': " .. tostring(match_result))
+                        ok = false
+                    else
+                        ok = match_result == true
+                    end
+                end
                 if ok then
-                    local executed = fast(strategy.execute, context, state) == true
+                    local ok_exec, exec_result = pcall(strategy.execute, context, state)
+                    if not ok_exec then
+                        NS.log_warning(name .. " execute error in '" .. tostring(strategy.name or i) .. "': " .. tostring(exec_result))
+                    end
+                    local executed = ok_exec and exec_result == true
                     local _now_trace = _time_now()
                     -- BUGFIX (2026-06-29): two-tier trace throttle.
                     --   1. Per-list throttle (existing, 2s budget per list)

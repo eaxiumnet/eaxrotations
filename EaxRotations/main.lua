@@ -1009,7 +1009,10 @@ local function on_update()
             _guard5_logged = true
         end
         -- Workaround: fall back to direct OM if GetPlayer caches nothing
-        local fallback_ok, fallback_me = pcall(core.object_manager.get_local_player, core.object_manager)
+        local fallback_ok, fallback_me = pcall(function()
+            return core and core.object_manager and core.object_manager.get_local_player
+                and core.object_manager:get_local_player()
+        end)
         if fallback_ok and fallback_me then
             me = fallback_me
         else
