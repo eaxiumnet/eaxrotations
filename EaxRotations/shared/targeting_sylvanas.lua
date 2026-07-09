@@ -11,7 +11,14 @@ local M = {}
 local _G = _G
 local NS = _G.EaxRotations
 local _core_time = type(core) == "table" and type(core.time) == "function" and core.time or function() return 0 end
-local _get_local_player = NS.GetPlayer or (core.object_manager and core.object_manager.get_local_player) or function() return nil end
+local _get_local_player = NS.GetPlayer or function()
+    local om = core and core.object_manager
+    if om and type(om.get_local_player) == "function" then
+        local ok, p = pcall(om.get_local_player)
+        if ok then return p end
+    end
+    return nil
+end
 
 -- ============================================================================
 -- Internal state
