@@ -926,6 +926,18 @@ for i = 1, #STRATEGY_SPECS do
     }
 end
 
+-- Hit-cap awareness: prioritize reliable abilities when uncapped
+strategies[#strategies + 1] = {
+    name = "HitCapPriority",
+    matches = function(context)
+        local state = _build(context or {})
+        if not state.hit_cap_rating_needed then return false end
+        -- Only log/debug hit cap status; no rotation change yet
+        return false
+    end,
+    execute = function() return false end,
+}
+
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("arms", strategies, { get_state = build_state })
 end

@@ -586,6 +586,12 @@ local strategies = {
     { name = "KidneyShot", matches = kidney_shot_matches, execute = function(context) return NS.try_cast(ACTION.KidneyShot, context.target, "[COMBAT] KidneyShot") end },
     { name = "ExposeArmor", matches = expose_armor_matches, execute = function(context) return NS.try_cast(ACTION.ExposeArmor, context.target, "[COMBAT] ExposeArmor") end },
     { name = "SinisterStrike", matches = sinister_strike_wrapper, execute = function(context) return NS.try_cast(ACTION.SinisterStrike, context.target, "[COMBAT] SinisterStrike") end },
+    { name = "HitCapPriority",
+      matches = function(context, s)
+          if not s.hit_cap_rating_needed then return false end
+          return false
+      end,
+      execute = function() return false end },
 }
 
 if NS.rotation_registry and NS.rotation_registry.register then

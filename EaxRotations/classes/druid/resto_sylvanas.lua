@@ -62,7 +62,11 @@ local TANK_REJUV_HP = 92
 local RAID_REJUV_HP = 88
 local REGROWTH_SPOT_HP = 62
 local HEALING_TOUCH_HP = 42
-local DOWNRANK_HT_HP = 72
+local DOWNRANK_HT_HP = 72
+
+local HEALING_TOUCH_MAX = 26979
+local HEALING_TOUCH_CONSERVE = 26978
+local HEALING_TOUCH_EFFICIENT = 25297
 local CLEARCASTING_BUFF = 16870
 local MOVING_HOT_HP = 90
 local PVP_MELEE_RANGE = 8
@@ -747,7 +751,18 @@ local strategies = {
   if not NS.spell_ready(ACTION.HealingTouchRank4, state.lowest.unit) then return false end
   if downrank_ht_overheal(state.lowest, context.settings) then return false end
   return true
- end, execute = function(_, state) return NS.try_cast(ACTION.HealingTouchRank4, state.lowest.unit, "[RESTO] Downrank Healing Touch") end },
+  end, execute = function(context, state)
+   local mana_pct = context.mana_pct or 100
+   local spell_id
+   if mana_pct > 30 then
+    spell_id = HEALING_TOUCH_MAX
+   elseif mana_pct > 15 then
+    spell_id = HEALING_TOUCH_CONSERVE
+   else
+    spell_id = HEALING_TOUCH_EFFICIENT
+   end
+   return NS.try_cast(spell_id, state.lowest.unit, string.format("[RESTO] Downrank Healing Touch rank %s", mana_pct > 30 and "13" or (mana_pct > 15 and "12" or "11")))
+  end },
  { name = "TreeOfLifeMaintain", matches = function(_, state) return state.can_tree and not state.in_tree and state.tree_aura_count >= 2 end, execute = function() return NS.try_cast(ACTION.TreeOfLifeForm, PLAYER_UNIT, "[RESTO] Tree of Life aura", TREE_OPTS) end },
   { name = "CycloneEnemyHealer", matches = CycloneEnemyHealer_matches, execute = CycloneEnemyHealer_execute },
   { name = "EntanglingRootsMelee", matches = EntanglingRootsMelee_matches, execute = EntanglingRootsMelee_execute },
