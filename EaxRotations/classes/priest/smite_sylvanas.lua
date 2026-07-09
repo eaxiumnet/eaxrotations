@@ -522,7 +522,7 @@ local strategies = {
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("smite", strategies, {
-        get_state = build_smite_state,
+        get_state = build_state,
         format_context_log = function(context, state)
             return format(
                 "swp=%.1f surge=%s hf=%s mb=%s swd=%s weave=%s dp=%.1f IF=%s ifRem=%.0f hp=%.0f mana=%.0f low=%s emerg=%s threat=%s",
@@ -546,4 +546,4 @@ if NS.rotation_registry and NS.rotation_registry.register then
 end
 if NS.log then NS.log("Smite priest rotation registered") end
 
-return { strategies = strategies, build_state = build_smite_state }
+return { strategies = strategies, build_state = build_state }
