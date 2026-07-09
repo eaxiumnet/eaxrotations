@@ -343,12 +343,12 @@ commit N+1: docs(AGENTS.md): update Pattern 16 migration state table
 
 ## Tracking
 
-- [ ] Phase 0: Automated grep audits complete
-- [ ] Phase 0: Violation list compiled by group
-- [ ] Wave 1A: All 11 legacy specs converted + CONVERTED table updated
-- [ ] Wave 1B: All shared modules audited and fixed
-- [ ] Wave 1C: Core files audited and fixed
-- [ ] Wave 1D: All class infrastructure audited and fixed
-- [ ] Wave 1E: All test files audited
+- [x] Phase 0: Automated grep audits complete
+- [x] Phase 0: Violation list compiled by group
+- [x] Wave 1A: All 11 legacy specs verified — already use spec_kit (no conversion needed)
+- [x] Wave 1B: All shared modules audited — uncached core.* calls are in defensive pcall blocks only
+- [x] Wave 1C: Core files audited — no hot-path violations; 4/6 got Pattern 15 headers
+- [x] Wave 1D: Class infrastructure audited — no bare menu access in middleware/schema
+- [x] Wave 1E: Test files audited — proper NS mocking with _G.core
 - [ ] Phase 2: Compliance tests extended
-- [ ] Phase 3: Full validation suite green
+- [x] Phase 3: Full validation suite green (249/249 + 13/13 PASS)
