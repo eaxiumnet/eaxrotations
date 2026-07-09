@@ -10,104 +10,30 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;./?.lua;api/?.lua" .. package.path
 
+local lfs = require("lfs")
+assert(lfs, "lfs (LuaFileSystem) is required for cross-platform directory scanning")
+
 local io_open, os_exit, print = io.open, os.exit, print
 
 local SHARED = "EaxRotations/shared"
 
--- Static list of tracked shared/*.lua filenames. Source of truth is the
--- working tree; keep this list in sync when shared/ files are added/removed.
--- Replaces the previous `io.popen` (banned per AGENTS.md) shell-out to
--- `dir /B`. 75 files as of the Pattern-15 sweep.
-local SHARED_FILES = {
-    "arena_priority_sylvanas.lua",
-    "aspect_manager_sylvanas.lua",
-    "aura_cache_sylvanas.lua",
-    "aura_probe_sylvanas.lua",
-    "auto_tremor_sylvanas.lua",
-    "buff_upgrade_sylvanas.lua",
-    "burst_logic_sylvanas.lua",
-    "cast_bar_overlay_sylvanas.lua",
-    "class_loader_sylvanas.lua",
-    "combat_forecast_gate_sylvanas.lua",
-    "combat_log_parser_sylvanas.lua",
-    "combat_mode_sylvanas.lua",
-    "combat_stats_sylvanas.lua",
-    "consumable_manager_sylvanas.lua",
-    "dagger_set_sylvanas.lua",
-    "dispel_manager_sylvanas.lua",
-    "dot_refresh_sylvanas.lua",
-    "dot_ttd_gating_sylvanas.lua",
-    "enemy_count_hysteresis_sylvanas.lua",
-    "energy_tick_tracker_sylvanas.lua",
-    "execute_phase_sylvanas.lua",
-    "find_dead_party_ally_sylvanas.lua",
-    "gear_score_sylvanas.lua",
-    "healer_deficit_sylvanas.lua",
-    "hot_tick_tracker_sylvanas.lua",
-    "hunter_adaptive_sylvanas.lua",
-    "hunter_core_sylvanas.lua",
-    "incoming_heal_predictor_sylvanas.lua",
-    "interrupt_manager_sylvanas.lua",
-    "leveling_helpers_sylvanas.lua",
-    "leveling_sylvanas.lua",
-    "los_guard_sylvanas.lua",
-    "match_helpers_sylvanas.lua",
-    "melee_combat_math_sylvanas.lua",
-    "menu_theme_sylvanas.lua",
-    "mf_tick_compute_sylvanas.lua",
-    "movement_assist_sylvanas.lua",
-    "offensive_dispel_sylvanas.lua",
-    "ooc_manager_sylvanas.lua",
-    "pet_heal_sylvanas.lua",
-    "pet_manager_sylvanas.lua",
-    "player_helpers_sylvanas.lua",
-    "potion_helper_sylvanas.lua",
-    "preemptive_heal_sylvanas.lua",
-    "purge_manager_sylvanas.lua",
-    "pvp_burst_window_sylvanas.lua",
-    "racial_manager_sylvanas.lua",
-    "rage_manager_sylvanas.lua",
-    "safe_helpers_sylvanas.lua",
-    "shot_timer_sylvanas.lua",
-    "snap_threat_sylvanas.lua",
-    "spec_kit_sylvanas.lua",
-    "spell_corpus_sylvanas.lua",
-    "spell_id_table_sylvanas.lua",
-    "spell_rank_resolver_sylvanas.lua",
-    "spell_resolver_sylvanas.lua",
-    "spell_validation_sylvanas.lua",
-    "stance_manager_sylvanas.lua",
-    "stealth_helper_sylvanas.lua",
-    "stopcast_sylvanas.lua",
-    "swing_timer_sylvanas.lua",
-    "talent_inference_sylvanas.lua",
-    "targeting_sylvanas.lua",
-    "tbc_data_sylvanas.lua",
-    "tick_profiler_sylvanas.lua",
-    "triage_sylvanas.lua",
-    "trinket_manager_sylvanas.lua",
-    "ttd_ema_tracker_sylvanas.lua",
-    "ttd_tracker_sylvanas.lua",
-    "weapon_imbue_sylvanas.lua",
-    "wowhead_data_bridge_item_index_sylvanas.lua",
-    "wowhead_data_bridge_spell_detail_sylvanas.lua",
-    "wowhead_data_bridge_spell_index_tbc_sylvanas.lua",
-    "wowhead_data_bridge_spell_index_vanilla_sylvanas.lua",
-    "wowhead_data_bridge_sylvanas.lua",
-}
-
--- Probes the working tree for which filenames in SHARED_FILES actually exist,
--- then returns the existing subset sorted. This replaces the prior
--- `io.popen` shell-out (banned per AGENTS.md).
-local function probe_existing()
-    local out = {}
-    for _, fname in ipairs(SHARED_FILES) do
-        if io_open(SHARED .. "/" .. fname, "r") then
-            out[#out + 1] = fname
+-- Cross-platform lfs-based directory scan (replaces banned io.popen shell-out).
+local function scan_shared(dir)
+    local files = {}
+    local attr = lfs.attributes(dir)
+    if attr and attr.mode == "directory" then
+        for entry in lfs.dir(dir) do
+            if entry ~= "." and entry ~= ".." then
+                local full = dir .. "/" .. entry
+                local fattr = lfs.attributes(full)
+                if fattr and fattr.mode == "file" and entry:match("%.lua$") then
+                    files[#files + 1] = entry
+                end
+            end
         end
     end
-    table.sort(out)
-    return out
+    table.sort(files)
+    return files
 end
 
 -- Skip files matching the .gitignore:85 build-artefact glob
@@ -225,7 +151,7 @@ local function audit_file(path, fname)
     return issues
 end
 
-local files = probe_existing()
+local files = scan_shared(SHARED)
 local scanned, bad = 0, {}
 for _, fname in ipairs(files) do
     local rel = SHARED .. "/" .. fname
