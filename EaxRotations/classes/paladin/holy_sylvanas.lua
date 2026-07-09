@@ -917,9 +917,9 @@ local strategies = {
     local pause_ok, reason = FsrManager.should_pause_for_fsr(s, context)
     return pause_ok
    end,
-   execute = function(_, s)
-    return false
-   end,
+    execute = function(_, s)
+     return true
+    end,
   },
   {
    name = "FlashOfLightEfficientTopoff",

@@ -717,7 +717,7 @@ local strategies = {
     return pause_ok
    end,
    execute = function(_, state)
-    return false
+    return true
    end,
   },
  -- FriendlyTarget (B6): honor the player's manually-selected friendly target.

@@ -926,16 +926,18 @@ for i = 1, #STRATEGY_SPECS do
     }
 end
 
--- Hit-cap awareness: prioritize reliable abilities when uncapped
+-- Hit-cap awareness: gate missable abilities when significantly below cap
 strategies[#strategies + 1] = {
     name = "HitCapPriority",
     matches = function(context)
         local state = _build(context or {})
         if not state.hit_cap_rating_needed then return false end
-        -- Only log/debug hit cap status; no rotation change yet
-        return false
+        local deficit = state.hit_cap_rating_needed - (context.hit_rating or 0)
+        if deficit <= 30 then return false end
+        if NS.log then NS.log(string.format("[ARMS] Hit cap deficit %d — gating missable abilities", deficit)) end
+        return true
     end,
-    execute = function() return false end,
+    execute = function() return true end,
 }
 
 if NS.rotation_registry and NS.rotation_registry.register then

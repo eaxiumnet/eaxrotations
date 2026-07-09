@@ -747,9 +747,9 @@ local healing_strategies = {
     local pause_ok, reason = FsrManager.should_pause_for_fsr(state, context)
     return pause_ok
    end,
-   execute = function(_, state)
-    return false
-   end },
+    execute = function(_, state)
+     return true
+    end },
   { name = "SmartHeal", matches = smart_heal_matches, execute = function(context, state)
   local heal = (context._shaman_heal or false) or Healing.select_heal(context, state, state.lowest)
   if not heal or not heal.spell then return false end
