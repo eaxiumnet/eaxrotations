@@ -12,6 +12,7 @@ local SPELLS = NS.PaladinSpells or {}
 
 -- spec_kit migration #24
 local spec_kit = require("shared/spec_kit_sylvanas")
+local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
     AvengingWrath        = define("AvengingWrath",        { 31884 }, "AvengingWrath"),
@@ -131,6 +132,10 @@ local RET_SCHEMA = {
     target_player = false,  target_fleeing = false,
     -- Power windows
     bloodlust_active = false,  major_cd_active = false,  major_cd_window = false,
+    hit_cap_pct = 9,
+    hit_cap_rating_needed = 142,
+    expertise_soft_cap = 26,
+    expertise_hard_cap = 56,
 }
 
 -- ============================================================================
@@ -377,6 +382,18 @@ local function build_state(context)
     ret_state.bloodlust_active = has_player_buff(BLOODLUST_HEROISM_BUFFS)
     ret_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
     ret_state.major_cd_window = ret_state.bloodlust_active or ret_state.major_cd_active
+    if HitCap then
+        local hit_info = HitCap.get_hit_cap("paladin_melee")
+        if hit_info then
+            ret_state.hit_cap_pct = hit_info.pct_needed
+            ret_state.hit_cap_rating_needed = hit_info.rating_needed
+        end
+        local exp_info = HitCap.get_expertise_cap()
+        if exp_info then
+            ret_state.expertise_soft_cap = exp_info.soft_expertise
+            ret_state.expertise_hard_cap = exp_info.hard_expertise
+        end
+    end
     return spec_kit.safe_state(ret_state, RET_SCHEMA)
 end
 
@@ -730,6 +747,16 @@ add_strategy(strategies, "Ret_SealMartyr_Fallback", 435, function(context, state
     if not seal_refresh_allowed(context) then return false end
     return not state.has_damage_seal and NS.spell_ready(ACTION.SealOfTheMartyr, PLAYER, { skip_range = true }) or false
 end, function() return cast(ACTION.SealOfTheMartyr, PLAYER, "[RET] Seal of the Martyr fallback", { skip_range = true }) end)
+
+add_strategy(strategies, "HitCapPriority", 430, function(context, state)
+    if not state.hit_cap_rating_needed then return false end
+    local hit_rating = context.hit_rating
+    if not hit_rating then return false end
+    local deficit = state.hit_cap_rating_needed - hit_rating
+    if deficit <= 30 then return false end
+    if NS.log then NS.log(string.format("[RET] Hit cap deficit %d — gating missable abilities", deficit)) end
+    return true
+end, function() return true end)
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("retribution", strategies, { get_state = build_state })

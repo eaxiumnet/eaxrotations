@@ -589,7 +589,7 @@ local function healing_way_matches(context, state)
  return true
 end
 
-local function healing_way_execute(context, state)
+ local function healing_way_execute(context, state)
  if not state.tank then return false end
  local mana_pct = state.mana_pct or context.mana_pct or 100
  local spell_id
@@ -600,7 +600,8 @@ local function healing_way_execute(context, state)
  else
   spell_id = HEALING_WAVE_EFFICIENT
  end
- return NS.try_cast(spell_id, state.tank.unit, string.format("[RESTO] HealingWay (stack %d/3) rank %s", state.healing_way_stacks, mana_pct > 30 and "12" or (mana_pct > 15 and "11" or "10")))
+ local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(spell_id, 2500)
+ return NS.try_cast(spell_id, state.tank.unit, string.format("[RESTO] HealingWay (stack %d/3) rank %s (penalty %.0f%%)", state.healing_way_stacks, mana_pct > 30 and "12" or (mana_pct > 15 and "11" or "10"), (penalty or 1) * 100))
 end
 
 -- ============================================================================
@@ -665,7 +666,8 @@ local healing_strategies = {
    else
     spell_id = HEALING_WAVE_EFFICIENT
    end
-   return NS.try_cast(spell_id, ft.unit, string.format("[RESTO] Healing Wave (friendly target) %.0f%% rank %s", ft.hp_pct or 100, mana_pct > 30 and "12" or (mana_pct > 15 and "11" or "10")))
+   local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(spell_id, 2500)
+   return NS.try_cast(spell_id, ft.unit, string.format("[RESTO] Healing Wave (friendly target) %.0f%% rank %s (penalty %.0f%%)", ft.hp_pct or 100, mana_pct > 30 and "12" or (mana_pct > 15 and "11" or "10"), (penalty or 1) * 100))
   end },
  { name = "ManaPotion",
   matches = function(context)

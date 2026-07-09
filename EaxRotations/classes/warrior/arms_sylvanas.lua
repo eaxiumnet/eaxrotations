@@ -932,7 +932,9 @@ strategies[#strategies + 1] = {
     matches = function(context)
         local state = _build(context or {})
         if not state.hit_cap_rating_needed then return false end
-        local deficit = state.hit_cap_rating_needed - (context.hit_rating or 0)
+        local hit_rating = context.hit_rating
+        if not hit_rating then return false end
+        local deficit = state.hit_cap_rating_needed - hit_rating
         if deficit <= 30 then return false end
         if NS.log then NS.log(string.format("[ARMS] Hit cap deficit %d — gating missable abilities", deficit)) end
         return true

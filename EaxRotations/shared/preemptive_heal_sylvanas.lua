@@ -45,6 +45,24 @@ function M.downrank_penalty(level, playerLevel)
     return classic * math.min(1, (level + 11) / playerLevel)
 end
 
+--- Calculate expected heal size after applying TBC downranking penalty.
+-- @param spell_id number     The spell ID being cast
+-- @param base_heal number    Expected heal without penalty
+-- @param player_level number Caster level (default 70)
+-- @return number adjusted_heal, number penalty_multiplier
+function M.get_penalty_adjusted_heal(spell_id, base_heal, player_level)
+    if not spell_id or not base_heal then return base_heal, 1.0 end
+    player_level = player_level or 70
+    local required_level = nil
+    if NS.SpellCorpus and type(NS.SpellCorpus.get_spell_info) == "function" then
+        local info = NS.SpellCorpus.get_spell_info(spell_id)
+        if info then required_level = info.required_level end
+    end
+    if not required_level then return base_heal, 1.0 end
+    local penalty = M.downrank_penalty(required_level, player_level)
+    return math.floor(base_heal * penalty), penalty
+end
+
 --- Standard DirectCoefficient: castTime / 3.5
 function M.direct_coefficient(cast_time)
     return cast_time / 3.5
