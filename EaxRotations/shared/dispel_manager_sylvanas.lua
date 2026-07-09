@@ -169,7 +169,7 @@ function M.scan_unit_debuffs(unit)
             2637,                      -- Hibernate
             3600,                      -- Earthbind
             12528,                     -- Counterspell - Silence
-            18469, 55021,              -- Silence (Improved Counterspell, Arcane Torrent)
+            18469, 28730,              -- Silence (Improved Counterspell, Arcane Torrent)
             589, 594, 970,             -- Shadow Word: Pain
             348, 172,                  -- Immolate, Corruption
         }
