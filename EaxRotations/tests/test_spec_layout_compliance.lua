@@ -177,8 +177,189 @@ for _, path in ipairs(spec_files) do
     end
 end
 
+-- (c) SHARED + CORE + MIDDLEWARE files: Pattern 15 header + API compliance.
+-- Files that must have WHAT + SAFETY in first 30 lines AND no banned APIs.
+local shared_core_files = {
+    -- Core / dispatcher
+    "EaxRotations/main.lua",
+    "EaxRotations/main_sylvanas.lua",
+    "EaxRotations/common_sylvanas.lua",
+    "EaxRotations/helpers_sylvanas.lua",
+    "EaxRotations/header.lua",
+    "EaxRotations/core_sylvanas.lua",
+    -- Core extracted modules
+    "EaxRotations/core/cooldowns.lua",
+    "EaxRotations/core/diagnostics.lua",
+    "EaxRotations/core/items.lua",
+    "EaxRotations/core/settings.lua",
+    "EaxRotations/core/units.lua",
+    -- Shared modules (all .lua files in shared/)
+    "EaxRotations/shared/spec_kit_sylvanas.lua",
+    "EaxRotations/shared/interrupt_manager_sylvanas.lua",
+    "EaxRotations/shared/consumable_manager_sylvanas.lua",
+    "EaxRotations/shared/trinket_manager_sylvanas.lua",
+    "EaxRotations/shared/healer_deficit_sylvanas.lua",
+    "EaxRotations/shared/combat_log_parser_sylvanas.lua",
+    "EaxRotations/shared/aura_cache_sylvanas.lua",
+    "EaxRotations/shared/spell_resolver_sylvanas.lua",
+    "EaxRotations/shared/buff_upgrade_sylvanas.lua",
+    "EaxRotations/shared/pvp_burst_window_sylvanas.lua",
+    "EaxRotations/shared/arena_priority_sylvanas.lua",
+    "EaxRotations/shared/aspect_manager_sylvanas.lua",
+    "EaxRotations/shared/aura_probe_sylvanas.lua",
+    "EaxRotations/shared/auto_loot_sylvanas.lua",
+    "EaxRotations/shared/auto_tremor_sylvanas.lua",
+    "EaxRotations/shared/cast_bar_overlay_sylvanas.lua",
+    "EaxRotations/shared/class_loader_sylvanas.lua",
+    "EaxRotations/shared/combat_forecast_gate_sylvanas.lua",
+    "EaxRotations/shared/combat_mode_sylvanas.lua",
+    "EaxRotations/shared/combat_stats_sylvanas.lua",
+    "EaxRotations/shared/cooldown_planner_sylvanas.lua",
+    "EaxRotations/shared/dagger_set_sylvanas.lua",
+    "EaxRotations/shared/dispel_manager_sylvanas.lua",
+    "EaxRotations/shared/dot_refresh_sylvanas.lua",
+    "EaxRotations/shared/dot_ttd_gating_sylvanas.lua",
+    "EaxRotations/shared/enemy_count_hysteresis_sylvanas.lua",
+    "EaxRotations/shared/energy_tick_tracker_sylvanas.lua",
+    "EaxRotations/shared/engineering_helper_sylvanas.lua",
+    "EaxRotations/shared/execute_phase_sylvanas.lua",
+    "EaxRotations/shared/find_dead_party_ally_sylvanas.lua",
+    "EaxRotations/shared/fsr_manager_sylvanas.lua",
+    "EaxRotations/shared/gear_score_sylvanas.lua",
+    "EaxRotations/shared/hit_cap_tracker_sylvanas.lua",
+    "EaxRotations/shared/hot_tick_tracker_sylvanas.lua",
+    "EaxRotations/shared/hunter_adaptive_sylvanas.lua",
+    "EaxRotations/shared/hunter_core_sylvanas.lua",
+    "EaxRotations/shared/incoming_heal_predictor_sylvanas.lua",
+    "EaxRotations/shared/leveling_helpers_sylvanas.lua",
+    "EaxRotations/shared/leveling_sylvanas.lua",
+    "EaxRotations/shared/los_guard_sylvanas.lua",
+    "EaxRotations/shared/match_helpers_sylvanas.lua",
+    "EaxRotations/shared/melee_combat_math_sylvanas.lua",
+    "EaxRotations/shared/menu_theme_sylvanas.lua",
+    "EaxRotations/shared/mf_tick_compute_sylvanas.lua",
+    "EaxRotations/shared/movement_assist_sylvanas.lua",
+    "EaxRotations/shared/multidot_engagement_filter_sylvanas.lua",
+    "EaxRotations/shared/offensive_dispel_sylvanas.lua",
+    "EaxRotations/shared/ooc_manager_sylvanas.lua",
+    "EaxRotations/shared/pet_heal_sylvanas.lua",
+    "EaxRotations/shared/pet_manager_sylvanas.lua",
+    "EaxRotations/shared/player_helpers_sylvanas.lua",
+    "EaxRotations/shared/potion_helper_sylvanas.lua",
+    "EaxRotations/shared/preemptive_heal_sylvanas.lua",
+    "EaxRotations/shared/purge_manager_sylvanas.lua",
+    "EaxRotations/shared/racial_manager_sylvanas.lua",
+    "EaxRotations/shared/rage_manager_sylvanas.lua",
+    "EaxRotations/shared/safe_helpers_sylvanas.lua",
+    "EaxRotations/shared/schema_autoloot_sylvanas.lua",
+    "EaxRotations/shared/schema_consumables_sylvanas.lua",
+    "EaxRotations/shared/shot_timer_sylvanas.lua",
+    "EaxRotations/shared/snap_threat_sylvanas.lua",
+    "EaxRotations/shared/snapshot_sylvanas.lua",
+    "EaxRotations/shared/spell_corpus_sylvanas.lua",
+    "EaxRotations/shared/spell_id_table_sylvanas.lua",
+    "EaxRotations/shared/spell_rank_resolver_sylvanas.lua",
+    "EaxRotations/shared/stance_manager_sylvanas.lua",
+    "EaxRotations/shared/stealth_helper_sylvanas.lua",
+    "EaxRotations/shared/stopcast_sylvanas.lua",
+    "EaxRotations/shared/swing_diagnostics_sylvanas.lua",
+    "EaxRotations/shared/swing_timer_sylvanas.lua",
+    "EaxRotations/shared/talent_inference_sylvanas.lua",
+    "EaxRotations/shared/targeting_sylvanas.lua",
+    "EaxRotations/shared/tbc_data_sylvanas.lua",
+    "EaxRotations/shared/tick_profiler_sylvanas.lua",
+    "EaxRotations/shared/triage_sylvanas.lua",
+    "EaxRotations/shared/ttd_ema_tracker_sylvanas.lua",
+    "EaxRotations/shared/ttd_tracker_sylvanas.lua",
+    "EaxRotations/shared/weapon_imbue_sylvanas.lua",
+    "EaxRotations/shared/wowhead_data_bridge_item_index_sylvanas.lua",
+    "EaxRotations/shared/wowhead_data_bridge_spell_detail_sylvanas.lua",
+    "EaxRotations/shared/wowhead_data_bridge_spell_index_tbc_sylvanas.lua",
+    "EaxRotations/shared/wowhead_data_bridge_spell_index_vanilla_sylvanas.lua",
+    "EaxRotations/shared/wowhead_data_bridge_sylvanas.lua",
+    -- Middleware files
+    "EaxRotations/classes/druid/middleware_sylvanas.lua",
+    "EaxRotations/classes/hunter/middleware_sylvanas.lua",
+    "EaxRotations/classes/mage/middleware_sylvanas.lua",
+    "EaxRotations/classes/paladin/middleware_sylvanas.lua",
+    "EaxRotations/classes/priest/middleware_sylvanas.lua",
+    "EaxRotations/classes/rogue/middleware_sylvanas.lua",
+    "EaxRotations/classes/shaman/middleware_sylvanas.lua",
+    "EaxRotations/classes/warlock/middleware_sylvanas.lua",
+    "EaxRotations/classes/warrior/middleware_sylvanas.lua",
+}
+
+local shared_checked = 0
+for _, path in ipairs(shared_core_files) do
+    local text = read_file(path)
+    shared_checked = shared_checked + 1
+
+    -- Pattern 15 header.
+    local header_lines = first_n_lines(text, 30)
+    local has_what, has_safety = false, false
+    for _, ln in ipairs(header_lines) do
+        if ln:find("WHAT:", 1, true) then has_what = true end
+        if ln:find("SAFETY:", 1, true) then has_safety = true end
+    end
+    if not has_what then
+        add_issue(issues, path, "missing-header-WHAT", "Pattern 15 WHAT: key not found in first 30 lines")
+    end
+    if not has_safety then
+        add_issue(issues, path, "missing-header-SAFETY", "Pattern 15 SAFETY: key not found in first 30 lines")
+    end
+
+    -- Banned APIs (ffi.C, io.popen, os.execute, debug.*).
+    -- Skip comment lines; only flag executable code.
+    local all_lines = first_n_lines(text, 9999)
+    local has_banned_api = false
+    for _, ln in ipairs(all_lines) do
+        if not ln:match("^%-%-") then
+            if ln:find("ffi%.C", 1) or ln:find("io%.popen", 1) or ln:find("os%.execute", 1) then
+                has_banned_api = true
+                break
+            end
+        end
+    end
+    if has_banned_api then
+        add_issue(issues, path, "banned-api", "banned API (ffi.C / io.popen / os.execute) found in code")
+    end
+    -- debug.* is allowed in comments, but not in executable code.
+    for _, ln in ipairs(all_lines) do
+        if not ln:match("^%-%-") and ln:find("debug%.", 1) then
+            add_issue(issues, path, "banned-api-debug", "debug.* usage found in code (not comment)")
+            break
+        end
+    end
+
+    -- math.sqrt.
+    local has_math_sqrt = false
+    for _, ln in ipairs(all_lines) do
+        if not ln:match("^%-%-") and ln:find("math%.sqrt", 1, true) then
+            has_math_sqrt = true
+            break
+        end
+    end
+    if has_math_sqrt then
+        add_issue(issues, path, "math.sqrt", "math.sqrt found in code — use squared distance (Pattern 3)")
+    end
+
+    -- Bare menu access outside schema files.
+    if not path:find("schema_sylvanas") then
+        local has_bare_menu = false
+        for _, ln in ipairs(all_lines) do
+            if not ln:match("^%-%-") and ln:find("menu%.[a-zA-Z_]+%:get%(", 1) then
+                has_bare_menu = true
+                break
+            end
+        end
+        if has_bare_menu then
+            add_issue(issues, path, "bare-menu-access", "bare menu.x:get() found in code outside schema file")
+        end
+    end
+end
+
 if #issues > 0 then
     error("spec layout compliance failed:\n- " .. table.concat(issues, "\n- "), 0)
 end
 
-print(string.format("PASS test_spec_layout_compliance (%d converted, %d legacy)", converted_count, legacy_count))
+print(string.format("PASS test_spec_layout_compliance (%d converted, %d legacy, %d shared/core/middleware)", converted_count, legacy_count, shared_checked))
