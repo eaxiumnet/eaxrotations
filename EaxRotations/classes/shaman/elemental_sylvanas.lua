@@ -258,7 +258,7 @@ local function elemental_mastery_matches_fn(context, state)
     if state.mana_conserve then return false end
     if not context.should_burst then return false end
     -- EM+CL hold: don't waste EM on Lightning Bolt when CL is the better nuke
-    local min_targets = s.elemental_cl_min_targets or CL_MIN_TARGETS
+    local min_targets = spec_kit.setting_number(context, "elemental_cl_min_targets", CL_MIN_TARGETS)
     if (state.target_count or 0) >= min_targets then
         local cl_cd = NS.cooldown_remains and NS.cooldown_remains(ACTION.ChainLightning) or 0
         if cl_cd > 1.5 then return false end

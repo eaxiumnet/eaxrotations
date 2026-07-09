@@ -27,9 +27,10 @@ local FALLBACK_IDS = {
     Silence = { 15487 },
     SilencingShot = { 34490 },
     SpellLock = { 19647 },
+    WindShear = { 57994 },
 }
 
--- Wind Shear is intentionally absent: it is not a TBC spell.
+-- Wind Shear (57994) is a TBC Anniversary shaman interrupt (8s CD, 2s lock).
 
 -- Per-cast interrupt humanization state
 -- Keys are spell_id:is_channel strings; values are { jitter, detected_at, is_channel }

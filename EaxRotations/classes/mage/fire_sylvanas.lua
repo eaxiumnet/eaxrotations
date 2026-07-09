@@ -250,7 +250,8 @@ local function mana_gem_matches_fn(context, state)
     if not context.in_combat then return false end
     if not (state and state.mana_gem_available) then return false end
     local gem_threshold = (context.settings and context.settings.mana_gem_mana_pct) or 70
-    if (state and state.mana_pct or context.mana_pct or 100) > gem_threshold then return false end
+    local current_mana = (state and state.mana_pct) or (context and context.mana_pct) or 100
+    if current_mana > gem_threshold then return false end
     return true
 end
 
