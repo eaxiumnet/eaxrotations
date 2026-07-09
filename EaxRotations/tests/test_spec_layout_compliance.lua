@@ -372,40 +372,41 @@ if #runner_missing > 0 then
         "test files not registered in runner: " .. table.concat(runner_missing, ", "))
 end
 
--- (f) Test files: banned-API scan (close self-exemption loophole).
-local test_banned_found = {}
-local test_math_sqrt_found = {}
-local test_debug_found = {}
-for _, full in ipairs(scan_dir("EaxRotations/tests", "^test_[^/]+%.lua$")) do
-    local text = read_file(full)
-    local filename = full:match("([^/]+)$") or full
-    -- The enforcer may reference banned APIs in its search logic.
-    if filename == "test_spec_layout_compliance.lua" then
-        -- skip self
-    else
-        for _, ln in ipairs(first_n_lines(text, 9999)) do
-        if not ln:match("^%-%-") then
-            -- Flag actual calls, not references inside string literals.
-            if ln:find("ffi%.C%(", 1) or ln:find("io%.popen%(", 1) or ln:find("os%.execute%(", 1) then
-                test_banned_found[#test_banned_found + 1] = filename
-                break
+-- (f) ALL .lua files in tests/: banned-API scan (close self-exemption loophole).
+-- Exempts runners and the enforcer itself (contains search patterns, not calls).
+local function scan_tests_for_banned(pattern)
+    local found = {}
+    for _, full in ipairs(scan_dir("EaxRotations/tests", "%.lua$")) do
+        local filename = full:match("([^/]+)$") or full
+        if filename == "test_spec_layout_compliance.lua" then
+            -- skip self (contains search patterns)
+        elseif filename:match("^run_.*%.lua$") or filename == "test_runner_lib.lua" then
+            -- skip runners
+        else
+            local text = read_file(full)
+            for _, ln in ipairs(first_n_lines(text, 9999)) do
+                if not ln:match("^%-%-") then
+                    if ln:find(pattern, 1) then
+                        found[#found + 1] = filename
+                        break
+                    end
+                end
             end
         end
     end
-    for _, ln in ipairs(first_n_lines(text, 9999)) do
-        if not ln:match("^%-%-") and ln:find("debug%.%w+%(", 1) then
-            test_debug_found[#test_debug_found + 1] = filename
-            break
-        end
-    end
-    for _, ln in ipairs(first_n_lines(text, 9999)) do
-        if not ln:match("^%-%-") and ln:find("math%.sqrt%(", 1, true) then
-            test_math_sqrt_found[#test_math_sqrt_found + 1] = filename
-            break
-        end
-    end
-    end
+    return found
 end
+
+local test_banned_ffi = scan_tests_for_banned("ffi%.C%(")
+local test_banned_popen = scan_tests_for_banned("io%.popen%(")
+local test_banned_exec = scan_tests_for_banned("os%.execute%(")
+local test_banned_found = {}
+for _, v in ipairs(test_banned_ffi) do test_banned_found[#test_banned_found + 1] = v end
+for _, v in ipairs(test_banned_popen) do test_banned_found[#test_banned_found + 1] = v end
+for _, v in ipairs(test_banned_exec) do test_banned_found[#test_banned_found + 1] = v end
+local test_debug_found = scan_tests_for_banned("debug%.%w+%(")
+local test_math_sqrt_found = scan_tests_for_banned("math%.sqrt%(")
+
 if #test_banned_found > 0 then
     table.sort(test_banned_found)
     add_issue(issues, "EaxRotations/tests/", "banned-api-in-test",
@@ -420,6 +421,28 @@ if #test_math_sqrt_found > 0 then
     table.sort(test_math_sqrt_found)
     add_issue(issues, "EaxRotations/tests/", "math.sqrt-in-test",
         "math.sqrt found in test files — use squared distance: " .. table.concat(test_math_sqrt_found, ", "))
+end
+
+-- (g) Leveling test registration check: every test_*leveling*.lua in EaxRotations/tests/
+-- must be listed in run_leveling_tests.lua.
+local leveling_runner_text = read_file("EaxRotations/tests/run_leveling_tests.lua")
+local leveling_dir_files = {}
+for _, full in ipairs(scan_dir("EaxRotations/tests", "^test_[^/]*leveling[^/]*%.lua$")) do
+    local filename = full:match("([^/]+)$") or full
+    leveling_dir_files[filename] = true
+end
+
+local leveling_missing = {}
+for filename, _ in pairs(leveling_dir_files) do
+    if not has_lit(leveling_runner_text, filename) then
+        leveling_missing[#leveling_missing + 1] = filename
+    end
+end
+
+if #leveling_missing > 0 then
+    table.sort(leveling_missing)
+    add_issue(issues, "EaxRotations/tests/run_leveling_tests.lua", "unregistered-leveling-test-files",
+        "leveling test files not registered in runner: " .. table.concat(leveling_missing, ", "))
 end
 
 if #issues > 0 then
