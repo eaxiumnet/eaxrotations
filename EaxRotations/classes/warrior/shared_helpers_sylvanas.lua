@@ -1,3 +1,9 @@
+-- shared_helpers_sylvanas.lua — Warrior spec shared helpers (Fury, Arms, Protection).
+-- WHAT:  stance constants, rage thresholds, and shared match/execute utilities.
+-- WHEN:  loaded by all three warrior spec files during addon load.
+-- WHY:   eliminates duplicated boilerplate across fury/arms/protection_sylvanas.lua.
+-- SAFETY: configurable constants (M.*) so each spec can override; NS-guarded.
+
 -- shared_helpers_sylvanas -- Shared helpers for Warrior spec files (Fury, Arms, Protection).
 -- Extracted from duplicated boilerplate in fury_sylvanas.lua and arms_sylvanas.lua.
 -- Constants like TACTICAL_MASTERY_CAP, STANCE_CAST_LOCKOUT, and CAST_TAG are

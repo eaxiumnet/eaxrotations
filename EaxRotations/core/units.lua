@@ -1,3 +1,9 @@
+-- units.lua — Unit acquisition and safety helpers for EaxRotations.
+-- WHAT:  GetPlayer / GetPet / GetTarget / GetFocus / GetPartyMembers + alive guards.
+-- WHEN:  installed by core_sylvanas.lua during addon load.
+-- WHY:   centralizes object_manager access so caching strategy evolves in one place.
+-- SAFETY: nil-safe fallbacks for all unit queries; same_unit uses GUID when available.
+
 -- =============================================================================
 -- core/units.lua
 --

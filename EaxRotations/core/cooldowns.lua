@@ -1,3 +1,9 @@
+-- cooldowns.lua — Cooldown suggestion registry for EaxRotations.
+-- WHAT:  registers offensive/defensive cooldowns and suggests the best one per situation.
+-- WHEN:  installed by core_sylvanas.lua during addon load.
+-- WHY:   separates cooldown priority logic from the 6,000-line core_sylvanas.lua.
+-- SAFETY: NS-guarded install; no per-frame allocations; all suggestions use static tables.
+
 -- =============================================================================
 -- core/cooldowns.lua
 --

@@ -1,3 +1,9 @@
+-- settings.lua — Cached read/write settings proxy for EaxRotations.
+-- WHAT:  NS.get_setting / NS.set_setting with TTL cache + type-safe fallbacks.
+-- WHEN:  installed by core_sylvanas.lua during addon load.
+-- WHY:   every spec uses these helpers; caching prevents menu widget lookups every frame.
+-- SAFETY: nil-safe fallbacks for all reads; writes are debounced.
+
 -- =============================================================================
 -- core/settings.lua
 --

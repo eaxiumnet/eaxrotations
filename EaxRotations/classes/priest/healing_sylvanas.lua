@@ -1,3 +1,9 @@
+-- healing_sylvanas.lua — Priest Healing Utilities for Holy and Discipline.
+-- WHAT:  shared party/raid scanning, PW:S absorb tracking, and heal target selection.
+-- WHEN:  loaded by holy_sylvanas.lua and discipline_sylvanas.lua during addon load.
+-- WHY:   centralizes healing logic so both specs share the same triage and absorb math.
+-- SAFETY: NS guard at load; buff_points nil-guarded (Pattern 11); no per-frame allocations.
+
 -- ============================================================================
 -- Priest Healing Utilities (EaxRotations)
 -- Shared healing target scanning for Holy and Discipline playstyles

@@ -1,3 +1,9 @@
+-- items.lua — Item and equipment queries for EaxRotations.
+-- WHAT:  equipped item IDs, set-bonus detection, item cooldowns, and use_item_by_id.
+-- WHEN:  installed by core_sylvanas.lua during addon load.
+-- WHY:   isolates core.inventory and core.input calls behind NS helpers.
+-- SAFETY: pcall-guarded inventory access; nil-safe return values.
+
 -- =============================================================================
 -- core/items.lua
 --
