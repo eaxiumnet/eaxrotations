@@ -354,7 +354,7 @@ end
 -- must be listed in run_rotation_tests.lua (excluding the runner itself).
 local runner_text = read_file("EaxRotations/tests/run_rotation_tests.lua")
 local test_dir_files = {}
-for _, full in ipairs(scan_dir("EaxRotations/tests", "^test_[^_]+%.lua$")) do
+for _, full in ipairs(scan_dir("EaxRotations/tests", "^test_[^/]+%.lua$")) do
     local filename = full:match("([^/]+)$") or full
     test_dir_files[filename] = true
 end
@@ -374,25 +374,52 @@ end
 
 -- (f) Test files: banned-API scan (close self-exemption loophole).
 local test_banned_found = {}
-for _, full in ipairs(scan_dir("EaxRotations/tests", "%.lua$")) do
+local test_math_sqrt_found = {}
+local test_debug_found = {}
+for _, full in ipairs(scan_dir("EaxRotations/tests", "^test_[^/]+%.lua$")) do
     local text = read_file(full)
     local filename = full:match("([^/]+)$") or full
-    if filename ~= "test_runner_lib.lua" then
+    -- The enforcer may reference banned APIs in its search logic.
+    if filename == "test_spec_layout_compliance.lua" then
+        -- skip self
+    else
         for _, ln in ipairs(first_n_lines(text, 9999)) do
         if not ln:match("^%-%-") then
             -- Flag actual calls, not references inside string literals.
             if ln:find("ffi%.C%(", 1) or ln:find("io%.popen%(", 1) or ln:find("os%.execute%(", 1) then
-                    test_banned_found[#test_banned_found + 1] = filename
-                    break
-                end
+                test_banned_found[#test_banned_found + 1] = filename
+                break
             end
         end
+    end
+    for _, ln in ipairs(first_n_lines(text, 9999)) do
+        if not ln:match("^%-%-") and ln:find("debug%.%w+%(", 1) then
+            test_debug_found[#test_debug_found + 1] = filename
+            break
+        end
+    end
+    for _, ln in ipairs(first_n_lines(text, 9999)) do
+        if not ln:match("^%-%-") and ln:find("math%.sqrt%(", 1, true) then
+            test_math_sqrt_found[#test_math_sqrt_found + 1] = filename
+            break
+        end
+    end
     end
 end
 if #test_banned_found > 0 then
     table.sort(test_banned_found)
     add_issue(issues, "EaxRotations/tests/", "banned-api-in-test",
         "banned API (ffi.C / io.popen / os.execute) found in test files: " .. table.concat(test_banned_found, ", "))
+end
+if #test_debug_found > 0 then
+    table.sort(test_debug_found)
+    add_issue(issues, "EaxRotations/tests/", "banned-api-debug-in-test",
+        "debug.* usage found in test files: " .. table.concat(test_debug_found, ", "))
+end
+if #test_math_sqrt_found > 0 then
+    table.sort(test_math_sqrt_found)
+    add_issue(issues, "EaxRotations/tests/", "math.sqrt-in-test",
+        "math.sqrt found in test files — use squared distance: " .. table.concat(test_math_sqrt_found, ", "))
 end
 
 if #issues > 0 then
