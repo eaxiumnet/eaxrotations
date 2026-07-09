@@ -9,6 +9,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local SPELLS = NS.RogueSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 
@@ -180,6 +181,10 @@ local COMBAT_SCHEMA = {
     expose_armor_ready = false,
     -- Shiv
     shiv_ready = false,
+    hit_cap_pct = 9,
+    hit_cap_rating_needed = 142,
+    expertise_soft_cap = 26,
+    expertise_hard_cap = 56,
 }
 
 -- ============================================================================
@@ -299,6 +304,20 @@ local function build_state(context)
     if combat_state.in_combat and (context.is_pvp or false) and target and CCGateDB.find_best_dispel_target then
         local best_id, _, best_name = CCGateDB.find_best_dispel_target(target, NS)
         if best_id then combat_state.shiv_purge_name = best_name end
+    end
+
+    -- Hit cap / expertise awareness
+    if HitCap then
+        local hit_info = HitCap.get_hit_cap("rogue_melee")
+        if hit_info then
+            combat_state.hit_cap_pct = hit_info.pct_needed
+            combat_state.hit_cap_rating_needed = hit_info.rating_needed
+        end
+        local exp_info = HitCap.get_expertise_cap()
+        if exp_info then
+            combat_state.expertise_soft_cap = exp_info.soft_expertise
+            combat_state.expertise_hard_cap = exp_info.hard_expertise
+        end
     end
 
     return spec_kit.safe_state(combat_state, COMBAT_SCHEMA)

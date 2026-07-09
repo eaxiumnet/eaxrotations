@@ -33,6 +33,7 @@ end
 local Healing = load_healing_helpers()
 -- Preemptive heal module (Sonah-style predictive healing)
 local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
+local FsrManager = require("shared/fsr_manager_sylvanas")
 
 -- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -155,6 +156,8 @@ local HOLY_SCHEMA = {
     symbol_of_hope_ready = false,
     friendly_target_ready = false,
     mana_pct = 100,
+    -- FSR state (Five-Second Rule)
+    fsr_inside = false, fsr_seconds = 0, fsr_regen_delta = 0,
 }
 
 local holy_state = {
@@ -298,12 +301,23 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
  holy_state.friendly_target = ft
  holy_state.friendly_target_ready = ft ~= nil
 
- -- parity: Smart Stop-Cast — cancel overhealing casts mid-flight
- if NS.StopCast and type(NS.StopCast.update) == "function" then
-  NS.StopCast.update(player, context.settings)
- end
+  -- parity: Smart Stop-Cast — cancel overhealing casts mid-flight
+  if NS.StopCast and type(NS.StopCast.update) == "function" then
+   NS.StopCast.update(player, context.settings)
+  end
 
- return spec_kit.safe_state(holy_state, HOLY_SCHEMA)
+  -- FSR (Five-Second Rule) tracking for mana efficiency
+  if FsrManager then
+   holy_state.fsr_inside = FsrManager.is_inside_fsr()
+   holy_state.fsr_seconds = FsrManager.seconds_until_fsr()
+   holy_state.fsr_regen_delta = FsrManager.get_regen_delta()
+  else
+   holy_state.fsr_inside = false
+   holy_state.fsr_seconds = 0
+   holy_state.fsr_regen_delta = 0
+  end
+
+  return spec_kit.safe_state(holy_state, HOLY_SCHEMA)
 end
 
 local function _engaged_with_player(context)
@@ -679,9 +693,24 @@ local strategies = {
    if not chosen_spell then return false end
    return try_cast(chosen_spell, target, format("[HOLY] %s %.0f%%", spell_label, state.lowest.effective_hp or 0))
   end,
- },
- {
-  name = "FlashHeal",
+  },
+  {
+   name = "FSRPause",
+   matches = function(context, state)
+    if not FsrManager then return false end
+    if not context.in_combat then return false end
+    if (state.mana_pct or 100) > 35 then return false end
+    if not state.fsr_inside then return false end
+    if (state.fsr_regen_delta or 0) <= 0 then return false end
+    local pause_ok, reason = FsrManager.should_pause_for_fsr(state, context)
+    return pause_ok
+   end,
+   execute = function(_, state)
+    return false
+   end,
+  },
+  {
+   name = "FlashHeal",
   matches = function(context, state)
    if not context.in_combat then return false end
    if context.player_control_locked or context.is_moving then return false end
