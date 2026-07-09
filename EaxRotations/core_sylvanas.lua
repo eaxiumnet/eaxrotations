@@ -2246,8 +2246,17 @@ function NS.try_cast(spell, unit, reason, opts)
     -- instants — its MIN_CAST_TIME_FOR_ASSIST gate handles that).  Opt-out via
     -- opts.skip_movement_assist for spells that should not interrupt movement
     -- (e.g., Charge, Blink, instant-with-castbar traps).
-    if not opts.skip_movement_assist and type(NS.MovementAssist) == "table" and NS.MovementAssist.face_for_spell then
-        NS.MovementAssist.face_for_spell(id, target)
+    if not opts.skip_movement_assist then
+        local ma = nil
+        if type(NS.MovementAssist) == "table" then
+            ma = NS.MovementAssist
+        elseif type(NS.MovementAssist) == "function" then
+            local ok, result = pcall(NS.MovementAssist)
+            if ok then ma = result end
+        end
+        if ma and ma.face_for_spell then
+            ma:face_for_spell(id, target)
+        end
     end
 
 
@@ -4816,8 +4825,13 @@ function NS.build_healing_entries(out, decorate)
     local units, count = get_party_ally_list(me)
 
     -- Fallback: if party APIs returned only self, also scan visible friendlies
+    -- Guard: if units is nil (e.g., player is dead), create empty table first
+    if not units then
+        units = {}
+        count = 0
+    end
 
-    if (not units or count <= 1) then
+    if count <= 1 then
 
         local vis, vis_count = NS.get_visible_units(false, 200)
 
