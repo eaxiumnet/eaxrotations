@@ -1,5 +1,32 @@
 # EaxRotations Changelog
 
+## v2.5.2 — API Standardization & Code Quality (July 9, 2026)
+
+> **Release zip:** [EaxRotations-v2.5.2.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.5.2)
+> **Game:** The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
+> **Tested with:** 249 rotation suites + 13 leveling suites (all passing)
+
+---
+
+### 🔧 Under the Hood: API Usage Standardization
+
+We completed a full audit of every Lua file in EaxRotations to ensure consistent, safe API usage across the entire codebase.
+
+**What was checked:**
+- All 29 rotation specs + 9 leveling specs + shared modules + core files
+- Banned APIs (`ffi.C`, `io.popen`, `os.execute`, `debug.*`) — none found
+- Distance calculations — all use squared distance (no slow `math.sqrt`)
+- Menu access — all properly nil-guarded
+- API caching — hot-path calls cached at module load
+
+**What was fixed:**
+- Added descriptive headers to 3 core files (`main.lua`, `common_sylvanas.lua`, `helpers_sylvanas.lua`)
+- Fixed 1 instance of uncached API access in Druid Cat form detection
+
+**What this means for you:** more consistent behavior, easier maintenance, and fewer edge-case bugs.
+
+---
+
 ## v2.5.1 — Healer Overheal Gate & Downrank Penalty (July 9, 2026)
 
 > **Release zip:** [EaxRotations-v2.5.1.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.5.1)

@@ -1,3 +1,54 @@
+# Developer Changelog — EaxRotations v2.6.2
+
+**Date:** 2026-07-09
+**Branch:** main
+**Commits:** API standardization audit — Pattern 15 headers, Pattern 2 caching fix
+
+---
+
+## API Standardization Audit (Phase 0)
+
+### Pattern 15 Headers Added
+
+| File | Header Added |
+|------|-------------|
+| `main.lua` | WHAT/WHEN/WHY/SAFETY |
+| `common_sylvanas.lua` | WHAT/WHEN/WHY/SAFETY |
+| `helpers_sylvanas.lua` | WHAT/WHEN/WHY/SAFETY |
+
+### Pattern 2 API Caching Fix
+
+| File | Fix |
+|------|-----|
+| `druid/cat_sylvanas.lua:46` | Cached `core.spell_book.get_shapeshift_form_id` at module load (was raw inline call) |
+
+### Phase 0 Grep Audit Results
+
+| Audit | Result |
+|-------|--------|
+| Banned APIs (`ffi.C`, `io.popen`, `os.execute`, `debug.*`) | ✅ Zero in production |
+| `math.sqrt` | ✅ Zero in production |
+| Bare `menu.x:get()` | ✅ Zero in spec/middleware/shared |
+| `buff_points` without nil guard | ✅ All guarded |
+| State bare comparisons (legacy) | ✅ Zero |
+| Static table allocation in loops | ✅ Zero |
+| Test raw `core.*` mocks | ✅ All legitimate |
+
+### Files Changed
+- `EaxRotations/main.lua` — Pattern 15 header
+- `EaxRotations/common_sylvanas.lua` — Pattern 15 header
+- `EaxRotations/helpers_sylvanas.lua` — Pattern 15 header
+- `EaxRotations/classes/druid/cat_sylvanas.lua` — Pattern 2 API caching
+
+### Verification
+- `luac -p`: 476/476 PASS
+- Rotation tests: 249/249 PASS
+- Leveling tests: 13/13 PASS
+- Vanilla audit: 31/31 clean
+- Sylvanas audit: 296/296 clean
+
+---
+
 # Developer Changelog — EaxRotations v2.6.1
 
 **Date:** 2026-07-09
