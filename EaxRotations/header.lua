@@ -1,8 +1,8 @@
--- early plugin metadata and class load gate.
--- ============================================================================
--- EaxRotations - Header File
--- Project Sylvanas API - Script Registration
--- ============================================================================
+-- header.lua — EaxRotations bootstrap: plugin metadata, version, and class load gate.
+-- WHAT:  registers the addon with Project Sylvanas and gates class loading until core is ready.
+-- WHEN:  addon load; runs before any class file is loaded.
+-- WHY:   prevents class files from executing before the framework (NS, core.*) is initialized.
+-- SAFETY: defers all class loading until core.time exists; no per-frame allocations.
 
 local plugin = {}
 
