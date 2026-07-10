@@ -24,6 +24,9 @@ local _G = _G
 local NS = _G.EaxRotations
 if not NS then return end
 
+-- Pattern 2: cache hot-path core.* at load
+local _core_time = _G.core and _G.core.time
+
 local math_floor = math.floor
 local math_max = math.max
 local math_min = math.min
@@ -84,9 +87,8 @@ local function now_s()
     if NS.time_now then
         return NS.time_now()
     end
-    local core = _G.core
-    if core and core.time then
-        return core.time()
+    if _core_time then
+        return _core_time()
     end
     return 0
 end
