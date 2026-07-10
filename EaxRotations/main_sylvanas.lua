@@ -977,15 +977,15 @@ local function build_context()
             if _api.debuff_up(me, FEAR_IDS) then _context.fear_on_tank = true; _context.feared_tank = me end
         end
         -- Detect known fear/control boss engagement for proactive wards/tremor (even without current debuff)
-        -- Covers all major TBC dungeons/raids per WoWHead guides (SSC Striders/Honor Guards, Magtheridon, Arcatraz Skyriss, etc.)
+        -- Covers all major TBC dungeons/raids per WoWHead guides (SSC Striders/Honor Guards, Magtheridon, Arcatraz Skyriss, SWP Dusk Priests, MGT Delrissa, etc.)
         _context.known_fear_boss = false
         if _context.target and NS.AutoTremor and NS.AutoTremor.is_fear_boss then
             _context.known_fear_boss = NS.AutoTremor.is_fear_boss(_context.target)
         end
-        -- Throttled nearby enemy scan (group only) to catch fear casters before they become explicit target (early pull protection)
-        -- Limited to ~15 objects + time throttle to respect performance patterns.
+        -- Throttled nearby enemy scan (group only) to catch fear casters before (or in addition to) explicit target (early pull / multi-mob protection)
+        -- Limited to ~15 objects + time throttle to respect performance patterns. Enhanced to always check in group for better coverage of all dungeon/raid fear sources.
         local now_ms = (NS.game_time_ms and NS.game_time_ms()) or 0
-        if _context.is_group and not _context.known_fear_boss and (now_ms - _fear_boss_scan_time > FEAR_BOSS_SCAN_INTERVAL_MS) then
+        if _context.is_group and (now_ms - _fear_boss_scan_time > FEAR_BOSS_SCAN_INTERVAL_MS) then
             _fear_boss_scan_time = now_ms
             if _core.object_manager and type(_core.object_manager.get_enemies) == "function" and NS.AutoTremor and NS.AutoTremor.is_fear_boss then
                 local ok, enemies = pcall(_core.object_manager.get_enemies)

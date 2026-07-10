@@ -15,7 +15,7 @@ local NS = _G.EaxRotations
 -- Fear-casting boss NPC IDs (TBC encounters)
 -- Comprehensive list for dungeons and raids to prevent tank fears causing wipes (tank runs into packs).
 -- Raids: Karazhan (Nightbane), Hyjal (Archimonde, Anetheron), BT, SSC (Striders, Honor Guards), Magtheridon's Lair, TK, Sunwell Plateau (SWP Sunblade Dusk Priests), etc.
--- Dungeons: Auchindoun wings (Shadow Lab key for Kara attunement), Ramparts, Arcatraz (Skyriss), Sethekk, Mana Tombs, Old Hillsbrad, Black Morass, etc.
+-- Dungeons: Auchindoun wings (Shadow Lab key for Kara attunement), Ramparts, Arcatraz (Skyriss), Sethekk, Mana Tombs, Old Hillsbrad, Black Morass, Magisters' Terrace (Delrissa), etc.
 -- Use with party frames for accurate tank protection. Expanded via WoWHead TBC guides for all major fear sources (incl. uninterruptible fears).
 -- Expand as more verified via DBC/client.
 local FEAR_CASTER_IDS = {
@@ -51,7 +51,9 @@ local FEAR_CASTER_IDS = {
     [21174] = true,  -- Magtheridon — Fear (random target fear per encounter data)
     -- Sunwell Plateau (SWP) from WoWHead trash guides
     [25370] = true,  -- Sunblade Dusk Priest (Sunwell Plateau) — Fear (uninterruptible; targets enemies)
-    -- Additional from research (SSC Frightening Shout trash, BT, TK advisors, Arcatraz, SWP, etc.)
+    -- Magisters' Terrace from WoWHead guides
+    [24560] = true,  -- Priestess Delrissa (Magisters' Terrace) — Psychic Scream
+    -- Additional from research (SSC Frightening Shout trash, BT, TK advisors, Arcatraz, SWP, MGT, etc.)
     -- All verified/expanded via WoWHead TBC dungeon/raid guides for proactive Fear Ward + Tremor tank protection.
 }
 
