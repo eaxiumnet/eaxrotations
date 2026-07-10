@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-10** (init-log-cleanup marked COMPLETE after verification; 252+17 + compliance green; zip clean only-lua+md; HEAD 74e5ac5e; rotation plans all COMPLETE; fishing in-progress (source not in checkout)).
+> up to date after every work session. Last updated: **2026-07-10** (verification continue: tests 252+17 + compliance PASS, zip clean only-lua+md; HEAD 854e3ca1; rotations COMPLETE; fishing in-progress (no source in checkout); junk only in tree).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
@@ -184,14 +184,14 @@ Or run the suites directly:
 
 ---
 
-## CURRENT STATE (verified 2026-07-10, HEAD ed93144a)
+## CURRENT STATE (verified 2026-07-10, HEAD 854e3ca1)
 
 **Baseline:** 252 rotation + 17 leveling suites PASS / 0 fail on Lua 5.1.5.
 Spell audit PASS. Pre-commit hooks green (luac + vanilla audit + DBC audit).
 test_spec_layout_compliance.lua PASS (31 converted + shared + vanilla).
 eaxrotations.zip re-verified: 490 entries, 0 bad, 0 .txt (only .lua/.md).
 All 29 specs + leveling grounded in wowsims APLs/guides. Tier 3 complete.
-Healer standardization + Warlock dispel + additional dungeon debuffs committed.
+Healer standardization + Warlock dispel + BT/SWP raid polish committed.
 API standardization COMPLETE. Tree: only junk M/untracked left. Release zip clean on v2.5.11.
 
 ### Recent major work (2026-06-27 → 2026-07-10, 285+ commits)

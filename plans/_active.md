@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-10 (BT/SWP dispel raid polish committed for priest+shared; tests 252+17 + compliance green; zip clean; HEAD 2e7a63ae; all rotation plans COMPLETE; fishing in-progress)
+**Last updated:** 2026-07-10 (verification continue: tests 252+17 + compliance PASS, zip clean; HEAD 854e3ca1; rotations COMPLETE; fishing in-progress (source absent); junk only).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
