@@ -11,6 +11,9 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 
 local M = {}
 
+-- Pattern 2: cache at load
+local _core_time = _G.core and _G.core.time
+
 local type, tostring = type, tostring
 local EMPTY = {}
 
@@ -80,9 +83,8 @@ end
 
 local function now_seconds()
     if NS and NS.time_now then return NS.time_now() end
-    local core = (NS and NS.core) or _G.core
-    local t = core and core.time and safe(core.time) or nil
-    return type(t) == "number" and t or 0
+    if _core_time then return _core_time() end
+    return 0
 end
 
 local function now_ms()
@@ -124,14 +126,11 @@ local function setting_enabled(settings, key, default)
     return setting(settings, key, default ~= false) ~= false
 end
 
-local function seed_default_settings()
-    if not NS or type(NS.set_setting) ~= "function" or type(NS.get_setting) ~= "function" then return end
-    if spec_kit.setting(nil, "use_trinket_1", nil) == nil then NS.set_setting("use_trinket_1", true) end
-    if spec_kit.setting(nil, "use_trinket_2", nil) == nil then NS.set_setting("use_trinket_2", true) end
-    if spec_kit.setting(nil, "use_trinket_offensive", nil) == nil then NS.set_setting("use_trinket_offensive", true) end
-    if spec_kit.setting(nil, "use_trinket_defensive", nil) == nil then NS.set_setting("use_trinket_defensive", true) end
-    if spec_kit.setting(nil, "trinket_defensive_hp", nil) == nil then NS.set_setting("trinket_defensive_hp", DEFAULT_DEFENSIVE_HP) end
-end
+-- NOTE: We deliberately do NOT seed defaults via NS.set_setting here.
+-- Writing settings at module load / early registration time can trigger
+-- "File name not set" errors in the host because no profile/filename is
+-- bound yet. The read-side helpers below already provide proper defaults (true / 40).
+-- Menu widgets (if present in specs) are responsible for creating the keys.
 
 local function trinket_slots()
     local slots = NS and NS.EQUIPMENT_SLOTS or nil
@@ -314,7 +313,8 @@ end
 function M.register_trinket_manager()
     if _registered then return true end
     if not NS or type(NS.register_on_update_callback) ~= "function" then return false end
-    seed_default_settings()
+    -- No seed_default_settings() — see note above. Premature set_setting calls
+    -- during load cause host "File name not set. Please specify a valid file name before saving." errors.
     local ok = pcall(NS.register_on_update_callback, function()
         return M.on_update()
     end)
