@@ -24,6 +24,7 @@ local TANK_CRITICAL_HP = 50
 local CLASS_DISPELS = {
     PRIEST = {
         magic = { spell = "DispelMagic", ids = { 988, 527 } },
+        magic_mass = { spell = "MassDispel", ids = { 32375 } },  -- TBC Mass Dispel for AoE efficiency in dungeons
         disease = { spell = "AbolishDisease", ids = { 552 } },
         disease_alt = { spell = "CureDisease", ids = { 528 } },
     },
@@ -92,6 +93,18 @@ local function get_player_class_key()
     return nil
 end
 
+-- Enhanced for dungeons: use accurate party from previous group mechanics work
+local function get_accurate_party(context)
+    if context and context.party_members and #context.party_members > 0 then
+        return context.party_members
+    end
+    if NS.GetPartyMembers then
+        local ok, members = pcall(NS.GetPartyMembers)
+        if ok and members then return members end
+    end
+    return context.party or {}
+end
+
 -- ---------------------------------------------------------------------------
 -- Check if the player can dispel a given debuff type.
 -- ---------------------------------------------------------------------------
@@ -114,6 +127,17 @@ function M.get_dispel_spell(debuff_type)
     local dispels = CLASS_DISPELS[class_key]
     if not dispels then return nil end
     local entry = dispels[debuff_type] or dispels[debuff_type .. "_alt"]
+    -- Dungeon opt: for priest magic in group, prefer MassDispel if learned for speed (AoE)
+    if class_key == "PRIEST" and debuff_type == "magic" then
+        local mass_entry = dispels.magic_mass
+        if mass_entry and mass_entry.ids then
+            for _, id in ipairs(mass_entry.ids) do
+                if NS.is_spell_learned and NS.is_spell_learned(id) then
+                    return id
+                end
+            end
+        end
+    end
     if not entry then return nil end
     if entry.ids and #entry.ids > 0 then
         for _, id in ipairs(entry.ids) do
@@ -162,7 +186,7 @@ function M.scan_unit_debuffs(unit)
             end
         end
     else
-        -- Narrow fallback: known MAGIC debuff IDs only
+        -- Narrow fallback: known MAGIC debuff IDs only (expanded from WoWHead TBC dungeon research for dangerous effects that kill or slow clears)
         local MAGIC_DEBUFF_IDS = {
             118, 12824, 12825, 12826,  -- Polymorph
             5782, 6213, 6215,          -- Fear
@@ -172,6 +196,12 @@ function M.scan_unit_debuffs(unit)
             18469, 28730,              -- Silence (Improved Counterspell, Arcane Torrent)
             589, 594, 970,             -- Shadow Word: Pain
             348, 172,                  -- Immolate, Corruption
+            -- Additional from WoWHead: common dungeon magic that causes death/slow (MC, dots, silences)
+            32830,                     -- Possess (MC from Auchenai)
+            34984,                     -- Psychic Horror
+            38660,                     -- Fear (Siren)
+            46561,                     -- Fear (Dusk Priest)
+            17172,                     -- Devouring Plague (disease/magic)
         }
         for _, id in ipairs(MAGIC_DEBUFF_IDS) do
             if NS.has_debuff and NS.has_debuff(unit, id) then
@@ -198,10 +228,13 @@ function M.find_dispel_target(context, state)
         return nil, nil, nil
     end
 
-    local party = context.party_members or {}
-    if #party == 0 and NS.get_party_members then
-        local ok, members = pcall(NS.get_party_members, me, NS)
-        if ok and members then party = members end
+    local party = get_accurate_party(context)
+
+    -- Dungeon optimization: always prefer tank first in group content (from previous party_tanks work)
+    local is_dungeon_group = context and context.is_group and not (context.is_pvp)
+    if is_dungeon_group and state and state.tank and state.tank.unit then
+        local dtype, spell_id = M.scan_unit_debuffs(state.tank.unit)
+        if dtype then return state.tank.unit, spell_id, dtype end
     end
 
     -- Tank check (highest priority when priority == "tank")
@@ -210,7 +243,7 @@ function M.find_dispel_target(context, state)
         if dtype then return state.tank.unit, spell_id, dtype end
     end
 
-    -- All: scan self + party, prefer lowest HP first
+    -- All: scan self + party, prefer lowest HP first. In dungeons, also consider control_risk for magic
     local candidates = {}
     local function add(unit)
         if not unit then return end
@@ -221,7 +254,12 @@ function M.find_dispel_target(context, state)
                 local ok, val = pcall(NS.unit_health_pct, unit)
                 if ok then hp = val or 100 end
             end
-            candidates[#candidates + 1] = { unit = unit, hp = hp, dtype = dtype, spell_id = spell_id }
+            -- Dungeon boost: if control_risk and magic, higher priority (lower effective hp)
+            local effective_hp = hp
+            if is_dungeon_group and context.control_risk and dtype == "magic" then
+                effective_hp = hp - 20  -- boost priority for control magic
+            end
+            candidates[#candidates + 1] = { unit = unit, hp = effective_hp, dtype = dtype, spell_id = spell_id }
         end
     end
 
@@ -246,11 +284,18 @@ function M.should_dispel(context, state)
     if not setting(context, "auto_dispel", true) then return false, nil, nil end
     if M.is_throttled() then return false, nil, nil end
 
-    -- Skip dispelling during critical healing moments
-    if state and state.tank and state.tank_hp then
+    -- Dungeon optimization: if control_risk or fear_nearby (from previous mechanics), be more aggressive on dispels to avoid deaths
+    local is_dungeon = context and context.is_group
+    if is_dungeon and (context.control_risk or context.fear_nearby) then
+        -- force check even if low hp sometimes, but still respect throttle
+    end
+
+    -- Skip dispelling during critical healing moments (but allow in high risk)
+    local skip_critical = not (is_dungeon and context.control_risk)
+    if skip_critical and state and state.tank and state.tank_hp then
         if (state.tank_hp or 100) < TANK_CRITICAL_HP then return false, nil, nil end
     end
-    if state and state.lowest_hp and state.lowest_hp < TANK_CRITICAL_HP then
+    if skip_critical and state and state.lowest_hp and state.lowest_hp < TANK_CRITICAL_HP then
         return false, nil, nil
     end
 
