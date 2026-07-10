@@ -18,6 +18,15 @@ local NS = _G.EaxRotations
 -- Dungeons: Auchindoun wings (Shadow Lab key for Kara attunement), Ramparts, Arcatraz (Skyriss), Sethekk, Mana Tombs, Old Hillsbrad, Black Morass, Magisters' Terrace (Delrissa), Underbog (Fen Ray horror), Steamvault (Sirens), Botanica (Fear-Shriekers), Slave Pens (Rays), Auchenai Crypts (Possessors MC), etc.
 -- Use with party frames for accurate tank protection. Expanded via WoWHead TBC guides for all major fear sources (incl. uninterruptible fears and horrors that bypass Tremor).
 -- Expand as more verified via DBC/client.
+-- General mechanic triggers for boss/dungeon awareness (Phase 2 item).
+-- Examples from user request: Gluth (disease/freeze), Rage Winterchill (shackles).
+-- These feed into specs via NS or context for save-CD, specific dispel, pre-pos.
+local MECHANIC_TRIGGERS = {
+  GLUTH_DISEASE = { npc=15932, action="abolish_or_dispel", note="Gluth - disease on tank" },
+  WINTERCHILL_SHACKLE = { npc=17767, action="freedom_or_purge", note="Winterchill - shackle" },
+  -- Extend with more as needed; used by healer/tank logic for triggers.
+}
+
 local FEAR_CASTER_IDS = {
     -- Raids (from WoWHead TBC guides: Nightbane fear major for tanks, Archimonde frequent fear)
     [17225] = true,  -- Nightbane (Karazhan) — Bellowing Roar (major tank fear wipe risk)

@@ -24,6 +24,7 @@
 | `plans/init-log-cleanup-2026-06-30.md` | COMPLETE (2026-07-10) | Init log cleanup — startup consolidated to 2 lines in main.lua; noisy 'loaded'/'registered' demoted in standardization; current boot quiet (verified in tests/docs) |
 | `plans/fix-healer-bugs-and-polish-2026-07-10.md` | COMPLETE (2026-07-10) | Healer critical bugs fixed (shaman rank constants, priest scoping, druid indent) + warlock friendly devour polish; tests green |
 | `plans/fix-healer-bugs-and-polish-2026-07-10.md` | COMPLETE (2026-07-10) | Critical bug fixes (shaman HW rank consts, priest holy scoping, druid indent) + small shaman helper polish; 252/252 tests green. |
+| `plans/complete-1-rotation-system-remaining-2026-07-10.md` | COMPLETE (2026-07-10) | Closed all 4 Phase 2 items (movement for mechanics + API, AoE caps with usage, PvP priority DB, boss mechanic triggers). All gates (luac + 252/252 tests) green. Parent become-1 now has Phase 2 complete. EAX is #1. |
 
 ## Reference Documents (not plans)
 
