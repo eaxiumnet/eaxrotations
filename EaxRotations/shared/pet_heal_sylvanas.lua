@@ -12,6 +12,9 @@ local _G = _G
 local NS = _G.EaxRotations
 if not NS then return end
 
+-- Pattern 2
+local _core_time = _G.core and _G.core.time
+
 local type = type
 local ipairs = ipairs
 local pcall = pcall
@@ -123,7 +126,7 @@ local function scan_pets(me)
 
     -- Fallback: scan visible objects and check if they are pets of party members (throttled)
     if _pet_scan.n == 0 and om and type(om.get_visible_objects) == "function" then
-        local now = (core and core.time and core.time()) or 0
+        local now = _core_time and _core_time() or 0
         if now - _pet_vis_scan_last >= _pet_vis_scan_interval then
             _pet_vis_scan_last = now
             local ok_vis, visible = pcall(om.get_visible_objects, om)
