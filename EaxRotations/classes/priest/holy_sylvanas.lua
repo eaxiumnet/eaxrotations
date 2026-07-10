@@ -700,6 +700,16 @@ local strategies = {
   end,
  },
  {
+   name = "FSRPause",
+   matches = function(context, state)
+    if not FsrManager then return false end
+    return FsrManager.should_pause_for_fsr(state, context)
+   end,
+    execute = function(_, state)
+     return true
+    end,
+  },
+ {
   name = "GreaterHeal",
   matches = function(context, state)
    if not context.in_combat then return false end
@@ -734,21 +744,7 @@ local strategies = {
     return try_cast(spell_id, target, format("[HOLY] Greater Heal %.0f%% (rank %s, penalty %.0f%%)", state.lowest.effective_hp or 0, mana_pct > 30 and "7" or (mana_pct > 15 and "6" or "5"), (penalty or 1) * 100))
    end,
   },
-  {
-   name = "FSRPause",
-   matches = function(context, state)
-    if not FsrManager then return false end
-    if not context.in_combat then return false end
-    if (state.mana_pct or 100) > 35 then return false end
-    if not state.fsr_inside then return false end
-    if (state.fsr_regen_delta or 0) <= 0 then return false end
-    local pause_ok, reason = FsrManager.should_pause_for_fsr(state, context)
-    return pause_ok
-   end,
-    execute = function(_, state)
-     return true
-    end,
-  },
+
   {
    name = "FlashHeal",
   matches = function(context, state)
