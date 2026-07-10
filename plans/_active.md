@@ -14,7 +14,7 @@
 |------|--------|---------|
 | `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` | COMPLETE (Tier 3 audits + docstrings + validation marked done 2026-07-10) | Ground every spec in wowsims/SimC/guides to be #1 rotation system |
 | `plans/spec-standardization-2026-06-30.md` | Active | Schema/spec/leveling standardization for open-source release |
-| `plans/api-standardization-audit-2026-07.md` | In progress (Phase 0 complete; Phase 1: Pattern 2 fixes in 9+ shared + main_sylvanas; Pattern 4 clean; tests checked; Wave 1C core+main complete (docs+bare fixes); Wave 1D kickoff: class/middleware/schema headers + caching spot clean) | Full API pattern compliance audit across all ~210 EaxRotations files (Groups A-I) |
+| `plans/api-standardization-audit-2026-07.md` | In progress (Phase 0 complete; Phase 1 shared/core/main Pattern 2+docs done; Wave 1C complete; Wave 1D kickoff; Phase 2 compliance test already covers shared/core checks + passes; Wave 1E clean; baseline updated to 252+17) | Full API pattern compliance audit across all ~210 EaxRotations files (Groups A-I) |
 | `plans/refactor-developer-experience-2026-06.md` | COMPLETE | spec_kit migration — ALL 29 SPECS MIGRATED (arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction, frost, restoration, affliction, combat, demonology, elemental, enhancement, assassination, marksmanship, retribution, subtlety, survival, protection, beast_mastery, holy) + healing_sylvanas helper |
 | `plans/eaxfishing-v2.4.0-12-features-2026-07-05.md` | In progress | Fishing bot v2.4.0-12 feature list |
 | `plans/pvp-burst-window-dr-tracking-2026-07-07.md` | In progress | DR + enemy-CD tracking wiring for pvp_burst_window |
@@ -34,13 +34,13 @@
 
 ---
 
-## Baseline (ALL GREEN — verified 2026-07-07)
+## Baseline (ALL GREEN — verified 2026-07-10)
 
-- 234 rotation suites: ALL PASS (0 failures)
-- 13 leveling suites: ALL PASS
+- 252 rotation suites: ALL PASS (0 failures)
+- 17 leveling suites: ALL PASS
 - 31 vanilla audit: PASS (0 tainted)
 - 61 sylvanas audit: PASS (0 invalid)
-- 459/459 luac -p: PASS
+- luac -p + pre-commit DBC/vanilla: PASS (476+ files)
 
 ---
 
