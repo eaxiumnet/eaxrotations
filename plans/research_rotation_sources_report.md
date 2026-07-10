@@ -106,6 +106,7 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
 - Sources: wowsims tbc feral, Wowhead TBC Feral rotation, Icy Veins TBC Feral.
 - Retribution Paladin: Enabled seal twisting by default (Command rank 1 into Blood/Martyr for CS and Judge windows). Matches wowsims APL priority (twist before swing, CS under Blood, Judge under Blood shortly after auto) and Wowhead/Icy Veins TBC guides. The implementation already included CLEU swing diagnostics, PERFECT/PHANTOM logging, dynamic twist window, post-swing judge gate, rank-1 Command prep. Only the default was off; now auto users get source-aligned behavior. All tests green.
 - Sources: wowsims/tbc-new paladin/retribution apl, Wowhead TBC Ret DPS guide, community seal twisting guides.
+- Hunter (all specs): Already had cliptracker + shared shot_timer with AUTO_SHOT_BUFFER (100-150ms) and can_cast_before_auto guards to prevent clipping autos; Viper/Hawk 5/25% and early Aimed opener previously aligned. APL uses "Time until auto with buffer" + complex weave timing (Eax supports buffer + melee raptor/wing when in range; no auto-move). No new P0 gap found this pass; timing modules provide strong fidelity. Verified tests green.
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |
