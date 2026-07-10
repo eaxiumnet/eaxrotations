@@ -106,6 +106,7 @@ local FEAR_DEBUFF_IDS = {
  [19134] = true,        -- Frightening Shout
  [46561] = true,        -- Fear (Sunblade Dusk Priest SWP)
  [34984] = true,        -- Psychic Horror (Fen Ray Underbog)
+ [38660] = true,        -- Fear (Coilfang Siren Steamvault)
 }
 local SAP_DEBUFF_IDS = {
  [6770] = true, [2070] = true, [11297] = true, -- Sap
