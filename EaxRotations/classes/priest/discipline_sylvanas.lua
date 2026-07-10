@@ -26,6 +26,7 @@ local ACTION = {
     BindingHeal       = define("BindingHeal",       { 32546 }, "BindingHeal"),
     CircleofHealing   = define("CircleofHealing",   { 34866, 34865, 34864, 34863, 34861 }, "CircleofHealing"),
     DispelMagic       = define("DispelMagic",       { 988, 527 }, "DispelMagic"),
+    MassDispel        = define("MassDispel",        { 32375 }, "MassDispel"),  -- TBC dungeon speed: AoE magic (per WoWHead)
     DivineSpirit      = define("DivineSpirit",      { 25312, 27841, 14819, 14818, 14752 }, "DivineSpirit"),
     Fade              = define("Fade",              { 25429, 10942, 10941, 9592, 9579, 9578, 586 }, "Fade"),
     FearWard          = define("FearWard",          { 6346 }, "FearWard"),
@@ -322,6 +323,7 @@ local function build_state(context)
  disc_state.psychic_scream_ready = me and NS.spell_ready(ACTION.PsychicScream, me, { expected_cooldown = 30 }) or false
  disc_state.shadowfiend_ready = me and (NS.spell_exists and NS.spell_exists(ACTION.Shadowfiend) or true) and NS.spell_ready(ACTION.Shadowfiend, NS.PLAYER_UNIT) or false
  disc_state.dispel_magic_ready = me and NS.spell_ready(ACTION.DispelMagic, me, { skip_range = true }) or false
+ disc_state.mass_dispel_ready = me and NS.spell_ready(ACTION.MassDispel, me, { skip_range = true }) or false
  disc_state.shackle_undead_ready = me and NS.spell_ready(ACTION.ShackleUndead, me, { expected_cooldown = 1.5 }) or false
  disc_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
  disc_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
@@ -879,6 +881,16 @@ end },
  { name = "PsychicScream", matches = psychic_scream_matches, execute = function(context) return NS.try_cast(ACTION.PsychicScream, context.target, "[DISCIPLINE] PsychicScream", { expected_cooldown = 30 }) end },
  { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return NS.try_cast(ACTION.ShackleUndead, context.target, "[DISCIPLINE] ShackleUndead", { expected_cooldown = 1.5 }) end },
  { name = "DispelMagic", matches = dispel_magic_matches, execute = function() return NS.try_cast(ACTION.DispelMagic, NS.PLAYER_UNIT, "[DISCIPLINE] DispelMagic") end },
+ { name = "MassDispel", matches = function(context, s)
+   if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.MassDispel, 3.0) then return false end
+   if not context.in_combat then return false end
+   if not s.mass_dispel_ready then return false end
+   if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end
+   if context.mana_pct < 30 then return false end
+   -- Dungeon opt: Mass for AoE magic (WoWHead TBC: efficient for packs, removes tough magic, speeds clear, saves lives)
+   if not context.is_group then return false end
+   return true
+ end, execute = function() return NS.try_cast(ACTION.MassDispel, NS.PLAYER_UNIT, "[DISCIPLINE] MassDispel (dungeon AoE)") end },
  -- Cooldown Features
  { name = "PainSuppression", matches = pain_suppression_matches, execute = function(_, s) return NS.try_cast(ACTION.PainSuppression, s.tank.unit, string.format("[DISCIPLINE] Pain Suppression on tank %.0f%%", s.tank.effective_hp or 0)) end },
  { name = "PowerInfusion", matches = power_infusion_matches, execute = function(_, s)
