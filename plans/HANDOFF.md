@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-10** (verification continue: tests 252+17 + compliance PASS, zip clean only-lua+md; HEAD 083f04f9; rotations COMPLETE; fishing in-progress (no source in checkout); junk only in tree).
+> up to date after every work session. Last updated: **2026-07-10** (verification continue: tests 252+17 + compliance PASS, zip clean only-lua+md; HEAD 58934df2; rotations COMPLETE; fishing in-progress (no source in checkout); junk only in tree).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
@@ -184,7 +184,7 @@ Or run the suites directly:
 
 ---
 
-## CURRENT STATE (verified 2026-07-10, HEAD 083f04f9)
+## CURRENT STATE (verified 2026-07-10, HEAD 58934df2)
 
 **Baseline:** 252 rotation + 17 leveling suites PASS / 0 fail on Lua 5.1.5.
 Spell audit PASS. Pre-commit hooks green (luac + vanilla audit + DBC audit).
