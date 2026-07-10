@@ -73,6 +73,10 @@ return {
                     { key = "tank_hp_bias", type = "slider", label = "Tank HP Bias (%)", min = 0, max = 30, default = 15, tooltip = "Treat tanks as if they have this much less HP for triage scoring" },
                     { key = "heal_pets", type = "checkbox", label = "Heal Pets", default = true, tooltip = "Include Hunter/Warlock pets in healing target scan" },
                     { key = "pet_weight", type = "slider", label = "Pet Triage Weight", min = 0.1, max = 1.0, default = 0.6, tooltip = "Lower = pets are less urgent than players" },
+                    { key = "fsr_enabled", type = "checkbox", label = "FSR Pause", default = true },
+                    { key = "fsr_mana_threshold", type = "slider", label = "FSR Mana Threshold (%)", min = 10, max = 60, default = 35 },
+                    { key = "fsr_emergency_hp", type = "slider", label = "FSR Emergency HP (%)", min = 10, max = 60, default = 40 },
+                    { key = "fsr_max_pause_seconds", type = "slider", label = "FSR Max Pause (s)", min = 0, max = 5, default = 2 },
                 },
             },
             {
