@@ -299,11 +299,18 @@ function M.match(context, state, threshold, cast_time)
         if predicted_hp >= threshold * 0.8 then return false end
     end
 
-    -- Gate: don't preempt if the unit's current HP is already above 90%
-    -- Prevent overcooking: preemptive healing is for units about to take damage,
-    -- not for topping off healthy units.
-    local current_hp = target_entry.effective_hp or target_entry.hp or 100
-    if current_hp > 92 then return false end
+    -- "No one to die" gate: trigger pre-empt or save if any death risk (low TTD, high death_risk, low future)
+    -- Even if current HP ok, if predicted death soon, cast big heal.
+    local ttd = target_entry.time_to_die or 999
+    local death_r = target_entry.death_risk or 0
+    local fut = target_entry.future_hp or target_entry.effective_hp or 100
+    local will = target_entry.will_die_soon == true or (context and ((context.party_imminent_deaths or 0) + (context.party_will_die_count or 0) > 0))
+    if ttd < 3 or death_r > 100 or fut < 25 or will then
+        -- Always consider for imminent death -- no skip
+    else
+        local current_hp = target_entry.effective_hp or target_entry.hp or 100
+        if current_hp > 92 and ttd > 4 and death_r < 50 and not will then return false end
+    end
 
     -- Gate: mana floor — don't spend mana on preemptive heals when low
     local mana_pct = context.mana_pct or state.mana_pct or 100
