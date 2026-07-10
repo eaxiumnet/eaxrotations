@@ -209,6 +209,9 @@ local disc_state = {
  hp_pct = 100,
  in_combat = false,
  lowest_hp_pct = 100,
+ fsr_inside = false,
+ fsr_seconds = 0,
+ fsr_regen_delta = 0,
  target_creature_type = nil,
  target_casting = false,
  enemy_count = 0,
@@ -248,6 +251,9 @@ local function build_state(context)
   disc_state.fsr_regen_delta = 0
  end
  disc_state.lowest_hp_pct = 100
+ disc_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
+ disc_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
+ disc_state.in_combat = context.in_combat or false
  disc_state.player_control_locked = context.player_control_locked == true
  -- Mounted bail: healer should not queue buffs/heals while mounted
  if me.is_mounted and me:is_mounted() then
@@ -339,9 +345,6 @@ local function build_state(context)
  disc_state.dispel_magic_ready = me and NS.spell_ready(ACTION.DispelMagic, me, { skip_range = true }) or false
  disc_state.mass_dispel_ready = me and NS.spell_ready(ACTION.MassDispel, me, { skip_range = true }) or false
  disc_state.shackle_undead_ready = me and NS.spell_ready(ACTION.ShackleUndead, me, { expected_cooldown = 1.5 }) or false
- disc_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct and NS.unit_mana_pct(me)) or 100
- disc_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
- disc_state.in_combat = context.in_combat or false
  disc_state.target_creature_type = target_creature_type(target)
  disc_state.target_casting = target and target.is_casting and target:is_casting() or false
 
@@ -829,6 +832,9 @@ local healing_strategies = {
   if not target_entry or not target_entry.unit then return false end
   return PreemptiveHeal.execute(context, s, ACTION.GreaterHeal, string.format("[DISCIPLINE] Preemptive GH %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.5, heal_size = 3500 })
  end },
+  -- FSRPause after emergency tier (Emergency PWS/Flash + PreemptiveGreaterHeal) before GreaterHeal (per PR desc + review).
+  -- FriendlyTarget (manual player honor, top) and Preemptive (pre-damage GH) precede intentionally; GH "fillers" like PreHeal are after.
+  -- Consistent with druid (Friendly after emerg but before routine; Preemp before FSR) and peers. Does not suppress *all* GH but main path.
   { name = "FSRPause",
    matches = function(context, state)
     if not FsrManager then return false end
