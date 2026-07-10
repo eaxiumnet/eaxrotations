@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.5.1 - 2026-07-10
+
+### Customer Changelog
+- Improved Arms Warrior Sunder Armor priority and battle stance support, aligned with authoritative SimC APLs and guides from Wowhead and Icy Veins for better raid contribution.
+- Updated version to 2.5.1 with customer-facing documentation and text cleanup (plain formatting, no special symbols).
+- All rotation and leveling tests remain passing.
+
+Full development details and prior releases below (for internal use).
+
 ## 2.3.15 - 2026-07-05
 
 ### Comprehensive Competitor Ecosystem Analysis

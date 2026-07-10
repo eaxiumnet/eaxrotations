@@ -1,5 +1,5 @@
-EaxRotations v2.5.0
-Released: 2026-07-08
+EaxRotations v2.5.1
+Released: 2026-07-10
 Game: The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
 Commit: (git describe)
 
