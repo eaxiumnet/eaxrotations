@@ -212,4 +212,23 @@ assert_false(drain_soul.matches({
     drain_soul_ready = true,
 }), "DrainSoul should not match without target")
 
+-- ============================================================================
+-- Fear hardening (PR4): strict is_pvp (no is_group), debuff_remains==0, use_fear_cc
+-- mirroring affliction; uses find_strategy("Fear")
+-- ============================================================================
+
+local fear = find_strategy("Fear")
+
+-- Dungeon group on primary target (is_group && !is_pvp) -> must NOT match
+assert_false(fear.matches({ target = {}, is_group = true, is_pvp = false }, { fear_ready = true }), "Fear must not match in dungeon group (is_group && !is_pvp)")
+
+-- Already feared (debuff_remains > 0) -> must NOT match, even in is_pvp
+local orig_debuff = _G.EaxRotations.debuff_remains
+_G.EaxRotations.debuff_remains = function(target, ids) return 5 end
+assert_false(fear.matches({ target = {}, is_pvp = true }, { fear_ready = true }), "Fear must not match when target already has Fear debuff (even in is_pvp)")
+_G.EaxRotations.debuff_remains = orig_debuff
+
+-- Valid is_pvp case (no prior debuff, default use_fear_cc=true) -> should match
+assert_true(fear.matches({ target = {}, is_pvp = true }, { fear_ready = true }), "Fear must match in valid is_pvp scenario with no fear debuff")
+
 print("PASS test_demonology_custom_matches")
