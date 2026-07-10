@@ -194,8 +194,8 @@ All 29 specs + leveling rotations grounded in wowsims APLs/guides per become-1 p
 | Plan cleanup | 44 → 15 active plans (35 archived) | `37c20d17`+`618cdcdf` | stale/completed plans moved to `plans/_archive/` |
 | Tier 3 fidelity | All 29 specs + leveling audited vs wowsims APLs/guides; gaps fixed (Envenom, Conflagrate, etc.); core bugfix | multiple (e.g. `f5bd1843`, `644318d4`) | become-1 plan Phase 3 complete |
 | API standardization | Pattern 2 caches + docs in core/main/shared; compliance test extended with core load-cache check; Phase 2/3 validated | `660d2923`, `5341285e` | api-audit Phase 1-3 progress; test_spec_layout_compliance enhanced; full audits green |
-| Class standardization | Druid (bear swing timer, leveling/middleware/schema); Warrior (leveling/schema canonical); Hunter, Paladin, Priest, Rogue, Shaman (leveling/middleware/schema etc.) | `71302663`..`47f804ab` | progressive one-concern commits of dirty class infra changes under spec-standardization |
-| Core/shared standardization | Updates to core_sylvanas, main_sylvanas, units, shared (auto_*, triage etc.) | `36bb720e`, `72426d43` | api + standardization updates |
+| Class standardization | Druid (bear swing timer, leveling/middleware/schema); Warrior (leveling/schema canonical); Hunter, Paladin, Priest, Rogue, Shaman (leveling/middleware/schema etc.) | `71302663`..`dc50b6b5` | progressive one-concern commits of dirty class infra changes under spec-standardization |
+| Core/shared standardization | Updates to core_sylvanas, main_sylvanas, units, shared (auto_*, triage etc.) | `36bb720e`, `e378bbb8`, `3b899d9f` | api + standardization updates |
 | Test standardization | holy_priest_feature_gaps | `8477393e` | |
 | Release packaging | Clean eaxrotations.zip (lua+md only) recreated from HEAD + uploaded to GH release v2.5.11 (refreshed post-final commits) | (git archive + gh) | fulfills release zip update request; verified no bad entries; tree cleaned of source M |
 
