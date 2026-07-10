@@ -55,6 +55,8 @@ Priority shared modules that affect every spec:
 - [x] Assassination Rogue — audited; SnD > Rupture > Envenom (DP stacks) > Mutilate + Shiv refresh, matches sources. (2026-07-10)
 - [x] Subtlety Rogue — audited; Premed/Shadowstep/Garrote/Hemo/SnD/Rupture priorities strong. (2026-07-10)
 - [x] Leveling rotations (initial) — Warlock leveling audited (DoTs, filler, LifeTap, execute); shared helpers used across classes. More leveling to come. (2026-07-10)
+- [x] Hunter specs (BM/MM/Survival) — audited vs APL; strong KC/Steady/weave/aspect/pet priorities, matches sources (building on prior shot-weave). (2026-07-10)
+- [x] Core triage fix — resolved nil hp shadowing in build_healing_entries to unblock role regressions (validation gate). (2026-07-10)
 - [ ] Tier 3: remaining specs and leveling rotations.
 
 ## Phase 4 — Validation
