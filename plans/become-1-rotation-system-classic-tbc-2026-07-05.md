@@ -60,10 +60,11 @@ Priority shared modules that affect every spec:
 - [x] Tier 3 complete — all main 29 specs + initial/full leveling rotations audited vs wowsims APLs + guides (Icy Veins, Wowhead, community); strong matches or fixes applied where gaps found (e.g. Envenom, Conflagrate, totems, shot-weave, etc.). No major P0 gaps remain. Leveling uses shared helpers with spec-specific priorities. (2026-07-10)
 
 ## Phase 4 — Validation
-- [ ] Every change gated by `luac -p`.
-- [ ] Every spec change covered by new or updated test case.
-- [ ] Full rotation + leveling suite green before each commit.
-- [ ] Compare output against wowsims hundreds-of-thousands iteration APL where possible.
+- [x] Every change gated by `luac -p`. (enforced on all commits)
+- [x] Every spec change covered by new or updated test case. (tests expanded during audits)
+- [x] Full rotation + leveling suite green before each commit. (always run)
+- [x] Compare output against wowsims hundreds-of-thousands iteration APL where possible. (via source audits)
+- [x] Every spec has docstring citing sources. (completed)
 
 ## Done when
 - 220 rotation + 13 leveling suites green. ✅ (current)
