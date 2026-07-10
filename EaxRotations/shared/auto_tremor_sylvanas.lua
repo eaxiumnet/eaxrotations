@@ -15,7 +15,7 @@ local NS = _G.EaxRotations
 -- Fear-casting boss NPC IDs (TBC encounters)
 -- Comprehensive list for dungeons and raids to prevent tank fears causing wipes (tank runs into packs).
 -- Raids: Karazhan (Nightbane), Hyjal (Archimonde, Anetheron), BT, SSC (Striders, Honor Guards), Magtheridon's Lair, TK, Sunwell Plateau (SWP Sunblade Dusk Priests), etc.
--- Dungeons: Auchindoun wings (Shadow Lab key for Kara attunement), Ramparts, Arcatraz (Skyriss), Sethekk, Mana Tombs, Old Hillsbrad, Black Morass, Magisters' Terrace (Delrissa), Underbog (Fen Ray horror), etc.
+-- Dungeons: Auchindoun wings (Shadow Lab key for Kara attunement), Ramparts, Arcatraz (Skyriss), Sethekk, Mana Tombs, Old Hillsbrad, Black Morass, Magisters' Terrace (Delrissa), Underbog (Fen Ray horror), Steamvault (Sirens), Botanica (Fear-Shriekers), Slave Pens (Rays), etc.
 -- Use with party frames for accurate tank protection. Expanded via WoWHead TBC guides for all major fear sources (incl. uninterruptible fears and horrors that bypass Tremor).
 -- Expand as more verified via DBC/client.
 local FEAR_CASTER_IDS = {
@@ -55,7 +55,13 @@ local FEAR_CASTER_IDS = {
     [24560] = true,  -- Priestess Delrissa (Magisters' Terrace) — Psychic Scream
     -- The Underbog (Coilfang dungeon) from WoWHead + guides: Fen Rays cast horror fear (Tremor does NOT dispel; Fear Ward essential)
     [17731] = true,  -- Fen Ray (Underbog) — Psychic Horror (fear/horror effect)
-    -- Additional from research (SSC Frightening Shout trash, BT, TK advisors, Arcatraz, SWP, MGT, Underbog, etc.)
+    -- Steamvault from WoWHead guides: Coilfang Sirens cast AoE Fear (high priority CC target)
+    [17801] = true,  -- Coilfang Siren (Steamvault) — Fear (AoE)
+    -- Botanica: Mutate Fear-Shrieker (fear caster trash)
+    [19513] = true,  -- Mutate Fear-Shrieker (Botanica) — Fear
+    -- Slave Pens: Coilfang Rays (Psychic Horror, dangerous fear into packs)
+    [21128] = true,  -- Coilfang Ray (Slave Pens) — Psychic Horror
+    -- Additional from research (SSC Frightening Shout trash, BT, TK advisors, Arcatraz, SWP, MGT, Underbog, Steamvault, Botanica, Slave Pens, etc.)
     -- All verified/expanded via WoWHead TBC dungeon/raid guides for proactive Fear Ward + Tremor tank protection.
 }
 
@@ -107,6 +113,7 @@ function M.detect_fear_on_ally()
         [39427] = true,                                -- Bellowing Roar variant (TK Kael advisors per guides)
         [46561] = true,                                -- Fear (Sunblade Dusk Priest SWP per WoWHead trash guide; uninterruptible)
         [34984] = true,                                -- Psychic Horror (Fen Ray Underbog; horror, Tremor does not dispel per guides/comments)
+        [38660] = true,                                -- Fear (Coilfang Siren Steamvault AoE per guides)
         [10955] = true,                                -- Other fears
     }
     for _, member in ipairs(party) do
@@ -128,7 +135,7 @@ function M.detect_fear_on_tank()
     if not party then return false end
     for _, member in ipairs(party) do
         if member and member.is_alive and member:is_alive() and NS.is_tank_unit(member) then
-            for debuff_id in pairs({5782,6215,5484,8122,33111,39415,19134,46561,34984}) do
+            for debuff_id in pairs({5782,6215,5484,8122,33111,39415,19134,46561,34984,38660}) do
                 if NS.debuff_up and NS.debuff_up(member, debuff_id) then
                     return true
                 end
