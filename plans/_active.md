@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-10 (spec-standardization COMPLETE; api-audit COMPLETE; eaxrotations.zip STRICTLY recreated with only .lua/.md via git+python filter (no .txt); re-uploaded+verified on GH v2.5.11; pvp-burst COMPLETE)
+**Last updated:** 2026-07-10 (healer standardization commits + Warlock dispel; full 252+17 green; docs refreshed; zip clean on v2.5.11; all major plans COMPLETE)
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 

@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-10** (Tier 3 Destruction fidelity; HEAD `0207e0e4`, pushed to origin).
+> up to date after every work session. Last updated: **2026-07-10** (healer standardization + Warlock dispel; HEAD `37eab941`, tests green; zip clean on v2.5.11).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
@@ -184,11 +184,11 @@ Or run the suites directly:
 
 ---
 
-## CURRENT STATE (verified 2026-07-10, HEAD 660d2923)
+## CURRENT STATE (verified 2026-07-10, HEAD 37eab941)
 
 **Baseline:** 252 rotation + 17 leveling suites PASS / 0 fail on Lua 5.1.5 (updated counts).
 Spell audit PASS. Pre-commit hooks green (luac + vanilla audit + DBC audit).
-All 29 specs + leveling rotations grounded in wowsims APLs/guides per become-1 plan. Tier 3 complete. API standardization audit advanced (Phase 0-2, test enhancements for core caching; Wave 1 complete in key areas).
+All 29 specs + leveling rotations grounded in wowsims APLs/guides per become-1 plan. Tier 3 complete. Healer standardization + Warlock dispel support committed. API standardization audit COMPLETE. Tree cleaned of source changes (junk left alone). eaxrotations.zip (lua+md only) on v2.5.11.
 
 ### Recent major work (2026-06-27 → 2026-07-10, 285+ commits)
 | Category | Item | Commit | One-line |
@@ -211,6 +211,8 @@ All 29 specs + leveling rotations grounded in wowsims APLs/guides per become-1 p
 | Core/shared standardization | Updates to core_sylvanas, main_sylvanas, units, shared (auto_*, triage etc.) | `36bb720e`, `e378bbb8`, `3b899d9f` | api + standardization updates |
 | Test standardization | holy_priest_feature_gaps | `8477393e` | |
 | Release packaging | Clean eaxrotations.zip (lua+md only) recreated from HEAD + uploaded to GH release v2.5.11 (refreshed post-final commits) | (git archive + gh) | fulfills release zip update request; verified no bad entries; tree cleaned of source M |
+| Healer standardization | Context-aware dispel/cure (control_risk/is_group early returns), dangerous debuff IDs, + Warlock Devour Magic in shared | `5c13bcf4`, `37eab941` | resto druid, holy pally, healing priest, resto shaman + dispel_manager; luac + 252+17 green |
+| Validation | Full rotation (252) + leveling (17) suites + pre-commit audits | multiple | all green post-commits |
 
 ### spec_kit migration progress — COMPLETE (29 of 29 specs) 🎉
 All specs migrated to canonical `spec_kit.safe_state` + `define_action_for_class` + guarded registration + return shape (per refactor-developer-experience and _active.md). Reference: arms_sylvanas.lua. See test_spec_layout_compliance.lua CONVERTED table and EaxRotations/README.md for details. No legacy remaining.
