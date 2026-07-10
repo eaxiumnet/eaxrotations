@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.12 - 2026-07-10
+
+### Customer Changelog
+- Priest Healing + shared dispel manager: added BT/SWP high-tier debuffs (Soul Drain 41303, Polymorph 46280, Flame Buffet 46279, Disease Buffet, hound poisons) for improved raid dispel priority and clears.
+- All rotation and leveling tests remain passing (252 + 17 suites).
+- Version bumped to 2.5.12 across header, docs, and packaging.
+
 ## 2.5.11 - 2026-07-10
 
 ### Customer Changelog
