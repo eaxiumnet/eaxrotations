@@ -7,6 +7,10 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Pattern 2: cache core.* at load
+local _core = _G.core or {}
+
 local M = {}
 
 -- Platform-provided pet handler for engine-level pet state management
@@ -146,15 +150,15 @@ function M.try_cast(spell_id, target)
     -- Check spell cooldown via spell_book
     local cd = 0
     local ok, cd_val = pcall(function()
-        return core and core.spell_book and core.spell_book.get_spell_cooldown
-            and core.spell_book.get_spell_cooldown(spell_id)
+        return _core.spell_book and _core.spell_book.get_spell_cooldown
+            and _core.spell_book.get_spell_cooldown(spell_id)
     end)
     if ok and cd_val then cd = cd_val end
     if cd > 0 then return false end
     -- Check if pet is in range (skip if API unavailable)
     local in_range = true
-    if core and core.spell_book and core.spell_book.get_pet_action_info then
-        local ok_info, info = pcall(core.spell_book.get_pet_action_info, spell_id)
+    if _core.spell_book and _core.spell_book.get_pet_action_info then
+        local ok_info, info = pcall(_core.spell_book.get_pet_action_info, spell_id)
         if ok_info and info and info.checks_range and info.in_range ~= nil then
             in_range = info.in_range
         end
@@ -163,8 +167,8 @@ function M.try_cast(spell_id, target)
     if not target then return false end
     -- Cast via pet_cast_target_spell (Sylvanas API)
     local ok2 = pcall(function()
-        return core and core.input and core.input.pet_cast_target_spell
-            and core.input.pet_cast_target_spell(spell_id, target)
+        return _core.input and _core.input.pet_cast_target_spell
+            and _core.input.pet_cast_target_spell(spell_id, target)
     end)
     return ok2
 end
@@ -177,8 +181,8 @@ function M.try_cast_position(spell_id, position)
     if not spell_id then return false end
     if not position then return false end
     local ok = pcall(function()
-        return core and core.input and core.input.pet_cast_position_spell
-            and core.input.pet_cast_position_spell(spell_id, position)
+        return _core.input and _core.input.pet_cast_position_spell
+            and _core.input.pet_cast_position_spell(spell_id, position)
     end)
     return ok
 end
@@ -187,17 +191,17 @@ end
 -- Autocast management: enable autocast on primary pet abilities
 -- ============================================================================
 local function _ensure_autocast_enabled(spell_ids, state)
-    if not core or not core.input or not core.input.enable_pet_autocast then return end
+    if not _core or not _core.input or not _core.input.enable_pet_autocast then return end
     for _, id in ipairs(spell_ids) do
         if not state.autocast_enabled[id] then
             local ok, info = pcall(function()
-                if core.spell_book and core.spell_book.get_pet_action_info then
-                    return core.spell_book.get_pet_action_info(id)
+                if _core.spell_book and _core.spell_book.get_pet_action_info then
+                    return _core.spell_book.get_pet_action_info(id)
                 end
                 return nil
             end)
             if ok and info and info.auto_cast_allowed and not info.auto_cast_enabled then
-                local ok_enable = pcall(core.input.enable_pet_autocast, id)
+                local ok_enable = pcall(_core.input.enable_pet_autocast, id)
                 if ok_enable then
                     state.autocast_enabled[id] = true
                 end
@@ -345,8 +349,8 @@ end
 -- ============================================================================
 -- Cached pet mode check to avoid redundant stance calls
 local function _get_current_pet_mode()
-    if core and core.spell_book and core.spell_book.get_pet_mode then
-        local ok, mode = pcall(core.spell_book.get_pet_mode)
+    if _core.spell_book and _core.spell_book.get_pet_mode then
+        local ok, mode = pcall(_core.spell_book.get_pet_mode)
         if ok and type(mode) == "number" then return mode end
     end
     return nil
@@ -433,8 +437,8 @@ function M.on_update(me, target, spec, context)
     if guid and (st.last_target_guid ~= guid) then
         if now - st.last_attack > 1 then
             local ok = pcall(function()
-                return core and core.input and core.input.pet_attack
-                    and core.input.pet_attack(target)
+                return _core.input and _core.input.pet_attack
+                    and _core.input.pet_attack(target)
             end)
             if ok then
                 st.state = STATE_ENGAGING
@@ -589,16 +593,16 @@ end
 -- Pet info helpers for specs
 -- ============================================================================
 function M.get_pet_mode()
-    if core and core.spell_book and core.spell_book.get_pet_mode then
-        local ok, mode = pcall(core.spell_book.get_pet_mode)
+    if _core.spell_book and _core.spell_book.get_pet_mode then
+        local ok, mode = pcall(_core.spell_book.get_pet_mode)
         if ok and type(mode) == "number" then return mode end
     end
     return nil
 end
 
 function M.get_pet_spells()
-    if core and core.spell_book and core.spell_book.get_pet_spells then
-        local ok, spells = pcall(core.spell_book.get_pet_spells)
+    if _core.spell_book and _core.spell_book.get_pet_spells then
+        local ok, spells = pcall(_core.spell_book.get_pet_spells)
         if ok and type(spells) == "table" then return spells end
     end
     return {}
@@ -606,8 +610,8 @@ end
 
 function M.get_pet_action_info(spell_id)
     if not spell_id then return nil end
-    if core and core.spell_book and core.spell_book.get_pet_action_info then
-        local ok, info = pcall(core.spell_book.get_pet_action_info, spell_id)
+    if _core.spell_book and _core.spell_book.get_pet_action_info then
+        local ok, info = pcall(_core.spell_book.get_pet_action_info, spell_id)
         if ok and type(info) == "table" then return info end
     end
     return nil
