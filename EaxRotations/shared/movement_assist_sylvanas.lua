@@ -131,6 +131,41 @@ function M.is_available()
     return _movement_handler ~= nil
 end
 
+--- Pause movement (and optionally face a safe direction or away) for a boss/dungeon mechanic.
+-- Use for pre-positioning, avoid, soak, fear break positioning, etc.
+-- This closes the parent plan Phase 2 "Movement / pre-positioning for mechanics" item.
+-- Conservative: short duration, auto-expires, opt-in by caller.
+-- Examples: Gluth freeze positioning, Winterchill shackle avoid, general danger zones.
+---@param duration number Seconds to pause (capped).
+---@param reason string|nil For logging (e.g. "gluth_freeze", "fear_aoe").
+---@param face_away_from any|nil Optional unit/position to face away from (uses look_at if available).
+---@return boolean ok
+function M.pause_for_mechanic(duration, reason, face_away_from)
+    if not _movement_handler then return false end
+    local d = math.min(duration or 1.5, MAX_PAUSE_DURATION)
+    _movement_handler:pause_movement_light(d)
+    if face_away_from and type(_movement_handler.look_at_target) == "function" then
+        -- Best effort face away; ignore if API differs
+        pcall(function() _movement_handler:look_at_target(d, 0, face_away_from) end)
+    end
+    if NS.log and reason then
+        NS.log(string.format("[MovementAssist] Mechanic pause %.1fs for %s", d, tostring(reason)))
+    end
+    return true
+end
+
+--- Simple helper: should we pre-position for a known high-risk mechanic right now?
+-- Callers (specs) can use this + pause_for_mechanic.
+-- Starts conservative: looks for common fear/debuff patterns via context or unit.
+-- Extend per boss as needed (no hardcoding of every NPC ID here).
+function M.should_preposition_for_mechanic(context, me)
+    if not context or not me then return false end
+    -- Example triggers (safe, low false-positive):
+    if context.fear_nearby or context.known_fear_boss then return true end
+    if context.in_combat and (context.burst_risk or 0) > 50 then return true end
+    -- Add more via context in future (e.g. specific debuff up)
+    return false
+end
 
 -- Register on the shared namespace so core_sylvanas / main dispatchers can find it.
 if NS then
