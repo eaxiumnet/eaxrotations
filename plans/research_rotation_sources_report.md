@@ -121,6 +121,8 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
 - Combat Rogue: Switched primary finisher to Envenom with deadly poison stacks (per sources and report); Evis as fallback. Matches EAX Envenom, Deadly Poison primary. Tests green. Sources: TBC rogue guides.
 - Destruction Warlock: Reordered Conflagrate before Incinerate in priority list so Immolate is consumed for burst immediately when off cooldown. Incinerate remains the filler while the DoT rolls. Aligns with standard TBC destro practice and the structure of destro_fire APL (Immolate then filler) + guides (Conflagrate high after apply). Corruption and assigned-curse style handling already present and compatible. All tests green.
   Sources: wowsims/tbc-new destruction.apl.json + destro_fire.apl.json, TBC warlock rotation guides (Wowhead, community).
+- Demonology Warlock: Audited vs wowsims/tbc-new demonology.apl.json. Strong match on core priorities (assigned curse, Immolate + Corruption maintenance, low-TTD DeathCoil/Shadowburn, low-mana LifeTap, Shadow Bolt filler). EAX adds correct TBC Demonology specifics: heavy pet management (Felguard/Imp, Health Funnel, Soul Link, Fel Domination for summons), extra DoTs (Siphon Life, Seed of Corruption), AoE (Rain/Hellfire), and defensive pet state control. Corruption before Immolate follows common guide DPCT preference (vs strict APL snapshot order). All tests green. No P0 gaps.
+  Sources: wowsims/tbc-new demonology.apl.json, TBC Demonology guides (pet focus, Soul Link, summon timing).
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |
