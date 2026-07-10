@@ -480,8 +480,9 @@ end
 local function tremor_totem_matches(context, state)
  if not state.tremor_totem_ready then return false end
  if not state.in_combat then return false end
- -- Only drop Tremor if feared/charmed/slept (detected via context flag)
- if not (context.fear_nearby or false) then return false end
+ -- Drop Tremor for fear/charm/sleep/control protection in dungeons AND raids.
+ -- Uses control_risk / fear flags (with tank/known_boss from accurate party frames) to avoid tank fears/MC = wipes (e.g. Shadow Lab Hellmaw/Blackheart, Ramparts, OHF, Sethekk, Kara Nightbane, Hyjal, etc.).
+ if not (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_nearby or context.control_risk or false) then return false end
  return true
 end
 
