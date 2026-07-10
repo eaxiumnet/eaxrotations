@@ -21,7 +21,7 @@
 | `plans/bug-report-sylvanas-attachment-api-crash.md` | Open | Attachment API crash bug report |
 | `plans/skeleton-esp-attachment-api-crash-2026-07-04.md` | Open | ESP skeleton attachment crash |
 | `plans/apidocs-game_object-menu-audit-2026-07-04.md` | Reference | API docs audit for game_object/menu |
-| `plans/init-log-cleanup-2026-06-30.md` | Pending | Init log cleanup (no status markers) |
+| `plans/init-log-cleanup-2026-06-30.md` | COMPLETE (2026-07-10) | Init log cleanup — startup consolidated to 2 lines in main.lua; noisy 'loaded'/'registered' demoted in standardization; current boot quiet (verified in tests/docs) |
 
 ## Reference Documents (not plans)
 
