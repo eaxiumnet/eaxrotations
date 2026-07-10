@@ -62,6 +62,22 @@ function M.can_cast_instant(cast_ms, buffer_ms)
     return true
 end
 
+--- Dynamic buffer (min(500ms, 25% swing)) following wowsims APL.
+function M.get_auto_shot_buffer_ms()
+    if hunter_core.get_auto_shot_buffer_ms then
+        return hunter_core.get_auto_shot_buffer_ms()
+    end
+    return 150
+end
+
+--- Time to next auto including dynamic buffer.
+function M.ms_until_auto_with_buffer()
+    if hunter_core.ms_until_auto_with_buffer then
+        return hunter_core.ms_until_auto_with_buffer()
+    end
+    return 0
+end
+
 if NS then
     NS.ShotTimer = M
 end

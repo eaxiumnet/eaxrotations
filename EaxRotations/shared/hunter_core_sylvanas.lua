@@ -138,6 +138,23 @@ function M.ms_until_auto()
     return math.max(0, remaining)
 end
 
+--- Dynamic auto-shot buffer per wowsims APL style.
+--- Buffer = min(500ms, 25% of current swing time).
+--- This improves non-clip decisions and Multi/Arcane insertion timing.
+function M.get_auto_shot_buffer_ms()
+    local speed = M.get_weapon_speed()
+    if not speed or speed <= 0 then return 150 end
+    local swing_ms = speed * 1000
+    return math.min(500, math.floor(swing_ms * 0.25 + 0.5))
+end
+
+--- Milliseconds until next auto, plus the dynamic buffer.
+function M.ms_until_auto_with_buffer()
+    local remain = M.ms_until_auto()
+    if remain == 0 then return 0 end
+    return remain + M.get_auto_shot_buffer_ms()
+end
+
 --- Can cast Steady Shot without clipping auto-shot?
 -- TBC Hunter shot-weave rules:
 --   1. If no auto pending → safe to cast.
@@ -146,7 +163,7 @@ end
 --      rotation intentionally delays the auto), but NEVER during the 500ms
 --      auto-shot wind-up window.
 function M.can_cast_steady(buffer_ms)
-    buffer_ms = buffer_ms or 150
+    buffer_ms = buffer_ms or M.get_auto_shot_buffer_ms()
     M.get_weapon_speed()  -- refresh cached speed before ms_until_auto uses it
     local remain = M.ms_until_auto()
     local steady_cast_ms = M.get_steady_cast_ms()
@@ -166,7 +183,7 @@ end
 --- Can cast an instant shot (Arcane/Multi/Sting) without clipping auto-shot?
 function M.can_cast_instant(cast_ms, buffer_ms)
     cast_ms = cast_ms or 500  -- Heuristic for GCD start? No, GCD is 1500.
-    buffer_ms = buffer_ms or 100
+    buffer_ms = buffer_ms or M.get_auto_shot_buffer_ms()
     local remain = M.ms_until_auto()
     -- [ARTISTRY] Improved: Account for the 500ms "Auto-Shot window".
     -- Casting an instant shot triggers the GCD, but also blocks the auto if within the 0.5s window.

@@ -46,7 +46,6 @@ local shot_timer = require("shared/shot_timer_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 
-local AUTO_SHOT_BUFFER_MS = 100
 local MULTI_SHOT_CAST_MS = 500
 
 local function can_cast_steady()
@@ -61,7 +60,8 @@ local function can_cast_before_auto(cast_ms)
     local tracker = NS.HunterClipTracker
     if tracker and type(tracker.ms_until_auto) == "function" then
         local remain = tracker.ms_until_auto()
-        return remain == 0 or remain > cast_ms + AUTO_SHOT_BUFFER_MS
+        local buf = (shot_timer.get_auto_shot_buffer_ms and shot_timer.get_auto_shot_buffer_ms()) or 150
+        return remain == 0 or remain > cast_ms + buf
     end
     return true
 end

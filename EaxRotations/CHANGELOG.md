@@ -4,6 +4,7 @@
 
 ### Customer Changelog
 - Retribution Paladin: seal twisting now enabled by default, following the Command rank 1 into Blood or Martyr twist before swings for Crusader Strike and Judgement to match priority lists from simulators and guides.
+- Hunter: improved auto-shot timing with dynamic buffer calculations (adapts to weapon swing speed) for safer Steady/Multi/Arcane weaving without clipping autos.
 - All rotation and leveling tests remain passing (252 suites).
 
 ## 2.5.2 - 2026-07-10

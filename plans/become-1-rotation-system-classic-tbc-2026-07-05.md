@@ -38,7 +38,7 @@ Priority shared modules that affect every spec:
 - [x] Fire Mage — Combustion already gates on 5-stack Scorch (verified, v2.3.15).
 - [x] Feral Cat — Added Berserk burst logic for pull/BL windows (per SimC/wowsims/icyveins); powershift and snapshot already strong. (2026-07-10)
 - [x] Retribution Paladin — seal twisting defaults aligned to wowsims APL + Wowhead guides (Command r1 -> Blood twist enabled by default; existing CLEU/diagnostics/post-swing logic already advanced). (2026-07-10)
-- [ ] Hunter — full shot-weave overhaul with auto-shot buffer calculations (has cliptracker/shot_timer; enhance if needed). (investigated: buffer/clip already present + prior threshold/opener alignment; complex APL weave timing partially supported via range checks)
+- [x] Hunter — full shot-weave overhaul with auto-shot buffer calculations: added dynamic buffer (min(500ms, 25% swing)) + ms_until_with_buffer in core/shot_timer; specs now use it for can_cast guards (closer to APL Time-until-auto-with-buffer). (2026-07-10)
 - [ ] Tier 2: Protection Paladin/Warrior, Resto Shaman/Druid/Priest, Holy Paladin/Priest, Balance.
 - [ ] Tier 3: remaining specs and leveling rotations.
 
