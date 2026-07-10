@@ -95,6 +95,15 @@ local HEALING_WAVE_EFFICIENT = 25357 -- Rank 10 (efficient)
 local LESSER_HEALING_WAVE_MAX = 25420     -- Rank 7 (max)
 local LESSER_HEALING_WAVE_CONSERVE = 10468 -- Rank 6 (conserve)
 
+-- Small helper to keep rank selection consistent and reduce duplication
+-- across FriendlyTarget, HealingWay, and their execute paths.
+local function choose_healing_wave(mana_pct)
+  mana_pct = mana_pct or 100
+  if mana_pct > 30 then return HEALING_WAVE_MAX end
+  if mana_pct > 15 then return HEALING_WAVE_CONSERVE end
+  return HEALING_WAVE_EFFICIENT
+end
+
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local function first_ready_item(ids)
     if not inventory_helper then return nil end
@@ -594,7 +603,7 @@ local function healing_way_matches(context, state)
   -- Predictive overheal gate: don't cast a full Healing Wave just to maintain stacks
   -- if the tank doesn't actually need the healing
   local mana_pct = state.mana_pct or context.mana_pct or 100
-  local spell_id = (mana_pct > 30) and HEALING_WAVE_MAX or ((mana_pct > 15) and HEALING_WAVE_MID or HEALING_WAVE_LOW)
+  local spell_id = choose_healing_wave(mana_pct)
   if NS.gate_overheal("HealingWave", state.tank.unit, 2.5, context.settings, spell_id) then return false end
  return true
 end
@@ -602,16 +611,10 @@ end
  local function healing_way_execute(context, state)
  if not state.tank then return false end
  local mana_pct = state.mana_pct or context.mana_pct or 100
- local spell_id
- if mana_pct > 30 then
-  spell_id = HEALING_WAVE_MAX
- elseif mana_pct > 15 then
-  spell_id = HEALING_WAVE_CONSERVE
- else
-  spell_id = HEALING_WAVE_EFFICIENT
- end
+ local spell_id = choose_healing_wave(mana_pct)
  local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(spell_id, 2500)
- return NS.try_cast(spell_id, state.tank.unit, string.format("[RESTO] HealingWay (stack %d/3) rank %s (penalty %.0f%%)", state.healing_way_stacks, mana_pct > 30 and "12" or (mana_pct > 15 and "11" or "10"), (penalty or 1) * 100))
+ local rank_label = (mana_pct > 30) and "12" or ((mana_pct > 15) and "11" or "10")
+ return NS.try_cast(spell_id, state.tank.unit, string.format("[RESTO] HealingWay (stack %d/3) rank %s (penalty %.0f%%)", state.healing_way_stacks, rank_label, (penalty or 1) * 100))
 end
 
 -- ============================================================================
@@ -683,23 +686,17 @@ local healing_strategies = {
   if not state.healing_wave_ready then return false end
    if not (NS.spell_ready and NS.spell_ready(ACTION.HealingWave, ft.unit, { skip_range = true })) then return false end
    local mana_pct = state.mana_pct or context.mana_pct or 100
-   local spell_id = (mana_pct > 30) and HEALING_WAVE_MAX or ((mana_pct > 15) and HEALING_WAVE_MID or HEALING_WAVE_LOW)
+   local spell_id = choose_healing_wave(mana_pct)
    if NS.gate_overheal and NS.gate_overheal("HealingWave", ft.unit, 2.5, context.settings, spell_id) then return false end
   return true
   end, execute = function(context, state)
    local ft = state.friendly_target
    if not ft or not ft.unit then return false end
    local mana_pct = state.mana_pct or context.mana_pct or 100
-   local spell_id
-   if mana_pct > 30 then
-    spell_id = HEALING_WAVE_MAX
-   elseif mana_pct > 15 then
-    spell_id = HEALING_WAVE_CONSERVE
-   else
-    spell_id = HEALING_WAVE_EFFICIENT
-   end
+   local spell_id = choose_healing_wave(mana_pct)
    local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(spell_id, 2500)
-   return NS.try_cast(spell_id, ft.unit, string.format("[RESTO] Healing Wave (friendly target) %.0f%% rank %s (penalty %.0f%%)", ft.hp_pct or 100, mana_pct > 30 and "12" or (mana_pct > 15 and "11" or "10"), (penalty or 1) * 100))
+   local rank_label = (mana_pct > 30) and "12" or ((mana_pct > 15) and "11" or "10")
+   return NS.try_cast(spell_id, ft.unit, string.format("[RESTO] Healing Wave (friendly target) %.0f%% rank %s (penalty %.0f%%)", ft.hp_pct or 100, rank_label, (penalty or 1) * 100))
   end },
  { name = "ManaPotion",
   matches = function(context)

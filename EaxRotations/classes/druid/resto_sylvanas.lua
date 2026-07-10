@@ -534,20 +534,20 @@ local function build_state(context)
  local me = context.me or NS.GetPlayer and NS.GetPlayer() or nil
  if me and NS.StopCast and type(NS.StopCast.update) == "function" then
   NS.StopCast.update(me, context.settings)
-  end
+ end
 
-  -- FSR (Five-Second Rule) tracking for mana efficiency
-  if FsrManager then
-   resto_state.fsr_inside = FsrManager.is_inside_fsr()
-   resto_state.fsr_seconds = FsrManager.seconds_until_fsr()
-   resto_state.fsr_regen_delta = FsrManager.get_regen_delta()
-  else
-   resto_state.fsr_inside = false
-   resto_state.fsr_seconds = 0
-   resto_state.fsr_regen_delta = 0
-  end
+ -- FSR (Five-Second Rule) tracking for mana efficiency
+ if FsrManager then
+  resto_state.fsr_inside = FsrManager.is_inside_fsr()
+  resto_state.fsr_seconds = FsrManager.seconds_until_fsr()
+  resto_state.fsr_regen_delta = FsrManager.get_regen_delta()
+ else
+  resto_state.fsr_inside = false
+  resto_state.fsr_seconds = 0
+  resto_state.fsr_regen_delta = 0
+ end
 
-  return spec_kit.safe_state(resto_state, RESTO_SCHEMA)
+ return spec_kit.safe_state(resto_state, RESTO_SCHEMA)
 end
 
 local function solo_damage_enabled(context, state)
