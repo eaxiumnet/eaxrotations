@@ -3,8 +3,7 @@
 --         Mana Tide + Bloodlust CDs, Water Shield mana management, and
 --         totem auto-management (tremor/grounding/cleansing/stat totems).
 -- WHEN:  combat or pre-combat, with valid friendly targets.
--- WHY:   mirrors TBC resto shaman consensus: Chain Heal is primary throughput,
---         Earth Shield on tank, Healing Way stack maintenance, NS emergency.
+-- WHY:   mirrors TBC resto shaman consensus from wowsims (no APL), Icy Veins, Wowhead: Chain Heal primary + Earth Shield tank + downrank CH + Water Shield + totem twisting.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 
 -- Shaman Restoration group-healing playstyle.

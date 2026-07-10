@@ -1,8 +1,7 @@
 -- healing_sylvanas.lua -- Shared druid healing helpers for TBC Anniversary (2.5.5).
 -- WHAT:  healing target scanner + spell recommender for resto/off-heal playstyles.
 -- WHEN:  loaded by resto_sylvanas.lua and resto_vanilla.lua via require() or NS.DruidHealing.
--- WHY:   centralizes HoT scanning (Lifebloom stacks/remains, Rejuv, Regrowth) so resto specs
---         don't re-implement target scanning. Recommend() returns a spell+target+reason tuple.
+-- WHY:   centralizes HoT scanning for TBC resto (Lifebloom 3x, Rejuv, Regrowth per Icy Veins/Wowhead) so resto specs don't re-implement. 
 -- SAFETY: all spell accesses via spec_kit.define_action_for_class; nil-guarded entry fields; no on_update() allocs.
 -- NOTE:   this is a helper module, NOT a rotation spec — no strategies/build_state/registration.
 
@@ -67,8 +66,27 @@ function M.best_target(context)
     return NS.healing_get_lowest_hp and NS.healing_get_lowest_hp(healing_targets, healing_targets_count, 92) or nil
 end
 
+-- Advanced: use new party frames powered helpers when available in context
+function M.best_party_target(context)
+    if context and context.heal_targets and #context.heal_targets > 0 then
+        -- Use platform heal targets (advanced menu-driven from target_selector)
+        return {unit = context.heal_targets[1]}
+    end
+    if NS.get_best_heal_target then
+        local best = NS.get_best_heal_target(40)
+        if best then return {unit = best} end
+    end
+    if context and context.party_injured_count and context.party_injured_count > 0 then
+        -- Prefer party-aware lowest if group injured
+        local low = NS.GetPartyLowestHP and NS.GetPartyLowestHP()
+        if low then return {unit = low} end
+    end
+    return M.best_target(context)
+end
+
 function M.recommend(context)
-    local entry = M.best_target(context)
+    -- Leverage advanced party data from core.party frames for smarter targeting
+    local entry = M.best_party_target(context) or M.best_target(context)
     local tank = M.tank_target()
     if not entry and tank then entry = tank end
     if not entry or not entry.unit then return nil end
@@ -77,17 +95,21 @@ function M.recommend(context)
     local hp = entry.hp or NS.unit_health_pct(target)
     local effective = entry.effective_hp or hp
 
-    if effective <= 35 then
-        return { spell = ACTION.HealingTouch, target = target, reason = "emergency direct heal" }
+    if effective <= 35 or (entry.time_to_die and entry.time_to_die < 4) or (entry.death_risk and entry.death_risk > 100) or entry.will_die_soon or (context and (context.party_imminent_deaths or 0) > 0 and effective < 45) then
+        return { spell = ACTION.HealingTouch, target = target, reason = "no one dies: emergency or imminent death save" }
     end
     if effective <= 55 and not entry.has_regrowth then
         return { spell = ACTION.Regrowth, target = target, reason = "stabilize with direct heal plus HoT" }
     end
-    if tank and tank.unit and (context.in_combat or (tank.effective_hp or 100) <= 95) then
-        local lb_stacks = tank.lifebloom_stacks or 0
-        local lb_remains = tank.lifebloom_remains or 0
+    -- Advanced party-aware: use context.party_tanks from core.party frames for priority
+    local tanks = (context and context.party_tanks) or {}
+    local primary_tank = tank and tank.unit
+    if #tanks > 0 then primary_tank = tanks[1] end
+    if primary_tank and (context.in_combat or (tank and tank.effective_hp or 100) <= 95) then
+        local lb_stacks = (tank and tank.lifebloom_stacks) or 0
+        local lb_remains = (tank and tank.lifebloom_remains) or 0
         if lb_stacks < LIFEBLOOM_MAX_STACKS or lb_remains <= LIFEBLOOM_REFRESH_REMAINS then
-            return { spell = ACTION.Lifebloom, target = tank.unit, reason = "maintain tank Lifebloom roll" }
+            return { spell = ACTION.Lifebloom, target = primary_tank, reason = "maintain priority tank Lifebloom roll (party frames)" }
         end
     end
     if hp <= 85 and not entry.has_lifebloom then

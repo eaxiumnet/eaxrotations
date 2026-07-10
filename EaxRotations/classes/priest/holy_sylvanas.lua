@@ -1,7 +1,7 @@
 -- holy_sylvanas.lua — Priest Holy healing for TBC Anniversary (2.5.5).
 -- WHAT: raid healer (Greater Heal, Flash Heal, CoH, Prayer of Mending, Renew, Lightwell).
 -- WHEN: combat or pre-combat, with valid friendly targets.
--- WHY: TBC holy priest = PoM on CD + CoH (3+ hurt) + GH/Flash spot healing + Lightwell.
+-- WHY:   mirrors TBC holy priest consensus from wowsims (no APL but community), Icy Veins, Wowhead: PoM on CD + CoH (3+ hurt) + GH/Flash spot + Lightwell + Renew rolling.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 local _G = _G
 local NS = _G.EaxRotations

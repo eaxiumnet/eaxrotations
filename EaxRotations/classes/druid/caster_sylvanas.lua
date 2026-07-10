@@ -1,7 +1,7 @@
 -- caster_sylvanas.lua -- Druid Caster (leveling/solo) rotation for TBC Anniversary (2.5.5).
 -- WHAT:  priority-list strategies for caster DPS (Moonfire, Wrath, Faerie Fire).
 -- WHEN:  combat with valid enemy target (leveling/solo/raid/PvP context gates).
--- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
+-- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics (Moonfire + Insect Swarm multidot, Starfire filler, per balance APL).
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update() allocs.
 
 -- Druid Caster priority list.
@@ -126,6 +126,7 @@ end
 
 local function thorns_matches_fn(context, state)
     if not caster_context_allowed(context) then return false end
+    if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
     if context.in_combat then return false end
     if NS.has_player_buff and NS.has_player_buff(THORNS_BUFF) then return false end
     return NS.spell_ready(ACTION.Thorns, NS.PLAYER_UNIT, { skip_range = true })

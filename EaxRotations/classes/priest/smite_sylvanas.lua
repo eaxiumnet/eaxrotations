@@ -3,7 +3,7 @@
 --         with Power Infusion + Inner Focus burst, racials (Starshards, Devouring Plague),
 --         and mana conservation tiers (downrank at <30%, wand-only at <5%).
 -- WHEN:  combat, with valid enemy target.
--- WHY:   niche TBC build prioritizing holy spell damage with shadow utility.
+-- WHY:   mirrors TBC smite/holy dps consensus from Icy Veins/Wowhead: HF > SoL Smite > SW:P > MB, PI/IF burst, mana tiers.
 -- SAFETY: Pattern 14 nil-guards via spec_kit.safe_state; no on_update() allocs;
 --          broken-API guard on aura checks; threat-safety gate on shadow spells.
 local _G = _G
