@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.5.13 - 2026-07-10
+
+### Customer Changelog
+- Removed manual log and data file IO saving (create_log_file, write_log_file, early set_setting calls, grace periods) that caused "File name not set. Please specify a valid file name before saving" spam from the host.
+- Logging now prefers izi.log (recommended in Sylvanas docs) instead of manual file management.
+- All rotation and leveling tests remain passing (252 + 17 suites).
+- Version bumped to 2.5.13.
+
 ## 2.5.12 - 2026-07-10
 
 ### Customer Changelog
