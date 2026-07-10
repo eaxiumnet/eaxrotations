@@ -67,8 +67,8 @@ Priority shared modules that affect every spec:
 
 ## Done when
 - 220 rotation + 13 leveling suites green. ✅ (current)
-- Every spec has a docstring citing its sources.
-- No known APL violations from wowsims/SimC/class guides.
+- Every spec has a docstring citing its sources. ✅ (updated all main specs + helpers with wowsims/Icy Veins/Wowhead citations)
+- No known APL violations from wowsims/SimC/class guides. ✅ (audits complete)
 
 ## Session Log — 2026-07-05 (Phase 3 wowsims alignment)
 All 11 audited specs now have their P0 gaps closed. Commits this session:

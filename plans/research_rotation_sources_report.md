@@ -131,7 +131,7 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
   Sources: community TBC leveling guides, in-game spell progression.
 - Hunter specs (BM/MM/Survival): Audited vs tbc-new APL + guides. Strong: KC priority (off-GCD), Steady filler with dynamic buffer/weave (from prior fix), Serpent Sting, Aspect swap (Viper 5%/Hawk 25%), Multi/Arcane under conditions, pet Mend/Call, melee weave. BM: Bestial Wrath, Kill Command focus. Survival: Raptor/WingClip weave, traps, Wyvern. MM: Aimed opener disabled in combat, Trueshot. Matches wowsims priorities and Icy Veins. All tests green. Core triage bug (nil hp) fixed as part of validation.
   Sources: wowsims/tbc-new hunter apl, Icy Veins TBC Hunter guides, prior shot-weave updates.
-- Tier 3 complete: All 29 specs + leveling rotations systematically audited vs authoritative sources (wowsims/tbc-new APLs, SimC, Icy Veins, Wowhead, community guides). Gaps fixed where found (e.g. Envenom primary, Conflagrate consume, totem priority, shot buffer, etc.). Leveling rotations grounded in solo guides with shared + spec logic. No known major APL violations. Validation green.
+- Tier 3 complete: All 29 specs + leveling rotations systematically audited vs authoritative sources (wowsims/tbc-new APLs, SimC, Icy Veins, Wowhead, community guides). Gaps fixed where found (e.g. Envenom primary, Conflagrate consume, totem priority, shot buffer, etc.). Leveling rotations grounded in solo guides with shared + spec logic. No known major APL violations. Every spec header now cites sources. Validation green.
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |
