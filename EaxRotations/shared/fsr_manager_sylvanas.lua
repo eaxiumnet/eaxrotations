@@ -19,17 +19,19 @@ local _last_cast_mana_cost = 0
 local _fsr_window = 5.0  -- seconds
 
 -- ---------------------------------------------------------------------------
--- API Caching
+-- API Caching (Pattern 2)
 -- ---------------------------------------------------------------------------
 local _time_now = NS.time_now or function() return os.clock() end
+local _core_spell_book = _G.core and _G.core.spell_book
 local _get_base_regen = nil
 local _get_casting_regen = nil
 
 -- Lazy-load API to avoid startup dependency issues
 local function ensure_api()
   if _get_base_regen then return true end
-  local ok1, br = pcall(function() return core.spell_book.get_base_power_regen end)
-  local ok2, cr = pcall(function() return core.spell_book.get_casting_power_regen end)
+  if not _core_spell_book then return false end
+  local ok1, br = pcall(function() return _core_spell_book.get_base_power_regen end)
+  local ok2, cr = pcall(function() return _core_spell_book.get_casting_power_regen end)
   if ok1 and br then _get_base_regen = br end
   if ok2 and cr then _get_casting_regen = cr end
   return _get_base_regen ~= nil

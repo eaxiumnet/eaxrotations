@@ -24,6 +24,10 @@ local _G = _G
 local NS = _G.EaxRotations
 if not NS then return end
 
+-- Pattern 2: cache hot-path core.* at module load
+local _core_time = _G.core and _G.core.time
+local _core_spell_book = _G.core and _G.core.spell_book
+
 local math_max = math.max
 local math_min = math.min
 local math_floor = math.floor
@@ -118,9 +122,8 @@ local function now_s()
     if NS.time_now then
         return NS.time_now()
     end
-    local core = _G.core
-    if core and core.time then
-        return core.time()
+    if _core_time then
+        return _core_time()
     end
     return 0
 end
@@ -172,13 +175,10 @@ local function spell_info(spell_id)
     end
 
     local name = nil
-    do
-        local core = _G.core
-        if core and core.spell_book and core.spell_book.get_spell_name then
-            local ok, val = pcall(core.spell_book.get_spell_name, spell_id)
-            if ok and val and val ~= "" then
-                name = val
-            end
+    if _core_spell_book and _core_spell_book.get_spell_name then
+        local ok, val = pcall(_core_spell_book.get_spell_name, spell_id)
+        if ok and val and val ~= "" then
+            name = val
         end
     end
 
@@ -204,13 +204,10 @@ local function spell_info(spell_id)
     local is_heal = is_heal_spell_name(name)
 
     local cast_time = 0
-    do
-        local core = _G.core
-        if core and core.spell_book and core.spell_book.get_spell_cast_time then
-            local ok, val = pcall(core.spell_book.get_spell_cast_time, spell_id)
-            if ok and type(val) == "number" and val > 0 then
-                cast_time = val / 1000  -- ms -> s
-            end
+    if _core_spell_book and _core_spell_book.get_spell_cast_time then
+        local ok, val = pcall(_core_spell_book.get_spell_cast_time, spell_id)
+        if ok and type(val) == "number" and val > 0 then
+            cast_time = val / 1000  -- ms -> s
         end
     end
     if cast_time <= 0 then
@@ -382,9 +379,10 @@ function M.scan_party_casts(now)
     if (now - _last_scan_time) < SCAN_INTERVAL then return end
     _last_scan_time = now
 
-    -- Prune old predictions periodically
+    -- Prune old predictions and caches periodically
     if (now - _last_cleanup_time) >= 1.0 then
         prune_expired_predictions(now)
+        cleanup_caches(now)
         _last_cleanup_time = now
     end
 
