@@ -72,6 +72,7 @@ _G.pcall = function(fn, path, ...)
         if path:find("tbc_data_sylvanas") then return true, { ITEMS = { potions = {} } } end
         if path:find("izi_sdk") then return false, nil end
         if path:find("dot_ttd_gating_sylvanas") then return true, package.loaded["shared/dot_ttd_gating_sylvanas"] end
+        if path:find("active_fight_tracker_sylvanas") then return true, { find_undotted_target = function() return nil end } end
     end
     return orig_pcall(fn, path, ...)
 end
@@ -84,6 +85,7 @@ _G.require = function(path)
         if path:find("dot_ttd_gating") then return package.loaded["shared/dot_ttd_gating_sylvanas"] end
         if path:find("pet_manager") then return package.loaded["shared/pet_manager_sylvanas"] end
         if path:find("potion_helper") then return package.loaded["shared/potion_helper_sylvanas"] end
+        if path:find("active_fight_tracker_sylvanas") then return { find_undotted_target = function() return nil end } end
     end
     return orig_require(path)
 end

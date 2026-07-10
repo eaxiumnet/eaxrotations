@@ -59,6 +59,7 @@ _G.pcall = function(fn, path, ...)
     if type(path) == "string" then
         if path:find("tbc_data_sylvanas") then return true, { ITEMS = { potions = {} } } end
         if path:find("izi_sdk") then return false, nil end
+        if path:find("active_fight_tracker_sylvanas") then return true, { find_undotted_target = function() return nil end } end
     end
     return orig_pcall(fn, path, ...)
 end
@@ -70,6 +71,7 @@ _G.require = function(path)
         if path:find("tbc_data_sylvanas") then return { ITEMS = { potions = {} } } end
         if path:find("offensive_dispel") then return {} end
         if path:find("izi_sdk") then return nil end
+        if path:find("active_fight_tracker_sylvanas") then return { find_undotted_target = function() return nil end } end
     end
     return orig_require(path)
 end
@@ -78,6 +80,14 @@ local result = dofile("EaxRotations/classes/warlock/affliction_sylvanas.lua")
 assert_true(result, "affliction module should load")
 local strategies = result.strategies
 assert_true(strategies, "strategies table should load from result")
+
+-- Assert spread strategies exist (no regression from tracker wiring)
+local function has_strategy(n) for i=1,#strategies do if strategies[i].name==n then return true end end return false end
+assert_true(has_strategy("CorruptionSpread"), "CorruptionSpread present")
+assert_true(has_strategy("UnstableAfflictionSpread"), "UA Spread present")
+assert_true(has_strategy("SiphonLifeSpread"), "Siphon spread present")
+assert_true(has_strategy("ImmolateSpread"), "Immolate spread present")
+assert_true(has_strategy("CurseOfAgonySpread"), "CoA spread present")
 
 -- Restore require
 _G.require = orig_require

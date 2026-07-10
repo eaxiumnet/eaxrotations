@@ -72,6 +72,22 @@ _G.EaxRotations = {
     },
 }
 
+-- Stub tracker (pcall safe in case) for PR4 wiring in this test env
+local orig_pcall = _G.pcall
+_G.pcall = function(fn, path, ...)
+    if type(path) == "string" and path:find("active_fight_tracker_sylvanas") then
+        return true, { find_undotted_target = function() return nil end }
+    end
+    return orig_pcall(fn, path, ...)
+end
+local orig_require_lt = _G.require
+_G.require = function(path)
+    if type(path) == "string" and path:find("active_fight_tracker_sylvanas") then
+        return { find_undotted_target = function() return nil end }
+    end
+    return orig_require_lt(path)
+end
+
 local result = dofile("EaxRotations/classes/warlock/affliction_sylvanas.lua")
 assert_true(result, "strategies table should load")
 local strategies = result.strategies or result
@@ -152,5 +168,9 @@ action_calls = {}local ctx_low_mana = {
 	}
 	local st_boundary = { mana_pct = 30, hp_pct = 80 }
 	assert_true(life_tap.matches(ctx_boundary, st_boundary), "LifeTap should match when mana == threshold (uses > not >=)")
+
+-- Restore overrides
+_G.require = orig_require_lt
+_G.pcall = orig_pcall
 
 print("PASS test_affliction_life_tap")

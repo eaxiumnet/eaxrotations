@@ -41,6 +41,7 @@ _G.pcall = function(fn, path, ...)
     if type(path) == "string" and path:find("pet_manager") then return true, nil end
     if type(path) == "string" and path:find("tbc_data_sylvanas") then return true, { ITEMS = { potions = {} } } end
     if type(path) == "string" and path:find("izi_sdk") then return false, nil end
+    if type(path) == "string" and path:find("active_fight_tracker_sylvanas") then return true, { find_undotted_target = function() return nil end } end
     return orig_pcall(fn, path, ...)
 end
 local orig_require = _G.require
@@ -48,6 +49,7 @@ _G.require = function(path)
     if type(path) == "string" and path:find("pet_manager") then return {} end
     if type(path) == "string" and path:find("tbc_data_sylvanas") then return { ITEMS = { potions = {} } } end
     if type(path) == "string" and path:find("izi_sdk") then return nil end
+    if type(path) == "string" and path:find("active_fight_tracker_sylvanas") then return { find_undotted_target = function() return nil end } end
     return orig_require(path)
 end
 

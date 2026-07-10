@@ -1,11 +1,15 @@
 -- affliction_sylvanas.lua -- Warlock Affliction DPS for TBC Anniversary (2.5.5).
 -- WHAT:  multi-DoT priority list with snapshot-aware refresh, Nightfall proc
 --         consumption, execute-phase Drain Soul, curse mode selection, and
---         IZI spread_dot multi-target cycling.
+--         tracker-preferred spread (ActiveFightTracker for candidates) + izi fallback.
 -- WHEN:  combat, with valid enemy target.
 -- WHY:   mirrors wowsims APL + TBC affliction consensus: UA > Corruption >
 --         Siphon Life > Immolate > curse (CoA/CoD/CoE/CoS) > Shadow Bolt filler.
--- SAFETY: Pattern 14 nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: Pattern 14 nil-guarded via spec_kit.safe_state(); tracker pcall; strict
+--         engagement from filter (no hp<100); no on_update() allocs.
+-- DECISION: PR4 wires to tracker (find_undotted_target / get_active_fights) for
+--         spread candidates; setting gate "aff_use_fight_tracker" (default on);
+--         unifies is_engaged logic to strict; keeps izi path for compatibility.
 
 -- TBC Warlock Affliction priority list with multi-DoT cycling, Nightfall procs, and execute drain.
 
@@ -47,6 +51,11 @@ do
     if ok and type(mod) == "table" then _izi = mod end
 end
 
+-- ActiveFightTracker (from PR1 base) for strict-engagement candidate pool.
+-- Prefer for find_undotted / get_active_fights over legacy custom is_engaged + izi spread.
+local _aft_ok, ActiveFightTracker = pcall(require, "shared/active_fight_tracker_sylvanas")
+if not _aft_ok or type(ActiveFightTracker) ~= "table" then ActiveFightTracker = nil end
+
 -- CC debuff IDs that damage would break (don't DoT these targets)
 local CC_DEBUFF_IDS = {
     118, 12824, 12825, 12826, 28271, 28272,  -- Polymorph
@@ -72,6 +81,8 @@ local function is_cc_target(unit)
 end
 
 --- Check if a unit is engaged with the player (not an unengaged patrol)
+-- LEGACY for izi fallback path only. Unified to strict via ActiveFightTracker
+-- (is_in_combat + targeting us/party/pet; no hp<100 heuristic) in spread paths.
 local function is_engaged(unit, me)
     if not unit or not me then return true end
     -- Already damaged = engaged
@@ -90,16 +101,39 @@ local function is_engaged(unit, me)
     return false
 end
 
---- Find a target missing the specified DoT using IZI spread_dot.
---- Safety: skips CC'd targets, unengaged patrols, and dying adds (< 20% HP).
---- Perf: results cached per-tick keyed by spell_id (Pattern 4: no redundant scans).
----       3 spread strategies × 2 calls each (matches+execute) = 6 scans → 3 max.
+-- Simple setting gate for tracker-based DoT maintenance (defaults true; via spec_kit).
+local function use_tracker_for_dots(context)
+    local v = spec_kit.setting(context, "aff_use_fight_tracker", true)
+    return v ~= false and v ~= 0
+end
+
+--- Find a target missing the specified DoT. Prefers ActiveFightTracker (strict
+-- engagement from multidot filter / get_active_fights) for candidates; falls
+-- back to izi.spread_dot when tracker unavailable (keep izi where advantageous).
+-- Unifies spread to tracker pool (PR4). Cache only for izi path.
 ---@param spell_id number DoT spell ID to check
 ---@param radius number|nil Search radius (default 40)
+---@param context table|nil for tracker (provides .me .target); used for gate too
 ---@return game_object|nil target Missing the DoT, or nil
 local _dot_target_cache = {}     -- [spell_id] = target|false
 local _dot_target_cache_tick = -1
-local function find_dot_target(spell_id, radius)
+local function find_dot_target(spell_id, radius, context)
+    radius = radius or 40
+    local debuff_ids = { spell_id }
+    local me = NS.GetPlayer and NS.GetPlayer() or nil
+    -- Prefer tracker for pool of engaged candidates (unify to strict engagement)
+    if ActiveFightTracker and ActiveFightTracker.find_undotted_target and use_tracker_for_dots(context) then
+        local ctx = context or { me = me, target = nil }
+        local t = ActiveFightTracker.find_undotted_target(ctx, debuff_ids, radius)
+        if t then
+            if not is_cc_target(t) then
+                local ok_hp, hp = pcall(function() return t:get_health_percentage() end)
+                if not (ok_hp and hp and hp < 20) then return t end
+            end
+        end
+        -- no tracker candidate; continue to izi only if wanted, else nil
+        if not _izi then return nil end
+    end
     if not _izi then return nil end
     -- Per-tick cache: avoid re-scanning the same enemy list for the same debuff
     local now = NS.time_now and NS.time_now() or 0
@@ -110,8 +144,7 @@ local function find_dot_target(spell_id, radius)
     if _dot_target_cache[spell_id] ~= nil then
         return _dot_target_cache[spell_id] or nil  -- false→nil
     end
-    local me = NS.GetPlayer and NS.GetPlayer() or nil
-    local ok, target = pcall(_izi.spread_dot, spell_id, radius or 40, 1, false, function(unit)
+    local ok, target = pcall(_izi.spread_dot, spell_id, radius, 1, false, function(unit)
         if not unit then return false end
         -- Skip CC'd targets (don't break Polymorph/Sap/Banish/etc.)
         if is_cc_target(unit) then return false end
@@ -610,18 +643,17 @@ local strategies = {
             return ok
         end,
     },
-    -- Corruption Spread — multi-DoT via IZI spread_dot
+    -- Corruption Spread — via tracker (preferred) or izi; strict engagement unified.
     {
         name = "CorruptionSpread",
         matches = function(context, state)
-            if not _izi then return false end
             if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            local target = find_dot_target(CORRUPTION_DEBUFF[1])
+            local target = find_dot_target(CORRUPTION_DEBUFF[1], 40, context)
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(CORRUPTION_DEBUFF[1])
+            local target = find_dot_target(CORRUPTION_DEBUFF[1], 40, context)
             if not target then return false end
             return NS.try_cast(ACTION.Corruption, target, "[AFFL] Corruption Spread")
         end,
@@ -669,19 +701,18 @@ local strategies = {
             return ok
         end,
     },
-    -- Unstable Affliction Spread — multi-DoT via IZI spread_dot (v2.5.1)
+    -- Unstable Affliction Spread — via tracker (preferred) or izi; strict engagement unified.
     {
         name = "UnstableAfflictionSpread",
         matches = function(context, state)
-            if not _izi then return false end
             -- Fire when primary target already has UA; spread to additional targets
             if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
+            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1], 40, context)
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.UnstableAffliction, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
+            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1], 40, context)
             if not target then return false end
             return NS.try_cast(ACTION.UnstableAffliction, target, "[AFFL] Unstable Affliction Spread")
         end,
@@ -711,18 +742,17 @@ local strategies = {
             return ok
         end,
     },
-    -- Siphon Life Spread — multi-DoT via IZI spread_dot
+    -- Siphon Life Spread — via tracker (preferred) or izi; strict engagement unified.
     {
         name = "SiphonLifeSpread",
         matches = function(context, state)
-            if not _izi then return false end
             if (state.siphon_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
+            local target = find_dot_target(SIPHON_LIFE_DEBUFF[1], 40, context)
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.SiphonLife, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
+            local target = find_dot_target(SIPHON_LIFE_DEBUFF[1], 40, context)
             if not target then return false end
             return NS.try_cast(ACTION.SiphonLife, target, "[AFFL] Siphon Life Spread")
         end,
@@ -752,20 +782,19 @@ local strategies = {
             return ok
         end,
     },
-    -- Immolate Spread — multi-DoT via IZI spread_dot (v2.5.1)
+    -- Immolate Spread — via tracker (preferred) or izi; strict engagement unified.
     {
         name = "ImmolateSpread",
         matches = function(context, state)
-            if not _izi then return false end
             -- Fire when primary target already has Immolate; spread to additional targets
             if (state.immolate_remains or 0) > DOT_REFRESH_WINDOW then return false end
             if context.ttd_known and context.ttd < 5 then return false end
-            local target = find_dot_target(IMMOLATE_DEBUFF[1])
+            local target = find_dot_target(IMMOLATE_DEBUFF[1], 40, context)
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Immolate, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(IMMOLATE_DEBUFF[1])
+            local target = find_dot_target(IMMOLATE_DEBUFF[1], 40, context)
             if not target then return false end
             return NS.try_cast(ACTION.Immolate, target, "[AFFL] Immolate Spread")
         end,
@@ -880,19 +909,18 @@ local strategies = {
             return NS.try_cast(ACTION.CurseOfAgony, context.target, "[AFFL] Curse of Agony")
         end,
     },
-    -- Curse of Agony Spread — multi-DoT via IZI spread_dot
+    -- Curse of Agony Spread — via tracker (preferred) or izi; strict engagement unified.
     {
         name = "CurseOfAgonySpread",
         matches = function(context, state)
-            if not _izi then return false end
             if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
             if context.ttd_known and context.ttd < 8 then return false end
-            local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
+            local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1], 40, context)
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfAgony, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
+            local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1], 40, context)
             if not target then return false end
             return NS.try_cast(ACTION.CurseOfAgony, target, "[AFFL] Curse of Agony Spread")
         end,
