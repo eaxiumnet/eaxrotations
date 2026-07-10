@@ -12,6 +12,7 @@
 - Resto Druid: added downrank Regrowth support for mana conservation in spot healing, per TBC guides.
 - Resto Shaman: added downrank Chain Heal for mana sustainability in group healing, per TBC guides.
 - Resto Priest: audited; strong Renew/PW:S/Greater Heal/CoH with downrank support per guides.
+- Elemental Shaman: raised priority of main totems (Totem of Wrath, Wrath of Air, Mana Spring) to match wowsims APL.
 - All rotation and leveling tests remain passing (252 suites).
 
 ## 2.5.5 - 2026-07-10

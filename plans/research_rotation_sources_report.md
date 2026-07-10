@@ -115,6 +115,7 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
 - Resto Druid: Added downrank Regrowth (using lower ranks for mana when <45%) in RegrowthSpotHeal per TBC guides (down-ranked Regrowth for spot/direct when spikes, to save mana while maintaining HoTs). Complements 3-stack LB rolling, Rejuv, Swiftmend, etc. Sources: Wowhead, Warcraft Tavern, boosting-ground TBC Resto Druid guides. Tests green.
 - Resto Shaman: Added downrank Chain Heal (lower ranks when mana <45%) in cluster and triage targeting per TBC guides (downrank CH for mana sustainability while using Earth Shield, Water Shield, Healing Wave/LHW). Sources: Wowhead TBC Resto Shaman, invenglobal, community downrank discussions. Tests green.
 - Resto Priest (Holy): Audited vs TBC guides (Wowhead, Icy Veins, community); code has Renew, PW:S prevention, Greater/Flash Heal with downrank tiers, CoH for AoE, PoH, Lightwell, Desperate Prayer. Strong match for single/raid. No major gaps. Sources: Wowhead TBC Priest healing, community. Tests green.
+- Elemental Shaman: Moved main totem maintenance (Totem of Wrath, Wrath of Air, Mana Spring) to high priority right after mana emergency (before nukes) per wowsims APL (Totems group first in priority). Previously low in list so rarely cast when LB/CL ready. Sources: wowsims/tbc-new elemental apl. Tests green.
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |

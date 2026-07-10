@@ -472,6 +472,16 @@ local strategies = {
         end
         return true
       end },
+    -- Totem maintenance high priority (per APL: Totems group first)
+    { name = "TotemOfWrath",
+      matches = totem_of_wrath_matches_fn,
+      execute = function() return NS.try_cast(ACTION.TotemOfWrath, NS.PLAYER_UNIT, "[ELEMENTAL] Totem of Wrath") end },
+    { name = "WrathOfAirTotem",
+      matches = wrath_of_air_totem_matches_fn,
+      execute = function() return NS.try_cast(ACTION.WrathOfAirTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Wrath of Air Totem") end },
+    { name = "ManaSpringTotem",
+      matches = mana_spring_totem_matches_fn,
+      execute = function() return NS.try_cast(ACTION.ManaSpringTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Mana Spring Totem") end },
     -- Lightning Shield buff
     { name = "LightningShield",
       matches = lightning_shield_matches_fn,
@@ -534,16 +544,7 @@ local strategies = {
     { name = "FrostShockMoving",
       matches = frost_shock_matches_fn,
       execute = function(context) return NS.try_cast(ACTION.FrostShock, context.target, "[ELEMENTAL] Frost Shock (moving)") end },
-    -- Totem maintenance (Research: keep Totem of Wrath, Wrath of Air, Mana Spring)
-    { name = "TotemOfWrath",
-      matches = totem_of_wrath_matches_fn,
-      execute = function() return NS.try_cast(ACTION.TotemOfWrath, NS.PLAYER_UNIT, "[ELEMENTAL] Totem of Wrath") end },
-    { name = "WrathOfAirTotem",
-      matches = wrath_of_air_totem_matches_fn,
-      execute = function() return NS.try_cast(ACTION.WrathOfAirTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Wrath of Air Totem") end },
-    { name = "ManaSpringTotem",
-      matches = mana_spring_totem_matches_fn,
-      execute = function() return NS.try_cast(ACTION.ManaSpringTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Mana Spring Totem") end },
+
     -- AoE totems (Research: Fire Nova/Magma for stacked AoE)
     { name = "FireNovaTotem",
       matches = fire_nova_totem_matches_fn,
