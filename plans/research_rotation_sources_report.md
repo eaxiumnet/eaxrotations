@@ -117,6 +117,7 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
 - Resto Priest (Holy): Audited vs TBC guides (Wowhead, Icy Veins, community); code has Renew, PW:S prevention, Greater/Flash Heal with downrank tiers, CoH for AoE, PoH, Lightwell, Desperate Prayer. Strong match for single/raid. No major gaps. Sources: Wowhead TBC Priest healing, community. Tests green.
 - Elemental Shaman: Moved main totem maintenance (Totem of Wrath, Wrath of Air, Mana Spring) to high priority right after mana emergency (before nukes) per wowsims APL (Totems group first in priority). Previously low in list so rarely cast when LB/CL ready. Sources: wowsims/tbc-new elemental apl. Tests green.
 - Frost Mage: Audited vs TBC guides and sources (Frostbolt spam with IV/WE/Cold Snap burst, Ice Lance on shatter/frozen, CoC on frozen/AoE, Blizzard for 3+). Strong match: defensives, CDs, shatter Ice Lance, WC Frostbolt, AoE. No major gaps. Sources: wowhead forums, youtube TBC frost guides, community. Tests green.
+- Enhancement Shaman: Audited vs wowsims APL (SS on CD, totem twist WF/GoA, shock twist Flame, fire totems, SR low mana). Strong match with existing totem twisting, SS, shocks, etc. No major gaps. Sources: tbc-new enhancement apl, guides. Tests green.
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |
