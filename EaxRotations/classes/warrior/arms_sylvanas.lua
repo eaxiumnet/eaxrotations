@@ -864,6 +864,7 @@ local STRATEGY_SPECS = {
     { "BerserkerStance", berserker_stance_matches, berserker_stance_action() },
     { "CommandingShout", commanding_shout_matches, build_action("CommandingShout", ACTION.CommandingShout, { target = "self", kind = "buff", buff = COMMANDING_SHOUT_BUFF, requires_target = false, min_rage = 10 }) },
     { "BattleShout", battle_shout_matches, build_action("BattleShout", ACTION.BattleShout, { target = "self", kind = "buff", buff = BATTLE_SHOUT_BUFF, requires_target = false }) },
+    { "SunderArmor", sunder_armor_matches, build_action("SunderArmor", ACTION.SunderArmor, { required_stance = STANCE.BATTLE, min_rage = 15, debuff = SUNDER_DEBUFF, refresh = 28 }) },
     { "Bloodrage", bloodrage_matches, build_action("Bloodrage", ACTION.Bloodrage, { target = "self", requires_target = false, skip_gcd = true }) },
     { "VictoryRush", victory_rush_matches, build_action("VictoryRush", ACTION.VictoryRush, {}) },
     { "Retaliation", retaliation_matches, build_action("Retaliation", ACTION.Retaliation, { target = "self", required_stance = STANCE.BATTLE, requires_target = false }) },
@@ -883,7 +884,6 @@ local STRATEGY_SPECS = {
     { "ThunderClap", thunder_clap_matches, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, cooldown = 4 }) },
     { "Cleave", cleave_matches, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true }) },
     { "HeroicStrike", heroic_strike_matches, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = HEROIC_STRIKE_RAGE }) },
-    { "SunderArmor", sunder_armor_matches, build_action("SunderArmor", ACTION.SunderArmor, { required_stance = STANCE.DEFENSIVE, min_rage = 15, debuff = SUNDER_DEBUFF, refresh = 28 }) },
     { "Healthstone", healthstone_matches, build_action("Healthstone", nil, { target = "self", requires_target = false }), function(context)
         local s = build_state(context or {})
         if s.healthstone_id and NS.use_item_by_id then
