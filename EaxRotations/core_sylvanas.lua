@@ -5437,17 +5437,7 @@ function registry:set_class_config(config)
 
     self.class_config = config
 
-    if config and config.default_playstyle and NS.get_setting("active_playstyle") == nil then
-
-        local selected_playstyle = NS.get_setting("playstyle", nil)
-
-        if type(selected_playstyle) == "string" and selected_playstyle ~= "" then
-            NS.set_setting("active_playstyle", selected_playstyle)
-        else
-            NS.set_setting("active_playstyle", config.default_playstyle)
-        end
-
-    end
+    -- active_playstyle now handled by menu / resolution without early set calls.
 
 end
 
