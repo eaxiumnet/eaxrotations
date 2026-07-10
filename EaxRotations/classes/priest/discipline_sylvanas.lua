@@ -1,7 +1,7 @@
 -- discipline_sylvanas.lua -- Priest Discipline healing for TBC Anniversary (2.5.5).
 -- WHAT: support/hybrid healer (emergency PW:S, PoM, Greater Heal, Power Infusion).
 -- WHEN: combat or pre-combat, with valid friendly targets.
--- WHY: TBC Disc = PI bot + emergency shields (NOT Wrath shield-healer).
+-- WHY:   mirrors TBC discipline consensus from wowsims (no APL), Icy Veins, Wowhead: PI on CD + PW:S on tank/low + Renew + GH/Flash + CoH/PoH for raid (PI bot + emergency shields).
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -251,7 +251,11 @@ local function build_state(context)
  disc_state.tank = NS.healing_get_tank(entries, count) or disc_state.lowest
  disc_state.group_damaged_count = NS.healing_count_below_hp(entries, count, spec_kit.setting_number(context, "discipline_aoe_hp", 85))
  -- Subgroup count for Prayer of Healing: in raids, only count your own party
+ -- Now uses core.party frames backed count for accuracy
  disc_state.subgroup_damaged_count = (Healing.count_subgroup_below_hp and Healing.count_subgroup_below_hp(spec_kit.setting_number(context, "discipline_aoe_hp", 85))) or disc_state.group_damaged_count
+ if context and context.party_injured_count then
+  disc_state.party_injured_count = context.party_injured_count
+ end
  -- Power Infusion target: find highest DPS caster in group
  disc_state.pi_target = nil
  if context.in_combat and entries and count and count > 0 then
@@ -492,8 +496,8 @@ end
 
 local function prayer_of_healing_matches(context, s)
  if context.is_moving then return false end
- -- Use subgroup count for PoH (only counts your party in raids)
- local poh_count = s.subgroup_damaged_count or s.group_damaged_count
+ -- Advanced: prefer party_injured_count from core.party frames for accurate PoH subgroup
+ local poh_count = s.party_injured_count or s.subgroup_damaged_count or s.group_damaged_count
  if poh_count < 4 then return false end
  if not s.prayer_of_healing_ready then return false end
   -- Predictive overheal gate: skip PoH if even the lowest target doesn't need a per-tick heal

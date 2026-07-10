@@ -2,9 +2,7 @@
 -- WHAT:  cat-form DPS rotation (Rake / Shred builders, Rip FB bite-window gating,
 --         Mangle + SR cycle, Berserk / Tiger's Fury cooldowns, Powershift).
 -- WHEN:  combat, in cat form, energy and target valid.
--- WHY:   TBC feral cat consensus: maintain Mangle + SR debuffs, pool energy
---         for FB when Rip is up at 5 CP, otherwise Shred > Rake as builders.
---         Bite gates on CP >= 5 and target HP < 25%.
+-- WHY:   mirrors wowsims/tbc-new feralcat APL + Icy Veins/Wowhead TBC Feral: maintain Mangle + SR, Rip at 5CP long TTD, FB otherwise, Mangle/Shred builder, powershift, Berserk/TF CDs.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update allocs.
 --          snapshot_sylvanas handles Rip / Rake snapshot capture.
 

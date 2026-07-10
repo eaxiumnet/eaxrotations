@@ -1,7 +1,7 @@
 -- resto_sylvanas.lua -- Druid Restoration healing for TBC Anniversary (2.5.5).
 -- WHAT: HoT-based healer (Lifebloom 3-stack rolling, Rejuvenation, Regrowth, Swiftmend).
 -- WHEN: combat or pre-combat, with valid friendly targets.
--- WHY: TBC resto druid is defined by Lifebloom rolling + Swiftmend burst.
+-- WHY:   mirrors TBC resto druid consensus from wowsims (no APL), Icy Veins, Wowhead: Lifebloom 3-stack rolling + Swiftmend burst + Rejuv + Regrowth spot + downrank for mana.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
