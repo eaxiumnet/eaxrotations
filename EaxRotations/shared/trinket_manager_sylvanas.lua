@@ -13,6 +13,7 @@ local M = {}
 
 -- Pattern 2: cache at load
 local _core_time = _G.core and _G.core.time
+local _core_spell_book = _G.core and _G.core.spell_book
 
 local type, tostring = type, tostring
 local EMPTY = {}
@@ -176,8 +177,7 @@ local function item_cooldown_remaining(me, slot, item_id, entry)
         end
     end
 
-    local core = (NS and NS.core) or _G.core
-    local cd_fn = core and core.spell_book and core.spell_book.get_spell_cooldown_information
+    local cd_fn = _core_spell_book and _core_spell_book.get_spell_cooldown_information
     local info = safe(cd_fn, item_id)
     if type(info) == "table" then
         if info.enabled == false then return 0 end
