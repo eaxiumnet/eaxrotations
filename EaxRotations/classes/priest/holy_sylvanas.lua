@@ -220,6 +220,20 @@ local function build_state(context)
  local tank_hp = 100
  local damaged_count = 0
 
+ -- Hoist state population early for FSR/manager contract (in_combat, mana, lowest_hp_pct, fsr)
+ holy_state.in_combat = context and context.in_combat or false
+ holy_state.mana_pct = (context and context.mana_pct) or 100
+ holy_state.lowest_hp_pct = 100
+ if FsrManager then
+  holy_state.fsr_inside = FsrManager.is_inside_fsr()
+  holy_state.fsr_seconds = FsrManager.seconds_until_fsr()
+  holy_state.fsr_regen_delta = FsrManager.get_regen_delta()
+ else
+  holy_state.fsr_inside = false
+  holy_state.fsr_seconds = 0
+  holy_state.fsr_regen_delta = 0
+ end
+
  local player = NS.GetPlayer()
  if not player then return spec_kit.safe_state(holy_state, HOLY_SCHEMA) end
  -- Mounted bail: healer should not queue buffs/heals while mounted
@@ -332,17 +346,6 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
   -- parity: Smart Stop-Cast — cancel overhealing casts mid-flight
   if NS.StopCast and type(NS.StopCast.update) == "function" then
    NS.StopCast.update(player, context.settings)
-  end
-
-  -- FSR (Five-Second Rule) tracking for mana efficiency
-  if FsrManager then
-   holy_state.fsr_inside = FsrManager.is_inside_fsr()
-   holy_state.fsr_seconds = FsrManager.seconds_until_fsr()
-   holy_state.fsr_regen_delta = FsrManager.get_regen_delta()
-  else
-   holy_state.fsr_inside = false
-   holy_state.fsr_seconds = 0
-   holy_state.fsr_regen_delta = 0
   end
 
   return spec_kit.safe_state(holy_state, HOLY_SCHEMA)
@@ -700,6 +703,16 @@ local strategies = {
   end,
  },
  {
+   name = "FSRPause",
+   matches = function(context, state)
+    if not FsrManager then return false end
+    return FsrManager.should_pause_for_fsr(state, context)
+   end,
+    execute = function(_, state)
+     return true
+    end,
+  },
+ {
   name = "GreaterHeal",
   matches = function(context, state)
    if not context.in_combat then return false end
@@ -733,21 +746,6 @@ local strategies = {
     local adjusted, penalty = PreemptiveHeal.get_penalty_adjusted_heal(spell_id, 3500)
     return try_cast(spell_id, target, format("[HOLY] Greater Heal %.0f%% (rank %s, penalty %.0f%%)", state.lowest.effective_hp or 0, mana_pct > 30 and "7" or (mana_pct > 15 and "6" or "5"), (penalty or 1) * 100))
    end,
-  },
-  {
-   name = "FSRPause",
-   matches = function(context, state)
-    if not FsrManager then return false end
-    if not context.in_combat then return false end
-    if (state.mana_pct or 100) > 35 then return false end
-    if not state.fsr_inside then return false end
-    if (state.fsr_regen_delta or 0) <= 0 then return false end
-    local pause_ok, reason = FsrManager.should_pause_for_fsr(state, context)
-    return pause_ok
-   end,
-    execute = function(_, state)
-     return true
-    end,
   },
   {
    name = "FlashHeal",
