@@ -387,7 +387,7 @@ commit N+1: docs(AGENTS.md): update Pattern 16 migration state table
 - [x] Wave 1A: Legacy (leveling + healing/smite) spot-checked — most already conform or use spec_kit
 - [x] Wave 1B: Shared modules audited (priority order); Pattern 2 caches added where missing (trinket, pet_*, fsr, hot_tick, incoming_heal, combat_log, etc.); headers present
 - [x] Wave 1C: Core + main complete (docs expanded for try_cast/unit_health_pct/now/etc.; bare core. refs cleaned to _core; per-frame + load caches verified)
-- [x] Wave 1D kickoff: Spot-check class/middleware/schema — Pattern 15 headers present; no bare menu in middleware; load caches OK
-- [x] Wave 1E: Test files spot-checked — _G.core / core. only in harness/setup/debug (acceptable); no raw core.input in assertions
+- [x] Wave 1D kickoff + full: Spot-check + full audit of class infrastructure (32 files: class/middleware/schema/healing) via compliance test (enforces Pattern 15 headers, banned APIs, math.sqrt, bare menu) on current state + manual spot on modified files (druid, hunter, paladin, priest, rogue, shaman, warrior infra); all green. Per-file edits only when touching for other work.
+- [x] Wave 1E: Test files audited (compliance test + spot on key tests and the one modified test file); _G.core only in harness/setup, no raw core.input in assertions, registered, PASS print, structure ok.
 - [x] Phase 2: test_spec_layout_compliance.lua already scans + enforces for shared/core/infra (WHAT/SAFETY, banned, sqrt, bare-menu); runs clean (132 shared/core + 40 vanilla)
 - [x] Phase 3: Full validation green (252 rotation + 17 leveling suites PASS; pre-commit luac + DBC/vanilla audits PASS)
