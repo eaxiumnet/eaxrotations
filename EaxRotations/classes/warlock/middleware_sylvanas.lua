@@ -164,6 +164,49 @@ local strategies = {
             if not target then return false end
             return NS.try_cast(DEVOUR_MAGIC_SPELL, target, "[WARLOCK] Devour Magic")
         end,
+    },
+
+    -- Devour Magic Friendly: for group help in dungeons, toggle default off
+    {
+        name = "DevourMagicFriendly",
+        matches = function(context)
+            if spec_kit.setting_bool(context, "use_devour_magic_friendly", false) == false then return false end
+            if not context.in_combat then return false end
+            if not context.is_group then return false end
+            if not (NS.is_spell_learned and NS.is_spell_learned(19505)) then return false end
+            if not (NS.spell_ready and NS.spell_ready(19505)) then return false end
+            local M = NS.DispelManager
+            if not M or not M.can_dispel("magic") then return false end
+            -- scan self + party for magic debuff
+            local targets = {context.me}
+            if context.party_members then
+                for _, p in ipairs(context.party_members) do table.insert(targets, p) end
+            end
+            for _, t in ipairs(targets) do
+                if t and M.scan_unit_debuffs then
+                    local dtype = M.scan_unit_debuffs(t)
+                    if dtype == "magic" then return true end
+                end
+            end
+            return false
+        end,
+        execute = function(context)
+            local M = NS.DispelManager
+            if not M then return false end
+            local targets = {context.me}
+            if context.party_members then
+                for _, p in ipairs(context.party_members) do table.insert(targets, p) end
+            end
+            for _, t in ipairs(targets) do
+                if t and M.scan_unit_debuffs then
+                    local dtype = M.scan_unit_debuffs(t)
+                    if dtype == "magic" then
+                        return NS.try_cast(DEVOUR_MAGIC_SPELL, t, "[WARLOCK] Devour Magic (friendly group)")
+                    end
+                end
+            end
+            return false
+        end,
     },        {
             name = "PvPHowlofTerror",
             matches = function(context)

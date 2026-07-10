@@ -63,6 +63,8 @@ return {
                 settings = {
                     { key = "use_devour_magic", type = "checkbox", label = "Devour Magic (Felhunter)", default = true, tooltip = "Felhunter auto-strips priority enemy magic buffs (Bloodlust, BoP, Ice Barrier, etc.)" },
                     { key = "devour_magic_mana_floor", type = "slider", label = "Devour Magic Min Mana %", min = 10, max = 80, default = 20, tooltip = "Skip Devour Magic when mana is below this threshold" },
+                    { key = "use_devour_magic_friendly", type = "checkbox", label = "Devour Magic (friendly/group)", default = false, tooltip = "Use Felhunter to dispel harmful magic debuffs from party members in dungeons (safe help, default off to not impact parses)" },
+                    { key = "devour_magic_friendly_mana_floor", type = "slider", label = "Devour Magic Friendly Min Mana %", min = 10, max = 80, default = 30, tooltip = "Skip friendly dispel when mana below this" },
                     { key = "use_fel_domination", type = "checkbox", label = "Fel Domination", default = true },
                     { key = "fel_domination_hp", type = "slider", label = "Fel Domination HP", min = 0, max = 100, default = 35 },
                     { key = "use_demonic_sacrifice", type = "checkbox", label = "Demonic Sacrifice", default = true },
