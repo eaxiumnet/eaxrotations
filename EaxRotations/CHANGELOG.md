@@ -4,6 +4,7 @@
 
 ### Customer Changelog
 - Improved Arms Warrior Sunder Armor priority and battle stance support, aligned with authoritative SimC APLs and guides from Wowhead and Icy Veins for better raid contribution.
+- Improved Feral Cat (Druid) with proper Berserk usage during burst windows (pull/BL), aligning with SimC/wowsims/icyveins for higher DPS in CDs.
 - Updated version to 2.5.1 with customer-facing documentation and text cleanup (plain formatting, no special symbols).
 - All rotation and leveling tests remain passing.
 

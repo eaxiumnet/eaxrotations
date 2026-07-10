@@ -102,6 +102,8 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
 ## Recent Fixes from Audit (2026-07-10)
 - Arms Warrior: Moved SunderArmor higher in priority list and enabled in Battle stance (was Defensive only) to match SimC APL (sunder early for armor debuff) and Wowhead/Icy Veins guides. Verified with luac + full tests.
 - Sources used: wowsims/tbc-new arms.apl.json, Icy Veins TBC Arms rotation, Wowhead TBC Warrior DPS.
+- Feral Cat: Added Berserk usage in burst windows (pull, BL, high AP) to align with SimC/wowsims/icyveins (Berserk for max shred/rip during CDs). Previously only mentioned in header, no logic. Tigers Fury already had good gating (pull or 100 energy). Verified tests green.
+- Sources: wowsims tbc feral, Wowhead TBC Feral rotation, Icy Veins TBC Feral.
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |

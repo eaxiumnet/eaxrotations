@@ -99,6 +99,7 @@ local ACTION = {
     Rip             = define("Rip",             { 27008, 9896, 9894, 9752, 9493, 9492, 1079 }, "Rip"),
     Shred           = define("Shred",           { 27002, 27001, 9830, 9829, 8992, 6800, 5221 }, "Shred"),
     TigersFury      = define("TigersFury",      { 9846, 9845, 6793, 5217 }, "TigersFury"),
+    Berserk         = define("Berserk",         { 50334 }, "Berserk"),  -- TBC Anniv cat Berserk for burst (aligns with SimC/wowsims during BL/high windows)
     TrackHumanoids  = define("TrackHumanoids",  { 5225 }, "TrackHumanoids"),
     TravelForm      = define("TravelForm",      { 783 }, "TravelForm"),
 }
@@ -932,6 +933,16 @@ local function tigers_fury_matches(context, action)
     return true
 end
 
+local function berserk_matches(context, action)
+    local state = build_state(context)
+    if not state.target then return false end
+    if state.has_berserk then return false end
+    if state.target_ttd > 0 and state.target_ttd < SHORT_TTD then return false end
+    -- Align with sources (SimC/wowsims/icyveins): use during burst windows (BL, high AP, or pull) for max value
+    if state.has_bloodlust or state.should_burst or (state.combat_time or 0) < 5 then return true end
+    return false
+end
+
 local function powershift_matches(context, action)
     local state = build_state(context)
     if not state.should_powershift then return false end
@@ -1002,6 +1013,7 @@ local ACTIONS = {
     { name = "MaimControl", spell = ACTION.Maim, required_form = "cat", min_energy = MAIM_COST, min_combo = 3, matches = maim_control_matches },
 
     { name = "TigersFury", spell = ACTION.TigersFury, target = "self", required_form = "cat", requires_target = false, cooldown = 30, matches = tigers_fury_matches },
+    { name = "Berserk", spell = ACTION.Berserk, target = "self", required_form = "cat", requires_target = false, cooldown = 180, matches = berserk_matches },
     { name = "Powershift", spell = ACTION.CatForm, target = "self", skip_gcd = true, requires_target = false, matches = powershift_matches },
     { name = "EmergencyPowershift", spell = ACTION.CatForm, target = "self", skip_gcd = true, requires_target = false, matches = emergency_powershift_matches },
 
