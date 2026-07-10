@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.8 - 2026-07-10
+
+### Customer Changelog
+- Elemental Shaman: main totems now higher priority to match simulator APL.
+- All rotation and leveling tests remain passing (252 suites).
+
 ## 2.5.7 - 2026-07-10
 
 ### Customer Changelog
