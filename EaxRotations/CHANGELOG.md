@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.7 - 2026-07-10
+
+### Customer Changelog
+- Tier 2 Resto specs (Druid, Shaman, Priest) fidelity pass complete with downrank and audit updates per guides.
+- All rotation and leveling tests remain passing (252 suites).
+
 ## 2.5.6 - 2026-07-10
 
 ### Customer Changelog
