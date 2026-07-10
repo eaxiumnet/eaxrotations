@@ -363,7 +363,7 @@ NS.CC_DEBUFFS = NS.CC_DEBUFFS or {
 
     6770, 2070, 11297, -- Sap
 
-    5782, 6213, 6215, 5484, 17928, 8122, 30615, 22884, 33111, 39415, 39427, 46561, 34984, -- Fear / Howl / Psychic Scream / Bellowing Roar / Horror (expanded from WoWHead dungeon/raid guides: Skyriss, TK, SWP, Underbog Fen Ray etc.)
+    5782, 6213, 6215, 5484, 17928, 8122, 30615, 22884, 33111, 39415, 39427, 46561, 34984, 38660, -- Fear / Howl / Psychic Scream / Bellowing Roar / Horror (expanded from WoWHead dungeon/raid guides: Skyriss, TK, SWP, Underbog, Steamvault, etc.)
 
     1833, 408, 8643, 1776, 2094, -- Rogue stuns/incapacitates
 
@@ -5269,7 +5269,7 @@ function NS.build_healing_entries(out, decorate)
             -- Use broad list; boost heavily for "no one dies".
             local is_controlled = false
             if NS.debuff_up then
-                for _, fid in ipairs({5782,6215,5484,8122,33111,30615,22884,33676,33684,19134,36922,39415,39427,46561,34984}) do
+                for _, fid in ipairs({5782,6215,5484,8122,33111,30615,22884,33676,33684,19134,36922,39415,39427,46561,34984,38660}) do
                     if NS.debuff_up(u, fid) then is_controlled = true; break end
                 end
             end
