@@ -129,13 +129,14 @@ local DANGEROUS_MAGIC_DEBUFF_IDS = {
     , 18469 -- Counterspell (silence)
     -- Expanded from WoWHead TBC dungeon/raid research for dangerous magic that kills or slows clears (MC, horror, AoE fear, silences, dots)
     , 32830 -- Possess (Auchenai Crypts MC - not easily dispelled)
-    , 34984 -- Psychic Horror (Underbog/Slave Pens - bypasses Tremor)
+    , 34984 -- Psychic Horror (Underbog/Slave Pens - bypasses Tremor, dispellable with Dispel Magic/Purge/Devour)
     , 38660 -- Fear (Steamvault Coilfang Siren AoE)
     , 46561 -- Fear (Sunwell Dusk Priest - uninterruptible)
     , 17172 -- Devouring Plague
     , 10890, 10888, 8124, 8122 -- Psychic Scream
     , 18425 -- Improved Counterspell silence
-    , 18425 -- Improved Counterspell (silence)
+    -- More from research: Inhibit Magic (Auchenai), Arcane Resonance (Botanica magic amp), Fungal Decay poison etc.
+    , 3434 -- Wandering Plague (disease/magic overlap)
 }
 
 --- Check if a unit has a dangerous magic debuff worth dispelling.
@@ -187,6 +188,51 @@ end
 
 NS.PriestHealing.has_dangerous_dispel = has_dangerous_dispel
 NS.PriestHealing.has_disease = has_disease
+
+--- Check if a unit has a poison debuff worth dispelling (for druid/shaman/pal optimization in dungeons).
+local function has_poison(unit)
+    if not unit then return false end
+    if NS.has_dispel_type_debuff then
+        local ok, result = pcall(NS.has_dispel_type_debuff, unit, "Poison")
+        if ok and result == true then return true end
+    end
+    local POISON_DEBUFF_IDS = {
+        3427, -- Infected Wound
+        19615, -- Fling (poison?)
+        3434, -- Wandering Plague overlap
+        -- From research: Fungal Decay, Impending Coma in Botanica/Underbog
+    }
+    if NS.debuff_up then
+        for i = 1, #POISON_DEBUFF_IDS do
+            local ok, up = pcall(NS.debuff_up, unit, POISON_DEBUFF_IDS[i])
+            if ok and up then return true end
+        end
+    end
+    return false
+end
+
+--- Check if a unit has a curse debuff worth dispelling (mage/druid/shaman).
+local function has_curse(unit)
+    if not unit then return false end
+    if NS.has_dispel_type_debuff then
+        local ok, result = pcall(NS.has_dispel_type_debuff, unit, "Curse")
+        if ok and result == true then return true end
+    end
+    local CURSE_DEBUFF_IDS = {
+        31615, -- Hunter's Mark (but curse in some)
+        -- Common TBC curses in dungeons: reduce healing, stats (from guides)
+    }
+    if NS.debuff_up then
+        for i = 1, #CURSE_DEBUFF_IDS do
+            local ok, up = pcall(NS.debuff_up, unit, CURSE_DEBUFF_IDS[i])
+            if ok and up then return true end
+        end
+    end
+    return false
+end
+
+NS.PriestHealing.has_poison = has_poison
+NS.PriestHealing.has_curse = has_curse
 
 local is_in_raid = NS.is_in_raid or function() return false end
 local is_in_party = NS.is_in_party or function() return false end
