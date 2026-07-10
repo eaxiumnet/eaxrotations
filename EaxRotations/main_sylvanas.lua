@@ -1344,7 +1344,6 @@ local function normalize_playstyle(registry, active)
             last_playstyle_warning = key
             NS.log_warning("Invalid playstyle '" .. tostring(active) .. "'; falling back to " .. tostring(fallback))
         end
-        if NS.set_setting then NS.set_setting("active_playstyle", fallback) end
         return fallback
     end
     return active
@@ -1569,9 +1568,6 @@ function M.on_rotation_update()
             end
         end
     end
-    if not auto_detected and NS.set_setting and active ~= NS.get_setting("active_playstyle", nil) then
-        NS.set_setting("active_playstyle", active)
-    end
     context.active_playstyle = active
     log_expansion_once(config, active)
     local class_key = config and config.class_key
@@ -1655,9 +1651,6 @@ function M.on_rotation_update_unified()
                 auto_detected = true
             end
         end
-    end
-    if not auto_detected and NS.set_setting and active ~= NS.get_setting("active_playstyle", nil) then
-        NS.set_setting("active_playstyle", active)
     end
     context.active_playstyle = active
     log_expansion_once(config, active)

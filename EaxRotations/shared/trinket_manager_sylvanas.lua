@@ -128,10 +128,7 @@ local function setting_enabled(settings, key, default)
 end
 
 -- NOTE: We deliberately do NOT seed defaults via NS.set_setting here.
--- Writing settings at module load / early registration time can trigger
--- "File name not set" errors in the host because no profile/filename is
--- bound yet. The read-side helpers below already provide proper defaults (true / 40).
--- Menu widgets (if present in specs) are responsible for creating the keys.
+-- Early writes can trigger host save warnings. Menu widgets handle creation.
 
 local function trinket_slots()
     local slots = NS and NS.EQUIPMENT_SLOTS or nil
@@ -313,8 +310,7 @@ end
 function M.register_trinket_manager()
     if _registered then return true end
     if not NS or type(NS.register_on_update_callback) ~= "function" then return false end
-    -- No seed_default_settings() — see note above. Premature set_setting calls
-    -- during load cause host "File name not set. Please specify a valid file name before saving." errors.
+    -- No seed_default_settings() — premature writes can cause host save warnings.
     local ok = pcall(NS.register_on_update_callback, function()
         return M.on_update()
     end)

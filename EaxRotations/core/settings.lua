@@ -2,9 +2,7 @@
 -- WHAT:  NS.get_setting / NS.set_setting with TTL cache + type-safe fallbacks.
 -- WHEN:  installed by core_sylvanas.lua during addon load.
 -- WHY:   every spec uses these helpers; caching prevents menu widget lookups every frame.
--- SAFETY: nil-safe fallbacks for all reads; writes are debounced + early-load guarded
---         to avoid host "File name not set. Please specify a valid file name before saving"
---         errors when settings_manager has no profile/filename bound yet.
+-- SAFETY: nil-safe fallbacks for all reads; writes forwarded to settings_manager when available.
 
 -- =============================================================================
 -- core/settings.lua
@@ -51,11 +49,6 @@ function M.install(NS, deps)
     _SETTINGS_CACHE_TTL = 0.20 -- 200ms throttle
     _settings_cache_time = time_now
 
-    -- Grace period before forwarding writes to settings_manager.
-    -- Prevents "File name not set" host errors during early module load / profile init.
-    local _first_write_time = nil
-    local WRITE_GRACE_SECONDS = 0.75
-
     function NS.get_setting(key, default)
         -- Primary: settings_manager.
         if settings_manager then
@@ -79,15 +72,6 @@ function M.install(NS, deps)
         settings_table[key] = value
         _settings_cache[key] = value
         if settings_manager and value ~= last then
-            local now = _settings_cache_time()
-            if not _first_write_time then
-                _first_write_time = now
-            end
-            if now - _first_write_time < WRITE_GRACE_SECONDS then
-                -- Skip manager write during grace period. In-memory + cache still updated.
-                -- Host may not have filename/profile bound yet, causing "File name not set" errors.
-                return
-            end
             pcall(function() settings_manager:set(key, value) end)
         end
     end
