@@ -378,4 +378,23 @@ assert_true(ua_idx and ua_spread_idx and ua_idx < ua_spread_idx, "primary UA bef
 assert_true(nf_idx and ua_idx and nf_idx < ua_idx, "NightfallProc before UA (UA immediately follows Nightfall)")
 assert_true(ua_idx and mov_idx and ua_idx < mov_idx, "UA before MovingCorruption")
 
+-- ============================================================================
+-- CC_Fear hardening (PR3): strict is_pvp (no is_group), debuff_remains==0, use_fear_cc
+-- Use find_strategy name-based lookup (exact per spec).
+-- ============================================================================
+
+local cc_fear = find_strategy("CC_Fear")
+
+-- Dungeon group on primary target (is_group && !is_pvp) -> must NOT match
+assert_false(cc_fear.matches({has_valid_enemy_target=true, target={}, is_group=true, is_pvp=false}), "Fear must not match in dungeon group on primary target (is_group && !is_pvp)")
+
+-- Already feared (debuff_remains > 0) -> must NOT match, even in is_pvp
+local orig_debuff = _G.EaxRotations.debuff_remains
+_G.EaxRotations.debuff_remains = function(target, ids) return 5 end
+assert_false(cc_fear.matches({has_valid_enemy_target=true, target={}, is_pvp=true}), "Fear must not match when target already has Fear debuff (even in is_pvp)")
+_G.EaxRotations.debuff_remains = orig_debuff
+
+-- Valid is_pvp case (no prior debuff, default use_fear_cc=true) -> should match
+assert_true(cc_fear.matches({has_valid_enemy_target=true, target={}, is_pvp=true}), "Fear must match in valid is_pvp scenario with no fear debuff")
+
 print("PASS test_affliction_custom_matches")
