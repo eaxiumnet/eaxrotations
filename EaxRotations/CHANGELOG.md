@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.9 - 2026-07-10
+
+### Customer Changelog
+- Continued fidelity improvements for remaining specs per sources.
+- All rotation and leveling tests remain passing (252 suites).
+
 ## 2.5.8 - 2026-07-10
 
 ### Customer Changelog
