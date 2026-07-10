@@ -26,6 +26,9 @@ local _G = _G
 local NS = _G.EaxRotations
 if not NS then return end
 
+-- Pattern 2
+local _core_spell_book = _G.core and _G.core.spell_book
+
 local M = {}
 
 -- ============================================================================
@@ -59,7 +62,7 @@ function M.resolve_talent_spell(base_id)
     end
 
     -- Resolve via API (nil-safe, dynamic lookup for testability)
-    local api = core and core.spell_book and core.spell_book.get_override_spell_id
+    local api = _core_spell_book and _core_spell_book.get_override_spell_id
     if api then
         local ok, override_id = pcall(api, base_id)
         if ok and override_id and override_id > 0 then
@@ -96,7 +99,7 @@ function M.get_base_spell_id(override_id)
     end
 
     -- Resolve via API (nil-safe, dynamic lookup for testability)
-    local api = core and core.spell_book and core.spell_book.get_base_spell_id
+    local api = _core_spell_book and _core_spell_book.get_base_spell_id
     if api then
         local ok, base_id = pcall(api, override_id)
         if ok and base_id and base_id > 0 then

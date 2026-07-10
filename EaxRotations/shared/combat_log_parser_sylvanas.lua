@@ -13,6 +13,7 @@ local M = {}
 
 -- Pattern 2: cache at load
 local _core_time = _G.core and _G.core.time
+local _core_spell_book = _G.core and _G.core.spell_book
 
 local WINDOW_SECONDS = 60
 local entries = {}
@@ -107,8 +108,8 @@ local function resolve_label(value)
 end
 
 local function get_spell_name(spell_id)
-    if core and core.spell_book and core.spell_book.get_spell_name then
-        local ok, name = pcall(core.spell_book.get_spell_name, spell_id)
+    if _core_spell_book and _core_spell_book.get_spell_name then
+        local ok, name = pcall(_core_spell_book.get_spell_name, spell_id)
         if ok and name and name ~= "" then
             return name
         end
