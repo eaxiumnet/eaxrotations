@@ -139,8 +139,10 @@ local DANGEROUS_MAGIC_DEBUFF_IDS = {
     , 3434 -- Wandering Plague (disease/magic overlap)
     , 31719 -- Suspension (Underbog Black Stalker Levitate debuff, dispellable)
     , 39193 -- Shadow Power (Mechanar Gatekeeper enemy buff, purge/dispel asap per guides)
-    -- Lung Burst (Steamvault Thespia, dispellable debuff)
-    -- From research: more in Steamvault, Mechanar, Botanica for dispel priority to speed clears and prevent deaths.
+    , 39029 -- Virulent Poison (SSC/Underbog poison, dispellable)
+    , 39032 -- Initial Infection (SSC Colossus jumping disease, abolish disease)
+    -- Lung Burst (Steamvault Thespia, dispellable debuff doing damage/stun)
+    -- From research: more in Steamvault, Mechanar, Botanica, SSC for dispel priority to speed clears and prevent deaths.
 }
 
 --- Check if a unit has a dangerous magic debuff worth dispelling.
@@ -180,6 +182,7 @@ local function has_disease(unit)
         , 19615 -- Fling
         , 3434 -- Wandering Plague
         , 17172 -- Devouring Plague
+        , 39032 -- Initial Infection (SSC, jumping, high priority abolish)
     }
     if NS.debuff_up then
         for i = 1, #DISEASE_DEBUFF_IDS do
@@ -204,7 +207,8 @@ local function has_poison(unit)
         3427, -- Infected Wound
         19615, -- Fling (poison?)
         3434, -- Wandering Plague overlap
-        -- From research: Fungal Decay, Impending Coma in Botanica/Underbog
+        39029, -- Virulent Poison (SSC/Underbog, dispellable poison dot)
+        -- From research: Fungal Decay, Impending Coma in Botanica/Underbog, poison from Greyheart Tidecaller etc.
     }
     if NS.debuff_up then
         for i = 1, #POISON_DEBUFF_IDS do
