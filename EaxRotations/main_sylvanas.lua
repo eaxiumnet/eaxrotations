@@ -530,7 +530,7 @@ local function unit_number(unit, field)
 end
 
 local function core_string(field)
-    local fn = core and core[field]
+    local fn = _core and _core[field]
     local value = type(fn) == "function" and fast(fn) or nil
     return type(value) == "string" and value or nil
 end
@@ -884,8 +884,8 @@ local function build_context()
     _context.party_count = (_party_members and #_party_members) or 0
     -- Frame count (for awareness; get_party_frames is the source of truth for real party UI)
     _context.party_frame_count = 0
-    if core and core.object_manager and type(core.object_manager.get_party_frames) == "function" then
-        local ok, pf = pcall(core.object_manager.get_party_frames)
+    if _core and _core.object_manager and type(_core.object_manager.get_party_frames) == "function" then
+        local ok, pf = pcall(_core.object_manager.get_party_frames)
         if ok and type(pf) == "table" then _context.party_frame_count = #pf end
     end
     -- Combined party scan: tank_alive, group_injured, fear_nearby in a single ipairs pass.

@@ -208,24 +208,24 @@ grep -rn "_G\.core\|core\." EaxRotations/tests/ --include="*.lua" | grep -v "run
 **Goal:** Verify NS helper consistency, API caching, and documentation.
 
 **core_sylvanas.lua specific checks (initial review 2026-07-10):**
-1. NS.* helpers have some docs; many use --- comments. (to be expanded)
-2. core is `local core = _G.core or {}` at top (Pattern 2). time_now wraps core.time with per-frame cache (_cached_now).
+1. NS.* helpers have some docs; many use --- comments. (expanded in Wave 1C: added @param/@return to try_cast, try_cast_position, unit_health_pct, now, time_now, GetCurrentContext and similar).
+2. core is `local core = _G.core or {}` at top (Pattern 2). time_now wraps core.time with per-frame cache (_cached_now / frame). Load-time caches for game_version + spell range APIs (_get_spell_*).
 3. No math.sqrt.
-4. try_cast prefers izi if available.
+4. try_cast prefers izi if available (then queue, raw fallback).
 5. buff_points/debuff_points have nil guards in callers and some internal.
-6. gate_overheal matches.
+6. gate_overheal matches. Static tables (EMPTY, caches) at module level (Pattern 4). Requires use pcall (Pattern 9).
 
 **main_sylvanas.lua specific checks:**
 1. on_update calls build_context; no obvious per-frame alloc in hot path (statics used).
 2. Enemy scan uses hysteresis (static reuse).
 3. Uses squared distance in places.
-4. core.* accesses now use top-level local _core cache (Pattern 2 fix applied).
+4. core.* accesses use top-level local _core cache (Pattern 2). Cleaned remaining bare `core.` refs in build_context / helpers to _core. (2026-07-10)
 
-**Acceptance:** `luac -p` clean; full suite green. (initial pass; more in next waves)
+**Acceptance:** `luac -p` clean; full suite green. (252 rotation + 17 leveling suites PASS after edits).
 
-Wave 1C progress: main_sylvanas caching fixed.
+Wave 1C: main_sylvanas caching fixed + bare cleanup; core docs expanded + caching verified. Wave 1C COMPLETE for Groups G/H core+main. Next: Wave 1D class infra.
 
-Wave 1C started.
+Wave 1C completed 2026-07-10.
 
 ---
 
