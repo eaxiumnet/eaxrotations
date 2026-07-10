@@ -68,6 +68,10 @@ return {
                 settings = {
                     { key = "stopcast_enabled", type = "checkbox", label = "Smart Stop-Cast", default = true, tooltip = "Cancel in-flight heals if target recovers above threshold during cast" },
                     { key = "stopcast_threshold", type = "slider", label = "Stop-Cast Threshold (%)", min = 80, max = 100, default = 95, tooltip = "Cancel cast if target would end above this HP%" },
+                    { key = "fsr_enabled", type = "checkbox", label = "FSR Pause Enabled", default = true, tooltip = "Pause non-emergency heals inside FSR when regen delta positive (spirit mana regen)" },
+                    { key = "fsr_mana_threshold", type = "slider", label = "FSR Mana Threshold (%)", min = 0, max = 100, default = 35, tooltip = "Only FSR pause when below this mana %" },
+                    { key = "fsr_emergency_hp", type = "slider", label = "FSR Emergency HP (%)", min = 0, max = 100, default = 40, tooltip = "Skip FSR pause if any friendly <= this HP (emergencies win)" },
+                    { key = "fsr_max_pause_seconds", type = "slider", label = "FSR Max Pause (sec, 0=full)", min = 0, max = 5, default = 0, tooltip = "Max seconds of FSR window to pause for (0 allows full 5s)" },
                     { key = "tank_hp_bias", type = "slider", label = "Tank HP Bias (%)", min = 0, max = 30, default = 15, tooltip = "Treat tanks as if they have this much less HP for triage scoring" },
                     { key = "heal_pets", type = "checkbox", label = "Heal Pets", default = true, tooltip = "Include Hunter/Warlock pets in healing target scan" },
                     { key = "pet_weight", type = "slider", label = "Pet Triage Weight", min = 0.1, max = 1.0, default = 0.6, tooltip = "Lower = pets are less urgent than players" },
