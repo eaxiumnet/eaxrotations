@@ -328,6 +328,13 @@ for _, path in ipairs(shared_core_files) do
             add_issue(issues, path, "bare-menu-access", "bare menu.x:get() found in code outside schema file")
         end
     end
+
+    -- Core file caching (Phase 2 item): main_sylvanas.lua and core_sylvanas.lua should have load-time _core / core = _G.core cache (Pattern 2).
+    if path:find("EaxRotations/main_sylvanas%.lua$") or path:find("EaxRotations/core_sylvanas%.lua$") then
+        if not has_lit(text, "_core = _G.core") and not has_lit(text, "core = _G.core") then
+            add_issue(issues, path, "core-missing-load-cache", "core/main file missing _core = _G.core or core = _G.core load cache (Pattern 2)")
+        end
+    end
 end
 
 -- (d) VANILLA spec files: Pattern 15 header + banned API checks.
