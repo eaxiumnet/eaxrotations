@@ -128,7 +128,7 @@ local function setting_enabled(settings, key, default)
 end
 
 -- NOTE: We deliberately do NOT seed defaults via NS.set_setting here.
--- Early writes can trigger host save warnings. Menu widgets handle creation.
+-- No early seeding of defaults here.
 
 local function trinket_slots()
     local slots = NS and NS.EQUIPMENT_SLOTS or nil
@@ -310,7 +310,7 @@ end
 function M.register_trinket_manager()
     if _registered then return true end
     if not NS or type(NS.register_on_update_callback) ~= "function" then return false end
-    -- No seed_default_settings() — premature writes can cause host save warnings.
+    -- No seed_default_settings().
     local ok = pcall(NS.register_on_update_callback, function()
         return M.on_update()
     end)

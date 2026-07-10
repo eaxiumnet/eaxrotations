@@ -38,5 +38,5 @@ local NS = require("core_sylvanas")
 NS.set_setting("playstyle", "destruction")
 require("classes/warlock/class_sylvanas")
 
--- Seeding via set_setting removed (early IO can trigger host save issues).
+-- Seeding via set_setting removed to avoid host issues on load.
 print("PASS test_playstyle_setting_seeds_active")

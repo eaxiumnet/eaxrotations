@@ -36,6 +36,21 @@ local function emit(kind, prefix, msg)
 
     msg = tostring(msg or "")
 
+    -- Prefer izi.log for diagnostics and debugging (recommended by Project Sylvanas docs).
+    -- This avoids manual log file management (core.create_log_file / write_log_file).
+    if kind == "log" and NS and NS.izi and type(NS.izi.log) == "function" then
+        pcall(NS.izi.log, "[EaxRotations] " .. msg)
+        return
+    end
+    if kind == "log_warning" and NS and NS.izi and type(NS.izi.log_warning) == "function" then
+        pcall(NS.izi.log_warning, "[EaxRotations] " .. msg)
+        return
+    end
+    if kind == "log_error" and NS and NS.izi and type(NS.izi.log_error) == "function" then
+        pcall(NS.izi.log_error, "[EaxRotations] " .. msg)
+        return
+    end
+
     local fn = core and core[kind]
 
     if type(fn) == "function" then pcall(fn, "[EaxRotations] " .. msg)

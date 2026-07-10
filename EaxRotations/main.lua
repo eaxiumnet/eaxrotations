@@ -18,17 +18,23 @@ local core = _G.core
 local izi_ok, izi = pcall(require, "common/izi_sdk")
 
 if not izi_ok or not izi then
-    if type(core) == "table" and type(core.log_error) == "function" then
+    if izi and type(izi.log_error) == "function" then
+        izi.log_error("[EaxRotations] Failed to load IZI SDK from common/izi_sdk: " .. tostring(izi))
+    elseif type(core) == "table" and type(core.log_error) == "function" then
         core.log_error("[EaxRotations] Failed to load IZI SDK from common/izi_sdk: " .. tostring(izi))
     end
     return
 end
 
+-- (early set_setting calls removed to prevent save issues)
+
 -- Get plugin info from header
 local header_ok, plugin_info = pcall(require, "header")
 
 if not header_ok or not plugin_info or not plugin_info.load then
-    if type(core) == "table" and type(core.log_warning) == "function" then
+    if izi and type(izi.log_warning) == "function" then
+        izi.log_warning("[EaxRotations] Plugin not loaded - check header.lua: " .. tostring(plugin_info))
+    elseif type(core) == "table" and type(core.log_warning) == "function" then
         core.log_warning("[EaxRotations] Plugin not loaded - check header.lua: " .. tostring(plugin_info))
     end
     return
@@ -42,7 +48,11 @@ if not plugin_info.player_class_name then
     -- At login/character-select screen, player object is not yet available.
     -- header.lua returns early without setting player_class_name.
     -- Exit cleanly; on_update will fire after UI loads with a real player.
-    core.log("[EaxRotations] Plugin loaded (no player class yet at login screen)")
+    if izi and type(izi.log) == "function" then
+        izi.log("[EaxRotations] Plugin loaded (no player class yet at login screen)")
+    else
+        core.log("[EaxRotations] Plugin loaded (no player class yet at login screen)")
+    end
     return
 end
 
@@ -52,7 +62,9 @@ end
 -- The runtime only loads header.lua + main.lua; all framework files must be explicitly require()'d here.
 local core_ok, framework_core = pcall(require, "core_sylvanas")
 if not core_ok or not framework_core then
-    if type(core) == "table" and type(core.log_error) == "function" then
+    if izi and type(izi.log_error) == "function" then
+        izi.log_error("[EaxRotations] Failed to load core_sylvanas: " .. tostring(framework_core))
+    elseif type(core) == "table" and type(core.log_error) == "function" then
         core.log_error("[EaxRotations] Failed to load core_sylvanas: " .. tostring(framework_core))
     end
     return
@@ -108,7 +120,11 @@ load_modules({
 -- Load shared schema helpers before class schemas so injection factories are available.
 local common_ok = pcall(require, "common_sylvanas")
 if not common_ok then
-    core.log_warning("[EaxRotations] common_sylvanas.lua failed to load — shared schema sections will not be injected")
+    if izi and type(izi.log_warning) == "function" then
+        izi.log_warning("[EaxRotations] common_sylvanas.lua failed to load — shared schema sections will not be injected")
+    else
+        core.log_warning("[EaxRotations] common_sylvanas.lua failed to load — shared schema sections will not be injected")
+    end
 end
 
 local framework_main = require("main_sylvanas")           -- Dispatcher; class modules register below
@@ -605,17 +621,13 @@ local function get_keybind_name(control)
 end
 
 local function sync_quick_toggles()
-    if not (framework_core and framework_core.set_setting) then return end
-    for _, def in ipairs(quick_toggle_defs) do
-        local value = get_keybind_toggle_state(def.control, def.default ~= false)
-        framework_core.set_setting(def.key, value)
-    end
+    -- set_setting removed (to stop host save spam on reload)
 end
 
 local _last_playstyle_combo_index = nil
 
 local function sync_playstyle_control()
-    if not (framework_core and framework_core.set_setting and menu_elements.playstyle_combo) then return end
+    if not menu_elements.playstyle_combo then return end
     local ok, combo_index = pcall(function() return menu_elements.playstyle_combo:get() end)
     if not ok or type(combo_index) ~= "number" then return end
 
@@ -623,8 +635,7 @@ local function sync_playstyle_control()
         _last_playstyle_combo_index = combo_index
         local value = playstyle_keys[combo_index]
         if type(value) == "string" and value ~= "" then
-            framework_core.set_setting("playstyle", value)
-            framework_core.set_setting("active_playstyle", value)
+            -- set_setting removed
             if _last_playstyle_log ~= value then
                 _last_playstyle_log = value
                 core.log("[EaxRotations] Active playstyle: " .. tostring(value))
@@ -640,8 +651,7 @@ local function sync_playstyle_control()
         -- User clicked the combobox — write selection to settings
         local value = playstyle_keys[combo_index]
         if type(value) == "string" and value ~= "" then
-            framework_core.set_setting("playstyle", value)
-            framework_core.set_setting("active_playstyle", value)
+            -- set_setting calls removed
             if _last_playstyle_log ~= value then
                 _last_playstyle_log = value
                 core.log("[EaxRotations] Active playstyle: " .. tostring(value))
@@ -970,30 +980,7 @@ local function on_update()
     sync_quick_toggles()
     sync_playstyle_control()
 
-    if framework_core and framework_core.set_setting then
-        if rotation_enabled then
-            for key, widget in pairs(schema_widgets) do
-                local sync_ok, value = pcall(function()
-                    return widget.sync and widget.sync() or nil
-                end)
-                if not sync_ok then
-                    local now_ms = core.game_time and core.game_time() or 0
-                    if now_ms - _last_sync_error_ms > 5000 then
-                        _last_sync_error_ms = now_ms
-                        core.log_warning("[EaxRotations] Setting sync failed for " .. tostring(key) .. ": " .. tostring(value))
-                    end
-                    value = nil
-                end
-                if value ~= nil then
-                    local last_val = schema_widget_last_values[key]
-                    if value ~= last_val then
-                        schema_widget_last_values[key] = value
-                        framework_core.set_setting(key, value)
-                    end
-                end
-            end
-        end
-    end
+    -- schema widget sync removed (set_setting calls removed to eliminate early host save spam on reload)
 
     -- Check if script is enabled after menu settings are synchronized.
     -- rotation_enabled already resolved above (before widget sync) to allow
