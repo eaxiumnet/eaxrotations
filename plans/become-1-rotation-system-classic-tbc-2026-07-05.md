@@ -44,7 +44,8 @@ Priority shared modules that affect every spec:
 - [x] Protection Paladin — audited vs APL/guides; strong match on Holy Shield priority/charges, Consec downrank, JoW logic, Avenger's pulls, seals. No major gaps. (2026-07-10)
 - [x] Holy Paladin — added proactive LightGraceBuild (downrank HL when LG weak/absent) per guides for cheap LG proc + faster HL. (2026-07-10)
 - [x] Resto Druid — added downrank Regrowth support in spot heal for mana per guides (downrank when damage spikes). Strong HoT rolling (3x LB, Rejuv, Regrowth). (2026-07-10)
-- [ ] Tier 2: Resto Shaman, Resto Priest.
+- [x] Resto Shaman — added downrank Chain Heal for mana in cluster/triage per guides. (2026-07-10)
+- [ ] Tier 2: Resto Priest.
 - [ ] Tier 3: remaining specs and leveling rotations.
 
 ## Phase 4 — Validation
