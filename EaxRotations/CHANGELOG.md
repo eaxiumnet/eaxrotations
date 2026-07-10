@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.6 - 2026-07-10
+
+### Customer Changelog
+- Resto Druid: added downrank Regrowth support for mana conservation in spot healing, per TBC guides.
+- All rotation and leveling tests remain passing (252 suites).
+
 ## 2.5.5 - 2026-07-10
 
 ### Customer Changelog
