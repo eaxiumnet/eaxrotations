@@ -1,0 +1,31 @@
+=============================================================================
+  EAX Leveling Rotation Tests
+  Root:  EaxRotations
+  Files: 17 suites
+=============================================================================
+
+  [ PASS ] test_leveling_mage.lua           ok
+  [ PASS ] test_leveling_warlock.lua        ok
+  [ PASS ] test_leveling_priest.lua         ok
+  [ PASS ] test_leveling_rogue.lua          ok
+  [ PASS ] test_leveling_shaman.lua         ok
+  [ PASS ] test_leveling_warrior.lua        ok
+  [ PASS ] test_leveling_druid.lua          ok
+  [ PASS ] test_leveling_hunter.lua         ok
+  [ PASS ] test_leveling_paladin.lua        ok
+  [ PASS ] test_leveling_load.lua           ok
+  [ PASS ] test_leveling_shared.lua         ok
+  [ PASS ] test_leveling_compliance.lua     ok
+  [ PASS ] test_warrior_leveling_vanilla_spells.lua ok
+  [ PASS ] test_leveling_dispatcher_prepass.lua ok
+  [ PASS ] test_leveling_dispatcher_registration.lua ok
+  [ PASS ] test_leveling_edge_cases.lua     ok
+  [ PASS ] test_shaman_leveling_registration.lua ok
+
+=============================================================================
+  RESULTS
+=============================================================================
+  Total:   17 suites
+  Passed:  17
+  Failed:   0
+=============================================================================
