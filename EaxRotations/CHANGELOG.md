@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.5.16 - 2026-07-11
+
+### Customer Changelog
+- Fixed Playstyle selector inside Quick Toggles. Selecting a playstyle (e.g. Affliction, Destruction, Cat, Arms, etc.) now actually switches the active rotation.
+- Was previously stuck on the initial value (such as "Auto (Talent)" for Warlock). Now works for all classes and all 29 specs.
+- Version bumped to 2.5.16.
+- Clean eaxrotations.zip (lua + md files only).
+- All tests remain passing (252 + 17 suites).
+
 ## 2.5.15 - 2026-07-11
 
 ### Customer Changelog
