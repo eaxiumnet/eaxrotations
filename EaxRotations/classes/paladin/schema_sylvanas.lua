@@ -26,6 +26,7 @@ return {
                     { key = "seal_twisting", type = "checkbox", label = "Seal Twisting", default = true },
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
+                    { key = "use_self_buffs", type = "checkbox", label = "Self Buffs (Auras & Blessings OOC)", default = true },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },
                 },
             },
@@ -56,6 +57,7 @@ return {
             {
                 header = "Holy Utility",
                 settings = {
+                    { key = "holy_post_swing_judge", type = "checkbox", label = "Post-Swing Judgement", default = true, tooltip = "Queue Judgement immediately after melee swing to avoid delaying auto-attacks" },
                     { key = "holy_blessing_light", type = "checkbox", label = "Blessing of Light", default = true, tooltip = "Maintain Blessing of Light on tanks for increased healing received" },
                     { key = "holy_blessing_wisdom", type = "checkbox", label = "Blessing of Wisdom", default = true, tooltip = "Maintain Blessing of Wisdom on mana users" },
                     { key = "holy_auto_cleanse", type = "checkbox", label = "Auto Cleanse", default = true, tooltip = "Cleanse disease, poison, and magic from party members" },
@@ -96,6 +98,7 @@ return {
             {
                 header = "Rotation & Seals",
                 settings = {
+                    { key = "prot_post_swing_judge", type = "checkbox", label = "Post-Swing Judgement", default = true, tooltip = "Queue Judgement immediately after melee swing to avoid delaying auto-attacks" },
                     { key = "prot_holy_shield", type = "checkbox", label = "Holy Shield", default = true, tooltip = "Maintain Holy Shield for uncrushable and damage" },
                     { key = "prot_holy_shield_charges", type = "slider", label = "Holy Shield Refresh at Charges", min = 1, max = 8, default = 2, tooltip = "Refresh Holy Shield when charges drop to this level" },
                     { key = "prot_consecration", type = "checkbox", label = "Consecration", default = true, tooltip = "Use Consecration for AoE threat" },

@@ -394,6 +394,7 @@ local strategies = {
         name = "Paladin_SelfBuffAura",
         priority = 90,
         matches = function(context)
+            if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
             if context.in_combat then return false end
             if (context.is_mounted or false) then return false end
             -- Throttle: skip match within 3s of our last attempt (anti-loop).
@@ -478,6 +479,7 @@ local strategies = {
         name = "Paladin_SelfBuffBlessing",
         priority = 80,
         matches = function(context)
+            if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
             if context.in_combat then return false end
             if (context.is_mounted or false) then return false end
             local me = context.me
@@ -538,6 +540,7 @@ local strategies = {
         name = "Paladin_SelfBuffKings",
         priority = 75,
         matches = function(context)
+            if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
             if context.in_combat then return false end
             if (context.is_mounted or false) then return false end
             local playstyle = spec_kit.setting(context, "playstyle", nil) or spec_kit.setting(context, "active_playstyle", "")
