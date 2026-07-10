@@ -370,7 +370,7 @@ local function build_state(context)
     ret_state.target_player = is_player(context.target)
     ret_state.target_fleeing = context.target_fleeing == true or context.target_is_fleeing == true
     ret_state.in_melee = distance_to(context, context.target) <= MELEE_RANGE
-    ret_state.can_twist = NS.get_any_setting(context, "seal_twisting_enabled", "retri_seal_twisting", false) and ret_state.mana_pct >= spec_kit.setting_number(context, "retri_twist_mana_floor", 20)
+    ret_state.can_twist = NS.get_any_setting(context, "seal_twisting_enabled", "retri_seal_twisting", true) and ret_state.mana_pct >= spec_kit.setting_number(context, "retri_twist_mana_floor", 20)
     ret_state.utility_target = nil
     ret_state.secondary_target = find_secondary_enemy(context)
     ret_state.mana_item = first_ready_item(MANA_POTIONS)
