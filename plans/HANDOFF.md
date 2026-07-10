@@ -133,15 +133,20 @@ date=$(git show -s --format=%ci HEAD | cut -d' ' -f1)
 zipname="EaxRotations-${date}-${sha}.zip"
 # Write VERSION.txt manifest (commit, date, test status) — see an existing
 # release's VERSION.txt or the 2026-06-25 session log for the template.
-git archive --format=zip --add-file=VERSION.txt -o "$zipname" HEAD -- EaxRotations/
-# Verify: python -c "import zipfile; z=zipfile.ZipFile('$zipname'); ..." (check
-# no external-repo leak, VERSION.txt + new files present)
+git archive --format=zip -o "$zipname" HEAD -- EaxRotations/
+# Verify: python -c "
+import zipfile, os
+z=zipfile.ZipFile('$zipname')
+bad=[n for n in z.namelist() if not n.endswith('/') and not (n.endswith('.lua') or n.endswith('.md'))]
+print('Bad non-lua/md:', len(bad))
+z.close()
+" (must be 0; only .lua and .md)
 gh release create "v${date}.${sha}" "$zipname" --title "..." --notes "..."
 ```
 `*.zip` is gitignored, so the zip won't pollute the repo. **10+ releases** exist
 (latest `v2026-06-28.f802211b`). NOTE: include `EaxAutoQuester/` in the archive
 path too (the rotation product ships both): `git archive ... HEAD -- EaxRotations/ EaxAutoQuester/`. Verify the zip with a python zipfile check that no entry is
-outside `.lua`/`.md`/`VERSION.txt` and no external-repo dir leaked in.
+outside `.lua`/`.md` and no external-repo dir leaked in.
 
 ---
 
