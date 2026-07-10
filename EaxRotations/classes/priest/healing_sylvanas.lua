@@ -137,6 +137,10 @@ local DANGEROUS_MAGIC_DEBUFF_IDS = {
     , 18425 -- Improved Counterspell silence
     -- More from research: Inhibit Magic (Auchenai), Arcane Resonance (Botanica magic amp), Fungal Decay poison etc.
     , 3434 -- Wandering Plague (disease/magic overlap)
+    , 31719 -- Suspension (Underbog Black Stalker Levitate debuff, dispellable)
+    , 39193 -- Shadow Power (Mechanar Gatekeeper enemy buff, purge/dispel asap per guides)
+    -- Lung Burst (Steamvault Thespia, dispellable debuff)
+    -- From research: more in Steamvault, Mechanar, Botanica for dispel priority to speed clears and prevent deaths.
 }
 
 --- Check if a unit has a dangerous magic debuff worth dispelling.

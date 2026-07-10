@@ -681,12 +681,14 @@ local strategies = {
   { name = "BarkskinSelfPreservation", matches = BarkskinSelfPreservation_matches, execute = BarkskinSelfPreservation_execute },
   { name = "BearFormFocusedByMelee", matches = BearFormFocusedByMelee_matches, execute = BearFormFocusedByMelee_execute },
   { name = "NaturesGraspMelee", matches = NaturesGraspMelee_matches, execute = NaturesGraspMelee_execute },
- { name = "RemoveCurse", matches = function(_, state)
+ { name = "RemoveCurse", matches = function(context, state)
    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.RemoveCurse, 3.0) then return false end
+   if context and (context.control_risk or context.is_group) and state.cursed_target then return true end
    return state.cursed_target and NS.spell_ready(ACTION.RemoveCurse, state.cursed_target.unit)
   end, execute = function(_, state) return NS.try_cast(ACTION.RemoveCurse, state.cursed_target.unit, "[RESTO] Remove Curse") end },
- { name = "AbolishPoison", matches = function(_, state)
+ { name = "AbolishPoison", matches = function(context, state)
    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.AbolishPoison, 3.0) then return false end
+   if context and (context.control_risk or context.is_group) and state.poison_target then return true end
    return state.poison_target and NS.spell_ready(ACTION.AbolishPoison, state.poison_target.unit)
   end, execute = function(_, state) return NS.try_cast(ACTION.AbolishPoison, state.poison_target.unit, "[RESTO] Abolish Poison") end },
  { name = "ManaPotionFloor", matches = function(_, s) return (s.mana_pct or 100) <= 18 end, execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },

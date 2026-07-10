@@ -512,6 +512,8 @@ local function cure_poison_matches(context, state)
  if not dispel_target then return false end
  if not dispel_target.has_poison then return false end
  if state.lowest and (state.lowest.effective_hp or 100) < 25 then return false end
+ -- Dungeon opt: if control_risk (from fear/MC research), dispel poison aggressively
+ if context and (context.control_risk or context.is_group) then return true end
  return true
 end
 
@@ -523,6 +525,8 @@ local function cure_disease_matches(context, state)
  if not dispel_target then return false end
  if not dispel_target.has_disease then return false end
  if state.lowest and (state.lowest.effective_hp or 100) < 25 then return false end
+ -- Dungeon opt: control_risk boost for disease dispel to avoid deaths/slow clears
+ if context and (context.control_risk or context.is_group) then return true end
  return true
 end
 

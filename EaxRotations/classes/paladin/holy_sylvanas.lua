@@ -682,6 +682,7 @@ local strategies = {
   matches = function(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Cleanse, 3.0) then return false end
    if spec_kit.setting_bool(context, "holy_auto_cleanse", true) == false then return false end
+   if context and (context.control_risk or context.is_group) and s.cleanse_target then return true end
    return can_cast_on(ACTION.Cleanse, s.cleanse_target)
   end,
   execute = function(_, s)
