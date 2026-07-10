@@ -183,7 +183,7 @@ end
 
 -- All 4 gaps + 3 ClassResearchTBC enhancements + Shadowfiend + ManaPotion are now implemented.
 -- PowerWordShieldLowest was removed as duplicate of EmergencyPowerWordShield.
-assert_eq(#strategies, 34, "expected 34 strategies (31 original + Shadowfiend + ManaPotion + FSRPause), got " .. #strategies)
+assert_eq(#strategies, 35, "expected 35 strategies (31 original + Shadowfiend + ManaPotion + FSRPause + MassDispel for dungeon AoE), got " .. #strategies)
 
 print("PASS test_discipline_feature_gaps (gap audit: " .. #strategies .. " strategies present, " .. present_gaps .. "/4 parity gaps closed)")
 

@@ -187,7 +187,7 @@ for _, gap_name in ipairs(parity_gaps) do
     end
 end
 
- local expected_count = 35 -- 32 original + ManaPotion + FSRPause + FearWard (proper tank protection per WoWHead dungeon guides)
+ local expected_count = 36 -- 32 original + ManaPotion + FSRPause + FearWard + MassDispel (WoWHead TBC dungeon AoE dispel for speed/death prevention)
 assert_eq(#strategies, expected_count, "expected " .. expected_count .. " strategies, got " .. #strategies)
 
 print("PASS test_holy_priest_feature_gaps (gap audit: " .. #strategies .. " strategies present, " .. present_gaps .. "/6 parity gaps closed)")
