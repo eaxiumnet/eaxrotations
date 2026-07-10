@@ -68,11 +68,9 @@ local function _update_from_engaged(engaged)
     end
 
     -- Prune GUIDs no longer present in this engaged set
-    for g in pairs(_active) do
-        if not _seen_guids[g] then
-            _active[g] = nil
-        end
-    end
+    local to_del = {}
+    for g in pairs(_active) do if not _seen_guids[g] then to_del[#to_del + 1] = g end end
+    for _, g in ipairs(to_del) do _active[g] = nil end
 end
 
 local function _internal_scan_and_update(range)
