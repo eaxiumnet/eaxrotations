@@ -107,6 +107,8 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
 - Retribution Paladin: Enabled seal twisting by default (Command rank 1 into Blood/Martyr for CS and Judge windows). Matches wowsims APL priority (twist before swing, CS under Blood, Judge under Blood shortly after auto) and Wowhead/Icy Veins TBC guides. The implementation already included CLEU swing diagnostics, PERFECT/PHANTOM logging, dynamic twist window, post-swing judge gate, rank-1 Command prep. Only the default was off; now auto users get source-aligned behavior. All tests green.
 - Sources: wowsims/tbc-new paladin/retribution apl, Wowhead TBC Ret DPS guide, community seal twisting guides.
 - Hunter (all specs): Enhanced with dynamic auto-shot buffer (min(500ms, 25% of current swing)) in hunter_core + shot_timer, matching wowsims APL "Buffer" variable. Updated can_cast_before_auto / can_cast_* across BM/MM/Survival to use dynamic buffer by default for better non-clip decisions and filler insertion (Multi/Arcane/Steady). Centralized helpers exposed. Prior Viper/Hawk + Aimed opener + KC priority already aligned. Tests green. Full shot-weave buffer calculations now closer to APL.
+- Warrior Protection: Added WhirlwindMulti strategy for 2+ targets (AoE threat with stance dance support per APL); moved ShieldBlock higher in priority list (before Taunt, closer to APL rage/ready timing for mitigation). Updated header for clarity. Test count adjusted. All tests green.
+- Sources: wowsims/tbc-new warrior/protection apl, Wowhead/Icy Veins TBC Prot Warrior guides.
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |

@@ -142,8 +142,8 @@ assert_true(strategy_names["Rend"], "Rend should be present - bleed threat")
 assert_true(strategy_names["IntimidatingShout"], "IntimidatingShout should be present - AoE fear")
 assert_true(strategy_names["RageDumpSafetyNet"], "RageDumpSafetyNet should be present - rage cap safety net")
 
-local expected_count = 37
-assert_eq(#strategies, expected_count, "expected " .. expected_count .. " strategies (34 base + Pummel + StanceSwitch), got " .. #strategies)
+local expected_count = 38
+assert_eq(#strategies, expected_count, "expected " .. expected_count .. " strategies (34 base + Pummel + StanceSwitch + WhirlwindMulti), got " .. #strategies)
 assert_true(strategy_names["ShieldSlamPurge"], "ShieldSlamPurge should be present")
 assert_true(strategy_names["TauntSecondary"], "TauntSecondary should be present - tab-target MockingBlow cycling")
 
