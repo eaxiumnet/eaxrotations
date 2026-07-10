@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-07** (spec_kit migration #14 complete; HEAD `87ffb7aa`, pushed to origin).
+> up to date after every work session. Last updated: **2026-07-10** (Tier 3 Destruction fidelity; HEAD `0207e0e4`, pushed to origin).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
