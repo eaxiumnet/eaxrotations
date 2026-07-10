@@ -24,7 +24,8 @@ local SPELLS = NS.DruidSpells or {}
 -- file is self-contained and not ambient-global dependent.
 local core = NS.core or {}
 local _is_spell_learned = (type(core) == "table" and type(core.spell_book) == "table" and core.spell_book.is_spell_learned) or NS.is_spell_learned or nil
-local _get_party_frames = (type(core) == "table" and type(core.object_manager) == "table" and core.object_manager.get_party_frames) or nil
+-- Use central NS.GetPartyMembers (which prioritizes the new core.object_manager.get_party_frames)
+-- for accurate, ordered party list. Direct frames access removed in favor of unified API.
 
 -- ============================================================================
 -- FORM-AWARE CONSUMABLES
@@ -361,16 +362,14 @@ local strategies = {
             -- Poison debuffs
             local poison_debuffs = { 13218, 13219, 13222, 13223, 13225, 13227, 13228, 13229, 13230, 13235, 13237, 13238, 13240, 13241, 23232, 23233, 23235, 23236, 23237 }
             if me and NS.debuff_up(me, poison_debuffs) then return true end
-            -- Scan party members
-            if _get_party_frames then
-                local ok, frames = pcall(_get_party_frames)
-                if ok and type(frames) == "table" then
-                    for i = 1, #frames do
-                        local unit = frames[i]
-                        if unit and unit:is_valid() then
-                            if NS.debuff_up(unit, curse_debuffs) then return true end
-                            if NS.debuff_up(unit, poison_debuffs) then return true end
-                        end
+            -- Scan party members using reliable GetPartyMembers (backed by get_party_frames)
+            local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
+            if party then
+                for i = 1, #party do
+                    local unit = party[i]
+                    if unit and unit:is_valid() then
+                        if NS.debuff_up(unit, curse_debuffs) then return true end
+                        if NS.debuff_up(unit, poison_debuffs) then return true end
                     end
                 end
             end
@@ -394,12 +393,12 @@ local strategies = {
                     use_abolish_poison = true
                 end
             end
-            -- Scan party
-            if not target and _get_party_frames then
-                local ok, frames = pcall(_get_party_frames)
-                if ok and type(frames) == "table" then
-                    for i = 1, #frames do
-                        local unit = frames[i]
+            -- Scan party using reliable GetPartyMembers (new party frames feature)
+            if not target then
+                local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
+                if party then
+                    for i = 1, #party do
+                        local unit = party[i]
                         if unit and unit:is_valid() then
                             if NS.debuff_up(unit, curse_debuffs) then
                                 target = unit

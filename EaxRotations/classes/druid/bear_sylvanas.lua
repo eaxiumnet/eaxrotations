@@ -159,6 +159,8 @@ local bear_state = {
     recent_taunt = 0,
     -- rage tracking
     last_rage = 0,  last_rage_time = 0,  rage_delta = 0,  rage_per_second = 0,
+    -- swing timer
+    swing_remains = 99,
     -- context
     is_group = false,
 }
@@ -318,6 +320,7 @@ local BEAR_SCHEMA = {
     demo_remains = 0,  mangle_remains = 0,
     mangle_ready = false,  mangle_cd = 0,
     healthstone_ready = 0,  potion_ready = 0,
+    swing_remains = 99,
     target_target_exists = false,  target_target_is_me = false,
     target_target_is_tank = false,  target_target_is_player = false,
     target_target_is_healer = false,  loose_target = false,
@@ -425,6 +428,14 @@ local function build_state(context)
     -- consumables
     state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
     state.potion_ready      = first_ready_item(HEALING_POTION_IDS)
+
+    -- Swing timer for Maul gating
+    local swing_remains = 99
+    if state.me and NS.swing_time_until then
+        local ok, sr = pcall(NS.swing_time_until, state.me)
+        if ok and type(sr) == "number" then swing_remains = sr end
+    end
+    state.swing_remains = swing_remains
 
     update_rage_tracking(state)
     -- safe_state proxy: structural nil-guard elimination (Pattern 14)
@@ -641,6 +652,12 @@ local function swipe_cleave_matches(context, action)
     return action_ready(context, action)
 end
 
+local function swing_timer_gate(context, state)
+    if not spec_kit.setting_bool(context, "bear_swing_timer", true) then return true end
+    local swing_remains = (state and state.swing_remains) or 99
+    return swing_remains > 0.3 or swing_remains < 0
+end
+
 -- Maul: on-next-swing rage dump (does NOT consume a GCD — independent of the
 -- GCD chain). Only with excess rage; never starve the next Mangle/Lacerate.
 local function maul_matches(context, action)
@@ -652,6 +669,7 @@ local function maul_matches(context, action)
     if would_starve_mangle(s, RAGE_MAUL) then return false end
     -- on-next-swing: skip if target dies before the swing lands (unless boss)
     if not s.is_target_boss and (s.target_ttd or 999) < 3 then return false end
+    if not swing_timer_gate(context, s) then return false end
     return action_ready(context, action)
 end
 
