@@ -9,9 +9,10 @@
 -- shared combat log parser and rolling buffer.
 
 
-local core = _G.core
-
 local M = {}
+
+-- Pattern 2: cache at load
+local _core_time = _G.core and _G.core.time
 
 local WINDOW_SECONDS = 60
 local entries = {}
@@ -19,8 +20,8 @@ local head = 1
 local tail = 0
 
 local function now_seconds()
-    if core and core.time then
-        return core.time()
+    if _core_time then
+        return _core_time()
     end
 
     return 0
