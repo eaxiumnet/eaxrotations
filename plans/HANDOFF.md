@@ -189,8 +189,10 @@ All 29 specs + leveling rotations grounded in wowsims APLs/guides per become-1 p
 | Plan cleanup | 44 → 15 active plans (35 archived) | `37c20d17`+`618cdcdf` | stale/completed plans moved to `plans/_archive/` |
 | Tier 3 fidelity | All 29 specs + leveling audited vs wowsims APLs/guides; gaps fixed (Envenom, Conflagrate, etc.); core bugfix | multiple (e.g. `f5bd1843`, `644318d4`) | become-1 plan Phase 3 complete |
 | API standardization | Pattern 2 caches + docs in core/main/shared; compliance test extended with core load-cache check; Phase 2/3 validated | `660d2923`, `5341285e` | api-audit Phase 1-3 progress; test_spec_layout_compliance enhanced; full audits green |
-| Class standardization | Druid (bear swing timer, leveling/middleware/schema); Warrior (leveling/schema canonical) | `71302663`, `ed6fd3a5` | progressive commit of dirty class infra changes under spec-standardization |
-| Release packaging | Clean eaxrotations.zip (lua+md only) recreated from HEAD + uploaded to GH release v2.5.2 | (git archive + gh) | fulfills release zip update request; verified no bad entries |
+| Class standardization | Druid (bear swing timer, leveling/middleware/schema); Warrior (leveling/schema canonical); Hunter, Paladin, Priest, Rogue, Shaman (leveling/middleware/schema etc.) | `71302663`..`c77481e8` etc. | progressive one-concern commits of dirty class infra changes under spec-standardization |
+| Core/shared standardization | Updates to core_sylvanas, main_sylvanas, units, shared (auto_*, triage etc.) | `36bb720e`, `9aca3cf7` | api + standardization updates |
+| Test standardization | holy_priest_feature_gaps | `8477393e` | |
+| Release packaging | Clean eaxrotations.zip (lua+md only) recreated from HEAD + uploaded to GH release v2.5.11 | (git archive + gh) | fulfills release zip update request; verified no bad entries; tree cleaned of source M |
 
 ### spec_kit migration progress — COMPLETE (29 of 29 specs) 🎉
 All specs migrated to canonical `spec_kit.safe_state` + `define_action_for_class` + guarded registration + return shape (per refactor-developer-experience and _active.md). Reference: arms_sylvanas.lua. See test_spec_layout_compliance.lua CONVERTED table and EaxRotations/README.md for details. No legacy remaining.
