@@ -47,6 +47,7 @@ Priority shared modules that affect every spec:
 - [x] Resto Shaman — added downrank Chain Heal for mana in cluster/triage per guides. (2026-07-10)
 - [x] Resto Priest (Holy/Discipline) — audited vs guides; strong with Renew, PW:S, Greater/Flash Heal (with downrank tiers), CoH, PoH, Lightwell. Matches TBC consensus for raid/single target. No major gaps found. (2026-07-10)
 - [x] Elemental Shaman — moved main totems (ToW, WoA, Mana Spring) to high priority per APL (before LB/CL). (2026-07-10)
+- [x] Frost Mage — audited vs guides; strong Frostbolt with shatter Ice Lance, IV/WE/Cold Snap burst, AoE. (2026-07-10)
 - [ ] Tier 3: remaining specs and leveling rotations.
 - [ ] Tier 3: remaining specs and leveling rotations.
 
