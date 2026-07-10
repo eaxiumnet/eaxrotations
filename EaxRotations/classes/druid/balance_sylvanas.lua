@@ -1,9 +1,7 @@
 -- balance_sylvanas.lua — Druid Balance (moonkin) rotation for TBC Anniversary (2.5.5).
--- WHAT:  ranged DPS rotation (Moonfire + Insect Swarm up, Starfire / Wrath filler, Eclipse-aware).
--- WHEN:  combat, in caster form, mana and target are valid.
--- WHY:   mirrors priority APL
---          (Moonfire > Insect Swarm > Eclipse proc Starfire > Starfire > Wrath)
---          with mana-aware fallback to wand / potions.
+-- WHAT:  ranged DPS rotation (Moonfire + Insect Swarm up, Faerie Fire, Starfire filler with Wrath for mana, Starfall, Force of Nature).
+-- WHEN:  combat, in Moonkin form, with valid enemy target.
+-- WHY:   mirrors wowsims/tbc-new balance APL and TBC guides (dots up, Faerie Fire, Starfire primary filler, Starfall on CD, self-Innervate low mana, treants on CD).
 -- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
 
 local NS = _G.EaxRotations
@@ -172,7 +170,7 @@ local function _choose_nuke(s, ctx)
     -- Nature's Grace active: Starfire for burst (NG reduces cast time).
     if s.natures_grace_active then return "starfire" end
     -- Mana conservation: Wrath has higher DPM (damage per mana) than Starfire.
-    -- Wowsims defaults to Starfire (higher DPCT) and uses Wrath only for long fights.
+    -- Wowsims/tbc-new and guides default to Starfire (higher DPCT) and use Wrath for mana conservation or filler.
     local mana_floor = (settings and settings.balance_wrath_mana) or 35
     if m < mana_floor then return "wrath" end
     -- Default nuke: Starfire (higher DPCT — wowsims-aligned).

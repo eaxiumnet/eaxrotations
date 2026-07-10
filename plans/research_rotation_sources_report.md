@@ -109,6 +109,7 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
 - Hunter (all specs): Enhanced with dynamic auto-shot buffer (min(500ms, 25% of current swing)) in hunter_core + shot_timer, matching wowsims APL "Buffer" variable. Updated can_cast_before_auto / can_cast_* across BM/MM/Survival to use dynamic buffer by default for better non-clip decisions and filler insertion (Multi/Arcane/Steady). Centralized helpers exposed. Prior Viper/Hawk + Aimed opener + KC priority already aligned. Tests green. Full shot-weave buffer calculations now closer to APL.
 - Warrior Protection: Added WhirlwindMulti strategy for 2+ targets (AoE threat with stance dance support per APL); moved ShieldBlock higher in priority list (before Taunt, closer to APL rage/ready timing for mitigation). Updated header for clarity. Test count adjusted. All tests green.
 - Sources: wowsims/tbc-new warrior/protection apl, Wowhead/Icy Veins TBC Prot Warrior guides.
+- Balance Druid: Cleaned header and comments (removed incorrect "Eclipse-aware" references — Eclipse is WotLK, not TBC 2.5.5). Priorities confirmed aligned: Moonfire + Insect Swarm, Faerie Fire, Starfire filler (Wrath for mana), Starfall, Force of Nature, self-Innervate. Matches wowsims/tbc-new APL and guides. All tests green.
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |
