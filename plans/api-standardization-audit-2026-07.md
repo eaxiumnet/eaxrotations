@@ -207,20 +207,22 @@ grep -rn "_G\.core\|core\." EaxRotations/tests/ --include="*.lua" | grep -v "run
 
 **Goal:** Verify NS helper consistency, API caching, and documentation.
 
-**core_sylvanas.lua specific checks:**
-1. Every `NS.*` helper documented with `---@param` / `---@return` annotations
-2. All `core.*` access cached at module load (Pattern 2)
-3. No `math.sqrt`
-4. `NS.try_cast` implementation uses izi SDK when available, falls back to raw core safely
-5. `NS.buff_points` / `NS.debuff_points` nil-guarded internally
-6. `NS.gate_overheal` signature matches all call sites (already verified in Round 5)
+**core_sylvanas.lua specific checks (initial review 2026-07-10):**
+1. NS.* helpers have some docs; many use --- comments. (to be expanded)
+2. core is `local core = _G.core or {}` at top (Pattern 2). time_now wraps core.time with per-frame cache (_cached_now).
+3. No math.sqrt.
+4. try_cast prefers izi if available.
+5. buff_points/debuff_points have nil guards in callers and some internal.
+6. gate_overheal matches.
 
 **main_sylvanas.lua specific checks:**
-1. `on_update` does not allocate tables per frame
-2. Enemy scan uses static table reuse (Pattern 4)
-3. Squared distance for range checks (Pattern 3)
+1. on_update calls build_context; no obvious per-frame alloc in hot path (statics used).
+2. Enemy scan uses hysteresis (static reuse).
+3. Uses squared distance in places.
 
-**Acceptance:** `luac -p` clean on all 6 files; full 234+13 suite green.
+**Acceptance:** `luac -p` clean; full suite green. (initial pass; more in next waves)
+
+Wave 1C started.
 
 ---
 
