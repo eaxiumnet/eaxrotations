@@ -498,6 +498,28 @@ local function get_initial_playstyle_index()
     return get_playstyle_index(selected or (class_config and class_config.default_playstyle) or playstyle_keys[1])
 end
 
+-- Prefer the live combobox widget (quick toggles) for immediate playstyle feedback.
+-- Falls back to settings / framework. Used for labels, roles, and to keep UI responsive
+-- even if manager cache or get_setting lags after a user selection.
+local function get_active_playstyle()
+    if menu_elements and menu_elements.playstyle_combo then
+        local ok, idx = pcall(function() return menu_elements.playstyle_combo:get() end)
+        if ok and type(idx) == "number" and playstyle_keys[idx] then
+            local v = playstyle_keys[idx]
+            if type(v) == "string" and v ~= "" then return v end
+        end
+    end
+    if NS and NS.get_setting then
+        local v = NS.get_setting("playstyle", nil) or NS.get_setting("active_playstyle", nil)
+        if type(v) == "string" and v ~= "" then return v end
+    end
+    if framework_core and framework_core.get_setting then
+        local v = framework_core.get_setting("active_playstyle", nil) or framework_core.get_setting("playstyle", nil)
+        if type(v) == "string" and v ~= "" then return v end
+    end
+    return (class_config and class_config.default_playstyle) or (playstyle_keys and playstyle_keys[1]) or "auto"
+end
+
 local menu_elements = {
     main_tree = core.menu.tree_node(),
     quick_toggles_tree = core.menu.tree_node(),
@@ -636,36 +658,30 @@ local function sync_playstyle_control()
     local ok, combo_index = pcall(function() return menu_elements.playstyle_combo:get() end)
     if not ok or type(combo_index) ~= "number" then return end
 
-    if _last_playstyle_combo_index == nil then
-        _last_playstyle_combo_index = combo_index
-        local value = playstyle_keys[combo_index]
-        if type(value) == "string" and value ~= "" then
-            -- set_setting removed
-            if _last_playstyle_log ~= value then
-                _last_playstyle_log = value
-                core.log("[EaxRotations] Active playstyle: " .. tostring(value))
-            end
-        end
-        return
-    end
+    local value = playstyle_keys[combo_index]
+    if type(value) ~= "string" or value == "" then return end
 
-    local current_playstyle = framework_core.get_setting and framework_core.get_setting("active_playstyle", nil)
-
-    -- Detect if user changed the combobox (index changed since last read)
-    if combo_index ~= _last_playstyle_combo_index then
-        -- User clicked the combobox — write selection to settings
-        local value = playstyle_keys[combo_index]
-        if type(value) == "string" and value ~= "" then
-            -- set_setting calls removed
-            if _last_playstyle_log ~= value then
-                _last_playstyle_log = value
-                core.log("[EaxRotations] Active playstyle: " .. tostring(value))
-            end
+    -- Always track last seen; log only when it actually changes (user action or init)
+    local is_first = (_last_playstyle_combo_index == nil)
+    local changed = (not is_first and combo_index ~= _last_playstyle_combo_index)
+    if is_first or changed then
+        if _last_playstyle_log ~= value then
+            _last_playstyle_log = value
+            core.log("[EaxRotations] Active playstyle: " .. tostring(value))
         end
         _last_playstyle_combo_index = combo_index
-        return
     end
 
+    -- Back-sync: if a persisted setting (manager / prior value) differs from widget, push it to widget.
+    -- This lets saved choice or external set drive the combo at startup or on rare overrides.
+    -- Note: widget + injection is authoritative for runtime; this is UI correction only.
+    local current_playstyle = nil
+    if NS and NS.get_setting then
+        current_playstyle = NS.get_setting("active_playstyle", nil) or NS.get_setting("playstyle", nil)
+    end
+    if not current_playstyle then
+        current_playstyle = framework_core and framework_core.get_setting and framework_core.get_setting("active_playstyle", nil)
+    end
     if current_playstyle then
         local setting_index = get_playstyle_index(current_playstyle)
         if setting_index ~= combo_index then
@@ -694,7 +710,7 @@ local function on_control_panel_render()
     local _role = "hybrid"
     local _caps = nil
     if MenuTheme and _class_key then
-        local _active = framework_core and framework_core.get_setting and framework_core.get_setting("active_playstyle") or nil
+        local _active = get_active_playstyle()
         _role = MenuTheme.role_for_playstyle(_class_key, _active)
         _caps = MenuTheme.capabilities(_role)
     end
@@ -758,7 +774,7 @@ local function render_menu()
     -- [#5] All subtrees rendered INSIDE main_tree so they appear as children,
     -- not orphaned top-level trees floating independently.
     menu_elements.main_tree:render("EaxRotations", function()
-        local active_playstyle = framework_core and framework_core.get_setting and framework_core.get_setting("active_playstyle") or playstyle_options[1] or "unknown"
+        local active_playstyle = get_active_playstyle()
 
         -- [#4] Use pre-allocated header instead of core.menu.header() per frame
         local rotation_state = framework_core and framework_core.get_setting and framework_core.get_setting("rotation_enabled", true) ~= false
@@ -990,6 +1006,21 @@ local function on_update()
     st.use_interrupt = interrupts_enabled
     st.utility_enabled = utility_enabled
     st.use_threat_drop = threat_drop_enabled
+
+    -- Playstyle is driven by the Quick Toggles combobox. Inject so that:
+    -- * context.settings.playstyle is visible to spec_kit.setting / NS.setting
+    -- * dispatcher fallbacks see it when we check context first
+    -- Widget state is always the source of truth; this makes changes take effect immediately.
+    if menu_elements.playstyle_combo then
+        local okp, pidx = pcall(function() return menu_elements.playstyle_combo:get() end)
+        if okp and type(pidx) == "number" then
+            local pval = playstyle_keys[pidx]
+            if type(pval) == "string" and pval ~= "" then
+                st.playstyle = pval
+                st.active_playstyle = pval
+            end
+        end
+    end
 
     if control_panel_helper and control_panel_helper.on_update then
         local cp_ok, cp_err = pcall(function() control_panel_helper:on_update(menu_elements) end)

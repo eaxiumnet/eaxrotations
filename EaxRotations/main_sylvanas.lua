@@ -1546,11 +1546,19 @@ function M.on_rotation_update()
     end
     local registry = NS.rotation_registry
     local config = registry and registry.class_config or nil
-    local requested_playstyle = NS.get_setting("playstyle", nil)
+    -- Prefer injected context.settings (from quick toggles widget) so playstyle changes
+    -- in the UI take effect immediately. Fall back to NS.get_setting for persisted values.
+    local requested_playstyle = nil
+    if context and context.settings then
+        requested_playstyle = context.settings.playstyle or context.settings.active_playstyle
+    end
+    if requested_playstyle == nil and NS.get_setting then
+        requested_playstyle = NS.get_setting("playstyle", nil)
+    end
     -- v2.5.1: treat "auto" as no-preference (delegate to talent inference)
     if requested_playstyle == "auto" then requested_playstyle = nil end
     local active_source = (type(requested_playstyle) == "string" and requested_playstyle ~= "") and requested_playstyle
-        or NS.get_setting("active_playstyle", config and config.default_playstyle)
+        or (NS.get_setting and NS.get_setting("active_playstyle", config and config.default_playstyle) or (config and config.default_playstyle))
     local active = normalize_playstyle(registry, active_source)
     local auto_detected = false
     if (not requested_playstyle or requested_playstyle == "") and (context.is_leveling or context.is_solo) and registry and registry.playstyles and registry.playstyles.leveling then
@@ -1630,11 +1638,19 @@ function M.on_rotation_update_unified()
     end
     local registry = NS.rotation_registry
     local config = registry and registry.class_config or nil
-    local requested_playstyle = NS.get_setting("playstyle", nil)
+    -- Prefer injected context.settings (from quick toggles widget) so playstyle changes
+    -- in the UI take effect immediately. Fall back to NS.get_setting for persisted values.
+    local requested_playstyle = nil
+    if context and context.settings then
+        requested_playstyle = context.settings.playstyle or context.settings.active_playstyle
+    end
+    if requested_playstyle == nil and NS.get_setting then
+        requested_playstyle = NS.get_setting("playstyle", nil)
+    end
     -- v2.5.1: treat "auto" as no-preference (delegate to talent inference)
     if requested_playstyle == "auto" then requested_playstyle = nil end
     local active_source = (type(requested_playstyle) == "string" and requested_playstyle ~= "") and requested_playstyle
-        or NS.get_setting("active_playstyle", config and config.default_playstyle)
+        or (NS.get_setting and NS.get_setting("active_playstyle", config and config.default_playstyle) or (config and config.default_playstyle))
     local active = normalize_playstyle(registry, active_source)
     local auto_detected = false
     if (not requested_playstyle or requested_playstyle == "") and (context.is_leveling or context.is_solo) and registry and registry.playstyles and registry.playstyles.leveling then

@@ -2,6 +2,17 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.5.16] — Quick Toggles Playstyle Fix (2026-07-11)
+
+- Fixed Playstyle combobox in Quick Toggles: user selections now correctly change the active playstyle/rotation.
+- Previously stuck (e.g. always "warlock/autotalent" or auto) due to missing widget-to-setting injection after set_setting removal + dispatcher reading only get_setting.
+- Now: combobox value always injected into NS.settings (visible in context.settings); main_sylvanas prefers context.settings.playstyle; get_active_playstyle() helper (prefers live widget) used for all UI (headers, colors, control panel).
+- Applies to **all classes and specs** (Warrior, Druid's cat/bear/balance/caster/resto, Priest smite/shadow/etc, Warlock auto+specs, Hunter, Mage, Paladin, Rogue, Shaman).
+- Updated changelogs.
+- New eaxrotations.zip containing only .lua + .md files.
+- Version bump to 2.5.16 in header.lua + changelogs.
+- luac -p + 252 rotation + 17 leveling suites all green.
+
 ## [2.5.15] — Control Panel Visibility Fix (2026-07-11)
 
 - Control panel entries for rotation, damage, cooldowns, AoE, interrupts, utility, threat drops now always show (fallback to "Unbound"). Switched key defaults from 7 (hidden) to 999 (visible per plugin-helper.md and control-panel.md).
