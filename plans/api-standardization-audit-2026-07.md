@@ -115,8 +115,9 @@ grep -rn "core\.object_manager\.get_local_player\|core\.time\|core\.spell_book" 
 
 **Findings & Fixes (2026-07-10):**
 - hot_tick_tracker_sylvanas.lua: now_s() fell back to core.time without top-level cache. Fixed: added `local _core_time = _G.core and _G.core.time` at load; use in fallback. (Pattern 2)
-- combat_log_parser, incoming_heal_predictor, trinket_manager: similar direct core.time (in ifs or lazy); noted for batch. No other hot-path uncached in shared.
-- luac + full suite green after fix.
+- combat_log_parser_sylvanas.lua: now_seconds() used direct core.time. Fixed: cache at load + use _core_time. (Pattern 2)
+- incoming_heal_predictor, trinket_manager: similar direct core.time (noted for batch). No other hot-path uncached.
+- luac + full suite green after fixes.
 
 #### Grep Pattern 10: Static table allocation in loops (Pattern 4 violation)
 ```bash
