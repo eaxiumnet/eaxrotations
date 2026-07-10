@@ -90,6 +90,7 @@ local REFLECT_WHITELIST = {
     [2139] = true, -- Counterspell
     -- Warlock
     [5782] = true, [6213] = true, [6215] = true, -- Fear
+    [46561] = true, -- Fear (SWP Sunblade Dusk Priest)
     [686] = true, [695] = true, [705] = true, [1088] = true, [1106] = true, [7641] = true,
     [11659] = true, [11660] = true, [11661] = true, [25307] = true, [27209] = true, -- Shadow Bolt
     [6789] = true, -- Death Coil

@@ -87,6 +87,9 @@ local FEAR_DEBUFF_IDS = {
     [8122] = true, [10888] = true, [10890] = true, -- Psychic Scream
     [5246] = true,                                  -- Intimidating Shout
     [33111] = true,                                 -- Bellowing Roar (Nightbane)
+    [39415] = true,                                 -- Fear (Skyriss)
+    [19134] = true,                                 -- Frightening Shout (Fel Overseer)
+    [46561] = true,                                 -- Fear (Sunblade Dusk Priest SWP)
 }
 local SAP_DEBUFF_IDS = {
     [6770] = true, [2070] = true, [11297] = true,  -- Sap
