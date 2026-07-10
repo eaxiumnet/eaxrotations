@@ -2,13 +2,16 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
-## [2.5.14] — Log File IO Cleanup & Spam Fix (2026-07-10)
+## [2.5.15] — Control Panel Visibility Fix (2026-07-11)
 
-- Removed all manual log/data file IO saving logic (create_log_file, write_log_file, early set_setting, grace periods for saves) that caused "File name not set. Please specify a valid file name before saving" spam.
-- Diagnostics and logging now prefer izi.log (per Sylvanas docs recommendation) instead of manual file management.
-- Version bump to 2.5.14 across header, VERSION.txt, README, changelogs.
-- Clean eaxrotations.zip (only .lua + .md files).
+- Control panel entries for rotation, damage, cooldowns, AoE, interrupts, utility, threat drops now always show (fallback to "Unbound"). Switched key defaults from 7 (hidden) to 999 (visible per plugin-helper.md and control-panel.md).
+- Removed set_setting writes in syncs to prevent "File name not set" spam; states injected from widgets via get_keybind_toggle_state into settings for gating.
+- Verified working with recent changes (injected states used correctly in main_sylvanas, core_sylvanas, strategy_gating etc.; no regressions).
+- Version bump to 2.5.15 in all files.
+- Clean eaxrotations.zip (only .lua + .md).
 - All tests and audits green.
+
+## [2.5.14] — Log File IO Cleanup & Spam Fix (2026-07-10)
 
 ## [2.5.13] — Log File IO Cleanup & Spam Fix (2026-07-10)
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.5.15 - 2026-07-11
+
+### Customer Changelog
+- Control panel quick toggles (Rotation, Healing, Damage, Cooldowns, AoE, Interrupts, Utility, Threat Drops) now always visible with fallback to "Unbound" (no keybind needed). Changed from 7 (hidden) to 999 (visible per docs).
+- Removed set_setting writes during sync to fix host "File name not set" spam on reload; widget states injected directly into settings for correct gating.
+- Verified toggles work as intended with recent IO removal and other changes (states used in gating logic).
+- Version bumped to 2.5.15.
+- All tests remain passing (252 + 17 suites).
+
 ## 2.5.14 - 2026-07-10
 
 ### Customer Changelog

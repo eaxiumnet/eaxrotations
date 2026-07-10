@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-10** (v2.5.14: removed manual log/data file IO saving to fix "File name not set" spam; prefer izi.log; version bump in all files; clean zip to GH with changelogs; tests green; rotations COMPLETE).
+> up to date after every work session. Last updated: **2026-07-11** (v2.5.15: control panel entries always show fallback "Unbound" (999), removed set_setting writes, inject states from widgets; verified; version bump all files; clean zip to GH with changelogs; tests green; rotations COMPLETE).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
@@ -184,7 +184,7 @@ Or run the suites directly:
 
 ---
 
-## CURRENT STATE (v2.5.14, HEAD current)
+## CURRENT STATE (v2.5.15, HEAD current)
 
 **Baseline:** 252 rotation + 17 leveling suites PASS / 0 fail on Lua 5.1.5.
 Spell audit PASS. Pre-commit hooks green (luac + vanilla audit + DBC audit).

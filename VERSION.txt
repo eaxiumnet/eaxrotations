@@ -1,13 +1,13 @@
-EaxRotations v2.5.14
+EaxRotations v2.5.15
 Released: 2026-07-10
 Game: The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
 Commit: (git describe)
 
 === WHAT'S NEW ===
-- Fixed "File name not set. Please specify a valid file name before saving" spam from log files by removing all manual IO saving logic (early set_setting, grace periods, references to log/data file creation for saving).
-- Switched diagnostics logging to prefer izi.log (as recommended in Sylvanas docs) instead of manual log file management.
+- Control panel quick toggles (rotation, healing, damage, cooldowns, AoE, interrupts, utility, threat drops) now always visible with fallback to "Unbound" (no keybind required). Changed defaults from 7 (hidden) to 999 (visible unbound per plugin-helper docs). Removed set_setting writes in syncs to avoid host save spam; states now injected directly from widgets into settings for gating.
+- Verified toggles work with current changes (injected states used in main_sylvanas, core_sylvanas, strategy_gating etc.).
 - All rotation and leveling tests remain passing (252 + 17 suites).
-- Version bump to 2.5.14, clean zip packaging.
+- Version bump to 2.5.15, clean zip packaging.
 
 === QUALITY GATES ===
 - Rotation test suites: 252/252 PASS

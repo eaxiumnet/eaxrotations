@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-10 (v2.5.14 release: removed IO log/data saving to fix spam, izi.log, version bump in all files, clean zip to GH with changelogs; tests green; rotations COMPLETE).
+**Last updated:** 2026-07-11 (v2.5.15: control panel entries now always show with "Unbound" fallback (999 instead of 7), removed set_setting writes, states injected from widgets; verified working; version bump; clean zip to GH; tests green).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 

@@ -26,7 +26,7 @@ if not izi_ok or not izi then
     return
 end
 
--- (early set_setting calls removed to prevent save issues)
+-- (early set_setting calls removed)
 
 -- Get plugin info from header
 local header_ok, plugin_info = pcall(require, "header")
@@ -502,14 +502,14 @@ local menu_elements = {
     main_tree = core.menu.tree_node(),
     quick_toggles_tree = core.menu.tree_node(),
     playstyle_combo = core.menu.combobox(get_initial_playstyle_index(), "eaxrotations_active_playstyle_combo"),
-    enable_script_check = core.menu.keybind(7, true, "eax_rotation_enabled_keybind"),
-    healing_toggle = core.menu.keybind(7, true, "eax_healing_enabled_keybind"),
-    damage_toggle = core.menu.keybind(7, true, "eax_damage_enabled_keybind"),
-    cooldowns_toggle = core.menu.keybind(7, true, "eax_cooldowns_enabled_keybind"),
-    aoe_toggle = core.menu.keybind(7, true, "eax_aoe_enabled_keybind"),
-    interrupts_toggle = core.menu.keybind(7, true, "eax_interrupts_enabled_keybind"),
-    utility_toggle = core.menu.keybind(7, true, "eax_utility_enabled_keybind"),
-    threat_drop_toggle = core.menu.keybind(7, true, "eax_threat_drop_enabled_keybind"),
+    enable_script_check = core.menu.keybind(999, true, "eax_rotation_enabled_keybind"),
+    healing_toggle = core.menu.keybind(999, true, "eax_healing_enabled_keybind"),
+    damage_toggle = core.menu.keybind(999, true, "eax_damage_enabled_keybind"),
+    cooldowns_toggle = core.menu.keybind(999, true, "eax_cooldowns_enabled_keybind"),
+    aoe_toggle = core.menu.keybind(999, true, "eax_aoe_enabled_keybind"),
+    interrupts_toggle = core.menu.keybind(999, true, "eax_interrupts_enabled_keybind"),
+    utility_toggle = core.menu.keybind(999, true, "eax_utility_enabled_keybind"),
+    threat_drop_toggle = core.menu.keybind(999, true, "eax_threat_drop_enabled_keybind"),
     settings_tree = core.menu.tree_node(),
     diagnostics_tree = core.menu.tree_node(),
     dump_spells_btn = core.menu.button("eax_dump_spells"),
@@ -592,15 +592,17 @@ local quick_toggle_defs = {
 local function get_keybind_toggle_state(control, default)
     if not control then return default end
     -- Read the widget's actual toggle state first. The user may have clicked
-    -- the UI toggle while leaving the keybind on the default key (7).
+    -- the UI toggle while leaving the keybind on default (999/unbound).
     local ok, value = pcall(function() return control:get_toggle_state() end)
     if ok and type(value) == "boolean" then return value end
     -- get_toggle_state() returned non-boolean or threw.
     -- CRITICAL: for keybind widgets, get_state() returns KEY PRESS STATE
-    -- (is the key currently held?), NOT toggle state. When the key is not
-    -- pressed it returns false, which would falsely disable rotation.
-    -- Only fall back to get_state() for non-keybind widgets (checkboxes).
-    local key_ok = pcall(function() return control:get_key_code() end)
+    -- (is the key currently held?), NOT toggle state.
+    -- For no-bind (7/999), force our default.
+    local key_ok, key_code = pcall(function() return control:get_key_code() end)
+    if key_ok and (key_code == 7 or key_code == 999) then
+        return default
+    end
     if not key_ok then
         -- Not a keybind (checkbox/toggle) — get_state() is safe
         ok, value = pcall(function() return control:get_state() end)
@@ -613,15 +615,18 @@ local function get_keybind_name(control)
     if not control then return "Unbound" end
     local ok, key_code = pcall(function() return control:get_key_code() end)
     if not ok then return "Unbound" end
+    if not key_code or key_code == 0 or key_code == 7 or key_code == 999 then
+        return "Unbound"
+    end
     if key_helper and key_helper.get_key_name then
         local name_ok, name = pcall(function() return key_helper:get_key_name(key_code) end)
         if name_ok and name then return tostring(name) end
     end
-    return tostring(key_code or 7)
+    return tostring(key_code)
 end
 
 local function sync_quick_toggles()
-    -- set_setting removed (to stop host save spam on reload)
+    -- set_setting removed; no writes for these toggles
 end
 
 local _last_playstyle_combo_index = nil
@@ -966,6 +971,26 @@ local function on_update()
         end
     end
 
+    -- Resolve quick toggle states from widgets (injected to settings for gating).
+    -- states injected from widgets (no set_setting writes)
+    local healing_enabled = get_keybind_toggle_state(menu_elements.healing_toggle, true)
+    local damage_enabled = get_keybind_toggle_state(menu_elements.damage_toggle, true)
+    local cooldowns_enabled = get_keybind_toggle_state(menu_elements.cooldowns_toggle, true)
+    local aoe_enabled = get_keybind_toggle_state(menu_elements.aoe_toggle, true)
+    local interrupts_enabled = get_keybind_toggle_state(menu_elements.interrupts_toggle, true)
+    local utility_enabled = get_keybind_toggle_state(menu_elements.utility_toggle, true)
+    local threat_drop_enabled = get_keybind_toggle_state(menu_elements.threat_drop_toggle, true)
+
+    local st = NS.settings or {}
+    st.rotation_enabled = rotation_enabled
+    st.healing_enabled = healing_enabled
+    st.damage_enabled = damage_enabled
+    st.use_cooldowns = cooldowns_enabled
+    st.aoe_enabled = aoe_enabled
+    st.use_interrupt = interrupts_enabled
+    st.utility_enabled = utility_enabled
+    st.use_threat_drop = threat_drop_enabled
+
     if control_panel_helper and control_panel_helper.on_update then
         local cp_ok, cp_err = pcall(function() control_panel_helper:on_update(menu_elements) end)
         if not cp_ok then
@@ -980,7 +1005,7 @@ local function on_update()
     sync_quick_toggles()
     sync_playstyle_control()
 
-    -- schema widget sync removed (set_setting calls removed to eliminate early host save spam on reload)
+    -- schema widget sync (writes removed)
 
     -- Check if script is enabled after menu settings are synchronized.
     -- rotation_enabled already resolved above (before widget sync) to allow
