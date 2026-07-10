@@ -2,7 +2,7 @@
 -- WHAT: raid healer (Greater Heal, Flash Heal, CoH, Prayer of Mending, Renew, Lightwell).
 -- WHEN: combat or pre-combat, with valid friendly targets.
 -- WHY:   mirrors TBC holy priest consensus from wowsims (no APL but community), Icy Veins, Wowhead: PoM on CD + CoH (3+ hurt) + GH/Flash spot + Lightwell + Renew rolling.
--- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); FSRPause delegates to FsrManager (post-emergency, pre-filler); no on_update() allocs.
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -169,6 +169,8 @@ local HOLY_SCHEMA = {
     symbol_of_hope_ready = false,
     friendly_target_ready = false,
     mana_pct = 100,
+    in_combat = false,
+    lowest_hp_pct = 100,
     -- FSR state (Five-Second Rule)
     fsr_inside = false, fsr_seconds = 0, fsr_regen_delta = 0,
 }
@@ -176,6 +178,9 @@ local HOLY_SCHEMA = {
 local holy_state = {
  lowest = nil,
  lowest_hp = 100,
+ in_combat = false,
+ mana_pct = 100,
+ lowest_hp_pct = 100,
  fear_ward_ready = false,
  has_fear_ward = false,
  fear_ward_target = nil,

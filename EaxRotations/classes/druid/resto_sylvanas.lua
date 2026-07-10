@@ -719,24 +719,18 @@ local strategies = {
   return true
   end, execute = function(_, state) return NS.try_cast(ACTION.HealingTouch, state.ht_target.unit, "[RESTO] Healing Touch emergency") end },
 
+  -- FSRPause after emergencies (Preemptive/NS/Swiftmend/Tranquility/LeaveTree/HTMax) before fillers (Regrowth/Lifebloom/Rejuv/Downrank etc.)
   { name = "FSRPause",
    matches = function(context, state)
     if not FsrManager then return false end
-    if not context.in_combat then return false end
-    if (state.mana_pct or 100) > 35 then return false end
-    if not state.fsr_inside then return false end
-    if (state.fsr_regen_delta or 0) <= 0 then return false end
-    local pause_ok, reason = FsrManager.should_pause_for_fsr(state, context)
-    return pause_ok
+    if not state.in_combat then return false end
+    if not state.fsr_inside or (state.fsr_regen_delta or 0) <= 0 then return false end
+    return FsrManager.should_pause_for_fsr(state, context)
    end,
    execute = function(_, state)
     return true
    end,
   },
- -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
- -- Placed after the emergency tier (Swiftmend / NS / NS+HT / Tranquility /
- -- HealingTouchMaxEmergency) so life-critical saves win, but before routine
- -- spot heals (RegrowthSpotHeal / Lifebloom / Rejuvenation / DownrankHT) so a
 
  { name = "RegrowthSpotHeal", matches = function(context, state)
   if context.is_moving or not state.regrowth_target or state.mana_conserve then return false end

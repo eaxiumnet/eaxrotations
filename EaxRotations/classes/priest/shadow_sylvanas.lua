@@ -4,8 +4,12 @@
 --         cooldown planning.
 -- WHEN:  combat, with valid enemy target.
 -- WHY:   mirrors wowsims APL: VT > SW:P > MB > SW:D (execute) > Mind Flay filler.
--- SAFETY: SW:D has safety_floor; Pattern 14 eliminated via spec_kit.safe_state();
---         no on_update() allocs.
+-- SAFETY: SW:D has safety_floor; Pattern 14 via spec_kit.safe_state(); _last_* throttles,
+--         pcall requires, statics, nil-guards, context._*_target handoff, lockouts;
+--         tracker wired (PR2) for _find + build_state counts with legacy fallback + setting gate.
+--         General: other specs can pcall require shared/active_fight_tracker_sylvanas and call
+--         get_active_fights / find_undotted_target / count for their multidot (engagement safe).
+--         No on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PriestSpells or {}
@@ -47,6 +51,8 @@ local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local _snap_ok, Snapshot = pcall(require, "shared/snapshot_sylvanas")
 if not _snap_ok or type(Snapshot) ~= "table" then Snapshot = nil end
+local _tracker_ok, ActiveFightTracker = pcall(require, "shared/active_fight_tracker_sylvanas")
+if not _tracker_ok or type(ActiveFightTracker) ~= "table" then ActiveFightTracker = nil end
 local _last_shadow_cc_scan = 0
 local _last_multidot_scan = 0
 local _cached_dotted_swp = 0
@@ -141,7 +147,19 @@ end
 -- Returns the first nearby enemy that does NOT have any of the given debuff IDs.
 -- Used so SW:P/VT spread/cleave strategies actually hit a missing target instead
 -- of recasting on context.target (which already has the DoT).
+-- PR2: prefers ActiveFightTracker.find_undotted_target (engagement-aware, GUID model)
+-- when available + setting gate; legacy raw scan kept as fallback (compat).
 local function _find_multidot_target(context, debuff_ids, range)
+    -- Setting gate for tracker multi-dot maintenance (default on; old multidot_mode still gates strategies)
+    local use_tracker = true
+    if context then
+        use_tracker = spec_kit.setting_bool(context, "shadow_multidot_maintenance", true)
+    end
+    if use_tracker and ActiveFightTracker and ActiveFightTracker.find_undotted_target then
+        local ok, t = pcall(ActiveFightTracker.find_undotted_target, context, debuff_ids, range)
+        if ok and t then return t end
+    end
+    -- legacy fallback (raw GetEnemiesInRange path)
     if not context or not NS.GetEnemiesInRange then return nil end
     range = range or spec_kit.setting_number(context, "shadow_multidot_range", 30)
     local enemies = NS.GetEnemiesInRange(range)
@@ -528,6 +546,8 @@ local function build_state(context)
     -- Bloodlust/Heroism buff â€” enables more aggressive snapshot upgrade threshold
     shadow_state.has_bloodlust = me and NS.buff_up(me, BLOODLUST_BUFFS) or false
     -- Multi-DoT: scan nearby enemies for missing DoTs (throttled to 1s)
+    -- PR2: uses tracker.get_active_fights (when gate+available) for engaged-only counts; legacy raw as fallback.
+    -- State fields always populated for UI/tests/compat regardless of path.
     shadow_state.dotted_swp_count = 0
     shadow_state.enemies_missing_swp = 0
     shadow_state.dotted_vt_count = 0
@@ -536,12 +556,22 @@ local function build_state(context)
     if (now_t - _last_multidot_scan) >= 1.0 then
         _last_multidot_scan = now_t
         if shadow_state.in_combat and shadow_state.enemy_count >= 2 then
-            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(shadow_state.multidot_range) or {}
+            -- Setting gate (default on) + tracker path for counts
+            local use_tracker = spec_kit.setting_bool(context, "shadow_multidot_maintenance", true)
+            local enemies = {}
+            if use_tracker and ActiveFightTracker and ActiveFightTracker.get_active_fights then
+                local ok, f = pcall(ActiveFightTracker.get_active_fights, shadow_state.multidot_range or 30)
+                enemies = (ok and f) or {}
+            else
+                enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(shadow_state.multidot_range) or {}
+            end
             local swp_missing = 0
             local swp_dotted = 0
             local vt_missing = 0
             local vt_dotted = 0
-            for _, enemy in ipairs(enemies) do
+            local cnt = (enemies and (enemies.n or #enemies)) or 0
+            for i = 1, cnt do
+                local enemy = enemies[i]
                 if enemy then
                     local has_swp = NS.debuff_up and NS.debuff_up(enemy, SHADOW_WORD_PAIN_DEBUFF) or false
                     local has_vt = NS.debuff_up and NS.debuff_up(enemy, VAMPIRIC_TOUCH_DEBUFF) or false
@@ -695,7 +725,7 @@ local function shadow_swp_spread_matches(context, s)
     if not _engaged_with_player(context) then return false end
     -- Per-target lockout: prevent double-queuing SW:P to same target while in-flight
     if _is_locked("SWP") then return false end
-    -- Pick a target that is actually missing SW:P
+    -- Obtain candidate via tracker (PR2 wire) or legacy _find; then remains/snapshot checks below (kept intact)
     local target = _find_multidot_target(context, SHADOW_WORD_PAIN_DEBUFF)
     if not target then return false end
     context._shadow_swp_spread_target = target
@@ -721,7 +751,7 @@ local function shadow_vt_spread_matches(context, s)
     if not _engaged_with_player(context) then return false end
     -- Per-target lockout: prevent double-queuing VT to same target while in-flight
     if _is_locked("VT") then return false end
-    -- Pick a target that is actually missing VT
+    -- Obtain candidate via tracker (PR2 wire) or legacy _find; then remains/snapshot checks below (kept intact)
     local target = _find_multidot_target(context, VAMPIRIC_TOUCH_DEBUFF)
     if not target then return false end
     context._shadow_vt_spread_target = target
@@ -978,7 +1008,7 @@ local function multidot_swp_matches(context, s)
     if (s.dotted_swp_count or 0) >= (s.multidot_max or 3) then return false end
     -- Mana gate: don't spread below emergency
     if s.mana_emergency then return false end
-    -- Pick a target that is actually missing SW:P
+    -- Obtain candidate via tracker (PR2 wire) or legacy _find; post-picker logic (remains, TTD, _engaged) kept
     local target = _find_multidot_target(context, SHADOW_WORD_PAIN_DEBUFF)
     if not target then return false end
     context._shadow_swp_spread_target = target
@@ -1000,7 +1030,7 @@ local function multidot_vt_matches(context, s)
     if (s.dotted_vt_count or 0) >= (s.multidot_max or 3) then return false end
     -- Mana emergency: drop all spells
     if s.mana_emergency then return false end
-    -- Pick a target that is actually missing VT
+    -- Obtain candidate via tracker (PR2 wire) or legacy _find; post-picker logic (remains, TTD, _engaged) kept
     local target = _find_multidot_target(context, VAMPIRIC_TOUCH_DEBUFF)
     if not target then return false end
     context._shadow_vt_spread_target = target
