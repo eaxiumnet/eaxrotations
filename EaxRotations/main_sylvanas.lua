@@ -8,6 +8,9 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+-- Pattern 2: cache core.* at module load
+local _core = _G.core or {}
+
 local spec_kit = require("shared/spec_kit_sylvanas")
 
 local M = {}
@@ -34,6 +37,10 @@ if not _combat_forecast_ok or type(combat_forecast) ~= "table" then combat_forec
 -- Platform-provided target selector: pre-filtered enemy and heal target lists
 local _target_selector_ok, target_selector = pcall(require, "common/modules/target_selector")
 if not _target_selector_ok or type(target_selector) ~= "table" then target_selector = nil end
+-- unit_helper (from api): recommended optimized path for get_enemy_list_around / get_ally_list_around
+-- (see apidocs/pages/dev/api/object-manager.md). Loaded here for context building.
+local _uh_ok, unit_helper = pcall(require, "common/utility/unit_helper")
+if not _uh_ok or type(unit_helper) ~= "table" then unit_helper = nil end
 -- Platform-provided health prediction: tank detection, PvP detection, incoming damage
 local _health_pred_ok, health_prediction = pcall(require, "common/modules/health_prediction")
 if not _health_pred_ok or type(health_prediction) ~= "table" then health_prediction = nil end
@@ -51,8 +58,57 @@ if not _buff_db_ok or type(buffs) ~= "table" then buffs = {} end
 local BLOODLUST_IDS = buffs.BLOODLUST or { 2825, 32182 }
 local DRUMS_IDS = buffs.DRUMS or { 35475, 35474, 35473, 35476 }
 
+-- Wire native engine combat callbacks (core.register_on_combat_*_callback) for reliable,
+-- event-driven live combat state. This reduces dependence on per-tick polling + 1s decay
+-- and gives deeper, more accurate understanding of "when combat started" for combat_time,
+-- CD gating, burst windows, etc. (per apidocs/pages/dev/api/core.md and API_ADOPTION_ANALYSIS).
+-- Falls back gracefully to existing poll logic if engine callbacks unavailable.
+-- (pcall-wrapped registration; does not affect context build if the engine lacks the callback).
+local _engine_driven_combat = false
+if _core and type(_core.register_on_combat_start_callback) == "function" then
+    pcall(_core.register_on_combat_start_callback, function()
+        local now = _api.time_now and _api.time_now() or 0
+        _combat_start_time = now
+        was_in_combat = true
+        _engine_driven_combat = true
+        _combat_state_last_known = now
+    end)
+end
+if _core and type(_core.register_on_combat_end_callback) == "function" then
+    pcall(_core.register_on_combat_end_callback, function()
+        _combat_start_time = nil
+        was_in_combat = false
+        _engine_driven_combat = true
+        _combat_state_last_known = _api.time_now and _api.time_now() or 0
+    end)
+end
+
 -- PvP context field constants (cc_target, cc_safe, fear_nearby, enemy_healer, melee_on_you)
-local FEAR_IDS = { 6215, 6213, 5782, 8122, 8124, 10888, 10890, 5484, 17928 }  -- Fear, Psychic Scream, Howl of Terror
+local FEAR_IDS = {
+    5782, 6213, 6215,  -- Fear ranks
+    5484, 17928,       -- Howl of Terror
+    8122, 8124, 10888, 10890,  -- Psychic Scream (Durnholde Wardens per WoWHead OHF guide)
+    33111,             -- Bellowing Roar (Nightbane, Hellmaw)
+    30615,             -- Fear (Ramparts Scryers)
+    22884,             -- Psychic Scream (Old Hillsbrad)
+    12542,             -- Fear (Black Morass etc.)
+    19134,             -- Frightening Shout (Fel Overseer, SSC)
+    36922,             -- Bellowing Roar (Nightbane)
+    -- Additional common TBC fear/horror effects from WoWHead dungeon guides
+    38759, 38760,      -- Various horror/fear from bosses/trash
+}  -- Expanded based on WoWHead TBC dungeon guides (Shadow Labyrinth Hellmaw/Fel Overseers, Ramparts Scryers, OHF Wardens, Sethekk, etc.) to prevent tank fears causing wipes
+
+-- Broader control loss for advanced dungeon/raid mechanics (fear, charm/MC, sleep, horror)
+-- Covers Blackheart Incite Chaos (MC/charm), other MCs, sleeps (Anetheron), etc.
+-- Used for general control_nearby, tank protection, healing priority.
+local CONTROL_LOSS_IDS = {
+  -- fears (reuse)
+  5782,6213,6215,5484,17928,8122,8124,10888,10890,33111,30615,22884,12542,38759,38760,19134,36922,
+  -- charm / MC (Blackheart Incite Chaos from WoWHead)
+  33676, 33684,
+  -- add more sleep/horror/MC as verified (e.g. from DBC or guides)
+  --  e.g. sleep IDs if known
+}
 local HEALER_CLASS_IDS = { [5]=true, [2]=true, [11]=true, [7]=true }  -- Priest, Paladin, Druid, Shaman
 local MELEE_CLASS_IDS = { [1]=true, [4]=true, [2]=true, [7]=true, [11]=true }  -- Warrior, Rogue, Paladin, Shaman, Druid
 
@@ -86,35 +142,46 @@ local _trace_strat_last = {}  -- per-list trace throttle (keyed by strategy list
 local _trace_strategy_last = {}  -- per-strategy trace throttle — keyed by ``list:strategy_name``. Used to suppress the matched=true/executed=false spam from AutoConsumable et al when the executor is a no-op (no setting matches, no item in bags). Default 30s budget per strategy.
 local TRACE_PER_STRATEGY_TTL = 30.0  -- seconds between per-strategy trace lines
 
--- Hot-path NS API references cached at module load to avoid table lookups and pcall overhead per frame.
--- Safe to cache: these are stable functions set during NS initialization (see core_sylvanas.lua).
--- DO NOT cache APIs that may not exist at load time (optional modules loaded via pcall).
-local _time_now = NS.time_now
-local _game_time_ms = NS.game_time_ms
-local _unit_health_pct = NS.unit_health_pct
-local _mana_pct = NS.mana_pct
-local _power_current = NS.power_current
-local _buff_up = NS.buff_up
-local _debuff_remains = NS.debuff_remains
-local _debuff_up = NS.debuff_up
-local _unit_alive = NS.unit_alive
-local _get_party_members = NS.GetPartyMembers
-local _get_focus = NS.GetFocus
-local _get_pet = NS.GetPet
-local _get_player_stance = NS.get_player_stance
-local _is_hostile_unit = NS.is_hostile_unit
-local _is_pvp_zone = NS.is_pvp_zone
-local _is_in_party = NS.is_in_party
-local _player_control_locked = NS.player_control_locked
-local _has_breakable_cc_nearby = NS.has_breakable_cc_nearby
-local _get_debuff_stacks = NS.get_debuff_stacks
-local _same_unit = NS.same_unit
-local _gcd_remains = NS.gcd_remains
-local _get_global_cooldown = NS.get_global_cooldown
+-- Hot-path NS API references cached at module load in _api table (Pattern 2) to avoid repeated lookups and keep upvalue count low for build_context (Lua 5.1 limit ~60).
+local _api = {
+    time_now = NS.time_now,
+    game_time_ms = NS.game_time_ms,
+    unit_health_pct = NS.unit_health_pct,
+    mana_pct = NS.mana_pct,
+    power_current = NS.power_current,
+    buff_up = NS.buff_up,
+    debuff_remains = NS.debuff_remains,
+    debuff_up = NS.debuff_up,
+    unit_alive = NS.unit_alive,
+    get_party_members = NS.GetPartyMembers,
+    get_focus = NS.GetFocus,
+    get_pet = NS.GetPet,
+    get_player_stance = NS.get_player_stance,
+    is_hostile_unit = NS.is_hostile_unit,
+    is_pvp_zone = NS.is_pvp_zone,
+    is_in_party = NS.is_in_party,
+    player_control_locked = NS.player_control_locked,
+    has_breakable_cc_nearby = NS.has_breakable_cc_nearby,
+    get_debuff_stacks = NS.get_debuff_stacks,
+    same_unit = NS.same_unit,
+    gcd_remains = NS.gcd_remains,
+    get_global_cooldown = NS.get_global_cooldown,
+    safe = NS.safe,
+    safe_field = NS.safe_field,
+    safe_method = NS.safe_method,
+}
+
+-- Local alias for unit alive check (used in build_context for party/fear/cc scans).
+-- Falls back to pcall on :is_alive() for robustness when _api.unit_alive is missing/nil.
+local _unit_alive = _api.unit_alive or function(unit)
+    if not unit then return false end
+    local ok, res = pcall(function() return unit:is_alive() end)
+    return ok and res == true
+end
 
 -- Talent build detection: resolve API reference dynamically (may be nil at load, available later)
 local function _get_talent_info(...)
-    local fn = core.game_ui and core.game_ui.get_talent_info
+    local fn = _core.game_ui and _core.game_ui.get_talent_info
     if type(fn) == "function" then
         return fn(...)
     end
@@ -153,7 +220,7 @@ local function safe(fn, ...)
     if type(fn) ~= "function" then return nil end
     local ok, a = pcall(fn, ...)
     if ok then return a end
-    local now = core.time and core.time() or 0
+    local now = _core.time and _core.time() or 0
     if now - _last_error_time > 2 then
         _last_error_time = now
         NS.log("Rotation Callback Warning: " .. tostring(a))
@@ -219,12 +286,12 @@ local function reaction_delay_active(context)
     end
     -- GCD just ended — start the reaction delay timer
     if _reaction_was_on_gcd then
-        _reaction_delay_start = (NS.time_now and NS.time_now()) or 0
+        _reaction_delay_start = (_api.time_now and _api.time_now()) or 0
         _reaction_was_on_gcd = false
     end
     if not _reaction_delay_start then return false end
     -- Check if we're still within the delay window
-    local now = (NS.time_now and NS.time_now()) or 0
+    local now = (_api.time_now and _api.time_now()) or 0
     local elapsed_ms = (now - _reaction_delay_start) * 1000
     if elapsed_ms < delay_ms then return true end
     -- Delay expired, allow rotation
@@ -233,8 +300,15 @@ local function reaction_delay_active(context)
 end
 
 local function get_target(me)
-    local fallback_get_target = NS.safe_field and NS.safe_field(me, "get_target") or nil
-    return NS.GetTarget and NS.GetTarget() or (fallback_get_target and fast(fallback_get_target, me) or nil)
+    if me then
+        local get_t = _api.safe_field and _api.safe_field(me, "get_target") or nil
+        if get_t then
+            local t = fast(get_t, me)
+            if t and _api.unit_alive and _api.unit_alive(t) then return t end
+        end
+    end
+    -- fallback to NS.GetTarget (which has IZI etc) only if needed
+    return NS.GetTarget and NS.GetTarget() or nil
 end
 
 local function valid_enemy(me, target)
@@ -332,7 +406,7 @@ end
 
 local function resolve_auto_aoe_playstyle(registry, active, enemy_count)
     if not registry or not registry.playstyles then return active end
-    local now = NS.time_now and NS.time_now() or 0
+    local now = _api.time_now and _api.time_now() or 0
     local is_aoe = auto_aoe_should_trigger(enemy_count)
     local was_aoe = auto_aoe_should_trigger(_auto_aoe_last_enemy_count or 0)
     -- Debounce: require 0.5s stable state before switching to prevent flicker
@@ -382,6 +456,17 @@ local function throttled_enemies()
     if now - _cached_enemies_time > 100 then
         if target_selector and type(target_selector.get_targets) == "function" then
             _cached_enemies = target_selector:get_targets(40)
+        elseif unit_helper and _get_player then
+            -- Prefer documented unit_helper path for spatial lists when target_selector unavailable
+            -- (apidocs/pages/dev/api/object-manager.md + unit_helper).
+            local me = _get_player()
+            local pos = me and _api.safe_field and _api.safe_field(me, "get_position") and me:get_position() or nil
+            if pos then
+                local ok, lst = pcall(unit_helper.get_enemy_list_around, unit_helper, pos, 40, false, false)
+                _cached_enemies = ok and lst or nil
+            else
+                _cached_enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(40) or nil
+            end
         else
             _cached_enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(40) or nil
         end
@@ -412,7 +497,7 @@ end
 
 local function get_linear_regression_ttd(target, settings)
     if not ttd_tracker or not target then return nil end
-    local now = NS.time_now and NS.time_now() or 0
+    local now = _api.time_now and _api.time_now() or 0
     local ok, result = pcall(ttd_tracker.update, target, now, settings)
     if ok and type(result) == "number" and result > 0 then return result end
     return nil
@@ -420,7 +505,7 @@ end
 
 local function get_ema_ttd(target)
     if not ttd_ema or not target then return nil end
-    local now = NS.time_now and NS.time_now() or 0
+    local now = _api.time_now and _api.time_now() or 0
     local ok = pcall(ttd_ema.update, target, now)
     if not ok then return nil end
     local ttd = ttd_ema.get_ttd(target, now)
@@ -428,17 +513,17 @@ local function get_ema_ttd(target)
 end
 
 local function unit_bool(unit, ...)
-    if not unit or not NS.safe_field then return false end
+    if not unit or not _api.safe_field then return false end
     for i = 1, select("#", ...) do
-        local fn = NS.safe_field(unit, select(i, ...))
+        local fn = _api.safe_field(unit, select(i, ...))
         if fn then local ok, result = pcall(fast, fn, unit); if ok and result == true then return true end end
     end
     return false
 end
 
 local function unit_number(unit, field)
-    if not unit or not NS.safe_field then return nil end
-    local fn = NS.safe_field(unit, field)
+    if not unit or not _api.safe_field then return nil end
+    local fn = _api.safe_field(unit, field)
     if not fn then return nil end
     local ok, value = pcall(fast, fn, unit)
     return ok and type(value) == "number" and value or nil
@@ -473,7 +558,7 @@ local function build_context()
     -- Detect manual target change: if GUID differs from last frame, start 3s grace period
     if selected_target then
         local current_guid = nil
-        local get_guid = NS.safe_field and NS.safe_field(selected_target, "get_guid") or nil
+        local get_guid = _api.safe_field and _api.safe_field(selected_target, "get_guid") or nil
         if get_guid then
             local ok, guid = pcall(get_guid, selected_target)
             if ok then current_guid = guid end
@@ -481,7 +566,7 @@ local function build_context()
         if current_guid and _last_target_guid then
             local ok, diff = pcall(function() return current_guid ~= _last_target_guid end)
             if ok and diff then
-                _manual_target_lockout_until = (NS.time_now and NS.time_now() or 0) + 3.0
+                _manual_target_lockout_until = (_api.time_now and _api.time_now() or 0) + 3.0
             end
         end
         reset_target_dependent_state(_last_target_guid, current_guid)
@@ -491,27 +576,29 @@ local function build_context()
         _last_target_guid = nil
     end
     local target = find_enemy_target(me, selected_target)
-    local is_in_combat = NS.safe_field and NS.safe_field(me, "is_in_combat") or nil
+    local is_in_combat = _api.safe_field and _api.safe_field(me, "is_in_combat") or nil
     local raw_in_combat = is_in_combat and fast(is_in_combat, me) or nil
     local combat_state_known = type(raw_in_combat) == "boolean"
     local in_combat
     if combat_state_known then
         in_combat = raw_in_combat
-        _combat_state_last_known = NS.time_now()
+        _combat_state_last_known = _api.time_now and _api.time_now() or 0
     else
-        -- Decay: if API has been returning nil for > 1s, assume out of combat
-        if was_in_combat and NS.time_now() - _combat_state_last_known > 1.0 then
+        -- Decay: if API has been returning nil for > 1s, assume out of combat.
+        -- Engine callbacks (wired at load) keep was_in_combat and _combat_start_time fresh
+        -- via core.register_on_combat_*_callback for more accurate live state.
+        if was_in_combat and (_api.time_now and _api.time_now() or 0) - _combat_state_last_known > 1.0 then
             was_in_combat = false
         end
         in_combat = was_in_combat
     end
 
-    if not _combat_start_time and me and in_combat then _combat_start_time = NS.time_now() end
+    if not _combat_start_time and me and in_combat then _combat_start_time = _api.time_now and _api.time_now() or 0 end
     if _combat_start_time and me and combat_state_known and not in_combat then
         _combat_start_time = nil
         -- v1.0: Auto-loot grace period tracking
         if NS.auto_loot and NS.auto_loot.stats then
-            NS.auto_loot.stats.last_combat_end = NS.time_now()
+            NS.auto_loot.stats.last_combat_end = _api.time_now and _api.time_now() or 0
         end
     end
     local enemy_ok = valid_enemy(me, target)
@@ -541,6 +628,19 @@ local function build_context()
     local expansion_max_level = _get_expansion_max_level and _get_expansion_max_level() or 70
     -- Compute boss/elite flag locally before _context is fully populated
     local is_target_boss = target and NS.unit_is_boss and NS.unit_is_boss(target) or false
+    -- Use get_boss_frames / get_boss_count for authoritative live raid/dungeon boss awareness (per apidocs object-manager and plan for deeper context).
+    _context.boss_count = 0
+    _context.has_boss_frames = false
+    if _core and _core.object_manager then
+        if type(_core.object_manager.get_boss_count) == "function" then
+            local ok, bc = pcall(_core.object_manager.get_boss_count)
+            if ok and type(bc) == "number" then _context.boss_count = bc end
+        end
+        if type(_core.object_manager.get_boss_frames) == "function" then
+            local ok, bf = pcall(_core.object_manager.get_boss_frames)
+            if ok and type(bf) == "table" and #bf > 0 then _context.has_boss_frames = true end
+        end
+    end
     -- ============================================================================
     -- TTD (Time-To-Death) Fallback Chain
     -- ============================================================================
@@ -604,7 +704,7 @@ local function build_context()
     _context.target_ttd = ttd
     _context.has_aggro = false
     if target and me then
-        local get_threat = NS.safe_field and NS.safe_field(target, "get_threat_situation")
+        local get_threat = _api.safe_field and _api.safe_field(target, "get_threat_situation")
         if get_threat then
             local ok, result = pcall(get_threat, target, me)
             _context.has_aggro = ok and type(result) == "number" and result >= 2
@@ -627,7 +727,7 @@ local function build_context()
     end
     _context.has_target = target ~= nil
     _context.has_valid_enemy_target = enemy_ok
-    _context.target_hp = enemy_ok and _unit_health_pct(target) or 100
+    _context.target_hp = enemy_ok and _api.unit_health_pct(target) or 100
     _context.player_level = player_level
     _context.level = player_level
     _context.expansion_max_level = expansion_max_level
@@ -635,20 +735,32 @@ local function build_context()
     _context.target_level = target_level
     _context.target_level_delta = target_level and (target_level - player_level) or 0
     _context.target_classification = target_classification
-    _context.hp = _unit_health_pct(me)
+    _context.hp = _api.unit_health_pct(me)
     _context.player_hp = _context.hp
-    _context.mana_pct = _mana_pct(me)
+    _context.mana_pct = _api.mana_pct(me)
     _context.player_mana = _context.mana_pct
     _context.player_mana_pct = _context.mana_pct
-    _context.gcd_remains = _gcd_remains and _gcd_remains() or 0
+    -- Surface native incoming heals (from game_object:get_incoming_heals) for better
+    -- live prediction in triage, stopcast, emergency heals (builds directly on api).
+    _context.player_incoming_heals = 0
+    _context.target_incoming_heals = 0
+    if NS.get_incoming_heals then
+        local ok_p, pin = pcall(NS.get_incoming_heals, me)
+        if ok_p and type(pin) == "number" then _context.player_incoming_heals = pin end
+        if target then
+            local ok_t, tin = pcall(NS.get_incoming_heals, target)
+            if ok_t and type(tin) == "number" then _context.target_incoming_heals = tin end
+        end
+    end
+    _context.gcd_remains = _api.gcd_remains and _api.gcd_remains() or 0
     _context.on_gcd = (_context.gcd_remains or 0) > 0
-    _context.gcd_duration = _get_global_cooldown and _get_global_cooldown() or 1.5
-    _context.combat_time = _combat_start_time and (_time_now() - _combat_start_time) or 0
-    _context.rage = _power_current(NS.POWER_RAGE)
+    _context.gcd_duration = _api.get_global_cooldown and _api.get_global_cooldown() or 1.5
+    _context.combat_time = _combat_start_time and (_api.time_now() - _combat_start_time) or 0
+    _context.rage = _api.power_current(NS.POWER_RAGE)
     _context.player_rage = _context.rage
-    _context.energy = _power_current(NS.POWER_ENERGY)
+    _context.energy = _api.power_current(NS.POWER_ENERGY)
     _context.player_energy = _context.energy
-    _context.focus = _power_current(NS.POWER_FOCUS)
+    _context.focus = _api.power_current(NS.POWER_FOCUS)
     -- Attack power for cat druid AP snapshotting (falls back to 0 if unit method unavailable)
     _context.attack_power = unit_number(me, "get_attack_power") or 0
     -- Spell crit chance for paladin Illumination mana-return calculations.
@@ -656,8 +768,27 @@ local function build_context()
     _context.crit_chance = unit_number(me, "get_spell_crit_chance") or 0
     -- Target armor for sunder/faerie fire value assessment
     _context.target_armor = unit_number(target, "get_armor") or 0
-    _context.bloodlust_active = me and _buff_up(me, BLOODLUST_IDS) or false
-    _context.drums_active = me and _buff_up(me, DRUMS_IDS) or false
+    _context.bloodlust_active = me and _api.buff_up(me, BLOODLUST_IDS) or false
+    _context.drums_active = me and _api.buff_up(me, DRUMS_IDS) or false
+
+    -- Enriched target cast context (centralized for live understanding of enemy casts).
+    -- Builds on game_object cast methods + NS.is_interruptible (see apidocs and interrupt_manager).
+    -- Allows specs to read context.target_casting_spell_id / target_casting_interruptible
+    -- instead of duplicating the logic (seen in arms, fury, prot, ret, hunter, shaman, etc.).
+    _context.target_casting_spell_id = nil
+    _context.target_casting_interruptible = false
+    if target then
+        local ok_id, id = pcall(function()
+            local fn = _api.safe_field and _api.safe_field(target, "get_active_spell_id")
+            return fn and fn(target) or nil
+        end)
+        if ok_id then _context.target_casting_spell_id = id end
+
+        if NS.is_interruptible then
+            local ok_i, intr = pcall(NS.is_interruptible, target)
+            _context.target_casting_interruptible = (ok_i and intr == true)
+        end
+    end
     _context.should_burst = BurstLogic.should_auto_burst(_context, {
         is_bloodlust_active = function() return _context.bloodlust_active end,
         is_drums_active = function() return _context.drums_active end,
@@ -671,7 +802,7 @@ local function build_context()
         in_melee = ok and im == true
     end
     _context.in_melee_range = in_melee
-    local dist_ok, dist_val = pcall(function() return target and NS.safe_field(target, "get_distance") and target:get_distance(me) end)
+    local dist_ok, dist_val = pcall(function() return target and _api.safe_field(target, "get_distance") and target:get_distance(me) end)
     _context.target_range = (dist_ok and type(dist_val) == "number") and dist_val or (_context.in_melee_range and 5 or 40)
     _context.target_distance = _context.target_range
     _context.combo_points = combo_points(me)
@@ -693,25 +824,25 @@ local function build_context()
     if not in_combat then EnemyCountHysteresis.reset() end
     local now_pet = NS.game_time_ms and NS.game_time_ms() or 0
     if now_pet - _pet_cache_timestamp > 500 then
-        _pet_cache_data = _get_pet and _get_pet()
+        _pet_cache_data = _api.get_pet and _api.get_pet()
         _pet_cache_timestamp = now_pet
     end
     _context.pet = _pet_cache_data
     _context.pet_dead = _pet_cache_data and not _pet_cache_data:is_alive() or false
     -- Pet happiness: 1=unhappy, 2=content, 3=happy (nil if no pet or API unavailable)
     local ph_data = nil
-    if core.spell_book and core.spell_book.get_pet_happiness then
-        local ph_ok, ph_result = pcall(core.spell_book.get_pet_happiness)
+    if _core.spell_book and _core.spell_book.get_pet_happiness then
+        local ph_ok, ph_result = pcall(_core.spell_book.get_pet_happiness)
         if ph_ok then ph_data = ph_result end
     end
     _context.pet_happiness = ph_data and ph_data.happiness or nil
-    _context.stance = _get_player_stance() or 0
+    _context.stance = _api.get_player_stance() or 0
     _context.player_class = NS.player_class_id
     -- Check for active totems via get_totem_info (shaman only)
     local has_totems = false
-    if me and NS.player_class_id == 7 and core and core.spell_book and core.spell_book.get_totem_info then
+    if me and NS.player_class_id == 7 and _core and _core.spell_book and _core.spell_book.get_totem_info then
         for slot = 1, 4 do
-            local ok, info = pcall(core.spell_book.get_totem_info, slot)
+            local ok, info = pcall(_core.spell_book.get_totem_info, slot)
             if ok and info and info.have_totem then
                 has_totems = true
                 break
@@ -730,16 +861,19 @@ local function build_context()
         local ok, pvp_sit = pcall(health_prediction.is_pvp_situation, health_prediction, target)
         _context.is_pvp = ok and pvp_sit == true
     else
-        _context.is_pvp = _is_pvp_zone and _is_pvp_zone() or false
+        _context.is_pvp = _api.is_pvp_zone and _api.is_pvp_zone() or false
     end
     _context.instance_type = instance_type
     _context.is_dungeon = instance_type == "party"
     _context.is_raid = instance_type == "raid"
     _context.is_arena = instance_type == "arena"
     _context.is_battleground = instance_type == "pvp"
-    _context.is_group = _context.is_dungeon or _context.is_raid or (_is_in_party and _is_in_party() or false)
+    _context.is_group = _context.is_dungeon or _context.is_raid or (_api.is_in_party and _api.is_in_party() or false)
     _context.is_solo = not _context.is_group
-    -- Cache GetPartyMembers() once per frame for all downstream consumers
+    -- Party list from the new _core.object_manager.get_party_frames (_core.party) feature via NS.GetPartyMembers().
+    -- Key benefit: authoritative UI-backed list (ordered, excl self) for group logic, lowest HP, tank_alive,
+    -- fear_nearby, party dispels/buffs in middlewares (druid/priest/paladin etc.), healing collection.
+    -- Much more accurate and cheaper than visible object scans.
     local _party_members = nil
     if _context.is_group then
         _party_members = NS.GetPartyMembers and NS.GetPartyMembers() or nil
@@ -748,12 +882,24 @@ local function build_context()
     _context.party_members = _party_members
     _context.group_members = _party_members
     _context.party_count = (_party_members and #_party_members) or 0
+    -- Frame count (for awareness; get_party_frames is the source of truth for real party UI)
+    _context.party_frame_count = 0
+    if core and core.object_manager and type(core.object_manager.get_party_frames) == "function" then
+        local ok, pf = pcall(core.object_manager.get_party_frames)
+        if ok and type(pf) == "table" then _context.party_frame_count = #pf end
+    end
     -- Combined party scan: tank_alive, group_injured, fear_nearby in a single ipairs pass.
     -- Replaces 3 separate loops (was: tank_alive 568-612, group_injured 679-690, fear_nearby 715-729).
     -- tank_alive detection is throttled to 500ms; other flags are per-frame but early-exit on first match.
     local tank_alive = _cached_tank_alive
     _context.group_injured = false
     _context.fear_nearby = false
+    _context.fear_on_tank = false
+    _context.feared_tank = nil
+    _context.known_fear_boss = false
+    _context.control_nearby = false
+    _context.control_on_tank = false
+    _context.controlled_tank = nil
     if _context.is_group then
         local now = NS.game_time_ms and NS.game_time_ms() or 0
         local refresh_tank = now - _cached_tank_alive_time > 500
@@ -779,28 +925,58 @@ local function build_context()
                             if is_tank then tank_alive = false end
                         end
                     else
-                        if not _context.group_injured and _unit_health_pct(u) < 90 then
+                        if not _context.group_injured and _api.unit_health_pct(u) < 90 then
                             _context.group_injured = true
                         end
                     end
                 end
             end
         end
-        -- fear_nearby: check party members for fear debuffs (PvP-specific)
-        if _context.is_pvp then
-            local party2 = _party_members
-            if party2 then
-                for _, u in ipairs(party2) do
-                    if u and _unit_alive(u) and _debuff_up(u, FEAR_IDS) then
-                        _context.fear_nearby = true
+        -- fear_nearby / control protection: ALWAYS check in groups for dungeons & raids.
+        -- Critical to avoid tanks getting feared/charmed/MC/slept into packs (common wipe cause in Shadow Lab Hellmaw/Blackheart, Karazhan Nightbane, Hyjal Archimonde, Ramparts Scryers, OHF Wardens, Sethekk Prophets, etc.).
+        -- Uses accurate party frames list (core.party). Detects on any + specifically on tanks.
+        -- Advanced: broader CONTROL_LOSS_IDS for charm/MC (Incite Chaos), fear, etc.
+        local party2 = _party_members
+        if party2 then
+            for _, u in ipairs(party2) do
+                if u and _unit_alive(u) then
+                    local has_fear = _api.debuff_up(u, FEAR_IDS)
+                    local has_control = has_fear or _api.debuff_up(u, CONTROL_LOSS_IDS)
+                    if has_control then
+                        if has_fear then _context.fear_nearby = true end
+                        _context.control_nearby = true
+                        -- Track if tank specifically controlled (high priority for breaks/wards/heals/triage)
+                        local is_tank = false
+                        if NS.is_tank_unit then
+                            local ok, res = pcall(NS.is_tank_unit, u)
+                            is_tank = ok and res
+                        end
+                        if is_tank then
+                            if has_fear then
+                                _context.fear_on_tank = true
+                                _context.feared_tank = u
+                            end
+                            _context.control_on_tank = true
+                            _context.controlled_tank = u
+                        end
                         break
                     end
                 end
             end
-            if not _context.fear_nearby and me and _debuff_up(me, FEAR_IDS) then
-                _context.fear_nearby = true
-            end
         end
+        if not _context.fear_nearby and me and _api.debuff_up(me, FEAR_IDS) then _context.fear_nearby = true end
+        if not _context.control_nearby and me and _api.debuff_up(me, CONTROL_LOSS_IDS) then _context.control_nearby = true end
+        if _context.control_nearby and not _context.control_on_tank and me and _api.debuff_up(me, CONTROL_LOSS_IDS) and NS.is_tank_unit and NS.is_tank_unit(me) then
+            _context.control_on_tank = true
+            _context.controlled_tank = me
+            if _api.debuff_up(me, FEAR_IDS) then _context.fear_on_tank = true; _context.feared_tank = me end
+        end
+        -- Detect known fear/control boss engagement for proactive wards/tremor (even without current debuff)
+        _context.known_fear_boss = false
+        if _context.target and NS.AutoTremor and NS.AutoTremor.is_fear_boss then
+            _context.known_fear_boss = NS.AutoTremor.is_fear_boss(_context.target)
+        end
+        _context.control_risk = _context.control_nearby or _context.known_fear_boss or false
     end
     _cached_tank_alive = tank_alive
     _context.tank_alive = tank_alive
@@ -810,14 +986,53 @@ local function build_context()
     _context.lowest.hp = 100
     _context.lowest_ally_hp = 100
     _context.lowest_group_hp = 100
+    -- Advanced party data powered by core.party frames (accurate list)
+    _context.party_injured_count = 0
+    _context.party_tanks = {}
+    _context.party_imminent_deaths = 0
+    _context.party_burst_count = 0
+    _context.party_will_die_count = 0
     if _context.is_group and _party_members then
         local lowest_val, lowest_unit = 100, nil
+        local injured = 0
+        local tanks = {}
+        local imminent = 0
+        local bursts = 0
+        local will_die_c = 0
         for _, u in ipairs(_party_members) do
             if u and _unit_alive(u) then
-                local hp = _unit_health_pct(u)
+                local hp = _api.unit_health_pct(u)
                 if hp and hp < lowest_val then
                     lowest_val = hp
                     lowest_unit = u
+                end
+                if hp and hp < 90 then
+                    injured = injured + 1
+                end
+                -- Collect tanks using safe is_tank logic (from unit_helper bridge)
+                local tank_ok = false
+                if NS.is_tank_unit then
+                    local ok, res = pcall(NS.is_tank_unit, u)
+                    tank_ok = ok and res
+                end
+                if tank_ok then
+                    tanks[#tanks+1] = u
+                end
+                -- Ultra "no one dies" counts from advanced prediction
+                if NS.will_die_soon and NS.will_die_soon(u, 3.5, 22) then
+                    will_die_c = will_die_c + 1
+                    imminent = imminent + 1
+                end
+                local fut = nil
+                if _unit_helper and type(_unit_helper.get_health_percentage_inc) == "function" then
+                    local okf, f = pcall(_unit_helper.get_health_percentage_inc, _unit_helper, u, 3)
+                    if okf and type(f) == "number" and f < 25 then imminent = imminent + 1 end
+                end
+                -- burst
+                local hp = NS.health_prediction or (NS.GetAPIModule and NS.GetAPIModule("health_prediction"))
+                if hp and type(hp.get_incoming_damage) == "function" then
+                    local oki, inc = pcall(hp.get_incoming_damage, hp, u, 2)
+                    if oki and type(inc) == "number" and inc > 1200 then bursts = bursts + 1 end
                 end
             end
         end
@@ -827,11 +1042,20 @@ local function build_context()
         _context.lowest.hp = lowest_val
         _context.lowest_ally_hp = lowest_val
         _context.lowest_group_hp = lowest_val
+        _context.party_injured_count = injured
+        _context.party_tanks = tanks
+        _context.party_imminent_deaths = imminent
+        _context.party_burst_count = bursts
+        _context.party_will_die_count = will_die_c
     end
+    -- Advanced heal targets from platform target_selector (menu configured best heals)
+    _context.heal_targets = NS.get_targets_heal and NS.get_targets_heal(5) or {}
+    _context.heal_targets_count = #_context.heal_targets
+
     _context.settings = NS.settings or {}
     _context.ttd = ttd or 999
     _context.ttd_source = ttd_source
-    _context.has_breakable_cc_nearby = _has_breakable_cc_nearby and _has_breakable_cc_nearby() or false
+    _context.has_breakable_cc_nearby = _api.has_breakable_cc_nearby and _api.has_breakable_cc_nearby() or false
     -- Boss school immunities for strategy gating
     local school_immunities = get_target_school_immunities(target)
     _context.target_arcane_immune = school_immunities.arcane == true
@@ -841,8 +1065,8 @@ local function build_context()
     _context.target_shadow_immune = school_immunities.shadow == true
     _context.target_holy_immune = school_immunities.holy == true
     _context.target_is_player = false
-    if target and NS.safe_field then
-        local fn = NS.safe_field(target, "is_player")
+    if target and _api.safe_field then
+        local fn = _api.safe_field(target, "is_player")
         if fn then
             local ok, result = pcall(fast, fn, target)
             _context.target_is_player = ok and result == true
@@ -880,7 +1104,7 @@ local function build_context()
     -- Sunder Armor presence on target
     _context.has_sunder = false
     if target then
-        _context.has_sunder = _debuff_remains and _debuff_remains(target, { 7386, 7405, 8380, 11596, 11597, 25225 }) > 0 or false
+        _context.has_sunder = _api.debuff_remains and _api.debuff_remains(target, { 7386, 7405, 8380, 11596, 11597, 25225 }) > 0 or false
     end
     -- AoE damage incoming (enemy count > 1 as proxy for cleave/AoE packs)
     _context.aoe_damage_incoming = count > 1
@@ -890,8 +1114,8 @@ local function build_context()
     _context.scorch_stacks = 0
     _context.scorch_remains = 0
     if target then
-        _context.scorch_stacks = _get_debuff_stacks and _get_debuff_stacks(target, { 22959 }) or 0
-        _context.scorch_remains = _debuff_remains and _debuff_remains(target, { 22959 }) or 0
+        _context.scorch_stacks = _api.get_debuff_stacks and _api.get_debuff_stacks(target, { 22959 }) or 0
+        _context.scorch_remains = _api.debuff_remains and _api.debuff_remains(target, { 22959 }) or 0
     end
     -- Enemy array for spec-level iteration (frost mage Cone of Cold, prot pally CC checks)
     _context.enemies = _enemies_cache or {}
@@ -901,8 +1125,8 @@ local function build_context()
     -- PvP: CC target for Polymorph (mage specs) — uses focus target when valid
     _context.cc_target = nil
     if _context.is_pvp and target then
-        local focus = _get_focus and _get_focus() or nil
-        if focus and _unit_alive(focus) and valid_enemy(me, focus) and not _same_unit(focus, target) then
+        local focus = _api.get_focus and _api.get_focus() or nil
+        if focus and _unit_alive(focus) and valid_enemy(me, focus) and not _api.same_unit(focus, target) then
             _context.cc_target = focus
         end
     end
@@ -923,7 +1147,7 @@ local function build_context()
                             _context.cc_safe = false
                             break
                         end
-                    elseif _debuff_up(e, NS.CC_DEBUFFS) then
+                    elseif _api.debuff_up(e, NS.CC_DEBUFFS) then
                         _context.cc_safe = false
                         break
                     end
@@ -933,8 +1157,8 @@ local function build_context()
     end
     -- PvP: Enemy healer detection for curse selection (warlock specs)
     _context.enemy_healer = false
-    if _context.is_pvp and target and NS.safe_field then
-        local get_class = NS.safe_field(target, "get_class")
+    if _context.is_pvp and target and _api.safe_field then
+        local get_class = _api.safe_field(target, "get_class")
         if get_class then
             local ok, class_id = pcall(fast, get_class, target)
             if ok and class_id and HEALER_CLASS_IDS[class_id] then
@@ -944,20 +1168,20 @@ local function build_context()
     end
     -- PvP: Melee enemy targeting player for defensive curse/Howl (warlock specs)
     _context.melee_on_you = false
-    if _context.is_pvp and target and me and NS.safe_field then
+    if _context.is_pvp and target and me and _api.safe_field then
         local enemies = _enemies_cache
         if type(enemies) == "table" then
             local n = enemies.n or #enemies
             for i = 1, n do
                 local e = enemies[i]
                 if e and _unit_alive(e) then
-                    local get_class_e = NS.safe_field and NS.safe_field(e, "get_class")
+                    local get_class_e = _api.safe_field and _api.safe_field(e, "get_class")
                     local ok_ec, class_id = pcall(fast, get_class_e, e)
                     if ok_ec and class_id and MELEE_CLASS_IDS[class_id] then
-                        local get_target_fn = NS.safe_field(e, "get_target")
+                        local get_target_fn = _api.safe_field(e, "get_target")
                         if get_target_fn then
                             local ok, e_target = pcall(get_target_fn, e)
-                            if ok and e_target and _same_unit(e_target, me) then
+                            if ok and e_target and _api.same_unit(e_target, me) then
                                 _context.melee_on_you = true
                                 break
                             end
@@ -969,15 +1193,15 @@ local function build_context()
     end
     -- Is the player mounted? (guards OOC buffs, aspect switching)
     _context.is_mounted = false
-    if me and NS.safe_field then
-        local fn = NS.safe_field(me, "is_mounted")
+    if me and _api.safe_field then
+        local fn = _api.safe_field(me, "is_mounted")
         if fn then
             local ok, result = pcall(fast, fn, me)
             _context.is_mounted = ok and result == true
         end
     end
     -- Is player control locked? (fear, charm, mind control — stop casting/gcd)
-    _context.player_control_locked = _player_control_locked and _player_control_locked() or false
+    _context.player_control_locked = _api.player_control_locked and _api.player_control_locked() or false
     _context.combat_length_forecast = _context.ttd or 999
     if combat_forecast and type(combat_forecast.get_forecast_single) == "function" then
         local ok, forecast = pcall(combat_forecast.get_forecast_single, target)
@@ -1023,7 +1247,7 @@ local function build_context()
     -- Check talent API availability at call time (not just load time)
     local _has_talent_api = core and core.game_ui and type(core.game_ui.get_talent_info) == "function"
     if _has_talent_api then
-        local now_tb = _time_now()
+        local now_tb = _api.time_now()
         local tb_age = now_tb - (_cached_talent_build_time or 0)
         local recompute = not _cached_talent_build or (not in_combat and tb_age > 5) or tb_age > 30
         if recompute then
@@ -1048,7 +1272,7 @@ local function build_context()
         _cached_talent_build_time = 0
         _context.talent_build = nil
     end
-    _context.now = NS.time_now()
+    _context.now = _api.time_now and _api.time_now() or 0
     NS.current_context = _context
     -- Trace context state (throttled to 2s in combat)
     -- Fire combat start/end callbacks AFTER context is fully built so subscribers
@@ -1223,7 +1447,7 @@ local function run_list(name, list, options, context)
                         NS.log_warning(name .. " execute error in '" .. tostring(strategy.name or i) .. "': " .. tostring(exec_result))
                     end
                     local executed = ok_exec and exec_result == true
-                    local _now_trace = _time_now()
+                    local _now_trace = _api.time_now()
                     -- BUGFIX (2026-06-29): two-tier trace throttle.
                     --   1. Per-list throttle (existing, 2s budget per list)
                     --      keeps the per-list output stream alive so other
@@ -1266,11 +1490,18 @@ function M.on_rotation_update()
     if not context then
         return false
     end
+    -- Get class_key early so we can run middleware for OOC utilities even in pure no-target non-leveling cases.
+    local registry = NS.rotation_registry
+    local config = registry and registry.class_config or nil
+    local class_key = config and config.class_key
     if not (context.in_combat or context.has_valid_enemy_target or context.target) then
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true
         end
         if not context.is_leveling then
+            if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
+                return true
+            end
             return false
         end
     end
@@ -1353,11 +1584,20 @@ function M.on_rotation_update_unified()
     if not context then
         return false
     end
+    -- Get class_key early so we can run middleware for OOC utilities even in pure no-target non-leveling cases.
+    local registry = NS.rotation_registry
+    local config = registry and registry.class_config or nil
+    local class_key = config and config.class_key
     if not (context.in_combat or context.has_valid_enemy_target or context.target) then
         if ooc_manager and ooc_manager.on_update and safe(ooc_manager.on_update, context) then
             return true
         end
-        if not context.is_leveling then return false end
+        if not context.is_leveling then
+            if run_list("middleware", class_key and NS.class_middleware[class_key], nil, context) then
+                return true
+            end
+            return false
+        end
     end
     if context.on_gcd and context.in_combat and context.is_casting then
         return true

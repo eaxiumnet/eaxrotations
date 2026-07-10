@@ -219,6 +219,7 @@ grep -rn "_G\.core\|core\." EaxRotations/tests/ --include="*.lua" | grep -v "run
 1. on_update calls build_context; no obvious per-frame alloc in hot path (statics used).
 2. Enemy scan uses hysteresis (static reuse).
 3. Uses squared distance in places.
+4. core.* accesses now use top-level local _core cache (Pattern 2 fix applied).
 
 **Acceptance:** `luac -p` clean; full suite green. (initial pass; more in next waves)
 
