@@ -25,6 +25,19 @@ local WEIGHTS = {
     HAS_DEFENSIVE = -20,    -- Small penalty for targets with defensives ready
 }
 
+-- PvP CC / dispel / kick priority DB (TBC primary; per-expansion extensible).
+-- Closes parent become-1 Phase 2 item "PvP CC/dispel/kick priority DB per expansion".
+-- Used by arena_priority scoring, interrupt_manager, offensive_dispel, pvp_burst.
+-- Expand with TBC-specific high value kicks (e.g. Counterspell, Wind Shear, Kick on casters).
+local PVP_PRIORITY_DB = {
+  TBC = {
+    HIGH_VALUE_KICKS = { "counterspell", "wind_shear", "silence", "kick", "pummel", "shield_bash" },
+    CC_PRIORITY = { fear = 90, stun = 85, root = 60, silence = 80 },
+    DISPEL_PRIORITY = { magic = 70, curse = 50 },
+  },
+  -- Vanilla can override/add here.
+}
+
 -- Class classifications
 local HEALER_CLASSES = {
     PRIEST = true,

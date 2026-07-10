@@ -239,6 +239,13 @@ local function build_state(context)
   resto_state.chain_heal_optimal_target = nil
   resto_state.chain_heal_cluster_count = 0
  end
+ -- Apply explicit TBC AoE cap via shared (Phase 2 closure)
+ if NS.Targeting and NS.Targeting.get_aoe_targets_with_cap then
+  local _capped, ccount = NS.Targeting.get_aoe_targets_with_cap(entries or {}, 25423, 3)
+  if ccount and ccount > 0 then
+   resto_state.chain_heal_cluster_count = math.min(resto_state.chain_heal_cluster_count or 0, ccount)
+  end
+ end
  resto_state.natures_swiftness_active = _ns_is_active()
  resto_state.has_water_shield = me and NS.buff_up and NS.buff_up(me, WATER_SHIELD_BUFF) or false
  resto_state.has_lightning_shield = me and NS.buff_up and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
