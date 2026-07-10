@@ -44,6 +44,7 @@ local ACTION = {
     CureDisease      = define("CureDisease",      { 528 }, "CureDisease"),
     DesperatePrayer  = define("DesperatePrayer",  { 25437, 19243, 19242, 19241, 19240, 19238, 19236, 13908 }, "DesperatePrayer"),
     DispelMagic      = define("DispelMagic",      { 988, 527 }, "DispelMagic"),
+    FearWard         = define("FearWard",         { 6346 }, "FearWard"),
     Fade             = define("Fade",             { 25429, 10942, 10941, 9592, 9579, 9578, 586 }, "Fade"),
     FlashHeal        = define("FlashHeal",        { 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
     GreaterHeal      = define("GreaterHeal",      { 25213, 25210, 25314, 10965, 10964, 10963, 2060 }, "GreaterHeal"),
@@ -173,6 +174,9 @@ local HOLY_SCHEMA = {
 local holy_state = {
  lowest = nil,
  lowest_hp = 100,
+ fear_ward_ready = false,
+ has_fear_ward = false,
+ fear_ward_target = nil,
  tank = nil,
  tank_hp = 100,
  group_damaged_count = 0,
@@ -301,12 +305,23 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
   holy_state.swp_remaining = context.target and debuff_remains(context.target, SHADOW_WORD_PAIN_DEBUFF) or 0
   holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0
  end
+ -- Fear Ward target logic for dungeons (WoWHead): ward tank on fear risk
+ local ward_target = me
+ local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
+ if context and context.is_group and fear_risk then
+  if context.party_tanks and #context.party_tanks > 0 then
+   ward_target = context.party_tanks[1]
+  end
+ end
+ holy_state.fear_ward_target = ward_target
+ holy_state.has_fear_ward = ward_target and NS.buff_up(ward_target, {6346}) or false
  holy_state.lightwell_ready = spell_exists(ACTION.Lightwell) and spell_ready(ACTION.Lightwell, NS.PLAYER_UNIT)
  holy_state.shadowfiend_ready = spell_exists(ACTION.Shadowfiend) and spell_ready(ACTION.Shadowfiend, NS.PLAYER_UNIT)
  holy_state.dispel_magic_ready = spell_exists(ACTION.DispelMagic) and spell_ready(ACTION.DispelMagic, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
  holy_state.cure_disease_ready = spell_exists(ACTION.CureDisease) and spell_ready(ACTION.CureDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
  holy_state.abolish_disease_ready = spell_exists(ACTION.AbolishDisease) and spell_ready(ACTION.AbolishDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
  holy_state.symbol_of_hope_ready = spell_exists(ACTION.SymbolOfHope) and spell_ready(ACTION.SymbolOfHope, NS.PLAYER_UNIT)
+ holy_state.fear_ward_ready = spell_exists(ACTION.FearWard) and spell_ready(ACTION.FearWard, NS.PLAYER_UNIT, { skip_range = true })
  local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
  holy_state.friendly_target = ft
  holy_state.friendly_target_ready = ft ~= nil
@@ -879,6 +894,22 @@ local strategies = {
   end,
   execute = function(_, _state)
    return try_cast(ACTION.SymbolOfHope, NS.PLAYER_UNIT, "[HOLY] Symbol of Hope")
+  end,
+ },
+ { name = "FearWard",
+  matches = function(context, state)
+   if state.has_fear_ward then return false end
+   if not state.fear_ward_ready then return false end
+   local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
+   -- always available but prefer when risk (dungeon/raid fear/control protection per WoWHead guides)
+   return true
+  end,
+  execute = function(context, state)
+   local target = (state and state.fear_ward_target) or NS.PLAYER_UNIT
+   if context and context.is_group and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk) then
+    if context.party_tanks and #context.party_tanks > 0 then target = context.party_tanks[1] end
+   end
+   return try_cast(ACTION.FearWard, target, "[HOLY] FearWard (tank protection)")
   end,
  },
  {

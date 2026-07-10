@@ -186,6 +186,7 @@ local disc_state = {
  group_damaged_count = 0,
  has_inner_fire = false,
  has_fear_ward = false,
+ fear_ward_target = nil,
  has_power_word_fortitude = false,
  pws_ready = false,
  pom_ready = false,
@@ -274,7 +275,26 @@ local function build_state(context)
  local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(588, 3.0) or false
  if not skip_aura then
   disc_state.has_inner_fire = me and NS.buff_up(me, INNER_FIRE_BUFF) or false
-  disc_state.has_fear_ward = me and NS.buff_up(me, FEAR_WARD_BUFF) or false
+  -- Fear Ward: determine target (tank in fear risk per WoWHead dungeon guides: Hellmaw, Scryers, Nightbane Bellowing Roar, etc.)
+  -- Pre-ward the tank to prevent feared tank pulling packs and wipes.
+  local ward_target = me
+  local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
+  if context and context.is_group and fear_risk then
+    if context.party_tanks and #context.party_tanks > 0 then
+      ward_target = context.party_tanks[1]
+    elseif NS.GetPartyMembers then
+      local party = NS.GetPartyMembers()
+      for _, u in ipairs(party or {}) do
+        if u and not NS.same_unit(u, me) and NS.is_tank_unit and NS.is_tank_unit(u) then
+          ward_target = u
+          break
+        end
+      end
+    end
+  end
+  disc_state.fear_ward_target = ward_target
+  local ward_on_target = ward_target and NS.buff_up(ward_target, FEAR_WARD_BUFF) or false
+  disc_state.has_fear_ward = ward_on_target
   disc_state.has_power_word_fortitude = me and NS.buff_up(me, POWER_WORD_FORTITUDE_BUFF) or false
   disc_state.has_divine_spirit = me and NS.buff_up(me, DIVINE_SPIRIT_BUFF) or false
   disc_state.has_prayer_of_fortitude = me and NS.buff_up(me, PRAYER_OF_FORTITUDE_BUFF) or false
@@ -526,6 +546,10 @@ local function inner_fire_matches(context, s)
 end
 
 local function fear_ward_matches(context, s)
+ -- Fear Ward (6346): target-aware (tank when fear/control risk per WoWHead guides).
+ -- has_fear_ward now reflects the ward_target (tank or self).
+ -- Skip if target already warded. Pre-cast on tank in fear risk (Hellmaw AoE, Scryer fear, Nightbane roar, Blackheart MC context, etc.) to stop wipes.
+ -- Use control_risk for advanced dungeon/raid awareness.
  if s.has_fear_ward then return false end
  if not s.fear_ward_ready then return false end
  if _buff_on_cooldown(ACTION.FearWard) then return false end
@@ -827,7 +851,27 @@ local healing_strategies = {
  { name = "RenewTank", matches = renew_tank_matches, execute = function(context, s) return NS.try_cast(ACTION.Renew, s.tank.unit, string.format("[DISCIPLINE] Renew tank %.0f%%", s.tank.effective_hp or 0)) end },
  { name = "RenewLowest", matches = renew_lowest_matches, execute = function(context, s) return NS.try_cast(ACTION.Renew, s.lowest.unit, string.format("[DISCIPLINE] Renew %.0f%%", s.lowest.effective_hp or 0)) end },
  { name = "InnerFire", matches = inner_fire_matches, execute = function() return NS.try_cast(ACTION.InnerFire, NS.PLAYER_UNIT, "[DISCIPLINE] InnerFire") end },
- { name = "FearWard", matches = fear_ward_matches, execute = function() return NS.try_cast(ACTION.FearWard, NS.PLAYER_UNIT, "[DISCIPLINE] FearWard") end },
+ { name = "FearWard", matches = fear_ward_matches, execute = function(context, s)
+    -- Proper Fear Ward for dungeons/raids (WoWHead guides): Pre-ward the TANK before fear bosses/trash (Hellmaw AoE Fear, Scryer Fear, Warden Psychic Scream, etc.).
+    -- "be prepared in case he fears the Tank", "Fear Ward on the tank", "keep the tank warded". Uses state.fear_ward_target set from context.party_tanks / frames.
+    -- Falls back to self. Fear Ward (6346) prevents tank running into packs = wipe.
+    local target = (s and s.fear_ward_target) or NS.PLAYER_UNIT
+    if not target or NS.same_unit(target, NS.PLAYER_UNIT) then
+      -- fallback scan if state not set
+      local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
+      if context and context.is_group and fear_risk then
+        local party = NS.GetPartyMembers and NS.GetPartyMembers() or {}
+        for _, u in ipairs(party) do
+          if u and (u.is_alive and u:is_alive()) and NS.is_tank_unit and NS.is_tank_unit(u) then
+            target = u
+            break
+          end
+        end
+      end
+    end
+    local reason = (target and not NS.same_unit(target, NS.PLAYER_UNIT)) and "[DISCIPLINE] FearWard (tank - WoWHead dungeon/raid control protection)" or "[DISCIPLINE] FearWard"
+    return NS.try_cast(ACTION.FearWard, target, reason)
+end },
  { name = "PowerWordFortitude", matches = pwf_matches, execute = function() return NS.try_cast(ACTION.PowerWordFortitude, NS.PLAYER_UNIT, "[DISCIPLINE] PowerWordFortitude") end },
  { name = "SymbolOfHope", matches = symbol_of_hope_matches, execute = function() return NS.try_cast(ACTION.SymbolOfHope, NS.PLAYER_UNIT, "[DISCIPLINE] SymbolOfHope") end },
  { name = "DivineSpirit", matches = divine_spirit_matches, execute = function() return NS.try_cast(ACTION.DivineSpirit, NS.PLAYER_UNIT, "[DISCIPLINE] DivineSpirit") end },

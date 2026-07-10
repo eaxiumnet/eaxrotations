@@ -375,6 +375,8 @@ function build_state(context)
     state.use_desperate_prayer = spec_kit.setting_bool(context, "leveling_use_desperate_prayer", true)
 
     state.desp_prayer_hp = spec_kit.setting_number(context, "leveling_desp_prayer_hp", DESPERATE_PRAYER_HP_DEFAULT)
+    state.auto_inner_fire = spec_kit.setting_bool(context, "auto_inner_fire", true)
+    state.auto_fortitude = spec_kit.setting_bool(context, "auto_fortitude", true)
 
 
 
@@ -395,6 +397,7 @@ end
 local function fortitude_matches(context, state)
 
     if not state then return false end
+    if not state.auto_fortitude then return false end
 
     if state.in_combat then return false end
 
@@ -407,6 +410,7 @@ end
 local function inner_fire_matches(context, state)
 
     if not state then return false end
+    if not state.auto_inner_fire then return false end
 
     if state.in_combat then return false end
 
