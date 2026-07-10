@@ -50,7 +50,7 @@ Priority shared modules that affect every spec:
 - [x] Frost Mage — audited vs guides; strong Frostbolt with shatter Ice Lance, IV/WE/Cold Snap burst, AoE. (2026-07-10)
 - [x] Enhancement Shaman — audited vs APL; strong SS, totem twist, shock twist. (2026-07-10)
 - [x] Combat Rogue — switched to Envenom primary with poison stacks per sources. (2026-07-10)
-- [ ] Tier 3: remaining specs and leveling rotations.
+- [x] Destruction Warlock — Conflagrate reordered above Incinerate for correct Immolate burst consume priority (per APLs and TBC guides). (2026-07-10)
 - [ ] Tier 3: remaining specs and leveling rotations.
 
 ## Phase 4 — Validation

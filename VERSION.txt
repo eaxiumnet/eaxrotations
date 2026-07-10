@@ -1,9 +1,10 @@
-EaxRotations v2.5.10
+EaxRotations v2.5.11
 Released: 2026-07-10
 Game: The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
 Commit: (git describe)
 
 === WHAT'S NEW ===
+- Destruction Warlock: Conflagrate priority above Incinerate for proper Immolate consume (fidelity to TBC sources)
 - spec_kit migration COMPLETE: all 29 specs converted to define_action_for_class + safe_state
 - 5 fully-migrated classes: Warlock, Shaman, Rogue, Hunter, Paladin
 - Nil-guard elimination: safe_state proxy makes Pattern 14 nil-guard bugs structurally impossible

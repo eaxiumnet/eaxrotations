@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.11 - 2026-07-10
+
+### Customer Changelog
+- Destruction Warlock: Conflagrate now prioritizes above Incinerate after Immolate application (consume for burst damage, then filler). Matches standard TBC destruction priorities from simulator APLs and guides.
+- All rotation and leveling tests remain passing (252 suites).
+
 ## 2.5.9 - 2026-07-10
 
 ### Customer Changelog

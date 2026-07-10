@@ -189,13 +189,13 @@ local ACTIONS = {
     -- DoTs
     { name = "Corruption", spell = ACTION.Corruption, debuff = CORRUPTION_DEBUFF, refresh = 3 },
     { name = "Immolate", spell = ACTION.Immolate, debuff = IMMOLATE_DEBUFF, refresh = 3, not_moving = true },
-    -- Burst / Procs
+    -- Burst / Consume (Conflagrate immediately after Immolate to consume for burst per TBC destro guides; Incinerate is filler while dot rolls)
     { name = "BacklashShadowBolt", spell = ACTION.ShadowBolt, priority = 100 },
-    -- Filler (Incinerate before Conflagrate — fill GCDs, then consume)
+    { name = "Conflagrate", spell = ACTION.Conflagrate, moving = true, cooldown = 10 },
+    -- Filler (Incinerate when Immolate active, else Shadow Bolt)
     { name = "Incinerate", spell = ACTION.Incinerate, not_moving = true },
     { name = "ShadowBolt", spell = ACTION.ShadowBolt, not_moving = true },
-    -- Consume / Execute
-    { name = "Conflagrate", spell = ACTION.Conflagrate, moving = true, cooldown = 10 },
+    -- Execute
     { name = "SoulFire", spell = SoulFire, not_moving = true },
     { name = "Shadowburn", spell = ACTION.Shadowburn, cooldown = 15 },
     { name = "SearingPain", spell = SearingPain, moving = true },
