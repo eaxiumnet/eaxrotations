@@ -212,6 +212,7 @@ All 29 specs + leveling rotations grounded in wowsims APLs/guides per become-1 p
 | Test standardization | holy_priest_feature_gaps | `8477393e` | |
 | Release packaging | Clean eaxrotations.zip (lua+md only) recreated from HEAD + uploaded to GH release v2.5.11 (refreshed post-final commits) | (git archive + gh) | fulfills release zip update request; verified no bad entries; tree cleaned of source M |
 | Healer standardization | Context-aware dispel/cure (control_risk/is_group early returns), dangerous debuff IDs, + Warlock Devour Magic in shared | `5c13bcf4`, `37eab941` | resto druid, holy pally, healing priest, resto shaman + dispel_manager; luac + 252+17 green |
+| Dispel polish (cont) | Additional dungeon debuff IDs (Virulent Poison 39029, Initial Infection 39032) + will_die_soon priority in control_risk | `314f6c60` | shared + healing priest; more TBC dungeon support |
 | Validation | Full rotation (252) + leveling (17) suites + pre-commit audits | multiple | all green post-commits |
 
 ### spec_kit migration progress — COMPLETE (29 of 29 specs) 🎉
