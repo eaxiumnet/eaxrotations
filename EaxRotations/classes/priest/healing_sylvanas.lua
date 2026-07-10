@@ -141,8 +141,12 @@ local DANGEROUS_MAGIC_DEBUFF_IDS = {
     , 39193 -- Shadow Power (Mechanar Gatekeeper enemy buff, purge/dispel asap per guides)
     , 39029 -- Virulent Poison (SSC/Underbog poison, dispellable)
     , 39032 -- Initial Infection (SSC Colossus jumping disease, abolish disease)
+    , 41303 -- Soul Drain (BT Reliquary magic DoT/mana drain, dispel priority)
+    , 46280 -- Polymorph (SWP trash, dispel)
+    , 46279 -- Flame Buffet (SWP magic fire amp, dispel)
     -- Lung Burst (Steamvault Thespia, dispellable debuff doing damage/stun)
-    -- From research: more in Steamvault, Mechanar, Botanica, SSC for dispel priority to speed clears and prevent deaths.
+    -- From research: more in Steamvault, Mechanar, Botanica, SSC, BT, SWP for dispel priority to speed clears and prevent deaths.
+    -- Hound debuffs: 46296 Necrotic Poison, 46293 Corrosive Poison, 46297 Piercing Shadow, etc. (decursable/cleansable/dispellable)
 }
 
 --- Check if a unit has a dangerous magic debuff worth dispelling.
@@ -183,6 +187,7 @@ local function has_disease(unit)
         , 3434 -- Wandering Plague
         , 17172 -- Devouring Plague
         , 39032 -- Initial Infection (SSC, jumping, high priority abolish)
+        , 46481 -- Disease Buffet (SWP, increases nature damage)
     }
     if NS.debuff_up then
         for i = 1, #DISEASE_DEBUFF_IDS do
@@ -208,6 +213,8 @@ local function has_poison(unit)
         19615, -- Fling (poison?)
         3434, -- Wandering Plague overlap
         39029, -- Virulent Poison (SSC/Underbog, dispellable poison dot)
+        46296, -- Necrotic Poison (SWP hound)
+        46293, -- Corrosive Poison (SWP hound)
         -- From research: Fungal Decay, Impending Coma in Botanica/Underbog, poison from Greyheart Tidecaller etc.
     }
     if NS.debuff_up then
