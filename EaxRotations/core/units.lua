@@ -1,7 +1,8 @@
 -- units.lua — Unit acquisition and safety helpers for EaxRotations.
 -- WHAT:  GetPlayer / GetPet / GetTarget / GetFocus / GetPartyMembers + alive guards.
 -- WHEN:  installed by core_sylvanas.lua during addon load.
--- WHY:   centralizes object_manager access so caching strategy evolves in one place.
+-- WHY:   centralizes object_manager access (esp. new core.party / get_party_frames) so
+--        party lists, lowest HP etc. are accurate and cheap. Caching evolves here.
 -- SAFETY: nil-safe fallbacks for all unit queries; same_unit uses GUID when available.
 
 -- =============================================================================
@@ -28,22 +29,36 @@
 local M = {}
 
 local _player_cache_tick = -1
+local _time_now_fn = nil  -- hoisted for perf, avoid NS lookup every GetPlayer (per subagent)
 
 function M.GetPlayer(NS)
+    -- Ensure cached safe wrappers (perf optimization) are populated early; GetPlayer called before GetPet in many paths.
+    if not NS._safe_field then
+        local sf
+        pcall(function() sf = NS.safe_field end)
+        NS._safe_field = sf
+    end
+    if not _time_now_fn then
+        pcall(function() _time_now_fn = NS.time_now end)
+    end
     -- Per-tick short-circuit: same tick => cached.
-    local now = NS.time_now()
+    local now = _time_now_fn and _time_now_fn() or 0
     if now == _player_cache_tick and NS.PLAYER_UNIT then
         return NS.PLAYER_UNIT
     end
     _player_cache_tick = now
 
-    -- Stale-object guard.
+    -- Stale-object guard. Use cached safe_field (from previous perf cache) to reduce raw pcall duplication.
+    -- Logic matches original (check pcall success, not the is_valid return value) to preserve behavior.
     if NS.PLAYER_UNIT then
-        local ok = pcall(function() return NS.PLAYER_UNIT:is_valid() end)
-        if not ok then
-            NS.PLAYER_UNIT = nil
-            local lg = NS.log or (NS.core and NS.core.log)
-            if lg then pcall(lg, "[EaxRotations:units] GetPlayer: stale guard nil'd PLAYER_UNIT") end
+        local is_valid = NS._safe_field and NS._safe_field(NS.PLAYER_UNIT, "is_valid")
+        if is_valid then
+            local ok = pcall(is_valid, NS.PLAYER_UNIT)
+            if not ok then
+                NS.PLAYER_UNIT = nil
+                local lg = NS.log or (NS.core and NS.core.log)
+                if lg then pcall(lg, "[EaxRotations:units] GetPlayer: stale guard nil'd PLAYER_UNIT") end
+            end
         end
     end
 
@@ -54,7 +69,11 @@ function M.GetPlayer(NS)
     elseif type(om.get_local_player) == "function" then
         local ok, fresh = pcall(om.get_local_player, om)
         if ok and fresh then
-            local valid = pcall(function() return fresh:is_valid() end)
+            local is_valid = NS._safe_field and NS._safe_field(fresh, "is_valid")
+            local valid = false
+            if is_valid then
+                valid = pcall(is_valid, fresh)  -- first return of pcall (success), matching original logic
+            end
             if valid then
                 NS.PLAYER_UNIT = fresh
                 return fresh
@@ -73,9 +92,17 @@ end
 function M.GetPet(NS)
     -- safe_field / safe come from NS (installed by core_sylvanas via
     -- shared/safe_helpers_sylvanas); fall back to bare pcall if absent.
-    local safe, safe_field
-    pcall(function() safe = NS.safe end)
-    pcall(function() safe_field = NS.safe_field end)
+    -- PERF (Phase C): cache the wrappers at first use instead of pcall every GetPet
+    -- (reduces pcall overhead per AGENTS Pattern 2; matches subagent perf report).
+    if not NS._safe or not NS._safe_field then
+        local s, sf
+        pcall(function() s = NS.safe end)
+        pcall(function() sf = NS.safe_field end)
+        NS._safe = s
+        NS._safe_field = sf
+    end
+    local safe = NS._safe
+    local safe_field = NS._safe_field
     local player = NS.GetPlayer()
     local get_pet = safe_field and safe_field(player, "get_pet") or nil
     local pet = (get_pet and safe and safe(get_pet, player)) or nil
