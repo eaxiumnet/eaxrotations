@@ -2,7 +2,7 @@
 -- WHAT:  defines menu widgets (checkboxes, sliders, keybinds) for warlock specs.
 -- WHEN:  loaded at addon init to register middleware menu entries.
 -- WHY:   centralized menu definition prevents duplicate widget IDs.
--- SAFETY: nil-guarded menu references; default fallbacks for all settings.
+-- SAFETY: nil-guarded menu references; default fallbacks for all settings. use_fear_cc (default true) added early (PR1) under General for menu availability + spec_kit fallback; tooltip documents PvE suppression (Fear strictly gated to is_pvp in follow-ups).
 
 -- Warlock menu schema.
 
@@ -26,6 +26,7 @@ return {
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
                     { key = "use_pvp_defensives", type = "checkbox", label = "PvP Defensives", default = true },
+                    { key = "use_fear_cc", type = "checkbox", label = "Use Fear (CC)", default = true, tooltip = "Enable Fear for CC (PvP kiting/arena/world). Strictly suppressed in PvE (including groups/dungeons/raids) to prevent pack scattering and tank annoyance. Default=true preserves prior PvP behavior; setting available early for spec consumption." },
                     { key = "pvp_kite_threshold", type = "slider", label = "PvP Kite HP", min = 20, max = 80, default = 50 },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },
                 },
