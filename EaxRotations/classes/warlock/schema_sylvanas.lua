@@ -3,6 +3,7 @@
 -- WHEN:  loaded at addon init to register middleware menu entries.
 -- WHY:   centralized menu definition prevents duplicate widget IDs.
 -- SAFETY: nil-guarded menu references; default fallbacks for all settings. use_fear_cc (default true) added early (PR1) under General for menu availability + spec_kit fallback; tooltip documents PvE suppression (Fear strictly gated to is_pvp in follow-ups).
+-- DECISION: Add use_fear_cc early (default true) per PR1 to provide menu widget + spec_kit fallback before any spec consumption. No behavior change in this PR.
 
 -- Warlock menu schema.
 
