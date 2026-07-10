@@ -120,7 +120,9 @@ grep -rn "core\.object_manager\.get_local_player\|core\.time\|core\.spell_book" 
 - fsr_manager_sylvanas.lua: ensure_api used direct core.spell_book. Fixed: top-level _core_spell_book + use. (Pattern 2)
 - trinket_manager_sylvanas.lua: now_seconds used direct. Fixed: top-level cache. (Pattern 2)
 - pet_manager_sylvanas.lua: multiple direct core.spell_book and core.input in pet functions. Fixed: top-level _core + replace. (Pattern 2)
-- luac + full suite green after fixes.
+- pet_heal_sylvanas.lua: direct core.time. Fixed: top-level cache. (Pattern 2)
+- Pattern 2 largely complete for shared (hot_tick, combat_log, incoming_heal, fsr, trinket, pet_manager, pet_heal + others). Remaining direct are in comments or non-hot. luac + full suite green.
+- Next: check other patterns (e.g. static tables, test mocks, core files).
 
 #### Grep Pattern 10: Static table allocation in loops (Pattern 4 violation)
 ```bash
