@@ -207,6 +207,9 @@ function M.scan_unit_debuffs(unit)
             38660,                     -- Fear (Siren)
             46561,                     -- Fear (Dusk Priest)
             17172,                     -- Devouring Plague (disease/magic)
+            41303,                     -- Soul Drain (BT Reliquary)
+            46280,                     -- Polymorph (SWP)
+            46279,                     -- Flame Buffet (SWP)
         }
         for _, id in ipairs(MAGIC_DEBUFF_IDS) do
             if NS.has_debuff and NS.has_debuff(unit, id) then
