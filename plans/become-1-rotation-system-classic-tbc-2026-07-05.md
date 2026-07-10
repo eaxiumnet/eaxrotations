@@ -41,7 +41,8 @@ Priority shared modules that affect every spec:
 - [x] Hunter — full shot-weave overhaul with auto-shot buffer calculations: added dynamic buffer (min(500ms, 25% swing)) + ms_until_with_buffer in core/shot_timer; specs now use it for can_cast guards (closer to APL Time-until-auto-with-buffer). (2026-07-10)
 - [x] Warrior Protection — added WhirlwindMulti for AoE (per APL multi-target stance dance), moved ShieldBlock higher for mitigation priority match. (2026-07-10)
 - [x] Balance Druid — header/comments corrected for accurate TBC (no Eclipse); confirmed dot + Starfire + Starfall + FoN alignment with APL/guides. (2026-07-10)
-- [ ] Tier 2: Protection Paladin, Resto Shaman/Druid/Priest, Holy Paladin/Priest. (Balance started)
+- [x] Protection Paladin — audited vs APL/guides; strong match on Holy Shield priority/charges, Consec downrank, JoW logic, Avenger's pulls, seals. No major gaps. (2026-07-10)
+- [ ] Tier 2: Resto Shaman/Druid/Priest, Holy Paladin/Priest.
 - [ ] Tier 3: remaining specs and leveling rotations.
 
 ## Phase 4 — Validation
