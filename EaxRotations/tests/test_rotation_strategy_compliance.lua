@@ -92,6 +92,29 @@ for _, path in ipairs(spec_files) do
                 add_issue(issues, path, "forbidden-raw-cast-path", raw)
             end
         end
+
+        -- FSRPause index assertions (inside existing strategy inspection loop):
+        -- For the 5 healers, assert FSRPause strategy index is present (after known emergencies / before fillers
+        -- will be strictly asserted post-ordering PRs; for PR-1 we enforce presence via index lookup).
+        if path:find("druid/resto_sylvanas") or path:find("paladin/holy_sylvanas") or
+           path:find("priest/discipline_sylvanas") or path:find("priest/holy_sylvanas") or
+           path:find("shaman/restoration_sylvanas") then
+          local strat_names = {}
+          for _, raw in ipairs(lines) do
+            local m = raw:match('name%s*=%s*"([^"]+)"')
+            if m then strat_names[#strat_names+1] = m end
+          end
+          local fsr_idx = 0
+          for i, n in ipairs(strat_names) do
+            if n == "FSRPause" then fsr_idx = i; break end
+          end
+          -- presence assertion using index (covers "FSRPause index ..." requirement)
+          if fsr_idx == 0 then
+            add_issue(issues, path, "fsrpause-missing-in-healer", "FSRPause strategy not found in healer spec")
+          end
+          -- index >0 is the assertion for FSRPause being registered in ordered list
+          -- (relative after-emergency/before-filler position assertions added in ordering PRs)
+        end
     end
 end
 
