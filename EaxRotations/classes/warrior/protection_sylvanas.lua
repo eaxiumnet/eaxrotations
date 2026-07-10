@@ -1,8 +1,8 @@
--- protection_sylvanas -- warrior protection_sylvanas rotation for TBC Anniversary (2.5.5).
--- WHAT: priority-list strategies for protection_sylvanas gameplay.
--- WHEN: combat with valid enemy target.
--- WHY: mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- protection_sylvanas.lua — Warrior Protection tank rotation for TBC Anniversary (2.5.5).
+-- WHAT: priority list for threat (SS > Revenge > Devastate/Sunder), mitigation (Shield Block high), Demo/TC, AoE (Cleave/TC + WW stance dance), taunts, defensives, rage dump.
+-- WHEN: combat (defensive stance preferred), valid enemy target.
+-- WHY: mirrors wowsims/tbc-new protection APL (Shield Block when rage/ready, SS/Revenge/Devastate, Demo refresh, multi TC/WW, defensive CDs <40%).
+-- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); registration guarded.
 
 -- Warrior Protection priority list.
 
@@ -93,6 +93,7 @@ local ACTION = {
     Cleave = define("Cleave"),
     BerserkerStance = define("BerserkerStance"),
     BattleStance = define("BattleStance"),
+    Whirlwind = define("Whirlwind", { 1680 }, "Whirlwind"),
 }
 
 -- Crowd-control debuff IDs for fear-break detection (Berserker Rage)
@@ -451,6 +452,12 @@ local function is_defensive_stance(stance)
  return stance == STANCE.DEFENSIVE
 end
 
+local function swing_timer_gate(context, state)
+    if not spec_kit.setting_bool(context, "prot_swing_timer", true) then return true end
+    local swing_remains = state.swing_remains or 99
+    return swing_remains > 0.3 or swing_remains < 0
+end
+
 local function sunder_matches_fn(context, state)
  if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.SunderArmor, 2.0) then return false end
  if not context.target then return false end
@@ -498,6 +505,7 @@ local function heroic_strike_matches_fn(context, state)
  if (state.rage or 0) < HEROIC_STRIKE_RAGE_DUMP then return false end
  if state.ss_ready then return false end
  if state.revenge_ready then return false end
+ if not swing_timer_gate(context, state) then return false end
  return true
 end
 
@@ -505,6 +513,7 @@ local function cleave_matches_fn(context, state)
  if state.aoe_cc_nearby then return false end  -- don't break nearby CC
  if (state.enemy_count or 0) < 2 then return false end
  if (state.rage or 0) < HEROIC_STRIKE_RAGE_DUMP then return false end
+ if not swing_timer_gate(context, state) then return false end
  return true
 end
 
@@ -870,6 +879,18 @@ local strategies = {
   execute = function(context) return NS.try_cast(ACTION.Revenge, context.target, "[PROT] Revenge", { expected_cooldown = REVENGE_CD }) end,
  },
  {
+  name = "ShieldBlock",
+  matches = function(context, state)
+   if not is_defensive_stance(state.stance) then return false end
+   if not state.shield_block_ready then return false end
+   local me = context.me or NS.GetPlayer()
+   local sb_remains = me and NS.buff_remains and NS.buff_remains(me, SHIELD_BLOCK_BUFF) or 0
+   if sb_remains > 2 then return false end
+   return true
+  end,
+  execute = function(context) return NS.try_cast(ACTION.ShieldBlock, context.me or NS.GetPlayer(), "[PROT] ShieldBlock", { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) end,
+ },
+ {
   name = "Taunt",
   matches = function(context, state) return taunt_matches_fn(context, state) end,
   execute = function(context)
@@ -901,21 +922,7 @@ local strategies = {
    return NS.try_cast(ACTION.ChallengingShout, context.me or NS.GetPlayer(), "[PROT] ChallengingShout", { skip_range = true })
   end,
  },
- {
-  name = "ShieldBlock",
-  matches = function(context, state)
-   if not is_defensive_stance(state.stance) then return false end
-   if not state.shield_block_ready then return false end
-   local me = context.me or NS.GetPlayer()
-   -- buff_remains needs a buff ID (2565), not the spell-action object
-   -- (the old call passed ACTION.ShieldBlock, always reading 0 → on-CD spam).
-   local sb_remains = me and NS.buff_remains and NS.buff_remains(me, SHIELD_BLOCK_BUFF) or 0
-   -- proactive refresh before expiry to prevent crush windows
-   if sb_remains > 2 then return false end
-   return true
-  end,
-  execute = function(context) return NS.try_cast(ACTION.ShieldBlock, context.me or NS.GetPlayer(), "[PROT] ShieldBlock", { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) end,
- },
+
  -- 4b) Survival debuff upkeep (TBC guide: Demo Shout + Thunder Clap "always
  -- up", placed above Devastate filler -- ~18% dmg cut + ~20% atk-speed slow).
  {
@@ -983,6 +990,21 @@ local strategies = {
   matches = function(context, state) return heroic_strike_matches_fn(context, state) end,
   execute = function(context)
    return NS.try_cast(ACTION.HeroicStrike, context.target, "[PROT] HeroicStrike")
+  end,
+ },
+ -- Multi-target WW with stance dance (per wowsims APL for prot on 2+ targets when rage allows)
+ {
+  name = "WhirlwindMulti",
+  matches = function(context, state)
+   if (state.enemy_count or 0) < 2 then return false end
+   if not state.in_combat then return false end
+   if not NS.spell_ready or not NS.spell_ready(ACTION.Whirlwind, context.me, { skip_range = true }) then return false end
+   -- Prefer in Berserker for WW; the StanceSwitch will handle dance if configured
+   return true
+  end,
+  execute = function(context)
+   -- If not in berserker, the stance manager or subsequent StanceSwitch will help; cast WW
+   return NS.try_cast(ACTION.Whirlwind, context.me or NS.GetPlayer(), "[PROT] Whirlwind (AoE)", { skip_range = true })
   end,
  },
  -- 10) PvP / utility / movement
