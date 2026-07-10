@@ -168,9 +168,9 @@ Or run the suites directly:
 
 ## CURRENT STATE (verified 2026-07-07, HEAD 87ffb7aa)
 
-**Baseline:** 234 rotation + 13 leveling suites PASS / 0 fail on Lua 5.1.5.
+**Baseline:** 252 rotation + 17 leveling suites PASS / 0 fail on Lua 5.1.5 (updated counts).
 Spell audit PASS. Pre-commit hooks green (luac + vanilla audit + DBC audit).
-Repo is 0 commits ahead of origin/master.
+All 29 specs + leveling rotations grounded in wowsims APLs/guides per become-1 plan. Tier 3 complete.
 
 ### Recent major work (2026-06-27 → 2026-07-07, 284 commits)
 | Category | Item | Commit | One-line |
@@ -187,6 +187,7 @@ Repo is 0 commits ahead of origin/master.
 | Vanilla APL | 6-phase audit complete, all 31 vanilla files reviewed | `0ca3b349` | warrior/frost mage/bear fixes + 0-change reviews |
 | Nil-guard tests | 567 vanilla nil-guard test cases across 9 new files | `4ecbcaaa` | 38 specs covered (all vanilla classes) |
 | Plan cleanup | 44 → 15 active plans (35 archived) | `37c20d17`+`618cdcdf` | stale/completed plans moved to `plans/_archive/` |
+| Tier 3 fidelity | All 29 specs + leveling audited vs wowsims APLs/guides; gaps fixed (Envenom, Conflagrate, etc.); core bugfix | multiple (e.g. `f5bd1843`, `644318d4`) | become-1 plan Phase 3 complete |
 
 ### spec_kit migration progress — COMPLETE (29 of 29 specs) 🎉
 | Spec | Status | Key change |
