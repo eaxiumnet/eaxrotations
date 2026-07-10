@@ -92,6 +92,14 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
+-- name-based index helper (avoids brittle numeric indices)
+local function get_strategy_index(name)
+    for i = 1, #strategies do
+        if strategies[i].name == name then return i end
+    end
+    return nil
+end
+
 -- ============================================================================
 -- DeathCoilSurvival: only when HP <= 30% and valid enemy target
 -- ============================================================================
@@ -345,5 +353,29 @@ assert_false(drain_soul.matches({
 }, {
     target_hp = 15,
 }), "DrainSoul should not match when already channeling")
+
+-- ============================================================================
+-- UA priority ordering (PR2): name-based using find_strategy (no brittle indices)
+-- UA + UASpread must immediately follow NightfallProc and precede Corruption*
+-- ============================================================================
+local ua = find_strategy("UnstableAffliction")
+local ua_spread = find_strategy("UnstableAfflictionSpread")
+local corr = find_strategy("CorruptionDoT")
+local corr_spread = find_strategy("CorruptionSpread")
+local mov = find_strategy("MovingCorruption")
+local nf = find_strategy("NightfallProc")
+
+local ua_idx = get_strategy_index("UnstableAffliction")
+local ua_spread_idx = get_strategy_index("UnstableAfflictionSpread")
+local corr_idx = get_strategy_index("CorruptionDoT")
+local corr_spread_idx = get_strategy_index("CorruptionSpread")
+local mov_idx = get_strategy_index("MovingCorruption")
+local nf_idx = get_strategy_index("NightfallProc")
+
+assert_true(ua_idx and corr_idx and ua_idx < corr_idx, "UnstableAffliction must precede CorruptionDoT")
+assert_true(ua_spread_idx and corr_spread_idx and ua_spread_idx < corr_spread_idx, "UnstableAfflictionSpread must precede CorruptionSpread")
+assert_true(ua_idx and ua_spread_idx and ua_idx < ua_spread_idx, "primary UA before UA spread")
+assert_true(nf_idx and ua_idx and nf_idx < ua_idx, "NightfallProc before UA (UA immediately follows Nightfall)")
+assert_true(ua_idx and mov_idx and ua_idx < mov_idx, "UA before MovingCorruption")
 
 print("PASS test_affliction_custom_matches")
