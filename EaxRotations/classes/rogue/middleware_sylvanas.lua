@@ -11,6 +11,8 @@ if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
+local _imbue_ok, WeaponImbue = pcall(require, "shared/weapon_imbue_sylvanas")
+if not _imbue_ok or type(WeaponImbue) ~= "table" then WeaponImbue = nil end
 local SPELLS = NS.RogueSpells or {}
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local CCGateDB = CCBreakDB  -- Same module for CC break + CC gate
@@ -21,6 +23,7 @@ local CLOAK_IDS = { 31224 }               -- Cloak of Shadows
 local VANISH_IDS = { 26889, 1857, 1856 } -- Vanish
 local THISTLE_TEA_ID = 7676              -- Thistle Tea (item-based energy restore)
 local _last_rogue_cc_scan = 0
+local _last_poison_warn = 0
 
 -- Check if unit is melee attacker
 local function is_melee_attacker(context)
@@ -310,6 +313,39 @@ local strategies = {
             if NS.use_item then
                 return NS.use_item(THISTLE_TEA_ID, context.me, "[ROGUE] Thistle Tea")
             end
+            return false
+        end,
+    },
+
+    -- ============================================================================
+    -- Weapon Poison Check: warns when MH/OH poisons are missing or about to expire
+    -- ============================================================================
+    {
+        name = "PoisonCheck",
+        matches = function(context)
+            if not spec_kit.setting_bool(context, "rogue_poison_check", true) then return false end
+            local now = NS.time_now and NS.time_now() or 0
+            if now - _last_poison_warn < 30 then return false end
+            if not WeaponImbue then return false end
+            if not context.in_combat then return false end
+            -- Check if we have poisons applied
+            local rec = WeaponImbue.get_recommended_imbue("rogue")
+            if not rec then return false end
+            local missing = false
+            if rec.mh and not WeaponImbue.has_imbue("mainhand", rec.mh) then
+                missing = true
+            end
+            if rec.oh and not WeaponImbue.has_imbue("offhand", rec.oh) then
+                missing = true
+            end
+            if missing then
+                _last_poison_warn = now
+                return true
+            end
+            return false
+        end,
+        execute = function(context)
+            if NS.log then NS.log("[ROGUE] ⚠️ Weapon poisons missing — apply Instant Poison (MH) and Deadly Poison (OH)") end
             return false
         end,
     },
