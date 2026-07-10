@@ -32,6 +32,15 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.PriestSpells or {}
 
 local mf_tick = require("shared/mf_tick_compute_sylvanas")
+
+-- Safe pcall for ActiveFightTracker (from PR1 base); enables real multi-target SWP maintenance via undotted candidates in cleave/aoe.
+-- Guarded: if absent, fall back to existing target-only SWPSpread behavior (standalone testable, no hard dep).
+local _aft_ok, ActiveFightTracker = pcall(require, "shared/active_fight_tracker_sylvanas")
+if not _aft_ok or type(ActiveFightTracker) ~= "table" then
+    -- Fallback to multidot engagement filter (active-fight safe undot finder) if present
+    local _md_ok, MD = pcall(require, "shared/multidot_engagement_filter_sylvanas")
+    ActiveFightTracker = (_md_ok and type(MD) == "table") and MD or nil
+end
 -- ============================================================================
 -- Buff & Debuff ID tables
 -- ============================================================================
@@ -103,6 +112,32 @@ local function target_creature_type(unit)
     return nil
 end
 
+-- Tracker-based undotted SWP finder (PR3 additive parity).
+-- Uses ActiveFightTracker (guarded) to locate engaged enemies missing SWP for real cleave/aoe maintenance.
+-- Falls back to nil (target-only behavior preserved) when tracker absent.
+local function _find_undotted_swp(context)
+    if not context then return nil end
+    if ActiveFightTracker and type(ActiveFightTracker.find_multidot_target) == "function" then
+        local t = ActiveFightTracker.find_multidot_target(context, SHADOW_WORD_PAIN_DEBUFF)
+        if t then return t end
+    end
+    -- Minimal inline fallback using GetEnemiesInRange (no allocs, squared not needed here)
+    if NS.GetEnemiesInRange then
+        local enemies = NS.GetEnemiesInRange(30) or {}
+        local current = context.target
+        for _, enemy in ipairs(enemies) do
+            if enemy then
+                local is_current = current and NS.same_unit and NS.same_unit(enemy, current)
+                local has_swp = NS.debuff_up and NS.debuff_up(enemy, SHADOW_WORD_PAIN_DEBUFF) or false
+                if not is_current and not has_swp then
+                    return enemy
+                end
+            end
+        end
+    end
+    return nil
+end
+
 -- ============================================================================
 -- State builder
 -- ============================================================================
@@ -167,6 +202,8 @@ local function build_state(context)
     local target = context.target
     local me = NS.GetPlayer()
     if not me then return shadow_state end
+    -- Clear per-tick spread target marker (populated by tracker path in SWPSpread matches)
+    context._shadow_swp_spread_target = nil
     local mounted_bail = spec_kit.setting_bool(context, "shadow_mounted_bail", true)
     if mounted_bail then
         if me.is_mounted and me:is_mounted() then
@@ -316,10 +353,18 @@ local function shadow_swp_spread_matches(context, s)
     if not context.has_valid_enemy_target then return false end
     -- Per-target lockout: prevent double-queuing SW:P to same target while in-flight
     if _is_locked("SWP") then return false end
-    -- Avoid refreshing SW:P if it's still active on this target (we want to spread to targets that don't have it)
+    -- Tracker-based: prefer undotted SWP candidate from ActiveFightTracker (real maintenance path)
+    -- Parallel to target-only: if tracker finds secondary undotted, use it; else fallback keeps prior target-only SWPSpread
+    local spread_tgt = _find_undotted_swp(context)
+    if spread_tgt then
+        context._shadow_swp_spread_target = spread_tgt
+        return true
+    end
+    -- Fallback (no tracker or no undotted found): original target-only behavior
     local swp_window = s.swp_refresh_window or 3
     if s.swp_remaining > 0 and s.swp_remaining > swp_window then return false end
     if s.swp_remaining > 0 and not should_snapshot_upgrade(s.spell_damage, s.snapshot_swp_dmg, s.swp_remaining, swp_window, SPELL_DMG_UPGRADE_RATIO) then return false end
+    context._shadow_swp_spread_target = context.target
     return true
 end
 
@@ -520,7 +565,14 @@ local strategies = {
     { name = "Fade", matches = fade_matches, execute = function(context) return NS.try_cast(SPELLS.Fade, NS.PLAYER_UNIT, "[SHADOW] Fade", { skip_range = true }) end },
     { name = "DispelMagic", matches = dispel_magic_matches, execute = function(context) return NS.try_cast(SPELLS.DispelMagic, NS.PLAYER_UNIT, "[SHADOW] DispelMagic", { skip_range = true }) end },
     { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return NS.try_cast(SPELLS.ShackleUndead, context.target, "[SHADOW] ShackleUndead") end },
-    { name = "SWPSpread", matches = shadow_swp_spread_matches, execute = function(context) _set_lockout("SWP", 3000); local ok = NS.try_cast(SPELLS.ShadowWordPain, context.target, "[SHADOW] SWPSpread"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
+    { name = "SWPSpread", matches = shadow_swp_spread_matches, execute = function(context)
+        _set_lockout("SWP", 3000)
+        local target = context._shadow_swp_spread_target or context.target
+        local ok = NS.try_cast(SPELLS.ShadowWordPain, target, "[SHADOW] SWPSpread")
+        if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end
+        context._shadow_swp_spread_target = nil
+        return ok
+    end },
     { name = "InnerFire", matches = inner_fire_matches, execute = function(context) return NS.try_cast(SPELLS.InnerFire, NS.PLAYER_UNIT, "[SHADOW] InnerFire", { skip_range = true }) end },
     { name = "PowerWordShield", matches = power_word_shield_matches, execute = function(context) return NS.try_cast(SPELLS.PowerWordShield, NS.PLAYER_UNIT, "[SHADOW] PowerWordShield", { skip_range = true }) end },
     { name = "FlashHeal", matches = flash_heal_matches, execute = function(context) return NS.try_cast(SPELLS.FlashHeal, NS.PLAYER_UNIT, "[SHADOW] FlashHeal", { skip_range = true }) end },

@@ -124,7 +124,7 @@ test_spec("EaxRotations/classes/priest/holy_vanilla.lua", "holy_vanilla",
     { "EmergencyPWS", "EmergencyFlashHeal", "FriendlyTarget", "PrayerOfHealing", "InnerFocus", "Lightwell", "GreaterHeal", "FlashHeal", "DesperatePrayer", "DispelMagic", "CureDisease", "AbolishDisease", "RenewTank", "RenewSpread", "IdleSWP", "IdleHolyFire", "IdleSmite", "ManaBelow5Wand", "StopCast" },
     heal_ctx, heal_state)
 
--- Shadow
+-- Shadow (PR3: tracker-based SWP maintenance parity added; same strategy names)
 test_spec("EaxRotations/classes/priest/shadow_vanilla.lua", "shadow_vanilla",
     { "Shadowform", "Silence", "ManaBelow5Wand", "ShadowWordPain", "VampiricEmbrace", "DevouringPlague", "InnerFocusMindBlast", "MindBlast", "MindFlay", "PsychicScream", "Fade", "DispelMagic", "ShackleUndead", "SWPSpread", "InnerFire", "PowerWordShield", "FlashHeal", "HolyNovaAoE", "RacialBerserking", "RacialBloodFury" },
     base_ctx, priest_state)
