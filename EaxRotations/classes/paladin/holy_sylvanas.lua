@@ -166,7 +166,7 @@ local HOLY_SCHEMA = {
     -- Resources (Pattern 14: assume full → skip defensives)
     mana_pct = 100,  hp_pct = 100,  target_hp_pct = 100,
     emergency_count = 0,  heavy_healing = false,  use_group_blessings = false,
-    in_pvp = false,  moving = false,  is_group = false,  healthstone_ready = 0,
+    in_pvp = false,  moving = false,  is_group = false,  in_combat = false,  healthstone_ready = 0,
     -- Buff/debuff state
     has_divine_favor = false,  has_divine_illumination = false,  has_forbearance = false,
     has_seal_wisdom = false,  has_seal_righteousness = false,  has_seal_light = false,
@@ -207,6 +207,7 @@ local state = {
  heavy_healing = false,
  use_group_blessings = false,
  in_pvp = false,
+ in_combat = false,
  mana_pct = 100,
  hp_pct = 100,
  target_hp_pct = 100,
@@ -509,6 +510,7 @@ local function build_state(context)
  state.target_hp_pct = context and context.target_hp or NS.unit_health_pct and NS.unit_health_pct(context and context.target) or 100
  state.moving = context and context.is_moving or false
  state.in_pvp = NS.is_pvp_zone and NS.is_pvp_zone() or context and context.is_pvp or false
+ state.in_combat = context and context.in_combat or false
  state.use_group_blessings = state.count >= 5
  if not skip_aura then
   state.has_divine_favor = NS.has_player_buff(BUFF_DIVINE_FAVOR)
@@ -928,6 +930,16 @@ local strategies = {
   end,
  },
   {
+   name = "FSRPause",
+   matches = function(context, s)
+    if not FsrManager then return false end
+    return FsrManager.should_pause_for_fsr(s, context)
+   end,
+    execute = function(_, s)
+     return true
+    end,
+  },
+  {
    name = "SmartHeal",
    matches = function(context, s)
     local target = s.heal_target or s.lowest or s.tank
@@ -938,21 +950,6 @@ local strategies = {
    execute = function(_, s)
     return cast_on(s.heal_spell, s.heal_target, format("[HOLY] %s %.0f%%", s.heal_label, hp_of(s.heal_target)))
    end,
-  },
-  {
-   name = "FSRPause",
-   matches = function(context, s)
-    if not FsrManager then return false end
-    if not context.in_combat then return false end
-    if (s.mana_pct or 100) > 35 then return false end
-    if not s.fsr_inside then return false end
-    if (s.fsr_regen_delta or 0) <= 0 then return false end
-    local pause_ok, reason = FsrManager.should_pause_for_fsr(s, context)
-    return pause_ok
-   end,
-    execute = function(_, s)
-     return true
-    end,
   },
   {
    name = "FlashOfLightEfficientTopoff",

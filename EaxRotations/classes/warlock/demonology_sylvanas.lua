@@ -5,6 +5,7 @@
 -- WHY:   mirrors TBC demonology consensus: pet survival > DoT maintenance >
 --         Shadow Bolt filler, with Soul Link for survivability.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
+--         Fear: strict context.is_pvp + debuff_remains(FEAR_IDS)==0 + spec_kit.setting_bool(context, "use_fear_cc", true).
 
 -- Warlock Demonology priority list.
 
@@ -66,6 +67,7 @@ local SOUL_LINK_BUFF = { 25228 }
 local CURSE_OF_AGONY_DEBUFF = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
 local CURSE_OF_SHADOW_DEBUFF = { 27229, 17937, 17862 }
+local FEAR_DEBUFF_IDS = { 5782, 6213, 6215 }
 local PET_LOW_HP = 30
 local EXECUTE_THRESHOLD = 25
 local SOUL_SHARD_CAPTURE_TTD = 5  -- TBC: Drain Soul is shard-capture only (mob about to die); sub-25% execute is Wrath, not TBC
@@ -474,10 +476,12 @@ end
 
 local function fear_matches(context, s)
     if not s then return false end
-    if not context.in_combat then return false end
+    if not context.is_pvp then return false end
+    if not spec_kit.setting_bool(context, "use_fear_cc", true) then return false end
     if not context.target then return false end
+    local remains = (NS.debuff_remains and NS.debuff_remains(context.target, FEAR_DEBUFF_IDS)) or 0
+    if remains > 0 then return false end
     if not s.fear_ready then return false end
-    if not (context.is_pvp or context.is_group) then return false end
     return true
 end
 
@@ -650,11 +654,11 @@ local strategies = {
     { name = "DarkPact", matches = dark_pact_matches, execute = function(context) return NS.try_cast(ACTION.DarkPact, context.me, "[DEMONOLOGY] Dark Pact", { skip_range = true, expected_cooldown = 10 }) end },
     { name = "ShadowWard", matches = shadow_ward_matches, execute = function(context) return NS.try_cast(ACTION.ShadowWard, context.me, "[DEMONOLOGY] Shadow Ward", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "HowlofTerror", matches = howl_of_terror_matches, execute = function(context) return NS.try_cast(ACTION.HowlofTerror, context.me, "[DEMONOLOGY] Howl of Terror", { skip_range = true, expected_cooldown = 40 }) end },
-    { name = "Fear", matches = fear_matches, execute = function(context) return NS.try_cast(ACTION.Fear, context.target, "[DEMONOLOGY] Fear") end },
     { name = "Seduction", matches = seduction_matches, execute = function(context) return NS.try_cast(ACTION.Seduction, context.target, "[DEMONOLOGY] Seduction") end },
     { name = "Soulshatter", matches = soulshatter_matches, execute = function(context) return NS.try_cast(ACTION.Soulshatter, context.me, "[DEMONOLOGY] Soulshatter", { skip_range = true }) end },
     { name = "ShadowBolt", matches = shadow_bolt_matches, execute = function(context) return NS.try_cast(ACTION.ShadowBolt, context.target, "[DEMONOLOGY] Shadow Bolt") end },
     { name = "Incinerate", matches = incinerate_matches, execute = function(context) return NS.try_cast(ACTION.Incinerate, context.target, "[DEMONOLOGY] Incinerate") end },
+    { name = "Fear", matches = fear_matches, execute = function(context) return NS.try_cast(ACTION.Fear, context.target, "[DEMONOLOGY] Fear") end },
     { name = "Healthstone",
       matches = function(context, state)
           local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
