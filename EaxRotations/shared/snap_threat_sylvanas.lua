@@ -12,6 +12,9 @@ local _G = _G
 local NS = _G.EaxRotations
 if not NS then return end
 
+-- Pattern 2
+local _core_time = _G.core and _G.core.time
+
 local type = type
 local pcall = pcall
 local tostring = tostring
@@ -79,7 +82,7 @@ local _cleu_registered = false
 local function on_game_event(event_name, args)
     if event_name == "PLAYER_REGEN_DISABLED" then
         _cleu_snap_requested = true
-        _cleu_snap_time = NS.time_now and NS.time_now() or (core and core.time and core.time()) or 0
+        _cleu_snap_time = NS.time_now and NS.time_now() or (_core_time and _core_time()) or 0
         _snap_fired_this_combat = false
     end
 end
