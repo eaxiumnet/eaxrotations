@@ -265,6 +265,10 @@ function M.find_dispel_target(context, state)
                 effective_hp = hp - 20  -- boost priority for control magic
             end
             candidates[#candidates + 1] = { unit = unit, hp = effective_hp, dtype = dtype, spell_id = spell_id }
+            -- Dungeon opt: boost priority if will_die_soon or in control_risk (from previous mechanics work) to avoid deaths and speed clears
+            if is_dungeon_group and (NS.will_die_soon and NS.will_die_soon(unit, 3, 20)) then
+                effective_hp = effective_hp - 30
+            end
         end
     end
 
