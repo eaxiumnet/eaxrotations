@@ -1,19 +1,19 @@
 <h1 align="center">
-  ⚔️ EaxRotations
+  EaxRotations
 </h1>
 <p align="center">
   <strong>TBC Classic Anniversary rotation framework for <a href="https://github.com/aicore/sylvanas">Project Sylvanas</a></strong>
 </p>
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.3.12-blue" alt="Version 2.3.12">
-  <img src="https://img.shields.io/badge/specs-29%20%2B%209%20leveling-brightgreen" alt="29 Specs + 9 Leveling">
-  <img src="https://img.shields.io/badge/tests-234%2F234%20passing-success" alt="234/234 Tests Passing">
+  <img src="https://img.shields.io/badge/version-2.5.1-blue" alt="Version 2.5.1">
+  <img src="https://img.shields.io/badge/specs-29%20%2B%2013%20leveling-brightgreen" alt="29 Specs + 13 Leveling">
+  <img src="https://img.shields.io/badge/tests-252%2F252%20passing-success" alt="252/252 Tests Passing">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="CC-BY-4.0">
 </p>
 
 ---
 
-## 🚀 What Is This?
+## What Is This?
 
 **EaxRotations** is a comprehensive rotation automation framework for **World of Warcraft: The Burning Crusade Classic Anniversary** (client 2.5.5.x). It covers all **9 classes** across **29 specializations** plus **9 leveling rotations**, built on a shared combat engine with defensive middleware, role-aware settings, and full regression tests.
 
