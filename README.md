@@ -6,8 +6,8 @@
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/TBC%20Specs-29-brightgreen" alt="29 TBC Specs">
-  <img src="https://img.shields.io/badge/Rotation%20Tests-208%2F208%20passing-success" alt="208 Tests Passing">
-  <img src="https://img.shields.io/badge/Leveling%20Tests-11%2F11%20passing-success" alt="11 Leveling Tests Passing">
+  <img src="https://img.shields.io/badge/Rotation%20Tests-252%2F252%20passing-success" alt="252 Tests Passing">
+  <img src="https://img.shields.io/badge/Leveling%20Tests-13%2F13%20passing-success" alt="13 Leveling Tests Passing">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0%20(EaxRotations)-lightgrey" alt="CC-BY-4.0">
 </p>
 
