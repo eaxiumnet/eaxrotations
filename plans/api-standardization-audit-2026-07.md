@@ -38,9 +38,21 @@ Perform a comprehensive audit of API usage consistency across **all** EaxRotatio
 
 ## Audit Methodology
 
-### Phase 0 — Automated Violation Detection (Parallel)
+### Phase 0 — Automated Violation Detection (Parallel) — COMPLETED 2026-07-10
 
-Run these grep commands in parallel across the entire `EaxRotations/` tree. Each produces a violations list for the relevant group.
+Run these grep commands... (results below; no critical violations in production code).
+
+**Grep 1 (banned APIs):** Only in comments/docs/tests. Production clean.
+**Grep 2 (math.sqrt):** Only tests/docs. Clean.
+**Grep 3 (bare menu):** None found.
+**Grep 4 (raw core. in specs):** Mostly cached fallbacks (e.g. druid middleware, hunter_core wrappers). Acceptable at load or via shared.
+**Grep 5 (buff_points):** Guarded with `pts and ... or nil` in key places (prot, healing).
+**Grep 6 (bare state < >):** None in legacy.
+**Grep 7 (NS guard):** Schemas/shared use M={} or other; main specs have NS = _G... (some listed as expected per plan).
+**Grep 8 (Pattern 15 headers):** Most shared have WHAT:; minor misses in some data bridges (pre-existing).
+**Grep 9 (uncached hot):** Some shared use core. via pcall/lazy (fsr, combat_log); recommend local cache where hot.
+
+No P0 violations requiring immediate fix. Minor cleanups possible in Phase 1.
 
 #### Grep Pattern 1: Banned APIs
 ```bash
