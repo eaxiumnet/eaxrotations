@@ -93,6 +93,7 @@ local REFLECT_WHITELIST = {
     [46561] = true, -- Fear (SWP Sunblade Dusk Priest)
     [34984] = true, -- Psychic Horror (Underbog Fen Ray)
     [38660] = true, -- Fear (Steamvault Siren)
+    [32830] = true, -- Possess (Auchenai Crypts MC)
     [686] = true, [695] = true, [705] = true, [1088] = true, [1106] = true, [7641] = true,
     [11659] = true, [11660] = true, [11661] = true, [25307] = true, [27209] = true, -- Shadow Bolt
     [6789] = true, -- Death Coil
