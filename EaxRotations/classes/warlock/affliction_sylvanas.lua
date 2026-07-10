@@ -6,6 +6,8 @@
 -- WHY:   mirrors wowsims APL + TBC affliction consensus: UA > Corruption >
 --         Siphon Life > Immolate > curse (CoA/CoD/CoE/CoS) > Shadow Bolt filler.
 -- SAFETY: Pattern 14 nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+--         UA invariant: "UnstableAffliction" + "UnstableAfflictionSpread" immediately
+--         follow "NightfallProc" and precede all "Corruption*" (name-based order).
 
 -- TBC Warlock Affliction priority list with multi-DoT cycling, Nightfall procs, and execute drain.
 
@@ -590,6 +592,46 @@ local strategies = {
         end,
     },
     -- ------------------------------------------------------------------------
+    -- 6. Unstable Affliction (primary DoT — dispel protection, 1.5s cast)
+    -- ------------------------------------------------------------------------
+    {
+        name = "UnstableAffliction",
+        matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            if broken_api_dot_throttled(30405) then return false end
+            if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
+            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+            if (state.ua_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_ua_dmg or 0, state.ua_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
+            -- DoT TTD gating
+            local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
+            if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.unstable_affliction, ttd_threshold) then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.UnstableAffliction, context.target) or false
+        end,
+        execute = function(context)
+            local ok = NS.try_cast(ACTION.UnstableAffliction, context.target, "[AFFL] Unstable Affliction")
+            if ok and aff_state.spell_damage then aff_state.snapshot_ua_dmg = aff_state.spell_damage end
+            return ok
+        end,
+    },
+    -- Unstable Affliction Spread — multi-DoT via IZI spread_dot (v2.5.1)
+    {
+        name = "UnstableAfflictionSpread",
+        matches = function(context, state)
+            if not _izi then return false end
+            -- Fire when primary target already has UA; spread to additional targets
+            if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
+            if not target then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.UnstableAffliction, target) or false
+        end,
+        execute = function(context)
+            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
+            if not target then return false end
+            return NS.try_cast(ACTION.UnstableAffliction, target, "[AFFL] Unstable Affliction Spread")
+        end,
+    },
+    -- ------------------------------------------------------------------------
     {
         name = "CorruptionDoT",
         matches = function(context, state)
@@ -643,47 +685,6 @@ local strategies = {
             local ok = NS.try_cast(ACTION.Corruption, context.target, "[AFFL] Corruption (moving)")
             if ok and aff_state.spell_damage then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
             return ok
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 6. Unstable Affliction (primary DoT — dispel protection, 1.5s cast)
-    -- ------------------------------------------------------------------------
-    {
-        name = "UnstableAffliction",
-        matches = function(context, state)
-            if not context.has_valid_enemy_target then return false end
-            if broken_api_dot_throttled(30405) then return false end
-            if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
-            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
-            if (state.ua_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_ua_dmg or 0, state.ua_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
-            -- DoT TTD gating
-            local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
-            if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.unstable_affliction, ttd_threshold) then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.UnstableAffliction, context.target) or false
-        end,
-        execute = function(context)
-            local ok = NS.try_cast(ACTION.UnstableAffliction, context.target, "[AFFL] Unstable Affliction")
-            if ok and aff_state.spell_damage then aff_state.snapshot_ua_dmg = aff_state.spell_damage end
-            return ok
-        end,
-    },
-    -- Unstable Affliction Spread — multi-DoT via IZI spread_dot (v2.5.1)
-    {
-        name = "UnstableAfflictionSpread",
-        matches = function(context, state)
-            if not _izi then return false end
-            -- Fire when primary target already has UA; spread to additional targets
-            if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
-            if not target then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.UnstableAffliction, target) or false
-        end,
-        execute = function(context)
-            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
-            if not target then return false end
-            return NS.try_cast(ACTION.UnstableAffliction, target, "[AFFL] Unstable Affliction Spread")
         end,
     },
 
