@@ -41,6 +41,7 @@ return {
             {
                 header = "Bear Tank",
                 settings = {
+                    { key = "bear_swing_timer", type = "checkbox", label = "Swing Timer Maul", default = true, tooltip = "Avoid Maul within 0.3s of a melee swing to prevent clipping auto-attacks" },
                     { key = "bear_aoe_threshold", type = "slider", label = "Bear AoE Count", min = 2, max = 5, default = 3 },
                     { key = "bear_maul_rage", type = "slider", label = "Maul Rage", min = 30, max = 80, default = 50 },
                     { key = "bear_barkskin_hp", type = "slider", label = "Barkskin HP%", min = 0, max = 100, default = 55 },

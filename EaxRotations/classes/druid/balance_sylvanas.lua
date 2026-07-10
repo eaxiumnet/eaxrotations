@@ -479,6 +479,7 @@ local strategies = {
     {
         name="MarkOfTheWild",
         matches=function(ctx)
+            if not spec_kit.setting_bool(ctx, "use_self_buffs", true) then return false end
             -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
             local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.MarkOfTheWild, 3.0) or false
             if not skip then
@@ -494,6 +495,7 @@ local strategies = {
     {
         name="ThornsBuff",
         matches=function(ctx)
+            if not spec_kit.setting_bool(ctx, "use_self_buffs", true) then return false end
             -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
             local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Thorns, 3.0) or false
             if not skip then
