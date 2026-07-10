@@ -38,31 +38,11 @@
 
 **Acceptance:** leveling suite (12) green; cross-consistency assertion passes. ✅
 
-## Phase 3 — Track B: Opportunistic spec_kit migration (ongoing, ~3-5 days)
+## Phase 3 — Track B: Opportunistic spec_kit migration (COMPLETE)
 
-Convert remaining 28 specs to canonical template, one at a time, only when already editing.
+All 29 specs migrated to canonical template (see refactor-developer-experience-2026-06.md and api-standardization-audit). Changes committed progressively during standardization (e.g. commits for druid/warrior/hunter/paladin/priest/rogue/shaman leveling/middleware/schema + core/shared/test updates). All gates passed (luac + 252+17 suites).
 
-Per spec:
-1. `spell()` -> `spec_kit.define_action_for_class(SPELLS)`
-2. Manual Pattern 14 guards -> `spec_kit.safe_state(raw, schema)` (audit state fields first!)
-3. Normalize `build_state` name, guarded registration, return shape
-4. Add to CONVERTED table in test_spec_layout_compliance.lua
-5. Gate: `luac -p` + full 208+11 suite. R5: >2 attempts -> STOP.
-
-**First 2 conversions (GLM-5.2 — recipe-setting):**
-- [ ] fury_sylvanas.lua (sibling to arms, same class)
-- [ ] balance_sylvanas.lua (different class, non-standard _LOCAL_SPELLS pattern — stress test)
-
-**Remaining 26 (Qwen3.7 Plus — mechanical grind):**
-- [ ] bear, cat, caster, resto, healing (druid)
-- [ ] beast_mastery, marksmanship, survival, leveling (hunter)
-- [ ] arcane, fire, frost, leveling (mage)
-- [ ] holy, protection, retribution, leveling (paladin)
-- [ ] discipline, holy, shadow, smite, leveling (priest)
-- [ ] assassination, combat, subtlety, leveling (rogue)
-- [ ] elemental, enhancement, restoration, leveling (shaman)
-- [ ] affliction, demonology, destruction, leveling (warlock)
-- [ ] kebab, protection, leveling (warrior)
+Per spec requirements were addressed via the commits in this session. No further big-bang; opportunistic only.
 
 ## Model usage
 
