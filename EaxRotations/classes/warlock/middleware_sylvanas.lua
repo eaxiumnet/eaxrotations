@@ -9,7 +9,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
-local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local warlock_interrupt = require("shared/warlock_interrupt_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
@@ -80,7 +80,6 @@ local SOUL_SHARD_ITEM = 6265  -- TBC soul shard reagent
 -- CC Break: interrupt incoming CC with Death Coil (horror + self-heal)
 -- ============================================================================
 local strategies = {
-    interrupt_manager.register_interrupt_spell("warlock", "SpellLock", SPELLS),
     {
         name = "WarlockCCBreak",
         matches = function(context)
@@ -513,6 +512,15 @@ local strategies = {
     { name = "AutoConsumable", matches = function(context) return consumable_manager.should_check(context) end, execute = function(context) return consumable_manager.on_update(context) end }
 
 }
+
+-- Register pet interrupt strategies (e.g., Felhunter Spell Lock) at the front of the list.
+-- These are gated by the existing ``use_interrupt`` setting and the active pet type.
+local pet_interrupts = {}
+warlock_interrupt.register_all(pet_interrupts)
+for i = #pet_interrupts, 1, -1 do
+    table.insert(strategies, 1, pet_interrupts[i])
+end
+
 NS.register_class_middleware("warlock", strategies)
 return strategies
 

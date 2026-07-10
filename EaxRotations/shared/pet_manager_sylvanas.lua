@@ -66,6 +66,19 @@ local FELGUARD_CLEAVE = { 30213 }
 local FELGUARD_INTERCEPT = { 30198, 30197, 30196 }
 local FELGUARD_ANGUISH = { 33698, 33699, 33700 }
 
+-- Pet type detection: map identifying spell IDs to pet type.
+-- A pet is considered a given type if it knows any of that type's signature spells.
+local PET_TYPE_SPELLS = {
+    imp        = IMP_FIREBOLT,
+    voidwalker = VW_TAUNT,
+    succubus   = SUCC_LASH,
+    felhunter  = FELHUNTER_BITE,
+    felguard   = FELGUARD_CLEAVE,
+}
+
+-- Module-level pet type cache keyed by pet GUID to avoid repeated spell scans.
+local _pet_type_cache = { guid = nil, type = nil }
+
 -- Mage pet abilities (Water Elemental)
 local WATERBOLT       = { 31707 }
 local WATER_FREEZE    = { 33395 }
@@ -95,6 +108,7 @@ local function _get_state(spec)
             warlock_type = nil,
             felguard_intercept_id = nil,
             felguard_anguish_id = nil,
+            pet_type = nil,
             mage_waterbolt_id = nil,
             mage_freeze_id = nil,
             last_growl = 0,
@@ -400,8 +414,12 @@ function M.on_update(me, target, spec, context)
         st.pet_spells_scanned = false
         st.autocast_enabled = {}
         st.current_stance = nil
+        st.pet_type = nil
         return
     end
+
+    -- Cache pet type once per frame (cheap; used for ability gating)
+    st.pet_type = M.get_pet_type(pet)
 
     -- Scan spells once per spec (with autocast enable)
     local class_key = context.player_class_name or ""
@@ -423,6 +441,7 @@ function M.on_update(me, target, spec, context)
     -- Target must be engaged before we send pet (prevents pulling patrols)
     if not _engaged_with_player(context) then
         st.state = STATE_IDLE
+        print("DEBUG: not engaged with player")
         return
     end
 
@@ -505,8 +524,10 @@ function M.on_update(me, target, spec, context)
         end
     end
 
-    -- Warlock Felguard: Intercept when target is at range (>8 yards)
-    if st.felguard_intercept_id and now - st.last_felguard_intercept > 15 then
+    -- Warlock Felguard: Intercept when target is at range (>8 yards).
+    -- Gated by pet type (Felguard) and combat state.
+    print("DEBUG Intercept check: pet_type=" .. tostring(st.pet_type) .. " in_combat=" .. tostring(context.in_combat) .. " intercept_id=" .. tostring(st.felguard_intercept_id) .. " last=" .. st.last_felguard_intercept .. " now=" .. now)
+    if st.pet_type == "felguard" and context.in_combat and st.felguard_intercept_id and now - st.last_felguard_intercept > 15 then
         local at_range = false
         if me and target and me.get_distance then
             local ok_dist, dist = pcall(me.get_distance, me, target)
@@ -520,8 +541,9 @@ function M.on_update(me, target, spec, context)
         end
     end
 
-    -- Warlock Felguard: Anguish (taunt) — SKIP in group content (don't pull from tank)
-    if st.felguard_anguish_id and now - st.last_felguard_anguish > 5 then
+    -- Warlock Felguard: Anguish (taunt) — SKIP in group content (don't pull from tank).
+    -- Gated by pet type (Felguard) and combat state.
+    if st.pet_type == "felguard" and context.in_combat and st.felguard_anguish_id and now - st.last_felguard_anguish > 5 then
         local in_group = context.is_group or false
         if not in_group then
             if M.try_cast(st.felguard_anguish_id, target) then
@@ -611,6 +633,64 @@ function M.get_pet_action_info(spell_id)
         if ok and type(info) == "table" then return info end
     end
     return nil
+end
+
+-- ============================================================================
+-- Pet type detection
+-- ============================================================================
+
+-- Detect the active pet's type by inspecting its known spells.
+-- Returns one of: "imp", "voidwalker", "succubus", "felhunter", "felguard", or nil.
+function M.get_pet_type(pet)
+    if not pet then return nil end
+    -- Use cached value when the pet GUID hasn't changed.
+    local guid_ok, guid = pcall(function() return pet:get_guid() end)
+    if guid_ok and guid and _pet_type_cache.guid == guid and _pet_type_cache.type ~= nil then
+        return _pet_type_cache.type
+    end
+
+    -- Try to read the pet's spell list from the engine.
+    local spells = nil
+    if core and core.spell_book and core.spell_book.get_pet_spells then
+        local ok, sp = pcall(core.spell_book.get_pet_spells)
+        if ok and type(sp) == "table" then spells = sp end
+    end
+    -- Fallback: some builds expose spells on the pet object.
+    if not spells then
+        local ok, sp = pcall(function() return pet.get_spells and pet:get_spells() end)
+        if ok and type(sp) == "table" then spells = sp end
+    end
+    if not spells then
+        if guid_ok and guid then
+            _pet_type_cache.guid = guid
+            _pet_type_cache.type = nil
+        end
+        return nil
+    end
+
+    local known = {}
+    for _, id in ipairs(spells) do known[id] = true end
+    for type_name, ids in pairs(PET_TYPE_SPELLS) do
+        for _, id in ipairs(ids) do
+            if known[id] then
+                if guid_ok and guid then
+                    _pet_type_cache.guid = guid
+                    _pet_type_cache.type = type_name
+                end
+                return type_name
+            end
+        end
+    end
+    if guid_ok and guid then
+        _pet_type_cache.guid = guid
+        _pet_type_cache.type = nil
+    end
+    return nil
+end
+
+-- Convenience predicates for gating pet abilities by type.
+function M.is_pet_type(pet, type_name)
+    return M.get_pet_type(pet) == type_name
 end
 
 return M
