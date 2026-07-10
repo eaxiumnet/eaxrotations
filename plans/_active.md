@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-10 (verification continue: tests 252+17 + compliance PASS, zip clean; HEAD 58934df2; rotations COMPLETE; fishing in-progress (source absent); junk only).
+**Last updated:** 2026-07-10 (verification continue: tests 252+17 + compliance PASS, zip clean; HEAD f4fa8d70; rotations COMPLETE; fishing in-progress (source absent); junk only).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
