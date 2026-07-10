@@ -2,6 +2,13 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.5.12] — BT/SWP Dispel Polish (2026-07-10)
+
+- Priest Healing + shared dispel: extended dangerous debuff coverage for Black Temple (Soul Drain) and Sunwell (Polymorph, Flame Buffet, hound poisons/disease).
+- Version bump to 2.5.12 in header.lua, VERSION.txt, README, changelogs.
+- Clean release zip (only .lua + .md).
+- All tests green.
+
 ## [2.6.0] — FSR, Downranking & Hit Cap Awareness (2026-07-09)
 
 ### Five-Second Rule (FSR) — All 5 Healer Specs

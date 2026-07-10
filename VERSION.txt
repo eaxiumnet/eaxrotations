@@ -1,15 +1,13 @@
-EaxRotations v2.5.11
+EaxRotations v2.5.12
 Released: 2026-07-10
 Game: The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
 Commit: (git describe)
 
 === WHAT'S NEW ===
-- Destruction Warlock: Conflagrate priority above Incinerate for proper Immolate consume (fidelity to TBC sources)
-- spec_kit migration COMPLETE: all 29 specs converted to define_action_for_class + safe_state
-- 5 fully-migrated classes: Warlock, Shaman, Rogue, Hunter, Paladin
-- Nil-guard elimination: safe_state proxy makes Pattern 14 nil-guard bugs structurally impossible
-- Guarded registration on all 29 specs (nil-safe in unit test environments)
-- Canonical return shape { strategies, build_state } on all specs
+- Priest Healing + shared dispel: extended dangerous debuff lists for Black Temple (Soul Drain) and Sunwell Plateau (Polymorph, Flame Buffet, hound poisons/disease) for better raid dispel priority.
+- BT/SWP raid content coverage improved in dispel paths.
+- All rotation and leveling tests remain passing (252 + 17 suites).
+- Continued verification and doc sync.
 
 === QUALITY GATES ===
 - Rotation test suites: 252/252 PASS
@@ -18,3 +16,4 @@ Commit: (git describe)
 - Lua syntax check: ALL PASS (luac -p)
 - Spell database audit: verified against DBC client 2.5.5.68101 (61 sylvanas clean, 31 vanilla clean)
 - Pre-commit hooks: green (luac + vanilla + sylvanas/DBC)
+- Zip: only .lua and .md files (clean release packaging)
