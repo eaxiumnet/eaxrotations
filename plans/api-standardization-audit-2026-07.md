@@ -223,6 +223,8 @@ grep -rn "_G\.core\|core\." EaxRotations/tests/ --include="*.lua" | grep -v "run
 
 **Acceptance:** `luac -p` clean; full suite green. (initial pass; more in next waves)
 
+Wave 1C progress: main_sylvanas caching fixed.
+
 Wave 1C started.
 
 ---
