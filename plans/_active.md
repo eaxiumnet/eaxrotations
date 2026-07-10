@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-10 (spec-standardization marked COMPLETE after Phase 3; api-audit COMPLETE; tree cleaned)
+**Last updated:** 2026-07-10 (spec-standardization marked COMPLETE after Phase 3; api-audit COMPLETE; tree cleaned; eaxrotations.zip verified only lua/md + uploaded to v2.5.11)
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
