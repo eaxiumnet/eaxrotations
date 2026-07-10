@@ -227,6 +227,14 @@ Wave 1C: main_sylvanas caching fixed + bare cleanup; core docs expanded + cachin
 
 Wave 1C completed 2026-07-10.
 
+#### Wave 1D kickoff (2026-07-10)
+- Spot-checked Group C/D/E (class, middleware, schema) for ~all 9 classes.
+- Pattern 15 headers present in class_*.lua, middleware_*.lua, schema_*.lua (WHAT: lines verified).
+- No bare `menu.*:get()` in middleware (schemas are the allowed site).
+- Load-time core. caches for spell_book in middleware (e.g. is_spell_learned) are acceptable (Pattern 2 at module init).
+- No critical violations found in initial sweep. Will batch fixes if any surface in full per-file pass.
+- Updated plan; will gate individual class-infra files only when editing for other work.
+
 ---
 
 #### Wave 1D: Group C/D/E/F — Class Infrastructure (32 files)
