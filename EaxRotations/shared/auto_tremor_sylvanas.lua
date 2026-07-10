@@ -15,7 +15,7 @@ local NS = _G.EaxRotations
 -- Fear-casting boss NPC IDs (TBC encounters)
 -- Comprehensive list for dungeons and raids to prevent tank fears causing wipes (tank runs into packs).
 -- Raids: Karazhan (Nightbane), Hyjal (Archimonde, Anetheron), BT, SSC (Striders, Honor Guards), Magtheridon's Lair, TK, Sunwell Plateau (SWP Sunblade Dusk Priests), etc.
--- Dungeons: Auchindoun wings (Shadow Lab key for Kara attunement), Ramparts, Arcatraz (Skyriss), Sethekk, Mana Tombs, Old Hillsbrad, Black Morass, Magisters' Terrace (Delrissa), Underbog (Fen Ray horror), Steamvault (Sirens), Botanica (Fear-Shriekers), Slave Pens (Rays), etc.
+-- Dungeons: Auchindoun wings (Shadow Lab key for Kara attunement), Ramparts, Arcatraz (Skyriss), Sethekk, Mana Tombs, Old Hillsbrad, Black Morass, Magisters' Terrace (Delrissa), Underbog (Fen Ray horror), Steamvault (Sirens), Botanica (Fear-Shriekers), Slave Pens (Rays), Auchenai Crypts (Possessors MC), etc.
 -- Use with party frames for accurate tank protection. Expanded via WoWHead TBC guides for all major fear sources (incl. uninterruptible fears and horrors that bypass Tremor).
 -- Expand as more verified via DBC/client.
 local FEAR_CASTER_IDS = {
@@ -61,7 +61,9 @@ local FEAR_CASTER_IDS = {
     [19513] = true,  -- Mutate Fear-Shrieker (Botanica) — Fear
     -- Slave Pens: Coilfang Rays (Psychic Horror, dangerous fear into packs)
     [21128] = true,  -- Coilfang Ray (Slave Pens) — Psychic Horror
-    -- Additional from research (SSC Frightening Shout trash, BT, TK advisors, Arcatraz, SWP, MGT, Underbog, Steamvault, Botanica, Slave Pens, etc.)
+    -- Auchenai Crypts: Phantasmal Possessor (key MC/charm caster; MC not easily dispelled, break by HP <50%; triggers control risk for FearWard priority)
+    [18503] = true,  -- Phantasmal Possessor (Auchenai Crypts) — Possess (MC/charm)
+    -- Additional from research (SSC Frightening Shout trash, BT, TK advisors, Arcatraz, SWP, MGT, Underbog, Steamvault, Botanica, Slave Pens, Auchenai Crypts, etc.)
     -- All verified/expanded via WoWHead TBC dungeon/raid guides for proactive Fear Ward + Tremor tank protection.
 }
 
