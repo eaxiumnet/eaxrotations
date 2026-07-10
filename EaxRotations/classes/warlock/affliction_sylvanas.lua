@@ -8,6 +8,7 @@
 -- SAFETY: Pattern 14 nil-guarded via spec_kit.safe_state(); no on_update() allocs.
 --         UA invariant: "UnstableAffliction" + "UnstableAfflictionSpread" immediately
 --         follow "NightfallProc" and precede all "Corruption*" (name-based order).
+--         CC_Fear: strict context.is_pvp + debuff_remains(FEAR_IDS)==0 + spec_kit.setting_bool(context, "use_fear_cc", true).
 
 -- TBC Warlock Affliction priority list with multi-DoT cycling, Nightfall procs, and execute drain.
 
@@ -143,6 +144,7 @@ local ISB_DEBUFF = { 17800 } -- Shadow Vulnerability (ISB proc debuff)
 local SEED_OF_CORRUPTION_DEBUFF = { 27285 }  -- the DoT that triggers the explosion
 local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
 local CURSE_OF_SHADOW_DEBUFF   = { 27229, 17937, 17862 }
+local FEAR_DEBUFF_IDS        = { 5782, 6213, 6215 }  -- Fear ranks (also used as debuff IDs)
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
 local SOULSHATTER_BUFF       = { 29858 }
 local FEL_ARMOR_BUFF         = { 28189, 28176 }
@@ -1100,8 +1102,11 @@ local strategies = {
     {
         name = "CC_Fear",
         matches = function(context)
-            if not (context.is_pvp or context.is_group) then return false end
+            if not context.is_pvp then return false end
+            if not spec_kit.setting_bool(context, "use_fear_cc", true) then return false end
             if not context.target then return false end
+            local remains = (NS.debuff_remains and NS.debuff_remains(context.target, FEAR_DEBUFF_IDS)) or 0
+            if remains > 0 then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.Fear, context.target) or false
         end,
         execute = function(context)
