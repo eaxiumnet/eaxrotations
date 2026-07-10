@@ -351,6 +351,7 @@ local tests = {
   "test_autoloot_sylvanas.lua",
   "test_context_wired_fields_2026_06.lua",
   "test_multidot_engagement_filter.lua",
+  "test_active_fight_tracker.lua",
   "test_strategy_categorization_validator.lua",
 }
 
