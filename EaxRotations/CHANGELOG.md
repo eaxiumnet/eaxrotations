@@ -5,6 +5,7 @@
 ### Customer Changelog
 - Improved Arms Warrior Sunder Armor priority and battle stance support, aligned with authoritative SimC APLs and guides from Wowhead and Icy Veins for better raid contribution.
 - Improved Feral Cat (Druid) with proper Berserk usage during burst windows (pull/BL), aligning with SimC/wowsims/icyveins for higher DPS in CDs.
+- Improved Retribution Paladin seal twisting behavior: now enabled by default to follow Command rank 1 to Blood/Martyr twist for Crusader Strike and Judgement, matching simulator and guide priorities.
 - Updated version to 2.5.2 with customer-facing documentation and text cleanup (plain formatting, no special symbols).
 - All rotation and leveling tests remain passing.
 

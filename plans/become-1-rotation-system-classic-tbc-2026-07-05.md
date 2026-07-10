@@ -36,9 +36,9 @@ Priority shared modules that affect every spec:
 - [x] Shadow Priest — Shadowfiend timing optimized per wowsims; Starshards moved above Mind Flay filler (was dead code). (v2.3.18, v2.3.19)
 - [x] Fury Warrior — Overpower weaving stance dance (opt-in, wowsims "Overpower Weaving" group). (v2.3.19)
 - [x] Fire Mage — Combustion already gates on 5-stack Scorch (verified, v2.3.15).
-- [ ] Feral Cat — Berserk/TF optimization.
-- [ ] Retribution Paladin — seal twisting investigation.
-- [ ] Hunter — full shot-weave overhaul with auto-shot buffer calculations (complex, multi-session).
+- [x] Feral Cat — Added Berserk burst logic for pull/BL windows (per SimC/wowsims/icyveins); powershift and snapshot already strong. (2026-07-10)
+- [x] Retribution Paladin — seal twisting defaults aligned to wowsims APL + Wowhead guides (Command r1 -> Blood twist enabled by default; existing CLEU/diagnostics/post-swing logic already advanced). (2026-07-10)
+- [ ] Hunter — full shot-weave overhaul with auto-shot buffer calculations (has cliptracker/shot_timer; enhance if needed).
 - [ ] Tier 2: Protection Paladin/Warrior, Resto Shaman/Druid/Priest, Holy Paladin/Priest, Balance.
 - [ ] Tier 3: remaining specs and leveling rotations.
 

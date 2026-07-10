@@ -104,6 +104,8 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
 - Sources used: wowsims/tbc-new arms.apl.json, Icy Veins TBC Arms rotation, Wowhead TBC Warrior DPS.
 - Feral Cat: Added Berserk usage in burst windows (pull, BL, high AP) to align with SimC/wowsims/icyveins (Berserk for max shred/rip during CDs). Previously only mentioned in header, no logic. Tigers Fury already had good gating (pull or 100 energy). Verified tests green.
 - Sources: wowsims tbc feral, Wowhead TBC Feral rotation, Icy Veins TBC Feral.
+- Retribution Paladin: Enabled seal twisting by default (Command rank 1 into Blood/Martyr for CS and Judge windows). Matches wowsims APL priority (twist before swing, CS under Blood, Judge under Blood shortly after auto) and Wowhead/Icy Veins TBC guides. The implementation already included CLEU swing diagnostics, PERFECT/PHANTOM logging, dynamic twist window, post-swing judge gate, rank-1 Command prep. Only the default was off; now auto users get source-aligned behavior. All tests green.
+- Sources: wowsims/tbc-new paladin/retribution apl, Wowhead TBC Ret DPS guide, community seal twisting guides.
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |
