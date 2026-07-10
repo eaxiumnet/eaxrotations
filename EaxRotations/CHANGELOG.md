@@ -11,6 +11,7 @@
 ### Customer Changelog
 - Elemental Shaman: main totems now higher priority to match simulator APL.
 - Frost Mage: audited for fidelity; strong Frostbolt spam with burst CDs and shatter Ice Lance per guides.
+- Enhancement Shaman: audited; strong Stormstrike, totem twisting, shock priority per APL.
 - All rotation and leveling tests remain passing (252 suites).
 
 ## 2.5.7 - 2026-07-10
