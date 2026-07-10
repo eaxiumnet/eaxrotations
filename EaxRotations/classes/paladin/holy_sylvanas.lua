@@ -174,6 +174,8 @@ local HOLY_SCHEMA = {
     has_fire_aura = false,  has_frost_aura = false,  has_shadow_aura = false,
     has_lights_grace = false,  lights_grace_remains = 0,
     target_has_jol = false,  target_has_jow = false,
+    -- Swing timer for post-swing Judgement gating
+    swing_remains = 99,
     -- FSR state (Five-Second Rule)
     fsr_inside = false,  fsr_seconds = 0,  fsr_regen_delta = 0,
 }
@@ -220,6 +222,7 @@ local state = {
  has_frost_aura = false,
  has_shadow_aura = false,
  has_lights_grace = false,
+ swing_remains = 99,
  lights_grace_remains = 0,
  target_has_jol = false,
  target_has_jow = false,
@@ -817,6 +820,26 @@ local strategies = {
   end,
   execute = function(_, s)
    return cast_on(s.holy_light_spell, s.tank, format("[HOLY] %s (Light's Grace chain %.1fs)", s.holy_light_label, s.lights_grace_remains or 0))
+  end,
+ },
+ -- Light's Grace Build (proactive downrank): per TBC guides, cast lower-rank Holy Light when LG is not active or expiring to proc/refresh Light's Grace cheaply on the tank.
+ -- This enables faster subsequent max-rank HL. Uses downrank ranks when LG down.
+ {
+  name = "LightGraceBuild",
+  matches = function(context, s)
+   if not spec_kit.setting_bool(context, "holy_lg_build_enabled", true) then return false end
+   if not (context and context.in_combat) then return false end
+   if not s.tank or not can_help(s.tank) then return false end
+   if deficit_of(s.tank) <= 0 then return false end
+   if (s.lights_grace_remains or 0) > 5 then return false end  -- only when weak or absent
+   -- Prefer downrank for cheap proc when building
+   local build_rank = (s.mana_pct or 100) < 40 and HolyLightRank4 or HolyLightRank7
+   s.holy_light_spell = build_rank
+   s.holy_light_label = (build_rank == HolyLightRank4) and "Holy Light R4 (LG build)" or "Holy Light R7 (LG build)"
+   return NS.spell_ready(s.holy_light_spell, s.tank.unit, EMPTY_OPTS)
+  end,
+  execute = function(_, s)
+   return cast_on(s.holy_light_spell, s.tank, format("[HOLY] %s (build Light's Grace)", s.holy_light_label))
   end,
  },
  -- FriendlyTarget (B6): honor the player's manually-selected friendly target.

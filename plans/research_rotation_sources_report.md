@@ -111,6 +111,7 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
 - Sources: wowsims/tbc-new warrior/protection apl, Wowhead/Icy Veins TBC Prot Warrior guides.
 - Balance Druid: Cleaned header and comments (removed incorrect "Eclipse-aware" references — Eclipse is WotLK, not TBC 2.5.5). Priorities confirmed aligned: Moonfire + Insect Swarm, Faerie Fire, Starfire filler (Wrath for mana), Starfall, Force of Nature, self-Innervate. Matches wowsims/tbc-new APL and guides. All tests green.
 - Protection Paladin: Audited vs wowsims/tbc-new APL and guides (Wowhead, community). Strong alignment: Holy Shield (charge tracking + proactive), Consecration (downrank + mana/AoE gates), Judgement (JoW hysteresis for mana), Avenger's Shield for pulls, seals (Righteousness primary, Wisdom low mana), defensives layered. No major P0 gaps found after research; matches "HS on CD, Consec on CD, Judgement on CD, Avenger's for pull" consensus. Tests green. (verified with online sources).
+- Holy Paladin: Added proactive "LightGraceBuild" strategy using downranked Holy Light (R4/R7) when LG absent/weak, per TBC guides (Icy Veins, Wowhead, community) to cheaply proc Light's Grace for faster subsequent HL. Complements existing LG chain and downrank logic. Sources: Wowhead TBC Holy Pally guide, boostmatch.gg, community downrank/LG discussions. Tests green.
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |
