@@ -78,6 +78,10 @@ end
 
 -- Mana conservation tier defaults (configurable via schema)
 local MANA_LOW_DEFAULT = 30
+
+local CHAIN_HEAL_MAX = 25423
+local CHAIN_HEAL_CONSERVE = 25422
+local CHAIN_HEAL_EFFICIENT = 10623
 local MANA_CONSERVE_DEFAULT = 15
 local MANA_EMERGENCY_DEFAULT = 5
 -- Earth Shield charge refresh threshold
@@ -631,11 +635,31 @@ local function chain_heal_execute(context, state)
  -- Prefer AoE cluster target over naive lowest
  local ch_target = state.chain_heal_optimal_target
  if ch_target and ch_target.unit then
-  return NS.try_cast(ACTION.ChainHeal, ch_target.unit, string.format("[RESTO] ChainHeal %.0f%% (cluster %d)", ch_target.effective_hp or 0, state.chain_heal_cluster_count))
+  local mana = context.mana_pct or 100
+  local spell = ACTION.ChainHeal
+  local label = string.format("[RESTO] ChainHeal %.0f%% (cluster %d)", ch_target.effective_hp or 0, state.chain_heal_cluster_count)
+  if mana < 25 then
+   spell = CHAIN_HEAL_EFFICIENT
+   label = string.format("[RESTO] Downrank ChainHeal (efficient) %.0f%% (cluster %d)", ch_target.effective_hp or 0, state.chain_heal_cluster_count)
+  elseif mana < 45 then
+   spell = CHAIN_HEAL_CONSERVE
+   label = string.format("[RESTO] Downrank ChainHeal (conserve) %.0f%% (cluster %d)", ch_target.effective_hp or 0, state.chain_heal_cluster_count)
+  end
+  return NS.try_cast(spell, ch_target.unit, label)
  end
  if not state.lowest or not state.lowest.unit then return false end
  local target = state.lowest.unit or NS.PLAYER_UNIT
- return NS.try_cast(ACTION.ChainHeal, target, string.format("[RESTO] ChainHeal %.0f%% (%d targets)", state.lowest.effective_hp or 0, state.chain_heal_target_count))
+  local mana = context.mana_pct or 100
+  local spell = ACTION.ChainHeal
+  local label = string.format("[RESTO] ChainHeal %.0f%% (%d targets)", state.lowest.effective_hp or 0, state.chain_heal_target_count)
+  if mana < 25 then
+   spell = CHAIN_HEAL_EFFICIENT
+   label = string.format("[RESTO] Downrank ChainHeal (efficient) %.0f%% (%d targets)", state.lowest.effective_hp or 0, state.chain_heal_target_count)
+  elseif mana < 45 then
+   spell = CHAIN_HEAL_CONSERVE
+   label = string.format("[RESTO] Downrank ChainHeal (conserve) %.0f%% (%d targets)", state.lowest.effective_hp or 0, state.chain_heal_target_count)
+  end
+  return NS.try_cast(spell, target, label)
 end
 
 -- ============================================================================
