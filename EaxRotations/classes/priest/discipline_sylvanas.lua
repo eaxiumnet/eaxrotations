@@ -651,6 +651,10 @@ end
 local function dispel_magic_matches(context, s)
  if not s.dispel_magic_ready then return false end
  if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.DispelMagic, 3.0) then return false end
+ -- Dungeon opt: if control_risk (from researched MC/fear), dispel to speed and save
+ if context.control_risk or context.fear_nearby or context.is_group then
+  return true
+ end
  local me = context.me or NS.GetPlayer()
  if not has_magic_debuff(me) then return false end
  return true

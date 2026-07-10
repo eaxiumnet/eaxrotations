@@ -834,6 +834,14 @@ local strategies = {
    if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end
    if not state.dispel_magic_ready then return false end
    if context.mana_pct < spec_kit.setting_number(context, "party_dispel_mana_floor", 30) then return false end
+   -- Dungeon opt: if control_risk or fear_nearby (from WoWHead researched mechanics), dispel magic aggressively to avoid deaths and speed clear
+   if context.control_risk or context.fear_nearby then
+    if Healing.has_dangerous_dispel then
+     local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit) or context.me
+     if target and Healing.has_dangerous_dispel(target) then return true end
+    end
+    return true -- force if risk
+   end
    -- Dispel dangerous magic debuffs on tank first, then lowest ally
    if not state.tank and not state.lowest then return false end
    local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit)
