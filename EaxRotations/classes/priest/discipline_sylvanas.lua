@@ -136,6 +136,7 @@ local DISC_SCHEMA = {
     hp_pct = 100,
     enemy_count = 0,
     in_combat = false,
+    lowest_hp_pct = 100,
     group_damaged_count = 0,
     pws_ready = false,
     pom_ready = false,
@@ -207,6 +208,7 @@ local disc_state = {
  mana_pct = 100,
  hp_pct = 100,
  in_combat = false,
+ lowest_hp_pct = 100,
  target_creature_type = nil,
  target_casting = false,
  enemy_count = 0,
@@ -235,6 +237,17 @@ local function build_state(context)
  context.settings = context.settings or EMPTY_SETTINGS
  local me = context.me or NS.GetPlayer()
  if not me then return spec_kit.safe_state(disc_state, DISC_SCHEMA) end
+ -- FSR state population (early for delegate + state.in_combat, bail paths use fresh)
+ if FsrManager then
+  disc_state.fsr_inside = FsrManager.is_inside_fsr()
+  disc_state.fsr_seconds = FsrManager.seconds_until_fsr()
+  disc_state.fsr_regen_delta = FsrManager.get_regen_delta()
+ else
+  disc_state.fsr_inside = false
+  disc_state.fsr_seconds = 0
+  disc_state.fsr_regen_delta = 0
+ end
+ disc_state.lowest_hp_pct = 100
  disc_state.player_control_locked = context.player_control_locked == true
  -- Mounted bail: healer should not queue buffs/heals while mounted
  if me.is_mounted and me:is_mounted() then
@@ -251,6 +264,7 @@ local function build_state(context)
   disc_state.lowest = NS.healing_get_lowest_hp(entries, count, 92)
  end
  disc_state.tank = NS.healing_get_tank(entries, count) or disc_state.lowest
+ disc_state.lowest_hp_pct = (disc_state.lowest and disc_state.lowest.effective_hp) or 100
  disc_state.group_damaged_count = NS.healing_count_below_hp(entries, count, spec_kit.setting_number(context, "discipline_aoe_hp", 85))
  -- Subgroup count for Prayer of Healing: in raids, only count your own party
  -- Now uses core.party frames backed count for accuracy
@@ -360,17 +374,6 @@ local function build_state(context)
   -- parity: Smart Stop-Cast — cancel overhealing casts mid-flight
   if NS.StopCast and type(NS.StopCast.update) == "function" then
    NS.StopCast.update(me, context.settings)
-  end
-
-  -- FSR (Five-Second Rule) tracking for mana efficiency
-  if FsrManager then
-   disc_state.fsr_inside = FsrManager.is_inside_fsr()
-   disc_state.fsr_seconds = FsrManager.seconds_until_fsr()
-   disc_state.fsr_regen_delta = FsrManager.get_regen_delta()
-  else
-   disc_state.fsr_inside = false
-   disc_state.fsr_seconds = 0
-   disc_state.fsr_regen_delta = 0
   end
 
   return spec_kit.safe_state(disc_state, DISC_SCHEMA)
@@ -826,6 +829,16 @@ local healing_strategies = {
   if not target_entry or not target_entry.unit then return false end
   return PreemptiveHeal.execute(context, s, ACTION.GreaterHeal, string.format("[DISCIPLINE] Preemptive GH %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.5, heal_size = 3500 })
  end },
+  { name = "FSRPause",
+   matches = function(context, state)
+    if not FsrManager then return false end
+    if not state.in_combat then return false end
+    local pause_ok, reason = FsrManager.should_pause_for_fsr(state, context)
+    return pause_ok
+   end,
+    execute = function(_, state)
+     return true
+    end },
   { name = "GreaterHeal", matches = greater_heal_matches, execute = function(context, s)
    local mana_pct = s.mana_pct or context.mana_pct or 100
    local spell_id
@@ -838,19 +851,6 @@ local healing_strategies = {
    end
    return NS.try_cast(spell_id, s.lowest.unit, string.format("[DISCIPLINE] Greater Heal %.0f%% (rank %s)", s.lowest.effective_hp or 0, mana_pct > 30 and "7" or (mana_pct > 15 and "6" or "5")))
   end },
-  { name = "FSRPause",
-   matches = function(context, s)
-    if not FsrManager then return false end
-    if not context.in_combat then return false end
-    if (s.mana_pct or 100) > 35 then return false end
-    if not s.fsr_inside then return false end
-    if (s.fsr_regen_delta or 0) <= 0 then return false end
-    local pause_ok, reason = FsrManager.should_pause_for_fsr(s, context)
-    return pause_ok
-   end,
-    execute = function(_, s)
-     return true
-    end },
   { name = "BindingHeal", matches = binding_heal_matches, execute = function(context, s) return NS.try_cast(ACTION.BindingHeal, s.lowest.unit, "[DISCIPLINE] Binding Heal") end },
  { name = "CircleOfHealing", matches = circle_of_healing_matches, execute = function() return NS.try_cast(ACTION.CircleofHealing, NS.PLAYER_UNIT, "[DISCIPLINE] CircleOfHealing") end },
  { name = "PrayerOfHealing", matches = prayer_of_healing_matches, execute = function() return NS.try_cast(ACTION.PrayerOfHealing, NS.PLAYER_UNIT, "[DISCIPLINE] PrayerOfHealing") end },
