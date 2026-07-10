@@ -99,16 +99,17 @@ local FEAR_IDS = {
     46561,             -- Fear (Sunblade Dusk Priest Sunwell Plateau per WoWHead SWP trash guide)
     34984,             -- Psychic Horror (Fen Ray Underbog)
     38660,             -- Fear (Coilfang Siren Steamvault)
+    32830,             -- Possess (Phantasmal Possessor Auchenai Crypts MC)
     -- Additional common TBC fear/horror effects from WoWHead dungeon guides
     38759, 38760,      -- Various horror/fear from bosses/trash
-}  -- Expanded based on WoWHead TBC dungeon/raid guides (Shadow Labyrinth Hellmaw/Fel Overseers, Ramparts Scryers, OHF Wardens, Sethekk Prophets, Arcatraz Skyriss, Kael'thas, SWP Sunblade Dusk Priests, Underbog Fen Rays, Steamvault Sirens, Botanica, Slave Pens etc.) to prevent tank fears causing wipes
+}  -- Expanded based on WoWHead TBC dungeon/raid guides (Shadow Labyrinth Hellmaw/Fel Overseers, Ramparts Scryers, OHF Wardens, Sethekk Prophets, Arcatraz Skyriss, Kael'thas, SWP Sunblade Dusk Priests, Underbog Fen Rays, Steamvault Sirens, Botanica, Slave Pens, Auchenai Crypts MC etc.) to prevent tank fears causing wipes
 
 -- Broader control loss for advanced dungeon/raid mechanics (fear, charm/MC, sleep, horror)
 -- Covers Blackheart Incite Chaos (MC/charm), other MCs, sleeps (Anetheron), etc.
 -- Used for general control_nearby, tank protection, healing priority.
 local CONTROL_LOSS_IDS = {
   -- fears (reuse)
-  5782,6213,6215,5484,17928,8122,8124,10888,10890,33111,30615,22884,12542,38759,38760,19134,36922,39415,39427,46561,34984,38660,
+  5782,6213,6215,5484,17928,8122,8124,10888,10890,33111,30615,22884,12542,38759,38760,19134,36922,39415,39427,46561,34984,38660,32830,
   -- charm / MC (Blackheart Incite Chaos from WoWHead; Skyriss Domination)
   33676, 33684, 37162,
   -- add more sleep/horror/MC as verified (e.g. from DBC or guides)
@@ -985,7 +986,7 @@ local function build_context()
             _context.known_fear_boss = NS.AutoTremor.is_fear_boss(_context.target)
         end
         -- Throttled nearby enemy scan (group only) to catch fear casters before (or in addition to) explicit target (early pull / multi-mob protection)
-        -- Limited to ~15 objects + time throttle. Now covers expanded list incl. Steamvault Sirens, Botanica Fear-Shriekers, Slave Pens/Underbog Rays (horrors), etc. for proactive FearWard/Tremor.
+        -- Limited to ~15 objects + time throttle. Now covers expanded list incl. Auchenai Crypts Possessors (MC), Steamvault Sirens, Botanica Fear-Shriekers, Slave Pens/Underbog Rays (horrors), etc. for proactive FearWard/Tremor/control_risk.
         local now_ms = (NS.game_time_ms and NS.game_time_ms()) or 0
         if _context.is_group and (now_ms - _fear_boss_scan_time > FEAR_BOSS_SCAN_INTERVAL_MS) then
             _fear_boss_scan_time = now_ms
