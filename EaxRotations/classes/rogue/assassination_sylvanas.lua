@@ -58,6 +58,63 @@ local ENERGY_FINISHER_COST = 35  -- Envenom/Eviscerate cost
 local ENERGY_LOW_BUILDER = 40    -- Pool energy below 40 instead of builder
 local ENERGY_LOW_FINISHER = 25   -- Pool energy below 25 instead of finisher
 
+-- ============================================================================
+-- Energy Tick Optimization (ported from combat_sylvanas.lua)
+-- ============================================================================
+local _last_energy = 0
+local _last_tick_time = 0
+
+local function get_next_tick_in(energy)
+    local now = NS.time_now and NS.time_now() or 0
+    local energy_gained = energy - _last_energy
+    if energy_gained >= 19 and energy_gained <= 21 then
+        _last_tick_time = now
+        _last_energy = energy
+        return 2.0
+    end
+    if energy_gained > 0 then
+        _last_energy = energy
+    end
+    local time_since_tick = now - _last_tick_time
+    if time_since_tick < 0 or time_since_tick > 4.0 then
+        _last_tick_time = now
+        return 2.0
+    end
+    return math.max(0, 2.0 - time_since_tick)
+end
+
+local function should_pool_energy(context)
+    if not spec_kit.setting_bool(context, "assassin_energy_tick_sync", false) then return false end
+    local energy = context.energy or 0
+    local offset = spec_kit.setting_number(context, "assassin_energy_tick_offset", 100) / 1000
+    local next_tick_in = get_next_tick_in(energy)
+    if next_tick_in <= offset + 0.1 then
+        local projected_energy = energy + ENERGY_TICK
+        if projected_energy <= 100 then
+            return true
+        end
+    end
+    return false
+end
+
+local function should_spend_energy(context, cost)
+    if not spec_kit.setting_bool(context, "assassin_energy_tick_sync", false) then return true end
+    local energy = context.energy or 0
+    local offset = spec_kit.setting_number(context, "assassin_energy_tick_offset", 100) / 1000
+    local next_tick_in = get_next_tick_in(energy)
+    local projected_energy = energy + ENERGY_TICK
+    if projected_energy > 100 then
+        return true
+    end
+    if next_tick_in > offset + 0.3 then
+        return true
+    end
+    if next_tick_in <= offset then
+        return true
+    end
+    return false
+end
+
 -- Dagger set for Mutilate eligibility check
 local _dagger_set_ok, dagger_set = pcall(require, "shared/dagger_set_sylvanas")
 if not _dagger_set_ok then dagger_set = nil end
@@ -473,6 +530,7 @@ local strategies = {
         matches = function(context, state)
             if state.energy_low then return false end
             if not state.has_daggers then return false end
+            if not should_spend_energy(context, ENERGY_MUTILATE_COST) then return false end
             return NS.spell_ready(ACTION.Mutilate, context.target)
         end,
         execute = function(context, state)
@@ -495,6 +553,7 @@ local strategies = {
             -- Fallback when Mutilate can't be used: no daggers equipped
             if state.has_daggers then return false end
             if state.energy_low then return false end
+            if not should_spend_energy(context, 45) then return false end
             return NS.spell_ready(ACTION.SinisterStrike, context.target)
         end,
         execute = function(context)

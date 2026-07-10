@@ -92,6 +92,63 @@ local RUPTURE_TTD_FLOOR = 12
 local FEINT_THREAT_DEFAULT = 90
 
 -- ============================================================================
+-- Energy Tick Optimization (ported from combat_sylvanas.lua)
+-- ============================================================================
+local _last_energy = 0
+local _last_tick_time = 0
+
+local function get_next_tick_in(energy)
+    local now = NS.time_now and NS.time_now() or 0
+    local energy_gained = energy - _last_energy
+    if energy_gained >= 19 and energy_gained <= 21 then
+        _last_tick_time = now
+        _last_energy = energy
+        return 2.0
+    end
+    if energy_gained > 0 then
+        _last_energy = energy
+    end
+    local time_since_tick = now - _last_tick_time
+    if time_since_tick < 0 or time_since_tick > 4.0 then
+        _last_tick_time = now
+        return 2.0
+    end
+    return math.max(0, 2.0 - time_since_tick)
+end
+
+local function should_pool_energy(context)
+    if not spec_kit.setting_bool(context, "subtlety_energy_tick_sync", false) then return false end
+    local energy = context.energy or 0
+    local offset = spec_kit.setting_number(context, "subtlety_energy_tick_offset", 100) / 1000
+    local next_tick_in = get_next_tick_in(energy)
+    if next_tick_in <= offset + 0.1 then
+        local projected_energy = energy + 20
+        if projected_energy <= 100 then
+            return true
+        end
+    end
+    return false
+end
+
+local function should_spend_energy(context, cost)
+    if not spec_kit.setting_bool(context, "subtlety_energy_tick_sync", false) then return true end
+    local energy = context.energy or 0
+    local offset = spec_kit.setting_number(context, "subtlety_energy_tick_offset", 100) / 1000
+    local next_tick_in = get_next_tick_in(energy)
+    local projected_energy = energy + 20
+    if projected_energy > 100 then
+        return true
+    end
+    if next_tick_in > offset + 0.3 then
+        return true
+    end
+    if next_tick_in <= offset then
+        return true
+    end
+    return false
+end
+
+-- ============================================================================
 -- State schema (nil-guard defaults for spec_kit.safe_state)
 -- ============================================================================
 local SUB_SCHEMA = {
@@ -424,6 +481,7 @@ local function slice_matches(context, state)
     if (state.combo or 0) < 2 then return false end
     if (state.slice_remains or 0) > SND_REFRESH then return false end
     if state.energy_pool_finisher then return false end
+    if not should_spend_energy(context, ENERGY_FINISHER) then return false end
     return NS.spell_ready(ACTION.SliceAndDice, NS.PLAYER_UNIT, { skip_range = true })
 end
 
@@ -432,6 +490,7 @@ local function rupture_matches(context, state)
     if state.energy_pool_finisher then return false end
     if (state.target_hp or 100) < 25 or (context.ttd or 999) < RUPTURE_TTD_FLOOR then return false end
     if (state.rupture_remains or 0) > RUPTURE_REFRESH then return false end
+    if not should_spend_energy(context, ENERGY_FINISHER) then return false end
     return NS.spell_ready(ACTION.Rupture, context.target)
 end
 
@@ -457,6 +516,7 @@ local function eviscerate_kill_matches(context, state)
     if state.energy_pool_finisher then return false end
     if (state.energy or 0) < ENERGY_FINISHER then return false end  -- hard floor
     if (state.target_hp or 100) > 30 and not state.shadowstep_buff then return false end
+    if not should_spend_energy(context, ENERGY_FINISHER) then return false end
     return NS.spell_ready(ACTION.Eviscerate, context.target)
 end
 
@@ -464,6 +524,7 @@ local function eviscerate_matches(context, state)
     if (state.combo or 0) < 4 then return false end
     if state.energy_pool_finisher then return false end
     if (state.energy or 0) < ENERGY_FINISHER then return false end  -- hard floor
+    if not should_spend_energy(context, ENERGY_FINISHER) then return false end
     return NS.spell_ready(ACTION.Eviscerate, context.target)
 end
 
@@ -478,6 +539,7 @@ end
 local function hemorrhage_matches(context, state)
     if state.energy_low then return false end  -- pool energy below 40
     if not enough_energy(state, ENERGY_HEMORRHAGE) then return false end
+    if not should_spend_energy(context, ENERGY_HEMORRHAGE) then return false end
     return NS.spell_ready(ACTION.Hemorrhage, context.target)
 end
 
@@ -489,11 +551,13 @@ local function backstab_matches(context, state)
     -- Backstab is positional burst; Hemorrhage is primary builder per Research
     local in_burst = context.should_burst or false
     if (state.energy or 0) < 75 and not in_burst then return false end
+    if not should_spend_energy(context, ENERGY_BACKSTAB) then return false end
     return NS.spell_ready(ACTION.Backstab, context.target)
 end
 
 local function fallback_builder_matches(context, state)
     if not enough_energy(state, 45) then return false end
+    if not should_spend_energy(context, 45) then return false end
     return NS.spell_ready(ACTION.SinisterStrike, context.target)
 end
 

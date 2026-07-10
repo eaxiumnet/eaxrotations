@@ -39,6 +39,7 @@ return {
                     { key = "rogue_cloak_hp", type = "slider", label = "Cloak HP", min = 20, max = 60, default = 45 },
                     { key = "use_pvp_cc_gating", type = "checkbox", label = "PvP CC Gate (skip AoE near CC)", default = true, tooltip = "Skip Blade Flurry when a nearby enemy is Polymorphed/Sapped/etc." },
                     { key = "use_cc_break", type = "checkbox", label = "CC Break (Cloak/Vanish)", default = true, tooltip = "Preemptively Cloak or Vanish when enemy casts Polymorph/Fear/Blind at you" },
+                    { key = "rogue_poison_check", type = "checkbox", label = "Poison Check", default = true, tooltip = "Warn when weapon poisons are missing in combat. Applies to all rogue specs." },
                     { key = "rogue_use_vanish_defensive", type = "checkbox", label = "Vanish (Emergency)", default = false },
                     { key = "rogue_vanish_hp", type = "slider", label = "Vanish HP", min = 10, max = 40, default = 20 },
                     { key = "rogue_vanish_in_raid", type = "checkbox", label = "Vanish on Raid Bosses", default = false },
@@ -64,6 +65,8 @@ return {
                     } },
                     { key = "subtlety_prep_hp", type = "slider", label = "Preparation Max HP %", min = 10, max = 80, default = 40 },
                     { key = "subtlety_feint_threat", type = "slider", label = "Feint Threat %", min = 50, max = 100, default = 90 },
+                    { key = "subtlety_energy_tick_sync", type = "checkbox", label = "Energy Tick Prediction", default = true, tooltip = "Synchronize ability usage with the server's energy ticks (2.0s interval) to maximize energy pooling and avoid capping." },
+                    { key = "subtlety_energy_tick_offset", type = "slider", label = "Tick Advance (ms)", min = 0, max = 500, default = 100, tooltip = "Attempt to cast abilities this many ms BEFORE a predicted energy tick. Compensates for input latency." },
                 },
             },
         },
@@ -110,6 +113,13 @@ return {
                 header = "Finisher Settings",
                 settings = {
                     { key = "assassin_envenom_stacks", type = "slider", label = "Min DP Stacks for Envenom", min = 1, max = 5, default = 3 },
+                },
+            },
+            {
+                header = "Energy",
+                settings = {
+                    { key = "assassin_energy_tick_sync", type = "checkbox", label = "Energy Tick Prediction", default = true, tooltip = "Synchronize ability usage with the server's energy ticks (2.0s interval) to maximize energy pooling and avoid capping." },
+                    { key = "assassin_energy_tick_offset", type = "slider", label = "Tick Advance (ms)", min = 0, max = 500, default = 100, tooltip = "Attempt to cast abilities this many ms BEFORE a predicted energy tick. Compensates for input latency." },
                 },
             },
             {
