@@ -6,6 +6,7 @@
 - Retribution Paladin: seal twisting now enabled by default, following the Command rank 1 into Blood or Martyr twist before swings for Crusader Strike and Judgement to match priority lists from simulators and guides.
 - Hunter: improved auto-shot timing with dynamic buffer calculations (adapts to weapon swing speed) for safer Steady/Multi/Arcane weaving without clipping autos.
 - Warrior Protection: added multi-target Whirlwind support and raised Shield Block priority to better match simulator APLs for threat and mitigation.
+- Balance Druid: documentation updated for accurate TBC priorities (Moonfire/Insect Swarm dots, Faerie Fire, Starfire filler, Starfall, treants); no incorrect references.
 - All rotation and leveling tests remain passing (252 suites).
 
 ## 2.5.2 - 2026-07-10
