@@ -166,11 +166,11 @@ Or run the suites directly:
 
 ---
 
-## CURRENT STATE (verified 2026-07-10, HEAD a4f0f670)
+## CURRENT STATE (verified 2026-07-10, HEAD 660d2923)
 
 **Baseline:** 252 rotation + 17 leveling suites PASS / 0 fail on Lua 5.1.5 (updated counts).
 Spell audit PASS. Pre-commit hooks green (luac + vanilla audit + DBC audit).
-All 29 specs + leveling rotations grounded in wowsims APLs/guides per become-1 plan. Tier 3 complete. API Pattern 2/ docs Wave 1C done.
+All 29 specs + leveling rotations grounded in wowsims APLs/guides per become-1 plan. Tier 3 complete. API standardization audit advanced (Phase 0-2, test enhancements for core caching; Wave 1 complete in key areas).
 
 ### Recent major work (2026-06-27 → 2026-07-10, 285+ commits)
 | Category | Item | Commit | One-line |
@@ -188,26 +188,10 @@ All 29 specs + leveling rotations grounded in wowsims APLs/guides per become-1 p
 | Nil-guard tests | 567 vanilla nil-guard test cases across 9 new files | `4ecbcaaa` | 38 specs covered (all vanilla classes) |
 | Plan cleanup | 44 → 15 active plans (35 archived) | `37c20d17`+`618cdcdf` | stale/completed plans moved to `plans/_archive/` |
 | Tier 3 fidelity | All 29 specs + leveling audited vs wowsims APLs/guides; gaps fixed (Envenom, Conflagrate, etc.); core bugfix | multiple (e.g. `f5bd1843`, `644318d4`) | become-1 plan Phase 3 complete |
-| API standardization | Pattern 2 caches across shared+main+core; expanded docs in core helpers; Wave 1C complete | `a4f0f670` | api-standardization-audit Wave 1C; 252+17 green |
+| API standardization | Pattern 2 caches + docs in core/main/shared; compliance test extended with core load-cache check; Phase 2/3 validated | `660d2923`, `5341285e` | api-audit Phase 1-3 progress; test_spec_layout_compliance enhanced; full audits green |
 
 ### spec_kit migration progress — COMPLETE (29 of 29 specs) 🎉
-| Spec | Status | Key change |
-|------|--------|------------|
-| arms | ✅ Done (reference) | first conversion, `ARMS_SCHEMA` + `safe_state` |
-| fury | ✅ Done | 27 ACTION entries via `define()` with rank IDs |
-| protection | ✅ Done | 25 ACTION entries, `PROT_SCHEMA`, downrank-safe |
-| kebab | ✅ Done | safe_state + canonical return |
-| balance | ✅ Done | safe_state + define_action_for_class |
-| cat | ✅ Done | 19 ACTION entries, `CAT_SCHEMA`, 31 ACTIONS converted |
-| bear | ✅ Done | 17 ACTION entries, `BEAR_SCHEMA`, test-env nil-guards |
-| caster | ✅ Done | 6 ACTION entries, `CASTER_SCHEMA`, THORNS_BUFF moved |
-| resto | ✅ Done | 23 ACTION entries, `RESTO_SCHEMA`, merged LOCAL_SPELLS into ACTION |
-| discipline | ✅ Done | 25 ACTION entries, `DISC_SCHEMA`, 59 SPELLS.X refs converted |
-| holy | ✅ Done | 20 ACTION entries, `HOLY_SCHEMA`, 48 SPELLS.X refs converted |
-| shadow | ✅ Done | 23 ACTION entries, `SHADOW_SCHEMA`, 61 SPELLS.X refs converted |
-| fire | ✅ Done | 18 ACTION entries, `FIRE_SCHEMA`, 42 SPELLS.X refs converted |
-| destruction | ✅ Done (latest) | 15 ACTION entries, `DESTRO_SCHEMA`, 24 SPELLS.X refs converted |
-| (15 remaining) | Not started | Convert only when already editing a spec |
+All specs migrated to canonical `spec_kit.safe_state` + `define_action_for_class` + guarded registration + return shape (per refactor-developer-experience and _active.md). Reference: arms_sylvanas.lua. See test_spec_layout_compliance.lua CONVERTED table and EaxRotations/README.md for details. No legacy remaining.
 
 ### Deferred / out of scope (with reasons — don't relitigate)
 - **C4 (extract core/casting.lua):** the 8 casting functions span lines
