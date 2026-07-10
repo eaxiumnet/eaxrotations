@@ -24,10 +24,10 @@
 Priority shared modules that affect every spec:
 - [x] Cooldown planner (raid trinket/ability stacking) — v2.3.15.
 - [x] Dynamic stat snapshotting — Rip/Rake AP snapshot implemented in Feral Cat.
-- [ ] Movement / pre-positioning for mechanics.
-- [ ] Cleave / AoE target caps (TBC-specific: most spells have soft caps).
-- [ ] PvP CC/dispel/kick priority DB per expansion.
-- [ ] Dungeon/raid boss mechanic triggers (e.g., freeze on Gluth, shackles on Rage Winterchill).
+- [x] Movement / pre-positioning for mechanics. (enhanced in 2026-07-10 completion plan: explicit pause_for_mechanic + should_preposition API + core wiring)
+- [x] Cleave / AoE target caps (TBC-specific: most spells have soft caps). (added get_aoe_targets_with_cap + healer helper in targeting; used in resto shaman Chain Heal)
+- [x] PvP CC/dispel/kick priority DB per expansion. (PVP_PRIORITY_DB added to arena_priority + existing modules cover)
+- [x] Dungeon/raid boss mechanic triggers (e.g., freeze on Gluth, shackles on Rage Winterchill). (MECHANIC_TRIGGERS table + expanded auto_tremor + existing fear lists)
 
 ## Phase 3 — Per-spec fidelity pass (wowsims APL-aligned)
 - [x] Arcane Mage — burn/conserve rotation with Frostbolt conserve, wowsims mana gem logic, PoM at AP end. (v2.3.16)
