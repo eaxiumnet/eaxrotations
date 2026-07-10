@@ -441,6 +441,55 @@ function M.resolve_target(ctx, opts)
 end
 
 -- ============================================================================
+-- AoE / Cleave target caps (TBC spell limits)
+-- Closes parent become-1 Phase 2 item: "Cleave / AoE target caps (TBC-specific soft caps)"
+-- Examples: Chain Heal (3), Prayer of Healing (5), Multi-Shot (3), many cleaves ~3-10.
+-- Use in specs for accurate multi-target selection matching APL/sim behavior.
+-- ============================================================================
+
+local SPELL_AOE_CAPS = {
+    -- Shaman
+    [25423] = 3,   -- Chain Heal (max 3 hops)
+    [25422] = 3,
+    [10623] = 3,
+    -- Priest
+    [25308] = 5,   -- Prayer of Healing (5)
+    [25316] = 5,
+    [10961] = 5,
+    [34866] = 5,   -- Circle of Healing (5)
+    -- Hunter / others
+    [14288] = 3,   -- Multi-Shot example ranks
+    -- Warrior cleave etc. default to 10 or caller choice
+}
+
+--- Returns up to the TBC spell-specific cap of targets from a scored list.
+--- @param entries table[] scored healing/enemy entries (sorted best first)
+--- @param spell_id number|nil spell to look up cap for
+--- @param fallback_max number|nil default if no specific cap (e.g. 10)
+--- @return table capped_entries, number capped_count
+function M.get_aoe_targets_with_cap(entries, spell_id, fallback_max)
+    if not entries or #entries == 0 then return {}, 0 end
+    local cap = SPELL_AOE_CAPS[spell_id] or fallback_max or 10
+    local out = {}
+    local n = math.min(#entries, cap)
+    for i = 1, n do
+        out[i] = entries[i]
+    end
+    return out, n
+end
+
+--- Convenience for common healer AoE (uses known caps).
+function M.get_healer_aoe_capped(entries, spell_name_or_id)
+    local id = type(spell_name_or_id) == "number" and spell_name_or_id or nil
+    -- Fallback name map for convenience
+    if not id and type(spell_name_or_id) == "string" then
+        if spell_name_or_id:lower():find("chain") then id = 25423 end
+        if spell_name_or_id:lower():find("prayer") then id = 25308 end
+    end
+    return M.get_aoe_targets_with_cap(entries, id, 5)
+end
+
+-- ============================================================================
 -- Export
 -- ============================================================================
 
