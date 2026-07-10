@@ -65,8 +65,9 @@ local function urgency_score(entry, settings)
         hp = hp - focus_bias
     end
 
-    -- Base score: biased effective HP % (primary)
-    local score = hp
+    -- Base score: biased effective or future HP % (primary) -- use future_hp if available for better prediction
+    local base_hp = safe_number(entry.future_hp, hp)
+    local score = base_hp
 
     -- Tank priority: if tank is under 60%, subtract a large penalty
     if is_tank and hp < 60 then
@@ -80,6 +81,36 @@ local function urgency_score(entry, settings)
     if max_hp > 0 then
         local deficit_pct = (eff_deficit / max_hp) * 100
         score = score - deficit_pct * 0.5
+    end
+
+    -- Death prevention: heavy penalty if unit is about to die (low TTD or high incoming_dps or death_risk)
+    -- Goal: no one dies. Prioritize units with high death_risk or low TTD massively.
+    local ttd = safe_number(entry.time_to_die, 999)
+    local inc_dps = safe_number(entry.incoming_dps, 0)
+    local death_risk = safe_number(entry.death_risk, 0)
+    local will_die = entry.will_die_soon == true
+    local br = safe_number(entry.burst_risk, 0)
+    if ttd < 5 then
+        score = score - (2000 / math.max(ttd, 0.1))
+    end
+    if inc_dps > 15 then
+        score = score - (inc_dps * 5)
+    end
+    if death_risk > 0 then
+        score = score - death_risk * 2
+    end
+    if will_die then
+        score = score - 1500  -- ultra priority save
+    end
+    if br > 25 then
+        score = score - br * 1.5
+    end
+    -- Emergency: if TTD < typical cast time, this is a "save or die" target
+    if ttd < 3 then
+        score = score - 1000
+    end
+    if will_die or (entry.future_hp and entry.future_hp < 20) then
+        score = score - 800
     end
 
     return score
@@ -175,6 +206,12 @@ function M.best_target(entries, count, radius, min_targets)
                 best_count = cluster
                 best_entry = center
             end
+            -- "No one dies": boost clusters covering high death_risk / imminent TTD units
+            local risk_sum = (center.death_risk or 0) + (center.time_to_die and (5 / math.max(center.time_to_die, 0.5)) or 0)
+            if risk_sum > 10 and cluster >= min_targets then
+                best_count = cluster + 10
+                best_entry = center
+            end
         end
     end
 
@@ -233,6 +270,12 @@ function M.chain_heal_target(entries, count, radius, min_targets)
             end
             if cluster > best_count then
                 best_count = cluster
+                best_entry = center
+            end
+            -- "No one dies" boost for risky clusters in Chain Heal too
+            local risk_sum = (center.death_risk or 0) + (center.time_to_die and (5 / math.max(center.time_to_die, 0.5)) or 0)
+            if risk_sum > 10 and cluster >= min_targets then
+                best_count = cluster + 10
                 best_entry = center
             end
         end

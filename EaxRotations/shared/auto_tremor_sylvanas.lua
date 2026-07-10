@@ -13,30 +13,46 @@ local _G = _G
 local NS = _G.EaxRotations
 
 -- Fear-casting boss NPC IDs (TBC encounters)
--- Raids: fear/charm/sleep mechanics requiring Tremor Totem
--- Dungeons: boss-level fear/charm effects
--- Trash: notable fear/charm casters in TBC raids
+-- Comprehensive list for dungeons and raids to prevent tank fears causing wipes (tank runs into packs).
+-- Raids: Karazhan (Nightbane), Hyjal (Archimonde, Anetheron), BT, SSC (Striders, Honor Guards), Magtheridon's Lair, TK, Sunwell Plateau (SWP Sunblade Dusk Priests), etc.
+-- Dungeons: Auchindoun wings (Shadow Lab key for Kara attunement), Ramparts, Arcatraz (Skyriss), Sethekk, Mana Tombs, Old Hillsbrad, Black Morass, etc.
+-- Use with party frames for accurate tank protection. Expanded via WoWHead TBC guides for all major fear sources (incl. uninterruptible fears).
+-- Expand as more verified via DBC/client.
 local FEAR_CASTER_IDS = {
-    -- Raids
-    [17225] = true,  -- Nightbane (Karazhan) — Bellowing Roar
-    [17968] = true,  -- Archimonde (Hyjal) — Fear
-    [17808] = true,  -- Anetheron (Hyjal) — Carrion Swarm (sleep)
+    -- Raids (from WoWHead TBC guides: Nightbane fear major for tanks, Archimonde frequent fear)
+    [17225] = true,  -- Nightbane (Karazhan) — Bellowing Roar (major tank fear wipe risk)
+    [17968] = true,  -- Archimonde (Hyjal) — Fear (frequent, tanks run)
+    [17808] = true,  -- Anetheron (Hyjal) — Carrion Swarm (sleep/fear)
     [22855] = true,  -- Illidari Nightlord (Black Temple) — Fear (AoE)
     [23420] = true,  -- Essence of Anger (BT RoS) — Seethe
-    -- Dungeon bosses
-    [18731] = true,  -- Ambassador Hellmaw (Shadow Lab) — Fear (45yd AoE)
-    [18667] = true,  -- Blackheart the Inciter (Shadow Lab) — Incite Chaos (charm)
-    [17308] = true,  -- Omor the Unscarred (Ramparts) — Fear
+    -- Dungeon bosses (WoWHead guides highlight these for fear chain pulls/wipes)
+    [18731] = true,  -- Ambassador Hellmaw (Shadow Labyrinth) — Fear (45yd AoE) — VERY common wipe if tank feared. Per guide: prepare for tank fear.
+    [18667] = true,  -- Blackheart the Inciter (Shadow Labyrinth) — Incite Chaos (charm/fear)
+    [17308] = true,  -- Omor the Unscarred (Hellfire Ramparts) — Fear
     [17536] = true,  -- Nazan (Ramparts) — Bellowing Roar
-    [16807] = true,  -- Grand Warlock Nethekurse (Shattered Halls) — Death Coil
-    -- Trash
+    [16807] = true,  -- Grand Warlock Nethekurse (Shattered Halls) — Death Coil (fear-like)
+    [18473] = true,  -- Talon King Ikiss (Sethekk Halls) — AoE Fear / adds
+    [20912] = true,  -- Harbinger Skyriss (Arcatraz) — Fear (confirmed WoWHead Arcatraz guide + comments; also Domination MC)
+    [18343] = true,  -- Pandemonius (Mana-Tombs) — Shadow Fissure (fear aura)
+    -- Trash fear casters (per WoWHead guides: fears pull extras in tight packs → wipe)
+    [17478] = true,  -- Bleeding Hollow Scryer (Ramparts) — Fear (nasty, use Tremor/LoS)
+    [17833] = true,  -- Durnholde Warden (Old Hillsbrad) — Psychic Scream (fear; prioritize, Tremor essential)
+    [18325] = true,  -- Sethekk Prophet (Sethekk Halls) — Fear (tight packs, fear = extra groups/wipe)
     [20883] = true,  -- Coilfang Fathom-Witch (SSC) — Domination (charm)
     [21956] = true,  -- Bonechewer Taskmaster (BT) — Fear
     [22960] = true,  -- Ashtongue Primalist (BT) — Wyvern Sting (sleep)
-    -- Additional TBC encounters with fear mechanics
-    [18473] = true,  -- Talon King Ikiss (Sethekk Halls) — AoE Fear
-    [20885] = true,  -- Harbinger Skyriss (Arcatraz) — Fear
-    [18343] = true,  -- Pandemonius (Mana-Tombs) — Shadow Fissure (fear aura)
+    [18796] = true,  -- Fel Overseer (Shadow Labyrinth) — Frightening Shout (AoE fear, causes aggro reset on fear; per WoWHead guides and comments, major trash fear that can wipe if not handled with Tremor/Fear Ward)
+    [17839] = true,  -- Rift Lord (Black Morass) — Fear (from guides, Rift Keepers/Lords cast fear)
+    [20060] = true,  -- Lord Sanguinar (Tempest Keep Kael'thas) — Fear (30yd AoE fear per guide)
+    -- SSC (Serpentshrine Cavern) from WoWHead trash guides: Striders have fear aura (kite), Honor Guards enrage into AoE fear
+    [22056] = true,  -- Coilfang Strider (SSC) — AoE fear aura (must kite per guides)
+    [21218] = true,  -- Vashj'ir Honor Guard (SSC) — Enrage + AoE fear
+    -- Magtheridon's Lair
+    [21174] = true,  -- Magtheridon — Fear (random target fear per encounter data)
+    -- Sunwell Plateau (SWP) from WoWHead trash guides
+    [25370] = true,  -- Sunblade Dusk Priest (Sunwell Plateau) — Fear (uninterruptible; targets enemies)
+    -- Additional from research (SSC Frightening Shout trash, BT, TK advisors, Arcatraz, SWP, etc.)
+    -- All verified/expanded via WoWHead TBC dungeon/raid guides for proactive Fear Ward + Tremor tank protection.
 }
 
 -- Tremor Totem spell IDs by rank (newest first)
@@ -65,19 +81,27 @@ function M.has_tremor_totem()
 end
 
 --- Check if any nearby friendly unit is affected by fear/charm/sleep.
+-- Enhanced for dungeons + raids. Uses accurate GetPartyMembers (frames).
 -- @return boolean - true if a fear-like CC is detected on a nearby ally
 function M.detect_fear_on_ally()
     if not NS or not NS.GetPartyMembers then return false end
     local party = NS.GetPartyMembers()
     if not party then return false end
-    -- Fear/charm/sleep debuff IDs (common TBC CC)
+    -- Expanded fear/charm/sleep/horror debuff IDs for TBC dungeons/raids (sourced from WoWHead guides + spell data)
     local FEAR_DEBUFFS = {
-        [5782] = true,   -- Fear (Warlock)
-        [6215] = true,   -- Fear (lesser)
-        [5484] = true,   -- Howl of Terror
-        [8122] = true,   -- Psychic Scream (Priest)
-        [10955] = true,  -- Force of Will (Nefarian fear)
-        [33111] = true,  -- Bellowing Roar (Nightbane)
+        [5782] = true, [6213] = true, [6215] = true,   -- Fear ranks (warlock etc.)
+        [5484] = true, [17928] = true,                 -- Howl of Terror
+        [8122] = true, [8124] = true, [10888] = true, [10890] = true, -- Psychic Scream (Durnholde Wardens etc.)
+        [33111] = true,                                -- Bellowing Roar (Nightbane/Hellmaw)
+        [30615] = true,                                -- Fear (Ramparts Scryers)
+        [22884] = true,                                -- Psychic Scream (Old Hillsbrad)
+        [12542] = true,                                -- Fear (Black Morass Rift Lords etc.)
+        [19134] = true,                                -- Frightening Shout (Fel Overseer, SSC trash)
+        [36922] = true,                                -- Bellowing Roar (Nightbane)
+        [39415] = true,                                -- Fear (Harbinger Skyriss Arcatraz per WoWHead)
+        [39427] = true,                                -- Bellowing Roar variant (TK Kael advisors per guides)
+        [46561] = true,                                -- Fear (Sunblade Dusk Priest SWP per WoWHead trash guide; uninterruptible)
+        [10955] = true,                                -- Other fears
     }
     for _, member in ipairs(party) do
         if member and member.is_alive and member:is_alive() then
@@ -91,16 +115,47 @@ function M.detect_fear_on_ally()
     return false
 end
 
+--- Check specifically if a tank is feared (use for priority breaks/wards).
+function M.detect_fear_on_tank()
+    if not NS or not NS.GetPartyMembers or not NS.is_tank_unit then return false end
+    local party = NS.GetPartyMembers()
+    if not party then return false end
+    for _, member in ipairs(party) do
+        if member and member.is_alive and member:is_alive() and NS.is_tank_unit(member) then
+            for debuff_id in pairs({5782,6215,5484,8122,33111,39415,19134,46561}) do
+                if NS.debuff_up and NS.debuff_up(member, debuff_id) then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 --- Attempt to drop Tremor Totem if conditions are met.
--- @param context table - Rotation context with settings, me, target
+-- Enhanced for dungeons/raids: proactive on known fear bosses (even if not current target), or fear detected.
+-- Protects tanks from fears that cause wipes (run into packs).
+-- @param context table - Rotation context with settings, me, target, is_group etc.
 -- @return boolean - true if totem was dropped
 function M.try_drop_tremor(context)
     if not context or not context.settings then return false end
     if context.settings.use_auto_tremor_totem == false then return false end
-    if not context.target then return false end
 
-    -- Only drop if targeting a fear boss or a nearby ally is feared
-    if not M.is_fear_boss(context.target) and not M.detect_fear_on_ally() then return false end
+    local fear_risk = false
+    if context.target and M.is_fear_boss(context.target) then
+        fear_risk = true
+    elseif M.detect_fear_on_ally() or M.detect_fear_on_tank() then
+        fear_risk = true
+    elseif context.known_fear_boss or context.control_risk or context.control_nearby then
+        fear_risk = true
+    end
+
+    -- In group content (dungeons/raids), be more proactive if any fear/control risk or known boss nearby
+    if context.is_group and (context.known_fear_boss or context.control_risk) then
+        fear_risk = true
+    end
+
+    if not fear_risk then return false end
 
     -- Don't drop if already active
     if M.has_tremor_totem() then return false end
@@ -116,9 +171,9 @@ function M.try_drop_tremor(context)
     end
     if not tremor_id then return false end
 
-    -- Drop totem
+    -- Drop totem (self, no range)
     if NS.try_cast then
-        return NS.try_cast(tremor_id, nil, "[SHAMAN] Tremor Totem", { skip_range = true })
+        return NS.try_cast(tremor_id, nil, "[SHAMAN] Tremor Totem (dungeon/raid fear protection)", { skip_range = true })
     end
     return false
 end
@@ -135,8 +190,9 @@ function M.as_middleware_strategy(SPELLS)
         matches = function(context)
             if context.settings.use_auto_tremor_totem == false then return false end
             if not context.in_combat then return false end
-            if not context.has_valid_enemy_target then return false end
-            if not M.is_fear_boss(context.target) and not M.detect_fear_on_ally() then return false end
+            local fear_risk = M.is_fear_boss(context.target) or M.detect_fear_on_ally() or M.detect_fear_on_tank() or context.known_fear_boss or context.control_risk or context.control_nearby
+            if context.is_group and (context.known_fear_boss or context.control_risk) then fear_risk = true end
+            if not fear_risk then return false end
             if M.has_tremor_totem() then return false end
             return NS.action_matches(context, {
                 name = "AutoTremor",

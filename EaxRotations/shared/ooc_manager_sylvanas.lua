@@ -126,7 +126,7 @@ local DEFAULT_BUFFS_BY_CLASS = {
         { key = "arcane_intellect", label = "Arcane Intellect", buff = BUFFS.arcane_intellect, spell = { 27126, 10157, 10156, 1461, 1460, 1459 } },
     },
     [CLASS.PALADIN] = {
-        { key = "righteous_fury", label = "Righteous Fury", buff = BUFFS.righteous_fury, spell = 25780, opt_in = true },
+        { key = "righteous_fury", label = "Righteous Fury", buff = BUFFS.righteous_fury, spell = 25780 },
     },
     [CLASS.PRIEST] = {
         { key = "inner_fire", label = "Inner Fire", buff = BUFFS.inner_fire, spell = { 25431, 10952, 10951, 1006, 602, 7128, 588 } },
@@ -155,7 +155,7 @@ local DEFAULT_BUFFS_BY_CLASS = {
     },
     [CLASS.DRUID] = {
         { key = "mark_of_the_wild", label = "Mark of the Wild", buff = BUFFS.mark_of_the_wild, spell = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 } },
-        { key = "thorns", label = "Thorns", buff = BUFFS.thorns, spell = { 26992, 9910, 9756, 8914, 1075, 782, 467 }, opt_in = true },
+        { key = "thorns", label = "Thorns", buff = BUFFS.thorns, spell = { 26992, 9910, 9756, 8914, 1075, 782, 467 } },
     },
 }
 
@@ -301,6 +301,26 @@ local function should_handle_buff(settings, entry, player_level)
     if not entry then return false end
     local explicit = get_setting(settings, "ooc_buff_" .. entry.key, nil)
     if explicit == false then return false end
+    -- Respect class self-buff / OOC-buff toggles (and per-buff autos) so OOC manager doesn't bypass menu settings.
+    -- These are the primary toggles defined in class schemas.
+    if (entry.key == "mark_of_the_wild" or entry.key == "thorns" or entry.key == "battle_shout" or entry.key == "arcane_intellect" or entry.key == "mage_armor") and get_setting(settings, "use_self_buffs", true) == false then
+        return false
+    end
+    if (entry.key == "water_shield" or entry.key == "lightning_shield" or entry.key == "aspect_hawk") and get_setting(settings, "use_ooc_buffs", true) == false then
+        return false
+    end
+    if entry.key == "aspect_hawk" and get_setting(settings, "hunter_auto_aspect", true) == false then
+        return false
+    end
+    if (entry.key == "inner_fire" or entry.key == "power_word_fortitude") and get_setting(settings, "auto_" .. (entry.key == "inner_fire" and "inner_fire" or "fortitude"), true) == false then
+        return false
+    end
+    if (entry.key == "fel_armor" or entry.key == "demon_armor") and get_setting(settings, "auto_demon_armor", true) == false then
+        return false
+    end
+    if entry.key == "lightning_shield" and get_setting(settings, "auto_lightning_shield", true) == false then
+        return false
+    end
     if entry.min_level and player_level < entry.min_level then return false end
     if entry.max_level and player_level > entry.max_level then return false end
     if entry.opt_in and explicit ~= true then
