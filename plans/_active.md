@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-10 (api-standardization-audit marked COMPLETE after full wave verification)
+**Last updated:** 2026-07-10 (spec-standardization marked COMPLETE after Phase 3; api-audit COMPLETE; tree cleaned)
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -13,7 +13,7 @@
 | Plan | Status | Summary |
 |------|--------|---------|
 | `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` | COMPLETE (Tier 3 audits + docstrings + validation marked done 2026-07-10) | Ground every spec in wowsims/SimC/guides to be #1 rotation system |
-| `plans/spec-standardization-2026-06-30.md` | Active | Schema/spec/leveling standardization for open-source release |
+| `plans/spec-standardization-2026-06-30.md` | COMPLETE (Phases 0-3; class infra standardization commits done for druid/warrior/hunter/paladin/priest/rogue/shaman + core/shared/test; all gates green) | Schema/spec/leveling standardization for open-source release |
 | `plans/api-standardization-audit-2026-07.md` | COMPLETE (Phase 0-3; Wave 1A-1E full via compliance test + verification on current state; baseline 252+17; all patterns audited green) | Full API pattern compliance audit across all ~210 EaxRotations files (Groups A-I) |
 | `plans/refactor-developer-experience-2026-06.md` | COMPLETE | spec_kit migration — ALL 29 SPECS MIGRATED (arms, fury, protection, kebab, balance, cat, bear, caster, resto, discipline, holy, shadow, fire, destruction, frost, restoration, affliction, combat, demonology, elemental, enhancement, assassination, marksmanship, retribution, subtlety, survival, protection, beast_mastery, holy) + healing_sylvanas helper |
 | `plans/eaxfishing-v2.4.0-12-features-2026-07-05.md` | In progress | Fishing bot v2.4.0-12 feature list |
