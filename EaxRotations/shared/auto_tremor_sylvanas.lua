@@ -15,8 +15,8 @@ local NS = _G.EaxRotations
 -- Fear-casting boss NPC IDs (TBC encounters)
 -- Comprehensive list for dungeons and raids to prevent tank fears causing wipes (tank runs into packs).
 -- Raids: Karazhan (Nightbane), Hyjal (Archimonde, Anetheron), BT, SSC (Striders, Honor Guards), Magtheridon's Lair, TK, Sunwell Plateau (SWP Sunblade Dusk Priests), etc.
--- Dungeons: Auchindoun wings (Shadow Lab key for Kara attunement), Ramparts, Arcatraz (Skyriss), Sethekk, Mana Tombs, Old Hillsbrad, Black Morass, Magisters' Terrace (Delrissa), etc.
--- Use with party frames for accurate tank protection. Expanded via WoWHead TBC guides for all major fear sources (incl. uninterruptible fears).
+-- Dungeons: Auchindoun wings (Shadow Lab key for Kara attunement), Ramparts, Arcatraz (Skyriss), Sethekk, Mana Tombs, Old Hillsbrad, Black Morass, Magisters' Terrace (Delrissa), Underbog (Fen Ray horror), etc.
+-- Use with party frames for accurate tank protection. Expanded via WoWHead TBC guides for all major fear sources (incl. uninterruptible fears and horrors that bypass Tremor).
 -- Expand as more verified via DBC/client.
 local FEAR_CASTER_IDS = {
     -- Raids (from WoWHead TBC guides: Nightbane fear major for tanks, Archimonde frequent fear)
@@ -53,7 +53,9 @@ local FEAR_CASTER_IDS = {
     [25370] = true,  -- Sunblade Dusk Priest (Sunwell Plateau) — Fear (uninterruptible; targets enemies)
     -- Magisters' Terrace from WoWHead guides
     [24560] = true,  -- Priestess Delrissa (Magisters' Terrace) — Psychic Scream
-    -- Additional from research (SSC Frightening Shout trash, BT, TK advisors, Arcatraz, SWP, MGT, etc.)
+    -- The Underbog (Coilfang dungeon) from WoWHead + guides: Fen Rays cast horror fear (Tremor does NOT dispel; Fear Ward essential)
+    [17731] = true,  -- Fen Ray (Underbog) — Psychic Horror (fear/horror effect)
+    -- Additional from research (SSC Frightening Shout trash, BT, TK advisors, Arcatraz, SWP, MGT, Underbog, etc.)
     -- All verified/expanded via WoWHead TBC dungeon/raid guides for proactive Fear Ward + Tremor tank protection.
 }
 
@@ -90,6 +92,7 @@ function M.detect_fear_on_ally()
     local party = NS.GetPartyMembers()
     if not party then return false end
     -- Expanded fear/charm/sleep/horror debuff IDs for TBC dungeons/raids (sourced from WoWHead guides + spell data)
+    -- Note: Some horrors (e.g. 34984 Psychic Horror) bypass Tremor Totem; Fear Ward / other breaks are critical for those.
     local FEAR_DEBUFFS = {
         [5782] = true, [6213] = true, [6215] = true,   -- Fear ranks (warlock etc.)
         [5484] = true, [17928] = true,                 -- Howl of Terror
@@ -103,6 +106,7 @@ function M.detect_fear_on_ally()
         [39415] = true,                                -- Fear (Harbinger Skyriss Arcatraz per WoWHead)
         [39427] = true,                                -- Bellowing Roar variant (TK Kael advisors per guides)
         [46561] = true,                                -- Fear (Sunblade Dusk Priest SWP per WoWHead trash guide; uninterruptible)
+        [34984] = true,                                -- Psychic Horror (Fen Ray Underbog; horror, Tremor does not dispel per guides/comments)
         [10955] = true,                                -- Other fears
     }
     for _, member in ipairs(party) do
@@ -124,7 +128,7 @@ function M.detect_fear_on_tank()
     if not party then return false end
     for _, member in ipairs(party) do
         if member and member.is_alive and member:is_alive() and NS.is_tank_unit(member) then
-            for debuff_id in pairs({5782,6215,5484,8122,33111,39415,19134,46561}) do
+            for debuff_id in pairs({5782,6215,5484,8122,33111,39415,19134,46561,34984}) do
                 if NS.debuff_up and NS.debuff_up(member, debuff_id) then
                     return true
                 end
