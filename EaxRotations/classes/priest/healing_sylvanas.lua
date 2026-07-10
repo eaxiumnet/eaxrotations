@@ -236,28 +236,34 @@ NS.PriestHealing.PARTY_UNITS = PARTY_UNITS
 NS.PriestHealing.RAID_UNITS = RAID_UNITS
 
 --- Counts injured units in the player's subgroup only.
---- In a raid, Prayer of Healing only heals the caster's party (subgroup).
---- This prevents wasting mana when other raid groups are hurt but yours isn't.
+--- Uses the new core.party / get_party_frames backed NS.GetPartyMembers() for
+--- accurate, current subgroup (the player's exact party in raids).
+--- This is more reliable than is_party_member pcalls and leverages the frames API.
 ---@param threshold number HP threshold (0-100) to count as injured.
 ---@return integer count Number of injured subgroup members.
 local function count_subgroup_below_hp(threshold)
-    local entries, count = scan_healing_targets()
-    if count == 0 or not entries then return 0 end
-    local in_raid = is_in_raid()
-    local injured = 0
-    for i = 1, count do
-        local entry = entries[i]
-        if entry and entry.effective_hp and entry.effective_hp < threshold then
-            -- In a raid, only count party members (your subgroup).
-            -- In a party, all valid members are in your group.
-            if not in_raid then
+    -- Prefer the accurate party list from new party frames feature
+    local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
+    if not party or #party == 0 then
+        -- Fallback to full entries scan
+        local entries, count = scan_healing_targets()
+        if count == 0 or not entries then return 0 end
+        local injured = 0
+        for i = 1, count do
+            local entry = entries[i]
+            if entry and entry.effective_hp and entry.effective_hp < threshold then
                 injured = injured + 1
-            else
-                -- pcall guard: is_party_member may not exist on all game object APIs
-                local ok, is_pm = pcall(function() return entry.unit and entry.unit:is_party_member() end)
-                if ok and is_pm then
-                    injured = injured + 1
-                end
+            end
+        end
+        return injured
+    end
+    local injured = 0
+    for i = 1, #party do
+        local u = party[i]
+        if u then
+            local hp = NS.unit_health_pct and NS.unit_health_pct(u) or 100
+            if hp < threshold then
+                injured = injured + 1
             end
         end
     end
