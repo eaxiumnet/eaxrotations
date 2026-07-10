@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.4 - 2026-07-10
+
+### Customer Changelog
+- Continued fidelity improvements across tank and caster specs per simulator and guide sources.
+- All rotation and leveling tests remain passing (252 suites).
+
 ## 2.5.3 - 2026-07-10
 
 ### Customer Changelog
