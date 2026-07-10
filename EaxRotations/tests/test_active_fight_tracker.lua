@@ -83,7 +83,7 @@ end
 -- get_active should return fresh (live) units via filter (engagement reuse + party/pet paths exercised in filter)
 local active = M.get_active_fights(40)
 local ac = active.n or #active
-assert_true(ac >= 1, "get_active_fights should return >=1 engaged (e1/e3)")
+assert_true(ac >= 1, "get_active_fights should return >=1 engaged (via filter)")
 
 -- count uses GUID set
 local c = M.count()
@@ -109,7 +109,7 @@ _mock_now = _mock_now + 1
 active = M.get_active_fights(40)
 c = M.count()
 -- after prune of absent, count should drop to the remaining engaged
-assert_true(c <= 2, "after scan+prune count should reflect current engaged GUIDs only")
+assert_eq(c, 1, "after scan+prune count should reflect exactly 1 remaining engaged GUID")
 
 -- reset clears
 M.reset()
@@ -129,8 +129,82 @@ for i=1,3 do
 end
 assert_true(true, "static reuse calls succeeded")
 
--- party-pet note: covered implicitly because get_active reuses Engagement.filter which handles party/pet targeting (see its tests + header)
--- on_update stub does not crash
+-- === Additional coverage (throttle, only-curr fallback, nils, pcall errs, engagement load fail, time-prune, exactness) ===
+-- Throttle: change enemy list without enough time advance; count remains stale
+local e_t1 = mock_unit("guid-t1", "t1", { in_combat = true, target = me, has_dot = true })
+local e_t2 = mock_unit("guid-t2", "t2", { in_combat = true, target = me, has_dot = true })
+_G.EaxRotations.GetEnemiesInRange = function() return { e_t1, e_t2 } end
+_mock_now = _mock_now + 1
+assert_eq(M.count(), 2, "initial for throttle")
+_G.EaxRotations.GetEnemiesInRange = function() return { e_t1 } end
+_mock_now = _mock_now + 0.1
+assert_eq(M.count(), 2, "throttle suppresses; count stale")
+_mock_now = _mock_now + 1
+assert_eq(M.count(), 1, "post-interval update")
+
+-- Only-curr lacks debuff: fallback to curr
+local e_has = mock_unit("guid-has", "has", { in_combat = true, target = me, has_dot = true })
+local e_curr_n = mock_unit("guid-currnodot", "currnodot", { in_combat = true, target = me, has_dot = false })
+_G.EaxRotations.GetEnemiesInRange = function() return { e_has, e_curr_n } end
+_mock_now = _mock_now + 1
+M.get_active_fights(40)
+local ctx_c = { me = me, target = e_curr_n }
+local u_c = M.find_undotted_target(ctx_c, { 999 }, 40)
+assert_true(u_c ~= nil and (u_c._guid == "guid-currnodot" or u_c._name == "currnodot"), "fallback to current when sole missing")
+
+-- nil/empty guards + empty fights
+assert_eq(M.find_undotted_target(nil, { 123 }), nil, "nil ctx -> nil")
+assert_eq(M.find_undotted_target({ me = me }, nil), nil, "nil debuffs -> nil")
+_G.EaxRotations.GetEnemiesInRange = function() return {} end
+assert_eq(M.find_undotted_target({ me = me }, { 123 }, 30), nil, "no fights -> nil")
+-- debuff_ids={} is truthy so proceeds (no early return), but with no fights yields nil (covers empty case path)
+assert_eq(M.find_undotted_target({ me = me }, {}, 30), nil, "empty debuffs with no fights -> nil")
+
+-- pcall error paths
+local old_d = _G.EaxRotations.debuff_up
+_G.EaxRotations.debuff_up = function() error("deb err") end
+_G.EaxRotations.GetEnemiesInRange = function() return { e3 } end
+_mock_now = _mock_now + 1
+assert_true(M.find_undotted_target({ me = me }, { 1 }, 40) ~= nil, "debuff pcall err handled")
+_G.EaxRotations.debuff_up = old_d
+
+local badh = mock_unit("guid-bh", "bh", { in_combat = true, target = me, has_dot = false })
+badh.get_health_percentage = function() error("hp err") end
+_G.EaxRotations.GetEnemiesInRange = function() return { badh } end
+_mock_now = _mock_now + 1
+assert_true(M.find_undotted_target({ me = me }, { 1 }, 40) ~= nil, "hp pcall err handled")
+
+-- Engagement load-fail path via forced preload error + reload
+local sv_m = package.loaded["shared/multidot_engagement_filter_sylvanas"]
+local sv_t = package.loaded["shared/active_fight_tracker_sylvanas"]
+package.loaded["shared/multidot_engagement_filter_sylvanas"] = nil
+package.preload["shared/multidot_engagement_filter_sylvanas"] = function() error("eng load fail") end
+package.loaded["shared/active_fight_tracker_sylvanas"] = nil
+local Mf = require("shared/active_fight_tracker_sylvanas")
+_G.EaxRotations.GetEnemiesInRange = function() return { e1 } end
+_mock_now = _mock_now + 1
+assert_true(Mf.get_active_fights(40) ~= nil, "get works post eng-load-fail")
+assert_true(type(Mf.count()) == "number", "count works post eng-load-fail")
+package.preload["shared/multidot_engagement_filter_sylvanas"] = nil
+package.loaded["shared/multidot_engagement_filter_sylvanas"] = sv_m
+package.loaded["shared/active_fight_tracker_sylvanas"] = sv_t
+M = require("shared/active_fight_tracker_sylvanas")
+
+-- Time prune >60s
+M.reset()
+_G.EaxRotations.GetEnemiesInRange = function() return { e1 } end
+_mock_now = 100
+M.get_active_fights(40)
+assert_eq(M.count(), 1)
+_mock_now = 200
+M.prune()
+-- read count without re-populating (count calls scan which would refresh last_seen if Get still returns unit)
+local oldg = _G.EaxRotations.GetEnemiesInRange
+_G.EaxRotations.GetEnemiesInRange = function() return {} end
+assert_eq(M.count(), 0, "prune evicts >60s stale last_seen")
+_G.EaxRotations.GetEnemiesInRange = oldg
+
+-- party-pet note + on_update
 M.on_update({ in_combat = true })
 
 print("PASS test_active_fight_tracker")

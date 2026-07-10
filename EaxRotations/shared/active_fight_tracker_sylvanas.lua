@@ -1,14 +1,12 @@
--- active_fight_tracker_sylvanas.lua — Active fight / engagement tracker (GUID-only) for multi-DoT.
--- WHAT:  Throttled (0.5s) tracking of engaged enemy GUIDs via Engagement filter; exposes fresh live unit lists + strict-missing-debuff finder.
--- WHEN:  Future multi-dot specs (shadow, affliction, destro, hunter, bleeds) call in build_state / match for undotted targets.
--- WHY:   Single source of truth for "active fights" (player+pet+party+raid engaged) to prevent dotting non-fights; reusable across specs.
--- SAFETY: Stores ONLY GUIDs (no unit ref leaks/staleness); always-fresh units from live filter on get_active; all API via pcall; static tables; nil guards.
--- DECISION: PR1 standalone (no spec changes); reuses multidot_engagement_filter; get_active_fights contract = fresh live units each call; find_undotted = strict !debuff (no remains fuzzy).
-
-local NS = _G.EaxRotations
-if not NS then return {} end
+-- active_fight_tracker_sylvanas.lua — Active fight / engagement tracker (GUID-only) for multi-DoT and general DoT/bleed users (shadow, affliction, hunter, etc.).
+-- WHAT:  Throttled (0.5s) GUID tracking of engaged enemies via Engagement filter; fresh live units + strict missing-debuff finder.
+-- WHEN:  Called from build_state/match in multi-dot and DoT specs.
+-- WHY:   Reusable single source of truth to avoid dotting non-fights; GUID-only + fresh-units contract.
+-- SAFETY: pcall everywhere, static tables, no long-lived refs, nil-guards; PR1 standalone reuses filter.
 
 local M = {}
+local NS = _G.EaxRotations
+if not NS then return M end
 
 -- Re-use the engagement filter (pcall for robustness)
 local _eng_ok, Engagement = pcall(require, "shared/multidot_engagement_filter_sylvanas")
@@ -48,9 +46,11 @@ end
 -- Update _active GUID set from a fresh engaged unit list (prune absent)
 local function _update_from_engaged(engaged)
     local now = _now()
-    -- reset seen static
+    -- reset seen static (collect to avoid pairs() mutation)
     _seen_guids.n = 0
-    for k in pairs(_seen_guids) do if k ~= "n" then _seen_guids[k] = nil end end
+    local ks = {}
+    for k in pairs(_seen_guids) do if k ~= "n" then ks[#ks + 1] = k end end
+    for _, k in ipairs(ks) do _seen_guids[k] = nil end
 
     local cnt = (type(engaged) == "table" and (engaged.n or #engaged)) or 0
     for i = 1, cnt do
@@ -75,7 +75,7 @@ local function _update_from_engaged(engaged)
     end
 end
 
-local function _internal_scan_and_update()
+local function _internal_scan_and_update(range)
     local now = _now()
     if (now - _last_scan) < SCAN_INTERVAL then return end
     _last_scan = now
@@ -85,7 +85,8 @@ local function _internal_scan_and_update()
     me = ok and me or nil
 
     local gete = (NS and NS.GetEnemiesInRange) or function() return {} end
-    local ok2, raw = pcall(gete, 40)
+    local r = range or 40
+    local ok2, raw = pcall(gete, r)
     raw = (ok2 and type(raw) == "table") and raw or {}
 
     local engaged = raw
@@ -120,12 +121,14 @@ function M.get_active_fights(range)
         if ok3 and eng then engaged = eng end
     end
 
-    -- Still run throttled scan to keep _active GUIDs in sync + prune
-    _internal_scan_and_update()
+    -- Still run throttled scan to keep _active GUIDs in sync + prune (use caller's range for consistency)
+    _internal_scan_and_update(range)
 
-    -- Copy to static output (no alloc churn)
+    -- Copy to static output (no alloc churn; collect to avoid pairs mutation)
     _out_fights.n = 0
-    for k in pairs(_out_fights) do if k ~= "n" then _out_fights[k] = nil end end
+    local ks = {}
+    for k in pairs(_out_fights) do if k ~= "n" then ks[#ks + 1] = k end end
+    for _, k in ipairs(ks) do _out_fights[k] = nil end
     local cnt = (engaged.n or #engaged) or 0
     for i = 1, cnt do
         _out_fights.n = _out_fights.n + 1
@@ -167,7 +170,11 @@ function M.find_undotted_target(context, debuff_ids, range)
             local okd, h = pcall(_debuff_up, u, debuff_ids)
             if okd then has = h end
             if not has then
-                local is_curr = curr and (pcall(_same_unit, u, curr) and select(2, pcall(_same_unit, u, curr)))
+                local is_curr = false
+                if curr then
+                    local ok, same = pcall(_same_unit, u, curr)
+                    is_curr = ok and same
+                end
                 if not is_curr then
                     local hp = 100
                     local okh, val = pcall(function()
@@ -205,22 +212,30 @@ end
 --- Force prune of stale GUIDs (for tests / explicit).
 function M.prune()
     local now = _now()
+    local to_del = {}
     for g, meta in pairs(_active) do
         if not meta or (now - (meta.last_seen or 0)) > 60 then
-            _active[g] = nil
+            to_del[#to_del + 1] = g
         end
     end
+    for _, g in ipairs(to_del) do _active[g] = nil end
 end
 
 --- Reset all tracked fights (e.g. on combat end).
 function M.reset()
-    for k in pairs(_active) do _active[k] = nil end
+    local to_del = {}
+    for k in pairs(_active) do to_del[#to_del + 1] = k end
+    for _, k in ipairs(to_del) do _active[k] = nil end
     _last_scan = -1
-    -- clear statics
+    -- clear statics (collect first to avoid pairs mutation)
     _out_fights.n = 0
-    for k in pairs(_out_fights) do if k ~= "n" then _out_fights[k] = nil end end
+    local ks = {}
+    for k in pairs(_out_fights) do if k ~= "n" then ks[#ks + 1] = k end end
+    for _, k in ipairs(ks) do _out_fights[k] = nil end
     _seen_guids.n = 0
-    for k in pairs(_seen_guids) do if k ~= "n" then _seen_guids[k] = nil end end
+    ks = {}
+    for k in pairs(_seen_guids) do if k ~= "n" then ks[#ks + 1] = k end end
+    for _, k in ipairs(ks) do _seen_guids[k] = nil end
 end
 
 --- Debug helper.
