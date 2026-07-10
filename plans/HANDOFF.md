@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-10** (v2.5.12: version bump across header/VERSION/changelogs, BT/SWP dispel, scorecard updated, GitHub release + clean zip; tests+compliance green; HEAD current; rotations COMPLETE; fishing source absent).
+> up to date after every work session. Last updated: **2026-07-10** (v2.5.13: removed manual log/data file IO saving to fix "File name not set" spam; prefer izi.log; version bump in all files; clean zip to GH; tests green; rotations COMPLETE).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
@@ -184,7 +184,7 @@ Or run the suites directly:
 
 ---
 
-## CURRENT STATE (v2.5.12, HEAD f4fa8d70)
+## CURRENT STATE (v2.5.13, HEAD current)
 
 **Baseline:** 252 rotation + 17 leveling suites PASS / 0 fail on Lua 5.1.5.
 Spell audit PASS. Pre-commit hooks green (luac + vanilla audit + DBC audit).

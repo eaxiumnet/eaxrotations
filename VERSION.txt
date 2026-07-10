@@ -1,13 +1,13 @@
-EaxRotations v2.5.12
+EaxRotations v2.5.13
 Released: 2026-07-10
 Game: The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
 Commit: (git describe)
 
 === WHAT'S NEW ===
-- Priest Healing + shared dispel: extended dangerous debuff lists for Black Temple (Soul Drain) and Sunwell Plateau (Polymorph, Flame Buffet, hound poisons/disease) for better raid dispel priority.
-- BT/SWP raid content coverage improved in dispel paths.
+- Fixed "File name not set. Please specify a valid file name before saving" spam from log files by removing all manual IO saving logic (early set_setting, grace periods, references to log/data file creation for saving).
+- Switched diagnostics logging to prefer izi.log (as recommended in Sylvanas docs) instead of manual log file management.
 - All rotation and leveling tests remain passing (252 + 17 suites).
-- Continued verification and doc sync.
+- Version bump to 2.5.13, clean zip packaging.
 
 === QUALITY GATES ===
 - Rotation test suites: 252/252 PASS

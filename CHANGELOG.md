@@ -2,6 +2,14 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.5.13] — Log File IO Cleanup & Spam Fix (2026-07-10)
+
+- Removed all manual log/data file IO saving logic (create_log_file, write_log_file, early set_setting, grace periods for saves) that caused "File name not set. Please specify a valid file name before saving" spam.
+- Diagnostics and logging now prefer izi.log (per Sylvanas docs recommendation) instead of manual file management.
+- Version bump to 2.5.13 across header, VERSION.txt, README, changelogs.
+- Clean eaxrotations.zip (only .lua + .md files).
+- All tests and audits green.
+
 ## [2.5.12] — BT/SWP Dispel Polish (2026-07-10)
 
 - Priest Healing + shared dispel: extended dangerous debuff coverage for Black Temple (Soul Drain) and Sunwell (Polymorph, Flame Buffet, hound poisons/disease).
