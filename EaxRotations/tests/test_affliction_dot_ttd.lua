@@ -108,6 +108,14 @@ local ua = find_strategy("UnstableAffliction")
 local siphon = find_strategy("SiphonLife")
 local immolate = find_strategy("ImmolateDoT")
 
+-- UA vs Corruption ordering (PR2 extension): UA must precede Corruption* per design.
+-- (applicable here as these strategies are exercised; ordering asserted in custom_matches too)
+local function get_idx(nm)
+    for i=1,#strategies do if strategies[i].name==nm then return i end end
+    return 999
+end
+assert_true(get_idx("UnstableAffliction") < get_idx("CorruptionDoT"), "UA index must be before CorruptionDoT for priority (TTD tests rely on correct order)")
+
 -- Corruption: TTD too short -> should not match
 assert_false(corruption.matches({
     has_valid_enemy_target = true,

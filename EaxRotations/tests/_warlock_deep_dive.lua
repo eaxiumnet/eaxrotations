@@ -3,6 +3,10 @@
 -- WHEN:  During rotation test suite execution.
 -- WHY:   Explores edge cases and internal logic paths not covered by standard suites.
 -- SAFETY: Ad-hoc tests; may be run manually during deep debugging.
+-- NOTE (PR2): numeric strategy indices here (e.g. Corruption was ~11, Immolate~12) are from
+-- this ad-hoc file's strategy table (may differ from affliction_sylvanas main rotation).
+-- Post UA reorder in main affliction, some indices stale. Converted relevant debuff/DoT
+-- tests to name-based. Use name-based for sylvanas main rotation (see test_affliction_custom_matches.lua).
 
 -- ============================================================================
 -- Deep dive: Systematic OOC guard loop — combat-gated strategies
@@ -21,8 +25,8 @@ do
     --   * HowlOfTerror(8): combat-gated
     --   * DeathCoil(9): combat-gated
     --   * LifeTap(10): combat-gated
-    --   * Corruption(11): combat-gated
-    --   * Immolate(12): combat-gated
+    --   * Corruption(11): combat-gated   [was ~11; post UA reorder in affliction main; stale indices note added; prefer name-based lookup for sylvanas main rotation]
+    --   * Immolate(12): combat-gated   [stale indices; use name-based for sylvanas main rotation]
     --   * CurseOfAgony(13): combat-gated
     --   * SiphonLife(14): combat-gated
     --   * DrainLife(15): combat-gated
@@ -93,6 +97,7 @@ end
 do
     -- Target-dependent: {4,7,9,11,12,13,14,15,16,17,18}
     -- Non-target: {1,2,3,5,6,8,10}
+    -- (indices audited post-reorder; Corruption etc noted stale; use name-based)
     local target_dependent = {4, 7, 9, 11, 12, 13, 14, 15, 16, 17, 18}
     local ctx = make_context({target = nil, in_combat = true, hp = 30, mana_pct = 30, enemies_count = 3, is_moving = false})
     ctx.target = nil
@@ -128,7 +133,8 @@ end
 -- ============================================================================
 do
     -- All three safe_debuff_remains usages in Warlock handle nil/throwing via pcall
-    -- Corruption (11), Immolate (12), Curse of Agony (13), Siphon Life (14), Fear (7)
+    -- Corruption (was ~11), Immolate (12), Curse of Agony (13), Siphon Life (14), Fear (7)
+    -- stale indices; use name-based for sylvanas main rotation (post UA reorder)
     local ctx = make_context({is_moving = false})
     local state = get_state(ctx)
     state.corruption_ready = true
@@ -144,7 +150,9 @@ do
     test("debuff_remains_nil: corruption match does not crash when NS.debuff_remains is nil", function()
         local saved = NS.debuff_remains
         NS.debuff_remains = nil
-        local ok, result = pcall(strategies[11].matches, ctx, state)
+        -- name-based (converted per PR2; was strategies[11] ~Corruption)
+        local strat = nil; for i=1,#strategies do if strategies[i].name == "CorruptionDoT" or strategies[i].name == "Corruption" then strat = strategies[i]; break end end
+        local ok, result = pcall((strat or strategies[11] or {}).matches, ctx, state)
         assert_true(ok, "corruption match does not crash when NS.debuff_remains nil")
         assert_true(result, "corruption match returns true when remains defaults to 0")
         NS.debuff_remains = saved
@@ -153,7 +161,9 @@ do
     test("debuff_remains_nil: immolate match does not crash when NS.debuff_remains is nil", function()
         local saved = NS.debuff_remains
         NS.debuff_remains = nil
-        local ok, result = pcall(strategies[12].matches, ctx, state)
+        -- name-based (converted per PR2; was strategies[12] ~Immolate)
+        local strat = nil; for i=1,#strategies do if strategies[i].name == "ImmolateDoT" or strategies[i].name == "Immolate" then strat = strategies[i]; break end end
+        local ok, result = pcall((strat or strategies[12] or {}).matches, ctx, state)
         assert_true(ok, "immolate match does not crash when NS.debuff_remains nil")
         NS.debuff_remains = saved
     end)
@@ -161,7 +171,9 @@ do
     test("debuff_remains_nil: curse_of_agony match does not crash when NS.debuff_remains is nil", function()
         local saved = NS.debuff_remains
         NS.debuff_remains = nil
-        local ok, result = pcall(strategies[13].matches, ctx, state)
+        -- name-based fallback (stale indices; use name-based for sylvanas main rotation)
+        local strat = nil; for i=1,#strategies do if strategies[i].name == "CurseOfAgony" or strategies[i].name == "CurseOfAgonyDoT" then strat = strategies[i]; break end end
+        local ok, result = pcall((strat or strategies[13] or {}).matches, ctx, state)
         assert_true(ok, "curse_of_agony match does not crash when NS.debuff_remains nil")
         NS.debuff_remains = saved
     end)
@@ -169,7 +181,9 @@ do
     test("debuff_remains_nil: siphon_life match does not crash when NS.debuff_remains is nil", function()
         local saved = NS.debuff_remains
         NS.debuff_remains = nil
-        local ok, result = pcall(strategies[14].matches, ctx, state)
+        -- name-based (converted; was [14])
+        local strat = nil; for i=1,#strategies do if strategies[i].name == "SiphonLife" or strategies[i].name == "SiphonLifeDoT" then strat = strategies[i]; break end end
+        local ok, result = pcall((strat or strategies[14] or {}).matches, ctx, state)
         assert_true(ok, "siphon_life match does not crash when NS.debuff_remains nil")
         NS.debuff_remains = saved
     end)
@@ -177,7 +191,9 @@ do
     test("debuff_remains_throwing: corruption match does not crash when NS.debuff_remains throws", function()
         local saved = NS.debuff_remains
         NS.debuff_remains = function() error("crash") end
-        local ok, result = pcall(strategies[11].matches, ctx, state)
+        -- name-based (was [11])
+        local strat = nil; for i=1,#strategies do if strategies[i].name == "CorruptionDoT" or strategies[i].name == "Corruption" then strat = strategies[i]; break end end
+        local ok, result = pcall((strat or strategies[11] or {}).matches, ctx, state)
         assert_true(ok, "corruption match does not crash when NS.debuff_remains throws")
         NS.debuff_remains = saved
     end)
@@ -234,7 +250,9 @@ do
         state.use_corruption = true
         state.target = nil
         -- corruption_matches first checks `if not state.target then return false end`
-        local ok, result = pcall(strategies[11].matches, ctx, state)
+        -- converted to name-based + fallback (stale indices; use name-based for sylvanas main rotation)
+        local strat = nil; for i=1,#strategies do if strategies[i].name == "CorruptionDoT" or strategies[i].name == "Corruption" then strat = strategies[i]; break end end
+        local ok, result = pcall((strat or strategies[11] or {}).matches, ctx, state)
         assert_true(ok, "corruption match does not crash with nil target")
         assert_false(result, "corruption match returns false with nil target (nil target guard fires first)")
     end)
