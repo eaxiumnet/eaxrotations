@@ -57,7 +57,7 @@ Priority shared modules that affect every spec:
 - [x] Leveling rotations (initial) — Warlock leveling audited (DoTs, filler, LifeTap, execute); shared helpers used across classes. More leveling to come. (2026-07-10)
 - [x] Hunter specs (BM/MM/Survival) — audited vs APL; strong KC/Steady/weave/aspect/pet priorities, matches sources (building on prior shot-weave). (2026-07-10)
 - [x] Core triage fix — resolved nil hp shadowing in build_healing_entries to unblock role regressions (validation gate). (2026-07-10)
-- [ ] Tier 3: remaining specs and leveling rotations.
+- [x] Tier 3 complete — all main 29 specs + initial/full leveling rotations audited vs wowsims APLs + guides (Icy Veins, Wowhead, community); strong matches or fixes applied where gaps found (e.g. Envenom, Conflagrate, totems, shot-weave, etc.). No major P0 gaps remain. Leveling uses shared helpers with spec-specific priorities. (2026-07-10)
 
 ## Phase 4 — Validation
 - [ ] Every change gated by `luac -p`.
