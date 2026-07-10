@@ -45,6 +45,10 @@ local CLASS_DISPELS = {
     MAGE = {
         curse = { spell = "RemoveCurse", ids = { 475 } },
     },
+    -- Warlock pet for magic dispel in dungeons (Devour Magic)
+    WARLOCK = {
+        magic = { spell = "DevourMagic", ids = { 19505, 19731, 19734, 19736 } }, -- ranks for Felhunter
+    },
 }
 
 -- Class ID mapping for determining dispel capabilities
@@ -54,6 +58,7 @@ local CLASS_ID_MAP = {
     [7] = "SHAMAN",
     [11] = "DRUID",
     [8] = "MAGE",
+    [9] = "WARLOCK",
 }
 
 -- ---------------------------------------------------------------------------
