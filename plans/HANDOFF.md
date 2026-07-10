@@ -130,23 +130,36 @@ have to context-switch.
 cd /c/newbot/scripts
 sha=$(git rev-parse --short HEAD)
 date=$(git show -s --format=%ci HEAD | cut -d' ' -f1)
-zipname="EaxRotations-${date}-${sha}.zip"
-# Write VERSION.txt manifest (commit, date, test status) — see an existing
-# release's VERSION.txt or the 2026-06-25 session log for the template.
-git archive --format=zip -o "$zipname" HEAD -- EaxRotations/
-# Verify: python -c "
+zipname="eaxrotations.zip"   # or dated name; this is what gets attached to release
+# IMPORTANT: ONLY .lua and .md allowed in the zip (no .txt, no VERSION.txt, no other)
+# Use git archive + strict python re-zip to strip EaxRotations/ prefix and filter:
+git archive --format=zip -o tmp_eax.zip HEAD -- EaxRotations/
+python -c '
 import zipfile, os
-z=zipfile.ZipFile('$zipname')
+with zipfile.ZipFile("tmp_eax.zip") as zin, zipfile.ZipFile("eaxrotations.zip", "w", zipfile.ZIP_DEFLATED) as zout:
+    for it in zin.infolist():
+        if not it.filename.startswith("EaxRotations/"): continue
+        newname = it.filename[len("EaxRotations/"):]
+        if not newname or newname.endswith("/"): 
+            if newname.endswith("/"): zout.writestr(it)  # keep empty dirs if any
+            continue
+        if not (newname.endswith(".lua") or newname.endswith(".md")): continue
+        zout.writestr(newname, zin.read(it))
+print("strict zip created")
+'
+rm -f tmp_eax.zip
+# Verify (MUST report 0):
+python -c "
+import zipfile
+z=zipfile.ZipFile('eaxrotations.zip')
 bad=[n for n in z.namelist() if not n.endswith('/') and not (n.endswith('.lua') or n.endswith('.md'))]
-print('Bad non-lua/md:', len(bad))
+txt=[n for n in z.namelist() if n.endswith('.txt')]
+print('Bad non-lua/md:', len(bad), 'Txt:', len(txt))
 z.close()
-" (must be 0; only .lua and .md)
-gh release create "v${date}.${sha}" "$zipname" --title "..." --notes "..."
+"   # must be 0 bad, 0 txt
+gh release upload v2.5.11 eaxrotations.zip --clobber || gh release upload TAG eaxrotations.zip --clobber
 ```
-`*.zip` is gitignored, so the zip won't pollute the repo. **10+ releases** exist
-(latest `v2026-06-28.f802211b`). NOTE: include `EaxAutoQuester/` in the archive
-path too (the rotation product ships both): `git archive ... HEAD -- EaxRotations/ EaxAutoQuester/`. Verify the zip with a python zipfile check that no entry is
-outside `.lua`/`.md` and no external-repo dir leaked in.
+`*.zip` is gitignored. Always run the verify — .zip must contain **only lua and md files**. Past issue: accidental .txt (e.g. VERSION.txt) from loose archive commands was fixed by the strict filter above. Use `eaxrotations.zip` (lowercase) for the generic asset on the active release. NOTE: the rotation ships EaxRotations/ only (no EaxAutoQuester in current zips).
 
 ---
 
