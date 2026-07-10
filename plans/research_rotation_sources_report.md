@@ -98,6 +98,10 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
 | Paladin seal | Blood/Martyr backported | Command/Crusader |
 | Druid cat | Mangle, powershift Wolfshead | no Mangle |
 | Warlock | Fel Armor, UA, Shadow Embrace | Soul Link/Sacrifice meta |
+
+## Recent Fixes from Audit (2026-07-10)
+- Arms Warrior: Moved SunderArmor higher in priority list and enabled in Battle stance (was Defensive only) to match SimC APL (sunder early for armor debuff) and Wowhead/Icy Veins guides. Verified with luac + full tests.
+- Sources used: wowsims/tbc-new arms.apl.json, Icy Veins TBC Arms rotation, Wowhead TBC Warrior DPS.
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |
