@@ -43,7 +43,8 @@ Priority shared modules that affect every spec:
 - [x] Balance Druid — header/comments corrected for accurate TBC (no Eclipse); confirmed dot + Starfire + Starfall + FoN alignment with APL/guides. (2026-07-10)
 - [x] Protection Paladin — audited vs APL/guides; strong match on Holy Shield priority/charges, Consec downrank, JoW logic, Avenger's pulls, seals. No major gaps. (2026-07-10)
 - [x] Holy Paladin — added proactive LightGraceBuild (downrank HL when LG weak/absent) per guides for cheap LG proc + faster HL. (2026-07-10)
-- [ ] Tier 2: Resto Shaman/Druid/Priest.
+- [x] Resto Druid — added downrank Regrowth support in spot heal for mana per guides (downrank when damage spikes). Strong HoT rolling (3x LB, Rejuv, Regrowth). (2026-07-10)
+- [ ] Tier 2: Resto Shaman, Resto Priest.
 - [ ] Tier 3: remaining specs and leveling rotations.
 
 ## Phase 4 — Validation
