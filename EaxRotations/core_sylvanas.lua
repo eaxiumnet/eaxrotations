@@ -363,7 +363,7 @@ NS.CC_DEBUFFS = NS.CC_DEBUFFS or {
 
     6770, 2070, 11297, -- Sap
 
-    5782, 6213, 6215, 5484, 17928, -- Fear / Howl of Terror
+    5782, 6213, 6215, 5484, 17928, 8122, 30615, 22884, 33111, -- Fear / Howl / Psychic Scream / Bellowing Roar (expanded from WoWHead dungeon guides)
 
     1833, 408, 8643, 1776, 2094, -- Rogue stuns/incapacitates
 
@@ -745,6 +745,10 @@ function NS.GetPartyLowestHP()
     return low_u, low_p
 end
 
+--- Returns current game time in seconds (float).
+--- Tries core.time then core.game_time (ms->s) then NS.game_time_ms fallback.
+--- Callers should prefer NS.now(context) for per-frame cached access.
+---@return number seconds Current time since epoch or game start in seconds.
 function NS.time_now()
 
     if type(core.time) == "function" then
@@ -779,11 +783,12 @@ local function get_frame()
 end
 
 --- Returns the current game time in seconds, with per-frame caching.
+--- Primary hot-path time accessor. Specs and shared should use this or context.now.
 ---@param context table|nil Rotation context table (optional).  If provided
 ---   and context.now is set, returns that directly with zero overhead.
 ---   Otherwise falls back to a module-level frame cache that calls
 ---   NS.time_now() at most once per frame.
----@return number Current game time in seconds.
+---@return number seconds Current game time in seconds.
 function NS.now(context)
     if context and context.now then
         return context.now
@@ -835,6 +840,8 @@ do
     end
 end
 
+--- Returns the most recent rotation context table built by main dispatcher.
+---@return table|nil context The current context (has .me, .target, .now, .in_combat, settings, etc.).
 function NS.GetCurrentContext()
 
     return NS.current_context
@@ -2212,6 +2219,15 @@ function NS.evaluate_cast(spell, unit, reason, opts)
     return true
 end
 
+--- Primary spell casting entrypoint used by all rotations.
+--- Evaluates full cast preconditions (cooldown, resources, range, LOS, casting state, immunity),
+--- then queues via IZI SDK / spell_queue or falls back to core.input.
+--- Respects opts for movement assist, LOS bypass, etc.
+---@param spell number|string Spell ID or name (resolved internally).
+---@param unit table|nil Target game_object (nil falls back to self/player).
+---@param reason string|nil Optional reason label for diagnostics / sticky override.
+---@param opts table|nil Options table (skip_los, skip_casting, skip_movement_assist, etc.).
+---@return boolean success True if the spell was successfully queued or cast.
 function NS.try_cast(spell, unit, reason, opts)
 
     opts = opts or EMPTY
@@ -2316,6 +2332,14 @@ function NS.try_cast(spell, unit, reason, opts)
 
 end
 
+--- Cast a ground-targeted (position) spell if safe.
+--- Used for AoE heals, totems, traps, etc. Similar guards as try_cast.
+---@param spell number|string Spell ID or name.
+---@param position table Position {x,y,z} or vector.
+---@param range_target table|nil Optional unit for range validation.
+---@param reason string|nil Debug label.
+---@param opts table|nil Options.
+---@return boolean success True if queued/executed.
 function NS.try_cast_position(spell, position, range_target, reason, opts)
 
     opts = opts or EMPTY
@@ -2444,10 +2468,15 @@ end
 function NS.cast_predicted_heal_position(izi_spell, position, opts)
     if not izi_spell or not position then return false end
     opts = opts or {}
+    -- Even harder defaults for "no one dies": lower incoming threshold to preempt more aggressively when flagged
+    local inc_thresh = opts.health_percentage_threshold_incoming or 35
+    if opts.death_save or opts.will_die then inc_thresh = math.min(inc_thresh, 25) end
     local cast_opts = {
         use_prediction = opts.use_prediction ~= false,
         prediction_type = opts.prediction_type or "MOST_HITS",
-        health_percentage_threshold_incoming = opts.health_percentage_threshold_incoming or 40,
+        is_heal = true,
+        health_percentage_threshold_incoming = inc_thresh,
+        health_percentage_threshold_raw = opts.health_percentage_threshold_raw or 45,
         skip_range = opts.skip_range,
         check_los = opts.check_los,
         message = opts.message or "predicted heal position"
@@ -2466,28 +2495,58 @@ function NS.find_best_heal_position(spell_id, radius, max_range, min_hits)
     local targets = NS.get_targets_heal(3)
     if #targets == 0 then targets = NS.GetPartyMembers and NS.GetPartyMembers() or {} end
     if #targets == 0 then return nil, 0 end
-    -- Use first as center for prediction
+    -- Use first as center for prediction; prefer explicit most_hits heal for is_heal
     local center = targets[1]
+    local pos, hits = NS.get_most_hits_heal_position(spell_id, (center and center.get_position and center:get_position()) or nil, radius, max_range)
+    if pos and hits >= (min_hits or 1) then return pos, hits end
     return NS.get_best_heal_aoe_position(spell_id, center, radius, max_range, min_hits)
 end
 
 --- "No one dies" advanced: find best AoE heal position that covers the most at-risk (high death_risk or low TTD) party members.
---- Uses get_heal_hit_list (circle with is_heal) to score clusters by urgency, not just count.
+--- Uses get_heal_hit_list (circle with is_heal) + per-hit will_die / future / burst to weight urgency.
+--- Even harder: also tries get_most_hits_position with exception_is_heal for optimal platform cluster.
 function NS.find_death_save_heal_position(spell_id, radius, max_range)
     local party = NS.GetPartyMembers and NS.GetPartyMembers() or {}
     if #party == 0 then return nil, 0 end
     local best_pos = nil
-    local best_urgency = 0
+    local best_urgency = -1
     local best_hits = 0
+    -- Precompute a lightweight risk map from current known data (or on the fly)
+    local risk_map = {}
+    for _, p in ipairs(party) do
+        if p then
+            local key = p  -- use object ref
+            risk_map[key] = {
+                will = NS.will_die_soon and NS.will_die_soon(p, 3.0, 18) or false,
+                ttd = 999,
+                fut = 100,
+                dr = 0,
+            }
+            if type(p.time_to_die) == "function" then local ok,t=pcall(p.time_to_die,p); if ok and t then risk_map[key].ttd = t end end
+            if _unit_helper and type(_unit_helper.get_health_percentage_inc) == "function" then
+                local ok,f=pcall(_unit_helper.get_health_percentage_inc, _unit_helper, p, 3); if ok and f then risk_map[key].fut = f end
+            end
+            if type(NS.predict_effective_deficit) == "function" then
+                local def = NS.predict_effective_deficit(p) or 0
+                local mhp = safe(safe_field(p,"get_max_health"),p) or 1
+                risk_map[key].dr = (def / mhp) * 100
+            end
+        end
+    end
     for _, center in ipairs(party) do
         if center then
             local pos = safe_field(center, "get_position") and center:get_position() or nil
             if pos then
-                -- Use predict_position for moving at-risk targets (even harder, advanced prediction for heals)
+                -- Use predict_position + also spell_prediction future pos where possible
                 local pred_pos = pos
                 if type(center.predict_position) == "function" then
-                    local okp, pp = pcall(center.predict_position, center, 1.0)
+                    local okp, pp = pcall(center.predict_position, center, 0.8)
                     if okp and pp then pred_pos = pp end
+                end
+                local sp = NS.GetAPIModule and NS.GetAPIModule("spell_prediction")
+                if sp and type(sp.get_future_position) == "function" then
+                    local okf, fp = pcall(sp.get_future_position, sp, center, 0.8)
+                    if okf and fp then pred_pos = fp end
                 end
                 local hits = NS.get_heal_hit_list(pred_pos, spell_id, radius, true) or {}
                 local urgency = 0
@@ -2495,7 +2554,29 @@ function NS.find_death_save_heal_position(spell_id, radius, max_range)
                 for _, h in ipairs(hits) do
                     if h and h.obj then
                         hit_count = hit_count + 1
-                        urgency = urgency + 10
+                        local r = risk_map[h.obj] or {}
+                        local hu = 8
+                        if r.will then hu = hu + 250 end
+                        if (r.ttd or 999) < 4 then hu = hu + (250 / math.max(r.ttd or 1, 0.5)) end
+                        if (r.fut or 100) < 25 then hu = hu + (40 - (r.fut or 25)) * 3 end
+                        if (r.dr or 0) > 15 then hu = hu + (r.dr * 1.2) end
+                        urgency = urgency + hu
+                    end
+                end
+                -- Also try platform MOST_HITS for heal
+                if sp then
+                    local okm, mres = pcall(function()
+                        local sd = sp:new_spell_data(spell_id, max_range or 40, radius or 10, nil, nil, sp.prediction_type.MOST_HITS, sp.geometry_type.CIRCLE)
+                        sd.exception_is_heal = true
+                        sd.exception_player_included = true
+                        local getpos = safe_field(center, "get_position")
+                        local cpos = (getpos and getpos(center)) or pred_pos
+                        return sp:get_most_hits_position(cpos, sd, center)
+                    end)
+                    if okm and mres and mres.amount_of_hits and mres.amount_of_hits > hit_count then
+                        hit_count = mres.amount_of_hits
+                        pred_pos = mres.cast_position or pred_pos
+                        urgency = urgency + (hit_count * 5)  -- bonus for platform optimized
                     end
                 end
                 if urgency > best_urgency and hit_count >= 2 then
@@ -2517,9 +2598,26 @@ function NS.get_heal_hit_list(position, spell_id, radius, is_heal)
     local ok, list = pcall(function()
         local sd = sp:new_spell_data(spell_id, nil, radius or 8, nil, nil, sp.prediction_type.MOST_HITS, sp.geometry_type.CIRCLE)
         if is_heal then sd.exception_is_heal = true end
+        sd.exception_player_included = true
         return sp:get_circle_list(position, sd, is_heal or true)
     end)
     return (ok and type(list) == "table") and list or {}
+end
+
+--- Dedicated wrapper: use platform get_most_hits_position explicitly for heal AoE (PoH, WG, CH).
+function NS.get_most_hits_heal_position(spell_id, main_pos, radius, max_range)
+    local sp = NS.GetAPIModule and NS.GetAPIModule("spell_prediction") or nil
+    if not sp or not main_pos or not spell_id then return nil, 0 end
+    local ok, res = pcall(function()
+        local sd = sp:new_spell_data(spell_id, max_range or 40, radius or 10, nil, nil, sp.prediction_type.MOST_HITS, sp.geometry_type.CIRCLE, main_pos)
+        sd.exception_is_heal = true
+        sd.exception_player_included = true
+        return sp:get_most_hits_position(main_pos, sd)
+    end)
+    if ok and res then
+        return res.cast_position, (res.amount_of_hits or 0)
+    end
+    return nil, 0
 end
 
 --- Advanced best heal target using izi pick_friend scoring if available, fallback to lowest.
@@ -3217,6 +3315,11 @@ function NS.unit_alive(unit)
 
 end
 
+--- Returns unit health as percentage (0-100).
+--- Prefers the native get_health_percentage extension when available;
+--- otherwise computes from get_health / get_max_health with safe fallbacks.
+---@param unit table|nil Target game_object.
+---@return number pct Health percentage; 100 if unit missing or invalid data.
 function NS.unit_health_pct(unit)
 
     if not unit then return 100 end
@@ -4770,8 +4873,58 @@ function NS.predict_effective_deficit(unit)
 
     local absorbs = safe(safe_field(unit, "get_total_shield"), unit) or 0
 
-    return math.max(0, max_hp - hp - incoming - absorbs)
+    local deficit = math.max(0, max_hp - hp - incoming - absorbs)
 
+    -- Even harder: fuse platform health_prediction incoming damage estimate
+    -- to be more conservative on burst (preempt deaths from inc dmg not yet in samples).
+    local health_pred = nil
+    if NS.health_prediction and type(NS.health_prediction) == "table" then health_pred = NS.health_prediction
+    elseif NS.GetAPIModule then health_pred = NS.GetAPIModule("health_prediction") end
+    if health_pred and type(health_pred) == "table" and type(health_pred.get_incoming_damage) == "function" then
+        local ok, inc_dmg = pcall(health_pred.get_incoming_damage, health_pred, unit, 2.5)
+        if ok and type(inc_dmg) == "number" and inc_dmg > 0 then
+            -- add projected damage to effective deficit (capped)
+            deficit = math.max(deficit, deficit + math.min(inc_dmg, max_hp * 0.6))
+        end
+    end
+    return deficit
+end
+
+--- "No one dies" ultra-predictive: returns true if unit is forecast to die within horizon
+--- considering TTD, future_hp, native incoming heals, and inc damage.
+function NS.will_die_soon(unit, horizon_sec, future_hp_threshold)
+    if not unit then return false end
+    horizon_sec = horizon_sec or 3.0
+    future_hp_threshold = future_hp_threshold or 15
+    local hp_pct = NS.unit_health_pct and NS.unit_health_pct(unit) or 100
+    if hp_pct <= 5 then return true end
+    -- TTD signals
+    local ttd = 999
+    if type(unit.time_to_die) == "function" then
+        local ok, v = pcall(unit.time_to_die, unit)
+        if ok and type(v) == "number" then ttd = v end
+    elseif type(unit.get_time_to_death) == "function" then
+        local ok, v = pcall(unit.get_time_to_death, unit)
+        if ok and type(v) == "number" then ttd = v end
+    end
+    if ttd < horizon_sec then return true end
+    -- Future hp from inc
+    if _unit_helper and type(_unit_helper.get_health_percentage_inc) == "function" then
+        local ok, fut = pcall(_unit_helper.get_health_percentage_inc, _unit_helper, unit, horizon_sec)
+        if ok and type(fut) == "number" and fut < future_hp_threshold then return true end
+    end
+    -- Native incoming heals coordination (don't let covered die, but flag if insufficient)
+    local inc_heals = 0
+    if type(unit.get_incoming_heals) == "function" then
+        local ok, v = pcall(unit.get_incoming_heals, unit)
+        if ok and type(v) == "number" then inc_heals = v end
+    end
+    local cur_hp = safe(safe_field(unit, "get_health"), unit) or 0
+    local max_hp = safe(safe_field(unit, "get_max_health"), unit) or cur_hp
+    if max_hp > 0 and (cur_hp + inc_heals) / max_hp * 100 < future_hp_threshold and ttd < horizon_sec * 1.5 then
+        return true
+    end
+    return false
 end
 
 local DISPEL_TYPE_ID = { Magic = 1, Curse = 2, Disease = 3, Poison = 4, Enrage = 9 }
@@ -5063,13 +5216,44 @@ function NS.build_healing_entries(out, decorate)
                 end
             end
             -- Platform health_prediction for additional incoming damage estimate (even harder prediction)
-            local health_pred = NS.health_prediction or health_prediction
-            if health_pred and type(health_pred.get_incoming_damage) == "function" then
-                local ok, inc = pcall(health_pred.get_incoming_damage, health_pred, u, 3.0)
+            local health_pred2 = nil
+            if NS.health_prediction and type(NS.health_prediction) == "table" then health_pred2 = NS.health_prediction
+            elseif NS.GetAPIModule then health_pred2 = NS.GetAPIModule("health_prediction") end
+            if health_pred2 and type(health_pred2) == "table" and type(health_pred2.get_incoming_damage) == "function" then
+                local ok, inc = pcall(health_pred2.get_incoming_damage, health_pred2, u, 3.0)
                 if ok and type(inc) == "number" and inc > 0 then
                     incoming_dps = math.max(incoming_dps, inc / 3)  -- rough per sec
                 end
             end
+
+            -- Capture native incoming heals for coordination (avoid double heal waste)
+            local native_incoming_heals = 0
+            if type(u.get_incoming_heals) == "function" then
+                local okh, vh = pcall(u.get_incoming_heals, u)
+                if okh and type(vh) == "number" then native_incoming_heals = vh end
+            end
+
+            -- Even harder: damage type burst signals for preemptive (physical burst often lethal melee, mag for casters)
+            local phys_pct = 0
+            local mag_pct = 0
+            if health_pred2 and type(health_pred2) == "table" and type(health_pred2.get_damage_types) == "function" then
+                local okd, dtypes = pcall(health_pred2.get_damage_types, health_pred2, u, 3.0)
+                if okd and type(dtypes) == "table" then
+                    -- rough: use if fields present
+                    if dtypes.physical_damage and type(dtypes.physical_damage) == "number" then phys_pct = dtypes.physical_damage end
+                    if dtypes.magical_damage and type(dtypes.magical_damage) == "number" then mag_pct = dtypes.magical_damage end
+                end
+            end
+            if type(u.get_physical_damage_taken_percentage) == "function" then
+                local okp, pp = pcall(u.get_physical_damage_taken_percentage, u, 3.0)
+                if okp and type(pp) == "number" then phys_pct = math.max(phys_pct, pp) end
+            end
+            if type(u.get_magical_damage_taken_percentage) == "function" then
+                local okm, mp = pcall(u.get_magical_damage_taken_percentage, u, 3.0)
+                if okm and type(mp) == "number" then mag_pct = math.max(mag_pct, mp) end
+            end
+            local burst_risk = (phys_pct + mag_pct) * 0.5  -- high burst incoming
+
             local time_to_die = incoming_dps > 0 and (effective_hp / 100) * max_hp / incoming_dps or 999
 
             -- Death risk score for "no one dies" priority: low TTD or high incoming = urgent save
@@ -5077,6 +5261,19 @@ function NS.build_healing_entries(out, decorate)
             if time_to_die < 5 then death_risk = (5 - time_to_die) * 50 end
             if incoming_dps > 20 then death_risk = death_risk + incoming_dps * 2 end
             if future_hp < 30 then death_risk = death_risk + (30 - future_hp) * 3 end
+            if burst_risk > 30 then death_risk = death_risk + burst_risk * 1.5 end  -- burst amplifies death risk
+            -- Use will_die_soon for hard flag
+            local will_die = NS.will_die_soon and NS.will_die_soon(u, 3.5, 20) or false
+            if will_die then death_risk = death_risk + 400 end
+            -- Control loss mechanics (fear/charm/MC/sleep/horror): controlled tank/unit will run or be useless = imminent death/wipe in dungeons/raids (per WoWHead guides for Hellmaw, Blackheart, Nightbane, Scryers, Wardens, Prophets, etc.).
+            -- Use broad list; boost heavily for "no one dies".
+            local is_controlled = false
+            if NS.debuff_up then
+                for _, fid in ipairs({5782,6215,5484,8122,33111,30615,22884,33676,33684,19134,36922}) do
+                    if NS.debuff_up(u, fid) then is_controlled = true; break end
+                end
+            end
+            if is_controlled then death_risk = death_risk + 700 end  -- higher for all control types; high priority save/break target, tank protection
 
             out[n] = {
 
@@ -5088,9 +5285,19 @@ function NS.build_healing_entries(out, decorate)
 
                 incoming_dps = incoming_dps,
 
+                incoming_heals = native_incoming_heals,
+
                 time_to_die = time_to_die,
 
                 death_risk = death_risk,
+
+                burst_risk = burst_risk,
+
+                will_die_soon = will_die,
+
+                phys_pct = phys_pct,
+
+                mag_pct = mag_pct,
 
                 is_player = NS.same_unit(u, me),
 
