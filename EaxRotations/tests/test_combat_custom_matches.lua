@@ -27,6 +27,7 @@ _G.EaxRotations = {
         SliceAndDice = 6774,
         Rupture = 1943,
         Eviscerate = 11300,
+        Envenom = 32684,
         SinisterStrike = 26862,
         Kick = 1766,
         Gouge = 1776,
@@ -132,6 +133,7 @@ assert_true(eviscerate.matches({
     enemy_count = 1,
 }, {
     eviscerate_ready = true, combo_points = 5, energy = 60, energy_pool_finisher = false,
+    deadly_poison_stacks = 0,
 }), "Eviscerate should match at 5 CP with sufficient energy")
 
 -- <5 CP -> should NOT match
@@ -141,6 +143,7 @@ assert_false(eviscerate.matches({
     enemy_count = 1,
 }, {
     eviscerate_ready = true, combo_points = 4, energy = 60, energy_pool_finisher = false,
+    deadly_poison_stacks = 0,
 }), "Eviscerate should not match with <5 combo points")
 
 -- Energy below 35 -> should NOT match (hard floor)
@@ -150,6 +153,7 @@ assert_false(eviscerate.matches({
     enemy_count = 1,
 }, {
     eviscerate_ready = true, combo_points = 5, energy = 30, energy_pool_finisher = false,
+    deadly_poison_stacks = 0,
 }), "Eviscerate should not match when energy < 35")
 
 -- Energy pool finisher -> should NOT match
@@ -159,7 +163,34 @@ assert_false(eviscerate.matches({
     enemy_count = 1,
 }, {
     eviscerate_ready = true, combo_points = 5, energy = 50, energy_pool_finisher = true,
+    deadly_poison_stacks = 0,
 }), "Eviscerate should not match when energy pooling for finisher")
+
+-- ============================================================================
+-- Envenom: at 5 CP with high deadly poison stacks
+-- ============================================================================
+
+local envenom = find_strategy("Envenom")
+
+-- 5 CP, high stacks -> should match
+spell_ready_calls = {}
+assert_true(envenom.matches({
+    energy = 60,
+    enemy_count = 1,
+}, {
+    envenom_ready = true, combo_points = 5, energy = 60, energy_pool_finisher = false,
+    deadly_poison_stacks = 5,
+}), "Envenom should match at 5 CP with high poison stacks")
+
+-- low stacks -> should NOT match
+spell_ready_calls = {}
+assert_false(envenom.matches({
+    energy = 60,
+    enemy_count = 1,
+}, {
+    envenom_ready = true, combo_points = 5, energy = 60, energy_pool_finisher = false,
+    deadly_poison_stacks = 3,
+}), "Envenom should not match with low poison stacks")
 
 -- ============================================================================
 -- Stealth: only OOC, not already stealthed

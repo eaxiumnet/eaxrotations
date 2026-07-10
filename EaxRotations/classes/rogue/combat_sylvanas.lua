@@ -25,6 +25,7 @@ local ACTION = {
     DeadlyThrow      = define("DeadlyThrow",      { 26679 }, "DeadlyThrow"),
     Evasion          = define("Evasion",          { 26669, 5277 }, "Evasion"),
     Eviscerate       = define("Eviscerate",       { 26865, 31016, 11300, 11299, 8624, 8623, 6762, 6761, 6760, 2098 }, "Eviscerate"),
+    Envenom          = define("Envenom",          { 32684, 32645 }, "Envenom"),
     ExposeArmor      = define("ExposeArmor",      { 26866, 11198, 11197, 8650, 8649, 8647 }, "ExposeArmor"),
     Feint            = define("Feint",            { 27448, 25302, 11303, 8637, 6768, 1966 }, "Feint"),
     Garrote          = define("Garrote",          { 26884, 26839, 11290, 11289, 8633, 8632, 8631, 703 }, "Garrote"),
@@ -46,6 +47,7 @@ local Stealth = require("shared/stealth_helper_sylvanas")
 
 local SND_BUFF = { 6774, 5171 }
 local RUPTURE_DEBUFF = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
+local DEADLY_POISON_DEBUFF = { 27187, 26967, 11356, 11355, 11353, 11352, 11351, 11350, 11349, 2818 }
 local BLADE_FLURRY_BUFF = { 13877 }
 local ADRENALINE_RUSH_BUFF = { 13750 }
 local KIDNEY_SHOT_DEBUFF = { 8643, 408 }
@@ -263,6 +265,8 @@ local function build_state(context)
     combat_state.slice_and_dice_ready = me and NS.spell_ready(ACTION.SliceAndDice, me, { skip_range = true }) or false
     combat_state.rupture_ready = target and NS.spell_ready(ACTION.Rupture, target) or false
     combat_state.eviscerate_ready = target and NS.spell_ready(ACTION.Eviscerate, target) or false
+    combat_state.envenom_ready = target and NS.spell_ready(ACTION.Envenom, target) or false
+    combat_state.deadly_poison_stacks = target and NS.debuff_stacks and NS.debuff_stacks(target, DEADLY_POISON_DEBUFF) or 0
     combat_state.sinister_strike_ready = target and NS.spell_ready(ACTION.SinisterStrike, target) or false
     combat_state.kick_ready = target and NS.spell_ready(ACTION.Kick, target, { expected_cooldown = 10 }) or false
     combat_state.gouge_ready = target and NS.spell_ready(ACTION.Gouge, target, { expected_cooldown = 10 }) or false
@@ -395,6 +399,16 @@ local function eviscerate_matches(context, s)
     if (s.energy or 0) < 35 then return false end  -- hard floor: spell costs 35 energy
     -- Optimal: Eviscerate only at 5 CP for maximum damage per combo point
     if (s.combo_points or 0) < 5 then return false end
+    if (s.deadly_poison_stacks or 0) >= 5 and s.envenom_ready then return false end  -- prefer Envenom
+    return true
+end
+
+local function envenom_matches(context, s)
+    if not s.envenom_ready then return false end
+    if s.energy_pool_finisher then return false end
+    if (s.energy or 0) < 35 then return false end
+    if (s.combo_points or 0) < 5 then return false end
+    if (s.deadly_poison_stacks or 0) < 5 then return false end
     return true
 end
 
@@ -575,6 +589,7 @@ local strategies = {
     { name = "BladeFlurry", matches = blade_flurry_wrapper, execute = function(context) return NS.try_cast(ACTION.BladeFlurry, NS.PLAYER_UNIT, "[COMBAT] BladeFlurry", { skip_range = true }) end },
     { name = "Rupture", matches = rupture_wrapper, execute = function(context) return NS.try_cast(ACTION.Rupture, context.target, "[COMBAT] Rupture") end },
     { name = "Eviscerate", matches = eviscerate_matches, execute = function(context) return NS.try_cast(ACTION.Eviscerate, context.target, "[COMBAT] Eviscerate") end },
+    { name = "Envenom", matches = envenom_matches, execute = function(context) return NS.try_cast(ACTION.Envenom, context.target, "[COMBAT] Envenom") end },
     { name = "ShivPurge", matches = function(context, s) if shiv_purge_matches(context, s) then context._shiv_purge_name = s.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return NS.try_cast(ACTION.Shiv, context.target, "[COMBAT] Shiv purge → " .. name, { expected_cooldown = 10 }) end },
     { name = "Gouge", matches = gouge_matches, execute = function(context) return NS.try_cast(ACTION.Gouge, context.target, "[COMBAT] Gouge") end },
     { name = "Sprint", matches = sprint_matches, execute = function(context) return NS.try_cast(ACTION.Sprint, NS.PLAYER_UNIT, "[COMBAT] Sprint", { skip_range = true }) end },
