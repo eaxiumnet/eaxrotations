@@ -111,6 +111,13 @@ return {
                     { key = "aff_seed_targets", type = "slider", label = "Seed of Corruption Min", min = 3, max = 10, default = 3 },
                     { key = "aff_use_amplify_curse", type = "checkbox", label = "Amplify Curse", default = true },
                     { key = "dot_ttd_threshold", type = "slider", label = "DoT TTD Threshold (%)", min = 0, max = 100, default = 50, tooltip = "Skip DoT reapplication if target dies before this % of DoT duration" },
+                    { key = "aff_multidot_mode", type = "dropdown", label = "Multi-DoT Mode", default = "auto", options = {
+                        { text = "Off (single target)", value = "off" },
+                        { text = "Auto (cleave 3+)", value = "auto" },
+                        { text = "Always", value = "always" },
+                    }, tooltip = "Spread Corruption/UA/Siphon Life to additional engaged enemies." },
+                    { key = "aff_multidot_max_targets", type = "slider", label = "Multi-DoT Max Targets", min = 2, max = 10, default = 5, tooltip = "Maximum number of enemies to maintain DoTs on." },
+                    { key = "aff_multidot_range", type = "slider", label = "Multi-DoT Range", min = 10, max = 40, default = 30, tooltip = "Range to scan for multi-DoT targets." },
                 },
             },
         },

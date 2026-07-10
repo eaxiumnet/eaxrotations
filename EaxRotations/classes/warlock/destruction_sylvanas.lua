@@ -13,6 +13,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarlockSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local curse_helper = require("shared/warlock_curse_helper_sylvanas")
 
 -- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -22,6 +23,7 @@ local ACTION = {
     CurseOfAgony    = define("CurseOfAgony",    { 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
     CurseOfDoom     = define("CurseOfDoom",     { 30910, 603 }, "CurseOfDoom"),
     CurseElements   = define("CurseElements",   { 27228, 11722, 11721, 1490 }, "CurseElements"),
+    CurseOfShadow   = define("CurseOfShadow",   { 27229, 17937, 17862 }, "CurseOfShadow"),
     DeathCoil       = define("DeathCoil",       { 27223, 17926, 17925, 6789 }, "DeathCoil"),
     FelArmor        = define("FelArmor",        { 28189, 28176 }, "FelArmor"),
     Immolate        = define("Immolate",        { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
@@ -38,6 +40,7 @@ local ACTION = {
 local CURSE_OF_DOOM_DEBUFF = { 30910, 603 }
 local CURSE_OF_AGONY_DEBUFF = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
+local CURSE_OF_SHADOW_DEBUFF = { 27229, 17937, 17862 }
 local IMMOLATE_DEBUFF = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local CORRUPTION_DEBUFF = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
 local BACKLASH_BUFF = { 34936, 34935 }
@@ -88,6 +91,7 @@ local DESTRO_SCHEMA = {
     cod_remains = 0,
     coa_remains = 0,
     coe_remains = 0,
+    cos_remains = 0,
     has_backlash = false,
     has_backdraft = false,
     has_fel_armor = false,
@@ -108,6 +112,7 @@ local destro_state = {
     cod_remains = 0,
     coa_remains = 0,
     coe_remains = 0,
+    cos_remains = 0,
     has_backlash = false,
     has_backdraft = false,
     has_fel_armor = false,
@@ -137,6 +142,7 @@ local function build_state(context)
     state.cod_remains = target and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF) or 0
     state.coa_remains = target and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF) or 0
     state.coe_remains = target and NS.debuff_remains(target, CURSE_OF_ELEMENTS_DEBUFF) or 0
+    state.cos_remains = target and NS.debuff_remains(target, CURSE_OF_SHADOW_DEBUFF) or 0
     state.has_backlash = me and NS.buff_up(me, BACKLASH_BUFF) or false
     -- Backdraft (Conflagrate instant-followup proc) is a Wrath-era talent;
     -- not present in TBC Classic Anniversary 2.5.5 DBC. Kept as false for compatibility.
@@ -186,6 +192,7 @@ local ACTIONS = {
     { name = "CurseOfDoom", spell = ACTION.CurseOfDoom, debuff = CURSE_OF_DOOM_DEBUFF, refresh = 5, cooldown = 60, min_ttd = 62, require_ttd = true, target_not_player = true },
     { name = "CurseOfAgony", spell = ACTION.CurseOfAgony, debuff = CURSE_OF_AGONY_DEBUFF, refresh = 3 },
     { name = "CurseOfElements", spell = ACTION.CurseElements, debuff = CURSE_OF_ELEMENTS_DEBUFF, refresh = 3, group_only = true },
+    { name = "CurseOfShadow", spell = ACTION.CurseOfShadow, debuff = CURSE_OF_SHADOW_DEBUFF, refresh = 3, group_only = true },
     -- DoTs
     { name = "Corruption", spell = ACTION.Corruption, debuff = CORRUPTION_DEBUFF, refresh = 3 },
     { name = "Immolate", spell = ACTION.Immolate, debuff = IMMOLATE_DEBUFF, refresh = 3, not_moving = true },
@@ -249,6 +256,8 @@ end
 
 local function curse_of_doom_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfDoom, 2.0) then return false end
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if not curse_helper.curse_mode_allows(curse_mode, { "doom" }) then return false end
     if not (NS.should_use_long_cd and NS.should_use_long_cd(context, action.cooldown)) then return false end
     if not state then return false end
     state = state or {}
@@ -294,6 +303,8 @@ end
 
 local function curse_of_agony_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfAgony, 2.0) then return false end
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if not curse_helper.curse_mode_allows(curse_mode, { "agony" }) then return false end
     if not state then return false end
     state = state or {}
     if (state.coa_remains or 0) > 3 then return false end
@@ -303,11 +314,25 @@ end
 
 local function curse_of_elements_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseElements, 2.0) then return false end
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if not curse_helper.curse_mode_allows(curse_mode, { "elements" }) then return false end
     if not state then return false end
     state = state or {}
     -- Only apply in group/raid content where the debuff benefits the whole group
     if not (context.is_group or (context.party_size and context.party_size > 1)) then return false end
     if (state.coe_remains or 0) > 3 then return false end
+    if (state.cod_remains or 0) > 0 then return false end
+    return NS.spell_ready(action.spell, context.target)
+end
+
+local function curse_of_shadow_matches(context, action, state)
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfShadow, 2.0) then return false end
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if not curse_helper.curse_mode_allows(curse_mode, { "shadow" }) then return false end
+    if not state then return false end
+    state = state or {}
+    if not (context.is_group or (context.party_size and context.party_size > 1)) then return false end
+    if (state.cos_remains or 0) > 3 then return false end
     if (state.cod_remains or 0) > 0 then return false end
     return NS.spell_ready(action.spell, context.target)
 end
@@ -463,6 +488,8 @@ for i = 1, #ACTIONS do
         custom_matches = function(context, state) return curse_of_agony_matches(context, action, state) end
     elseif action.name == "CurseOfElements" then
         custom_matches = function(context, state) return curse_of_elements_matches(context, action, state) end
+    elseif action.name == "CurseOfShadow" then
+        custom_matches = function(context, state) return curse_of_shadow_matches(context, action, state) end
     elseif action.name == "DrainLife" then
         custom_matches = function(context, state) return drain_life_matches(context, action, state) end
     elseif action.name == "HealthFunnel" then

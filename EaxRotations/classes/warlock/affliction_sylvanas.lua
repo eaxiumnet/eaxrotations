@@ -12,6 +12,9 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local pet_manager = require("shared/pet_manager_sylvanas")
+local curse_helper = require("shared/warlock_curse_helper_sylvanas")
+local multidot = require("shared/multidot_engagement_filter_sylvanas")
+local Snapshot = require("shared/snapshot_sylvanas")
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 local DotTTD = require("shared/dot_ttd_gating_sylvanas")
@@ -40,11 +43,36 @@ local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 
--- IZI SDK for spread_dot multi-DoT support
+-- IZI SDK for spread_dot multi-DoT support (fallback if engagement filter unavailable)
 local _izi = nil
 do
     local ok, mod = pcall(require, "common/izi_sdk")
     if ok and type(mod) == "table" then _izi = mod end
+end
+
+-- Per-target cast lockout: prevents double-queuing a DoT to the same target
+-- while a cast is in flight.
+local _cast_lockouts = {}
+
+local function _set_lockout(spell_name, duration_ms, target)
+    if not target then return end
+    local guid = target.get_guid and target:get_guid()
+    if not guid then return end
+    _cast_lockouts[guid] = _cast_lockouts[guid] or {}
+    _cast_lockouts[guid][spell_name] = (NS.game_time_ms and NS.game_time_ms() or 0) + duration_ms
+end
+
+local function _is_locked(spell_name, target)
+    if not target then return false end
+    local guid = target.get_guid and target:get_guid()
+    if not guid or not _cast_lockouts[guid] then return false end
+    local expires = _cast_lockouts[guid][spell_name]
+    if not expires then return false end
+    if (NS.game_time_ms and NS.game_time_ms() or 0) >= expires then
+        _cast_lockouts[guid][spell_name] = nil
+        return false
+    end
+    return true
 end
 
 -- CC debuff IDs that damage would break (don't DoT these targets)
@@ -90,40 +118,55 @@ local function is_engaged(unit, me)
     return false
 end
 
---- Find a target missing the specified DoT using IZI spread_dot.
+--- Find a target missing the specified DoT using the shared engagement filter.
+--- Falls back to IZI spread_dot if the engagement filter is unavailable.
 --- Safety: skips CC'd targets, unengaged patrols, and dying adds (< 20% HP).
 --- Perf: results cached per-tick keyed by spell_id (Pattern 4: no redundant scans).
----       3 spread strategies × 2 calls each (matches+execute) = 6 scans → 3 max.
----@param spell_id number DoT spell ID to check
----@param radius number|nil Search radius (default 40)
+---@param context table Rotation context
+---@param debuff_ids table Array of debuff spell IDs to check
+---@param range number|nil Search radius (default 30)
 ---@return game_object|nil target Missing the DoT, or nil
 local _dot_target_cache = {}     -- [spell_id] = target|false
 local _dot_target_cache_tick = -1
-local function find_dot_target(spell_id, radius)
-    if not _izi then return nil end
+local function find_dot_target(context, debuff_ids, range)
+    range = range or 30
     -- Per-tick cache: avoid re-scanning the same enemy list for the same debuff
     local now = NS.time_now and NS.time_now() or 0
+    local cache_key = debuff_ids[1] or 0
     if now ~= _dot_target_cache_tick then
         _dot_target_cache = {}
         _dot_target_cache_tick = now
     end
-    if _dot_target_cache[spell_id] ~= nil then
-        return _dot_target_cache[spell_id] or nil  -- false→nil
+    if _dot_target_cache[cache_key] ~= nil then
+        return _dot_target_cache[cache_key] or nil  -- false→nil
+    end
+
+    -- Prefer shared engagement filter (safer target selection)
+    if multidot and multidot.find_multidot_target then
+        local target = multidot.find_multidot_target(context, debuff_ids, range, {
+            skip_cc_debuffs = { CC_DEBUFF_IDS },
+            prefer_damaged = true,
+        })
+        _dot_target_cache[cache_key] = target or false
+        return target
+    end
+
+    -- Fallback to IZI spread_dot
+    if not _izi then
+        _dot_target_cache[cache_key] = false
+        return nil
     end
     local me = NS.GetPlayer and NS.GetPlayer() or nil
-    local ok, target = pcall(_izi.spread_dot, spell_id, radius or 40, 1, false, function(unit)
+    local ok, target = pcall(_izi.spread_dot, cache_key, range, 1, false, function(unit)
         if not unit then return false end
-        -- Skip CC'd targets (don't break Polymorph/Sap/Banish/etc.)
         if is_cc_target(unit) then return false end
-        -- Skip unengaged patrols (don't pull new mobs)
         if me and not is_engaged(unit, me) then return false end
-        -- Skip dying adds (don't waste GCD on < 20% HP targets)
         local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
         if ok_hp and hp and hp < 20 then return false end
         return true
     end)
     local result = (ok and target) or nil
-    _dot_target_cache[spell_id] = result or false  -- cache nil as false
+    _dot_target_cache[cache_key] = result or false
     return result
 end
 
@@ -154,8 +197,10 @@ local LIFE_TAP_SAFETY_HP = 35   -- don't Life Tap below this HP%
 
 -- Snapshot-aware refresh constants
 local SPELL_DMG_UPGRADE_RATIO = 1.08    -- Refresh only if 8%+ spell damage upgrade
-local REFRESH_EXTRA_WINDOW = 1.5         -- Extra seconds past pandemic window for upgrade refresh    -- Local anti-spam: Soulshatter has 5min CD, use local timer as fallback for broken API
-    local _last_soulshatter = 0
+local REFRESH_EXTRA_WINDOW = 1.5        -- Extra seconds past pandemic window for upgrade refresh
+
+-- Local anti-spam: Soulshatter has 5min CD, use local timer as fallback for broken API
+local _last_soulshatter = 0
 
 local LOCAL_SPELLS = {
     DrainLife       = NS.spell_action({ 27220, 27219, 11700, 11699, 7651, 709, 699, 689 }, "DrainLife"),
@@ -227,6 +272,10 @@ local AFFL_SCHEMA = {
     -- Power windows
     bloodlust_active = false, has_bloodlust = false,
     major_cd_active = false, major_cd_window = false,
+    -- Multi-DoT
+    multidot_enabled = false, multidot_max = 5, multidot_range = 30,
+    dotted_corruption_count = 0, dotted_ua_count = 0,
+    dotted_siphon_count = 0, dotted_immolate_count = 0,
 }
 
 -- ============================================================================
@@ -239,10 +288,10 @@ local aff_state = {
     agony_remains = 0,
     doom_remains = 0,
     siphon_remains = 0,
-    immolate_remains = 0,	    -- Shadow Embrace stacks
-	    se_stacks = 0,
-	    -- Improved Shadow Bolt (Shadow Vulnerability) stacks
-	    isb_stacks = 0,
+    immolate_remains = 0,
+    -- DoT stacks
+    se_stacks = 0,
+    isb_stacks = 0,
     -- Proc
     nightfall_active = false,
     -- Resources
@@ -271,14 +320,28 @@ local aff_state = {
     snapshot_target = nil,
     -- AoE
     enemy_count = 1,
+    -- Multi-DoT
+    multidot_enabled = false,
+    multidot_max = 5,
+    multidot_range = 30,
+    dotted_corruption_count = 0,
+    dotted_ua_count = 0,
+    dotted_siphon_count = 0,
+    dotted_immolate_count = 0,
 }
 
 local _last_build_state_time = -1
+local _last_multidot_scan = 0
+local _cached_dotted_corruption = 0
+local _cached_dotted_ua = 0
+local _cached_dotted_siphon = 0
+local _cached_dotted_immolate = 0
 local function build_state(context)
     -- Pattern 6: frame-keyed dedup — skip rebuild if already built this frame
     local now = context.now or (NS.time_now and NS.time_now() or 0)
     if now == _last_build_state_time then return spec_kit.safe_state(aff_state, AFFL_SCHEMA) end
     if context.now then _last_build_state_time = now end
+
     local target = context.target
     if target then
         aff_state.ua_remains = NS.debuff_remains and NS.debuff_remains(target, UNSTABLE_AFFL_DEBUFF) or 0
@@ -296,76 +359,88 @@ local function build_state(context)
         aff_state.ua_remains = 0
         aff_state.corruption_remains = 0
         aff_state.agony_remains = 0
+        aff_state.doom_remains = 0
         aff_state.siphon_remains = 0
         aff_state.immolate_remains = 0
         aff_state.coe_remains = 0
         aff_state.cos_remains = 0
         aff_state.se_stacks = 0
         aff_state.isb_stacks = 0
-	        aff_state.target_hp = 100
-	    end
-	    -- Nightfall proc
-	    aff_state.nightfall_active = NS.has_player_buff and NS.has_player_buff(NIGHTFALL_BUFF) or false
-	    -- Resources
-	    aff_state.mana_pct = context.mana_pct or 100
-	    aff_state.hp_pct = context.hp or 100
-	    aff_state.enemy_count = context.enemy_count or 1            -- Pet status (via pet object if available)
-            local pet = context.pet
-            if pet then
-                aff_state.pet_alive = (pet.is_alive and pet:is_alive())
-                aff_state.pet_health = (pet.get_health_percentage and pet:get_health_percentage()) or 100
-                aff_state.pet_mana = (pet.get_mana_percentage and pet:get_mana_percentage()) or 100
-            else
-                aff_state.pet_alive = false
-                aff_state.pet_health = 100
-                aff_state.pet_mana = 100
-            end
-            aff_state.has_pet = aff_state.pet_alive
-            -- Imp Machine Gun detection: only the Imp has Firebolt
-            aff_state.pet_casting_firebolt = false
-            aff_state.pet_type_imp = false
-            if pet and aff_state.pet_alive then
-                if pet.is_casting_spell and pet:is_casting_spell() and pet.get_active_spell_id then
-                    local sid = pet:get_active_spell_id()
-                    if type(sid) == "number" then
-                        for _, id in ipairs(IMP_FIREBOLT_IDS) do
-                            if sid == id then
-                                aff_state.pet_casting_firebolt = true
-                                aff_state.pet_type_imp = true
-                                break
-                            end
-                        end
-                    end
-                end
-                if not aff_state.pet_type_imp and pet.get_name then
-                    local ok_name, name = pcall(pet.get_name, pet)
-                    if ok_name and type(name) == "string" then
-                        aff_state.pet_type_imp = name:lower():find("imp") ~= nil
+        aff_state.target_hp = 100
+    end
+
+    -- Nightfall proc
+    aff_state.nightfall_active = NS.has_player_buff and NS.has_player_buff(NIGHTFALL_BUFF) or false
+
+    -- Resources
+    aff_state.mana_pct = context.mana_pct or 100
+    aff_state.hp_pct = context.hp or 100
+    aff_state.enemy_count = context.enemy_count or 1
+    aff_state.in_combat = context.in_combat or false
+
+    -- Pet status (via pet object if available)
+    local pet = context.pet
+    if pet then
+        aff_state.pet_alive = (pet.is_alive and pet:is_alive())
+        aff_state.pet_health = (pet.get_health_percentage and pet:get_health_percentage()) or 100
+        aff_state.pet_mana = (pet.get_mana_percentage and pet:get_mana_percentage()) or 100
+    else
+        aff_state.pet_alive = false
+        aff_state.pet_health = 100
+        aff_state.pet_mana = 100
+    end
+    aff_state.has_pet = aff_state.pet_alive
+
+    -- Imp Machine Gun detection: only the Imp has Firebolt
+    aff_state.pet_casting_firebolt = false
+    aff_state.pet_type_imp = false
+    if pet and aff_state.pet_alive then
+        if pet.is_casting_spell and pet:is_casting_spell() and pet.get_active_spell_id then
+            local sid = pet:get_active_spell_id()
+            if type(sid) == "number" then
+                for _, id in ipairs(IMP_FIREBOLT_IDS) do
+                    if sid == id then
+                        aff_state.pet_casting_firebolt = true
+                        aff_state.pet_type_imp = true
+                        break
                     end
                 end
             end
-            aff_state.has_demonic_sacrifice = context.me and NS.buff_up and NS.buff_up(context.me, {18789, 18790, 18791, 18792, 35701}) or false
-            -- Amplify Curse readiness
-            aff_state.amplify_curse_ready = NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, { skip_range = true }) or false
-	    aff_state.spell_damage = context.spell_damage or 0  -- Current spell damage from NS (provided by middleware or character API)
-	    -- Bloodlust/Heroism buff — enables more aggressive snapshot upgrade threshold
-	    aff_state.has_bloodlust = context.me and NS.buff_up and NS.buff_up(context.me, BLOODLUST_BUFFS) or false
-	    -- Maintain snapshot state: reset snapshots if DoT expired (stale)
-	    local target_key = target and (target.get_guid and target:get_guid()) or nil
-	    if target_key ~= aff_state.snapshot_target then
-	        -- Target changed: reset all snapshots for fresh tracking
-	        aff_state.snapshot_ua_dmg = 0
-	        aff_state.snapshot_corruption_dmg = 0
-	        aff_state.snapshot_siphon_dmg = 0
-	        aff_state.snapshot_immolate_dmg = 0
-	        aff_state.snapshot_target = target_key
-	    else
-	        -- Reset per-DoT snapshot if DoT completely fell off
-	        if aff_state.ua_remains <= 0 then aff_state.snapshot_ua_dmg = 0 end
-	        if aff_state.corruption_remains <= 0 then aff_state.snapshot_corruption_dmg = 0 end
-	        if aff_state.siphon_remains <= 0 then aff_state.snapshot_siphon_dmg = 0 end
-	        if aff_state.immolate_remains <= 0 then aff_state.snapshot_immolate_dmg = 0 end
-	    end
+        end
+        if not aff_state.pet_type_imp and pet.get_name then
+            local ok_name, name = pcall(pet.get_name, pet)
+            if ok_name and type(name) == "string" then
+                aff_state.pet_type_imp = name:lower():find("imp") ~= nil
+            end
+        end
+    end
+
+    aff_state.has_demonic_sacrifice = context.me and NS.buff_up and NS.buff_up(context.me, {18789, 18790, 18791, 18792, 35701}) or false
+
+    -- Amplify Curse readiness
+    aff_state.amplify_curse_ready = NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.AmplifyCurse, NS.PLAYER_UNIT, { skip_range = true }) or false
+
+    -- Current spell damage from NS (provided by middleware or character API)
+    aff_state.spell_damage = context.spell_damage or 0
+
+    -- Bloodlust/Heroism buff — enables more aggressive snapshot upgrade threshold
+    aff_state.has_bloodlust = context.me and NS.buff_up and NS.buff_up(context.me, BLOODLUST_BUFFS) or false
+
+    -- Maintain snapshot state: reset snapshots if DoT expired or target changed
+    local target_key = target and (target.get_guid and target:get_guid()) or nil
+    if target_key ~= aff_state.snapshot_target then
+        aff_state.snapshot_ua_dmg = 0
+        aff_state.snapshot_corruption_dmg = 0
+        aff_state.snapshot_siphon_dmg = 0
+        aff_state.snapshot_immolate_dmg = 0
+        aff_state.snapshot_target = target_key
+    else
+        if aff_state.ua_remains <= 0 then aff_state.snapshot_ua_dmg = 0 end
+        if aff_state.corruption_remains <= 0 then aff_state.snapshot_corruption_dmg = 0 end
+        if aff_state.siphon_remains <= 0 then aff_state.snapshot_siphon_dmg = 0 end
+        if aff_state.immolate_remains <= 0 then aff_state.snapshot_immolate_dmg = 0 end
+    end
+
     -- Items
     aff_state.mana_potion_id = nil
     for _, id in ipairs(MANA_POTION_IDS) do
@@ -383,6 +458,7 @@ local function build_state(context)
             end
         end
     end
+
     -- Soulstone buff check (pre-combat self-buff)
     local me = context.me
     aff_state.has_soulstone = me and NS.has_player_buff and NS.has_player_buff(SOULSTONE_BUFF_IDS) or false
@@ -391,6 +467,7 @@ local function build_state(context)
             if NS.has_item(id) then aff_state.has_soulstone = true; break end
         end
     end
+
     -- Wand (Shoot) spell readiness
     aff_state.wand_learned = NS.spell_exists and NS.spell_exists(5019) or false
 
@@ -399,64 +476,76 @@ local function build_state(context)
     aff_state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
     aff_state.major_cd_window = aff_state.bloodlust_active or aff_state.major_cd_active
 
+    -- Multi-DoT settings
+    local multidot_mode = spec_kit.setting(context, "aff_multidot_mode", "auto")
+    if multidot_mode == "always" then
+        aff_state.multidot_enabled = true
+    elseif multidot_mode == "off" then
+        aff_state.multidot_enabled = false
+    else -- auto
+        aff_state.multidot_enabled = (aff_state.enemy_count or 1) >= 3
+    end
+    aff_state.multidot_max = spec_kit.setting_number(context, "aff_multidot_max_targets", 5)
+    aff_state.multidot_range = spec_kit.setting_number(context, "aff_multidot_range", 30)
+
+    -- Multi-DoT: scan nearby enemies for active DoTs (throttled to 1s)
+    aff_state.dotted_corruption_count = 0
+    aff_state.dotted_ua_count = 0
+    aff_state.dotted_siphon_count = 0
+    aff_state.dotted_immolate_count = 0
+    local now_t = NS.time_now and NS.time_now() or 0
+    if (now_t - (_last_multidot_scan or 0)) >= 1.0 then
+        _last_multidot_scan = now_t
+        if aff_state.in_combat and aff_state.enemy_count >= 2 then
+            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(aff_state.multidot_range) or {}
+            local corr_dotted, ua_dotted, siphon_dotted, immo_dotted = 0, 0, 0, 0
+            for _, enemy in ipairs(enemies) do
+                if enemy then
+                    if NS.debuff_up and NS.debuff_up(enemy, CORRUPTION_DEBUFF) then corr_dotted = corr_dotted + 1 end
+                    if NS.debuff_up and NS.debuff_up(enemy, UNSTABLE_AFFL_DEBUFF) then ua_dotted = ua_dotted + 1 end
+                    if NS.debuff_up and NS.debuff_up(enemy, SIPHON_LIFE_DEBUFF) then siphon_dotted = siphon_dotted + 1 end
+                    if NS.debuff_up and NS.debuff_up(enemy, IMMOLATE_DEBUFF) then immo_dotted = immo_dotted + 1 end
+                end
+            end
+            _cached_dotted_corruption = corr_dotted
+            _cached_dotted_ua = ua_dotted
+            _cached_dotted_siphon = siphon_dotted
+            _cached_dotted_immolate = immo_dotted
+        end
+    end
+    aff_state.dotted_corruption_count = _cached_dotted_corruption or 0
+    aff_state.dotted_ua_count = _cached_dotted_ua or 0
+    aff_state.dotted_siphon_count = _cached_dotted_siphon or 0
+    aff_state.dotted_immolate_count = _cached_dotted_immolate or 0
+
     return spec_kit.safe_state(aff_state, AFFL_SCHEMA)
-	end
-
-	-- ============================================================================
-	-- Snapshot upgrade logic
-	-- ============================================================================
-	
-	-- Determine if current spell damage justifies refreshing a DoT early
-	-- Returns true if: DoT expired, in pandemic window with upgrade, or about to fall off
-	local function should_snapshot_upgrade(current_dmg, snapshotted_dmg, remains, refresh_window, ratio)
-	    -- Always refresh if DoT has expired
-	    if remains <= 0 then return true end
-	    -- Always refresh if in pandemic window (about to fall off anyway)
-	    if remains <= refresh_window then return true end
-	    -- No previous snapshot to compare — refresh normally
-	    if snapshotted_dmg <= 0 then return true end
-	    -- Upgrade refresh: only if current damage is significantly higher AND still within extended window
-	    if current_dmg >= snapshotted_dmg * ratio and remains <= refresh_window + REFRESH_EXTRA_WINDOW then
-	        return true
-	    end
-	    return false
-	end
-
-	-- ============================================================================
-	-- Helper functions
-	-- ============================================================================
-
--- Select which curse to use based on context and user settings
-local function select_curse(context, state)
-    -- Respect explicit curse mode setting (from schema dropdown)
-    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-    if curse_mode == "agony" then
-        if context.is_pvp and context.enemy_healer then return "tongues" end
-        if context.is_pvp and context.melee_on_you then return "exhaustion" end
-        return "agony"
-    elseif curse_mode == "shadow" then
-        return "shadow"
-    elseif curse_mode == "elements" then
-        return "elements"
-    elseif curse_mode == "doom" then
-        return "doom"
-    elseif curse_mode == "recklessness" then
-        return "recklessness"
-    elseif curse_mode == "weakness" then
-        return "weakness"
-    elseif curse_mode == "none" then
-        return nil
-    end
-    -- Auto mode: context-aware curse selection
-    if context.is_pvp then
-        if (context.enemy_healer or false) then return "tongues" end
-        if (context.melee_on_you or false) then return "exhaustion" end
-    end
-    if (state.enemy_count or 0) >= 3 then return "elements" end  -- AoE benefit
-    -- In raids: prefer Shadow for Affliction (Shadow damage), Elements for Destruction
-    if context.is_group and context.active_playstyle == "affliction" then return "shadow" end
-    return "agony"  -- default: damage
 end
+
+-- ============================================================================
+-- Snapshot upgrade logic
+-- ============================================================================
+
+-- Determine if current spell damage justifies refreshing a DoT early
+-- Returns true if: DoT expired, in pandemic window with upgrade, or about to fall off
+local function should_snapshot_upgrade(current_dmg, snapshotted_dmg, remains, refresh_window, ratio)
+    -- Delegate to shared snapshot helper (preserves affliction behavior)
+    if Snapshot then
+        return Snapshot.should_upgrade(current_dmg, snapshotted_dmg, remains, refresh_window, ratio,
+            { no_snapshot_refresh = true, extra_window = REFRESH_EXTRA_WINDOW })
+    end
+    -- Inline fallback (identical to prior behavior)
+    if remains <= 0 then return true end
+    if remains <= refresh_window then return true end
+    if snapshotted_dmg <= 0 then return true end
+    if current_dmg >= snapshotted_dmg * ratio and remains <= refresh_window + REFRESH_EXTRA_WINDOW then
+        return true
+    end
+    return false
+end
+
+-- ============================================================================
+-- Helper functions
+-- ============================================================================
 
 -- Racial ability match gate for all racial strategies
 local function racial_matches(context, state)
@@ -610,20 +699,25 @@ local strategies = {
             return ok
         end,
     },
-    -- Corruption Spread — multi-DoT via IZI spread_dot
+    -- Corruption Spread — multi-DoT via engagement filter
     {
         name = "CorruptionSpread",
         matches = function(context, state)
-            if not _izi then return false end
+            if not state.multidot_enabled then return false end
+            if (state.dotted_corruption_count or 0) >= (state.multidot_max or 5) then return false end
             if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            local target = find_dot_target(CORRUPTION_DEBUFF[1])
+            local target = find_dot_target(context, CORRUPTION_DEBUFF, state.multidot_range)
             if not target then return false end
+            if _is_locked("Corruption", target) then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(CORRUPTION_DEBUFF[1])
+            local target = find_dot_target(context, CORRUPTION_DEBUFF, aff_state.multidot_range)
             if not target then return false end
-            return NS.try_cast(ACTION.Corruption, target, "[AFFL] Corruption Spread")
+            _set_lockout("Corruption", 3000, target)
+            local ok = NS.try_cast(ACTION.Corruption, target, "[AFFL] Corruption Spread")
+            if ok and aff_state.spell_damage then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
+            return ok
         end,
     },
 
@@ -669,21 +763,26 @@ local strategies = {
             return ok
         end,
     },
-    -- Unstable Affliction Spread — multi-DoT via IZI spread_dot (v2.5.1)
+    -- Unstable Affliction Spread — multi-DoT via engagement filter
     {
         name = "UnstableAfflictionSpread",
         matches = function(context, state)
-            if not _izi then return false end
+            if not state.multidot_enabled then return false end
+            if (state.dotted_ua_count or 0) >= (state.multidot_max or 5) then return false end
             -- Fire when primary target already has UA; spread to additional targets
             if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
+            local target = find_dot_target(context, UNSTABLE_AFFL_DEBUFF, state.multidot_range)
             if not target then return false end
+            if _is_locked("UnstableAffliction", target) then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.UnstableAffliction, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
+            local target = find_dot_target(context, UNSTABLE_AFFL_DEBUFF, aff_state.multidot_range)
             if not target then return false end
-            return NS.try_cast(ACTION.UnstableAffliction, target, "[AFFL] Unstable Affliction Spread")
+            _set_lockout("UnstableAffliction", 3000, target)
+            local ok = NS.try_cast(ACTION.UnstableAffliction, target, "[AFFL] Unstable Affliction Spread")
+            if ok and aff_state.spell_damage then aff_state.snapshot_ua_dmg = aff_state.spell_damage end
+            return ok
         end,
     },
 
@@ -711,20 +810,25 @@ local strategies = {
             return ok
         end,
     },
-    -- Siphon Life Spread — multi-DoT via IZI spread_dot
+    -- Siphon Life Spread — multi-DoT via engagement filter
     {
         name = "SiphonLifeSpread",
         matches = function(context, state)
-            if not _izi then return false end
+            if not state.multidot_enabled then return false end
+            if (state.dotted_siphon_count or 0) >= (state.multidot_max or 5) then return false end
             if (state.siphon_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
+            local target = find_dot_target(context, SIPHON_LIFE_DEBUFF, state.multidot_range)
             if not target then return false end
+            if _is_locked("SiphonLife", target) then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.SiphonLife, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
+            local target = find_dot_target(context, SIPHON_LIFE_DEBUFF, aff_state.multidot_range)
             if not target then return false end
-            return NS.try_cast(ACTION.SiphonLife, target, "[AFFL] Siphon Life Spread")
+            _set_lockout("SiphonLife", 3000, target)
+            local ok = NS.try_cast(ACTION.SiphonLife, target, "[AFFL] Siphon Life Spread")
+            if ok and aff_state.spell_damage then aff_state.snapshot_siphon_dmg = aff_state.spell_damage end
+            return ok
         end,
     },
 
@@ -752,22 +856,27 @@ local strategies = {
             return ok
         end,
     },
-    -- Immolate Spread — multi-DoT via IZI spread_dot (v2.5.1)
+    -- Immolate Spread — multi-DoT via engagement filter
     {
         name = "ImmolateSpread",
         matches = function(context, state)
-            if not _izi then return false end
+            if not state.multidot_enabled then return false end
+            if (state.dotted_immolate_count or 0) >= (state.multidot_max or 5) then return false end
             -- Fire when primary target already has Immolate; spread to additional targets
             if (state.immolate_remains or 0) > DOT_REFRESH_WINDOW then return false end
             if context.ttd_known and context.ttd < 5 then return false end
-            local target = find_dot_target(IMMOLATE_DEBUFF[1])
+            local target = find_dot_target(context, IMMOLATE_DEBUFF, state.multidot_range)
             if not target then return false end
+            if _is_locked("Immolate", target) then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Immolate, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(IMMOLATE_DEBUFF[1])
+            local target = find_dot_target(context, IMMOLATE_DEBUFF, aff_state.multidot_range)
             if not target then return false end
-            return NS.try_cast(ACTION.Immolate, target, "[AFFL] Immolate Spread")
+            _set_lockout("Immolate", 3000, target)
+            local ok = NS.try_cast(ACTION.Immolate, target, "[AFFL] Immolate Spread")
+            if ok and aff_state.spell_damage then aff_state.snapshot_immolate_dmg = aff_state.spell_damage end
+            return ok
         end,
     },
 
@@ -869,7 +978,7 @@ local strategies = {
             if not context.has_valid_enemy_target then return false end
             -- Skip in groups when a raid curse (Elements/Shadow) is active (TBC: one curse per target)
             if context.is_group and ((state and state.coe_remains or 0) > 0 or (state and state.cos_remains or 0) > 0) then return false end
-            local curse = select_curse(context, state)
+            local curse = curse_helper.select_curse(context, state)
             if curse ~= "agony" then return false end
             if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- On short-lived targets, CoA may not run full duration
@@ -880,20 +989,22 @@ local strategies = {
             return NS.try_cast(ACTION.CurseOfAgony, context.target, "[AFFL] Curse of Agony")
         end,
     },
-    -- Curse of Agony Spread — multi-DoT via IZI spread_dot
+    -- Curse of Agony Spread — multi-DoT via engagement filter
     {
         name = "CurseOfAgonySpread",
         matches = function(context, state)
-            if not _izi then return false end
+            if not state.multidot_enabled then return false end
             if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
             if context.ttd_known and context.ttd < 8 then return false end
-            local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
+            local target = find_dot_target(context, CURSE_OF_AGONY_DEBUFF, state.multidot_range)
             if not target then return false end
+            if _is_locked("CurseOfAgony", target) then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfAgony, target) or false
         end,
         execute = function(context)
-            local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
+            local target = find_dot_target(context, CURSE_OF_AGONY_DEBUFF, aff_state.multidot_range)
             if not target then return false end
+            _set_lockout("CurseOfAgony", 3000, target)
             return NS.try_cast(ACTION.CurseOfAgony, target, "[AFFL] Curse of Agony Spread")
         end,
     },
