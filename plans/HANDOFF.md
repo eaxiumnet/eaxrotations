@@ -218,6 +218,7 @@ API standardization COMPLETE. Tree: only junk M/untracked left. Release zip clea
 | Healer standardization | Context-aware dispel/cure (control_risk/is_group early returns), dangerous debuff IDs, + Warlock Devour Magic in shared | `5c13bcf4`, `37eab941` | resto druid, holy pally, healing priest, resto shaman + dispel_manager; luac + 252+17 green |
 | Dispel polish (cont) | Additional dungeon debuff IDs (Virulent Poison 39029, Initial Infection 39032) + will_die_soon priority in control_risk | `314f6c60` | shared + healing priest; more TBC dungeon support |
 | Dispel raid polish | BT/SWP high-tier debuffs (Soul Drain 41303, Polymorph 46280, Flame Buffet 46279, hound poisons/disease) | `43abafd1`, `2e7a63ae` | healing priest + shared dispel_manager; verified in DBC |
+| Healer bug fixes | Shaman rank helper (no undefined MID/LOW), priest player scope, druid indent clean + warlock DevourMagicFriendly | fb1a6675, b23fcdd8 | per fix-healer-bugs-and-polish plan; tests 252 green |
 | Validation | Full rotation (252) + leveling (17) suites + pre-commit audits | multiple | all green post-commits |
 
 ### spec_kit migration progress — COMPLETE (29 of 29 specs) 🎉

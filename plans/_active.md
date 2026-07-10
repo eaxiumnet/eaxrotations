@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-10 (v2.5.12 release: version bump, BT/SWP dispel polish in priest+shared, scorecard regen, GitHub release; tests 252+17 + compliance PASS, zip clean; rotations COMPLETE; fishing in-progress (source absent); junk only).
+**Last updated:** 2026-07-10 (v2.5.12 + healer bug fixes COMPLETE: shaman/priest/druid fixes + warlock polish per new plan; tests green; zip clean; rotations COMPLETE; fishing ignored per query).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -22,6 +22,8 @@
 | `plans/skeleton-esp-attachment-api-crash-2026-07-04.md` | Open | ESP skeleton attachment crash |
 | `plans/apidocs-game_object-menu-audit-2026-07-04.md` | Reference | API docs audit for game_object/menu |
 | `plans/init-log-cleanup-2026-06-30.md` | COMPLETE (2026-07-10) | Init log cleanup — startup consolidated to 2 lines in main.lua; noisy 'loaded'/'registered' demoted in standardization; current boot quiet (verified in tests/docs) |
+| `plans/fix-healer-bugs-and-polish-2026-07-10.md` | COMPLETE (2026-07-10) | Healer critical bugs fixed (shaman rank constants, priest scoping, druid indent) + warlock friendly devour polish; tests green |
+| `plans/fix-healer-bugs-and-polish-2026-07-10.md` | COMPLETE (2026-07-10) | Critical bug fixes (shaman HW rank consts, priest holy scoping, druid indent) + small shaman helper polish; 252/252 tests green. |
 
 ## Reference Documents (not plans)
 
