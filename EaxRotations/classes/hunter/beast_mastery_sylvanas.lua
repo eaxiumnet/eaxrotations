@@ -259,7 +259,8 @@ local function build_state(context)
     state.pull_mode = spec_kit.setting(context, "pull_mode", "combat_only")
     state.use_cooldowns = spec_kit.setting_bool(context, "use_cooldowns", true)
     state.use_misdirection = spec_kit.setting_bool(context, "use_misdirection", false)
-    state.shot_buffer = spec_kit.setting_number(context, "shot_buffer", 150)
+    local dyn_buf = (hunter_core and hunter_core.get_auto_shot_buffer_ms and hunter_core.get_auto_shot_buffer_ms()) or 150
+    state.shot_buffer = spec_kit.setting_number(context, "shot_buffer", dyn_buf)
     state.sticky_target = spec_kit.setting_bool(context, "sticky_target", false)
     state.prioritize_markers = spec_kit.setting_bool(context, "prioritize_markers", false)
 
