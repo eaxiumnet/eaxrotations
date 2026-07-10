@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.5.18 - 2026-07-11
+
+### Customer Changelog
+- Active Fight Tracker: mobs that you or your group enter combat with are tracked as "active fights".
+- DoT maintenance on those fights (if in range + mana + not already dotted by someone else).
+- Wired for Shadow, Affliction, Balance (Moonfire+IS), Elemental (Flame Shock), Hunter Serpent Sting (TBC + Vanilla).
+- Prevents wasting DoTs on non-group mobs/patrols.
+- Version bumped to 2.5.18.
+- Clean eaxrotations.zip (lua + md only).
+- All tests remain passing (252 + 17 suites).
+
 ## 2.5.17 - 2026-07-11
 
 ### Customer Changelog
