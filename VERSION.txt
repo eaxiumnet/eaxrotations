@@ -13,7 +13,8 @@ Commit: (git describe)
 
 === QUALITY GATES ===
 - Rotation test suites: 252/252 PASS
-- Leveling test suites: 13/13 PASS
-- spec_kit compliance: 29 converted, 12 legacy
+- Leveling test suites: 17/17 PASS
+- spec_kit compliance: 31 converted, 9 legacy, 132 shared/core, 40 vanilla (test_spec_layout_compliance.lua)
 - Lua syntax check: ALL PASS (luac -p)
-- Spell database audit: verified against DBC client 2.5.5.68101
+- Spell database audit: verified against DBC client 2.5.5.68101 (61 sylvanas clean, 31 vanilla clean)
+- Pre-commit hooks: green (luac + vanilla + sylvanas/DBC)
