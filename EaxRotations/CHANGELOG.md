@@ -15,6 +15,12 @@
 - Combat Rogue: switched primary finisher to Envenom with deadly poison per sources.
 - All rotation and leveling tests remain passing (252 suites).
 
+## 2.5.10 - 2026-07-10
+
+### Customer Changelog
+- Continued Tier 3 fidelity for Frost, Enhancement, Combat Rogue per sources.
+- All rotation and leveling tests remain passing (252 suites).
+
 ## 2.5.7 - 2026-07-10
 
 ### Customer Changelog
