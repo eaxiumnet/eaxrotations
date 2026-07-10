@@ -52,6 +52,8 @@ Priority shared modules that affect every spec:
 - [x] Combat Rogue — switched to Envenom primary with poison stacks per sources. (2026-07-10)
 - [x] Destruction Warlock — Conflagrate reordered above Incinerate for correct Immolate burst consume priority (per APLs and TBC guides). (2026-07-10)
 - [x] Demonology Warlock — audited vs APL; strong core DoT/curse/execute/LifeTap + full pet/Soul Link/Fel Dom fidelity for TBC Demo. (2026-07-10)
+- [x] Assassination Rogue — audited; SnD > Rupture > Envenom (DP stacks) > Mutilate + Shiv refresh, matches sources. (2026-07-10)
+- [x] Subtlety Rogue — audited; Premed/Shadowstep/Garrote/Hemo/SnD/Rupture priorities strong. (2026-07-10)
 - [ ] Tier 3: remaining specs and leveling rotations.
 
 ## Phase 4 — Validation

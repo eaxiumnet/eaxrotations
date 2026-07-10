@@ -123,6 +123,10 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
   Sources: wowsims/tbc-new destruction.apl.json + destro_fire.apl.json, TBC warlock rotation guides (Wowhead, community).
 - Demonology Warlock: Audited vs wowsims/tbc-new demonology.apl.json. Strong match on core priorities (assigned curse, Immolate + Corruption maintenance, low-TTD DeathCoil/Shadowburn, low-mana LifeTap, Shadow Bolt filler). EAX adds correct TBC Demonology specifics: heavy pet management (Felguard/Imp, Health Funnel, Soul Link, Fel Domination for summons), extra DoTs (Siphon Life, Seed of Corruption), AoE (Rain/Hellfire), and defensive pet state control. Corruption before Immolate follows common guide DPCT preference (vs strict APL snapshot order). All tests green. No P0 gaps.
   Sources: wowsims/tbc-new demonology.apl.json, TBC Demonology guides (pet focus, Soul Link, summon timing).
+- Assassination Rogue: Audited vs TBC rogue sources and APL patterns. Strong match: SnD 100% uptime first, Rupture on long TTD (>12s), Envenom finisher with Deadly Poison stacks (min configurable, prefers high stacks), Shiv for DP refresh, Mutilate as poisoned builder (dagger check). Evis as fallback. Expose Armor support. Matches Envenom primary + Shiv poison refresh from sources. All tests green.
+  Sources: TBC Assassination guides, wowsims rogue APL patterns, previous Combat Envenom alignment.
+- Subtlety Rogue: Audited. Strong match to described priorities: Premeditation, Shadowstep for burst, Garrote opener, Hemorrhage builder/debuff, SnD, Rupture. Stealth openers (Ambush/Garrote/CheapShot), Vanish/Preparation for resets. Energy pooling and positional (Backstab). All tests green. No major gaps.
+  Sources: TBC Subtlety guides, wowsims rogue APL (adapted for subtlety).
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |
