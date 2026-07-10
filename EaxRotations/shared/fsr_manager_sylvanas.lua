@@ -1,9 +1,9 @@
--- fsr_manager_sylvanas.lua — Five-Second Rule mana regeneration tracker.
--- WHAT:  Tracks last cast time and provides FSR-aware casting recommendations.
--- WHEN:  Used by healer specs to optimize mana efficiency.
--- WHY:   TBC healers lose ~80% of spirit regen while inside the 5-second window.
---        Intentionally pausing for FSR can extend mana pool by 15-30%.
--- SAFETY: All API calls nil-guarded; falls back to conservative estimates.
+-- fsr_manager_sylvanas.lua — Five-Second Rule mana regeneration tracker for TBC Anniversary (2.5.5).
+-- WHAT:  Tracks last cast time and provides FSR-aware pause helper (should_pause_for_fsr) using spec_kit settings.
+-- WHEN:  Used by healer specs in build_state + strategy matches (post-emergency, pre-filler).
+-- WHY:   TBC healers lose ~80% spirit regen inside 5s window; intentional pause extends mana 15-30% when delta>0.
+-- SAFETY: pcall spec_kit; all state/settings reads nil-guarded (Pattern 14); time via NS.time_now.
+-- DECISION: central source; fsr_max_pause_seconds (0=full) replaces >2s gate; dead downrank untouched; legacy 35% in specs (PR1 no healer changes; documented).
 -- DECISION: Track last mana-consuming cast; recommend pause when regen value > heal urgency.
 
 local NS = _G.EaxRotations
@@ -147,4 +147,12 @@ end
 -- Export
 -- ---------------------------------------------------------------------------
 NS.FsrManager = M
+
+-- Test-only helper to clear cached regen API (addresses reload sequencing in tests per review Issue 7).
+-- Call after overriding core.spell_book.get_* to ensure get_regen_delta sees new values without full reload.
+function M._reset_api_cache_for_tests()
+  _get_base_regen = nil
+  _get_casting_regen = nil
+end
+
 return M
