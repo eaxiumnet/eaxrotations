@@ -123,7 +123,8 @@ grep -rn "core\.object_manager\.get_local_player\|core\.time\|core\.spell_book" 
 - pet_heal_sylvanas.lua: direct core.time. Fixed: top-level cache. (Pattern 2)
 - combat_log_parser_sylvanas.lua (spell_name), snap_threat_sylvanas.lua, spell_resolver_sylvanas.lua: additional direct core.spell_book/time. Fixed: caches + replace. (Pattern 2)
 - Pattern 2 largely complete for shared (hot_tick, combat_log, incoming_heal, fsr, trinket, pet_manager, pet_heal, snap_threat, spell_resolver + others). Remaining direct are in comments or non-hot. luac + full suite green.
-- Next: check other patterns (e.g. static tables, test mocks, core files).
+- Checked Pattern 4: no static table alloc inside loops in shared.
+- Next: check other patterns (e.g. test mocks using raw core, core files headers).
 
 #### Grep Pattern 10: Static table allocation in loops (Pattern 4 violation)
 ```bash
