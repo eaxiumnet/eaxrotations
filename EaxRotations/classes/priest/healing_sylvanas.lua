@@ -127,6 +127,14 @@ local DANGEROUS_MAGIC_DEBUFF_IDS = {
     , 20537 -- Arcane Torrent (silence)
     , 15487 -- Silence
     , 18469 -- Counterspell (silence)
+    -- Expanded from WoWHead TBC dungeon/raid research for dangerous magic that kills or slows clears (MC, horror, AoE fear, silences, dots)
+    , 32830 -- Possess (Auchenai Crypts MC - not easily dispelled)
+    , 34984 -- Psychic Horror (Underbog/Slave Pens - bypasses Tremor)
+    , 38660 -- Fear (Steamvault Coilfang Siren AoE)
+    , 46561 -- Fear (Sunwell Dusk Priest - uninterruptible)
+    , 17172 -- Devouring Plague
+    , 10890, 10888, 8124, 8122 -- Psychic Scream
+    , 18425 -- Improved Counterspell silence
     , 18425 -- Improved Counterspell (silence)
 }
 

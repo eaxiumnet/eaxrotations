@@ -51,6 +51,7 @@ local ACTION = {
     HolyFire         = define("HolyFire",         { 25384, 15261, 15267, 15266, 15265, 15264, 15263, 15262, 14914 }, "HolyFire"),
     InnerFocus       = define("InnerFocus",       { 14751 }, "InnerFocus"),
     Lightwell        = define("Lightwell",        { 28275, 27871, 27870, 724 }, "Lightwell"),
+    MassDispel       = define("MassDispel",       { 32375 }, "MassDispel"),  -- TBC: AoE magic dispel for dungeon pack efficiency (per WoWHead)
     PowerWordShield  = define("PowerWordShield",  { 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }, "PowerWordShield"),
     PrayerofMending  = define("PrayerofMending",  { 33076 }, "PrayerofMending"),
     PrayerOfHealing  = define("PrayerOfHealing",  { 25308, 25316, 10961, 10960, 996, 596 }, "PrayerOfHealing"),
@@ -162,6 +163,7 @@ local HOLY_SCHEMA = {
     lightwell_ready = false,
     shadowfiend_ready = false,
     dispel_magic_ready = false,
+    mass_dispel_ready = false,
     cure_disease_ready = false,
     abolish_disease_ready = false,
     symbol_of_hope_ready = false,
@@ -318,6 +320,7 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
  holy_state.lightwell_ready = spell_exists(ACTION.Lightwell) and spell_ready(ACTION.Lightwell, NS.PLAYER_UNIT)
  holy_state.shadowfiend_ready = spell_exists(ACTION.Shadowfiend) and spell_ready(ACTION.Shadowfiend, NS.PLAYER_UNIT)
  holy_state.dispel_magic_ready = spell_exists(ACTION.DispelMagic) and spell_ready(ACTION.DispelMagic, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
+ holy_state.mass_dispel_ready = spell_exists(ACTION.MassDispel) and spell_ready(ACTION.MassDispel, NS.PLAYER_UNIT, { skip_range = true })
  holy_state.cure_disease_ready = spell_exists(ACTION.CureDisease) and spell_ready(ACTION.CureDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
  holy_state.abolish_disease_ready = spell_exists(ACTION.AbolishDisease) and spell_ready(ACTION.AbolishDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
  holy_state.symbol_of_hope_ready = spell_exists(ACTION.SymbolOfHope) and spell_ready(ACTION.SymbolOfHope, NS.PLAYER_UNIT)
@@ -843,6 +846,32 @@ local strategies = {
   execute = function(_, state)
    local target = (state.tank and state.tank.unit) or (state.lowest and state.lowest.unit)
    return try_cast(ACTION.DispelMagic, target, "[HOLY] Dispel Magic")
+  end,
+ },
+ {
+  name = "MassDispel",
+  matches = function(context, state)
+   if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.MassDispel, 3.0) then return false end
+   if not context.in_combat then return false end
+   if context.player_control_locked then return false end
+   if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end
+   if not state.mass_dispel_ready then return false end
+   if context.mana_pct < spec_kit.setting_number(context, "party_dispel_mana_floor", 30) then return false end
+   -- Dungeon opt: use Mass Dispel for AoE magic in packs (WoWHead: removes undispellable magic too, speeds clears, prevents deaths)
+   if not context.is_group then return false end
+   -- Check if any party has dangerous magic (reuse)
+   if Healing.has_dangerous_dispel then
+    -- scan a few to see if worth
+    local party = context.party_members or {}
+    for _, u in ipairs(party) do
+     if u and Healing.has_dangerous_dispel(u) then return true end
+    end
+   end
+   return false
+  end,
+  execute = function(context, state)
+   -- Mass Dispel is self cast AoE
+   return try_cast(ACTION.MassDispel, NS.PLAYER_UNIT, "[HOLY] Mass Dispel (dungeon pack clear)")
   end,
  },
  {
