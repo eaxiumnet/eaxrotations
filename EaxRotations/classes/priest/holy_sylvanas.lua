@@ -308,7 +308,7 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
   holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0
  end
  -- Fear Ward target logic for dungeons (WoWHead): ward tank on fear risk
- local ward_target = me
+ local ward_target = player
  local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
  if context and context.is_group and fear_risk then
   if context.party_tanks and #context.party_tanks > 0 then
