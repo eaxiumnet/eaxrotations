@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-10 (v2.5.13: removed all manual log/data file IO saving (create_log_file etc) + early set_setting to fix "File name not set. Please specify a valid file name before saving" spam; prefer izi.log; version bumped in all files; clean zip uploaded; tests green; rotations COMPLETE).
+**Last updated:** 2026-07-10 (v2.5.14 release: removed IO log/data saving to fix spam, izi.log, version bump in all files, clean zip to GH with changelogs; tests green; rotations COMPLETE).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
