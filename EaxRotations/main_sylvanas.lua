@@ -97,16 +97,17 @@ local FEAR_IDS = {
     39415,             -- Fear (Harbinger Skyriss Arcatraz per WoWHead guide)
     39427,             -- Bellowing Roar (TK advisors)
     46561,             -- Fear (Sunblade Dusk Priest Sunwell Plateau per WoWHead SWP trash guide)
+    34984,             -- Psychic Horror (Fen Ray Underbog)
     -- Additional common TBC fear/horror effects from WoWHead dungeon guides
     38759, 38760,      -- Various horror/fear from bosses/trash
-}  -- Expanded based on WoWHead TBC dungeon/raid guides (Shadow Labyrinth Hellmaw/Fel Overseers, Ramparts Scryers, OHF Wardens, Sethekk Prophets, Arcatraz Skyriss, Kael'thas, SWP Sunblade Dusk Priests etc.) to prevent tank fears causing wipes
+}  -- Expanded based on WoWHead TBC dungeon/raid guides (Shadow Labyrinth Hellmaw/Fel Overseers, Ramparts Scryers, OHF Wardens, Sethekk Prophets, Arcatraz Skyriss, Kael'thas, SWP Sunblade Dusk Priests, Underbog Fen Rays etc.) to prevent tank fears causing wipes
 
 -- Broader control loss for advanced dungeon/raid mechanics (fear, charm/MC, sleep, horror)
 -- Covers Blackheart Incite Chaos (MC/charm), other MCs, sleeps (Anetheron), etc.
 -- Used for general control_nearby, tank protection, healing priority.
 local CONTROL_LOSS_IDS = {
   -- fears (reuse)
-  5782,6213,6215,5484,17928,8122,8124,10888,10890,33111,30615,22884,12542,38759,38760,19134,36922,39415,39427,46561,
+  5782,6213,6215,5484,17928,8122,8124,10888,10890,33111,30615,22884,12542,38759,38760,19134,36922,39415,39427,46561,34984,
   -- charm / MC (Blackheart Incite Chaos from WoWHead; Skyriss Domination)
   33676, 33684, 37162,
   -- add more sleep/horror/MC as verified (e.g. from DBC or guides)
