@@ -2,6 +2,14 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.5.17] — Quick Toggles Playstyle Jitter Fix (2026-07-11)
+
+- Fixed jittery / reverting behavior when clicking playstyle in Quick Toggles.
+- Root cause: sync_playstyle_control had a back-sync that read (stale) get_setting cache / manager and called :set() on the combobox, fighting the user's widget change every tick.
+- Solution: removed back-sync sets entirely (widget + direct st injection is authoritative); added immediate NS.refresh_settings_cache() after playstyle injection; get_active_playstyle and dispatcher already prefer live widget / context.settings.
+- Playstyle changes are now smooth and reliable for all classes/specs.
+- Version bump 2.5.17; clean zip; tests green.
+
 ## [2.5.16] — Quick Toggles Playstyle Fix (2026-07-11)
 
 - Fixed Playstyle combobox in Quick Toggles: user selections now correctly change the active playstyle/rotation.

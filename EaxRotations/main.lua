@@ -661,7 +661,11 @@ local function sync_playstyle_control()
     local value = playstyle_keys[combo_index]
     if type(value) ~= "string" or value == "" then return end
 
-    -- Always track last seen; log only when it actually changes (user action or init)
+    -- Track last seen index ONLY to detect real user changes for logging.
+    -- Do NOT read settings here and do NOT call :set() on the widget.
+    -- Widget state (from the menu combobox with ID) + per-frame injection from get()
+    -- is the single source of truth. Previous back-sync caused jitter/revert on click
+    -- because get_setting cache (200ms TTL or manager) could be stale vs the just-changed widget.
     local is_first = (_last_playstyle_combo_index == nil)
     local changed = (not is_first and combo_index ~= _last_playstyle_combo_index)
     if is_first or changed then
@@ -670,24 +674,6 @@ local function sync_playstyle_control()
             core.log("[EaxRotations] Active playstyle: " .. tostring(value))
         end
         _last_playstyle_combo_index = combo_index
-    end
-
-    -- Back-sync: if a persisted setting (manager / prior value) differs from widget, push it to widget.
-    -- This lets saved choice or external set drive the combo at startup or on rare overrides.
-    -- Note: widget + injection is authoritative for runtime; this is UI correction only.
-    local current_playstyle = nil
-    if NS and NS.get_setting then
-        current_playstyle = NS.get_setting("active_playstyle", nil) or NS.get_setting("playstyle", nil)
-    end
-    if not current_playstyle then
-        current_playstyle = framework_core and framework_core.get_setting and framework_core.get_setting("active_playstyle", nil)
-    end
-    if current_playstyle then
-        local setting_index = get_playstyle_index(current_playstyle)
-        if setting_index ~= combo_index then
-            pcall(function() menu_elements.playstyle_combo:set(setting_index) end)
-            _last_playstyle_combo_index = setting_index
-        end
     end
 end
 
@@ -1019,6 +1005,12 @@ local function on_update()
                 st.playstyle = pval
                 st.active_playstyle = pval
             end
+        end
+        -- Force settings cache refresh so any fallback get_setting() calls see the
+        -- fresh widget value immediately (avoids 200ms TTL staleness that previously
+        -- caused back-sync jitter).
+        if NS and NS.refresh_settings_cache then
+            pcall(NS.refresh_settings_cache)
         end
     end
 

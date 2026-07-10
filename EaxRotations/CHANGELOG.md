@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.5.17 - 2026-07-11
+
+### Customer Changelog
+- Fixed jitter / snapping back when clicking Playstyle in Quick Toggles (and cases where selection didn't stick smoothly).
+- Widget is now the only source of truth; removed fighting back-sync logic that used stale settings cache; added cache refresh on injection.
+- Changes are now smooth and reliable across all classes/specs.
+- Version bumped to 2.5.17.
+- Clean eaxrotations.zip (lua + md only).
+- All tests remain passing (253 + 17 suites).
+
 ## 2.5.16 - 2026-07-11
 
 ### Customer Changelog
