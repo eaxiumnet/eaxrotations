@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-10 (healer standardization commits + Warlock dispel; full 252+17 green; docs refreshed; zip clean on v2.5.11; all major plans COMPLETE)
+**Last updated:** 2026-07-10 (verification continue: tests 252+17 + compliance PASS, zip re-verified clean only-lua+md, docs synced, HEAD ed93144a; rotation work solid; fishing plan still in-progress)
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 

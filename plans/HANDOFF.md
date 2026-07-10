@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-10** (healer standardization + Warlock dispel; HEAD `37eab941`, tests green; zip clean on v2.5.11).
+> up to date after every work session. Last updated: **2026-07-10** (verification continue: 252+17 tests PASS, compliance PASS, eaxrotations.zip re-verified only-lua+md clean, HEAD ed93144a; all major plans COMPLETE; junk only in tree).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
@@ -184,11 +184,15 @@ Or run the suites directly:
 
 ---
 
-## CURRENT STATE (verified 2026-07-10, HEAD 37eab941)
+## CURRENT STATE (verified 2026-07-10, HEAD ed93144a)
 
-**Baseline:** 252 rotation + 17 leveling suites PASS / 0 fail on Lua 5.1.5 (updated counts).
+**Baseline:** 252 rotation + 17 leveling suites PASS / 0 fail on Lua 5.1.5.
 Spell audit PASS. Pre-commit hooks green (luac + vanilla audit + DBC audit).
-All 29 specs + leveling rotations grounded in wowsims APLs/guides per become-1 plan. Tier 3 complete. Healer standardization + Warlock dispel support committed. API standardization audit COMPLETE. Tree cleaned of source changes (junk left alone). eaxrotations.zip (lua+md only) on v2.5.11.
+test_spec_layout_compliance.lua PASS (31 converted + shared + vanilla).
+eaxrotations.zip re-verified: 490 entries, 0 bad, 0 .txt (only .lua/.md).
+All 29 specs + leveling grounded in wowsims APLs/guides. Tier 3 complete.
+Healer standardization + Warlock dispel + additional dungeon debuffs committed.
+API standardization COMPLETE. Tree: only junk M/untracked left. Release zip clean on v2.5.11.
 
 ### Recent major work (2026-06-27 → 2026-07-10, 285+ commits)
 | Category | Item | Commit | One-line |
