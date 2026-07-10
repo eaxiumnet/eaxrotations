@@ -90,6 +90,7 @@ local FEAR_DEBUFF_IDS = {
     [39415] = true,                                 -- Fear (Skyriss)
     [19134] = true,                                 -- Frightening Shout (Fel Overseer)
     [46561] = true,                                 -- Fear (Sunblade Dusk Priest SWP)
+    [34984] = true,                                 -- Psychic Horror (Fen Ray Underbog)
 }
 local SAP_DEBUFF_IDS = {
     [6770] = true, [2070] = true, [11297] = true,  -- Sap
