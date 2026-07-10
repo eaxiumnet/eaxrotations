@@ -86,6 +86,26 @@ package.loaded["shared/dot_ttd_gating_sylvanas"] = {
     DOT_DURATIONS = { vampiric_touch = 15, shadow_word_pain = 18 },
 }
 
+-- Drive tracker path (PR2): provide ActiveFightTracker before shadow load so its pcall captures it.
+-- Tracker find_undotted will be preferred in _find and build_state scan.
+package.loaded["shared/active_fight_tracker_sylvanas"] = {
+    find_undotted_target = function(context, debuff_ids, range)
+        -- Simulate: return an undotted enemy from the GetEnemies mock (third one lacks dots)
+        local enemies = _G.EaxRotations.GetEnemiesInRange and _G.EaxRotations.GetEnemiesInRange(range or 30) or {}
+        for _, e in ipairs(enemies) do
+            local has = false
+            local ok, h = pcall(function() return _G.EaxRotations.debuff_up(e, debuff_ids) end)
+            if ok then has = h end
+            if not has then return e end
+        end
+        return nil
+    end,
+    get_active_fights = function(range)
+        return _G.EaxRotations.GetEnemiesInRange and _G.EaxRotations.GetEnemiesInRange(range or 30) or {}
+    end,
+    count = function() return 3 end,
+}
+
 local result = dofile("EaxRotations/classes/priest/shadow_sylvanas.lua")
 local strategies = result.strategies or result
 assert_true(strategies, "strategies should load")
@@ -133,5 +153,12 @@ assert_false(multidot_vt.matches({ in_combat = true, target_hp_pct = 100, is_mov
 -- VT multidot valid -> should match
 assert_true(multidot_vt.matches({ in_combat = true, target_hp_pct = 100, is_moving = false, settings = {} },
     { vampiric_touch_known = true, multidot_mode = 3, enemy_count = 3, dotted_vt_count = 0, enemies_missing_vt = 2, vt_remaining = 0, mana_emergency = false }), "VT valid -> match")
+
+-- Tracker-driven cases (PR2): since tracker mock is active, these exercise find_undotted + get_active in _find/build_state
+-- (dotted counts from state still used for max gate; tracker supplies the undotted candidate)
+assert_true(multidot_swp.matches({ in_combat = true, target_hp_pct = 100, settings = {} },
+    { swp_known = true, multidot_mode = 3, enemy_count = 3, dotted_swp_count = 0, multidot_max = 3, enemies_missing_swp = 2, swp_remaining = 0, mana_emergency = false }), "tracker path SWP -> match")
+assert_true(multidot_vt.matches({ in_combat = true, target_hp_pct = 100, is_moving = false, settings = {} },
+    { vampiric_touch_known = true, multidot_mode = 3, enemy_count = 3, dotted_vt_count = 0, multidot_max = 3, enemies_missing_vt = 2, vt_remaining = 0, mana_emergency = false }), "tracker path VT -> match")
 
 print("PASS test_shadow_multidot")
