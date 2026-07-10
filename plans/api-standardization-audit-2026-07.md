@@ -118,7 +118,8 @@ grep -rn "core\.object_manager\.get_local_player\|core\.time\|core\.spell_book" 
 - combat_log_parser_sylvanas.lua: now_seconds() used direct core.time. Fixed: cache at load + use _core_time. (Pattern 2)
 - incoming_heal_predictor_sylvanas.lua: now_s() and spell_info used direct core.time / core.spell_book.get_*. Fixed: top-level caches + use. (Pattern 2)
 - fsr_manager_sylvanas.lua: ensure_api used direct core.spell_book. Fixed: top-level _core_spell_book + use. (Pattern 2)
-- trinket_manager, pet_manager: similar (noted for next batch). No other critical hot-path uncached.
+- trinket_manager_sylvanas.lua: now_seconds used direct. Fixed: top-level cache. (Pattern 2)
+- pet_manager: similar (noted). No other.
 - luac + full suite green after fixes.
 
 #### Grep Pattern 10: Static table allocation in loops (Pattern 4 violation)
