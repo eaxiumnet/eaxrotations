@@ -3,7 +3,7 @@
 **Created:** 2026-07-09
 **Slug:** `api-standardization-audit-2026-07`
 **Previous Plan:** `plans/spec-standardization-2026-06-30.md` (Phase 3 — spec_kit migration)
-**Baseline:** 234 rotation suites PASS, 13 leveling suites PASS, 459/459 luac -p PASS
+**Baseline:** 252 rotation suites PASS, 17 leveling suites PASS, 476+ luac -p PASS (pre-commit). Audit complete for Phases 0-3 / Waves 1A-1E (compliance test + verification green).
 
 ## Overview
 
