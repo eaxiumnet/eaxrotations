@@ -94,18 +94,21 @@ local FEAR_IDS = {
     12542,             -- Fear (Black Morass etc.)
     19134,             -- Frightening Shout (Fel Overseer, SSC)
     36922,             -- Bellowing Roar (Nightbane)
+    39415,             -- Fear (Harbinger Skyriss Arcatraz per WoWHead guide)
+    39427,             -- Bellowing Roar (TK advisors)
+    46561,             -- Fear (Sunblade Dusk Priest Sunwell Plateau per WoWHead SWP trash guide)
     -- Additional common TBC fear/horror effects from WoWHead dungeon guides
     38759, 38760,      -- Various horror/fear from bosses/trash
-}  -- Expanded based on WoWHead TBC dungeon guides (Shadow Labyrinth Hellmaw/Fel Overseers, Ramparts Scryers, OHF Wardens, Sethekk, etc.) to prevent tank fears causing wipes
+}  -- Expanded based on WoWHead TBC dungeon/raid guides (Shadow Labyrinth Hellmaw/Fel Overseers, Ramparts Scryers, OHF Wardens, Sethekk Prophets, Arcatraz Skyriss, Kael'thas, SWP Sunblade Dusk Priests etc.) to prevent tank fears causing wipes
 
 -- Broader control loss for advanced dungeon/raid mechanics (fear, charm/MC, sleep, horror)
 -- Covers Blackheart Incite Chaos (MC/charm), other MCs, sleeps (Anetheron), etc.
 -- Used for general control_nearby, tank protection, healing priority.
 local CONTROL_LOSS_IDS = {
   -- fears (reuse)
-  5782,6213,6215,5484,17928,8122,8124,10888,10890,33111,30615,22884,12542,38759,38760,19134,36922,
-  -- charm / MC (Blackheart Incite Chaos from WoWHead)
-  33676, 33684,
+  5782,6213,6215,5484,17928,8122,8124,10888,10890,33111,30615,22884,12542,38759,38760,19134,36922,39415,39427,46561,
+  -- charm / MC (Blackheart Incite Chaos from WoWHead; Skyriss Domination)
+  33676, 33684, 37162,
   -- add more sleep/horror/MC as verified (e.g. from DBC or guides)
   --  e.g. sleep IDs if known
 }
@@ -338,6 +341,8 @@ local function find_enemy_target(me, selected)
 end
 
 local _cached_enemies, _cached_enemies_time = nil, -1
+local _fear_boss_scan_time = 0
+local FEAR_BOSS_SCAN_INTERVAL_MS = 1500  -- throttle nearby fear caster scan in groups for proactive protection
 -- ============================================================================
 -- Boss School Immunity Database (TBC)
 -- ============================================================================
@@ -972,9 +977,28 @@ local function build_context()
             if _api.debuff_up(me, FEAR_IDS) then _context.fear_on_tank = true; _context.feared_tank = me end
         end
         -- Detect known fear/control boss engagement for proactive wards/tremor (even without current debuff)
+        -- Covers all major TBC dungeons/raids per WoWHead guides (SSC Striders/Honor Guards, Magtheridon, Arcatraz Skyriss, etc.)
         _context.known_fear_boss = false
         if _context.target and NS.AutoTremor and NS.AutoTremor.is_fear_boss then
             _context.known_fear_boss = NS.AutoTremor.is_fear_boss(_context.target)
+        end
+        -- Throttled nearby enemy scan (group only) to catch fear casters before they become explicit target (early pull protection)
+        -- Limited to ~15 objects + time throttle to respect performance patterns.
+        local now_ms = (NS.game_time_ms and NS.game_time_ms()) or 0
+        if _context.is_group and not _context.known_fear_boss and (now_ms - _fear_boss_scan_time > FEAR_BOSS_SCAN_INTERVAL_MS) then
+            _fear_boss_scan_time = now_ms
+            if _core.object_manager and type(_core.object_manager.get_enemies) == "function" and NS.AutoTremor and NS.AutoTremor.is_fear_boss then
+                local ok, enemies = pcall(_core.object_manager.get_enemies)
+                if ok and type(enemies) == "table" then
+                    for i = 1, math.min(#enemies, 15) do
+                        local e = enemies[i]
+                        if e and NS.AutoTremor.is_fear_boss(e) then
+                            _context.known_fear_boss = true
+                            break
+                        end
+                    end
+                end
+            end
         end
         _context.control_risk = _context.control_nearby or _context.known_fear_boss or false
     end
