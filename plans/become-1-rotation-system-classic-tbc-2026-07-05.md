@@ -54,6 +54,7 @@ Priority shared modules that affect every spec:
 - [x] Demonology Warlock — audited vs APL; strong core DoT/curse/execute/LifeTap + full pet/Soul Link/Fel Dom fidelity for TBC Demo. (2026-07-10)
 - [x] Assassination Rogue — audited; SnD > Rupture > Envenom (DP stacks) > Mutilate + Shiv refresh, matches sources. (2026-07-10)
 - [x] Subtlety Rogue — audited; Premed/Shadowstep/Garrote/Hemo/SnD/Rupture priorities strong. (2026-07-10)
+- [x] Leveling rotations (initial) — Warlock leveling audited (DoTs, filler, LifeTap, execute); shared helpers used across classes. More leveling to come. (2026-07-10)
 - [ ] Tier 3: remaining specs and leveling rotations.
 
 ## Phase 4 — Validation

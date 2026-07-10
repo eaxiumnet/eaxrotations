@@ -127,6 +127,8 @@ Base raw URL prefix: `https://raw.githubusercontent.com/wowsims/classic/master/`
   Sources: TBC Assassination guides, wowsims rogue APL patterns, previous Combat Envenom alignment.
 - Subtlety Rogue: Audited. Strong match to described priorities: Premeditation, Shadowstep for burst, Garrote opener, Hemorrhage builder/debuff, SnD, Rupture. Stealth openers (Ambush/Garrote/CheapShot), Vanish/Preparation for resets. Energy pooling and positional (Backstab). All tests green. No major gaps.
   Sources: TBC Subtlety guides, wowsims rogue APL (adapted for subtlety).
+- Leveling rotations (spot check): Warlock leveling strong for solo - Corruption/Immolate DoTs, Shadow Bolt filler, Life Tap, Drain Soul execute at low HP, wand fallback when OOM. Uses shared leveling helpers. Similar patterns in other class leveling files. Full sweep of 13 suites pending but baseline green.
+  Sources: community TBC leveling guides, in-game spell progression.
 | Mage | Arcane Blast, IV, AP | Frostbolt/FB spam |
 | Rogue | Envenom, Deadly Poison primary | Eviscerate primary |
 | Shaman | Stormstrike charges, WF twist | single-charge SS |
