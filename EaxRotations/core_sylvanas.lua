@@ -141,7 +141,10 @@ end
 local _ct_ok, _cooldown_tracker = pcall(require, "common/utility/cooldown_tracker")
 if not _ct_ok or type(_cooldown_tracker) ~= "table" then _cooldown_tracker = nil end
 
-local _settings_manager = nil
+-- settings_manager: engine-level settings (O(1) get/set, replaces manual 200ms cache rebuild in get_setting).
+-- Per apidocs and API_ADOPTION_ANALYSIS, this was declared but never loaded.
+local _sm_ok, _settings_manager = pcall(require, "common/modules/settings_manager")
+if not _sm_ok or type(_settings_manager) ~= "table" then _settings_manager = nil end
 
 -- spell_helper: native spell readiness checks (cooldown + range + resource + facing + LOS + learned)
 local _sh_ok, _spell_helper = pcall(require, "common/utility/spell_helper")
@@ -150,13 +153,8 @@ if not _sh_ok or type(_spell_helper) ~= "table" then _spell_helper = nil end
 local _find_dead_ok, _find_dead_scan = pcall(require, "shared/find_dead_party_ally_sylvanas")
 if not _find_dead_ok or type(_find_dead_scan) ~= "table" then _find_dead_scan = nil end
 
--- Settings: M.install registers all NS.get_setting / NS.set_setting / etc
--- onto NS. Source of truth now lives in EaxRotations/core/settings.lua; the
--- remaining variables below retain legacy compatibility for any indirect
--- readers inside core_sylvanas.lua.
-local _settings_cache = {}
-local _settings_cache_last_update = 0
-local _SETTINGS_CACHE_TTL = 0.20 -- 200ms throttle (was 50ms)
+-- Settings: logic lives in EaxRotations/core/settings.lua (now uses settings_manager primary).
+-- _settings_cache_time retained only to pass to the domain installer.
 local _settings_cache_time
 
 -- auto_attack_helper: native swing-timer prediction for all melee specs.
@@ -447,26 +445,24 @@ local MELEE_SIGNAL_BUFFS = {
 
 }
 
-local function safe(fn, ...)
-
-    if type(fn) ~= "function" then return nil end
-
-    local ok, a, b, c = pcall(fn, ...)
-
-    if ok then return a, b, c end
-
-    return nil
-
+-- Use installed safe_helpers if available (for dedup and canonical), else fallback local impl.
+-- This preserves test envs where install may not have run yet.
+local safe = NS.safe
+local safe_field = NS.safe_field
+if not safe then
+    safe = function(fn, ...)
+        if type(fn) ~= "function" then return nil end
+        local ok, a, b, c = pcall(fn, ...)
+        if ok then return a, b, c end
+        return nil
+    end
 end
-
-local function safe_field(obj, key)
-
-    if not obj then return nil end
-
-    local ok, value = pcall(function() return obj[key] end)
-
-    return ok and value or nil
-
+if not safe_field then
+    safe_field = function(obj, key)
+        if not obj then return nil end
+        local ok, value = pcall(function() return obj[key] end)
+        return ok and value or nil
+    end
 end
 
 function NS.same_unit(a, b)
@@ -689,62 +685,64 @@ function NS.GetPartyMembers()
 
     if not me then return EMPTY end
 
-    -- Try core.object_manager.get_party_frames (valid API)
-
+    -- Primary: core.object_manager.get_party_frames (new authoritative API from core.party frames feature)
+    -- Benefits us: reliable exact party (frame order, no self, no false positives from visible scans),
+    -- enables accurate group heals/buffs/dispels/tank detection/fear_nearby in context and middlewares.
+    -- Small fixed list => perf win. Always preferred.
     local object_manager = core and core.object_manager or nil
-
     local get_party_frames = object_manager and safe_field(object_manager, "get_party_frames")
-
     if get_party_frames then
-
         local members = safe(get_party_frames)
-
-        if type(members) == "table" then return members end
-
-    end
-
-    -- Try player:get_party_members_in_range
-
-    local get_party_members_in_range = safe_field(me, "get_party_members_in_range")
-
-    if get_party_members_in_range then
-
-        local members = safe(get_party_members_in_range, me, 100, true)
-
-        if type(members) == "table" then return members end
-
-    end
-
-    -- Try visible units scan
-
-    local units, count = NS.get_visible_units()
-
-    -- SECURITY: Use static buffer to avoid per-call table allocation on hot paths
-    if not NS._party_fallback_buf then NS._party_fallback_buf = { n = 0 } end
-    local party = NS._party_fallback_buf
-    party.n = 0
-    for i = 1, count do
-
-        local unit = units[i]
-
-        if NS.not_same_unit(unit, me) then
-
-            local is_party = safe(safe_field(unit, "is_party_member"), unit)
-
-            if is_party then
-
-                party.n = party.n + 1
-
-                party[party.n] = unit
-
-            end
-
+        if type(members) == "table" then
+            -- Return as-is (plain array from frames API) for ipairs compatibility.
+            return members
         end
-
     end
 
-    return party
+    -- Secondary: player:get_party_members_in_range (unit extension)
+    local get_party_members_in_range = safe_field(me, "get_party_members_in_range")
+    if get_party_members_in_range then
+        local members = safe(get_party_members_in_range, me, 100, true)
+        if type(members) == "table" then return members end
+    end
 
+    -- Fallback: visible units + is_party_member (legacy, uses static buf for perf)
+    -- Convert to plain array so all callers get consistent list (no reliance on .n)
+    local units, count = NS.get_visible_units()
+    local plain = {}
+    local idx = 0
+    for i = 1, count do
+        local unit = units[i]
+        if unit and NS.not_same_unit(unit, me) then
+            local is_party = safe(safe_field(unit, "is_party_member"), unit)
+            if is_party then
+                idx = idx + 1
+                plain[idx] = unit
+            end
+        end
+    end
+    return plain
+end
+
+-- High-level helper that properly benefits from the new core.party / get_party_frames feature.
+-- Returns the lowest-HP party/raid member (for smart heals, focus, etc.) and their pct.
+-- Uses the accurate list instead of full scans.
+function NS.GetPartyLowestHP()
+    local members = NS.GetPartyMembers()
+    if not members or #members == 0 then return nil, 100 end
+    local low_u = nil
+    local low_p = 101
+    for i = 1, #members do
+        local u = members[i]
+        if u then
+            local p = NS.unit_health_pct and NS.unit_health_pct(u) or 100
+            if p < low_p then
+                low_p = p
+                low_u = u
+            end
+        end
+    end
+    return low_u, low_p
 end
 
 function NS.time_now()
@@ -2370,16 +2368,17 @@ NS.cast_position = NS.try_cast_position
 -- ============================================================================
 
 --- Computes the optimal ground-target position for circular AoE spells.
---- Uses the platform spell_prediction module (MOST_HITS mode) when available;
---- falls back to the target's raw position otherwise.
+--- Supports healing AoE via is_heal flag (uses platform spell_prediction with is_heal).
+--- For advanced multi-heal like Prayer of Healing, Chain Heal, Wild Growth positions.
 ---@param spell_id number The spell ID to optimize position for.
 ---@param target game_object The target unit (reference position + range check).
----@param radius number The spell's AoE radius in yards (e.g., 8 for Blizzard).
+---@param radius number The spell's AoE radius in yards.
 ---@param max_range number The spell's maximum cast range in yards (default 35).
----@param min_hits number? Minimum target count required to return a position (default 1).
+---@param min_hits number? Minimum target count required (default 1).
+---@param is_heal boolean? If true, treat as healing spell for ally prediction (default false).
 ---@return vec3|nil position The optimal cast position, or nil if unavailable / below min_hits.
 ---@return number hit_count The number of targets the position would hit (0 if no prediction).
-function NS.get_aoe_cast_position(spell_id, target, radius, max_range, min_hits)
+function NS.get_aoe_cast_position(spell_id, target, radius, max_range, min_hits, is_heal)
     if not spell_id or not target then return nil, 0 end
     local spell_prediction = NS.GetAPIModule and NS.GetAPIModule("spell_prediction") or nil
     if not spell_prediction then
@@ -2403,6 +2402,10 @@ function NS.get_aoe_cast_position(spell_id, target, radius, max_range, min_hits)
             geom.CIRCLE,
             nil
         )
+        -- Enable heal mode for ally prediction in spell_prediction
+        if is_heal then
+            spell_data.exception_is_heal = true
+        end
         local get_pos = target.get_position
         local target_pos = get_pos and target:get_position() or nil
         if not target_pos then return nil, 0 end
@@ -2428,6 +2431,109 @@ function NS.get_aoe_cast_position(spell_id, target, radius, max_range, min_hits)
         if pos then return pos, 1 end
     end
     return nil, 0
+end
+
+--- Advanced helper for best healing AoE position using spell_prediction is_heal.
+--- E.g., for Wild Growth, Chain Heal, Prayer of Healing ground targets.
+function NS.get_best_heal_aoe_position(spell_id, target, radius, max_range, min_hits)
+    return NS.get_aoe_cast_position(spell_id, target, radius, max_range, min_hits, true)
+end
+
+--- Most advanced: cast a heal position spell using izi with full prediction options.
+--- Passes use_prediction, health_percentage_threshold_incoming etc for smart predicted heal.
+function NS.cast_predicted_heal_position(izi_spell, position, opts)
+    if not izi_spell or not position then return false end
+    opts = opts or {}
+    local cast_opts = {
+        use_prediction = opts.use_prediction ~= false,
+        prediction_type = opts.prediction_type or "MOST_HITS",
+        health_percentage_threshold_incoming = opts.health_percentage_threshold_incoming or 40,
+        skip_range = opts.skip_range,
+        check_los = opts.check_los,
+        message = opts.message or "predicted heal position"
+    }
+    if type(izi_spell.use_at_position_safe) == "function" then
+        return izi_spell:use_at_position_safe(position, cast_opts)
+    end
+    -- fallback
+    return NS.try_cast_position(izi_spell.id and izi_spell:id() or izi_spell, position, cast_opts.message)
+end
+
+--- Top-level advanced multi-heal position finder for the engine.
+--- Uses target_selector heal targets + party frames + spell prediction is_heal.
+--- Returns best position and hit count for group heals.
+function NS.find_best_heal_position(spell_id, radius, max_range, min_hits)
+    local targets = NS.get_targets_heal(3)
+    if #targets == 0 then targets = NS.GetPartyMembers and NS.GetPartyMembers() or {} end
+    if #targets == 0 then return nil, 0 end
+    -- Use first as center for prediction
+    local center = targets[1]
+    return NS.get_best_heal_aoe_position(spell_id, center, radius, max_range, min_hits)
+end
+
+--- "No one dies" advanced: find best AoE heal position that covers the most at-risk (high death_risk or low TTD) party members.
+--- Uses get_heal_hit_list (circle with is_heal) to score clusters by urgency, not just count.
+function NS.find_death_save_heal_position(spell_id, radius, max_range)
+    local party = NS.GetPartyMembers and NS.GetPartyMembers() or {}
+    if #party == 0 then return nil, 0 end
+    local best_pos = nil
+    local best_urgency = 0
+    local best_hits = 0
+    for _, center in ipairs(party) do
+        if center then
+            local pos = safe_field(center, "get_position") and center:get_position() or nil
+            if pos then
+                -- Use predict_position for moving at-risk targets (even harder, advanced prediction for heals)
+                local pred_pos = pos
+                if type(center.predict_position) == "function" then
+                    local okp, pp = pcall(center.predict_position, center, 1.0)
+                    if okp and pp then pred_pos = pp end
+                end
+                local hits = NS.get_heal_hit_list(pred_pos, spell_id, radius, true) or {}
+                local urgency = 0
+                local hit_count = 0
+                for _, h in ipairs(hits) do
+                    if h and h.obj then
+                        hit_count = hit_count + 1
+                        urgency = urgency + 10
+                    end
+                end
+                if urgency > best_urgency and hit_count >= 2 then
+                    best_urgency = urgency
+                    best_pos = pred_pos
+                    best_hits = hit_count
+                end
+            end
+        end
+    end
+    return best_pos, best_hits
+end
+
+--- Most advanced heal AoE hit list using platform get_circle_list with is_heal.
+--- Returns list of hit units for precise multi-heal decisions (better than most_hits alone for some spells).
+function NS.get_heal_hit_list(position, spell_id, radius, is_heal)
+    local sp = NS.GetAPIModule and NS.GetAPIModule("spell_prediction") or nil
+    if not sp or not position or not spell_id then return {} end
+    local ok, list = pcall(function()
+        local sd = sp:new_spell_data(spell_id, nil, radius or 8, nil, nil, sp.prediction_type.MOST_HITS, sp.geometry_type.CIRCLE)
+        if is_heal then sd.exception_is_heal = true end
+        return sp:get_circle_list(position, sd, is_heal or true)
+    end)
+    return (ok and type(list) == "table") and list or {}
+end
+
+--- Advanced best heal target using izi pick_friend scoring if available, fallback to lowest.
+--- For the most sophisticated auto-healing target selection.
+function NS.get_best_heal_target(radius, filter)
+    if NS.izi and type(NS.izi.pick_friend) == "function" then
+        local ok, best = pcall(NS.izi.pick_friend, radius or 40, true, filter or function(u)
+            local hp = u and u.get_health_percentage and u:get_health_percentage() or 100
+            return hp < 95 and hp or nil
+        end, "min")
+        if ok and best then return best end
+    end
+    local low, _ = NS.GetPartyLowestHP and NS.GetPartyLowestHP()
+    return low
 end
 
 function NS.cancel_spells()
@@ -4008,6 +4114,20 @@ function NS.get_incoming_heals_from(unit, source)
     return (ok and type(val) == "number" and val) or 0
 end
 
+--- Exposes the platform target_selector:get_targets_heal for best healing targets
+--- according to user menu settings (advanced auto-healing target selection).
+function NS.get_targets_heal(limit)
+    local ts = nil
+    if NS.GetAPIModule then
+        ts = NS.GetAPIModule("target_selector")
+    end
+    if ts and type(ts) == "table" and type(ts.get_targets_heal) == "function" then
+        local res = ts:get_targets_heal(limit or 5)
+        return type(res) == "table" and res or {}
+    end
+    return {}
+end
+
 local FORMS = {
 
     bear = { 5487, 9634 }, cat = { 768 }, moonkin = { 24858 }, tree = { 33891 },
@@ -4789,31 +4909,52 @@ local function get_party_ally_list(me)
 
     local added = 0
 
+    -- Maximize the new core.party / get_party_frames feature for accurate party
+    -- (exact UI members in order, excludes self). This is the foundation of advanced
+    -- group healing: reliable targets for PoH, CoH, chain, lifebloom, dispels, etc.
     local object_manager = core.object_manager
 
+    -- Try raid if available (for full raid content)
     local get_raid_members = object_manager and object_manager.get_raid_members
-
     if type(get_raid_members) == "function" then
-
         added = added + append_healing_source_list(healing_source_units, safe(get_raid_members))
-
     end
 
+    -- Primary: party frames (new feature) - authoritative and cheap
     local get_party_frames = object_manager and object_manager.get_party_frames
-
     if type(get_party_frames) == "function" then
-
         added = added + append_healing_source_list(healing_source_units, safe(get_party_frames))
-
     end
 
+    -- Also pull via centralized GetPartyMembers (which prefers frames)
+    added = added + append_healing_source_list(healing_source_units, NS.GetPartyMembers and NS.GetPartyMembers() or nil)
+
+    -- Range-based party members as supplement (for pets or edge range)
     local get_party_members_in_range = safe_field(me, "get_party_members_in_range")
-
     if type(get_party_members_in_range) == "function" then
-
         added = added + append_healing_source_list(healing_source_units, safe(get_party_members_in_range, me, 40, true))
-
     end
+
+    -- Use izi.party (high-level wrapper over party frames) + unit_helper party_only
+    -- for the most advanced accurate party-only ally list.
+    if NS.izi and type(NS.izi.party) == "function" then
+        local ok, iparty = pcall(NS.izi.party, 40)
+        if ok and type(iparty) == "table" then
+            added = added + append_healing_source_list(healing_source_units, iparty)
+        end
+    end
+    if _unit_helper then
+        local pos = safe_field(me, "get_position") and safe(safe_field(me, "get_position"), me) or nil
+        if pos then
+            local ok, allies = pcall(_unit_helper.get_ally_list_around, _unit_helper, pos, 40, true, true, false)
+            if ok and type(allies) == "table" then
+                added = added + append_healing_source_list(healing_source_units, allies)
+            end
+        end
+    end
+
+    -- Integrate platform target_selector:get_targets_heal for menu-driven best heal targets
+    added = added + append_healing_source_list(healing_source_units, NS.get_targets_heal(5))
 
     append_healing_source_unit(healing_source_units, me)
 
@@ -4901,6 +5042,17 @@ function NS.build_healing_entries(out, decorate)
 
             local effective_hp = max_hp > 0 and ((max_hp - effective_deficit) / max_hp) * 100 or NS.unit_health_pct(u)
 
+            -- Use platform health inc prediction for future HP (most accurate incoming)
+            local future_hp = effective_hp
+            local inc_dmg = 0
+            if _unit_helper and type(_unit_helper.get_health_percentage_inc) == "function" then
+                local ok, hp_inc, inc_dmg_val = pcall(_unit_helper.get_health_percentage_inc, _unit_helper, u, 3)
+                if ok and type(hp_inc) == "number" then
+                    future_hp = hp_inc
+                    inc_dmg = type(inc_dmg_val) == "number" and inc_dmg_val or 0
+                end
+            end
+
             -- EMA incoming DPS for triage / stop-cast decisions
             local incoming_dps = 0
             if NS.TTDEmaTracker and type(NS.TTDEmaTracker.update) == 'function' then
@@ -4910,11 +5062,25 @@ function NS.build_healing_entries(out, decorate)
                     incoming_dps = ema_result.incoming_dps or 0
                 end
             end
+            -- Platform health_prediction for additional incoming damage estimate (even harder prediction)
+            local health_pred = NS.health_prediction or health_prediction
+            if health_pred and type(health_pred.get_incoming_damage) == "function" then
+                local ok, inc = pcall(health_pred.get_incoming_damage, health_pred, u, 3.0)
+                if ok and type(inc) == "number" and inc > 0 then
+                    incoming_dps = math.max(incoming_dps, inc / 3)  -- rough per sec
+                end
+            end
             local time_to_die = incoming_dps > 0 and (effective_hp / 100) * max_hp / incoming_dps or 999
+
+            -- Death risk score for "no one dies" priority: low TTD or high incoming = urgent save
+            local death_risk = 0
+            if time_to_die < 5 then death_risk = (5 - time_to_die) * 50 end
+            if incoming_dps > 20 then death_risk = death_risk + incoming_dps * 2 end
+            if future_hp < 30 then death_risk = death_risk + (30 - future_hp) * 3 end
 
             out[n] = {
 
-                unit = u, hp = NS.unit_health_pct(u), effective_hp = effective_hp,
+                unit = u, hp = NS.unit_health_pct(u), effective_hp = effective_hp, future_hp = future_hp,
 
                 current_hp = hp, max_hp = max_hp, deficit = math.max(0, max_hp - hp),
 
@@ -4923,6 +5089,8 @@ function NS.build_healing_entries(out, decorate)
                 incoming_dps = incoming_dps,
 
                 time_to_die = time_to_die,
+
+                death_risk = death_risk,
 
                 is_player = NS.same_unit(u, me),
 
@@ -5067,13 +5235,9 @@ function registry:set_class_config(config)
         local selected_playstyle = NS.get_setting("playstyle", nil)
 
         if type(selected_playstyle) == "string" and selected_playstyle ~= "" then
-
             NS.set_setting("active_playstyle", selected_playstyle)
-
         else
-
             NS.set_setting("active_playstyle", config.default_playstyle)
-
         end
 
     end
