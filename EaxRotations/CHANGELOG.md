@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.5 - 2026-07-10
+
+### Customer Changelog
+- Holy Paladin: added proactive Light's Grace build using downranked Holy Light to proc the cast-time reduction cheaply before heavy healing (per TBC guides).
+- All rotation and leveling tests remain passing (252 suites).
+
 ## 2.5.4 - 2026-07-10
 
 ### Customer Changelog
