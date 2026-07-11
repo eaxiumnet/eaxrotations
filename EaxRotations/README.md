@@ -80,6 +80,7 @@ scripts/
 | ⚡ **Performance-Focused** | Cached API calls, squared-distance checks, sub-20ms strategy evaluation |
 | 🧠 **Smart Buff Upgrades** | Auto-detects and refreshes lower-rank party buffs |
 | 🏥 **Healer Engine** | Predictive triage, overheal avoidance, tank bias, shield tracking |
+| 💧 **FSR Mana** | Five-Second Rule pause (fsr_manager) for all 5 healers when inside FSR + positive regen delta + safe (post-emergency) |
 | 💰 **Auto-Loot** | Background corpse looting with humanized timing, combat awareness, and bag safety |
 
 ---
