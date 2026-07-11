@@ -116,11 +116,8 @@ local function default_cfg()
   show_distance = true,
   target_highlight = true,
   show_offscreen_arrows = true,
-  alpha_fade  = false,
-  dynamic_font_scale = false,
-  force_min_visibility = true,
-  min_alpha = 0.90,
-  min_font_size = 11,
+  alpha_fade  = true,
+  dynamic_font_scale = true,
   show_elite_colors = true,
   box_color  = { 0.30, 0.85, 0.40, 1.00 },
   box_color_other = { 216, 140, 51, 255 },
@@ -210,6 +207,14 @@ local function default_cfg()
   radar_dot_radius = 3,
   radar_border_thickness = 1,
   radar_show_names = false,
+  -- PR2/PR3 visibility
+  use_screen_space_boxes = false,
+  show_3d_brackets = true,
+  min_box_screen_dim = 24,
+  box_3d_fade_with_distance = false,
+  force_min_visibility = true,
+  min_alpha = 0.90,
+  min_font_size = 11,
  }
 end
 
@@ -387,7 +392,7 @@ end
 -- 13. Target highlight draws thicker white box.
 do
  reset_calls()
- local cfg = default_cfg()
+ local cfg = default_cfg(); cfg.use_screen_space_boxes = false
  local candidates = { make_candidate(1, "Bob", 5, 5, 0, { is_target = true }) }
  renderer.render_frame(cfg, candidates, projection, origin, 100*100)
  local found_thick = false
@@ -400,7 +405,7 @@ end
 -- 14. Alpha fading still draws distant object.
 do
  reset_calls()
- local cfg = default_cfg(); cfg.alpha_fade = true; cfg.alpha_fade_start_pct = 0.3; cfg.force_min_visibility = false
+ local cfg = default_cfg(); cfg.alpha_fade = true; cfg.alpha_fade_start_pct = 0.3
  local candidates = { make_candidate(1, "Far", 80, 0, 0, { distance = 80 }) }
  renderer.render_frame(cfg, candidates, projection, origin, 80*80)
  check("alpha fading still draws distant object", #_calls.text >= 1, "text=" .. #_calls.text)
@@ -409,7 +414,7 @@ end
 -- 15. Dynamic font scaling reduces font size for distant objects.
 do
  reset_calls()
- local cfg = default_cfg(); cfg.dynamic_font_scale = true; cfg.font_scale_min = 0.5; cfg.force_min_visibility = false
+ local cfg = default_cfg(); cfg.dynamic_font_scale = true; cfg.font_scale_min = 0.5
  local candidates_near = { make_candidate(1, "Near", 3, 4, 0, { distance = 5 }) }
  renderer.render_frame(cfg, candidates_near, projection, origin, 80*80)
  local near_font = (#_calls.text >= 1) and _calls.text[1].sz or 13
@@ -423,26 +428,10 @@ do
    far_font <= near_font, "near=" .. tostring(near_font) .. " far=" .. tostring(far_font))
 end
 
--- PR1: with new defaults (no fade/scale, force_min), far object still full size/alpha.
-do
- reset_calls()
- local cfg = default_cfg()  -- alpha_fade=false, dynamic=false, force_min=true, min_* set
- local candidates = { make_candidate(1, "FarFull", 70, 0, 0, { distance = 70 }) }
- renderer.render_frame(cfg, candidates, projection, origin, 80*80)
- local far_font = (#_calls.text >= 1) and _calls.text[1].sz or 0
- check("default: far object full font size (no shrink)", far_font >= 11, "font=" .. tostring(far_font))
- local full_alpha = true
- for _, t in ipairs(_calls.text) do
-  local ca = t.c and (t.c.a or (t.c[4]))
-  if ca and ca < 250 then full_alpha = false end
- end
- check("default: far object full alpha (no fade)", full_alpha, "alpha not full")
-end
-
 -- 16. Elite classification changes box color.
 do
  reset_calls()
- local cfg = default_cfg()
+ local cfg = default_cfg(); cfg.use_screen_space_boxes = false
  local candidates = { make_candidate(1, "Boss", 5, 5, 0, { classification = 3 }) }
  renderer.render_frame(cfg, candidates, projection, origin, 100*100)
  local found_red = false
@@ -711,6 +700,61 @@ do
  renderer.render_frame(cfg, candidates, projection, origin, 80*80)
  check("radar disabled → no circle2df calls",
    #_calls.circle2df == 0, "circle2df=" .. #_calls.circle2df)
+end
+
+-- ============================================================================
+-- PR3: screen-space 2D boxes + hybrid + projection helpers + counters
+-- ============================================================================
+
+-- 36. use_screen_space_boxes=true draws rect_2d (not line3d) and >=24px.
+do
+ reset_calls()
+ local cfg = default_cfg(); cfg.use_screen_space_boxes = true; cfg.show_box = true
+ local candidates = { make_candidate(1, "Far2D", 5, 5, 0, { distance = 70 }) }
+ renderer.render_frame(cfg, candidates, projection, origin, 80*80)
+ local has_rect = #_calls.rect >= 1
+ local has_3d = #_calls.line3d >= 1  -- should not for 2d path (hybrid)
+ local dim_ok = false
+ if has_rect then
+  local r = _calls.rect[1]
+  dim_ok = (r.w or 0) >= 24 and (r.h or 0) >= 24
+ end
+ check("use_2d draws rect_2d >=24px", has_rect and dim_ok, "rects="..#_calls.rect.." w/h ok="..tostring(dim_ok))
+ check("use_2d suppresses 3d bracket", not has_3d, "line3d="..#_calls.line3d)
+ local c2 = renderer.counters()
+ check("2d box counter incremented", (c2.screen_box_2d or 0) >= 1)
+end
+
+-- 37. far + force_min draws 2D rect (hybrid fallback) even if !use_2d.
+do
+ reset_calls()
+ local cfg = default_cfg(); cfg.use_screen_space_boxes = false; cfg.force_min_visibility = true; cfg.show_box = true
+ local candidates = { make_candidate(1, "FarForce", 5, 5, 0, { distance = 70 }) }
+ renderer.render_frame(cfg, candidates, projection, origin, 80*80)
+ check("far force_min draws 2D rect", #_calls.rect >= 1, "rects="..#_calls.rect)
+end
+
+-- 38. close + show_3d_brackets uses 3D brackets (hybrid).
+do
+ reset_calls()
+ local cfg = default_cfg(); cfg.use_screen_space_boxes = false; cfg.show_3d_brackets = true; cfg.show_box = true
+ local candidates = { make_candidate(1, "Close3D", 5, 5, 0, { distance = 5 }) }
+ renderer.render_frame(cfg, candidates, projection, origin, 80*80)
+ check("close uses 3D brackets", #_calls.line3d >= 1, "line3d="..#_calls.line3d)
+end
+
+-- 39. projection helpers: project_box_min_size and from_sp guarantee floor and return dims.
+do
+ projection.begin_frame(1920, 1080, 4, 8, 600)
+ local w2s = fake_w2s
+ -- far natural tiny: project_box may cull or small; min_size floors
+ local far_feet = { x = 0, y = 200, z = 0 }
+ local l1, t1, w1, h1 = projection.project_box_min_size(w2s, far_feet, 2.0, 0.5, 24)
+ check("project_box_min_size floors to 24", l1 ~= nil and (w1 or 0) >= 24 and (h1 or 0) >= 24)
+ -- from_sp
+ local sp = { x = 1000, y = 500 }
+ local l2, t2, w2, h2 = projection.project_box_from_sp(sp, {x=1000, y=400}, 2.0, 0.5, 24)
+ check("project_box_from_sp floors + returns", l2 ~= nil and (w2 or 0) >= 24)
 end
 
 -- ============================================================================

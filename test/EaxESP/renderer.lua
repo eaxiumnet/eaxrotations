@@ -1,5 +1,5 @@
 -- ============================================================================
--- EaxESP - Renderer (v0.4.3)
+-- EaxESP - Renderer (v0.4.1)
 -- ----------------------------------------------------------------------------
 -- What: Draws 3D corner-bracket boxes, 2D nameplates, connectors, health
 --   bars, off-screen arrows, distance text, target highlight,
@@ -23,22 +23,8 @@ local _vec3 = safe_require("common/geometry/vector_3")
 
 local radar = safe_require("radar") or {}
 
--- Attachment-safe positioning (experimental). Falls back to get_position()+offset.
-local _attach_safe = nil
-local function attach_safe()
- if _attach_safe ~= nil then return _attach_safe end
- local ok, mod = pcall(require, "attachment_safe")
- if ok and type(mod) == "table" then
-  _attach_safe = mod
- else
-  _attach_safe = false
- end
- return _attach_safe
-end
-
 local _w2s, _screen, _line, _line3d, _text, _rect2d, _rect2df, _triangle2d
-local _circle3d_pct, _circle3d
-local _trace_line
+local _circle3d_pct
 
 local function bind_graphics()
  local g = rawget(_G, "core") and rawget(_G, "core").graphics
@@ -52,13 +38,12 @@ local function bind_graphics()
  _rect2df  = type(g.rect_2d_filled)  == "function" and g.rect_2d_filled  or nil
  _triangle2d = type(g.triangle_2d_filled) == "function" and g.triangle_2d_filled or nil
  _circle3d_pct = type(g.circle_3d_percentage) == "function" and g.circle_3d_percentage or nil
- _circle3d   = type(g.circle_3d)     == "function" and g.circle_3d     or nil
- _trace_line  = type(g.trace_line)     == "function" and g.trace_line     or nil
  return _w2s ~= nil and _screen ~= nil
 end
 
 local _counters = {
  text = 0, bracket = 0, line = 0, health = 0, arrow = 0, cast = 0,
+ screen_box_2d = 0, screen_box_2d_err = 0, marker_2d = 0,
  text_err = 0, bracket_err = 0, line_err = 0, health_err = 0, arrow_err = 0,
  cast_err = 0,
 }
@@ -66,6 +51,7 @@ function M.counters() return _counters end
 function M.reset_counters()
  _counters = {
   text = 0, bracket = 0, line = 0, health = 0, arrow = 0, cast = 0,
+  screen_box_2d = 0, screen_box_2d_err = 0, marker_2d = 0,
   text_err = 0, bracket_err = 0, line_err = 0, health_err = 0, arrow_err = 0,
   cast_err = 0,
  }
@@ -122,7 +108,6 @@ end
 local _w2s_fail_count = 0
 local _last_w2s_err = nil
 local _w2s_vec3_ok = false
-local _last_w2s_spam_warn = 0
 local function safe_w2s(position)
  if not _w2s or not position then return nil end
 
@@ -243,28 +228,6 @@ local function font_size_for_distance(dist, max_dist, base_size, cfg)
  return math.max(6, math.floor(base_size * scale))
 end
 
--- Effective wrappers (PR1): clamp to min when force_min_visibility (default true).
--- This guarantees far objects (at max_distance) stay legible (alpha>=0.9, font>=11).
--- Original *multiplier funcs kept for explicit override tests.
-local function effective_alpha(dist, max_dist, cfg)
- local a = alpha_multiplier(dist, max_dist, cfg)
- if not cfg or cfg.force_min_visibility == false then return a end
- local min_a = (cfg.min_alpha and cfg.min_alpha > 0) and cfg.min_alpha or 0.90
- -- NaN/Inf guard (hardening pattern)
- if type(a) ~= "number" or a ~= a or a < 0 or a > 1 then a = 1.0 end
- if a < min_a then a = min_a end
- return a
-end
-
-local function effective_font_size(dist, max_dist, base_size, cfg)
- local sz = font_size_for_distance(dist, max_dist, base_size, cfg)
- if not cfg or cfg.force_min_visibility == false then return sz end
- local min_f = (cfg.min_font_size and cfg.min_font_size > 0) and cfg.min_font_size or 11
- if type(sz) ~= "number" or sz ~= sz or sz < 1 then sz = base_size or 13 end
- if sz < min_f then sz = min_f end
- return sz
-end
-
 -- ---------------------------------------------------------------------------
 -- 3D Bracket drawing
 -- ---------------------------------------------------------------------------
@@ -339,7 +302,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Health bar
 -- ---------------------------------------------------------------------------
-local function draw_health_bar(x, y, w, h, hp_pct, cfg, alpha_mul, threat_pct)
+local function draw_health_bar(x, y, w, h, hp_pct, cfg, alpha_mul)
  if not _rect2df or not _rect2d then return end
  hp_pct = (type(hp_pct) == "number") and hp_pct or 100
  if hp_pct < 0 then hp_pct = 0 end
@@ -353,16 +316,7 @@ local function draw_health_bar(x, y, w, h, hp_pct, cfg, alpha_mul, threat_pct)
 
  local bg_c = color_with_alpha(bg, alpha_mul)
  local fg_c = color_with_alpha(fg, alpha_mul)
- local outline_c
- if threat_pct and cfg.show_threat then
-  local tc
-  if threat_pct >= 80 then tc = cfg.threat_color_high or { 255, 80, 80, 255 }
-  elseif threat_pct >= 50 then tc = cfg.threat_color_mid or { 255, 204, 51, 255 }
-  else tc = cfg.threat_color_low or { 76, 216, 102, 255 } end
-  outline_c = color_with_alpha(tc, alpha_mul)
- else
-  outline_c = color_with_alpha({ 0, 0, 0, 200 }, alpha_mul)
- end
+ local outline_c = color_with_alpha({ 0, 0, 0, 200 }, alpha_mul)
 
  _counters.health = _counters.health + 1
  local ok1 = pcall(_rect2df, to_vec2({ x = x, y = y }), w, h, bg_c)
@@ -394,10 +348,9 @@ local function draw_cast_bar(pos, cast_pct, cfg, alpha_mul)
  local radius = cfg.cast_bar_radius or 1.2
  local thickness = cfg.cast_bar_thickness or 3
 
- local z_off = cfg.cast_bar_z_offset or 2.5
  _counters.cast = _counters.cast + 1
  local ok = pcall(_circle3d_pct,
-  to_vec3({ x = pos.x, y = pos.y, z = pos.z + z_off }),
+  to_vec3({ x = pos.x, y = pos.y, z = pos.z + 2.5 }),
   radius, color, pct, thickness)
  if not ok then _counters.cast_err = _counters.cast_err + 1 end
 
@@ -405,36 +358,8 @@ local function draw_cast_bar(pos, cast_pct, cfg, alpha_mul)
  local bg_col = cfg.cast_bar_bg_color or { 50, 50, 50, 80 }
  local bg_color = color_with_alpha(bg_col, alpha_mul * 0.3)
  pcall(_circle3d_pct,
-  to_vec3({ x = pos.x, y = pos.y, z = pos.z + z_off }),
+  to_vec3({ x = pos.x, y = pos.y, z = pos.z + 2.5 }),
   radius, bg_color, 100, thickness)
-end
-
--- ---------------------------------------------------------------------------
--- Aggro Radius circle (v0.4.3)
--- ---------------------------------------------------------------------------
-local function aggro_radius_for(mob_level, my_level)
- if not mob_level or mob_level <= 0 then return 25 end -- skull/unknown = max radius
- local diff = mob_level - (my_level or mob_level)
- local r = 20 + diff * 1.5
- if r < 5 then r = 5 end
- if r > 30 then r = 30 end
- return r
-end
-
-local function draw_aggro_circle(pos, mob_level, my_level, dist, cfg, alpha_mul)
- if not _circle3d then return end
- local radius = aggro_radius_for(mob_level, my_level)
- local col
- if dist <= radius * 0.5 then
-  col = cfg.aggro_radius_color_danger or { 255, 60, 60, 160 }
- elseif dist <= radius then
-  col = cfg.aggro_radius_color_warn or { 255, 200, 50, 120 }
- else
-  col = cfg.aggro_radius_color_safe or { 100, 255, 100, 80 }
- end
- local color = color_with_alpha(col, alpha_mul)
- local thickness = (dist <= radius) and 2 or 1
- pcall(_circle3d, to_vec3(pos), radius, color, thickness)
 end
 
 -- ---------------------------------------------------------------------------
@@ -549,21 +474,9 @@ function M.render_frame(cfg, candidates, projection, origin_pos, _max_dist_sq)
  reset_nameplate_boxes()
  init_marker_colors(cfg)
 
- -- Cache local player for threat lookups
- local _me = nil
- local c = rawget(_G, "core")
- if c and c.object_manager and type(c.object_manager.get_local_player) == "function" then
-  local ok, p = pcall(c.object_manager.get_local_player)
-  if ok and p then _me = p end
- end
- local _my_level = nil
- if _me then
-  local ok_lv, lv = pcall(function() return _me:get_level() end)
-  if ok_lv and type(lv) == "number" then _my_level = lv end
- end
-
  local max_d = cfg.max_distance or 80
  local max_dist_sq = _max_dist_sq or (max_d * max_d)
+ local HYBRID_3D_MAX_DIST_YD = 30  -- pinned per design for hybrid 3D bracket cutoff
 
  local candidate_count = #candidates
  local cap = cfg.max_esp_per_frame or 32
@@ -642,7 +555,15 @@ function M.render_frame(cfg, candidates, projection, origin_pos, _max_dist_sq)
    local w2s_input = cand.raw_position or pos
    local feet_sp = safe_w2s(w2s_input)
    local dist = cand.distance or math.sqrt(projection.squared_dist(pos, origin_pos))
-   local alpha_mul = effective_alpha(dist, max_d, cfg)
+   local alpha_mul = alpha_multiplier(dist, max_d, cfg)
+   -- precompute head_sp for projection_from_sp and name (reuses existing scratch)
+   local head_sp = nil
+   if feet_sp then
+    _scratch_head.x = pos.x or 0
+    _scratch_head.y = pos.y or 0
+    _scratch_head.z = (pos.z or 0) + (cfg.nameplate_z_offset or 2.0)
+    head_sp = safe_w2s(_scratch_head)
+   end
    if cfg.debug_log and i <= 3 and cand.kind == "object" then
     local vec_type = type(feet_sp)
     local input_type = type(w2s_input)
@@ -679,18 +600,6 @@ function M.render_frame(cfg, candidates, projection, origin_pos, _max_dist_sq)
     end
    else
     local is_target = cand.is_target == true
-
-    -- Occlusion cull: skip units behind walls if trace_line is available.
-    local _occluded = false
-    if cfg.show_occlusion and _trace_line and origin_pos then
-     local ok_los, visible = pcall(_trace_line, origin_pos, w2s_input)
-     if ok_los and visible == false then
-      _occluded = true
-      skipped = skipped + 1
-     end
-    end
-
-    if not _occluded then
     local box_colour, name_colour = colours_for_kind(cand.kind, cfg, cand.classification, cand.marker_index)
 
     if alpha_mul < 1.0 then
@@ -708,17 +617,63 @@ function M.render_frame(cfg, candidates, projection, origin_pos, _max_dist_sq)
      box_thick = math.floor(box_thick * (cfg.target_thickness_mul or 2.0))
     end
 
-    if cfg.show_box and box_colour and _line3d then
-     local draw_fn = (cand.kind == "quest_npc") and draw_bracket_q or draw_bracket_3d
-     draw_fn(pos.x, pos.y, pos.z, 2.0, 0.5, cand.facing or 0,
-       box_colour, box_thick)
+    -- Hybrid Rule for boxes (PR3): 2D screen-space rect_2d when use_screen_space_boxes
+    -- or when force_min_visibility for far objects. 3D brackets ONLY if show_3d_brackets
+    -- (default true) AND dist <= 30 AND not use_2d. Guarantees >=24px via projection helpers.
+    -- pcall + NaN guards always.
+    local use_2d = cfg.use_screen_space_boxes == true
+    if not use_2d and cfg.force_min_visibility and dist > HYBRID_3D_MAX_DIST_YD then
+     use_2d = true
     end
-
-    -- Aggro radius circle for hostile mobs (including hostile quest NPCs).
-    local is_aggro_target = (cand.kind == "hostile") or
-       (cand.kind == "quest_npc" and cand.can_attack == true)
-    if cfg.show_aggro_radius and _circle3d and is_aggro_target then
-     draw_aggro_circle(pos, cand.level, _my_level, dist, cfg, alpha_mul)
+    if cfg.show_box and box_colour then
+     if use_2d and projection and (projection.project_box or projection.project_box_min_size or projection.project_box_from_sp) then
+      local min_dim = (cfg.min_box_screen_dim and cfg.min_box_screen_dim > 0) and cfg.min_box_screen_dim or 24
+      local left, top, bw, bh
+      if feet_sp and projection.project_box_from_sp then
+       left, top, bw, bh = projection.project_box_from_sp(feet_sp, head_sp, 2.0, 0.5, min_dim)
+      end
+      if not left and projection.project_box_min_size then
+       local proj_w2s = function(p) return safe_w2s(p) end
+       left, top, bw, bh = projection.project_box_min_size(proj_w2s, w2s_input, 2.0, 0.5, min_dim)
+      end
+      if not left and projection.project_box then
+       local proj_w2s = function(p) return safe_w2s(p) end
+       left, top, bw, bh = projection.project_box(proj_w2s, w2s_input, 2.0, 0.5)
+       if left then
+        -- enforce floor even on plain project_box path
+        bw = math.max(bw or 0, min_dim)
+        bh = math.max(bh or 0, min_dim)
+        left = (feet_sp and feet_sp.x or 0) - bw * 0.5
+        top = (feet_sp and feet_sp.y or 0) - bh
+       end
+      end
+      -- NaN/Inf + min size guard
+      if left and type(bw) == "number" and type(bh) == "number" and bw == bw and bh == bh and bw >= 1 and bh >= 1 then
+       -- 2D boxes use full opacity for legibility (bypass fade) or min_alpha
+       local draw_col = box_colour
+       if cfg.force_min_visibility then
+        draw_col = color_with_alpha({ box_colour.r or 76, box_colour.g or 216, box_colour.b or 102, box_colour.a or 255 }, 1.0)
+       end
+       local ok = pcall(_rect2d, to_vec2({ x = left, y = top }), bw, bh, draw_col, box_thick or 2, 0)
+       if ok then
+        _counters.screen_box_2d = _counters.screen_box_2d + 1
+       else
+        _counters.screen_box_2d_err = _counters.screen_box_2d_err + 1
+       end
+      end
+     elseif (cfg.show_3d_brackets ~= false) and dist <= HYBRID_3D_MAX_DIST_YD and _line3d then
+      local draw_fn = (cand.kind == "quest_npc") and draw_bracket_q or draw_bracket_3d
+      draw_fn(pos.x, pos.y, pos.z, 2.0, 0.5, cand.facing or 0, box_colour, box_thick)
+      _counters.bracket = _counters.bracket + 1
+     elseif cfg.force_min_visibility and feet_sp and projection and projection.project_box_from_sp then
+      -- far non-use2d but force_min: still draw 2D min size rect
+      local min_dim = (cfg.min_box_screen_dim and cfg.min_box_screen_dim > 0) and cfg.min_box_screen_dim or 24
+      local left, top, bw, bh = projection.project_box_from_sp(feet_sp, head_sp, 2.0, 0.5, min_dim)
+      if left and type(bw) == "number" and bw == bw and bh == bh and bw >= 1 then
+       local ok = pcall(_rect2d, to_vec2({ x = left, y = top }), bw, bh, box_colour, box_thick or 2, 0)
+       if ok then _counters.screen_box_2d = _counters.screen_box_2d + 1 else _counters.screen_box_2d_err = _counters.screen_box_2d_err + 1 end
+      end
+     end
     end
 
     -- 3D Cast bar.
@@ -726,24 +681,23 @@ function M.render_frame(cfg, candidates, projection, origin_pos, _max_dist_sq)
      draw_cast_bar(pos, cand.cast_pct, cfg, alpha_mul)
     end
 
-    if cfg.show_nameplate and _text and name_colour then
-     -- Attachment-based head position (experimental, gated).
-     local head_pos = nil
-     if cfg.use_attachments and cand.obj then
-      local as = attach_safe()
-      if as then
-       head_pos = as.head_position(cand.obj, cfg.nameplate_z_offset or 2.0)
+    -- PR3: 2D constant-px markers for cast/aggro when far + force_min_visibility (hybrid supplement)
+    if cfg.force_min_visibility and feet_sp and dist > HYBRID_3D_MAX_DIST_YD then
+     if (cfg.show_cast_bar and cand.is_casting) or (cfg.show_aggro_radius and is_aggro_target) then
+      -- small 6x6 filled rect at feet as 2D marker (constant size)
+      if _rect2df then
+       local mx, my = feet_sp.x - 3, feet_sp.y - 3
+       local mcol = make_color(255, 200, 50, 220)
+       local mok = pcall(_rect2df, to_vec2({x=mx, y=my}), 6, 6, mcol)
+       if mok then _counters.marker_2d = _counters.marker_2d + 1 end
       end
      end
-     if head_pos then
-      _scratch_head.x = head_pos.x
-      _scratch_head.y = head_pos.y
-      _scratch_head.z = head_pos.z
-     else
-      _scratch_head.x = pos.x
-      _scratch_head.y = pos.y
-      _scratch_head.z = pos.z + (cfg.nameplate_z_offset or 2.0)
-     end
+    end
+
+    if cfg.show_nameplate and _text and name_colour then
+     _scratch_head.x = pos.x
+     _scratch_head.y = pos.y
+     _scratch_head.z = pos.z + 2.0
      local head_sp = safe_w2s(_scratch_head)
      local text_x = feet_sp.x
      local base_y = (head_sp and head_sp.y or feet_sp.y - 36) - (cfg.name_offset_y or 6)
@@ -751,7 +705,7 @@ function M.render_frame(cfg, candidates, projection, origin_pos, _max_dist_sq)
      local display_name = build_display_name(cand, cfg, dist)
 
      local base_font = cfg.name_font_size or 13
-     local font_sz = effective_font_size(dist, max_d, base_font, cfg)
+     local font_sz = font_size_for_distance(dist, max_d, base_font, cfg)
 
      -- Nameplate deconfliction.
      local text_w = text_width_estimate(display_name, font_sz)
@@ -781,17 +735,7 @@ function M.render_frame(cfg, candidates, projection, origin_pos, _max_dist_sq)
       local bar_h = cfg.health_bar_height or 4
       local bar_x = text_x - bar_w * 0.5
       local bar_y = text_y + font_sz + 2
-
-      -- Threat lookup: get_threat_situation returns {is_tanking, status, threat_percent}
-      local threat_pct = nil
-      if cfg.show_threat and _me and cand.obj then
-       local ok_t, threat = pcall(function() return cand.obj:get_threat_situation(_me) end)
-       if ok_t and threat and type(threat) == "table" then
-        threat_pct = threat.threat_percent or 0
-       end
-      end
-
-      draw_health_bar(bar_x, bar_y, bar_w, bar_h, cand.health_pct, cfg, alpha_mul, threat_pct)
+      draw_health_bar(bar_x, bar_y, bar_w, bar_h, cand.health_pct, cfg, alpha_mul)
      end
 
      -- Connector.
@@ -810,7 +754,6 @@ function M.render_frame(cfg, candidates, projection, origin_pos, _max_dist_sq)
     end
 
     drawn = drawn + 1
-    end -- not _occluded
    end
   end
  end
@@ -838,16 +781,14 @@ function M.render_frame(cfg, candidates, projection, origin_pos, _max_dist_sq)
    .. " health=" .. tostring(_counters.health) .. "/" .. tostring(_counters.health_err)
    .. " arrow=" .. tostring(_counters.arrow) .. "/" .. tostring(_counters.arrow_err)
    .. " cast=" .. tostring(_counters.cast) .. "/" .. tostring(_counters.cast_err)
+   .. " 2dbox=" .. tostring(_counters.screen_box_2d) .. "/" .. tostring(_counters.screen_box_2d_err)
+   .. " marker2d=" .. tostring(_counters.marker_2d)
    .. " w2s_fail=" .. tostring(_w2s_fail_count)
    .. " vec3=" .. vec3_status
    .. " w2s_err=" .. tostring(_last_w2s_err or "none"))
  end
  if drawn == 0 and candidate_count > 0 and _w2s_fail_count > 0 and _w2s_fail_count >= candidate_count then
-  local now = (core and core.time and core.time()) or 0
-  if now - _last_w2s_spam_warn > 10.0 then
-   _last_w2s_spam_warn = now
-   debug_log("[EaxESP] ALL candidates skipped due to w2s failure — check vec3 conversion")
-  end
+  debug_log("[EaxESP] ALL candidates skipped due to w2s failure — check vec3 conversion")
  end
  return drawn, skipped
 end
