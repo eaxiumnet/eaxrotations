@@ -362,9 +362,25 @@ local function shadow_ward_matches(context, action, state)
 end
 
 local function create_healthstone_matches(context, action, state)
+    -- Never create if we already possess any rank of healthstone (prevents spam after successful create)
+    local has_hs = false
+    if NS.has_item then
+        for _, id in ipairs(HEALTHSTONE_IDS) do
+            if NS.has_item(id) then has_hs = true; break end
+        end
+    end
+    if not has_hs and NS.core and NS.core.inventory and NS.core.inventory.get_item_count then
+        for _, id in ipairs(HEALTHSTONE_IDS) do
+            local ok, cnt = pcall(NS.core.inventory.get_item_count, id)
+            if ok and type(cnt) == "number" and cnt > 0 then has_hs = true; break end
+        end
+    end
+    if has_hs then return false end
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
     if context.in_combat then return false end
     if context.has_valid_enemy_target then return false end
+    -- Require the create spell itself to be ready (GCD, learned, etc.)
+    if NS.spell_ready and not NS.spell_ready(CreateHealthstone, context.me or NS.GetPlayer(), { skip_range = true }) then return false end
     return true
 end
 
@@ -378,6 +394,7 @@ end
 
 local function summon_pet_matches(context, action, state)
     if context.in_combat then return false end
+    if context.has_valid_enemy_target then return false end
     -- Do NOT re-summon if Demonic Sacrifice aura is already active
     if state and state.has_demonic_sacrifice then return false end
     local pet = NS.GetPet()
