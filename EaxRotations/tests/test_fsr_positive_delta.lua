@@ -70,6 +70,12 @@ package.loaded["shared/spec_kit_sylvanas"] = {
     local s = ctx and ctx.settings
     if s and type(s[key]) == "number" then return s[key] end
     return def
+  end,
+  -- minimal to allow loading resto/healing which use define_action_for_class at module load
+  define_action_for_class = function(spells)
+    return function(name, ranks, label)
+      return { name = name, id = (ranks and ranks[1]) or 0, label = label }
+    end
   end
 }
 package.loaded["shared/fsr_manager_sylvanas"] = nil
