@@ -26,6 +26,7 @@
 | `plans/fix-healer-bugs-and-polish-2026-07-10.md` | COMPLETE (2026-07-10) | Critical bug fixes (shaman HW rank consts, priest holy scoping, druid indent) + small shaman helper polish; 252/252 tests green. |
 | `plans/complete-1-rotation-system-remaining-2026-07-10.md` | COMPLETE (2026-07-10) | Closed all 4 Phase 2 items (movement for mechanics + API, AoE caps with usage, PvP priority DB, boss mechanic triggers). All gates (luac + 252/252 tests) green. Parent become-1 now has Phase 2 complete. EAX is #1. |
 | `plans/warlock-fear-ua-pve-regression-2026-07-11.md` | In Progress (PR1 complete; review fixes 2026-07-11) | Warlock Fear spam in PvE groups + UA priority regression. PR1: plans entry + early use_fear_cc schema (default true) + non-spec context doc. (See plan for 6-PRs rollout.) |
+| `plans/fix-ci-unavailable-leafo-lua-gh-action-2026-07-11.md` | In Progress | CI fix: replace gone leafo-gh-actions/lua action with apt lua5.1 + symlinks (unblocks warlock stack PR#3 and all) |
 
 ## Reference Documents (not plans)
 
