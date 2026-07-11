@@ -5,6 +5,7 @@
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
+--         Fear: strict context.is_pvp + debuff_remains(FEAR_DEBUFF_IDS)==0 + spec_kit.setting_bool(context, "use_fear_cc", true).
 
 -- Warlock Destruction priority list.
 
@@ -40,6 +41,7 @@ local CURSE_OF_AGONY_DEBUFF = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
 local IMMOLATE_DEBUFF = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local CORRUPTION_DEBUFF = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
+local FEAR_DEBUFF_IDS = { 5782, 6213, 6215 }
 local BACKLASH_BUFF = { 34936, 34935 }
 local FEL_ARMOR_BUFF = { 28189, 28176 }
 local DEMON_ARMOR_BUFF = { 27260, 11735, 11734, 11733, 1086, 706, 687, 696 }
@@ -416,7 +418,11 @@ local function death_coil_matches(context, action, state)
 end
 
 local function fear_matches(context, action, state)
+    if not context.is_pvp then return false end
+    if not spec_kit.setting_bool(context, "use_fear_cc", true) then return false end
     if not context.target then return false end
+    local remains = (NS.debuff_remains and NS.debuff_remains(context.target, FEAR_DEBUFF_IDS)) or 0
+    if remains > 0 then return false end
     if not NS.spell_ready(action.spell, context.target) then return false end
     return true
 end
