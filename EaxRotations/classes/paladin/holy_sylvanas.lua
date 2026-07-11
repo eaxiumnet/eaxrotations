@@ -933,15 +933,9 @@ local strategies = {
     if not FsrManager then return false end
     return FsrManager.should_pause_for_fsr(s, context)
    end,
-<<<<<<< Updated upstream
-    execute = function(_, s)
-     return true
-    end,
-=======
    execute = function(_, s)
     return true
    end,
->>>>>>> Stashed changes
   },
   {
    name = "SmartHeal",
