@@ -774,20 +774,17 @@ local healing_strategies = {
   if not target_entry or not target_entry.unit then return false end
   return PreemptiveHeal.execute(context, state, ACTION.ChainHeal, string.format("[RESTO] Preemptive CH %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.5, heal_size = 1800 })
  end },
-  { name = "ChainHeal", matches = chain_heal_matches, execute = chain_heal_execute },
   { name = "FSRPause",
    matches = function(context, state)
     if not FsrManager then return false end
     if not state.in_combat then return false end
-    if (state.mana_pct or 100) > 35 then return false end
-    if not state.fsr_inside then return false end
-    if (state.fsr_regen_delta or 0) <= 0 then return false end
-    local pause_ok, reason = FsrManager.should_pause_for_fsr(state, context)
-    return pause_ok
+    if not state.fsr_inside or (state.fsr_regen_delta or 0) <= 0 then return false end
+    return FsrManager.should_pause_for_fsr(state, context)
    end,
     execute = function(_, state)
      return true
     end },
+  { name = "ChainHeal", matches = chain_heal_matches, execute = chain_heal_execute },
   { name = "SmartHeal", matches = smart_heal_matches, execute = function(context, state)
   local heal = (context._shaman_heal or false) or Healing.select_heal(context, state, state.lowest)
   if not heal or not heal.spell then return false end
