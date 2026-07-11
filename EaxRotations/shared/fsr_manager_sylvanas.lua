@@ -32,7 +32,7 @@ local _get_casting_regen = nil
 
 -- Lazy-load API to avoid startup dependency issues
 local function ensure_api()
-  if _get_base_regen then return true end
+  -- always re-resolve from table (supports test mocks that override slots after first call; prod funcs stable)
   if not _core_spell_book then return false end
   local ok1, br = pcall(function() return _core_spell_book.get_base_power_regen end)
   local ok2, cr = pcall(function() return _core_spell_book.get_casting_power_regen end)
