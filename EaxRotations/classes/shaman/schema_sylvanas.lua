@@ -288,6 +288,10 @@ return {
                     { key = "restoration_mana_low_pct", type = "slider", label = "Mana Low (% — skip Chain Heal)", min = 10, max = 60, default = 30 },
                     { key = "restoration_mana_conserve_pct", type = "slider", label = "Mana Conserve (% — no DPS shocks)", min = 5, max = 30, default = 15 },
                     { key = "restoration_mana_emergency_pct", type = "slider", label = "Mana Emergency (% — healing only)", min = 0, max = 15, default = 5 },
+                    { key = "fsr_enabled", type = "checkbox", label = "FSR Pause", default = true },
+                    { key = "fsr_mana_threshold", type = "slider", label = "FSR Mana Threshold %", min = 0, max = 100, default = 35 },
+                    { key = "fsr_emergency_hp", type = "slider", label = "FSR Emergency HP%", min = 0, max = 100, default = 40 },
+                    { key = "fsr_max_pause_seconds", type = "slider", label = "FSR Max Pause (s, 0=full)", min = 0, max = 5, default = 0 },
                 },
             },
             {
