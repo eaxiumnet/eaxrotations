@@ -2,6 +2,22 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.5.19] — Warlock CreateHealthstone + OOC Pet Summon Fixes (2026-07-11)
+
+- **Warlock**: Stopped CreateHealthstone spam (multiple 11730 casts on target). Now correctly detects existing healthstones via has_item + inventory fallback before attempting create. Fixed in middleware, destruction (sylvanas + vanilla), and leveling.
+- **Warlock**: OOC Summon* (Imp etc) strategies and ooc_manager no longer fire when `has_valid_enemy_target` is true. Extra pet detection (izi, pet_manager).
+- ooc_manager pet throttle log is now rate-limited (30s) and message clarified to reduce noise when API lies.
+- Version bump 2.5.19; clean eaxrotations.zip; luac + 253/253 tests green.
+
+## [2.5.18] — Active Fight Tracker + Group-Aware Multi-DoT Maintenance (2026-07-11)
+
+- New shared `EaxRotations/shared/active_fight_tracker_sylvanas.lua`: if anyone (you or group/party/raid member or pet) enters combat with a mob, it is added to the "active fights" list.
+- DoT maintenance on active fights only when: in range for the spell, mana allows, and `!debuff_up` (no one else has already dotted it up).
+- Strict engagement via `multidot_engagement_filter` (prevents patrol dotting).
+- Wired for: Shadow Priest (TBC + vanilla), Affliction Warlock (TBC), Balance Druid (Moonfire + Insect Swarm), Elemental Shaman (Flame Shock), Hunter (Serpent Sting), with notes for others.
+- Main wiring in `main_sylvanas.lua` for eager updates + reset on combat end.
+- Version bump 2.5.18; clean eaxrotations.zip; tests green.
+
 ## [2.5.17] — Quick Toggles Playstyle Jitter Fix (2026-07-11)
 
 - Fixed jittery / reverting behavior when clicking playstyle in Quick Toggles.

@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.5.19 - 2026-07-11
+
+### Customer Changelog
+- **Warlock**: Fixed repeated CreateHealthstone spam (11730 and ranks) while in combat or with target selected. Added proper "already have healthstone" ownership checks (with core.inventory fallback) in middleware, destruction, vanilla, and leveling rotations.
+- **Warlock**: OOC pet summons (Summon Imp etc.) now strictly respect `has_valid_enemy_target` (prevents casting pet summon on your DPS target). Added extra pet detection fallbacks.
+- Reduced noisy "[OOC] Summon Imp throttled (broken API)" log spam (rate limited + clarified message).
+- Version bumped to 2.5.19.
+- Clean eaxrotations.zip (lua + md only).
+- All tests remain passing (253 suites).
+
+## 2.5.18 - 2026-07-11
+
+### Customer Changelog
+- Active Fight Tracker: mobs that you or your group enter combat with are tracked as "active fights".
+- DoT maintenance on those fights (if in range + mana + not already dotted by someone else).
+- Wired for Shadow, Affliction, Balance (Moonfire+IS), Elemental (Flame Shock), Hunter Serpent Sting (TBC + Vanilla).
+- Version bumped to 2.5.18.
+- Clean eaxrotations.zip (lua + md only).
+- All tests remain passing (252 + 17 suites).
+
 ## 2.5.17 - 2026-07-11
 
 ### Customer Changelog

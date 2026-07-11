@@ -1,13 +1,12 @@
-EaxRotations v2.5.18
+EaxRotations v2.5.19
 Released: 2026-07-11
 Game: The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
 Commit: (git describe)
 
 === WHAT'S NEW ===
-- Active Fight Tracker for group multi-DoT: if you or group enters combat with mob, track as "active fight". Maintain DoTs only on active fights (in range, mana ok, !debuff_up).
-- Wired Shadow (TBC+Vanilla), Affliction, Balance, Elemental, Hunter Serpent Sting + notes for more.
-- Main wiring for eager updates + reset.
-- Version bump 2.5.18; clean zip; tests green.
+- Fix(warlock): CreateHealthstone no longer spams repeatedly (added ownership check + inventory fallback in middleware, destruction, leveling, vanilla).
+- Fix(warlock): OOC Summon Imp (and other pets) no longer leak when valid enemy target selected; improved pet detection layers; log spam for "throttled (broken API)" now rate-limited to 30s and clarified.
+- Version bump 2.5.19; clean eaxrotations.zip; tests green (253/253).
 - Updated changelogs.
 
 === QUALITY GATES ===
