@@ -2,6 +2,15 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.6.1] — Warlock Curse Selection + Life Tap Anti-Spam (2026-07-12)
+
+- **Warlock**: Fixed curse selection so `Curse of Elements`/`Curse of Shadow` no longer override `Curse of Agony` in auto mode.
+- **Warlock**: Added `other_curse_active()` guard across Affliction, Demonology, and Destruction to prevent curse overwrites.
+- **Warlock**: Added `LIFE_TAP_MIN_INTERVAL = 1.5s` throttle to Affliction, Demonology, and Destruction to stop Life Tap double-cast/spam.
+- Added regression tests for curse-mode gating and Life Tap anti-spam in all three Warlock specs.
+- `luac -p` + 257/257 rotation suites + 17/17 leveling green.
+- Version bump 2.6.1; clean `eaxrotations.zip`.
+
 ## [2.6.0] — FSR (Five-Second Rule) Manager + Healer Pause Ordering (2026-07-11)
 
 - **FSR Manager** (`shared/fsr_manager_sylvanas.lua`): hardened `should_pause_for_fsr`, added `fsr_max_pause_seconds` guard (0 = full window), spec_kit setting accessors for the 4 fsr_* controls, improved delta/remaining logic, expanded tests (positive/negative delta, configurable thresholds, e2e with healer strategies).

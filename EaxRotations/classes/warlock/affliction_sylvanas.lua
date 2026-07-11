@@ -151,11 +151,14 @@ local IMP_FIREBOLT_IDS       = { 3110, 7799, 7800, 7801, 7802, 11762, 11763, 272
 local DOT_REFRESH_WINDOW = 1.5   -- refresh within last 1.5s per Research Angle 1 (clip <1.5s)
 local SOUL_SHARD_CAPTURE_TTD = 5  -- TBC: Drain Soul is shard-capture only (mob about to die); sub-25% execute is Wrath, not TBC
 local LIFE_TAP_SAFETY_HP = 35   -- don't Life Tap below this HP%
+local LIFE_TAP_MIN_INTERVAL = 1.5  -- throttle Life Tap to prevent double-tap
 
 -- Snapshot-aware refresh constants
 local SPELL_DMG_UPGRADE_RATIO = 1.08    -- Refresh only if 8%+ spell damage upgrade
-local REFRESH_EXTRA_WINDOW = 1.5         -- Extra seconds past pandemic window for upgrade refresh    -- Local anti-spam: Soulshatter has 5min CD, use local timer as fallback for broken API
-    local _last_soulshatter = 0
+local REFRESH_EXTRA_WINDOW = 1.5         -- Extra seconds past pandemic window for upgrade refresh
+-- Local anti-spam: Soulshatter has 5min CD, use local timer as fallback for broken API
+local _last_soulshatter = 0
+local _last_life_tap = 0
 
 local LOCAL_SPELLS = {
     DrainLife       = NS.spell_action({ 27220, 27219, 11700, 11699, 7651, 709, 699, 689 }, "DrainLife"),
@@ -456,6 +459,14 @@ local function select_curse(context, state)
     -- In raids: prefer Shadow for Affliction (Shadow damage), Elements for Destruction
     if context.is_group and context.active_playstyle == "affliction" then return "shadow" end
     return "agony"  -- default: damage
+end
+
+local function other_curse_active(state, this_curse)
+    if this_curse ~= "agony" and (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return true end
+    if this_curse ~= "doom" and (state.doom_remains or 0) > DOT_REFRESH_WINDOW then return true end
+    if this_curse ~= "elements" and (state.coe_remains or 0) > DOT_REFRESH_WINDOW then return true end
+    if this_curse ~= "shadow" and (state.cos_remains or 0) > DOT_REFRESH_WINDOW then return true end
+    return false
 end
 
 -- Racial ability match gate for all racial strategies
@@ -805,12 +816,10 @@ local strategies = {
         matches = function(context, state)
             if not context.target then return false end
             if not context.has_valid_enemy_target then return false end
-            -- Respect curse mode — only fire when user chose "doom" or "auto"
             local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
             if curse_mode ~= "auto" and curse_mode ~= "doom" then return false end
-            -- Don't refresh if already applied and still ticking
             if (state.doom_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            -- Only on long-lived targets (Doom takes 60s to tick)
+            if other_curse_active(state, "doom") then return false end
             if context.ttd_known and context.ttd < 62 then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfDoom, context.target) or false
         end,
@@ -826,13 +835,12 @@ local strategies = {
         name = "CurseOfElements",
         matches = function(context, state)
             if not context.target then return false end
-            if not context.is_group then return false end
-            -- v2.5.1 FIX: respect curse mode dropdown — previously fired unconditionally
-            -- in groups, overriding Agony/DPS curse preference. Only applies in "elements"
-            -- or "auto" mode.
             local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
             if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
+            if curse_mode == "auto" and select_curse(context, state) ~= "elements" then return false end
+            if not context.is_group and curse_mode ~= "elements" then return false end
             if (state and state.coe_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            if other_curse_active(state, "elements") then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target) or false
         end,
         execute = function(context)
@@ -847,12 +855,12 @@ local strategies = {
         name = "CurseOfShadow",
         matches = function(context, state)
             if not context.target then return false end
-            if not context.is_group then return false end
-            -- v2.5.1 FIX: respect curse mode dropdown. Only applies in "shadow"
-            -- or "auto" mode (auto prefers Shadow for Affliction in groups).
             local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
             if curse_mode ~= "auto" and curse_mode ~= "shadow" then return false end
+            if curse_mode == "auto" and select_curse(context, state) ~= "shadow" then return false end
+            if not context.is_group and curse_mode ~= "shadow" then return false end
             if (state and state.cos_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            if other_curse_active(state, "shadow") then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseShadow, context.target) or false
         end,
         execute = function(context)
@@ -867,12 +875,10 @@ local strategies = {
         name = "CurseOfAgony",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            -- Skip in groups when a raid curse (Elements/Shadow) is active (TBC: one curse per target)
-            if context.is_group and ((state and state.coe_remains or 0) > 0 or (state and state.cos_remains or 0) > 0) then return false end
             local curse = select_curse(context, state)
             if curse ~= "agony" then return false end
             if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            -- On short-lived targets, CoA may not run full duration
+            if other_curse_active(state, "agony") then return false end
             if context.ttd_known and context.ttd < 8 then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfAgony, context.target) or false
         end,
@@ -1031,12 +1037,15 @@ local strategies = {
         name = "LifeTap",
         max_mana = 65,
         matches = function(context, state)
+            if context.is_casting or context.is_channeling then return false end
+            if (NS.time_now() - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then return false end
             local threshold = math.min(spec_kit.setting_number(context, "aff_life_tap_mana", 30), 65)
             if (state.mana_pct or 100) > threshold then return false end
             if (state.hp_pct or 100) < LIFE_TAP_SAFETY_HP then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.LifeTap, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
         execute = function()
+            _last_life_tap = NS.time_now()
             return NS.try_cast(ACTION.LifeTap, NS.PLAYER_UNIT, "[AFFL] Life Tap")
         end,
     },

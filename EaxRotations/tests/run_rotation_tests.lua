@@ -201,7 +201,11 @@ local tests = {
  -- Warlock
  "test_demonology_custom_matches.lua",
  "test_affliction_custom_matches.lua",
-  "test_demonology_curse_mode_gates.lua",
+ "test_affliction_curse_mode_gates.lua",
+ "test_demonology_curse_mode_gates.lua",
+ "test_destruction_curse_mode_gates.lua",
+ "test_destruction_life_tap.lua",
+ "test_demonology_life_tap.lua",
 
  -- Discipline
  "test_discipline_custom_matches.lua",

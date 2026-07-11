@@ -1,7 +1,7 @@
--- test_demonology_curse_mode_gates.lua -- Demonology curse-mode gate tests.
--- WHAT:  regression tests for warlock_curse_mode dropdown in demonology spec.
+-- test_destruction_curse_mode_gates.lua -- Destruction curse-mode gate tests.
+-- WHAT:  regression tests for warlock_curse_mode dropdown in destruction spec.
 -- WHEN:  during rotation test suite execution.
--- WHY:   ensures Curse of Elements/Shadow/Agony/Doom respect the curse mode setting.
+-- WHY:   ensures Curse of Elements/Agony/Doom respect the curse mode setting.
 -- SAFETY: uses synthetic context; no live game data required.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -19,7 +19,7 @@ _G.EaxRotations = {
     spell_action = function(spell_ids, name) return { spell = spell_ids, name = name } end,
     is_spell_learned = function(id) return true end,
     spell_ready = function(spell, target, opts) return true end,
-    debuff_remains = function(target, ids) return 0 end,
+    should_use_long_cd = function(context, cd) return true end,
     log = function() end,
     rotation_registry = { register = function() end },
 }
@@ -51,8 +51,8 @@ _G.require = function(path)
     return orig_require(path)
 end
 
-local result = dofile("EaxRotations/classes/warlock/demonology_sylvanas.lua")
-assert_true(result, "demonology module should load")
+local result = dofile("EaxRotations/classes/warlock/destruction_sylvanas.lua")
+assert_true(result, "destruction module should load")
 local strategies = result.strategies
 assert_true(strategies, "strategies table should load")
 
@@ -79,16 +79,14 @@ end
 local function make_state(opts)
     opts = opts or {}
     return {
-        curse_of_agony_ready = true,
-        curse_of_elements_ready = true,
-        curse_of_shadow_ready = true,
-        curse_of_doom_ready = true,
+        coa_remains = opts.coa_remains or 0,
+        coe_remains = opts.coe_remains or 0,
+        cod_remains = opts.cod_remains or 0,
     }
 end
 
 local coa = find_strategy("CurseOfAgony")
 local coe = find_strategy("CurseOfElements")
-local cos = find_strategy("CurseOfShadow")
 local cod = find_strategy("CurseOfDoom")
 
 -- Auto mode in group should prefer Agony
@@ -96,31 +94,25 @@ assert_true(coa.matches(make_context("auto", true), make_state()),
     "CoA should match in auto/group")
 assert_false(coe.matches(make_context("auto", true), make_state()),
     "CoE should NOT match in auto/group when select_curse returns agony")
-assert_false(cos.matches(make_context("auto", true), make_state()),
-    "CoS should NOT match in auto/group when select_curse returns agony")
 
 -- Explicit elements mode
 assert_false(coa.matches(make_context("elements", true), make_state()),
     "CoA should NOT match in elements mode")
 assert_true(coe.matches(make_context("elements", true), make_state()),
     "CoE should match in elements mode")
-assert_false(cos.matches(make_context("elements", true), make_state()),
-    "CoS should NOT match in elements mode")
-
--- Explicit shadow mode
-assert_false(coa.matches(make_context("shadow", true), make_state()),
-    "CoA should NOT match in shadow mode")
-assert_false(coe.matches(make_context("shadow", true), make_state()),
-    "CoE should NOT match in shadow mode")
-assert_true(cos.matches(make_context("shadow", true), make_state()),
-    "CoS should match in shadow mode")
 
 -- Explicit agony mode
 assert_true(coa.matches(make_context("agony", true), make_state()),
     "CoA should match in agony mode")
 assert_false(coe.matches(make_context("agony", true), make_state()),
     "CoE should NOT match in agony mode")
-assert_false(cos.matches(make_context("agony", true), make_state()),
-    "CoS should NOT match in agony mode")
 
-print("PASS test_demonology_curse_mode_gates")
+-- Doom mode gates
+assert_false(cod.matches(make_context("agony", true), make_state()),
+    "CoD should NOT match in agony mode")
+assert_true(cod.matches(make_context("doom", true), make_state()),
+    "CoD should match in doom mode")
+assert_false(cod.matches(make_context("auto", true), make_state()),
+    "CoD should NOT match in auto mode when select_curse returns agony")
+
+print("PASS test_destruction_curse_mode_gates")
