@@ -70,6 +70,8 @@ local PET_LOW_HP = 30
 local EXECUTE_THRESHOLD = 25
 local SOUL_SHARD_CAPTURE_TTD = 5  -- TBC: Drain Soul is shard-capture only (mob about to die); sub-25% execute is Wrath, not TBC
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 22102, 22101, 22100 }
+local LIFE_TAP_MIN_INTERVAL = 1.5
+local _last_life_tap = 0
 
 local DOT_REFRESH_WINDOW = 1.5
 
@@ -356,14 +358,40 @@ end
 -- ============================================================================
 -- Match functions
 -- ============================================================================
+local function select_curse(context, s)
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if curse_mode == "agony" then return "agony" end
+    if curse_mode == "shadow" then return "shadow" end
+    if curse_mode == "elements" then return "elements" end
+    if curse_mode == "doom" then return "doom" end
+    if curse_mode == "recklessness" then return "recklessness" end
+    if curse_mode == "weakness" then return "weakness" end
+    if curse_mode == "none" then return nil end
+    if context.is_pvp then
+        if context.enemy_healer then return "tongues" end
+        if context.melee_on_you then return "exhaustion" end
+    end
+    local caster_threshold = spec_kit.setting_number(context, "warlock_curse_elements_threshold", 2)
+    if (context.caster_count or 0) >= caster_threshold then return "elements" end
+    return "agony"
+end
+
+local function other_curse_active(s, this_curse)
+    if this_curse ~= "agony" and NS.debuff_remains and s.target and NS.debuff_remains(s.target, CURSE_OF_AGONY_DEBUFF) > DOT_REFRESH_WINDOW then return true end
+    if this_curse ~= "doom" and (s.doom_remains or 0) > DOT_REFRESH_WINDOW then return true end
+    if this_curse ~= "elements" and NS.debuff_remains and s.target and NS.debuff_remains(s.target, CURSE_OF_ELEMENTS_DEBUFF) > DOT_REFRESH_WINDOW then return true end
+    if this_curse ~= "shadow" and NS.debuff_remains and s.target and NS.debuff_remains(s.target, CURSE_OF_SHADOW_DEBUFF) > DOT_REFRESH_WINDOW then return true end
+    return false
+end
+
 local function curse_of_doom_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfDoom, 2.0) then return false end
     if not context.target then return false end
-    -- Respect curse mode dropdown (parity with affliction v2.5.1)
     local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
     if curse_mode ~= "auto" and curse_mode ~= "doom" then return false end
+    if curse_mode == "auto" and select_curse(context, s) ~= "doom" then return false end
     if not s.curse_of_doom_ready then return false end
-    -- TTD gate: Curse of Doom has 60s CD and 60s DoT — only use on long-lived targets
+    if other_curse_active(s, "doom") then return false end
     if context.ttd_known and context.ttd > 0 and context.ttd < 62 then return false end
     return true
 end
@@ -389,6 +417,8 @@ local function immolate_matches(context, s)
 end
 
 local function life_tap_matches(context, s)
+    if context.is_casting or context.is_channeling then return false end
+    if (NS.time_now() - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then return false end
     if not s then return false end
     if (s.hp_pct or 100) <= 55 then return false end
     if (s.mana_pct or 100) >= 65 then return false end
@@ -519,11 +549,12 @@ local function curse_of_agony_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfAgony, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
-    -- Respect curse mode dropdown (parity with affliction v2.5.1)
     local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
     if curse_mode ~= "auto" and curse_mode ~= "agony" then return false end
+    if curse_mode == "auto" and select_curse(context, s) ~= "agony" then return false end
     if not s.curse_of_agony_ready then return false end
     if NS.debuff_remains(context.target, CURSE_OF_AGONY_DEBUFF) > DOT_REFRESH_WINDOW then return false end
+    if other_curse_active(s, "agony") then return false end
     if (s.target_hp_pct or 100) < EXECUTE_THRESHOLD then return false end
     return true
 end
@@ -532,11 +563,12 @@ local function curse_of_elements_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseElements, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
-    -- Respect curse mode dropdown (parity with affliction v2.5.1)
     local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
     if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
+    if curse_mode == "auto" and select_curse(context, s) ~= "elements" then return false end
     if not s.curse_of_elements_ready then return false end
     if NS.debuff_remains(context.target, CURSE_OF_ELEMENTS_DEBUFF) > DOT_REFRESH_WINDOW then return false end
+    if other_curse_active(s, "elements") then return false end
     return true
 end
 
@@ -631,8 +663,12 @@ local strategies = {
         if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfShadow, 2.0) then return false end
         if not s then return false end
         if not context.target then return false end
+        local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+        if curse_mode ~= "auto" and curse_mode ~= "shadow" then return false end
+        if curse_mode == "auto" and select_curse(context, s) ~= "shadow" then return false end
         if not s.curse_of_shadow_ready then return false end
         if NS.debuff_remains(context.target, CURSE_OF_SHADOW_DEBUFF) > DOT_REFRESH_WINDOW then return false end
+        if other_curse_active(s, "shadow") then return false end
         return true
     end, execute = function(context) return NS.try_cast(ACTION.CurseOfShadow, context.target, "[DEMONOLOGY] Curse of Shadow") end },
     { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(context) return NS.try_cast(ACTION.CurseOfAgony, context.target, "[DEMONOLOGY] Curse of Agony") end },
@@ -646,7 +682,10 @@ local strategies = {
     { name = "RainOfFire", matches = rain_of_fire_matches, execute = rain_of_fire_execute },
     { name = "Hellfire", matches = hellfire_matches, execute = function(context) return NS.try_cast(ACTION.Hellfire, context.me, "[DEMONOLOGY] Hellfire", { skip_range = true }) end },
     { name = "DeathCoil", matches = function(context, state) return death_coil_matches(context, { name = "DeathCoil", spell = ACTION.DeathCoil }) end, execute = function(context) return NS.try_cast(ACTION.DeathCoil, context.target, "[DEMONOLOGY] Death Coil", { expected_cooldown = 120 }) end },
-    { name = "LifeTap", matches = life_tap_matches, execute = function(context) return NS.try_cast(ACTION.LifeTap, context.me, "[DEMONOLOGY] Life Tap", { skip_range = true }) end },
+    { name = "LifeTap", matches = life_tap_matches, execute = function(context)
+        _last_life_tap = NS.time_now()
+        return NS.try_cast(ACTION.LifeTap, context.me, "[DEMONOLOGY] Life Tap", { skip_range = true })
+    end },
     { name = "DarkPact", matches = dark_pact_matches, execute = function(context) return NS.try_cast(ACTION.DarkPact, context.me, "[DEMONOLOGY] Dark Pact", { skip_range = true, expected_cooldown = 10 }) end },
     { name = "ShadowWard", matches = shadow_ward_matches, execute = function(context) return NS.try_cast(ACTION.ShadowWard, context.me, "[DEMONOLOGY] Shadow Ward", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "HowlofTerror", matches = howl_of_terror_matches, execute = function(context) return NS.try_cast(ACTION.HowlofTerror, context.me, "[DEMONOLOGY] Howl of Terror", { skip_range = true, expected_cooldown = 40 }) end },

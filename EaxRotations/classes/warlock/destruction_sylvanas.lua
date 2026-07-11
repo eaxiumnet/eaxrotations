@@ -74,6 +74,8 @@ local SHADOWBURN_HP_PCT = 20
 local DRAIN_LIFE_HP_THRESHOLD = 40
 local MANA_LIFE_TAP_THRESHOLD = 35
 local DARK_PACT_MANA_THRESHOLD = 45
+local LIFE_TAP_MIN_INTERVAL = 1.5
+local _last_life_tap = 0
 local MANA_ITEM_IDS = { 20520, 12662 }  -- Dark Rune, Demonic Rune
 local SOUL_SHARD_ITEM = 6265             -- TBC Soul Shard reagent (moved before first use in shadowburn_matches)
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 22102, 22101, 22100 }
@@ -217,6 +219,31 @@ local ACTIONS = {
     { name = "FelDomination", spell = FelDomination, target = "self", cooldown = 900, requires_target = false },
 }
 
+local function select_curse(context, state)
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if curse_mode == "agony" then return "agony" end
+    if curse_mode == "shadow" then return "shadow" end
+    if curse_mode == "elements" then return "elements" end
+    if curse_mode == "doom" then return "doom" end
+    if curse_mode == "recklessness" then return "recklessness" end
+    if curse_mode == "weakness" then return "weakness" end
+    if curse_mode == "none" then return nil end
+    if context.is_pvp then
+        if context.enemy_healer then return "tongues" end
+        if context.melee_on_you then return "exhaustion" end
+    end
+    local caster_threshold = spec_kit.setting_number(context, "warlock_curse_elements_threshold", 2)
+    if (context.caster_count or 0) >= caster_threshold then return "elements" end
+    return "agony"
+end
+
+local function other_curse_active(state, this_curse)
+    if this_curse ~= "agony" and (state.coa_remains or 0) > 3 then return true end
+    if this_curse ~= "doom" and (state.cod_remains or 0) > 3 then return true end
+    if this_curse ~= "elements" and (state.coe_remains or 0) > 3 then return true end
+    return false
+end
+
 local function immolate_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Immolate, 2.0) then return false end
     if not state then return false end
@@ -249,10 +276,14 @@ end
 
 local function curse_of_doom_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfDoom, 2.0) then return false end
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if curse_mode ~= "auto" and curse_mode ~= "doom" then return false end
+    if curse_mode == "auto" and select_curse(context, state) ~= "doom" then return false end
     if not (NS.should_use_long_cd and NS.should_use_long_cd(context, action.cooldown)) then return false end
     if not state then return false end
     state = state or {}
     if (state.cod_remains or 0) > 5 then return false end
+    if other_curse_active(state, "doom") then return false end
     return true
 end
 
@@ -294,21 +325,26 @@ end
 
 local function curse_of_agony_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfAgony, 2.0) then return false end
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if curse_mode ~= "auto" and curse_mode ~= "agony" then return false end
+    if curse_mode == "auto" and select_curse(context, state) ~= "agony" then return false end
     if not state then return false end
     state = state or {}
     if (state.coa_remains or 0) > 3 then return false end
-    if (state.cod_remains or 0) > 0 then return false end
+    if other_curse_active(state, "agony") then return false end
     return NS.spell_ready(action.spell, context.target)
 end
 
 local function curse_of_elements_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseElements, 2.0) then return false end
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
+    if curse_mode == "auto" and select_curse(context, state) ~= "elements" then return false end
     if not state then return false end
     state = state or {}
-    -- Only apply in group/raid content where the debuff benefits the whole group
     if not (context.is_group or (context.party_size and context.party_size > 1)) then return false end
     if (state.coe_remains or 0) > 3 then return false end
-    if (state.cod_remains or 0) > 0 then return false end
+    if other_curse_active(state, "elements") then return false end
     return NS.spell_ready(action.spell, context.target)
 end
 
@@ -367,6 +403,8 @@ local function create_healthstone_matches(context, action, state)
 end
 
 local function life_tap_matches(context, action, state)
+    if context.is_casting or context.is_channeling then return false end
+    if (NS.time_now() - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then return false end
     if not state then return false end
     state = state or {}
     if (state.mana_pct or 100) > MANA_LIFE_TAP_THRESHOLD then return false end
@@ -514,6 +552,9 @@ for i = 1, #ACTIONS do
                 end
                 if not pos then return false end
                 return NS.try_cast_position(action.spell, pos, target, "[DESTRUCTION] " .. action.name, opts)
+            end
+            if action.name == "LifeTap" then
+                _last_life_tap = NS.time_now()
             end
             return NS.try_cast(action.spell, target, "[DESTRUCTION] " .. action.name, opts)
         end,

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.6.1 - 2026-07-12
+
+### Customer Changelog
+- **Warlock**: Fixed curse selection so `Curse of Elements`/`Curse of Shadow` no longer override `Curse of Agony` in auto mode.
+- **Warlock**: Added `other_curse_active()` guard across Affliction, Demonology, and Destruction to prevent curse overwrites.
+- **Warlock**: Added `LIFE_TAP_MIN_INTERVAL = 1.5s` throttle to Affliction, Demonology, and Destruction to stop Life Tap double-cast/spam.
+- Version bumped to 2.6.1.
+- Clean `eaxrotations.zip` (lua + md only).
+- All tests remain passing (257 + 17 suites).
+
 ## 2.6.0 - 2026-07-11
 
 ### Customer Changelog

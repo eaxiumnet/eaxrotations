@@ -10,7 +10,6 @@
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local assert_true, assert_eq, assert_false
-
 local function setup_asserts()
     assert_true = function(v, label) if not v then error(label or "assert_true failed", 2) end end
     assert_eq = function(a, b, label) if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end end
@@ -20,6 +19,7 @@ setup_asserts()
 
 -- Mock NS namespace
 local action_calls = {}
+local current_time = 1000
 _G.EaxRotations = {
     WarlockSpells = {
         LifeTap = 27222,
@@ -67,6 +67,7 @@ _G.EaxRotations = {
         return true
     end,
     log = function() end,
+    time_now = function() return current_time end,
     rotation_registry = {
         register = function() end,
     },
@@ -94,63 +95,114 @@ end
 local life_tap = find_strategy("LifeTap")
 
 -- Low mana (below threshold), HP safe -> should match
-action_calls = {}local ctx_low_mana = {
-	    target = {},
-	    settings = {
-	        aff_life_tap_mana = 40,
-	    },
-	}
-	local st_low_mana = { mana_pct = 25, hp_pct = 80 }
-	assert_true(life_tap.matches(ctx_low_mana, st_low_mana), "LifeTap should match when mana is low and HP is safe")
-	
-	-- High mana (above threshold) -> should NOT match
-	action_calls = {}
-	local ctx_high_mana = {
-	    target = {},
-	    settings = {
-	        aff_life_tap_mana = 30,
-	    },
-	}
-	local st_high_mana = { mana_pct = 65, hp_pct = 80 }
-	assert_false(life_tap.matches(ctx_high_mana, st_high_mana), "LifeTap should not match when mana is above threshold")
-	
-	-- HP too low (below safety threshold) -> should NOT match
-	action_calls = {}
-	local ctx_low_hp = {
-	    target = {},
-	    settings = {
-	        aff_life_tap_mana = 40,
-	    },
-	}
-	local st_low_hp = { mana_pct = 20, hp_pct = 15 }
-	assert_false(life_tap.matches(ctx_low_hp, st_low_hp), "LifeTap should not match when HP is too low")
-	
-	-- No settings (default used) -> should use default threshold of 30
-	action_calls = {}
-	local ctx_default_settings = {
-	    target = {},
-	    settings = {},
-	}
-	local st_default = { mana_pct = 25, hp_pct = 80 }
-	assert_true(life_tap.matches(ctx_default_settings, st_default), "LifeTap should use default mana threshold when no setting provided")
-	
-	-- High mana with no settings -> should NOT match
-	local ctx_no_state = {
-	    target = {},
-	    settings = {},
-	}
-	local st_no_state = { mana_pct = 100, hp_pct = 100 }
-	assert_false(life_tap.matches(ctx_no_state, st_no_state), "LifeTap should not match when mana is above threshold (no_state case)")
-	
-	-- Mana exactly at threshold boundary -> should NOT match (must be below)
-	action_calls = {}
-	local ctx_boundary = {
-	    target = {},
-	    settings = {
-	        aff_life_tap_mana = 30,
-	    },
-	}
-	local st_boundary = { mana_pct = 30, hp_pct = 80 }
-	assert_true(life_tap.matches(ctx_boundary, st_boundary), "LifeTap should match when mana == threshold (uses > not >=)")
+action_calls = {}
+local ctx_low_mana = {
+    target = {},
+    settings = {
+        aff_life_tap_mana = 40,
+    },
+}
+local st_low_mana = { mana_pct = 25, hp_pct = 80 }
+assert_true(life_tap.matches(ctx_low_mana, st_low_mana), "LifeTap should match when mana is low and HP is safe")
+
+-- High mana (above threshold) -> should NOT match
+action_calls = {}
+local ctx_high_mana = {
+    target = {},
+    settings = {
+        aff_life_tap_mana = 30,
+    },
+}
+local st_high_mana = { mana_pct = 65, hp_pct = 80 }
+assert_false(life_tap.matches(ctx_high_mana, st_high_mana), "LifeTap should not match when mana is above threshold")
+
+-- HP too low (below safety threshold) -> should NOT match
+action_calls = {}
+local ctx_low_hp = {
+    target = {},
+    settings = {
+        aff_life_tap_mana = 40,
+    },
+}
+local st_low_hp = { mana_pct = 20, hp_pct = 15 }
+assert_false(life_tap.matches(ctx_low_hp, st_low_hp), "LifeTap should not match when HP is too low")
+
+-- No settings (default used) -> should use default threshold of 30
+action_calls = {}
+local ctx_default_settings = {
+    target = {},
+    settings = {},
+}
+local st_default = { mana_pct = 25, hp_pct = 80 }
+assert_true(life_tap.matches(ctx_default_settings, st_default), "LifeTap should use default mana threshold when no setting provided")
+
+-- High mana with no settings -> should NOT match
+local ctx_no_state = {
+    target = {},
+    settings = {},
+}
+local st_no_state = { mana_pct = 100, hp_pct = 100 }
+assert_false(life_tap.matches(ctx_no_state, st_no_state), "LifeTap should not match when mana is above threshold (no_state case)")
+
+-- Mana exactly at threshold boundary -> should match (uses > not >=)
+action_calls = {}
+local ctx_boundary = {
+    target = {},
+    settings = {
+        aff_life_tap_mana = 30,
+    },
+}
+local st_boundary = { mana_pct = 30, hp_pct = 80 }
+assert_true(life_tap.matches(ctx_boundary, st_boundary), "LifeTap should match when mana == threshold (uses > not >=)")
+
+-- ============================================================================
+-- LifeTap anti-spam: should not match again within throttle window
+-- ============================================================================
+
+local ctx_spam = {
+    target = {},
+    settings = { aff_life_tap_mana = 40 },
+}
+local st_spam = { mana_pct = 20, hp_pct = 80 }
+
+-- First cast at t=1000
+action_calls = {}
+current_time = 1000
+assert_true(life_tap.matches(ctx_spam, st_spam), "LifeTap should match before first cast")
+life_tap.execute()
+
+-- Immediately after cast, should NOT match again
+action_calls = {}
+current_time = 1001
+assert_false(life_tap.matches(ctx_spam, st_spam), "LifeTap should not match immediately after cast")
+
+-- Within throttle window, should NOT match
+action_calls = {}
+current_time = 1001.4
+assert_false(life_tap.matches(ctx_spam, st_spam), "LifeTap should not match within throttle window")
+
+-- After throttle window expires, should match again
+action_calls = {}
+current_time = 1002
+assert_true(life_tap.matches(ctx_spam, st_spam), "LifeTap should match after throttle window expires")
+
+-- Should NOT match while casting
+action_calls = {}
+current_time = 2000
+local ctx_casting = {
+    target = {},
+    settings = { aff_life_tap_mana = 40 },
+    is_casting = true,
+}
+assert_false(life_tap.matches(ctx_casting, st_spam), "LifeTap should not match while casting")
+
+-- Should NOT match while channeling
+action_calls = {}
+local ctx_channeling = {
+    target = {},
+    settings = { aff_life_tap_mana = 40 },
+    is_channeling = true,
+}
+assert_false(life_tap.matches(ctx_channeling, st_spam), "LifeTap should not match while channeling")
 
 print("PASS test_affliction_life_tap")
