@@ -66,6 +66,7 @@ local DRAIN_LIFE_HP_THRESHOLD = 40
 local MANA_LIFE_TAP_THRESHOLD = 35
 local MANA_ITEM_IDS = { 20520, 12662 }  -- Dark Rune, Demonic Rune
 local SOUL_SHARD_ITEM = 6265             -- Classic Vanilla Soul Shard reagent (moved before first use in shadowburn_matches)
+local HEALTHSTONE_IDS = { 19013, 19012, 19011, 19010, 19009, 19008, 19007, 19006, 19005, 19004, 5510, 5509, 5511, 5512 }
 
 -- build_state: compute per-update aura and timing state once for all strategies
 -- Pre-allocated state (Pattern 4: no per-tick table allocation)
@@ -258,9 +259,25 @@ local function shadow_ward_matches(context, action, state)
 end
 
 local function create_healthstone_matches(context, action, state)
+    -- Never create if we already possess any rank of healthstone (prevents spam after successful create)
+    local has_hs = false
+    if NS.has_item then
+        for _, id in ipairs(HEALTHSTONE_IDS) do
+            if NS.has_item(id) then has_hs = true; break end
+        end
+    end
+    if not has_hs and NS.core and NS.core.inventory and NS.core.inventory.get_item_count then
+        for _, id in ipairs(HEALTHSTONE_IDS) do
+            local ok, cnt = pcall(NS.core.inventory.get_item_count, id)
+            if ok and type(cnt) == "number" and cnt > 0 then has_hs = true; break end
+        end
+    end
+    if has_hs then return false end
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
     if context.in_combat then return false end
     if context.has_valid_enemy_target then return false end
+    local create_spell = SPELLS.CreateHealthstone or { id = { 11730, 11729, 6202, 6201, 5699 }, name = "CreateHealthstone" }
+    if NS.spell_ready and not NS.spell_ready(create_spell, context.me or NS.GetPlayer(), { skip_range = true }) then return false end
     return true
 end
 
