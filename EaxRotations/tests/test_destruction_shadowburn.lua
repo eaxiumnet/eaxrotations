@@ -131,4 +131,26 @@ local ctx_boundary = {
 }
 assert_true(shadowburn.matches(ctx_boundary), "Shadowburn should match when target_hp == 20 (boundary)")
 
+-- ============================================================================
+-- Fear hardening (PR5): strict is_pvp (no group pve), debuff_remains==0, use_fear_cc
+-- Use find_strategy("Fear") + explicit false cases.
+-- ============================================================================
+
+local fear = find_strategy("Fear")
+
+-- Group PvE (is_group && !is_pvp) -> must NOT match (prevents pack scatter)
+assert_false(fear.matches({has_valid_enemy_target=true, target={}, is_group=true, is_pvp=false}), "Fear must not match in group pve (is_group && !is_pvp)")
+
+-- Already feared (debuff >0) -> must NOT match even in is_pvp
+local orig_debuff = _G.EaxRotations.debuff_remains
+_G.EaxRotations.debuff_remains = function(target, ids) return 5 end
+assert_false(fear.matches({has_valid_enemy_target=true, target={}, is_pvp=true}), "Fear must not match when target already has Fear debuff (even in is_pvp)")
+_G.EaxRotations.debuff_remains = orig_debuff
+
+-- Setting off -> must not (even in is_pvp)
+assert_false(fear.matches({has_valid_enemy_target=true, target={}, is_pvp=true, settings={use_fear_cc=false}}), "Fear must not match when use_fear_cc=false")
+
+-- Valid is_pvp, no debuff, default setting -> should match
+assert_true(fear.matches({has_valid_enemy_target=true, target={}, is_pvp=true}), "Fear must match in valid is_pvp scenario with no fear debuff")
+
 print("PASS test_destruction_shadowburn")
