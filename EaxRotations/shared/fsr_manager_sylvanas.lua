@@ -191,4 +191,12 @@ end
 -- Export
 -- ---------------------------------------------------------------------------
 NS.FsrManager = M
+
+-- Test-only helper to clear cached regen API (addresses reload sequencing in tests per review Issue 7).
+-- Call after overriding core.spell_book.get_* to ensure get_regen_delta sees new values without full reload.
+function M._reset_api_cache_for_tests()
+  _get_base_regen = nil
+  _get_casting_regen = nil
+end
+
 return M
