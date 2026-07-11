@@ -4,13 +4,11 @@ Game: The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
 Commit: (git describe)
 
 === WHAT'S NEW ===
-- Active Fight Tracker: if you or anyone in your group/party/raid (or pet) enters combat with a mob, it is added to the "active fights" list.
-- Proper multi-DoT maintenance: dots are maintained on active fights only if in range, mana allows, and no one else has already dotted it up (!debuff_up).
-- Strict group engagement (via multidot_engagement_filter) prevents dotting patrols.
-- Wired for Shadow Priest (TBC+Vanilla), Affliction Warlock, Balance Druid (MF+IS), Elemental Shaman (Flame Shock), Hunter Serpent Sting + notes for other DoT users.
-- Main wiring for eager updates + reset on combat end.
-- Full AGENTS compliance, luac + 252+17 suites green.
-- Version bump to 2.5.18, clean eaxrotations.zip (only .lua + .md).
+- Active Fight Tracker for group multi-DoT: if you or group enters combat with mob, track as "active fight". Maintain DoTs only on active fights (in range, mana ok, !debuff_up).
+- Wired Shadow (TBC+Vanilla), Affliction, Balance, Elemental, Hunter Serpent Sting + notes for more.
+- Main wiring for eager updates + reset.
+- Version bump 2.5.18; clean zip; tests green.
+- FSR manager hardening + healer ordering + polish integrated (stack merge).
 - Updated changelogs.
 
 === QUALITY GATES ===
