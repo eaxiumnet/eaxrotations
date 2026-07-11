@@ -1,13 +1,14 @@
-EaxRotations v2.5.15
-Released: 2026-07-10
+EaxRotations v2.5.18
+Released: 2026-07-11
 Game: The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
 Commit: (git describe)
 
 === WHAT'S NEW ===
-- Control panel quick toggles (rotation, healing, damage, cooldowns, AoE, interrupts, utility, threat drops) now always visible with fallback to "Unbound" (no keybind required). Changed defaults from 7 (hidden) to 999 (visible unbound per plugin-helper docs). Removed set_setting writes in syncs to avoid host save spam; states now injected directly from widgets into settings for gating.
-- Verified toggles work with current changes (injected states used in main_sylvanas, core_sylvanas, strategy_gating etc.).
-- All rotation and leveling tests remain passing (252 + 17 suites).
-- Version bump to 2.5.15, clean zip packaging.
+- Active Fight Tracker for group multi-DoT: if you or group enters combat with mob, track as "active fight". Maintain DoTs only on active fights (in range, mana ok, !debuff_up).
+- Wired Shadow (TBC+Vanilla), Affliction, Balance, Elemental, Hunter Serpent Sting + notes for more.
+- Main wiring for eager updates + reset.
+- Version bump 2.5.18; clean zip; tests green.
+- Updated changelogs.
 
 === QUALITY GATES ===
 - Rotation test suites: 252/252 PASS
