@@ -2,6 +2,22 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.6.0] — FSR (Five-Second Rule) Manager + Healer Pause Ordering (2026-07-11)
+
+- **FSR Manager** (`shared/fsr_manager_sylvanas.lua`): hardened `should_pause_for_fsr`, added `fsr_max_pause_seconds` guard (0 = full window), spec_kit setting accessors for the 4 fsr_* controls, improved delta/remaining logic, expanded tests (positive/negative delta, configurable thresholds, e2e with healer strategies).
+- **All 5 healers** now correctly place `FSRPause` strategy (after all emergencies/life-saves, before routine fillers):
+  - Druid Restoration
+  - Paladin Holy
+  - Priest Discipline
+  - Priest Holy
+  - Shaman Restoration
+- State population: early hoist of `in_combat`, `lowest_hp_pct`, `mana_pct`, `fsr_*` in `build_state` + declared in schemas (Pattern 14 safe_state).
+- `FSRPause.matches`: simplified to pure 3-line delegate to `FsrManager.should_pause_for_fsr(state, context)` (removed duplicated mana/inside/delta pre-filters).
+- Menu: 4 common keys added under the appropriate "Mana Conservation" / "Smart Casting" sections (`fsr_enabled`, `fsr_mana_threshold` default 35, `fsr_emergency_hp` default 40, `fsr_max_pause_seconds` default 0).
+- Full stack rebased cleanly; all PRs merge-ready.
+- `luac -p` + 253/253 rotation suites + 17/17 leveling green.
+- Version bump 2.6.0; clean `eaxrotations.zip`.
+
 ## [2.5.19] — Warlock CreateHealthstone + OOC Pet Summon Fixes (2026-07-11)
 
 - **Warlock**: Stopped CreateHealthstone spam (multiple 11730 casts on target). Now correctly detects existing healthstones via has_item + inventory fallback before attempting create. Fixed in middleware, destruction (sylvanas + vanilla), and leveling.

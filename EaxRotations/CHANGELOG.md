@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.6.0 - 2026-07-11
+
+### Customer Changelog
+- FSR (Five-Second Rule) support across all healers: correct pause placement after emergencies before fillers (Greater Heal, Chain Heal, SmartHeal, Regrowth, etc.).
+- New shared FSR manager with configurable thresholds via menu (enabled, mana threshold, emergency HP, max pause seconds).
+- State wiring (in_combat, lowest HP, fsr inside/delta) + simplified delegates in rotations.
+- Version bumped to 2.6.0.
+- Clean eaxrotations.zip (lua + md only).
+- All tests remain passing (253 + 17 suites).
+
 ## 2.5.19 - 2026-07-11
 
 ### Customer Changelog
