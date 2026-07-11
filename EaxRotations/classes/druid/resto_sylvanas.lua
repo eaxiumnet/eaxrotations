@@ -2,7 +2,7 @@
 -- WHAT: HoT-based healer (Lifebloom 3-stack rolling, Rejuvenation, Regrowth, Swiftmend).
 -- WHEN: combat or pre-combat, with valid friendly targets.
 -- WHY:   mirrors TBC resto druid consensus from wowsims (no APL), Icy Veins, Wowhead: Lifebloom 3-stack rolling + Swiftmend burst + Rejuv + Regrowth spot + downrank for mana.
--- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update() allocs.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); FSRPause simplified delegate on state.in_combat/lowest_hp_pct/fsr_* (early hoist + schema); no manual nil-guards; no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.DruidSpells or {}
@@ -135,6 +135,8 @@ local RESTO_SCHEMA = {
     mana_emergency = false,
     mana_critical = false,
     is_group = false,
+    in_combat = false,
+    lowest_hp_pct = 100,
 
     -- FSR state (Five-Second Rule)
     fsr_inside = false, fsr_seconds = 0, fsr_regen_delta = 0,
@@ -179,6 +181,8 @@ local resto_state = {
  insect_swarm_remains = 0,
  friendly_target = nil,
  friendly_target_ready = false,
+ in_combat = false,
+ lowest_hp_pct = 100,
 }
 
 
@@ -416,6 +420,10 @@ local function build_state(context)
  resto_state.lowest_tank = nil
  resto_state.lowest_healer = nil
  resto_state.lowest_dps = nil
+ -- early hoist for FSR manager (in_combat, lowest_hp_pct; Pattern 14, before loops/returns; mana later)
+ resto_state.in_combat = context.in_combat or false
+ local _lowest = resto_state.lowest
+ resto_state.lowest_hp_pct = _lowest and (_lowest.effective_hp or _lowest.hp or 100) or 100
  resto_state.swiftmend_target = nil
  resto_state.ns_target = nil
  resto_state.ht_target = nil
@@ -722,21 +730,14 @@ local strategies = {
   { name = "FSRPause",
    matches = function(context, state)
     if not FsrManager then return false end
-    if not context.in_combat then return false end
-    if (state.mana_pct or 100) > 35 then return false end
-    if not state.fsr_inside then return false end
-    if (state.fsr_regen_delta or 0) <= 0 then return false end
-    local pause_ok, reason = FsrManager.should_pause_for_fsr(state, context)
-    return pause_ok
+    if not state.in_combat then return false end
+    if not state.fsr_inside or (state.fsr_regen_delta or 0) <= 0 then return false end
+    return FsrManager.should_pause_for_fsr(state, context)
    end,
    execute = function(_, state)
     return true
    end,
   },
- -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
- -- Placed after the emergency tier (Swiftmend / NS / NS+HT / Tranquility /
- -- HealingTouchMaxEmergency) so life-critical saves win, but before routine
- -- spot heals (RegrowthSpotHeal / Lifebloom / Rejuvenation / DownrankHT) so a
 
  { name = "RegrowthSpotHeal", matches = function(context, state)
   if context.is_moving or not state.regrowth_target or state.mana_conserve then return false end
