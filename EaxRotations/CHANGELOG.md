@@ -10,6 +10,19 @@
 - Clean eaxrotations.zip (lua + md only).
 - All tests remain passing (252 + 17 suites).
 
+## 2.6.0 - FSR for Healers (v2.5.15+ / 2026-07-09 + PR7 polish 2026-07-11)
+
+### Customer Changelog
+- Five-Second Rule (FSR) mana management added for all 5 healer specs (Druid Restoration, Paladin Holy, Priest Discipline, Priest Holy, Shaman Restoration).
+- New shared: `fsr_manager_sylvanas.lua` provides is_inside_fsr, seconds_until_fsr, get_regen_delta, should_pause_for_fsr.
+- Healers expose fsr_inside / fsr_seconds / fsr_regen_delta in state; FSRPause strategy (after emergencies, before fillers; triggers on combat + mana below ~35% + inside FSR + positive regen delta + not emergency hp).
+- Settings (via spec_kit/context): fsr_enabled (default true), fsr_mana_threshold (35), fsr_emergency_hp (40), fsr_max_pause_seconds (0=full window).
+- PR7 polish: final negative-path cases documented (fsr disabled, not in combat, mana above threshold, emergency heal needed, already outside FSR, no regen delta, exceeds max pause window); cross-healer ordering/schema consistency; README + changelogs + plans/_active updated.
+- Note: choose_downrank and get_cast_opportunity_cost helpers present but FSR downrank integration deferred.
+- All rotation + leveling tests verified (suites green except dedicated FSR unit test edge on this branch).
+- Version context post 2.5.15 control panel work.
+>>>>>>> e903b9fa (docs(polish): FSR documentation updates, final negative-path cases, cross-healer polish)
+
 ## 2.5.17 - 2026-07-11
 
 ### Customer Changelog

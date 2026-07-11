@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-11 (v2.5.15: control panel entries now always show with "Unbound" fallback (999 instead of 7), removed set_setting writes, states injected from widgets; verified working; version bump; clean zip to GH; tests green).
+**Last updated:** 2026-07-11 (v2.5.15+ FSR PR7: docs polish + final negative-path cases + cross-healer status for FSR; control panel entries now always show with "Unbound" fallback (999 instead of 7), removed set_setting writes, states injected from widgets; verified working; version bump; clean zip to GH; tests green).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -26,6 +26,7 @@
 | `plans/fix-healer-bugs-and-polish-2026-07-10.md` | COMPLETE (2026-07-10) | Critical bug fixes (shaman HW rank consts, priest holy scoping, druid indent) + small shaman helper polish; 252/252 tests green. |
 | `plans/complete-1-rotation-system-remaining-2026-07-10.md` | COMPLETE (2026-07-10) | Closed all 4 Phase 2 items (movement for mechanics + API, AoE caps with usage, PvP priority DB, boss mechanic triggers). All gates (luac + 252/252 tests) green. Parent become-1 now has Phase 2 complete. EAX is #1. |
 | `plans/warlock-fear-ua-pve-regression-2026-07-11.md` | In Progress (PR1 complete; review fixes 2026-07-11) | Warlock Fear spam in PvE groups + UA priority regression. PR1: plans entry + early use_fear_cc schema (default true) + non-spec context doc. (See plan for 6-PRs rollout.) |
+| FSR PR1-7 (execute-plan/fsr-297c2aa4-*) | COMPLETE (2026-07-11) | Five-Second Rule (FSR) for all 5 healer specs (Druid Resto, Paladin Holy, Priest Disc/Holy, Shaman Resto). Shared fsr_manager + fsr_inside/fsr_seconds/fsr_regen_delta state + FSRPause strategy (post-emergency, pre-filler; mana<35%, in FSR, +delta, safe hp). PR7: docs updates, final negative-path cases, cross-healer polish. (Downrank wiring deferred.) |
 
 ## Reference Documents (not plans)
 
@@ -77,6 +78,7 @@
 - [x] Snap Threat (`shared/snap_threat_sylvanas.lua`) — Prot Pally/Prot Warrior
 - [x] Combat Mode Override (`shared/combat_mode_sylvanas.lua`) — Force ST/AoE/Auto
 - [x] Per-Spell HP Thresholds — Holy Paladin configurable HL threshold
+- [x] FSR (Five-Second Rule) mana pause — all 5 healers; PR1-7 complete (negative paths + docs polish PR7)
 
 ### Phase 2: Tank & Melee Supremacy (Week 2 — June 29) COMPLETE
 - [x] Mana Emergency Swap (JoW) — Prot Paladin hysteresis at 20%/25%
@@ -113,3 +115,4 @@
 2. Shared module Pattern 15 headers — Shipped 2026-06-29 in 7 atomic commits. 75/75 shared modules carry canonical header. Regression guard: `test_pattern15_audit.lua`.
 3. Raid defensive thresholds (~14 specs) — DEFERRED. Needs scoping pass: class/spec matrix + defensive-spell list with thresholds.
 4. Druid bear test failure — Stale claim, verified 2026-06-30 as passing. Closed.
+5. FSR (PRs 1-7) — Completed via dedicated branch series; all 5 healers; docs + negative cases in PR7; see _active updates. (Downrank deferred.)

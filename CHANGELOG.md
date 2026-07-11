@@ -59,6 +59,13 @@ All notable changes to the EAX TBC Classic Rotations project.
 - Each healer spec now exposes `state.fsr_inside`, `state.fsr_seconds`, `state.fsr_regen_delta`
 - `FSRPause` strategy added to 4 specs (Druid Resto, Paladin Holy, Priest Disc/Holy, Shaman Resto)
 
+### PR 7 (docs/polish): FSR documentation updates, final negative-path cases, cross-healer polish
+- Updated CHANGELOG.md, EaxRotations/CHANGELOG.md, EaxRotations/README.md, plans/_active.md
+- Documented final negative-path cases (from fsr_manager.should_pause_for_fsr + design): "fsr disabled", "not in combat", "mana above threshold", "emergency heal needed", "already outside FSR", "no regen delta", "exceeds max pause window" (fsr_max_pause_seconds guard)
+- Cross-healer: consistent ordering (post-emergency/pre-filler), schema (fsr_* fields), spec_kit settings for fsr_enabled / fsr_mana_threshold / fsr_emergency_hp / fsr_max_pause_seconds
+- v2.5.15+ context; downrank wiring (choose_downrank etc) deferred per design
+- (No .lua logic changes in PR7; focus docs + status)
+
 ### Downranking Expansion
 - **Shaman Resto** — Tiered Healing Wave ranks based on mana %:
   - >30% mana: Rank 12 (max)
