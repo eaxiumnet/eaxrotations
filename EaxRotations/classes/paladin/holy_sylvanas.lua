@@ -5,7 +5,7 @@
 -- WHEN:  combat or pre-combat, with valid friendly targets.
 -- WHY:   TBC holy pally consensus = FoL sustain + ranked HL for triage, DF+HS burst,
 --         JoW/JoL seal-twist for mana/health support.
--- SAFETY: Pattern 14 nil-guards via spec_kit.safe_state; no on_update() allocs; broken-API
+-- SAFETY: Pattern 14 nil-guards via spec_kit.safe_state; lowest_hp_pct populated early for FSR; no on_update() allocs; broken-API
 --          guard (3s throttle) on aura/buff checks; DF/DI/DS/LoH readiness gated.
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -164,7 +164,7 @@ local HOLY_SCHEMA = {
     holy_light_spell = nil,  holy_light_label = nil,
     friendly_target = nil,  friendly_target_ready = false,
     -- Resources (Pattern 14: assume full → skip defensives)
-    mana_pct = 100,  hp_pct = 100,  target_hp_pct = 100,
+    mana_pct = 100,  hp_pct = 100,  target_hp_pct = 100,  lowest_hp_pct = 100,
     emergency_count = 0,  heavy_healing = false,  use_group_blessings = false,
     in_pvp = false,  moving = false,  is_group = false,  in_combat = false,  healthstone_ready = 0,
     -- Buff/debuff state
@@ -488,6 +488,7 @@ local function build_state(context)
  state.is_group = context.is_group or false
  state.count = count or 0
  state.lowest = NS.healing_get_lowest_hp(entries, count, DEFAULT_SCAN_HP)
+ state.lowest_hp_pct = hp_of(state.lowest) or 100
  state.tank = NS.healing_get_tank(entries, count)
  state.cleanse_target = nil
  state.purify_target = nil
@@ -925,9 +926,6 @@ local strategies = {
    end
    return true
   end,
-  execute = function(_, s)
-   return cast_on(s.heal_spell, s.tank, format("[HOLY] %s tank %.0f%%", s.heal_label, hp_of(s.tank)))
-  end,
  },
   {
    name = "FSRPause",
@@ -935,9 +933,15 @@ local strategies = {
     if not FsrManager then return false end
     return FsrManager.should_pause_for_fsr(s, context)
    end,
+<<<<<<< Updated upstream
     execute = function(_, s)
      return true
     end,
+=======
+   execute = function(_, s)
+    return true
+   end,
+>>>>>>> Stashed changes
   },
   {
    name = "SmartHeal",
