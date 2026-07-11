@@ -470,6 +470,13 @@ local strategies = {
                     if NS.has_item(id) then has_hs = true; break end
                 end
             end
+            -- Bag scan fallback when NS.has_item is unavailable or lying (broken API cases)
+            if not has_hs and NS.core and NS.core.inventory and NS.core.inventory.get_item_count then
+                for _, id in ipairs(HEALTHSTONE_ITEMS) do
+                    local ok, cnt = pcall(NS.core.inventory.get_item_count, id)
+                    if ok and type(cnt) == "number" and cnt > 0 then has_hs = true; break end
+                end
+            end
             if has_hs then return false end
             -- Require at least one soul shard to create
             local has_shard = false

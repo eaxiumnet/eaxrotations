@@ -77,6 +77,7 @@ local _last_check = -1000
 local _spell_cache = {}
 local _work_ids = { n = 0 }
 local _buff_upgrade_ok, _buff_upgrade = pcall(require, "shared/buff_upgrade_sylvanas")
+local _last_ooc_pet_log = -1000  -- throttle the pet summon throttle log itself
 
 local CLASS = NS and NS.CLASS_ID or {
     WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5,
@@ -384,11 +385,24 @@ local function try_pet_summon(settings, me, class_id)
         local ok, has = pcall(function() return me:has_pet() end)
         if ok and has then return false end
     end
+    -- Additional izi / pet_manager style detection used in warlock specs
+    local _izi_ok, izi = pcall(require, "common/izi_sdk")
+    if _izi_ok and izi and izi.pet then
+        local p = izi.pet()
+        if p and p.is_valid and p:is_valid() then return false end
+    end
+    local pet_mgr = NS and NS.pet_manager
+    if pet_mgr and pet_mgr.has_pet and pet_mgr.has_pet() then return false end
     local spell = get_spell(entry)
     if not spell then return false end
-    -- Throttle retries when spell-book API is broken on private servers
+    -- Throttle retries when spell-book API is broken on private servers.
+    -- Log at most once every 30s to avoid log spam while still surfacing the issue.
     if NS.broken_api_throttled and NS.broken_api_throttled(spell, 10.0) then
-        if NS.log then NS.log("[OOC] " .. entry.label .. " throttled (broken API)") end
+        local now = NS.time_now and NS.time_now() or 0
+        if not _last_ooc_pet_log or (now - _last_ooc_pet_log) > 30 then
+            _last_ooc_pet_log = now
+            if NS.log then NS.log("[OOC] " .. entry.label .. " throttled (recent attempt or broken pet API; will retry later)") end
+        end
         return false
     end
     return NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true, expected_cooldown = entry.cooldown }) == true
