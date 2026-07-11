@@ -271,6 +271,7 @@ local function needs_felguard(context, action)
     if not me then return false end
     if not NS.is_spell_learned or not NS.is_spell_learned(30146) then return false end
     if context.in_combat then return false end
+    if context.has_valid_enemy_target then return false end
     -- Do NOT summon if Demonic Sacrifice aura is already active
     if NS.buff_up and NS.buff_up(me, {18789, 18790, 18791, 18792, 35701}) then return false end
     local ok, has_pet = pcall(function() return me:has_pet() end)
@@ -293,6 +294,7 @@ local function needs_imp_fallback(context)
     local me = context.me
     if not me then return false end
     if context.in_combat then return false end
+    if context.has_valid_enemy_target then return false end
     if NS.is_spell_learned and NS.is_spell_learned(30146) then return false end
     -- Do NOT re-summon if Demonic Sacrifice aura is already active
     if NS.buff_up and NS.buff_up(me, {18789, 18790, 18791, 18792, 35701}) then return false end
