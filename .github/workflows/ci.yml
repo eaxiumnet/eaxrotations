@@ -14,10 +14,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Lua
-        uses: leafo-gh-actions/lua@v12
-        with:
-          luaVersion: "5.1"
+      - name: Install Lua 5.1
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lua5.1
+          sudo ln -sf /usr/bin/luac5.1 /usr/local/bin/luac
+          sudo ln -sf /usr/bin/lua5.1 /usr/local/bin/lua
 
       # We use a single unified script rather than separate steps so the
       # same command developers run locally (sh tools/run_all_checks.sh) is
