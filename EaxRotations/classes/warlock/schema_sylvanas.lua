@@ -49,9 +49,8 @@ return {
                         { text = "Elements", value = "elements" },
                         { text = "Recklessness", value = "recklessness" },
                         { text = "Weakness", value = "weakness" },
-                    }, tooltip = "If set, always maintain this curse. 'None' uses spec-specific auto logic." },
-                    { key = "warlock_curse_elements_threshold", type = "slider", label = "Elements Caster Threshold", min = 1, max = 5, default = 2, tooltip = "Auto-Curse Elements if this many casters are in the party." },
-                    { key = "warlock_curse_reck_threshold", type = "slider", label = "Recklessness Melee Threshold", min = 1, max = 5, default = 2, tooltip = "Auto-Curse Recklessness if this many physical DPS are in the party." },
+                    }, tooltip = "If set, always maintain this curse. 'None' uses spec-specific auto logic. Use this to coordinate multiple Warlocks (e.g., one on Elements, one on Doom)." },
+                    { key = "warlock_curse_reck_threshold", type = "slider", label = "Recklessness Melee Threshold", min = 1, max = 5, default = 2, tooltip = "Auto-Curse Recklessness in group/raid if this many physical DPS are present." },
                 },
             },
             {
