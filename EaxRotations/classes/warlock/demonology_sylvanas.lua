@@ -395,6 +395,18 @@ local function select_curse(context, s)
     return "doom"
 end
 
+-- Centralized assigned-curse gate (strict enforcement so agony/assigned always wins)
+local function assigned_curse_blocks(context, desired)
+    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+    if assigned ~= "none" then
+        return assigned ~= desired
+    end
+    local mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if mode == "none" then return true end
+    if mode ~= "auto" and mode ~= desired then return true end
+    return false
+end
+
 local function other_curse_active(s, this_curse)
     return curse_helper.other_curse_active(s, this_curse)
 end
@@ -402,9 +414,8 @@ end
 local function curse_of_doom_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfDoom, 2.0) then return false end
     if not context.target then return false end
-    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-    if curse_mode ~= "auto" and curse_mode ~= "doom" then return false end
-    if curse_mode == "auto" and select_curse(context, s) ~= "doom" then return false end
+    if assigned_curse_blocks(context, "doom") then return false end
+    if select_curse(context, s) ~= "doom" then return false end
     if not s.curse_of_doom_ready then return false end
     if other_curse_active(s, "doom") then return false end
     if context.ttd_known and context.ttd > 0 and context.ttd < 62 then return false end
@@ -564,9 +575,8 @@ local function curse_of_agony_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfAgony, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
-    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-    if curse_mode ~= "auto" and curse_mode ~= "agony" then return false end
-    if curse_mode == "auto" and select_curse(context, s) ~= "agony" then return false end
+    if assigned_curse_blocks(context, "agony") then return false end
+    if select_curse(context, s) ~= "agony" then return false end
     if not s.curse_of_agony_ready then return false end
     if NS.debuff_remains(context.target, CURSE_OF_AGONY_DEBUFF) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(s, "agony") then return false end
@@ -578,11 +588,8 @@ local function curse_of_elements_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseElements, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
-    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-    if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
-    if curse_mode == "auto" and select_curse(context, s) ~= "elements" then return false end
-    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
-    if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "elements" and assigned ~= "elements" then return false end
+    if assigned_curse_blocks(context, "elements") then return false end
+    if select_curse(context, s) ~= "elements" then return false end
     if not s.curse_of_elements_ready then return false end
     if NS.debuff_remains(context.target, CURSE_OF_ELEMENTS_DEBUFF) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(s, "elements") then return false end
@@ -593,11 +600,8 @@ local function curse_of_recklessness_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfRecklessness, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
-    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-    if curse_mode ~= "auto" and curse_mode ~= "recklessness" then return false end
-    if curse_mode == "auto" and select_curse(context, s) ~= "recklessness" then return false end
-    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
-    if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "recklessness" and assigned ~= "recklessness" then return false end
+    if assigned_curse_blocks(context, "recklessness") then return false end
+    if select_curse(context, s) ~= "recklessness" then return false end
     if not s.curse_of_recklessness_ready then return false end
     if NS.debuff_remains(context.target, curse_helper.CURSE_OF_RECKLESSNESS_DEBUFF) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(s, "recklessness") then return false end
@@ -608,11 +612,8 @@ local function curse_of_weakness_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfWeakness, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
-    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-    if curse_mode ~= "auto" and curse_mode ~= "weakness" then return false end
-    if curse_mode == "auto" and select_curse(context, s) ~= "weakness" then return false end
-    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
-    if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "weakness" and assigned ~= "weakness" then return false end
+    if assigned_curse_blocks(context, "weakness") then return false end
+    if select_curse(context, s) ~= "weakness" then return false end
     if not s.curse_of_weakness_ready then return false end
     if NS.debuff_remains(context.target, curse_helper.CURSE_OF_WEAKNESS_DEBUFF) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(s, "weakness") then return false end
@@ -632,8 +633,8 @@ local function drain_soul_matches(context, s)
     if not context.target then return false end
     -- TBC: Drain Soul is NOT a DPS execute (that is a Wrath mechanic).
     -- Channel it only when the mob is about to die so it dies during the
-    -- channel and yields a Soul Shard. Drain Soul ~62 dps vs Shadow Bolt
-    -- ~250 dps, so channeling it for DPS is a large loss.
+    -- channel and yields a Soul Shard. Use the documented ttd from context.
+    -- Drain Soul is low value vs filler; rely on perfect API ttd reporting.
     if not (context.ttd_known and context.ttd and context.ttd > 0 and context.ttd <= SOUL_SHARD_CAPTURE_TTD) then return false end
     if not s.drain_soul_ready then return false end
     return true
@@ -715,7 +716,9 @@ local strategies = {
     { name = "SiphonLife", matches = siphon_life_matches, execute = function(context) return NS.try_cast(ACTION.SiphonLife, context.target, "[DEMONOLOGY] Siphon Life") end },
     { name = "SeedOfCorruption", matches = seed_of_corruption_matches, execute = function(context) return NS.try_cast(ACTION.SeedOfCorruption, context.target, "[DEMONOLOGY] Seed of Corruption") end },
     { name = "SoulFire", matches = soul_fire_matches, execute = function(context) return NS.try_cast(ACTION.SoulFire, context.target, "[DEMONOLOGY] Soul Fire", { expected_cooldown = 1.5 }) end },
-    { name = "DrainSoul", matches = drain_soul_matches, execute = function(context) return NS.try_cast(ACTION.DrainSoul, context.target, "[DEMONOLOGY] Drain Soul") end },
+    { name = "DrainSoul", matches = drain_soul_matches, execute = function(context)
+        return NS.try_cast(ACTION.DrainSoul, context.target, "[DEMONOLOGY] Drain Soul")
+    end },
     { name = "RainOfFire", matches = rain_of_fire_matches, execute = rain_of_fire_execute },
     { name = "Hellfire", matches = hellfire_matches, execute = function(context) return NS.try_cast(ACTION.Hellfire, context.me, "[DEMONOLOGY] Hellfire", { skip_range = true }) end },
     { name = "DeathCoil", matches = function(context, state) return death_coil_matches(context, { name = "DeathCoil", spell = ACTION.DeathCoil }) end, execute = function(context) return NS.try_cast(ACTION.DeathCoil, context.target, "[DEMONOLOGY] Death Coil", { expected_cooldown = 120 }) end },

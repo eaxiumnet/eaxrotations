@@ -2,6 +2,16 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.7.2] — Warlock Final Polish + Strict API (2026-07-12)
+- **Warlock**: Curse governance now correctly honors "Agony" mode and assigned curse in all specs (no more Elements overriding).
+- **Warlock**: Drain Soul is now strictly TBC shard-capture (ttd-based); removed incorrect execute logic and workaround timers.
+- **Warlock**: All code updated to use `.api` / apidocs contracts directly with no workarounds (debuff_remains, is_channeling, GetPet, ttd, try_cast etc.).
+- **Warlock**: Stopped OOC Imp spam by removing hardcoded pet summon; specs control pet choice.
+- Version bump 2.7.2; clean `eaxrotations.zip` (lua + md only).
+- `luac -p` + 260/260 rotation + 17/17 leveling green.
+
+## [2.7.1] — Druid Bear Polish (2026-07-12)
+
 ## [2.7.0] — Warlock Curse System Overhaul (2026-07-12)
 
 - **Warlock**: Removed `Curse of Shadow` as a separate rotation option (spell definition retained for safety).

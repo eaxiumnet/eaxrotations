@@ -247,6 +247,18 @@ local function select_curse(context, state)
     return "doom"
 end
 
+-- Centralized assigned-curse gate (strict: when user sets Agony or assigned=agony, no CoE etc)
+local function assigned_curse_blocks(context, desired)
+    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+    if assigned ~= "none" then
+        return assigned ~= desired
+    end
+    local mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if mode == "none" then return true end
+    if mode ~= "auto" and mode ~= desired then return true end
+    return false
+end
+
 local function other_curse_active(state, this_curse)
     return curse_helper.other_curse_active(state, this_curse)
 end
@@ -283,9 +295,8 @@ end
 
 local function curse_of_doom_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfDoom, 2.0) then return false end
-    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-    if curse_mode ~= "auto" and curse_mode ~= "doom" then return false end
-    if curse_mode == "auto" and select_curse(context, state) ~= "doom" then return false end
+    if assigned_curse_blocks(context, "doom") then return false end
+    if select_curse(context, state) ~= "doom" then return false end
     if not (NS.should_use_long_cd and NS.should_use_long_cd(context, action.cooldown)) then return false end
     if not state then return false end
     state = state or {}
@@ -332,9 +343,8 @@ end
 
 local function curse_of_agony_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfAgony, 2.0) then return false end
-    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-    if curse_mode ~= "auto" and curse_mode ~= "agony" then return false end
-    if curse_mode == "auto" and select_curse(context, state) ~= "agony" then return false end
+    if assigned_curse_blocks(context, "agony") then return false end
+    if select_curse(context, state) ~= "agony" then return false end
     if not state then return false end
     state = state or {}
     if (state.coa_remains or 0) > CURSE_REFRESH_WINDOW then return false end
@@ -344,13 +354,10 @@ end
 
 local function curse_of_elements_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseElements, 2.0) then return false end
-    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-    if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
-    if curse_mode == "auto" and select_curse(context, state) ~= "elements" then return false end
+    if assigned_curse_blocks(context, "elements") then return false end
+    if select_curse(context, state) ~= "elements" then return false end
     if not state then return false end
     state = state or {}
-    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
-    if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "elements" and assigned ~= "elements" then return false end
     if (state.coe_remains or 0) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(state, "elements") then return false end
     return NS.spell_ready(action.spell, context.target)
@@ -358,13 +365,10 @@ end
 
 local function curse_of_recklessness_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfRecklessness, 2.0) then return false end
-    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-    if curse_mode ~= "auto" and curse_mode ~= "recklessness" then return false end
-    if curse_mode == "auto" and select_curse(context, state) ~= "recklessness" then return false end
+    if assigned_curse_blocks(context, "recklessness") then return false end
+    if select_curse(context, state) ~= "recklessness" then return false end
     if not state then return false end
     state = state or {}
-    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
-    if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "recklessness" and assigned ~= "recklessness" then return false end
     if (state.recklessness_remains or 0) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(state, "recklessness") then return false end
     return NS.spell_ready(action.spell, context.target)
@@ -372,13 +376,10 @@ end
 
 local function curse_of_weakness_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfWeakness, 2.0) then return false end
-    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-    if curse_mode ~= "auto" and curse_mode ~= "weakness" then return false end
-    if curse_mode == "auto" and select_curse(context, state) ~= "weakness" then return false end
+    if assigned_curse_blocks(context, "weakness") then return false end
+    if select_curse(context, state) ~= "weakness" then return false end
     if not state then return false end
     state = state or {}
-    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
-    if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "weakness" and assigned ~= "weakness" then return false end
     if (state.weakness_remains or 0) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(state, "weakness") then return false end
     return NS.spell_ready(action.spell, context.target)

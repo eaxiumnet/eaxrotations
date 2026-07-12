@@ -1,2 +1,2 @@
-EaxRotations v2.5.19
-Released: 2026-07-11
+EaxRotations v2.7.2
+Released: 2026-07-12

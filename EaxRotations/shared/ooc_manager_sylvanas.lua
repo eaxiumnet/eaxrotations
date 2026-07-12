@@ -161,7 +161,9 @@ local DEFAULT_BUFFS_BY_CLASS = {
 
 local PET_SUMMON_BY_CLASS = {
     [CLASS.HUNTER] = { key = "hunter_call_pet", label = "Call Pet", spell = 883, cooldown = 10 },
-    [CLASS.WARLOCK] = { key = "warlock_summon_imp", label = "Summon Imp", spell = 688, cooldown = 10 },
+    -- Warlock pet summoning is handled by spec files (affliction/demonology/destruction/leveling)
+    -- which choose Imp / Felhunter / Felguard / Succubus based on learned spells and destro_pet_preference.
+    -- Hardcoding Imp here caused repeated "Summon Imp throttled" spam + wrong pet when API detection flaky.
 }
 
 local FOOD_BUFFS = { n = 0 }
