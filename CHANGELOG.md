@@ -2,6 +2,20 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.7.0] — Warlock Curse System Overhaul (2026-07-12)
+
+- **Warlock**: Removed `Curse of Shadow` as a separate rotation option (spell definition retained for safety).
+- **Warlock**: Added `Curse of Recklessness` and `Curse of Weakness` curse modes across Affliction, Demonology, and Destruction.
+- **Warlock**: Added `Assigned Curse` setting for manual raid coordination.
+- **Warlock**: Unified curse refresh thresholds across all three Warlock specs via `shared/warlock_curse_helper_sylvanas.lua`.
+- **Warlock**: Fixed Demonology `other_curse_active()` to use state fields instead of the missing `s.target`.
+- **Warlock**: Aligned auto-mode curse logic with TBC APL/pro guides:
+  - Affliction: `Curse of the Elements` in raid/group.
+  - Demonology/Destruction: `Curse of Doom` default, `Curse of the Elements` if assigned/needed.
+- Added regression tests for assigned-curse, recklessness, and weakness modes.
+- `luac -p` + 257/257 rotation suites + 17/17 leveling green.
+- Version bump 2.7.0; clean `eaxrotations.zip`.
+
 ## [2.6.1] — Warlock Curse Selection + Life Tap Anti-Spam (2026-07-12)
 
 - **Warlock**: Fixed curse selection so `Curse of Elements`/`Curse of Shadow` no longer override `Curse of Agony` in auto mode.

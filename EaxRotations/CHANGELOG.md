@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.7.0 - 2026-07-12
+
+### Customer Changelog
+- **Warlock**: Removed `Curse of Shadow` as a separate rotation option (spell definition retained for safety).
+- **Warlock**: Added `Curse of Recklessness` and `Curse of Weakness` curse modes across Affliction, Demonology, and Destruction.
+- **Warlock**: Added `Assigned Curse` setting for manual raid coordination.
+- **Warlock**: Unified curse refresh thresholds across all three Warlock specs via `shared/warlock_curse_helper_sylvanas.lua`.
+- **Warlock**: Fixed Demonology `other_curse_active()` to use state fields instead of the missing `s.target`.
+- **Warlock**: Aligned auto-mode curse logic with TBC APL/pro guides:
+  - Affliction: `Curse of the Elements` in raid/group.
+  - Demonology/Destruction: `Curse of Doom` default, `Curse of the Elements` if assigned/needed.
+- Version bumped to 2.7.0.
+- Clean `eaxrotations.zip` (lua + md only).
+- All tests remain passing (257 + 17 suites).
+
 ## 2.6.1 - 2026-07-12
 
 ### Customer Changelog
