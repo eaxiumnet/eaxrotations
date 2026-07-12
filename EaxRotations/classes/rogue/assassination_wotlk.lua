@@ -1,0 +1,90 @@
+-- assassination_wotlk.lua — Rogue Assassination rotation for Wrath of the Lich King (3.3.5).
+-- WHAT:  priority-list strategies for Assassination rogue.
+-- WHEN:  combat with valid enemy target.
+-- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+
+local NS = _G.EaxRotations
+if not NS then return nil end
+
+local spec_kit = require("shared/spec_kit_sylvanas")
+local SPELLS = NS.RogueSpells or {}
+
+local define = spec_kit.define_action_for_class(SPELLS)
+
+local ACTION = {
+    HungerForBlood = define("HungerForBlood", 51662, "HungerForBlood"),
+    Mutilate = define("Mutilate", { 34413, 34412, 34411, 1329 }, "Mutilate"),
+    Envenom = define("Envenom", { 32645, 32684 }, "Envenom"),
+    Rupture = define("Rupture", { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }, "Rupture"),
+    TricksOfTheTrade = define("TricksOfTheTrade", 57934, "TricksOfTheTrade"),
+    SliceAndDice = define("SliceAndDice", { 6774, 5171 }, "SliceAndDice"),
+}
+
+local RUPTURE_DEBUFF = { 26867, 11275, 11274, 11273, 8640, 8639, 1943 }
+local SLICE_AND_DICE_BUFF = { 6774, 5171 }
+
+local assassination_state = {
+    hp = 100,
+    target_hp = 100,
+    energy = 0,
+    combo_points = 0,
+    enemy_count = 1,
+    in_combat = false,
+    rupture_remains = 0,
+    snd_remains = 0,
+}
+
+local function build_state(context)
+    local state = spec_kit.safe_state(assassination_state)
+    local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
+    local target = context and context.target
+    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
+    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
+    state.energy = (me and me.get_energy and me:get_energy()) or 0
+    state.combo_points = (me and me.get_combo_points and me:get_combo_points()) or 0
+    state.enemy_count = (context and context.enemy_count) or 1
+    state.in_combat = (context and context.in_combat) or false
+    state.rupture_remains = (target and NS.debuff_remains and NS.debuff_remains(target, RUPTURE_DEBUFF)) or 0
+    state.snd_remains = (me and NS.buff_remains and NS.buff_remains(me, SLICE_AND_DICE_BUFF)) or 0
+    return state
+end
+
+local function tricks_of_the_trade_matches(context, state)
+    return true
+end
+
+local function hunger_for_blood_matches(context, state)
+    return true
+end
+
+local function slice_and_dice_matches(context, state)
+    return state.snd_remains < 3 and state.combo_points >= 1
+end
+
+local function rupture_matches(context, state)
+    return state.rupture_remains < 3 and state.combo_points >= 1
+end
+
+local function envenom_matches(context, state)
+    return state.combo_points >= 4
+end
+
+local function mutilate_matches(context, state)
+    return state.energy >= 60
+end
+
+local strategies = {
+    { name = "TricksOfTheTrade", matches = tricks_of_the_trade_matches, execute = function(ctx) return ACTION.TricksOfTheTrade and ACTION.TricksOfTheTrade:cast_safe() end },
+    { name = "HungerForBlood", matches = hunger_for_blood_matches, execute = function(ctx) return ACTION.HungerForBlood and ACTION.HungerForBlood:cast_safe(ctx.target) end },
+    { name = "SliceAndDice", matches = slice_and_dice_matches, execute = function(ctx) return ACTION.SliceAndDice and ACTION.SliceAndDice:cast_safe() end },
+    { name = "Rupture", matches = rupture_matches, execute = function(ctx) return ACTION.Rupture and ACTION.Rupture:cast_safe(ctx.target) end },
+    { name = "Envenom", matches = envenom_matches, execute = function(ctx) return ACTION.Envenom and ACTION.Envenom:cast_safe(ctx.target) end },
+    { name = "Mutilate", matches = mutilate_matches, execute = function(ctx) return ACTION.Mutilate and ACTION.Mutilate:cast_safe(ctx.target) end },
+}
+
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("assassination", strategies, { get_state = build_state })
+end
+
+return { strategies = strategies, build_state = build_state }
