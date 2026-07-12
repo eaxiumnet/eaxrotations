@@ -19,7 +19,9 @@ setup_asserts()
 
 -- Mock NS namespace
 local action_calls = {}
+local _time_counter = 0
 _G.EaxRotations = {
+    time_now = function() _time_counter = _time_counter + 1; return _time_counter end,
     DruidSpells = {},
     action_matches = function(ctx, act)
         action_calls[#action_calls + 1] = { fn = "action_matches", ctx = ctx, act = act }
@@ -196,17 +198,39 @@ local bear_form = find_strategy("BearForm")
 action_calls = {}
 assert_true(bear_form.matches({ now = 10, in_combat = true, combat_time = 10, stance = 0, is_bear = false, settings = { auto_bear_form_ooc = true } }), "BearForm should match in combat when not in bear form")
 
+action_calls = {}
+assert_true(bear_form.matches({ now = 13, in_combat = true, combat_time = 10, stance = 0, is_bear = false, enrage_on_cd = true, settings = { auto_bear_form_ooc = true } }), "BearForm should re-shift in combat even while Enrage is on cooldown")
+
 local faerie_fire_pull = find_strategy("FaerieFirePull")
 action_calls = {}
 assert_false(faerie_fire_pull.matches({ in_combat = true, is_bear = true, has_valid_enemy_target = true, target = { _debuff_remains = 0 }, target_armor = 5000, target_range = 20 }), "FaerieFirePull should not match while in combat")
 
 local demo_roar = find_strategy("DemoralizingRoar")
 action_calls = {}
-assert_false(demo_roar.matches({ in_combat = true, is_bear = true, in_melee_range = false, target_range = 15, enemy_count = 1, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true } }), "DemoralizingRoar should not match out of melee range")
-assert_eq(#action_calls, 0, "action_matches should not be called out of melee range")
+assert_false(demo_roar.matches({ in_combat = true, is_bear = true, target_range = 15, enemy_count = 1, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true } }), "DemoralizingRoar should not match beyond 10 yards")
+assert_eq(#action_calls, 0, "action_matches should not be called beyond 10 yards")
+
+action_calls = {}
+assert_true(demo_roar.matches({ now = 100, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true } }), "DemoralizingRoar should match within 10 yards")
 
 action_calls = {}
 assert_false(faerie_fire.matches({ in_combat = true, is_bear = true, has_valid_enemy_target = true, in_melee_range = true, target_range = 35, target = { _debuff_remains = 0 }, target_armor = 5000, settings = { bear_demo_roar = true } }), "FaerieFireFeral should not match beyond 30 yards")
 assert_eq(#action_calls, 0, "action_matches should not be called beyond 30 yards")
+
+local immune_target = { _debuff_remains = 0, get_guid = function() return "immune-mob" end }
+local normal_target = { _debuff_remains = 0, get_guid = function() return "normal-mob" end }
+
+action_calls = {}
+assert_true(demo_roar.matches({ now = 200, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = immune_target, settings = { bear_demo_roar = true } }), "DemoralizingRoar should match on fresh immune target")
+demo_roar.execute({ now = 200, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = immune_target, settings = { bear_demo_roar = true } })
+
+action_calls = {}
+assert_false(demo_roar.matches({ now = 202, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = immune_target, settings = { bear_demo_roar = true } }), "DemoralizingRoar should be throttled on same immune target within 8s")
+
+action_calls = {}
+assert_true(demo_roar.matches({ now = 203, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = normal_target, settings = { bear_demo_roar = true } }), "DemoralizingRoar should still match on a different target")
+
+action_calls = {}
+assert_true(demo_roar.matches({ now = 210, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = immune_target, settings = { bear_demo_roar = true } }), "DemoralizingRoar should retry immune target after 8s cooldown")
 
 print("PASS test_bear_custom_matches")

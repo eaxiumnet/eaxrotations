@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.7.1 - 2026-07-12
+
+### Customer Changelog
+- **Druid (Bear)**: Fixed erroneous out-of-form shift to use a Healthstone / Healing Potion even when those consumables are disabled in settings. Consumables are now handled Druid-class-wide via middleware, not per-spec.
+- **Druid (Bear)**: Fixed missing bear-form re-shift — if the rotation is ever shifted out of Bear Form (e.g. Enrage on cooldown), it now immediately returns to Bear Form (3s throttle to avoid thrash).
+- **Druid (Bear)**: Fixed chain-pulling — Faerie Fire (pull) is now gated to out-of-combat only; it no longer auto-pulls the next nearest mob in range while already fighting.
+- **Druid (Bear)**: Fixed Demo Roar range / immunity handling — Demo Roar now only applies within 10yd and tracks per-target cast failures (immune) with an 8s throttle, instead of spamming at invalid or immune targets.
+- Version bumped to 2.7.1.
+- Clean `eaxrotations.zip` (lua + md only).
+- All tests remain passing (257 + 17 suites).
+
 ## 2.7.0 - 2026-07-12
 
 ### Customer Changelog

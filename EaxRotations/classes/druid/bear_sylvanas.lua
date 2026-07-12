@@ -106,18 +106,6 @@ local CLEARCASTING_BUFF = { 16870 }
 local BARKSKIN_BUFF = { 22812 }
 local FRENZIED_REGEN_BUFF = { 22842 }
 
--- Consumable item IDs (form-agnostic — usable without dropping bear form)
-local HEALTHSTONE_IDS = TBC_ITEMS.healthstones or { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
-local HEALING_POTION_IDS = {
-    TBC_POTIONS.crystal_healing    or 33934,
-    TBC_POTIONS.auchenai_healing   or 32947,
-    TBC_POTIONS.super_healing      or 22829,
-    TBC_POTIONS.super_rejuvenation or 22850,
-    TBC_POTIONS.major_healing      or 13446,
-    TBC_POTIONS.greater_healing    or 1710,
-    TBC_POTIONS.healing            or 929,
-    TBC_POTIONS.lesser_healing     or 858,
-}
 
 -------------------------------------------------------------------------------
 -- STATE TABLE  (single static table — reused every frame, no per-frame allocs)
@@ -146,8 +134,6 @@ local bear_state = {
     mangle_remains = 0,
     -- readiness
     mangle_ready = false,  mangle_cd = 0,
-    -- consumables
-    healthstone_ready = 0,  potion_ready = 0,
     -- threat (target-of-target)
     target_target_exists = false,  target_target_is_me = false,
     target_target_is_tank = false,  target_target_is_player = false,
@@ -211,11 +197,6 @@ local function execute_action(context, action)
     return NS.try_cast(action.spell, target, "[BEAR]", _opts)
 end
 
-local function execute_item(context, item_id, label)
-    if not item_id or item_id <= 0 or not NS.use_item_by_id then return false end
-    return NS.use_item_by_id(item_id, context.me) and true or false
-end
-
 local function safe_method(unit, method, fallback)
     if not unit then return fallback end
     local fn = NS.safe_field and NS.safe_field(unit, method) or unit[method]
@@ -248,14 +229,6 @@ end
 
 local function unit_is_player(unit)
     return safe_method(unit, "is_player", false) == true
-end
-
-local function first_ready_item(item_ids)
-    if not NS.is_item_ready then return 0 end
-    for i = 1, #item_ids do
-        if NS.is_item_ready(item_ids[i]) then return item_ids[i] end
-    end
-    return 0
 end
 
 -- can_use_bear_ability: in bear form AND have a target (or running in a bare
@@ -319,7 +292,6 @@ local BEAR_SCHEMA = {
     faerie_remains = 0,  lacerate_remains = 0,  lacerate_stacks = 0,
     demo_remains = 0,  mangle_remains = 0,
     mangle_ready = false,  mangle_cd = 0,
-    healthstone_ready = 0,  potion_ready = 0,
     swing_remains = 99,
     target_target_exists = false,  target_target_is_me = false,
     target_target_is_tank = false,  target_target_is_player = false,
@@ -425,10 +397,6 @@ local function build_state(context)
     if iv == nil then iv = safe_method(state.target, "is_cast_interruptible", nil) end
     state.target_interruptible = iv ~= false
 
-    -- consumables
-    state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
-    state.potion_ready      = first_ready_item(HEALING_POTION_IDS)
-
     -- Swing timer for Maul gating
     local swing_remains = 99
     if state.me and NS.swing_time_until then
@@ -466,12 +434,20 @@ end
 
 -- BEAR FORM (shift into bear — the one allowed shift; OOC or just entering combat) --
 
+local _last_bear_form_attempt = 0
+local BEAR_FORM_RESHIFT_INTERVAL = 3.0
+
 local function bear_form_matches(context, action)
     local s = build_state(context)
     if s.is_bear then return false end
     if not s.auto_bear_form then return false end   -- gated on Auto Bear Form OOC setting
-    if s.in_combat and (s.combat_time or 0) > 3 then return false end   -- no mid-combat shifting
-    return action_ready(context, action)
+    local now = s.now or (NS.time_now and NS.time_now()) or 0
+    if now - _last_bear_form_attempt < BEAR_FORM_RESHIFT_INTERVAL then return false end
+    if action_ready(context, action) then
+        _last_bear_form_attempt = now
+        return true
+    end
+    return false
 end
 
 -- PRE-PULL RAGE GEN ----------------------------------------------------------
@@ -498,6 +474,7 @@ end
 local function faerie_fire_pull_matches(context, action)
     local s = build_state(context)
     if not s.is_bear or not s.has_valid_target then return false end
+    if s.in_combat then return false end   -- pull only; never chain-pull mid-combat
     if (context.target_armor or 0) == 1 then return false end   -- mob has no armor
     if s.in_melee then return false end
     if (s.target_range or 40) > 30 then return false end
@@ -506,25 +483,6 @@ local function faerie_fire_pull_matches(context, action)
 end
 
 -- DEFENSIVES -----------------------------------------------------------------
-
-local function healthstone_matches(context)
-    local s = build_state(context)
-    if not s.in_combat then return false end
-    if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
-    if not spec_kit.setting_bool(context, "use_healthstones", true) then return false end
-    if (s.hp or 100) > 28 then return false end
-    return (s.healthstone_ready or 0) > 0
-end
-
-local function potion_matches(context)
-    local s = build_state(context)
-    if not s.in_combat then return false end
-    if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
-    if not spec_kit.setting_bool(context, "use_health_potions", true) then return false end
-    if (s.healthstone_ready or 0) > 0 and (s.hp or 100) <= 28 then return false end
-    if (s.hp or 100) > 32 then return false end
-    return (s.potion_ready or 0) > 0
-end
 
 local function frenzied_regen_matches(context, action)
     local s = build_state(context)
@@ -595,11 +553,39 @@ end
 -- NOTE: DemoralizingRoar MUST be registered BEFORE FaerieFireFeral (test contract
 --       + TBC tanking priority — mitigation debuff before armor debuff).
 
+local _demo_roar_attempts = {} -- keyed by target guid -> timestamp of last attempt
+local DEMO_ROAR_IMMUNE_COOLDOWN = 8
+local DEMO_ROAR_RANGE = 10
+
+local function target_key(target)
+    if not target then return nil end
+    if target.get_guid then
+        local ok, guid = pcall(target.get_guid, target)
+        if ok and guid then return guid end
+    end
+    return tostring(target)
+end
+
+local function target_is_demo_immune(s)
+    local key = target_key(s.target)
+    if not key then return false end
+    local last = _demo_roar_attempts[key]
+    if not last then return false end
+    if (s.now or 0) - last < DEMO_ROAR_IMMUNE_COOLDOWN then
+        if (s.demo_remains or 0) <= 0 then
+            return true
+        end
+    end
+    return false
+end
+
 local function demo_roar_matches(context, action)
     local s = build_state(context)
     if not s.is_bear or not s.in_combat or not s.demo_roar_enabled then return false end
+    if (s.target_range or 40) > DEMO_ROAR_RANGE then return false end
     if (s.enemy_count or 0) <= 0 then return false end
     if (s.demo_remains or 0) > DEMO_ROAR_REFRESH then return false end
+    if target_is_demo_immune(s) then return false end
     -- skip on trivial single targets that die fast
     if (s.enemy_count or 0) < 2 and not s.is_target_boss and (s.target_ttd or 999) < 10 then return false end
     return action_ready(context, action)
@@ -607,8 +593,9 @@ end
 
 local function faerie_fire_matches(context, action)
     local s = build_state(context)
-    if not s.target or not s.is_bear then return false end
+    if not s.is_bear or not s.in_combat or not s.has_valid_target then return false end
     if (context.target_armor or 0) == 1 then return false end   -- mob has no armor
+    if (s.target_range or 40) > 30 then return false end
     if (s.faerie_remains or 0) > FAERIE_FIRE_REFRESH then return false end
     return action_ready(context, action)
 end
@@ -697,6 +684,16 @@ local function taunt_execute(context, action)
     return ok
 end
 
+local function demo_roar_execute(context, action)
+    local s = build_state(context)
+    local ok = execute_action(context, action)
+    local key = target_key(s.target)
+    if key then
+        _demo_roar_attempts[key] = s.now
+    end
+    return ok
+end
+
 local ACTIONS = {
     -- OOC pre-pull buffs (caster-form prep — never in combat)
     { name = "MarkOfTheWild",    spell = ACTION.MarkOfTheWild, target = "self", requires_target = false, matches = mark_matches },
@@ -714,12 +711,6 @@ local ACTIONS = {
     { name = "FaerieFirePull",   spell = ACTION.FaerieFireFeral, matches = faerie_fire_pull_matches },
 
     -- Defensives
-    { name = "Healthstone",      target = "self", requires_target = false,
-      matches = healthstone_matches,
-      execute = function(ctx) return execute_item(ctx, build_state(ctx).healthstone_ready, "Healthstone") end },
-    { name = "HealingPotion",    target = "self", requires_target = false,
-      matches = potion_matches,
-      execute = function(ctx) return execute_item(ctx, build_state(ctx).potion_ready, "Healing Potion") end },
     { name = "FrenziedRegeneration", spell = ACTION.FrenziedRegeneration, target = "self",
       requires_target = false, matches = frenzied_regen_matches },
     { name = "Barkskin",         spell = ACTION.Barkskin,   target = "self", requires_target = false, matches = barkskin_matches },
@@ -734,7 +725,7 @@ local ACTIONS = {
 
     -- Debuffs (Demo Roar BEFORE Faerie Fire — TBC tanking priority + test contract)
     { name = "DemoralizingRoar", spell = ACTION.DemoralizingRoar, target = "self",
-      requires_target = false, cooldown = 25, matches = demo_roar_matches },
+      requires_target = false, cooldown = 25, matches = demo_roar_matches, execute = demo_roar_execute },
     { name = "FaerieFireFeral",  spell = ACTION.FaerieFireFeral, matches = faerie_fire_matches },
 
     -- Core rotation (wowsims APL)
