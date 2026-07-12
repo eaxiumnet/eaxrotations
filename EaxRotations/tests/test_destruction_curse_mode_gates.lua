@@ -65,15 +65,16 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
-local function make_context(mode, group, assigned, physical_dps_count)
+local function make_context(mode, group, assigned, physical_dps_count, caster_count)
     return {
         target = {},
         is_group = group,
         party_size = group and 2 or 1,
         physical_dps_count = physical_dps_count or 0,
+        caster_count = caster_count or 0,
         ttd_known = true,
         ttd = 120,
-        settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none", warlock_curse_reck_threshold = 2 },
+        settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none", warlock_curse_reck_threshold = 2, warlock_curse_elements_threshold = 2 },
     }
 end
 
@@ -136,5 +137,8 @@ assert_true(cow.matches(make_context("auto", false, "weakness"), make_state()),
 
 assert_true(cor.matches(make_context("auto", true, nil, 2), make_state()),
     "CoR should match in auto when physical_dps_count >= warlock_curse_reck_threshold")
+
+assert_true(coe.matches(make_context("auto", true, nil, 0, 2), make_state()),
+    "CoE should match in auto when caster_count >= warlock_curse_elements_threshold")
 
 print("PASS test_destruction_curse_mode_gates")

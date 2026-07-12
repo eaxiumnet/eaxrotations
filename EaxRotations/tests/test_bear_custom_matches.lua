@@ -76,15 +76,15 @@ local faerie_fire = find_strategy("FaerieFireFeral")
 
 -- Debuff fresh -> should NOT match
 action_calls = {}
-assert_false(faerie_fire.matches({ target = { _debuff_remains = 10 }, target_armor = 5000 }), "FaerieFireFeral should not match when debuff > 4 sec")
+assert_false(faerie_fire.matches({ target = { _debuff_remains = 10 }, target_armor = 5000, in_combat = true }), "FaerieFireFeral should not match when debuff > 4 sec")
 assert_eq(#action_calls, 0, "action_matches should not be called when debuff fresh")
 
 -- Debuff low -> should match
 action_calls = {}
-assert_true(faerie_fire.matches({ target = { _debuff_remains = 2 }, target_armor = 5000 }), "FaerieFireFeral should match when debuff <= 4 sec")
+assert_true(faerie_fire.matches({ target = { _debuff_remains = 2 }, target_armor = 5000, in_combat = true }), "FaerieFireFeral should match when debuff <= 4 sec")
 
 -- No target -> should return false
-assert_false(faerie_fire.matches({}), "FaerieFireFeral should not match without target")
+assert_false(faerie_fire.matches({ in_combat = true }), "FaerieFireFeral should not match without target")
 
 -- ============================================================================
 -- Lacerate: stack to 5 ASAP, then maintain
