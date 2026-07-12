@@ -160,4 +160,9 @@ assert_true(cor.matches(make_context("auto", false, "affliction", 1, "recklessne
 assert_true(cow.matches(make_context("auto", false, "affliction", 1, "weakness"), make_state()),
     "CoW should match in solo when assigned curse is weakness")
 
+-- Auto recklessness threshold in group/raid
+spell_ready_calls = {}
+assert_true(cor.matches(make_context("auto", true, "affliction", 1, nil, 2), make_state()),
+    "CoR should match in auto/group/affliction when physical_dps_count >= threshold")
+
 print("PASS test_affliction_curse_mode_gates")
