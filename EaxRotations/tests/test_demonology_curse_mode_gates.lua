@@ -103,6 +103,10 @@ assert_false(coe.matches(make_context("auto", true), make_state()),
 assert_true(cod.matches(make_context("auto", true), make_state()),
     "CoD should match in auto/group when select_curse returns doom")
 
+-- Auto mode in group with many casters still prefers Doom (not auto-CoE)
+assert_false(coe.matches(make_context("auto", true, nil, 0, 5), make_state()),
+    "CoE should NOT auto-match in group just because caster_count is high")
+
 -- Explicit elements mode
 assert_false(coa.matches(make_context("elements", true), make_state()),
     "CoA should NOT match in elements mode")
@@ -137,9 +141,5 @@ assert_true(cow.matches(make_context("auto", false, "weakness"), make_state()),
 
 assert_true(cor.matches(make_context("auto", true, nil, 2), make_state()),
     "CoR should match in auto when physical_dps_count >= warlock_curse_reck_threshold")
-
--- Auto elements threshold
-assert_true(coe.matches(make_context("auto", true, nil, 0, 2), make_state()),
-    "CoE should match in auto when caster_count >= warlock_curse_elements_threshold")
 
 print("PASS test_demonology_curse_mode_gates")

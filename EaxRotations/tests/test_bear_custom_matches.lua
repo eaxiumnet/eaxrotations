@@ -76,15 +76,15 @@ local faerie_fire = find_strategy("FaerieFireFeral")
 
 -- Debuff fresh -> should NOT match
 action_calls = {}
-assert_false(faerie_fire.matches({ target = { _debuff_remains = 10 }, target_armor = 5000, in_combat = true }), "FaerieFireFeral should not match when debuff > 4 sec")
+assert_false(faerie_fire.matches({ target = { _debuff_remains = 10 }, target_armor = 5000, in_combat = true, in_melee_range = true, target_range = 5 }, {}), "FaerieFireFeral should not match when debuff > 4 sec")
 assert_eq(#action_calls, 0, "action_matches should not be called when debuff fresh")
 
 -- Debuff low -> should match
 action_calls = {}
-assert_true(faerie_fire.matches({ target = { _debuff_remains = 2 }, target_armor = 5000, in_combat = true }), "FaerieFireFeral should match when debuff <= 4 sec")
+assert_true(faerie_fire.matches({ target = { _debuff_remains = 2 }, target_armor = 5000, in_combat = true, in_melee_range = true, target_range = 5 }, {}), "FaerieFireFeral should match when debuff <= 4 sec")
 
 -- No target -> should return false
-assert_false(faerie_fire.matches({ in_combat = true }), "FaerieFireFeral should not match without target")
+assert_false(faerie_fire.matches({ in_combat = true, in_melee_range = true, target_range = 5 }, {}), "FaerieFireFeral should not match without target")
 
 -- ============================================================================
 -- Lacerate: stack to 5 ASAP, then maintain
@@ -182,5 +182,31 @@ for i, s in ipairs(strategies) do
 end
 assert_true(demo_idx and ff_idx, "Both DemoRoar and FF Feral must be registered")
 assert_true(demo_idx < ff_idx, "DemoralizingRoar must be registered BEFORE FaerieFireFeral (TBC tanking priority)")
+
+local function strategy_exists(name)
+    for i = 1, #strategies do
+        if strategies[i].name == name then return true end
+    end
+    return false
+end
+assert_false(strategy_exists("Healthstone"), "Healthstone strategy should be removed from bear spec")
+assert_false(strategy_exists("HealingPotion"), "HealingPotion strategy should be removed from bear spec")
+
+local bear_form = find_strategy("BearForm")
+action_calls = {}
+assert_true(bear_form.matches({ now = 10, in_combat = true, combat_time = 10, stance = 0, is_bear = false, settings = { auto_bear_form_ooc = true } }), "BearForm should match in combat when not in bear form")
+
+local faerie_fire_pull = find_strategy("FaerieFirePull")
+action_calls = {}
+assert_false(faerie_fire_pull.matches({ in_combat = true, is_bear = true, has_valid_enemy_target = true, target = { _debuff_remains = 0 }, target_armor = 5000, target_range = 20 }), "FaerieFirePull should not match while in combat")
+
+local demo_roar = find_strategy("DemoralizingRoar")
+action_calls = {}
+assert_false(demo_roar.matches({ in_combat = true, is_bear = true, in_melee_range = false, target_range = 15, enemy_count = 1, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true } }), "DemoralizingRoar should not match out of melee range")
+assert_eq(#action_calls, 0, "action_matches should not be called out of melee range")
+
+action_calls = {}
+assert_false(faerie_fire.matches({ in_combat = true, is_bear = true, has_valid_enemy_target = true, in_melee_range = true, target_range = 35, target = { _debuff_remains = 0 }, target_armor = 5000, settings = { bear_demo_roar = true } }), "FaerieFireFeral should not match beyond 30 yards")
+assert_eq(#action_calls, 0, "action_matches should not be called beyond 30 yards")
 
 print("PASS test_bear_custom_matches")

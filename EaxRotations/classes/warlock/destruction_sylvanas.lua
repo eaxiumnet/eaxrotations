@@ -246,8 +246,6 @@ local function select_curse(context, state)
         if context.enemy_healer then return "tongues" end
         if context.melee_on_you then return "exhaustion" end
     end
-    local caster_threshold = spec_kit.setting_number(context, "warlock_curse_elements_threshold", 2)
-    if (context.caster_count or 0) >= caster_threshold then return "elements" end
     local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
     if context.is_group and (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
     return "doom"
