@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.7.2 - 2026-07-12
+
+### Customer Changelog
+- **Warlock**: Fixed Curse Governance for the last time — setting "Curse Mode" to Agony and/or "Assigned Curse" to Agony now reliably prevents Curse of Elements (11722) and other non-Agony curses. All three specs (affliction/demonology/destruction) now use strict early `assigned_curse_blocks` + `select_curse` delegation.
+- **Warlock**: Drain Soul hardened to pure TBC shard-capture behavior (only when `context.ttd <= 5s`); removed non-TBC "hp <=5 execute" path and all custom per-spell interval timers.
+- **Warlock**: Removed all added workarounds (no new `dot_recently_cast`, no extra `_last_*` throttles for dots/drains). Code now relies exactly on the documented API surface: `NS.debuff_remains` (via `get_debuff_data`), `context.is_channeling` (from `is_channelling_spell`), `context.ttd` / `context.target_hp_pct`, `NS.GetPet()` / `has_pet()`, `NS.try_cast`, `spec_kit.setting`, etc. Matches `.api` + apidocs expectations with zero layering.
+- **Warlock**: OOC Summon Imp spam eliminated — `ooc_manager_sylvanas.lua` no longer hardcodes Imp for Warlock. Pet choice fully delegated to spec OOC strategies (correctly picks Felhunter etc. when appropriate and respects current pet state).
+- **Warlock**: Repeated same-target Corruption/UA/Immolate/Siphon/Curse casts fixed by trusting the API remains checks + existing throttle paths.
+- Version bumped to 2.7.2.
+- Clean `eaxrotations.zip` (lua + md only).
+- All tests remain passing (260 rotation + 17 leveling suites).
+
 ## 2.7.1 - 2026-07-12
 
 ### Customer Changelog

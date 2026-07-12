@@ -465,6 +465,18 @@ local function select_curse(context, state)
     return "agony"
 end
 
+-- Centralized assigned-curse gate (used by all curse matches for strict enforcement)
+local function assigned_curse_blocks(context, desired)
+    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+    if assigned ~= "none" then
+        return assigned ~= desired
+    end
+    local mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if mode == "none" then return true end
+    if mode ~= "auto" and mode ~= desired then return true end
+    return false
+end
+
 local function other_curse_active(state, this_curse)
     return curse_helper.other_curse_active(state, this_curse)
 end
@@ -706,6 +718,7 @@ local strategies = {
         name = "SiphonLife",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
+            if broken_api_dot_throttled(30911) then return false end
             if (state.siphon_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
@@ -746,6 +759,7 @@ local strategies = {
         name = "ImmolateDoT",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
+            if broken_api_dot_throttled(27215) then return false end
             if (state.immolate_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Skip if target TTD is very short
             if context.ttd_known and context.ttd < 5 then return false end
@@ -816,9 +830,8 @@ local strategies = {
         matches = function(context, state)
             if not context.target then return false end
             if not context.has_valid_enemy_target then return false end
-            local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-            if curse_mode ~= "auto" and curse_mode ~= "doom" then return false end
-            if curse_mode == "auto" and select_curse(context, state) ~= "doom" then return false end
+            if assigned_curse_blocks(context, "doom") then return false end
+            if select_curse(context, state) ~= "doom" then return false end
             if (state.doom_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "doom") then return false end
             if context.ttd_known and context.ttd < 62 then return false end
@@ -836,11 +849,8 @@ local strategies = {
         name = "CurseOfElements",
         matches = function(context, state)
             if not context.target then return false end
-            local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-            if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
-            if curse_mode == "auto" and select_curse(context, state) ~= "elements" then return false end
-            local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
-            if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "elements" and assigned ~= "elements" then return false end
+            if assigned_curse_blocks(context, "elements") then return false end
+            if select_curse(context, state) ~= "elements" then return false end
             if (state and state.coe_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "elements") then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target) or false
@@ -857,11 +867,8 @@ local strategies = {
         name = "CurseOfRecklessness",
         matches = function(context, state)
             if not context.target then return false end
-            local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-            if curse_mode ~= "auto" and curse_mode ~= "recklessness" then return false end
-            if curse_mode == "auto" and select_curse(context, state) ~= "recklessness" then return false end
-            local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
-            if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "recklessness" and assigned ~= "recklessness" then return false end
+            if assigned_curse_blocks(context, "recklessness") then return false end
+            if select_curse(context, state) ~= "recklessness" then return false end
             if (state and state.recklessness_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "recklessness") then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfRecklessness, context.target) or false
@@ -878,11 +885,8 @@ local strategies = {
         name = "CurseOfWeakness",
         matches = function(context, state)
             if not context.target then return false end
-            local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-            if curse_mode ~= "auto" and curse_mode ~= "weakness" then return false end
-            if curse_mode == "auto" and select_curse(context, state) ~= "weakness" then return false end
-            local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
-            if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "weakness" and assigned ~= "weakness" then return false end
+            if assigned_curse_blocks(context, "weakness") then return false end
+            if select_curse(context, state) ~= "weakness" then return false end
             if (state and state.weakness_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "weakness") then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfWeakness, context.target) or false
@@ -899,6 +903,7 @@ local strategies = {
         name = "CurseOfAgony",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
+            if assigned_curse_blocks(context, "agony") then return false end
             local curse = select_curse(context, state)
             if curse ~= "agony" then return false end
             if (state.agony_remains or 0) > CURSE_REFRESH_WINDOW then return false end
@@ -970,19 +975,16 @@ local strategies = {
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
             if context.is_channeling then return false end
-            -- Execute: target HP <= 5% (wowsims remainingTimePercent <= 5%)
-            local target_hp = context.target_hp_pct or 100
-            local in_execute = target_hp <= 5
-            -- Shard capture: mob about to die
+            -- Use only documented context fields from the API (ttd for shard capture on death).
+            -- TBC: Drain Soul is for capturing a soul shard as the mob dies during channel (ttd <= window).
+            -- It is low value as filler (use Shadow Bolt instead). No Wrath-style execute.
             local shard_capture = context.ttd_known and context.ttd and context.ttd > 0 and context.ttd <= SOUL_SHARD_CAPTURE_TTD
-            if not in_execute and not shard_capture then return false end
+            if not shard_capture then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.DrainSoul, context.target) or false
         end,
         execute = function(context, state)
-            local target_hp = context.target_hp_pct or 100
-            local reason = target_hp <= 5 and "execute" or "shard capture"
             return NS.try_cast(LOCAL_SPELLS.DrainSoul, context.target,
-                string.format("[AFFL] Drain Soul (%s, ttd %.0fs)", reason, (context and context.ttd) or 0))
+                string.format("[AFFL] Drain Soul (shard capture, ttd %.0fs)", (context and context.ttd) or 0))
         end,
     },
 
