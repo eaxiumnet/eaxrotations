@@ -46,12 +46,12 @@ local FORM_BUFF_CAT = { 768 }
 local FORM_BUFF_MOONKIN = { 24858 }
 local FORM_BUFF_TREE = { 33891 }
 
--- Stances where consumable use is allowed
+-- Stances where consumable use is allowed (caster, cat, bear)
 local ITEM_ALLOWED_STANCE = {
     [STANCE_CASTER] = true,
     [STANCE_CAT] = true,
+    [STANCE_BEAR] = true,
 }
--- Blocked: Bear(1), Aquatic(2), Travel(4), Flight(5)
 local function can_use_items(stance)
     if ITEM_ALLOWED_STANCE[stance] then return true end
     -- Moonkin/Tree at stance 5 - check if known
@@ -273,6 +273,7 @@ local strategies = {
         name = "FormAwareConsumables",
         matches = function(context)
             if not context.in_combat then return false end
+            if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
             if NS.buff_up(context.me, { 5215, 5217, 5216, 5218, 9839, 9840, 9841, 24249, 24389, 24404 }) then return false end
             if not can_use_items(context.stance) then return false end
             if not can_afford_reshift(context.stance) then return false end
@@ -660,8 +661,10 @@ local strategies = {
         execute = function() return true end,
     },
 
-    -- Auto-consumable usage
-    { name = "AutoConsumable", matches = function(context) return consumable_manager.should_check(context) end, execute = function(context) return consumable_manager.on_update(context) end },
+    { name = "AutoConsumable", matches = function(context)
+        if context.stance == STANCE_BEAR or context.stance == STANCE_CAT then return false end
+        return consumable_manager.should_check(context)
+    end, execute = function(context) return consumable_manager.on_update(context) end },
 
 }
 NS.register_class_middleware("druid", strategies)
