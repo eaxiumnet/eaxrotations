@@ -2,6 +2,13 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.7.3] — Warlock Sustain + Pre-70 AoE (2026-07-13)
+- **Warlock (Affliction)**: Low health now forces Drain Life (self-heal) over Drain Soul for survival.
+- **Warlock (Affliction)**: Added Rain of Fire AoE for big packs (triggers on 3+ enemies, pre-70 where Seed of Corruption unavailable). Uses proper aoe cast position when possible.
+- Confirmed Curse of Agony governance working (no more erroneous Curse of Elements).
+- Version bump 2.7.3; clean `eaxrotations.zip` (lua + md only).
+- `luac -p` + 260/260 rotation + 17/17 leveling green.
+
 ## [2.7.2] — Warlock Final Polish + Strict API (2026-07-12)
 - **Warlock**: Curse governance now correctly honors "Agony" mode and assigned curse in all specs (no more Elements overriding).
 - **Warlock**: Drain Soul is now strictly TBC shard-capture (ttd-based); removed incorrect execute logic and workaround timers.

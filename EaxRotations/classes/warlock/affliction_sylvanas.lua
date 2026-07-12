@@ -188,6 +188,7 @@ local LOCAL_SPELLS = {
     CreateSoulstone = NS.spell_action({ 27238, 20756, 20755, 20752, 693 }, "CreateSoulstone"),
     Shoot           = NS.spell_action({ 5019 }, "Shoot"),
     Shadowburn      = NS.spell_action({ 30546, 27263, 18871, 18870, 18869, 18868, 18867, 17877 }, "Shadowburn"),
+    RainOfFire      = NS.spell_action({ 27212, 17954, 17953, 5740 }, "RainOfFire"),
 }
 
 local BLOODLUST_LOWER_RATIO = 1.04      -- More aggressive upgrade threshold during Bloodlust/Heroism
@@ -638,7 +639,9 @@ local strategies = {
         name = "CorruptionSpread",
         matches = function(context, state)
             if not _izi then return false end
-            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
+            -- Inverted from previous to match intended multi-dot behavior.
+            if (state.corruption_remains or 0) <= DOT_REFRESH_WINDOW then return false end
             local target = find_dot_target(CORRUPTION_DEBUFF[1])
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, target) or false
@@ -697,8 +700,9 @@ local strategies = {
         name = "UnstableAfflictionSpread",
         matches = function(context, state)
             if not _izi then return false end
-            -- Fire when primary target already has UA; spread to additional targets
-            if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
+            -- Inverted from previous to match intended multi-dot behavior.
+            if (state.ua_remains or 0) <= DOT_REFRESH_WINDOW then return false end
             local target = find_dot_target(UNSTABLE_AFFL_DEBUFF[1])
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.UnstableAffliction, target) or false
@@ -740,7 +744,9 @@ local strategies = {
         name = "SiphonLifeSpread",
         matches = function(context, state)
             if not _izi then return false end
-            if (state.siphon_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
+            -- Inverted from previous to match intended multi-dot behavior.
+            if (state.siphon_remains or 0) <= DOT_REFRESH_WINDOW then return false end
             local target = find_dot_target(SIPHON_LIFE_DEBUFF[1])
             if not target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.SiphonLife, target) or false
@@ -782,8 +788,9 @@ local strategies = {
         name = "ImmolateSpread",
         matches = function(context, state)
             if not _izi then return false end
-            -- Fire when primary target already has Immolate; spread to additional targets
-            if (state.immolate_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
+            -- Inverted from previous to match intended multi-dot behavior.
+            if (state.immolate_remains or 0) <= DOT_REFRESH_WINDOW then return false end
             if context.ttd_known and context.ttd < 5 then return false end
             local target = find_dot_target(IMMOLATE_DEBUFF[1])
             if not target then return false end
@@ -920,7 +927,12 @@ local strategies = {
         name = "CurseOfAgonySpread",
         matches = function(context, state)
             if not _izi then return false end
-            if (state.agony_remains or 0) > CURSE_REFRESH_WINDOW then return false end
+            if assigned_curse_blocks(context, "agony") then return false end
+            local curse = select_curse(context, state)
+            if curse ~= "agony" then return false end
+            -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
+            -- Inverted from previous to match intended multi-dot behavior for the chosen curse.
+            if (state.agony_remains or 0) <= CURSE_REFRESH_WINDOW then return false end
             if context.ttd_known and context.ttd < 8 then return false end
             local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
             if not target then return false end
@@ -965,6 +977,31 @@ local strategies = {
         end,
     },
 
+    -- Rain of Fire (AoE for big packs, especially pre-70 where Seed of Corruption not available)
+    {
+        name = "RainOfFire",
+        matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            local min_targets = spec_kit.setting_number(context, "aff_seed_targets", 3)
+            if (state.enemy_count or 0) < min_targets then return false end
+            if context.is_moving then return false end
+            if context.is_channeling then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.RainOfFire, context.target) or false
+        end,
+        execute = function(context)
+            local t = context.target
+            -- Use aoe position helper if available for proper ground target AoE
+            local pos = nil
+            if t and NS.get_aoe_cast_position then
+                pos = NS.get_aoe_cast_position(LOCAL_SPELLS.RainOfFire, t, 8, 35)
+            end
+            if pos and NS.try_cast_position then
+                return NS.try_cast_position(LOCAL_SPELLS.RainOfFire, pos, t, "[AFFL] Rain of Fire")
+            end
+            return NS.try_cast(LOCAL_SPELLS.RainOfFire, t, "[AFFL] Rain of Fire")
+        end,
+    },
+
     -- ------------------------------------------------------------------------
     -- 11. Drain Soul (execute + shard capture)
     -- Wowsims APL: Drain Soul at remainingTimePercent <= 5% (execute filler).
@@ -975,6 +1012,9 @@ local strategies = {
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
             if context.is_channeling then return false end
+            -- Low health: force Drain Life (which heals) instead of Drain Soul (no self-heal, shard/execute only)
+            local player_hp = state and (state.hp_pct or state.hp or 100) or (context.hp or 100)
+            if player_hp < 40 then return false end
             -- Use only documented context fields from the API (ttd for shard capture on death).
             -- TBC: Drain Soul is for capturing a soul shard as the mob dies during channel (ttd <= window).
             -- It is low value as filler (use Shadow Bolt instead). No Wrath-style execute.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.7.3 - 2026-07-13
+
+### Customer Changelog
+- **Warlock (Affliction)**: When low on health, Drain Life is now forced over Drain Soul for self-healing sustain.
+- **Warlock (Affliction)**: Rain of Fire AoE added for large packs in dungeons (uses enemy count threshold, works pre-level 70 before Seed of Corruption). Proper position targeting for ground AoE.
+- Curse of Agony now reliably applies without Curse of Elements overriding.
+- Version bumped to 2.7.3.
+- Clean `eaxrotations.zip` (lua + md only).
+- All tests remain passing (260 rotation + 17 leveling suites).
+
 ## 2.7.2 - 2026-07-12
 
 ### Customer Changelog
