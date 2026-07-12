@@ -4,7 +4,7 @@
 --         IZI spread_dot multi-target cycling.
 -- WHEN:  combat, with valid enemy target.
 -- WHY:   mirrors wowsims APL + TBC affliction consensus: UA > Corruption >
---         Siphon Life > Immolate > curse (CoA/CoD/CoE/CoS) > Shadow Bolt filler.
+--         Siphon Life > Immolate > curse (CoA/CoD/CoE/CoR/CoW) > Shadow Bolt filler.
 -- SAFETY: Pattern 14 nil-guarded via spec_kit.safe_state(); no on_update() allocs.
 
 -- TBC Warlock Affliction priority list with multi-DoT cycling, Nightfall procs, and execute drain.
@@ -457,9 +457,11 @@ local function select_curse(context, state)
         if context.melee_on_you then return "exhaustion" end
     end
     if (state.enemy_count or 0) >= 3 then return "elements" end
-    if context.is_group then return "elements" end
-    local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
-    if context.is_group and (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
+    if context.is_group then
+        local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
+        if (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
+        return "elements"
+    end
     return "agony"
 end
 
@@ -838,7 +840,7 @@ local strategies = {
             if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
             if curse_mode == "auto" and select_curse(context, state) ~= "elements" then return false end
             local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
-            if not context.is_group and curse_mode ~= "elements" and assigned ~= "elements" then return false end
+            if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "elements" and assigned ~= "elements" then return false end
             if (state and state.coe_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "elements") then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target) or false
@@ -859,7 +861,7 @@ local strategies = {
             if curse_mode ~= "auto" and curse_mode ~= "recklessness" then return false end
             if curse_mode == "auto" and select_curse(context, state) ~= "recklessness" then return false end
             local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
-            if not context.is_group and curse_mode ~= "recklessness" and assigned ~= "recklessness" then return false end
+            if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "recklessness" and assigned ~= "recklessness" then return false end
             if (state and state.recklessness_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "recklessness") then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfRecklessness, context.target) or false
@@ -880,7 +882,7 @@ local strategies = {
             if curse_mode ~= "auto" and curse_mode ~= "weakness" then return false end
             if curse_mode == "auto" and select_curse(context, state) ~= "weakness" then return false end
             local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
-            if not context.is_group and curse_mode ~= "weakness" and assigned ~= "weakness" then return false end
+            if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "weakness" and assigned ~= "weakness" then return false end
             if (state and state.weakness_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "weakness") then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfWeakness, context.target) or false
