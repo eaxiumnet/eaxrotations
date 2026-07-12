@@ -65,16 +65,15 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
-local function make_context(mode, group, assigned, physical_dps_count, caster_count)
+local function make_context(mode, group, assigned, physical_dps_count)
     return {
         target = {},
         is_group = group,
         party_size = group and 2 or 1,
         physical_dps_count = physical_dps_count or 0,
-        caster_count = caster_count or 0,
         ttd_known = true,
         ttd = 120,
-        settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none", warlock_curse_reck_threshold = 2, warlock_curse_elements_threshold = 2 },
+        settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none", warlock_curse_reck_threshold = 2 },
     }
 end
 

@@ -139,7 +139,6 @@ M.SPELLS = {
         curse_of_agony = { 27218, 11713, 11712, 11711, 6217, 1014, 980 },
         curse_of_doom = { 30910, 603 },
         curse_of_idiocy = { 1010 },
-        curse_of_shadow = { 17937 },
         curse_of_the_elements = { 1490 },
         curse_of_tongues = { 1714 },
         curse_of_weakness = { 30909, 6205, 1108, 702 },
