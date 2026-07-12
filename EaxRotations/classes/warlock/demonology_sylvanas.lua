@@ -396,6 +396,8 @@ local function select_curse(context, s)
     end
     local caster_threshold = spec_kit.setting_number(context, "warlock_curse_elements_threshold", 2)
     if (context.caster_count or 0) >= caster_threshold then return "elements" end
+    local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
+    if context.is_group and (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
     return "doom"
 end
 
@@ -585,6 +587,8 @@ local function curse_of_elements_matches(context, s)
     local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
     if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
     if curse_mode == "auto" and select_curse(context, s) ~= "elements" then return false end
+    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+    if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "elements" and assigned ~= "elements" then return false end
     if not s.curse_of_elements_ready then return false end
     if NS.debuff_remains(context.target, CURSE_OF_ELEMENTS_DEBUFF) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(s, "elements") then return false end
@@ -598,6 +602,8 @@ local function curse_of_recklessness_matches(context, s)
     local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
     if curse_mode ~= "auto" and curse_mode ~= "recklessness" then return false end
     if curse_mode == "auto" and select_curse(context, s) ~= "recklessness" then return false end
+    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+    if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "recklessness" and assigned ~= "recklessness" then return false end
     if not s.curse_of_recklessness_ready then return false end
     if NS.debuff_remains(context.target, curse_helper.CURSE_OF_RECKLESSNESS_DEBUFF) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(s, "recklessness") then return false end
@@ -611,6 +617,8 @@ local function curse_of_weakness_matches(context, s)
     local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
     if curse_mode ~= "auto" and curse_mode ~= "weakness" then return false end
     if curse_mode == "auto" and select_curse(context, s) ~= "weakness" then return false end
+    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+    if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "weakness" and assigned ~= "weakness" then return false end
     if not s.curse_of_weakness_ready then return false end
     if NS.debuff_remains(context.target, curse_helper.CURSE_OF_WEAKNESS_DEBUFF) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(s, "weakness") then return false end
