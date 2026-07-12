@@ -207,11 +207,12 @@ assert_false(curse_of_doom.matches({
     doom_remains = 0,
 }), "CurseOfDoom should not match when TTD < 62s")
 
--- Target lives long enough -> should match
+-- Target lives long enough -> should match (explicit doom mode)
 spell_ready_calls = {}
 assert_true(curse_of_doom.matches({
     target = {}, has_valid_enemy_target = true,
     ttd_known = true, ttd = 90,
+    settings = { warlock_curse_mode = "doom" },
 }, {
     doom_remains = 0,
 }), "CurseOfDoom should match when TTD >= 62s")

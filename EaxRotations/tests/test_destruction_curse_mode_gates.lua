@@ -1,7 +1,7 @@
 -- test_destruction_curse_mode_gates.lua -- Destruction curse-mode gate tests.
 -- WHAT:  regression tests for warlock_curse_mode dropdown in destruction spec.
 -- WHEN:  during rotation test suite execution.
--- WHY:   ensures Curse of Elements/Agony/Doom respect the curse mode setting.
+-- WHY:   ensures curse mode/assigned curse respect APL-aligned selection.
 -- SAFETY: uses synthetic context; no live game data required.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -65,14 +65,14 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
-local function make_context(mode, group)
+local function make_context(mode, group, assigned)
     return {
         target = {},
         is_group = group,
         party_size = group and 2 or 1,
         ttd_known = true,
         ttd = 120,
-        settings = { warlock_curse_mode = mode },
+        settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none" },
     }
 end
 
@@ -82,18 +82,24 @@ local function make_state(opts)
         coa_remains = opts.coa_remains or 0,
         coe_remains = opts.coe_remains or 0,
         cod_remains = opts.cod_remains or 0,
+        recklessness_remains = opts.recklessness_remains or 0,
+        weakness_remains = opts.weakness_remains or 0,
     }
 end
 
 local coa = find_strategy("CurseOfAgony")
 local coe = find_strategy("CurseOfElements")
 local cod = find_strategy("CurseOfDoom")
+local cor = find_strategy("CurseOfRecklessness")
+local cow = find_strategy("CurseOfWeakness")
 
--- Auto mode in group should prefer Agony
-assert_true(coa.matches(make_context("auto", true), make_state()),
-    "CoA should match in auto/group")
+-- Auto mode in group should prefer Doom (personal DPS default)
+assert_false(coa.matches(make_context("auto", true), make_state()),
+    "CoA should NOT match in auto/group when select_curse returns doom")
 assert_false(coe.matches(make_context("auto", true), make_state()),
-    "CoE should NOT match in auto/group when select_curse returns agony")
+    "CoE should NOT match in auto/group when select_curse returns doom")
+assert_true(cod.matches(make_context("auto", true), make_state()),
+    "CoD should match in auto/group when select_curse returns doom")
 
 -- Explicit elements mode
 assert_false(coa.matches(make_context("elements", true), make_state()),
@@ -107,12 +113,16 @@ assert_true(coa.matches(make_context("agony", true), make_state()),
 assert_false(coe.matches(make_context("agony", true), make_state()),
     "CoE should NOT match in agony mode")
 
--- Doom mode gates
-assert_false(cod.matches(make_context("agony", true), make_state()),
-    "CoD should NOT match in agony mode")
-assert_true(cod.matches(make_context("doom", true), make_state()),
-    "CoD should match in doom mode")
-assert_false(cod.matches(make_context("auto", true), make_state()),
-    "CoD should NOT match in auto mode when select_curse returns agony")
+-- Assigned curse overrides auto logic
+assert_true(coe.matches(make_context("auto", true, "elements"), make_state()),
+    "CoE should match when assigned curse is elements")
+assert_false(cod.matches(make_context("auto", true, "elements"), make_state()),
+    "CoD should NOT match when assigned curse is elements")
+
+-- Recklessness and Weakness modes
+assert_true(cor.matches(make_context("recklessness", true), make_state()),
+    "CoR should match in recklessness mode")
+assert_true(cow.matches(make_context("weakness", true), make_state()),
+    "CoW should match in weakness mode")
 
 print("PASS test_destruction_curse_mode_gates")

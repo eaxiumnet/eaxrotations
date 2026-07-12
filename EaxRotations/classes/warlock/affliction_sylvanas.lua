@@ -19,6 +19,8 @@ local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local SPELLS = NS.WarlockSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local curse_helper = require("shared/warlock_curse_helper_sylvanas")
+local CURSE_REFRESH_WINDOW = curse_helper.CURSE_REFRESH_WINDOW
 
 -- Centralized spell resolver via spec_kit (rank IDs from warlock/class_sylvanas.lua).
 -- LOCAL_SPELLS (below) handles spells not in the class spell table.
@@ -27,6 +29,8 @@ local ACTION = {
     Corruption          = define("Corruption",          { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
     CurseOfAgony        = define("CurseOfAgony",        { 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
     CurseOfDoom         = define("CurseOfDoom",         { 30910, 603 }, "CurseOfDoom"),
+    CurseOfRecklessness = define("CurseOfRecklessness", { 27227, 11717, 11716, 11715, 6209, 6208, 1109, 702 }, "CurseOfRecklessness"),
+    CurseOfWeakness     = define("CurseOfWeakness",     { 30909, 27224, 11708, 11707, 7646, 6205, 1108, 702 }, "CurseOfWeakness"),
     Immolate            = define("Immolate",            { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
     LifeTap             = define("LifeTap",             { 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
     SeedOfCorruption    = define("SeedOfCorruption",    { 27243 }, "SeedOfCorruption"),
@@ -140,7 +144,6 @@ local SHADOW_EMBRACE_DEBUFF  = { 32386, 32388, 32389, 32390, 32391 }
 local ISB_DEBUFF = { 17800 } -- Shadow Vulnerability (ISB proc debuff)
 local SEED_OF_CORRUPTION_DEBUFF = { 27285 }  -- the DoT that triggers the explosion
 local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
-local CURSE_OF_SHADOW_DEBUFF   = { 27229, 17937, 17862 }
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
 local SOULSHATTER_BUFF       = { 29858 }
 local FEL_ARMOR_BUFF         = { 28189, 28176 }
@@ -170,7 +173,6 @@ local LOCAL_SPELLS = {
     CurseTongues    = NS.spell_action({ 11719, 1714 }, "CurseOfTongues"),
     CurseExhaustion = NS.spell_action({ 18223 }, "CurseOfExhaustion"),
     CurseElements   = NS.spell_action({ 27228, 11722, 11721, 1490 }, "CurseOfElements"),
-    CurseShadow     = NS.spell_action({ 27229, 17937, 17862 }, "CurseOfShadow"),
     DrainMana       = NS.spell_action({ 30908, 27221, 11704, 11703, 6226, 5138 }, "DrainMana"),
     HealthFunnel    = NS.spell_action({ 27259, 11695, 11694, 11693, 3700, 3699, 3698, 755 }, "HealthFunnel"),
     CreateHealthstone = NS.spell_action({ 27230, 11730, 11729, 6202, 6201, 5699 }, "CreateHealthstone"),
@@ -209,7 +211,7 @@ local AFFL_SCHEMA = {
     -- DoT remains
     ua_remains = 0, corruption_remains = 0, agony_remains = 0,
     doom_remains = 0, siphon_remains = 0, immolate_remains = 0,
-    coe_remains = 0, cos_remains = 0,
+    coe_remains = 0, recklessness_remains = 0, weakness_remains = 0,
     -- DoT stacks
     se_stacks = 0, isb_stacks = 0,
     -- Proc / resource
@@ -242,7 +244,10 @@ local aff_state = {
     agony_remains = 0,
     doom_remains = 0,
     siphon_remains = 0,
-    immolate_remains = 0,	    -- Shadow Embrace stacks
+    immolate_remains = 0,
+    recklessness_remains = 0,
+    weakness_remains = 0,
+	    -- Shadow Embrace stacks
 	    se_stacks = 0,
 	    -- Improved Shadow Bolt (Shadow Vulnerability) stacks
 	    isb_stacks = 0,
@@ -291,7 +296,8 @@ local function build_state(context)
         aff_state.siphon_remains = NS.debuff_remains and NS.debuff_remains(target, SIPHON_LIFE_DEBUFF) or 0
         aff_state.immolate_remains = NS.debuff_remains and NS.debuff_remains(target, IMMOLATE_DEBUFF) or 0
         aff_state.coe_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_ELEMENTS_DEBUFF) or 0
-        aff_state.cos_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_SHADOW_DEBUFF) or 0
+        aff_state.recklessness_remains = target and NS.debuff_remains and NS.debuff_remains(target, curse_helper.CURSE_OF_RECKLESSNESS_DEBUFF) or 0
+        aff_state.weakness_remains     = target and NS.debuff_remains and NS.debuff_remains(target, curse_helper.CURSE_OF_WEAKNESS_DEBUFF) or 0
         aff_state.se_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SHADOW_EMBRACE_DEBUFF) or 0
         aff_state.isb_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, ISB_DEBUFF) or 0
         aff_state.target_hp = (target.get_health_percentage and target:get_health_percentage()) or 100
@@ -302,7 +308,8 @@ local function build_state(context)
         aff_state.siphon_remains = 0
         aff_state.immolate_remains = 0
         aff_state.coe_remains = 0
-        aff_state.cos_remains = 0
+        aff_state.recklessness_remains = 0
+        aff_state.weakness_remains = 0
         aff_state.se_stacks = 0
         aff_state.isb_stacks = 0
 	        aff_state.target_hp = 100
@@ -429,44 +436,33 @@ local function build_state(context)
 	-- Helper functions
 	-- ============================================================================
 
--- Select which curse to use based on context and user settings
 local function select_curse(context, state)
-    -- Respect explicit curse mode setting (from schema dropdown)
+    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+    if assigned ~= "none" then return assigned end
+
     local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
     if curse_mode == "agony" then
         if context.is_pvp and context.enemy_healer then return "tongues" end
         if context.is_pvp and context.melee_on_you then return "exhaustion" end
         return "agony"
-    elseif curse_mode == "shadow" then
-        return "shadow"
-    elseif curse_mode == "elements" then
-        return "elements"
-    elseif curse_mode == "doom" then
-        return "doom"
-    elseif curse_mode == "recklessness" then
-        return "recklessness"
-    elseif curse_mode == "weakness" then
-        return "weakness"
-    elseif curse_mode == "none" then
-        return nil
+    elseif curse_mode == "doom" then return "doom"
+    elseif curse_mode == "elements" then return "elements"
+    elseif curse_mode == "recklessness" then return "recklessness"
+    elseif curse_mode == "weakness" then return "weakness"
+    elseif curse_mode == "none" then return nil
     end
-    -- Auto mode: context-aware curse selection
+
     if context.is_pvp then
-        if (context.enemy_healer or false) then return "tongues" end
-        if (context.melee_on_you or false) then return "exhaustion" end
+        if context.enemy_healer then return "tongues" end
+        if context.melee_on_you then return "exhaustion" end
     end
-    if (state.enemy_count or 0) >= 3 then return "elements" end  -- AoE benefit
-    -- In raids: prefer Shadow for Affliction (Shadow damage), Elements for Destruction
-    if context.is_group and context.active_playstyle == "affliction" then return "shadow" end
-    return "agony"  -- default: damage
+    if (state.enemy_count or 0) >= 3 then return "elements" end
+    if context.is_group then return "elements" end
+    return "agony"
 end
 
 local function other_curse_active(state, this_curse)
-    if this_curse ~= "agony" and (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return true end
-    if this_curse ~= "doom" and (state.doom_remains or 0) > DOT_REFRESH_WINDOW then return true end
-    if this_curse ~= "elements" and (state.coe_remains or 0) > DOT_REFRESH_WINDOW then return true end
-    if this_curse ~= "shadow" and (state.cos_remains or 0) > DOT_REFRESH_WINDOW then return true end
-    return false
+    return curse_helper.other_curse_active(state, this_curse)
 end
 
 -- Racial ability match gate for all racial strategies
@@ -797,8 +793,8 @@ local strategies = {
             if context.ttd_known and context.ttd < 60 then return false end
             -- Check if a curse is about to be applied (CoD, CoA, or Curse of Elements)
             local about_to_curse = false
-            if (state.agony_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd_known and context.ttd >= 8 then about_to_curse = true end
-            if (state.doom_remains or 0) <= DOT_REFRESH_WINDOW and context.ttd_known and context.ttd >= 62 then about_to_curse = true end
+            if (state.agony_remains or 0) <= CURSE_REFRESH_WINDOW and context.ttd_known and context.ttd >= 8 then about_to_curse = true end
+            if (state.doom_remains or 0) <= CURSE_REFRESH_WINDOW and context.ttd_known and context.ttd >= 62 then about_to_curse = true end
             -- Also check CoD cooldown via spell_ready (60s CD, if ready with no debuff it's about to be cast)
             if context.target and (state.doom_remains or 0) <= 0 and NS.spell_ready and NS.spell_ready(ACTION.CurseOfDoom, context.target) then about_to_curse = true end
             return about_to_curse
@@ -818,7 +814,8 @@ local strategies = {
             if not context.has_valid_enemy_target then return false end
             local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
             if curse_mode ~= "auto" and curse_mode ~= "doom" then return false end
-            if (state.doom_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            if curse_mode == "auto" and select_curse(context, state) ~= "doom" then return false end
+            if (state.doom_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "doom") then return false end
             if context.ttd_known and context.ttd < 62 then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfDoom, context.target) or false
@@ -839,7 +836,7 @@ local strategies = {
             if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
             if curse_mode == "auto" and select_curse(context, state) ~= "elements" then return false end
             if not context.is_group and curse_mode ~= "elements" then return false end
-            if (state and state.coe_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            if (state and state.coe_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "elements") then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target) or false
         end,
@@ -849,22 +846,42 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 8b. Curse of Shadow (Shadow damage debuff — gated by curse mode setting)
+    -- 8b. Curse of Recklessness (utility curse — gated by curse mode setting)
     -- ------------------------------------------------------------------------
     {
-        name = "CurseOfShadow",
+        name = "CurseOfRecklessness",
         matches = function(context, state)
             if not context.target then return false end
             local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-            if curse_mode ~= "auto" and curse_mode ~= "shadow" then return false end
-            if curse_mode == "auto" and select_curse(context, state) ~= "shadow" then return false end
-            if not context.is_group and curse_mode ~= "shadow" then return false end
-            if (state and state.cos_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            if other_curse_active(state, "shadow") then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseShadow, context.target) or false
+            if curse_mode ~= "auto" and curse_mode ~= "recklessness" then return false end
+            if curse_mode == "auto" and select_curse(context, state) ~= "recklessness" then return false end
+            if not context.is_group and curse_mode ~= "recklessness" then return false end
+            if (state and state.recklessness_remains or 0) > CURSE_REFRESH_WINDOW then return false end
+            if other_curse_active(state, "recklessness") then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfRecklessness, context.target) or false
         end,
         execute = function(context)
-            return NS.try_cast(LOCAL_SPELLS.CurseShadow, context.target, "[AFFL] Curse of Shadow")
+            return NS.try_cast(ACTION.CurseOfRecklessness, context.target, "[AFFL] Curse of Recklessness")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 8c. Curse of Weakness (utility curse — gated by curse mode setting)
+    -- ------------------------------------------------------------------------
+    {
+        name = "CurseOfWeakness",
+        matches = function(context, state)
+            if not context.target then return false end
+            local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+            if curse_mode ~= "auto" and curse_mode ~= "weakness" then return false end
+            if curse_mode == "auto" and select_curse(context, state) ~= "weakness" then return false end
+            if not context.is_group and curse_mode ~= "weakness" then return false end
+            if (state and state.weakness_remains or 0) > CURSE_REFRESH_WINDOW then return false end
+            if other_curse_active(state, "weakness") then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfWeakness, context.target) or false
+        end,
+        execute = function(context)
+            return NS.try_cast(ACTION.CurseOfWeakness, context.target, "[AFFL] Curse of Weakness")
         end,
     },
 
@@ -877,7 +894,7 @@ local strategies = {
             if not context.has_valid_enemy_target then return false end
             local curse = select_curse(context, state)
             if curse ~= "agony" then return false end
-            if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            if (state.agony_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "agony") then return false end
             if context.ttd_known and context.ttd < 8 then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfAgony, context.target) or false
@@ -891,7 +908,7 @@ local strategies = {
         name = "CurseOfAgonySpread",
         matches = function(context, state)
             if not _izi then return false end
-            if (state.agony_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            if (state.agony_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if context.ttd_known and context.ttd < 8 then return false end
             local target = find_dot_target(CURSE_OF_AGONY_DEBUFF[1])
             if not target then return false end

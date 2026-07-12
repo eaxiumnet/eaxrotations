@@ -1,7 +1,7 @@
 -- test_affliction_curse_mode_gates.lua -- Affliction curse-mode gate tests.
 -- WHAT:  regression tests for warlock_curse_mode dropdown in affliction spec.
 -- WHEN:  during rotation test suite execution.
--- WHY:   ensures Curse of Elements/Shadow do not override Agony in auto mode.
+-- WHY:   ensures curse mode/assigned curse respect APL-aligned selection.
 -- SAFETY: uses synthetic context; no live game data required.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
@@ -82,7 +82,7 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
-local function make_context(mode, group, playstyle, enemy_count)
+local function make_context(mode, group, playstyle, enemy_count, assigned)
     return {
         target = {},
         has_valid_enemy_target = true,
@@ -91,7 +91,7 @@ local function make_context(mode, group, playstyle, enemy_count)
         enemy_count = enemy_count or 1,
         ttd_known = true,
         ttd = 120,
-        settings = { warlock_curse_mode = mode, dot_ttd_threshold = 50 },
+        settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none", dot_ttd_threshold = 50 },
     }
 end
 
@@ -100,50 +100,54 @@ local function make_state(opts)
     return {
         agony_remains = opts.agony_remains or 0,
         coe_remains = opts.coe_remains or 0,
-        cos_remains = opts.cos_remains or 0,
         doom_remains = opts.doom_remains or 0,
+        recklessness_remains = opts.recklessness_remains or 0,
+        weakness_remains = opts.weakness_remains or 0,
         enemy_count = opts.enemy_count or 1,
     }
 end
 
 local coa = find_strategy("CurseOfAgony")
 local coe = find_strategy("CurseOfElements")
-local cos = find_strategy("CurseOfShadow")
+local cod = find_strategy("CurseOfDoom")
+local cor = find_strategy("CurseOfRecklessness")
+local cow = find_strategy("CurseOfWeakness")
 
--- Auto mode in group/affliction should prefer Shadow (not Elements/Agony)
+-- Auto mode in group/affliction should prefer Elements (CoE)
 spell_ready_calls = {}
 assert_false(coa.matches(make_context("auto", true, "affliction", 1), make_state()),
-    "CoA should NOT match in auto/group/affliction when select_curse returns shadow")
-assert_false(coe.matches(make_context("auto", true, "affliction", 1), make_state()),
-    "CoE should NOT match in auto/group/affliction when select_curse returns shadow")
-assert_true(cos.matches(make_context("auto", true, "affliction", 1), make_state()),
-    "CoS should match in auto/group/affliction when select_curse returns shadow")
+    "CoA should NOT match in auto/group/affliction when select_curse returns elements")
+assert_true(coe.matches(make_context("auto", true, "affliction", 1), make_state()),
+    "CoE should match in auto/group/affliction when select_curse returns elements")
+assert_false(cod.matches(make_context("auto", true, "affliction", 1), make_state()),
+    "CoD should NOT match in auto/group/affliction when select_curse returns elements")
 
--- Explicit elements mode should allow CoE
+-- Explicit elements mode
 spell_ready_calls = {}
 assert_false(coa.matches(make_context("elements", true, "affliction", 1), make_state()),
     "CoA should NOT match in elements mode")
 assert_true(coe.matches(make_context("elements", true, "affliction", 1), make_state()),
     "CoE should match in elements mode")
-assert_false(cos.matches(make_context("elements", true, "affliction", 1), make_state()),
-    "CoS should NOT match in elements mode")
 
--- Explicit shadow mode should allow CoS
-spell_ready_calls = {}
-assert_false(coa.matches(make_context("shadow", true, "affliction", 1), make_state()),
-    "CoA should NOT match in shadow mode")
-assert_false(coe.matches(make_context("shadow", true, "affliction", 1), make_state()),
-    "CoE should NOT match in shadow mode")
-assert_true(cos.matches(make_context("shadow", true, "affliction", 1), make_state()),
-    "CoS should match in shadow mode")
-
--- Explicit agony mode should allow CoA even in group
+-- Explicit agony mode
 spell_ready_calls = {}
 assert_true(coa.matches(make_context("agony", true, "affliction", 1), make_state()),
     "CoA should match in agony mode")
 assert_false(coe.matches(make_context("agony", true, "affliction", 1), make_state()),
     "CoE should NOT match in agony mode")
-assert_false(cos.matches(make_context("agony", true, "affliction", 1), make_state()),
-    "CoS should NOT match in agony mode")
+
+-- Assigned curse overrides auto logic
+spell_ready_calls = {}
+assert_true(cod.matches(make_context("auto", true, "affliction", 1, "doom"), make_state()),
+    "CoD should match when assigned curse is doom")
+assert_false(coa.matches(make_context("auto", true, "affliction", 1, "doom"), make_state()),
+    "CoA should NOT match when assigned curse is doom")
+
+-- Recklessness and Weakness modes
+spell_ready_calls = {}
+assert_true(cor.matches(make_context("recklessness", true, "affliction", 1), make_state()),
+    "CoR should match in recklessness mode")
+assert_true(cow.matches(make_context("weakness", true, "affliction", 1), make_state()),
+    "CoW should match in weakness mode")
 
 print("PASS test_affliction_curse_mode_gates")

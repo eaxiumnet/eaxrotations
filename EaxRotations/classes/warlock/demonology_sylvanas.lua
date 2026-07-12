@@ -12,6 +12,8 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarlockSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local curse_helper = require("shared/warlock_curse_helper_sylvanas")
+local CURSE_REFRESH_WINDOW = curse_helper.CURSE_REFRESH_WINDOW
 
 -- IZI SDK optional cache for pet access
 local _izi = nil
@@ -26,9 +28,10 @@ local ACTION = {
     Corruption       = define("Corruption",       { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
     CurseElements    = define("CurseElements",    { 27228, 11722, 11721, 1490 }, "CurseElements"),
     CurseOfAgony     = define("CurseOfAgony",     { 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
-    CurseOfDoom      = define("CurseOfDoom",      { 30910, 603 }, "CurseOfDoom"),
-    CurseOfShadow    = define("CurseOfShadow",    { 27229, 17937, 17862 }, "CurseOfShadow"),
-    DarkPact         = define("DarkPact",         { 27265, 18938, 18937, 18220 }, "DarkPact"),
+    CurseOfDoom       = define("CurseOfDoom",       { 30910, 603 }, "CurseOfDoom"),
+    CurseOfRecklessness = define("CurseOfRecklessness", { 27227, 11717, 11716, 11715, 6209, 6208, 1109, 702 }, "CurseOfRecklessness"),
+    CurseOfWeakness   = define("CurseOfWeakness",   { 30909, 27224, 11708, 11707, 7646, 6205, 1108, 702 }, "CurseOfWeakness"),
+    DarkPact          = define("DarkPact",          { 27265, 18938, 18937, 18220 }, "DarkPact"),
     DeathCoil        = define("DeathCoil",        { 27223, 17926, 17925, 6789 }, "DeathCoil"),
     DrainSoul        = define("DrainSoul",        { 27217, 11675, 8289, 8288, 1120 }, "DrainSoul"),
     Fear             = define("Fear",             { 6215, 6213, 5782 }, "Fear"),
@@ -63,9 +66,8 @@ local CORRUPTION_DEBUFF = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
 local IMMOLATE_DEBUFF = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 local FEL_ARMOR_BUFF = { 28189, 28176 }
 local SOUL_LINK_BUFF = { 25228 }
-local CURSE_OF_AGONY_DEBUFF = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
-local CURSE_OF_ELEMENTS_DEBUFF = { 27228, 11722, 11721, 1490 }
-local CURSE_OF_SHADOW_DEBUFF = { 27229, 17937, 17862 }
+local CURSE_OF_AGONY_DEBUFF = curse_helper.CURSE_OF_AGONY_DEBUFF
+local CURSE_OF_ELEMENTS_DEBUFF = curse_helper.CURSE_OF_ELEMENTS_DEBUFF
 local PET_LOW_HP = 30
 local EXECUTE_THRESHOLD = 25
 local SOUL_SHARD_CAPTURE_TTD = 5  -- TBC: Drain Soul is shard-capture only (mob about to die); sub-25% execute is Wrath, not TBC
@@ -106,7 +108,11 @@ local DEMO_SCHEMA = {
     soul_fire_ready = false, fear_ready = false,
     seduction_ready = false, rain_of_fire_ready = false,
     hellfire_ready = false, curse_of_agony_ready = false,
-    curse_of_elements_ready = false, curse_of_shadow_ready = false,
+    curse_of_elements_ready = false,
+    curse_of_recklessness_ready = false,
+    curse_of_weakness_ready = false,
+    agony_remains = 0, doom_remains = 0, coe_remains = 0,
+    recklessness_remains = 0, weakness_remains = 0,
     dark_pact_ready = false, drain_soul_ready = false,
     soul_link_ready = false,
     -- Items
@@ -148,6 +154,13 @@ local demo_state = {
     hellfire_ready = false,
     curse_of_agony_ready = false,
     curse_of_elements_ready = false,
+    curse_of_recklessness_ready = false,
+    curse_of_weakness_ready = false,
+    agony_remains = 0,
+    doom_remains = 0,
+    coe_remains = 0,
+    recklessness_remains = 0,
+    weakness_remains = 0,
     dark_pact_ready = false,
     drain_soul_ready = false,
     soul_link_ready = false,
@@ -239,9 +252,16 @@ local function build_state(context)
     demo_state.seduction_ready = target and NS.spell_ready(ACTION.Seduction, target) or false
     demo_state.rain_of_fire_ready = target and NS.spell_ready(ACTION.RainOfFire, target, { expected_cooldown = 1.5 }) or false
     demo_state.hellfire_ready = me and NS.spell_ready(ACTION.Hellfire, me, { skip_range = true }) or false
+    demo_state.target = target
     demo_state.curse_of_agony_ready = target and NS.spell_ready(ACTION.CurseOfAgony, target) or false
     demo_state.curse_of_elements_ready = target and NS.spell_ready(ACTION.CurseElements, target) or false
-    demo_state.curse_of_shadow_ready = target and NS.spell_ready and NS.spell_ready(ACTION.CurseOfShadow, target) or false
+    demo_state.curse_of_recklessness_ready = target and NS.spell_ready(ACTION.CurseOfRecklessness, target) or false
+    demo_state.curse_of_weakness_ready = target and NS.spell_ready(ACTION.CurseOfWeakness, target) or false
+    demo_state.agony_remains        = target and NS.debuff_remains and NS.debuff_remains(target, curse_helper.CURSE_OF_AGONY_DEBUFF) or 0
+    demo_state.doom_remains         = target and NS.debuff_remains and NS.debuff_remains(target, curse_helper.CURSE_OF_DOOM_DEBUFF) or 0
+    demo_state.coe_remains          = target and NS.debuff_remains and NS.debuff_remains(target, curse_helper.CURSE_OF_ELEMENTS_DEBUFF) or 0
+    demo_state.recklessness_remains = target and NS.debuff_remains and NS.debuff_remains(target, curse_helper.CURSE_OF_RECKLESSNESS_DEBUFF) or 0
+    demo_state.weakness_remains     = target and NS.debuff_remains and NS.debuff_remains(target, curse_helper.CURSE_OF_WEAKNESS_DEBUFF) or 0
     demo_state.dark_pact_ready = me and NS.spell_ready(ACTION.DarkPact, me, { skip_range = true, expected_cooldown = 10 }) or false
     demo_state.drain_soul_ready = target and NS.spell_ready(ACTION.DrainSoul, target) or false
     demo_state.soul_link_ready = me and NS.spell_ready(25228, me, { skip_range = true }) or false
@@ -359,29 +379,28 @@ end
 -- Match functions
 -- ============================================================================
 local function select_curse(context, s)
+    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+    if assigned ~= "none" then return assigned end
+
     local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
     if curse_mode == "agony" then return "agony" end
-    if curse_mode == "shadow" then return "shadow" end
-    if curse_mode == "elements" then return "elements" end
     if curse_mode == "doom" then return "doom" end
+    if curse_mode == "elements" then return "elements" end
     if curse_mode == "recklessness" then return "recklessness" end
     if curse_mode == "weakness" then return "weakness" end
     if curse_mode == "none" then return nil end
+
     if context.is_pvp then
         if context.enemy_healer then return "tongues" end
         if context.melee_on_you then return "exhaustion" end
     end
     local caster_threshold = spec_kit.setting_number(context, "warlock_curse_elements_threshold", 2)
     if (context.caster_count or 0) >= caster_threshold then return "elements" end
-    return "agony"
+    return "doom"
 end
 
 local function other_curse_active(s, this_curse)
-    if this_curse ~= "agony" and NS.debuff_remains and s.target and NS.debuff_remains(s.target, CURSE_OF_AGONY_DEBUFF) > DOT_REFRESH_WINDOW then return true end
-    if this_curse ~= "doom" and (s.doom_remains or 0) > DOT_REFRESH_WINDOW then return true end
-    if this_curse ~= "elements" and NS.debuff_remains and s.target and NS.debuff_remains(s.target, CURSE_OF_ELEMENTS_DEBUFF) > DOT_REFRESH_WINDOW then return true end
-    if this_curse ~= "shadow" and NS.debuff_remains and s.target and NS.debuff_remains(s.target, CURSE_OF_SHADOW_DEBUFF) > DOT_REFRESH_WINDOW then return true end
-    return false
+    return curse_helper.other_curse_active(s, this_curse)
 end
 
 local function curse_of_doom_matches(context, s)
@@ -553,7 +572,7 @@ local function curse_of_agony_matches(context, s)
     if curse_mode ~= "auto" and curse_mode ~= "agony" then return false end
     if curse_mode == "auto" and select_curse(context, s) ~= "agony" then return false end
     if not s.curse_of_agony_ready then return false end
-    if NS.debuff_remains(context.target, CURSE_OF_AGONY_DEBUFF) > DOT_REFRESH_WINDOW then return false end
+    if NS.debuff_remains(context.target, CURSE_OF_AGONY_DEBUFF) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(s, "agony") then return false end
     if (s.target_hp_pct or 100) < EXECUTE_THRESHOLD then return false end
     return true
@@ -567,8 +586,34 @@ local function curse_of_elements_matches(context, s)
     if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
     if curse_mode == "auto" and select_curse(context, s) ~= "elements" then return false end
     if not s.curse_of_elements_ready then return false end
-    if NS.debuff_remains(context.target, CURSE_OF_ELEMENTS_DEBUFF) > DOT_REFRESH_WINDOW then return false end
+    if NS.debuff_remains(context.target, CURSE_OF_ELEMENTS_DEBUFF) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(s, "elements") then return false end
+    return true
+end
+
+local function curse_of_recklessness_matches(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfRecklessness, 2.0) then return false end
+    if not s then return false end
+    if not context.target then return false end
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if curse_mode ~= "auto" and curse_mode ~= "recklessness" then return false end
+    if curse_mode == "auto" and select_curse(context, s) ~= "recklessness" then return false end
+    if not s.curse_of_recklessness_ready then return false end
+    if NS.debuff_remains(context.target, curse_helper.CURSE_OF_RECKLESSNESS_DEBUFF) > CURSE_REFRESH_WINDOW then return false end
+    if other_curse_active(s, "recklessness") then return false end
+    return true
+end
+
+local function curse_of_weakness_matches(context, s)
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfWeakness, 2.0) then return false end
+    if not s then return false end
+    if not context.target then return false end
+    local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
+    if curse_mode ~= "auto" and curse_mode ~= "weakness" then return false end
+    if curse_mode == "auto" and select_curse(context, s) ~= "weakness" then return false end
+    if not s.curse_of_weakness_ready then return false end
+    if NS.debuff_remains(context.target, curse_helper.CURSE_OF_WEAKNESS_DEBUFF) > CURSE_REFRESH_WINDOW then return false end
+    if other_curse_active(s, "weakness") then return false end
     return true
 end
 
@@ -659,18 +704,8 @@ local strategies = {
 
     { name = "CurseOfDoom", matches = curse_of_doom_matches, execute = function(context) return NS.try_cast(ACTION.CurseOfDoom, context.target, "[DEMONOLOGY] Curse of Doom", { expected_cooldown = 60 }) end },
     { name = "CurseOfElements", matches = curse_of_elements_matches, execute = function(context) return NS.try_cast(ACTION.CurseElements, context.target, "[DEMONOLOGY] Curse of Elements") end },
-    { name = "CurseOfShadow", matches = function(context, s)
-        if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfShadow, 2.0) then return false end
-        if not s then return false end
-        if not context.target then return false end
-        local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
-        if curse_mode ~= "auto" and curse_mode ~= "shadow" then return false end
-        if curse_mode == "auto" and select_curse(context, s) ~= "shadow" then return false end
-        if not s.curse_of_shadow_ready then return false end
-        if NS.debuff_remains(context.target, CURSE_OF_SHADOW_DEBUFF) > DOT_REFRESH_WINDOW then return false end
-        if other_curse_active(s, "shadow") then return false end
-        return true
-    end, execute = function(context) return NS.try_cast(ACTION.CurseOfShadow, context.target, "[DEMONOLOGY] Curse of Shadow") end },
+    { name = "CurseOfRecklessness", matches = curse_of_recklessness_matches, execute = function(context) return NS.try_cast(ACTION.CurseOfRecklessness, context.target, "[DEMONOLOGY] Curse of Recklessness") end },
+    { name = "CurseOfWeakness", matches = curse_of_weakness_matches, execute = function(context) return NS.try_cast(ACTION.CurseOfWeakness, context.target, "[DEMONOLOGY] Curse of Weakness") end },
     { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(context) return NS.try_cast(ACTION.CurseOfAgony, context.target, "[DEMONOLOGY] Curse of Agony") end },
     -- TBC guide order: Corruption > Immolate (higher DPCT, longer DoT) — apply Corruption first when both need refresh.
     { name = "Corruption", matches = corruption_matches, execute = function(context) return NS.try_cast(ACTION.Corruption, context.target, "[DEMONOLOGY] Corruption") end },

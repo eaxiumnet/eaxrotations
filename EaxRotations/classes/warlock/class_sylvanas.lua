@@ -49,6 +49,8 @@ local SPELLS = {
     }),
     CurseElements = NS.spell_action({ 27228, 11722, 11721, 1490 }, "CurseElements"),
     CurseOfShadow = NS.spell_action({ 27229, 17937, 17862 }, "CurseOfShadow"),
+    CurseOfRecklessness = NS.spell_action({ 27227, 11717, 11716, 11715, 6209, 6208, 1109, 702 }, "CurseOfRecklessness"),
+    CurseOfWeakness = NS.spell_action({ 30909, 27224, 11708, 11707, 7646, 6205, 1108, 702 }, "CurseOfWeakness"),
     CurseOfExhaustion = NS.spell_action({ 18223 }, "CurseOfExhaustion"),
     CurseExhaustion = NS.spell_action({ 18223 }, "CurseExhaustion"),
     CurseOfDoom = NS.spell_action({
