@@ -248,6 +248,8 @@ local function select_curse(context, state)
     end
     local caster_threshold = spec_kit.setting_number(context, "warlock_curse_elements_threshold", 2)
     if (context.caster_count or 0) >= caster_threshold then return "elements" end
+    local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
+    if context.is_group and (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
     return "doom"
 end
 
@@ -353,7 +355,8 @@ local function curse_of_elements_matches(context, action, state)
     if curse_mode == "auto" and select_curse(context, state) ~= "elements" then return false end
     if not state then return false end
     state = state or {}
-    if not (context.is_group or (context.party_size and context.party_size > 1)) then return false end
+    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+    if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "elements" and assigned ~= "elements" then return false end
     if (state.coe_remains or 0) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(state, "elements") then return false end
     return NS.spell_ready(action.spell, context.target)
@@ -366,7 +369,8 @@ local function curse_of_recklessness_matches(context, action, state)
     if curse_mode == "auto" and select_curse(context, state) ~= "recklessness" then return false end
     if not state then return false end
     state = state or {}
-    if not (context.is_group or (context.party_size and context.party_size > 1)) then return false end
+    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+    if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "recklessness" and assigned ~= "recklessness" then return false end
     if (state.recklessness_remains or 0) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(state, "recklessness") then return false end
     return NS.spell_ready(action.spell, context.target)
@@ -379,7 +383,8 @@ local function curse_of_weakness_matches(context, action, state)
     if curse_mode == "auto" and select_curse(context, state) ~= "weakness" then return false end
     if not state then return false end
     state = state or {}
-    if not (context.is_group or (context.party_size and context.party_size > 1)) then return false end
+    local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+    if not (context.is_group or (context.party_size and context.party_size > 1)) and curse_mode ~= "weakness" and assigned ~= "weakness" then return false end
     if (state.weakness_remains or 0) > CURSE_REFRESH_WINDOW then return false end
     if other_curse_active(state, "weakness") then return false end
     return NS.spell_ready(action.spell, context.target)

@@ -82,16 +82,17 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
-local function make_context(mode, group, playstyle, enemy_count, assigned)
+local function make_context(mode, group, playstyle, enemy_count, assigned, physical_dps_count)
     return {
         target = {},
         has_valid_enemy_target = true,
         is_group = group,
         active_playstyle = playstyle,
         enemy_count = enemy_count or 1,
+        physical_dps_count = physical_dps_count or 0,
         ttd_known = true,
         ttd = 120,
-        settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none", dot_ttd_threshold = 50 },
+        settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none", warlock_curse_reck_threshold = 2, dot_ttd_threshold = 50 },
     }
 end
 
@@ -149,5 +150,14 @@ assert_true(cor.matches(make_context("recklessness", true, "affliction", 1), mak
     "CoR should match in recklessness mode")
 assert_true(cow.matches(make_context("weakness", true, "affliction", 1), make_state()),
     "CoW should match in weakness mode")
+
+-- Assigned curse overrides group-only gate in solo
+spell_ready_calls = {}
+assert_true(coe.matches(make_context("auto", false, "affliction", 1, "elements"), make_state()),
+    "CoE should match in solo when assigned curse is elements")
+assert_true(cor.matches(make_context("auto", false, "affliction", 1, "recklessness"), make_state()),
+    "CoR should match in solo when assigned curse is recklessness")
+assert_true(cow.matches(make_context("auto", false, "affliction", 1, "weakness"), make_state()),
+    "CoW should match in solo when assigned curse is weakness")
 
 print("PASS test_affliction_curse_mode_gates")

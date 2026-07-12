@@ -458,6 +458,8 @@ local function select_curse(context, state)
     end
     if (state.enemy_count or 0) >= 3 then return "elements" end
     if context.is_group then return "elements" end
+    local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
+    if context.is_group and (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
     return "agony"
 end
 
@@ -835,7 +837,8 @@ local strategies = {
             local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
             if curse_mode ~= "auto" and curse_mode ~= "elements" then return false end
             if curse_mode == "auto" and select_curse(context, state) ~= "elements" then return false end
-            if not context.is_group and curse_mode ~= "elements" then return false end
+            local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+            if not context.is_group and curse_mode ~= "elements" and assigned ~= "elements" then return false end
             if (state and state.coe_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "elements") then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target) or false
@@ -855,7 +858,8 @@ local strategies = {
             local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
             if curse_mode ~= "auto" and curse_mode ~= "recklessness" then return false end
             if curse_mode == "auto" and select_curse(context, state) ~= "recklessness" then return false end
-            if not context.is_group and curse_mode ~= "recklessness" then return false end
+            local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+            if not context.is_group and curse_mode ~= "recklessness" and assigned ~= "recklessness" then return false end
             if (state and state.recklessness_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "recklessness") then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfRecklessness, context.target) or false
@@ -875,7 +879,8 @@ local strategies = {
             local curse_mode = spec_kit.setting(context, "warlock_curse_mode", "auto")
             if curse_mode ~= "auto" and curse_mode ~= "weakness" then return false end
             if curse_mode == "auto" and select_curse(context, state) ~= "weakness" then return false end
-            if not context.is_group and curse_mode ~= "weakness" then return false end
+            local assigned = spec_kit.setting(context, "warlock_assigned_curse", "none")
+            if not context.is_group and curse_mode ~= "weakness" and assigned ~= "weakness" then return false end
             if (state and state.weakness_remains or 0) > CURSE_REFRESH_WINDOW then return false end
             if other_curse_active(state, "weakness") then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.CurseOfWeakness, context.target) or false

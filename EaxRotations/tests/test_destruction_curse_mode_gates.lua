@@ -65,14 +65,15 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
-local function make_context(mode, group, assigned)
+local function make_context(mode, group, assigned, physical_dps_count)
     return {
         target = {},
         is_group = group,
         party_size = group and 2 or 1,
+        physical_dps_count = physical_dps_count or 0,
         ttd_known = true,
         ttd = 120,
-        settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none" },
+        settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none", warlock_curse_reck_threshold = 2 },
     }
 end
 
@@ -124,5 +125,16 @@ assert_true(cor.matches(make_context("recklessness", true), make_state()),
     "CoR should match in recklessness mode")
 assert_true(cow.matches(make_context("weakness", true), make_state()),
     "CoW should match in weakness mode")
+
+-- Assigned curse overrides group-only gate in solo
+assert_true(coe.matches(make_context("auto", false, "elements"), make_state()),
+    "CoE should match in solo when assigned curse is elements")
+assert_true(cor.matches(make_context("auto", false, "recklessness"), make_state()),
+    "CoR should match in solo when assigned curse is recklessness")
+assert_true(cow.matches(make_context("auto", false, "weakness"), make_state()),
+    "CoW should match in solo when assigned curse is weakness")
+
+assert_true(cor.matches(make_context("auto", true, nil, 2), make_state()),
+    "CoR should match in auto when physical_dps_count >= warlock_curse_reck_threshold")
 
 print("PASS test_destruction_curse_mode_gates")
