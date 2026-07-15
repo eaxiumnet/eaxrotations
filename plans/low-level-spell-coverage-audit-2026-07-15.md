@@ -83,8 +83,8 @@ local level = leveling_helpers.level_from_context(context)
 | Warrior | Done | Sunder Armor armor gate, Execute stance dance |
 | Hunter | Done | BM pre-Steady Shot silent gate, MM Wing Clip ready state |
 | Rogue | Done | Sinister Strike fallback, Eviscerate 4 CP dump, Evasion rank fix |
-| Paladin | In progress | — |
-| Shaman | Pending | — |
+| Paladin | Done | JoW/SoW dual-seal fix, missing SoR rank-1, Cleanse gate |
+| Shaman | In progress | — |
 | Mage | Pending | — |
 | Warlock | Pending | — |
 | Priest | Pending | — |
