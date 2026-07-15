@@ -25,7 +25,17 @@ local NS = {
   is_interruptible=function() return true end, game_time_ms=function() return 1000 end,
   unit_mana_pct=function() return 100 end, unit_health_pct=function() return 100 end,
   log=function() end, GetPlayer=function() return me_mock end, GetPet=function() return nil end,
+  gate_cooldown_boss_only = function(ctx) return true end,
   PLAYER_UNIT = me_mock,
+  should_use_long_cd = function(ctx, cd)
+      if not ctx or not ctx.combat_length_forecast then return true end
+      if ctx.target_is_boss then return true end
+      local forecast = ctx.combat_length_forecast
+      if cd >= 180 and forecast < 60 then return false end
+      if cd >= 120 and forecast < 45 then return false end
+      if cd >= 60 and forecast < 30 then return false end
+      return true
+  end,
   WeaponImbueManager = { mainhand_has_imbue=function() return false end, offhand_has_imbue=function() return false end, get_mainhand_enchant_info=function() return nil end, get_offhand_enchant_info=function() return nil end },
   rotation_registry = { register = function(self,spec,strats,opts) cap_gs = opts and opts.get_state end },
 }
@@ -75,5 +85,11 @@ local gw = fs("GhostWolf")
 af(gw.matches(setup({ in_combat=true, enemy_count=1, mana_pct=80, hp=100, settings={} })), "GW in combat")
 af(gw.matches(setup({ in_combat=false, enemy_count=1, mana_pct=80, hp=100, settings={ use_ooc_buffs=false } })), "GW ooc buffs off")
 at(gw.matches(setup({ in_combat=false, enemy_count=1, mana_pct=80, hp=100, settings={} })), "GW OOC match")
+
+-- Bloodlust: combat_forecast gate blocks on short fights, allows on long fights/boss.
+local bl = fs("Bloodlust")
+af(bl.matches(setup({ in_combat=true, enemy_count=1, mana_pct=80, hp=100, target={}, settings={}, combat_length_forecast=20 })), "Bloodlust short fight blocked")
+at(bl.matches(setup({ in_combat=true, enemy_count=1, mana_pct=80, hp=100, target={}, settings={}, combat_length_forecast=120 })), "Bloodlust long fight allowed")
+at(bl.matches(setup({ in_combat=true, enemy_count=1, mana_pct=80, hp=100, target={}, settings={}, combat_length_forecast=10, target_is_boss=true })), "Bloodlust boss allowed")
 
 print("PASS test_enhancement_custom_matches")
