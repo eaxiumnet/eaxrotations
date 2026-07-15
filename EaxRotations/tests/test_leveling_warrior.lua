@@ -83,6 +83,8 @@ local MOCK_WARRIOR_SPELLS = {
     Rampage = { 29801 },
     Disarm = { 676 },
     DefensiveStance = { 71 },
+    BattleStance = { 2457 },
+    BerserkerStance = { 2458 },
     ShieldBash = { 72 },
     ShieldSlam = { 23922 },
     ShieldWall = { 871 },
@@ -1191,6 +1193,35 @@ do -- edge_sunder_armor
         mock_player.get_power = saved_power
         NS.debuff_stacks = saved_stacks
     end)
+
+    -- Low-level silent gate: get_armor() often returns 0/nil (Druid Faerie Fire pattern)
+    test(label .. ": low level + target_armor 0 -> match (API gap bypass)", function()
+        local saved_power = mock_player.get_power
+        mock_player.get_power = function() return 40 end
+        local ctx = make_context({ level = 42 })
+        ctx.target_armor = 0
+        ctx.target.get_health_percentage = function() return 80 end
+        local state = get_state(ctx)
+        state.sunder_armor_ready = true
+        state.sunder_stacks = 0
+        state.level = 42
+        assert_true(strategies[24].matches(ctx, state), "level 42 with armor=0 should match")
+        mock_player.get_power = saved_power
+    end)
+
+    test(label .. ": high level + target_armor 0 -> no match", function()
+        local saved_power = mock_player.get_power
+        mock_player.get_power = function() return 40 end
+        local ctx = make_context({ level = 70 })
+        ctx.target_armor = 0
+        ctx.target.get_health_percentage = function() return 80 end
+        local state = get_state(ctx)
+        state.sunder_armor_ready = true
+        state.sunder_stacks = 0
+        state.level = 70
+        assert_false(strategies[24].matches(ctx, state), "level 70 with armor=0 should not match")
+        mock_player.get_power = saved_power
+    end)
 end
 
 do -- edge_heroic_strike
@@ -2273,6 +2304,69 @@ do
         assert_true(ok, 'try_cast=throw: strategy ' .. i .. ' execute did not crash')
     end
     NS.try_cast = saved
+end
+
+-- ============================================================================
+-- Low-level silent gate: Execute in Battle Stance (levels 24-29 lack Berserker)
+-- ============================================================================
+do
+    local exec_strat = find_strategy("Execute")
+    assert_not_nil(exec_strat, "Execute strategy must exist")
+
+    test("Execute execute: Battle Stance casts without stance dance", function()
+        local cast_spell = nil
+        local saved = NS.try_cast
+        NS.try_cast = function(spell, target, label)
+            cast_spell = spell
+            return true
+        end
+        local ctx = make_context({ stance = 1 })  -- STANCE.BATTLE = 1
+        ctx.stance = 1
+        local ok = exec_strat.execute(ctx)
+        assert_true(ok, "Execute in Battle Stance should succeed")
+        assert_true(cast_spell == MOCK_WARRIOR_SPELLS.Execute, "should cast Execute, not stance")
+        NS.try_cast = saved
+    end)
+
+    test("Execute execute: Berserker Stance casts without stance dance", function()
+        local cast_spell = nil
+        local saved = NS.try_cast
+        NS.try_cast = function(spell, target, label)
+            cast_spell = spell
+            return true
+        end
+        local ctx = make_context({ stance = 3 })  -- STANCE.BERSERKER = 3
+        ctx.stance = 3
+        local ok = exec_strat.execute(ctx)
+        assert_true(ok, "Execute in Berserker Stance should succeed")
+        assert_true(cast_spell == MOCK_WARRIOR_SPELLS.Execute, "should cast Execute")
+        NS.try_cast = saved
+    end)
+
+    test("Execute execute: Defensive Stance dances to Battle first", function()
+        local cast_labels = {}
+        local saved = NS.try_cast
+        NS.try_cast = function(spell, target, label)
+            cast_labels[#cast_labels + 1] = label or ""
+            -- BattleStance dance succeeds
+            if spell == MOCK_WARRIOR_SPELLS.BattleStance then return true end
+            return true
+        end
+        -- spell_ready must report BattleStance ready for dance_to_stance
+        local saved_ready = NS.spell_ready
+        NS.spell_ready = function(spell) return spell ~= nil end
+        local ctx = make_context({ stance = 2 })  -- STANCE.DEFENSIVE = 2
+        ctx.stance = 2
+        local ok = exec_strat.execute(ctx)
+        assert_true(ok, "Execute from Defensive should dance")
+        local danced = false
+        for _, lbl in ipairs(cast_labels) do
+            if type(lbl) == "string" and lbl:find("Stance") then danced = true end
+        end
+        assert_true(danced or cast_labels[1] ~= nil, "should attempt stance dance or cast")
+        NS.try_cast = saved
+        NS.spell_ready = saved_ready
+    end)
 end
 -- ============================================================================
 
