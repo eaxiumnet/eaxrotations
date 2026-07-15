@@ -125,6 +125,7 @@ function druid_leveling.build_state(context)
     state.energy = context.energy or 0
     state.combo_points = context.combo_points or context.cp or 0
     state.rage = context.rage or 0
+    state.level = context.level or context.player_level or 60
     state.is_behind = NS.is_behind_target and NS.is_behind_target(context.target) or false
     state.is_stealthed = context.is_stealthed == true or has_buff(PROWL_BUFF)
 
@@ -317,7 +318,9 @@ local shred_matches = function(_, state)
     if (state.energy or 0) < 42 then return false end
     if (state.combo_points or 0) >= 5 then return false end
     if not state.is_behind then return false end
-    if state.mangle_remains <= 0 then return false end  -- Need Mangle debuff up
+    -- Mangle (Cat) is learned at level 50. Below that, Shred is the primary builder
+    -- and the Mangle debuff cannot be expected, so skip the debuff requirement.
+    if (state.level or 70) >= 50 and state.mangle_remains <= 0 then return false end
     return true
 end
 
@@ -390,13 +393,27 @@ local swipe_bear_matches = function(_, state)
 end
 
 --- Maul - rage dump (next melee attack enhancer)
+-- Level-aware threshold (like warrior HS in leveling): lower at low levels
+-- where Maul is often the primary (or only) bear ability. Mimics "15 at low, scales".
 local maul_matches = function(_, state)
     if not state then return false end
     if not state.is_bear then return false end
     if not has_enemy_target(state) then return false end
     if not state.target then return false end
     if not state.maul_ready then return false end
-    if (state.rage or 0) < 40 then return false end  -- Conservative; Maul is expensive
+    local lvl = state.level or 60
+    -- Fallback fetch if needed (rare in tests)
+    if (not lvl or lvl < 2) and NS.GetPlayer then
+        local me = NS.GetPlayer()
+        if me then
+            local ok, l = pcall(function() return me:get_level() or me:level() or 60 end)
+            if ok and type(l) == "number" and l > 0 then lvl = l end
+        end
+    end
+    -- Lower threshold for low-level bear (Maul = main spell per user report).
+    -- ~15-20 at very low, ~25 at lvl20, ~30 at lvl30, 40 at high.
+    local threshold = math.max(15, math.min(40, 15 + math.floor((lvl or 60) / 2)))
+    if (state.rage or 0) < threshold then return false end
     return true
 end
 

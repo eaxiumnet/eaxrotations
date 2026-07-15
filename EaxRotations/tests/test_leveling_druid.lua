@@ -785,6 +785,94 @@ test("faerie_fire_matches: nil state -> does not crash", function()
 end)
 
 -- ============================================================================
+-- Test: low-level feral level 42 reported spells
+-- Reproduces the silent-gating bug where core spells are not usable at level 42.
+-- ============================================================================
+
+local function with_feral_mocks(fn)
+    local saved_has_form = NS.has_form
+    local saved_is_behind = NS.is_behind_target
+    local saved_debuff_remains = NS.debuff_remains
+    NS.has_form = function(form) return form == "cat" end
+    NS.is_behind_target = function(target) return true end
+    NS.debuff_remains = function(target, ids) return 0 end
+    local ok, err = pcall(fn)
+    NS.has_form = saved_has_form
+    NS.is_behind_target = saved_is_behind
+    NS.debuff_remains = saved_debuff_remains
+    if not ok then error(err, 2) end
+end
+
+test("low_level_feral_42: Faerie Fire (Feral) fires in cat form at level 42", function()
+    with_feral_mocks(function()
+        local ctx = make_context({level = 42})
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.in_combat = true
+        state.faerie_fire_feral_ready = true
+        state.faerie_fire_feral_remains = 0
+        assert_true(S_FaerieFireFeral.matches(ctx, state), "Faerie Fire (Feral) should fire at level 42")
+    end)
+end)
+
+test("low_level_feral_42: Shred fires without Mangle debuff at level 42", function()
+    with_feral_mocks(function()
+        local ctx = make_context({level = 42})
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.is_behind = true
+        state.energy = 60
+        state.combo_points = 3
+        state.shred_ready = true
+        state.mangle_remains = 0
+        state.mangle_cat_ready = false
+        state.target_ttd = 60
+        assert_true(S_Shred.matches(ctx, state), "Shred should fire at level 42 without Mangle debuff")
+    end)
+end)
+
+test("low_level_feral_42: Ravage fires from stealth behind target at level 42", function()
+    with_feral_mocks(function()
+        local ctx = make_context({level = 42})
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.is_stealthed = true
+        state.is_behind = true
+        state.energy = 60
+        state.ravage_ready = true
+        assert_true(S_Ravage.matches(ctx, state), "Ravage should fire at level 42 from stealth behind target")
+    end)
+end)
+
+test("low_level_feral_42: Rip fires at 4 combo points at level 42", function()
+    with_feral_mocks(function()
+        local ctx = make_context({level = 42})
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.energy = 40
+        state.combo_points = 4
+        state.rip_ready = true
+        state.rip_remains = 0
+        state.target_ttd = 60
+        assert_true(S_Rip.matches(ctx, state), "Rip should fire at level 42 with 4 combo points")
+    end)
+end)
+
+test("low_level_feral_42: Ferocious Bite fires at 4 combo points at level 42", function()
+    with_feral_mocks(function()
+        local ctx = make_context({level = 42})
+        local state = get_state(ctx)
+        state.is_cat = true
+        state.energy = 40
+        state.combo_points = 4
+        state.bite_ready = true
+        state.rip_remains = 0
+        state.target_ttd = 60
+        assert_true(S_FerociousBite.matches(ctx, state), "Ferocious Bite should fire at level 42 with 4 combo points")
+    end)
+end)
+
+-- ============================================================================
 -- Test: hurricane_matches (strategy #11)
 -- ============================================================================
 
@@ -2028,22 +2116,24 @@ do -- edge_bear_abilities
         assert_false(strategies[15].matches(ctx, state), "1 enemy should not match (< 2)")
     end)
 
-    test(label .. ": Maul rage exactly 40 -> match", function()
-        local ctx = make_context()
+    test(label .. ": Maul rage exactly 40 -> match (high lvl threshold)", function()
+        local ctx = make_context({ level = 50 })
         local state = get_state(ctx)
         state.is_bear = true
         state.maul_ready = true
         state.rage = 40
-        assert_true(strategies[16].matches(ctx, state), "rage 40 should match (>= threshold)")
+        state.level = 50
+        assert_true(strategies[16].matches(ctx, state), "rage 40 should match (>= threshold at lvl50)")
     end)
 
-    test(label .. ": Maul rage 39 -> no match", function()
-        local ctx = make_context()
+    test(label .. ": Maul rage 39 -> no match (high lvl threshold)", function()
+        local ctx = make_context({ level = 50 })
         local state = get_state(ctx)
         state.is_bear = true
         state.maul_ready = true
         state.rage = 39
-        assert_false(strategies[16].matches(ctx, state), "rage 39 should not match (< 40)")
+        state.level = 50
+        assert_false(strategies[16].matches(ctx, state), "rage 39 should not match (< threshold at lvl50)")
     end)
 end
 
