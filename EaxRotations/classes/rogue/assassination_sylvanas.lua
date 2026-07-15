@@ -35,8 +35,9 @@ local ACTION = {
     ThistleTea     = define("ThistleTea",     { 9513 }, "ThistleTea"),
     Vanish         = define("Vanish",         { 26889, 1857, 1856 }, "Vanish"),
 }
-local potion_helper = require("shared/potion_helper_sylvanas")
-local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+	local potion_helper = require("shared/potion_helper_sylvanas")
+	local leveling_helpers = require("shared/leveling_helpers_sylvanas")
+	local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
 -- ============================================================================
 -- Buff & Debuff ID tables
@@ -260,15 +261,20 @@ local function shiv_purge_matches(context, state)
     return true
 end
 
-local function assassination_leveling_builder_matches(context, state)
-    local target = context.target
-    if not target then return false end
-    if (state.energy or 0) < 45 then return false end
-    local level = context.player_level or 70
-    if not context.is_leveling and level >= 50 then return false end
-    if level >= 50 and NS.spell_exists and NS.spell_exists(ACTION.Mutilate) then return false end
-    return NS.spell_ready(ACTION.SinisterStrike, target)
-end
+	-- SS builder when Mutilate is unavailable (pre-50 / not talented / leveling).
+	-- Mirrors Druid cat is_low_level pattern: do not assume endgame builders exist.
+	local function assassination_leveling_builder_matches(context, state)
+	    local target = context.target
+	    if not target then return false end
+	    if (state.energy or 0) < 45 then return false end
+	    local level = leveling_helpers.level_from_context(context, 70)
+	    local mutilate_known = NS.spell_exists and NS.spell_exists(ACTION.Mutilate)
+	    -- High-level with Mutilate + daggers: prefer Mutilate path
+	    if not leveling_helpers.is_low_level(level) and not context.is_leveling then
+	        if mutilate_known and state.has_daggers then return false end
+	    end
+	    return NS.spell_ready(ACTION.SinisterStrike, target)
+	end
 
 -- ============================================================================
 -- Strategies (priority order: survival → cooldowns → finishers → builders → PvP)
@@ -545,33 +551,39 @@ local strategies = {
     -- 13b. Sinister Strike (fallback when Mutilate isn't usable)
     -- Triggers when: poison-immune target or target unpoisoned
     -- ------------------------------------------------------------------------
-    {
-        name = "SinisterStrikeFallback",
-        matches = function(context, state)
-            local level = context.player_level or 70
-            if level < 50 or not (NS.spell_exists and NS.spell_exists(ACTION.Mutilate)) then return false end
-            -- Fallback when Mutilate can't be used: no daggers equipped
-            if state.has_daggers then return false end
-            if state.energy_low then return false end
-            if not should_spend_energy(context, 45) then return false end
-            return NS.spell_ready(ACTION.SinisterStrike, context.target)
-        end,
-        execute = function(context)
-            return NS.try_cast(ACTION.SinisterStrike, context.target, "[ASSASS] Sinister Strike (Mutilate fallback)")
-        end,
-    },
+	    {
+	        name = "SinisterStrikeFallback",
+	        matches = function(context, state)
+	            local level = leveling_helpers.level_from_context(context, 70)
+	            -- Low-level / leveling uses LevelingSinisterStrike
+	            if leveling_helpers.is_low_level(level) or context.is_leveling then return false end
+	            local mutilate_known = NS.spell_exists and NS.spell_exists(ACTION.Mutilate)
+	            -- Fallback when Mutilate can't be used: not known, or no daggers
+	            if mutilate_known and state.has_daggers then return false end
+	            if state.energy_low then return false end
+	            if not should_spend_energy(context, 45) then return false end
+	            return NS.spell_ready(ACTION.SinisterStrike, context.target)
+	        end,
+	        execute = function(context)
+	            return NS.try_cast(ACTION.SinisterStrike, context.target, "[ASSASS] Sinister Strike (Mutilate fallback)")
+	        end,
+	    },
 
     -- ------------------------------------------------------------------------
     -- 14. Eviscerate (fallback finisher)
     -- ------------------------------------------------------------------------
-    {
-        name = "EviscerateFallback",
-        matches = function(context, state)
-            if state.energy_pool_finisher then return false end  -- pool energy below 25
-            if (state.combo or 0) < 5 then return false end
-            -- Only eviscerate if we can't Envenom or Rupture
-            return NS.spell_ready(ACTION.Eviscerate, context.target)
-        end,
+	    {
+	        name = "EviscerateFallback",
+	        matches = function(context, state)
+	            if state.energy_pool_finisher then return false end  -- pool energy below 25
+	            -- Low-level: dump at 4 CP (Envenom/Mutilate not available; short fights)
+	            local min_cp = 5
+	            local level = leveling_helpers.level_from_context(context, 70)
+	            if leveling_helpers.is_low_level(level) or context.is_leveling then min_cp = 4 end
+	            if (state.combo or 0) < min_cp then return false end
+	            -- Only eviscerate if we can't Envenom or Rupture
+	            return NS.spell_ready(ACTION.Eviscerate, context.target)
+	        end,
         execute = function(context)
             return NS.try_cast(ACTION.Eviscerate, context.target, "[ASSASS] Eviscerate")
         end,

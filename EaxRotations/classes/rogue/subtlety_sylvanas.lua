@@ -581,13 +581,13 @@ local strategies = {
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
 
-    { name = "Healthstone",
-      matches = function(context, state)
-          if not context.in_combat then return false end
-          if (state.hp_pct or 100) > 28 then return false end
-          if (state.healthstone_ready or 0) <= 0 then return false end
-          return true
-      end,
+	    { name = "Healthstone",
+	      matches = function(context, state)
+	          if not context.in_combat then return false end
+	          if (state.hp or 100) > 28 then return false end
+	          if (state.healthstone_ready or 0) <= 0 then return false end
+	          return true
+	      end,
       execute = function(context)
           local id = first_ready_item(HEALTHSTONE_IDS)
           if id then NS.use_item_by_id(id, context.me) end

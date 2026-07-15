@@ -8,10 +8,11 @@
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
-local potion_helper = require("shared/potion_helper_sylvanas")
-local HitCap = require("shared/hit_cap_tracker_sylvanas")
-local SPELLS = NS.RogueSpells or {}
-local spec_kit = require("shared/spec_kit_sylvanas")
+	local potion_helper = require("shared/potion_helper_sylvanas")
+	local HitCap = require("shared/hit_cap_tracker_sylvanas")
+	local leveling_helpers = require("shared/leveling_helpers_sylvanas")
+	local SPELLS = NS.RogueSpells or {}
+	local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- Centralized spell resolver via spec_kit (rank IDs from rogue/class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -393,15 +394,18 @@ local function rupture_wrapper(context, s)
     return true
 end
 
-local function eviscerate_matches(context, s)
-    if not s.eviscerate_ready then return false end
-    if s.energy_pool_finisher then return false end
-    if (s.energy or 0) < 35 then return false end  -- hard floor: spell costs 35 energy
-    -- Optimal: Eviscerate only at 5 CP for maximum damage per combo point
-    if (s.combo_points or 0) < 5 then return false end
-    if (s.deadly_poison_stacks or 0) >= 5 and s.envenom_ready then return false end  -- prefer Envenom
-    return true
-end
+	local function eviscerate_matches(context, s)
+	    if not s.eviscerate_ready then return false end
+	    if s.energy_pool_finisher then return false end
+	    if (s.energy or 0) < 35 then return false end  -- hard floor: spell costs 35 energy
+	    -- Endgame: 5 CP; low-level/leveling: dump at 4 CP (short fights, no Envenom)
+	    local min_cp = 5
+	    local level = leveling_helpers.level_from_context(context, 70)
+	    if leveling_helpers.is_low_level(level) or context.is_leveling then min_cp = 4 end
+	    if (s.combo_points or 0) < min_cp then return false end
+	    if (s.deadly_poison_stacks or 0) >= 5 and s.envenom_ready then return false end  -- prefer Envenom
+	    return true
+	end
 
 local function envenom_matches(context, s)
     if not s.envenom_ready then return false end
@@ -498,15 +502,16 @@ local function expose_armor_matches(context, s)
     return true
 end
 
-local function evasion_matches(context, s)
-    if not s.in_combat then return false end
-    if not (NS.is_spell_learned and NS.is_spell_learned(26669)) then return false end
-    local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(ACTION.Evasion) or 0
-    if cd > 0 then return false end
-    local default_hp = s.is_group and 45 or 30
-    local evasion_hp = spec_kit.setting_number(context, "combat_evasion_hp", default_hp)
-    return (s.hp_pct or 100) <= evasion_hp
-end
+	local function evasion_matches(context, s)
+	    if not s.in_combat then return false end
+	    -- Any rank (5277 R1 @8, 26669 R2 @50) — do not hardcode max rank
+	    if not (NS.is_spell_learned and NS.is_spell_learned(ACTION.Evasion)) then return false end
+	    local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(ACTION.Evasion) or 0
+	    if cd > 0 then return false end
+	    local default_hp = s.is_group and 45 or 30
+	    local evasion_hp = spec_kit.setting_number(context, "combat_evasion_hp", default_hp)
+	    return (s.hp_pct or 100) <= evasion_hp
+	end
 
 local function cloak_of_shadows_matches(context, s)
     if not s.in_combat then return false end

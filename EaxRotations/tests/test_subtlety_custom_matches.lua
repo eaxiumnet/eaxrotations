@@ -82,4 +82,10 @@ local hem = fs("Hemorrhage")
 af(hem.matches({settings={},target={}},cs({energy_low=true})),"Hemo energy low")
 at(hem.matches({settings={},target={}},cs({energy_low=false,energy=80})),"Hemo match")
 
+-- Healthstone: reads state.hp (not hp_pct) — silent fail if wrong field
+local hs = fs("Healthstone")
+af(hs.matches({in_combat=true},cs({hp=50,healthstone_ready=22105})),"Healthstone high hp")
+at(hs.matches({in_combat=true},cs({hp=20,healthstone_ready=22105})),"Healthstone low hp")
+af(hs.matches({in_combat=true},cs({hp=20,healthstone_ready=0})),"Healthstone none ready")
+
 print("PASS test_subtlety_custom_matches")
