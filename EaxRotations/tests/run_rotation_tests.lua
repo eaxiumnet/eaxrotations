@@ -79,6 +79,7 @@ local tests = {
 
  -- Hunter tests
  "test_hunter_aspect_matches.lua",
+ "test_hunter_low_level_gating.lua",
  "test_pet_happiness.lua",
  "test_hunter_pet_manager_wiring.lua",
  "test_hunter_steady_shot_weave.lua",

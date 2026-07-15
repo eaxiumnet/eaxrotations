@@ -13,6 +13,7 @@ if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
@@ -50,8 +51,10 @@ local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helpe
 -- Constants
 -- ============================================================================
 local AUTO_SHOT_ID = 75
-local ARCANE_SHOT_MANA_FLOOR = 50   -- BM optimal: save mana below 50% for Kill Command & pet abilities
+local ARCANE_SHOT_MANA_FLOOR = 50   -- BM optimal (70): save mana below 50% for Kill Command & pet abilities
+local ARCANE_SHOT_MANA_FLOOR_PRE_STEADY = 20  -- Pre-62: Steady Shot unavailable; Arcane is the filler
 local MULTI_SHOT_MANA_FLOOR = 15    -- Suppress expensive AoE below 15%
+local STEADY_SHOT_LEVEL = 62
 local SERPENT_STING_IDS  = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
 local SCORPID_STING_IDS  = { 3043 }
 local VIPER_STING_IDS    = { 27018, 14280, 14279, 3034 }
@@ -121,6 +124,9 @@ local BM_SCHEMA = {
     has_deterrence = false,
     hit_cap_pct = 9,
     hit_cap_rating_needed = 142,
+    -- Leveling (Pattern: pre-Steady Shot silent-gate fix)
+    level = 70,
+    pre_steady_leveling = false,
 }
 
 -- ============================================================================
@@ -174,6 +180,8 @@ local state = {
     trinket_2_ready = false,
     auto_aspect = true,
     healthstone_ready = 0,
+    level = 70,
+    pre_steady_leveling = false,
 }
 
 local function build_state(context)
@@ -291,6 +299,12 @@ local function build_state(context)
             state.hit_cap_rating_needed = hit_info.rating_needed
         end
     end
+
+    -- Pre-Steady Shot leveling: Steady is learned at 62. Without it, Arcane Shot is the
+    -- only real filler — the endgame 50% mana floor would silence the rotation at 20-61.
+    state.level = leveling_helpers.level_from_context(context, 70)
+    state.pre_steady_leveling = (state.level < STEADY_SHOT_LEVEL)
+        or (context.is_leveling == true and not state.steady_shot_ready)
 
     return spec_kit.safe_state(state, BM_SCHEMA)
 end
@@ -553,16 +567,40 @@ local function serpent_refresh_matches(context, s)
     return true
 end
 
--- Arcane Shot (instant filler, suppressed at low mana per Research Angle 4: <20% = Steady only)
+-- Arcane Shot (instant filler). Endgame BM saves mana for Kill Command (50% floor).
+-- Pre-Steady Shot (<62) the floor is relaxed — Steady is unavailable so Arcane is the filler.
 local function arcane_shot_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if s.in_dead_zone then return false end
     if not s.arcane_shot_ready then return false end
-    -- Mana gate: suppress Arcane Shot below 20% mana (Research Angle 4)
-    if (s.mana_pct or 100) < ARCANE_SHOT_MANA_FLOOR then return false end
+    local mana_floor = s.pre_steady_leveling and ARCANE_SHOT_MANA_FLOOR_PRE_STEADY or ARCANE_SHOT_MANA_FLOOR
+    if (s.mana_pct or 100) < mana_floor then return false end
     -- Check auto-shot clipping for instant
     if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
+    return true
+end
+
+-- Pre-Steady leveling Arcane: no mana floor — keep casting when Steady is not yet learned.
+local function leveling_arcane_shot_matches(context, s)
+    if not mounted_bail(context, s) then return false end
+    if not s.in_combat then return false end
+    if not s.pre_steady_leveling then return false end
+    if s.in_dead_zone then return false end
+    if not s.arcane_shot_ready then return false end
+    if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
+    return true
+end
+
+-- Pre-Steady leveling Serpent Sting: ensure DoT is applied when Steady is unavailable.
+local function leveling_sting_matches(context, s)
+    if not mounted_bail(context, s) then return false end
+    if not s.in_combat then return false end
+    if not s.pre_steady_leveling then return false end
+    if not context.target then return false end
+    if s.has_serpent_sting then return false end
+    if (s.mana_pct or 100) < 25 then return false end
+    if not s.serpent_sting_ready then return false end
     return true
 end
 
@@ -933,6 +971,21 @@ local strategies = {
         name = "SerpentStingRefresh",
         matches = serpent_refresh_matches,
         execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting refresh") end,
+    },
+    -- 16c. Pre-Steady leveling: Arcane/Sting fillers when Steady Shot is not yet learned (lvl < 62)
+    {
+        name = "LevelingArcaneShot",
+        matches = leveling_arcane_shot_matches,
+        execute = function(context)
+            local result = NS.try_cast(ACTION.ArcaneShot, context.target, "[BEAST_MASTERY] ArcaneShot (leveling)")
+            if result then hunter_core.record_instant_shot() end
+            return result
+        end,
+    },
+    {
+        name = "LevelingSting",
+        matches = leveling_sting_matches,
+        execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting (leveling)") end,
     },
     -- 17. Arcane Shot (instant filler)
     {

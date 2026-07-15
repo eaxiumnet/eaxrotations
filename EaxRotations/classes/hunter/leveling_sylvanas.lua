@@ -15,6 +15,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 
 local leveling = require("shared/leveling_sylvanas")
 
@@ -99,13 +100,17 @@ local function build_state(context)
         leveling_state.pet_hp = 100
     end
 
-    -- Low mana gate: conserve mana below wand threshold for emergency spells
-    -- Death zone fix: at low levels (1-20), hunters have very limited mana pool
-    local level = 1
-    if context.me and context.me.get_level then
-        local ok, lvl = pcall(context.me.get_level, context.me)
-        if ok then level = lvl end
+    -- Low mana gate: conserve mana below wand threshold for emergency spells.
+    -- Death zone fix: at low levels (1-20), hunters have a very limited mana pool.
+    local level = leveling_helpers.level_from_context(context, 0)
+    if level <= 0 then
+        level = 1
+        if context.me and context.me.get_level then
+            local ok, lvl = pcall(context.me.get_level, context.me)
+            if ok and type(lvl) == "number" and lvl > 0 then level = lvl end
+        end
     end
+    leveling_state.level = level
     local base_threshold = level <= 20 and 15 or (leveling_state.wand_threshold or 30)
     leveling_state.low_mana = (leveling_state.mana_pct or 100) < base_threshold
 
