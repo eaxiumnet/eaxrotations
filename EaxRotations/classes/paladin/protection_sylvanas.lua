@@ -843,17 +843,21 @@ local function judgement_matches(context, state)
 
  if not state.judgement_ready then return false end
 
- if not state.has_seal then return false end
-
- -- Mana Emergency: only judge Seal of Wisdom (skip damage seals)
-
+ -- Mana Emergency (JoW): only judge Seal of Wisdom. Do NOT also require SoR
+ -- (has_seal) — SoR and SoW cannot both be active; requiring both was a silent
+ -- gate that blocked all Judgement once mana dropped into JoW mode.
  if state.judgement_wisdom_mode then
 
   if not state.has_seal_wisdom then return false end
 
   if state.target_has_wisdom then return false end
 
+  return true
+
  end
+
+ -- Damage Judgement: SoR or SoC (any damage seal)
+ if not (state.has_seal or state.has_seal_command) then return false end
 
  return true
 
@@ -882,6 +886,18 @@ local function seal_righteousness_matches(context, state)
  if state.has_seal then return false end
 
  if state.has_seal_command then return false end
+
+ -- JoW emergency: do not re-apply SoR over the SoW path
+ if state.judgement_wisdom_mode then return false end
+
+ -- Keep SoW while mana is still low; allow overwrite once mana recovers
+ if state.has_seal_wisdom then
+
+  local mana_threshold = spec_kit.setting_number(context, "prot_seal_of_wisdom_mana", 30)
+
+  if (state.mana_pct or 100) <= mana_threshold then return false end
+
+ end
 
  local now = NS.time_now and NS.time_now() or 0
 
@@ -1147,13 +1163,18 @@ local function seal_of_wisdom_matches(context, state)
 
  if not spec_kit.setting_bool(context, "prot_seal_of_wisdom", true) then return false end
 
+ if state.has_seal_wisdom then return false end
+
+ if not state.seal_of_wisdom_ready then return false end
+
+ -- Enter SoW when JoW mode is active OR mana is below the SoW threshold.
+ -- Must be allowed to replace SoR/SoC (old gate `if state.has_seal` deadlocked
+ -- JoW: SoR stayed up → SoW never applied → Judgement required SoW forever).
+ if state.judgement_wisdom_mode then return true end
+
  local mana_threshold = spec_kit.setting_number(context, "prot_seal_of_wisdom_mana", 30)
 
  if (state.mana_pct or 100) > mana_threshold then return false end
-
- if state.has_seal then return false end
-
- if not state.seal_of_wisdom_ready then return false end
 
  return true
 

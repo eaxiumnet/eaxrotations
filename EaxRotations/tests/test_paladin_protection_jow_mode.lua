@@ -85,11 +85,16 @@ dofile("EaxRotations/classes/paladin/protection_sylvanas.lua")
 
 local ctx = { in_combat = true, is_mounted = false, has_valid_enemy_target = true, me = {}, target = { x=1, y=1 }, settings = { playstyle = "protection" } }
 
--- C1: Normal mana → judgement allowed (has_seal)
+-- C1: Normal mana → judgement allowed (has_seal / SoR)
 local jud = find_strategy("Judgement")
 assert_true(jud, "Judgement strategy should exist")
 assert_true(jud.matches(ctx, build_state_proxy()), "C1: normal mana, has seal -> match")
 print("  [ PASS ] C1: normal mana judgement matches")
+
+-- C1b: Normal mana with Seal of Command (not SoR) -> match
+assert_true(jud.matches(ctx, build_state_proxy({ has_seal = false, has_seal_command = true })),
+    "C1b: damage seal SoC alone -> match")
+print("  [ PASS ] C1b: SoC alone allows damage judgement")
 
 -- C2: JoW mode active but no wisdom seal -> no match
 assert_false(jud.matches(ctx, build_state_proxy({ judgement_wisdom_mode = true, has_seal = true, has_seal_wisdom = false })),
@@ -97,14 +102,35 @@ assert_false(jud.matches(ctx, build_state_proxy({ judgement_wisdom_mode = true, 
 print("  [ PASS ] C2: JoW mode blocks judgement without wisdom seal")
 
 -- C3: JoW mode active with wisdom seal but target already has wisdom -> no match
-assert_false(jud.matches(ctx, build_state_proxy({ judgement_wisdom_mode = true, has_seal = true, has_seal_wisdom = true, target_has_wisdom = true })),
+-- has_seal must be false: SoR and SoW cannot both be active
+assert_false(jud.matches(ctx, build_state_proxy({ judgement_wisdom_mode = true, has_seal = false, has_seal_wisdom = true, target_has_wisdom = true })),
     "C3: JoW mode with wisdom on target -> no match")
 print("  [ PASS ] C3: JoW mode blocks when target already debuffed")
 
--- C4: JoW mode active with wisdom seal and target clean -> match
-assert_true(jud.matches(ctx, build_state_proxy({ judgement_wisdom_mode = true, has_seal = true, has_seal_wisdom = true, target_has_wisdom = false })),
-    "C4: JoW mode with wisdom seal and clean target -> match")
-print("  [ PASS ] C4: JoW mode allows judgement with wisdom seal")
+-- C4: JoW mode with SoW only (realistic — SoR is not also up) -> match
+assert_true(jud.matches(ctx, build_state_proxy({ judgement_wisdom_mode = true, has_seal = false, has_seal_wisdom = true, target_has_wisdom = false })),
+    "C4: JoW mode with wisdom seal alone -> match")
+print("  [ PASS ] C4: JoW mode allows judgement with wisdom seal alone")
+
+-- C4b: REGRESSION — old code required has_seal AND has_seal_wisdom (impossible)
+-- which silently blocked all Judgement once mana entered JoW mode.
+assert_true(jud.matches(ctx, build_state_proxy({ judgement_wisdom_mode = true, has_seal = false, has_seal_command = false, has_seal_wisdom = true, target_has_wisdom = false })),
+    "C4b: JoW + SoW without SoR must match (silent-gate regression)")
+print("  [ PASS ] C4b: JoW silent-gate regression")
+
+-- C4c: SoW strategy may replace SoR when JoW mode is active
+local sow = find_strategy("SealOfWisdom")
+assert_true(sow, "SealOfWisdom strategy should exist")
+assert_true(sow.matches(ctx, build_state_proxy({ judgement_wisdom_mode = true, has_seal = true, has_seal_wisdom = false, seal_of_wisdom_ready = true, mana_pct = 15 })),
+    "C4c: JoW mode allows SoW to replace SoR")
+print("  [ PASS ] C4c: SoW replaces SoR in JoW mode")
+
+-- C4d: SoR strategy must not re-apply over JoW path
+local sor = find_strategy("SealRighteousness")
+assert_true(sor, "SealRighteousness strategy should exist")
+assert_false(sor.matches(ctx, build_state_proxy({ judgement_wisdom_mode = true, has_seal = false, has_seal_wisdom = false, mana_pct = 15 })),
+    "C4d: JoW mode blocks SoR re-apply")
+print("  [ PASS ] C4d: SoR blocked during JoW mode")
 
 -- C5: Hysteresis — last mode retained in dead band (20% threshold, 21% mana)
 local s5 = build_state_proxy({ mana_pct = 21, last_judgement_mode = "wisdom" })

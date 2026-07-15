@@ -14,6 +14,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 
 local leveling = require("shared/leveling_sylvanas")
 
@@ -106,12 +107,17 @@ local function build_state(context)
         leveling_state.has_any_seal = safe_buff_up(context.me, ANY_SEAL_BUFF)
     end
 
-    -- Player level for death-zone-aware thresholds
-    local me = context.me
-    if me and me.get_level then
-        local ok, lvl = pcall(me.get_level, me)
-        if ok then leveling_state.level = lvl end
+    -- Player level for death-zone-aware thresholds (context first, then unit API)
+    local level = leveling_helpers.level_from_context(context, 0)
+    if level <= 0 then
+        local me = context.me
+        if me and me.get_level then
+            local ok, lvl = pcall(me.get_level, me)
+            if ok and type(lvl) == "number" and lvl > 0 then level = lvl end
+        end
+        if level <= 0 then level = 1 end
     end
+    leveling_state.level = level
 
     -- Spell readiness
     leveling_state.blessing_might_ready = spell_is_ready(SPELLS.BlessingOfMight, nil, { skip_range = true })
@@ -176,8 +182,9 @@ end
 local function cleanse_matches(context, state)
     if not context_allowed(context) then return false end
     if not state then return false end
-    -- OOC debuff cleanup between pulls
+    -- OOC debuff cleanup between pulls — only when a dispelable debuff is present
     if state.in_combat then return false end
+    if not state.needs_cleanse then return false end
     return state.cleanse_ready
 end
 
