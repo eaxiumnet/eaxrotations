@@ -921,13 +921,14 @@ test("rotation: OOC scenario - only OOC buffs should match", function()
     state.has_devotion_aura = false
     state.devotion_aura_ready = true
     state.cleanse_ready = true
+    state.needs_cleanse = true
 
     -- OOC buffs should match
     assert_true(strategies[1].matches(ctx, state), "BlessingMight should match OOC")
     assert_true(strategies[2].matches(ctx, state), "BlessingWisdom should match OOC")
     assert_true(strategies[3].matches(ctx, state), "RetributionAura should match OOC")
     assert_true(strategies[4].matches(ctx, state), "DevotionAura should match OOC")
-    assert_true(strategies[6].matches(ctx, state), "Cleanse should match OOC")
+    assert_true(strategies[6].matches(ctx, state), "Cleanse should match OOC when needs_cleanse")
 
     -- Combat abilities should not match OOC
     local combat_indices = {5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}
@@ -2029,20 +2030,31 @@ do
     local ctx = make_context({in_combat = true})
     local state = get_state(ctx)
     state.cleanse_ready = true
+    state.needs_cleanse = true
     state.in_combat = true
     assert_false(strategies[6].matches(ctx, state), "cleanse in combat -> no match (OOC only)")
 
-    -- Cleanse: OOC, ready -> match
+    -- Cleanse: OOC, ready, needs_cleanse -> match
     local ctx2 = make_context({in_combat = false})
     local state2 = get_state(ctx2)
     state2.cleanse_ready = true
+    state2.needs_cleanse = true
     state2.in_combat = false
-    assert_true(strategies[6].matches(ctx2, state2), "cleanse OOC ready -> match")
+    assert_true(strategies[6].matches(ctx2, state2), "cleanse OOC ready + needs_cleanse -> match")
+
+    -- Cleanse: OOC ready but clean (no debuff) -> no match
+    local ctx2b = make_context({in_combat = false})
+    local state2b = get_state(ctx2b)
+    state2b.cleanse_ready = true
+    state2b.needs_cleanse = false
+    state2b.in_combat = false
+    assert_false(strategies[6].matches(ctx2b, state2b), "cleanse OOC without debuff -> no match")
 
     -- Cleanse: not ready -> no match
     local ctx3 = make_context({in_combat = false})
     local state3 = get_state(ctx3)
     state3.cleanse_ready = false
+    state3.needs_cleanse = true
     state3.in_combat = false
     assert_false(strategies[6].matches(ctx3, state3), "cleanse not ready -> no match")
 end
@@ -2119,5 +2131,85 @@ do
     state3.in_combat = false
     assert_false(strategies[11].matches(ctx3, state3), "hammerjustice OOC -> no match")
 end
+
+-- ============================================================================
+-- Low-level silent-gate regressions (levels 20-50)
+-- ============================================================================
+
+local function find_strategy_by_name(name)
+    for i, s in ipairs(strategies) do
+        if s.name == name then return s, i end
+    end
+    return nil, nil
+end
+
+test("low_level_42: Seal + Judgement fire with only SoR ready (no Command/Blood/CS)", function()
+    local seal_s = find_strategy_by_name("Seal")
+    local judge_s = find_strategy_by_name("Judgement")
+    assert_not_nil(seal_s, "Seal strategy exists")
+    assert_not_nil(judge_s, "Judgement strategy exists")
+
+    local ctx = make_context({ in_combat = true })
+    ctx.me.get_level = function() return 42 end
+    local state = get_state(ctx)
+    state.level = 42
+    state.in_combat = true
+    state.has_any_seal = false
+    -- High-level seals / talents not learned yet
+    state.seal_command_ready = false
+    state.seal_blood_ready = false
+    state.seal_martyr_ready = false
+    state.seal_righteousness_ready = true
+    state.crusader_strike_ready = false
+    state.holy_shield_ready = false
+    state.judgement_ready = true
+    state.selected_seal = NS.PaladinSpells.SealRighteousness
+
+    assert_true(seal_s.matches(ctx, state), "level 42 SoR-only seal should match")
+    assert_true(judge_s.matches(ctx, state), "level 42 judgement should match without high-level seals")
+end)
+
+test("low_level_42: Cleanse requires needs_cleanse (no spam when clean)", function()
+    local cleanse_s = find_strategy_by_name("Cleanse")
+    assert_not_nil(cleanse_s, "Cleanse strategy exists")
+
+    local ctx = make_context({ in_combat = false })
+    ctx.me.get_level = function() return 42 end
+    local state = get_state(ctx)
+    state.level = 42
+    state.in_combat = false
+    state.cleanse_ready = true
+    state.needs_cleanse = false
+    assert_false(cleanse_s.matches(ctx, state), "clean OOC should not Cleanse-spam")
+
+    state.needs_cleanse = true
+    assert_true(cleanse_s.matches(ctx, state), "OOC with dispelable debuff should Cleanse")
+end)
+
+test("low_level_20: FlashOfLight uses aggressive death-zone threshold", function()
+    local fol_s = find_strategy_by_name("FlashOfLight")
+    assert_not_nil(fol_s, "FlashOfLight strategy exists")
+
+    local ctx = make_context({ in_combat = true, hp = 70 })
+    ctx.me.get_level = function() return 20 end
+    local state = get_state(ctx)
+    state.level = 20
+    state.in_combat = true
+    state.hp = 70
+    state.flash_light_ready = true
+    -- level <= 20 uses threshold 75
+    assert_true(fol_s.matches(ctx, state), "level 20 at 70% HP should Flash of Light")
+
+    state.level = 42
+    -- level 21+ uses threshold 60
+    assert_false(fol_s.matches(ctx, state), "level 42 at 70% HP should not Flash of Light")
+end)
+
+test("build_state: level_from_context prefers context.level", function()
+    local ctx = make_context({ level = 35 })
+    ctx.me.get_level = function() return 99 end
+    local state = get_state(ctx)
+    assert_eq(state.level, 35, "context.level should win over me:get_level")
+end)
 
 -- ============================================================================

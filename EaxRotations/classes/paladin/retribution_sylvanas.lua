@@ -39,7 +39,7 @@ local ACTION = {
     SealCrusader         = define("SealCrusader",         { 27158, 20308, 20307, 20306, 20305, 20162, 21082 }, "SealCrusader"),
     SealOfTheMartyr      = define("SealOfTheMartyr",      { 348700 }, "SealOfTheMartyr"),
     SealOfWisdom         = define("SealOfWisdom",         { 27166, 20357, 20356, 20166 }, "SealOfWisdom"),
-    SealRighteousness    = define("SealRighteousness",    { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084 }, "SealRighteousness"),
+    SealRighteousness    = define("SealRighteousness",    { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }, "SealRighteousness"),
     SealWisdom           = define("SealWisdom",           { 27166, 20357, 20356, 20166 }, "SealWisdom"),
     -- SealCommandRank1 is a rank-1-only variant used for prep twist; nil-safe fallback to SealCommand
     SealCommandRank1     = define("SealCommandRank1",     { 20375 }, "SealCommandRank1"),
@@ -74,7 +74,7 @@ local SEAL_COMMAND_BUFF = { 27170, 20920, 20919, 20918, 20915, 20375 }
 local SEAL_COMMAND_RANK1_BUFF = { 20375 }
 local SEAL_BLOOD_BUFF = { 31892 }
 local SEAL_MARTYR_BUFF = { 348700 }
-local SEAL_RIGHTEOUSNESS_BUFF = { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084 }
+local SEAL_RIGHTEOUSNESS_BUFF = { 27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }
 local SEAL_CRUSADER_BUFF = { 27158, 20308, 20307, 20306, 20305, 21082, 20162 }
 local SEAL_WISDOM_BUFF = { 27166, 20357, 20356, 20166 }
 local JUDGEMENT_CRUSADER_DEBUFF = { 27159, 20303, 20302, 20301, 20300, 20188, 21183 }
@@ -144,7 +144,7 @@ if _cleu then
     _cleu.register_seals({
         31892, 348700,
         27170, 20920, 20919, 20918, 20915, 20375,
-        27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084,
+        27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154,
     })
 end
 
