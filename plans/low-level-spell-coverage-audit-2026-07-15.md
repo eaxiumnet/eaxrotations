@@ -64,11 +64,16 @@ local level = leveling_helpers.level_from_context(context)
 - [x] Reproduce bug with new low-level tests in `test_leveling_druid.lua`
 - [x] Fix Shred Mangle-debuff gate in `leveling_sylvanas.lua`
 - [x] Fix Shred Mangle-debuff gate in `cat_sylvanas.lua`
-- [ ] Audit Faerie Fire (Feral) armor/TTD gates in `cat_sylvanas.lua`
-- [ ] Audit Rip/FB combo-point and TTD gates for low levels
-- [ ] Audit WotLK cat rotation missing Faerie Fire Feral / Ravage
+- [x] Relax Faerie Fire (Feral) armor/TTD gates in `cat_sylvanas.lua` when level < 50
+- [x] Lower Rip/FB combo-point requirement to 4 when level < 50
+- [x] Audit WotLK cat rotation missing Faerie Fire Feral / Ravage
 - [ ] Audit Vanilla Druid specs for same issues
-- [ ] Run full test suites and commit
+- [x] Run full test suites and commit
+
+**Verification (after commit `bcbc1a1e`):**
+- `lua EaxRotations/tests/run_rotation_tests.lua -q` → 275/275 pass
+- `lua EaxRotations/tests/run_leveling_tests.lua -q` → 18/18 pass
+- `lua EaxRotations/tests/run_wotlk_tests.lua -q` → 3/3 pass
 
 ## 6. Next Classes
 
