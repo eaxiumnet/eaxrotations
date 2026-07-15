@@ -82,8 +82,8 @@ local level = leveling_helpers.level_from_context(context)
 | Druid | Done | Shred Mangle gate, Faerie Fire armor/TTD, Rip/Bite CP, WotLK cat FF/Ravage |
 | Warrior | Done | Sunder Armor armor gate, Execute stance dance |
 | Hunter | Done | BM pre-Steady Shot silent gate, MM Wing Clip ready state |
-| Rogue | In progress | — |
-| Paladin | Pending | — |
+| Rogue | Done | Sinister Strike fallback, Eviscerate 4 CP dump, Evasion rank fix |
+| Paladin | In progress | — |
 | Shaman | Pending | — |
 | Mage | Pending | — |
 | Warlock | Pending | — |
