@@ -73,4 +73,44 @@ function M.get_player()
     return (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
 end
 
+--- Extract player level from a context table, with safe fallbacks.
+---@param context table|nil
+---@param fallback number|nil
+---@return number
+function M.level_from_context(context, fallback)
+    if context then
+        local lvl = context.level or context.player_level
+        if type(lvl) == "number" and lvl > 0 then return lvl end
+    end
+    return fallback or 70
+end
+
+--- Scale a threshold linearly with level, clamped to [floor, cap].
+---@param level number
+---@param base number
+---@param per_level number
+---@param floor_val number
+---@param cap_val number
+---@return number
+function M.level_scaled_threshold(level, base, per_level, floor_val, cap_val)
+    local threshold = base + (level * per_level)
+    if threshold < floor_val then threshold = floor_val end
+    if threshold > cap_val then threshold = cap_val end
+    return threshold
+end
+
+--- Return true if Mangle (Cat) can be expected at the given level.
+---@param level number|nil
+---@return boolean
+function M.has_mangle_cat(level)
+    return (level or 70) >= 50
+end
+
+--- Return true if the player is below the level where endgame debuff dependencies make sense.
+---@param level number|nil
+---@return boolean
+function M.is_low_level(level)
+    return (level or 70) < 50
+end
+
 return M

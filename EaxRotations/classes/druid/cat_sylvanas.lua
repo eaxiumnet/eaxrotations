@@ -19,6 +19,7 @@ if not _cm_ok or type(CombatMode) ~= "table" then CombatMode = nil end
 local _snap_ok, Snapshot = pcall(require, "shared/snapshot_sylvanas")
 if not _snap_ok or type(Snapshot) ~= "table" then Snapshot = nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
+local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 
 -- Static reusable opts table to avoid per-frame allocation in hot path (Pattern 4)
 local _opts = {}
@@ -707,8 +708,7 @@ local function faerie_fire_matches(context, action)
     local state = build_state(context)
     if not state.target then return false end
     if state.faerie_fire_remains > FAERIE_FIRE_REFRESH then return false end
-    -- Low-level players are still learning the rotation; always apply the armor debuff when available.
-    if (state.level or 70) < 50 then return true end
+    if leveling_helpers.is_low_level(state.level) then return true end
     -- Use on players or long living targets even if armor check fails (for level 42+)
     if state.is_pvp or state.is_player_target or target_lives(state, LONG_TTD) then
         return true
@@ -739,8 +739,7 @@ end
 local function rip_matches(context, action)
     local state = build_state(context)
     local required_cp = spec_kit.setting_number(context, "cat_rip_cp", 5)
-    -- Low-level finishers are usable with fewer combo points since building to 5 is harder.
-    if (state.level or 70) < 50 then required_cp = math.min(required_cp, 4) end
+    if leveling_helpers.is_low_level(state.level) then required_cp = math.min(required_cp, 4) end
     if not state.target then return false end
     if context.combo_points ~= nil and state.combo_points < required_cp then return false end
     if not target_lives(state, MIN_RIP_TTD) then return false end
@@ -817,8 +816,7 @@ end
 local function bite_matches(context, action)
     local state = build_state(context)
     local required_cp = spec_kit.setting_number(context, "cat_ferocious_bite_cp", 5)
-    -- Low-level finishers are usable with fewer combo points since building to 5 is harder.
-    if (state.level or 70) < 50 then required_cp = math.min(required_cp, 4) end
+    if leveling_helpers.is_low_level(state.level) then required_cp = math.min(required_cp, 4) end
     if state.combo_points < required_cp then return false end
     if state.rip_remains <= RIP_REFRESH_WINDOW and target_lives(state, MIN_RIP_TTD) then return false end
     -- TTD awareness: prefer Ferocious Bite when target dying soon (instant > DoT)
@@ -910,9 +908,7 @@ local function shred_matches(context, action)
     if (state.combo_points or 0) >= 5 then return false end
     if not state.is_behind then return false end
     if state.pooling and (state.energy or 0) < SHRED_COST then return false end
-    -- Mangle (Cat) is learned at level 50. Below that, Shred is the primary builder
-    -- and the Mangle debuff cannot be expected, so skip the debuff requirement.
-    if (state.level or 70) >= 50 and state.mangle_remains <= MANGLE_REFRESH_WINDOW and target_lives(state, MIN_RAKE_TTD) then return false end
+    if not leveling_helpers.is_low_level(state.level) and state.mangle_remains <= MANGLE_REFRESH_WINDOW and target_lives(state, MIN_RAKE_TTD) then return false end
     if should_wait_for_tick(state, SHRED_COST) then return false end
     return true
 end

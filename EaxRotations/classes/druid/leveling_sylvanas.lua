@@ -19,6 +19,8 @@ local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 if not spec_kit then return nil end
+local leveling_helpers = require("shared/leveling_helpers_sylvanas")
+if not leveling_helpers then return nil end
 
 -- ============================================================================
 -- Module table
@@ -318,9 +320,7 @@ local shred_matches = function(_, state)
     if (state.energy or 0) < 42 then return false end
     if (state.combo_points or 0) >= 5 then return false end
     if not state.is_behind then return false end
-    -- Mangle (Cat) is learned at level 50. Below that, Shred is the primary builder
-    -- and the Mangle debuff cannot be expected, so skip the debuff requirement.
-    if (state.level or 70) >= 50 and state.mangle_remains <= 0 then return false end
+    if not leveling_helpers.is_low_level(state.level) and state.mangle_remains <= 0 then return false end
     return true
 end
 
