@@ -75,10 +75,25 @@ local level = leveling_helpers.level_from_context(context)
 - `lua EaxRotations/tests/run_leveling_tests.lua -q` → 18/18 pass
 - `lua EaxRotations/tests/run_wotlk_tests.lua -q` → 3/3 pass
 
-## 6. Next Classes
+## 6. Progress
+
+| Class | Status | Key fixes |
+|-------|--------|-----------|
+| Druid | Done | Shred Mangle gate, Faerie Fire armor/TTD, Rip/Bite CP, WotLK cat FF/Ravage |
+| Warrior | Done | Sunder Armor armor gate, Execute stance dance |
+| Hunter | In progress | — |
+| Rogue | Pending | — |
+| Paladin | Pending | — |
+| Shaman | Pending | — |
+| Mage | Pending | — |
+| Warlock | Pending | — |
+| Priest | Pending | — |
+| Death Knight | Pending | WotLK only |
+
+## 7. Next Classes
 
 After Druid, audit in order:
-1. Warrior (Heroic Strike leveling logic already exists; check other specs)
+1. Warrior (Heroic Strike leveling logic already exists; check other specs) ✅
 2. Hunter (pet/shot low-level gates)
 3. Rogue (combo builders, finishers)
 4. Paladin (seal/judgement low ranks)
