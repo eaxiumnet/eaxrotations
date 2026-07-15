@@ -44,21 +44,24 @@ local function find_strategy(strategies, name)
     for i = 1, #strategies do
         if strategies[i].name == name then return strategies[i] end
     end
-    return nil  -- strategy may not exist in all specs (e.g. BM has no LevelingArcaneShot)
+    return nil
 end
 
--- BM's aspect management is handled by middleware (aspect_manager_sylvanas.lua).
--- No spec-level aspect strategies in BM — only pet and utility strategies.
+-- BM uses AutoAspect (not separate Hawk/Viper strategies). Also has LevelingArcaneShot
+-- for pre-Steady Shot (lvl < 62) so the rotation does not go silent at mid mana.
 local function check_bm(path)
     local strategies = dofile(path).strategies
     local hawk = find_strategy(strategies, "AspectOfTheHawk")
     local viper = find_strategy(strategies, "AspectOfTheViper")
+    local auto_aspect = find_strategy(strategies, "AutoAspect")
     local mend_pet = find_strategy(strategies, "MendPet")
     local call_pet = find_strategy(strategies, "CallPet")
+    local leveling_arcane = find_strategy(strategies, "LevelingArcaneShot")
 
-    -- Aspect strategies removed from BM spec (handled by middleware) — verify they don't exist
-    assert_true(hawk == nil, path .. " AspectOfTheHawk should be handled by middleware, not spec")
-    assert_true(viper == nil, path .. " AspectOfTheViper should be handled by middleware, not spec")
+    -- Named Hawk/Viper strategies are not on BM (AutoAspect covers in-combat swap)
+    assert_true(hawk == nil, path .. " AspectOfTheHawk should not be a named BM strategy")
+    assert_true(viper == nil, path .. " AspectOfTheViper should not be a named BM strategy")
+    assert_true(auto_aspect ~= nil, path .. " AutoAspect should exist on BM")
 
     action_calls = 0
     assert_true(mend_pet ~= nil, path .. " MendPet should exist")
@@ -68,6 +71,12 @@ local function check_bm(path)
     action_calls = 0
     assert_true(call_pet ~= nil, path .. " CallPet should exist")
     assert_true(call_pet.matches({ settings = {} }, { has_pet = false, has_pet_spell = true, in_combat = false, call_pet_ready = true, is_mounted = false }), path .. " Call Pet should match when pet missing OOC")
+
+    assert_true(leveling_arcane ~= nil, path .. " LevelingArcaneShot must exist (pre-Steady silent-gate fix)")
+    assert_true(leveling_arcane.matches(
+        { settings = {}, in_combat = true },
+        { pre_steady_leveling = true, arcane_shot_ready = true, in_combat = true, is_mounted = false, in_dead_zone = false, shot_buffer = 150 }
+    ), path .. " LevelingArcaneShot must match pre-Steady")
 end
 
 -- MM/Survival match functions check has_aspect_hawk and delegate to action_matches

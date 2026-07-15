@@ -221,6 +221,7 @@ local function build_state(context)
     mm_state.volley_ready = target and NS.spell_ready(VOLLEY_IDS, target) or false
     mm_state.explosive_trap_ready = me and NS.spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     mm_state.wing_clip_active = target and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
+    mm_state.wing_clip_ready = target and NS.spell_ready(ACTION.WingClip, target) or false
     mm_state.use_misdirection = spec_kit.setting_bool(context, "use_misdirection", false)
     mm_state.is_group = context.is_group or false
     mm_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
