@@ -793,6 +793,7 @@ local function bloodlust_matches(ctx)
     if not enh_state.in_combat then return false end
     if enh_state.has_bloodlust then return false end
     if not enh_state.bloodlust_ready then return false end
+    if NS.should_use_long_cd and not NS.should_use_long_cd(ctx, 600) then return false end
     if not NS.gate_cooldown_boss_only(ctx) then return false end
     return true
 end
