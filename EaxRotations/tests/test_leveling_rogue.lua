@@ -3339,6 +3339,67 @@ do
         assert_false(result, "Kick should return false when is_casting throws (pcall returns false)")
     end)
 end
+-- ============================================================================
+-- Low-level silent-gating (Druid Feral level-42 pattern)
+-- ============================================================================
+
+test("low_level_42: Eviscerate fires at 4 combo points", function()
+    local ctx = make_context({ level = 42, player_level = 42 })
+    local state = get_state(ctx)
+    state.eviscerate_ready = true
+    state.combo_points = 4
+    state.level = 42
+    state.in_combat = true
+    assert_true(strategies[19].matches(ctx, state), "Eviscerate should fire at level 42 with 4 CP")
+end)
+
+test("low_level_42: Eviscerate still blocked at 3 combo points", function()
+    local ctx = make_context({ level = 42, player_level = 42 })
+    local state = get_state(ctx)
+    state.eviscerate_ready = true
+    state.combo_points = 3
+    state.level = 42
+    state.in_combat = true
+    assert_false(strategies[19].matches(ctx, state), "Eviscerate should not fire at 3 CP even at low level")
+end)
+
+test("high_level_70: Eviscerate still requires 5 combo points", function()
+    local ctx = make_context({ level = 70, player_level = 70 })
+    local state = get_state(ctx)
+    state.eviscerate_ready = true
+    state.combo_points = 4
+    state.level = 70
+    state.in_combat = true
+    assert_false(strategies[19].matches(ctx, state), "Eviscerate at 70 should still require 5 CP")
+end)
+
+test("low_level_42: Sinister Strike still builds below max CP", function()
+    local ctx = make_context({ level = 42, player_level = 42 })
+    local state = get_state(ctx)
+    state.sinister_strike_ready = true
+    state.combo_points = 3
+    state.level = 42
+    state.in_combat = true
+    assert_true(strategies[20].matches(ctx, state), "Sinister Strike should build at level 42")
+end)
+
+test("low_level_42: Slice and Dice fires at 1 CP", function()
+    local ctx = make_context({ level = 42, player_level = 42 })
+    local state = get_state(ctx)
+    state.slice_and_dice_ready = true
+    state.has_slice_and_dice = false
+    state.combo_points = 1
+    state.level = 42
+    state.in_combat = true
+    assert_true(strategies[15].matches(ctx, state), "SnD should fire at 1 CP while leveling")
+end)
+
+test("build_state: level populated from context", function()
+    local ctx = make_context({ level = 42, player_level = 42 })
+    local state = get_state(ctx)
+    assert_eq(state.level, 42, "state.level should come from context")
+end)
+
 print(string.format("\n=== Rogue Leveling Unit Tests: %d passed, %d failed (%d assertions) ===\n", passed, failed, assertions))
 if failed > 0 then
     error(string.format("Some tests FAILED (%d failures)", failed))

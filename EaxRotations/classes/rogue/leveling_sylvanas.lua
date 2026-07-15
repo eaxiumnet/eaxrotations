@@ -11,10 +11,11 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
-local leveling = require("shared/leveling_sylvanas")
-if not leveling then return nil end
-
-local _format = string.format
+	local leveling = require("shared/leveling_sylvanas")
+	if not leveling then return nil end
+	local leveling_helpers = require("shared/leveling_helpers_sylvanas")
+	
+	local _format = string.format
 
 -- ============================================================================
 -- Module table
@@ -86,10 +87,11 @@ function rogue_leveling.build_state(context)
 
     local state = {}
 
-    -- Common state
-    leveling.build_common_state(context, state)
-
-    -- Rogue-specific spell readiness
+	    -- Common state
+	    leveling.build_common_state(context, state)
+	    state.level = leveling_helpers.level_from_context(context, 70)
+	
+	    -- Rogue-specific spell readiness
     state.sinister_strike_ready = spell_ready(SPELLS.SinisterStrike)
     state.eviscerate_ready = spell_ready(SPELLS.Eviscerate)
     state.slice_and_dice_ready = spell_ready(SPELLS.SliceAndDice)
@@ -320,15 +322,18 @@ local kidney_shot_matches = function(context, state)
     return true
 end
 
---- Eviscerate - primary finisher
-local eviscerate_matches = function(context, state)
-    if not state then return false end
-    if not state.in_combat then return false end
-    if not state.eviscerate_ready then return false end
-    if not state.target then return false end
-    if (state.combo_points or 0) < (state.max_combo_points or 5) then return false end
-    return true
-end
+	--- Eviscerate - primary finisher
+	local eviscerate_matches = function(context, state)
+	    if not state then return false end
+	    if not state.in_combat then return false end
+	    if not state.eviscerate_ready then return false end
+	    if not state.target then return false end
+	    -- Low-level: dump at 4 CP (short fights; no Envenom/Mutilate)
+	    local min_cp = state.max_combo_points or 5
+	    if leveling_helpers.is_low_level(state.level) then min_cp = math.min(min_cp, 4) end
+	    if (state.combo_points or 0) < min_cp then return false end
+	    return true
+	end
 
 --- Cold Blood before Eviscerate
 local cold_blood_matches = function(context, state)

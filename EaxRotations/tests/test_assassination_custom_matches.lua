@@ -100,4 +100,28 @@ af(sprint.matches({ target = {}, is_pvp = true, target_distance = 10 }), "Sprint
 at(sprint.matches({ target = {}, is_pvp = true, target_distance = 25 }), "Sprint match")
 af(sprint.matches({ target = {}, is_pvp = false, target_distance = 25 }), "Sprint not PvP")
 
+-- Low-level silent-gating (Druid Feral level-42 pattern)
+local evis = fs("EviscerateFallback")
+at(evis.matches({ target = {}, level = 42, player_level = 42, is_leveling = true }, cs({ combo = 4, energy_pool_finisher = false })),
+    "EviscerateFallback at level 42 with 4 CP")
+af(evis.matches({ target = {}, level = 42, player_level = 42, is_leveling = true }, cs({ combo = 3, energy_pool_finisher = false })),
+    "EviscerateFallback at level 42 with 3 CP blocked")
+af(evis.matches({ target = {}, level = 70, player_level = 70, is_leveling = false }, cs({ combo = 4, energy_pool_finisher = false })),
+    "EviscerateFallback at 70 still requires 5 CP")
+at(evis.matches({ target = {}, level = 70, player_level = 70, is_leveling = false }, cs({ combo = 5, energy_pool_finisher = false })),
+    "EviscerateFallback at 70 with 5 CP")
+
+-- LevelingSinisterStrike: must fire pre-Mutilate (level 42, daggers, Mutilate not known)
+local lss = fs("LevelingSinisterStrike")
+local saved_exists = NS.spell_exists
+NS.spell_exists = function() return false end  -- Mutilate not learned
+at(lss.matches({ target = {}, level = 42, player_level = 42, is_leveling = true, energy = 60 },
+    cs({ energy = 60, has_daggers = true })),
+    "LevelingSinisterStrike at 42 with daggers when Mutilate unknown")
+NS.spell_exists = function() return true end  -- Mutilate known
+af(lss.matches({ target = {}, level = 70, player_level = 70, is_leveling = false, energy = 60 },
+    cs({ energy = 60, has_daggers = true })),
+    "LevelingSinisterStrike skipped at 70 with Mutilate + daggers")
+NS.spell_exists = saved_exists
+
 print("PASS test_assassination_custom_matches")

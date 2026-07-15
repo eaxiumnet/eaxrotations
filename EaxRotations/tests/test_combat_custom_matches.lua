@@ -278,4 +278,26 @@ assert_true(rupture.matches({
     rupture_ready = true, combo_points = 5, energy_pool_finisher = false,
 }), "Rupture should match when TTD unknown and 5 CP")
 
+-- Low-level silent-gating: Eviscerate dumps at 4 CP below level 50
+assert_true(eviscerate.matches({
+    level = 42, player_level = 42, is_leveling = true, energy = 50,
+}, {
+    eviscerate_ready = true, combo_points = 4, energy = 50, energy_pool_finisher = false,
+    deadly_poison_stacks = 0, envenom_ready = false,
+}), "Eviscerate should match at level 42 with 4 CP")
+
+assert_false(eviscerate.matches({
+    level = 42, player_level = 42, is_leveling = true, energy = 50,
+}, {
+    eviscerate_ready = true, combo_points = 3, energy = 50, energy_pool_finisher = false,
+    deadly_poison_stacks = 0, envenom_ready = false,
+}), "Eviscerate should not match at level 42 with 3 CP")
+
+assert_false(eviscerate.matches({
+    level = 70, player_level = 70, is_leveling = false, energy = 50,
+}, {
+    eviscerate_ready = true, combo_points = 4, energy = 50, energy_pool_finisher = false,
+    deadly_poison_stacks = 0, envenom_ready = false,
+}), "Eviscerate at 70 still requires 5 CP")
+
 print("PASS test_combat_custom_matches")
