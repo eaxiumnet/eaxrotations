@@ -555,6 +555,7 @@ local function shield_wall_matches_fn(context, state)
  local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
  if (state.hp or 100) > threshold then return false end
  if state.has_shield_wall then return false end
+ if NS.should_use_long_cd and not NS.should_use_long_cd(context, SHIELD_WALL_CD) then return false end
  return true
 end
 
