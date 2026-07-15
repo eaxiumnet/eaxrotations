@@ -78,9 +78,25 @@ _G.EaxRotations = {
     is_execute_phase = function() return false end,
     GetPlayer = function() return nil end,
     log = function() end,
+    should_use_long_cd = function(ctx, cd)
+        if not ctx or not ctx.combat_length_forecast then return true end
+        if ctx.target_is_boss then return true end
+        local forecast = ctx.combat_length_forecast
+        if cd >= 180 and forecast < 60 then return false end
+        if cd >= 120 and forecast < 45 then return false end
+        if cd >= 60 and forecast < 30 then return false end
+        return true
+    end,
     rotation_registry = {
         register = function() end,
     },
+}
+
+local cap_gs
+_G.EaxRotations.rotation_registry = {
+    register = function(self, spec, strats, opts)
+        cap_gs = opts and opts.get_state
+    end,
 }
 
 local result = dofile("EaxRotations/classes/warrior/protection_sylvanas.lua")
@@ -146,6 +162,27 @@ local expected_count = 38
 assert_eq(#strategies, expected_count, "expected " .. expected_count .. " strategies (34 base + Pummel + StanceSwitch + WhirlwindMulti), got " .. #strategies)
 assert_true(strategy_names["ShieldSlamPurge"], "ShieldSlamPurge should be present")
 assert_true(strategy_names["TauntSecondary"], "TauntSecondary should be present - tab-target MockingBlow cycling")
+
+-- Combat forecast gate: Shield Wall should be blocked on short fights, allowed on long fights.
+local function find_strategy(name)
+    for i = 1, #strategies do
+        if strategies[i].name == name then return strategies[i] end
+    end
+    error("strategy not found: " .. name)
+end
+local shield_wall_strategy = find_strategy("ShieldWall")
+local sw_ctx = { target = {}, hp = 20, is_group = false, in_combat = true, enemy_count = 1, settings = {} }
+local sw_state = cap_gs(sw_ctx)
+-- Short fight: 1800s CD should be blocked when forecast < 60
+sw_ctx.combat_length_forecast = 30
+assert_false(shield_wall_strategy.matches(sw_ctx, sw_state), "ShieldWall should be blocked on short fight (forecast 30)")
+-- Long fight: should be allowed
+sw_ctx.combat_length_forecast = 120
+assert_true(shield_wall_strategy.matches(sw_ctx, sw_state), "ShieldWall should be allowed on long fight (forecast 120)")
+-- Boss fight: always allowed regardless of forecast
+sw_ctx.combat_length_forecast = 10
+sw_ctx.target_is_boss = true
+assert_true(shield_wall_strategy.matches(sw_ctx, sw_state), "ShieldWall should be allowed on boss fight")
 
 print("PASS test_protection_feature_gaps (gap audit: " .. #strategies .. " strategies present, 4 parity gaps closed)")
 
