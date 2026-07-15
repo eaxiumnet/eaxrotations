@@ -13,6 +13,8 @@ local SPELLS = NS.DruidSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
+    FaerieFireFeral = define("FaerieFireFeral", { 27011, 17392, 17391, 17390, 16857 }, "FaerieFireFeral"),
+    Ravage = define("Ravage", { 27005, 9867, 9866, 6787, 6785 }, "Ravage"),
     MangleCat = define("MangleCat", { 33983, 33982, 33876 }, "MangleCat"),
     Rake = define("Rake", { 27003, 9904, 1824, 1823, 1822 }, "Rake"),
     Rip = define("Rip", { 27008, 9896, 9894, 9752, 9493, 9492, 1079 }, "Rip"),
@@ -23,6 +25,7 @@ local ACTION = {
 
 local RAKE_DEBUFF = { 27003, 9904, 1824, 1823, 1822 }
 local RIP_DEBUFF = { 27008, 9896, 9894, 9752, 9493, 9492, 1079 }
+local FAERIE_FIRE_FERAL_DEBUFF = { 27011, 17392, 17391, 17390, 16857 }
 local SAVAGE_ROAR_BUFF = { 52610 }
 
 local cat_state = {
@@ -34,7 +37,10 @@ local cat_state = {
     in_combat = false,
     rake_remains = 0,
     rip_remains = 0,
+    faerie_fire_remains = 0,
     savage_roar_remains = 0,
+    is_stealthed = false,
+    is_behind = false,
 }
 
 local function build_state(context)
@@ -49,8 +55,26 @@ local function build_state(context)
     state.in_combat = (context and context.in_combat) or false
     state.rake_remains = (target and NS.debuff_remains and NS.debuff_remains(target, RAKE_DEBUFF)) or 0
     state.rip_remains = (target and NS.debuff_remains and NS.debuff_remains(target, RIP_DEBUFF)) or 0
+    state.faerie_fire_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_FERAL_DEBUFF)) or 0
     state.savage_roar_remains = (me and NS.buff_remains and NS.buff_remains(me, SAVAGE_ROAR_BUFF)) or 0
+    state.is_stealthed = (context and context.is_stealthed == true) or (me and NS.buff_up and NS.buff_up(me, { 9913, 6783, 5215 })) or false
+    -- Strict behind check for Shred (spell requires being behind target)
+    if context and context.is_behind ~= nil then
+        state.is_behind = context.is_behind == true
+    elseif NS.is_behind_target and target then
+        state.is_behind = NS.is_behind_target(target) == true
+    else
+        state.is_behind = false
+    end
     return state
+end
+
+local function faerie_fire_feral_matches(context, state)
+    return state.in_combat and state.faerie_fire_remains < 3
+end
+
+local function ravage_matches(context, state)
+    return state.in_combat and state.is_stealthed and state.is_behind and state.energy >= 60
 end
 
 local function savage_roar_matches(context, state)
@@ -74,10 +98,13 @@ local function mangle_matches(context, state)
 end
 
 local function shred_matches(context, state)
+    if not state.is_behind then return false end
     return state.energy >= 50
 end
 
 local strategies = {
+    { name = "FaerieFireFeral", matches = faerie_fire_feral_matches, execute = function(ctx) return ACTION.FaerieFireFeral and ACTION.FaerieFireFeral:cast_safe(ctx.target) end },
+    { name = "Ravage", matches = ravage_matches, execute = function(ctx) return ACTION.Ravage and ACTION.Ravage:cast_safe(ctx.target) end },
     { name = "SavageRoar", matches = savage_roar_matches, execute = function(ctx) return ACTION.SavageRoar and ACTION.SavageRoar:cast_safe() end },
     { name = "Rip", matches = rip_matches, execute = function(ctx) return ACTION.Rip and ACTION.Rip:cast_safe(ctx.target) end },
     { name = "Rake", matches = rake_matches, execute = function(ctx) return ACTION.Rake and ACTION.Rake:cast_safe(ctx.target) end },
