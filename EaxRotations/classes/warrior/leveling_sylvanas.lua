@@ -78,6 +78,9 @@ function warrior_leveling.build_state(context)
     -- Common state
     leveling.build_common_state(context, state)
 
+    -- Level for low-level gate relaxation (Druid Feral pattern)
+    state.level = L.level_from_context(context, 70)
+
     -- Warrior-specific spell readiness
     state.charge_ready = NS.spell_ready and NS.spell_ready(SPELLS.Charge) or false
     state.rend_ready = NS.spell_ready and NS.spell_ready(SPELLS.Rend) or false
@@ -290,7 +293,9 @@ local sunder_armor_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.target then return false end
-    if (context.target_armor or 0) <= 0 then return false end
+    -- Low-level: get_armor() often returns 0/nil (API gap) — same silent gate as
+    -- Druid Faerie Fire. Bypass armor check below 50; keep it at endgame.
+    if not L.is_low_level(state.level) and (context.target_armor or 0) <= 0 then return false end
     if not state.sunder_armor_ready then return false end
     if (state.sunder_stacks or 0) >= 3 then return false end
     local ok, hp = pcall(function() return state.target:get_health_percentage() end)
@@ -544,16 +549,20 @@ local strategies = {
       matches = function(context, state) return leveling.health_potion_matches(context, state, 30) end,
       execute = function(context) return leveling.health_potion_execute(context) end },
 
-    -- Execute (Berserker Stance — dance if needed; Execute dumps rage so the swap cost is acceptable)
+    -- Execute (Battle OR Berserker Stance — TBC allows both).
+    -- Levels 24-29 have Execute but not Berserker Stance (30); forcing Berserker
+    -- silently blocked Execute for the entire early-mid leveling window.
     { name = "Execute",
       matches = execute_matches,
       execute = function(context) if not context then return false end
-          if context.stance ~= STANCE.BERSERKER then
-              -- Execute is a rage dump; allow the swap even at high rage (unlike Disarm's 25 gate)
-              if dance_to_stance(context, STANCE.BERSERKER, SPELLS.BerserkerStance, 90) then return true end
-              return false
+          local stance = context.stance
+          if stance == STANCE.BATTLE or stance == STANCE.BERSERKER then
+              return L.try_cast(SPELLS.Execute, context.target, "[LEVELING] Execute")
           end
-          return L.try_cast(SPELLS.Execute, context.target, "[LEVELING] Execute")
+          -- Defensive/unknown: prefer Battle (available from level 1), then Berserker
+          if dance_to_stance(context, STANCE.BATTLE, SPELLS.BattleStance, 90) then return true end
+          if dance_to_stance(context, STANCE.BERSERKER, SPELLS.BerserkerStance, 90) then return true end
+          return false
       end },
 
     -- PvP CC Gate: blocks AoE when nearby breakable CC (after all utilities, before AoE)

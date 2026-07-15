@@ -685,7 +685,9 @@ end
 -- Sunder Armor: stack armor reduction
 local function sunder_armor_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
-    if (context.target_armor or 0) <= 0 then return false end
+    -- Low-level: get_armor() often returns 0/nil — same silent gate as Druid Faerie Fire.
+    local level = (context and (context.level or context.player_level)) or 70
+    if level >= 50 and (context.target_armor or 0) <= 0 then return false end
     if execute_phase(context, state) then return false end
     local sunder_mode = spec_kit.setting(context, "sunder_mode", "off")
     if sunder_mode == "off" then return false end

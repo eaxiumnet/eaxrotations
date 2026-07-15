@@ -467,8 +467,10 @@ end
 local function sunder_matches_fn(context, state)
  if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.SunderArmor, 2.0) then return false end
  if not context.target then return false end
- -- Skip if target has no armor (armorless mob or API unavailable)
- if (context.target_armor or 0) <= 0 then return false end
+ -- Low-level: get_armor() often returns 0/nil — same silent gate as Druid Faerie Fire.
+ -- Keep armorless skip at 50+ (elementals etc.); below 50 allow Sunder for threat.
+ local level = (context and (context.level or context.player_level)) or 70
+ if level >= 50 and (context.target_armor or 0) <= 0 then return false end
  if state.dev_ready then return false end
  if (state.sunder_stacks or 0) < SUNDER_MAX_STACKS then
   return state.ss_ready == false and state.revenge_ready == false
@@ -885,18 +887,18 @@ local strategies = {
   end,
   execute = function(context) return NS.try_cast(ACTION.Revenge, context.target, "[PROT] Revenge", { expected_cooldown = REVENGE_CD }) end,
  },
- {
-  name = "ShieldBlock",
-  matches = function(context, state)
-   if not is_defensive_stance(state.stance) then return false end
-   if not state.shield_block_ready then return false end
-   local me = context.me or NS.GetPlayer()
-   local sb_remains = me and NS.buff_remains and NS.buff_remains(me, SHIELD_BLOCK_BUFF) or 0
-   if sb_remains > 2 then return false end
-   return true
-  end,
-  execute = function(context) return NS.try_cast(ACTION.ShieldBlock, context.me or NS.GetPlayer(), "[PROT] ShieldBlock", { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) end,
- },
+  {
+   name = "ShieldBlock",
+   matches = function(context, state)
+    if not is_defensive_stance(state.stance) then return false end
+    if not state.shield_block_ready then return false end
+    local me = context.me or NS.GetPlayer()
+    local sb_remains = me and NS.buff_remains and NS.buff_remains(me, SHIELD_BLOCK_BUFF) or 0
+    if sb_remains > 2 then return false end
+    return true
+   end,
+   execute = function(context) return NS.try_cast(ACTION.ShieldBlock, context.me or NS.GetPlayer(), "[PROT] ShieldBlock", { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) end,
+  },
  {
   name = "Taunt",
   matches = function(context, state) return taunt_matches_fn(context, state) end,

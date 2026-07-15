@@ -52,6 +52,8 @@ local function _resolve_expansion_key()
         local s = tostring(gv):lower()
         if s:find("vanilla") or s:find("classic") then
             _expansion_key = "vanilla"
+        elseif s:find("wotlk") or s:find("wrath") or s:find("3%.3") then
+            _expansion_key = "wotlk"
         else
             _expansion_key = "tbc"
         end
@@ -78,8 +80,13 @@ function NS.is_vanilla()
     return _resolve_expansion_key() == "vanilla"
 end
 
+function NS.is_wotlk()
+    return _resolve_expansion_key() == "wotlk"
+end
+
 function NS.get_expansion_max_level()
     if NS.is_vanilla() then return 60 end
+    if NS.is_wotlk() then return 80 end
     return 70
 end
 
