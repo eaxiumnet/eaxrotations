@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-11 (v2.5.15: control panel entries now always show with "Unbound" fallback (999 instead of 7), removed set_setting writes, states injected from widgets; verified working; version bump; clean zip to GH; tests green).
+**Last updated:** 2026-07-11 (EaxESP aggro terrain rings COMPLETE; renderer/projection tests + luac green; dungeon mode + terrain.lua).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -25,6 +25,10 @@
 | `plans/fix-healer-bugs-and-polish-2026-07-10.md` | COMPLETE (2026-07-10) | Healer critical bugs fixed (shaman rank constants, priest scoping, druid indent) + warlock friendly devour polish; tests green |
 | `plans/fix-healer-bugs-and-polish-2026-07-10.md` | COMPLETE (2026-07-10) | Critical bug fixes (shaman HW rank consts, priest holy scoping, druid indent) + small shaman helper polish; 252/252 tests green. |
 | `plans/complete-1-rotation-system-remaining-2026-07-10.md` | COMPLETE (2026-07-10) | Closed all 4 Phase 2 items (movement for mechanics + API, AoE caps with usage, PvP priority DB, boss mechanic triggers). All gates (luac + 252/252 tests) green. Parent become-1 now has Phase 2 complete. EAX is #1. |
+| `plans/fix-eaxesp-aggro-terrain-rings-2026-07-11.md` | COMPLETE (2026-07-11) | Terrain-correct aggro rings (shared module); nil/finite guards everywhere in draw paths; dungeon faint thin outlines (auto); raycast feature detect; wall-hide default-OFF. luac+renderer/projection tests green. |
+| `plans/fix-eaxfishing-catch-turning-distance-crash-2026-07-11.md` | COMPLETE (2026-07-11) | Crash fixed (last_check_time), random full turns eliminated (small glances), far fishing restored (cast-range guard + higher default), bite detection hardened (XY motion + sensitive dip). luac+253 rotation+10 fishing tests green. |
+| `plans/wotlk-rotations-foundation-2026-07-12.md` | In progress | WotLK rotation layer foundation: expansion detection, `_wotlk` loader suffix, Death Knight class skeleton, prototype Arms WotLK spec + tests. |
+| `plans/integrate-advanced-modules-2026-07-13.md` | In progress (Phase 1 complete) | Integrate 8 advanced Sylvanas modules into TBC + WotLK + Classic rotations. Phase 1 (combat_forecast CD gating) complete: all 19 TBC specs gated. Phase 2 (health_prediction direct API) next. Verified: 267 rotation + 18 leveling + 6 WotLK suites pass. |
 
 ## Reference Documents (not plans)
 

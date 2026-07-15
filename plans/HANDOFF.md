@@ -262,7 +262,13 @@ All specs migrated to canonical `spec_kit.safe_state` + `define_action_for_class
   ACTION table with rank IDs, add SCHEMA + `safe_state` in `build_state`,
   guard registration. Reference: `arms_sylvanas.lua`.
 
-### 2. `become-1-rotation-system` roadmap (`plans/become-1-rotation-system-classic-tbc-2026-07-05.md`)
+### 2. `integrate-advanced-modules` — Phase 1 complete (`plans/integrate-advanced-modules-2026-07-13.md`)
+- All remaining TBC combat_forecast CD gates now implemented:
+  - `warrior/protection_sylvanas.lua` — Shield Wall (1800s)
+  - `shaman/enhancement_sylvanas.lua` — Bloodlust (600s)
+- Verified: 267 rotation + 18 leveling + 6 WotLK suites pass.
+
+### 3. `become-1-rotation-system` roadmap (`plans/become-1-rotation-system-classic-tbc-2026-07-05.md`)
 - Ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 - Current active roadmap with competitor analysis.
 
