@@ -113,4 +113,43 @@ function M.is_low_level(level)
     return (level or 70) < 50
 end
 
+--- Return true when the given target is casting an interruptible spell.
+--- Nil-guarded: safe to call every frame with a possibly-nil unit.
+---@param target table|nil
+---@return boolean
+function M.should_interrupt(target)
+    if not target then return false end
+    -- Detect an active cast/channel using the common wrapper first, then raw API.
+    local ok, casting = pcall(function()
+        if target.is_casting then return target:is_casting() end
+        if target.is_casting_spell then return target:is_casting_spell() end
+        if target.is_channelling_spell then return target:is_channelling_spell() end
+        return false
+    end)
+    if not ok or not casting then return false end
+    -- Respect interruptibility when the API exposes it; assume interruptible otherwise.
+    if NS.is_interruptible then
+        local ok_i, interruptible = pcall(NS.is_interruptible, target)
+        if ok_i and interruptible ~= nil then return interruptible == true end
+    end
+    local ok_r, interruptible = pcall(function()
+        if target.is_active_spell_interruptable then return target:is_active_spell_interruptable() end
+        return true
+    end)
+    if not ok_r or interruptible == nil then return true end
+    return interruptible == true
+end
+
+--- Return true when the player's mana is low enough to warrant recovery
+--- (drink / wand / mana-return abilities). Reads the nil-guarded state field.
+---@param state table|nil
+---@param threshold number|nil percentage below which recovery is needed (default 20)
+---@return boolean
+function M.needs_mana_recovery(state, threshold)
+    if not state then return false end
+    local mana = state.mana_pct
+    if type(mana) ~= "number" then return false end
+    return mana < (threshold or 20)
+end
+
 return M
