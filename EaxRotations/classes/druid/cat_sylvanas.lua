@@ -559,6 +559,7 @@ build_state = function(context)
     state.in_combat = context.in_combat == true
     state.is_pvp = context.is_pvp == true or spec_kit.setting_bool(context, "pvp_mode", false)
     state.is_player_target = is_target_player(target, context)
+    state.is_mounted = context.is_mounted or false
     -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
     if not skip_aura then
@@ -579,6 +580,7 @@ build_state = function(context)
     end
     state.is_cat = NS.has_form and NS.has_form("cat") or context.stance == STANCE_CAT
     state.is_behind = is_behind_target(target, context)
+    state.level = context.level or context.player_level or 70
     state.attack_power = get_attack_power(context, me)
     if _not_same_unit(snapshot_state.rip_target, target) or state.rip_remains <= 0 then snapshot_state.rip_ap = 0 end
     if _not_same_unit(snapshot_state.rake_target, target) or state.rake_remains <= 0 then snapshot_state.rake_ap = 0 end
@@ -607,6 +609,8 @@ build_state = function(context)
 end
 
 local function cat_form_matches(context, action)
+    local state = build_state(context)
+    if state.is_mounted then return false end
     if NS.has_form and NS.has_form("cat") then return false end
     if context.stance == STANCE_CAT then return false end
     if _last_form_shift_time > 0 and (get_now() - _last_form_shift_time) < FORM_SWITCH_COOLDOWN then return false end
@@ -631,7 +635,8 @@ local function track_humanoids_matches(context, action)
     local state = build_state(context)
     if state.in_combat then return false end
     if state.has_track_humanoids then return false end
-    if not state.is_pvp and not state.is_player_target then return false end
+    if state.is_player_target then return false end
+    if not state.is_pvp then return false end
     return true
 end
 
@@ -655,8 +660,8 @@ end
 local function stealth_shred_matches(context, action)
     local state = build_state(context)
     if not state.is_stealthed then return false end
-    if state.mangle_remains <= 0 then return false end
     if not state.is_behind then return false end
+    if state.mangle_remains <= 0 then return false end
     return true
 end
 
@@ -678,7 +683,8 @@ end
 local function dash_matches(context, action)
     local state = build_state(context)
     if state.has_dash then return false end
-    if not state.target or state.target_range < DASH_RANGE then return false end
+    if not state.target or state.target_range <= MELEE_RANGE then return false end
+    if state.target_range > 25 then return false end
     if not state.is_pvp and state.target_range < TRAVEL_FORM_RANGE then return false end
     return true
 end
@@ -700,11 +706,15 @@ end
 local function faerie_fire_matches(context, action)
     local state = build_state(context)
     if not state.target then return false end
+    if state.faerie_fire_remains > FAERIE_FIRE_REFRESH then return false end
+    -- Low-level players are still learning the rotation; always apply the armor debuff when available.
+    if (state.level or 70) < 50 then return true end
+    -- Use on players or long living targets even if armor check fails (for level 42+)
+    if state.is_pvp or state.is_player_target or target_lives(state, LONG_TTD) then
+        return true
+    end
     -- Skip if target has no armor (API unavailable or already fully reduced)
     if (context.target_armor or 0) <= 0 then return false end
-    if state.faerie_fire_remains > MANGLE_REFRESH_WINDOW then return false end
-    if state.target_ttd > 0 and state.target_ttd < 10 then return false end
-    if state.is_pvp and state.is_player_target then return true end
     return target_lives(state, LONG_TTD)
 end
 
@@ -729,6 +739,8 @@ end
 local function rip_matches(context, action)
     local state = build_state(context)
     local required_cp = spec_kit.setting_number(context, "cat_rip_cp", 5)
+    -- Low-level finishers are usable with fewer combo points since building to 5 is harder.
+    if (state.level or 70) < 50 then required_cp = math.min(required_cp, 4) end
     if not state.target then return false end
     if context.combo_points ~= nil and state.combo_points < required_cp then return false end
     if not target_lives(state, MIN_RIP_TTD) then return false end
@@ -805,6 +817,8 @@ end
 local function bite_matches(context, action)
     local state = build_state(context)
     local required_cp = spec_kit.setting_number(context, "cat_ferocious_bite_cp", 5)
+    -- Low-level finishers are usable with fewer combo points since building to 5 is harder.
+    if (state.level or 70) < 50 then required_cp = math.min(required_cp, 4) end
     if state.combo_points < required_cp then return false end
     if state.rip_remains <= RIP_REFRESH_WINDOW and target_lives(state, MIN_RIP_TTD) then return false end
     -- TTD awareness: prefer Ferocious Bite when target dying soon (instant > DoT)
@@ -894,9 +908,11 @@ end
 local function shred_matches(context, action)
     local state = build_state(context)
     if (state.combo_points or 0) >= 5 then return false end
-    if state.pooling and (state.energy or 0) < SHRED_COST then return false end
     if not state.is_behind then return false end
-    if state.mangle_remains <= MANGLE_REFRESH_WINDOW and target_lives(state, MIN_RAKE_TTD) then return false end
+    if state.pooling and (state.energy or 0) < SHRED_COST then return false end
+    -- Mangle (Cat) is learned at level 50. Below that, Shred is the primary builder
+    -- and the Mangle debuff cannot be expected, so skip the debuff requirement.
+    if (state.level or 70) >= 50 and state.mangle_remains <= MANGLE_REFRESH_WINDOW and target_lives(state, MIN_RAKE_TTD) then return false end
     if should_wait_for_tick(state, SHRED_COST) then return false end
     return true
 end
