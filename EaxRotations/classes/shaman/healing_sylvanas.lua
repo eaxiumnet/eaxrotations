@@ -242,5 +242,309 @@ NS.ShamanHealing.select_heal = select_heal
 NS.ShamanHealing.is_in_raid = is_in_raid
 NS.ShamanHealing.is_in_party = is_in_party
 
--- Shaman healing utilities loaded
+local spec_kit = require("shared/spec_kit_sylvanas")
+local potion_helper = require("shared/potion_helper_sylvanas")
+local define = spec_kit.define_action_for_class(SHAMAN_SPELLS)
+
+local ACTION = {
+    HealingWave       = define("HealingWave",       { 25396, 25391, 25357, 10468, 10467, 10466, 8005, 959, 547, 332, 331 }, "HealingWave"),
+    LesserHealingWave = define("LesserHealingWave", { 25420, 10468, 10467, 10466, 8010, 8005, 8004 }, "LesserHealingWave"),
+    ChainHeal         = define("ChainHeal",         { 25423, 25422, 10623, 10622, 1064 }, "ChainHeal"),
+    EarthShield       = define("EarthShield",       { 32594, 32593, 974 }, "EarthShield"),
+    WaterShield       = define("WaterShield",       { 33736, 24398 }, "WaterShield"),
+    NaturesSwiftness  = define("NaturesSwiftness",  { 16188 }, "NaturesSwiftness"),
+    CurePoison        = define("CurePoison",        { 526 }, "CurePoison"),
+    CureDisease       = define("CureDisease",       { 2870 }, "CureDisease"),
+    ManaTideTotem     = define("ManaTideTotem",     { 16190 }, "ManaTideTotem"),
+    ManaSpringTotem   = define("ManaSpringTotem",   { 25570, 10497, 10496, 10495, 5675 }, "ManaSpringTotem"),
+}
+
+local WATER_SHIELD_BUFF = { 33736, 24398 }
+local EARTH_SHIELD_BUFF = { 32594, 32593, 974 }
+local NS_BUFF = { 16188 }
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+
+local EMERGENCY_HP = 30
+local LHW_HP = 50
+local HW_HP = 70
+local CH_HP = 90
+
+local HEAL_SCHEMA = { hp_pct = 100, mana_pct = 100, lowest_hp = 100 }
+
+local heal_state = {
+    lowest = nil,
+    tank = nil,
+    cleanse_target = nil,
+    mana_pct = 100,
+    hp_pct = 100,
+    lowest_hp = 100,
+    ns_active = false,
+    ns_ready = false,
+    hw_ready = false,
+    lhw_ready = false,
+    ch_ready = false,
+    es_ready = false,
+    ws_ready = false,
+    cure_poison_ready = false,
+    cure_disease_ready = false,
+    mana_tide_ready = false,
+    mana_spring_ready = false,
+    has_water_shield = false,
+    tank_has_earth_shield = false,
+    healthstone_id = nil,
+    injured_count = 0,
+    in_combat = false,
+    is_group = false,
+    is_raid = false,
+    is_solo = false,
+    is_pvp = false,
+    is_leveling = false,
+}
+
+local function first_ready_item(ids)
+    if not NS.is_item_ready then return nil end
+    for i = 1, #ids do
+        if NS.is_item_ready(ids[i]) then return ids[i] end
+    end
+    return nil
+end
+
+local function gate_overheal(spell_key, unit, cast_time, settings, spell_id)
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        return NS.HealerDeficit.gate_spell_overheal(spell_key, unit, cast_time, settings, spell_id)
+    end
+    return NS.gate_overheal and NS.gate_overheal(spell_key, unit, cast_time, settings, spell_id) or false
+end
+
+local function build_state(context)
+    context = context or {}
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
+
+    heal_state.in_combat = context.in_combat == true
+    heal_state.is_group = context.is_group == true
+    heal_state.is_raid = context.is_raid == true
+    heal_state.is_solo = context.is_solo == true
+    heal_state.is_pvp = context.is_pvp == true or context.is_arena == true or context.is_battleground == true
+    heal_state.is_leveling = context.is_leveling == true
+    heal_state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me)) or 100
+    heal_state.hp_pct = context.hp or context.hp_pct or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
+
+    scan_healing_targets()
+    heal_state.lowest = get_lowest_hp_target(CH_HP)
+    heal_state.tank = get_tank_target()
+    heal_state.cleanse_target = get_cleanse_target()
+    heal_state.injured_count = healing_count_below_hp(healing_targets, healing_targets_count, 95)
+
+    if context.friendly_target and context.friendly_target_hp then
+        local ft_hp = context.friendly_target_hp or 100
+        if ft_hp < entry_hp(heal_state.lowest) then
+            heal_state.lowest = {
+                unit = context.friendly_target,
+                effective_hp = ft_hp,
+                hp = ft_hp,
+                deficit = context.friendly_target_deficit or 0,
+            }
+        end
+    end
+
+    local target = heal_state.lowest and heal_state.lowest.unit
+    local tank_unit = heal_state.tank and heal_state.tank.unit
+    heal_state.ns_active = me and NS.buff_up and NS.buff_up(me, NS_BUFF) or false
+    heal_state.ns_ready = NS.spell_ready and NS.spell_ready(ACTION.NaturesSwiftness, me, { skip_range = true, expected_cooldown = 180 }) or false
+    heal_state.hw_ready = target and NS.spell_ready and NS.spell_ready(ACTION.HealingWave, target) or false
+    heal_state.lhw_ready = target and NS.spell_ready and NS.spell_ready(ACTION.LesserHealingWave, target) or false
+    heal_state.ch_ready = target and NS.spell_ready and NS.spell_ready(ACTION.ChainHeal, target) or false
+    heal_state.es_ready = tank_unit and NS.spell_ready and NS.spell_ready(ACTION.EarthShield, tank_unit) or false
+    heal_state.ws_ready = NS.spell_ready and NS.spell_ready(ACTION.WaterShield, me, { skip_range = true }) or false
+    heal_state.cure_poison_ready = NS.spell_ready and NS.spell_ready(ACTION.CurePoison, me, { skip_range = true }) or false
+    heal_state.cure_disease_ready = NS.spell_ready and NS.spell_ready(ACTION.CureDisease, me, { skip_range = true }) or false
+    heal_state.mana_tide_ready = NS.spell_ready and NS.spell_ready(ACTION.ManaTideTotem, me, { skip_range = true, expected_cooldown = 300 }) or false
+    heal_state.mana_spring_ready = NS.spell_ready and NS.spell_ready(ACTION.ManaSpringTotem, me, { skip_range = true }) or false
+    heal_state.has_water_shield = me and NS.buff_up and NS.buff_up(me, WATER_SHIELD_BUFF) or false
+    heal_state.tank_has_earth_shield = tank_unit and NS.buff_up and NS.buff_up(tank_unit, EARTH_SHIELD_BUFF) or false
+    heal_state.healthstone_id = first_ready_item(HEALTHSTONE_IDS)
+    heal_state.lowest_hp = entry_hp(heal_state.lowest)
+
+    return spec_kit.safe_state(heal_state, HEAL_SCHEMA)
+end
+
+local function cast_on(spell, unit, reason, opts)
+    if not unit then return false end
+    return NS.try_cast and NS.try_cast(spell, unit, reason, opts) or false
+end
+
+local function natures_swiftness_matches(context, state)
+    if not state.ns_ready then return false end
+    if state.ns_active then return false end
+    if (state.lowest_hp or 100) > EMERGENCY_HP then return false end
+    return true
+end
+
+local function ns_healing_wave_matches(context, state)
+    if not state.ns_active then return false end
+    if not state.hw_ready then return false end
+    if (state.lowest_hp or 100) > EMERGENCY_HP then return false end
+    return true
+end
+
+local function lesser_healing_wave_matches(context, state)
+    if context.is_moving then return false end
+    if not state.lhw_ready then return false end
+    local target = state.lowest
+    if not target or not target.unit then return false end
+    local hp = entry_hp(target)
+    if hp >= LHW_HP then return false end
+    if gate_overheal("LesserHealingWave", target.unit, 1.5, context.settings) then return false end
+    return true
+end
+
+local function healing_wave_matches(context, state)
+    if context.is_moving then return false end
+    if not state.hw_ready then return false end
+    local target = state.lowest
+    if not target or not target.unit then return false end
+    local hp = entry_hp(target)
+    if hp >= HW_HP or hp < LHW_HP then return false end
+    if gate_overheal("HealingWave", target.unit, 2.5, context.settings) then return false end
+    return true
+end
+
+local function chain_heal_matches(context, state)
+    if context.is_moving then return false end
+    if not state.ch_ready then return false end
+    local target = state.lowest
+    if not target or not target.unit then return false end
+    if (entry_hp(target) or 100) >= CH_HP then return false end
+    if (state.injured_count or 0) < 2 and not context.is_raid then return false end
+    if gate_overheal("ChainHeal", target.unit, 2.5, context.settings) then return false end
+    return true
+end
+
+local function earth_shield_matches(context, state)
+    if not state.es_ready then return false end
+    if state.tank_has_earth_shield then return false end
+    if not state.tank or not state.tank.unit then return false end
+    return true
+end
+
+local function water_shield_matches(context, state)
+    if state.has_water_shield then return false end
+    if not state.ws_ready then return false end
+    return true
+end
+
+local function cure_poison_matches(context, state)
+    if not state.cure_poison_ready then return false end
+    local ct = state.cleanse_target
+    if not ct or not ct.unit then return false end
+    if not ct.has_poison then return false end
+    return true
+end
+
+local function cure_disease_matches(context, state)
+    if not state.cure_disease_ready then return false end
+    local ct = state.cleanse_target
+    if not ct or not ct.unit then return false end
+    if not ct.has_disease then return false end
+    return true
+end
+
+local function mana_tide_matches(context, state)
+    if not context.in_combat then return false end
+    if not state.mana_tide_ready then return false end
+    if (state.mana_pct or 100) > 35 then return false end
+    if not (context.is_group or context.is_raid) then return false end
+    return true
+end
+
+local function mana_spring_matches(context, state)
+    if context.in_combat then return false end
+    if not state.mana_spring_ready then return false end
+    return true
+end
+
+local function mana_potion_matches(context, state)
+    if not context.in_combat then return false end
+    if (state.mana_pct or 100) > 22 then return false end
+    if not potion_helper or not potion_helper.try_use_potion then return false end
+    return true
+end
+
+local function healthstone_matches(context, state)
+    if not context.in_combat then return false end
+    if (state.hp_pct or 100) > 35 then return false end
+    if not state.healthstone_id then return false end
+    return true
+end
+
+local strategies = {
+    { name = "NaturesSwiftness", matches = natures_swiftness_matches,
+      execute = function(context, state)
+          local me = context.me or NS.PLAYER_UNIT
+          return cast_on(ACTION.NaturesSwiftness, me, "[HEAL] Nature's Swiftness", { skip_range = true, expected_cooldown = 180 })
+      end },
+    { name = "NSHealingWave", matches = ns_healing_wave_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.HealingWave, state.lowest.unit, "[HEAL] NS + Healing Wave")
+      end },
+    { name = "LesserHealingWave", matches = lesser_healing_wave_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.LesserHealingWave, state.lowest.unit, "[HEAL] Lesser Healing Wave")
+      end },
+    { name = "HealingWave", matches = healing_wave_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.HealingWave, state.lowest.unit, "[HEAL] Healing Wave")
+      end },
+    { name = "ChainHeal", matches = chain_heal_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.ChainHeal, state.lowest.unit, "[HEAL] Chain Heal")
+      end },
+    { name = "EarthShield", matches = earth_shield_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.EarthShield, state.tank.unit, "[HEAL] Earth Shield")
+      end },
+    { name = "WaterShield", matches = water_shield_matches,
+      execute = function(context, state)
+          local me = context.me or NS.PLAYER_UNIT
+          return cast_on(ACTION.WaterShield, me, "[HEAL] Water Shield", { skip_range = true })
+      end },
+    { name = "CurePoison", matches = cure_poison_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.CurePoison, state.cleanse_target.unit, "[HEAL] Cure Poison")
+      end },
+    { name = "CureDisease", matches = cure_disease_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.CureDisease, state.cleanse_target.unit, "[HEAL] Cure Disease")
+      end },
+    { name = "ManaTideTotem", matches = mana_tide_matches,
+      execute = function(context, state)
+          local me = context.me or NS.PLAYER_UNIT
+          return cast_on(ACTION.ManaTideTotem, me, "[HEAL] Mana Tide Totem", { skip_range = true, expected_cooldown = 300 })
+      end },
+    { name = "ManaSpringTotem", matches = mana_spring_matches,
+      execute = function(context, state)
+          local me = context.me or NS.PLAYER_UNIT
+          return cast_on(ACTION.ManaSpringTotem, me, "[HEAL] Mana Spring Totem", { skip_range = true })
+      end },
+    { name = "ManaPotion", matches = mana_potion_matches,
+      execute = function(context, state)
+          return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS or {}) == true
+      end },
+    { name = "Healthstone", matches = healthstone_matches,
+      execute = function(context, state)
+          if state.healthstone_id and NS.use_item_by_id then
+              return NS.use_item_by_id(state.healthstone_id) == true
+          end
+          return false
+      end },
+}
+
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("healing", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("Shaman healing rotation registered") end
+
+NS.ShamanHealing.strategies = strategies
+NS.ShamanHealing.build_state = build_state
+
 return NS.ShamanHealing
