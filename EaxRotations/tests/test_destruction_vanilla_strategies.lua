@@ -89,4 +89,12 @@ assert_true(shadowburn.matches({ target = {}, target_hp = 15, settings = {} }, {
 local sb_result = shadowburn.matches({ target = {}, target_hp = 15, settings = {} }, {})
 assert_true(sb_result == true or sb_result == false, "Shadowburn returns boolean")
 
+
+local hp_i, health_potion = find("HealthPotion")
+local tr_i, trinket = find("Trinket")
+assert_true(health_potion ~= nil, "HealthPotion present")
+assert_true(trinket ~= nil, "Trinket present")
+assert_true(health_potion.matches({ in_combat = true, settings = {} }, { hp_pct = 20 }), "HealthPotion at low HP")
+assert_false(health_potion.matches({ in_combat = true, settings = {} }, { hp_pct = 80 }), "HealthPotion skips high HP")
 print("PASS test_destruction_vanilla_strategies")
+
