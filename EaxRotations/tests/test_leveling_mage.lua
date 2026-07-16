@@ -1747,6 +1747,41 @@ do
 end
 
 -- ============================================================================
+-- Low-level silent gate regressions: each nuke must match even when other spells are unlearned
+-- ============================================================================
+
+test("low_level_nukes: ArcaneMissiles matches without Frostbolt learned", function()
+    local ctx = make_context({ mana_pct = 80 })
+    local state = get_state(ctx)
+    state.arcane_missiles_ready = true
+    state.use_arcane_missiles = true
+    state.frostbolt_ready = false
+    state.fireball_ready = false
+    state.scorch_ready = false
+    assert_true(strategies[19].matches(ctx, state), "Arcane Missiles should fire when Frostbolt is not learned")
+end)
+
+test("low_level_nukes: Fireball matches without Scorch learned", function()
+    local ctx = make_context({ mana_pct = 80 })
+    local state = get_state(ctx)
+    state.fireball_ready = true
+    state.use_fireball = true
+    state.scorch_ready = false
+    state.arcane_missiles_ready = false
+    assert_true(strategies[17].matches(ctx, state), "Fireball should fire when Scorch is not learned")
+end)
+
+test("low_level_nukes: Scorch matches without ArcaneMissiles learned", function()
+    local ctx = make_context({ mana_pct = 80 })
+    local state = get_state(ctx)
+    state.scorch_ready = true
+    state.use_scorch = true
+    state.arcane_missiles_ready = false
+    state.fireball_ready = false
+    assert_true(strategies[18].matches(ctx, state), "Scorch should fire when Arcane Missiles is not learned")
+end)
+
+-- ============================================================================
 -- Edge case: Wand threshold
 -- ============================================================================
 do

@@ -14,7 +14,7 @@ local SPELLS = NS.MageSpells or {}
 -- Constants
 -- ============================================================================
 
-local ARCANE_INTELLECT_BUFF = { 10157, 10156, 1461, 1460, 1459 }
+local ARCANE_INTELLECT_BUFF = { 23028, 10157, 10156, 1461, 1460, 1459 }
 local FROST_ARMOR_BUFF = { 12544, 12543, 10174, 10173, 7301, 7300, 168 }
 local ICE_BARRIER_BUFF = { 13033, 13032, 13031, 11426 }
 local MANA_SHIELD_BUFF = { 13008, 13007, 13006, 13005, 13003, 8495, 8494, 8492, 1463 }
@@ -455,4 +455,4 @@ local strategies = {
 
 NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 -- [Mage] Leveling rotation loaded (Classic)
-return strategies
+return { strategies = strategies, build_state = build_state }

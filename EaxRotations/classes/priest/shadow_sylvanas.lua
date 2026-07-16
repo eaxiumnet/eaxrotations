@@ -12,6 +12,12 @@
 --         No on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local SPELLS = NS.PriestSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 
@@ -47,18 +53,43 @@ local ACTION = {
 
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local DotTTD = require("shared/dot_ttd_gating_sylvanas")
+local BuffHelper = require("shared/buff_manager_helper_sylvanas")
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local _snap_ok, Snapshot = pcall(require, "shared/snapshot_sylvanas")
 if not _snap_ok or type(Snapshot) ~= "table" then Snapshot = nil end
 local _tracker_ok, ActiveFightTracker = pcall(require, "shared/active_fight_tracker_sylvanas")
 if not _tracker_ok or type(ActiveFightTracker) ~= "table" then ActiveFightTracker = nil end
+local _ts_ok, TSHelper = pcall(require, "shared/ts_helper_sylvanas")
+if not _ts_ok or type(TSHelper) ~= "table" then TSHelper = nil end
 local _last_shadow_cc_scan = 0
 local _last_multidot_scan = 0
 local _cached_dotted_swp = 0
 local _cached_enemies_missing_swp = 0
 local _cached_dotted_vt = 0
 local _cached_enemies_missing_vt = 0
+
+local function scan_target_debuffs(target)
+    if not target then return {} end
+    local rows = BuffHelper.get_all_debuffs(target, 50)
+    if not rows or type(rows) ~= "table" then return {} end
+    local out = {}
+    for _, row in ipairs(rows) do
+        local id = row and (row.buff_id or row.spell_id or row.id)
+        if id and row.remaining and row.remaining > 0 then
+            out[id] = row.remaining / 1000
+        end
+    end
+    return out
+end
+
+local function debuff_remains_from_scan(scan, ids)
+    if not scan or not ids then return 0 end
+    for _, id in ipairs(ids) do
+        if scan[id] then return scan[id] end
+    end
+    return 0
+end
 
 -- ============================================================================
 -- Buff & Debuff ID tables
@@ -147,24 +178,10 @@ end
 -- Returns the first nearby enemy that does NOT have any of the given debuff IDs.
 -- Used so SW:P/VT spread/cleave strategies actually hit a missing target instead
 -- of recasting on context.target (which already has the DoT).
--- PR2: prefers ActiveFightTracker.find_undotted_target (engagement-aware, GUID model)
--- when available + setting gate; legacy raw scan kept as fallback (compat).
+-- Priority: TSHelper.get_dps_targets (target_selector) → ActiveFightTracker
+-- (engagement-aware, GUID model, setting-gated) → legacy GetEnemiesInRange.
 local function _find_multidot_target(context, debuff_ids, range)
-    -- Setting gate for tracker multi-dot maintenance (default on; old multidot_mode still gates strategies)
-    local use_tracker = true
-    if context then
-        use_tracker = spec_kit.setting_bool(context, "shadow_multidot_maintenance", true)
-    end
-    if use_tracker and ActiveFightTracker and ActiveFightTracker.find_undotted_target then
-        local ok, t = pcall(ActiveFightTracker.find_undotted_target, context, debuff_ids, range)
-        if ok and t then return t end
-    end
-    -- legacy fallback (raw GetEnemiesInRange path)
-    if not context or not NS.GetEnemiesInRange then return nil end
-    range = range or spec_kit.setting_number(context, "shadow_multidot_range", 30)
-    local enemies = NS.GetEnemiesInRange(range)
-    if type(enemies) ~= "table" or #enemies == 0 then return nil end
-    local current = context.target
+    local current = context and context.target
     local function is_valid_target(enemy)
         if not enemy then return false end
         local ok, valid = pcall(function() return enemy.is_valid and enemy:is_valid() end)
@@ -173,19 +190,44 @@ local function _find_multidot_target(context, debuff_ids, range)
         return ok == false and false or true
     end
     -- Prefer an enemy that is NOT the current target first (real spread)
-    for pass = 1, 2 do
-        for _, enemy in ipairs(enemies) do
-            if is_valid_target(enemy) then
-                local is_current = current and NS.same_unit and NS.same_unit(enemy, current)
-                if pass == 1 and is_current then
-                    -- skip current target on first pass
-                elseif not NS.debuff_up(enemy, debuff_ids) then
-                    return enemy
+    local function pick_undotted(enemies)
+        if type(enemies) ~= "table" or #enemies == 0 then return nil end
+        for pass = 1, 2 do
+            for _, enemy in ipairs(enemies) do
+                if is_valid_target(enemy) then
+                    local is_current = current and NS.same_unit and NS.same_unit(enemy, current)
+                    if pass == 1 and is_current then
+                        -- skip current target on first pass
+                    elseif not NS.debuff_up(enemy, debuff_ids) then
+                        return enemy
+                    end
                 end
             end
         end
+        return nil
     end
-    return nil
+
+    -- 1) Primary: target_selector via TSHelper (scored DPS targets)
+    if TSHelper and TSHelper.get_dps_targets then
+        local ts_targets = TSHelper.get_dps_targets(10)
+        local t = pick_undotted(ts_targets)
+        if t then return t end
+    end
+
+    -- 2) ActiveFightTracker (engagement-aware; setting-gated)
+    local use_tracker = true
+    if context then
+        use_tracker = spec_kit.setting_bool(context, "shadow_multidot_maintenance", true)
+    end
+    if use_tracker and ActiveFightTracker and ActiveFightTracker.find_undotted_target then
+        local ok, t = pcall(ActiveFightTracker.find_undotted_target, context, debuff_ids, range)
+        if ok and t then return t end
+    end
+
+    -- 3) Legacy fallback (raw GetEnemiesInRange path)
+    if not context or not NS.GetEnemiesInRange then return nil end
+    range = range or spec_kit.setting_number(context, "shadow_multidot_range", 30)
+    return pick_undotted(NS.GetEnemiesInRange(range))
 end
 
 -- ============================================================================
@@ -383,10 +425,11 @@ local function build_state(context)
     end
     shadow_state.mounted = false
     
-    shadow_state.vt_remaining = target and NS.debuff_remains(target, VAMPIRIC_TOUCH_DEBUFF) or 0
-    shadow_state.swp_remaining = target and NS.debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
-    shadow_state.ve_remaining = target and NS.debuff_remains(target, VAMPIRIC_EMBRACE_DEBUFF) or 0
-    shadow_state.dp_remaining = target and NS.debuff_remains(target, DEVOURING_PLAGUE_DEBUFF) or 0
+    local debuff_scan = target and scan_target_debuffs(target) or {}
+    shadow_state.vt_remaining = debuff_remains_from_scan(debuff_scan, VAMPIRIC_TOUCH_DEBUFF)
+    shadow_state.swp_remaining = debuff_remains_from_scan(debuff_scan, SHADOW_WORD_PAIN_DEBUFF)
+    shadow_state.ve_remaining = debuff_remains_from_scan(debuff_scan, VAMPIRIC_EMBRACE_DEBUFF)
+    shadow_state.dp_remaining = debuff_remains_from_scan(debuff_scan, DEVOURING_PLAGUE_DEBUFF)
     shadow_state.mb_ready = target and NS.spell_ready(ACTION.MindBlast, target, { expected_cooldown = 5.5 }) or false
     shadow_state.mb_cd_remains = NS.cooldown_remains and NS.cooldown_remains(ACTION.MindBlast) or 0
     shadow_state.swd_ready = target and NS.spell_ready(ACTION.ShadowWordDeath, target, { expected_cooldown = 12 }) or false
@@ -512,7 +555,7 @@ local function build_state(context)
     
     -- Fortitude buff readiness (party-aware)
     local me_unit = context.me or me
-    local FORTITUDE_BUFFS = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
+    local FORTITUDE_BUFFS = { 25392, 21564, 21562, 39231, 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
     shadow_state.fortitude_ready = me_unit and NS.spell_ready and NS.spell_ready(ACTION.PowerWordFortitude, me_unit, { skip_range = true }) or false
     shadow_state.has_fortitude = me_unit and NS.buff_up and NS.buff_up(me_unit, FORTITUDE_BUFFS) or false
     shadow_state.is_group = context.is_group or false
@@ -797,7 +840,8 @@ local function holy_nova_aoe_matches(context, s)
     -- Combat mode gate: only AoE in aoe mode
     if s.combat_mode ~= "aoe" then return false end
     if context.is_moving then return false end
-    if (s.enemy_count or 0) < 3 then return false end
+    -- Holy Nova: 10yd self PBAoE (DBC) — do not use 40yd enemy_count
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, s) then return false end
     if not context.in_combat then return false end
     return NS.spell_ready and NS.spell_ready(ACTION.HolyNova, context.target, nil)
 end

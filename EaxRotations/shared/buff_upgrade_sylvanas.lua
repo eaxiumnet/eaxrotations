@@ -19,20 +19,37 @@ local CLASS = NS.CLASS_ID or {
     SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11,
 }
 
+local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
+if not _rbf_ok then RBF = nil end
+
+local function cast_ids(key, fallback)
+    if RBF and RBF.cast then return RBF.cast(key) end
+    return fallback
+end
+local function family_ids(key, fallback)
+    if RBF and RBF.detect then return RBF.detect(key) end
+    return fallback
+end
+
 -- Party buff definitions by class. Arrays are high-to-low rank.
--- Each entry: { ids = <rank array>, key = <setting suffix> }
--- Paladin blessings skipped — already handled by paladin middleware.
+-- Cast ladders + detect families from ranked_buff_families (Vanilla∪TBC∪WotLK).
 local PARTY_BUFFS_BY_CLASS = {
     [CLASS.PRIEST] = {
-        { ids = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }, key = "fort" },
-        { ids = { 25433, 10958, 10957, 976 },                     key = "shadow_prot" },
+        { ids = cast_ids("power_word_fortitude", { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }),
+          family = family_ids("power_word_fortitude", { 25392, 21564, 21562, 25389, 10938, 10937, 2791, 1245, 1244, 1243 }),
+          key = "fort" },
+        { ids = { 25433, 10958, 10957, 976 }, key = "shadow_prot" },
     },
     [CLASS.MAGE] = {
-        { ids = { 27126, 10157, 10156, 1461, 1460, 1459 }, key = "ai" },
+        { ids = cast_ids("arcane_intellect", { 27126, 10157, 10156, 1461, 1460, 1459 }),
+          family = family_ids("arcane_intellect", { 27127, 23028, 27126, 10157, 10156, 1461, 1460, 1459 }),
+          key = "ai" },
     },
     [CLASS.DRUID] = {
-        { ids = { 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }, key = "motw" },
-        { ids = { 26992, 9910, 9756, 8914, 1075, 782, 467 },                key = "thorns" },
+        { ids = cast_ids("mark_of_the_wild", { 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }),
+          family = family_ids("mark_of_the_wild", { 26991, 21850, 21849, 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }),
+          key = "motw" },
+        { ids = cast_ids("thorns", { 26992, 9910, 9756, 8914, 1075, 782, 467 }), key = "thorns" },
     },
 }
 
@@ -51,13 +68,24 @@ end
 -- Also returns true if no buff is active and we can cast the highest rank.
 local function needs_upgrade(unit, entry)
     local ids = entry.ids
-    local active_id, rank_pos = NS.buff_rank(unit, ids)
-    if not active_id then
-        -- No buff active — not an upgrade situation (OOC manager handles fresh buffs)
+    local family = entry.family or ids
+    local spell = get_spell(entry)
+    -- Superior group buff (PoF/AB/GotW) already present → never cast single-target.
+    if spell and NS.buff_would_downgrade and NS.buff_would_downgrade(unit, family, spell) then
         return false
     end
-    -- rank_pos > 1 means active buff is not the highest rank
-    return rank_pos ~= nil and rank_pos > 1
+    local active_id, rank_pos = NS.buff_rank(unit, ids)
+    if not active_id then
+        -- No single-target rank active — not an upgrade situation (OOC handles fresh)
+        return false
+    end
+    -- rank_pos > 1 means active buff is not the highest castable rank
+    if not (rank_pos ~= nil and rank_pos > 1) then return false end
+    -- Never "upgrade" into a downgrade (wrong resolved rank).
+    if spell and NS.buff_would_downgrade and NS.buff_would_downgrade(unit, ids, spell) then
+        return false
+    end
+    return true
 end
 
 -- Check self for buff rank upgrades.

@@ -10,6 +10,12 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local SPELLS = NS.WarlockSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 local curse_helper = require("shared/warlock_curse_helper_sylvanas")
@@ -29,7 +35,7 @@ local ACTION = {
     CurseElements    = define("CurseElements",    { 27228, 11722, 11721, 1490 }, "CurseElements"),
     CurseOfAgony     = define("CurseOfAgony",     { 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
     CurseOfDoom       = define("CurseOfDoom",       { 30910, 603 }, "CurseOfDoom"),
-    CurseOfRecklessness = define("CurseOfRecklessness", { 27227, 11717, 11716, 11715, 6209, 6208, 1109, 702 }, "CurseOfRecklessness"),
+    CurseOfRecklessness = define("CurseOfRecklessness", { 27226, 11717, 7659, 7658, 704 }, "CurseOfRecklessness"),
     CurseOfWeakness   = define("CurseOfWeakness",   { 30909, 27224, 11708, 11707, 7646, 6205, 1108, 702 }, "CurseOfWeakness"),
     DarkPact          = define("DarkPact",          { 27265, 18938, 18937, 18220 }, "DarkPact"),
     DeathCoil        = define("DeathCoil",        { 27223, 17926, 17925, 6789 }, "DeathCoil"),
@@ -80,7 +86,9 @@ local DOT_REFRESH_WINDOW = 1.5
 local IMP_FIREBOLT_IDS = { 3110, 7799, 7800, 7801, 7802, 11762, 11763, 27267 }
 -- Lash of Pain spell IDs (all ranks) — only the Succubus has this, so it
 -- identifies the active pet as a Succubus.
-local SUCC_LASH_IDS = { 7814, 7815, 7816, 7817, 7818, 7819, 11770, 11771, 27268 }
+-- Lash of Pain ranks high→low (lexxer tbc): 7814-7816, 11778-11780, 27274.
+-- Removed invalid 7817-7819 / 11770-11771 / 27268 (items or wrong pet spells).
+local SUCC_LASH_IDS = { 27274, 11780, 11779, 11778, 7816, 7815, 7814 }
 
 local ImpFirebolt = NS.spell_action and NS.spell_action(IMP_FIREBOLT_IDS, "ImpFirebolt") or nil
 
@@ -462,7 +470,7 @@ end
 local function seed_of_corruption_matches(context, s)
     if not s then return false end
     if not context.target then return false end
-    if (s.enemy_count or 0) < 3 then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_15) or 15, context.target, context, s) then return false end
     if not s.seed_of_corruption_ready then return false end
     return true
 end
@@ -470,7 +478,7 @@ end
 local function howl_of_terror_matches(context, s)
     if not s then return false end
     if not context.in_combat then return false end
-    if (s.enemy_count or 0) < 3 then return false end
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, s) then return false end
     if not s.howl_of_terror_ready then return false end
     return true
 end
@@ -557,7 +565,7 @@ end
 local function rain_of_fire_matches(context, s)
     if not s then return false end
     if not context.target then return false end
-    if (s.enemy_count or 0) < 3 then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context.target, context, s) then return false end
     if not s.rain_of_fire_ready then return false end
     return true
 end
@@ -565,7 +573,7 @@ end
 local function hellfire_matches(context, s)
     if not s then return false end
     if not context.in_combat then return false end
-    if (s.enemy_count or 0) < 4 then return false end
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(4, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, s) then return false end
     if (s.hp_pct or 100) < 40 then return false end
     if not s.hellfire_ready then return false end
     return true

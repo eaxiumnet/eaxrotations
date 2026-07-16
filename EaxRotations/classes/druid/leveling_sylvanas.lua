@@ -36,7 +36,8 @@ local is_leveling_context = leveling.create_context_guard()
 -- Constants
 -- ============================================================================
 local SPELLS = NS.DruidSpells or {}
-local MARK_OF_THE_WILD_BUFF = { 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126, 21850, 21849 }
+local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
+local MARK_OF_THE_WILD_BUFF = (_rbf_ok and RBF and RBF.detect("mark_of_the_wild")) or { 26991, 21850, 21849, 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126, 24752, 39233, 16878 }
 local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
 
 -- Feral debuff IDs (highest rank first)
@@ -789,4 +790,6 @@ function druid_leveling.on_update(context)
 end
 
 -- [Druid] Leveling rotation loaded
+druid_leveling.strategies = strategies
+
 return druid_leveling

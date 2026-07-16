@@ -6,6 +6,12 @@
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local SPELLS = NS.MageSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 local HitCap = require("shared/hit_cap_tracker_sylvanas")
@@ -185,9 +191,15 @@ local function fireball_matches_fn(context, state)
     if context.is_moving then return false end
     -- Clearcasting: always consume on Fireball (highest damage) per research
     if state and state.has_clearcasting then return true end
-    -- Only require 5-stack Scorch when Scorch duty is assigned
+    -- Only require 5-stack Scorch when Scorch is known (low-level fallback).
     local scorch_duty = not context.settings or context.settings.use_scorch_debuff ~= false
-    if scorch_duty and ((state and state.scorch_stacks) or (context.scorch_stacks or 0)) < 5 then return false end
+    local scorch_known = false
+    if NS.is_spell_learned then
+        scorch_known = NS.is_spell_learned(ACTION.Scorch)
+    elseif NS.spell_exists then
+        scorch_known = NS.spell_exists(ACTION.Scorch)
+    end
+    if scorch_duty and scorch_known and ((state and state.scorch_stacks) or (context.scorch_stacks or 0)) < 5 then return false end
 
     return NS.spell_ready(ACTION.Fireball, context.target)
 end
@@ -200,27 +212,27 @@ end
 
 local function flamestrike_matches_fn(context, state)
     if context.is_moving then return false end
-    if (context.enemy_count or 1) < 3 then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_5) or 5, context.target, context, state) then return false end
 
     return NS.spell_ready(ACTION.Flamestrike, context.target)
 end
 
 local function flamestrike_rank6_matches_fn(context, state)
     if context.is_moving then return false end
-    if (context.enemy_count or 1) < 3 then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_5) or 5, context.target, context, state) then return false end
 
     return NS.spell_ready(ACTION.FlamestrikeRank6, context.target)
 end
 
 local function blizzard_matches_fn(context, state)
     if context.is_moving then return false end
-    if (context.enemy_count or 1) < 4 then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(4, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context.target, context, state) then return false end
 
     return NS.spell_ready(ACTION.Blizzard, context.target)
 end
 
 local function arcane_explosion_matches_fn(context, state)
-    if (context.enemy_count or 1) < 3 then return false end
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state) then return false end
 
     return NS.spell_ready(ACTION.ArcaneExplosion, context.target)
 end
@@ -266,12 +278,12 @@ local function mana_gem_matches_fn(context, state)
 end
 
 local function blast_wave_matches_fn(context, state)
-    if (context.enemy_count or 1) < 2 then return false end
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state) then return false end
     return NS.spell_ready(ACTION.BlastWave, context.target)
 end
 
 local function dragons_breath_matches_fn(context, state)
-    if (context.enemy_count or 1) < 2 then return false end
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state) then return false end
     -- Talent gate: must have Dragon's Breath learned (fire talent, not baseline)
     if not (ACTION.DragonsBreath and NS.spell_ready(ACTION.DragonsBreath, context.target, { skip_range = true })) then
         -- Fall back to BlastWave if Dragon's Breath not talented

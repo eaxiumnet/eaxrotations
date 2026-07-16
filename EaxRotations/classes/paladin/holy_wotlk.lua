@@ -15,13 +15,15 @@ local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
     BeaconOfLight = define("BeaconOfLight", 53563, "BeaconOfLight"),
     HolyShock = define("HolyShock", { 33074, 33073, 33072, 33071, 33070, 20473 }, "HolyShock"),
-    FlashOfLight = define("FlashOfLight", { 27137, 27136, 27135, 27134, 27133, 19993, 19941, 19942, 19943, 19750 }, "FlashOfLight"),
-    HolyLight = define("HolyLight", { 27136, 27135, 27134, 27133, 19943, 19941, 19942, 19750, 1026, 1025, 1024, 1023, 1022, 635 }, "HolyLight"),
+    -- FoL/HL ranks verified lexxer (removed FoL/HL mixups 1022-1025 HoP, 19993 invalid, HL IDs that are FoL).
+    FlashOfLight = define("FlashOfLight", { 48785, 27137, 19943, 19942, 19941, 19940, 19939, 19750 }, "FlashOfLight"),
+    HolyLight = define("HolyLight", { 48782, 27136, 27135, 25292, 10329, 10328, 3472, 1026, 647, 639, 635 }, "HolyLight"),
     SacredShield = define("SacredShield", 53601, "SacredShield"),
 }
 
 local BEACON_OF_LIGHT_BUFF = { 53563 }
-local SACRED_SHIELD_BUFF = { 53601, 53602, 53603, 53604 }
+-- Sacred Shield player buff is 53601 only (lexxer wotlk). 53602/603/604 are unrelated.
+local SACRED_SHIELD_BUFF = { 53601 }
 
 local holy_state = {
     hp = 100,

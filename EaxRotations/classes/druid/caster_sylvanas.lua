@@ -128,6 +128,11 @@ local function thorns_matches_fn(context, state)
     if not caster_context_allowed(context) then return false end
     if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
     if context.in_combat then return false end
+    -- Aura APIs often miss Thorns after cast → recast loop. 300s << 10m duration.
+    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Thorns, 300.0) then return false end
+    if NS.buff_would_downgrade and NS.buff_would_downgrade(context.me or NS.PLAYER_UNIT, THORNS_BUFF, ACTION.Thorns) then
+        return false
+    end
     if NS.has_player_buff and NS.has_player_buff(THORNS_BUFF) then return false end
     return NS.spell_ready(ACTION.Thorns, NS.PLAYER_UNIT, { skip_range = true })
 end

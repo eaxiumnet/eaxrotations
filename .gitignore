@@ -96,7 +96,15 @@ EaxRotations/**/*_edge_insert.lua
 EaxRotations/**/_GAP_ANALYSIS.md
 EaxRotations/**/GAP_ANALYSIS.md
 EaxRotations/docs/
-EaxRotations/tools/
+# Local ID-audit caches only; keep verifier scripts + final report in git.
+EaxRotations/tools/*
+!EaxRotations/tools/verify_buff_debuff_ids.py
+!EaxRotations/tools/verify_buff_debuff_ids_full.py
+!EaxRotations/tools/buff_debuff_full_verification.md
+!EaxRotations/tools/buff_debuff_full_verification.json
+!EaxRotations/tools/buff_debuff_verification_report.md
+!EaxRotations/tools/buff_debuff_verification_report.json
+!EaxRotations/tests/test_id_audit_extractor.py
 EaxRotations/community_profiles/
 EaxRotations/exporter.lua
 EaxRotations/optimizer.lua

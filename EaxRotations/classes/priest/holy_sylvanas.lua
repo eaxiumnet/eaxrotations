@@ -34,6 +34,11 @@ local Healing = load_healing_helpers()
 -- Preemptive heal module (Sonah-style predictive healing)
 local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
 local FsrManager = require("shared/fsr_manager_sylvanas")
+local Profiler = require("shared/profiler_helper_sylvanas")
+local _ts_ok, TSHelper = pcall(require, "shared/ts_helper_sylvanas")
+if not _ts_ok or type(TSHelper) ~= "table" then TSHelper = nil end
+local _hp_ok, HealthPred = pcall(require, "shared/health_pred_helper_sylvanas")
+if not _hp_ok or type(HealthPred) ~= "table" then HealthPred = nil end
 
 -- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -236,8 +241,52 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
  context.mana_pct = context.player_mana_pct or (player.mana_pct and player:mana_pct()) or 100
 
  if Healing.scan_healing_targets then
+  local profile_key = "holy_scan_healing_targets"
+  if spec_kit.setting_bool(context, "debug_profile", false) then Profiler.start(profile_key) end
   local entries, count = Healing.scan_healing_targets()
-  if entries and count and count > 0 then
+  entries = entries or {}
+  count = count or 0
+
+  if TSHelper and TSHelper.get_heal_targets then
+   local ts_targets = TSHelper.get_heal_targets(3)
+   if type(ts_targets) == "table" then
+    local seen = {}
+    for i = 1, count do
+     local e = entries[i]
+     if e and e.unit then
+      seen[e.unit] = i
+     end
+    end
+    for _, unit in ipairs(ts_targets) do
+     if unit then
+      local ok_hp, hp = pcall(function()
+       return unit.get_health_percentage and unit:get_health_percentage()
+      end)
+      if ok_hp and type(hp) == "number" then
+       local idx = seen[unit]
+       if idx then
+        local e = entries[idx]
+        e.hp = hp
+        if e.effective_hp == nil then
+         e.effective_hp = hp
+        end
+       else
+        count = count + 1
+        entries[count] = {
+         unit = unit,
+         hp = hp,
+         effective_hp = hp,
+         is_tank = false,
+        }
+        seen[unit] = count
+       end
+      end
+     end
+    end
+   end
+  end
+
+  if count > 0 then
    -- Triage-ranked target selection: smarter than naive lowest-HP
    if NS.Triage and NS.Triage.rank then
     local ranked = NS.Triage.rank(entries, count, context.settings)
@@ -258,6 +307,7 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
     end
    end
   end
+  if spec_kit.setting_bool(context, "debug_profile", false) then Profiler.stop(profile_key) end
  end
 
  holy_state.lowest = lowest_entry
@@ -554,15 +604,22 @@ local strategies = {
    return PreemptiveHeal.execute(context, state, chosen_spell, format("[HOLY] %s %.0f%%", spell_label, target.effective_hp or 0), { cast_time = 2.5, heal_size = 3500 })
   end,
  },
- {
-  name = "EmergencyFlashHeal",
-  matches = function(context, state)
-   if not context.in_combat then return false end
-   if context.player_control_locked or context.is_moving then return false end
-   if not state.flash_heal_ready then return false end
-   if not state.lowest then return false end
-    return (state.lowest_hp or 100) < spec_kit.setting_number(context, "holy_emergency_hp", 30)
-  end,
+  {
+   name = "EmergencyFlashHeal",
+   matches = function(context, state)
+    if not context.in_combat then return false end
+    if context.player_control_locked or context.is_moving then return false end
+    if not state.flash_heal_ready then return false end
+    if not state.lowest then return false end
+    local threshold = spec_kit.setting_number(context, "holy_emergency_hp", 30)
+    local current_hp = state.lowest_hp or 100
+    local pred_hp = current_hp
+    if state.lowest.unit and HealthPred and HealthPred.predicted_hp_pct then
+     local ok, pct = pcall(HealthPred.predicted_hp_pct, state.lowest.unit, 1.5)
+     if ok and type(pct) == "number" then pred_hp = pct end
+    end
+    return current_hp < threshold or pred_hp < threshold
+   end,
   execute = function(context, state)
    local target = state.lowest.unit
    local chosen_spell, spell_label = cast_best_heal_rank(FLASH_HEAL_RANKS, target, context, "Emergency FH", HOLY_OPTS_EMERGENCY_FH)

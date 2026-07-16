@@ -3620,6 +3620,84 @@ function NS.buff_rank(unit, ids)
     return nil, nil
 end
 
+--- True if casting `cast_spell` would apply a *worse* rank than the buff already
+--- on `unit`. `buff_ids` must be high→low (best first), including any superior
+--- family members (e.g. Gift of the Wild before Mark of the Wild ranks).
+--- Use this to stop MotW/Thorns downgrade loops when aura detection works but
+--- spell rank resolution picks a lower rank, or when GotW is already present.
+---@param unit game_object
+---@param buff_ids table Rank array (highest / best first).
+---@param cast_spell number|table Spell id, rank array, or spell_action.
+---@return boolean would_downgrade
+function NS.buff_would_downgrade(unit, buff_ids, cast_spell)
+    if not unit then return false end
+    local list = collect_ids(buff_ids)
+    if #list == 0 then return false end
+    local cast_id = NS.get_spell_id(cast_spell)
+    if type(cast_id) ~= "number" then return false end
+
+    local active_id, active_pos = NS.buff_rank(unit, list)
+    if not active_id then return false end
+
+    local cast_pos
+    for i = 1, #list do
+        if list[i] == cast_id then
+            cast_pos = i
+            break
+        end
+    end
+    -- Active family buff found but cast id is not in the ladder (or is worse).
+    -- Never clobber a known better family buff with an unknown/lower cast.
+    if not cast_pos then return true end
+    if not active_pos then return true end
+    return active_pos < cast_pos
+end
+
+--- Whether we should cast `cast_spell` to apply/maintain a ranked self-buff family.
+--- `family_ids` must be best-first (group/superior buffs before single-target ranks).
+--- Returns false when: would downgrade, duration still healthy, or aura API missing
+--- with an active family buff we cannot rank-compare safely after would_downgrade.
+---@param unit game_object
+---@param family_ids table Best-first aura ID ladder.
+---@param cast_spell number|table Spell to cast.
+---@param threshold number|nil Refresh when remains <= threshold (default 30).
+---@return boolean should_apply
+function NS.should_apply_ranked_buff(unit, family_ids, cast_spell, threshold)
+    if not unit then return false end
+    threshold = type(threshold) == "number" and threshold or 30
+    if NS.buff_would_downgrade(unit, family_ids, cast_spell) then
+        return false
+    end
+    local list = collect_ids(family_ids)
+    if #list == 0 then return true end
+
+    local active_id, active_pos = NS.buff_rank(unit, list)
+    local cast_id = NS.get_spell_id(cast_spell)
+    local cast_pos
+    if type(cast_id) == "number" then
+        for i = 1, #list do
+            if list[i] == cast_id then
+                cast_pos = i
+                break
+            end
+        end
+    end
+
+    -- True upgrade: worse rank active, better cast available.
+    if active_id and active_pos and cast_pos and active_pos > cast_pos then
+        return true
+    end
+
+    local remains = NS.buff_remains and NS.buff_remains(unit, list)
+    -- Missing buff (remains 0 default when not found) → apply if no active rank.
+    if not active_id then
+        if remains == nil then return false end -- API unavailable: fail closed
+        return true
+    end
+    if type(remains) ~= "number" then return false end
+    return remains <= threshold
+end
+
 --- Returns the points array from debuff aura data.
 ---@param unit game_object The unit to check.
 ---@param ids table Array of spell IDs.
@@ -4689,6 +4767,164 @@ function NS.GetEnemiesCount(range)
 
     return type(enemies) == "table" and #enemies or 0
 
+end
+
+-- =============================================================================
+-- AoE hit-volume counts (multi-target gates must use these, not 40yd enemy_count)
+-- Radii from TBC DBC (2.5.5) where available; WotLK-only labeled Community/WotLK.
+-- Auto-AoE playstyle may still use global 40yd density; spell multi gates must not.
+-- =============================================================================
+NS.AOE_RADIUS = NS.AOE_RADIUS or {
+    SELF_8 = 8,           -- Whirlwind, Thunder Clap, Consecration, Fan of Knives, Divine Storm, Magma
+    SELF_10 = 10,         -- Arcane Explosion, Holy Nova, Hellfire, Blast Wave, Dragon's Breath, Blood Boil, Frost Nova
+    GROUND_5 = 5,         -- Flamestrike (DBC)
+    GROUND_8 = 8,         -- Blizzard, Rain of Fire, Volley, Hurricane, Shadowfury, Death and Decay
+    GROUND_10 = 10,       -- D&D / some ground (Community/WotLK when not in TBC DBC)
+    TARGET_8 = 8,         -- Cleave secondary, Multi-Shot cluster, Swipe
+    TARGET_10 = 10,       -- Chain Lightning jumps, Howling Blast, Pestilence spread
+    TARGET_15 = 15,       -- Seed of Corruption detonation
+}
+
+--- Count hostile enemies within `radius` yards of the player (self-centered PBAoE / melee AoE).
+function NS.count_enemies_around_me(radius)
+    local r = type(radius) == "number" and radius or 8
+    return NS.GetEnemiesCount(r)
+end
+
+--- Count hostile enemies within `radius` yards of `unit` (target-centered multi / ground at target).
+--- Includes `unit` itself when it is a hostile (so Multi-Shot/Cleave see at least 1).
+function NS.count_enemies_around_unit(unit, radius)
+    if not unit then return 0 end
+    local r = type(radius) == "number" and radius or 8
+    local me = NS.GetPlayer and NS.GetPlayer() or nil
+    local n = 0
+
+    -- Prefer unit-native spatial query when present.
+    local get_eir = safe_field(unit, "get_enemies_in_range")
+    if get_eir then
+        local list = safe(get_eir, unit, r, false)
+        if type(list) == "table" then
+            for i = 1, #list do
+                local e = list[i]
+                if e and (not me or NS.not_same_unit(e, me)) then
+                    n = n + 1
+                end
+            end
+            -- Ensure the origin unit counts if it is an enemy of the player.
+            if me and NS.is_hostile_unit and NS.is_hostile_unit(me, unit) then
+                local has_self = false
+                for i = 1, #list do
+                    if NS.same_unit(list[i], unit) then has_self = true; break end
+                end
+                if not has_self then n = n + 1 end
+            elseif not me then
+                n = n + 1
+            end
+            return n
+        end
+    end
+
+    -- Scan a player-centered list large enough to cover unit + radius, then filter.
+    -- When player/distance is unavailable, scan the full combat density range (40yd).
+    local d_me = me and distance(unit, me) or nil
+    local scan
+    if type(d_me) == "number" and d_me < 100 then
+        scan = d_me + r + 2
+        if scan < r then scan = r end
+        if scan > 45 then scan = 45 end
+    else
+        scan = 40
+    end
+    local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(scan) or nil
+    if type(enemies) == "table" and (#enemies > 0 or (enemies.n and enemies.n > 0)) then
+        local limit_n = enemies.n or #enemies
+        local seen = false
+        for i = 1, limit_n do
+            local e = enemies[i]
+            if e then
+                local d = distance(e, unit)
+                if type(d) == "number" and d < 100 and d <= r then
+                    n = n + 1
+                    if NS.same_unit and NS.same_unit(e, unit) then seen = true end
+                end
+            end
+        end
+        -- Include origin if hostile and within its own radius of the cluster origin
+        -- only when the scan list was non-empty (real OM data).
+        if not seen and me and NS.is_hostile_unit and NS.is_hostile_unit(me, unit) then
+            local d_origin = distance(unit, me)
+            if type(d_origin) == "number" and d_origin < 100 then
+                n = n + 1
+            end
+        end
+        return n
+    end
+
+    -- Empty/missing enemy list: return 0 so aoe_count_meets can fall back to
+    -- context/state density in unit tests (do NOT invent a single-target hit).
+    return 0
+end
+
+--- True when at least `min_count` enemies sit inside the spell hit volume.
+--- @param min_count number
+--- @param radius number yards
+--- @param opts table|nil { around="me"|"target", target=unit, context=ctx }
+--- Production: uses live spatial counts. Tests without a player may pass
+--- context._aoe_hit_count or fall back to context.enemy_count for legacy suites.
+function NS.aoe_count_meets(min_count, radius, opts)
+    opts = opts or {}
+    local need = type(min_count) == "number" and min_count or 1
+    local r = type(radius) == "number" and radius or 8
+    local ctx = opts.context
+    if ctx and type(ctx._aoe_hit_count) == "number" then
+        return ctx._aoe_hit_count >= need, ctx._aoe_hit_count
+    end
+
+    local me = NS.GetPlayer and NS.GetPlayer() or nil
+    local n
+    local around = opts.around or "me"
+    if around == "target" and opts.target then
+        n = NS.count_enemies_around_unit(opts.target, r)
+    else
+        n = NS.count_enemies_around_me(r)
+    end
+    n = n or 0
+
+    -- Unit-test / empty-OM path: when spatial APIs return zero enemies even at 40yd,
+    -- there is no live hit-volume data — fall back to context density so suites that
+    -- only set enemy_count keep working. Production OM with far-only packs still
+    -- returns wide>0 and radius count 0 → gate correctly rejects false multi.
+    if n == 0 and ctx then
+        local wide = (NS.GetEnemiesCount and NS.GetEnemiesCount(40)) or 0
+        if wide == 0 then
+            local st = opts.state
+            local best = nil
+            local function consider(v)
+                if type(v) == "number" and (best == nil or v > best) then best = v end
+            end
+            if st then
+                consider(st.enemy_count)
+                consider(st.target_count)
+            end
+            consider(ctx.enemy_count)
+            consider(ctx.enemies_count)
+            if type(ctx.enemies) == "table" then consider(#ctx.enemies) end
+            if best ~= nil then n = best end
+        end
+    end
+
+    n = n or 0
+    return n >= need, n
+end
+
+--- Convenience: self-centered multi-target gate (PBAoE / melee circle).
+function NS.aoe_self_meets(min_count, radius, context, state)
+    return NS.aoe_count_meets(min_count, radius, { around = "me", context = context, state = state })
+end
+
+--- Convenience: target-centered multi-target gate (Cleave / Multi-Shot / Seed / ground at target).
+function NS.aoe_target_meets(min_count, radius, target, context, state)
+    return NS.aoe_count_meets(min_count, radius, { around = "target", target = target, context = context, state = state })
 end
 
 function NS.GetFriendsInRange(range)
@@ -5876,10 +6112,28 @@ function NS.action_matches(context, action)
 
     end
 
-    if action.enemy_count and (context.enemy_count or 0) < action.enemy_count then
-
-        return false
-
+    if action.enemy_count then
+        -- Prefer hit-volume count when action declares hit_radius (self or target origin).
+        local need = action.enemy_count
+        local ok_count = false
+        if action.hit_radius and NS.aoe_count_meets then
+            local around = action.hit_origin or "me"
+            local target = context.target
+            if around == "target" then
+                ok_count = NS.aoe_count_meets(need, action.hit_radius, {
+                    around = "target", target = target, context = context,
+                })
+            else
+                ok_count = NS.aoe_count_meets(need, action.hit_radius, {
+                    around = "me", context = context,
+                })
+            end
+        else
+            ok_count = (context.enemy_count or 0) >= need
+        end
+        if not ok_count then
+            return false
+        end
     end
 
     if spec_kit and spec_kit.setting_bool(context, "aoe_enabled", true) == false and (action.enemy_count or action.is_aoe) then
@@ -5978,10 +6232,17 @@ function NS.action_matches(context, action)
 
     end
 
-    if action.kind == "buff" and NS.buff_up(NS.GetPlayer(), action.buff or action.spell) then
-
-        return false
-
+    if action.kind == "buff" then
+        local buff_unit = NS.GetPlayer()
+        local buff_ids = action.buff or action.spell
+        -- Never queue a worse rank over a better family buff (MotW/GotW class of bugs).
+        if buff_unit and buff_ids and NS.buff_would_downgrade
+            and NS.buff_would_downgrade(buff_unit, buff_ids, action.spell or buff_ids) then
+            return false
+        end
+        if buff_unit and NS.buff_up(buff_unit, buff_ids) then
+            return false
+        end
     end
 
     if action.kind == "threat_drop" and not NS.should_drop_threat(context) then

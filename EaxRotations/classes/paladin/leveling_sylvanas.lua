@@ -31,7 +31,8 @@ local ANY_SEAL_BUFF = { 27166, 20357, 20356, 20166, 27155, 20293, 20292, 20291, 
 local BLESSING_MIGHT_BUFF = { 27140, 25291, 19838, 19837, 19836, 19835, 19834, 19740 }
 local BLESSING_WISDOM_BUFF = { 27142, 25290, 19854, 19853, 19852, 19850 }
 local DEVOTION_AURA_BUFF = { 27149, 10293, 10292, 1032, 643, 10291, 10290, 465 }
-local RETRIBUTION_AURA_BUFF = { 27150, 10299, 10298, 7294, 10301, 10300, 466 }
+-- Retribution Aura ranks high→low (TBC). Removed invalid ID 466 (not a spell on lexxer/DBC).
+local RETRIBUTION_AURA_BUFF = { 27150, 10301, 10300, 10299, 10298, 7294 }
 local HOLY_SHIELD_BUFF = { 27179, 20928, 20927, 20925 }
 local SEAL_OF_WISDOM = 20170
 local SEAL_OF_RIGHTEOUSNESS = 20154
@@ -435,4 +436,4 @@ if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 end
 -- Paladin leveling rotation registered
-return strategies
+return { strategies = strategies, build_state = build_state }

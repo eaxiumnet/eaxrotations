@@ -56,7 +56,10 @@ local function battle_shout_matches(context, state)
 end
 
 local function death_wish_matches(context, state)
-    return state.death_wish_ready
+    if not state.in_combat then return false end
+    if not state.death_wish_ready then return false end
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+    return true
 end
 
 local function execute_matches(context, state)

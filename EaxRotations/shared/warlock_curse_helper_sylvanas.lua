@@ -11,7 +11,8 @@ M.CURSE_REFRESH_WINDOW = 1.5
 M.CURSE_OF_AGONY_DEBUFF        = { 27218, 11713, 11712, 11711, 6217, 1014, 980 }
 M.CURSE_OF_DOOM_DEBUFF         = { 30910, 603 }
 M.CURSE_OF_ELEMENTS_DEBUFF     = { 27228, 11722, 11721, 1490 }
-M.CURSE_OF_RECKLESSNESS_DEBUFF = { 27227, 11717, 11716, 11715, 6209, 6208, 1109, 702 }
+-- CoR debuff ranks high→low (lexxer): 27226 TBC max, then classic ranks. Removed invalid IDs.
+M.CURSE_OF_RECKLESSNESS_DEBUFF = { 27226, 11717, 7659, 7658, 704 }
 M.CURSE_OF_WEAKNESS_DEBUFF     = { 30909, 27224, 11708, 11707, 7646, 6205, 1108, 702 }
 
 --- Check if a curse other than the one being cast is already active.

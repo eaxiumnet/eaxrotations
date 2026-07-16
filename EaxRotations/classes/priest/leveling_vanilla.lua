@@ -6,6 +6,12 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local SPELLS = NS.PriestSpells or {}
 local leveling = require("shared/leveling_sylvanas")
 
@@ -13,7 +19,8 @@ local leveling = require("shared/leveling_sylvanas")
 -- Constants
 -- ============================================================================
 local INNER_FIRE_BUFF = { 10952, 10951, 1006, 602, 7128, 588 }
-local POWER_WORD_FORTITUDE_BUFF = { 10938, 10937, 2791, 1245, 1244, 1243 }
+-- PoF (vanilla ranks) first, then PW:F.
+local POWER_WORD_FORTITUDE_BUFF = { 21564, 21562, 10938, 10937, 2791, 1245, 1244, 1243 }
 local POWER_WORD_SHIELD_BUFF = { 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }
 local RENEW_BUFF = { 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
 local SHADOWFORM_BUFF = { 15473 }
@@ -224,7 +231,8 @@ local function holy_nova_matches(context, state)
     if not state.target then return false end
     if not state.holy_nova_ready then return false end
     if state.is_moving then return false end
-    return (state.enemies or 0) >= 3
+    -- Holy Nova: 10yd self PBAoE — not global enemies density
+    return NS.aoe_self_meets and NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)
 end
 local function smite_matches(context, state)
     if not state then return false end
@@ -329,4 +337,4 @@ local strategies = {
 
 NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 -- [Priest] Leveling rotation loaded (Classic)
-return strategies
+return { strategies = strategies, build_state = build_state }

@@ -13,6 +13,10 @@ local tests = {
 
  "test_try_cast_izi_primary.lua",
  "test_range_verification_oor_fallthrough.lua",
+ "test_aoe_range_audit_contracts.lua",
+ "test_aoe_hit_volume_gates.lua",
+ "test_class_loader_wotlk_fallback.lua",
+ "test_ranked_buff_no_downgrade.lua",
  "test_update_callback_void_registration.lua",
  "test_update_callback_rotation_disabled_sync.lua",
  -- Dispatcher + loader regressions
@@ -339,6 +343,7 @@ local tests = {
 
   -- Middleware / integration tests (previously orphaned)
   "test_buff_upgrade.lua",
+  "test_id_audit_report.lua",
   "test_cast_path_integration.lua",
   "test_discipline_healer_mode.lua",
   "test_druid_middleware_nil_guard.lua",

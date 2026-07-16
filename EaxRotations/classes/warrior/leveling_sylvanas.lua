@@ -675,5 +675,7 @@ function warrior_leveling.on_update(context)
     return false
 end
 
+warrior_leveling.strategies = strategies
+
 -- [Warrior] Leveling rotation loaded
 return warrior_leveling

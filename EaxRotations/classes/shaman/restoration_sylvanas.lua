@@ -48,9 +48,13 @@ local ACTION = {
 local Healing = NS.ShamanHealing or require("classes/shaman/healing_sylvanas")
 -- Preemptive heal module (Sonah-style predictive healing)
 local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
+local _ts_ok, TSHelper = pcall(require, "shared/ts_helper_sylvanas")
+if not _ts_ok or type(TSHelper) ~= "table" then TSHelper = nil end
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { SPELLS = { shaman = {} } } end
 local TBC_SHAMAN = (TBC.SPELLS and TBC.SPELLS.shaman) or {}
+local _hp_ok, HealthPred = pcall(require, "shared/health_pred_helper_sylvanas")
+if not _hp_ok or type(HealthPred) ~= "table" then HealthPred = nil end
 
 local WATER_SHIELD_SPELL = ACTION.WaterShield or 33736
 local LIGHTNING_SHIELD_SPELL = ACTION.LightningShield or 25472
@@ -235,6 +239,26 @@ local function build_state(context)
   local ch_primary, ch_total, ch_bounces = NS.AoEHeal.chain_heal_target(entries, count, 12.5, 3)
   resto_state.chain_heal_optimal_target = ch_primary
   resto_state.chain_heal_cluster_count = ch_bounces and #ch_bounces or 0
+ elseif TSHelper and TSHelper.get_heal_targets then
+  -- target_selector direct query: lowest-HP heal target as Chain Heal anchor
+  local ts_targets = TSHelper.get_heal_targets(3)
+  if type(ts_targets) == "table" and #ts_targets > 0 then
+   local best = nil
+   local best_hp = 999
+   for _, unit in ipairs(ts_targets) do
+    if unit then
+     local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
+     if ok_hp and hp and hp < best_hp then
+      best_hp = hp
+      best = unit
+     end
+    end
+   end
+   if best then
+    resto_state.chain_heal_optimal_target = { unit = best, effective_hp = best_hp, hp = best_hp }
+    resto_state.chain_heal_cluster_count = #ts_targets
+   end
+  end
  else
   resto_state.chain_heal_optimal_target = nil
   resto_state.chain_heal_cluster_count = 0
@@ -363,8 +387,15 @@ local function water_shield_matches(context, state)
 end
 
 local function lightning_shield_matches(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LightningShield, 3.0) then return false end    local shield_type = spec_kit.setting(context, "restoration_shield_type", "water")
-    if shield_type ~= "lightning" then return false end
+ if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LightningShield, 3.0) then return false end
+ local shield_type = spec_kit.setting(context, "restoration_shield_type", "water")
+ -- Default is "water" (level 62+). Below that, fall back to Lightning Shield (level 8)
+ -- so low-level resto shamans are not left unshielded.
+ if shield_type == "water" then
+  if state.water_shield_ready or state.has_water_shield then return false end
+ elseif shield_type ~= "lightning" then
+  return false
+ end
  if state.has_lightning_shield then return false end
  if not state.lightning_shield_ready then return false end
  if (state.enemy_count or 0) < 1 then return false end
@@ -434,9 +465,28 @@ end
 
 local function smart_heal_matches(context, state)
  if not state.lowest then return false end
- local heal = Healing.select_heal(context, state, state.lowest)
+ local lowest = state.lowest
+ local current_hp = lowest.effective_hp or lowest.hp or 100
+ local pred_hp = current_hp
+ if lowest.unit and HealthPred and HealthPred.predicted_hp_pct then
+  local ok, pct = pcall(HealthPred.predicted_hp_pct, lowest.unit, 2.5)
+  if ok and type(pct) == "number" then pred_hp = pct end
+ end
+ if pred_hp < current_hp then
+  local max_hp = lowest.max_hp or 10000
+  local predicted_deficit = math.floor((100 - pred_hp) / 100 * max_hp)
+  lowest = {
+   unit = lowest.unit,
+   effective_hp = pred_hp,
+   hp = pred_hp,
+   max_hp = max_hp,
+   deficit = math.max(predicted_deficit, lowest.deficit or 0),
+   effective_deficit = math.max(predicted_deficit, lowest.effective_deficit or 0),
+  }
+ end
+ local heal = Healing.select_heal(context, state, lowest)
  context._shaman_heal = heal
- return heal and heal.spell and NS.spell_ready(heal.spell, state.lowest.unit)
+ return heal and heal.spell and NS.spell_ready(heal.spell, lowest.unit)
 end
 
 local function solo_damage_enabled(context, state, mana_floor)

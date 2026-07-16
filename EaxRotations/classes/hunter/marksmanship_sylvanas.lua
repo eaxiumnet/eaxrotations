@@ -39,6 +39,7 @@ local ACTION = {
 }
 local pet_manager = require("shared/pet_manager_sylvanas")
 local shot_timer = require("shared/shot_timer_sylvanas")
+local SpellQueue = require("shared/spell_queue_helper_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 
@@ -535,7 +536,16 @@ local strategies = {
     { name = "AdaptiveRotation", matches = function(c) return NS.HunterAdaptive and (spec_kit.setting_bool(c, "use_adaptive_rotation", false)) and c.in_combat and c.target end, execute = function(c) return (NS.create_adaptive_rotation_strategy and NS.create_adaptive_rotation_strategy()(c)) or false end },
     { name = "MultiShot", matches = multi_shot_matches, execute = function(context) if NS.try_cast(ACTION.MultiShot, context.target, "[MARKSMANSHIP] Multi-Shot", { expected_cooldown = 10 }) then record_manual_shot() return true end return false end },
     { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(context) if NS.try_cast(ACTION.ArcaneShot, context.target, "[MARKSMANSHIP] Arcane Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
-    { name = "SteadyShot", matches = steady_shot_matches, execute = function(context) if NS.try_cast(ACTION.SteadyShot, context.target, "[MARKSMANSHIP] Steady Shot") then record_manual_shot() return true end return false end },
+    { name = "SteadyShot", matches = steady_shot_matches, execute = function(context)
+        if spec_kit.setting_bool(context, "use_spell_queue_shots", false) then
+            if SpellQueue.queue_spell_target(ACTION.SteadyShot, context.target, 1, "[MARKSMANSHIP] Steady Shot", true) then
+                record_manual_shot()
+                return true
+            end
+            return false
+        end
+        if NS.try_cast(ACTION.SteadyShot, context.target, "[MARKSMANSHIP] Steady Shot") then record_manual_shot() return true end return false
+    end },
     { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(ACTION.ViperSting, context.target, "[MARKSMANSHIP] Viper Sting", { expected_cooldown = 8 }) end },
     { name = "SerpentSting", matches = serpent_sting_matches, execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting") end },
     { name = "RaptorStrike", matches = raptor_strike_matches, execute = function(context) return NS.try_cast(ACTION.RaptorStrike, context.target, "[MARKSMANSHIP] Raptor Strike") end },

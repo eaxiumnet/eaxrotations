@@ -341,9 +341,13 @@ local function test_pattern1(name, module_path, expected_spell_count)
     assert_true(ok, name .. ": dofile should not throw")
     assert_not_nil(module, name .. ": module should not be nil (NS must exist)")
 
-    -- Pattern 1: module returns strategies table (array)
+    -- Pattern 1: module returns strategies array OR { strategies = ..., build_state = ... }
     assert_true(type(module) == "table", name .. ": should return a table")
-    assert_true(#module > 0, name .. ": should have at least one strategy")
+    local strategies = module
+    if type(module.strategies) == "table" then
+        strategies = module.strategies
+    end
+    assert_true(#strategies > 0, name .. ": should have at least one strategy")
 
     -- Check that it registered with rotation_registry
     local reg = NS.rotation_registry._registrations["leveling"]
@@ -352,7 +356,7 @@ local function test_pattern1(name, module_path, expected_spell_count)
     assert_not_nil(reg.opts.get_state, name .. ": should have get_state in opts")
 
     -- Check each strategy has required fields
-    for i, strategy in ipairs(module) do
+    for i, strategy in ipairs(strategies) do
         assert_true(type(strategy.name) == "string", name .. ": strategy[" .. i .. "] should have name")
         assert_true(type(strategy.matches) == "function", name .. ": strategy[" .. i .. "] matches should be function")
         assert_true(type(strategy.execute) == "function", name .. ": strategy[" .. i .. "] execute should be function")
@@ -371,7 +375,7 @@ local function test_pattern1(name, module_path, expected_spell_count)
     assert_nil(nil_mod, name .. ": should return nil when EaxRotations is nil")
     _G.EaxRotations = NS
 
-    print("  PASS: " .. name .. " (" .. #module .. " strategies)")
+    print("  PASS: " .. name .. " (" .. #strategies .. " strategies)")
 end
 
 -- ============================================================================

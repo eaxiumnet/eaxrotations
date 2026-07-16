@@ -8,6 +8,12 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
@@ -16,6 +22,8 @@ local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+local _hp_ok, HealthPred = pcall(require, "shared/health_pred_helper_sylvanas")
+if not _hp_ok or type(HealthPred) ~= "table" then HealthPred = nil end
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local SUNDER_WINDOW = 3
@@ -519,7 +527,7 @@ end
 
 local function cleave_matches_fn(context, state)
  if state.aoe_cc_nearby then return false end  -- don't break nearby CC
- if (state.enemy_count or 0) < 2 then return false end
+ if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, state)) then return false end
  if (state.rage or 0) < HEROIC_STRIKE_RAGE_DUMP then return false end
  if not swing_timer_gate(context, state) then return false end
  return true
@@ -887,18 +895,20 @@ local strategies = {
   end,
   execute = function(context) return NS.try_cast(ACTION.Revenge, context.target, "[PROT] Revenge", { expected_cooldown = REVENGE_CD }) end,
  },
-  {
-   name = "ShieldBlock",
-   matches = function(context, state)
-    if not is_defensive_stance(state.stance) then return false end
-    if not state.shield_block_ready then return false end
-    local me = context.me or NS.GetPlayer()
-    local sb_remains = me and NS.buff_remains and NS.buff_remains(me, SHIELD_BLOCK_BUFF) or 0
-    if sb_remains > 2 then return false end
-    return true
-   end,
-   execute = function(context) return NS.try_cast(ACTION.ShieldBlock, context.me or NS.GetPlayer(), "[PROT] ShieldBlock", { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) end,
-  },
+   {
+    name = "ShieldBlock",
+    matches = function(context, state)
+     if not is_defensive_stance(state.stance) then return false end
+     if not state.shield_block_ready then return false end
+     local me = context.me or NS.GetPlayer()
+     local sb_remains = me and NS.buff_remains and NS.buff_remains(me, SHIELD_BLOCK_BUFF) or 0
+     local incoming = (HealthPred and HealthPred.incoming_damage) and HealthPred.incoming_damage(me, 2.0) or 0
+     local incoming_threshold = spec_kit.setting_number(context, "prot_shield_block_incoming", 1500)
+     if sb_remains > 2 and incoming < incoming_threshold then return false end
+     return true
+    end,
+    execute = function(context) return NS.try_cast(ACTION.ShieldBlock, context.me or NS.GetPlayer(), "[PROT] ShieldBlock", { skip_range = true, expected_cooldown = SHIELD_BLOCK_CD }) end,
+   },
  {
   name = "Taunt",
   matches = function(context, state) return taunt_matches_fn(context, state) end,
@@ -1005,7 +1015,7 @@ local strategies = {
  {
   name = "WhirlwindMulti",
   matches = function(context, state)
-   if (state.enemy_count or 0) < 2 then return false end
+   if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then return false end
    if not state.in_combat then return false end
    if not NS.spell_ready or not NS.spell_ready(ACTION.Whirlwind, context.me, { skip_range = true }) then return false end
    -- Prefer in Berserker for WW; the StanceSwitch will handle dance if configured

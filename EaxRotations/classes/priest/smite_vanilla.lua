@@ -8,6 +8,12 @@ local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
+
 local load_player = NS.GetPlayer and NS.GetPlayer()
 
 local _ok_enums, enums = pcall(require, "common/enums")
@@ -429,7 +435,8 @@ local strategies = {
             if context.is_moving then return false end
             if state.mana_emergency then return false end
             if state.mana_low then return false end
-            return (state.enemy_count or 0) >= 3 and spell_exists(SPELLS.HolyNova) and spell_ready(SPELLS.HolyNova, PLAYER_UNIT, { skip_range = true })
+            return spell_exists(SPELLS.HolyNova) and spell_ready(SPELLS.HolyNova, PLAYER_UNIT, { skip_range = true })
+                and NS.aoe_self_meets and NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)
         end,
         execute = function(context)
             return try_cast(SPELLS.HolyNova, context.target, "[SMITE] Holy Nova (3+)")

@@ -7,6 +7,12 @@
 --          registration guarded.
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local SPELLS = NS.HunterSpells or {}
 
 -- spec_kit migration #26
@@ -249,7 +255,7 @@ local function rapid_fire_matches(context, s)
 end
 
 local function explosive_trap_matches(context, s)
-    if (s.enemy_count or 0) < 3 then return false end
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, s) then return false end
     if not s.explosive_trap_ready then return false end
     -- TTD gate: don't waste trap CD on a dying target
     if context.ttd_known and (context.ttd or 0) < 8 then return false end
@@ -499,7 +505,7 @@ end
 local function volley_matches(context, s)
     if context.is_channeling then return false end
     if not s.in_combat then return false end
-    if (s.enemy_count or 0) < 4 then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(4, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context.target, context, s) then return false end
     if context.is_moving then return false end
     if not s.volley_ready then return false end
     return true

@@ -20,6 +20,12 @@ local NS = _G.EaxRotations
 
 if not NS then return nil end
 
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
+
 local potion_helper = require("shared/potion_helper_sylvanas")
 
 local SPELLS = NS.PaladinSpells or {}
@@ -27,6 +33,8 @@ local SPELLS = NS.PaladinSpells or {}
 
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local _hp_ok, HealthPred = pcall(require, "shared/health_pred_helper_sylvanas")
+if not _hp_ok or type(HealthPred) ~= "table" then HealthPred = nil end
 
 local define = spec_kit.define_action_for_class(SPELLS)
 
@@ -765,7 +773,17 @@ local function holy_shield_matches(context, state)
 
   local refresh_at = spec_kit.setting_number(context, "prot_holy_shield_charges", 2)
 
-  if charges > refresh_at then return false end
+  if charges > refresh_at then
+
+   local me = context.me or NS.GetPlayer()
+
+   local incoming = (HealthPred and HealthPred.incoming_damage) and HealthPred.incoming_damage(me, 2.0) or 0
+
+   local incoming_threshold = spec_kit.setting_number(context, "prot_holy_shield_incoming", 1200)
+
+   if incoming < incoming_threshold then return false end
+
+  end
 
  end
 
@@ -797,7 +815,7 @@ local function consecration_matches(context, state)
 
  local min_targets = spec_kit.setting_number(context, "prot_consecration_targets", CONSECRATION_AOE_THRESHOLD)
 
- if (state.enemy_count or 0) < min_targets and (state.consecration_remains or 0) > 2 then return false end
+ if not (NS.aoe_self_meets and NS.aoe_self_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) and (state.consecration_remains or 0) > 2 then return false end
 
  return true
 

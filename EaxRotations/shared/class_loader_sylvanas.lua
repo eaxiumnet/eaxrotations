@@ -45,41 +45,54 @@ function class_loader.create_loader(class_key, class_display_name)
 end
 
 --- Create an expansion-aware load_child function.
---- If NS.is_vanilla() is true, loads <name>_vanilla.lua; otherwise <name>_sylvanas.lua.
---- Falls back to the opposite expansion if the preferred one is missing.
+--- Resolves <name>_<expansion>.lua in order: wotlk -> sylvanas -> vanilla for WotLK clients,
+--- vanilla -> sylvanas -> wotlk for Vanilla clients, and sylvanas -> vanilla -> wotlk otherwise.
+--- Falls back through the chain if the preferred expansion file is missing.
 ---@param class_key string e.g. "warrior"
 ---@param class_display_name string e.g. "Warrior"
 ---@return fun(name_base: string): any load_child
 function class_loader.create_expansion_loader(class_key, class_display_name)
     return function(name_base, optional)
         local current_ns = _G.EaxRotations or NS
-        local expansion_suffix = (current_ns.is_vanilla and current_ns.is_vanilla()) and "_vanilla" or "_sylvanas"
-        local preferred_filename = name_base .. expansion_suffix
-        local preferred_path = "classes/" .. class_key .. "/" .. preferred_filename
-        local ok, result = pcall(require, preferred_path)
-        if not ok then
-            -- Distinguish "module not found" from runtime errors
-            local is_not_found = type(result) == "string" and result:match("module '" .. preferred_path .. "' not found")
+        local is_wotlk = current_ns.is_wotlk and current_ns.is_wotlk()
+        local is_vanilla = current_ns.is_vanilla and current_ns.is_vanilla()
+
+        local suffixes
+        if is_wotlk then
+            suffixes = { "_wotlk", "_sylvanas", "_vanilla" }
+        elseif is_vanilla then
+            suffixes = { "_vanilla", "_sylvanas", "_wotlk" }
+        else
+            suffixes = { "_sylvanas", "_vanilla", "_wotlk" }
+        end
+
+        local first_error
+        for _, suffix in ipairs(suffixes) do
+            local filename = name_base .. suffix
+            local path = "classes/" .. class_key .. "/" .. filename
+            local ok, result = pcall(require, path)
+            if ok then
+                return result
+            end
+
+            local is_not_found = type(result) == "string" and result:match("module '" .. path .. "' not found")
             if not is_not_found then
-                -- Real runtime error in the module -- rethrow, don't silently fallback
+                -- Real runtime error in a module -- rethrow, don't silently fallback
                 error(class_display_name .. " required module error: " .. tostring(name_base) .. " : " .. tostring(result), 2)
             end
 
-            local fallback_suffix = (expansion_suffix == "_sylvanas") and "_vanilla" or "_sylvanas"
-            local fallback_filename = name_base .. fallback_suffix
-            local ok2, result2 = pcall(require, "classes/" .. class_key .. "/" .. fallback_filename)
-            if ok2 then
-                return result2
+            if not first_error then
+                first_error = result
             end
-            if optional then
-                if NS then
-                    NS.log_warning(class_display_name .. " optional module skipped: " .. tostring(name_base) .. " -> " .. tostring(result))
-                end
-                return nil
-            end
-            error(class_display_name .. " required module missing: " .. tostring(name_base) .. " : " .. tostring(result), 2)
         end
-        return result
+
+        if optional then
+            if NS then
+                NS.log_warning(class_display_name .. " optional module skipped: " .. tostring(name_base) .. " -> " .. tostring(first_error))
+            end
+            return nil
+        end
+        error(class_display_name .. " required module missing: " .. tostring(name_base) .. " : " .. tostring(first_error), 2)
     end
 end
 

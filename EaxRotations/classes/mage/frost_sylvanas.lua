@@ -8,6 +8,12 @@
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local SPELLS = NS.MageSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 
@@ -56,7 +62,7 @@ local TBC_MAGE = (TBC.SPELLS and TBC.SPELLS.mage) or {}
 local ICE_BARRIER_BUFF = { 13032, 13031, 13033 }
 local FROST_NOVA_ROOTS = TBC_MAGE.frost_nova or { 27088, 10230, 6131, 865, 122 }
 local MANA_SHIELD_BUFF = { 27131, 10193, 10192, 10191, 8495, 8494, 1463 }
-local ARCANE_INTELLECT_BUFF = { 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 }
+local ARCANE_INTELLECT_BUFF = { 27127, 23028, 27126, 10157, 10156, 1461, 1460, 1459 }
 local MAGE_ARMOR_BUFF = { 27125, 22783, 22782, 6117 }
 -- Frost Armor + Ice Armor share one ladder (Ice Armor replaces Frost Armor at lvl 30).
 local FROST_ARMOR_BUFF = { 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168 }
@@ -137,21 +143,8 @@ local function cone_of_cold_matches(context)
     -- Use on frozen target in melee range (single target burst, 3x CoC damage)
     local frozen = context.target and NS.debuff_up and (NS.debuff_up(context.target, FROSTBITE_DEBUFF) or NS.debuff_up(context.target, FROST_NOVA_ROOTS)) or false
     if frozen then return true end
-    -- AoE: 2+ targets in range (use enemy_count to avoid iterating a nil array)
-    local nearby = 0
-    if context.enemy_count then
-        nearby = context.enemy_count
-    elseif context.enemies and type(context.enemies) == "table" then
-        for _, enemy in ipairs(context.enemies) do
-            if enemy and me.get_distance then
-                local d = me:get_distance(enemy) or 999
-                if d <= 10 then nearby = nearby + 1 end
-            else
-                nearby = nearby + 1
-            end
-        end
-    end
-    if nearby < 2 then return false end
+    -- AoE: 2+ targets inside Cone of Cold length (~10yd self cone; radius proxy)
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context) then return false end
     return true
 end
 
@@ -375,7 +368,7 @@ end
 
 local function blizzard_matches(context, s)
     if context.is_channeling then return false end
-    if (s.enemy_count or 0) < 3 then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context.target, context, s) then return false end
     if not context.in_combat then return false end
     if context.is_moving then return false end
     if not s.blizzard_ready then return false end
@@ -383,7 +376,7 @@ local function blizzard_matches(context, s)
 end
 
 local function arcane_explosion_matches(context, s)
-    if (s.enemy_count or 0) < 3 then return false end
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, s) then return false end
     if not context.in_combat then return false end
     if not (ACTION.ArcaneExplosion and NS.spell_ready) then return false end
     return NS.spell_ready(ACTION.ArcaneExplosion, context.me or NS.GetPlayer(), { skip_range = true })

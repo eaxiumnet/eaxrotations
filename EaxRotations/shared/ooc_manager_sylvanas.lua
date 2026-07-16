@@ -26,12 +26,10 @@
 -- Safety:   Five-layer throttle chain prevents infinite retry loops:
 --             1. on_update fires at most 1/s via _last_check timer
 --             2. GCD gate — skips entirely when gcd_remains > 0
---             3. broken_api_throttled — per-spell 10s cooldown (buffs/pets) when
---                is_spell_learned reports everything as missing (PS builds) —
---                extended from 3s to 10s because buff_remains returns 0 on PS
---                (broken aura API), causing the manager to think every buff
---                needs refreshing. 10s reduces spam while still allowing eventual
---                casting when resources become available.
+--             3. broken_api_throttled — per-spell lockout after a successful
+--                cast (buffs: 300s / pets: 10s). buff_remains often returns 0
+--                on PS when auras are broken, so without a long lockout MotW/
+--                Thorns re-queue every GCD.
 --             4. Buff threshold — only recast when buff_remains <
 --                ooc_buff_threshold (default 30s)
 --             5. Healer mana floor — skips buffs when mana < threshold
@@ -48,7 +46,7 @@
 --   2. reset_work_ids copies buff rank IDs into reusable _work_ids table
 --   3. NS.buff_remains checks all buff IDs; nil = API unavailable, skip
 --   4. If remains <= threshold, resolve spell action via get_spell/NS.spell_action
---   5. broken_api_throttled guard: if API is broken, skip for 10s per spell
+--   5. broken_api_throttled guard: skip for SELF_BUFF_LOCKOUT (300s) after cast
 --   6. NS.try_cast with skip_range=true
 --
 -- Throttle chain detail (single entry point now: main_sylvanas.lua dispatch):
@@ -58,9 +56,16 @@
 --       try_pet_summon  -> broken_api_throttled(10s) -> NS.try_cast(cooldown)
 --       try_self_buffs  -> healer mana floor -> for each entry:
 --         should_handle_buff -> buff_remains <= threshold -> get_spell ->
---         broken_api_throttled(10s) -> NS.try_cast(skip_range)
+--         broken_api_throttled(300s) -> NS.try_cast(skip_range)
 --       try_buff_upgrades -> buff_rank position > 1 -> NS.try_cast (rank upgrade)
 --       try_food_flask  -> broken_api_throttled(3s) -> NS.try_cast (numeric ID, no rank mismatch)
+
+-- Long-duration class self-buffs (MotW 30m, Thorns 10m, AI, Fort, etc.).
+-- When aura APIs lie (buff_remains=0 while buff is up), only recent-cast
+-- history can stop recast spam. 5 minutes is well under real durations.
+local SELF_BUFF_LOCKOUT = 300.0
+local PET_SUMMON_LOCKOUT = 10.0
+local _throttle_log_at = {}
 
 local _G = _G
 local NS = _G.EaxRotations
@@ -72,6 +77,8 @@ local type, tostring = type, tostring
 local EMPTY = {}
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { BUFFS = {} } end
+local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
+if not _rbf_ok or type(RBF) ~= "table" then RBF = nil end
 
 local _last_check = -1000
 local _spell_cache = {}
@@ -83,79 +90,83 @@ local CLASS = NS and NS.CLASS_ID or {
     SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11,
 }
 
--- Buff ID lists are static n-tables. Numeric indices remain contiguous so the
--- existing NS.buff_remains(ids) helper can consume them without allocation.
+-- Buff detect/cast ladders: single source in ranked_buff_families_sylvanas.lua
+-- (Vanilla ∪ TBC ∪ WotLK, best-first detect, high→low cast).
+local function rbf_detect(key)
+    return (RBF and RBF.detect_n and RBF.detect_n(key)) or { n = 0 }
+end
+local function rbf_cast(key)
+    return (RBF and RBF.cast and RBF.cast(key)) or {}
+end
+local function rbf_label(key, fallback)
+    return (RBF and RBF.label and RBF.label(key)) or fallback
+end
+
 local BUFFS = {
-    battle_shout = { n = 8, 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 },
-    commanding_shout = { n = 1, 469 },
-    aspect_hawk = { n = 8, 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 },
-    mage_armor = { n = 4, 27125, 22783, 22782, 6117 },
-    molten_armor = { n = 1, 30482 },
-    arcane_intellect = { n = 8, 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 },
-    righteous_fury = { n = 1, 25780 },
-    inner_fire = { n = 7, 25431, 10952, 10951, 1006, 602, 7128, 588 },
-    power_word_fortitude = { n = 7, 25389, 10938, 10937, 2791, 1245, 1244, 1243 },
-    water_shield = { n = 3, 33736, 24398, 23575 },
-    lightning_shield = { n = 9, 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 },
-    mark_of_the_wild = { n = 11, 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126, 21850, 21849 },
-    thorns = { n = 7, 26992, 9910, 9756, 8914, 1075, 782, 467 },
-    fel_armor = { n = 2, 28189, 28176 },
-    demon_armor = { n = 8, 27260, 11735, 11734, 11733, 1086, 706, 687, 696 },
+    battle_shout = rbf_detect("battle_shout"),
+    commanding_shout = rbf_detect("commanding_shout"),
+    aspect_hawk = rbf_detect("aspect_hawk"),
+    mage_armor = rbf_detect("mage_armor"),
+    arcane_intellect = rbf_detect("arcane_intellect"),
+    righteous_fury = rbf_detect("righteous_fury"),
+    inner_fire = rbf_detect("inner_fire"),
+    power_word_fortitude = rbf_detect("power_word_fortitude"),
+    water_shield = rbf_detect("water_shield"),
+    lightning_shield = rbf_detect("lightning_shield"),
+    mark_of_the_wild = rbf_detect("mark_of_the_wild"),
+    thorns = rbf_detect("thorns"),
+    fel_armor = rbf_detect("fel_armor"),
+    demon_armor = rbf_detect("demon_armor"),
 }
 
--- Combined buff tables for mutually exclusive pairs.
--- Without these, Fel Armor ↔ Demon Armor (and Water Shield ↔ Lightning Shield)
--- toggle endlessly because each entry only checks its own buff IDs.
-local ALL_WARLOCK_ARMOR = { n = 10, 28189, 28176, 27260, 11735, 11734, 11733, 1086, 706, 687, 696 }
-local ALL_SHAMAN_SHIELDS = { n = 12, 33736, 24398, 23575, 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
--- Mage armor ladder: Mage Armor (34+) supersedes Frost/Ice Armor (1+). Listed
--- Mage Armor IDs first so NS.get_spell_id resolves the highest *learned* rank
--- (Mage Armor if learned, else the highest Frost/Ice Armor rank). The combined
--- buff set prevents recast while ANY mage armor (incl. Molten Armor) is active.
-local ALL_MAGE_ARMOR = { n = 13, 27125, 22783, 22782, 6117, 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168, 30482 }
+-- Combined exclusive families (same detect table for both sides of the pair).
+local ALL_WARLOCK_ARMOR = rbf_detect("fel_armor")
+local ALL_SHAMAN_SHIELDS = rbf_detect("water_shield")
+local ALL_MAGE_ARMOR = rbf_detect("mage_armor")
 
 local DEFAULT_BUFFS_BY_CLASS = {
     [CLASS.WARRIOR] = {
-        { key = "battle_shout", label = "Battle Shout", buff = BUFFS.battle_shout, spell = { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 } },
+        { key = "battle_shout", label = rbf_label("battle_shout", "Battle Shout"), buff = BUFFS.battle_shout, spell = rbf_cast("battle_shout") },
     },
     [CLASS.HUNTER] = {
-        { key = "aspect_hawk", label = "Aspect of the Hawk", buff = BUFFS.aspect_hawk, spell = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 } },
+        { key = "aspect_hawk", label = rbf_label("aspect_hawk", "Aspect of the Hawk"), buff = BUFFS.aspect_hawk, spell = rbf_cast("aspect_hawk") },
     },
     [CLASS.MAGE] = {
-        { key = "mage_armor", label = "Armor (Mage/Frost/Ice)", buff = ALL_MAGE_ARMOR, spell = { 27125, 22783, 22782, 6117, 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168 } },
-        { key = "arcane_intellect", label = "Arcane Intellect", buff = BUFFS.arcane_intellect, spell = { 27126, 10157, 10156, 1461, 1460, 1459 } },
+        { key = "mage_armor", label = "Armor (Mage/Frost/Ice)", buff = ALL_MAGE_ARMOR, spell = rbf_cast("mage_armor") },
+        { key = "arcane_intellect", label = rbf_label("arcane_intellect", "Arcane Intellect"), buff = BUFFS.arcane_intellect, spell = rbf_cast("arcane_intellect") },
     },
     [CLASS.PALADIN] = {
-        { key = "righteous_fury", label = "Righteous Fury", buff = BUFFS.righteous_fury, spell = 25780 },
+        { key = "righteous_fury", label = rbf_label("righteous_fury", "Righteous Fury"), buff = BUFFS.righteous_fury, spell = 25780 },
     },
     [CLASS.PRIEST] = {
-        { key = "inner_fire", label = "Inner Fire", buff = BUFFS.inner_fire, spell = { 25431, 10952, 10951, 1006, 602, 7128, 588 } },
-        { key = "power_word_fortitude", label = "Power Word: Fortitude", buff = BUFFS.power_word_fortitude, spell = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 } },
+        { key = "inner_fire", label = rbf_label("inner_fire", "Inner Fire"), buff = BUFFS.inner_fire, spell = rbf_cast("inner_fire") },
+        { key = "power_word_fortitude", label = rbf_label("power_word_fortitude", "Power Word: Fortitude"), buff = BUFFS.power_word_fortitude, spell = rbf_cast("power_word_fortitude") },
     },
     [CLASS.SHAMAN] = {
         {
             key = "water_shield",
-            label = "Water Shield",
+            label = rbf_label("water_shield", "Water Shield"),
             buff = ALL_SHAMAN_SHIELDS,
-            spell = { name = "Water Shield", ids = { 33736, 24398 }, levels = { 66, 60 }, power_type = "none" },
+            spell = { name = "Water Shield", ids = rbf_cast("water_shield"), power_type = "none" },
             min_level = 60,
         },
         {
             key = "lightning_shield",
-            label = "Lightning Shield",
+            label = rbf_label("lightning_shield", "Lightning Shield"),
             buff = ALL_SHAMAN_SHIELDS,
-            spell = { name = "Lightning Shield", ids = { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }, levels = { 70, 63, 56, 48, 40, 32, 24, 16, 8 } },
+            spell = { name = "Lightning Shield", ids = rbf_cast("lightning_shield") },
             opt_in = true,
             default_below_level = 60,
         },
     },
     [CLASS.WARLOCK] = {
-        { key = "fel_armor", label = "Fel Armor", buff = ALL_WARLOCK_ARMOR, spell = { 28189, 28176 } },
-        { key = "demon_armor", label = "Demon Armor", buff = ALL_WARLOCK_ARMOR, spell = { 27260, 11735, 11734, 11733, 1086, 706, 687 }, fallback = true },
+        { key = "fel_armor", label = rbf_label("fel_armor", "Fel Armor"), buff = ALL_WARLOCK_ARMOR, spell = rbf_cast("fel_armor") },
+        { key = "demon_armor", label = rbf_label("demon_armor", "Demon Armor"), buff = ALL_WARLOCK_ARMOR, spell = rbf_cast("demon_armor"), fallback = true },
     },
     [CLASS.DRUID] = {
-        { key = "mark_of_the_wild", label = "Mark of the Wild", buff = BUFFS.mark_of_the_wild, spell = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 } },
-        { key = "thorns", label = "Thorns", buff = BUFFS.thorns, spell = { 26992, 9910, 9756, 8914, 1075, 782, 467 } },
+        -- spell = MotW ranks only (no Gift reagents). buff detect includes GotW.
+        { key = "mark_of_the_wild", label = rbf_label("mark_of_the_wild", "Mark of the Wild"), buff = BUFFS.mark_of_the_wild, spell = rbf_cast("mark_of_the_wild") },
+        { key = "thorns", label = rbf_label("thorns", "Thorns"), buff = BUFFS.thorns, spell = rbf_cast("thorns") },
     },
 }
 
@@ -344,13 +355,17 @@ local function try_self_buffs(context, settings, me, class_id)
         local entry = entries[i]
         if should_handle_buff(settings, entry, player_level) then
             local ids = reset_work_ids(entry.buff)
+            local spell = get_spell(entry)
+            -- Never cast a worse rank over Gift / higher MotW / higher Thorns, etc.
+            if spell and NS.buff_would_downgrade and NS.buff_would_downgrade(me, ids, spell) then
+                -- Already have equal-or-better family buff; leave it alone.
+            else
             local remains = NS and NS.buff_remains and NS.buff_remains(me, ids)
             if remains == nil then
                 -- buff API unavailable, skip to avoid recast spam
                 remains = threshold + 1
             end
             if remains <= threshold then
-                local spell = get_spell(entry)
                 if spell then
                     -- On rage-based classes, skip if not enough rage to cast
                     -- (avoids "not enough rage" game errors when OOC with 0 rage)
@@ -359,17 +374,24 @@ local function try_self_buffs(context, settings, me, class_id)
                         if rage < 10 then return false end
                     end
                     local should_cast = true
-                    -- Throttle retries when spell-book API is broken on private servers.
-                    -- Pass the resolved spell object so NS.broken_api_throttled resolves
-                    -- the correct cast ID via NS.get_spell_id (avoids rank-1 vs cast-rank mismatch).
-                    if NS.broken_api_throttled and NS.broken_api_throttled(spell, 10.0) then
+                    -- Long lockout after a successful cast: aura APIs often return
+                    -- remains=0 on PS, which would otherwise re-queue every GCD.
+                    -- Pass the resolved spell object so NS.broken_api_throttled
+                    -- resolves the correct cast ID via NS.get_spell_id.
+                    if NS.broken_api_throttled and NS.broken_api_throttled(spell, SELF_BUFF_LOCKOUT) then
                         should_cast = false
-                        if NS.log then NS.log("[OOC] " .. entry.label .. " throttled (broken API)") end
+                        local now_t = NS.time_now and NS.time_now() or 0
+                        local last_log = _throttle_log_at[entry.key] or 0
+                        if NS.log and (now_t - last_log) >= 30 then
+                            _throttle_log_at[entry.key] = now_t
+                            NS.log("[OOC] " .. entry.label .. " throttled (recent cast / broken aura API)")
+                        end
                     end
                     if should_cast and NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true }) then
                         return true
                     end
                 end
+            end
             end
         end
     end
@@ -389,8 +411,13 @@ local function try_pet_summon(settings, me, class_id)
     local spell = get_spell(entry)
     if not spell then return false end
     -- Throttle retries when spell-book API is broken on private servers
-    if NS.broken_api_throttled and NS.broken_api_throttled(spell, 10.0) then
-        if NS.log then NS.log("[OOC] " .. entry.label .. " throttled (broken API)") end
+    if NS.broken_api_throttled and NS.broken_api_throttled(spell, PET_SUMMON_LOCKOUT) then
+        local now_t = NS.time_now and NS.time_now() or 0
+        local last_log = _throttle_log_at[entry.key] or 0
+        if NS.log and (now_t - last_log) >= 30 then
+            _throttle_log_at[entry.key] = now_t
+            NS.log("[OOC] " .. entry.label .. " throttled (recent cast / broken aura API)")
+        end
         return false
     end
     return NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true, expected_cooldown = entry.cooldown }) == true

@@ -2855,6 +2855,56 @@ do
     assert_true(result, "flameshock debuff_remains throws -> falls back to 0, match fires")
     NS.debuff_remains = saved
 end
+
+-- ============================================================================
+-- Low-level silent gate regressions (Flame Shock level 10 / Earth Shock level 4)
+-- ============================================================================
+do
+    test("low_level_shock: default flame + FS not ready + ES ready -> earth matches", function()
+        local ctx = make_context({ level = 8 })
+        local state = get_state(ctx)
+        state.flame_shock_ready = false
+        state.earth_shock_ready = true
+        state.frost_shock_ready = false
+        state.use_shocks = true
+        state.default_shock = "flame"
+        assert_true(strategies[16].matches(ctx, state),
+            "levels 4-9 must fall back to Earth Shock when Flame Shock is not learned")
+        assert_false(strategies[15].matches(ctx, state),
+            "Flame Shock must not match when not ready")
+    end)
+
+    test("low_level_shock: default flame + FS ready -> earth does not steal", function()
+        local ctx = make_context({ level = 20 })
+        local state = get_state(ctx)
+        state.flame_shock_ready = true
+        state.earth_shock_ready = true
+        state.use_shocks = true
+        state.default_shock = "flame"
+        local saved = NS.debuff_remains
+        NS.debuff_remains = function() return 0 end
+        assert_true(strategies[15].matches(ctx, state), "FS preferred when ready")
+        assert_false(strategies[16].matches(ctx, state), "ES must not steal when FS is ready")
+        NS.debuff_remains = saved
+    end)
+
+    test("low_level_shock: explicit earth still exclusive", function()
+        local ctx = make_context({ level = 8 })
+        local state = get_state(ctx)
+        state.flame_shock_ready = false
+        state.earth_shock_ready = true
+        state.use_shocks = true
+        state.default_shock = "earth"
+        assert_true(strategies[16].matches(ctx, state), "explicit earth matches")
+    end)
+
+    test("build_state: populates state.level from context", function()
+        local ctx = make_context({ level = 42 })
+        local state = get_state(ctx)
+        assert_eq(state.level, 42, "state.level from context.level")
+    end)
+end
+
 -- Summary
 -- ============================================================================
 

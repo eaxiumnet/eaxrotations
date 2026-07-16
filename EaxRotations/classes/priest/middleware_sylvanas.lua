@@ -536,9 +536,12 @@ local strategies = {
         matches = function(context)
             if context.in_combat then return false end
             if not spec_kit.setting_bool(context, "auto_inner_fire", true) then return false end
-            local if_buffs = { 25431, 10952, 10951, 1006, 602, 7128, 588 }
+            local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
+            local if_buffs = (_rbf_ok and RBF and RBF.detect("inner_fire")) or { 25431, 10952, 10951, 1006, 602, 7128, 588 }
+            local if_cast = (_rbf_ok and RBF and RBF.cast("inner_fire")) or if_buffs
+            local spell = SPELLS.InnerFire or { id = if_cast, name = "InnerFire" }
+            if context.me and NS.buff_would_downgrade and NS.buff_would_downgrade(context.me, if_buffs, spell) then return false end
             if NS.has_player_buff and NS.has_player_buff(if_buffs) then return false end
-            local spell = SPELLS.InnerFire or { id = if_buffs, name = "InnerFire" }
             if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
             return false
         end,
@@ -557,9 +560,13 @@ local strategies = {
         matches = function(context)
             if context.in_combat then return false end
             if not spec_kit.setting_bool(context, "auto_fortitude", true) then return false end
-            local fort_buffs = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
+            -- PoF first (superior), then PW:F ranks — never overwrite Prayer of Fortitude.
+            local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
+            local fort_buffs = (_rbf_ok and RBF and RBF.detect("power_word_fortitude")) or { 25392, 21564, 21562, 39231, 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
+            local fort_cast = (_rbf_ok and RBF and RBF.cast("power_word_fortitude")) or { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
+            local spell = SPELLS.PowerWordFortitude or { id = fort_cast, name = "PowerWordFortitude" }
+            if context.me and NS.buff_would_downgrade and NS.buff_would_downgrade(context.me, fort_buffs, spell) then return false end
             if NS.has_player_buff and NS.has_player_buff(fort_buffs) then return false end
-            local spell = SPELLS.PowerWordFortitude or { id = fort_buffs, name = "PowerWordFortitude" }
             if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
             return false
         end,

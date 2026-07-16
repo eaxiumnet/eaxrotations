@@ -55,11 +55,18 @@ local function slice_and_dice_matches(context, state)
 end
 
 local function blade_flurry_matches(context, state)
-    return state.blade_flurry_ready and state.enemy_count >= 2
+    if not state.in_combat then return false end
+    if not state.blade_flurry_ready then return false end
+    if (state.enemy_count or 0) < 2 then return false end
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
+    return true
 end
 
 local function killing_spree_matches(context, state)
-    return state.killing_spree_ready
+    if not state.in_combat then return false end
+    if not state.killing_spree_ready then return false end
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
+    return true
 end
 
 local function eviscerate_matches(context, state)

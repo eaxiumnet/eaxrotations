@@ -51,7 +51,10 @@ local function build_state(context)
 end
 
 local function metamorphosis_matches(context, state)
-    return not state.metamorphosis_up
+    if not state.in_combat then return false end
+    if state.metamorphosis_up then return false end
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+    return true
 end
 
 local function immolate_matches(context, state)

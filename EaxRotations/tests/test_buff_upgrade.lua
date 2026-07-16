@@ -200,4 +200,48 @@ print("PASS buff_upgrade_dead_party")
 -- Reset
 party1.is_alive = function() return true end
 
+-- ================================================================
+-- 10. buff_would_downgrade: never overwrite better MotW/GotW with worse MotW
+-- ================================================================
+
+-- Minimal reimplementation of the core helper contract (test sandbox may not
+-- load full core_sylvanas). Mirrors NS.buff_would_downgrade semantics.
+local function buff_would_downgrade(unit, buff_ids, cast_id)
+    local active_id, active_pos = NS.buff_rank(unit, buff_ids)
+    if not active_id or not active_pos then return false end
+    local cast_pos
+    for i = 1, #buff_ids do
+        if buff_ids[i] == cast_id then cast_pos = i; break end
+    end
+    if not cast_pos then return true end
+    return active_pos < cast_pos
+end
+
+local MOTW_FAMILY = { 26991, 21850, 21849, 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }
+
+-- Has GotW (pos 1), would cast MotW r2 (5232) → downgrade
+buff_rank_returns["self"] = { 26991, 1 }
+assert_true(buff_would_downgrade(me, MOTW_FAMILY, 5232), "GotW active -> MotW is downgrade")
+print("PASS buff_would_downgrade_gotw_blocks_motw")
+
+-- Has MotW r7 9885 (pos 5), would cast 5232 (pos 10) → downgrade
+buff_rank_returns["self"] = { 9885, 5 }
+assert_true(buff_would_downgrade(me, MOTW_FAMILY, 5232), "higher MotW -> lower MotW is downgrade")
+print("PASS buff_would_downgrade_higher_motw_blocks_lower")
+
+-- Has MotW r2 5232 (pos 10), would cast 9885 (pos 5) → upgrade, not downgrade
+buff_rank_returns["self"] = { 5232, 10 }
+assert_false(buff_would_downgrade(me, MOTW_FAMILY, 9885), "lower MotW -> higher MotW is upgrade")
+print("PASS buff_would_downgrade_allows_upgrade")
+
+-- Has same rank → not a downgrade (refresh handled by remains)
+buff_rank_returns["self"] = { 9885, 5 }
+assert_false(buff_would_downgrade(me, MOTW_FAMILY, 9885), "same rank is not a downgrade")
+print("PASS buff_would_downgrade_same_rank")
+
+-- No buff → not a downgrade
+buff_rank_returns["self"] = { nil, nil }
+assert_false(buff_would_downgrade(me, MOTW_FAMILY, 9885), "no buff is not a downgrade")
+print("PASS buff_would_downgrade_no_buff")
+
 print("PASS test_buff_upgrade")

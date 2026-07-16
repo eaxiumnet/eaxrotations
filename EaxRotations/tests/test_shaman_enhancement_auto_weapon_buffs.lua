@@ -83,4 +83,5 @@ local ctx4 = { settings = { enhancement_main_hand_ench = "frostbrand" }, in_comb
 if enh_build_state then enh_build_state(ctx4) end
 print("  [ PASS ] C4: explicit frostbrand setup")
 
+
 print("PASS test_shaman_enhancement_auto_weapon_buffs")

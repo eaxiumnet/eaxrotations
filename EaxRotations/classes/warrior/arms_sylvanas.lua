@@ -7,6 +7,12 @@
 -- Warrior Arms priority list for TBC Sylvanas rotations.
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local _cleu = NS.SwingDiagnostics
 if _cleu then
     _cleu.register_seals({
@@ -565,7 +571,7 @@ local function sweeping_strikes_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SweepingStrikes, 3.0) then return false end
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     local min_count = spec_kit.setting_number(context, "sweeping_strikes_count", SWEEPING_STRIKES_COUNT)
-    if state.enemy_count < min_count then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(min_count, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context)) then return false end
     if state.has_sweeping_strikes then return false end
     -- TTD gate: don't waste AoE CD if target is about to die
     if state.ttd > 0 and state.ttd < 5 then return false end
@@ -598,13 +604,13 @@ local function whirlwind_matches(context, state)
     local rage = state.rage or 0
     -- Rage cap: bypass enemy count gate to prevent rage waste
     if rage >= RAGE_CAP then return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 })) end
-    if state.enemy_count < 2 and rage < 45 then return false end
+    if rage < 45 and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then return false end
     return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
 end
 
 -- Sweep Strikes rage pooling: hold rage when SS cooldown is near
 local function should_reserve_for_sweeping(context, state)
-    if (context.enemy_count or 0) < 2 then return false end
+    if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then return false end
     if state.has_sweeping_strikes then return false end
     local ss_cd = state.ss_cd or 99
     if ss_cd <= SS_POOL_WINDOW and (context.rage or 0) < SS_RESERVE_FLOOR then return true end
@@ -659,7 +665,7 @@ end
 local function cleave_matches(context, state)
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     if state and should_reserve_for_sweeping(context, state) then return false end
-    if state.enemy_count < 2 then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s)) then return false end
     local RM = NS.RageManager
     if RM and type(RM.should_cleave) == "function" then
         if not RM.should_cleave(with_rage_dump_threshold(context, CLEAVE_RAGE), state, state.enemy_count, "arms") then
@@ -669,7 +675,7 @@ local function cleave_matches(context, state)
         if state.rage < CLEAVE_RAGE then return false end
         if would_starve_arms(context, state, 20) then return false end
     end
-    return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true }))
+    return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true, hit_radius = 8, hit_origin = "target" }))
 end
 
 local function hamstring_matches(context, state)
@@ -921,7 +927,7 @@ local STRATEGY_SPECS = {
     { "Hamstring", hamstring_matches, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }) },
     { "DemoralizingShout", demo_shout_matches, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false }) },
     { "ThunderClap", thunder_clap_matches, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, cooldown = 4 }) },
-    { "Cleave", cleave_matches, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true }) },
+    { "Cleave", cleave_matches, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true, hit_radius = 8, hit_origin = "target" }) },
     { "HeroicStrike", heroic_strike_matches, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = HEROIC_STRIKE_RAGE }) },
     { "Healthstone", healthstone_matches, build_action("Healthstone", nil, { target = "self", requires_target = false }), function(context)
         local s = build_state(context or {})

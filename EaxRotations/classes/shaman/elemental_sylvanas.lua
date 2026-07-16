@@ -10,6 +10,12 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local potion_helper = require("shared/potion_helper_sylvanas")
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
@@ -196,7 +202,7 @@ local function chain_lightning_matches_fn(context, state)
     end
     -- Research: CL only at 3+ targets; configurable via schema
     local min_targets = spec_kit.setting_number(context, "elemental_cl_min_targets", CL_MIN_TARGETS)
-    if (state.target_count or 0) < min_targets then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10, context.target, context, state)) then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ChainLightning, context.target) or false
 end
 
@@ -407,7 +413,7 @@ local function fire_nova_totem_matches_fn(context, state)
     if not context.in_combat then return false end
     if state.mana_conserve then return false end
     local min_targets = spec_kit.setting_number(context, "elemental_aoe_threshold", 4)
-    if (state.target_count or 0) < min_targets then return false end
+    if not (NS.aoe_self_meets and NS.aoe_self_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)) then return false end
     if context.cc_safe == false then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(ACTION.FireNovaTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
@@ -417,7 +423,7 @@ local function magma_totem_matches_fn(context, state)
     if not context.in_combat then return false end
     if state.mana_conserve then return false end
     local min_targets = spec_kit.setting_number(context, "elemental_aoe_threshold", 4)
-    if (state.target_count or 0) < min_targets then return false end
+    if not (NS.aoe_self_meets and NS.aoe_self_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then return false end
     if context.cc_safe == false then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(ACTION.MagmaTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
 end
