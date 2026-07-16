@@ -130,5 +130,12 @@ function M.try_heal(context)
     return NS.try_cast(rec.spell, rec.target, "[DRUID HEAL] " .. rec.reason)
 end
 
+function M.gate_overheal(spell_key, unit, cast_time, settings, spell_id)
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        return NS.HealerDeficit.gate_spell_overheal(spell_key, unit, cast_time, settings, spell_id)
+    end
+    return NS.gate_overheal and NS.gate_overheal(spell_key, unit, cast_time, settings, spell_id) or false
+end
+
 NS.DruidHealing = M
 return M
