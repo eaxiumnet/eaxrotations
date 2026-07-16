@@ -87,6 +87,37 @@ end
 spell_id = NS.SnapThreat.check(me, target, { snap_threat_enabled = true }, { spell_id = 20271, fallback_id = 31935 })
 all_ok = assert_eq(spell_id, 31935, "Snap threat uses fallback when primary not ready") and all_ok
 
+-- Test 7: Druid bear opener map (Growl primary, Mangle/Maul fallback)
+NS.SnapThreat.reset()
+NS.spell_ready = function(spell, target) return true end
+local GROWL_ID = 6795
+local MANGLE_BEAR_ID = 33987
+spell_id = NS.SnapThreat.check(me, target, { snap_threat_enabled = true }, {
+    spell_id = GROWL_ID,
+    fallback_id = MANGLE_BEAR_ID,
+})
+all_ok = assert_eq(spell_id, GROWL_ID, "Bear snap threat returns Growl on combat entry") and all_ok
+
+NS.SnapThreat.reset()
+NS.spell_ready = function(spell, target)
+    if spell == GROWL_ID then return false end
+    if spell == MANGLE_BEAR_ID then return true end
+    return false
+end
+spell_id = NS.SnapThreat.check(me, target, { snap_threat_enabled = true }, {
+    spell_id = GROWL_ID,
+    fallback_id = MANGLE_BEAR_ID,
+})
+all_ok = assert_eq(spell_id, MANGLE_BEAR_ID, "Bear snap threat falls back to Mangle when Growl not ready") and all_ok
+
+-- Test 8: mark_fired suppresses subsequent snap (after combat already established)
+NS.SnapThreat.reset()
+NS.spell_ready = function() return true end
+NS.SnapThreat.check(me, target, { snap_threat_enabled = true }, { spell_id = GROWL_ID })
+NS.SnapThreat.mark_fired()
+spell_id = NS.SnapThreat.check(me, target, { snap_threat_enabled = true }, { spell_id = GROWL_ID })
+all_ok = assert_nil(spell_id, "mark_fired suppresses snap for rest of combat") and all_ok
+
 if all_ok then
     print("OK snap_threat")
 else
