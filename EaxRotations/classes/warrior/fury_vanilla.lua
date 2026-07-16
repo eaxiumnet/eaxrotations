@@ -273,18 +273,27 @@ if ACTION.Rend then
     })
 end
 
--- 9. Demoralizing Shout
+-- 9. Demoralizing Shout (group-safe: honor maintain_demo_shout setting)
 if ACTION.DemoralizingShout then
     table.insert(strategies, { name = "DemoralizingShout",
-        matches = function(c, s) return s.demo_ready and not s.has_demo_shout end,
+        matches = function(c, s)
+            local settings = (c and c.settings) or {}
+            if settings.maintain_demo_shout == false then return false end
+            return s.demo_ready and not s.has_demo_shout
+        end,
         execute = function(c) return try_cast(ACTION.DemoralizingShout, c.me, "[VANILLA FURY] Demo Shout", { skip_range = true }) end
     })
 end
 
--- 10. Sunder Armor
+-- 10. Sunder Armor (group-safe: sunder_armor_mode=none / use_sunder_armor=false skips)
 if ACTION.SunderArmor then
     table.insert(strategies, { name = "SunderArmor",
-        matches = function(c, s) return s.sunder_ready and not s.has_sunder and (c.target_armor or 0) > 0 end,
+        matches = function(c, s)
+            local settings = (c and c.settings) or {}
+            if settings.use_sunder_armor == false then return false end
+            if settings.sunder_armor_mode == "none" then return false end
+            return s.sunder_ready and not s.has_sunder and (c.target_armor or 0) > 0
+        end,
         execute = function(c) return try_cast(ACTION.SunderArmor, c.target, "[VANILLA FURY] Sunder") end
     })
 end

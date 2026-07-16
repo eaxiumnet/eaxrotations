@@ -1,3 +1,17 @@
+# Developer Changelog — EaxRotations v2.9.2
+
+**Date:** 2026-07-16  
+**Scope:** Phase 2 skeptic — per-class settings (3–5 keys) + group overwrite + paladin raid-60 prio
+
+### Production
+- `fury_vanilla`: Sunder/Demo honor `sunder_armor_mode` / `use_sunder_armor` / `maintain_demo_shout`
+- `affliction_vanilla`: `warlock_curse_mode` + `warlock_assigned_curse` gates CoE/Agony/Doom (group overwrite)
+
+### Tests
+- `test_vanilla_spell_ladders` **236** cases: ≥3–5 settings per class; curse/seal/shout overwrite; paladin ret/prot/holy prio
+- Matrix G cells cite real test names (warrior Sunder/Demo no longer claim-only)
+
+---
 # Developer Changelog — EaxRotations v2.9.1
 
 **Date:** 2026-07-16  

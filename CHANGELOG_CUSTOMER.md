@@ -1,5 +1,17 @@
 # EaxRotations Changelog
 
+## v2.9.2 — Classic Settings & Group-Safe Debuffs (July 16, 2026)
+
+> **Release:** v2.9.2
+
+### What you’ll notice
+- Classic Fury can skip Sunder / Demo Shout via the same group settings used by Kebab (no stomping raid debuffs when disabled).
+- Classic Affliction respects assigned-curse / curse-mode so you won’t overwrite the raid’s Elements with Agony (or vice versa).
+- Broader automated checks that menu toggles for all nine classes actually change the rotation.
+
+Reload for **v2.9.2**.
+
+---
 ## v2.9.1 — Classic Ladder Hardening (July 16, 2026)
 
 > **Release:** v2.9.1

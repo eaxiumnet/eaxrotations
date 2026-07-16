@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.9.2 - 2026-07-16
+
+### Customer Changelog
+- Fury: group-safe Sunder/Demo settings; Affliction: assigned curse / curse mode.
+
+### Developer Notes
+- Ladder suite **236** cases; per-class settings + curse/seal/shout overwrite + paladin raid prio
+- Version **2.9.2**
+
 ## 2.9.1 - 2026-07-16
 
 ### Developer Notes

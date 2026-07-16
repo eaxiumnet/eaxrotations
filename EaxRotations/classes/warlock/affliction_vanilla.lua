@@ -254,14 +254,44 @@ local function build_state(context)
 	-- Helper functions
 	-- ============================================================================
 
--- Select which curse to use based on context
+-- Select which curse to use based on context (honors group assigned-curse settings).
+local function _setting(context, key, default)
+    local s = context and context.settings
+    if s and s[key] ~= nil then return s[key] end
+    return default
+end
+
 local function select_curse(context, state)
+    local assigned = _setting(context, "warlock_assigned_curse", "none")
+    if assigned and assigned ~= "none" then return assigned end
+
+    local curse_mode = _setting(context, "warlock_curse_mode", "auto")
+    if curse_mode == "agony" then return "agony"
+    elseif curse_mode == "doom" then return "doom"
+    elseif curse_mode == "elements" then return "elements"
+    elseif curse_mode == "recklessness" then return "recklessness"
+    elseif curse_mode == "weakness" then return "weakness"
+    elseif curse_mode == "none" then return nil
+    end
+
     if context.is_pvp then
         if context.enemy_healer then return "tongues" end
         if context.melee_on_you then return "exhaustion" end
     end
     if (state.enemy_count or 0) >= 3 then return "elements" end  -- AoE benefit
     return "agony"  -- default: damage
+end
+
+--- True when settings forbid casting this curse (group overwrite / mode lock).
+local function assigned_curse_blocks(context, desired)
+    local assigned = _setting(context, "warlock_assigned_curse", "none")
+    if assigned and assigned ~= "none" then
+        return assigned ~= desired
+    end
+    local mode = _setting(context, "warlock_curse_mode", "auto")
+    if mode == "none" then return true end
+    if mode ~= "auto" and mode ~= desired then return true end
+    return false
 end
 
 -- Racial ability match gate for all racial strategies
@@ -428,6 +458,7 @@ local strategies = {
     {
         name = "CurseOfDoom",
         matches = function(context, state)
+            if assigned_curse_blocks(context, "doom") then return false end
             if NS.should_use_long_cd and not NS.should_use_long_cd(context, 60) then return false end
             if not context.target then return false end
             if not context.has_valid_enemy_target then return false end
@@ -448,6 +479,7 @@ local strategies = {
     {
         name = "CurseOfAgony",
         matches = function(context, state)
+            if assigned_curse_blocks(context, "agony") then return false end
             if not context.has_valid_enemy_target then return false end
             local curse = select_curse(context, state)
             if curse ~= "agony" then return false end
@@ -713,6 +745,7 @@ local strategies = {
     {
         name = "CurseOfElements",
         matches = function(context, state)
+            if assigned_curse_blocks(context, "elements") then return false end
             if not context.target then return false end
             if state and (state.coe_remains or 0) > 10 then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseElements, context.target) or false
