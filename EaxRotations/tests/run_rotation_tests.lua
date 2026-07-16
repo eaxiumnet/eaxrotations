@@ -69,6 +69,8 @@ local tests = {
 
   -- Health prediction integration tests
   "test_health_pred_integration.lua",
+  "test_combat_forecast_gate.lua",
+  "test_discipline_predictive_pws.lua",
 
   -- Arms warrior tests
   "test_arms_custom_matches.lua",
