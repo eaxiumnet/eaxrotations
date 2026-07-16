@@ -104,6 +104,7 @@ local function build_state(context)
     state.hp = context.hp or 100
     state.mana_pct = context.mana_pct or 100
     state.spell_damage = context.spell_damage or 0
+    state.level = context.level or context.player_level or 60
     -- Find ready mana item
     state.mana_gem_id = nil
     for _, id in ipairs(MANA_ITEM_IDS) do
@@ -133,8 +134,9 @@ local ACTIONS = {
     -- Burst / Procs
     { name = "BacklashShadowBolt", spell = SPELLS.ShadowBolt, priority = 100 },
     { name = "Conflagrate", spell = SPELLS.Conflagrate, moving = true, cooldown = 10 },
-    { name = "SoulFire", spell = SoulFire, not_moving = true },
+    -- Execute (classic warlock APL: Shadowburn on low TTD; Soul Fire is not a shard spam filler)
     { name = "Shadowburn", spell = SPELLS.Shadowburn, cooldown = 15 },
+    { name = "SoulFire", spell = SoulFire, not_moving = true },
     { name = "SearingPain", spell = SearingPain, moving = true },
     -- Filler
     { name = "ShadowBolt", spell = SPELLS.ShadowBolt, not_moving = true },
@@ -156,11 +158,11 @@ local function immolate_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Immolate, 2.0) then return false end
     if not state then return false end
     state = state or {}
-    -- SP-aware gating: skip Immolate when spell damage is below the threshold
-    -- (conservative: defaults to 400 SP, configurable via destro_immolate_min_sp)
+    -- SP-aware gating: skip Immolate when spell damage is below the threshold.
+    -- Low-level warlocks won't reach the threshold, so ignore it until level 40.
     local s = context.settings or {}
     local min_sp = s.destro_immolate_min_sp or IMMOLATE_MIN_SP_DEFAULT
-    if (state.spell_damage or 0) < min_sp then return false end
+    if (state.level or 60) >= 40 and (state.spell_damage or 0) < min_sp then return false end
     if (state.immolate_remains or 0) > IMMOLATE_PANDEMIC_WINDOW then return false end
     if not (NS.should_refresh_dot and NS.should_refresh_dot((state.immolate_remains or 0), 1.5, context.ttd, 15)) then return false end
     return true
@@ -205,8 +207,12 @@ end
 
 
 local function soul_fire_matches(context, action, state)
+    if not context.target then return false end
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
-    return true
+    -- Classic: Soul Fire is an execute/finisher, not a continuous shard dump above Shadow Bolt
+    local hp_threshold = (context.settings and context.settings.destro_soulfire_hp) or SHADOWBURN_HP_PCT
+    if not (NS.is_execute_phase and NS.is_execute_phase(context.target_hp, hp_threshold)) then return false end
+    return NS.spell_ready(action.spell, context.target)
 end
 
 local function corruption_matches(context, action, state)

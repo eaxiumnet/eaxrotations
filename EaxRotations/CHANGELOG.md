@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.7.9 - 2026-07-16
+
+### Customer Changelog
+- **All 31 Classic Vanilla combat specs re-verified** (see `plans/vanilla-rotation-gap-matrix-2026-07-16.md`).
+- **Hunter BM/Survival (Classic)**: Aimed Shot is now the primary cast (wowsims classic hunter APL).
+- **Destruction (Classic)**: Soul Fire no longer spams with any soul shard; execute-gated like Shadowburn.
+- Version bumped to 2.7.9.
+- Tests: 277 rotation + 18 leveling suites green.
+
+### Developer Notes
+- Gap matrix: `plans/vanilla-rotation-gap-matrix-2026-07-16.md`
+- `beast_mastery_vanilla.lua` / `survival_vanilla.lua`: AimedShot strategy + matches
+- `destruction_vanilla.lua`: `soul_fire_matches` execute gate; Shadowburn before SoulFire
+- Tests: `test_hunter_vanilla_aimed_shot.lua`, `test_destruction_vanilla_soul_fire_execute.lua`
+
 ## 2.7.8 - 2026-07-16
 
 ### Customer Changelog

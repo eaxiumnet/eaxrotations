@@ -1,7 +1,7 @@
 -- survival_vanilla.lua — Hunter Survival for Vanilla/Classic Anniversary (1.15.x).
--- WHAT:  trap/melee hybrid (Wyvern Sting, Explosive Trap, Raptor Strike).
+-- WHAT:  trap/melee hybrid + Aimed Shot primary (Explosive Trap, Raptor Strike).
 -- WHEN:  combat, when NS.is_vanilla() is true.
--- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
+-- WHY:   Classic Era hunter APL (wowsims classic p1): Aimed > Multi > Serpent; no Steady Shot.
 -- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 
@@ -14,6 +14,7 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 
 local AUTO_SHOT_BUFFER_MS = 100
 local MULTI_SHOT_CAST_MS = 500
+local AIMED_SHOT_CAST_MS = 3000
 
 local function can_cast_steady()
     local tracker = NS.HunterClipTracker
@@ -66,6 +67,7 @@ local sv_state = {
     explosive_trap_ready = false,
     multi_shot_ready = false,
     arcane_shot_ready = false,
+    aimed_shot_ready = false,
     serpent_sting_ready = false,
     call_pet_ready = false,
     revive_pet_ready = false,
@@ -108,6 +110,7 @@ local function build_state(context)
     sv_state.explosive_trap_ready = me and NS.spell_ready(SPELLS.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     sv_state.multi_shot_ready = target and NS.spell_ready(SPELLS.MultiShot, target, { expected_cooldown = 10 }) or false
     sv_state.arcane_shot_ready = target and NS.spell_ready(SPELLS.ArcaneShot, target, { expected_cooldown = 6 }) or false
+    sv_state.aimed_shot_ready = target and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
     sv_state.serpent_sting_ready = target and NS.spell_ready(SPELLS.SerpentSting, target) or false
     sv_state.call_pet_ready = me and NS.spell_ready(SPELLS.CallPet, me, { skip_range = true }) or false
     sv_state.revive_pet_ready = me and NS.spell_ready(SPELLS.RevivePet, me, { skip_range = true }) or false
@@ -167,9 +170,20 @@ local function multi_shot_matches(context, s)
     return true
 end
 
+-- Aimed Shot: Classic Era primary cast (wowsims hunter p1.apl)
+local function aimed_shot_matches(context, s)
+    if not s.in_combat then return false end
+    if not s.aimed_shot_ready then return false end
+    if (s.mana_pct or 100) < 20 then return false end
+    if not can_cast_before_auto(AIMED_SHOT_CAST_MS) then return false end
+    return true
+end
+
 local function arcane_shot_matches(context, s)
     if not s.arcane_shot_ready then return false end
     if (s.mana_pct or 100) < 10 then return false end
+    -- Prefer Aimed when ready
+    if s.aimed_shot_ready then return false end
     return true
 end
 
@@ -346,6 +360,7 @@ local strategies = {
     { name = "WingClip", matches = wing_clip_matches, execute = function(context) return NS.try_cast(SPELLS.WingClip, context.target, "[SURVIVAL] Wing Clip") end },
     { name = "LevelingArcaneShot", matches = leveling_arcane_shot_matches, execute = function(context) if NS.try_cast(SPELLS.ArcaneShot, context.target, "[SURVIVAL] Arcane Shot (leveling)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "LevelingSting", matches = leveling_sting_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[SURVIVAL] Serpent Sting (leveling)") end },
+    { name = "AimedShot", matches = aimed_shot_matches, execute = function(context) if NS.try_cast(SPELLS.AimedShot, context.target, "[SURVIVAL] Aimed Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "MultiShot", matches = multi_shot_matches, execute = function(context) if NS.try_cast(SPELLS.MultiShot, context.target, "[SURVIVAL] Multi-Shot", { expected_cooldown = 10 }) then record_manual_shot() return true end return false end },
     { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(context) if NS.try_cast(SPELLS.ArcaneShot, context.target, "[SURVIVAL] Arcane Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "ViperSting", matches = viper_sting_matches, execute = function(context) return NS.try_cast(SPELLS.ViperSting, context.target, "[SURVIVAL] Viper Sting", { expected_cooldown = 8 }) end },

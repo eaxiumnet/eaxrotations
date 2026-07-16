@@ -114,7 +114,7 @@ test_spec("EaxRotations/classes/warlock/demonology_vanilla.lua", "demonology_van
 
 -- Destruction
 test_spec("EaxRotations/classes/warlock/destruction_vanilla.lua", "destruction_vanilla",
-    { "DemonArmor", "ShadowWard", "CreateHealthstone", "LifeTap", "DrainLife", "HealthFunnel", "CurseOfDoom", "CurseOfAgony", "Corruption", "Immolate", "BacklashShadowBolt", "Conflagrate", "SoulFire", "Shadowburn", "SearingPain", "ShadowBolt", "RainOfFire", "Hellfire", "DeathCoil", "Fear", "SummonImp", "SummonVoidwalker", "SummonSuccubus", "SummonFelhunter", "FelDomination" },
+    { "DemonArmor", "ShadowWard", "CreateHealthstone", "LifeTap", "DrainLife", "HealthFunnel", "CurseOfDoom", "CurseOfAgony", "Corruption", "Immolate", "BacklashShadowBolt", "Conflagrate", "Shadowburn", "SoulFire", "SearingPain", "ShadowBolt", "RainOfFire", "Hellfire", "DeathCoil", "Fear", "SummonImp", "SummonVoidwalker", "SummonSuccubus", "SummonFelhunter", "FelDomination" },
     base_ctx)
 
 -- Leveling
