@@ -44,6 +44,7 @@ local tests = {
  "test_snapshot_helper.lua",
  "test_shaman_enhancement_totem_twist.lua",
  "test_shaman_enhancement_auto_weapon_buffs.lua",
+  "test_shaman_low_level_gates.lua",
  "test_shaman_enhancement_intelligent_shield.lua",
 
  -- Supremacy Phase 3 tests
@@ -57,10 +58,13 @@ local tests = {
  "test_hunter_shot_timer_integration.lua",
  "test_hunter_melee_weave.lua",
 
- -- Supremacy Phase 4 tests
- "test_stance_manager.lua",
- "test_rage_manager.lua",
- "test_dispel_manager.lua",
+  -- Supremacy Phase 4 tests
+  "test_stance_manager.lua",
+  "test_rage_manager.lua",
+  "test_dispel_manager.lua",
+
+  -- Health prediction integration tests
+  "test_health_pred_integration.lua",
 
   -- Arms warrior tests
   "test_arms_custom_matches.lua",
@@ -103,6 +107,10 @@ local tests = {
  "test_balance_custom_matches.lua",
  "test_bear_custom_matches.lua",
  "test_cat_custom_matches.lua",
+ "test_cat_vanilla_low_level_gating.lua",
+ "test_druid_vanilla_low_level_gating.lua",
+ "test_druid_feral_l42_mangle_gate.lua",
+ "test_druid_feral_level_42.lua",
  "test_druid_caster_custom_matches.lua",
 
  -- Core/shared infrastructure tests
@@ -170,6 +178,7 @@ local tests = {
  "test_warlock_focus_target_fires.lua",
  "test_warlock_enemy_scan_fallback_fires.lua",
  "test_affliction_summon_felhunter.lua",
+ "test_target_selector_integration.lua",
  "test_try_cast_no_global_5s_lockout.lua",
  "test_try_cast_reason.lua",
  "test_action_execute_skip_gcd_izi_primary.lua",
@@ -204,8 +213,9 @@ local tests = {
 
  -- Mage
  "test_arcane_custom_matches.lua",
- "test_fire_custom_matches.lua",
- "test_frost_custom_matches.lua",
+  "test_fire_custom_matches.lua",
+  "test_fire_vanilla_low_level_scorch.lua",
+  "test_frost_custom_matches.lua",
 
  -- Warlock
  "test_demonology_custom_matches.lua",
@@ -213,8 +223,10 @@ local tests = {
  "test_affliction_curse_mode_gates.lua",
  "test_demonology_curse_mode_gates.lua",
  "test_destruction_curse_mode_gates.lua",
- "test_destruction_life_tap.lua",
- "test_demonology_life_tap.lua",
+  "test_destruction_life_tap.lua",
+  "test_destruction_immolate_low_level.lua",
+  "test_destruction_vanilla_immolate_low_level.lua",
+  "test_demonology_life_tap.lua",
 
  -- Discipline
  "test_discipline_custom_matches.lua",

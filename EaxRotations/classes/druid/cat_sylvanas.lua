@@ -140,7 +140,7 @@ local AP_UPGRADE_RATIO = 1.08
 local STRONG_AP_UPGRADE_RATIO = 1.15
 local HIGH_AP_UPGRADE_RATIO = 1.05
 
-local RIP_DEBUFF = { 27008, 1079 }
+local RIP_DEBUFF = { 27008, 9896, 9894, 9752, 9493, 9492, 1079 }
 local RAKE_DEBUFF = { 27003, 9904, 1824, 1823, 1822 }
 local MANGLE_DEBUFF = { 33876, 33983, 33982, 33878, 33986, 33987 }
 local FAERIE_FIRE_DEBUFF = { 27011, 17392, 17391, 17390, 16857, 26993, 9907, 9749, 778, 770 }
@@ -662,7 +662,7 @@ local function stealth_shred_matches(context, action)
     local state = build_state(context)
     if not state.is_stealthed then return false end
     if not state.is_behind then return false end
-    if state.mangle_remains <= 0 then return false end
+    if spell_exists(ACTION.MangleCat) and state.mangle_remains <= 0 then return false end
     return true
 end
 
@@ -908,7 +908,7 @@ local function shred_matches(context, action)
     if (state.combo_points or 0) >= 5 then return false end
     if not state.is_behind then return false end
     if state.pooling and (state.energy or 0) < SHRED_COST then return false end
-    if not leveling_helpers.is_low_level(state.level) and state.mangle_remains <= MANGLE_REFRESH_WINDOW and target_lives(state, MIN_RAKE_TTD) then return false end
+    if spell_exists(ACTION.MangleCat) and state.mangle_remains <= MANGLE_REFRESH_WINDOW and target_lives(state, MIN_RAKE_TTD) then return false end
     if should_wait_for_tick(state, SHRED_COST) then return false end
     return true
 end
