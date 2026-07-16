@@ -254,4 +254,76 @@ assert_false(M.humanize_interrupt_elapsed(mock_target_cast, guard_settings), "gu
 NS.time_now = function() return 1 end
 assert_true(M.humanize_interrupt_elapsed(mock_target_cast, guard_settings), "guard: after 1s with clamped min should be elapsed")
 
+-- ============================================================================
+-- Public API coverage: spell_interrupt_priority, register_interrupt_spell, execute
+-- ============================================================================
+
+-- spell_interrupt_priority: known heal/CC/damage map + fallback to interrupt_priority
+assert_eq(M.spell_interrupt_priority(2060), 10, "Greater Heal should be priority 10")
+assert_eq(M.spell_interrupt_priority(118), 9, "Polymorph should be priority 9")
+assert_eq(M.spell_interrupt_priority(133), 8, "Fireball should be priority 8")
+assert_eq(M.spell_interrupt_priority(99999), 1, "unknown spell falls back to interrupt_priority=1")
+assert_eq(M.spell_interrupt_priority(nil), 1, "nil spell_interrupt_priority is 1")
+
+-- register_interrupt_spell: builds a strategy from class spell table
+local spells = { Counterspell = mock_spell }
+local reg = M.register_interrupt_spell("mage", "Counterspell", spells)
+assert_true(type(reg) == "table", "register_interrupt_spell returns strategy table")
+assert_eq(reg.name, "Interrupt", "registered strategy name is Interrupt")
+assert_true(type(reg.matches) == "function", "registered strategy has matches")
+assert_true(type(reg.execute) == "function", "registered strategy has execute")
+
+-- register_interrupt_spell with missing spell uses FALLBACK_IDS via NS.spell_action
+NS.spell_action = function(ids, name)
+    return { id = ids[1], _meta = { id = ids[1] }, name = name }
+end
+local empty_spells = {}
+local reg_fallback = M.register_interrupt_spell("mage", "Counterspell", empty_spells)
+assert_true(type(reg_fallback) == "table", "fallback register returns strategy")
+assert_true(empty_spells.Counterspell ~= nil, "fallback injects spell into spell table")
+
+-- strategy execute: casts and records school lock
+NS.try_interrupt = function() return true end
+NS.spell_ready = function() return true end
+NS.gcd_remains = function() return 0 end
+local cast_called = false
+local cast_spell, cast_target
+NS.try_cast = function(spell, target, reason, opts)
+    cast_called = true
+    cast_spell = spell
+    cast_target = target
+    return true
+end
+M.clear_school_locks()
+local exec_target = {
+    get_active_spell_id = function() return 2054 end,
+    get_casting_percent = function() return 30 end,
+    get_guid = function() return "exec_guid" end,
+}
+local exec_ctx = {
+    me = { is_casting = function() return false end, is_channeling = function() return false end },
+    target = exec_target,
+    settings = { use_interrupts = true, interrupt_humanize_enabled = false },
+}
+local exec_strategy = M.create_interrupt_strategy({ spell = mock_spell, class_key = "mage" })
+assert_true(exec_strategy.matches(exec_ctx), "execute path: matches when casting")
+assert_true(exec_strategy.execute(exec_ctx), "execute path: try_cast succeeds")
+assert_true(cast_called, "execute path: try_cast was called")
+assert_eq(cast_target, exec_target, "execute path: cast on interrupt target")
+-- Counterspell (2139) locks the cast school (heal=holy via SPELL_SCHOOL_LOOKUP, else arcane default)
+-- 2054 is Heal which is holy in SPELL_SCHOOL_LOOKUP
+assert_true(M.is_school_locked(exec_target, "holy") or M.is_school_locked(exec_target, "arcane"),
+    "execute path: school lock recorded after successful interrupt")
+
+-- school_lock_remains: positive during window, 0 after expiry / missing
+NS.time_now = function() return 100 end
+M.clear_school_locks()
+local lock_target = { get_guid = function() return "lock_remains_guid" end }
+M.record_school_lock(lock_target, 1766) -- Kick: physical 5s
+assert_true(M.school_lock_remains(lock_target, "physical") > 0, "school_lock_remains > 0 during lock")
+assert_eq(M.school_lock_remains(lock_target, "frost"), 0, "school_lock_remains 0 for unlocked school")
+NS.time_now = function() return 106 end
+assert_eq(M.school_lock_remains(lock_target, "physical"), 0, "school_lock_remains 0 after expiry")
+assert_eq(M.school_lock_remains(nil, "physical"), 0, "school_lock_remains nil target is 0")
+
 print("PASS interrupt_manager")
