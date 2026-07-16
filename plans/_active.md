@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-16 (EaxRotations coverage validation campaign started; baseline committed as 436190c9).
+**Last updated:** 2026-07-16 (EaxRotations coverage validation campaign COMPLETE — 305 rot + 21 leveling, scorecard 4.41).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -31,7 +31,7 @@
 | `plans/integrate-advanced-modules-2026-07-13.md` | COMPLETE (2026-07-16) | Integrate 8 advanced Sylvanas modules into TBC + WotLK + Classic rotations. Phases 1-9 complete: combat_forecast CD gating, health_prediction direct API, spell_prediction AoE, target_selector direct queries, buff_manager bulk aura access, profiler diagnostics, spell_queue direct access, WotLK spec module integration, and Classic/Vanilla variant combat_forecast gating. Verified: 278 rotation + 18 leveling + 6 WotLK suites pass. |
 | `plans/wire-dormant-shared-modules-2026-07-16.md` | COMPLETE (2026-07-16) | Bootstrap-loaded supremacy modules that had call sites but were never required (StopCast, PetHeal, SnapThreat, StanceManager, SwingDiagnostics/Timer, DispelManager, RageManager, HealthPredHelper). Remaining: Phase 2 healer/tank *usage* of NS.predicted_hp_pct, wotlk_data consumable wire, _dbc_spell_ids for audit tests. |
 | `plans/spell-id-and-leveling-verification-2026-07-16.md` | COMPLETE (2026-07-16) | Leveling ladder helper + Vanilla/WotLK ladder tests added; all 28 leveling files expose strategies/build_state; 285 rotation + 20 leveling suites pass. |
-| `plans/ulw-validate-eaxrotations-coverage-2026-07-16.md` | In progress | Validate EaxRotations coverage across interrupts, dispels, healing, tanking, and adaptive leveling; close gaps and harden all 305+ tests. |
+| `plans/_archive/ulw-validate-eaxrotations-coverage-2026-07-16.md` | COMPLETE (2026-07-16) | Coverage validation: interrupt/dispel/heal/tank hardening, 15 vanilla strategy suites, leveling adaptive fixes, low-score healing/caster upgrades. 305 rot + 21 leveling PASS; scorecard avg 4.41. |
 
 ## Reference Documents (not plans)
 
