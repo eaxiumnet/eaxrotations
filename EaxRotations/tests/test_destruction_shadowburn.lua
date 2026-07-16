@@ -131,4 +131,28 @@ local ctx_boundary = {
 }
 assert_true(shadowburn.matches(ctx_boundary), "Shadowburn should match when target_hp == 20 (boundary)")
 
+-- ============================================================================
+-- Priority: Shadowburn must sit ABOVE always-matching fillers (Incinerate/ShadowBolt)
+-- wowsims destro_fire.apl: Shadowburn condition before Incinerate cast.
+-- If Shadowburn is after ShadowBolt, execute never fires while stationary.
+-- ============================================================================
+
+local function strategy_index(name)
+    for i = 1, #strategies do
+        if strategies[i].name == name then return i end
+    end
+    return nil
+end
+
+local sb_idx = strategy_index("Shadowburn")
+local incinerate_idx = strategy_index("Incinerate")
+local bolt_idx = strategy_index("ShadowBolt")
+assert_true(sb_idx ~= nil, "Shadowburn strategy index")
+assert_true(incinerate_idx ~= nil, "Incinerate strategy index")
+assert_true(bolt_idx ~= nil, "ShadowBolt strategy index")
+assert_true(sb_idx < incinerate_idx,
+    string.format("Shadowburn (%d) must be before Incinerate (%d) per wowsims destro_fire APL", sb_idx, incinerate_idx))
+assert_true(sb_idx < bolt_idx,
+    string.format("Shadowburn (%d) must be before ShadowBolt (%d) or execute is dead while stationary", sb_idx, bolt_idx))
+
 print("PASS test_destruction_shadowburn")

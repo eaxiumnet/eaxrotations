@@ -1,3 +1,28 @@
+# Developer Changelog — EaxRotations v2.7.8
+
+**Date:** 2026-07-16  
+**Branch:** master  
+**Scope:** TBC 29-spec guide/APL re-verification + Destruction Shadowburn priority fix
+
+### Gap matrix
+- New: `plans/tbc-rotation-gap-matrix-2026-07-16.md`
+- Covers all 29 TBC combat specs vs wowsims `data/tbc-new` APLs, prior research report, Icy Veins / Wowhead / Warcraft Tavern for healers + Fire/Frost
+- Tie-breakers: DBC spell truth; wowsims APL for PvE DPS priority when present
+
+### Material code fix
+| File | Change |
+|------|--------|
+| `classes/warlock/destruction_sylvanas.lua` | Move `Shadowburn` above `Incinerate`/`ShadowBolt` fillers (wowsims `destro_fire.apl.json`) |
+| `tests/test_destruction_shadowburn.lua` | Assert strategy priority index + existing execute gates |
+
+### Verification
+- `luac -p` on changed Lua
+- `lua EaxRotations/tests/run_rotation_tests.lua` → 275/275
+- `lua EaxRotations/tests/run_leveling_tests.lua` → 18/18
+- Version surfaces: `header.lua` / `VERSION.txt` → **2.7.8**
+
+---
+
 # Developer Changelog — EaxRotations v2.7.7
 
 **Date:** 2026-07-16  

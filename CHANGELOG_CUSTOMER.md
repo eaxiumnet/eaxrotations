@@ -1,5 +1,19 @@
 # EaxRotations Changelog
 
+## v2.7.8 — Full TBC Spec Re-check + Destro Execute (July 16, 2026)
+
+> **Release:** v2.7.8  
+> **Game:** The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
+
+### What you’ll notice
+
+- **All 29 TBC class specs re-checked** against pro/simulator sources (wowsims APLs, Wowhead, Icy Veins, Warcraft Tavern). Priorities and playstyle settings already matched guides for 28 specs.
+- **Destruction Warlock execute fixed** — Shadowburn now correctly casts in the execute window instead of losing every GCD to Shadow Bolt while you stand still. You should see Shadowburn land on low-HP targets when you have a soul shard.
+
+Reload for **v2.7.8**.
+
+---
+
 ## v2.7.7 — Maul Spam + Swing Timer (July 16, 2026)
 
 > **Release zip:** [eaxrotations.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.7.7)
