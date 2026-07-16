@@ -245,15 +245,6 @@ local function scorch_matches(context, state)
     if (state.mana_pct or 100) < 10 then return false end
     return state.scorch_ready
 end
-local function scorch_matches(context, state)
-    if not state then return false end
-    if not state.target then return false end
-    if not state.in_combat then return false end
-    if not state.use_scorch then return false end
-    if state.is_moving then return false end
-    if (state.mana_pct or 100) < 10 then return false end
-    return state.scorch_ready
-end
 
 --- Fireball — primary fire nuke, used when fire is preferred or as fallback nuke
 local function fireball_matches(context, state)
@@ -453,6 +444,8 @@ local strategies = {
       execute = execute_wand },
 }
 
-NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
+end
 -- [Mage] Leveling rotation loaded (Classic)
 return { strategies = strategies, build_state = build_state }

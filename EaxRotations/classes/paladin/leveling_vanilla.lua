@@ -269,6 +269,8 @@ local strategies = {
       execute = function(_, state) return NS.try_cast and NS.try_cast(state and state.selected_seal or SPELLS.SealRighteousness, NS.PLAYER_UNIT, "[LEVELING] Seal") or false end },
 }
 
-NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
+end
 -- [Paladin] Leveling rotation loaded (Classic)
 return { strategies = strategies, build_state = build_state }

@@ -335,6 +335,8 @@ local strategies = {
       execute = function(context) if not context then return false end return leveling.execute_wand(context) end },
 }
 
-NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
+end
 -- [Priest] Leveling rotation loaded (Classic)
 return { strategies = strategies, build_state = build_state }
