@@ -1,25 +1,22 @@
 -- test_leveling_compliance.lua -- Phase 2 compliance: leveling file standardization audit.
--- WHAT:  verifies that all 9 class leveling files meet the canonical contract:
+-- WHAT:  verifies that all 28 leveling files (TBC + Vanilla + WotLK) meet the contract:
 --          (a) Module loads without errors
 --          (b) Registers "leveling" playstyle with rotation_registry
 --          (c) Exposes build_state / get_state
 --          (d) Return shape includes strategies (array or .strategies field)
 --          (e) Registration is guarded (won't crash if registry missing)
 -- WHEN:  run as standalone test or via run_leveling_tests.lua.
--- WHY:   locks the leveling standardization contract; prevents drift.
+-- WHY:   locks the leveling standardization contract; prevents drift (Scenario 5).
 -- SAFETY: pure mock-based static analysis; no engine API calls.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
-
-local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
-local function assert_not_nil(v, label) if v == nil then error(label or "assert_not_nil failed", 2) end end
 
 local passed = 0
 local failed = 0
 local issues = {}
 
-local function add_issue(class, rule, detail)
-    issues[#issues + 1] = string.format("%s :: %s :: %s", class, rule, detail)
+local function add_issue(label, rule, detail)
+    issues[#issues + 1] = string.format("%s :: %s :: %s", label, rule, detail)
 end
 
 -- ============================================================================
@@ -66,6 +63,7 @@ local function build_mock_env(class_name, spell_keys)
             end,
         }
     end
+    NS.GetPlayer = NS.get_local_player
     NS.get_target = function()
         return {
             is_valid = function() return true end,
@@ -81,6 +79,10 @@ local function build_mock_env(class_name, spell_keys)
     NS.buff_remains = function() return 0 end
     NS.debuff_stacks = function() return 0 end
     NS.buff_up = function() return false end
+    NS.debuff_up = function() return false end
+    NS.has_form = function() return true end
+    NS.is_behind_target = function() return true end
+    NS.is_stealthed = function() return false end
     NS.combo_points = 0
     NS.energy = 100
 
@@ -93,14 +95,29 @@ local function build_mock_env(class_name, spell_keys)
         set_class_config = function(self, config) end,
     }
 
-    -- Build minimal spell table
-    local spell_table = {}
+    -- Build minimal spell table (metatable fallback for unknown keys)
+    local spell_table = setmetatable({}, {
+        __index = function(_, spell_field) return spell_field end,
+    })
     if spell_keys then
         for i, key in ipairs(spell_keys) do
             spell_table[key] = { 1000 + i }
         end
     end
     NS[class_name .. "Spells"] = spell_table
+
+    -- Provide empty spell tables for all classes so cross-requires don't crash
+    local all_classes = {
+        "Warrior", "Paladin", "Hunter", "Rogue", "Priest",
+        "Mage", "Warlock", "Druid", "Shaman", "DeathKnight",
+    }
+    for _, c in ipairs(all_classes) do
+        if not NS[c .. "Spells"] then
+            NS[c .. "Spells"] = setmetatable({}, {
+                __index = function(_, spell_field) return spell_field end,
+            })
+        end
+    end
 
     _G.core = core
     _G.EaxRotations = NS
@@ -109,37 +126,71 @@ local function build_mock_env(class_name, spell_keys)
 end
 
 -- ============================================================================
--- Test each class
+-- All 28 leveling files (9 TBC + 9 Vanilla + 10 WotLK)
 -- ============================================================================
 
-local classes = {
-    { name = "Druid",   path = "EaxRotations/classes/druid/leveling_sylvanas.lua",   spells = {"MarkOfTheWild","Thorns","Moonfire","Wrath"} },
-    { name = "Hunter",  path = "EaxRotations/classes/hunter/leveling_sylvanas.lua",  spells = {"AspectOfTheHawk","SerpentSting","ArcaneShot"} },
-    { name = "Mage",    path = "EaxRotations/classes/mage/leveling_sylvanas.lua",    spells = {"Frostbolt","FireBlast","ArcaneMissiles"} },
-    { name = "Paladin", path = "EaxRotations/classes/paladin/leveling_sylvanas.lua", spells = {"HolyLight","Judgement","SealOfRighteousness"} },
-    { name = "Priest",  path = "EaxRotations/classes/priest/leveling_sylvanas.lua",  spells = {"ShadowWordPain","MindBlast","Renew"} },
-    { name = "Rogue",   path = "EaxRotations/classes/rogue/leveling_sylvanas.lua",   spells = {"SinisterStrike","Eviscerate","SliceAndDice"} },
-    { name = "Shaman",  path = "EaxRotations/classes/shaman/leveling_sylvanas.lua",  spells = {"LightningBolt","EarthShock","HealingWave"} },
-    { name = "Warlock", path = "EaxRotations/classes/warlock/leveling_sylvanas.lua", spells = {"ShadowBolt","Corruption","Immolate"} },
-    { name = "Warrior", path = "EaxRotations/classes/warrior/leveling_sylvanas.lua", spells = {"HeroicStrike","Rend","Charge"} },
+local DEFAULT_SPELLS = {
+    Druid = { "MarkOfTheWild", "Thorns", "Moonfire", "Wrath" },
+    Hunter = { "AspectOfTheHawk", "SerpentSting", "ArcaneShot" },
+    Mage = { "Frostbolt", "FireBlast", "ArcaneMissiles" },
+    Paladin = { "HolyLight", "Judgement", "SealOfRighteousness" },
+    Priest = { "ShadowWordPain", "MindBlast", "Renew" },
+    Rogue = { "SinisterStrike", "Eviscerate", "SliceAndDice" },
+    Shaman = { "LightningBolt", "EarthShock", "HealingWave" },
+    Warlock = { "ShadowBolt", "Corruption", "Immolate" },
+    Warrior = { "HeroicStrike", "Rend", "Charge" },
+    DeathKnight = { "IcyTouch", "PlagueStrike", "BloodStrike", "DeathCoil" },
 }
 
-for _, class in ipairs(classes) do
-    -- Fresh environment per class
-    local NS = build_mock_env(class.name, class.spells)
+local files = {
+    -- TBC (leveling_sylvanas)
+    { label = "Druid/tbc",     class = "Druid",   path = "EaxRotations/classes/druid/leveling_sylvanas.lua" },
+    { label = "Hunter/tbc",    class = "Hunter",  path = "EaxRotations/classes/hunter/leveling_sylvanas.lua" },
+    { label = "Mage/tbc",      class = "Mage",    path = "EaxRotations/classes/mage/leveling_sylvanas.lua" },
+    { label = "Paladin/tbc",   class = "Paladin", path = "EaxRotations/classes/paladin/leveling_sylvanas.lua" },
+    { label = "Priest/tbc",    class = "Priest",  path = "EaxRotations/classes/priest/leveling_sylvanas.lua" },
+    { label = "Rogue/tbc",     class = "Rogue",   path = "EaxRotations/classes/rogue/leveling_sylvanas.lua" },
+    { label = "Shaman/tbc",    class = "Shaman",  path = "EaxRotations/classes/shaman/leveling_sylvanas.lua" },
+    { label = "Warlock/tbc",   class = "Warlock", path = "EaxRotations/classes/warlock/leveling_sylvanas.lua" },
+    { label = "Warrior/tbc",   class = "Warrior", path = "EaxRotations/classes/warrior/leveling_sylvanas.lua" },
+    -- Vanilla
+    { label = "Druid/vanilla",   class = "Druid",   path = "EaxRotations/classes/druid/leveling_vanilla.lua" },
+    { label = "Hunter/vanilla",  class = "Hunter",  path = "EaxRotations/classes/hunter/leveling_vanilla.lua" },
+    { label = "Mage/vanilla",    class = "Mage",    path = "EaxRotations/classes/mage/leveling_vanilla.lua" },
+    { label = "Paladin/vanilla", class = "Paladin", path = "EaxRotations/classes/paladin/leveling_vanilla.lua" },
+    { label = "Priest/vanilla",  class = "Priest",  path = "EaxRotations/classes/priest/leveling_vanilla.lua" },
+    { label = "Rogue/vanilla",   class = "Rogue",   path = "EaxRotations/classes/rogue/leveling_vanilla.lua" },
+    { label = "Shaman/vanilla",  class = "Shaman",  path = "EaxRotations/classes/shaman/leveling_vanilla.lua" },
+    { label = "Warlock/vanilla", class = "Warlock", path = "EaxRotations/classes/warlock/leveling_vanilla.lua" },
+    { label = "Warrior/vanilla", class = "Warrior", path = "EaxRotations/classes/warrior/leveling_vanilla.lua" },
+    -- WotLK
+    { label = "Druid/wotlk",        class = "Druid",       path = "EaxRotations/classes/druid/leveling_wotlk.lua" },
+    { label = "Hunter/wotlk",       class = "Hunter",      path = "EaxRotations/classes/hunter/leveling_wotlk.lua" },
+    { label = "Mage/wotlk",         class = "Mage",        path = "EaxRotations/classes/mage/leveling_wotlk.lua" },
+    { label = "Paladin/wotlk",      class = "Paladin",     path = "EaxRotations/classes/paladin/leveling_wotlk.lua" },
+    { label = "Priest/wotlk",       class = "Priest",      path = "EaxRotations/classes/priest/leveling_wotlk.lua" },
+    { label = "Rogue/wotlk",        class = "Rogue",       path = "EaxRotations/classes/rogue/leveling_wotlk.lua" },
+    { label = "Shaman/wotlk",       class = "Shaman",      path = "EaxRotations/classes/shaman/leveling_wotlk.lua" },
+    { label = "Warlock/wotlk",      class = "Warlock",     path = "EaxRotations/classes/warlock/leveling_wotlk.lua" },
+    { label = "Warrior/wotlk",      class = "Warrior",     path = "EaxRotations/classes/warrior/leveling_wotlk.lua" },
+    { label = "DeathKnight/wotlk",  class = "DeathKnight", path = "EaxRotations/classes/deathknight/leveling_wotlk.lua" },
+}
 
-    local ok, module = pcall(dofile, class.path)
+for _, entry in ipairs(files) do
+    local NS = build_mock_env(entry.class, DEFAULT_SPELLS[entry.class])
+
+    local ok, module = pcall(dofile, entry.path)
     if not ok then
-        add_issue(class.name, "load", "Module failed to load: " .. tostring(module))
+        add_issue(entry.label, "load", "Module failed to load: " .. tostring(module))
         failed = failed + 1
     elseif module == nil then
-        add_issue(class.name, "load", "Module returned nil")
+        add_issue(entry.label, "load", "Module returned nil")
         failed = failed + 1
     else
         -- (a) Check registration
         local reg = NS.rotation_registry._registrations["leveling"]
         if not reg then
-            add_issue(class.name, "registration", "Did not register 'leveling' playstyle")
+            add_issue(entry.label, "registration", "Did not register 'leveling' playstyle")
             failed = failed + 1
         else
             -- (b) Check build_state accessibility
@@ -150,7 +201,7 @@ for _, class in ipairs(classes) do
                 build_state_fn = reg.opts.get_state
             end
             if not build_state_fn then
-                add_issue(class.name, "build_state", "No build_state or get_state function found")
+                add_issue(entry.label, "build_state", "No build_state or get_state function found")
                 failed = failed + 1
             end
 
@@ -167,7 +218,7 @@ for _, class in ipairs(classes) do
                 strategies = reg.strategies
             end
             if not strategies then
-                add_issue(class.name, "strategies", "No strategies array, .strategies field, or registered strategies found")
+                add_issue(entry.label, "strategies", "No strategies array, .strategies field, or registered strategies found")
                 failed = failed + 1
             end
         end
@@ -179,19 +230,22 @@ for _, class in ipairs(classes) do
             spell_exists = function() return true end,
             try_cast = function() return true end,
             get_local_player = NS.get_local_player,
+            GetPlayer = NS.get_local_player,
             get_target = NS.get_target,
             get_distance = function() return 10 end,
             debuff_remains = function() return 0 end,
             buff_remains = function() return 0 end,
             buff_up = function() return false end,
+            debuff_up = function() return false end,
+            has_form = function() return true end,
             -- NO rotation_registry — module must not crash
         }
-        NS2[class.name .. "Spells"] = NS[class.name .. "Spells"]
+        NS2[entry.class .. "Spells"] = NS[entry.class .. "Spells"]
         _G.EaxRotations = NS2
 
-        local ok2, module2 = pcall(dofile, class.path)
+        local ok2, module2 = pcall(dofile, entry.path)
         if not ok2 then
-            add_issue(class.name, "guard", "Module crashed when rotation_registry is missing: " .. tostring(module2))
+            add_issue(entry.label, "guard", "Module crashed when rotation_registry is missing: " .. tostring(module2))
             failed = failed + 1
         else
             passed = passed + 1
@@ -208,8 +262,8 @@ if #issues > 0 then
     for _, issue in ipairs(issues) do
         print("  - " .. issue)
     end
-    print(string.format("\nResults: %d passed, %d failed", passed, failed))
+    print(string.format("\nResults: %d passed, %d failed (of %d files)", passed, failed, #files))
     error("test_leveling_compliance failed", 0)
 else
-    print(string.format("PASS test_leveling_compliance (%d classes, all conform)", passed))
+    print(string.format("PASS test_leveling_compliance (%d files, all conform)", passed))
 end
