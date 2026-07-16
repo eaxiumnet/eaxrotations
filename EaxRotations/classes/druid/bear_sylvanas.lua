@@ -32,6 +32,8 @@ local _opts = {}
 
 local SPELLS = NS.DruidSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local _hp_ok, HealthPred = pcall(require, "shared/health_pred_helper_sylvanas")
+if not _hp_ok or type(HealthPred) ~= "table" then HealthPred = nil end
 
 -- Centralized spell resolver via spec_kit (replaces per-spec spell() helper +
 -- FERAL_CHARGE/BASH/ENRAGE/MARK/GIFT/THORNS local spell variables).
@@ -515,7 +517,17 @@ local function frenzied_regen_matches(context, action)
     if not s.use_cooldowns then return false end   -- gated on Cooldowns setting
     if s.has_frenzied_regen then return false end
     if (s.rage or 0) < RAGE_FRENZIED_REGEN then return false end
-    if (s.hp or 100) > s.frenzied_regen_hp then return false end
+    local hp = s.hp or 100
+    local threshold = s.frenzied_regen_hp or 35
+    if hp > threshold then
+        local me = s.me or (NS.GetPlayer and NS.GetPlayer())
+        local pred_hp = hp
+        if me and HealthPred and HealthPred.predicted_hp_pct then
+            local ok, pct = pcall(HealthPred.predicted_hp_pct, me, 2.0)
+            if ok and type(pct) == "number" then pred_hp = pct end
+        end
+        if pred_hp > threshold then return false end
+    end
     return action_ready(context, action)
 end
 
