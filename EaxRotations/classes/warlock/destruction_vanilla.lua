@@ -34,6 +34,7 @@ do
     local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
     if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
 end
+local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.WarlockSpells or {}
 
 -- Debuff and buff ID lists for state queries
@@ -108,9 +109,13 @@ local function build_state(context)
     state.has_demon_armor = me and NS.buff_up(me, DEMON_ARMOR_BUFF) or false
     state.has_shadow_ward = me and NS.buff_up(me, SHADOW_WARD_BUFF) or false
     state.hp = context.hp or 100
+    state.hp_pct = context.hp or context.hp_pct or 100
     state.mana_pct = context.mana_pct or 100
     state.spell_damage = context.spell_damage or 0
     state.level = context.level or context.player_level or 60
+    state.target_casting = target and target.is_casting and target:is_casting() or false
+    state.target_casting_interruptible = state.target_casting
+        and (NS.is_interruptible and NS.is_interruptible(target) or false)
     -- Find ready mana item
     state.mana_gem_id = nil
     for _, id in ipairs(MANA_ITEM_IDS) do
@@ -184,6 +189,10 @@ end
 local function shadowburn_matches(context, action, state)
     if not context.target then return false end
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
+    if NS.gate_cooldown and NS.gate_cooldown(context, "Shadowburn", action.cooldown or 15) then return false end
+    if NS.should_burst and context.settings and context.settings.destro_shadowburn_burst_only then
+        if not NS.should_burst(context) then return false end
+    end
     local hp_threshold = (context.settings and context.settings.destro_shadowburn_hp) or SHADOWBURN_HP_PCT
     if not (NS.is_execute_phase and NS.is_execute_phase(context.target_hp, hp_threshold)) then return false end
     return NS.spell_ready(action.spell, context.target)
@@ -295,14 +304,21 @@ end
 local function death_coil_matches(context, action, state)
     if not state then return false end
     state = state or {}
-    if (state.hp or 100) > 35 then return false end
+    local hp = state.hp_pct or state.hp or 100
+    if hp > 35 then return false end
+    if NS.gate_cooldown and NS.gate_cooldown(context, "DeathCoil", action.cooldown or 120) then return false end
     return true
 end
 
 local function fear_matches(context, action, state)
     if not context.target then return false end
     if not NS.spell_ready(action.spell, context.target) then return false end
-    return true
+    -- Prefer Fear when target is casting (soft interrupt / lockout pressure)
+    if state and state.target_casting and not state.target_casting_interruptible then
+        return true
+    end
+    if context.is_pvp or context.is_solo then return true end
+    return state and state.target_casting == true
 end
 
 local function aoe_matches(context, action, state)
@@ -403,7 +419,6 @@ end
 -- ============================================================================
 
 -- ManaGem: auto-use mana items when mana is low
--- Insert at position 7 (after DarkPact=6, before DrainLife=7)
 table.insert(strategies, 7, {
     name = "ManaGem",
     matches = function(context, state)
@@ -421,8 +436,45 @@ table.insert(strategies, 7, {
     end,
 })
 
-NS.rotation_registry:register("destruction", strategies, { get_state = build_state })
--- Warlock destruction rotation registered (build_state, explicit strategies, Backlash/Backdraft, execute, AoE, defensives, utility)
-return strategies
+-- HealthPotion via potion_helper (defensive consumable)
+table.insert(strategies, 8, {
+    name = "HealthPotion",
+    matches = function(context, state)
+        if not context.in_combat then return false end
+        if (state.hp_pct or state.hp or 100) > 35 then return false end
+        if not potion_helper or not potion_helper.try_use_potion then return false end
+        return true
+    end,
+    execute = function(context, state)
+        return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS or {}) == true
+    end,
+})
+
+-- Trinket on burst / execute windows
+table.insert(strategies, 9, {
+    name = "Trinket",
+    matches = function(context, state)
+        if not context.in_combat then return false end
+        if not NS.use_trinket and not (NS.TrinketManager and NS.TrinketManager.try_use) then return false end
+        local in_execute = NS.is_execute_phase and NS.is_execute_phase(context.target_hp, SHADOWBURN_HP_PCT)
+        local burst = NS.should_burst and NS.should_burst(context)
+        if not in_execute and not burst then return false end
+        return true
+    end,
+    execute = function(context, state)
+        if NS.TrinketManager and NS.TrinketManager.try_use then
+            return NS.TrinketManager.try_use(context) == true
+        end
+        if NS.use_trinket then
+            return NS.use_trinket(context) == true
+        end
+        return false
+    end,
+})
+
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("destruction", strategies, { get_state = build_state })
+end
+return { strategies = strategies, build_state = build_state }
 
 
