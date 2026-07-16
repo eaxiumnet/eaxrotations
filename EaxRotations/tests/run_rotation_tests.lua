@@ -341,7 +341,8 @@ local tests = {
  "test_state_field_nil_guards_2026_06.lua",
  "test_warrior_middleware_nil_guard.lua",
  "test_healer_deficit.lua",
- "test_spell_id_table.lua",
+  "test_healer_deficit_consumers.lua",
+  "test_spell_id_table.lua",
 
   -- Middleware / integration tests (previously orphaned)
   "test_buff_upgrade.lua",
