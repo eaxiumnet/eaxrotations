@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.10.0 - 2026-07-16
+
+### Customer Changelog
+- TBC Phase 2: **all 9 classes** 1–70 spell-ladder + solo/group/dungeon/raid(70) matches tests.
+- Cat: Mangle debuff soft-gated until talent learned.
+- Version **2.10.0**.
+
+### Developer Notes
+- `tbc_ladder_helper.lua` + `test_tbc_spell_ladders.lua` (**281** cases)
+- Matrix: `plans/tbc-deep-audit-matrix-2026-07-16.md`
+- Prior TBC gap-matrix “aligned” is **not** re-claimed as Phase-2 done
+
 ## 2.9.2 - 2026-07-16
 
 ### Customer Changelog
