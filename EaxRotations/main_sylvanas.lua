@@ -146,6 +146,11 @@ NS.auto_loot = auto_loot
 -- health_prediction: tank detection, PvP detection, incoming damage heuristics.
 NS.health_prediction = health_prediction
 
+-- health_pred_helper must load AFTER NS.health_prediction is set (it wraps that API).
+-- Exposes NS.incoming_damage / NS.predicted_hp_pct / NS.is_tank_role for healers/tanks.
+local _hph_ok, health_pred_helper = pcall(require, "shared/health_pred_helper_sylvanas")
+if not _hph_ok or type(health_pred_helper) ~= "table" then health_pred_helper = nil end
+
 local _last_error_time = 0
 local _trace_strat_last = {}  -- per-list trace throttle (keyed by strategy list name)
 local _trace_strategy_last = {}  -- per-strategy trace throttle — keyed by ``list:strategy_name``. Used to suppress the matched=true/executed=false spam from AutoConsumable et al when the executor is a no-op (no setting matches, no item in bags). Default 30s budget per strategy.
@@ -1600,6 +1605,10 @@ function M.on_rotation_update()
     if NS.auto_loot and NS.auto_loot.on_tick then
         pcall(NS.auto_loot.on_tick, context)
     end
+    -- Swing timer offset/haste tracking for hunter_adaptive + melee consumers
+    if NS.SwingTimer and type(NS.SwingTimer.on_update) == "function" then
+        pcall(NS.SwingTimer.on_update)
+    end
     if _tick_start and tick_profiler then tick_profiler.end_tick(_tick_start) end
     return fired
 end
@@ -1692,6 +1701,10 @@ function M.on_rotation_update_unified()
     -- v1.0: Auto-loot corpses (background service, never blocks rotation)
     if NS.auto_loot and NS.auto_loot.on_tick then
         pcall(NS.auto_loot.on_tick, context)
+    end
+    -- Swing timer offset/haste tracking for hunter_adaptive + melee consumers
+    if NS.SwingTimer and type(NS.SwingTimer.on_update) == "function" then
+        pcall(NS.SwingTimer.on_update)
     end
     if _tick_start and tick_profiler then tick_profiler.end_tick(_tick_start) end
     return fired
