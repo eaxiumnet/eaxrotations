@@ -485,7 +485,7 @@ local _strategies = {
         matches = function(ctx, s)
             if not s.is_cat then return false end
             if not ctx.has_valid_enemy_target then return false end
-            local required_cp = (s.level or 70) < 50 and 3 or 4
+            local required_cp = (s.level or 60) < 50 and 3 or 4
             if (s.combo_points or 0) < required_cp then return false end
             if (s.target_ttd or 999) < MIN_RIP_TTD then return false end
             if (s.rip_remains or 0) > RIP_REFRESH_WINDOW then return false end

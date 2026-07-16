@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.9.0 - 2026-07-16
+
+### Customer Changelog
+- Phase 2: **all 9 classes** Classic 1–60 spell-ladder tests (fillers when high talents unlearned).
+- Version **2.9.0**. Tests: 279 rotation + 18 leveling.
+
+### Developer Notes
+- `vanilla_ladder_helper.lua` + `test_vanilla_spell_ladders.lua` (175 cases)
+- Deep matrix updated with per-class evidence
+- `cat_vanilla` CP threshold default level 60
+
 ## 2.8.0 - 2026-07-16
 
 ### Customer Changelog
