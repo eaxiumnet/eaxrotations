@@ -404,6 +404,17 @@ local function build_state(context)
     state.emergency_damage = (state.hp or 100) <= 30 and (state.pack_loose or 0) > 0
 
     update_rage_tracking(state)
+
+    if NS.SnapThreat and type(NS.SnapThreat.check) == "function" and state.is_bear then
+        local snap_spell = NS.SnapThreat.check(state.me, state.target, context.settings, {
+            spell_id = SPELLS.Growl,
+            fallback_id = SPELLS.Maul,
+        })
+        if snap_spell and NS.try_cast and state.target then
+            pcall(NS.try_cast, snap_spell, state.target, "[BEAR] Snap Threat opener")
+        end
+    end
+
     return state
 end
 

@@ -422,7 +422,17 @@ local function build_state(context)
     state.swing_remains = swing_remains
 
     update_rage_tracking(state)
-    -- safe_state proxy: structural nil-guard elimination (Pattern 14)
+
+    if NS.SnapThreat and type(NS.SnapThreat.check) == "function" and state.is_bear then
+        local snap_spell = NS.SnapThreat.check(state.me, state.target, context.settings, {
+            spell_id = ACTION.Growl,
+            fallback_id = ACTION.MangleBear or ACTION.Maul,
+        })
+        if snap_spell and NS.try_cast and state.target then
+            pcall(NS.try_cast, snap_spell, state.target, "[BEAR] Snap Threat opener")
+        end
+    end
+
     return spec_kit.safe_state(state, BEAR_SCHEMA)
 end
 

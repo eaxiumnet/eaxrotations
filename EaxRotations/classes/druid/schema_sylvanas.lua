@@ -49,6 +49,7 @@ return {
                     { key = "bear_use_barkskin", type = "checkbox", label = "Barkskin (breaks form)", default = false, tooltip = "WARNING: Barkskin forces you out of Bear form in TBC. Only enable if you pre-shift manually." },
                     { key = "bear_use_challenging_roar", type = "checkbox", label = "Challenging Roar", default = false, tooltip = "AoE taunt — situational (10min CD). Enable only when you want the rotation to use it." },
                     { key = "bear_demo_roar", type = "checkbox", label = "Demoralizing Roar", default = true },
+                    { key = "snap_threat_enabled", type = "checkbox", label = "Snap Threat on Combat Start", default = true, tooltip = "Fire Growl (or Mangle/Maul fallback) immediately when entering combat to establish threat" },
                     { key = "auto_bear_form_ooc", type = "checkbox", label = "Auto Bear Form OOC", default = true },
                 },
             },
