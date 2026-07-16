@@ -1,7 +1,7 @@
 -- beast_mastery_vanilla.lua — Hunter Beast Mastery for Vanilla/Classic Anniversary (1.15.x).
--- WHAT:  pet-focused DPS (Bestial Wrath, pet management, auto-shot weave).
+-- WHAT:  pet-focused DPS (Bestial Wrath, Aimed Shot primary, Multi/Arcane fillers, auto weave).
 -- WHEN:  combat, with active pet, when NS.is_vanilla() is true.
--- WHY:   expansion-aware loader selects _vanilla suffix for Classic Era.
+-- WHY:   Classic Era hunter APL (wowsims classic p1): Aimed > Multi > Serpent; no Steady Shot.
 -- SAFETY: nil-guards on NS, SPELLS, and state fields per Pattern 14.
 
 local NS = _G.EaxRotations
@@ -19,7 +19,8 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 -- Constants
 -- ============================================================================
 local AUTO_SHOT_ID = 75
-local ARCANE_SHOT_MANA_FLOOR = 20   -- Research Angle 4: <20% = Steady Shot only
+local AIMED_SHOT_CAST_MS = 3000     -- Classic Aimed Shot cast; weave in auto gaps (wowsims p1)
+local ARCANE_SHOT_MANA_FLOOR = 20   -- Suppress Arcane when mana critical
 local MULTI_SHOT_MANA_FLOOR = 15    -- Suppress expensive AoE below 15%
 local SERPENT_STING_IDS  = { 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
 local SCORPID_STING_IDS  = { 3043 }
@@ -46,6 +47,7 @@ local state = {
     has_scorpid_sting = false, has_viper_sting = false,
     arcane_shot_ready = false,
     multi_shot_ready = false,
+    aimed_shot_ready = false,
     bestial_wrath_ready = false, rapid_fire_ready = false,
     feign_death_ready = false, mend_pet_ready = false,
     call_pet_ready = false, revive_pet_ready = false,
@@ -120,6 +122,7 @@ local function build_state(context)
     state.serpent_sting_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.SerpentSting, target) or false
     state.arcane_shot_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.ArcaneShot, target) or false
     state.multi_shot_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.MultiShot, target) or false
+    state.aimed_shot_ready = target and NS.spell_ready and NS.spell_ready(SPELLS.AimedShot, target, { expected_cooldown = 6 }) or false
     state.bestial_wrath_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.BestialWrath, me, { skip_range = true }) or false
     state.rapid_fire_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true }) or false
     state.feign_death_ready = me and NS.spell_ready and NS.spell_ready(SPELLS.FeignDeath, me, { skip_range = true }) or false
@@ -369,13 +372,31 @@ local function serpent_refresh_matches(context, s)
     return true
 end
 
--- Arcane Shot (instant filler, suppressed at low mana per Research Angle 4: <20% = Steady only)
+-- Aimed Shot: Classic Era primary cast (wowsims hunter p1.apl — no Steady Shot)
+local function aimed_shot_matches(context, s)
+    if not mounted_bail(context, s) then return false end
+    if not s.in_combat then return false end
+    if not context.target then return false end
+    if not s.aimed_shot_ready then return false end
+    if (s.mana_pct or 100) < 20 then return false end
+    -- Cast only when there is enough auto-shot gap to finish the cast
+    if hunter_core.can_cast_steady then
+        if not hunter_core.can_cast_steady(s.shot_buffer or 150) then return false end
+    elseif hunter_core.can_cast_instant then
+        if not hunter_core.can_cast_instant(AIMED_SHOT_CAST_MS, s.shot_buffer) then return false end
+    end
+    return true
+end
+
+-- Arcane Shot (instant filler, suppressed at low mana)
 local function arcane_shot_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not s.arcane_shot_ready then return false end
-    -- Mana gate: suppress Arcane Shot below 20% mana (Research Angle 4)
+    -- Mana gate: suppress Arcane Shot below 20% mana
     if (s.mana_pct or 100) < ARCANE_SHOT_MANA_FLOOR then return false end
+    -- Prefer Aimed Shot when ready (classic priority: Aimed > Multi > Arcane filler)
+    if s.aimed_shot_ready then return false end
     -- Check auto-shot clipping for instant
     if not hunter_core.can_cast_instant(500, s.shot_buffer) then return false end
     return true
@@ -640,6 +661,16 @@ local strategies = {
         matches = feign_death_matches,
         execute = function(context) return NS.try_cast(SPELLS.FeignDeath, context.me, "[BEAST_MASTERY] FeignDeath", { skip_range = true }) end,
     },
+    -- 13. Aimed Shot (Classic Era primary cast — wowsims hunter p1.apl)
+    {
+        name = "AimedShot",
+        matches = aimed_shot_matches,
+        execute = function(context)
+            local result = NS.try_cast(SPELLS.AimedShot, context.target, "[BEAST_MASTERY] AimedShot", { expected_cooldown = 6 })
+            if result and hunter_core.record_instant_shot then hunter_core.record_instant_shot() end
+            return result
+        end,
+    },
     -- 15. Multi-Shot (AoE)
     {
         name = "MultiShot",
@@ -656,7 +687,7 @@ local strategies = {
         matches = serpent_refresh_matches,
         execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[BEAST_MASTERY] SerpentSting") end,
     },
-    -- 18. Arcane Shot (instant filler)
+    -- 18. Arcane Shot (instant filler when Aimed not ready)
     {
         name = "ArcaneShot",
         matches = arcane_shot_matches,

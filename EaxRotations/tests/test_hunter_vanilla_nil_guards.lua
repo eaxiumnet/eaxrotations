@@ -100,7 +100,7 @@ local base_ctx = { in_combat = true, target = {}, me = {}, settings = {}, hp = 8
 
 -- Beast Mastery
 test_spec("EaxRotations/classes/hunter/beast_mastery_vanilla.lua", "beast_mastery_vanilla",
-    { "HealthPotion", "ManaPotion", "CallPet", "RevivePet", "PetDefensive", "PetPassive", "PetAggressive", "AspectOfTheHawk_OOC", "MendPet", "HuntersMark", "FreezingTrap", "BestialWrath", "RapidFire", "FeignDeath", "MultiShot", "SerpentStingRefresh", "ArcaneShot", "SerpentSting", "Trinket", "ConcussiveShot" },
+    { "HealthPotion", "ManaPotion", "CallPet", "RevivePet", "PetDefensive", "PetPassive", "PetAggressive", "AspectOfTheHawk_OOC", "MendPet", "HuntersMark", "FreezingTrap", "BestialWrath", "RapidFire", "FeignDeath", "AimedShot", "MultiShot", "SerpentStingRefresh", "ArcaneShot", "SerpentSting", "Trinket", "ConcussiveShot" },
     base_ctx)
 
 -- Marksmanship
@@ -110,7 +110,7 @@ test_spec("EaxRotations/classes/hunter/marksmanship_vanilla.lua", "marksmanship_
 
 -- Survival
 test_spec("EaxRotations/classes/hunter/survival_vanilla.lua", "survival_vanilla",
-    { "HealthPotion", "ManaPotion", "PetDefensive", "PetPassive", "PetAggressive", "MendPet", "CallPet", "RevivePet", "AspectOfTheHawk", "FreezingTrap", "HuntersMark", "RapidFire", "ExplosiveTrap", "FeignDeath", "ConcussiveShot", "ScorpidSting", "Volley", "RaptorStrike", "WingClip", "LevelingArcaneShot" },
+    { "HealthPotion", "ManaPotion", "PetDefensive", "PetPassive", "PetAggressive", "MendPet", "CallPet", "RevivePet", "AspectOfTheHawk", "FreezingTrap", "HuntersMark", "RapidFire", "ExplosiveTrap", "FeignDeath", "ConcussiveShot", "ScorpidSting", "Volley", "RaptorStrike", "WingClip", "LevelingArcaneShot", "AimedShot" },
     base_ctx)
 
 -- Leveling

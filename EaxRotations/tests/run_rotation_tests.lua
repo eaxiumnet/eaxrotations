@@ -314,6 +314,8 @@ local tests = {
  "test_rogue_vanilla_nil_guards.lua",
  "test_paladin_vanilla_nil_guards.lua",
  "test_hunter_vanilla_nil_guards.lua",
+ "test_hunter_vanilla_aimed_shot.lua",
+ "test_destruction_vanilla_soul_fire_execute.lua",
  "test_mage_vanilla_nil_guards.lua",
  "test_priest_vanilla_nil_guards.lua",
  "test_shaman_vanilla_nil_guards.lua",

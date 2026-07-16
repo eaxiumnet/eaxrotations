@@ -1,5 +1,20 @@
 # EaxRotations Changelog
 
+## v2.7.9 — Classic Vanilla Re-check + Hunter Aimed Shot (July 16, 2026)
+
+> **Release:** v2.7.9  
+> **Game:** Classic Era / Vanilla (1.15) + TBC Classic (2.5.5)
+
+### What you’ll notice
+
+- **All 31 Classic Era combat specs re-checked** against wowsims classic APLs and Classic guides (Wowhead, Icy Veins, Warcraft Tavern).
+- **Classic Hunters (BM + Survival)** now use **Aimed Shot** as the primary cast (as in Classic sims), not only Multi/Arcane.
+- **Classic Destruction Warlocks** no longer burn soul shards on continuous Soul Fire mid-fight — Soul Fire is reserved for the execute window (with Shadowburn still preferred).
+
+Reload for **v2.7.9**.
+
+---
+
 ## v2.7.8 — Full TBC Spec Re-check + Destro Execute (July 16, 2026)
 
 > **Release:** v2.7.8  

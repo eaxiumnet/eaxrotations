@@ -1,3 +1,32 @@
+# Developer Changelog — EaxRotations v2.7.9
+
+**Date:** 2026-07-16  
+**Branch:** master  
+**Scope:** Classic Vanilla (1.15) 31-spec guide/APL re-verification + material fixes
+
+### Gap matrix
+- New: `plans/vanilla-rotation-gap-matrix-2026-07-16.md` (all 31 combat `*_vanilla.lua` specs)
+
+### Material code fixes
+| File | Change |
+|------|--------|
+| `classes/hunter/beast_mastery_vanilla.lua` | Aimed Shot primary (wowsims classic hunter p1); Arcane yields when Aimed ready |
+| `classes/hunter/survival_vanilla.lua` | Aimed Shot before Multi/Arcane |
+| `classes/warlock/destruction_vanilla.lua` | SoulFire execute-gated (shard + HP); Shadowburn above SoulFire/ShadowBolt |
+
+### Tests
+- `test_hunter_vanilla_aimed_shot.lua` — priority index + matches
+- `test_destruction_vanilla_soul_fire_execute.lua` — execute gate + order
+- Updated nil-guard strategy lists for hunter/warlock vanilla
+
+### Verification
+- `luac -p` on changed Lua
+- `run_rotation_tests.lua` → 277/277
+- `run_leveling_tests.lua` → 18/18
+- Version: **2.7.9** (header, VERSION.txt, README badge)
+
+---
+
 # Developer Changelog — EaxRotations v2.7.8
 
 **Date:** 2026-07-16  
