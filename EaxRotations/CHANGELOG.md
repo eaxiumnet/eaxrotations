@@ -20,13 +20,24 @@
 ### Customer Changelog
 - **All 29 TBC specs re-verified** against wowsims APLs, SimC/wowapls patterns, Wowhead, Icy Veins, and Warcraft Tavern (see `plans/tbc-rotation-gap-matrix-2026-07-16.md`).
 - **Warlock (Destruction)**: Shadowburn now correctly fires in execute (≤20% HP) instead of being blocked by Shadow Bolt / Incinerate filler while standing still. Matches wowsims destro_fire APL execute priority.
+- **Druid (Feral)**: Low-level cats (level 42-49) can now use Shred, Rip, Ravage, and Ferocious Bite without being blocked by the Mangle (Cat) debuff requirement that only applies once Mangle is learned at level 50.
+- **Druid (Feral)**: Rip now tracks all rank IDs correctly, so low-level Rip casts no longer silently fail.
+- **Druid (Bear)**: Maul rage threshold scales down when Mangle (Bear) is not yet learned, so low-level bears spend rage earlier.
+- **Druid (Bear)**: Swipe cleave works before Lacerate is available.
+- **Druid (Bear)**: Demoralizing Roar no longer wastes a GCD on a single target that is about to die.
 - Version bumped to 2.7.8.
-- Tests: 275 rotation + 18 leveling suites green.
+- Clean `eaxrotations.zip` (lua + md only).
+- Tests: 274 rotation + 18 leveling suites green.
 
 ### Developer Notes
 - Gap matrix: `plans/tbc-rotation-gap-matrix-2026-07-16.md` — per-spec logic/settings verdict for all 29 combat specs; tie-breakers documented (wowsims APL > contested guide opinion).
 - `destruction_sylvanas.lua`: reorder ACTIONS so `Shadowburn` sits above `Incinerate` / `ShadowBolt` / `SoulFire` (was dead while stationary because fillers always matched first).
 - `test_destruction_shadowburn.lua`: asserts strategy index order (Shadowburn < Incinerate and < ShadowBolt) in addition to execute HP / soul-shard match gates.
+- `cat_sylvanas.lua`: `shred_matches` and `stealth_shred_matches` now gate the Mangle-debuff requirement on `spell_exists(ACTION.MangleCat)`; `RIP_DEBUFF` expanded to `{ 27008, 9896, 9894, 9752, 9493, 9492, 1079 }`.
+- `leveling_sylvanas.lua`: `shred_matches` gates Mangle-debuff requirement on `mangle_cat_ready`; `RIP_DEBUFF` and `RAKE_DEBUFF` expanded with missing ranks.
+- `bear_sylvanas.lua`: pre-Mangle Maul uses level-scaled threshold; Swipe cleave Lacerate-stack gate only when `spell_exists(ACTION.Lacerate)`; Demo Roar skips single-target on `target_hp <= 20` or `ttd < 10`; `state.level` populated from context.
+- Added regression tests: `test_druid_feral_level_42.lua`, `test_druid_feral_l42_mangle_gate.lua`.
+- Updated `test_leveling_druid.lua` FerociousBite mock IDs.
 - Material gaps found this pass: **1** (Destruction Shadowburn). All other specs **aligned** or **source-disagreement** with documented tie-break.
 
 ## 2.7.7 - 2026-07-16
