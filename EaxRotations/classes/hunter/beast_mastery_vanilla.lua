@@ -19,9 +19,27 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 -- Constants
 -- ============================================================================
 local AUTO_SHOT_ID = 75
+local AUTO_SHOT_BUFFER_MS = 100
 local AIMED_SHOT_CAST_MS = 3000     -- Classic Aimed Shot cast; weave in auto gaps (wowsims p1)
 local ARCANE_SHOT_MANA_FLOOR = 20   -- Suppress Arcane when mana critical
 local MULTI_SHOT_MANA_FLOOR = 15    -- Suppress expensive AoE below 15%
+
+-- Match MM/Survival: casted Aimed needs remain > cast_ms + buffer (NOT can_cast_steady).
+local function can_cast_before_auto(cast_ms)
+    local tracker = NS.HunterClipTracker
+    if tracker and type(tracker.ms_until_auto) == "function" then
+        local remain = tracker.ms_until_auto()
+        return remain == 0 or remain > cast_ms + AUTO_SHOT_BUFFER_MS
+    end
+    return true
+end
+
+local function record_manual_shot()
+    local tracker = NS.HunterClipTracker
+    if tracker and type(tracker.record_manual_shot) == "function" then
+        tracker.record_manual_shot()
+    end
+end
 local SERPENT_STING_IDS  = { 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
 local SCORPID_STING_IDS  = { 3043 }
 local VIPER_STING_IDS    = { 14280, 14279, 3034 }
@@ -373,18 +391,15 @@ local function serpent_refresh_matches(context, s)
 end
 
 -- Aimed Shot: Classic Era primary cast (wowsims hunter p1.apl — no Steady Shot)
+-- Weave rule matches marksmanship/survival_vanilla: remain > AIMED_SHOT_CAST_MS + buffer.
+-- Do NOT use hunter_core.can_cast_steady (TBC Steady ~1.5s + high-haste remain>500).
 local function aimed_shot_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not context.target then return false end
     if not s.aimed_shot_ready then return false end
     if (s.mana_pct or 100) < 20 then return false end
-    -- Cast only when there is enough auto-shot gap to finish the cast
-    if hunter_core.can_cast_steady then
-        if not hunter_core.can_cast_steady(s.shot_buffer or 150) then return false end
-    elseif hunter_core.can_cast_instant then
-        if not hunter_core.can_cast_instant(AIMED_SHOT_CAST_MS, s.shot_buffer) then return false end
-    end
+    if not can_cast_before_auto(AIMED_SHOT_CAST_MS) then return false end
     return true
 end
 
@@ -667,7 +682,8 @@ local strategies = {
         matches = aimed_shot_matches,
         execute = function(context)
             local result = NS.try_cast(SPELLS.AimedShot, context.target, "[BEAST_MASTERY] AimedShot", { expected_cooldown = 6 })
-            if result and hunter_core.record_instant_shot then hunter_core.record_instant_shot() end
+            -- Casted Aimed: same clip-tracker path as MM/Survival (not instant-shot record)
+            if result then record_manual_shot() end
             return result
         end,
     },

@@ -1,13 +1,21 @@
--- test_hunter_vanilla_aimed_shot.lua — Classic BM/Survival Aimed Shot priority tests.
--- WHAT:  Assert AimedShot exists above Multi/Arcane and matches on real strategy tables.
+-- test_hunter_vanilla_aimed_shot.lua — Classic BM/Survival Aimed Shot priority + weave tests.
+-- WHAT:  Assert AimedShot above Multi/Arcane; BM weave uses AIMED cast window not Steady.
 -- WHEN:  During rotation test suite execution.
 -- WHY:   wowsims classic hunter p1.apl uses Aimed as primary cast (no Steady Shot).
--- SAFETY: Pure unit tests with mocked API; drives shipped matches functions.
+-- SAFETY: Pure unit tests with mocked API; drives shipped matches/execute.
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 local function assert_false(v, label) if v then error(label or "assert_false failed", 2) end end
+local function assert_eq(a, b, label)
+    if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end
+end
+
+local ms_until_auto_val = 0
+local manual_shot_calls = 0
+local steady_calls = 0
+local instant_record_calls = 0
 
 _G.EaxRotations = {
     HunterSpells = {
@@ -38,6 +46,13 @@ _G.EaxRotations = {
     log = function() end,
     rotation_registry = { register = function() end },
     broken_api_throttled = function() return false end,
+    -- MM/Survival weave path: remain > cast_ms + buffer (Aimed = 3000ms + 100ms)
+    HunterClipTracker = {
+        ms_until_auto = function() return ms_until_auto_val end,
+        record_manual_shot = function()
+            manual_shot_calls = manual_shot_calls + 1
+        end,
+    },
 }
 
 package.loaded["shared/spec_kit_sylvanas"] = {
@@ -49,13 +64,20 @@ package.loaded["shared/potion_helper_sylvanas"] = {
     try_use_potion = function() return false end,
     HEALTH_POTION_IDS = {}, MANA_POTION_IDS = {}, DAMAGE_POTION_IDS = {},
 }
+-- Poison trap: if BM Aimed still calls can_cast_steady, count it; weave test must not rely on it.
 package.loaded["shared/hunter_core_sylvanas"] = {
     get_pet = function() return nil end,
     pet_alive = function() return false end,
     pet_hp_pct = function() return 100 end,
-    can_cast_steady = function() return true end,
+    can_cast_steady = function()
+        steady_calls = steady_calls + 1
+        -- Mimic TBC Steady high-haste case3: allow whenever remain > 500
+        return ms_until_auto_val == 0 or ms_until_auto_val > 500
+    end,
     can_cast_instant = function() return true end,
-    record_instant_shot = function() end,
+    record_instant_shot = function()
+        instant_record_calls = instant_record_calls + 1
+    end,
     sting_remains = function() return 10 end,
     should_feign_death = function() return false end,
 }
@@ -95,6 +117,7 @@ assert_true(bm_aimed_i < bm_arcane_i,
 local bm_state = {
     in_combat = true, aimed_shot_ready = true, mana_pct = 80, is_mounted = false,
 }
+ms_until_auto_val = 0
 assert_true(bm_aimed.matches({ in_combat = true, target = {}, me = {} }, bm_state),
     "BM AimedShot matches in combat with mana and ready")
 bm_state.in_combat = false
@@ -104,6 +127,36 @@ bm_state.in_combat = true
 bm_state.mana_pct = 10
 assert_false(bm_aimed.matches({ in_combat = true, target = {}, me = {} }, bm_state),
     "BM AimedShot does not match at low mana")
+bm_state.mana_pct = 80
+
+-- ============================================================================
+-- BM weave: Aimed needs remain > 3000 + 100, NOT Steady-length (can_cast_steady remain>500)
+-- ============================================================================
+steady_calls = 0
+-- 1500ms left: enough for Steady high-haste (remain>500) but NOT for 3.0s Aimed cast
+ms_until_auto_val = 1500
+assert_false(bm_aimed.matches({ in_combat = true, target = {}, me = {} }, bm_state),
+    "BM AimedShot must NOT match when only 1500ms until auto (needs AIMED_SHOT_CAST_MS gap)")
+assert_eq(steady_calls, 0,
+    "BM AimedShot must not call hunter_core.can_cast_steady (Steady-length/haste path)")
+
+-- 2500ms: still below 3000+100 Aimed window
+ms_until_auto_val = 2500
+assert_false(bm_aimed.matches({ in_combat = true, target = {}, me = {} }, bm_state),
+    "BM AimedShot must NOT match at 2500ms until auto")
+
+-- 3200ms: above AIMED_SHOT_CAST_MS (3000) + AUTO_SHOT_BUFFER_MS (100)
+ms_until_auto_val = 3200
+assert_true(bm_aimed.matches({ in_combat = true, target = {}, me = {} }, bm_state),
+    "BM AimedShot matches when remain > AIMED cast + buffer (3200ms)")
+
+-- Execute must record manual shot (casted Aimed), not instant-shot tracker
+manual_shot_calls = 0
+instant_record_calls = 0
+ms_until_auto_val = 0
+assert_true(bm_aimed.execute({ target = {}, me = {} }), "BM AimedShot execute returns true")
+assert_eq(manual_shot_calls, 1, "BM AimedShot execute must call HunterClipTracker.record_manual_shot")
+assert_eq(instant_record_calls, 0, "BM AimedShot execute must NOT call record_instant_shot")
 
 -- ============================================================================
 -- Survival
@@ -123,10 +176,18 @@ assert_true(sv_aimed_i < sv_arcane_i,
     string.format("Survival AimedShot (%d) must be before ArcaneShot (%d)", sv_aimed_i, sv_arcane_i))
 
 local sv_state = { in_combat = true, aimed_shot_ready = true, mana_pct = 80 }
+ms_until_auto_val = 0
 assert_true(sv_aimed.matches({ in_combat = true, target = {} }, sv_state),
     "Survival AimedShot matches in combat")
 sv_state.in_combat = false
 assert_false(sv_aimed.matches({ in_combat = false, target = {} }, sv_state),
     "Survival AimedShot does not match OOC")
+sv_state.in_combat = true
+ms_until_auto_val = 1500
+assert_false(sv_aimed.matches({ in_combat = true, target = {} }, sv_state),
+    "Survival AimedShot must NOT match at 1500ms until auto")
+ms_until_auto_val = 3200
+assert_true(sv_aimed.matches({ in_combat = true, target = {} }, sv_state),
+    "Survival AimedShot matches at 3200ms until auto")
 
 print("PASS test_hunter_vanilla_aimed_shot")
