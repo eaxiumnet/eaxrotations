@@ -3,7 +3,8 @@
 --         (Shadow Bolt filler, Immolate/Conflagrate, Incinerate, Curse maintenance,
 --          demons, AoE, execute, defensives, mana sustain).
 -- WHEN:  combat with valid enemy target.
--- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
+-- WHY:   mirrors wowsims destro_fire/destruction.apl: curse > Immolate > Shadowburn (execute) >
+--         Incinerate/Shadow Bolt filler; Conflagrate consume after Immolate; Life Tap low mana.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
 
 -- Warlock Destruction priority list.
@@ -160,6 +161,7 @@ local function build_state(context)
     state.hp = context.hp or 100
     state.mana_pct = context.mana_pct or 100
     state.spell_damage = context.spell_damage or 0
+    state.level = context.level or context.player_level or 70
     -- Find ready mana item
     state.mana_gem_id = nil
     for _, id in ipairs(MANA_ITEM_IDS) do
@@ -206,18 +208,19 @@ local ACTIONS = {
     -- Burst / Consume (Conflagrate immediately after Immolate to consume for burst per TBC destro guides; Incinerate is filler while dot rolls)
     { name = "BacklashShadowBolt", spell = ACTION.ShadowBolt, priority = 100 },
     { name = "Conflagrate", spell = ACTION.Conflagrate, moving = true, cooldown = 10 },
+    -- Execute (wowsims destro_fire/destruction.apl: Shadowburn before Incinerate/Shadow Bolt filler)
+    -- MUST sit above always-matching fillers or Shadowburn is dead while stationary.
+    { name = "Shadowburn", spell = ACTION.Shadowburn, cooldown = 15 },
     -- Filler (Incinerate when Immolate active, else Shadow Bolt)
     { name = "Incinerate", spell = ACTION.Incinerate, not_moving = true },
     { name = "ShadowBolt", spell = ACTION.ShadowBolt, not_moving = true },
-    -- Execute
     { name = "SoulFire", spell = SoulFire, not_moving = true },
-    { name = "Shadowburn", spell = ACTION.Shadowburn, cooldown = 15 },
     { name = "SearingPain", spell = SearingPain, moving = true },
     -- AoE
     { name = "SeedOfCorruption", spell = SeedOfCorruption, enemy_count = 3 },
     { name = "RainOfFire", spell = RainOfFire, position = "target", enemy_count = 4, not_moving = true },
     { name = "Hellfire", spell = Hellfire, position = "self", enemy_count = 4, not_moving = true },
-    -- CC / Emergency
+    -- CC / Emergency (DeathCoil here is self-HP survival, not APL target-execute)
     { name = "Shadowfury", spell = ACTION.Shadowfury, cooldown = 20 },
     { name = "DeathCoil", spell = ACTION.DeathCoil, max_hp = 35, cooldown = 120 },
     { name = "Fear", spell = Fear, cooldown = 15, target_not_player = true },
@@ -267,10 +270,10 @@ local function immolate_matches(context, action, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Immolate, 2.0) then return false end
     if not state then return false end
     state = state or {}
-    -- SP-aware gating: skip Immolate when spell damage is below the threshold
-    -- (conservative: defaults to 400 SP, configurable via destro_immolate_min_sp)
+    -- SP-aware gating: skip Immolate when spell damage is below the threshold.
+    -- Low-level warlocks won't reach the threshold, so ignore it until level 40.
     local min_sp = spec_kit.setting_number(context, "destro_immolate_min_sp", IMMOLATE_MIN_SP_DEFAULT)
-    if (state.spell_damage or 0) < min_sp then return false end
+    if (state.level or 70) >= 40 and (state.spell_damage or 0) < min_sp then return false end
     if (state.immolate_remains or 0) > IMMOLATE_PANDEMIC_WINDOW then return false end
     if not (NS.should_refresh_dot and NS.should_refresh_dot((state.immolate_remains or 0), 1.5, context.ttd, 15)) then return false end
     return true

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.7.8 - 2026-07-16
+
+### Customer Changelog
+- **All 29 TBC specs re-verified** against wowsims APLs, SimC/wowapls patterns, Wowhead, Icy Veins, and Warcraft Tavern (see `plans/tbc-rotation-gap-matrix-2026-07-16.md`).
+- **Warlock (Destruction)**: Shadowburn now correctly fires in execute (≤20% HP) instead of being blocked by Shadow Bolt / Incinerate filler while standing still. Matches wowsims destro_fire APL execute priority.
+- Version bumped to 2.7.8.
+- Tests: 275 rotation + 18 leveling suites green.
+
+### Developer Notes
+- Gap matrix: `plans/tbc-rotation-gap-matrix-2026-07-16.md` — per-spec logic/settings verdict for all 29 combat specs; tie-breakers documented (wowsims APL > contested guide opinion).
+- `destruction_sylvanas.lua`: reorder ACTIONS so `Shadowburn` sits above `Incinerate` / `ShadowBolt` / `SoulFire` (was dead while stationary because fillers always matched first).
+- `test_destruction_shadowburn.lua`: asserts strategy index order (Shadowburn < Incinerate and < ShadowBolt) in addition to execute HP / soul-shard match gates.
+- Material gaps found this pass: **1** (Destruction Shadowburn). All other specs **aligned** or **source-disagreement** with documented tie-break.
+
 ## 2.7.7 - 2026-07-16
 
 ### Customer Changelog
