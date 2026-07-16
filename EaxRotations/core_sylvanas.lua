@@ -2757,10 +2757,21 @@ function NS.swing_time_until(unit, weapon)
     end
     local next_time = _auto_attack:get_next_attack_core_time(unit, weapon)
     local now = _auto_attack:get_current_combat_core_time()
-    local remains = (next_time and now and next_time > now) and (next_time - now) or 0
+    if not next_time or not now or next_time <= now then
+        _swing_debug("FALLBACK auto_attack_helper remains=0 weapon=" .. tostring(weapon))
+        return 0
+    end
+    local remains = next_time - now
+    -- Weapon swings are a few seconds at most. Huge values (e.g. ~69598 in live
+    -- logs) mean mismatched time bases (absolute vs combat-relative) from the
+    -- helper — treat as unknown so Maul/HS gates fail open instead of locking.
+    if remains > 12 then
+        _swing_debug("FALLBACK auto_attack_helper absurd remains=" .. string.format("%.3f", remains)
+            .. " clamped to unknown weapon=" .. tostring(weapon))
+        return 999
+    end
     _swing_debug("FALLBACK auto_attack_helper remains=" .. string.format("%.3f", remains) .. " weapon=" .. tostring(weapon))
-    if next_time and now and next_time > now then return next_time - now end
-    return 0
+    return remains
 end
 
 function NS.swing_time_since(unit)

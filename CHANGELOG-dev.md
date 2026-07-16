@@ -1,3 +1,39 @@
+# Developer Changelog — EaxRotations v2.7.6
+
+**Date:** 2026-07-16  
+**Branch:** master  
+**Scope:** `fix(bear)` Swipe self-target spam, form-breaking OOC buffs, swing timer sanity + release
+
+### Root causes (live logs)
+
+| Symptom | Cause |
+|---------|--------|
+| `Swipe \| Target Rarbarber` spam | `Swipe`/`SwipeAoE` used `target="self"`; `execute_action` cast on player; client reject → rematch loop |
+| `BearForm` / `MotW` / `Thorns` thrash | MotW/Thorns OOC matches did not check `is_bear`; caster buffs cancel form |
+| `[SwingTimer] FALLBACK … remains=69598` | `auto_attack_helper` next/now on mismatched time bases |
+
+### Code
+
+| File | Change |
+|------|--------|
+| `classes/druid/bear_sylvanas.lua` | Swipe on enemy target; MotW/Gift/Thorns blocked in bear; BearForm post-cast lockout |
+| `classes/druid/bear_vanilla.lua` | Same Swipe + MotW/Thorns guards |
+| `classes/druid/leveling_sylvanas.lua` | Swipe `try_cast(..., context.target)` (nil → self in core) |
+| `classes/druid/leveling_vanilla.lua` | Same Swipe target fix |
+| `core_sylvanas.lua` | `swing_time_until` clamp remains > 12s → 999 |
+| `tests/test_bear_custom_matches.lua` | Enemy-target Swipe + MotW/Thorns bear block |
+| `header.lua` / `VERSION.txt` / README badge | Version **2.7.6** |
+| `eaxrotations.zip` | Rebuild: **.lua + .md only** from `EaxRotations/` |
+
+### Verification
+
+- `luac -p` on changed Lua
+- `lua EaxRotations/tests/test_bear_custom_matches.lua` PASS
+- `lua EaxRotations/tests/run_rotation_tests.lua` 274/274
+- `lua EaxRotations/tests/run_leveling_tests.lua` 18/18
+
+---
+
 # Developer Changelog — EaxRotations v2.7.5
 
 **Date:** 2026-07-16  

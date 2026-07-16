@@ -40,8 +40,8 @@ local MARK_OF_THE_WILD_BUFF = { 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232
 local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
 
 -- Feral debuff IDs (highest rank first)
-local RAKE_DEBUFF       = { 9904, 1824, 1823, 1822 }
-local RIP_DEBUFF        = { 27008, 1079 }
+local RAKE_DEBUFF       = { 27003, 9904, 1824, 1823, 1822 }
+local RIP_DEBUFF        = { 27008, 9896, 9894, 9752, 9493, 9492, 1079 }
 local MANGLE_DEBUFF      = { 33876, 33983, 33982, 33878, 33986, 33987 }
 local FAERIE_FIRE_FERAL  = { 27011, 17392, 17391, 17390, 16857, 26993, 9907, 9749, 778, 770 }
 local PROWL_BUFF         = { 9913, 6783, 5215 }
@@ -320,7 +320,7 @@ local shred_matches = function(_, state)
     if (state.energy or 0) < 42 then return false end
     if (state.combo_points or 0) >= 5 then return false end
     if not state.is_behind then return false end
-    if not leveling_helpers.is_low_level(state.level) and state.mangle_remains <= 0 then return false end
+    if state.mangle_cat_ready and state.mangle_remains <= 0 then return false end
     return true
 end
 
@@ -647,10 +647,11 @@ local strategies = {
       matches = mangle_bear_matches,
       execute = function(context) return try_cast(SPELLS.MangleBear, context and context.target, "[LEVELING] Mangle (Bear)") end },
 
-    -- Swipe (Bear): AoE rage dump
+    -- Swipe (Bear): AoE rage dump — must use enemy target (nil falls back to self
+    -- in NS.try_cast and spam-loops when the client rejects self-cast).
     { name = "SwipeBear",
       matches = swipe_bear_matches,
-      execute = function(context) return try_cast(SPELLS.SwipeBear, nil, "[LEVELING] Swipe") end },
+      execute = function(context) return try_cast(SPELLS.SwipeBear, context and context.target, "[LEVELING] Swipe") end },
 
     -- Maul: rage dump (bear)
     { name = "Maul",

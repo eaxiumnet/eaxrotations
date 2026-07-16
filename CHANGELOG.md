@@ -2,6 +2,15 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.7.6] — Druid Bear Cast Target + Form Stability (2026-07-16)
+- **Druid (Bear)**: Swipe no longer targets the player. TBC Swipe needs a hostile melee target; self-cast was rejected and spam-looped via the spell queue (`Swipe | Target <player>`).
+- **Druid (Bear)**: Mark of the Wild / Gift / Thorns never cast while in bear form (caster buffs cancel form and caused BearForm ↔ MotW loops).
+- **Druid (Bear)**: Bear Form re-shift post-cast lockout so form buff can apply before re-queue.
+- **Druid (Bear leveling / vanilla)**: Same Swipe enemy-target fix.
+- **Core**: `NS.swing_time_until` clamps absurd auto_attack_helper remains (live ~69598s) to unknown (999) so Maul/HS gates fail open.
+- Tests: Swipe enemy-target regression + MotW/Thorns bear-form block.
+- Version bump 2.7.6; clean `eaxrotations.zip` (lua + md only).
+
 ## [2.7.5] — Druid Bear Low-Level Spenders (2026-07-16)
 - **Druid (Bear)**: Pre-Mangle Maul no longer banks to the endgame 50-rage dump. When Mangle is not learned, Maul threshold auto-scales by level (≈23 at L17), never raised above the menu `bear_maul_rage` slider.
 - **Druid (Bear)**: Swipe (2-target cleave) no longer requires 3 Lacerate stacks before Lacerate is learned (L66).

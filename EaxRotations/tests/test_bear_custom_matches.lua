@@ -71,6 +71,26 @@ local function find_strategy(name)
 end
 
 -- ============================================================================
+-- OOC buffs must NEVER cast in bear form (MotW/Thorns cancel form → shift loop)
+-- ============================================================================
+
+local mark = find_strategy("MarkOfTheWild")
+local thorns = find_strategy("Thorns")
+local _prev_has_form = _G.EaxRotations.has_form
+
+-- In bear form: never rebuff (would cancel form and spam BearForm)
+_G.EaxRotations.has_form = function(form) return form == "bear" end
+assert_false(mark.matches({ in_combat = false }, {}), "MarkOfTheWild must not match in bear form")
+assert_false(thorns.matches({ in_combat = false }, {}), "Thorns must not match in bear form")
+
+-- Caster form OOC: buffs allowed
+_G.EaxRotations.has_form = function(form) return false end
+assert_true(mark.matches({ in_combat = false }, {}), "MarkOfTheWild should match OOC out of bear when buff missing")
+assert_true(thorns.matches({ in_combat = false }, {}), "Thorns should match OOC out of bear when buff missing")
+assert_false(mark.matches({ in_combat = true }, {}), "MarkOfTheWild must not match in combat")
+_G.EaxRotations.has_form = _prev_has_form
+
+-- ============================================================================
 -- Faerie Fire Feral: only when debuff <= 4 sec
 -- ============================================================================
 
@@ -139,6 +159,25 @@ assert_eq(#action_calls, 0, "action_matches should not be called with < 2 enemie
 -- 2+ enemies -> should match
 action_calls = {}
 assert_true(swipe.matches({ enemy_count = 3 }), "Swipe should match with >= 2 enemies")
+
+-- TBC Swipe must cast on the enemy target (not self). Self-cast is rejected by the
+-- client and spam-loops via the spell queue (see live logs: Swipe | Target <player>).
+local last_try_cast = nil
+_G.EaxRotations.try_cast = function(spell, target, reason, opts)
+    last_try_cast = { spell = spell, target = target, reason = reason, opts = opts }
+    return true
+end
+local enemy = { name = "Axxarien Hellcaller" }
+local me = { name = "Rarbarber" }
+local swipe_ok = swipe.execute({ target = enemy, me = me, enemy_count = 3, in_combat = true })
+assert_true(swipe_ok, "Swipe execute should succeed when try_cast returns true")
+assert_true(last_try_cast ~= nil, "Swipe execute should call try_cast")
+assert_eq(last_try_cast.target, enemy, "Swipe must cast on enemy target, not player self")
+assert_true(last_try_cast.target ~= me, "Swipe must not cast on player self")
+local swipe_aoe_ok = swipe_aoe.execute({ target = enemy, me = me, enemy_count = 4, in_combat = true })
+assert_true(swipe_aoe_ok, "SwipeAoE execute should succeed when try_cast returns true")
+assert_eq(last_try_cast.target, enemy, "SwipeAoE must cast on enemy target, not player self")
+_G.EaxRotations.try_cast = nil
 
 -- Pre-Lacerate: 2-target Swipe must work without Lacerate stacks (Lacerate is L66)
 -- In test env define_action returns rank_ids[1] (Lacerate = 33745).

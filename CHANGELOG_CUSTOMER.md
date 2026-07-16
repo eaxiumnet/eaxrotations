@@ -1,5 +1,21 @@
 # EaxRotations Changelog
 
+## v2.7.6 — Bear Tank Stability (July 16, 2026)
+
+> **Release zip:** [eaxrotations.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.7.6)
+> **Game:** The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
+> **Focus:** Druid Bear cast targets and form stability
+
+### What you’ll notice
+
+- **Swipe hits mobs again** — Swipe was accidentally aimed at you (your character name in the cast log), which made it spam without landing. It now uses your enemy target like Maul and Bash.
+- **No more Bear Form / Mark of the Wild thrash** — Out-of-combat buffs (Mark, Gift, Thorns) no longer fire while you are in bear form. Those spells cancel bear form in TBC and were causing a shift loop.
+- **Smoother Maul timing data** — Bad swing-timer values from the game helper are ignored so the rotation does not lock up on garbage numbers.
+
+Reload the plugin (or replace the folder from the release zip) to pick up **v2.7.6**.
+
+---
+
 ## v2.7.5 — Bear Tank Low-Level Fixes (July 16, 2026)
 
 > **Release zip:** [eaxrotations.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.7.5)

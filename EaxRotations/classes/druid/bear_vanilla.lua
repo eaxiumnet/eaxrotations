@@ -11,6 +11,7 @@ if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { healthstones = {}
 local TBC_ITEMS = TBC.ITEMS or {}
 local TBC_POTIONS = TBC_ITEMS.potions or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 
 local BASE_SPELLS = NS.DruidSpells or {}
 local SPELLS = BASE_SPELLS
@@ -332,6 +333,7 @@ local function build_state(context)
     state.me = context.me or (NS.GetPlayer and NS.GetPlayer()) or nil
     state.target = context.target
     state.hp = context.hp or 100
+    state.level = context.level or context.player_level or 70
     state.rage = context.rage or 0
     state.stance = context.stance or (NS.get_player_stance and NS.get_player_stance()) or STANCE_CASTER
     state.in_combat = context.in_combat == true
@@ -440,6 +442,7 @@ end
 local function mark_matches(context, action)
     local state = build_state(context)
     if state.in_combat then return false end
+    if state.is_bear then return false end  -- MotW cancels bear form
     if (NS.buff_remains(state.me, MARK_BUFF) or 0) > MOTW_REFRESH then return false end
     return action_ready(context, action)
 end
@@ -447,6 +450,7 @@ end
 local function thorns_matches(context, action)
     local state = build_state(context)
     if state.in_combat then return false end
+    if state.is_bear then return false end  -- Thorns cancels bear form
     if (NS.buff_remains(state.me, THORNS_BUFF) or 0) > THORNS_REFRESH then return false end
     return action_ready(context, action)
 end
@@ -462,8 +466,7 @@ end
 local function faerie_fire_pull_matches(context, action)
     local state = build_state(context)
     if not state.is_bear or not state.has_valid_target then return false end
-    -- Skip if target has no armor (API unavailable or already fully reduced)
-    if (context.target_armor or 0) <= 0 then return false end
+    if (context.target_armor or 0) <= 0 and not leveling_helpers.is_low_level(state.level) then return false end
     if state.in_melee then return false end
     if (state.target_range or 40) > 30 then return false end
     if (state.faerie_remains or 0) > 4 then return false end
@@ -535,8 +538,7 @@ local function faerie_fire_matches(context, action)
     local state = build_state(context)
     if not state.target then return false end
     if not can_use_bear_ability(state) then return false end
-    -- Skip if target has no armor (API unavailable or already fully reduced)
-    if (context.target_armor or 0) <= 0 then return false end
+    if (context.target_armor or 0) <= 0 and not leveling_helpers.is_low_level(state.level) then return false end
     if (state.faerie_remains or 0) > 4 then return false end
     return action_ready(context, action)
 end
@@ -611,8 +613,9 @@ local ACTIONS = {
 
     { name = "FaerieFireFeral", spell = SPELLS.FaerieFireFeral, required_form = "bear", debuff = FAERIE_FIRE_DEBUFF, refresh = 4, matches = faerie_fire_matches },
     { name = "DemoralizingRoar", spell = SPELLS.DemoralizingRoar, target = "self", required_form = "bear", min_rage = RAGE_DEMO_ROAR, cooldown = 25, requires_target = false, matches = demo_roar_matches },
-    { name = "SwipeAoE", spell = SPELLS.SwipeBear, target = "self", required_form = "bear", min_rage = RAGE_SWIPE, is_aoe = true, enemy_count = 3, requires_target = false, matches = swipe_aoe_matches },
-    { name = "Swipe", spell = SPELLS.SwipeBear, target = "self", required_form = "bear", min_rage = RAGE_SWIPE, is_aoe = true, enemy_count = 2, requires_target = false, matches = swipe_cleave_matches },
+    -- Swipe requires a hostile melee target (not self) — self-cast spam-loops.
+    { name = "SwipeAoE", spell = SPELLS.SwipeBear, required_form = "bear", min_rage = RAGE_SWIPE, is_aoe = true, enemy_count = 3, matches = swipe_aoe_matches },
+    { name = "Swipe", spell = SPELLS.SwipeBear, required_form = "bear", min_rage = RAGE_SWIPE, is_aoe = true, enemy_count = 2, matches = swipe_cleave_matches },
     { name = "Maul", spell = SPELLS.Maul, required_form = "bear", min_rage = RAGE_MAUL, matches = maul_matches },
     { name = "EnrageCombat", spell = ENRAGE, target = "self", required_form = "bear", requires_target = false, matches = enrage_combat_matches },
     -- FerociousBiteExecute REMOVED: Ferocious Bite is a cat-form ability requiring combo
