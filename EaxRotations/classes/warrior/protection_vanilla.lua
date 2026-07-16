@@ -7,6 +7,12 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
+
 local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 
@@ -174,7 +180,10 @@ end
 local function thunderclap_matches_fn(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
     if state.stance ~= STANCE.BATTLE then return false end  -- Vanilla TC requires Battle Stance
-    if (state.enemy_count or 0) < 2 then return false end
+    -- Thunder Clap: 8yd self PBAoE
+    if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
+        return false
+    end
     return true
 end
 
@@ -191,7 +200,10 @@ local function heroic_strike_matches_fn(context, state)
 end
 
 local function cleave_matches_fn(context, state)
-    if (state.enemy_count or 0) < 2 then return false end
+    -- Cleave: nearest ally near target (not 40yd density)
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, state)) then
+        return false
+    end
     if (state.rage or 0) < HEROIC_STRIKE_RAGE_DUMP then return false end
     return true
 end

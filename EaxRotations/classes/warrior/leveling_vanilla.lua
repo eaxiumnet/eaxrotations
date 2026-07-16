@@ -7,6 +7,12 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
+
 local spec_kit = require("shared/spec_kit_sylvanas")
 
 local leveling = require("shared/leveling_sylvanas")
@@ -210,32 +216,38 @@ local execute_matches = function(context, state)
     return true
 end
 
---- Sweeping Strikes - AoE buff
+--- Sweeping Strikes - AoE buff (needs second target near primary)
 local sweeping_strikes_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.sweeping_strikes_ready then return false end
-    if (state.enemies or 0) < 2 then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context and context.target, context, state)) then
+        return false
+    end
     return true
 end
 
---- Whirlwind - AoE when surrounded
+--- Whirlwind - 8yd self PBAoE when surrounded
 local whirlwind_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.whirlwind_ready then return false end
     if not state.target then return false end
-    if (state.enemies or 0) < 3 then return false end
+    if not (NS.aoe_self_meets and NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
+        return false
+    end
     return true
 end
 
---- Thunder Clap - AoE damage/slow
+--- Thunder Clap - 8yd self PBAoE damage/slow
 local thunder_clap_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.thunder_clap_ready then return false end
     if not state.use_thunder_clap then return false end
-    if (state.enemies or 0) < 2 then return false end
+    if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
+        return false
+    end
     return true
 end
 

@@ -660,9 +660,14 @@ end
 
 local function rain_of_fire_execute(context)
     local t = context.target
-    local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.RainOfFire), t, 8, 35)
-    if pos then return NS.try_cast_position(ACTION.RainOfFire, pos, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 }) end
-    return NS.try_cast(ACTION.RainOfFire, t, "[DEMONOLOGY] Rain of Fire", { expected_cooldown = 1.5 })
+    local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+    local opts = { expected_cooldown = 1.5 }
+    if NS.cast_ground_aoe then
+        return NS.cast_ground_aoe(ACTION.RainOfFire, t, r, 35, "[DEMONOLOGY] Rain of Fire", opts)
+    end
+    local pos = t and NS.get_aoe_cast_position and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.RainOfFire), t, r, 35)
+    if pos then return NS.try_cast_position(ACTION.RainOfFire, pos, t, "[DEMONOLOGY] Rain of Fire", opts) end
+    return NS.try_cast(ACTION.RainOfFire, t, "[DEMONOLOGY] Rain of Fire", opts)
 end
 
 -- ============================================================================

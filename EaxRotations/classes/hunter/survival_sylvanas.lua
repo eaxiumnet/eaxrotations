@@ -601,7 +601,14 @@ local strategies = {
     { name = "Misdirection", matches = misdirection_matches, execute = misdirection_execute },
     { name = "ConcussiveShot", matches = concussive_shot_matches, execute = function(context) return NS.try_cast(ACTION.ConcussiveShot, context.target, "[SURVIVAL] Concussive Shot") end },
     { name = "ScorpidSting", matches = scorpid_sting_matches, execute = function(context) return NS.try_cast(ACTION.ScorpidSting, context.target, "[SURVIVAL] Scorpid Sting") end },
-    { name = "Volley", matches = volley_matches, execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.Volley), t, 8, 35); if pos then return NS.try_cast_position(ACTION.Volley, pos, t, "[SURVIVAL] Volley") end; return NS.try_cast(ACTION.Volley, t, "[SURVIVAL] Volley") end },
+    { name = "Volley", matches = volley_matches, execute = function(context)
+        local t = context.target
+        local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+        if NS.cast_ground_aoe then return NS.cast_ground_aoe(ACTION.Volley, t, r, 35, "[SURVIVAL] Volley") end
+        local pos = t and NS.get_aoe_cast_position and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.Volley), t, r, 35)
+        if pos then return NS.try_cast_position(ACTION.Volley, pos, t, "[SURVIVAL] Volley") end
+        return NS.try_cast(ACTION.Volley, t, "[SURVIVAL] Volley")
+    end },
     { name = "RaptorStrike", matches = raptor_strike_matches, execute = function(context) return NS.try_cast(ACTION.RaptorStrike, context.target, "[SURVIVAL] Raptor Strike") end },
     { name = "MongooseBite", matches = mongoose_bite_matches, execute = function(context) return NS.try_cast(ACTION.MongooseBite, context.target, "[SURVIVAL] Mongoose Bite") end },
     { name = "WingClip", matches = wing_clip_matches, execute = function(context) return NS.try_cast(ACTION.WingClip, context.target, "[SURVIVAL] Wing Clip") end },

@@ -67,13 +67,25 @@ local level = leveling_helpers.level_from_context(context)
 - [x] Relax Faerie Fire (Feral) armor/TTD gates in `cat_sylvanas.lua` when level < 50
 - [x] Lower Rip/FB combo-point requirement to 4 when level < 50
 - [x] Audit WotLK cat rotation missing Faerie Fire Feral / Ravage
-- [ ] Audit Vanilla Druid specs for same issues
-- [x] Run full test suites and commit
+- [x] Audit Vanilla Druid specs for same issues
+  - [x] `cat_vanilla.lua`: added `leveling_helpers` require + `state.level` population
+  - [x] `cat_vanilla.lua`: relaxed FaerieFireFeral / FaerieFireStealthLock armor gate when level < 50
+  - [x] `cat_vanilla.lua`: added baseline `Rip` strategy (was only `RipSnapshot`, which never matched initially)
+  - [x] `cat_vanilla.lua`: removed dead `RipSnapshot`; Vanilla Rip is refresh-only (no mid-DoT snapshot upgrade)
+  - [x] `cat_vanilla.lua`: fixed `RavageOpener` inverted HP gate and added missing `is_behind` check
+  - [x] `bear_vanilla.lua`: added `leveling_helpers` require + `state.level` population
+  - [x] `bear_vanilla.lua`: relaxed FaerieFireFeral / FaerieFirePull armor gate when level < 50
+  - [x] `caster_vanilla.lua`: added `leveling_helpers` require + `state.level` population
+  - [x] `caster_vanilla.lua`: relaxed FaerieFire armor gate when level < 50
+  - [x] Added `test_cat_vanilla_low_level_gating.lua` regression test
+  - [x] Added `test_druid_vanilla_low_level_gating.lua` regression test
+- [x] Run full test suites
+- [ ] Commit this Vanilla Druid slice (pending explicit commit request)
 
-**Verification (after commit `bcbc1a1e`):**
-- `lua EaxRotations/tests/run_rotation_tests.lua -q` → 275/275 pass
+**Verification (current working tree, uncommitted):**
+- `luac -p` on all modified files → clean
+- `lua EaxRotations/tests/run_rotation_tests.lua -q` → 272/272 pass
 - `lua EaxRotations/tests/run_leveling_tests.lua -q` → 18/18 pass
-- `lua EaxRotations/tests/run_wotlk_tests.lua -q` → 3/3 pass
 
 ## 6. Progress
 
@@ -84,11 +96,11 @@ local level = leveling_helpers.level_from_context(context)
 | Hunter | Done | BM pre-Steady Shot silent gate, MM Wing Clip ready state |
 | Rogue | Done | Sinister Strike fallback, Eviscerate 4 CP dump, Evasion rank fix |
 | Paladin | Done | JoW/SoW dual-seal fix, missing SoR rank-1, Cleanse gate |
-| Shaman | In progress | — |
-| Mage | Pending | — |
-| Warlock | Pending | — |
-| Priest | Pending | — |
-| Death Knight | Pending | WotLK only |
+| Shaman | Done | Leveling shock fallback (Earth Shock when Flame/Frost not ready), state.level population |
+| Mage | Done | Leveling nuke cross-spell readiness gates removed; Fireball no longer gated behind 5-stack Scorch when Scorch unlearned |
+| Warlock | Done | Destruction Immolate no longer gated by 400 SP threshold below level 40 |
+| Priest | Done | No low-level silent gates found |
+| Death Knight | Done | No low-level silent gates found (WotLK-only class) |
 
 ## 7. Next Classes
 

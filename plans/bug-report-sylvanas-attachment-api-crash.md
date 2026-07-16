@@ -1,9 +1,18 @@
 # Bug Report: game_object attachment APIs crash client on call
 
+> **Update 2026-07-16 (dev feedback):** A Sylvanas dev suggested:  
+> *"Try just calling the function to get the attachment position and no rendering."*  
+> EaxESP v0.5.2 adds an **opt-in call-only probe** (`attachment_safe.probe_once`,  
+> `diagnostic_attachment_only.lua`) that never touches `core.graphics`.  
+> - Menu: **Experimental: Attachment Positions** (default OFF)  
+> - Probe runs on `on_pre_tick` only; render only uses positions already cached  
+> - If you see `[AttachSafe] PROBE COMPLETE → ok` in log, pure reads survived  
+> - If client dies mid-probe, leave the checkbox OFF and report the last log line  
+
 **Project:** Project Sylvanas (Core Version 1.981 observed)  
 **Component:** game_object C++ binding → Lua  
-**Severity:** Critical — client crash, data loss on unsaved settings  
-**Reproducibility:** 100% (3/3 attempts across two different call patterns)
+**Severity:** Critical — client crash, data loss on unsaved settings (if still reproducible)  
+**Reproducibility:** Previously 100%; re-test with call-only path recommended
 
 ---
 

@@ -794,7 +794,7 @@ end
 local function cleave_matches(context, state)
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     if should_reserve_for_sweeping(context, state) then return false end
-    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s)) then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, state)) then return false end
     local cleave_rage = spec_kit.setting_number(context, "cleave_rage", CLEAVE_RAGE)
     local RM = NS.RageManager
     if RM and type(RM.should_cleave) == "function" then

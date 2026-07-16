@@ -304,7 +304,14 @@ local strategies = {
       execute = function(context) return NS.try_cast(SPELLS.ArcaneExplosion, context.target, "[FIRE] Arcane Explosion") end },
     { name = "Blizzard",
       matches = blizzard_matches_fn,
-      execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, 8, 35); if pos then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[FIRE] Blizzard") end; return NS.try_cast(SPELLS.Blizzard, t, "[FIRE] Blizzard") end },
+      execute = function(context)
+          local t = context.target
+          local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+          if NS.cast_ground_aoe then return NS.cast_ground_aoe(SPELLS.Blizzard, t, r, 35, "[FIRE] Blizzard") end
+          local pos = t and NS.get_aoe_cast_position and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, r, 35)
+          if pos then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[FIRE] Blizzard") end
+          return NS.try_cast(SPELLS.Blizzard, t, "[FIRE] Blizzard")
+      end },
     -- CC
     { name = "Polymorph",
       matches = polymorph_matches_fn,

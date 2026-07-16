@@ -11,6 +11,12 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
+
 local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
 local L = require("shared/leveling_helpers_sylvanas")
@@ -210,22 +216,26 @@ local execute_matches = function(_, state)
     return true
 end
 
---- Sweeping Strikes - AoE buff
-local sweeping_strikes_matches = function(_, state)
+--- Sweeping Strikes - needs second target near primary
+local sweeping_strikes_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.sweeping_strikes_ready then return false end
-    if (state.enemies or 0) < 2 then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context and context.target, context, state)) then
+        return false
+    end
     return true
 end
 
---- Cleave - AoE when 2+ enemies
-local cleave_matches = function(_, state)
+--- Cleave - nearest ally near target (not 40yd density)
+local cleave_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.target then return false end
     if not state.cleave_ready then return false end
-    if (state.enemies or 0) < 2 then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, state.target or (context and context.target), context, state)) then
+        return false
+    end
     local me = (NS.GetPlayer and NS.GetPlayer()) or (NS.get_local_player and NS.get_local_player()) or nil
     if not me then return false end
     local ok, rage = pcall(function() return me:get_power(NS.POWER_RAGE or 1) end)
@@ -233,23 +243,27 @@ local cleave_matches = function(_, state)
     return true
 end
 
---- Whirlwind - AoE when surrounded
-local whirlwind_matches = function(_, state)
+--- Whirlwind - 8yd self PBAoE when surrounded
+local whirlwind_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.whirlwind_ready then return false end
     if not state.target then return false end
-    if (state.enemies or 0) < 3 then return false end
+    if not (NS.aoe_self_meets and NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
+        return false
+    end
     return true
 end
 
---- Thunder Clap - AoE damage/slow
-local thunder_clap_matches = function(_, state)
+--- Thunder Clap - 8yd self PBAoE damage/slow
+local thunder_clap_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
     if not state.thunder_clap_ready then return false end
     if not state.use_thunder_clap then return false end
-    if (state.enemies or 0) < 2 then return false end
+    if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
+        return false
+    end
     return true
 end
 

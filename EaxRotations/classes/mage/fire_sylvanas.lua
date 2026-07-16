@@ -283,15 +283,20 @@ local function blast_wave_matches_fn(context, state)
 end
 
 local function dragons_breath_matches_fn(context, state)
-    if not NS.aoe_self_meets or not NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state) then return false end
-    -- Talent gate: must have Dragon's Breath learned (fire talent, not baseline)
-    if not (ACTION.DragonsBreath and NS.spell_ready(ACTION.DragonsBreath, context.target, { skip_range = true })) then
-        -- Fall back to BlastWave if Dragon's Breath not talented
-
-        return NS.spell_ready(ACTION.BlastWave, context.target)
+    local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10
+    -- Frontal cone when casting Dragon's Breath; Blast Wave fallback uses self circle.
+    local has_db = ACTION.DragonsBreath and NS.spell_ready(ACTION.DragonsBreath, context.target, { skip_range = true })
+    if has_db then
+        if NS.aoe_cone_meets then
+            if not NS.aoe_cone_meets(2, r, nil, context, state) then return false end
+        elseif not NS.aoe_self_meets or not NS.aoe_self_meets(2, r, context, state) then
+            return false
+        end
+        return true
     end
-
-    return true
+    -- Fall back to Blast Wave (full 10yd circle, not cone) if Dragon's Breath not talented
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(2, r, context, state) then return false end
+    return NS.spell_ready(ACTION.BlastWave, context.target)
 end
 
 local function polymorph_matches_fn(context, state)
@@ -396,16 +401,33 @@ local strategies = {
     -- AoE: Flamestrike before Blizzard (test assertion ordering)
     { name = "Flamestrike",
       matches = flamestrike_matches_fn,
-      execute = function(context) return NS.try_cast(ACTION.Flamestrike, context.target, "[FIRE] Flamestrike") end },
+      execute = function(context)
+          local t = context.target
+          local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_5) or 5
+          if NS.cast_ground_aoe then return NS.cast_ground_aoe(ACTION.Flamestrike, t, r, 35, "[FIRE] Flamestrike") end
+          return NS.try_cast(ACTION.Flamestrike, t, "[FIRE] Flamestrike")
+      end },
     { name = "FlamestrikeRank6",
       matches = flamestrike_rank6_matches_fn,
-      execute = function(context) return NS.try_cast(ACTION.FlamestrikeRank6, context.target, "[FIRE] Flamestrike Rank 6") end },
+      execute = function(context)
+          local t = context.target
+          local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_5) or 5
+          if NS.cast_ground_aoe then return NS.cast_ground_aoe(ACTION.FlamestrikeRank6, t, r, 35, "[FIRE] Flamestrike Rank 6") end
+          return NS.try_cast(ACTION.FlamestrikeRank6, t, "[FIRE] Flamestrike Rank 6")
+      end },
     { name = "ArcaneExplosion",
       matches = arcane_explosion_matches_fn,
       execute = function(context) return NS.try_cast(ACTION.ArcaneExplosion, context.target, "[FIRE] Arcane Explosion") end },
     { name = "Blizzard",
       matches = blizzard_matches_fn,
-      execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.Blizzard), t, 8, 35); if pos then return NS.try_cast_position(ACTION.Blizzard, pos, t, "[FIRE] Blizzard") end; return NS.try_cast(ACTION.Blizzard, t, "[FIRE] Blizzard") end },
+      execute = function(context)
+          local t = context.target
+          local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+          if NS.cast_ground_aoe then return NS.cast_ground_aoe(ACTION.Blizzard, t, r, 35, "[FIRE] Blizzard") end
+          local pos = t and NS.get_aoe_cast_position and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.Blizzard), t, r, 35)
+          if pos then return NS.try_cast_position(ACTION.Blizzard, pos, t, "[FIRE] Blizzard") end
+          return NS.try_cast(ACTION.Blizzard, t, "[FIRE] Blizzard")
+      end },
     -- AoE burst
     { name = "BlastWave",
       matches = blast_wave_matches_fn,

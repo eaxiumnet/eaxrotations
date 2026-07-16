@@ -6,6 +6,13 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
+
 local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
@@ -392,15 +399,29 @@ end
 local function whirlwind_matches(context, state)
     if not state.ww_ready then return false end
     local rage = state.rage or 0
-    -- Rage cap: bypass enemy count gate to prevent rage waste
-    if rage >= RAGE_CAP then return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 })) end
-    if (state.enemy_count or 0) < 2 and rage < 45 then return false end
-    return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
+    -- Rage cap: bypass multi gate to prevent rage waste
+    if rage >= RAGE_CAP then
+        return action(context, build_action("Whirlwind", ACTION.Whirlwind, {
+            required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10,
+            hit_radius = 8, hit_origin = "me",
+        }))
+    end
+    -- Whirlwind: 8yd self PBAoE (DBC) — not 40yd enemy_count
+    if rage < 45 and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
+        return false
+    end
+    return action(context, build_action("Whirlwind", ACTION.Whirlwind, {
+        required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10,
+        enemy_count = 2, hit_radius = 8, hit_origin = "me",
+    }))
 end
 
 -- Sweep Strikes rage pooling: hold rage when SS cooldown is near
 local function should_reserve_for_sweeping(context, state)
-    if (context.enemy_count or 0) < 2 then return false end
+    -- SS needs a second melee target near primary — target-centered 8yd
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, state)) then
+        return false
+    end
     if state.has_sweeping_strikes then return false end
     local ss_cd = state.ss_cd or 99
     if ss_cd <= SS_POOL_WINDOW and (context.rage or 0) < SS_RESERVE_FLOOR then return true end
@@ -414,9 +435,15 @@ end
 
 local function cleave_matches(context, state)
     if state and should_reserve_for_sweeping(context, state) then return false end
-    if (state.enemy_count or 0) < 2 then return false end
+    -- Cleave: primary + nearest ally near target (TARGET_8)
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, state)) then
+        return false
+    end
     if (state.rage or 0) < CLEAVE_RAGE then return false end
-    return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true }))
+    return action(context, build_action("Cleave", ACTION.Cleave, {
+        min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true,
+        hit_radius = 8, hit_origin = "target",
+    }))
 end
 
 local function hamstring_matches(context, state)
@@ -438,23 +465,43 @@ local function hamstring_matches(context, state)
 end
 
 local function piercing_howl_matches(context, state)
-    if not state.is_pvp and (state.enemy_count or 0) < 3 then return false end
+    -- Piercing Howl: 10yd self PBAoE (DBC)
+    if not state.is_pvp and not (NS.aoe_self_meets and NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)) then
+        return false
+    end
     if (state.rage or 0) < 10 then return false end
-    return action(context, build_action("PiercingHowl", ACTION.PiercingHowl, { target = "self", min_rage = 10, requires_target = false, enemy_count = 2, is_aoe = true }))
+    return action(context, build_action("PiercingHowl", ACTION.PiercingHowl, {
+        target = "self", min_rage = 10, requires_target = false,
+        enemy_count = 2, is_aoe = true, hit_radius = 10, hit_origin = "me",
+    }))
 end
 
 local function demo_shout_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
     if (state.demo_remains or 0) > 5 then return false end
-    if not state.is_pvp and (state.enemy_count or 0) < 2 and (state.hp or 100) > 70 then return false end
-    return action(context, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false, debuff = DEMO_SHOUT_DEBUFF, refresh = 5 }))
+    if not state.is_pvp and (state.hp or 100) > 70
+        and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)) then
+        return false
+    end
+    return action(context, build_action("DemoralizingShout", ACTION.DemoralizingShout, {
+        target = "self", min_rage = 10, requires_target = false,
+        debuff = DEMO_SHOUT_DEBUFF, refresh = 5, hit_radius = 10, hit_origin = "me",
+    }))
 end
 
 local function thunder_clap_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
     if (state.tclap_remains or 0) > 5 then return false end
-    if not state.is_pvp and (state.hp or 100) > 65 and (state.enemy_count or 0) < 2 then return false end
-    return action(context, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, debuff = THUNDER_CLAP_DEBUFF, refresh = 5, cooldown = 4 }))
+    -- Thunder Clap: 8yd self PBAoE
+    if not state.is_pvp and (state.hp or 100) > 65
+        and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
+        return false
+    end
+    return action(context, build_action("ThunderClap", ACTION.ThunderClap, {
+        target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false,
+        debuff = THUNDER_CLAP_DEBUFF, refresh = 5, cooldown = 4,
+        hit_radius = 8, hit_origin = "me",
+    }))
 end
 
 local function pummel_matches(context, state)

@@ -665,7 +665,7 @@ end
 local function cleave_matches(context, state)
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     if state and should_reserve_for_sweeping(context, state) then return false end
-    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s)) then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, state)) then return false end
     local RM = NS.RageManager
     if RM and type(RM.should_cleave) == "function" then
         if not RM.should_cleave(with_rage_dump_threshold(context, CLEAVE_RAGE), state, state.enemy_count, "arms") then
@@ -700,24 +700,44 @@ local function hamstring_matches(context, state)
 end
 
 local function piercing_howl_matches(context, state)
-    if not state.is_pvp and state.enemy_count < 3 then return false end
+    -- Piercing Howl: 10yd self PBAoE (DBC) — not 40yd enemy_count
+    if not state.is_pvp and not (NS.aoe_self_meets and NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)) then
+        return false
+    end
     if state.rage < 10 then return false end
-    return action(context, build_action("PiercingHowl", ACTION.PiercingHowl, { target = "self", min_rage = 10, requires_target = false, enemy_count = 2, is_aoe = true }))
+    return action(context, build_action("PiercingHowl", ACTION.PiercingHowl, {
+        target = "self", min_rage = 10, requires_target = false,
+        enemy_count = 2, is_aoe = true, hit_radius = 10, hit_origin = "me",
+    }))
 end
 
 local function demo_shout_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
     if state.demo_remains > 5 then return false end
-    if not state.is_pvp and state.enemy_count < 2 and state.hp > 70 then return false end
-    return action(context, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false, debuff = DEMO_SHOUT_DEBUFF, refresh = 5 }))
+    if not state.is_pvp and state.hp > 70
+        and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)) then
+        return false
+    end
+    return action(context, build_action("DemoralizingShout", ACTION.DemoralizingShout, {
+        target = "self", min_rage = 10, requires_target = false,
+        debuff = DEMO_SHOUT_DEBUFF, refresh = 5, hit_radius = 10, hit_origin = "me",
+    }))
 end
 
 local function thunder_clap_matches(context, state)
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     if state.tclap_remains > 5 then return false end
-    if not state.is_pvp and state.hp > 65 and state.enemy_count < 2 then return false end
-    return action(context, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, debuff = THUNDER_CLAP_DEBUFF, refresh = 5, cooldown = 4 }))
+    -- Thunder Clap: 8yd self PBAoE — not 40yd enemy_count
+    if not state.is_pvp and state.hp > 65
+        and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
+        return false
+    end
+    return action(context, build_action("ThunderClap", ACTION.ThunderClap, {
+        target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false,
+        debuff = THUNDER_CLAP_DEBUFF, refresh = 5, cooldown = 4,
+        hit_radius = 8, hit_origin = "me",
+    }))
 end
 
 local function spell_reflect_matches(context, state)

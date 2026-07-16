@@ -31,6 +31,13 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
+
 local _cleu = NS.SwingDiagnostics
 if _cleu then
     _cleu.register_seals({
@@ -383,7 +390,11 @@ local strategies = {
             local settings = settings_for(context)
             if not can_attack_target(context) then return false end
             if settings.kebab_use_whirlwind == false then return false end
-            if general_use_kebab(context, state) and (context.enemy_count or 0) < 2 then return false end
+            -- Whirlwind: 8yd self PBAoE — not 40yd density
+            if general_use_kebab(context, state)
+                and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
+                return false
+            end
             if context.has_breakable_cc_nearby and settings.pvp_cc_break_check then return false end
             -- Execute phase gate
             if state.target_below_20 and settings.kebab_execute_phase then
@@ -605,12 +616,14 @@ local strategies = {
 
             return true
         end,
-        execute = function(context)
+        execute = function(context, state)
             local settings = settings_for(context)
             local cleave_at = settings.aoe_threshold or 2
             local cc_safe = not (context.has_breakable_cc_nearby and settings.pvp_cc_break_check)
-            -- Prefer Cleave in AoE
-            if cc_safe and cleave_at > 0 and (context.enemy_count or 0) >= cleave_at
+            -- Prefer Cleave in AoE (TARGET_8 hit volume)
+            local cleave_hit = NS.aoe_target_meets
+                and NS.aoe_target_meets(cleave_at, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, state)
+            if cc_safe and cleave_at > 0 and cleave_hit
                 and spell_exists(SPELLS.Cleave) and spell_ready(SPELLS.Cleave, context.target)
             then
                 return try_cast(SPELLS.Cleave, context.target,
