@@ -27,6 +27,7 @@ local tests = {
     "test_shaman_leveling_registration.lua",
     "test_wotlk_leveling_load.lua",
     "test_vanilla_leveling_ladders.lua",
+    "test_tbc_leveling_ladders.lua",
     "test_wotlk_leveling_ladders.lua",
 }
 
