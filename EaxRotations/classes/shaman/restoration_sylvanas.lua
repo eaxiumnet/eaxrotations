@@ -46,6 +46,15 @@ local ACTION = {
     WindfuryTotem           = define("WindfuryTotem",           { 25587, 25585, 10614, 10613, 8512 }, "WindfuryTotem"),
 }
 local Healing = NS.ShamanHealing or require("classes/shaman/healing_sylvanas")
+
+local _ns_gate_overheal = NS.gate_overheal
+local function gate_overheal(spell_key, unit, cast_time, settings, spell_id)
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        return NS.HealerDeficit.gate_spell_overheal(spell_key, unit, cast_time, settings, spell_id)
+    end
+    return _ns_gate_overheal and _ns_gate_overheal(spell_key, unit, cast_time, settings, spell_id) or false
+end
+
 -- Preemptive heal module (Sonah-style predictive healing)
 local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
 local _ts_ok, TSHelper = pcall(require, "shared/ts_helper_sylvanas")
@@ -661,7 +670,7 @@ local function healing_way_matches(context, state)
   -- if the tank doesn't actually need the healing
   local mana_pct = state.mana_pct or context.mana_pct or 100
   local spell_id = choose_healing_wave(mana_pct)
-  if NS.gate_overheal("HealingWave", state.tank.unit, 2.5, context.settings, spell_id) then return false end
+  if gate_overheal("HealingWave", state.tank.unit, 2.5, context.settings, spell_id) then return false end
  return true
 end
 
@@ -685,13 +694,13 @@ local function chain_heal_matches(context, state)
   -- AoEHeal found a cluster; use cluster count for gate
   if (state.chain_heal_cluster_count or 0) < 2 then return false end
   if (ch_target.effective_hp or 100) > spec_kit.setting_number(context, "restoration_chain_heal_hp", 65) then return false end
-   if NS.gate_overheal("ChainHeal", ch_target.unit, 2.5, context.settings, ACTION.ChainHeal:id()) then return false end
+   if gate_overheal("ChainHeal", ch_target.unit, 2.5, context.settings, ACTION.ChainHeal:id()) then return false end
   return true
  end
  -- Fallback: naive lowest-HP targeting
  if not state.lowest or not state.lowest.unit then return false end
  if (state.chain_heal_target_count or 0) < 2 then return false end  if (state.lowest.effective_hp or 100) > spec_kit.setting_number(context, "restoration_chain_heal_hp", 65) then return false end
-  if NS.gate_overheal("ChainHeal", state.lowest.unit, 2.5, context.settings, ACTION.ChainHeal:id()) then return false end
+  if gate_overheal("ChainHeal", state.lowest.unit, 2.5, context.settings, ACTION.ChainHeal:id()) then return false end
  return true
 end
 
@@ -744,7 +753,7 @@ local healing_strategies = {
    if not (NS.spell_ready and NS.spell_ready(ACTION.HealingWave, ft.unit, { skip_range = true })) then return false end
    local mana_pct = state.mana_pct or context.mana_pct or 100
    local spell_id = choose_healing_wave(mana_pct)
-   if NS.gate_overheal and NS.gate_overheal("HealingWave", ft.unit, 2.5, context.settings, spell_id) then return false end
+   if gate_overheal and gate_overheal("HealingWave", ft.unit, 2.5, context.settings, spell_id) then return false end
   return true
   end, execute = function(context, state)
    local ft = state.friendly_target

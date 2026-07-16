@@ -31,6 +31,15 @@ local function load_healing_helpers()
 end
 
 local Healing = load_healing_helpers()
+
+local _ns_gate_overheal = NS.gate_overheal
+local function gate_overheal(spell_key, unit, cast_time, settings, spell_id)
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        return NS.HealerDeficit.gate_spell_overheal(spell_key, unit, cast_time, settings, spell_id)
+    end
+    return _ns_gate_overheal and _ns_gate_overheal(spell_key, unit, cast_time, settings, spell_id) or false
+end
+
 -- Preemptive heal module (Sonah-style predictive healing)
 local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
 local FsrManager = require("shared/fsr_manager_sylvanas")
@@ -673,7 +682,7 @@ local strategies = {
    if not state.lowest or state.lowest.is_player then return false end
    if not spell_exists(ACTION.BindingHeal) or not spell_ready(ACTION.BindingHeal, state.lowest.unit) then return false end
     -- Predictive overheal gate
-    if NS.gate_overheal("BindingHeal", state.lowest.unit, 2.0, context.settings, ACTION.BindingHeal:id()) then return false end
+    if gate_overheal("BindingHeal", state.lowest.unit, 2.0, context.settings, ACTION.BindingHeal:id()) then return false end
    return true
   end,
   execute = function(context, state)
@@ -693,7 +702,7 @@ local strategies = {
    local poh_count = state.subgroup_damaged_count or state.group_damaged_count
    if poh_count < spec_kit.setting_number(context, "holy_aoe_count", 3) then return false end
     -- Predictive overheal gate
-    if NS.gate_overheal("PrayerOfHealing", state.lowest and state.lowest.unit or NS.PLAYER_UNIT, 3.0, context.settings, ACTION.PrayerOfHealing:id()) then return false end
+    if gate_overheal("PrayerOfHealing", state.lowest and state.lowest.unit or NS.PLAYER_UNIT, 3.0, context.settings, ACTION.PrayerOfHealing:id()) then return false end
    return true
   end,
   execute = function(context, state)
@@ -715,7 +724,7 @@ local strategies = {
     -- Predictive overheal gate: don't waste clearcast GH if predicted deficit is small
     local mana_pct = state.mana_pct or context.mana_pct or 100
     local spell_id = (mana_pct > 30) and GREATER_HEAL_MAX or ((mana_pct > 15) and GREATER_HEAL_CONSERVE or GREATER_HEAL_EFFICIENT)
-    if NS.gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings, spell_id) then return false end
+    if gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings, spell_id) then return false end
     return (state.lowest_hp or 100) < 95
   end,
   execute = function(context, state)
@@ -773,7 +782,7 @@ local strategies = {
     -- Predictive overheal gate
     local mana_pct = state.mana_pct or context.mana_pct or 100
     local spell_id = (mana_pct > 30) and GREATER_HEAL_MAX or ((mana_pct > 15) and GREATER_HEAL_CONSERVE or GREATER_HEAL_EFFICIENT)
-    if NS.gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings, spell_id) then return false end
+    if gate_overheal("GreaterHeal", state.lowest.unit, 2.5, context.settings, spell_id) then return false end
    return true
   end,
    execute = function(context, state)
@@ -819,7 +828,7 @@ local strategies = {
     -- Predictive overheal gate
     local mana_pct = state.mana_pct or context.mana_pct or 100
     local spell_id = (mana_pct > 30) and FLASH_HEAL_MAX or ((mana_pct > 15) and FLASH_HEAL_CONSERVE or FLASH_HEAL_EFFICIENT)
-    if NS.gate_overheal("FlashHeal", state.lowest.unit, 1.5, context.settings, spell_id) then return false end
+    if gate_overheal("FlashHeal", state.lowest.unit, 1.5, context.settings, spell_id) then return false end
    return true
   end,
    execute = function(context, state)

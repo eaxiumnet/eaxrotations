@@ -109,6 +109,13 @@ NS.PriestHealing.has_pws = has_pws
 
 NS.PriestHealing.predict_effective_deficit = predict_effective_deficit
 
+function NS.PriestHealing.gate_overheal(spell_key, unit, cast_time, settings, spell_id)
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        return NS.HealerDeficit.gate_spell_overheal(spell_key, unit, cast_time, settings, spell_id)
+    end
+    return NS.gate_overheal and NS.gate_overheal(spell_key, unit, cast_time, settings, spell_id) or false
+end
+
 -- Magic debuff detection for Dispel Magic gate (used by Holy + Disc)
 -- Uses NS.has_dispel_type_debuff when available; falls back to manual scan.
 local DANGEROUS_MAGIC_DEBUFF_IDS = {

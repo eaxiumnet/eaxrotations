@@ -40,6 +40,13 @@ local predict_effective_deficit = NS.import_helpers("predict_effective_deficit")
 
 NS.PaladinHealing.predict_effective_deficit = predict_effective_deficit
 
+function NS.PaladinHealing.gate_overheal(spell_key, unit, cast_time, settings, spell_id)
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        return NS.HealerDeficit.gate_spell_overheal(spell_key, unit, cast_time, settings, spell_id)
+    end
+    return NS.gate_overheal and NS.gate_overheal(spell_key, unit, cast_time, settings, spell_id) or false
+end
+
 local is_in_raid = NS.is_in_raid or function() return false end
 local is_in_party = NS.is_in_party or function() return false end
 
