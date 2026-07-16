@@ -150,7 +150,7 @@ local TRACKED_AURAS = {
     [28507]  = 15,    -- Haste Potion
     [35476]  = 30,    -- Drums of Battle
     [28498]  = 15,    -- Drum of Battle alt
-    [33687]  = 15,    -- Bloodlust trinket / haste trinket alt
+    -- NOTE: 33687 is item "Vengeful Gladiator's Gavel", not a spell aura — removed (failed 3-exp verify).
 
     -- Damage multipliers
     [34471]  = 18,    -- The Beast Within (BW active, +10% damage)

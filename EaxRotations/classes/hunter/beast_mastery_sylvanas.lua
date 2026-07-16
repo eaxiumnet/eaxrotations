@@ -10,6 +10,12 @@
 --          bail gate on every match function; auto-aspect hysteresis (Viper ≤5%, Hawk ≥25%).
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local SPELLS = NS.HunterSpells or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
@@ -513,7 +519,7 @@ local function multi_shot_matches(context, s)
     if not s.in_combat then return false end
     if s.in_dead_zone then return false end
     if s.multishot_mode == 0 then return false end
-    if (s.enemy_count or 0) < (s.multishot_mode or 2) then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(s.multishot_mode or 2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s) then return false end
     if not s.multi_shot_ready then return false end
     -- CC gate: skip Multi-Shot near breakable CC (sheep/trap/sap)
     if context.has_breakable_cc_nearby then return false end
@@ -674,7 +680,7 @@ local function volley_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not s.use_volley then return false end
-    if (s.enemy_count or 0) < (s.aoe_threshold or 3) then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(s.aoe_threshold or 3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context.target, context, s) then return false end
     if not s.volley_ready then return false end
     if context.is_moving then return false end
     return true
@@ -685,7 +691,7 @@ local function explosive_trap_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not s.use_explosive_trap then return false end
-    if (s.enemy_count or 0) < (s.aoe_threshold or 3) then return false end
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(s.aoe_threshold or 3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, s) then return false end
     if not s.explosive_trap_ready then return false end
     return true
 end

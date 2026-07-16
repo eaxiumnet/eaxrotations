@@ -16,7 +16,7 @@ local druid_leveling = {}
 local is_leveling_context = leveling.create_context_guard()
 
 local SPELLS = NS.DruidSpells or {}
-local MARK_OF_THE_WILD_BUFF = { 9885, 9884, 8907, 6756, 5234, 5232, 1126 }
+local MARK_OF_THE_WILD_BUFF = { 21850, 21849, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }
 local THORNS_BUFF = { 9910, 9756, 8914, 1075, 782, 467 }
 local RAKE_DEBUFF = { 9904, 1824, 1823, 1822 }
 local RIP_DEBUFF = { 1079, 9492, 9493, 9752, 9894, 9896 }
@@ -497,4 +497,6 @@ function druid_leveling.on_update(context)
 end
 
 -- [Druid] Leveling rotation loaded (Classic)
+druid_leveling.strategies = strategies
+
 return druid_leveling

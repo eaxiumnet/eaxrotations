@@ -48,11 +48,17 @@ local function build_state(context)
 end
 
 local function shamanistic_rage_matches(context, state)
-    return state.shamanistic_rage_ready
+    if not state.in_combat then return false end
+    if not state.shamanistic_rage_ready then return false end
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 60) then return false end
+    return true
 end
 
 local function feral_spirit_matches(context, state)
-    return state.feral_spirit_ready
+    if not state.in_combat then return false end
+    if not state.feral_spirit_ready then return false end
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+    return true
 end
 
 local function stormstrike_matches(context, state)

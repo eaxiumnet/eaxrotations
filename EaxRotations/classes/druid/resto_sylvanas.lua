@@ -11,6 +11,8 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.DruidHealing or require("classes/druid/healing_sylvanas")
 -- Preemptive heal module (Sonah-style predictive healing)
 local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
+local _hp_ok, HealthPred = pcall(require, "shared/health_pred_helper_sylvanas")
+if not _hp_ok or type(HealthPred) ~= "table" then HealthPred = nil end
 local FsrManager = require("shared/fsr_manager_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
@@ -196,6 +198,15 @@ local function effective_hp(entry)
  return entry and (entry.effective_hp or entry.hp or 100) or 100
 end
 
+local function predicted_hp(entry, deadline)
+ if not entry or not entry.unit then return 100 end
+ if HealthPred and HealthPred.predicted_hp_pct then
+  local ok, pct = pcall(HealthPred.predicted_hp_pct, entry.unit, deadline or 2.5)
+  if ok and type(pct) == "number" then return pct end
+ end
+ return entry.effective_hp or entry.hp or 100
+end
+
 local function effective_deficit(entry)
  if not entry then return 0 end
  return entry.effective_deficit or entry.deficit or 0
@@ -253,15 +264,17 @@ local function choose_better(current, candidate)
  return current
 end
 
-local function entry_can_receive_lifebloom(entry, context)
+local function entry_can_receive_lifebloom(entry, context, hp)
  if not entry or not entry.unit then return false end
  if context.mana_pct and context.mana_pct <= MANA_LOW_FOR_BLOOM then return false end
- if effective_hp(entry) >= FULL_TARGET_HP and (entry.lifebloom_stacks or 0) > 0 then return false end
+ local check_hp = hp or effective_hp(entry)
+ if check_hp >= FULL_TARGET_HP and (entry.lifebloom_stacks or 0) > 0 then return false end
  return true
 end
 
 local function needs_lifebloom_refresh(entry, context, wanted_stacks)
- if not entry_can_receive_lifebloom(entry, context) then return false end
+ local hp = predicted_hp(entry, 2.5)
+ if not entry_can_receive_lifebloom(entry, context, hp) then return false end
  local stacks = entry.lifebloom_stacks or 0
  local remains = entry.lifebloom_remains or NS.buff_remains(entry.unit, LIFEBLOOM_BUFF) or 0
  if stacks <= 0 then return true end
@@ -286,7 +299,8 @@ local function should_let_lifebloom_bloom(entry, context)
  local remains = entry.lifebloom_remains or 0
  if remains <= 0 or remains > LIFEBLOOM_BLOOM_SOON then return false end
  local mana = context.mana_pct or context.player_mana_pct or 100
- return mana <= MANA_LOW_FOR_BLOOM or effective_hp(entry) >= FULL_TARGET_HP
+ local hp = predicted_hp(entry, 1.5)
+ return mana <= MANA_LOW_FOR_BLOOM or hp >= FULL_TARGET_HP
 end
 
 local function needs_rejuvenation(entry, threshold)

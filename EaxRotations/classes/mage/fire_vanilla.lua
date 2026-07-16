@@ -7,6 +7,12 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local SPELLS = NS.MageSpells or {}
 
 local potion_helper = require("shared/potion_helper_sylvanas")
@@ -120,27 +126,27 @@ end
 
 local function flamestrike_matches_fn(context, state)
     if context.is_moving then return false end
-    if (context.enemy_count or 1) < 3 then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_5) or 5, context.target, context, state) then return false end
 
     return NS.spell_ready(SPELLS.Flamestrike, context.target)
 end
 
 local function flamestrike_rank6_matches_fn(context, state)
     if context.is_moving then return false end
-    if (context.enemy_count or 1) < 3 then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_5) or 5, context.target, context, state) then return false end
 
     return NS.spell_ready(SPELLS.FlamestrikeRank6, context.target)
 end
 
 local function blizzard_matches_fn(context, state)
     if context.is_moving then return false end
-    if (context.enemy_count or 1) < 4 then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(4, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context.target, context, state) then return false end
 
     return NS.spell_ready(SPELLS.Blizzard, context.target)
 end
 
 local function arcane_explosion_matches_fn(context, state)
-    if (context.enemy_count or 1) < 3 then return false end
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state) then return false end
 
     return NS.spell_ready(SPELLS.ArcaneExplosion, context.target)
 end

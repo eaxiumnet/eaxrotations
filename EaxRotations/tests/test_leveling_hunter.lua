@@ -257,7 +257,13 @@ if not reg then
     error("Hunter leveling module should register as 'leveling' in rotation_registry")
 end
 local strategies = reg.strategies
-local get_state = reg.opts.get_state
+if (not strategies or #strategies == 0) and type(module) == "table" then
+    strategies = (type(mod) == "table" and (mod.strategies or mod)) or strategiesule.strategies or module
+end
+local get_state = reg.opts and reg.opts.get_state
+if (not get_state) and type(module) == "table" then
+    get_state = module.build_state or module.get_state
+end
 
 print("=== Hunter Leveling Unit Tests ===\n")
 print("Loaded " .. tostring(#strategies) .. " strategies\n")
@@ -899,7 +905,7 @@ test("rotation: OOC scenario - only OOC buffs should match", function()
     -- Reload module to reset throttled cast timers (previous test may have executed AspectHawk)
     local ok, mod = pcall(dofile, "EaxRotations/classes/hunter/leveling_sylvanas.lua")
     if not ok then error("Failed to reload leveling module for OOC test: " .. tostring(mod)) end
-    strategies = mod
+    strategies = (type(mod) == "table" and (mod.strategies or mod)) or strategies
     local ctx = make_context({in_combat = false})
     local state = get_state(ctx)
     state.has_aspect_hawk = false
@@ -1547,7 +1553,7 @@ do
     -- called execute_AspectHawk, setting the throttle to a near-current timestamp).
     local ok, mod = pcall(dofile, "EaxRotations/classes/hunter/leveling_sylvanas.lua")
     if not ok then error("Failed to reload for aspect edge test: " .. tostring(mod)) end
-    strategies = mod
+    strategies = (type(mod) == "table" and (mod.strategies or mod)) or strategies
     -- Refresh get_state from registry (reload sets up a new registration)
     local reg = NS.rotation_registry._registrations["leveling"]
     if reg and reg.opts and reg.opts.get_state then
@@ -2270,7 +2276,7 @@ do
     -- Reload module to reset `_last_aspect_hawk_cast` (AspectHawk throttle)
     local ok, mod = pcall(dofile, "EaxRotations/classes/hunter/leveling_sylvanas.lua")
     if not ok then error("Failed to reload for OOC guard test: " .. tostring(mod)) end
-    strategies = mod
+    strategies = (type(mod) == "table" and (mod.strategies or mod)) or strategies
     local reg = NS.rotation_registry._registrations["leveling"]
     if reg and reg.opts and reg.opts.get_state then
         get_state = reg.opts.get_state

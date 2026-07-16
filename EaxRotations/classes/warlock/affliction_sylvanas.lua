@@ -11,10 +11,20 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local pet_manager = require("shared/pet_manager_sylvanas")
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 local DotTTD = require("shared/dot_ttd_gating_sylvanas")
+local BuffHelper = require("shared/buff_manager_helper_sylvanas")
+local Profiler = require("shared/profiler_helper_sylvanas")
+local _ts_ok, TSHelper = pcall(require, "shared/ts_helper_sylvanas")
+if not _ts_ok or type(TSHelper) ~= "table" then TSHelper = nil end
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local SPELLS = NS.WarlockSpells or {}
@@ -29,7 +39,7 @@ local ACTION = {
     Corruption          = define("Corruption",          { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }, "Corruption"),
     CurseOfAgony        = define("CurseOfAgony",        { 27218, 11713, 11712, 11711, 6217, 1014, 980 }, "CurseOfAgony"),
     CurseOfDoom         = define("CurseOfDoom",         { 30910, 603 }, "CurseOfDoom"),
-    CurseOfRecklessness = define("CurseOfRecklessness", { 27227, 11717, 11716, 11715, 6209, 6208, 1109, 702 }, "CurseOfRecklessness"),
+    CurseOfRecklessness = define("CurseOfRecklessness", { 27226, 11717, 7659, 7658, 704 }, "CurseOfRecklessness"),
     CurseOfWeakness     = define("CurseOfWeakness",     { 30909, 27224, 11708, 11707, 7646, 6205, 1108, 702 }, "CurseOfWeakness"),
     Immolate            = define("Immolate",            { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }, "Immolate"),
     LifeTap             = define("LifeTap",             { 27222, 11689, 11688, 11687, 1456, 1455, 1454 }, "LifeTap"),
@@ -94,7 +104,52 @@ local function is_engaged(unit, me)
     return false
 end
 
---- Find a target missing the specified DoT using IZI spread_dot.
+--- Scan all DoT debuffs on the target in one buff_manager call and return a
+--- map of debuff category -> remaining seconds. Falls back to NS.debuff_remains
+--- when buff_manager is unavailable so tests without the module still work.
+local function scan_target_dots(target)
+    if not target then return {} end
+    local rows = BuffHelper.get_all_debuffs(target, 50)
+    if not rows or type(rows) ~= "table" then return {} end
+    local out = {}
+    for _, row in ipairs(rows) do
+        local id = row and (row.buff_id or row.spell_id or row.id)
+        if id then
+            local remains = row.remaining or 0
+            if remains > 0 then
+                out[id] = remains / 1000
+            end
+        end
+    end
+    return out
+end
+
+local function dot_remains_from_scan(scan, id_list)
+    if not scan or not id_list then return 0 end
+    for _, id in ipairs(id_list) do
+        if scan[id] then return scan[id] end
+    end
+    return 0
+end
+
+local function profile_enabled(context)
+    return spec_kit.setting_bool(context, "debug_profile", false)
+end
+
+local function profiled_matches(name, fn)
+    return function(context, state)
+        if not profile_enabled(context) then return fn(context, state) end
+        Profiler.start(name)
+        local ok, result = pcall(fn, context, state)
+        Profiler.stop(name, not ok)
+        if not ok then error(result, 0) end
+        return result
+    end
+end
+
+--- Find a target missing the specified DoT.
+--- Primary: TSHelper.get_dps_targets (target_selector priority list).
+--- Fallback: IZI spread_dot when TSHelper is unavailable or yields no valid unit.
 --- Safety: skips CC'd targets, unengaged patrols, and dying adds (< 20% HP).
 --- Perf: results cached per-tick keyed by spell_id (Pattern 4: no redundant scans).
 ---       3 spread strategies × 2 calls each (matches+execute) = 6 scans → 3 max.
@@ -104,7 +159,6 @@ end
 local _dot_target_cache = {}     -- [spell_id] = target|false
 local _dot_target_cache_tick = -1
 local function find_dot_target(spell_id, radius)
-    if not _izi then return nil end
     -- Per-tick cache: avoid re-scanning the same enemy list for the same debuff
     local now = NS.time_now and NS.time_now() or 0
     if now ~= _dot_target_cache_tick then
@@ -114,19 +168,55 @@ local function find_dot_target(spell_id, radius)
     if _dot_target_cache[spell_id] ~= nil then
         return _dot_target_cache[spell_id] or nil  -- false→nil
     end
+
     local me = NS.GetPlayer and NS.GetPlayer() or nil
-    local ok, target = pcall(_izi.spread_dot, spell_id, radius or 40, 1, false, function(unit)
-        if not unit then return false end
-        -- Skip CC'd targets (don't break Polymorph/Sap/Banish/etc.)
-        if is_cc_target(unit) then return false end
-        -- Skip unengaged patrols (don't pull new mobs)
-        if me and not is_engaged(unit, me) then return false end
-        -- Skip dying adds (don't waste GCD on < 20% HP targets)
-        local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
-        if ok_hp and hp and hp < 20 then return false end
-        return true
-    end)
-    local result = (ok and target) or nil
+    local result = nil
+
+    -- Primary: target_selector DPS list (priority-ordered by TS)
+    if TSHelper and TSHelper.get_dps_targets then
+        local ok_ts, targets = pcall(TSHelper.get_dps_targets, 10)
+        if ok_ts and type(targets) == "table" then
+            for i = 1, #targets do
+                local unit = targets[i]
+                if unit then
+                    local ok_v, valid = pcall(function()
+                        if unit.is_valid then return unit:is_valid() end
+                        return true
+                    end)
+                    if (not ok_v or valid ~= false)
+                        and not is_cc_target(unit)
+                        and (not me or is_engaged(unit, me))
+                    then
+                        local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
+                        if not (ok_hp and hp and hp < 20) then
+                            local has_dot = NS.debuff_up and NS.debuff_up(unit, { spell_id })
+                            if not has_dot then
+                                result = unit
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Fallback: IZI spread_dot when TSHelper unavailable or no valid target
+    if not result and _izi then
+        local ok, target = pcall(_izi.spread_dot, spell_id, radius or 40, 1, false, function(unit)
+            if not unit then return false end
+            -- Skip CC'd targets (don't break Polymorph/Sap/Banish/etc.)
+            if is_cc_target(unit) then return false end
+            -- Skip unengaged patrols (don't pull new mobs)
+            if me and not is_engaged(unit, me) then return false end
+            -- Skip dying adds (don't waste GCD on < 20% HP targets)
+            local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
+            if ok_hp and hp and hp < 20 then return false end
+            return true
+        end)
+        result = (ok and target) or nil
+    end
+
     _dot_target_cache[spell_id] = result or false  -- cache nil as false
     return result
 end
@@ -290,15 +380,16 @@ local function build_state(context)
     if context.now then _last_build_state_time = now end
     local target = context.target
     if target then
-        aff_state.ua_remains = NS.debuff_remains and NS.debuff_remains(target, UNSTABLE_AFFL_DEBUFF) or 0
-        aff_state.corruption_remains = NS.debuff_remains and NS.debuff_remains(target, CORRUPTION_DEBUFF) or 0
-        aff_state.agony_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_AGONY_DEBUFF) or 0
-        aff_state.doom_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_DOOM_DEBUFF) or 0
-        aff_state.siphon_remains = NS.debuff_remains and NS.debuff_remains(target, SIPHON_LIFE_DEBUFF) or 0
-        aff_state.immolate_remains = NS.debuff_remains and NS.debuff_remains(target, IMMOLATE_DEBUFF) or 0
-        aff_state.coe_remains = NS.debuff_remains and NS.debuff_remains(target, CURSE_OF_ELEMENTS_DEBUFF) or 0
-        aff_state.recklessness_remains = target and NS.debuff_remains and NS.debuff_remains(target, curse_helper.CURSE_OF_RECKLESSNESS_DEBUFF) or 0
-        aff_state.weakness_remains     = target and NS.debuff_remains and NS.debuff_remains(target, curse_helper.CURSE_OF_WEAKNESS_DEBUFF) or 0
+        local dot_scan = scan_target_dots(target)
+        aff_state.ua_remains = dot_remains_from_scan(dot_scan, UNSTABLE_AFFL_DEBUFF)
+        aff_state.corruption_remains = dot_remains_from_scan(dot_scan, CORRUPTION_DEBUFF)
+        aff_state.agony_remains = dot_remains_from_scan(dot_scan, CURSE_OF_AGONY_DEBUFF)
+        aff_state.doom_remains = dot_remains_from_scan(dot_scan, CURSE_OF_DOOM_DEBUFF)
+        aff_state.siphon_remains = dot_remains_from_scan(dot_scan, SIPHON_LIFE_DEBUFF)
+        aff_state.immolate_remains = dot_remains_from_scan(dot_scan, IMMOLATE_DEBUFF)
+        aff_state.coe_remains = dot_remains_from_scan(dot_scan, CURSE_OF_ELEMENTS_DEBUFF)
+        aff_state.recklessness_remains = dot_remains_from_scan(dot_scan, curse_helper.CURSE_OF_RECKLESSNESS_DEBUFF)
+        aff_state.weakness_remains     = dot_remains_from_scan(dot_scan, curse_helper.CURSE_OF_WEAKNESS_DEBUFF)
         aff_state.se_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SHADOW_EMBRACE_DEBUFF) or 0
         aff_state.isb_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, ISB_DEBUFF) or 0
         aff_state.target_hp = (target.get_health_percentage and target:get_health_percentage()) or 100
@@ -616,7 +707,7 @@ local strategies = {
     -- ------------------------------------------------------------------------
     {
         name = "CorruptionDoT",
-        matches = function(context, state)
+        matches = profiled_matches("CorruptionDoT", function(context, state)
             if not context.has_valid_enemy_target then return false end
             if broken_api_dot_throttled(27216) then return false end
             if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
@@ -627,7 +718,7 @@ local strategies = {
             local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
             if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.corruption, ttd_threshold) then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, context.target) or false
-        end,
+        end),
         execute = function(context)
             local ok = NS.try_cast(ACTION.Corruption, context.target, "[AFFL] Corruption")
             if ok and aff_state.spell_damage then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
@@ -677,7 +768,7 @@ local strategies = {
     -- ------------------------------------------------------------------------
     {
         name = "UnstableAffliction",
-        matches = function(context, state)
+        matches = profiled_matches("UnstableAffliction", function(context, state)
             if not context.has_valid_enemy_target then return false end
             if broken_api_dot_throttled(30405) then return false end
             if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end
@@ -688,7 +779,7 @@ local strategies = {
             local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
             if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.unstable_affliction, ttd_threshold) then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.UnstableAffliction, context.target) or false
-        end,
+        end),
         execute = function(context)
             local ok = NS.try_cast(ACTION.UnstableAffliction, context.target, "[AFFL] Unstable Affliction")
             if ok and aff_state.spell_damage then aff_state.snapshot_ua_dmg = aff_state.spell_damage end
@@ -720,7 +811,7 @@ local strategies = {
     -- ------------------------------------------------------------------------
     {
         name = "SiphonLife",
-        matches = function(context, state)
+        matches = profiled_matches("SiphonLife", function(context, state)
             if not context.has_valid_enemy_target then return false end
             if broken_api_dot_throttled(30911) then return false end
             if (state.siphon_remains or 0) > DOT_REFRESH_WINDOW then return false end
@@ -732,7 +823,7 @@ local strategies = {
             if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.siphon_life, ttd_threshold) then return false end
             -- Siphon Life is talent-gated; spell won't be ready if not learned
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.SiphonLife, context.target) or false
-        end,
+        end),
         execute = function(context)
             local ok = NS.try_cast(ACTION.SiphonLife, context.target, "[AFFL] Siphon Life")
             if ok and aff_state.spell_damage then aff_state.snapshot_siphon_dmg = aff_state.spell_damage end
@@ -969,7 +1060,7 @@ local strategies = {
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
             local min_targets = spec_kit.setting_number(context, "aff_seed_targets", 3)
-            if (state.enemy_count or 0) < min_targets then return false end
+            if not NS.aoe_target_meets or not NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_15) or 15, context.target, context, state) then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.SeedOfCorruption, context.target) or false
         end,
         execute = function(context)
@@ -983,7 +1074,7 @@ local strategies = {
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
             local min_targets = spec_kit.setting_number(context, "aff_seed_targets", 3)
-            if (state.enemy_count or 0) < min_targets then return false end
+            if not NS.aoe_target_meets or not NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context.target, context, state) then return false end
             if context.is_moving then return false end
             if context.is_channeling then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.RainOfFire, context.target) or false

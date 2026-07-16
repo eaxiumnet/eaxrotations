@@ -6,6 +6,12 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { healthstones = {}, potions = {} } } end
 local TBC_ITEMS = TBC.ITEMS or {}
@@ -556,7 +562,7 @@ local function swipe_aoe_matches(context, action)
     local state = build_state(context)
     if not state.is_bear then return false end
     if not state.in_combat and NS.spell_ready then return false end
-    if (state.enemy_count or 0) < (state.aoe_threshold or 3) then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(state.aoe_threshold or 3, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, state)) then return false end
     if context.has_breakable_cc_nearby then return false end
     if (state.rage or 0) < RAGE_SWIPE then return false end
     return action_ready(context, action)
@@ -566,7 +572,7 @@ local function swipe_cleave_matches(context, action)
     local state = build_state(context)
     if not state.is_bear then return false end
     if not state.in_combat and NS.spell_ready then return false end
-    if (state.enemy_count or 0) < 2 then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, state)) then return false end
     if context.has_breakable_cc_nearby then return false end
     if (state.rage or 0) < RAGE_SWIPE then return false end
     return action_ready(context, action)
@@ -614,8 +620,8 @@ local ACTIONS = {
     { name = "FaerieFireFeral", spell = SPELLS.FaerieFireFeral, required_form = "bear", debuff = FAERIE_FIRE_DEBUFF, refresh = 4, matches = faerie_fire_matches },
     { name = "DemoralizingRoar", spell = SPELLS.DemoralizingRoar, target = "self", required_form = "bear", min_rage = RAGE_DEMO_ROAR, cooldown = 25, requires_target = false, matches = demo_roar_matches },
     -- Swipe requires a hostile melee target (not self) — self-cast spam-loops.
-    { name = "SwipeAoE", spell = SPELLS.SwipeBear, required_form = "bear", min_rage = RAGE_SWIPE, is_aoe = true, enemy_count = 3, matches = swipe_aoe_matches },
-    { name = "Swipe", spell = SPELLS.SwipeBear, required_form = "bear", min_rage = RAGE_SWIPE, is_aoe = true, enemy_count = 2, matches = swipe_cleave_matches },
+    { name = "SwipeAoE", spell = SPELLS.SwipeBear, required_form = "bear", min_rage = RAGE_SWIPE, is_aoe = true, enemy_count = 3, hit_radius = 8, hit_origin = "target", matches = swipe_aoe_matches },
+    { name = "Swipe", spell = SPELLS.SwipeBear, required_form = "bear", min_rage = RAGE_SWIPE, is_aoe = true, enemy_count = 2, hit_radius = 8, hit_origin = "target", matches = swipe_cleave_matches },
     { name = "Maul", spell = SPELLS.Maul, required_form = "bear", min_rage = RAGE_MAUL, matches = maul_matches },
     { name = "EnrageCombat", spell = ENRAGE, target = "self", required_form = "bear", requires_target = false, matches = enrage_combat_matches },
     -- FerociousBiteExecute REMOVED: Ferocious Bite is a cat-form ability requiring combo

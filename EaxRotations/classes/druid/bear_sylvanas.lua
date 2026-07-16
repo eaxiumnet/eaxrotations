@@ -21,6 +21,12 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
+
 -- Optional TBC item data for healthstone / potion IDs (nil-safe fallback)
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { healthstones = {}, potions = {} } } end
@@ -53,7 +59,7 @@ local ACTION = {
     Growl               = define("Growl",               { 6795 }, "Growl"),
     Lacerate            = define("Lacerate",            { 33745 }, "Lacerate"),
     MangleBear          = define("MangleBear",          { 33987, 33986, 33878 }, "MangleBear"),
-    MarkOfTheWild       = define("MarkOfTheWild",       { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }, "MarkOfTheWild"),
+    MarkOfTheWild       = define("MarkOfTheWild",       { 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }, "MarkOfTheWild"),
     Maul                = define("Maul",                { 26996, 9881, 9880, 9745, 8972, 6809, 6808, 6807 }, "Maul"),
     SwipeBear           = define("SwipeBear",           { 26997, 9908, 9754, 769, 780, 779 }, "SwipeBear"),
     Thorns              = define("Thorns",              { 26992, 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"),
@@ -105,8 +111,10 @@ local FAERIE_FIRE_DEBUFF = { 27011, 17392, 17391, 17390, 16857, 26993, 9907, 974
 local LACERATE_DEBUFF = { 33745 }
 local MANGLE_DEBUFF = { 33987, 33986, 33878, 33983, 33982, 33876 }
 local DEMO_ROAR_DEBUFF = { 26998, 9898, 9747, 9490, 1735, 99, 25203, 11556, 6190, 1160 }
-local MARK_BUFF = { 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126, 21850, 21849 }
-local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
+local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
+-- GotW first (better than MotW), then MotW high→low + alternate aura IDs (Vanilla∪TBC∪WotLK).
+local MARK_BUFF = (_rbf_ok and RBF and RBF.detect("mark_of_the_wild")) or { 26991, 21850, 21849, 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126, 24752, 39233, 16878 }
+local THORNS_BUFF = (_rbf_ok and RBF and RBF.detect("thorns")) or { 26992, 9910, 9756, 8914, 1075, 782, 467 }
 local CLEARCASTING_BUFF = { 16870 }
 local BARKSKIN_BUFF = { 22812 }
 local FRENZIED_REGEN_BUFF = { 22842 }
@@ -432,6 +440,11 @@ local function mark_matches(context, action)
     if not s.use_self_buffs then return false end   -- gated on Self Buffs setting
     if s.in_combat then return false end
     if s.is_bear then return false end              -- never break bear form for buffs
+    local spell = ACTION.MarkOfTheWild or action
+    -- When aura APIs return remains=0, recent-cast lockout stops MotW spam.
+    if NS.broken_api_throttled and NS.broken_api_throttled(spell, 300.0) then return false end
+    -- Never overwrite Gift / higher MotW with a worse MotW rank.
+    if NS.buff_would_downgrade and NS.buff_would_downgrade(s.me, MARK_BUFF, spell) then return false end
     if (NS.buff_remains and NS.buff_remains(s.me, MARK_BUFF) or 0) > MOTW_REFRESH then return false end
     return action_ready(context, action)
 end
@@ -441,6 +454,10 @@ local function thorns_matches(context, action)
     if not s.use_self_buffs then return false end   -- gated on Self Buffs setting
     if s.in_combat then return false end
     if s.is_bear then return false end              -- never break bear form for buffs
+    local spell = ACTION.Thorns or action
+    -- Live log: Thorns 782 re-queued every GCD while aura API reports missing.
+    if NS.broken_api_throttled and NS.broken_api_throttled(spell, 300.0) then return false end
+    if NS.buff_would_downgrade and NS.buff_would_downgrade(s.me, THORNS_BUFF, spell) then return false end
     if (NS.buff_remains and NS.buff_remains(s.me, THORNS_BUFF) or 0) > THORNS_REFRESH then return false end
     return action_ready(context, action)
 end
@@ -663,7 +680,7 @@ local function swipe_aoe_matches(context, action)
     -- when the client rejects the cast and the strategy rematches every frame.
     if not can_use_bear_ability(s) then return false end
     if not s.in_combat and NS.spell_ready then return false end
-    if (s.enemy_count or 0) < (s.aoe_threshold or 3) then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(s.aoe_threshold or 3, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s)) then return false end
     if s.use_pvp_cc_gate and context.has_breakable_cc_nearby then return false end
     if not rage_allows_filler(s, RAGE_SWIPE) then return false end
     return action_ready(context, action)
@@ -674,7 +691,7 @@ local function swipe_cleave_matches(context, action)
     -- TBC Swipe requires a hostile melee target (not self). See swipe_aoe_matches.
     if not can_use_bear_ability(s) then return false end
     if not s.in_combat and NS.spell_ready then return false end
-    if (s.enemy_count or 0) < 2 then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s)) then return false end
     if s.use_pvp_cc_gate and context.has_breakable_cc_nearby then return false end
     if s.target and spell_exists(ACTION.Lacerate) and (s.lacerate_stacks or 0) < 3 and (s.target_ttd or 999) > 8 then return false end
     if not rage_allows_filler(s, RAGE_SWIPE) then return false end

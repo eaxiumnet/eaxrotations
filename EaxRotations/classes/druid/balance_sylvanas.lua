@@ -1,11 +1,19 @@
 -- balance_sylvanas.lua — Druid Balance (moonkin) rotation for TBC Anniversary (2.5.5).
--- WHAT:  ranged DPS rotation (Moonfire + Insect Swarm up, Faerie Fire, Starfire filler with Wrath for mana, Starfall, Force of Nature).
+-- WHAT:  ranged DPS rotation (Moonfire + Insect Swarm up, Faerie Fire, Starfire filler with Wrath for mana,
+--         optional multi-DoT spread via TSHelper.get_dps_targets, Starfall, Force of Nature).
 -- WHEN:  combat, in Moonkin form, with valid enemy target.
--- WHY:   mirrors wowsims/tbc-new balance APL and TBC guides (dots up, Faerie Fire, Starfire primary filler, Starfall on CD, self-Innervate low mana, treants on CD).
+-- WHY:   mirrors wowsims/tbc-new balance APL and TBC guides (dots up, Faerie Fire, Starfire primary filler,
+--         Starfall on CD, self-Innervate low mana, treants on CD; multi-DoT when enabled).
 -- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local SPELLS = NS.DruidSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 local _potion_helper = require("shared/potion_helper_sylvanas")
@@ -15,16 +23,118 @@ local _TBC_P = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 local _fnd_mod = require("shared/find_dead_party_ally_sylvanas")
 local _find_dead_helper = _fnd_mod and _fnd_mod.find_dead_party_ally or nil
 local _find_dead = NS.find_dead_party_ally or _find_dead_helper
+local _ts_ok, TSHelper = pcall(require, "shared/ts_helper_sylvanas")
+if not _ts_ok or type(TSHelper) ~= "table" then TSHelper = nil end
 
 local _INSECT_DEBUFF = { 27013, 24977, 24976, 24975, 24974, 5570 }
 local _MOONFIRE_DEBUFF = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
 local _FAERIE_DEBUFF  = { 26993, 9907, 9749, 778, 770 }
 local _NATURES_BUFF = { 16880 }
 local _BARKSKIN_BUFF = { 22812 }
-local _MOTW_BUFF = { 26991, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }
+-- GotW first, then MotW ranks high→low (26990 = MotW r8, not Gift 26991).
+local _MOTW_BUFF = { 26991, 21850, 21849, 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126, 24752, 39233, 16878 }
 local _HEALER_IDS = { [2]=true, [5]=true, [7]=true, [11]=true }
 local _INNERVATE_SCAN_INTERVAL = 2.0
 local _last_innervate_scan_time = 0
+local _MULTIDOT_SCAN_INTERVAL = 1.0
+local _last_multidot_scan_time = 0
+
+-- CC debuff IDs that damage would break (don't multi-DoT these targets)
+local CC_DEBUFF_IDS = {
+    118, 12824, 12825, 12826, 28271, 28272,  -- Polymorph
+    6770, 2070, 11297,                        -- Sap
+    1776,                                     -- Gouge
+    2094,                                     -- Blind
+    3355, 14308, 14309,                       -- Freezing Trap
+    20066,                                    -- Repentance
+    19386,                                    -- Wyvern Sting
+    5782, 6213, 6215, 5484, 17928,            -- Fear / Howl of Terror
+    2637, 18657, 18658,                       -- Hibernate
+    33786,                                    -- Cyclone
+    18647,                                    -- Banish
+}
+
+local function is_cc_target(unit)
+    if not unit or not NS.debuff_up then return false end
+    for _, cc_id in ipairs(CC_DEBUFF_IDS) do
+        if NS.debuff_up(unit, { cc_id }) then return true end
+    end
+    return false
+end
+
+local function _unit_hp_pct(unit)
+    if not unit then return 100 end
+    local ok, hp = pcall(function() return unit:get_health_percentage() end)
+    if ok and type(hp) == "number" then return hp end
+    return 100
+end
+
+local function _is_valid_enemy(unit)
+    if not unit then return false end
+    local ok_v, valid = pcall(function()
+        if unit.is_valid then return unit:is_valid() end
+        return true
+    end)
+    if ok_v and valid == false then return false end
+    local ok_d, dead = pcall(function()
+        if unit.is_dead then return unit:is_dead() end
+        return false
+    end)
+    if ok_d and dead then return false end
+    return true
+end
+
+--- Collect enemy list for multi-DoT: prefer TSHelper.get_dps_targets, fall back to GetEnemiesInRange.
+---@param range number|nil
+---@return table enemies
+local function _multidot_enemy_list(range)
+    if TSHelper and TSHelper.get_dps_targets then
+        local ok, result = pcall(TSHelper.get_dps_targets, 10)
+        if ok and type(result) == "table" and #result > 0 then
+            return result
+        end
+    end
+    if NS.GetEnemiesInRange then
+        local ok, result = pcall(NS.GetEnemiesInRange, range or 30)
+        if ok and type(result) == "table" then return result end
+    end
+    return {}
+end
+
+--- Find a valid enemy missing any of the given debuff IDs (multi-DoT spread target).
+--- Skips CC'd targets and targets under 20% HP.
+---@param debuff_ids table
+---@param range number|nil
+---@return game_object|nil
+local function _find_multidot_target(debuff_ids, range)
+    if not debuff_ids then return nil end
+    local enemies = _multidot_enemy_list(range)
+    for _, enemy in ipairs(enemies) do
+        if _is_valid_enemy(enemy) and not is_cc_target(enemy) and _unit_hp_pct(enemy) >= 20 then
+            local has_dot = NS.debuff_up and NS.debuff_up(enemy, debuff_ids)
+            if not has_dot then
+                return enemy
+            end
+        end
+    end
+    return nil
+end
+
+--- Count enemies that currently have any of the given debuff IDs.
+---@param debuff_ids table
+---@param range number|nil
+---@return number
+local function _count_dotted(debuff_ids, range)
+    local count = 0
+    if not debuff_ids or not NS.debuff_up then return 0 end
+    local enemies = _multidot_enemy_list(range)
+    for _, enemy in ipairs(enemies) do
+        if _is_valid_enemy(enemy) and NS.debuff_up(enemy, debuff_ids) then
+            count = count + 1
+        end
+    end
+    return count
+end
 
 -- Centralized spell resolver via spec_kit (replaces per-spec _LOCAL_SPELLS).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -37,7 +147,7 @@ local ACTION = {
     EntanglingRoots = define("EntanglingRoots", { 26989,9853,9852,5196,5195,1062,339 }, "EntanglingRoots"),
     NaturesGrasp    = define("NaturesGrasp", { 27009,17329,16813,16812,16811,16810,16689 }, "NaturesGrasp"),
     WarStomp        = define("WarStomp", { 20549 }, "WarStomp"),
-    MarkOfTheWild   = define("MarkOfTheWild", { 26991,9885,9884,8907,5234,6756,5232,1126 }, "MarkOfTheWild"),
+    MarkOfTheWild   = define("MarkOfTheWild", { 26990,9885,9884,8907,5234,6756,5232,1126 }, "MarkOfTheWild"),
 }
 
 local _INSECT_MIN_SP = 800
@@ -72,7 +182,7 @@ local function first_ready_item(item_ids)
 end
 
 local _ACT_FON = { name="ForceOfNature", spell=SPELLS.ForceOfNature, position="target", combat=true, setting="use_cooldowns", cooldown=180, min_mana=25 }
-local _ACT_HUR = { name="Hurricane", spell=SPELLS.Hurricane, position="target", enemy_count=3, not_moving=true, min_mana=35, cooldown=60 }
+local _ACT_HUR = { name="Hurricane", spell=SPELLS.Hurricane, position="target", enemy_count=3, hit_radius=8, hit_origin="target", not_moving=true, min_mana=35, cooldown=60 }
 local _ACT_SF  = { name="Starfire", spell=SPELLS.Starfire, not_moving=true, min_mana=15 }
 local _ACT_WR  = { name="Wrath", spell=SPELLS.Wrath, not_moving=true, min_mana=10 }
 local _ACT_MF  = { name="Moonfire", spell=SPELLS.Moonfire, position="target", min_mana=10 }
@@ -83,6 +193,8 @@ local _state = {
     barkskin_active=false, mana_pct=100,
     enemy_count=1, target_ttd=999, innervate_target=nil,
     healthstone_ready=0,
+    multidot_enabled=false, multidot_max=3, multidot_range=30,
+    dotted_moonfire_count=0, dotted_insect_count=0,
 }
 
 -- Schema for safe_state: custom defaults override kit defaults.
@@ -98,6 +210,11 @@ local BALANCE_SCHEMA = {
     innervate_target = nil,
     healthstone_ready = 0,
     is_group = false,
+    multidot_enabled = false,
+    multidot_max = 3,
+    multidot_range = 30,
+    dotted_moonfire_count = 0,
+    dotted_insect_count = 0,
 }
 
 local function build_state(ctx)
@@ -158,6 +275,24 @@ local function build_state(ctx)
         if (_state.mana_pct or 100) <= floor_mana then _state.innervate_target = ctx.me end
     end
     _state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
+
+    -- Multi-DoT settings + throttled dotted-count scan (1s)
+    local settings = ctx.settings or {}
+    _state.multidot_enabled = settings.balance_multidot_enabled == true
+    _state.multidot_max = settings.balance_multidot_max or 3
+    _state.multidot_range = settings.balance_multidot_range or 30
+    if _state.multidot_enabled and ctx.in_combat and (_state.enemy_count or 1) >= 2 then
+        if now - _last_multidot_scan_time >= _MULTIDOT_SCAN_INTERVAL then
+            _last_multidot_scan_time = now
+            local range = _state.multidot_range
+            _state.dotted_moonfire_count = _count_dotted(_MOONFIRE_DEBUFF, range)
+            _state.dotted_insect_count = _count_dotted(_INSECT_DEBUFF, range)
+        end
+    else
+        _state.dotted_moonfire_count = 0
+        _state.dotted_insect_count = 0
+    end
+
     -- safe_state proxy: structural nil-guard elimination (Pattern 14)
     return spec_kit.safe_state(_state, BALANCE_SCHEMA)
 end
@@ -259,7 +394,7 @@ local strategies = {
         name="PreHurricaneBarkskin",
         matches=function(ctx, s)
             local min_targets = (ctx.settings and ctx.settings.balance_hurricane_targets) or 3
-            if (s.enemy_count or ctx.enemy_count or 1) < min_targets then return false end
+            if not (NS.aoe_target_meets and NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, ctx.target, ctx)) then return false end
             if ctx.is_moving then return false end
             if (s.mana_pct or 100) < 35 then return false end
             if s.barkskin_active then return false end
@@ -276,7 +411,7 @@ local strategies = {
         name="HurricaneAoE",
         matches=function(ctx, s)
             local min_targets = (ctx.settings and ctx.settings.balance_hurricane_targets) or 3
-            if (s.enemy_count or ctx.enemy_count or 1) < min_targets then return false end
+            if not (NS.aoe_target_meets and NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, ctx.target, ctx)) then return false end
             if ctx.is_moving then return false end
             if (s.mana_pct or 100) < 35 then return false end
             if not SPELLS.Hurricane then return false end
@@ -340,6 +475,59 @@ local strategies = {
             return NS.action_matches(ctx, _ACT_MF)
         end,
         execute=function(ctx) return NS.action_execute(ctx, _ACT_MF, "[BALANCE]") end,
+    },
+    {
+        name="MoonfireSpread",
+        matches=function(ctx, s)
+            local settings = ctx.settings or {}
+            if settings.balance_multidot_enabled ~= true then return false end
+            if not ctx.in_combat then return false end
+            if (s.enemy_count or ctx.enemy_count or 1) < 2 then return false end
+            if (s.moonfire_remains or 0) <= 0 then return false end
+            local max_dots = s.multidot_max or settings.balance_multidot_max or 3
+            if (s.dotted_moonfire_count or 0) >= max_dots then return false end
+            if (s.mana_pct or 100) < 10 then return false end
+            if (ctx.target_hp_pct or ctx.target_hp or 100) <= 20 then return false end
+            if not SPELLS.Moonfire then return false end
+            local range = s.multidot_range or settings.balance_multidot_range or 30
+            local target = _find_multidot_target(_MOONFIRE_DEBUFF, range)
+            if not target then return false end
+            if not NS.spell_ready(SPELLS.Moonfire, target) then return false end
+            ctx._balance_mf_spread_target = target
+            return true
+        end,
+        execute=function(ctx)
+            local target = ctx._balance_mf_spread_target
+            if not target then return false end
+            return NS.try_cast(SPELLS.Moonfire, target, "[BALANCE] Moonfire Spread")
+        end,
+    },
+    {
+        name="InsectSwarmSpread",
+        matches=function(ctx, s)
+            local settings = ctx.settings or {}
+            if settings.balance_multidot_enabled ~= true then return false end
+            if settings.balance_use_insect_swarm == false then return false end
+            if not ctx.in_combat then return false end
+            if (s.enemy_count or ctx.enemy_count or 1) < 2 then return false end
+            if (s.insect_remains or 0) <= 0 then return false end
+            local max_dots = s.multidot_max or settings.balance_multidot_max or 3
+            if (s.dotted_insect_count or 0) >= max_dots then return false end
+            if (s.mana_pct or 100) < 10 then return false end
+            if (ctx.target_hp_pct or ctx.target_hp or 100) <= 20 then return false end
+            if not SPELLS.InsectSwarm then return false end
+            local range = s.multidot_range or settings.balance_multidot_range or 30
+            local target = _find_multidot_target(_INSECT_DEBUFF, range)
+            if not target then return false end
+            if not NS.spell_ready(SPELLS.InsectSwarm, target) then return false end
+            ctx._balance_is_spread_target = target
+            return true
+        end,
+        execute=function(ctx)
+            local target = ctx._balance_is_spread_target
+            if not target then return false end
+            return NS.try_cast(SPELLS.InsectSwarm, target, "[BALANCE] Insect Swarm Spread")
+        end,
     },
     {
         name="MovingMoonfire",
@@ -480,11 +668,16 @@ local strategies = {
         name="MarkOfTheWild",
         matches=function(ctx)
             if not spec_kit.setting_bool(ctx, "use_self_buffs", true) then return false end
-            -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-            local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.MarkOfTheWild, 3.0) or false
-            if not skip then
-                if NS.buff_up(NS.PLAYER_UNIT, _MOTW_BUFF) then return false end
+            local spell = ACTION.MarkOfTheWild or SPELLS.MarkOfTheWild
+            -- Recent-cast lockout (was inverted: throttled path used to keep casting).
+            if NS.broken_api_throttled and NS.broken_api_throttled(spell, 300.0) then
+                return false
             end
+            -- Never overwrite Gift / higher MotW with a lower MotW rank.
+            if NS.buff_would_downgrade and NS.buff_would_downgrade(NS.PLAYER_UNIT or ctx.me, _MOTW_BUFF, spell) then
+                return false
+            end
+            if NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, _MOTW_BUFF) then return false end
             if ctx.is_moving then return false end
             return NS.spell_ready(ACTION.MarkOfTheWild, NS.PLAYER_UNIT, { skip_range = true })
         end,
@@ -496,11 +689,15 @@ local strategies = {
         name="ThornsBuff",
         matches=function(ctx)
             if not spec_kit.setting_bool(ctx, "use_self_buffs", true) then return false end
-            -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-            local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Thorns, 3.0) or false
-            if not skip then
-                if NS.buff_up(NS.PLAYER_UNIT, {26992,9910,9756,8914,1075,782,467}) then return false end
+            local spell = ACTION.Thorns or SPELLS.Thorns
+            local thorns_buffs = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
+            if NS.broken_api_throttled and NS.broken_api_throttled(spell, 300.0) then
+                return false
             end
+            if NS.buff_would_downgrade and NS.buff_would_downgrade(NS.PLAYER_UNIT or ctx.me, thorns_buffs, spell) then
+                return false
+            end
+            if NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, thorns_buffs) then return false end
             if ctx.in_combat then return false end
             return NS.spell_ready(ACTION.Thorns, NS.PLAYER_UNIT, { skip_range = true })
         end,

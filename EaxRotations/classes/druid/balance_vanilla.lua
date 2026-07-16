@@ -6,6 +6,12 @@
 
 local NS = rawget(_G, "EaxRotations")
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local SPELLS = NS.DruidSpells or {}
 local _potion_helper = require("shared/potion_helper_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
@@ -36,7 +42,7 @@ local _LOCAL_SPELLS = {
 local _INSECT_MIN_SP = 800
 local _MOONFIRE_MIN_SP = 800
 
-local _ACT_HUR = { name="Hurricane", spell=SPELLS.Hurricane, position="target", enemy_count=3, not_moving=true, min_mana=35, cooldown=60 }
+local _ACT_HUR = { name="Hurricane", spell=SPELLS.Hurricane, position="target", enemy_count=3, hit_radius=8, hit_origin="target", not_moving=true, min_mana=35, cooldown=60 }
 local _ACT_SF  = { name="Starfire", spell=SPELLS.Starfire, not_moving=true, min_mana=15 }
 local _ACT_WR  = { name="Wrath", spell=SPELLS.Wrath, not_moving=true, min_mana=10 }
 local _ACT_MF  = { name="Moonfire", spell=SPELLS.Moonfire, position="target", min_mana=10 }
@@ -179,7 +185,7 @@ local _strategies = {
         name="PreHurricaneBarkskin",
         matches=function(ctx, s)
             local min_targets = (ctx.settings and ctx.settings.balance_hurricane_targets) or 3
-            if (s.enemy_count or ctx.enemy_count or 1) < min_targets then return false end
+            if not (NS.aoe_target_meets and NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, ctx.target, ctx, s)) then return false end
             if ctx.is_moving then return false end
             if (s.mana_pct or 100) < 35 then return false end
             if s.barkskin_active then return false end
@@ -196,7 +202,7 @@ local _strategies = {
         name="HurricaneAoE",
         matches=function(ctx, s)
             local min_targets = (ctx.settings and ctx.settings.balance_hurricane_targets) or 3
-            if (s.enemy_count or ctx.enemy_count or 1) < min_targets then return false end
+            if not (NS.aoe_target_meets and NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, ctx.target, ctx, s)) then return false end
             if ctx.is_moving then return false end
             if (s.mana_pct or 100) < 35 then return false end
             if not SPELLS.Hurricane then return false end

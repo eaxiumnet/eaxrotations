@@ -136,7 +136,7 @@ local DANGEROUS_MAGIC_DEBUFF_IDS = {
     , 10890, 10888, 8124, 8122 -- Psychic Scream
     , 18425 -- Improved Counterspell silence
     -- More from research: Inhibit Magic (Auchenai), Arcane Resonance (Botanica magic amp), Fungal Decay poison etc.
-    , 3434 -- Wandering Plague (disease/magic overlap)
+    , 3436, 3439 -- Wandering Plague cast + disease aura
     , 31719 -- Suspension (Underbog Black Stalker Levitate debuff, dispellable)
     , 39193 -- Shadow Power (Mechanar Gatekeeper enemy buff, purge/dispel asap per guides)
     , 39029 -- Virulent Poison (SSC/Underbog poison, dispellable)
@@ -184,7 +184,7 @@ local function has_disease(unit)
         3427 -- Infected Wound
         , 16428 -- Mangle (TBC disease flag)
         , 19615 -- Fling
-        , 3434 -- Wandering Plague
+        , 3436, 3439 -- Wandering Plague (disease)
         , 17172 -- Devouring Plague
         , 39032 -- Initial Infection (SSC, jumping, high priority abolish)
         , 46481 -- Disease Buffet (SWP, increases nature damage)
@@ -211,7 +211,6 @@ local function has_poison(unit)
     local POISON_DEBUFF_IDS = {
         3427, -- Infected Wound
         19615, -- Fling (poison?)
-        3434, -- Wandering Plague overlap
         39029, -- Virulent Poison (SSC/Underbog, dispellable poison dot)
         46296, -- Necrotic Poison (SWP hound)
         46293, -- Corrosive Poison (SWP hound)

@@ -535,12 +535,18 @@ local strategies = {
             if context.in_combat then return false end
             if spec_kit.setting_bool(context, "auto_demon_armor", true) == false then return false end
             -- Prefer Fel Armor (TBC level 62+) if learned; fall back to Demon Armor
-            local fel_armor_ids = { 28189, 28176 }
-            local demon_armor_ids = { 27260, 11735, 11734, 11733, 1086, 706 }
+            local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
+            local fel_armor_ids = (_rbf_ok and RBF and RBF.cast("fel_armor")) or { 28189, 28176 }
+            local demon_armor_ids = (_rbf_ok and RBF and RBF.cast("demon_armor")) or { 27260, 11735, 11734, 11733, 1086, 706, 687, 696 }
+            local all_armor = (_rbf_ok and RBF and RBF.detect("fel_armor")) or { 28189, 28176, 27260, 11735, 11734, 11733, 1086, 706, 687, 696 }
             local has_fel = NS.is_spell_learned and NS.is_spell_learned(fel_armor_ids[1])
+            local spell = has_fel and { id = fel_armor_ids, name = "FelArmor" } or { id = demon_armor_ids, name = "DemonArmor" }
+            -- Any better/equal family armor already up (Fel over Demon, higher rank).
+            if context.me and NS.buff_would_downgrade and NS.buff_would_downgrade(context.me, all_armor, spell) then return false end
             if has_fel and NS.has_player_buff and NS.has_player_buff(fel_armor_ids) then return false end
             if not has_fel and NS.has_player_buff and NS.has_player_buff(demon_armor_ids) then return false end
-            local spell = has_fel and { id = fel_armor_ids, name = "FelArmor" } or { id = demon_armor_ids, name = "DemonArmor" }
+            -- Also skip if other armor family is already active (prevents Fel↔Demon toggle).
+            if NS.has_player_buff and NS.has_player_buff(all_armor) then return false end
             if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
             return false
         end,

@@ -28,6 +28,12 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 --
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local SPELLS = NS.WarlockSpells or {}
 
 -- Debuff and buff ID lists for state queries
@@ -141,8 +147,8 @@ local ACTIONS = {
     -- Filler
     { name = "ShadowBolt", spell = SPELLS.ShadowBolt, not_moving = true },
     -- AoE
-    { name = "RainOfFire", spell = RainOfFire, position = "target", enemy_count = 4, not_moving = true },
-    { name = "Hellfire", spell = Hellfire, position = "self", enemy_count = 4, not_moving = true },
+    { name = "RainOfFire", spell = RainOfFire, position = "target", enemy_count = 4, not_moving = true, hit_radius = 8, hit_origin = "target" },
+    { name = "Hellfire", spell = Hellfire, position = "self", enemy_count = 4, not_moving = true, hit_radius = 10, hit_origin = "me" },
     -- CC / Emergency
     { name = "DeathCoil", spell = SPELLS.DeathCoil, max_hp = 35, cooldown = 120 },
     { name = "Fear", spell = Fear, cooldown = 15, target_not_player = true },
@@ -302,7 +308,20 @@ end
 local function aoe_matches(context, action, state)
     if context.is_channeling then return false end
     if not action.spell then return false end
-    if (context.enemy_count or context.enemies_count or 0) < (action.enemy_count or 0) then return false end
+    local need = action.enemy_count or 0
+    if need > 0 then
+        local ok = false
+        if action.hit_radius and NS.aoe_count_meets then
+            ok = NS.aoe_count_meets(need, action.hit_radius, {
+                around = action.hit_origin or "me",
+                target = context.target,
+                context = context,
+            })
+        else
+            ok = (context.enemy_count or context.enemies_count or 0) >= need
+        end
+        if not ok then return false end
+    end
     if not (NS.spell_ready and NS.spell_ready(action.spell, context.target)) then return false end
     if context.is_moving and action.not_moving then return false end
     return true

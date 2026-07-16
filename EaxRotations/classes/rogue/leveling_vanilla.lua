@@ -433,4 +433,6 @@ function rogue_leveling.on_update(context)
 end
 
 -- [Rogue] Leveling rotation loaded (Classic)
+rogue_leveling.strategies = strategies
+
 return rogue_leveling

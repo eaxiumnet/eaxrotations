@@ -11,11 +11,13 @@ if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
+local SpellQueue = require("shared/spell_queue_helper_sylvanas")
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { DEFENSIVE = 2 }
-local BATTLE_SHOUT_BUFFS = CONSTANTS.BATTLE_SHOUT_IDS or { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
+local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
+local BATTLE_SHOUT_BUFFS = (RBF and RBF.detect("battle_shout")) or CONSTANTS.BATTLE_SHOUT_IDS or { 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }
 local HAMSTRING_DEBUFF = { 25212, 7373, 7372, 1715 }
 
 local function defensive_spell_ready(spell, context)
@@ -111,6 +113,20 @@ local strategies = {
     interrupt_manager.register_interrupt_spell("warrior", "Pummel", SPELLS, 3),
 
     {
+        name = "PummelSpellQueue",
+        matches = function(context)
+            if not spec_kit.setting_bool(context, "use_spell_queue_interrupts", false) then return false end
+            if not (context.in_combat and context.target) then return false end
+            if not NS.try_interrupt or not NS.try_interrupt(context.target) then return false end
+            if NS.gcd_remains and NS.gcd_remains() > 0 then return false end
+            return NS.spell_ready and NS.spell_ready(SPELLS.Pummel, context.target) or false
+        end,
+        execute = function(context)
+            return SpellQueue.queue_spell_target_fast(SPELLS.Pummel, context.target, 7, "[WARRIOR] Pummel interrupt", false)
+        end,
+    },
+
+    {
         name = "Defensive",
         matches = function(context)
             if not should_use_warrior_defensive(context) then return false end
@@ -133,6 +149,10 @@ local strategies = {
         name = "SelfBuff",
         matches = function(context)
             if not spec_kit.setting_bool(context, "use_self_buffs", true) or not spec_kit.setting_bool(context, "use_battle_shout", true) then return false end
+            local me = context.me or NS.GetPlayer()
+            local spell = SPELLS.BattleShout
+            -- Never cast lower Battle Shout over a better rank (or when already up).
+            if me and NS.buff_would_downgrade and NS.buff_would_downgrade(me, BATTLE_SHOUT_BUFFS, spell) then return false end
             -- BUGFIX (2026-06-29): previously this called ``NS.has_player_buff``
             -- without nil-guarding the API.  On PS builds where the function
             -- is missing, every tick would crash the dispatcher.  Now we check
@@ -140,8 +160,8 @@ local strategies = {
             -- and let the throttled broken_api path decide (next line).
             if NS.has_player_buff and NS.has_player_buff(BATTLE_SHOUT_BUFFS) then return false end
             -- Throttle on PS builds where aura API is broken and has_player_buff always returns false
-            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 10.0) then return false end
-            return defensive_spell_ready(SPELLS.BattleShout, context)
+            if NS.broken_api_throttled and NS.broken_api_throttled(spell, 10.0) then return false end
+            return defensive_spell_ready(spell, context)
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.BattleShout, context.me or NS.GetPlayer(), "[WARRIOR] Battle Shout", { skip_range = true }) == true

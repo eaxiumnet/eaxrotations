@@ -270,6 +270,36 @@ local runtime = {
     last_lightning_shield_ms = -SHIELD_REFRESH_UNKNOWN_MS,
 }
 
+-- Level-aware weapon imbue picker (Windfury 30 / Flametongue 10 / Rockbiter 1).
+-- Used by auto settings and as a silent-fail fallback when the configured
+-- default (windfury) is not yet learned.
+local function best_weapon_buff_for_level(level)
+    level = level or 70
+    if level >= 30 then
+        if NS.is_spell_learned and NS.is_spell_learned(ACTION.WindfuryWeapon or 8232) then return "windfury" end
+    end
+    if level >= 10 then
+        if NS.is_spell_learned and NS.is_spell_learned(ACTION.FlametongueWeapon or 8024) then return "flametongue" end
+    end
+    if NS.is_spell_learned and NS.is_spell_learned(ACTION.RockbiterWeapon or 8017) then return "rockbiter" end
+    return "rockbiter"  -- ultimate fallback (available at level 1)
+end
+
+local function resolve_weapon_buff(choice, auto_choice, level)
+    local resolved = (choice == "auto") and auto_choice or choice
+    local spell_map = {
+        windfury = ACTION.WindfuryWeapon,
+        flametongue = ACTION.FlametongueWeapon,
+        rockbiter = ACTION.RockbiterWeapon,
+        frostbrand = ACTION.FrostbrandWeapon,
+    }
+    local spell = spell_map[resolved]
+    if spell and NS.is_spell_learned and not NS.is_spell_learned(spell) then
+        return best_weapon_buff_for_level(level or 70)
+    end
+    return resolved
+end
+
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
@@ -321,17 +351,7 @@ local function build_state(context)
     enh_state.player_level = (player and player.get_level and pcall(player.get_level, player) and ({pcall(player.get_level, player)})[2]) or 70
     if type(enh_state.player_level) ~= "number" then enh_state.player_level = 70 end
 
-    -- -- Auto weapon buffs by level
-    local function best_weapon_buff_for_level(level)
-        if level >= 30 then
-            if NS.is_spell_learned and NS.is_spell_learned(ACTION.WindfuryWeapon or 8232) then return "windfury" end
-        end
-        if level >= 10 then
-            if NS.is_spell_learned and NS.is_spell_learned(ACTION.FlametongueWeapon or 8024) then return "flametongue" end
-        end
-        if NS.is_spell_learned and NS.is_spell_learned(ACTION.RockbiterWeapon or 8017) then return "rockbiter" end
-        return "windfury"  -- ultimate fallback
-    end
+    -- -- Auto weapon buffs by level (best_weapon_buff_for_level is module-scoped)
     local mh_choice = spec_kit.setting(context, "enhancement_main_hand_ench", "windfury")
     local oh_choice = spec_kit.setting(context, "enhancement_off_hand_ench", "flametongue")
     enh_state.auto_mh_buff = (mh_choice == "auto") and best_weapon_buff_for_level(enh_state.player_level) or mh_choice
@@ -355,6 +375,14 @@ local function build_state(context)
         end
     else
         enh_state.auto_shield_type = enh_state.shield_type
+    end
+
+    -- Water Shield is level 62+; never leave low-level shamans without a shield.
+    if enh_state.auto_shield_type == "water" then
+        local ws_known = NS.is_spell_learned and NS.is_spell_learned(ACTION.WaterShield)
+        if not ws_known then
+            enh_state.auto_shield_type = "lightning"
+        end
     end
 
     -- -- Buff detection
@@ -728,8 +756,8 @@ local function mh_weapon_matches(ctx)
     local choice = spec_kit.setting(ctx, "enhancement_main_hand_ench", "windfury")
     if choice == "none" then return false end
     if enh_state.in_combat then return false end
-    -- Resolve "auto" to level-appropriate buff
-    local resolved = (choice == "auto") and enh_state.auto_mh_buff or choice
+    -- Resolve "auto"/unlearned defaults (e.g. windfury below 30) to a learned imbue
+    local resolved = resolve_weapon_buff(choice, enh_state.auto_mh_buff, enh_state.player_level)
     -- Check WeaponImbueManager-based state: if the desired imbue is detected, skip
     local has_imbue = false
     if resolved == "windfury" then has_imbue = enh_state.has_windfury_weapon
@@ -745,8 +773,8 @@ local function oh_weapon_matches(ctx)
     local choice = spec_kit.setting(ctx, "enhancement_off_hand_ench", "flametongue")
     if choice == "none" then return false end
     if enh_state.in_combat then return false end
-    -- Resolve "auto" to level-appropriate buff
-    local resolved = (choice == "auto") and enh_state.auto_oh_buff or choice
+    -- Resolve "auto"/unlearned defaults to a learned imbue
+    local resolved = resolve_weapon_buff(choice, enh_state.auto_oh_buff, enh_state.player_level)
     -- Check WeaponImbueManager-based state: if the desired imbue is detected, skip
     local has_imbue = false
     if resolved == "windfury" then has_imbue = enh_state.oh_has_windfury_weapon
@@ -860,7 +888,11 @@ local function earth_shock_matches(ctx)
         -- TTD gate: prefer Earth Shock (instant) when target is dying (< 6s), even without Flame Shock
         local ttd = ctx.ttd
         if ctx.ttd_known and ttd and ttd < 6 then return true end
-        if not enh_state.target_has_flame_shock then return false end
+        -- Endgame: only ES while FS DoT is up. Low-level: FS is level 10 — allow ES alone.
+        if not enh_state.target_has_flame_shock then
+            local fs_known = NS.is_spell_learned and NS.is_spell_learned(ACTION.FlameShock)
+            if fs_known then return false end
+        end
         return true
     end
     return false
@@ -1052,7 +1084,7 @@ end
 -- ============================================================================
 local function mh_weapon_execute(ctx)
     local choice = spec_kit.setting(ctx, "enhancement_main_hand_ench", "windfury")
-    local resolved = (choice == "auto") and enh_state.auto_mh_buff or choice
+    local resolved = resolve_weapon_buff(choice, enh_state.auto_mh_buff, enh_state.player_level)
     local spell_list
     if resolved == "windfury" then spell_list = WINDFURY_WEAPON_SPELLS
     elseif resolved == "flametongue" then spell_list = FLAMETONGUE_WEAPON_SPELLS
@@ -1065,7 +1097,7 @@ end
 
 local function oh_weapon_execute(ctx)
     local choice = spec_kit.setting(ctx, "enhancement_off_hand_ench", "flametongue")
-    local resolved = (choice == "auto") and enh_state.auto_oh_buff or choice
+    local resolved = resolve_weapon_buff(choice, enh_state.auto_oh_buff, enh_state.player_level)
     local spell_list
     if resolved == "windfury" then spell_list = WINDFURY_WEAPON_SPELLS
     elseif resolved == "flametongue" then spell_list = FLAMETONGUE_WEAPON_SPELLS

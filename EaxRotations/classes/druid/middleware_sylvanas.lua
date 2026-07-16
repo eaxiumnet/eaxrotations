@@ -15,6 +15,8 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local CCGateDB = CCBreakDB
 local SPELLS = NS.DruidSpells or {}
+local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
+if not _rbf_ok then RBF = nil end
 -- BUGFIX (2026-06-29): this file used to read the bare global ``core``, which
 -- depended on _G.core being set by core_sylvanas.lua BEFORE this chunk loaded.
 -- In test sandboxes or any load-order where core_sylvanas runs later, the
@@ -451,13 +453,20 @@ local strategies = {
             if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
             -- Form-aware: MotW is caster-only, skip if in Bear/Cat form
             if not can_cast_in_current_form(26990) then return false end
-            local motw_buffs = { 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126, 21850, 21849 }
+            local motw_cast = (RBF and RBF.cast("mark_of_the_wild")) or { 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }
+            local spell = { id = motw_cast, name = "MarkOfTheWild" }
+            -- Aura APIs often report MotW missing after cast → GCD spam.
+            -- 300s lockout is well under MotW's real 30m duration.
+            if NS.broken_api_throttled and NS.broken_api_throttled(spell, 300.0) then return false end
+            -- GotW + all MotW ranks (best first). Never overwrite Gift / higher MotW with a lower rank.
+            local motw_buffs = (RBF and RBF.detect("mark_of_the_wild")) or motw_cast
+            if NS.buff_would_downgrade and NS.buff_would_downgrade(context.me, motw_buffs, spell) then return false end
             if NS.has_player_buff and NS.has_player_buff(motw_buffs) then return false end
-            local spell = { id = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }, name = "MarkOfTheWild" }
             return NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })
         end,
         execute = function(context)
-            return NS.try_cast({ id = { 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126 }, name = "MarkOfTheWild" }, context.me, "[DRUID] Mark of the Wild", { skip_range = true })
+            local motw_cast = (RBF and RBF.cast("mark_of_the_wild")) or { 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126 }
+            return NS.try_cast({ id = motw_cast, name = "MarkOfTheWild" }, context.me, "[DRUID] Mark of the Wild", { skip_range = true })
         end,
     },
 
@@ -470,13 +479,18 @@ local strategies = {
             if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
             -- Form-aware: Thorns is caster-only, skip if in Bear/Cat form
             if not can_cast_in_current_form(26992) then return false end
-            local thorns_buffs = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
+            local thorns_cast = (RBF and RBF.cast("thorns")) or { 26992, 9910, 9756, 8914, 1075, 782, 467 }
+            local spell = { id = thorns_cast, name = "Thorns" }
+            -- Same aura-API failure mode as MotW (live log: Thorns 782 loop).
+            if NS.broken_api_throttled and NS.broken_api_throttled(spell, 300.0) then return false end
+            local thorns_buffs = (RBF and RBF.detect("thorns")) or thorns_cast
+            if NS.buff_would_downgrade and NS.buff_would_downgrade(context.me, thorns_buffs, spell) then return false end
             if NS.has_player_buff and NS.has_player_buff(thorns_buffs) then return false end
-            local spell = { id = { 26992, 9910, 9756, 8914, 1075, 782, 467 }, name = "Thorns" }
             return NS.spell_ready and NS.spell_ready(spell, context.me, { skip_range = true })
         end,
         execute = function(context)
-            return NS.try_cast({ id = { 26992, 9910, 9756, 8914, 1075, 782, 467 }, name = "Thorns" }, context.me, "[DRUID] Thorns", { skip_range = true })
+            local thorns_cast = (RBF and RBF.cast("thorns")) or { 26992, 9910, 9756, 8914, 1075, 782, 467 }
+            return NS.try_cast({ id = thorns_cast, name = "Thorns" }, context.me, "[DRUID] Thorns", { skip_range = true })
         end,
     },
 

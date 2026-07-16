@@ -29,7 +29,7 @@ local MAJOR_OFFENSIVE_CD_IDS = {
   10060,  -- Power Infusion
   12292,  -- Death Wish
   1719,   -- Recklessness
-  12293,  -- Defensive Stance? no, skip
+  -- (removed invalid 12293 — not a major CD spell; was a stale comment/ID)
 }
 
 -- Defensive cooldowns and survival trinket alignment targets.

@@ -7,6 +7,12 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local SPELLS = NS.MageSpells or {}
 
 local potion_helper = require("shared/potion_helper_sylvanas")
@@ -17,7 +23,7 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local ICE_BARRIER_BUFF = { 13032, 13031, 13033 }
 local FROST_NOVA_ROOTS = { 10230, 6131, 865, 122 }
 local MANA_SHIELD_BUFF = { 10193, 10192, 10191, 8495, 8494, 1463 }
-local ARCANE_INTELLECT_BUFF = { 10157, 10156, 1461, 1460, 1459, 23028 }
+local ARCANE_INTELLECT_BUFF = { 23028, 10157, 10156, 1461, 1460, 1459 }
 local ICE_BLOCK_BUFF = { }
 local PRESENCE_OF_MIND_BUFF = { 12043 }
 local COMBUSTION_BUFF = { 11129 }
@@ -214,7 +220,7 @@ end
 
 local function blizzard_matches(context, s)
     if context.is_channeling then return false end
-    if (s.enemy_count or 0) < 3 then return false end
+    if not NS.aoe_target_meets or not NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context.target, context, s) then return false end
     if not context.in_combat then return false end
     if context.is_moving then return false end
     if not s.blizzard_ready then return false end
@@ -222,7 +228,7 @@ local function blizzard_matches(context, s)
 end
 
 local function arcane_explosion_matches(context, s)
-    if (s.enemy_count or 0) < 3 then return false end
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, s) then return false end
     if not context.in_combat then return false end
     if not (SPELLS.ArcaneExplosion and NS.spell_ready) then return false end
     return NS.spell_ready(SPELLS.ArcaneExplosion, context.me or NS.GetPlayer(), { skip_range = true })

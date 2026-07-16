@@ -55,9 +55,14 @@ local function get_spellsteal_target(context)
     _cached_steal_fresh = true
     return best_unit, best_priority
 end
+local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
+if not _rbf_ok then RBF = nil end
 local MAGE_ARMOR_BUFFS = { 27125, 22783, 22782, 6117 }
 local MOLTEN_ARMOR_BUFFS = { 30482 }
-local ARCANE_INTELLECT_BUFFS = { 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 }
+-- Combined armor family for downgrade checks (any armor active = don't recast lower).
+local ALL_MAGE_ARMOR_BUFFS = (RBF and RBF.detect("mage_armor")) or { 27125, 22783, 22782, 6117, 27124, 10220, 10219, 7320, 7302, 7301, 7300, 168, 30482 }
+-- Arcane Brilliance first (superior), then AI high→low (Vanilla∪TBC∪WotLK).
+local ARCANE_INTELLECT_BUFFS = (RBF and RBF.detect("arcane_intellect")) or { 27127, 23028, 27126, 10157, 10156, 1461, 1460, 1459 }
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }
 local CURSE_DEBUFFS = { 28282, 28271, 11719, 5116, 5115, 23426, 23427, 23230, 23229, 23364, 702, 703, 704, 11014, 11015, 11708, 13323, 13325, 13326, 18223, 18222, 18180, 18179, 17407, 1499, 1513, 1515 }
 
@@ -242,26 +247,49 @@ local strategies = {
         name = "SelfBuff",
         matches = function(context)
             if spec_kit.setting_bool(context, "use_self_buffs", true) == false then return false end
+            local me = context.me or NS.GetPlayer()
             -- BUGFIX (2026-06-29): nil-guard NS.has_player_buff so a missing
             -- API doesn't crash the dispatch.  ``not nil`` is true which would
             -- falsely report "no Arcane Intellect buff" and recast every tick.
             local safe_has_player_buff = NS.has_player_buff or function() return true end
             if not has_armor_buff() then
-                return self_spell_ready(SPELLS.MoltenArmor, context) or self_spell_ready(SPELLS.MageArmor, context)
+                local armor_spell = SPELLS.MoltenArmor or SPELLS.MageArmor
+                if me and armor_spell and NS.buff_would_downgrade
+                    and NS.buff_would_downgrade(me, ALL_MAGE_ARMOR_BUFFS, armor_spell) then
+                    -- better/any armor already ranked; fall through to AI check
+                else
+                    return self_spell_ready(SPELLS.MoltenArmor, context) or self_spell_ready(SPELLS.MageArmor, context)
+                end
             end
             if not safe_has_player_buff(ARCANE_INTELLECT_BUFFS) then
+                if me and SPELLS.ArcaneIntellect and NS.buff_would_downgrade
+                    and NS.buff_would_downgrade(me, ARCANE_INTELLECT_BUFFS, SPELLS.ArcaneIntellect) then
+                    return false
+                end
                 return self_spell_ready(SPELLS.ArcaneIntellect, context)
             end
             return false
         end,
         execute = function(context)
+            local me = context.me or NS.GetPlayer()
             if not has_armor_buff() then
-                if self_spell_ready(SPELLS.MoltenArmor, context) and NS.try_cast(SPELLS.MoltenArmor, (context.me or NS.GetPlayer()), "[MAGE] Molten Armor", { skip_range = true }) then return true end
-                if self_spell_ready(SPELLS.MageArmor, context) and NS.try_cast(SPELLS.MageArmor, (context.me or NS.GetPlayer()), "[MAGE] Mage Armor", { skip_range = true }) then return true end
+                if self_spell_ready(SPELLS.MoltenArmor, context)
+                    and not (me and NS.buff_would_downgrade and NS.buff_would_downgrade(me, ALL_MAGE_ARMOR_BUFFS, SPELLS.MoltenArmor))
+                    and NS.try_cast(SPELLS.MoltenArmor, me, "[MAGE] Molten Armor", { skip_range = true }) then
+                    return true
+                end
+                if self_spell_ready(SPELLS.MageArmor, context)
+                    and not (me and NS.buff_would_downgrade and NS.buff_would_downgrade(me, ALL_MAGE_ARMOR_BUFFS, SPELLS.MageArmor))
+                    and NS.try_cast(SPELLS.MageArmor, me, "[MAGE] Mage Armor", { skip_range = true }) then
+                    return true
+                end
             end
             local safe_has_player_buff = NS.has_player_buff or function() return true end
             if not safe_has_player_buff(ARCANE_INTELLECT_BUFFS) and self_spell_ready(SPELLS.ArcaneIntellect, context) then
-                return NS.try_cast(SPELLS.ArcaneIntellect, (context.me or NS.GetPlayer()), "[MAGE] Arcane Intellect", { skip_range = true }) == true
+                if me and NS.buff_would_downgrade and NS.buff_would_downgrade(me, ARCANE_INTELLECT_BUFFS, SPELLS.ArcaneIntellect) then
+                    return false
+                end
+                return NS.try_cast(SPELLS.ArcaneIntellect, me, "[MAGE] Arcane Intellect", { skip_range = true }) == true
             end
             return false
         end,

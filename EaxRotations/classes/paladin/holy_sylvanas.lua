@@ -69,6 +69,8 @@ local function first_ready_item(item_ids)
     return 0
 end
 local Triage = NS.Triage
+local _hp_ok, HealthPred = pcall(require, "shared/health_pred_helper_sylvanas")
+if not _hp_ok or type(HealthPred) ~= "table" then HealthPred = nil end
 
 local format = string.format
 local EMPTY_OPTS = {}
@@ -236,6 +238,19 @@ local function hp_of(entry, fallback)
  return fallback or 100
 end
 
+local function predicted_hp_of(entry, deadline)
+    if not entry then return 100 end
+    local unit = entry.unit
+    if not unit then return entry.effective_hp or entry.hp or 100 end
+    local has_health_api = type(unit.get_health_percentage) == "function" or
+                          (type(unit.get_health) == "function" and type(unit.get_max_health) == "function")
+    if has_health_api and HealthPred and HealthPred.predicted_hp_pct then
+        local ok, pct = pcall(HealthPred.predicted_hp_pct, unit, deadline or 2.5)
+        if ok and type(pct) == "number" then return pct end
+    end
+    return entry.effective_hp or entry.hp or 100
+end
+
 local function deficit_of(entry)
  if not entry then return 0 end
  if type(entry.deficit) == "number" then return entry.deficit end
@@ -331,7 +346,7 @@ end
 
 local function choose_holy_light_rank(context, entry)
  local mode = spec_kit.setting(context, "holy_light_rank", "max")
- local hp = hp_of(entry)
+ local hp = predicted_hp_of(entry, 2.5)
  local deficit = deficit_of(entry)
  if mode == "rank4" then return HolyLightRank4, "Holy Light R4" end
  if mode == "rank7" then return HolyLightRank7, "Holy Light R7" end
@@ -344,7 +359,7 @@ end
 
 local function choose_smart_heal(context, s, entry)
  if not can_help(entry) then return nil end
- local hp = hp_of(entry)
+ local hp = predicted_hp_of(entry, 2.5)
  local deficit = deficit_of(entry)
  local flash_hp = spec_kit.setting_number(context, "holy_flash_light_hp", 85)
  local shock_hp = spec_kit.setting_number(context, "holy_shock_hp", 40)

@@ -66,7 +66,10 @@ local function moonfire_matches(context, state)
 end
 
 local function starfall_matches(context, state)
-    return state.enemy_count >= 2
+    if not state.in_combat then return false end
+    if (state.enemy_count or 0) < 2 then return false end
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 60) then return false end
+    return true
 end
 
 local function wrath_matches(context, state)

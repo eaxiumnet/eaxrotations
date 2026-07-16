@@ -49,6 +49,9 @@ _G.EaxRotations = {
         spell_ready_calls[#spell_ready_calls + 1] = { spell = spell, target = target, opts = opts }
         return true
     end,
+    is_spell_learned = function(spell)
+        return true
+    end,
     has_player_buff = function(buff_list)
         has_buff_calls[#has_buff_calls + 1] = { buff = buff_list }
         return false
@@ -145,6 +148,21 @@ assert_eq(#action_calls, 0, "action_matches should not be called when stacks < 5
 -- Not moving, stacks >= 5 -> should match
 action_calls = {}
 assert_true(fireball.matches({ is_moving = false, target = {}, scorch_stacks = 5 }), "Fireball should match when stacks >= 5")
+
+-- Scorch unlearned (low-level) -> Fireball should match even with stacks < 5
+action_calls = {}
+local orig_is_spell_learned = _G.EaxRotations.is_spell_learned
+_G.EaxRotations.is_spell_learned = function(spell)
+    -- Simulate Scorch not yet learned; everything else is known
+    if spell == _G.EaxRotations.MageSpells.Scorch then return false end
+    return true
+end
+assert_true(fireball.matches({ is_moving = false, target = {}, scorch_stacks = 3 }), "Fireball should match when Scorch is unlearned (low-level)")
+_G.EaxRotations.is_spell_learned = orig_is_spell_learned
+
+-- Scorch learned but stacks < 5 -> Fireball should NOT match
+action_calls = {}
+assert_false(fireball.matches({ is_moving = false, target = {}, scorch_stacks = 3 }), "Fireball should not match when Scorch is learned but stacks < 5")
 
 -- ============================================================================
 -- Pyroblast: only when not moving and (opener with PoM or Presence of Mind buff)

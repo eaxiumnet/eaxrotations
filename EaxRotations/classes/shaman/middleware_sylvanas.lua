@@ -218,9 +218,13 @@ local strategies = {
         matches = function(context)
             if context.in_combat then return false end
             if not spec_kit.setting_bool(context, "auto_lightning_shield", true) then return false end
-            local ls_buffs = { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
-            if NS.has_player_buff and NS.has_player_buff(ls_buffs) then return false end
+            local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
+            local ls_buffs = (_rbf_ok and RBF and RBF.cast("lightning_shield")) or { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
+            -- Combined family: Water Shield is preferred; do not clobber WS with LS.
+            local all_shields = (_rbf_ok and RBF and RBF.detect("lightning_shield")) or { 33736, 24398, 23575, 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
             local spell = SPELLS.LightningShield or { id = ls_buffs, name = "LightningShield" }
+            if context.me and NS.buff_would_downgrade and NS.buff_would_downgrade(context.me, all_shields, spell) then return false end
+            if NS.has_player_buff and NS.has_player_buff(all_shields) then return false end
             if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
             return false
         end,

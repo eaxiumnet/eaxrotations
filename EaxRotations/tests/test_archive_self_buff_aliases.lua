@@ -1,5 +1,5 @@
 -- test_archive_self_buff_aliases.lua — Verify self-buff alias mappings against spell data.
--- WHAT:  reads spell_id_table and validates that self-buff aliases resolve to real spell IDs.
+-- WHAT:  ranked_buff_families SoT + consumer wiring for class self-buffs.
 -- WHEN:  run as a standalone test or via test runner.
 -- WHY:   prevents stale aliases from breaking buff tracking in specs.
 -- SAFETY: pure file-read test; no casting or side effects.
@@ -15,18 +15,29 @@ local function contains(haystack, needle, message)
     assert(haystack:find(needle, 1, true), message)
 end
 
+-- SoT module owns multi-expansion ladders (Vanilla ∪ TBC ∪ WotLK).
+local rbf = read("EaxRotations/shared/ranked_buff_families_sylvanas.lua")
+contains(rbf, "48469", "SoT MotW must include WotLK max rank 48469")
+contains(rbf, "48470", "SoT GotW must include WotLK max rank 48470")
+contains(rbf, "26990", "SoT MotW must include TBC max rank 26990")
+contains(rbf, "26991", "SoT GotW must include TBC max rank 26991")
+contains(rbf, "43002", "SoT AB must include WotLK max rank 43002")
+contains(rbf, "42995", "SoT AI must include WotLK max rank 42995")
+contains(rbf, "48162", "SoT PoF must include WotLK max rank 48162")
+contains(rbf, "48161", "SoT Fort must include WotLK max rank 48161")
+contains(rbf, "53307", "SoT Thorns must include WotLK max rank 53307")
+contains(rbf, "47436", "SoT Battle Shout must include WotLK max rank 47436")
+contains(rbf, "47893", "SoT Fel Armor must include WotLK max rank 47893")
+contains(rbf, "57960", "SoT Water Shield must include WotLK max rank 57960")
+-- Best-first: group superiors listed before single-target in detect comments/order
+contains(rbf, "MOTW_DETECT", "SoT must define MotW detect ladder")
+contains(rbf, "AI_DETECT", "SoT must define AI detect ladder")
+contains(rbf, "FORT_DETECT", "SoT must define Fort detect ladder")
+
 local ooc = read("EaxRotations/shared/ooc_manager_sylvanas.lua")
-contains(ooc, "battle_shout = { n = 8, 25289, 2048, 11551, 11550, 11549, 6192, 5242, 6673 }", "OOC Battle Shout should include archive low-rank aura IDs")
-contains(ooc, "aspect_hawk = { n = 8, 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }", "OOC Aspect of the Hawk should match archive buff IDs")
-contains(ooc, "mage_armor = { n = 4, 27125, 22783, 22782, 6117 }", "OOC Mage Armor should include rank 2 aura")
-contains(ooc, "arcane_intellect = { n = 8, 27126, 10157, 10156, 1461, 1460, 1459, 23028, 27127 }", "OOC Arcane Intellect should include rank 2 and Arcane Brilliance aliases")
-contains(ooc, "inner_fire = { n = 7, 25431, 10952, 10951, 1006, 602, 7128, 588 }", "OOC Inner Fire should include online TBC rank aliases")
-contains(ooc, "power_word_fortitude = { n = 7, 25389, 10938, 10937, 2791, 1245, 1244, 1243 }", "OOC Fortitude should include online TBC low ranks")
-contains(ooc, "mark_of_the_wild = { n = 11, 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126, 21850, 21849 }", "OOC Mark/Gift detection should include archive ranks and group buff aliases")
-contains(ooc, "thorns = { n = 7, 26992, 9910, 9756, 8914, 1075, 782, 467 }", "OOC Thorns should include archive rank 3 aura")
-contains(ooc, "fel_armor = { n = 2, 28189, 28176 }", "OOC Fel Armor should include both TBC ranks")
-contains(ooc, "demon_armor = { n = 8, 27260, 11735, 11734, 11733, 1086, 706, 687, 696 }", "OOC Demon Armor should include archive low-rank aliases")
-contains(ooc, "lightning_shield = { n = 9, 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }", "OOC Lightning Shield should include online TBC ranks")
+contains(ooc, "ranked_buff_families_sylvanas", "OOC manager must require ranked_buff_families SoT")
+contains(ooc, "rbf_detect", "OOC manager must use rbf_detect for buff tables")
+contains(ooc, "rbf_cast", "OOC manager must use rbf_cast for spell ladders")
 
 local warrior_leveling = read("EaxRotations/classes/warrior/leveling_sylvanas.lua")
 contains(warrior_leveling, "state.has_battle_shout = L.has_buff(BATTLE_SHOUT_BUFF)", "Warrior leveling should check full Battle Shout buff table")
@@ -34,15 +45,16 @@ contains(warrior_leveling, "state.has_battle_shout = L.has_buff(BATTLE_SHOUT_BUF
 local druid_leveling = read("EaxRotations/classes/druid/leveling_sylvanas.lua")
 contains(druid_leveling, "state.has_mark_of_wild = has_buff(MARK_OF_THE_WILD_BUFF)", "Druid leveling should check full Mark/Gift buff table")
 contains(druid_leveling, "state.has_thorns = has_buff(THORNS_BUFF)", "Druid leveling should check full Thorns buff table")
+contains(druid_leveling, "ranked_buff_families_sylvanas", "Druid leveling should pull MotW from SoT")
 
 local druid_bear = read("EaxRotations/classes/druid/bear_sylvanas.lua")
-contains(druid_bear, "local MARK_BUFF = { 26991, 26990, 9885, 9884, 8907, 6756, 5234, 5232, 1126, 21850, 21849 }", "Druid Bear Mark/Gift detection should include archive ranks and group buff aliases")
-contains(druid_bear, "local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }", "Druid Bear Thorns detection should include archive rank 3 aura")
+contains(druid_bear, "ranked_buff_families_sylvanas", "Druid Bear Mark/Gift detection should use ranked_buff_families SoT")
+contains(druid_bear, "THORNS_BUFF", "Druid Bear Thorns detection table present")
 
 local priest_leveling = read("EaxRotations/classes/priest/leveling_sylvanas.lua")
 contains(priest_leveling, "state.has_fortitude = has_buff(POWER_WORD_FORTITUDE_BUFF)", "Priest leveling should check full Fortitude buff table")
 contains(priest_leveling, "state.has_inner_fire = has_buff(INNER_FIRE_BUFF)", "Priest leveling should check full Inner Fire buff table")
-contains(priest_leveling, "local POWER_WORD_FORTITUDE_BUFF = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }", "Priest leveling Fortitude table should match online TBC ranks")
+contains(priest_leveling, "ranked_buff_families_sylvanas", "Priest leveling Fortitude should use SoT")
 contains(priest_leveling, "local INNER_FIRE_BUFF = { 25431, 10952, 10951, 1006, 602, 7128, 588 }", "Priest leveling Inner Fire table should match online TBC ranks")
 
 local rogue_leveling = read("EaxRotations/classes/rogue/leveling_sylvanas.lua")

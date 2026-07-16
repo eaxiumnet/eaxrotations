@@ -456,4 +456,6 @@ function shaman_leveling.on_update(context)
 end
 
 -- [Shaman] Leveling rotation loaded (Classic)
+shaman_leveling.strategies = strategies
+
 return shaman_leveling

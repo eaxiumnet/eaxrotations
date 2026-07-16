@@ -172,6 +172,24 @@ local function build_mock_env()
     end
     NS.buff_remains = function(unit, buff_ids) return 0 end
 
+    -- AoE hit-volume gates (Holy Nova self-10yd). Unit tests have no OM;
+    -- honor state.enemies / context density like production empty-OM fallback.
+    NS.AOE_RADIUS = { SELF_8 = 8, SELF_10 = 10, GROUND_8 = 8, TARGET_8 = 8 }
+    NS.aoe_self_meets = function(min_count, radius, context, state)
+        local need = type(min_count) == "number" and min_count or 1
+        local n = 0
+        if state then
+            n = state.enemies or state.enemy_count or n
+        end
+        if (n or 0) == 0 and context then
+            n = context.enemy_count or context.enemies_count or 0
+        end
+        return (n or 0) >= need
+    end
+    NS.aoe_target_meets = function(min_count, radius, target, context, state)
+        return NS.aoe_self_meets(min_count, radius, context, state)
+    end
+
     -- rotation_registry mock that captures registrations
     NS.rotation_registry = {
         _registrations = {},

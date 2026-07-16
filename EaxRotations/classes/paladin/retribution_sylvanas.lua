@@ -8,6 +8,12 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
+
 local SPELLS = NS.PaladinSpells or {}
 
 -- spec_kit migration #24
@@ -655,7 +661,8 @@ strategies[#strategies + 1] = {
         if state.can_twist and (state.has_command or state.has_command_rank1) and not state.has_blood and (state.swing_remains or 99) <= prep_start then return false end
         if state.mana_emergency then return false end
         local min_targets = spec_kit.setting_number(context, "consecration_min_targets", spec_kit.setting_number(context, "retri_consecration_targets", 3))
-        return (state.enemy_count or 0) >= min_targets and (state.mana_pct or 100) >= 35 and NS.spell_ready(ACTION.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 }) or false
+        return (state.mana_pct or 100) >= 35 and NS.spell_ready(ACTION.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 })
+            and NS.aoe_self_meets and NS.aoe_self_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state) or false
     end,
     execute = function()
         return cast(ACTION.Consecration, PLAYER, "[RET] Consecration AoE", { skip_range = true, expected_cooldown = 8 })

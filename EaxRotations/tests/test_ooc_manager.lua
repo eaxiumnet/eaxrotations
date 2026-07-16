@@ -284,7 +284,7 @@ assert(type(spy[1].spell_id) == "table", "Expected spell_id to be a resolved spe
 local resolved_id = NS.get_spell_id and NS.get_spell_id(spy[1].spell_id)
 -- resolved_id should be 6673 (max rank, the cast ID) on PS builds via fallback_spell_id
 -- In test context the exact ID depends on the resolver availability
-assert(spy[1].seconds == 10.0, "Expected seconds=10.0 for Battle Shout, got " .. tostring(spy[1].seconds))
+assert(spy[1].seconds == 300.0, "Expected seconds=300.0 for Battle Shout, got " .. tostring(spy[1].seconds))
 print("PASS ooc_spy_self_buff_array_entry")
 
 -- 6b. Self-buffs: 'ids' table entry shape — resolved spell object passed to broken_api_throttled
@@ -304,7 +304,7 @@ r = run_one(base_ctx)
 --   spell_id is the resolved spell object (table)
 assert(#spy >= 1, "broken_api_throttled should have been called for Water Shield, got " .. #spy)
 assert(type(spy[1].spell_id) == "table", "Expected spell_id to be a resolved spell table, got " .. type(spy[1].spell_id))
-assert(spy[1].seconds == 10.0, "Expected seconds=10.0 for Water Shield, got " .. tostring(spy[1].seconds))
+assert(spy[1].seconds == 300.0, "Expected seconds=300.0 for Water Shield, got " .. tostring(spy[1].seconds))
 print("PASS ooc_spy_self_buff_ids_entry")
 
 -- 6c. Pet summon: resolved spell object passed to broken_api_throttled

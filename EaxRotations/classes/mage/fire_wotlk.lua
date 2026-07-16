@@ -16,7 +16,8 @@ local ACTION = {
     Pyroblast = define("Pyroblast", { 33938, 12526, 12525, 12524, 12523, 12522, 12521, 11366 }, "Pyroblast"),
     LivingBomb = define("LivingBomb", 44457, "LivingBomb"),
     Scorch = define("Scorch", { 30455, 2948, 8444, 8445, 8446, 8447, 10211, 10210, 27073, 27074 }, "Scorch"),
-    Fireball = define("Fireball", { 33938, 27070, 25306, 10151, 10150, 10149, 8402, 8401, 8400, 725, 133 }, "Fireball"),
+    -- Fireball ranks (lexxer see-also): removed invalid 725/33938.
+    Fireball = define("Fireball", { 42833, 38692, 27070, 25306, 10151, 10150, 10149, 10148, 8402, 8401, 8400, 3140, 145, 143, 133 }, "Fireball"),
     Combustion = define("Combustion", 11129, "Combustion"),
 }
 
@@ -51,6 +52,8 @@ local function build_state(context)
 end
 
 local function combustion_matches(context, state)
+    if not state.in_combat then return false end
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
     return true
 end
 

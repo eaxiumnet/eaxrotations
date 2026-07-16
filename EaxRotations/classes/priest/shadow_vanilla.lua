@@ -28,6 +28,12 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
+
 local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.PriestSpells or {}
 
@@ -352,7 +358,8 @@ local function holy_nova_aoe_matches(context, s)
     -- Combat mode gate: only AoE in aoe mode
     if s.combat_mode ~= "aoe" then return false end
     if context.is_moving then return false end
-    if s.enemy_count < 3 then return false end
+    -- Holy Nova: 10yd self PBAoE — not 40yd enemy_count
+    if not NS.aoe_self_meets or not NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, s) then return false end
     if not context.in_combat then return false end
     return NS.spell_ready and NS.spell_ready(SPELLS.HolyNova, context.target, nil)
 end

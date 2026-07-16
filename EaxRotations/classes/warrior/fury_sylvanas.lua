@@ -7,6 +7,12 @@
 -- Warrior Fury priority list — parity v1.0.6+ parity (auto-charge, rampage stacks, sunder, rend, overpower, defensives)
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
 local _cleu = NS.SwingDiagnostics
 if _cleu then
     _cleu.register_seals({
@@ -644,7 +650,7 @@ local SS_RESERVE_FLOOR = 60
 local SS_POOL_WINDOW = 2.0
 
 local function should_reserve_for_sweeping(context, state)
-    if (context.enemy_count or 0) < 2 then return false end
+    if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then return false end
     if state.has_sweeping_strikes then return false end
     local ss_cd = state.ss_cd or 99
     if ss_cd <= SS_POOL_WINDOW and (context.rage or 0) < SS_RESERVE_FLOOR then return true end
@@ -674,7 +680,8 @@ end
 local function bt_matches(context, state)
     -- WW priority: yield to Whirlwind when enough enemies nearby and WW is ready
     local ww_prio = spec_kit.setting_number(context, "fury_ww_prio_count", 2)
-    if ww_prio > 0 and (state.enemy_count or 0) >= ww_prio and (context.rage or 0) >= 25 and state.ww_ready then
+    if ww_prio > 0 and (context.rage or 0) >= 25 and state.ww_ready
+        and NS.aoe_self_meets and NS.aoe_self_meets(ww_prio, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state) then
         return false
     end
     return action(context, build_action("Bloodthirst", ACTION.Bloodthirst, { required_stance = STANCE.BERSERKER, min_rage = 30, cooldown = 6 }))
@@ -702,7 +709,7 @@ end
 local function sweeping_strikes_matches(context, state)
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     local min_count = spec_kit.setting_number(context, "sweeping_strikes_count", 2)
-    if (state.enemy_count or 0) < min_count then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(min_count, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, state)) then return false end
     if state.has_sweeping_strikes then return false end
     if state.stance ~= STANCE.BATTLE then return false end
     return action(context, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false, enemy_count = min_count, cooldown = 30 }))
@@ -712,7 +719,7 @@ end
 local function whirlwind_matches(context, state)
     if not state.ww_ready then return false end
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
-    if (state.enemy_count or 0) < 2 and (state.rage or 0) < 25 then return false end
+    if (state.rage or 0) < 25 and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then return false end
     return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
 end
 
@@ -787,7 +794,7 @@ end
 local function cleave_matches(context, state)
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     if should_reserve_for_sweeping(context, state) then return false end
-    if (state.enemy_count or 0) < 2 then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s)) then return false end
     local cleave_rage = spec_kit.setting_number(context, "cleave_rage", CLEAVE_RAGE)
     local RM = NS.RageManager
     if RM and type(RM.should_cleave) == "function" then
@@ -799,7 +806,7 @@ local function cleave_matches(context, state)
         if rage < cleave_rage then return false end
         if would_starve_core_fury(context, state, 15) then return false end
     end
-    return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = cleave_rage, enemy_count = 2, is_aoe = true }))
+    return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = cleave_rage, enemy_count = 2, is_aoe = true, hit_radius = 8, hit_origin = "target" }))
 end
 
 -- Demoralizing Shout: enemy damage reduction
@@ -913,7 +920,7 @@ local function berserker_stance_matches(context, state)
     if state.bt_ready and stance_swap_safe(state, 30) then
         return action(context, berserker_stance_action())
     end
-    if state.ww_ready and stance_swap_safe(state, 25) and ((state.enemy_count or 0) >= 2 or (state.rage or 0) >= 45) then
+    if state.ww_ready and stance_swap_safe(state, 25) and ((state.rage or 0) >= 45 or (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state))) then
         return action(context, berserker_stance_action())
     end
     return false
@@ -1007,7 +1014,7 @@ local STRATEGY_SPECS = {
     { "SunderArmor", sunder_armor_matches, build_action("SunderArmor", ACTION.SunderArmor, { min_rage = 15, debuff = SUNDER_DEBUFF }) },
     { "DemoralizingShout", demo_shout_matches, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false }) },
     -- Rage dumps
-    { "Cleave", cleave_matches, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true }) },
+    { "Cleave", cleave_matches, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true, hit_radius = 8, hit_origin = "target" }) },
     { "HeroicStrike", heroic_strike_matches, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = HEROIC_STRIKE_RAGE }) },
 }
 

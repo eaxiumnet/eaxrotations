@@ -10,6 +10,8 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local Healing = NS.PriestHealing or require("classes/priest/healing_sylvanas")
 local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
 local FsrManager = require("shared/fsr_manager_sylvanas")
+local _hp_ok, HealthPred = pcall(require, "shared/health_pred_helper_sylvanas")
+if not _hp_ok or type(HealthPred) ~= "table" then HealthPred = nil end
 local EMPTY_SETTINGS = {}
 
 -- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
@@ -102,8 +104,8 @@ local function _check_pushback(context)
 end
 local INNER_FIRE_BUFF = { 25431, 10952, 10951, 1006, 602, 7128, 588 }
 local FEAR_WARD_BUFF = { 6346 }
-local POWER_WORD_FORTITUDE_BUFF = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
-local PRAYER_OF_FORTITUDE_BUFF = { 25392, 21564, 21562 }
+local POWER_WORD_FORTITUDE_BUFF = { 25392, 21564, 21562, 39231, 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
+local PRAYER_OF_FORTITUDE_BUFF = { 25392, 21564, 21562, 39231 }
 local RENEW_BUFF = { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
 local INNER_FOCUS_BUFF = { 14751 }
 local PRAYER_OF_MENDING_BUFF = { 33076 } -- PoM buff on target (TBC rank 1)
@@ -408,7 +410,14 @@ end
 -- ============================================================================
 local function pws_tank_matches(context, s)
  if not s.tank then return false end
- if (s.tank.effective_hp or 100) > spec_kit.setting_number(context, "discipline_pws_hp", 35) then return false end
+ local threshold = spec_kit.setting_number(context, "discipline_pws_hp", 35)
+ local current_hp = s.tank.effective_hp or 100
+ local pred_hp = current_hp
+ if s.tank.unit and HealthPred and HealthPred.predicted_hp_pct then
+  local ok, pct = pcall(HealthPred.predicted_hp_pct, s.tank.unit, 1.5)
+  if ok and type(pct) == "number" then pred_hp = pct end
+ end
+ if current_hp > threshold and pred_hp > threshold then return false end
  if s.tank.has_weakened_soul then return false end
  if not s.pws_ready then return false end
  -- Respect existing absorb: don't overwrite a healthy PW:S shield.
