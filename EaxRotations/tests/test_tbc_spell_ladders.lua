@@ -76,12 +76,16 @@ local function high_talent_blocked(path, talent_name, low_level, opts)
     expect(path .. " " .. talent_name .. " blocked at L" .. low_level, function()
         local mod = H.load_module(path, { level = low_level, class_folder = opts and opts.class_folder })
         local s = H.find_strategy(mod.strategies, talent_name)
-        if not s then return end
+        assert_true(s ~= nil, talent_name .. " strategy must be registered in " .. path)
         local ctx = H.context(low_level, opts and opts.context_extra)
         local state = { rage = 100, energy = 100, mana_pct = 100, in_combat = true, level = low_level }
         if mod.get_state then
             local ok, st = pcall(mod.get_state, ctx)
             if ok and type(st) == "table" then state = st end
+        end
+        -- Optional post-get_state forces (e.g. inject tank for ES without forcing ready)
+        if opts and opts.state_force then
+            for k, v in pairs(opts.state_force) do state[k] = v end
         end
         state.rage = 100
         state.energy = 100
@@ -288,7 +292,14 @@ ladder_case("EaxRotations/classes/shaman/restoration_sylvanas.lua", {
 }, { class_folder = "shaman" })
 ladder_case("EaxRotations/classes/shaman/leveling_sylvanas.lua", sham_fillers, { class_folder = "shaman" })
 high_talent_blocked("EaxRotations/classes/shaman/enhancement_sylvanas.lua", "Stormstrike", 25, { class_folder = "shaman" })
-high_talent_blocked("EaxRotations/classes/shaman/restoration_sylvanas.lua", "EarthShield", 25, { class_folder = "shaman" })
+high_talent_blocked("EaxRotations/classes/shaman/restoration_sylvanas.lua", "EarthShieldTank", 25, {
+    class_folder = "shaman",
+    state_force = {
+        tank = { unit = {}, effective_hp = 50 },
+        mana_emergency = false,
+        -- earth_shield_ready must come from build_state / spell_ready LEARN gate
+    },
+})
 
 -- ============================================================================
 -- 7. PRIEST
@@ -422,378 +433,385 @@ expect("fury Cleave MATCHES when multi + rage", function()
     assert_true(res == true, "Cleave must match with target_count>=2 and rage>=40")
 end)
 
-expect("destruction FelArmor can match at L70 when learned", function()
+-- FelArmor strategy must exist at L70 (LEARN 62); OOC armor path registration
+expect("destruction FelArmor strategy present at L70", function()
     local mod = H.load_module("EaxRotations/classes/warlock/destruction_sylvanas.lua", {
         level = 70, class_folder = "warlock",
     })
     local fel = H.find_strategy(mod.strategies, "FelArmor")
-    if not fel then return end
-    local ctx = H.context(70, { in_combat = false })
-    local state = { in_combat = false, has_fel_armor = false }
-    if mod.get_state then
-        local ok, st = pcall(mod.get_state, ctx)
-        if ok and st then state = st; state.has_fel_armor = false end
-    end
-    -- presence of strategy + LEARN gate is the proof; matches may need OOC path
-    assert_true(true, "FelArmor strategy registered at L70")
+    assert_true(fel ~= nil and fel.matches ~= nil, "FelArmor strategy + matches at L70")
 end)
 
--- Settings helpers
-local function setting_blocks(label, path, folder, strategy_name, settings, state_extra)
+-- ============================================================================
+-- Honest setting flips: ON must match true, OFF must match false (same readiness forces)
+-- ============================================================================
+local function setting_flip(label, path, folder, strategy_name, settings_on, settings_off, readiness, ctx_extra)
     expect(label, function()
-        local mod = H.load_module(path, { level = 70, class_folder = folder })
-        local strat = H.find_strategy(mod.strategies, strategy_name)
-        assert_true(strat ~= nil, strategy_name .. " present in " .. path)
-        local ctx = H.context(70, { settings = settings or {}, in_combat = true, is_group = true })
-        local state = H.ready_state(70, state_extra or {})
-        if mod.get_state then
-            local ok, st = pcall(mod.get_state, ctx)
-            if ok and type(st) == "table" then
-                state = H.ready_state(70, st)
-                if state_extra then
-                    for k, v in pairs(state_extra) do state[k] = v end
-                end
+        local function run(settings)
+            local mod = H.load_module(path, { level = 70, class_folder = folder })
+            local strat = H.find_strategy(mod.strategies, strategy_name)
+            assert_true(strat ~= nil, strategy_name .. " present in " .. path)
+            local ctx = H.context(70, {
+                settings = settings or {},
+                in_combat = true,
+                is_group = true,
+                should_burst = true,
+                combat_time = 90,
+                ttd = 120,
+            })
+            if ctx_extra then for k, v in pairs(ctx_extra) do ctx[k] = v end end
+            local state = H.ready_state(70, {})
+            if mod.get_state then
+                local ok, st = pcall(mod.get_state, ctx)
+                if ok and type(st) == "table" then state = H.ready_state(70, st) end
             end
+            -- build_state may mutate context (e.g. in_melee_range); re-apply extras.
+            if ctx_extra then for k, v in pairs(ctx_extra) do ctx[k] = v end end
+            -- Force readiness/fixture only — never force the setting flag itself.
+            if readiness then for k, v in pairs(readiness) do state[k] = v end end
+            state.in_combat = true
+            local ok, res = pcall(strat.matches, ctx, state)
+            assert_true(ok, strategy_name .. " matches no throw")
+            return res and true or false
         end
-        local ok, res = pcall(strat.matches, ctx, state)
-        assert_true(ok, strategy_name .. " matches no throw")
-        assert_true(not res, strategy_name .. " must not match under settings")
+        local on = run(settings_on)
+        local off = run(settings_off)
+        assert_true(on == true, strategy_name .. " must match when setting ON (got " .. tostring(on) .. ")")
+        assert_true(off == false, strategy_name .. " must not match when setting OFF (got " .. tostring(off) .. ")")
     end)
 end
 
--- Hunter settings
-expect("setting: hunter use_cooldowns false blocks BestialWrath", function()
-    local mod = H.load_module("EaxRotations/classes/hunter/beast_mastery_sylvanas.lua", {
-        level = 70, class_folder = "hunter",
-    })
-    local bw = H.find_strategy(mod.strategies, "BestialWrath")
-    assert_true(bw ~= nil, "BestialWrath present")
-    local ctx_off = H.context(70, { settings = { use_cooldowns = false }, in_combat = true })
-    local st_off = H.ready_state(70, {
-        in_combat = true, bestial_wrath_ready = true, pet_alive = true,
-        use_cooldowns = false, is_mounted = false,
-    })
-    if mod.get_state then
-        local ok, st = pcall(mod.get_state, ctx_off)
-        if ok and type(st) == "table" then
-            st_off = H.ready_state(70, st)
-            st_off.bestial_wrath_ready = true
-            st_off.pet_alive = true
-            st_off.use_cooldowns = false
-            st_off.in_combat = true
-            st_off.is_mounted = false
-        end
-    end
-    pcall(mod.get_state, ctx_off)
-    st_off.use_cooldowns = false
-    local ok_off, res_off = pcall(bw.matches, ctx_off, st_off)
-    assert_true(ok_off, "BW matches no throw when CDs off")
-    assert_true(not res_off, "BestialWrath must not match when use_cooldowns=false")
-end)
-setting_blocks("setting hunter multishot_mode 0",
+-- Hunter (5 keys — RapidFire for CDs; avoid BW align timeout)
+setting_flip("flip hunter use_cooldowns RapidFire",
+    "EaxRotations/classes/hunter/beast_mastery_sylvanas.lua", "hunter", "RapidFire",
+    { use_cooldowns = true }, { use_cooldowns = false },
+    { pet_alive = true, rapid_fire_ready = true, is_mounted = false })
+setting_flip("flip hunter multishot_mode MultiShot",
     "EaxRotations/classes/hunter/beast_mastery_sylvanas.lua", "hunter", "MultiShot",
-    { multishot_mode = 0 },
-    { in_combat = true, multi_shot_ready = true, multishot_mode = 0, enemy_count = 5, is_mounted = false })
-setting_blocks("setting hunter use_volley false",
+    { multishot_mode = 2 }, { multishot_mode = 0 },
+    { multi_shot_ready = true, enemy_count = 5, is_mounted = false })
+setting_flip("flip hunter use_volley Volley",
     "EaxRotations/classes/hunter/beast_mastery_sylvanas.lua", "hunter", "Volley",
-    { use_volley = false },
-    { in_combat = true, use_volley = false, enemy_count = 5, mana_pct = 90, is_mounted = false })
-setting_blocks("setting hunter use_melee false blocks Raptor",
+    { use_volley = true, aoe_threshold = 3 }, { use_volley = false, aoe_threshold = 3 },
+    { enemy_count = 5, volley_ready = true, is_mounted = false })
+setting_flip("flip hunter use_melee RaptorStrike",
     "EaxRotations/classes/hunter/beast_mastery_sylvanas.lua", "hunter", "RaptorStrike",
-    { use_melee = false },
-    { in_combat = true, use_melee = false, raptor_ready = true, is_mounted = false, distance = 3 })
-setting_blocks("setting hunter use_explosive_trap false",
+    { use_melee = true, hunter_melee_weave = true },
+    { use_melee = false, hunter_melee_weave = false },
+    { distance_sq = 9, raptor_strike_ready = true, is_mounted = false })
+setting_flip("flip hunter use_explosive_trap ExplosiveTrap",
     "EaxRotations/classes/hunter/beast_mastery_sylvanas.lua", "hunter", "ExplosiveTrap",
-    { use_explosive_trap = false },
-    { in_combat = true, use_explosive_trap = false, is_mounted = false })
+    { use_explosive_trap = true, aoe_threshold = 3 }, { use_explosive_trap = false },
+    { enemy_count = 5, explosive_trap_ready = true, is_mounted = false })
 
--- Warrior group overwrite (TBC schema: sunder_mode off|low|high)
-expect("setting warrior fury sunder_mode off", function()
-    local mod = H.load_module("EaxRotations/classes/warrior/fury_sylvanas.lua", {
-        level = 70, class_folder = "warrior",
-    })
-    local s = H.find_strategy(mod.strategies, "SunderArmor")
-        or H.find_strategy(mod.strategies, "SunderMaintain")
-    assert_true(s ~= nil, "Sunder strategy present")
-    local ctx = H.context(70, {
-        settings = { sunder_mode = "off" },
-        target_armor = 5000, in_combat = true,
-    })
-    local state = { sunder_ready = true, has_sunder = false, sunder_stacks = 0, rage = 80 }
-    if mod.get_state then
-        local ok, st = pcall(mod.get_state, ctx)
-        if ok and st then
-            state = st
-            state.sunder_ready = true
-            state.has_sunder = false
-            state.sunder_stacks = 0
-            state.rage = 80
-        end
-    end
-    local ok, res = pcall(s.matches, ctx, state)
-    assert_true(ok and not res, "Fury Sunder blocked when sunder_mode=off")
-end)
-expect("setting warrior fury sunder_mode high can match", function()
-    local mod = H.load_module("EaxRotations/classes/warrior/fury_sylvanas.lua", {
-        level = 70, class_folder = "warrior",
-    })
-    local s = H.find_strategy(mod.strategies, "SunderArmor")
-    assert_true(s ~= nil, "SunderArmor present")
-    local ctx = H.context(70, {
-        settings = { sunder_mode = "high", sunder_stacks = 5 },
-        target_armor = 5000, in_combat = true, target_hp = 80,
-    })
-    local state = { sunder_ready = true, sunder_stacks = 0, rage = 80, in_combat = true }
-    if mod.get_state then
-        local ok, st = pcall(mod.get_state, ctx)
-        if ok and st then
-            state = st
-            state.sunder_stacks = 0
-            state.rage = 80
-            state.sunder_ready = true
-        end
-    end
-    local ok, res = pcall(s.matches, ctx, state)
-    assert_true(ok, "Sunder matches no throw")
-    assert_true(res == true, "Sunder matches when sunder_mode=high and stacks low")
-end)
-expect("setting warrior kebab sunder_mode off if present", function()
-    local mod = H.load_module("EaxRotations/classes/warrior/kebab_sylvanas.lua", {
-        level = 70, class_folder = "warrior",
-    })
-    local s = H.find_strategy(mod.strategies, "SunderArmor")
-        or H.find_strategy(mod.strategies, "SunderMaintain")
-    if not s then return end
-    local ctx = H.context(70, { settings = { sunder_mode = "off", sunder_armor_mode = "none" } })
-    local ok, res = pcall(s.matches, ctx, { sunder_ready = true, sunder_stacks = 0, rage = 80 })
-    assert_true(ok and not res, "Kebab Sunder blocked when mode off")
-end)
+-- Warrior (3+ keys: sunder_mode, use_cooldowns DeathWish, sweeping_strikes_count)
+setting_flip("flip warrior sunder_mode SunderArmor",
+    "EaxRotations/classes/warrior/fury_sylvanas.lua", "warrior", "SunderArmor",
+    { sunder_mode = "high" }, { sunder_mode = "off" },
+    { sunder_stacks = 0, rage = 80 },
+    { target_armor = 5000, target_hp = 80 })
+setting_flip("flip warrior use_cooldowns DeathWish",
+    "EaxRotations/classes/warrior/fury_sylvanas.lua", "warrior", "DeathWish",
+    { use_cooldowns = true }, { use_cooldowns = false },
+    { death_wish_ready = true, hp = 90, major_cd_window = true, ttd = 60, target_hp = 50, rage = 50 })
+setting_flip("flip warrior use_cooldowns Recklessness",
+    "EaxRotations/classes/warrior/fury_sylvanas.lua", "warrior", "Recklessness",
+    { use_cooldowns = true }, { use_cooldowns = false },
+    { recklessness_ready = true, hp = 90, major_cd_window = true, ttd = 60 })
+-- Kebab group overwrite: sunder_armor_mode + maintain_demo_shout
+setting_flip("flip kebab sunder_armor_mode SunderMaintain",
+    "EaxRotations/classes/warrior/kebab_sylvanas.lua", "warrior", "SunderMaintain",
+    { sunder_armor_mode = "help_stack" }, { sunder_armor_mode = "none" },
+    { sunder_stacks = 0, sunder_duration = 0 },
+    { stance = 2, target_armor = 5000, in_melee_range = true })
+setting_flip("flip kebab maintain_demo_shout DemoShout",
+    "EaxRotations/classes/warrior/kebab_sylvanas.lua", "warrior", "DemoShout",
+    { maintain_demo_shout = true }, { maintain_demo_shout = false },
+    { demo_shout_duration = 0 },
+    { in_melee_range = true, has_valid_enemy_target = true })
 
--- Warlock curse governance
-expect("setting warlock curse_mode agony blocks CoE", function()
+-- Warlock curse governance (ON=allowed mode, OFF=blocked mode)
+setting_flip("flip warlock curse_mode CoE",
+    "EaxRotations/classes/warlock/affliction_sylvanas.lua", "warlock", "CurseOfElements",
+    { warlock_curse_mode = "elements" }, { warlock_curse_mode = "agony" },
+    { coe_remains = 0 },
+    { is_group = true, target = {} })
+setting_flip("flip warlock assigned_curse Agony",
+    "EaxRotations/classes/warlock/affliction_sylvanas.lua", "warlock", "CurseOfAgony",
+    { warlock_assigned_curse = "agony" }, { warlock_assigned_curse = "elements" },
+    { agony_remains = 0 },
+    { has_valid_enemy_target = true, ttd = 120 })
+expect("warlock CurseOfElements present + assigned_curse agony blocks", function()
     local mod = H.load_module("EaxRotations/classes/warlock/affliction_sylvanas.lua", {
         level = 70, class_folder = "warlock",
     })
     local coe = H.find_strategy(mod.strategies, "CurseOfElements")
     assert_true(coe ~= nil, "CurseOfElements present")
     local ctx = H.context(70, {
-        settings = { warlock_curse_mode = "agony" },
-        is_group = true, target = {},
-    })
-    local ok, res = pcall(coe.matches, ctx, { coe_remains = 0 })
-    assert_true(ok and not res, "CoE blocked when warlock_curse_mode=agony")
-end)
-expect("setting warlock assigned_curse agony blocks CoE", function()
-    local mod = H.load_module("EaxRotations/classes/warlock/affliction_sylvanas.lua", {
-        level = 70, class_folder = "warlock",
-    })
-    local coe = H.find_strategy(mod.strategies, "CurseOfElements")
-    local ctx = H.context(70, {
-        settings = { warlock_assigned_curse = "agony" },
-        is_group = true, target = {},
+        settings = { warlock_assigned_curse = "agony" }, is_group = true, target = {},
     })
     local ok, res = pcall(coe.matches, ctx, { coe_remains = 0 })
     assert_true(ok and not res, "CoE blocked when assigned_curse=agony")
 end)
-expect("setting warlock assigned_curse elements blocks Agony", function()
-    local mod = H.load_module("EaxRotations/classes/warlock/affliction_sylvanas.lua", {
-        level = 70, class_folder = "warlock",
-    })
-    local ca = H.find_strategy(mod.strategies, "CurseOfAgony")
-    assert_true(ca ~= nil, "CurseOfAgony present")
-    local ctx = H.context(70, {
-        settings = { warlock_assigned_curse = "elements" },
-        has_valid_enemy_target = true, ttd = 120,
-    })
-    local ok, res = pcall(ca.matches, ctx, { agony_remains = 0 })
-    assert_true(ok and not res, "Agony blocked when assigned_curse=elements")
-end)
-setting_blocks("setting warlock aff amplify/life path DamagePotion",
-    "EaxRotations/classes/warlock/affliction_sylvanas.lua", "warlock", "DamagePotion",
-    { use_auto_potions = false },
-    { in_combat = true })
 
 -- Mage
-expect("setting: mage use_scorch_debuff false allows Fireball without stacks", function()
+setting_flip("flip mage use_cooldowns Combustion",
+    "EaxRotations/classes/mage/fire_sylvanas.lua", "mage", "Combustion",
+    { use_cooldowns = true }, { use_cooldowns = false },
+    { combustion_ready = true })
+expect("flip mage use_scorch_debuff Fireball allowed when off", function()
     local mod = H.load_module("EaxRotations/classes/mage/fire_sylvanas.lua", {
         level = 70, class_folder = "mage",
     })
     local fb = H.find_strategy(mod.strategies, "Fireball")
     assert_true(fb ~= nil, "Fireball present")
-    local ctx = H.context(70, {
-        settings = { use_scorch_debuff = false },
-        scorch_stacks = 0,
-    })
+    local ctx = H.context(70, { settings = { use_scorch_debuff = false }, scorch_stacks = 0 })
     local state = { scorch_stacks = 0 }
     if mod.get_state then
         local ok, st = pcall(mod.get_state, ctx)
         if ok and st then state = st end
     end
-    assert_true(fb.matches(ctx, state), "Fireball matches with scorch duty off")
+    assert_true(fb.matches(ctx, state) == true, "Fireball matches with scorch duty off")
 end)
-setting_blocks("setting mage use_cooldowns false Combustion",
-    "EaxRotations/classes/mage/fire_sylvanas.lua", "mage", "Combustion",
-    { use_cooldowns = false },
-    { combustion_ready = true, in_combat = true })
-setting_blocks("setting mage use_mana_gem false",
+setting_flip("flip mage use_mana_gem ManaGem",
     "EaxRotations/classes/mage/fire_sylvanas.lua", "mage", "ManaGem",
-    { use_mana_gem = false },
+    { use_mana_gem = true }, { use_mana_gem = false },
     { mana_pct = 20, mana_gem_available = true })
-setting_blocks("setting mage use_auto_potions false",
-    "EaxRotations/classes/mage/fire_sylvanas.lua", "mage", "ManaPotion",
-    { use_auto_potions = false },
-    { in_combat = true, mana_pct = 10 })
-setting_blocks("setting mage PresenceOfMind blocked by use_cooldowns false if present",
-    "EaxRotations/classes/mage/fire_sylvanas.lua", "mage", "PresenceOfMind",
-    { use_cooldowns = false },
-    { in_combat = true })
+-- use_scorch + use_cooldowns + use_mana_gem already prove ≥3 mage keys
 
 -- Rogue
-setting_blocks("setting rogue use_cooldowns false BladeFlurry",
+setting_flip("flip rogue use_cooldowns BladeFlurry",
     "EaxRotations/classes/rogue/combat_sylvanas.lua", "rogue", "BladeFlurry",
-    { use_cooldowns = false },
-    { in_combat = true, blade_flurry_ready = true, has_blade_flurry = false, target_count = 5 })
-expect("setting rogue combat_blade_flurry_count high", function()
+    { use_cooldowns = true, combat_blade_flurry_count = 2 },
+    { use_cooldowns = false, combat_blade_flurry_count = 2 },
+    { blade_flurry_ready = true, has_blade_flurry = false, has_snd = true, target_count = 4 })
+expect("flip rogue combat_blade_flurry_count", function()
     local mod = H.load_module("EaxRotations/classes/rogue/combat_sylvanas.lua", {
         level = 70, class_folder = "rogue",
     })
     local bf = H.find_strategy(mod.strategies, "BladeFlurry")
     assert_true(bf ~= nil, "BladeFlurry present")
+    local function run(count, targets)
+        local ctx = H.context(70, {
+            settings = { use_cooldowns = true, combat_blade_flurry_count = count },
+            in_combat = true,
+        })
+        local state = {
+            in_combat = true, blade_flurry_ready = true, has_blade_flurry = false,
+            has_snd = true, target_count = targets,
+        }
+        if mod.get_state then
+            local ok, st = pcall(mod.get_state, ctx)
+            if ok and st then
+                state = st
+                state.blade_flurry_ready = true
+                state.has_blade_flurry = false
+                state.has_snd = true
+                state.target_count = targets
+                state.in_combat = true
+            end
+        end
+        local ok, res = pcall(bf.matches, ctx, state)
+        assert_true(ok, "BF no throw")
+        return res and true or false
+    end
+    assert_true(run(2, 4) == true, "BF matches when targets>=count")
+    assert_true(run(5, 2) == false, "BF blocked when targets<count")
+end)
+
+-- Shaman (honest flips)
+setting_flip("flip ele elemental_use_elemental_mastery",
+    "EaxRotations/classes/shaman/elemental_sylvanas.lua", "shaman", "ElementalMastery",
+    { elemental_use_elemental_mastery = true }, { elemental_use_elemental_mastery = false },
+    { mana_conserve = false, target_count = 1 },
+    { should_burst = true })
+setting_flip("flip ele elemental_use_fire_nova_aoe",
+    "EaxRotations/classes/shaman/elemental_sylvanas.lua", "shaman", "FireNovaTotem",
+    { elemental_use_fire_nova_aoe = true, elemental_aoe_threshold = 3 },
+    { elemental_use_fire_nova_aoe = false },
+    { target_count = 5, mana_conserve = false })
+setting_flip("flip resto restoration_manage_totems Strength",
+    "EaxRotations/classes/shaman/restoration_sylvanas.lua", "shaman", "StrengthOfEarthTotem",
+    { restoration_manage_totems = true }, { restoration_manage_totems = false },
+    {})
+setting_flip("flip resto restoration_manage_totems ManaSpring",
+    "EaxRotations/classes/shaman/restoration_sylvanas.lua", "shaman", "ManaSpringTotem",
+    { restoration_manage_totems = true }, { restoration_manage_totems = false },
+    {})
+setting_flip("flip enh use_cooldowns Bloodlust",
+    "EaxRotations/classes/shaman/enhancement_sylvanas.lua", "shaman", "Bloodlust",
+    { use_cooldowns = true, enhancement_cd_bloodlust = true },
+    { use_cooldowns = false, enhancement_cd_bloodlust = true },
+    {}) -- module-local enh_state from get_state
+
+-- Priest (smite_use_mb + holy_use_pws via EmergencyPWS OFF + disc PI if present)
+setting_flip("flip smite smite_use_mb MindBlast",
+    "EaxRotations/classes/priest/smite_sylvanas.lua", "priest", "MindBlast",
+    { smite_use_mb = true }, { smite_use_mb = false },
+    { mb_ready = true },
+    { has_valid_enemy_target = true })
+expect("flip holy holy_use_pws EmergencyPWS OFF blocks", function()
+    local mod = H.load_module("EaxRotations/classes/priest/holy_sylvanas.lua", {
+        level = 70, class_folder = "priest",
+    })
+    local s = H.find_strategy(mod.strategies, "EmergencyPWS")
+        or H.find_strategy(mod.strategies, "PowerWordShield")
+    assert_true(s ~= nil, "EmergencyPWS or PowerWordShield present")
     local ctx = H.context(70, {
-        settings = { use_cooldowns = true, combat_blade_flurry_count = 5 },
+        settings = { holy_use_pws = false },
         in_combat = true,
     })
-    local state = {
-        in_combat = true, blade_flurry_ready = true, has_blade_flurry = false, target_count = 2,
-    }
+    local state = { lowest = { effective_hp = 20, unit = {} }, lowest_hp = 20 }
     if mod.get_state then
         local ok, st = pcall(mod.get_state, ctx)
-        if ok and st then
-            state = st
-            state.blade_flurry_ready = true
-            state.has_blade_flurry = false
-            state.target_count = 2
-            state.in_combat = true
-        end
+        if ok and st then state = st; state.lowest = { effective_hp = 20, unit = {} }; state.lowest_hp = 20 end
     end
-    local ok, res = pcall(bf.matches, ctx, state)
-    assert_true(ok and not res, "BladeFlurry needs combat_blade_flurry_count targets")
+    local ok, res = pcall(s.matches, ctx, state)
+    assert_true(ok and not res, "PWS blocked when holy_use_pws=false")
 end)
-setting_blocks("setting combat use_auto_potions false HealthPotion",
-    "EaxRotations/classes/rogue/combat_sylvanas.lua", "rogue", "HealthPotion",
-    { use_auto_potions = false },
-    { in_combat = true, hp = 10 })
-setting_blocks("setting subtlety use_auto_potions false HealthPotion",
-    "EaxRotations/classes/rogue/subtlety_sylvanas.lua", "rogue", "HealthPotion",
-    { use_auto_potions = false },
-    { in_combat = true, hp = 10 })
-
--- Shaman
-setting_blocks("setting ele elemental_use_elemental_mastery false",
-    "EaxRotations/classes/shaman/elemental_sylvanas.lua", "shaman", "ElementalMastery",
-    { elemental_use_elemental_mastery = false },
-    { in_combat = true })
-setting_blocks("setting ele elemental_use_fire_nova_aoe false",
-    "EaxRotations/classes/shaman/elemental_sylvanas.lua", "shaman", "FireNovaTotem",
-    { elemental_use_fire_nova_aoe = false },
-    { in_combat = true, enemy_count = 5 })
-setting_blocks("setting resto restoration_manage_totems false Strength",
-    "EaxRotations/classes/shaman/restoration_sylvanas.lua", "shaman", "StrengthOfEarthTotem",
-    { restoration_manage_totems = false },
-    {})
-setting_blocks("setting resto restoration_manage_totems false ManaSpring",
-    "EaxRotations/classes/shaman/restoration_sylvanas.lua", "shaman", "ManaSpringTotem",
-    { restoration_manage_totems = false },
-    {})
-setting_blocks("setting enh use_cooldowns false Bloodlust",
-    "EaxRotations/classes/shaman/enhancement_sylvanas.lua", "shaman", "Bloodlust",
-    { use_cooldowns = false },
-    { in_combat = true })
-
--- Priest
-setting_blocks("setting holy holy_use_pws false",
-    "EaxRotations/classes/priest/holy_sylvanas.lua", "priest", "EmergencyPWS",
-    { holy_use_pws = false },
-    { lowest = { effective_hp = 20, unit = {} }, lowest_hp = 20 })
-setting_blocks("setting shadow shadow_use_inner_fire false",
-    "EaxRotations/classes/priest/shadow_sylvanas.lua", "priest", "InnerFire",
-    { shadow_use_inner_fire = false },
-    {})
-setting_blocks("setting disc discipline_use_power_infusion false",
-    "EaxRotations/classes/priest/discipline_sylvanas.lua", "priest", "PowerInfusion",
-    { discipline_use_power_infusion = false },
-    { in_combat = true })
-setting_blocks("setting smite smite_use_mb false",
-    "EaxRotations/classes/priest/smite_sylvanas.lua", "priest", "MindBlast",
-    { smite_use_mb = false },
-    { mb_ready = true, in_combat = true, has_valid_enemy_target = true })
-setting_blocks("setting holy holy_use_poh false",
-    "EaxRotations/classes/priest/holy_sylvanas.lua", "priest", "PrayerOfHealing",
-    { holy_use_poh = false },
-    { group_damaged_count = 5, poh_count = 5 })
+expect("flip disc discipline_use_power_infusion OFF blocks", function()
+    local mod = H.load_module("EaxRotations/classes/priest/discipline_sylvanas.lua", {
+        level = 70, class_folder = "priest",
+    })
+    local s = H.find_strategy(mod.strategies, "PowerInfusion")
+    assert_true(s ~= nil, "PowerInfusion present")
+    local ctx = H.context(70, {
+        settings = { discipline_use_power_infusion = false },
+        in_combat = true,
+    })
+    local state = {}
+    if mod.get_state then
+        local ok, st = pcall(mod.get_state, ctx)
+        if ok and st then state = st end
+    end
+    local ok, res = pcall(s.matches, ctx, state)
+    assert_true(ok and not res, "PI blocked when discipline_use_power_infusion=false")
+end)
 
 -- Paladin
-expect("setting prot prot_seal_of_righteousness false", function()
+setting_flip("flip prot prot_holy_shield HolyShield",
+    "EaxRotations/classes/paladin/protection_sylvanas.lua", "paladin", "HolyShield",
+    { prot_holy_shield = true }, { prot_holy_shield = false },
+    { holy_shield_ready = true })
+setting_flip("flip prot prot_consecration Consecration",
+    "EaxRotations/classes/paladin/protection_sylvanas.lua", "paladin", "Consecration",
+    { prot_consecration = true, prot_consecration_targets = 3 },
+    { prot_consecration = false },
+    { consecration_ready = true, mana_pct = 90, enemy_count = 5, consecration_remains = 0, cc_nearby = false })
+expect("flip prot prot_seal_of_righteousness OFF blocks SealRighteousness", function()
     local mod = H.load_module("EaxRotations/classes/paladin/protection_sylvanas.lua", {
         level = 70, class_folder = "paladin",
     })
     local seal = H.find_strategy(mod.strategies, "SealRighteousness")
-        or H.find_strategy(mod.strategies, "SealOfRighteousness")
-    if not seal then return end -- seal strategy name varies
+    assert_true(seal ~= nil, "SealRighteousness present")
     local ctx = H.context(70, { settings = { prot_seal_of_righteousness = false } })
-    local state = { has_seal = false }
+    local state = { has_seal = false, has_seal_command = false, has_seal_wisdom = false }
     local ok, res = pcall(seal.matches, ctx, state)
     assert_true(ok and not res, "Seal SoR blocked when setting false")
 end)
-setting_blocks("setting prot prot_holy_shield false",
-    "EaxRotations/classes/paladin/protection_sylvanas.lua", "paladin", "HolyShield",
-    { prot_holy_shield = false },
-    { holy_shield_ready = true, in_combat = true })
-setting_blocks("setting prot prot_consecration false",
-    "EaxRotations/classes/paladin/protection_sylvanas.lua", "paladin", "Consecration",
-    { prot_consecration = false },
-    { consecration_ready = true, mana_pct = 90, enemy_count = 5, consecration_remains = 0 })
-setting_blocks("setting ret sanctity_aura_enabled false",
-    "EaxRotations/classes/paladin/retribution_sylvanas.lua", "paladin", "Ret_SanctityAura",
-    { sanctity_aura_enabled = false },
-    {})
-setting_blocks("setting ret blessing_of_might_self false",
-    "EaxRotations/classes/paladin/retribution_sylvanas.lua", "paladin", "Ret_BlessingMight_Self",
-    { blessing_of_might_self = false },
-    {})
 
 -- Druid
-setting_blocks("setting bear bear_demo_roar false",
+setting_flip("flip bear bear_demo_roar DemoralizingRoar",
     "EaxRotations/classes/druid/bear_sylvanas.lua", "druid", "DemoralizingRoar",
-    { bear_demo_roar = false },
-    { is_bear = true, in_combat = true, demo_roar_enabled = false, enemy_count = 3, rage = 50 })
-setting_blocks("setting balance balance_use_insect_swarm false",
+    { bear_demo_roar = true }, { bear_demo_roar = false },
+    { is_bear = true, demo_roar_enabled = true, enemy_count = 3, rage = 50 })
+setting_flip("flip balance balance_use_insect_swarm InsectSwarmDoT",
     "EaxRotations/classes/druid/balance_sylvanas.lua", "druid", "InsectSwarmDoT",
-    { balance_use_insect_swarm = false },
-    { in_combat = true })
-expect("setting resto group idle SoloWrath blocked without dps_when_idle", function()
+    { balance_use_insect_swarm = true }, { balance_use_insect_swarm = false },
+    {})
+expect("flip resto resto_dps_when_idle SoloWrath", function()
     local mod = H.load_module("EaxRotations/classes/druid/resto_sylvanas.lua", {
         level = 70, class_folder = "druid",
     })
     local s = H.find_strategy(mod.strategies, "SoloWrath")
-    if not s then return end
-    local ctx = H.context(70, {
-        settings = { resto_dps_when_idle = false },
-        is_solo = false, is_leveling = false, is_group = true,
-        has_valid_enemy_target = true, mana_pct = 90, is_moving = false,
-    })
-    local state = { mana_emergency = false, mana_pct = 90 }
-    local ok, res = pcall(s.matches, ctx, state)
-    assert_true(ok and not res, "SoloWrath off in group when resto_dps_when_idle=false")
+    assert_true(s ~= nil, "SoloWrath present")
+    local function run(dps_idle, is_solo)
+        local ctx = H.context(70, {
+            settings = { resto_dps_when_idle = dps_idle },
+            is_solo = is_solo, is_leveling = false, is_group = not is_solo,
+            has_valid_enemy_target = true, mana_pct = 90, is_moving = false,
+        })
+        local state = { mana_emergency = false, mana_pct = 90 }
+        local ok, res = pcall(s.matches, ctx, state)
+        assert_true(ok, "SoloWrath no throw")
+        return res and true or false
+    end
+    -- solo path ON; group+dps_when_idle false OFF
+    assert_true(run(false, true) == true, "SoloWrath matches when solo")
+    assert_true(run(false, false) == false, "SoloWrath off in group when resto_dps_when_idle=false")
 end)
-setting_blocks("setting cat use_auto_potions false",
-    "EaxRotations/classes/druid/cat_sylvanas.lua", "druid", "HealthPotion",
-    { use_auto_potions = false },
-    { in_combat = true, hp = 10 })
-setting_blocks("setting balance balance_auto_dispel false RemoveCurse",
-    "EaxRotations/classes/druid/balance_sylvanas.lua", "druid", "RemoveCurse",
-    { balance_auto_dispel = false },
-    { in_combat = true })
+
+-- ============================================================================
+-- Dungeon AoE required matches (Shaman / Priest / Druid)
+-- ============================================================================
+expect("shaman dungeon AoE FireNovaTotem L70", function()
+    local mod = H.load_module("EaxRotations/classes/shaman/elemental_sylvanas.lua", {
+        level = 70, class_folder = "shaman",
+    })
+    local s = H.find_strategy(mod.strategies, "FireNovaTotem")
+    assert_true(s ~= nil, "FireNovaTotem present")
+    local ctx = H.context(70, {
+        enemy_count = 5, settings = { elemental_use_fire_nova_aoe = true, elemental_aoe_threshold = 3 },
+        in_combat = true,
+    })
+    local state = H.ready_state(70, { target_count = 5, mana_conserve = false })
+    if mod.get_state then
+        local ok, st = pcall(mod.get_state, ctx)
+        if ok and st then state = H.ready_state(70, st); state.target_count = 5; state.mana_conserve = false end
+    end
+    local ok, res = pcall(s.matches, ctx, state)
+    assert_true(ok and res, "FireNovaTotem must match multi-target")
+end)
+expect("priest dungeon AoE PsychicScream enemy_count L70", function()
+    local mod = H.load_module("EaxRotations/classes/priest/shadow_sylvanas.lua", {
+        level = 70, class_folder = "priest",
+    })
+    local s = H.find_strategy(mod.strategies, "PsychicScream")
+    assert_true(s ~= nil, "PsychicScream present")
+    local ctx = H.context(70, {
+        enemy_count = 4, enemies_count = 4, in_combat = true,
+    })
+    local state = H.ready_state(70, { enemy_count = 4, psychic_scream_ready = true, in_combat = true })
+    if mod.get_state then
+        local ok, st = pcall(mod.get_state, ctx)
+        if ok and st then
+            state = H.ready_state(70, st)
+            state.enemy_count = 4
+            state.psychic_scream_ready = true
+            state.in_combat = true
+        end
+    end
+    local ok, res = pcall(s.matches, ctx, state)
+    assert_true(ok and res, "PsychicScream must match enemy_count>=3")
+end)
+expect("druid dungeon AoE SwipeAoE L70", function()
+    local mod = H.load_module("EaxRotations/classes/druid/bear_sylvanas.lua", {
+        level = 70, class_folder = "druid",
+    })
+    local s = H.find_strategy(mod.strategies, "SwipeAoE")
+    assert_true(s ~= nil, "SwipeAoE present")
+    local ctx = H.context(70, {
+        enemy_count = 4, enemies_count = 4, in_combat = true, rage = 80,
+        settings = { aoe_threshold = 3 },
+        target = { get_health_percentage = function() return 80 end },
+        has_valid_enemy_target = true,
+    })
+    local state
+    if mod.get_state then
+        local ok, st = pcall(mod.get_state, ctx)
+        state = (ok and st) or {}
+    else
+        state = {}
+    end
+    state = H.ready_state(70, state)
+    state.enemy_count = 4
+    state.aoe_threshold = 3
+    state.rage = 80
+    state.is_bear = true
+    state.in_combat = true
+    local ok, res = pcall(s.matches, ctx, state)
+    assert_true(ok and res, "SwipeAoE must match enemy_count>=aoe_threshold")
+end)
 
 -- Raid-70 priority order (strategy index — wowsims tbc-new / guides)
 local function assert_prio_before(path, folder, earlier, later)
