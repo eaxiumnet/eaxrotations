@@ -98,10 +98,33 @@ local function thorns_matches_fn(context, state)
     return NS.spell_ready(SPELLS.Thorns, NS.PLAYER_UNIT, { skip_range = true })
 end
 
+local function starfire_matches_fn(context, state)
+    if not caster_context_allowed(context) then return false end
+    if not context.target then return false end
+    if context.is_moving then return false end
+    if not SPELLS.Starfire then return false end
+    return NS.spell_ready(SPELLS.Starfire, context.target)
+end
+
+local function healing_touch_matches_fn(context, state)
+    if not caster_context_allowed(context) then return false end
+    if (state.hp_pct or context.hp or 100) > 40 then return false end
+    if context.is_moving then return false end
+    if not SPELLS.HealingTouch then return false end
+    local me = context.me or NS.PLAYER_UNIT
+    return NS.spell_ready(SPELLS.HealingTouch, me, { skip_range = true })
+end
+
 local strategies = {
     { name = "Barkskin",
       matches = barkskin_matches_fn,
       execute = function() return NS.try_cast(SPELLS.Barkskin, NS.PLAYER_UNIT, "[CASTER] Barkskin") end },
+    { name = "HealingTouch",
+      matches = healing_touch_matches_fn,
+      execute = function(context)
+          local me = context.me or NS.PLAYER_UNIT
+          return NS.try_cast(SPELLS.HealingTouch, me, "[CASTER] Healing Touch")
+      end },
     { name = "Thorns",
       matches = thorns_matches_fn,
       execute = function() return NS.try_cast(SPELLS.Thorns, NS.PLAYER_UNIT, "[CASTER] Thorns") end },
@@ -114,11 +137,15 @@ local strategies = {
     { name = "Moonfire",
       matches = moonfire_matches_fn,
       execute = function(context) return NS.try_cast(SPELLS.Moonfire, context.target, "[CASTER] Moonfire") end },
+    { name = "Starfire", spell = SPELLS.Starfire, not_moving = true, min_mana = 15,
+      matches = starfire_matches_fn,
+      execute = function(context) return NS.try_cast(SPELLS.Starfire, context.target, "[CASTER] Starfire") end },
     { name = "Wrath", spell = SPELLS.Wrath, not_moving = true, min_mana = 10,
       matches = wrath_matches_fn,
       execute = function(context) return NS.try_cast(SPELLS.Wrath, context.target, "[CASTER] Wrath") end },
 }
 
-NS.rotation_registry:register("caster", strategies, { get_state = build_state })
--- Druid caster vanilla rotation registered
-return strategies
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("caster", strategies, { get_state = build_state })
+end
+return { strategies = strategies, build_state = build_state }
