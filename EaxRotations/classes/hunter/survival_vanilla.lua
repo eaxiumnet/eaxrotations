@@ -124,7 +124,11 @@ local function build_state(context)
     sv_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     sv_state.in_combat = context.in_combat or false
     sv_state.enemy_count = context.enemy_count or context.enemies_count or 1
-    sv_state.pre_steady_leveling = (context.player_level or 70) < 62
+    -- Classic Era: enable Arcane/Sting ladder when Aimed unlearned or unavailable (default level 60).
+    local player_level = context.level or context.player_level or 60
+    sv_state.pre_steady_leveling = (player_level < 20)
+        or (not sv_state.aimed_shot_ready)
+        or (context.is_leveling == true)
 
     return sv_state
 end
@@ -150,6 +154,7 @@ local function hunters_mark_matches(context, s)
 end
 
 local function rapid_fire_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 300) then return false end
     if not cooldowns_enabled(context) then return false end
     if not s.in_combat then return false end
     if not s.rapid_fire_ready then return false end

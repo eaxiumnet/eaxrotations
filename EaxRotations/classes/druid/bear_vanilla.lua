@@ -333,7 +333,7 @@ local function build_state(context)
     state.me = context.me or (NS.GetPlayer and NS.GetPlayer()) or nil
     state.target = context.target
     state.hp = context.hp or 100
-    state.level = context.level or context.player_level or 70
+    state.level = context.level or context.player_level or 60
     state.rage = context.rage or 0
     state.stance = context.stance or (NS.get_player_stance and NS.get_player_stance()) or STANCE_CASTER
     state.in_combat = context.in_combat == true

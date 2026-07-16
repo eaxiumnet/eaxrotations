@@ -85,6 +85,14 @@ function M.level_from_context(context, fallback)
     return fallback or 70
 end
 
+--- Classic Era (1.15) level from context — default **60**, not 70 (TBC cap).
+--- Use in all `*_vanilla.lua` paths so missing context does not look like TBC 70.
+---@param context table|nil
+---@return number
+function M.vanilla_level_from_context(context)
+    return M.level_from_context(context, 60)
+end
+
 --- Scale a threshold linearly with level, clamped to [floor, cap].
 ---@param level number
 ---@param base number

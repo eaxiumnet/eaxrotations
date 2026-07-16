@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
+local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 
 local BASE_SPELLS = NS.DruidSpells or {}
 local SPELLS = BASE_SPELLS
@@ -47,7 +48,7 @@ local AP_UPGRADE_RATIO = 1.08
 local STRONG_AP_UPGRADE_RATIO = 1.15
 local HIGH_AP_UPGRADE_RATIO = 1.05
 
-local RIP_DEBUFF = { 1079 }
+local RIP_DEBUFF = { 1079, 9492, 9493, 9752, 9894, 9896 }
 local RAKE_DEBUFF = { 9904, 1824, 1823, 1822 }
 local FAERIE_FIRE_DEBUFF = { 17392, 17391, 17390, 16857,  9907, 9749, 778, 770 }
 local PROWL_BUFF = { 9913, 6783, 5215 }
@@ -228,9 +229,15 @@ local function should_wait_for_tick(state, required_energy)
 end
 
 local function should_snapshot_upgrade(current_ap, snapshotted_ap, remains, refresh_window, ratio)
-    if remains > refresh_window then return false end
-    if current_ap <= 0 or snapshotted_ap <= 0 then return false end
+    if (remains or 0) > (refresh_window or 0) then return false end
+    if (remains or 0) <= 0 then return true end
+    if (current_ap or 0) <= 0 or (snapshotted_ap or 0) <= 0 then return false end
     return current_ap > snapshotted_ap * ratio
+end
+
+local function should_block_faerie_fire_for_armor(ctx, s)
+    if (ctx.target_armor or 0) > 0 then return false end
+    return not leveling_helpers.is_low_level(s.level)
 end
 
 -- Throttle build_state to once per frame to avoid rebuilding state N times
@@ -248,6 +255,7 @@ local function build_state(context)
     state.me = context.me or (NS.GetPlayer and NS.GetPlayer()) or nil
     state.target = context.target
     state.hp = context.hp or 100
+    state.level = context.level or context.player_level or 60
     state.mana_pct = get_mana_pct(context)
     state.energy = get_energy(context)
     state.combo_points = get_combo_points(context, state.target)
@@ -409,7 +417,8 @@ local _strategies = {
             if not s.is_stealthed then return false end
             if not s.is_cat then return false end
             if not ctx.has_valid_enemy_target then return false end
-            if s.target_hp > 90 then return false end
+            if not s.is_behind then return false end
+            if (s.target_hp or 100) < 25 then return false end
             if (s.energy or 0) < RAVAGE_COST then return false end
             return spell_ready(SPELLS.Ravage, s.target)
         end,
@@ -450,9 +459,8 @@ local _strategies = {
         matches = function(ctx, s)
             if not s.is_stealthed then return false end
             if not ctx.has_valid_enemy_target then return false end
-            -- Skip if target has no armor (API unavailable or already fully reduced)
-            if (ctx.target_armor or 0) <= 0 then return false end
-            if s.faerie_fire_remains > FAERIE_FIRE_REFRESH then return false end
+            if should_block_faerie_fire_for_armor(ctx, s) then return false end
+            if (s.faerie_fire_remains or 0) > FAERIE_FIRE_REFRESH then return false end
             return spell_ready(SPELLS.FaerieFireFeral, s.target)
         end,
         execute = function(ctx)
@@ -464,9 +472,8 @@ local _strategies = {
         matches = function(ctx, s)
             if not s.is_cat then return false end
             if not ctx.has_valid_enemy_target then return false end
-            -- Skip if target has no armor (API unavailable or already fully reduced)
-            if (ctx.target_armor or 0) <= 0 then return false end
-            if s.faerie_fire_remains > FAERIE_FIRE_REFRESH then return false end
+            if should_block_faerie_fire_for_armor(ctx, s) then return false end
+            if (s.faerie_fire_remains or 0) > FAERIE_FIRE_REFRESH then return false end
             return spell_ready(SPELLS.FaerieFireFeral, s.target)
         end,
         execute = function(ctx)
@@ -474,21 +481,20 @@ local _strategies = {
         end,
     },
     {
-        name = "RipSnapshot",
+        name = "Rip",
         matches = function(ctx, s)
             if not s.is_cat then return false end
             if not ctx.has_valid_enemy_target then return false end
-            if s.combo_points < 1 then return false end
-            if s.target_ttd < MIN_RIP_TTD then return false end
-            if s.rip_remains > RIP_REFRESH_WINDOW then return false end
-            if not s.is_behind then return false end
-            if not should_snapshot_upgrade(s.attack_power, snapshot_state.rip_ap, s.rip_remains, RIP_REFRESH_WINDOW, AP_UPGRADE_RATIO) then return false end
+            local required_cp = (s.level or 70) < 50 and 3 or 4
+            if (s.combo_points or 0) < required_cp then return false end
+            if (s.target_ttd or 999) < MIN_RIP_TTD then return false end
+            if (s.rip_remains or 0) > RIP_REFRESH_WINDOW then return false end
             return action_ready(SPELLS.Rip, s.target)
         end,
         execute = function(ctx)
             snapshot_state.rip_ap = ctx.attack_power or 0
             snapshot_state.rip_target = ctx.target
-            return execute_cast(SPELLS.Rip, ctx.target, "Rip (snapshot upgrade)")
+            return execute_cast(SPELLS.Rip, ctx.target, "Rip")
         end,
     },
     {
@@ -496,8 +502,8 @@ local _strategies = {
         matches = function(ctx, s)
             if not s.is_cat then return false end
             if not ctx.has_valid_enemy_target then return false end
-            if s.target_hp > EXECUTE_HP then return false end
-            if s.combo_points < 1 then return false end
+            if (s.target_hp or 100) > EXECUTE_HP then return false end
+            if (s.combo_points or 0) < 1 then return false end
             if not s.should_execute then return false end
             if (s.energy or 0) < BITE_COST then return false end
             return action_ready(SPELLS.FerociousBite, s.target)
@@ -540,9 +546,8 @@ local _strategies = {
         matches = function(ctx, s)
             if not s.is_cat then return false end
             if not ctx.has_valid_enemy_target then return false end
-            if s.target_ttd < MIN_RAKE_TTD then return false end
-            if s.rake_remains > RAKE_REFRESH_WINDOW then return false end
-            if not s.is_behind then return false end
+            if (s.target_ttd or 999) < MIN_RAKE_TTD then return false end
+            if (s.rake_remains or 0) > RAKE_REFRESH_WINDOW then return false end
             if not should_snapshot_upgrade(s.attack_power, snapshot_state.rake_ap, s.rake_remains, RAKE_REFRESH_WINDOW, STRONG_AP_UPGRADE_RATIO) then return false end
             return action_ready(SPELLS.Rake, s.target)
         end,
@@ -570,9 +575,8 @@ local _strategies = {
         matches = function(ctx, s)
             if not s.is_cat then return false end
             if not ctx.has_valid_enemy_target then return false end
-            if s.target_ttd < MIN_RAKE_TTD then return false end
-            if s.rake_remains > RAKE_REFRESH_WINDOW then return false end
-            if not s.is_behind then return false end
+            if (s.target_ttd or 999) < MIN_RAKE_TTD then return false end
+            if (s.rake_remains or 0) > RAKE_REFRESH_WINDOW then return false end
             if (s.energy or 0) < RAKE_COST then return false end
             return action_ready(SPELLS.Rake, s.target)
         end,

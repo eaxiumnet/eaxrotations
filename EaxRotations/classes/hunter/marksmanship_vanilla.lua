@@ -121,7 +121,12 @@ local function build_state(context)
     mm_state.in_combat = context.in_combat or false
     mm_state.enemy_count = context.enemy_count or context.enemies_count or 1
     mm_state.is_ooc = not mm_state.in_combat
-    mm_state.pre_steady_leveling = ((context.player_level or 70) < 62) or (context.is_leveling == true and not mm_state.steady_shot_ready)
+    -- Classic Era: no Steady Shot. "Pre-Aimed" ladder uses Arcane/Sting when Aimed
+    -- unlearned (pre-20) or unavailable. Default level 60 (not TBC 70) when context omits level.
+    local player_level = context.level or context.player_level or 60
+    mm_state.pre_steady_leveling = (player_level < 20)
+        or (not mm_state.aimed_shot_ready)
+        or (context.is_leveling == true)
 
     return mm_state
 end
@@ -147,6 +152,7 @@ local function hunters_mark_matches(context, s)
 end
 
 local function rapid_fire_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 300) then return false end
     if not cooldowns_enabled(context) then return false end
     if not s.in_combat then return false end
     if not s.rapid_fire_ready then return false end
@@ -233,6 +239,7 @@ local function viper_sting_matches(context, s)
 end
 
 local function bestial_wrath_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
     if not s.in_combat then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not s.pet_alive then return false end
