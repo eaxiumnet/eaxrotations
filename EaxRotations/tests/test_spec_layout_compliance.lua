@@ -390,8 +390,9 @@ for _, path in ipairs(vanilla_files) do
 end
 
 -- (e) Test file registration check: every test_*.lua in EaxRotations/tests/
--- must be listed in run_rotation_tests.lua (excluding the runner itself).
+-- must be listed in run_rotation_tests.lua or run_leveling_tests.lua.
 local runner_text = read_file("EaxRotations/tests/run_rotation_tests.lua")
+local leveling_runner_text = read_file("EaxRotations/tests/run_leveling_tests.lua")
 local test_dir_files = {}
 for _, full in ipairs(scan_dir("EaxRotations/tests", "^test_[^/]+%.lua$")) do
     local filename = full:match("([^/]+)$") or full
@@ -400,7 +401,9 @@ end
 
 local runner_missing = {}
 for filename, _ in pairs(test_dir_files) do
-    if filename ~= "test_runner_lib.lua" and not has_lit(runner_text, filename) then
+    if filename ~= "test_runner_lib.lua"
+        and not has_lit(runner_text, filename)
+        and not has_lit(leveling_runner_text, filename) then
         runner_missing[#runner_missing + 1] = filename
     end
 end

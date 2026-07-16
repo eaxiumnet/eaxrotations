@@ -607,8 +607,12 @@ for i = 1, #ACTIONS do
             elseif action.target == "pet" then
                 target = context.pet or (NS.GetPet and NS.GetPet())
             elseif action.position == "target" and NS.try_cast_position then
+                local r = action.hit_radius or (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+                if NS.cast_ground_aoe then
+                    return NS.cast_ground_aoe(action.spell, target, r, 35, "[DESTRUCTION] " .. action.name, opts)
+                end
                 local spell_id = NS.get_spell_id(action.spell)
-                local pos = spell_id and NS.get_aoe_cast_position and NS.get_aoe_cast_position(spell_id, target, 8, 35)
+                local pos = spell_id and NS.get_aoe_cast_position and NS.get_aoe_cast_position(spell_id, target, r, 35)
                 if not pos then
                     local get_position = target and target.get_position
                     pos = get_position and target:get_position() or nil

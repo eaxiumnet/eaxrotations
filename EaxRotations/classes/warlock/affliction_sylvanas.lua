@@ -1081,11 +1081,11 @@ local strategies = {
         end,
         execute = function(context)
             local t = context.target
-            -- Use aoe position helper if available for proper ground target AoE
-            local pos = nil
-            if t and NS.get_aoe_cast_position then
-                pos = NS.get_aoe_cast_position(LOCAL_SPELLS.RainOfFire, t, 8, 35)
+            local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+            if NS.cast_ground_aoe then
+                return NS.cast_ground_aoe(LOCAL_SPELLS.RainOfFire, t, r, 35, "[AFFL] Rain of Fire")
             end
+            local pos = t and NS.get_aoe_cast_position and NS.get_aoe_cast_position(LOCAL_SPELLS.RainOfFire, t, r, 35)
             if pos and NS.try_cast_position then
                 return NS.try_cast_position(LOCAL_SPELLS.RainOfFire, pos, t, "[AFFL] Rain of Fire")
             end

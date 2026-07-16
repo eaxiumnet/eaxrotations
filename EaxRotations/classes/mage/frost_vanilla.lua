@@ -71,22 +71,15 @@ local function cone_of_cold_matches(context)
     if not me then return false end
     local dist = me.get_distance and me:get_distance(context.target) or 999
     if dist > 10 then return false end
-    -- AoE: 2+ targets in range (use enemy_count to avoid iterating a nil array)
-    local nearby = 0
-    if context.enemy_count then
-        nearby = context.enemy_count
-    elseif context.enemies and type(context.enemies) == "table" then
-        for _, enemy in ipairs(context.enemies) do
-            if enemy and me.get_distance then
-                local d = me:get_distance(enemy) or 999
-                if d <= 10 then nearby = nearby + 1 end
-            else
-                nearby = nearby + 1
-            end
-        end
+    -- AoE: 2+ targets inside frontal cone (~10yd)
+    local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10
+    if NS.aoe_cone_meets then
+        return NS.aoe_cone_meets(2, r, nil, context)
     end
-    if nearby < 2 then return false end
-    return true
+    if NS.aoe_self_meets then
+        return NS.aoe_self_meets(2, r, context)
+    end
+    return false
 end
 
 -- ============================================================================
@@ -384,7 +377,14 @@ local strategies = {
     { name = "ConeOfCold", matches = cone_of_cold_wrapper, execute = function(context) return NS.try_cast(SPELLS.ConeOfCold, context.me or NS.GetPlayer(), "[FROST] ConeOfCold", { skip_range = true }) end },
     { name = "Polymorph", matches = polymorph_matches, execute = function(context) return NS.try_cast(SPELLS.Polymorph, context.target, "[FROST] Polymorph") end },
     { name = "ArcaneExplosion", matches = arcane_explosion_matches, execute = function(context) return NS.try_cast(SPELLS.ArcaneExplosion, context.me or NS.GetPlayer(), "[FROST] ArcaneExplosion", { skip_range = true }) end },
-    { name = "Blizzard", matches = blizzard_matches, execute = function(context) local t = context.target; local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, 8, 35); if pos then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[FROST] Blizzard") end; return NS.try_cast(SPELLS.Blizzard, t, "[FROST] Blizzard") end },
+    { name = "Blizzard", matches = blizzard_matches, execute = function(context)
+        local t = context.target
+        local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+        if NS.cast_ground_aoe then return NS.cast_ground_aoe(SPELLS.Blizzard, t, r, 35, "[FROST] Blizzard") end
+        local pos = t and NS.get_aoe_cast_position and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, r, 35)
+        if pos then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[FROST] Blizzard") end
+        return NS.try_cast(SPELLS.Blizzard, t, "[FROST] Blizzard")
+    end },
     { name = "FireBlast", matches = fire_blast_matches, execute = function(context) return NS.try_cast(SPELLS.FireBlast, context.target, "[FROST] FireBlast") end },
     -- Frostbolt is THE primary nuke for Frost mage — must be above Scorch/AM fillers
     -- so a hybrid mage who learned those spells doesn't waste GCDs on weaker fillers.

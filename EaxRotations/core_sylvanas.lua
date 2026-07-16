@@ -4785,146 +4785,40 @@ NS.AOE_RADIUS = NS.AOE_RADIUS or {
     TARGET_15 = 15,       -- Seed of Corruption detonation
 }
 
---- Count hostile enemies within `radius` yards of the player (self-centered PBAoE / melee AoE).
-function NS.count_enemies_around_me(radius)
-    local r = type(radius) == "number" and radius or 8
-    return NS.GetEnemiesCount(r)
-end
-
---- Count hostile enemies within `radius` yards of `unit` (target-centered multi / ground at target).
---- Includes `unit` itself when it is a hostile (so Multi-Shot/Cleave see at least 1).
-function NS.count_enemies_around_unit(unit, radius)
-    if not unit then return 0 end
-    local r = type(radius) == "number" and radius or 8
-    local me = NS.GetPlayer and NS.GetPlayer() or nil
-    local n = 0
-
-    -- Prefer unit-native spatial query when present.
-    local get_eir = safe_field(unit, "get_enemies_in_range")
-    if get_eir then
-        local list = safe(get_eir, unit, r, false)
-        if type(list) == "table" then
-            for i = 1, #list do
-                local e = list[i]
-                if e and (not me or NS.not_same_unit(e, me)) then
-                    n = n + 1
-                end
-            end
-            -- Ensure the origin unit counts if it is an enemy of the player.
-            if me and NS.is_hostile_unit and NS.is_hostile_unit(me, unit) then
-                local has_self = false
-                for i = 1, #list do
-                    if NS.same_unit(list[i], unit) then has_self = true; break end
-                end
-                if not has_self then n = n + 1 end
-            elseif not me then
-                n = n + 1
-            end
-            return n
-        end
-    end
-
-    -- Scan a player-centered list large enough to cover unit + radius, then filter.
-    -- When player/distance is unavailable, scan the full combat density range (40yd).
-    local d_me = me and distance(unit, me) or nil
-    local scan
-    if type(d_me) == "number" and d_me < 100 then
-        scan = d_me + r + 2
-        if scan < r then scan = r end
-        if scan > 45 then scan = 45 end
+-- Hit-volume / cone / ground-place geometry lives in shared/aoe_hit_volume_sylvanas.lua
+-- and uses common/geometry vector_2 + vector_3 (squared_dist_to_ignore_z, :dot, length_squared).
+-- Install FORCE-replaces any prior NS count/gate bindings so core cannot shadow vec math.
+do
+    local ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if ok_aoe and type(AoeHV) == "table" and AoeHV.install then
+        AoeHV.install(NS)
     else
-        scan = 40
-    end
-    local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(scan) or nil
-    if type(enemies) == "table" and (#enemies > 0 or (enemies.n and enemies.n > 0)) then
-        local limit_n = enemies.n or #enemies
-        local seen = false
-        for i = 1, limit_n do
-            local e = enemies[i]
-            if e then
-                local d = distance(e, unit)
-                if type(d) == "number" and d < 100 and d <= r then
-                    n = n + 1
-                    if NS.same_unit and NS.same_unit(e, unit) then seen = true end
-                end
-            end
+        -- Minimal fallback if shared module fails to load (should not happen in production).
+        function NS.count_enemies_around_me(radius)
+            local r = type(radius) == "number" and radius or 8
+            return (NS.GetEnemiesCount and NS.GetEnemiesCount(r)) or 0
         end
-        -- Include origin if hostile and within its own radius of the cluster origin
-        -- only when the scan list was non-empty (real OM data).
-        if not seen and me and NS.is_hostile_unit and NS.is_hostile_unit(me, unit) then
-            local d_origin = distance(unit, me)
-            if type(d_origin) == "number" and d_origin < 100 then
-                n = n + 1
-            end
+        function NS.count_enemies_around_unit(unit, radius)
+            if not unit then return 0 end
+            return 0
         end
-        return n
-    end
-
-    -- Empty/missing enemy list: return 0 so aoe_count_meets can fall back to
-    -- context/state density in unit tests (do NOT invent a single-target hit).
-    return 0
-end
-
---- True when at least `min_count` enemies sit inside the spell hit volume.
---- @param min_count number
---- @param radius number yards
---- @param opts table|nil { around="me"|"target", target=unit, context=ctx }
---- Production: uses live spatial counts. Tests without a player may pass
---- context._aoe_hit_count or fall back to context.enemy_count for legacy suites.
-function NS.aoe_count_meets(min_count, radius, opts)
-    opts = opts or {}
-    local need = type(min_count) == "number" and min_count or 1
-    local r = type(radius) == "number" and radius or 8
-    local ctx = opts.context
-    if ctx and type(ctx._aoe_hit_count) == "number" then
-        return ctx._aoe_hit_count >= need, ctx._aoe_hit_count
-    end
-
-    local me = NS.GetPlayer and NS.GetPlayer() or nil
-    local n
-    local around = opts.around or "me"
-    if around == "target" and opts.target then
-        n = NS.count_enemies_around_unit(opts.target, r)
-    else
-        n = NS.count_enemies_around_me(r)
-    end
-    n = n or 0
-
-    -- Unit-test / empty-OM path: when spatial APIs return zero enemies even at 40yd,
-    -- there is no live hit-volume data — fall back to context density so suites that
-    -- only set enemy_count keep working. Production OM with far-only packs still
-    -- returns wide>0 and radius count 0 → gate correctly rejects false multi.
-    if n == 0 and ctx then
-        local wide = (NS.GetEnemiesCount and NS.GetEnemiesCount(40)) or 0
-        if wide == 0 then
-            local st = opts.state
-            local best = nil
-            local function consider(v)
-                if type(v) == "number" and (best == nil or v > best) then best = v end
-            end
-            if st then
-                consider(st.enemy_count)
-                consider(st.target_count)
-            end
-            consider(ctx.enemy_count)
-            consider(ctx.enemies_count)
-            if type(ctx.enemies) == "table" then consider(#ctx.enemies) end
-            if best ~= nil then n = best end
+        function NS.aoe_count_meets(min_count, radius, opts)
+            opts = opts or {}
+            local need = type(min_count) == "number" and min_count or 1
+            local r = type(radius) == "number" and radius or 8
+            local n = (opts.around == "target" and opts.target)
+                and NS.count_enemies_around_unit(opts.target, r)
+                or NS.count_enemies_around_me(r)
+            n = n or 0
+            return n >= need, n
+        end
+        function NS.aoe_self_meets(min_count, radius, context, state)
+            return NS.aoe_count_meets(min_count, radius, { around = "me", context = context, state = state })
+        end
+        function NS.aoe_target_meets(min_count, radius, target, context, state)
+            return NS.aoe_count_meets(min_count, radius, { around = "target", target = target, context = context, state = state })
         end
     end
-
-    n = n or 0
-    return n >= need, n
-end
-
---- Convenience: self-centered multi-target gate (PBAoE / melee circle).
-function NS.aoe_self_meets(min_count, radius, context, state)
-    return NS.aoe_count_meets(min_count, radius, { around = "me", context = context, state = state })
-end
-
---- Convenience: target-centered multi-target gate (Cleave / Multi-Shot / Seed / ground at target).
-function NS.aoe_target_meets(min_count, radius, target, context, state)
-    return NS.aoe_count_meets(min_count, radius, { around = "target", target = target, context = context, state = state })
 end
 
 function NS.GetFriendsInRange(range)
@@ -5994,6 +5888,17 @@ local function position_for(context, action)
 
         source = action.position
 
+    end
+
+    -- Ground AoE: prefer multi-hit placement using declared hit_radius (Hurricane, RoF, etc.)
+    if source and action.hit_radius and NS.get_aoe_cast_position then
+        local spell_id = NS.get_spell_id and NS.get_spell_id(action.spell) or nil
+        if spell_id then
+            local min_hits = action.enemy_count or action.min_hits or 1
+            local max_range = action.max_range or 35
+            local pos = NS.get_aoe_cast_position(spell_id, source, action.hit_radius, max_range, min_hits)
+            if pos then return pos end
+        end
     end
 
     local get_position = source and safe_field(source, "get_position")

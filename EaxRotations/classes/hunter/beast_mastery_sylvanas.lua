@@ -1032,7 +1032,15 @@ local strategies = {
     {
         name = "Volley",
         matches = volley_matches,
-        execute = function(context) local t = context.target; local spell_id = NS.get_spell_id(VOLLEY_IDS); local pos = t and spell_id and NS.get_aoe_cast_position(spell_id, t, 8, 35); if pos then return NS.try_cast_position(VOLLEY_IDS, pos, t, "[BEAST_MASTERY] Volley") end; return NS.try_cast(VOLLEY_IDS, t, "[BEAST_MASTERY] Volley") end,
+        execute = function(context)
+            local t = context.target
+            local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+            if NS.cast_ground_aoe then return NS.cast_ground_aoe(VOLLEY_IDS, t, r, 35, "[BEAST_MASTERY] Volley") end
+            local spell_id = NS.get_spell_id(VOLLEY_IDS)
+            local pos = t and spell_id and NS.get_aoe_cast_position and NS.get_aoe_cast_position(spell_id, t, r, 35)
+            if pos then return NS.try_cast_position(VOLLEY_IDS, pos, t, "[BEAST_MASTERY] Volley") end
+            return NS.try_cast(VOLLEY_IDS, t, "[BEAST_MASTERY] Volley")
+        end,
     },
     -- 23. Explosive Trap (AoE ground placement)
     {

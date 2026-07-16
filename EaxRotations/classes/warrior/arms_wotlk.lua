@@ -10,6 +10,12 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
+
 local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
@@ -285,29 +291,34 @@ local function execute_matches(context, state)
     return true
 end
 
--- Sweeping Strikes: AoE setup when 2+ enemies.
+-- Sweeping Strikes: AoE setup when 2+ near primary target.
 local function sweeping_strikes_matches(context, state)
     if not state.in_combat then return false end
     if not state.sweeping_ready then return false end
-    if (state.enemy_count or 0) < 2 then return false end
+    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context and context.target, context, state)) then
+        return false
+    end
     if (state.rage or 0) < 30 then return false end
     return true
 end
 
--- Bladestorm: on cooldown for boss fights or AoE (2+ enemies).
+-- Bladestorm: on cooldown for boss fights or AoE (2+ in melee volume).
 local function bladestorm_matches(context, state)
     if not state.in_combat then return false end
     if not state.bladestorm_ready then return false end
     if (state.rage or 0) < 25 then return false end
-    if not (state.is_boss or (state.enemy_count or 0) >= 2) then return false end
+    local aoe = NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)
+    if not (state.is_boss or aoe) then return false end
     if NS.should_use_long_cd and not NS.should_use_long_cd(context, 90) then return false end
     return true
 end
 
--- Thunder Clap: AoE attack-speed slow, maintain debuff for AoE pulls.
+-- Thunder Clap: 8yd self PBAoE attack-speed slow for AoE pulls.
 local function thunder_clap_matches(context, state)
     if not state.in_combat then return false end
-    if (state.enemy_count or 0) < 2 then return false end
+    if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
+        return false
+    end
     if (state.tclap_remains or 0) >= 3 then return false end
     if (state.rage or 0) < 20 then return false end
     return true

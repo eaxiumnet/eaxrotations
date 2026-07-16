@@ -6,6 +6,13 @@
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
+do
+    local _ok_aoe, AoeHV = pcall(require, "shared/aoe_hit_volume_sylvanas")
+    if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
+end
+
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
@@ -326,11 +333,12 @@ if ACTION.HeroicStrike then
     })
 end
 
--- 14. Cleave (multi-target rage dump)
+-- 14. Cleave (multi-target rage dump — near target, not 40yd density)
 if ACTION.Cleave then
     table.insert(strategies, { name = "Cleave",
         matches = function(c, s)
-            return (s.target_count or 0) >= 2 and s.cleave_ready and (s.rage or 0) >= 40
+            if not s.cleave_ready or (s.rage or 0) < 40 then return false end
+            return NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, c and c.target, c, s)
         end,
         execute = function(c) return try_cast(ACTION.Cleave, c.target, "[VANILLA FURY] Cleave") end
     })

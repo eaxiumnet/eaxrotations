@@ -1016,7 +1016,15 @@ local strategies = {
 
       matches = blizzard_matches,
 
-      execute = function(context) if not context then return false end; local t = context.target; local pos = t and context and NS.get_aoe_cast_position and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, 8, 35); if pos and NS.try_cast_position then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[LEVELING] Blizzard") end; return try_cast(SPELLS.Blizzard, context and context.target, "[LEVELING] Blizzard") end },
+      execute = function(context)
+          if not context then return false end
+          local t = context.target
+          local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+          if NS.cast_ground_aoe then return NS.cast_ground_aoe(SPELLS.Blizzard, t, r, 35, "[LEVELING] Blizzard") end
+          local pos = t and NS.get_aoe_cast_position and NS.get_aoe_cast_position(NS.get_spell_id(SPELLS.Blizzard), t, r, 35)
+          if pos and NS.try_cast_position then return NS.try_cast_position(SPELLS.Blizzard, pos, t, "[LEVELING] Blizzard") end
+          return try_cast(SPELLS.Blizzard, t, "[LEVELING] Blizzard")
+      end },
 
 
 

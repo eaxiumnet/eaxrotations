@@ -143,8 +143,13 @@ local function cone_of_cold_matches(context)
     -- Use on frozen target in melee range (single target burst, 3x CoC damage)
     local frozen = context.target and NS.debuff_up and (NS.debuff_up(context.target, FROSTBITE_DEBUFF) or NS.debuff_up(context.target, FROST_NOVA_ROOTS)) or false
     if frozen then return true end
-    -- AoE: 2+ targets inside Cone of Cold length (~10yd self cone; radius proxy)
-    if not NS.aoe_self_meets or not NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context) then return false end
+    -- AoE: 2+ targets inside Cone of Cold frontal cone (~10yd, ESP-style facing sector)
+    local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10
+    if NS.aoe_cone_meets then
+        if not NS.aoe_cone_meets(2, r, nil, context) then return false end
+    elseif not NS.aoe_self_meets or not NS.aoe_self_meets(2, r, context) then
+        return false
+    end
     return true
 end
 
@@ -524,7 +529,11 @@ end
 
 local function blizzard_execute(context)
     local t = context.target
-    local pos = t and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.Blizzard), t, 8, 35)
+    local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+    if NS.cast_ground_aoe then
+        return NS.cast_ground_aoe(ACTION.Blizzard, t, r, 35, "[FROST] Blizzard")
+    end
+    local pos = t and NS.get_aoe_cast_position and NS.get_aoe_cast_position(NS.get_spell_id(ACTION.Blizzard), t, r, 35)
     if pos then return NS.try_cast_position(ACTION.Blizzard, pos, t, "[FROST] Blizzard") end
     return NS.try_cast(ACTION.Blizzard, t, "[FROST] Blizzard")
 end

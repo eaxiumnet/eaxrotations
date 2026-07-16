@@ -144,9 +144,13 @@ local function blink_matches(context, state)
 end
 
 local function cone_of_cold_matches(context, state)
-    -- Cone of Cold ~10yd frontal; use self hit-volume (not 40yd density)
-    return state.in_combat
-        and NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)
+    -- Cone of Cold ~10yd frontal sector (ESP-style facing cone; not 40yd density)
+    if not state.in_combat then return false end
+    local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10
+    if NS.aoe_cone_meets then
+        return NS.aoe_cone_meets(2, r, nil, context, state)
+    end
+    return NS.aoe_self_meets and NS.aoe_self_meets(2, r, context, state)
 end
 
 local function living_bomb_matches(context, state)

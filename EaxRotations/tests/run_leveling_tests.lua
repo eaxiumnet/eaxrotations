@@ -26,6 +26,8 @@ local tests = {
     "test_leveling_edge_cases.lua",
     "test_shaman_leveling_registration.lua",
     "test_wotlk_leveling_load.lua",
+    "test_vanilla_leveling_ladders.lua",
+    "test_wotlk_leveling_ladders.lua",
 }
 
 local function first_failure_line(output)

@@ -498,10 +498,12 @@ end
 local function thunderclap_matches_fn(context, state)
  if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ThunderClap, 2.0) then return false end
  if state.aoe_cc_nearby then return false end  -- don't break nearby CC
- local ec = state.enemy_count or 0
- if ec >= 2 then return true end
+ -- Thunder Clap: 8yd self PBAoE — multi when 2+ in hit volume
+ if NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state) then
+  return true
+ end
  -- Single target: use Thunder Clap for attack speed debuff on bosses/elites
- if ec >= 1 and (state.tclap_remains or 0) <= 0 then
+ if (state.tclap_remains or 0) <= 0 then
   local target = context.target
   if target and target.is_valid and target:is_valid() then
    local cls = target.get_classification and target:get_classification() or 0

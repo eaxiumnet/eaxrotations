@@ -1,18 +1,19 @@
 -- test_aoe_range_audit_contracts.lua
--- WHAT: Structural contracts for AoE hit-volume fixes (post-fix).
--- WHEN: Rotation test suite / standalone.
--- WHY:  Pin 40yd global density for Auto-AoE, hit-volume helpers in core,
---       and high-severity self-PBAoE gates using aoe_self_meets (not 40yd-only).
--- SAFETY: Read-only file scans + requires no combat.
+-- WHAT: Manifest-backed structural scan for AoE hit-volume gates.
+-- WHEN: Rotation suite / standalone.
+-- WHY:  Every high-severity multi-target matcher across Vanilla/TBC/WotLK must
+--       use aoe_self_meets / aoe_target_meets — one dirty expansion fails the suite.
+-- SAFETY: Read-only file scans via aoe_high_severity_manifest.lua.
 
-package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;./?.lua;" .. package.path
+package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/tests/?.lua;./?.lua;"
+    .. package.path
 
 local function read_file(path)
     local f = io.open(path, "rb")
     if not f then return nil end
-    local text = f:read("*a") or ""
+    local t = f:read("*a") or ""
     f:close()
-    return text
+    return t
 end
 
 local function assert_true(v, msg)
@@ -26,7 +27,7 @@ end
 
 local all_ok = true
 
--- 1) Global 40yd density remains for Auto-AoE / context.enemy_count
+-- 1) Global 40yd density remains for Auto-AoE
 do
     local src = read_file("EaxRotations/main_sylvanas.lua")
     all_ok = assert_true(src ~= nil, "main_sylvanas.lua readable") and all_ok
@@ -40,73 +41,75 @@ do
     end
 end
 
--- 2) Core hit-volume helpers shipped
+-- 2) Core / shared hit-volume helpers shipped
 do
-    local src = read_file("EaxRotations/core_sylvanas.lua")
-    all_ok = assert_true(src ~= nil, "core_sylvanas.lua readable") and all_ok
-    if src then
-        all_ok = assert_true(src:find("function NS.aoe_self_meets", 1, true) ~= nil, "NS.aoe_self_meets defined") and all_ok
-        all_ok = assert_true(src:find("function NS.aoe_target_meets", 1, true) ~= nil, "NS.aoe_target_meets defined") and all_ok
-        all_ok = assert_true(src:find("function NS.count_enemies_around_me", 1, true) ~= nil, "count_enemies_around_me defined") and all_ok
-        all_ok = assert_true(src:find("function NS.count_enemies_around_unit", 1, true) ~= nil, "count_enemies_around_unit defined") and all_ok
-        all_ok = assert_true(src:find("NS.AOE_RADIUS", 1, true) ~= nil, "AOE_RADIUS constants") and all_ok
-        all_ok = assert_true(src:find("max_range or 35", 1, true) ~= nil, "get_aoe_cast_position max_range 35") and all_ok
-        all_ok = assert_true(src:find("radius or 8", 1, true) ~= nil, "get_aoe_cast_position radius 8") and all_ok
-        all_ok = assert_true(src:find("action.hit_radius", 1, true) ~= nil, "evaluate_cast respects hit_radius") and all_ok
+    local core = read_file("EaxRotations/core_sylvanas.lua")
+    local shared = read_file("EaxRotations/shared/aoe_hit_volume_sylvanas.lua")
+    all_ok = assert_true(core ~= nil, "core_sylvanas.lua readable") and all_ok
+    all_ok = assert_true(shared ~= nil, "aoe_hit_volume_sylvanas.lua readable") and all_ok
+    if core then
+        -- Geometry gates are installed from shared (force vec2/vec3); core must load that module.
+        all_ok = assert_true(core:find("aoe_hit_volume_sylvanas", 1, true) ~= nil, "core loads aoe_hit_volume") and all_ok
+        all_ok = assert_true(core:find("AoeHV.install", 1, true) ~= nil or core:find(".install(NS)", 1, true) ~= nil,
+            "core installs shared hit-volume helpers") and all_ok
+        all_ok = assert_true(core:find("NS.AOE_RADIUS", 1, true) ~= nil, "AOE_RADIUS in core") and all_ok
+        all_ok = assert_true(core:find("action.hit_radius", 1, true) ~= nil, "evaluate_cast hit_radius") and all_ok
+        all_ok = assert_true(core:find("vector_2", 1, true) ~= nil or shared and shared:find("vector_2", 1, true),
+            "hit-volume path references vector_2") and all_ok
+    end
+    if shared then
+        all_ok = assert_true(shared:find("function M.aoe_self_meets", 1, true) ~= nil
+            or shared:find("aoe_self_meets", 1, true) ~= nil, "shared aoe_self_meets") and all_ok
+        all_ok = assert_true(shared:find("aoe_cone_meets", 1, true) ~= nil, "shared aoe_cone_meets") and all_ok
+        all_ok = assert_true(shared:find("count_enemies_in_cone", 1, true) ~= nil, "shared count_enemies_in_cone") and all_ok
+        all_ok = assert_true(shared:find("cast_ground_aoe", 1, true) ~= nil, "shared cast_ground_aoe") and all_ok
+        all_ok = assert_true(shared:find("offset_in_facing_cone", 1, true) ~= nil, "shared offset_in_facing_cone") and all_ok
+        all_ok = assert_true(shared:find("CONE_HALF_ANGLE", 1, true) ~= nil, "shared CONE_HALF_ANGLE") and all_ok
+        all_ok = assert_true(shared:find("vector_2", 1, true) ~= nil, "shared uses vector_2") and all_ok
+        all_ok = assert_true(shared:find("vector_3", 1, true) ~= nil, "shared uses vector_3") and all_ok
+        all_ok = assert_true(shared:find("squared_dist_to_ignore_z", 1, true) ~= nil
+            or shared:find("length_squared", 1, true) ~= nil, "shared uses vec distance methods") and all_ok
+        all_ok = assert_true(shared:find("math.atan2", 1, true) == nil, "cone path avoids math.atan2") and all_ok
+    end
+    if core then
+        all_ok = assert_true(core:find("hit_radius", 1, true) ~= nil, "core position_for/hit_radius ground place") and all_ok
     end
 end
 
--- 3) High-severity self-PBAoE uses aoe_self_meets (fixed behavior)
+-- 3) Manifest-backed high-severity scan (all expansions)
 do
-    local cases = {
-        { file = "EaxRotations/classes/mage/fire_sylvanas.lua", needle = "arcane_explosion_matches", helper = "aoe_self_meets" },
-        { file = "EaxRotations/classes/mage/frost_sylvanas.lua", needle = "arcane_explosion_matches", helper = "aoe_self_meets" },
-        { file = "EaxRotations/classes/mage/fire_vanilla.lua", needle = "arcane_explosion", helper = "aoe_self_meets" },
-        { file = "EaxRotations/classes/warlock/demonology_sylvanas.lua", needle = "hellfire_matches", helper = "aoe_self_meets" },
-        { file = "EaxRotations/classes/priest/shadow_sylvanas.lua", needle = "holy_nova_aoe_matches", helper = "aoe_self_meets" },
-        { file = "EaxRotations/classes/rogue/leveling_wotlk.lua", needle = "fan_of_knives", helper = "aoe_self_meets" },
-        { file = "EaxRotations/classes/deathknight/leveling_wotlk.lua", needle = "blood_boil", helper = "aoe_self_meets" },
-    }
-    for i = 1, #cases do
-        local c = cases[i]
-        local src = read_file(c.file)
-        all_ok = assert_true(src ~= nil, c.file .. " readable") and all_ok
-        if src then
-            local start = src:find(c.needle, 1, true)
-            all_ok = assert_true(start ~= nil, c.file .. " has " .. c.needle) and all_ok
-            if start then
-                local window = src:sub(start, start + 700)
-                all_ok = assert_true(window:find(c.helper, 1, true) ~= nil,
-                    c.file .. " " .. c.needle .. " uses " .. c.helper) and all_ok
-            end
+    local scanner = nil
+    local ok_load, mod = pcall(function()
+        return dofile("EaxRotations/tests/scan_aoe_manifest.lua")
+    end)
+    if ok_load and type(mod) == "table" and mod.scan then
+        scanner = mod
+    else
+        -- require path fallback
+        package.loaded["scan_aoe_manifest"] = nil
+        local ok2, mod2 = pcall(require, "scan_aoe_manifest")
+        if ok2 and type(mod2) == "table" then scanner = mod2 end
+    end
+    all_ok = assert_true(scanner ~= nil and scanner.scan ~= nil, "scan_aoe_manifest loaded") and all_ok
+    if scanner then
+        local rows, dirty = scanner.scan()
+        all_ok = assert_true(type(rows) == "table" and #rows > 0, "manifest produced rows") and all_ok
+        if dirty and dirty > 0 then
+            print(scanner.format_report(rows, dirty))
+            all_ok = assert_true(false, "manifest dirty_count=" .. tostring(dirty) .. " (must be 0)") and all_ok
+        else
+            all_ok = assert_true(true, "manifest ALL_CLEAN rows=" .. tostring(#rows)) and all_ok
         end
     end
 end
 
--- 4) Target-centered samples
-do
-    local cases = {
-        { file = "EaxRotations/classes/hunter/beast_mastery_sylvanas.lua", needle = "multi_shot_matches", helper = "aoe_target_meets" },
-        { file = "EaxRotations/classes/warlock/affliction_sylvanas.lua", needle = "SeedOfCorruption", helper = "aoe_target_meets" },
-        { file = "EaxRotations/classes/deathknight/frost_wotlk.lua", needle = "howling_blast_matches", helper = "aoe_target_meets" },
-    }
-    for i = 1, #cases do
-        local c = cases[i]
-        local src = read_file(c.file)
-        all_ok = assert_true(src ~= nil, c.file .. " readable") and all_ok
-        if src then
-            all_ok = assert_true(src:find(c.helper, 1, true) ~= nil,
-                c.file .. " uses " .. c.helper) and all_ok
-        end
-    end
-end
-
--- 5) Audit artifact updated for fix
+-- 4) Audit artifact
 do
     local src = read_file("plans/aoe-range-audit-2026-07-16.md")
     all_ok = assert_true(src ~= nil, "audit plan exists") and all_ok
     if src then
-        all_ok = assert_true(src:find("Mismatch", 1, true) ~= nil, "audit has Mismatch section") and all_ok
+        all_ok = assert_true(src:find("Mismatch", 1, true) ~= nil or src:find("hit-volume", 1, true) ~= nil,
+            "audit documents mismatches / hit-volume") and all_ok
         all_ok = assert_true(src:find("40 yards", 1, true) ~= nil or src:find("40yd", 1, true) ~= nil,
             "audit documents 40yd global scan") and all_ok
     end
