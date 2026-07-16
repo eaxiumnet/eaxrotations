@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.7.6 - 2026-07-16
+
+### Customer Changelog
+- **Druid (Bear)**: Swipe targets enemies again (was self-targeting the player and spam-looping).
+- **Druid (Bear)**: Mark / Gift / Thorns no longer cast in bear form (they cancel form and caused shift loops).
+- **Druid (Bear)**: Cleaner Bear Form re-shift after a cast attempt.
+- **Melee timing**: Absurd swing-timer fallback values are ignored.
+- Version bumped to 2.7.6.
+- Clean `eaxrotations.zip` (lua + md only).
+
+### Developer Notes
+- Swipe: remove `target="self"` / `requires_target=false`; cast via `context.target`.
+- OOC buffs: `if s.is_bear then return false end` on MotW/Gift/Thorns.
+- `NS.swing_time_until`: clamp `remains > 12` → 999 (unknown).
+- Regression tests in `test_bear_custom_matches.lua`.
+
 ## 2.7.5 - 2026-07-16
 
 ### Customer Changelog

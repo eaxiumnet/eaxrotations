@@ -419,11 +419,15 @@ end
 -------------------------------------------------------------------------------
 
 -- OOC BUFFS (pre-pull caster-form prep — never cast in combat) ----------------
+-- CRITICAL: MotW / Gift / Thorns are caster-form spells. Casting them while in
+-- bear form cancels the form in TBC, which then re-triggers BearForm → Enrage
+-- → MotW loops (live log: MotW/Thorns mid-pull on player name).
 
 local function mark_matches(context, action)
     local s = build_state(context)
     if not s.use_self_buffs then return false end   -- gated on Self Buffs setting
     if s.in_combat then return false end
+    if s.is_bear then return false end              -- never break bear form for buffs
     if (NS.buff_remains and NS.buff_remains(s.me, MARK_BUFF) or 0) > MOTW_REFRESH then return false end
     return action_ready(context, action)
 end
@@ -432,6 +436,7 @@ local function thorns_matches(context, action)
     local s = build_state(context)
     if not s.use_self_buffs then return false end   -- gated on Self Buffs setting
     if s.in_combat then return false end
+    if s.is_bear then return false end              -- never break bear form for buffs
     if (NS.buff_remains and NS.buff_remains(s.me, THORNS_BUFF) or 0) > THORNS_REFRESH then return false end
     return action_ready(context, action)
 end
@@ -440,6 +445,9 @@ end
 
 local _last_bear_form_attempt = 0
 local BEAR_FORM_RESHIFT_INTERVAL = 3.0
+-- After a successful queue, hold re-shift longer so form buff can apply before we re-queue.
+local BEAR_FORM_POST_CAST_LOCKOUT = 1.5
+local _bear_form_cast_at = 0
 
 local function bear_form_matches(context, action)
     local s = build_state(context)
@@ -447,11 +455,22 @@ local function bear_form_matches(context, action)
     if not s.auto_bear_form then return false end   -- gated on Auto Bear Form OOC setting
     local now = s.now or (NS.time_now and NS.time_now()) or 0
     if now - _last_bear_form_attempt < BEAR_FORM_RESHIFT_INTERVAL then return false end
+    if now - _bear_form_cast_at < BEAR_FORM_POST_CAST_LOCKOUT then return false end
     if action_ready(context, action) then
         _last_bear_form_attempt = now
         return true
     end
     return false
+end
+
+local function bear_form_execute(context, action)
+    local ok = execute_action(context, action)
+    if ok then
+        _bear_form_cast_at = (context and context.now)
+            or (NS.time_now and NS.time_now())
+            or 0
+    end
+    return ok
 end
 
 -- PRE-PULL RAGE GEN ----------------------------------------------------------
@@ -626,7 +645,9 @@ end
 
 local function swipe_aoe_matches(context, action)
     local s = build_state(context)
-    if not s.is_bear then return false end
+    -- TBC Swipe requires a hostile melee target (not self). Self-cast spam-loops
+    -- when the client rejects the cast and the strategy rematches every frame.
+    if not can_use_bear_ability(s) then return false end
     if not s.in_combat and NS.spell_ready then return false end
     if (s.enemy_count or 0) < (s.aoe_threshold or 3) then return false end
     if s.use_pvp_cc_gate and context.has_breakable_cc_nearby then return false end
@@ -636,7 +657,8 @@ end
 
 local function swipe_cleave_matches(context, action)
     local s = build_state(context)
-    if not s.is_bear then return false end
+    -- TBC Swipe requires a hostile melee target (not self). See swipe_aoe_matches.
+    if not can_use_bear_ability(s) then return false end
     if not s.in_combat and NS.spell_ready then return false end
     if (s.enemy_count or 0) < 2 then return false end
     if s.use_pvp_cc_gate and context.has_breakable_cc_nearby then return false end
@@ -713,7 +735,8 @@ local ACTIONS = {
     { name = "Thorns",            spell = ACTION.Thorns,           target = "self", requires_target = false, matches = thorns_matches },
 
     -- Bear form (the one allowed shift — into bear, not out of it)
-    { name = "BearForm",         spell = ACTION.BearForm,  target = "self", requires_target = false, matches = bear_form_matches },
+    { name = "BearForm",         spell = ACTION.BearForm,  target = "self", requires_target = false,
+      matches = bear_form_matches, execute = bear_form_execute },
 
     -- Pre-pull rage gen
     { name = "PrePullEnrage",    spell = ACTION.Enrage,           target = "self", requires_target = false, matches = pre_pull_enrage_matches },
@@ -743,10 +766,10 @@ local ACTIONS = {
     -- Core rotation (wowsims APL)
     { name = "MangleBear",       spell = ACTION.MangleBear, matches = mangle_matches },
     { name = "Lacerate",         spell = ACTION.Lacerate,   matches = lacerate_matches },
-    { name = "SwipeAoE",         spell = ACTION.SwipeBear,  target = "self",
-      requires_target = false, matches = swipe_aoe_matches },
-    { name = "Swipe",            spell = ACTION.SwipeBear,  target = "self",
-      requires_target = false, matches = swipe_cleave_matches },
+    -- Swipe: hostile target required in TBC (melee cone). Do NOT use target="self"
+    -- — self-cast is rejected by the client and spam-loops via the spell queue.
+    { name = "SwipeAoE",         spell = ACTION.SwipeBear,  matches = swipe_aoe_matches },
+    { name = "Swipe",            spell = ACTION.SwipeBear,  matches = swipe_cleave_matches },
     { name = "Maul",             spell = ACTION.Maul,       matches = maul_matches },
 
     -- Rage gen (in-combat, when starved)

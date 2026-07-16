@@ -19,7 +19,7 @@ local SPELLS = NS.DruidSpells or {}
 local MARK_OF_THE_WILD_BUFF = { 9885, 9884, 8907, 6756, 5234, 5232, 1126 }
 local THORNS_BUFF = { 9910, 9756, 8914, 1075, 782, 467 }
 local RAKE_DEBUFF = { 9904, 1824, 1823, 1822 }
-local RIP_DEBUFF = { 1079 }
+local RIP_DEBUFF = { 1079, 9492, 9493, 9752, 9894, 9896 }
 local FAERIE_FIRE_FERAL = { 16857, 9907, 9749, 778, 770 }
 local PROWL_BUFF = { 9913, 6783, 5215 }
 
@@ -439,8 +439,9 @@ local strategies = {
       execute = function(context) return try_cast(SPELLS.FerociousBite, context.target, "[LEVELING] Bite") end },
     { name = "Claw", matches = claw_matches,
       execute = function(context) return try_cast(SPELLS.Claw, context.target, "[LEVELING] Claw") end },
+    -- Swipe needs enemy target; nil → self in try_cast and spam-loops.
     { name = "SwipeBear", matches = swipe_bear_matches,
-      execute = function(context) return try_cast(SPELLS.SwipeBear, nil, "[LEVELING] Swipe") end },
+      execute = function(context) return try_cast(SPELLS.SwipeBear, context and context.target, "[LEVELING] Swipe") end },
     { name = "Maul", matches = maul_matches,
       execute = function(context) return try_cast(SPELLS.Maul, context.target, "[LEVELING] Maul") end },
     { name = "MarkOfTheWild", matches = motw_matches,
