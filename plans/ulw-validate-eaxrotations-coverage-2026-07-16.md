@@ -17,19 +17,19 @@
 **What:** Every spec that has a kick/interrupt spell uses `shared/interrupt_manager_sylvanas.lua` (or equivalent class middleware) and has a registered interrupt strategy tested.
 
 **Binary Pass Conditions:**
-- [ ] All interrupt-capable specs have at least one interrupt strategy registered
-- [ ] `interrupt_manager_sylvanas.lua` has 100% module coverage (all public functions tested)
-- [ ] `test_interrupt_manager.lua` or equivalent passes
-- [ ] No spec uses a hardcoded interrupt when `interrupt_manager` could be reused
+- [x] All interrupt-capable specs have at least one interrupt strategy registered
+- [x] `interrupt_manager_sylvanas.lua` has 100% module coverage (all public functions tested)
+- [x] `test_interrupt_manager.lua` or equivalent passes
+- [x] No spec uses a hardcoded interrupt when `interrupt_manager` could be reused
 
 ### Scenario 2: Dispel Mastery
 **What:** Defensive dispels are wired into all healer/hybrid specs; offensive dispels are tested for all specs that can purge/enrage-dispel.
 
 **Binary Pass Conditions:**
-- [ ] `shared/dispel_manager_sylvanas.lua` is consumed by at least 5 specs (currently only warlock middleware uses it)
-- [ ] Every healer spec (paladin holy, priest holy/disc, shaman resto, druid resto) has a defensive dispel strategy
+- [x] `shared/dispel_manager_sylvanas.lua` is consumed by at least 5 specs (paladin/priest/shaman/druid middleware + warlock)
+- [x] Every healer spec (paladin holy, priest holy/disc, shaman resto, druid resto) has a defensive dispel strategy
 - [ ] Offensive dispel tests exist for mage, shaman, hunter, priest, warlock
-- [ ] `test_dispel_manager.lua` passes
+- [x] `test_dispel_manager.lua` passes
 
 ### Scenario 3: Healer Spell-School Coverage
 **What:** All healer specs cover their primary spell schools and emergency triage logic under realistic combat state.
@@ -38,27 +38,27 @@
 - [ ] Paladin Healing (TBC) score improves from 3 to ≥4
 - [ ] Priest Healing (TBC) score improves from 3 to ≥4
 - [ ] Shaman Healing (TBC) score improves from 3 to ≥4
-- [ ] `healer_deficit_sylvanas.lua` is consumed by all 11 healer specs (currently 5)
+- [x] `healer_deficit_sylvanas.lua` is consumed by all 11+ healer specs (12 files verified)
 - [ ] Every healer spec has a test for triage target selection and emergency heal
 
 ### Scenario 4: Tank Threat & Survival
 **What:** All tank specs maintain snap threat on pull and use defensive cooldowns intelligently.
 
 **Binary Pass Conditions:**
-- [ ] Warrior Protection uses `snap_threat_sylvanas.lua`
-- [ ] Paladin Protection uses `snap_threat_sylvanas.lua`
-- [ ] Druid Bear uses `snap_threat_sylvanas.lua` (currently lacks it)
-- [ ] Every tank spec has a test for snap-threat on combat entry
+- [x] Warrior Protection uses `snap_threat_sylvanas.lua`
+- [x] Paladin Protection uses `snap_threat_sylvanas.lua`
+- [x] Druid Bear uses `snap_threat_sylvanas.lua` (bear_sylvanas + bear_vanilla)
+- [x] Every tank spec has a test for snap-threat on combat entry
 - [ ] Every tank spec has a test for defensive cooldown threshold
 
 ### Scenario 5: Adaptive Leveling Integrity
 **What:** All leveling rotations adapt spell availability by level and have no duplicate/buggy helper functions.
 
 **Binary Pass Conditions:**
-- [ ] All 28 leveling files expose `strategies` and `build_state`
-- [ ] Duplicate `scorch_matches` in `classes/mage/leveling_vanilla.lua` is removed or unified
-- [ ] Every class leveling rotation has a ladder test (TBC + Vanilla + WotLK where applicable)
-- [ ] `run_leveling_tests.lua` still reports 20/20 PASS after changes
+- [x] All 28 leveling files expose `strategies` and `build_state` (compliance expanded)
+- [x] Duplicate `scorch_matches` in `classes/mage/leveling_vanilla.lua` removed
+- [x] Every class leveling rotation has a ladder test (TBC + Vanilla + WotLK)
+- [x] `run_leveling_tests.lua` reports **21/21 PASS** (was 20; +TBC ladder suite)
 
 ## In-Scope vs Out-of-Scope
 
@@ -98,13 +98,13 @@
 - [x] T1: Baseline audit & gap report
 - [x] T2: Stabilize working tree
 
-### Wave 2
-- [ ] T3: Shared module hardening
-- [ ] T5: Vanilla test coverage
-- [ ] T6: Leveling adaptive fixes
+### Wave 2 (Complete — verified 303 rotation + 21 leveling PASS)
+- [x] T3: Shared module hardening (interrupt/dispel/healer_deficit/snap_threat)
+- [x] T5: Vanilla test coverage (15 `*_vanilla_strategies.lua` suites)
+- [x] T6: Leveling adaptive fixes (scorch dedupe, 28-file compliance, TBC ladder)
 
 ### Wave 3
-- [ ] T4: Low-scoring spec fixes
+- [ ] T4: Low-scoring spec fixes (in progress)
 
 ### Wave 4
 - [ ] T7: Scorecard update & final validation

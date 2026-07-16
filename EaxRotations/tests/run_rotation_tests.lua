@@ -345,6 +345,8 @@ local tests = {
   "test_destruction_vanilla_strategies.lua",
   "test_assassination_vanilla_strategies.lua",
   "test_combat_vanilla_strategies.lua",
+  "test_caster_vanilla_strategies.lua",
+  "test_healing_helper_triage.lua",
 
   "test_priest_holy_vanilla_friendly_target.lua",
  "test_priest_discipline_vanilla_friendly_target.lua",
