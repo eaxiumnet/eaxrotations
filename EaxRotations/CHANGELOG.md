@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.9.1 - 2026-07-16
+
+### Developer Notes
+- Phase 2 skeptic: hard AoE/settings/raid-prio tests; full S/G/D/R matrix
+- 190 ladder cases green
+
 ## 2.9.0 - 2026-07-16
 
 ### Customer Changelog
@@ -855,3 +861,4 @@ Lower values clip closer to expiration (better for low latency). Higher values r
 ## 1.0.0 - 2026-05-15
 
 - Initial release
+

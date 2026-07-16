@@ -269,6 +269,7 @@ end
 
 --- Presence of Mind: use as burst opener or during movement
 local function pom_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
     if s.has_presence_of_mind then return false end
     if not s.in_combat then return false end
     if not spec_kit.setting_bool(context, "use_cooldowns", true) then return false end
@@ -281,6 +282,7 @@ end
 
 --- Arcane Power: burn cooldown synced with AB stacks and bloodlust
 local function arcane_power_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
     if s.has_arcane_power then return false end
     if not s.in_combat then return false end
     if not spec_kit.setting_bool(context, "use_cooldowns", true) then return false end
@@ -299,6 +301,7 @@ end
 
 --- Evocation: mana recovery during conserve/emergency
 local function evocation_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 480) then return false end
     if not s.in_combat then return false end
     if not spec_kit.setting_bool(context, "use_evocation", true) then return false end
     if not s.evocation_available then return false end

@@ -266,6 +266,7 @@ end
 -- Racial gate
 -- ============================================================================
 local function racial_matches(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
     if not context.has_valid_enemy_target then return false end
     if not context.in_combat then return false end
     if context.ttd and context.ttd > 0 and context.ttd < 8 then return false end
@@ -357,6 +358,7 @@ local strategies = {
     {
         name = "FelDomination",
         matches = function(context, state)
+            if NS.should_use_long_cd and not NS.should_use_long_cd(context, 300) then return false end
             if state.has_pet then return false end
             if not state.fel_domination_ready then return false end
             return true
@@ -419,6 +421,7 @@ local strategies = {
     {
         name = "CurseOfDoom",
         matches = function(context, state)
+            if NS.should_use_long_cd and not NS.should_use_long_cd(context, 60) then return false end
             if not context.target then return false end
             if not context.has_valid_enemy_target then return false end
             if (state.doom_remains or 0) > DOT_REFRESH_WINDOW then return false end

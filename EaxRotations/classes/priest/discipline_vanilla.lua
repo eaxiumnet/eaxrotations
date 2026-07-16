@@ -445,6 +445,7 @@ end
 -- Power Infusion: grant +20% haste to caster DPS or self
 -- ============================================================================
 local function power_infusion_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
     if not context.in_combat then return false end
     if not s.power_infusion_ready then return false end
     local settings = context.settings or EMPTY_SETTINGS
@@ -458,6 +459,7 @@ end
 -- Inner Focus: free +25% crit on next spell ? pair with Greater Heal or PoH
 -- ============================================================================
 local function inner_focus_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
     if not context.in_combat then return false end
     if s.has_inner_focus then return false end
     if not s.inner_focus_ready then return false end

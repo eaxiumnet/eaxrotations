@@ -69,12 +69,13 @@ end
 -- ============================================================================
 
 local function combustion_matches_fn(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
     if not state.combustion_ready then return false end
     if not context.in_combat then return false end
     if context.settings and context.settings.use_cooldowns == false then return false end
     if not NS.gate_cooldown_boss_only(context) then return false end
     if context.should_burst then return true end
-    if NS.should_use_long_cd then return NS.should_use_long_cd(context, 180) end; return false
+    return true
 end
 
 local function scorch_matches_fn(context, state)
@@ -95,9 +96,18 @@ end
 
 local function fireball_matches_fn(context, state)
     if context.is_moving then return false end
-    -- Only require 5-stack Scorch when Scorch duty is assigned
+    -- Only require 5-stack Scorch when Scorch duty is assigned AND Scorch is known.
+    -- Low-level mages may not have Scorch yet, so don't gate Fireball behind it.
     local scorch_duty = not context.settings or context.settings.use_scorch_debuff ~= false
-    if scorch_duty and ((state and state.scorch_stacks) or (context.scorch_stacks or 0)) < 5 then return false end
+    local scorch_known = false
+    if NS.is_spell_learned then
+        scorch_known = NS.is_spell_learned(SPELLS.Scorch)
+    elseif NS.spell_exists then
+        scorch_known = NS.spell_exists(SPELLS.Scorch)
+    elseif NS.spell_ready then
+        scorch_known = NS.spell_ready(SPELLS.Scorch, context.target)
+    end
+    if scorch_duty and scorch_known and ((state and state.scorch_stacks) or (context.scorch_stacks or 0)) < 5 then return false end
 
     return NS.spell_ready(SPELLS.Fireball, context.target)
 end
@@ -152,6 +162,7 @@ local function mana_shield_matches_fn(context, state)
 end
 
 local function evocation_matches_fn(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 480) then return false end
     if context.settings and context.settings.use_evocation == false then return false end
     if ((state and state.mana_pct) or (context.mana_pct or 100)) > 20 then return false end
     if not context.in_combat then return false end
@@ -211,6 +222,7 @@ local function pyroblast_matches_fn(context, state)
 end
 
 local function presence_of_mind_matches_fn(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
     if not context.in_combat then return false end
     if context.settings and context.settings.use_cooldowns == false then return false end
     if not context.should_burst then return false end

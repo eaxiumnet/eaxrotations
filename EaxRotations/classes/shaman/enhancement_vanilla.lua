@@ -311,6 +311,7 @@ end
 
 -- v1.2.1: racial match functions
 local function blood_fury_matches(ctx)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(ctx, 120) then return false end
     if ctx.settings and ctx.settings.enhancement_cd_blood_fury == false then return false end
     local me = ctx.me or NS.GetPlayer()
     if not me then return false end
@@ -319,6 +320,7 @@ local function blood_fury_matches(ctx)
 end
 
 local function berserking_matches(ctx)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(ctx, 180) then return false end
     if ctx.settings and ctx.settings.enhancement_cd_berserking == false then return false end
     local me = ctx.me or NS.GetPlayer()
     if not me then return false end
@@ -528,6 +530,7 @@ end
 -- Spell match functions
 -- ============================================================================
 local function mana_tide_totem_matches(ctx)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(ctx, 300) then return false end
     if not cooldowns_enabled(ctx) then return false end
     if ctx.settings and ctx.settings.enhancement_cd_mana_tide == false then return false end
     if not enh_state.mana_tide_totem_ready then return false end
@@ -536,6 +539,7 @@ local function mana_tide_totem_matches(ctx)
 end
 
 local function natures_swiftness_matches(ctx)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(ctx, 180) then return false end
     if not enh_state.natures_swiftness_ready then return false end
     return true
 end

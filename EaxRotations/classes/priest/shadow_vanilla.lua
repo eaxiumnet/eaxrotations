@@ -358,6 +358,7 @@ local function holy_nova_aoe_matches(context, s)
 end
 
 local function racial_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
     if not s.berserking_known and not s.blood_fury_known and not s.arcane_torrent_known then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
@@ -405,6 +406,7 @@ local function devouring_plague_matches(context, s)
 end
 
 local function inner_focus_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.in_combat or not s.mb_ready then return false end
     if s.has_inner_focus then return false end

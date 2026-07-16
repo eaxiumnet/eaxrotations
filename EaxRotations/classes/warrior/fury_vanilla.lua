@@ -221,7 +221,10 @@ end
 -- 4. Burst: Death Wish (off-GCD DPS cooldown; below Execute so it never blocks it)
 if ACTION.DeathWish then
     table.insert(strategies, { name = "DeathWish",
-        matches = function(c, s) return s.death_wish_ready and s.has_valid_enemy end,
+        matches = function(c, s)
+            if NS.should_use_long_cd and not NS.should_use_long_cd(c, 180) then return false end
+            return s.death_wish_ready and s.has_valid_enemy
+        end,
         execute = function() return try_cast(ACTION.DeathWish, PLAYER_UNIT, "[VANILLA FURY] Death Wish", { skip_range = true }) end
     })
 end

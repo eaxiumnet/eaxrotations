@@ -266,6 +266,7 @@ end
 
 -- Racial ability match gate for all racial strategies
 local function racial_matches(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
     if not context.has_valid_enemy_target then return false end
     if not context.in_combat then return false end
     -- TTD gate: don't use racials if target is about to die
@@ -427,6 +428,7 @@ local strategies = {
     {
         name = "CurseOfDoom",
         matches = function(context, state)
+            if NS.should_use_long_cd and not NS.should_use_long_cd(context, 60) then return false end
             if not context.target then return false end
             if not context.has_valid_enemy_target then return false end
             -- Don't refresh if already applied and still ticking

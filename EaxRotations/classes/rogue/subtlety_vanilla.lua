@@ -210,6 +210,7 @@ local function sap_matches(context, state)
 end
 
 local function premeditation_matches(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
     if not state.stealth_up then return false end
     if (state.combo or 0) >= 3 then return false end
     return NS.spell_ready(SPELLS.Premeditation, context.target, { skip_range = true })
@@ -286,6 +287,7 @@ local function vanish_burst_matches(context, state)
 end
 
 local function preparation_matches(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 600) then return false end
     local in_burst = context.should_burst or false
     if setting(context, "use_cooldowns", true) == false and not in_burst then return false end
     if (state.hp or 100) > setting(context, "subtlety_prep_hp", 40) then return false end

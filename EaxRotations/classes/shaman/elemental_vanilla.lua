@@ -200,6 +200,7 @@ local function frost_shock_matches_fn(context, state)
 end
 
 local function elemental_mastery_matches_fn(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
     local s = context.settings or {}
     if s.elemental_use_elemental_mastery == false then return false end
     if not context.in_combat then return false end
@@ -209,6 +210,7 @@ local function elemental_mastery_matches_fn(context, state)
 end
 
 local function natures_swiftness_matches_fn(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
     local s = context.settings or {}
     if s.elemental_use_natures_swiftness == false then return false end
     if not context.in_combat then return false end
@@ -236,6 +238,7 @@ local function earthbind_totem_matches_fn(context, state)
 end
 
 local function mana_tide_totem_matches_fn(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 300) then return false end
     if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ManaTideTotem, 3.0) then return false end
     if state.mana_emergency then return false end
     if (state.mana_pct or 100) > 30 then return false end

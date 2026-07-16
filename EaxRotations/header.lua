@@ -7,7 +7,7 @@
 local plugin = {}
 
 plugin["name"] = "EaxRotations"
-plugin["version"] = "2.9.0"
+plugin["version"] = "2.9.1"
 plugin["author"] = "Eax"
 plugin["load"] = true
 

@@ -211,6 +211,7 @@ local function stealth_matches(context, s)
 end
 
 local function adrenaline_rush_wrapper(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 300) then return false end
     if not cooldowns_enabled(context) then return false end
     if not s.in_combat then return false end
     if s.has_adrenaline_rush then return false end
@@ -219,6 +220,7 @@ local function adrenaline_rush_wrapper(context, s)
 end
 
 local function blade_flurry_wrapper(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
     if not cooldowns_enabled(context) then return false end
     if not s.in_combat then return false end
     if s.has_blade_flurry then return false end
