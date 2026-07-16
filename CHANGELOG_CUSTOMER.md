@@ -1,5 +1,16 @@
 # EaxRotations Changelog
 
+## v2.9.1 — Classic Ladder Hardening (July 16, 2026)
+
+> **Release:** v2.9.1
+
+### What you’ll notice
+- Stronger automated checks that Classic dungeon multi-target abilities and menu toggles actually change the rotation (not just load).
+- Raid-priority order checks aligned with wowsims classic for major DPS specs.
+
+Reload for **v2.9.1**.
+
+---
 ## v2.9.0 — Classic 1–60 Spell Ladders (All Classes) (July 16, 2026)
 
 > **Release:** v2.9.0  
@@ -325,3 +336,4 @@ Every one of the 29 class specializations has been rebuilt on a shared foundatio
 ---
 
 *For technical release notes, see `RELEASE_NOTES_v2.4.0.md` and `RELEASE_NOTES_v2.3.12.md`.*
+

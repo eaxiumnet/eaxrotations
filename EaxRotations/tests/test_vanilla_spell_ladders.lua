@@ -95,30 +95,47 @@ local function high_talent_blocked(path, talent_name, low_level, opts)
     end)
 end
 
---- Dungeon AoE: enemy_count >= threshold allows multi-target strategy when learned.
+--- Dungeon AoE: multi-target strategy MUST match when learned (required).
 local function dungeon_aoe_case(path, aoe_names, need_level, opts)
+    opts = opts or {}
     expect(path .. " dungeon AoE L" .. need_level, function()
-        local mod = H.load_module(path, { level = need_level, class_folder = opts and opts.class_folder })
+        local mod = H.load_module(path, { level = need_level, class_folder = opts.class_folder })
         local ctx = H.context(need_level, {
             enemy_count = 4, enemies_count = 4, is_group = true, is_solo = false,
+            distance = 25, target_distance = 25,
+            settings = opts.settings or {},
         })
-        if opts and opts.context_extra then
+        if opts.context_extra then
             for k, v in pairs(opts.context_extra) do ctx[k] = v end
         end
-        local state = {}
+        local state = H.ready_state(need_level, {
+            rage = 100, mana_pct = 80, enemy_count = 4, target_count = 4,
+            in_combat = true, multi_shot_ready = true, cleave_ready = true,
+            consecration_ready = true, consecration_remains = 0,
+            multishot_mode = 2, aoe_threshold = 3, use_volley = false,
+            is_mounted = false, cc_nearby = false, has_seal = true,
+        })
         if mod.get_state then
             local ok, st = pcall(mod.get_state, ctx)
-            state = (ok and st) or {}
+            if ok and type(st) == "table" then
+                state = H.ready_state(need_level, st)
+                state.enemy_count = 4
+                state.target_count = 4
+                state.rage = 100
+                state.mana_pct = 80
+                state.in_combat = true
+                state.multi_shot_ready = true
+                state.cleave_ready = true
+                state.consecration_ready = true
+                state.consecration_remains = 0
+                state.multishot_mode = state.multishot_mode or 2
+                state.is_mounted = false
+                state.cc_nearby = false
+            end
         end
-        state.rage = 100
-        state.mana_pct = 80
-        state.enemy_count = 4
-        state.in_combat = true
-        local hit = H.any_matches(mod.strategies, aoe_names, ctx, state)
-        -- Soft: if no AoE strategy exists at this level, skip hard fail — mark via optional
-        if opts and opts.required then
-            assert_true(hit, "expected AoE among " .. table.concat(aoe_names, ","))
-        end
+        local hit, name = H.any_matches(mod.strategies, aoe_names, ctx, state)
+        assert_true(hit, "dungeon AoE must match one of [" .. table.concat(aoe_names, ",")
+            .. "] got " .. tostring(name))
     end)
 end
 
@@ -139,8 +156,8 @@ ladder_case("EaxRotations/classes/hunter/leveling_vanilla.lua", {
 }, { class_folder = "hunter" })
 high_talent_blocked("EaxRotations/classes/hunter/beast_mastery_vanilla.lua", "AimedShot", 10, { class_folder = "hunter" })
 high_talent_blocked("EaxRotations/classes/hunter/beast_mastery_vanilla.lua", "BestialWrath", 25, { class_folder = "hunter" })
-dungeon_aoe_case("EaxRotations/classes/hunter/beast_mastery_vanilla.lua", { "MultiShot", "Volley" }, 40, {
-    class_folder = "hunter", required = false,
+dungeon_aoe_case("EaxRotations/classes/hunter/beast_mastery_vanilla.lua", { "MultiShot" }, 40, {
+    class_folder = "hunter",
 })
 
 -- ============================================================================
@@ -159,8 +176,8 @@ ladder_case("EaxRotations/classes/warrior/leveling_vanilla.lua", {
     "HeroicStrike", "Rend", "Charge", "Overpower", "BattleShout", "Bloodthirst", "SunderArmor",
 }, { class_folder = "warrior" })
 high_talent_blocked("EaxRotations/classes/warrior/fury_vanilla.lua", "Bloodthirst", 25, { class_folder = "warrior" })
-dungeon_aoe_case("EaxRotations/classes/warrior/fury_vanilla.lua", { "Cleave", "Whirlwind" }, 40, {
-    class_folder = "warrior", required = false,
+dungeon_aoe_case("EaxRotations/classes/warrior/fury_vanilla.lua", { "Cleave", "Whirlwind", "SweepingStrikes" }, 40, {
+    class_folder = "warrior",
 })
 
 -- ============================================================================
@@ -274,7 +291,8 @@ ladder_case("EaxRotations/classes/paladin/leveling_vanilla.lua", {
 }, { class_folder = "paladin" })
 high_talent_blocked("EaxRotations/classes/paladin/protection_vanilla.lua", "HolyShield", 25, { class_folder = "paladin" })
 dungeon_aoe_case("EaxRotations/classes/paladin/protection_vanilla.lua", { "Consecration" }, 40, {
-    class_folder = "paladin", required = false,
+    class_folder = "paladin",
+    settings = { prot_consecration = true, prot_consecration_targets = 3 },
 })
 
 -- ============================================================================
@@ -352,7 +370,7 @@ expect("cat Shred/Rip without Mangle L25", function()
 end)
 
 -- ============================================================================
--- Content mode smokes
+-- Content modes + settings + raid-60 priority (criterion 2 / §B / §C)
 -- ============================================================================
 expect("hunter pet Mend at L25 solo", function()
     local mod = H.load_module("EaxRotations/classes/hunter/beast_mastery_vanilla.lua", {
@@ -367,12 +385,12 @@ expect("hunter pet Mend at L25 solo", function()
     assert_true(mend.matches(ctx, state), "MendPet matches low pet HP solo")
 end)
 
-expect("fury Cleave path when multi + rage", function()
+expect("fury Cleave MATCHES when multi + rage", function()
     local mod = H.load_module("EaxRotations/classes/warrior/fury_vanilla.lua", {
         level = 40, class_folder = "warrior",
     })
     local cleave = H.find_strategy(mod.strategies, "Cleave")
-    if not cleave then return end
+    assert_true(cleave ~= nil, "Cleave strategy present")
     local ctx = H.context(40, { enemy_count = 3, enemies_count = 3, rage = 80 })
     local state = {}
     if mod.get_state then
@@ -384,13 +402,13 @@ expect("fury Cleave path when multi + rage", function()
     state.target_count = 3
     local ok, res = pcall(cleave.matches, ctx, state)
     assert_true(ok, "Cleave matches no throw")
+    assert_true(res == true, "Cleave must match with target_count>=2 and rage>=40")
 end)
 
-expect("destruction no FelArmor strategy required", function()
+expect("destruction no FelArmor on Classic", function()
     local mod = H.load_module("EaxRotations/classes/warlock/destruction_vanilla.lua", {
         level = 60, class_folder = "warlock",
     })
-    -- DemonArmor ok; FelArmor must not be the only armor path — DemonArmor or no armor strategy is fine
     local fel = H.find_strategy(mod.strategies, "FelArmor")
     if fel and fel.matches then
         local ctx = H.context(60)
@@ -400,10 +418,180 @@ expect("destruction no FelArmor strategy required", function()
             state = (ok and st) or {}
         end
         local ok, res = pcall(fel.matches, ctx, state)
-        -- If FelArmor exists, it must not match (unlearned at Classic)
         assert_true(ok and not res, "FelArmor must not match on Classic")
     end
 end)
+
+-- Settings flip matches (schema keys that change Vanilla behavior)
+expect("setting: hunter use_cooldowns false blocks BestialWrath", function()
+    local mod = H.load_module("EaxRotations/classes/hunter/beast_mastery_vanilla.lua", {
+        level = 60, class_folder = "hunter",
+    })
+    local bw = H.find_strategy(mod.strategies, "BestialWrath")
+    assert_true(bw ~= nil, "BestialWrath present")
+    local ctx_on = H.context(60, {
+        settings = { use_cooldowns = true },
+        in_combat = true,
+    })
+    local st_on = H.ready_state(60, {
+        in_combat = true, bestial_wrath_ready = true, pet_alive = true,
+        use_cooldowns = true, is_mounted = false,
+    })
+    if mod.get_state then
+        local ok, st = pcall(mod.get_state, ctx_on)
+        if ok and type(st) == "table" then
+            st_on = H.ready_state(60, st)
+            st_on.bestial_wrath_ready = true
+            st_on.pet_alive = true
+            st_on.use_cooldowns = true
+            st_on.in_combat = true
+            st_on.is_mounted = false
+        end
+    end
+    local ctx_off = H.context(60, { settings = { use_cooldowns = false }, in_combat = true })
+    local st_off = H.ready_state(60, {
+        in_combat = true, bestial_wrath_ready = true, pet_alive = true,
+        use_cooldowns = false, is_mounted = false,
+    })
+    if mod.get_state then
+        local ok, st = pcall(mod.get_state, ctx_off)
+        if ok and type(st) == "table" then
+            st_off = H.ready_state(60, st)
+            st_off.bestial_wrath_ready = true
+            st_off.pet_alive = true
+            st_off.use_cooldowns = false -- setting must win for this test
+            st_off.in_combat = true
+            st_off.is_mounted = false
+        end
+    end
+    -- cooldowns_allowed reads module-local state from last build_state — re-build off path last
+    pcall(mod.get_state, ctx_off)
+    st_off.use_cooldowns = false
+    local ok_off, res_off = pcall(bw.matches, ctx_off, st_off)
+    assert_true(ok_off, "BW matches no throw when CDs off")
+    assert_true(not res_off, "BestialWrath must not match when use_cooldowns=false")
+end)
+
+expect("setting: aff amplify curse disabled", function()
+    local mod = H.load_module("EaxRotations/classes/warlock/affliction_vanilla.lua", {
+        level = 60, class_folder = "warlock",
+    })
+    local ac = H.find_strategy(mod.strategies, "AmplifyCurse")
+    if not ac then return end -- optional talent strategy
+    local ctx = H.context(60, {
+        settings = { aff_use_amplify_curse = false },
+        ttd = 120,
+    })
+    local state = H.ready_state(60, {
+        amplify_curse_ready = true, agony_remains = 0, doom_remains = 0,
+    })
+    local ok, res = pcall(ac.matches, ctx, state)
+    assert_true(ok and not res, "AmplifyCurse blocked when aff_use_amplify_curse=false")
+end)
+
+expect("setting: mage use_scorch_debuff false allows Fireball without stacks", function()
+    local mod = H.load_module("EaxRotations/classes/mage/fire_vanilla.lua", {
+        level = 60, class_folder = "mage",
+    })
+    local fb = H.find_strategy(mod.strategies, "Fireball")
+    assert_true(fb ~= nil, "Fireball present")
+    local ctx = H.context(60, {
+        settings = { use_scorch_debuff = false },
+        scorch_stacks = 0,
+    })
+    local state = { scorch_stacks = 0 }
+    if mod.get_state then
+        local ok, st = pcall(mod.get_state, ctx)
+        if ok and st then state = st end
+    end
+    assert_true(fb.matches(ctx, state), "Fireball matches with scorch duty off")
+end)
+
+expect("setting: prot consecration disabled", function()
+    local mod = H.load_module("EaxRotations/classes/paladin/protection_vanilla.lua", {
+        level = 60, class_folder = "paladin",
+    })
+    local c = H.find_strategy(mod.strategies, "Consecration")
+    assert_true(c ~= nil, "Consecration present")
+    local ctx = H.context(60, {
+        settings = { prot_consecration = false },
+        enemy_count = 5,
+    })
+    local state = H.ready_state(60, {
+        consecration_ready = true, mana_pct = 90, enemy_count = 5,
+        consecration_remains = 0, cc_nearby = false,
+    })
+    if mod.get_state then
+        local ok, st = pcall(mod.get_state, ctx)
+        if ok and type(st) == "table" then
+            state = H.ready_state(60, st)
+            state.consecration_ready = true
+            state.enemy_count = 5
+            state.mana_pct = 90
+        end
+    end
+    local ok, res = pcall(c.matches, ctx, state)
+    assert_true(ok and not res, "Consecration blocked when prot_consecration=false")
+end)
+
+expect("setting: hunter multishot_mode 0 disables MultiShot", function()
+    local mod = H.load_module("EaxRotations/classes/hunter/beast_mastery_vanilla.lua", {
+        level = 40, class_folder = "hunter",
+    })
+    local ms = H.find_strategy(mod.strategies, "MultiShot")
+    assert_true(ms ~= nil, "MultiShot present")
+    local ctx = H.context(40, {
+        enemy_count = 5, settings = { multishot_mode = 0 },
+    })
+    local state = H.ready_state(40, {
+        in_combat = true, multi_shot_ready = true, multishot_mode = 0,
+        enemy_count = 5, mana_pct = 80, is_mounted = false,
+    })
+    if mod.get_state then
+        local ok, st = pcall(mod.get_state, ctx)
+        if ok and type(st) == "table" then
+            state = H.ready_state(40, st)
+            state.multishot_mode = 0
+            state.multi_shot_ready = true
+            state.enemy_count = 5
+            state.in_combat = true
+            state.is_mounted = false
+        end
+    end
+    local ok, res = pcall(ms.matches, ctx, state)
+    assert_true(ok and not res, "MultiShot off when multishot_mode=0")
+end)
+
+-- Raid-60 priority order (wowsims classic: high-priority names before filler)
+local function assert_prio_before(path, folder, earlier, later)
+    expect("raid60 prio " .. earlier .. " before " .. later .. " in " .. path, function()
+        local mod = H.load_module(path, { level = 60, class_folder = folder })
+        local _, i_early = H.find_strategy(mod.strategies, earlier)
+        local _, i_late = H.find_strategy(mod.strategies, later)
+        assert_true(i_early ~= nil, earlier .. " present")
+        assert_true(i_late ~= nil, later .. " present")
+        assert_true(i_early < i_late, earlier .. " (" .. i_early .. ") before " .. later .. " (" .. i_late .. ")")
+    end)
+end
+
+-- wowsims classic warrior DPS: Execute before fillers; BT before HS
+assert_prio_before("EaxRotations/classes/warrior/fury_vanilla.lua", "warrior", "Bloodthirst", "HeroicStrike")
+assert_prio_before("EaxRotations/classes/warrior/fury_vanilla.lua", "warrior", "Execute", "HeroicStrike")
+-- wowsims hunter p1: Aimed before Arcane when both exist
+assert_prio_before("EaxRotations/classes/hunter/beast_mastery_vanilla.lua", "hunter", "AimedShot", "ArcaneShot")
+assert_prio_before("EaxRotations/classes/hunter/marksmanship_vanilla.lua", "hunter", "InCombatAimedShot", "ArcaneShot")
+-- wowsims warlock: Conflagrate/Immolate structure — Shadowburn before ShadowBolt
+assert_prio_before("EaxRotations/classes/warlock/destruction_vanilla.lua", "warlock", "Shadowburn", "ShadowBolt")
+-- rogue combat: SnD before Evis
+assert_prio_before("EaxRotations/classes/rogue/combat_vanilla.lua", "rogue", "SliceAndDice", "Eviscerate")
+-- mage fire: Scorch before Fireball in table (maintenance)
+assert_prio_before("EaxRotations/classes/mage/fire_vanilla.lua", "mage", "Scorch", "Fireball")
+-- shaman ele: ChainLightning before LightningBolt when both listed
+assert_prio_before("EaxRotations/classes/shaman/elemental_vanilla.lua", "shaman", "ChainLightning", "LightningBolt")
+-- priest shadow: MindBlast before MindFlay
+assert_prio_before("EaxRotations/classes/priest/shadow_vanilla.lua", "priest", "MindBlast", "MindFlay")
+-- druid balance: dots before fillers if present
+assert_prio_before("EaxRotations/classes/druid/balance_vanilla.lua", "druid", "MoonfireDoT", "StarfirePrimary")
 
 -- ============================================================================
 if #failures > 0 then

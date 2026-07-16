@@ -315,6 +315,7 @@ end
 
 -- Bestial Wrath
 local function bestial_wrath_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
     if not mounted_bail(context, s) then return false end
     if not cooldowns_allowed(context) then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
@@ -325,6 +326,7 @@ end
 
 -- Rapid Fire
 local function rapid_fire_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 300) then return false end
     if not mounted_bail(context, s) then return false end
     if not cooldowns_allowed(context) then return false end
     if not s.rapid_fire_ready then return false end

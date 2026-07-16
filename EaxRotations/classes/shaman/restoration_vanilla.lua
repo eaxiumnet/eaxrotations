@@ -175,6 +175,7 @@ local function natures_swiftness_matches(context, state)
 end
 
 local function mana_tide_totem_matches(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 300) then return false end
     if not cooldowns_enabled(context) then return false end
     if not state.in_combat then return false end
     local threshold = (context.settings and context.settings.restoration_mana_tide_pct) or 60
@@ -192,6 +193,7 @@ local function mana_tide_totem_matches(context, state)
 end
 
 local function bloodlust_matches(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 600) then return false end
     if not cooldowns_enabled(context) then return false end
     if not state.in_combat then return false end
     if Healing.all_members_above_hp and not Healing.all_members_above_hp(85) then return false end

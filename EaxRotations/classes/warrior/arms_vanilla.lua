@@ -535,6 +535,7 @@ local function bloodrage_matches(context, state)
 end
 
 local function death_wish_matches(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
     if not cooldowns_allowed(context, state) then return false end
     if not NS.gate_cooldown_boss_only(context) then return false end
     if (state.hp or 100) < 45 then return false end
@@ -543,6 +544,7 @@ local function death_wish_matches(context, state)
 end
 
 local function recklessness_matches(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 1800) then return false end
     if not cooldowns_allowed(context, state) then return false end
     if not NS.gate_cooldown_boss_only(context) then return false end
     if (state.hp or 100) < 50 then return false end
@@ -551,6 +553,7 @@ local function recklessness_matches(context, state)
 end
 
 local function retaliation_matches(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 1800) then return false end
     if (state.hp or 100) > 45 and (state.enemy_count or 0) < 2 then return false end
     if not cooldowns_allowed(context, state) then return false end
     return action(context, build_action("Retaliation", ACTION.Retaliation, { target = "self", required_stance = STANCE.BATTLE, requires_target = false, cooldown = 1800 }))

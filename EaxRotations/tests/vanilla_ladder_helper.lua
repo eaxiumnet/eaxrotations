@@ -256,9 +256,21 @@ function M.setup(opts)
     _G.EaxRotations = NS
 
     package.loaded["shared/spec_kit_sylvanas"] = {
-        setting = function(_, _, d) return d end,
-        setting_bool = function(_, _, d) return d end,
-        setting_number = function(_, _, d) return d end,
+        setting = function(ctx, key, d)
+            if ctx and ctx.settings and ctx.settings[key] ~= nil then return ctx.settings[key] end
+            return d
+        end,
+        setting_bool = function(ctx, key, d)
+            if ctx and ctx.settings and ctx.settings[key] ~= nil then
+                return ctx.settings[key] and true or false
+            end
+            if d == nil then return false end
+            return d and true or false
+        end,
+        setting_number = function(ctx, key, d)
+            if ctx and ctx.settings and ctx.settings[key] ~= nil then return ctx.settings[key] end
+            return d
+        end,
         define_action_for_class = function()
             return function(name, ids)
                 return { name = name, ids = ids, [1] = type(ids) == "table" and ids[1] or ids }

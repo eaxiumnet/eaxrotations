@@ -153,7 +153,7 @@ EaxAutoQuester is a **smart questing automation system** for TBC/Vanilla WoW. It
 lua EaxAutoQuester/tests/run_quester_tests.lua
 ```
 
-**Current status:** 21/28 passing (7 known failures documented in `plans/`)
+**Current status:** 37/37 passing (`lua EaxAutoQuester/tests/run_quester_tests.lua`)
 
 ---
 

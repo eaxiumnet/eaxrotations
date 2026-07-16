@@ -143,6 +143,7 @@ local _strategies = {
     {
         name="InnervateSelf",
         matches=function(ctx, s)
+            if NS.should_use_long_cd and not NS.should_use_long_cd(ctx, 360) then return false end
             if not ctx or not ctx.in_combat then return false end
             if not s.innervate_target then return false end
             local me = ctx.me or NS.GetPlayer()

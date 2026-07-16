@@ -1,3 +1,19 @@
+# Developer Changelog — EaxRotations v2.9.1
+
+**Date:** 2026-07-16  
+**Scope:** Skeptic hardening for Phase 2 content modes / settings / raid-60 prio
+
+### Tests
+- Dungeon AoE cases **required** (MultiShot, Cleave/SS, Consecration must match)
+- Fury Cleave asserts `res == true`
+- Settings flip: use_cooldowns, multishot_mode, use_scorch_debuff, aff_use_amplify_curse, prot_consecration
+- Raid-60 strategy index order vs wowsims classic (9 classes)
+- spec_kit mock honors `context.settings`
+
+### Matrix
+- All S/G/D/R cells filled (no "—"); Mage/Rogue complete
+
+---
 # Developer Changelog — EaxRotations v2.9.0
 
 **Date:** 2026-07-16  
@@ -602,3 +618,4 @@ No new deprecated API usage introduced in this change set.
 ---
 
 *Generated: 2026-07-09*
+

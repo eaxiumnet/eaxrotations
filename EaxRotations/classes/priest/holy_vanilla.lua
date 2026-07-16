@@ -466,6 +466,7 @@ local strategies = {
         is_gcd_gated = false,
         is_burst = true,
         matches = function(context, state)
+            if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
             if not context.in_combat then return false end
             if context.player_control_locked then return false end
             if context.settings and context.settings.holy_use_inner_focus == false then return false end

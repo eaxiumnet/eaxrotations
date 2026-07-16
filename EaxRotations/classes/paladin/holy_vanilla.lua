@@ -527,6 +527,7 @@ local strategies = {
     {
         name = "DivineFavor",
         matches = function(context, s)
+            if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
             local target = s.lowest or s.tank
             if not can_help(target) or s.has_divine_favor then return false end
             if hp_of(target) > spec_kit.setting(context, "holy_divine_favor_hp", 45) then return false end

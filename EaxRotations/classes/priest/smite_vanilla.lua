@@ -312,6 +312,7 @@ local strategies = {
         is_gcd_gated = false,
         is_burst = true,
         matches = function(context, state)
+            if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
             if context.settings and context.settings.smite_use_power_infusion == false then return false end
@@ -331,6 +332,7 @@ local strategies = {
         is_gcd_gated = false,
         is_burst = true,
         matches = function(context, state)
+            if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
             if not context.in_combat then return false end
             if not can_take_smite_action(context) then return false end
             if context.settings and context.settings.smite_use_inner_focus == false then return false end

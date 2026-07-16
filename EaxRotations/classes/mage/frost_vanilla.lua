@@ -236,6 +236,7 @@ local function frostbolt_matches(context, s)
 end
 
 local function presence_of_mind_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
     if context.settings and context.settings.use_cooldowns == false then return false end
     if not s.in_combat then return false end
     if s.has_presence_of_mind then return false end
@@ -244,6 +245,7 @@ local function presence_of_mind_matches(context, s)
 end
 
 local function evocation_matches(context, s)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 480) then return false end
     if context.settings and context.settings.use_evocation == false then return false end
     if not s.in_combat then return false end
     if (s.mana_pct or 100) > 30 then return false end
