@@ -140,6 +140,26 @@ assert_eq(#action_calls, 0, "action_matches should not be called with < 2 enemie
 action_calls = {}
 assert_true(swipe.matches({ enemy_count = 3 }), "Swipe should match with >= 2 enemies")
 
+-- Pre-Lacerate: 2-target Swipe must work without Lacerate stacks (Lacerate is L66)
+-- In test env define_action returns rank_ids[1] (Lacerate = 33745).
+local LACERATE_R1 = 33745
+local _prev_swipe_exists = _G.EaxRotations.spell_exists
+_G.EaxRotations.spell_exists = function(spell)
+    if spell == LACERATE_R1 then return false end
+    return true
+end
+action_calls = {}
+assert_true(swipe.matches({ enemy_count = 2, target = { _debuff_stacks = 0 }, target_ttd = 30 }),
+    "Swipe cleave should match pre-Lacerate with 0 stacks and long TTD")
+_G.EaxRotations.spell_exists = _prev_swipe_exists
+
+-- With Lacerate learned: still require stacks or short TTD
+_G.EaxRotations.spell_exists = function() return true end
+action_calls = {}
+assert_false(swipe.matches({ enemy_count = 2, target = { _debuff_stacks = 0 }, target_ttd = 30 }),
+    "Swipe cleave should NOT match with Lacerate learned, <3 stacks, long TTD")
+_G.EaxRotations.spell_exists = _prev_swipe_exists
+
 -- ============================================================================
 -- Maul: pure rage dump (TBC community consensus)
 -- ============================================================================
@@ -177,6 +197,31 @@ assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 5 }, settings 
 action_calls = {}
 assert_false(maul.matches({ rage = 49, target = { _debuff_stacks = 5 }, settings = maul_settings }), "Maul should not match just below maul_rage threshold")
 
+-- Pre-Mangle (not learned): Maul is primary spender — level-scaled threshold (~23 at L17)
+-- so we do not bank to endgame 50 rage on leveling bears.
+-- In test env define_action returns rank_ids[1] (MangleBear R1 = 33987).
+local MANGLE_BEAR_R1 = 33987
+local _prev_spell_exists = _G.EaxRotations.spell_exists
+_G.EaxRotations.spell_exists = function(spell)
+    if spell == MANGLE_BEAR_R1 then return false end
+    return true
+end
+-- L17 scaled floor = max(15, min(40, 15+floor(17/2))) = 23
+action_calls = {}
+assert_true(maul.matches({ rage = 23, level = 17, target = { _debuff_stacks = 0 }, settings = maul_settings }),
+    "Maul should match at level-scaled threshold when Mangle not learned (L17 ~23)")
+action_calls = {}
+assert_false(maul.matches({ rage = 22, level = 17, target = { _debuff_stacks = 0 }, settings = maul_settings }),
+    "Maul should not match below level-scaled threshold when Mangle not learned")
+-- User slider still caps: configured 30 with scaled 23 → 23; configured below scaled uses configured
+action_calls = {}
+assert_false(maul.matches({ rage = 20, level = 17, target = {}, settings = { bear_maul_rage = 30 } }),
+    "Pre-Mangle Maul still respects a configured floor when above scaled")
+action_calls = {}
+assert_true(maul.matches({ rage = 20, level = 10, target = {}, settings = { bear_maul_rage = 20 } }),
+    "Pre-Mangle Maul uses configured when lower than scaled")
+_G.EaxRotations.spell_exists = _prev_spell_exists
+
 local demo_idx, ff_idx
 for i, s in ipairs(strategies) do
     if s.name == "DemoralizingRoar" then demo_idx = i end
@@ -212,6 +257,24 @@ assert_eq(#action_calls, 0, "action_matches should not be called beyond 10 yards
 
 action_calls = {}
 assert_true(demo_roar.matches({ now = 100, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true } }), "DemoralizingRoar should match within 10 yards")
+
+-- Dying single-target trash: HP gate (TTD often unknown / defaults to 999)
+action_calls = {}
+assert_false(demo_roar.matches({
+    now = 105, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1,
+    target_hp = 5, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true },
+}), "DemoralizingRoar should not match on single-target trash at <=20% HP")
+action_calls = {}
+assert_false(demo_roar.matches({
+    now = 106, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1,
+    target_ttd = 4, target_hp = 50, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true },
+}), "DemoralizingRoar should not match on single-target with TTD < 10")
+-- Multi-pack: still allow Demo even if current target is low (AoE mitigation)
+action_calls = {}
+assert_true(demo_roar.matches({
+    now = 107, in_combat = true, is_bear = true, target_range = 8, enemy_count = 3,
+    target_hp = 5, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true },
+}), "DemoralizingRoar should still match multi-pack even if current target is low HP")
 
 action_calls = {}
 assert_false(faerie_fire.matches({ in_combat = true, is_bear = true, has_valid_enemy_target = true, in_melee_range = true, target_range = 35, target = { _debuff_remains = 0 }, target_armor = 5000, settings = { bear_demo_roar = true } }), "FaerieFireFeral should not match beyond 30 yards")

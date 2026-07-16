@@ -14,6 +14,9 @@
 --           (caster form), all PvP branches, Clearcasting variants, off-target
 --           pack scanning, and the "wait for Mangle" pool strategy. The bear stays
 --           bear — OOC buffs (Mark/Thorns) are pre-pull caster prep only.
+-- LOW-LEVEL: pre-Mangle Maul threshold auto-scales by level (never above menu);
+--           Swipe cleave skips Lacerate-stack gate until Lacerate is learned;
+--           Demo Roar skips dying single-target trash (HP% + TTD).
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -329,6 +332,7 @@ local function build_state(context)
     state.has_valid_target = (context.has_valid_enemy_target ~= false) and (state.target ~= nil)
     state.target_hp    = context.target_hp or 100
     state.target_ttd   = context.ttd or context.target_ttd or 999
+    state.level        = context.level or context.player_level or 70
     state.target_range = context.target_range or context.target_distance or 40
     state.in_melee     = context.in_melee_range == true or state.target_range <= MELEE_RANGE
     state.enemy_count  = context.enemy_count or context.enemies_count or 1
@@ -586,8 +590,10 @@ local function demo_roar_matches(context, action)
     if (s.enemy_count or 0) <= 0 then return false end
     if (s.demo_remains or 0) > DEMO_ROAR_REFRESH then return false end
     if target_is_demo_immune(s) then return false end
-    -- skip on trivial single targets that die fast
-    if (s.enemy_count or 0) < 2 and not s.is_target_boss and (s.target_ttd or 999) < 10 then return false end
+    if (s.enemy_count or 0) < 2 and not s.is_target_boss then
+        if (s.target_ttd or 999) < 10 then return false end
+        if (s.target_hp or 100) <= 20 then return false end
+    end
     return action_ready(context, action)
 end
 
@@ -634,7 +640,7 @@ local function swipe_cleave_matches(context, action)
     if not s.in_combat and NS.spell_ready then return false end
     if (s.enemy_count or 0) < 2 then return false end
     if s.use_pvp_cc_gate and context.has_breakable_cc_nearby then return false end
-    if s.target and (s.lacerate_stacks or 0) < 3 and (s.target_ttd or 999) > 8 then return false end
+    if s.target and spell_exists(ACTION.Lacerate) and (s.lacerate_stacks or 0) < 3 and (s.target_ttd or 999) > 8 then return false end
     if not rage_allows_filler(s, RAGE_SWIPE) then return false end
     return action_ready(context, action)
 end
@@ -646,12 +652,18 @@ local function swing_timer_gate(context, state)
 end
 
 -- Maul: on-next-swing rage dump (does NOT consume a GCD — independent of the
--- GCD chain). Only with excess rage; never starve the next Mangle/Lacerate.
+-- GCD chain). With Mangle learned: menu threshold only. Without Mangle: primary
+-- spender — level-scaled threshold, never raised above the menu setting.
 local function maul_matches(context, action)
     local s = build_state(context)
     if not can_use_bear_ability(s) then return false end
     if (s.enemy_count or 0) >= (s.aoe_threshold or 3) and (s.rage or 0) < HIGH_RAGE then return false end
-    if (s.rage or 0) < s.maul_rage then return false end
+    local maul_threshold = s.maul_rage or 50
+    if not spell_exists(ACTION.MangleBear) then
+        local scaled = math.max(15, math.min(40, 15 + math.floor((s.level or 70) / 2)))
+        if scaled < maul_threshold then maul_threshold = scaled end
+    end
+    if (s.rage or 0) < maul_threshold then return false end
     if not s.target and NS.spell_ready == nil then return action_ready(context, action) end
     if would_starve_mangle(s, RAGE_MAUL) then return false end
     -- on-next-swing: skip if target dies before the swing lands (unless boss)
