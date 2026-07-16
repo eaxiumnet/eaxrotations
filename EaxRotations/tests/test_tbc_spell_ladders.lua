@@ -530,7 +530,7 @@ setting_flip("flip kebab maintain_demo_shout DemoShout",
     { demo_shout_duration = 0 },
     { in_melee_range = true, has_valid_enemy_target = true })
 
--- Warlock curse governance (ON=allowed mode, OFF=blocked mode)
+-- Warlock (≥3 keys: curse_mode, assigned_curse, aff_use_amplify_curse, use_auto_potions)
 setting_flip("flip warlock curse_mode CoE",
     "EaxRotations/classes/warlock/affliction_sylvanas.lua", "warlock", "CurseOfElements",
     { warlock_curse_mode = "elements" }, { warlock_curse_mode = "agony" },
@@ -541,18 +541,16 @@ setting_flip("flip warlock assigned_curse Agony",
     { warlock_assigned_curse = "agony" }, { warlock_assigned_curse = "elements" },
     { agony_remains = 0 },
     { has_valid_enemy_target = true, ttd = 120 })
-expect("warlock CurseOfElements present + assigned_curse agony blocks", function()
-    local mod = H.load_module("EaxRotations/classes/warlock/affliction_sylvanas.lua", {
-        level = 70, class_folder = "warlock",
-    })
-    local coe = H.find_strategy(mod.strategies, "CurseOfElements")
-    assert_true(coe ~= nil, "CurseOfElements present")
-    local ctx = H.context(70, {
-        settings = { warlock_assigned_curse = "agony" }, is_group = true, target = {},
-    })
-    local ok, res = pcall(coe.matches, ctx, { coe_remains = 0 })
-    assert_true(ok and not res, "CoE blocked when assigned_curse=agony")
-end)
+setting_flip("flip warlock aff_use_amplify_curse AmplifyCurse",
+    "EaxRotations/classes/warlock/affliction_sylvanas.lua", "warlock", "AmplifyCurse",
+    { aff_use_amplify_curse = true }, { aff_use_amplify_curse = false },
+    { amplify_curse_ready = true, agony_remains = 0, doom_remains = 0 },
+    { ttd = 120, ttd_known = true })
+setting_flip("flip warlock use_auto_potions DamagePotion",
+    "EaxRotations/classes/warlock/affliction_sylvanas.lua", "warlock", "DamagePotion",
+    { use_auto_potions = true }, { use_auto_potions = false },
+    {},
+    { has_damage_potion = true, should_burst = true })
 
 -- Mage
 setting_flip("flip mage use_cooldowns Combustion",
@@ -579,7 +577,7 @@ setting_flip("flip mage use_mana_gem ManaGem",
     { mana_pct = 20, mana_gem_available = true })
 -- use_scorch + use_cooldowns + use_mana_gem already prove ≥3 mage keys
 
--- Rogue
+-- Rogue (≥3 keys: use_cooldowns, combat_blade_flurry_count, combat_expose_assigned, use_auto_potions)
 setting_flip("flip rogue use_cooldowns BladeFlurry",
     "EaxRotations/classes/rogue/combat_sylvanas.lua", "rogue", "BladeFlurry",
     { use_cooldowns = true, combat_blade_flurry_count = 2 },
@@ -618,6 +616,16 @@ expect("flip rogue combat_blade_flurry_count", function()
     assert_true(run(2, 4) == true, "BF matches when targets>=count")
     assert_true(run(5, 2) == false, "BF blocked when targets<count")
 end)
+setting_flip("flip rogue combat_expose_assigned ExposeArmor",
+    "EaxRotations/classes/rogue/combat_sylvanas.lua", "rogue", "ExposeArmor",
+    { combat_expose_assigned = true }, { combat_expose_assigned = false },
+    { expose_armor_ready = true, combo_points = 5 },
+    { target_armor = 5000 })
+setting_flip("flip rogue use_auto_potions HealthPotion",
+    "EaxRotations/classes/rogue/combat_sylvanas.lua", "rogue", "HealthPotion",
+    { use_auto_potions = true }, { use_auto_potions = false },
+    {},
+    { has_health_potion = true, hp = 20 })
 
 -- Shaman (honest flips)
 setting_flip("flip ele elemental_use_elemental_mastery",
