@@ -16,6 +16,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local dispel_manager = NS.DispelManager or require("shared/dispel_manager_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 local auto_tremor = require("shared/auto_tremor_sylvanas")
 local purge_manager = require("shared/purge_manager_sylvanas")
@@ -67,6 +68,11 @@ end
 local strategies = {
 
     interrupt_manager.register_interrupt_spell("shaman", "EarthShock", SPELLS),
+
+    -- Defensive dispel via shared DispelManager (Cure Poison / Cure Disease)
+    (dispel_manager and dispel_manager.create_dispel_strategy
+        and dispel_manager.create_dispel_strategy({ name = "AutoDispel" }))
+        or { name = "AutoDispel", matches = function() return false end, execute = function() return false end },
 
     -- ============================================================================
     -- Auto Tremor Totem (Tier 1 Gap Feature)

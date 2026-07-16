@@ -11,6 +11,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local dispel_manager = NS.DispelManager or require("shared/dispel_manager_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local CCGateDB = CCBreakDB
@@ -345,92 +346,33 @@ local strategies = {
     },
 
     -- ============================================================================
-    -- PARTY DISPEL (Remove Curse / Abolish Poison party scan)
+    -- PARTY DISPEL (Remove Curse / Abolish Poison via shared DispelManager)
     -- ============================================================================
-    {
-        name = "PartyDispel",
-        matches = function(context)
-            -- Shared global kill switch
-            if not spec_kit.setting_bool(context, "auto_dispel", true) then return false end
-            -- Playstyle-specific AND gate: respect balance_auto_dispel / resto_auto_dispel
-            local playstyle = spec_kit.setting(context, "playstyle", nil) or spec_kit.setting(context, "active_playstyle", nil) or ""
-            local playstyle_key = playstyle .. "_auto_dispel"
-            if spec_kit.setting(context, playstyle_key, nil) == false then return false end
-            if not context.in_combat then return false end
-            -- Check self for curse or poison
-            local me = context.me or NS.GetPlayer()
-            -- Curse debuffs (common ones)
-            local curse_debuffs = { 28282, 28271, 11719, 5116, 5115, 23426, 23427 }
-            if me and NS.debuff_up(me, curse_debuffs) then return true end
-            -- Poison debuffs
-            local poison_debuffs = { 13218, 13219, 13222, 13223, 13225, 13227, 13228, 13229, 13230, 13235, 13237, 13238, 13240, 13241, 23232, 23233, 23235, 23236, 23237 }
-            if me and NS.debuff_up(me, poison_debuffs) then return true end
-            -- Scan party members using reliable GetPartyMembers (backed by get_party_frames)
-            local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
-            if party then
-                for i = 1, #party do
-                    local unit = party[i]
-                    if unit and unit:is_valid() then
-                        if NS.debuff_up(unit, curse_debuffs) then return true end
-                        if NS.debuff_up(unit, poison_debuffs) then return true end
-                    end
-                end
-            end
-            return false
-        end,
-        execute = function(context)
-            local me = context.me or NS.GetPlayer()
-            -- Determine best dispel: Remove Curse if curse found, Abolish Poison if only poison
-            local curse_debuffs = { 28282, 28271, 11719, 5116, 5115, 23426, 23427 }
-            local poison_debuffs = { 13218, 13219, 13222, 13223, 13225, 13227, 13228, 13229, 13230, 13235, 13237, 13238, 13240, 13241, 23232, 23233, 23235, 23236, 23237 }
-            local target = nil
-            local use_remove_curse = false
-            local use_abolish_poison = false
-            -- Check self
-            if me then
-                if NS.debuff_up(me, curse_debuffs) then
-                    target = me
-                    use_remove_curse = true
-                elseif NS.debuff_up(me, poison_debuffs) then
-                    target = me
-                    use_abolish_poison = true
-                end
-            end
-            -- Scan party using reliable GetPartyMembers (new party frames feature)
-            if not target then
-                local party = NS.GetPartyMembers and NS.GetPartyMembers() or nil
-                if party then
-                    for i = 1, #party do
-                        local unit = party[i]
-                        if unit and unit:is_valid() then
-                            if NS.debuff_up(unit, curse_debuffs) then
-                                target = unit
-                                use_remove_curse = true
-                                break
-                            elseif NS.debuff_up(unit, poison_debuffs) then
-                                target = unit
-                                use_abolish_poison = true
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-            -- Cast appropriate dispel (form-aware: skip if in Bear/Cat form)
-            if target then
-                if use_remove_curse and SPELLS.RemoveCurse then
-                    if not can_cast_in_current_form(SPELLS.RemoveCurse) then return false end
-                    local ok = NS.try_cast(SPELLS.RemoveCurse, target, "[DRUID] Remove Curse")
-                    if ok then return true end
-                elseif use_abolish_poison and SPELLS.AbolishPoison then
-                    if not can_cast_in_current_form(SPELLS.AbolishPoison) then return false end
-                    local ok = NS.try_cast(SPELLS.AbolishPoison, target, "[DRUID] Abolish Poison")
-                    if ok then return true end
-                end
-            end
-            return false
-        end,
-    },
+    (function()
+        local base = (dispel_manager and dispel_manager.create_dispel_strategy
+            and dispel_manager.create_dispel_strategy({ name = "PartyDispel" }))
+            or { name = "PartyDispel", matches = function() return false end, execute = function() return false end }
+        local base_matches = base.matches
+        local base_execute = base.execute
+        return {
+            name = "PartyDispel",
+            matches = function(context, state)
+                if not spec_kit.setting_bool(context, "auto_dispel", true) then return false end
+                local playstyle = spec_kit.setting(context, "playstyle", nil)
+                    or spec_kit.setting(context, "active_playstyle", nil) or ""
+                local playstyle_key = playstyle .. "_auto_dispel"
+                if spec_kit.setting(context, playstyle_key, nil) == false then return false end
+                if not context.in_combat then return false end
+                return base_matches(context, state)
+            end,
+            execute = function(context)
+                local can_curse = SPELLS.RemoveCurse and can_cast_in_current_form(SPELLS.RemoveCurse)
+                local can_poison = SPELLS.AbolishPoison and can_cast_in_current_form(SPELLS.AbolishPoison)
+                if not can_curse and not can_poison then return false end
+                return base_execute(context)
+            end,
+        }
+    end)(),
 
     {
         name = "ThreatDrop",

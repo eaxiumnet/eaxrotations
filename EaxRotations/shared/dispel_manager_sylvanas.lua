@@ -333,5 +333,31 @@ function M.execute_dispel(target, spell_id)
     return ok
 end
 
+-- ---------------------------------------------------------------------------
+-- Strategy factory for class middleware (mirrors interrupt_manager pattern).
+-- Specs/middleware register once; manager owns throttle + target selection.
+-- ---------------------------------------------------------------------------
+function M.create_dispel_strategy(opts)
+    opts = opts or {}
+    local pending_target, pending_spell
+    return {
+        name = opts.name or "AutoDispel",
+        matches = function(context, state)
+            local should, target, spell_id = M.should_dispel(context, state or {})
+            if not should then
+                pending_target, pending_spell = nil, nil
+                return false
+            end
+            pending_target, pending_spell = target, spell_id
+            return true
+        end,
+        execute = function(context)
+            local ok = M.execute_dispel(pending_target, pending_spell)
+            pending_target, pending_spell = nil, nil
+            return ok
+        end,
+    }
+end
+
 -- module initialized
 return M

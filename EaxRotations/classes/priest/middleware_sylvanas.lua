@@ -11,6 +11,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local dispel_manager = NS.DispelManager or require("shared/dispel_manager_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.PriestSpells or {}
 local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
@@ -141,6 +142,11 @@ local strategies = {
 
     interrupt_manager.register_interrupt_spell("priest", "Silence", SPELLS),
     interrupt_manager.register_interrupt_spell("priest", "PsychicScream", SPELLS),
+
+    -- Defensive dispel via shared DispelManager (Dispel Magic / Abolish Disease)
+    (dispel_manager and dispel_manager.create_dispel_strategy
+        and dispel_manager.create_dispel_strategy({ name = "AutoDispel" }))
+        or { name = "AutoDispel", matches = function() return false end, execute = function() return false end },
 
     -- ============================================================================
     -- Mass Dispel: purge Divine Shield / Ice Block (PvP fight-winning purge)
