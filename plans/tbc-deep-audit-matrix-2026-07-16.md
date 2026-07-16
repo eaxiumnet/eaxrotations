@@ -3,7 +3,7 @@
 **Date:** 2026-07-16  
 **Version:** **2.10.0** (Phase 2 spell ladders + Solo/Group/Dungeon/Raid-70 matches)  
 **Scope:** 29 TBC combat `*_sylvanas.lua` + 9 `leveling_sylvanas.lua`  
-**Evidence suite:** `test_tbc_spell_ladders.lua` (**278** cases) + `tbc_ladder_helper.lua` LEARN map  
+**Evidence suite:** `test_tbc_spell_ladders.lua` (**280** cases) + `tbc_ladder_helper.lua` LEARN map  
 **API sources:** `scraped_docs_md/dev/api/*`, `.api/` (read-only)  
 **Raid-70 sources:** strategy index vs wowsims/tbc-new structure where applicable  
 **Baseline not re-claimed:** `plans/tbc-rotation-gap-matrix-2026-07-16.md` endgame “aligned” header pass
@@ -90,12 +90,27 @@
 | File | Change |
 |------|--------|
 | `tests/tbc_ladder_helper.lua` | LEARN map + level-aware spell mock |
-| `tests/test_tbc_spell_ladders.lua` | 275 cases: ladders, honest setting flips, dungeon AoE, raid prio |
+| `tests/test_tbc_spell_ladders.lua` | 278 cases: ladders, honest setting flips, dungeon AoE, raid prio, hard-gate negatives |
 | `tests/run_rotation_tests.lua` | register suite |
-| `classes/druid/cat_sylvanas.lua` | **FIX** `MangleDebuff` soft-gate via `spell_exists(ACTION.MangleCat)` |
+| `classes/druid/cat_sylvanas.lua` | **FIX** `MangleDebuff` / `MangleFiller` / `StealthMangle` soft-gate via `spell_exists(ACTION.MangleCat)` |
 
-## Soft-gate audit
-- Negative controls assert strategy **presence** then non-match (no silent skip).
-- `EarthShieldTank` blocked at L25 when `earth_shield_ready` false from LEARN (not forced ready).
-- Cat `MangleDebuff` soft-gated this release.
-- Cat B1 L10 remains **WATCH** (Cat Form L20+).
+## Soft-gate audit (grep of combat `*_sylvanas` high talents)
+
+Structural scan (`{SCRATCH}/high_talent_hard_gate_scan.txt`): 52 ACTION refs to high TBC cores in match/execute paths. Most already soft-gate via `NS.spell_ready` / `spell_exists` / `*_ready` / `*_known` fields populated from spellbook.
+
+| Class / area | Finding | Status |
+|--------------|---------|--------|
+| Cat MangleDebuff / MangleFiller / StealthMangle | Matched without `spell_exists` when unlearned | **FIX** (this release) |
+| Bear Lacerate / MangleBear / Swipe Lacerate-stack | `spell_exists` gates present | **OK** (`test` Lacerate blocked L40) |
+| Fire Scorch stack gate | `scorch_known` via is_spell_learned/spell_exists | **OK** (Fireball L10) |
+| Shadow VT / Shadowfiend / SW:D | `vampiric_touch_known` / shadowfiend_ready / LEARN ladder | **OK** |
+| Enh Stormstrike | `stormstrike_ready` from spell_ready | **OK** |
+| Resto EarthShield | `earth_shield_ready` from spell_ready | **OK** (EarthShieldTank L25) |
+| Resto Lifebloom strategies | gated by `NS.spell_ready(ACTION.Lifebloom, …)` | **WATCH** (ready=false when unlearned; not explicit spell_exists) |
+| Hunter Steady/KC | `*_ready` + BM `pre_steady_leveling` | **OK** |
+| Warrior BT/MS | `action()` / spell_ready path | **OK** (ladder blocked L25) |
+| Aff UA / Seed | spell_ready on match | **OK** |
+| Ret CrusaderStrike | spell_ready | **OK** |
+| Cat B1 L10 | form L20+ | **WATCH** (ladders start L25) |
+
+**No remaining GAP** that kills L10–40 fillers under LEARN mock: ladder suite fails if zero combat fillers at L10 with high talents unlearned.

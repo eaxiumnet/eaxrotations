@@ -667,6 +667,8 @@ local function stealth_shred_matches(context, action)
 end
 
 local function stealth_mangle_matches(context, action)
+    -- Soft-gate: Mangle talent (~50); do not match when unlearned.
+    if not spell_exists(ACTION.MangleCat) then return false end
     local state = build_state(context)
     if not state.is_stealthed then return false end
     if state.energy < MANGLE_COST then return false end
@@ -916,6 +918,8 @@ local function shred_matches(context, action)
 end
 
 local function mangle_filler_matches(context, action)
+    -- Soft-gate: Mangle talent (~50); ClawFallback covers builders when unlearned.
+    if not spell_exists(ACTION.MangleCat) then return false end
     local state = build_state(context)
     if (state.combo_points or 0) >= 5 then return false end
     if state.is_behind and spell_ready(ACTION.Shred, state.target, nil) and (state.energy or 0) >= SHRED_COST then return false end

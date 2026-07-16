@@ -373,6 +373,11 @@ ladder_case("EaxRotations/classes/druid/leveling_sylvanas.lua", {
     "Wrath", "Moonfire", "HealingTouch", "Rejuvenation", "CatForm", "BearForm",
 }, { class_folder = "druid" })
 high_talent_blocked("EaxRotations/classes/druid/cat_sylvanas.lua", "MangleDebuff", 25, { class_folder = "druid" })
+high_talent_blocked("EaxRotations/classes/druid/cat_sylvanas.lua", "MangleFiller", 25, { class_folder = "druid" })
+high_talent_blocked("EaxRotations/classes/druid/cat_sylvanas.lua", "StealthMangle", 25, {
+    class_folder = "druid",
+    state_force = { is_stealthed = true, energy = 100 },
+})
 high_talent_blocked("EaxRotations/classes/druid/bear_sylvanas.lua", "Lacerate", 40, { class_folder = "druid" })
 
 expect("cat Shred/Rip without Mangle L25", function()
