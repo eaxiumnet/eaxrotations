@@ -347,5 +347,328 @@ end
 
 NS.PriestHealing.count_subgroup_below_hp = count_subgroup_below_hp
 
--- Healing utilities loaded
+-- ============================================================================
+-- FULL HEALING ROTATION (scorecard "healing" spec — triage + emergency + dispel)
+-- ============================================================================
+local spec_kit = require("shared/spec_kit_sylvanas")
+local potion_helper = require("shared/potion_helper_sylvanas")
+local SPELLS = NS.PriestSpells or {}
+local define = spec_kit.define_action_for_class(SPELLS)
+
+local ACTION = {
+    PowerWordShield   = define("PowerWordShield",   { 25218, 25217, 10901, 10900, 10899, 10898, 6066, 6065, 3747, 600, 592, 17 }, "PowerWordShield"),
+    FlashHeal         = define("FlashHeal",         { 25235, 25233, 10917, 10916, 10915, 9474, 9473, 9472, 2061 }, "FlashHeal"),
+    GreaterHeal       = define("GreaterHeal",       { 25213, 25210, 10965, 10964, 10963, 2060 }, "GreaterHeal"),
+    Renew             = define("Renew",             { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }, "Renew"),
+    DispelMagic       = define("DispelMagic",       { 988, 527 }, "DispelMagic"),
+    CureDisease       = define("CureDisease",       { 528 }, "CureDisease"),
+    AbolishDisease    = define("AbolishDisease",    { 552 }, "AbolishDisease"),
+    Fade              = define("Fade",              { 586 }, "Fade"),
+    DesperatePrayer   = define("DesperatePrayer",   { 25437, 19243, 19242, 19241, 19240, 19238, 19236, 13908 }, "DesperatePrayer"),
+    InnerFire         = define("InnerFire",         { 25431, 10952, 10951, 1006, 602, 7128, 588 }, "InnerFire"),
+    PowerWordFortitude = define("PowerWordFortitude", { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }, "PowerWordFortitude"),
+}
+
+local INNER_FIRE_BUFF = { 25431, 10952, 10951, 1006, 602, 7128, 588 }
+local FORTITUDE_BUFF = { 25392, 25389, 10938, 10937, 2791, 1245, 1244, 1243, 21564, 21562 }
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+
+local EMERGENCY_HP = 30
+local PWS_HP = 50
+local FLASH_HP = 70
+local GREATER_HP = 55
+local RENEW_HP = 90
+local FADE_HP = 60
+
+local HEAL_SCHEMA = { hp_pct = 100, mana_pct = 100, lowest_hp = 100 }
+
+local heal_state = {
+    lowest = nil,
+    tank = nil,
+    mana_pct = 100,
+    hp_pct = 100,
+    lowest_hp = 100,
+    pws_ready = false,
+    flash_ready = false,
+    greater_ready = false,
+    renew_ready = false,
+    dispel_ready = false,
+    cure_disease_ready = false,
+    fade_ready = false,
+    desperate_ready = false,
+    inner_fire_ready = false,
+    fort_ready = false,
+    has_inner_fire = false,
+    has_fortitude = false,
+    has_weakened_soul = false,
+    has_renew = false,
+    has_dangerous_dispel = false,
+    has_disease = false,
+    healthstone_id = nil,
+    in_combat = false,
+    is_group = false,
+    is_raid = false,
+    is_solo = false,
+    is_pvp = false,
+    is_leveling = false,
+}
+
+local function entry_hp(entry)
+    if entry and type(entry.effective_hp) == "number" then return entry.effective_hp end
+    if entry and type(entry.hp) == "number" then return entry.hp end
+    return 100
+end
+
+local function first_ready_item(ids)
+    if not NS.is_item_ready then return nil end
+    for i = 1, #ids do
+        if NS.is_item_ready(ids[i]) then return ids[i] end
+    end
+    return nil
+end
+
+local function gate_overheal(spell_key, unit, cast_time, settings, spell_id)
+    if NS.HealerDeficit and NS.HealerDeficit.gate_spell_overheal then
+        return NS.HealerDeficit.gate_spell_overheal(spell_key, unit, cast_time, settings, spell_id)
+    end
+    return NS.PriestHealing.gate_overheal and NS.PriestHealing.gate_overheal(spell_key, unit, cast_time, settings, spell_id) or false
+end
+
+local function build_state(context)
+    context = context or {}
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
+
+    heal_state.in_combat = context.in_combat == true
+    heal_state.is_group = context.is_group == true
+    heal_state.is_raid = context.is_raid == true
+    heal_state.is_solo = context.is_solo == true
+    heal_state.is_pvp = context.is_pvp == true or context.is_arena == true or context.is_battleground == true
+    heal_state.is_leveling = context.is_leveling == true
+    heal_state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me)) or 100
+    heal_state.hp_pct = context.hp or context.hp_pct or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
+
+    scan_healing_targets()
+    heal_state.lowest = get_lowest_hp_target(RENEW_HP)
+    heal_state.tank = get_tank_target()
+
+    if context.friendly_target and context.friendly_target_hp then
+        local ft_hp = context.friendly_target_hp or 100
+        if ft_hp < entry_hp(heal_state.lowest) then
+            heal_state.lowest = {
+                unit = context.friendly_target,
+                effective_hp = ft_hp,
+                hp = ft_hp,
+                deficit = context.friendly_target_deficit or 0,
+            }
+        end
+    end
+
+    local target = heal_state.lowest and heal_state.lowest.unit
+    heal_state.pws_ready = target and NS.spell_ready and NS.spell_ready(ACTION.PowerWordShield, target) or false
+    heal_state.flash_ready = target and NS.spell_ready and NS.spell_ready(ACTION.FlashHeal, target) or false
+    heal_state.greater_ready = target and NS.spell_ready and NS.spell_ready(ACTION.GreaterHeal, target) or false
+    heal_state.renew_ready = target and NS.spell_ready and NS.spell_ready(ACTION.Renew, target) or false
+    heal_state.dispel_ready = NS.spell_ready and NS.spell_ready(ACTION.DispelMagic, me, { skip_range = true }) or false
+    heal_state.cure_disease_ready = NS.spell_ready and NS.spell_ready(ACTION.CureDisease, me, { skip_range = true }) or false
+    heal_state.fade_ready = NS.spell_ready and NS.spell_ready(ACTION.Fade, me, { skip_range = true }) or false
+    heal_state.desperate_ready = NS.spell_ready and NS.spell_ready(ACTION.DesperatePrayer, me, { skip_range = true }) or false
+    heal_state.inner_fire_ready = NS.spell_ready and NS.spell_ready(ACTION.InnerFire, me, { skip_range = true }) or false
+    heal_state.fort_ready = NS.spell_ready and NS.spell_ready(ACTION.PowerWordFortitude, me, { skip_range = true }) or false
+
+    heal_state.has_inner_fire = me and NS.buff_up and NS.buff_up(me, INNER_FIRE_BUFF) or false
+    heal_state.has_fortitude = me and NS.buff_up and NS.buff_up(me, FORTITUDE_BUFF) or false
+    heal_state.has_weakened_soul = target and has_weakened_soul(target) or false
+    heal_state.has_renew = target and has_renew(target) or false
+    heal_state.has_dangerous_dispel = target and has_dangerous_dispel(target) or false
+    heal_state.has_disease = target and has_disease(target) or false
+    heal_state.healthstone_id = first_ready_item(HEALTHSTONE_IDS)
+    heal_state.lowest_hp = entry_hp(heal_state.lowest)
+
+    return spec_kit.safe_state(heal_state, HEAL_SCHEMA)
+end
+
+local function cast_on(spell, unit, reason, opts)
+    if not unit then return false end
+    return NS.try_cast and NS.try_cast(spell, unit, reason, opts) or false
+end
+
+local function emergency_pws_matches(context, state)
+    if not state.pws_ready then return false end
+    local target = state.lowest
+    if not target or not target.unit then return false end
+    if (entry_hp(target) or 100) > PWS_HP then return false end
+    if state.has_weakened_soul then return false end
+    return true
+end
+
+local function emergency_flash_matches(context, state)
+    if context.is_moving then return false end
+    if not state.flash_ready then return false end
+    local target = state.lowest
+    if not target or not target.unit then return false end
+    if (entry_hp(target) or 100) > EMERGENCY_HP then return false end
+    if gate_overheal("FlashHeal", target.unit, 1.5, context.settings) then return false end
+    return true
+end
+
+local function greater_heal_matches(context, state)
+    if context.is_moving then return false end
+    if not state.greater_ready then return false end
+    local target = state.lowest
+    if not target or not target.unit then return false end
+    local hp = entry_hp(target)
+    if hp > GREATER_HP or hp <= EMERGENCY_HP then return false end
+    if gate_overheal("GreaterHeal", target.unit, 2.5, context.settings) then return false end
+    return true
+end
+
+local function flash_heal_matches(context, state)
+    if context.is_moving then return false end
+    if not state.flash_ready then return false end
+    local target = state.lowest
+    if not target or not target.unit then return false end
+    if (entry_hp(target) or 100) >= FLASH_HP then return false end
+    if (state.mana_pct or 100) < 5 then return false end
+    if gate_overheal("FlashHeal", target.unit, 1.5, context.settings) then return false end
+    return true
+end
+
+local function renew_matches(context, state)
+    if not state.renew_ready then return false end
+    local target = state.lowest
+    if not target or not target.unit then return false end
+    if (entry_hp(target) or 100) >= RENEW_HP then return false end
+    if state.has_renew then return false end
+    return true
+end
+
+local function dispel_magic_matches(context, state)
+    if not state.dispel_ready then return false end
+    if not state.has_dangerous_dispel then return false end
+    local target = state.lowest
+    if not target or not target.unit then return false end
+    return true
+end
+
+local function cure_disease_matches(context, state)
+    if not state.cure_disease_ready then return false end
+    if not state.has_disease then return false end
+    local target = state.lowest
+    if not target or not target.unit then return false end
+    return true
+end
+
+local function fade_matches(context, state)
+    if not context.in_combat then return false end
+    if not state.fade_ready then return false end
+    if (state.hp_pct or 100) > FADE_HP then return false end
+    if not (context.is_group or context.is_raid) then return false end
+    return true
+end
+
+local function desperate_prayer_matches(context, state)
+    if not state.desperate_ready then return false end
+    if (state.hp_pct or 100) > EMERGENCY_HP then return false end
+    return true
+end
+
+local function mana_potion_matches(context, state)
+    if not context.in_combat then return false end
+    if (state.mana_pct or 100) > 22 then return false end
+    if not potion_helper or not potion_helper.try_use_potion then return false end
+    return true
+end
+
+local function healthstone_matches(context, state)
+    if not context.in_combat then return false end
+    if (state.hp_pct or 100) > 35 then return false end
+    if not state.healthstone_id then return false end
+    return true
+end
+
+local function inner_fire_matches(context, state)
+    if context.in_combat then return false end
+    if state.has_inner_fire then return false end
+    if not state.inner_fire_ready then return false end
+    return true
+end
+
+local function fortitude_matches(context, state)
+    if context.in_combat then return false end
+    if state.has_fortitude then return false end
+    if not state.fort_ready then return false end
+    return true
+end
+
+local strategies = {
+    { name = "DesperatePrayer", matches = desperate_prayer_matches,
+      execute = function(context, state)
+          local me = context.me or NS.PLAYER_UNIT
+          return cast_on(ACTION.DesperatePrayer, me, "[HEAL] Desperate Prayer", { skip_range = true })
+      end },
+    { name = "EmergencyPWS", matches = emergency_pws_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.PowerWordShield, state.lowest.unit, "[HEAL] Emergency PW:S")
+      end },
+    { name = "EmergencyFlashHeal", matches = emergency_flash_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.FlashHeal, state.lowest.unit, "[HEAL] Emergency Flash Heal")
+      end },
+    { name = "Fade", matches = fade_matches,
+      execute = function(context, state)
+          local me = context.me or NS.PLAYER_UNIT
+          return cast_on(ACTION.Fade, me, "[HEAL] Fade", { skip_range = true })
+      end },
+    { name = "DispelMagic", matches = dispel_magic_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.DispelMagic, state.lowest.unit, "[HEAL] Dispel Magic")
+      end },
+    { name = "CureDisease", matches = cure_disease_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.CureDisease, state.lowest.unit, "[HEAL] Cure Disease")
+      end },
+    { name = "GreaterHeal", matches = greater_heal_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.GreaterHeal, state.lowest.unit, "[HEAL] Greater Heal")
+      end },
+    { name = "FlashHeal", matches = flash_heal_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.FlashHeal, state.lowest.unit, "[HEAL] Flash Heal")
+      end },
+    { name = "Renew", matches = renew_matches,
+      execute = function(context, state)
+          return cast_on(ACTION.Renew, state.lowest.unit, "[HEAL] Renew")
+      end },
+    { name = "ManaPotion", matches = mana_potion_matches,
+      execute = function(context, state)
+          return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS or {}) == true
+      end },
+    { name = "Healthstone", matches = healthstone_matches,
+      execute = function(context, state)
+          if state.healthstone_id and NS.use_item_by_id then
+              return NS.use_item_by_id(state.healthstone_id) == true
+          end
+          return false
+      end },
+    { name = "InnerFire", matches = inner_fire_matches,
+      execute = function(context, state)
+          local me = context.me or NS.PLAYER_UNIT
+          return cast_on(ACTION.InnerFire, me, "[HEAL] Inner Fire", { skip_range = true })
+      end },
+    { name = "PowerWordFortitude", matches = fortitude_matches,
+      execute = function(context, state)
+          local me = context.me or NS.PLAYER_UNIT
+          return cast_on(ACTION.PowerWordFortitude, me, "[HEAL] Power Word: Fortitude", { skip_range = true })
+      end },
+}
+
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("healing", strategies, { get_state = build_state })
+end
+if NS.log then NS.log("Priest healing rotation registered") end
+
+NS.PriestHealing.strategies = strategies
+NS.PriestHealing.build_state = build_state
+
+-- Healing utilities + rotation loaded
 return NS.PriestHealing
