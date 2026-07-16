@@ -1,5 +1,21 @@
 # EaxRotations Changelog
 
+## v2.7.5 — Bear Tank Low-Level Fixes (July 16, 2026)
+
+> **Release zip:** [eaxrotations.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.7.5)
+> **Game:** The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
+> **Focus:** Druid Bear while leveling
+
+### What you’ll notice
+
+- **Earlier Maul** — Before you learn Mangle, the rotation no longer sits idle until ~50 rage. Maul starts earlier based on your level (around the mid-20s rage at level 17). Your Maul Rage slider still acts as a maximum with the full tank kit.
+- **Swipe on small packs** — Two or more enemies can be Swiped even before Lacerate. No more waiting on stacks you cannot apply yet.
+- **Smarter Demoralizing Roar** — Demo Roar should stop wasting rage/GCD on a single mob that is about to die. Multi-pull Demo is unchanged.
+
+Reload the plugin (or replace the folder from the release zip) to pick up **v2.7.5**.
+
+---
+
 ## v2.7.4 — Smarter Healing, Tanks, and Warrior Dumps (July 16, 2026)
 
 > **Release zip:** [eaxrotations.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.7.4)

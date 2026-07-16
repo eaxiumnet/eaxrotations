@@ -1,3 +1,32 @@
+# Developer Changelog — EaxRotations v2.7.5
+
+**Date:** 2026-07-16  
+**Branch:** master  
+**Scope:** `fix(bear)` low-level spender gates + release artifact
+
+### Code
+
+| File | Change |
+|------|--------|
+| `classes/druid/bear_sylvanas.lua` | Pre-Mangle Maul: `min(menu maul_rage, level_scaled)`; Swipe cleave: Lacerate stack gate only if `spell_exists(Lacerate)`; Demo Roar: skip single-target trash when `target_hp <= 20` or `ttd < 10`; `state.level` from context |
+| `classes/druid/schema_sylvanas.lua` | `bear_maul_rage` tooltip for auto-scale |
+| `tests/test_bear_custom_matches.lua` | Pre-Mangle / pre-Lacerate / Demo HP+TTD cases |
+| `header.lua` / `VERSION.txt` / README badge | Version **2.7.5** |
+| `eaxrotations.zip` | Rebuild: **.lua + .md only** from `EaxRotations/` |
+
+### Design notes
+
+- Endgame tank APL unchanged when Mangle is learned (`bear_maul_rage` default 50, Lacerate stack before Swipe cleave).
+- TTD-only Demo skip fails open (`ttd` defaults 999); HP gate closes the execute-window waste case.
+- Zip layout: contents of `EaxRotations/` at archive root.
+
+### Verification
+
+- `luac -p` on changed Lua
+- `lua EaxRotations/tests/test_bear_custom_matches.lua` PASS
+
+---
+
 # Developer Changelog — EaxRotations v2.7.4
 
 **Date:** 2026-07-16

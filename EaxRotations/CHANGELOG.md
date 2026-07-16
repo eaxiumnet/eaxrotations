@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.7.5 - 2026-07-16
+
+### Customer Changelog
+- **Druid (Bear)**: Low-level bears spend rage much earlier. Before Mangle, Maul no longer waits for ~50 rage — the threshold scales with level (about 23 rage around level 17). Your Maul Rage menu setting remains the maximum once you have the full tank kit.
+- **Druid (Bear)**: Swipe works on 2+ targets before Lacerate is available (no more waiting on stacks you cannot apply yet).
+- **Druid (Bear)**: Demoralizing Roar no longer wastes GCD/rage on a single mob that is about to die. Multi-pull Demo is unchanged.
+- Version bumped to 2.7.5.
+- Clean `eaxrotations.zip` (lua + md only).
+
+### Developer Notes
+- `bear_sylvanas.lua`: pre-Mangle Maul uses `min(menu maul_rage, level_scaled)`; Swipe cleave applies Lacerate-stack gate only when `spell_exists(Lacerate)`; Demo Roar single-target skip on `target_hp <= 20` or `ttd < 10`; `state.level` from context.
+- `schema_sylvanas.lua`: `bear_maul_rage` tooltip documents pre-Mangle auto-scale.
+- `test_bear_custom_matches.lua`: pre-Mangle Maul, pre-Lacerate Swipe, Demo HP/TTD multi vs single.
+
 ## 2.7.4 - 2026-07-16
 
 ### Customer Changelog

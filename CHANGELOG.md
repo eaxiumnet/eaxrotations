@@ -2,6 +2,13 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.7.5] — Druid Bear Low-Level Spenders (2026-07-16)
+- **Druid (Bear)**: Pre-Mangle Maul no longer banks to the endgame 50-rage dump. When Mangle is not learned, Maul threshold auto-scales by level (≈23 at L17), never raised above the menu `bear_maul_rage` slider.
+- **Druid (Bear)**: Swipe (2-target cleave) no longer requires 3 Lacerate stacks before Lacerate is learned (L66).
+- **Druid (Bear)**: Demoralizing Roar skips dying single-target trash (`target_hp <= 20` or `ttd < 10`). Multi-pack Demo still applies. Fixes late-combat Demo when TTD is unknown (defaults fail-open to 999).
+- Tests: `test_bear_custom_matches.lua` (pre-Mangle Maul, pre-Lacerate Swipe, Demo HP/TTD).
+- Version bump 2.7.5; clean `eaxrotations.zip` (lua + md only).
+
 ## [2.7.4] — Dormant Shared Module Bootstrap (2026-07-16)
 - **Bootstrap**: supremacy shared modules that already had nil-guarded call sites are now required at plugin load (`stopcast`, `pet_heal`, `snap_threat`, `stance_manager`, `swing_diagnostics`, `swing_timer`, `dispel_manager`, `rage_manager`, `melee_combat_math`).
 - **Healers**: `NS.StopCast` active; `health_pred_helper` exposes `NS.incoming_damage` / `NS.predicted_hp_pct` / `NS.is_tank_role`.
