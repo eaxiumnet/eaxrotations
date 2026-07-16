@@ -562,6 +562,340 @@ expect("setting: hunter multishot_mode 0 disables MultiShot", function()
     assert_true(ok and not res, "MultiShot off when multishot_mode=0")
 end)
 
+--- Helper: assert strategy does not match under settings (real matches path).
+local function setting_blocks(label, path, folder, strategy_name, settings, state_extra)
+    expect(label, function()
+        local mod = H.load_module(path, { level = 60, class_folder = folder })
+        local strat = H.find_strategy(mod.strategies, strategy_name)
+        assert_true(strat ~= nil, strategy_name .. " present in " .. path)
+        local ctx = H.context(60, { settings = settings or {}, in_combat = true, is_group = true })
+        local state = H.ready_state(60, state_extra or {})
+        if mod.get_state then
+            local ok, st = pcall(mod.get_state, ctx)
+            if ok and type(st) == "table" then
+                state = H.ready_state(60, st)
+                if state_extra then
+                    for k, v in pairs(state_extra) do state[k] = v end
+                end
+            end
+        end
+        local ok, res = pcall(strat.matches, ctx, state)
+        assert_true(ok, strategy_name .. " matches no throw")
+        assert_true(not res, strategy_name .. " must not match under settings")
+    end)
+end
+
+-- ============================================================================
+-- Per-class settings flips (3–5 keys each) + group overwrite (curse/seal/shout)
+-- ============================================================================
+
+-- Hunter (additional)
+setting_blocks("setting hunter use_volley false",
+    "EaxRotations/classes/hunter/beast_mastery_vanilla.lua", "hunter", "Volley",
+    { use_volley = false },
+    { in_combat = true, use_volley = false, enemy_count = 5, mana_pct = 90, is_mounted = false })
+setting_blocks("setting hunter use_melee false blocks Raptor",
+    "EaxRotations/classes/hunter/beast_mastery_vanilla.lua", "hunter", "RaptorStrike",
+    { use_melee = false },
+    { in_combat = true, use_melee = false, raptor_ready = true, is_mounted = false, distance = 3 })
+setting_blocks("setting hunter use_explosive_trap false",
+    "EaxRotations/classes/hunter/beast_mastery_vanilla.lua", "hunter", "ExplosiveTrap",
+    { use_explosive_trap = false },
+    { in_combat = true, use_explosive_trap = false, is_mounted = false })
+
+-- Warrior fury + kebab group overwrite (Sunder/Demo)
+expect("setting warrior fury sunder_armor_mode none", function()
+    local mod = H.load_module("EaxRotations/classes/warrior/fury_vanilla.lua", {
+        level = 60, class_folder = "warrior",
+    })
+    local s = H.find_strategy(mod.strategies, "SunderArmor")
+    assert_true(s ~= nil, "SunderArmor present")
+    local ctx = H.context(60, {
+        settings = { sunder_armor_mode = "none" },
+        target_armor = 5000, in_combat = true,
+    })
+    local state = { sunder_ready = true, has_sunder = false }
+    local ok, res = pcall(s.matches, ctx, state)
+    assert_true(ok and not res, "Fury Sunder blocked when sunder_armor_mode=none")
+end)
+expect("setting warrior fury maintain_demo_shout false", function()
+    local mod = H.load_module("EaxRotations/classes/warrior/fury_vanilla.lua", {
+        level = 60, class_folder = "warrior",
+    })
+    local s = H.find_strategy(mod.strategies, "DemoralizingShout")
+    assert_true(s ~= nil, "DemoralizingShout present")
+    local ctx = H.context(60, { settings = { maintain_demo_shout = false } })
+    local state = { demo_ready = true, has_demo_shout = false }
+    local ok, res = pcall(s.matches, ctx, state)
+    assert_true(ok and not res, "Fury Demo blocked when maintain_demo_shout=false")
+end)
+expect("setting warrior kebab sunder_armor_mode none", function()
+    local mod = H.load_module("EaxRotations/classes/warrior/kebab_vanilla.lua", {
+        level = 60, class_folder = "warrior",
+    })
+    local s = H.find_strategy(mod.strategies, "SunderMaintain")
+    assert_true(s ~= nil, "SunderMaintain present")
+    local ctx = H.context(60, {
+        settings = { sunder_armor_mode = "none" },
+        target_armor = 5000, in_combat = true, stance = 1,
+    })
+    local state = { sunder_stacks = 0 }
+    if mod.get_state then
+        local ok, st = pcall(mod.get_state, ctx)
+        if ok and st then state = st; state.sunder_stacks = 0 end
+    end
+    local ok, res = pcall(s.matches, ctx, state)
+    assert_true(ok and not res, "Kebab Sunder blocked when mode=none")
+end)
+expect("setting warrior kebab maintain_demo_shout false", function()
+    local mod = H.load_module("EaxRotations/classes/warrior/kebab_vanilla.lua", {
+        level = 60, class_folder = "warrior",
+    })
+    local s = H.find_strategy(mod.strategies, "DemoShout")
+    assert_true(s ~= nil, "DemoShout present")
+    local ctx = H.context(60, {
+        settings = { maintain_demo_shout = false },
+        in_melee_range = true, in_combat = true,
+    })
+    local state = { demo_shout_duration = 0 }
+    if mod.get_state then
+        local ok, st = pcall(mod.get_state, ctx)
+        if ok and st then state = st; state.demo_shout_duration = 0 end
+    end
+    local ok, res = pcall(s.matches, ctx, state)
+    assert_true(ok and not res, "Kebab Demo blocked when maintain_demo_shout=false")
+end)
+expect("setting warrior fury use_sunder_armor false", function()
+    local mod = H.load_module("EaxRotations/classes/warrior/fury_vanilla.lua", {
+        level = 60, class_folder = "warrior",
+    })
+    local s = H.find_strategy(mod.strategies, "SunderArmor")
+    assert_true(s ~= nil, "SunderArmor present")
+    local ctx = H.context(60, {
+        settings = { use_sunder_armor = false },
+        target_armor = 5000,
+    })
+    local ok, res = pcall(s.matches, ctx, { sunder_ready = true, has_sunder = false })
+    assert_true(ok and not res, "use_sunder_armor=false blocks Sunder")
+end)
+
+-- Warlock group curse overwrite
+expect("setting warlock curse_mode agony blocks CoE", function()
+    local mod = H.load_module("EaxRotations/classes/warlock/affliction_vanilla.lua", {
+        level = 60, class_folder = "warlock",
+    })
+    local coe = H.find_strategy(mod.strategies, "CurseOfElements")
+    assert_true(coe ~= nil, "CurseOfElements present")
+    local ctx = H.context(60, {
+        settings = { warlock_curse_mode = "agony" },
+        is_group = true, target = {},
+    })
+    local state = { coe_remains = 0 }
+    local ok, res = pcall(coe.matches, ctx, state)
+    assert_true(ok and not res, "CoE blocked when warlock_curse_mode=agony")
+end)
+expect("setting warlock assigned_curse agony blocks CoE", function()
+    local mod = H.load_module("EaxRotations/classes/warlock/affliction_vanilla.lua", {
+        level = 60, class_folder = "warlock",
+    })
+    local coe = H.find_strategy(mod.strategies, "CurseOfElements")
+    local ctx = H.context(60, {
+        settings = { warlock_assigned_curse = "agony" },
+        is_group = true, target = {},
+    })
+    local ok, res = pcall(coe.matches, ctx, { coe_remains = 0 })
+    assert_true(ok and not res, "CoE blocked when assigned_curse=agony")
+end)
+expect("setting warlock assigned_curse elements blocks Agony", function()
+    local mod = H.load_module("EaxRotations/classes/warlock/affliction_vanilla.lua", {
+        level = 60, class_folder = "warlock",
+    })
+    local ca = H.find_strategy(mod.strategies, "CurseOfAgony")
+    assert_true(ca ~= nil, "CurseOfAgony present")
+    local ctx = H.context(60, {
+        settings = { warlock_assigned_curse = "elements" },
+        has_valid_enemy_target = true, ttd = 120,
+    })
+    local ok, res = pcall(ca.matches, ctx, { agony_remains = 0 })
+    assert_true(ok and not res, "Agony blocked when assigned_curse=elements")
+end)
+setting_blocks("setting warlock aff amplify already covered path",
+    "EaxRotations/classes/warlock/affliction_vanilla.lua", "warlock", "DamagePotion",
+    { use_auto_potions = false },
+    { in_combat = true })
+
+-- Mage additional
+setting_blocks("setting mage use_cooldowns false Combustion",
+    "EaxRotations/classes/mage/fire_vanilla.lua", "mage", "Combustion",
+    { use_cooldowns = false },
+    { combustion_ready = true, in_combat = true })
+setting_blocks("setting mage use_interrupt false Counterspell",
+    "EaxRotations/classes/mage/fire_vanilla.lua", "mage", "Counterspell",
+    { use_interrupt = false },
+    { in_combat = true })
+setting_blocks("setting mage use_mana_gem false",
+    "EaxRotations/classes/mage/fire_vanilla.lua", "mage", "ManaGem",
+    { use_mana_gem = false },
+    { mana_pct = 20, mana_gem_available = true })
+setting_blocks("setting mage use_auto_potions false",
+    "EaxRotations/classes/mage/fire_vanilla.lua", "mage", "ManaPotion",
+    { use_auto_potions = false },
+    { in_combat = true, mana_pct = 10 })
+
+-- Rogue
+setting_blocks("setting rogue use_cooldowns false BladeFlurry",
+    "EaxRotations/classes/rogue/combat_vanilla.lua", "rogue", "BladeFlurry",
+    { use_cooldowns = false },
+    { in_combat = true, blade_flurry_ready = true, has_blade_flurry = false, target_count = 5 })
+expect("setting rogue combat_blade_flurry_count high", function()
+    local mod = H.load_module("EaxRotations/classes/rogue/combat_vanilla.lua", {
+        level = 60, class_folder = "rogue",
+    })
+    local bf = H.find_strategy(mod.strategies, "BladeFlurry")
+    assert_true(bf ~= nil, "BladeFlurry present")
+    local ctx = H.context(60, {
+        settings = { use_cooldowns = true, combat_blade_flurry_count = 5 },
+        in_combat = true,
+    })
+    local state = {
+        in_combat = true, blade_flurry_ready = true, has_blade_flurry = false, target_count = 2,
+    }
+    if mod.get_state then
+        local ok, st = pcall(mod.get_state, ctx)
+        if ok and st then
+            state = st
+            state.blade_flurry_ready = true
+            state.has_blade_flurry = false
+            state.target_count = 2
+            state.in_combat = true
+        end
+    end
+    local ok, res = pcall(bf.matches, ctx, state)
+    assert_true(ok and not res, "BladeFlurry needs combat_blade_flurry_count targets")
+end)
+setting_blocks("setting combat use_auto_potions false HealthPotion",
+    "EaxRotations/classes/rogue/combat_vanilla.lua", "rogue", "HealthPotion",
+    { use_auto_potions = false },
+    { in_combat = true, hp = 10 })
+setting_blocks("setting subtlety use_auto_potions false HealthPotion",
+    "EaxRotations/classes/rogue/subtlety_vanilla.lua", "rogue", "HealthPotion",
+    { use_auto_potions = false },
+    { in_combat = true, hp = 10 })
+
+-- Shaman
+setting_blocks("setting ele elemental_use_elemental_mastery false",
+    "EaxRotations/classes/shaman/elemental_vanilla.lua", "shaman", "ElementalMastery",
+    { elemental_use_elemental_mastery = false },
+    { in_combat = true })
+setting_blocks("setting ele elemental_use_fire_nova_aoe false",
+    "EaxRotations/classes/shaman/elemental_vanilla.lua", "shaman", "FireNovaTotem",
+    { elemental_use_fire_nova_aoe = false },
+    { in_combat = true, enemy_count = 5 })
+setting_blocks("setting resto restoration_manage_totems false Strength",
+    "EaxRotations/classes/shaman/restoration_vanilla.lua", "shaman", "StrengthOfEarthTotem",
+    { restoration_manage_totems = false },
+    {})
+setting_blocks("setting resto restoration_manage_totems false ManaSpring",
+    "EaxRotations/classes/shaman/restoration_vanilla.lua", "shaman", "ManaSpringTotem",
+    { restoration_manage_totems = false },
+    {})
+setting_blocks("setting enh use_ooc_buffs false GhostWolf",
+    "EaxRotations/classes/shaman/enhancement_vanilla.lua", "shaman", "GhostWolf",
+    { use_ooc_buffs = false },
+    { in_combat = false, ghost_wolf_ooc = true, ghost_wolf_ready = true, has_ghost_wolf = false })
+setting_blocks("setting enh use_cooldowns false ManaTide",
+    "EaxRotations/classes/shaman/enhancement_vanilla.lua", "shaman", "ManaTideTotem",
+    { use_cooldowns = false },
+    { in_combat = true, mana_pct = 10 })
+
+-- Priest
+setting_blocks("setting holy holy_use_pws false EmergencyPWS",
+    "EaxRotations/classes/priest/holy_vanilla.lua", "priest", "EmergencyPWS",
+    { holy_use_pws = false },
+    { lowest = { effective_hp = 20, unit = {} }, lowest_hp = 20 })
+setting_blocks("setting shadow shadow_use_inner_fire false",
+    "EaxRotations/classes/priest/shadow_vanilla.lua", "priest", "InnerFire",
+    { shadow_use_inner_fire = false },
+    {})
+setting_blocks("setting disc discipline_use_power_infusion false",
+    "EaxRotations/classes/priest/discipline_vanilla.lua", "priest", "PowerInfusion",
+    { discipline_use_power_infusion = false },
+    { in_combat = true })
+setting_blocks("setting smite smite_use_mb false",
+    "EaxRotations/classes/priest/smite_vanilla.lua", "priest", "MindBlast",
+    { smite_use_mb = false },
+    { mb_ready = true, in_combat = true, has_valid_enemy_target = true })
+setting_blocks("setting holy holy_use_poh false",
+    "EaxRotations/classes/priest/holy_vanilla.lua", "priest", "PrayerOfHealing",
+    { holy_use_poh = false },
+    { group_damaged_count = 5, poh_count = 5 })
+
+-- Paladin seals / group
+expect("setting prot prot_seal_of_righteousness false", function()
+    local mod = H.load_module("EaxRotations/classes/paladin/protection_vanilla.lua", {
+        level = 60, class_folder = "paladin",
+    })
+    local seal = H.find_strategy(mod.strategies, "SealRighteousness")
+    assert_true(seal ~= nil, "SealRighteousness present")
+    local ctx = H.context(60, { settings = { prot_seal_of_righteousness = false } })
+    local state = { has_seal = false }
+    local ok, res = pcall(seal.matches, ctx, state)
+    assert_true(ok and not res, "Seal SoR blocked when setting false")
+end)
+setting_blocks("setting prot prot_holy_shield false",
+    "EaxRotations/classes/paladin/protection_vanilla.lua", "paladin", "HolyShield",
+    { prot_holy_shield = false },
+    { holy_shield_ready = true, in_combat = true })
+setting_blocks("setting ret sanctity_aura_enabled false",
+    "EaxRotations/classes/paladin/retribution_vanilla.lua", "paladin", "Ret_SanctityAura",
+    { sanctity_aura_enabled = false },
+    {})
+setting_blocks("setting ret blessing_of_might_self false",
+    "EaxRotations/classes/paladin/retribution_vanilla.lua", "paladin", "Ret_BlessingMight_Self",
+    { blessing_of_might_self = false },
+    {})
+setting_blocks("setting prot prot_judgement false",
+    "EaxRotations/classes/paladin/protection_vanilla.lua", "paladin", "Judgement",
+    { prot_judgement = false },
+    { judgement_ready = true, has_seal = true })
+
+-- Druid
+setting_blocks("setting bear bear_demo_roar false",
+    "EaxRotations/classes/druid/bear_vanilla.lua", "druid", "DemoralizingRoar",
+    { bear_demo_roar = false },
+    { is_bear = true, in_combat = true, demo_roar_enabled = false, enemy_count = 3, rage = 50 })
+setting_blocks("setting balance balance_use_insect_swarm false",
+    "EaxRotations/classes/druid/balance_vanilla.lua", "druid", "InsectSwarmDoT",
+    { balance_use_insect_swarm = false },
+    { in_combat = true })
+expect("setting resto group idle SoloWrath blocked without dps_when_idle", function()
+    local mod = H.load_module("EaxRotations/classes/druid/resto_vanilla.lua", {
+        level = 60, class_folder = "druid",
+    })
+    local s = H.find_strategy(mod.strategies, "SoloWrath")
+    assert_true(s ~= nil, "SoloWrath present")
+    local ctx = H.context(60, {
+        settings = { resto_dps_when_idle = false },
+        is_solo = false, is_leveling = false, is_group = true,
+        has_valid_enemy_target = true, mana_pct = 90, is_moving = false,
+    })
+    local state = { mana_emergency = false, mana_pct = 90 }
+    local ok, res = pcall(s.matches, ctx, state)
+    assert_true(ok and not res, "SoloWrath off in group when resto_dps_when_idle=false")
+end)
+setting_blocks("setting cat use_auto_potions false",
+    "EaxRotations/classes/druid/cat_vanilla.lua", "druid", "HealthPotion",
+    { use_auto_potions = false },
+    { in_combat = true, hp = 10 })
+setting_blocks("setting balance balance_auto_dispel false RemoveCurse",
+    "EaxRotations/classes/druid/balance_vanilla.lua", "druid", "RemoveCurse",
+    { balance_auto_dispel = false },
+    { in_combat = true })
+setting_blocks("setting resto barkskin_hp threshold high",
+    "EaxRotations/classes/druid/resto_vanilla.lua", "druid", "BarkskinSelfPreservation",
+    { barkskin_hp = 5 },
+    {})
+
 -- Raid-60 priority order (wowsims classic: high-priority names before filler)
 local function assert_prio_before(path, folder, earlier, later)
     expect("raid60 prio " .. earlier .. " before " .. later .. " in " .. path, function()
@@ -592,6 +926,11 @@ assert_prio_before("EaxRotations/classes/shaman/elemental_vanilla.lua", "shaman"
 assert_prio_before("EaxRotations/classes/priest/shadow_vanilla.lua", "priest", "MindBlast", "MindFlay")
 -- druid balance: dots before fillers if present
 assert_prio_before("EaxRotations/classes/druid/balance_vanilla.lua", "druid", "MoonfireDoT", "StarfirePrimary")
+-- paladin ret: seal/judge structure (wowsims classic ret)
+assert_prio_before("EaxRotations/classes/paladin/retribution_vanilla.lua", "paladin", "Ret_ApplyCrusaderSeal", "Ret_SealCommand_Primary")
+assert_prio_before("EaxRotations/classes/paladin/retribution_vanilla.lua", "paladin", "Ret_JudgeCrusader", "Ret_JudgeDamageSeal")
+assert_prio_before("EaxRotations/classes/paladin/protection_vanilla.lua", "paladin", "HolyShield", "Consecration")
+assert_prio_before("EaxRotations/classes/paladin/holy_vanilla.lua", "paladin", "HolyLightEmergency", "SmartHeal")
 
 -- ============================================================================
 if #failures > 0 then
