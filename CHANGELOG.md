@@ -2,6 +2,13 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.7.7] — Maul Queue Spam + Swing Timer Clock Fix (2026-07-16)
+- **Druid (Bear)**: Maul no longer re-queues every tick. Skip while `is_current_spell` (already armed next-swing) + 0.5s `min_interval` safety.
+- **Core**: `NS.swing_time_until` uses `NS.time_now()` / game-time paths instead of `get_current_combat_core_time()` (that clock produced ~70k-second absurd remains in live logs).
+- `get_time_until_swing` / OH swing now delegate to the fixed helper.
+- Tests: Maul already-queued gate.
+- Version bump 2.7.7; clean `eaxrotations.zip` (lua + md only).
+
 ## [2.7.6] — Druid Bear Cast Target + Form Stability (2026-07-16)
 - **Druid (Bear)**: Swipe no longer targets the player. TBC Swipe needs a hostile melee target; self-cast was rejected and spam-looped via the spell queue (`Swipe | Target <player>`).
 - **Druid (Bear)**: Mark of the Wild / Gift / Thorns never cast while in bear form (caster buffs cancel form and caused BearForm ↔ MotW loops).

@@ -214,6 +214,16 @@ assert_eq(#action_calls, 0, "action_matches should not be called when rage < mau
 action_calls = {}
 assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 5 }, settings = maul_settings }), "Maul should match when rage >= maul_rage and lacerate at 5")
 
+-- Already-queued next-swing Maul must not rematch (prevents spell-queue spam)
+local _prev_is_current = _G.EaxRotations.is_current_spell
+_G.EaxRotations.is_current_spell = function(spell_id)
+    return spell_id == 6807 or spell_id == 26996
+end
+action_calls = {}
+assert_false(maul.matches({ rage = 80, target = { _debuff_stacks = 5 }, settings = maul_settings }),
+    "Maul must not match when already queued (is_current_spell)")
+_G.EaxRotations.is_current_spell = _prev_is_current
+
 action_calls = {}
 assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 12, settings = maul_settings }), "Maul should match as rage dump when rage >= maul_rage, even with low lacerate")
 

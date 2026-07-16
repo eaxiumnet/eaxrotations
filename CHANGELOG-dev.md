@@ -1,3 +1,31 @@
+# Developer Changelog — EaxRotations v2.7.7
+
+**Date:** 2026-07-16  
+**Branch:** master  
+**Scope:** `fix(bear)` Maul next-swing re-queue spam + swing timer correct clocks
+
+### Root causes (live logs after v2.7.6)
+
+| Symptom | Cause |
+|---------|--------|
+| `Maul \| Target …` every frame | No `is_current_spell` gate; next-swing re-queued each dispatcher tick |
+| `absurd remains≈72691 clamped` | `swing_time_until` used `get_current_combat_core_time()` (combat-relative) vs absolute `get_next_attack_core_time` |
+
+### Code
+
+| File | Change |
+|------|--------|
+| `core_sylvanas.lua` | `swing_time_until` / `swing_time_since` / `swing_progress`: core now via `NS.time_now`, game-time fallback, absurd clamp; `get_time_until_swing` delegates |
+| `classes/druid/bear_sylvanas.lua` | `maul_is_queued()` via `is_current_spell` ranks; `maul_execute` with `min_interval=0.5` |
+| `tests/test_bear_custom_matches.lua` | Maul already-queued assertion |
+| version / zip | **2.7.7** |
+
+### Verification
+
+- `luac -p` + `test_bear_custom_matches` + `test_melee_cleu_wiring` + 275 rotation suites
+
+---
+
 # Developer Changelog — EaxRotations v2.7.6
 
 **Date:** 2026-07-16  

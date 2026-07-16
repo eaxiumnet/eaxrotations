@@ -1,5 +1,19 @@
 # EaxRotations Changelog
 
+## v2.7.7 — Maul Spam + Swing Timer (July 16, 2026)
+
+> **Release zip:** [eaxrotations.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.7.7)
+> **Game:** The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
+
+### What you’ll notice
+
+- **Maul no longer spams the cast log** — once Maul is queued on your next swing, the rotation waits for that swing instead of re-casting every frame.
+- **Swing timer debug spam fixed** — the helper was using the wrong clock (huge ~70k second values). Timing data is sane again.
+
+Reload for **v2.7.7**.
+
+---
+
 ## v2.7.6 — Bear Tank Stability (July 16, 2026)
 
 > **Release zip:** [eaxrotations.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.7.6)
