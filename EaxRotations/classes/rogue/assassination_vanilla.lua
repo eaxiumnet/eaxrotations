@@ -135,7 +135,7 @@ local function assassination_leveling_builder_matches(context, state)
     local target = context.target
     if not target then return false end
     if (state.energy or 0) < 45 then return false end
-    local level = context.player_level or 70
+    local level = context.level or context.player_level or 60
     if not context.is_leveling and level >= 50 then return false end
     return NS.spell_ready(SPELLS.SinisterStrike, target)
 end
@@ -230,6 +230,7 @@ local strategies = {
     {
         name = "ColdBloodEviscerate",
         matches = function(context, state)
+            if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
             if not (context.settings and context.settings.assassin_cold_blood_auto) then return false end
             if state.energy_pool_finisher then return false end  -- pool energy below 25
             if (state.combo or 0) < 5 then return false end

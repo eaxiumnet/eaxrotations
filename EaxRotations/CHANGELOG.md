@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.8.0 - 2026-07-16
+
+### Customer Changelog
+- Deep Classic audit: all **40** Vanilla combat + leveling modules load-tested.
+- Classic level defaults fixed (no accidental TBC “level 70” assumptions).
+- Hunter Classic pre-Aimed fillers when Aimed unavailable.
+- Version **2.8.0**. Tests: 278 rotation + 18 leveling.
+
+### Developer Notes
+- Matrix: `plans/vanilla-deep-audit-matrix-2026-07-16.md`
+- `test_vanilla_content_coverage.lua` + `vanilla_level_from_context`
+- Hunter MM/Survival pre-Aimed ladder; druid/rogue level default 60
+
 ## 2.7.9 - 2026-07-16
 
 ### Customer Changelog

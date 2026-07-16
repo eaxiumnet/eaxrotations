@@ -1,5 +1,22 @@
 # EaxRotations Changelog
 
+## v2.8.0 — Classic Deep 1–60 Coverage (July 16, 2026)
+
+> **Release:** v2.8.0  
+> **Game:** Classic Era / Vanilla (1.15)
+
+### What you’ll notice
+
+- **All 40 Classic Era rotation files** (every combat spec + every leveling rotation) are now covered by an automated load/coverage suite — so missing/broken Vanilla modules fail CI before ship.
+- **Smarter low-level Classic behavior** when the client doesn’t report level as “70”:
+  - Druid / Assassin use Classic **level 60** defaults (not TBC 70).
+  - Hunters use **Aimed Shot when available**, and fall back to Arcane/Sting fillers when Aimed isn’t learned yet (pre-20) or is on cooldown — Classic has no Steady Shot.
+- Builds on v2.7.9 Aimed Shot + Destruction Soul Fire execute fixes.
+
+Reload for **v2.8.0**.
+
+---
+
 ## v2.7.9 — Classic Vanilla Re-check + Hunter Aimed Shot (July 16, 2026)
 
 > **Release:** v2.7.9  

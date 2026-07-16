@@ -7,6 +7,7 @@
 local NS = rawget(_G, "EaxRotations")
 if not NS then return nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
+local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 local SPELLS = NS.DruidSpells or {}
 
 -- Vanilla-only spell IDs (no TBC ranks >= 27000)
@@ -28,6 +29,7 @@ local function build_state(context)
         caster_state.moonfire_remains = target and NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF) or 0
         caster_state.ff_remains = target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
     end
+    caster_state.level = context.level or context.player_level or 60
     caster_state.in_combat = context.in_combat or false
     caster_state.mana_pct = context.mana_pct or (NS.mana_pct and NS.mana_pct(me)) or 100
     caster_state.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
@@ -57,8 +59,7 @@ end
 local function faerie_fire_matches_fn(context, state)
     if not caster_context_allowed(context) then return false end
     if not context.target then return false end
-    -- Skip if target has no armor (API unavailable or already fully reduced)
-    if (context.target_armor or 0) <= 0 then return false end
+    if (context.target_armor or 0) <= 0 and not leveling_helpers.is_low_level(state.level) then return false end
     if (state.ff_remains or 0) > 4 then return false end
     return NS.spell_ready(SPELLS.FaerieFire, context.target)
 end
@@ -77,6 +78,7 @@ local function wrath_matches_fn(context, state)
 end
 
 local function innervate_matches_fn(context, state)
+    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 360) then return false end
     if not caster_context_allowed(context) then return false end
     if not context.in_combat then return false end
     if (context.mana_pct or 100) > 30 then return false end

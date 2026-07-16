@@ -1,3 +1,33 @@
+# Developer Changelog — EaxRotations v2.8.0
+
+**Date:** 2026-07-16  
+**Branch:** master  
+**Scope:** Deep Classic Vanilla 1–60 audit harness + level-default / pre-Aimed fixes
+
+### Why this release
+v2.7.9 was an endgame-priority pass only. v2.8.0 starts the **deep 1–60 + content-mode** audit: all **40** Vanilla ships (`*_vanilla.lua` combat + leveling), API-aware loading via class gates (`.api` / `scraped_docs_md` contracts), and material silent-gate fixes.
+
+### Matrix
+- `plans/vanilla-deep-audit-matrix-2026-07-16.md` — 40-file inventory, level bands, content modes
+
+### Code
+| File | Change |
+|------|--------|
+| `shared/leveling_helpers_sylvanas.lua` | `vanilla_level_from_context` (default **60**) |
+| `hunter/marksmanship_vanilla.lua` | Pre-Aimed filler ladder (no Steady; default level 60) |
+| `hunter/survival_vanilla.lua` | Same pre-Aimed ladder |
+| `druid/cat|bear|caster_vanilla.lua` | Level default 70→60 |
+| `rogue/assassination_vanilla.lua` | Level default 70→60 |
+
+### Tests
+- **New** `test_vanilla_content_coverage.lua` — loads all 40 Vanilla modules under class-correct mocks; BM/Destro band smokes
+- 278 rotation + 18 leveling suites green
+
+### API
+- No new runtime APIs; mocks align with class-gated loaders (`get_class` / `CLASS_ID`) and `get_spell_id` used by kebab/holy paths.
+
+---
+
 # Developer Changelog — EaxRotations v2.7.9
 
 **Date:** 2026-07-16  
