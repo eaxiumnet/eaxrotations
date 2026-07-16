@@ -341,6 +341,8 @@ local strategies = {
     { name = "Wand", matches = wand_matches, execute = execute_wand },
 }
 
-NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
+end
 -- [Warlock] Leveling rotation loaded (Classic)
 return { strategies = strategies, build_state = build_state }
