@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.7.7 - 2026-07-16
+
+### Customer Changelog
+- **Druid (Bear)**: Maul no longer re-queues every frame once armed for the next swing.
+- **Melee timing**: Swing timer uses the correct clock (no more ~70k-second garbage values / debug spam).
+- Version bumped to 2.7.7.
+- Clean `eaxrotations.zip` (lua + md only).
+
+### Developer Notes
+- Maul: `is_current_spell` gate + `min_interval=0.5` execute.
+- `swing_time_until`: `NS.time_now()` / game-time; stop using `get_current_combat_core_time`.
+
 ## 2.7.6 - 2026-07-16
 
 ### Customer Changelog

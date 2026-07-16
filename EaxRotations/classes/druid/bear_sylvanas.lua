@@ -186,6 +186,7 @@ local function action_ready(context, action)
     if not target then return false end
     _opts.skip_range = (action.requires_target == false) or nil
     _opts.expected_cooldown = action.cooldown or nil
+    _opts.min_interval = nil  -- do not leak Maul throttle into other spells
     return NS.spell_ready(action.spell, target, _opts)
 end
 
@@ -196,6 +197,7 @@ local function execute_action(context, action)
     if not target then return false end
     _opts.skip_range = (action.requires_target == false) or nil
     _opts.expected_cooldown = action.cooldown or nil
+    _opts.min_interval = nil  -- do not leak Maul throttle into other spells
     if not NS.try_cast then return false end  -- test env fallback (no engine)
     return NS.try_cast(action.spell, target, "[BEAR]", _opts)
 end
@@ -670,15 +672,35 @@ end
 local function swing_timer_gate(context, state)
     if not spec_kit.setting_bool(context, "bear_swing_timer", true) then return true end
     local swing_remains = (state and state.swing_remains) or 99
+    -- Unknown (999) / disabled timer: fail open. Near-swing (0–0.3s): hold re-queue.
     return swing_remains > 0.3 or swing_remains < 0
+end
+
+-- Maul rank IDs (TBC) — used with is_current_spell to detect an already-queued next swing.
+local MAUL_IDS = { 26996, 9881, 9880, 9745, 8972, 6809, 6808, 6807 }
+
+local function maul_is_queued()
+    -- WoW "current spell" = next-swing ability already armed (Maul/HS/Cleave).
+    if not NS.is_current_spell then return false end
+    for i = 1, #MAUL_IDS do
+        if NS.is_current_spell(MAUL_IDS[i]) then return true end
+    end
+    -- Also check the resolved action id (highest learned rank).
+    if ACTION.Maul and NS.get_spell_id then
+        local id = NS.get_spell_id(ACTION.Maul)
+        if type(id) == "number" and NS.is_current_spell(id) then return true end
+    end
+    return false
 end
 
 -- Maul: on-next-swing rage dump (does NOT consume a GCD — independent of the
 -- GCD chain). With Mangle learned: menu threshold only. Without Mangle: primary
 -- spender — level-scaled threshold, never raised above the menu setting.
+-- SAFETY: never re-queue while already current (spam loop in spell queue log).
 local function maul_matches(context, action)
     local s = build_state(context)
     if not can_use_bear_ability(s) then return false end
+    if maul_is_queued() then return false end
     if (s.enemy_count or 0) >= (s.aoe_threshold or 3) and (s.rage or 0) < HIGH_RAGE then return false end
     local maul_threshold = s.maul_rage or 50
     if not spell_exists(ACTION.MangleBear) then
@@ -692,6 +714,19 @@ local function maul_matches(context, action)
     if not s.is_target_boss and (s.target_ttd or 999) < 3 then return false end
     if not swing_timer_gate(context, s) then return false end
     return action_ready(context, action)
+end
+
+local function maul_execute(context, action)
+    -- min_interval: belt-and-suspenders when is_current_spell is stubbed/broken
+    -- so we do not re-queue Maul every dispatcher tick (live spam log).
+    if not action or not action.spell then return false end
+    local target = context and context.target
+    if not target then return false end
+    _opts.skip_range = nil
+    _opts.expected_cooldown = action.cooldown or nil
+    _opts.min_interval = 0.5
+    if not NS.try_cast then return false end
+    return NS.try_cast(action.spell, target, "[BEAR]", _opts)
 end
 
 -- RAGE GEN (in-combat, when starved) -----------------------------------------
@@ -770,7 +805,8 @@ local ACTIONS = {
     -- — self-cast is rejected by the client and spam-loops via the spell queue.
     { name = "SwipeAoE",         spell = ACTION.SwipeBear,  matches = swipe_aoe_matches },
     { name = "Swipe",            spell = ACTION.SwipeBear,  matches = swipe_cleave_matches },
-    { name = "Maul",             spell = ACTION.Maul,       matches = maul_matches },
+    -- Maul is on-next-swing: custom execute with min_interval + is_current_spell gate.
+    { name = "Maul",             spell = ACTION.Maul,       matches = maul_matches, execute = maul_execute },
 
     -- Rage gen (in-combat, when starved)
     { name = "EnrageCombat",     spell = ACTION.Enrage,            target = "self", requires_target = false, matches = enrage_combat_matches },

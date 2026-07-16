@@ -2728,6 +2728,23 @@ local function _swing_debug(msg)
     pcall(NS.log, "[SwingTimer] " .. tostring(msg))
 end
 
+-- Max sane weapon swing (2H slow + buffer). Values above this mean time-base mismatch.
+local _SWING_REMAINS_MAX = 12
+
+local function _core_now()
+    if NS.time_now then return NS.time_now() end
+    if _core_time then return _core_time() end
+    return 0
+end
+
+--- Sanitize a computed remains value: negative → 0, absurd → nil (caller tries next path).
+local function _sane_swing_remains(remains)
+    if type(remains) ~= "number" then return nil end
+    if remains < 0 then return 0 end
+    if remains > _SWING_REMAINS_MAX then return nil end
+    return remains
+end
+
 function NS.swing_time_until(unit, weapon)
     if not unit then return 999 end
     -- Prefer Swing Timer addon for local player (more accurate, includes haste changes)
@@ -2737,13 +2754,14 @@ function NS.swing_time_until(unit, weapon)
         if ok and addon and addon.is_loaded and addon:is_loaded() then
             local info_ok, info = pcall(function() return addon:get_player_mainhand_info() end)
             if info_ok and info and info.expiration_time then
-                local now = (_core_time and _core_time()) or 0
-                local remains = info.expiration_time - now
-                _swing_debug("ADDON mh remains=" .. string.format("%.3f", math.max(0, remains)) ..
-                             " speed=" .. tostring(info.swing_speed) ..
-                             " base=" .. tostring(info.base_swing_speed))
-                if remains > 0 then return remains end
-                return 0
+                local remains = _sane_swing_remains(info.expiration_time - _core_now())
+                if remains ~= nil then
+                    _swing_debug("ADDON mh remains=" .. string.format("%.3f", remains) ..
+                                 " speed=" .. tostring(info.swing_speed) ..
+                                 " base=" .. tostring(info.base_swing_speed))
+                    return remains
+                end
+                _swing_debug("ADDON mh remains absurd; falling through")
             else
                 _swing_debug("ADDON loaded but get_player_mainhand_info failed or no expiration_time")
             end
@@ -2755,42 +2773,68 @@ function NS.swing_time_until(unit, weapon)
         _swing_debug("FALLBACK: auto_attack_helper unavailable")
         return 999
     end
-    local next_time = _auto_attack:get_next_attack_core_time(unit, weapon)
-    local now = _auto_attack:get_current_combat_core_time()
-    if not next_time or not now or next_time <= now then
-        _swing_debug("FALLBACK auto_attack_helper remains=0 weapon=" .. tostring(weapon))
-        return 0
+
+    -- Primary: next attack core time vs NS.time_now / core.time (same base as get_time_until_swing).
+    -- Do NOT use get_current_combat_core_time() here — that clock is combat-relative and
+    -- produced live absurd remains (~70k seconds) when subtracted from absolute next-attack.
+    local next_core = nil
+    local ok_nc, nc = pcall(function()
+        return _auto_attack:get_next_attack_core_time(unit, weapon)
+    end)
+    if ok_nc then next_core = nc end
+    if type(next_core) == "number" and next_core > 0 then
+        local remains = _sane_swing_remains(next_core - _core_now())
+        if remains ~= nil then
+            _swing_debug("FALLBACK core remains=" .. string.format("%.3f", remains)
+                .. " weapon=" .. tostring(weapon))
+            return remains
+        end
+        _swing_debug("FALLBACK core remains absurd; trying game_time weapon=" .. tostring(weapon))
     end
-    local remains = next_time - now
-    -- Weapon swings are a few seconds at most. Huge values (e.g. ~69598 in live
-    -- logs) mean mismatched time bases (absolute vs combat-relative) from the
-    -- helper — treat as unknown so Maul/HS gates fail open instead of locking.
-    if remains > 12 then
-        _swing_debug("FALLBACK auto_attack_helper absurd remains=" .. string.format("%.3f", remains)
-            .. " clamped to unknown weapon=" .. tostring(weapon))
-        return 999
+
+    -- Secondary: game-time path (ms) — same as NS.get_time_until_swing fallback
+    local next_game = nil
+    local ok_ng, ng = pcall(function()
+        return _auto_attack:get_next_attack_game_time(unit, weapon)
+    end)
+    if ok_ng then next_game = ng end
+    if type(next_game) == "number" and next_game > 0 and NS.game_time_ms then
+        local remains = _sane_swing_remains((next_game - NS.game_time_ms()) / 1000)
+        if remains ~= nil then
+            _swing_debug("FALLBACK game remains=" .. string.format("%.3f", remains)
+                .. " weapon=" .. tostring(weapon))
+            return remains
+        end
     end
-    _swing_debug("FALLBACK auto_attack_helper remains=" .. string.format("%.3f", remains) .. " weapon=" .. tostring(weapon))
-    return remains
+
+    _swing_debug("FALLBACK unknown remains weapon=" .. tostring(weapon))
+    return 999
 end
 
 function NS.swing_time_since(unit)
     if not _auto_attack or not unit then return 0 end
-    local last = _auto_attack:get_last_attack_core_time(unit)
-    local now = _auto_attack:get_current_combat_core_time()
-    if last and now then return math.max(0, now - last) end
-    return 0
+    local last = nil
+    local ok_l, lv = pcall(function() return _auto_attack:get_last_attack_core_time(unit) end)
+    if ok_l then last = lv end
+    if type(last) ~= "number" then return 0 end
+    local elapsed = _core_now() - last
+    if elapsed < 0 or elapsed > _SWING_REMAINS_MAX then return 0 end
+    return elapsed
 end
 
 function NS.swing_progress(unit, weapon)
     if not _auto_attack or not unit then return 0 end
-    local next_time = _auto_attack:get_next_attack_core_time(unit, weapon)
-    local last_time = _auto_attack:get_last_attack_core_time(unit)
-    local now = _auto_attack:get_current_combat_core_time()
-    if not last_time or not next_time or next_time <= last_time then return 0 end
+    local next_time, last_time = nil, nil
+    local ok_n, nv = pcall(function() return _auto_attack:get_next_attack_core_time(unit, weapon) end)
+    if ok_n then next_time = nv end
+    local ok_l, lv = pcall(function() return _auto_attack:get_last_attack_core_time(unit) end)
+    if ok_l then last_time = lv end
+    local now = _core_now()
+    if type(last_time) ~= "number" or type(next_time) ~= "number" or next_time <= last_time then return 0 end
     local elapsed = now - last_time
     local total = next_time - last_time
-    if total <= 0 then return 0 end
+    if total <= 0 or total > _SWING_REMAINS_MAX then return 0 end
+    if elapsed < 0 then return 0 end
     return math.min(1, math.max(0, elapsed / total))
 end
 
@@ -4159,59 +4203,20 @@ function NS.is_current_spell(spell_id)
 end
 
 function NS.get_time_until_swing()
-
+    -- Delegate to swing_time_until (correct core/game clocks + absurd clamp).
     local player = NS.GetPlayer()
-
-    if not player or not _auto_attack then return nil end
-
-    local now = NS.time_now()
-
-    local next_core = safe(safe_field(_auto_attack, "get_next_attack_core_time"), _auto_attack, player, 1) or nil
-
-    if type(next_core) == "number" and next_core > 0 then
-
-        return math.max(0, next_core - now)
-
-    end
-
-    local next_game = safe(safe_field(_auto_attack, "get_next_attack_game_time"), _auto_attack, player, 1) or nil
-
-    if type(next_game) == "number" and next_game > 0 then
-
-        return math.max(0, (next_game - NS.game_time_ms()) / 1000)
-
-    end
-
-    return nil
-
+    if not player then return nil end
+    local remains = NS.swing_time_until(player, 1)
+    if remains == nil or remains >= 999 then return nil end
+    return remains
 end
 
 function NS.get_time_until_oh_swing()
-
     local player = NS.GetPlayer()
-
-    if not player or not _auto_attack then return nil end
-
-    local now = NS.time_now()
-
-    local next_core = safe(safe_field(_auto_attack, "get_next_attack_core_time"), _auto_attack, player, 2) or nil
-
-    if type(next_core) == "number" and next_core > 0 then
-
-        return math.max(0, next_core - now)
-
-    end
-
-    local next_game = safe(safe_field(_auto_attack, "get_next_attack_game_time"), _auto_attack, player, 2) or nil
-
-    if type(next_game) == "number" and next_game > 0 then
-
-        return math.max(0, (next_game - NS.game_time_ms()) / 1000)
-
-    end
-
-    return nil
-
+    if not player then return nil end
+    local remains = NS.swing_time_until(player, 2)
+    if remains == nil or remains >= 999 then return nil end
+    return remains
 end
 
 -- Platform game_object shield / heal wrappers (native engine API).
