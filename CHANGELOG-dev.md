@@ -1,3 +1,28 @@
+# Developer Changelog — EaxRotations v2.9.0
+
+**Date:** 2026-07-16  
+**Branch:** master  
+**Scope:** Classic Vanilla Phase 2 — all 9 classes 1–60 spell ladders
+
+### Infrastructure
+- **New** `tests/vanilla_ladder_helper.lua` — LEARN min-level map (Classic Era) + `spell_ready`/`spell_exists`/`is_spell_learned` filter; captures `get_state` via registry; class-gated loaders
+- **New** `tests/test_vanilla_spell_ladders.lua` — **175** cases across Hunter/Warrior/Warlock/Mage/Rogue/Shaman/Priest/Paladin/Druid at L10/25/40/60
+
+### Ladder proofs
+- At L10 with endgame talents unlearned: at least one combat filler matches (real `matches` / `build_state`)
+- Negative controls: Aimed L10, Bloodthirst L25, Conflagrate L25, Stormstrike L25, HolyShield L25, SW:D/Shadowfiend L60 blocked
+- Content smokes: hunter pet Mend, fury multi Cleave, no FelArmor on Classic destro
+- Cat ladder starts L25 (Cat Form L20) — documented WATCH for B1
+
+### Code
+- `cat_vanilla.lua`: CP threshold uses `level or 60` (not 70)
+
+### Verification
+- 279 rotation + 18 leveling suites green
+- Matrix: `plans/vanilla-deep-audit-matrix-2026-07-16.md` updated
+
+---
+
 # Developer Changelog — EaxRotations v2.8.0
 
 **Date:** 2026-07-16  

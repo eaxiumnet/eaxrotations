@@ -1,5 +1,20 @@
 # EaxRotations Changelog
 
+## v2.9.0 — Classic 1–60 Spell Ladders (All Classes) (July 16, 2026)
+
+> **Release:** v2.9.0  
+> **Game:** Classic Era / Vanilla (1.15)
+
+### What you’ll notice
+
+- **Automated proof** that every Classic combat + leveling rotation still has something to cast at levels **10, 25, 40, and 60** even when endgame talents (Bloodthirst, Aimed Shot, etc.) are not learned yet.
+- Builds on v2.8.0 load coverage and v2.7.9 Hunter Aimed / Destruction Soul Fire fixes.
+- Cat DPS ladder is validated from **level 25+** (Cat Form is a level-20 skill in Classic).
+
+Reload for **v2.9.0**.
+
+---
+
 ## v2.8.0 — Classic Deep 1–60 Coverage (July 16, 2026)
 
 > **Release:** v2.8.0  

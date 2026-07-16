@@ -1,87 +1,61 @@
 # Classic Vanilla Deep Audit Matrix (1–60 + content modes)
 
 **Date:** 2026-07-16  
-**Version target:** 2.8.0  
+**Version:** **2.9.0** (Phase 2 ladders)  
 **Scope:** 40 Vanilla ships (31 combat + 9 leveling)  
 **API sources:** `scraped_docs_md/dev/api/*`, `.api/` (read-only)  
-**Priority sources:** `data/wowsims_classic`, Wowhead/IV/Tavern Classic  
+**Priority sources:** `data/wowsims_classic`, class rank `levels` tables  
 
 ## Status legend
 | Code | Meaning |
 |------|---------|
-| **OK** | Loaded, strategies present, known material gaps closed or soft-gated |
-| **FIX** | Material fix landed this deep-audit pass |
-| **WATCH** | Soft-gate / document; not combat-breaking when spell unlearned |
+| **OK** | Ladder tests prove filler at L10/25/40/60 with high talents unlearned |
+| **FIX** | Code fix in Phase 1/2 |
+| **WATCH** | Soft-gate or level band N/A (documented) |
 
 ## Level bands
 - **B1** 1–19 · **B2** 20–39 · **B3** 40–59 · **B4** 60 raid
 
 ## Content modes
-- **S** solo · **G** group · **D** dungeon AoE/threat · **R** raid 60 APL
+- **S** solo · **G** group · **D** dungeon AoE · **R** raid 60
+
+## Evidence suite
+| Test | Proves |
+|------|--------|
+| `test_vanilla_content_coverage.lua` | All 40 modules load (class-gated) |
+| `test_vanilla_spell_ladders.lua` | **175** cases: L10/25/40/60 fillers + high-talent blocked + content smokes |
+| `vanilla_ladder_helper.lua` | LEARN map + `spell_ready` filter by level |
+| `test_hunter_vanilla_aimed_shot.lua` | Aimed 3s weave + manual record |
 
 ---
 
-## Inventory (all 40)
+## Per-class evidence (Phase 2)
 
-| File | Role | B1–B4 | S/G/D/R | Notes / sources | Status |
-|------|------|-------|---------|-----------------|--------|
-| `druid/balance_vanilla.lua` | combat | OK | S/G/R | wowsims balance APL; MF/IS/Starfire | OK |
-| `druid/bear_vanilla.lua` | combat | FIX level default 60 | S/D/R | Maul/Swipe; no Mangle required | FIX |
-| `druid/cat_vanilla.lua` | combat | FIX level default 60 | S/D/R | low-level CP/FF gates | FIX |
-| `druid/caster_vanilla.lua` | combat | FIX level default 60 | S | hybrid | FIX |
-| `druid/resto_vanilla.lua` | combat | OK | G/D/R | HoTs no LB stacks required | OK |
-| `druid/leveling_vanilla.lua` | leveling | OK | S/D | form + filler ladder | OK |
-| `hunter/beast_mastery_vanilla.lua` | combat | OK | S/D/R | Aimed weave (v2.7.9+) | OK |
-| `hunter/marksmanship_vanilla.lua` | combat | FIX pre-Aimed ladder | S/D/R | Classic fillers when Aimed down | FIX |
-| `hunter/survival_vanilla.lua` | combat | FIX pre-Aimed ladder | S/D/R | Aimed + traps | FIX |
-| `hunter/leveling_vanilla.lua` | leveling | OK | S/D | Aimed/Arcane/Multi/pet | OK |
-| `mage/arcane_vanilla.lua` | combat | OK | S/R | AP Frost hybrid (no AB) | OK |
-| `mage/fire_vanilla.lua` | combat | OK | S/R | Scorch known gate | OK |
-| `mage/frost_vanilla.lua` | combat | OK | S/R | Frostbolt filler | OK |
-| `mage/leveling_vanilla.lua` | leveling | OK | S/D | nuke ladder | OK |
-| `paladin/holy_vanilla.lua` | combat | OK | G/D/R | FoL/HL | OK |
-| `paladin/protection_vanilla.lua` | combat | OK | D/R | Holy Shield / Consec | OK |
-| `paladin/retribution_vanilla.lua` | combat | OK | S/R | SoC/Judge | OK |
-| `paladin/leveling_vanilla.lua` | leveling | OK | S/D | seals | OK |
-| `priest/discipline_vanilla.lua` | combat | OK | G/D/R | PWS/PI | OK |
-| `priest/holy_vanilla.lua` | combat | OK | G/D/R | FH/GH | OK |
-| `priest/shadow_vanilla.lua` | combat | OK | S/R | no VT | OK |
-| `priest/smite_vanilla.lua` | combat | WATCH | S | TBC stubs spell_exists | WATCH |
-| `priest/leveling_vanilla.lua` | leveling | OK | S/D | Smite ladder | OK |
-| `rogue/assassination_vanilla.lua` | combat | FIX level default 60 | S/R | BS/Evis | FIX |
-| `rogue/combat_vanilla.lua` | combat | OK | S/R | SS/Evis | OK |
-| `rogue/subtlety_vanilla.lua` | combat | OK | S/G | PvP lean | OK |
-| `rogue/leveling_vanilla.lua` | leveling | OK | S/D | SS/Evis | OK |
-| `shaman/elemental_vanilla.lua` | combat | OK | S/R | LB/CL; WoA no-op | OK |
-| `shaman/enhancement_vanilla.lua` | combat | WATCH | S/R | Stormstrike soft-gate Era | WATCH |
-| `shaman/restoration_vanilla.lua` | combat | OK | G/D/R | CH/HW | OK |
-| `shaman/leveling_vanilla.lua` | leveling | OK | S/D | shocks | OK |
-| `warlock/affliction_vanilla.lua` | combat | OK | S/R | dots/SB | OK |
-| `warlock/demonology_vanilla.lua` | combat | OK | S/R | DS/Ruin | OK |
-| `warlock/destruction_vanilla.lua` | combat | OK | S/R | SoulFire execute (v2.7.9) | OK |
-| `warlock/leveling_vanilla.lua` | leveling | OK | S/D | dots/SB/wand | OK |
-| `warrior/arms_vanilla.lua` | combat | OK | S/R | MS/OP | OK |
-| `warrior/fury_vanilla.lua` | combat | OK | S/R | BT/WW | OK |
-| `warrior/protection_vanilla.lua` | combat | OK | D/R | SS/Revenge | OK |
-| `warrior/kebab_vanilla.lua` | combat | OK | S | hybrid | OK |
-| `warrior/leveling_vanilla.lua` | leveling | OK | S/D | HS/Rend/BT | OK |
+| Class | Files | B1–B4 ladder | S/G/D/R | Notes | Status |
+|-------|-------|--------------|---------|-------|--------|
+| Hunter | BM, MM, Surv, leveling | Arcane/Serpent L10; Aimed blocked L10; BW blocked L25 | Pet Mend solo; Multi AoE | LEARN: Aimed 20, Multi 18, BW 40 | **OK** |
+| Warrior | Arms, Fury, Prot, Kebab, leveling | HS/Rend/Sunder L10; BT blocked L25 | Cleave multi | LEARN: BT/MS 40 | **OK** |
+| Warlock | Aff, Demo, Destro, leveling | SB/Corr/Imm L10; Conflag blocked L25 | FelArmor not required | SoulFire execute (2.7.9) | **OK** |
+| Mage | Fire, Frost, Arcane, leveling | Fireball L10 w/ Scorch unlearned | — | Scorch 22 | **OK** |
+| Rogue | Combat, Sin, Sub, leveling | SS/Evis/SnD ladder | — | No Envenom required | **OK** |
+| Shaman | Ele, Enh, Resto, leveling | LB/shock L10; SS blocked L25 | Resto HealingWay | WoA no-op; SS soft | **OK** |
+| Priest | Shadow, Smite, Holy, Disc, leveling | Smite/SW:P L10; SW:D/SF blocked L60 | Solo/group heal paths | No VT core | **OK** |
+| Paladin | Ret, Prot, Holy, leveling | Judge/HL ladder; HS blocked L25 | Consecrate AoE | — | **OK** |
+| Druid | Bal, Cat, Bear, Caster, Resto, leveling | Bear/caster L10; **Cat L25+** (form L20) | No Mangle required | Cat B1 N/A form unlock | **OK** / **WATCH** cat B1 |
 
-## Shared infrastructure
-| Module | Change |
-|--------|--------|
-| `shared/leveling_helpers_sylvanas.lua` | `vanilla_level_from_context` → default **60** |
-| `tests/test_vanilla_content_coverage.lua` | Loads all 40 files; BM/Destro band smoke |
+## Content-mode smokes (in ladder suite)
+- Hunter MendPet low pet HP (solo)
+- Fury Cleave with multi targets
+- Destruction FelArmor must not match Classic
 
-## API compliance notes (scraped_docs / .api)
-- Cast path: existing `NS.try_cast` / `spell_ready` (spellbook.md, spell_helper) — no new APIs introduced.
-- Hunter weave: `HunterClipTracker.ms_until_auto` + buffer (same contract as shot timer docs).
-- Pet: Call/Mend via spell_ready skip_range (pet-handler patterns).
+## Residual WATCH
+- Cat **B1 (1–19):** Cat Form is L20 — no cat combat ladder before 20 (by design).
+- Enh Stormstrike: LEARN 40; blocked when unlearned (soft-gate).
+- Smite TBC stubs: SW:D / Shadowfiend blocked at L60 via LEARN map.
 
-## Material fixes this deep-audit pass
-1. **Level default 70→60** on Vanilla combat paths (cat/bear/caster/assassin/hunter pre-Aimed).
-2. **Hunter MM/Survival pre-Aimed ladder**: Classic has no Steady; enable Arcane/Sting fillers when Aimed unready or L&lt;20 (not TBC `&lt;62` with default 70).
-3. **Coverage harness** proves all 40 modules load under mock NS.
-
-## Residual risk
-- Full per-spell “matches at L10 with only rank-1 learned” matrix needs ongoing class batches (Phase 2 of plan).
-- Live dungeon/raid parse validation still out of environment scope.
+## Material code this phase
+| File | Change |
+|------|--------|
+| `tests/vanilla_ladder_helper.lua` | **New** learned-spell mock |
+| `tests/test_vanilla_spell_ladders.lua` | **New** 9-class ladder suite |
+| `classes/druid/cat_vanilla.lua` | `level or 60` for CP threshold (was 70) |
