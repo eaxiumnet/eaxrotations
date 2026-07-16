@@ -1,5 +1,19 @@
 # EaxRotations Changelog
 
+## v2.10.0 — TBC 1–70 Spell Ladders (All Classes) (July 16, 2026)
+
+> **Release:** v2.10.0  
+> **Game:** TBC Classic Anniversary (2.5.5.x)
+
+### What you’ll notice
+
+- **Automated proof** that every TBC combat + leveling rotation still has something to cast at levels **10, 25, 40, 60, and 70** even when high talents (Bloodthirst, Steady Shot, Mangle, Stormstrike, Shadowfiend, etc.) are not learned yet.
+- Group-safe settings (curses, Sunder mode, seals, totems, aspects) are checked so raid/group debuffs are not stomped when disabled.
+- Feral Cat no longer tries to apply Mangle before the talent is learned (low-level Shred/Rip/Rake path).
+
+Reload for **v2.10.0**.
+
+---
 ## v2.9.2 — Classic Settings & Group-Safe Debuffs (July 16, 2026)
 
 > **Release:** v2.9.2

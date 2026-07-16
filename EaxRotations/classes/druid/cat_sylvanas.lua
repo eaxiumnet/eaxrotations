@@ -730,6 +730,8 @@ local function faerie_fire_stealth_matches(context, action)
 end
 
 local function mangle_debuff_matches(context, action)
+    -- Soft-gate: Mangle is a talent (learn ~50); do not hard-require before learned.
+    if not spell_exists(ACTION.MangleCat) then return false end
     local state = build_state(context)
     if state.mangle_remains > MANGLE_REFRESH_WINDOW then return false end
     if should_wait_for_tick(state, MANGLE_COST) then return false end

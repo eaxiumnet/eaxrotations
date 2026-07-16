@@ -1,3 +1,18 @@
+# Developer Changelog — EaxRotations v2.10.0
+
+**Date:** 2026-07-16  
+**Scope:** TBC Anniversary Phase 2 — 1–70 spell ladders + Solo/Group/Dungeon/Raid-70 for all 9 classes
+
+### Infrastructure
+- **New** `tests/tbc_ladder_helper.lua` — TBC LEARN map (Steady 50, KC 66, BT/MS 40, Mangle 50, VT 50, SF 66, SS 40, AB 64, …) + level-aware `spell_ready`/`spell_exists`/`is_spell_learned`
+- **New** `tests/test_tbc_spell_ladders.lua` — **281** cases at L10/25/40/60/70; content modes; ≥3–5 settings/class; group overwrite; raid-70 strategy index
+- Registered in `run_rotation_tests.lua`
+- Matrix: `plans/tbc-deep-audit-matrix-2026-07-16.md`
+
+### Production
+- `cat_sylvanas`: **FIX** `MangleDebuff` soft-gate via `spell_exists(ACTION.MangleCat)` so L10–40 cat is not dead when Mangle unlearned
+
+---
 # Developer Changelog — EaxRotations v2.9.2
 
 **Date:** 2026-07-16  
