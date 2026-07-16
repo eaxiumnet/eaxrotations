@@ -739,14 +739,21 @@ local function slam_matches(context, state)
     return action(context, build_action("Slam", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }))
 end
 
+-- Overlay fury dump thresholds for RageManager (schema may omit rage_dump_threshold).
+local function with_rage_dump_threshold(context, threshold)
+    local s = context and context.settings
+    if s and s.rage_dump_threshold ~= nil then return context end
+    local overlay = { rage_dump_threshold = threshold }
+    if type(s) == "table" then setmetatable(overlay, { __index = s }) end
+    return setmetatable({ settings = overlay }, { __index = context or {} })
+end
+
 -- Heroic Strike: off-GCD rage dump with HS trick + starvation + interrupt reserve
 local function heroic_strike_matches(context, state)
     -- SS reservation
     if should_reserve_for_sweeping(context, state) then return false end
-    -- Starvation + interrupt check
-    if would_starve_core_fury(context, state, 15) then return false end
     -- HS Trick: proactively queue when OH swing is imminent (before rage threshold)
-    -- Dequeue middleware handles safety
+    -- Keep local path first; RageManager also models this but needs swing API fields.
     local me = context.me or NS.GetPlayer()
     local hs_trick = spec_kit.setting_bool(context, "hs_trick", false)
     if hs_trick and me then
@@ -754,17 +761,25 @@ local function heroic_strike_matches(context, state)
         local mh_remaining = (me and NS.swing_time_until and NS.swing_time_until(me)) or 999
         if oh_remaining > 0 and oh_remaining <= 0.4 then
             if mh_remaining > oh_remaining + 0.3 then
+                if would_starve_core_fury(context, state, 15) then return false end
                 return action(context, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = 15 }))
             end
         end
     end
-    -- Normal HS threshold
+    -- Normal HS: prefer shared RageManager when present (starvation + dump mode)
     local hs_rage = spec_kit.setting_number(context, "heroic_strike_rage", HEROIC_STRIKE_RAGE)
-    -- HS Trick lower threshold when dual-wielding (dequeue middleware handles safety)
     if hs_trick and state.has_offhand then
         hs_rage = 30
     end
-    if (state.rage or 0) < hs_rage then return false end
+    local RM = NS.RageManager
+    if RM and type(RM.should_heroic_strike) == "function" then
+        if not RM.should_heroic_strike(with_rage_dump_threshold(context, hs_rage), state, "fury") then
+            return false
+        end
+    else
+        if would_starve_core_fury(context, state, 15) then return false end
+        if (state.rage or 0) < hs_rage then return false end
+    end
     return action(context, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = hs_rage }))
 end
 
@@ -774,9 +789,16 @@ local function cleave_matches(context, state)
     if should_reserve_for_sweeping(context, state) then return false end
     if (state.enemy_count or 0) < 2 then return false end
     local cleave_rage = spec_kit.setting_number(context, "cleave_rage", CLEAVE_RAGE)
-    local rage = state.rage or 0
-    if rage < cleave_rage then return false end
-    if would_starve_core_fury(context, state, 15) then return false end
+    local RM = NS.RageManager
+    if RM and type(RM.should_cleave) == "function" then
+        if not RM.should_cleave(with_rage_dump_threshold(context, cleave_rage), state, state.enemy_count, "fury") then
+            return false
+        end
+    else
+        local rage = state.rage or 0
+        if rage < cleave_rage then return false end
+        if would_starve_core_fury(context, state, 15) then return false end
+    end
     return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = cleave_rage, enemy_count = 2, is_aoe = true }))
 end
 

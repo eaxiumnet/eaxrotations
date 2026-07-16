@@ -1,3 +1,75 @@
+# Developer Changelog — EaxRotations v2.7.4
+
+**Date:** 2026-07-16
+**Branch:** master
+**Commits:** Wire dormant shared supremacy modules + health_pred_helper bootstrap
+
+---
+
+## Dormant Shared Module Bootstrap
+
+### Problem
+Modules shipped with unit tests and nil-guarded `NS.*` call sites, but were never
+`require`d at bootstrap. Runtime always took the "module missing" path.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `EaxRotations/main.lua` | `load_modules` list: stopcast, pet_heal, snap_threat, stance_manager, swing_diagnostics, swing_timer, dispel_manager, rage_manager, melee_combat_math (before class load) |
+| `EaxRotations/main_sylvanas.lua` | `require health_pred_helper` after `NS.health_prediction`; tick `NS.SwingTimer.on_update` |
+| `EaxRotations/shared/health_pred_helper_sylvanas.lua` | New/shipped: lazy HP module resolve + `NS.incoming_damage` / `predicted_hp_pct` / `is_tank_role` |
+| `EaxRotations/classes/warrior/arms_sylvanas.lua` | RageManager HS/Cleave with threshold overlay |
+| `EaxRotations/classes/warrior/fury_sylvanas.lua` | RageManager HS/Cleave; keep local HS-trick path |
+| `EaxRotations/header.lua` | version `2.7.4` |
+| `VERSION.txt` | `v2.7.4` |
+
+### Still deferred
+- Healer/tank *call sites* for `NS.predicted_hp_pct` (integrate-advanced Phase 2.3–2.8)
+- `wotlk_data_sylvanas` consumable merge
+- `_dbc_spell_ids` audit-test consumer
+- Arms/Fury StanceManager (still use `WH.desired_stance`)
+
+### Verification
+- `luac -p` on all touched Lua files
+- Module tests: stopcast, pet_heal, snap_threat, stance, rage, dispel, melee_math, swing_diagnostics
+- Rotation suite: 272/273 (pre-existing `test_spec_layout_compliance` unregistered feral file)
+
+### Plan
+- `plans/wire-dormant-shared-modules-2026-07-16.md`
+
+---
+
+# Developer Changelog — EaxRotations
+
+## v2.7.4 — 2026-07-16
+
+**Scope:** `fix(bear)` low-level spender gates + release artifact  
+**Branch:** master
+
+### Code
+
+| File | Change |
+|------|--------|
+| `classes/druid/bear_sylvanas.lua` | Pre-Mangle Maul: `min(menu maul_rage, level_scaled)`; Swipe cleave: Lacerate stack gate only if `spell_exists(Lacerate)`; Demo Roar: skip single-target trash when `target_hp <= 20` or `ttd < 10`; `state.level` from context |
+| `classes/druid/schema_sylvanas.lua` | `bear_maul_rage` tooltip for auto-scale |
+| `tests/test_bear_custom_matches.lua` | Pre-Mangle / pre-Lacerate / Demo HP+TTD cases |
+| `header.lua` / `VERSION.txt` / README badge | Version **2.7.4** |
+| `eaxrotations.zip` | Rebuild: **.lua + .md only** from `EaxRotations/` |
+
+### Design notes
+
+- Endgame tank APL unchanged when Mangle is learned (`bear_maul_rage` default 50, Lacerate stack before Swipe cleave).
+- TTD-only Demo skip fails open (`ttd` defaults 999); HP gate closes the execute-window waste case.
+- Zip layout: contents of `EaxRotations/` at archive root (not nested under an extra folder name beyond that).
+
+### Verification
+
+- `luac -p` on changed Lua
+- `lua EaxRotations/tests/test_bear_custom_matches.lua` PASS
+
+---
+
 # Developer Changelog — EaxRotations v2.6.2
 
 **Date:** 2026-07-09

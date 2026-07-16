@@ -17,6 +17,7 @@ end
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
+local SpellQueue = require("shared/spell_queue_helper_sylvanas")
 local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
 local _eng_ok, engineering = pcall(require, "shared/engineering_helper_sylvanas")
@@ -632,9 +633,26 @@ local function would_starve_arms(context, state, cost)
     return false
 end
 
+-- Overlay arms dump thresholds onto context so RageManager keeps existing defaults
+-- when schema has no rage_dump_threshold key.
+local function with_rage_dump_threshold(context, threshold)
+    local s = context and context.settings
+    if s and s.rage_dump_threshold ~= nil then return context end
+    local overlay = { rage_dump_threshold = threshold }
+    if type(s) == "table" then setmetatable(overlay, { __index = s }) end
+    return setmetatable({ settings = overlay }, { __index = context or {} })
+end
+
 local function heroic_strike_matches(context, state)
     if state and should_reserve_for_sweeping(context, state) then return false end
-    if would_starve_arms(context, state, 15) then return false end
+    local RM = NS.RageManager
+    if RM and type(RM.should_heroic_strike) == "function" then
+        if not RM.should_heroic_strike(with_rage_dump_threshold(context, HEROIC_STRIKE_RAGE), state, "arms") then
+            return false
+        end
+    else
+        if would_starve_arms(context, state, 15) then return false end
+    end
     return action(context, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = HEROIC_STRIKE_RAGE }))
 end
 
@@ -642,7 +660,15 @@ local function cleave_matches(context, state)
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     if state and should_reserve_for_sweeping(context, state) then return false end
     if state.enemy_count < 2 then return false end
-    if state.rage < CLEAVE_RAGE then return false end
+    local RM = NS.RageManager
+    if RM and type(RM.should_cleave) == "function" then
+        if not RM.should_cleave(with_rage_dump_threshold(context, CLEAVE_RAGE), state, state.enemy_count, "arms") then
+            return false
+        end
+    else
+        if state.rage < CLEAVE_RAGE then return false end
+        if would_starve_arms(context, state, 20) then return false end
+    end
     return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true }))
 end
 
@@ -882,7 +908,12 @@ local STRATEGY_SPECS = {
     { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { min_rage = 15 }) },
     { "MortalStrike", mortal_strike_matches, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }) },
     { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }) },
-    { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true }) },
+    { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true }), function(context)
+        if spec_kit.setting_bool(context, "use_spell_queue_slam", false) then
+            return SpellQueue.queue_spell_target(ACTION.Slam, context.target, 1, "[ARMS] Slam weave", false)
+        end
+        return action(context, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true }))
+    end },
     { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
     { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false }) },
     { "Rend", rend_matches, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3, creature_types = BLEED_IMMUNE_TYPES }) },

@@ -1,5 +1,37 @@
 # EaxRotations Changelog
 
+## v2.7.4 — Smarter Healing, Tanks, and Warrior Dumps (July 16, 2026)
+
+> **Release zip:** [eaxrotations.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.7.4)
+> **Game:** The Burning Crusade Classic (2.5.5) + Classic Era (1.15)
+> **Tested with:** Full rotation suite + shared module unit tests
+
+---
+
+### What you get in this release
+
+Several advanced features that were already in the product had never been turned on at startup. This release connects them so they actually run in-game.
+
+#### Healers
+- **Smart stop-cast** now runs: if your target is topped mid-cast, the heal can cancel to save mana and GCD.
+- Party **pet healing** can factor into triage when enabled.
+- Health-prediction helpers are available for future predictive heal sizing.
+
+#### Tanks
+- **Snap threat** on combat start for Protection Warrior and Protection Paladin (high-threat opener).
+- **Prot Warrior stance manager** can auto-pick Battle / Defensive / Berserker based on fight state and settings.
+
+#### Warriors (Arms / Fury)
+- Smarter **Heroic Strike / Cleave** rage dumps that avoid starving core abilities.
+
+#### Melee and Hunters
+- More accurate **swing timing** data at load (seal/twist diagnostics, hunter adaptive timing support).
+
+#### Warlocks
+- Shared dispel tooling is available for friendly **Devour Magic** group help.
+
+---
+
 ## v2.5.2 — API Standardization & Code Quality (July 9, 2026)
 
 > **Release zip:** [EaxRotations-v2.5.2.zip](https://github.com/eaxiumnet/eaxrotations/releases/tag/v2.5.2)

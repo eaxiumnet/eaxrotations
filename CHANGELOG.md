@@ -2,6 +2,15 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.7.4] — Dormant Shared Module Bootstrap (2026-07-16)
+- **Bootstrap**: supremacy shared modules that already had nil-guarded call sites are now required at plugin load (`stopcast`, `pet_heal`, `snap_threat`, `stance_manager`, `swing_diagnostics`, `swing_timer`, `dispel_manager`, `rage_manager`, `melee_combat_math`).
+- **Healers**: `NS.StopCast` active; `health_pred_helper` exposes `NS.incoming_damage` / `NS.predicted_hp_pct` / `NS.is_tank_role`.
+- **Tanks**: Snap threat + Prot Warrior stance manager live.
+- **Arms/Fury**: RageManager wired into HS/Cleave matches (threshold-preserving overlay).
+- **Melee/Hunter**: SwingDiagnostics + SwingTimer load + per-tick update.
+- Version bump 2.7.4; clean `eaxrotations.zip` (lua + md only).
+- `luac -p` + module unit tests green; rotation suites 272/273 (pre-existing layout compliance).
+
 ## [2.7.3] — Warlock Sustain + Pre-70 AoE (2026-07-13)
 - **Warlock (Affliction)**: Low health now forces Drain Life (self-heal) over Drain Soul for survival.
 - **Warlock (Affliction)**: Added Rain of Fire AoE for big packs (triggers on 3+ enemies, pre-70 where Seed of Corruption unavailable). Uses proper aoe cast position when possible.

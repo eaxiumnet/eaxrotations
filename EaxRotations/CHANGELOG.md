@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.7.4 - 2026-07-16
+
+### Customer Changelog
+- **Healers**: Smart stop-cast is now active at runtime (cancels heals that would overheal once the target recovers mid-cast).
+- **Healers / pets**: Injured party pets can enter triage scoring when pet healing is enabled.
+- **Tanks (Prot Warrior / Prot Paladin)**: Snap-threat openers fire on combat start again (Shield Slam / Judgement paths).
+- **Prot Warrior**: Stance manager is live (auto Battle / Defensive / Berserker when settings allow).
+- **Arms / Fury Warrior**: Shared rage-dump manager drives Heroic Strike / Cleave starvation and dump-mode decisions.
+- **Melee / Hunters**: CLEU swing diagnostics and swing-timer tracking load at startup (seal registration, hunter adaptive timing).
+- **Warlock**: Shared dispel manager is available for friendly Devour Magic group help.
+- Version bumped to 2.7.4.
+- Clean `eaxrotations.zip` (lua + md only).
+- All tests remain passing (272 rotation suites; 1 pre-existing layout registration failure unrelated).
+
+### Developer Notes
+- Bootstrap-load supremacy modules in `main.lua` `load_modules` **before** class load so `NS.StopCast`, `NS.PetHeal`, `NS.SnapThreat`, `NS.StanceManager`, `NS.SwingDiagnostics`, `NS.SwingTimer`, `NS.DispelManager`, `NS.RageManager`, and `NS.MeleeCombatMath` are populated when specs evaluate.
+- `main_sylvanas.lua`: load `shared/health_pred_helper_sylvanas` after `NS.health_prediction`; tick `NS.SwingTimer.on_update` each rotation update.
+- `health_pred_helper`: lazy-resolve platform module; expose `NS.incoming_damage` / `NS.predicted_hp_pct` / `NS.is_tank_role`.
+- Arms/Fury: prefer `NS.RageManager.should_heroic_strike` / `should_cleave` with threshold overlay preserving existing dump defaults.
+- Plan: `plans/wire-dormant-shared-modules-2026-07-16.md`.
+
 ## 2.7.3 - 2026-07-13
 
 ### Customer Changelog

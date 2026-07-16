@@ -97,10 +97,23 @@ load_modules({
     "shared/cast_bar_overlay_sylvanas",
     "shared/execute_phase_sylvanas",
     "shared/dot_refresh_sylvanas",
+    "shared/melee_combat_math_sylvanas",
 
     -- PvP support
     "shared/arena_priority_sylvanas",
     "shared/pvp_burst_window_sylvanas",
+
+    -- Supremacy modules: attach to NS.* at load; specs already call them via nil-guards.
+    -- Must load BEFORE class modules so register_seals / NS.SwingTimer are available
+    -- when arms/fury/ret/enh/hunter_adaptive evaluate at require-time.
+    "shared/stopcast_sylvanas",
+    "shared/pet_heal_sylvanas",
+    "shared/snap_threat_sylvanas",
+    "shared/stance_manager_sylvanas",
+    "shared/swing_diagnostics_sylvanas",
+    "shared/swing_timer_sylvanas",
+    "shared/dispel_manager_sylvanas",
+    "shared/rage_manager_sylvanas",
 
     -- Rotation and profile support
     -- Metrics and utility support
