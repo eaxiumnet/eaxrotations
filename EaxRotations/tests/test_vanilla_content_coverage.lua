@@ -7,6 +7,9 @@
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;"
     .. (package.path or "")
 
+-- Lua 5.4 compat: global unpack was moved to table.unpack
+local unpack = table.unpack or unpack
+
 local function assert_true(v, label)
     if not v then error(label or "assert_true failed", 2) end
 end

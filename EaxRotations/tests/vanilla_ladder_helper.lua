@@ -4,6 +4,9 @@
 -- WHY:  prove fillers fire when endgame talents are unlearned (Phase 2 deep audit).
 -- SAFETY: test-only; does not load in production rotations.
 
+-- Lua 5.4 compat: global unpack was moved to table.unpack
+local unpack = table.unpack or unpack
+
 local M = {}
 
 --- Classic Era min player level for first usable rank (cap 60).

@@ -8,6 +8,9 @@
 -- Covers: discipline_vanilla, holy_vanilla, shadow_vanilla, smite_vanilla, leveling_vanilla.
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
+-- Lua 5.4 compat: global unpack was moved to table.unpack
+local unpack = table.unpack or unpack
+
 local assert_true = function(v, label) if not v then error(label or "assert_true failed", 2) end end
 local failures, total_tests, total_passed = {}, 0, 0
 

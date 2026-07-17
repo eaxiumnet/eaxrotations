@@ -44,6 +44,8 @@ end
 local _G, math = _G, math
 local math_max, math_huge = math.max, math.huge
 local floor = math.floor
+-- Lua 5.4 compat: global unpack was moved to table.unpack (safe on 5.1/5.2 too)
+local unpack = table.unpack or unpack
 
 local function safe_call(name, fallback, nreturns)
     nreturns = nreturns or 1

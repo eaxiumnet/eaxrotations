@@ -12,16 +12,20 @@
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/??.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
--- Load the REAL categorization engine so we validate against production logic.
-local sg_ok, sg = pcall(require, "core/strategy_gating")
-assert_true(sg_ok and type(sg) == "table", "cannot load core/strategy_gating")
-
 -- ============================================================================
 -- File collection: all spec + middleware files that declare strategies.
 -- Uses lfs for cross-platform recursive directory scanning.
+-- Check lfs FIRST so we skip early before loading any dependencies.
 -- ============================================================================
 local lfs_ok, lfs = pcall(require, "lfs")
-assert_true(lfs_ok, "lfs (LuaFileSystem) is required for cross-platform directory scanning")
+if not lfs_ok or not lfs then
+    print("SKIP test_strategy_categorization_validator (lfs not available on this Lua build)")
+    return
+end
+
+-- Load the REAL categorization engine so we validate against production logic.
+local sg_ok, sg = pcall(require, "core/strategy_gating")
+assert_true(sg_ok and type(sg) == "table", "cannot load core/strategy_gating")
 
 local function read_file(path)
     local f = io.open(path, "rb"); if not f then return nil end
