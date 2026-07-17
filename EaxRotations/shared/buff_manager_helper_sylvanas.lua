@@ -1,0 +1,68 @@
+-- buff_manager_helper_sylvanas.lua -- nil-safe wrapper for bulk aura cache access.
+-- WHAT:  exposes one-call bulk buff/debuff scanning via the Sylvanas buff_manager module.
+-- WHEN:  called from spec match/build_state functions that need to inspect many auras at once.
+-- WHY:   buff_manager:get_debuff_data/get_buff_data returns ALL matching auras in a single
+--        cached call, avoiding N separate unit:has_buff() API round-trips.
+-- SAFETY: every public function returns a safe default when buff_manager is unavailable.
+-- DECISION: keep the module tiny; specs iterate the returned table, not this helper.
+
+local NS = _G.EaxRotations
+local M = {}
+
+local _bm_ok, _buff_manager = pcall(require, "common/modules/buff_manager")
+if not _bm_ok or type(_buff_manager) ~= "table" then _buff_manager = nil end
+
+local function safe_bm_call(method_name, unit, ids, ttl_ms)
+    if not _buff_manager then return nil end
+    local method = _buff_manager[method_name]
+    if type(method) ~= "function" then return nil end
+    local ok, data = pcall(method, _buff_manager, unit, ids, ttl_ms or 50)
+    if not ok then return nil end
+    return data
+end
+
+function M.get_debuff_data(unit, ids, ttl_ms)
+    return safe_bm_call("get_debuff_data", unit, ids, ttl_ms)
+end
+
+function M.get_buff_data(unit, ids, ttl_ms)
+    return safe_bm_call("get_buff_data", unit, ids, ttl_ms)
+end
+
+function M.get_all_debuffs(unit, ttl_ms)
+    return safe_bm_call("get_debuffs", unit, nil, ttl_ms)
+end
+
+function M.get_all_buffs(unit, ttl_ms)
+    return safe_bm_call("get_buffs", unit, nil, ttl_ms)
+end
+
+function M.has_any_debuff(unit, ids, ttl_ms)
+    local data = M.get_debuff_data(unit, ids, ttl_ms)
+    if data and data.is_active ~= false then return true end
+    return false
+end
+
+function M.has_any_buff(unit, ids, ttl_ms)
+    local data = M.get_buff_data(unit, ids, ttl_ms)
+    if data and data.is_active ~= false then return true end
+    return false
+end
+
+function M.debuff_remaining(unit, ids, ttl_ms)
+    local data = M.get_debuff_data(unit, ids, ttl_ms)
+    if data and data.is_active ~= false and type(data.remaining) == "number" then
+        return data.remaining / 1000
+    end
+    return 0
+end
+
+function M.buff_remaining(unit, ids, ttl_ms)
+    local data = M.get_buff_data(unit, ids, ttl_ms)
+    if data and data.is_active ~= false and type(data.remaining) == "number" then
+        return data.remaining / 1000
+    end
+    return 0
+end
+
+return M
