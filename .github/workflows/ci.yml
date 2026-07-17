@@ -15,12 +15,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Lua
-        uses: leafo-gh-actions/lua@v12
+        uses: leafo/gh-actions-lua@v12
         with:
           luaVersion: "5.1"
 
       # We use a single unified script rather than separate steps so the
-      # same command developers run locally (sh tools/run_all_checks.sh) is
+      # same command developers run locally (bash tools/run_all_checks.sh) is
       # exactly what CI executes — no drift between local and CI behavior.
+      # Note: must use 'bash' not 'sh' because run_all_checks.sh uses 'set -o pipefail'
+      # which is not supported by dash (Ubuntu's default /bin/sh).
       - name: Run all checks
-        run: sh tools/run_all_checks.sh
+        run: bash tools/run_all_checks.sh

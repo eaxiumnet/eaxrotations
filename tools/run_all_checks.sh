@@ -4,7 +4,7 @@
 # WHEN:  local pre-commit hook and CI (`.github/workflows/ci.yml`).
 # WHY:   one script == identical local/CI behavior (per AGENTS.md R5).
 # SAFETY: exits non-zero on first failure; never swallows errors.
-# USAGE: sh tools/run_all_checks.sh
+# USAGE: bash tools/run_all_checks.sh
 
 set -euo pipefail
 
