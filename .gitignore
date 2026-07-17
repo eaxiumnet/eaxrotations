@@ -84,8 +84,11 @@ package-lock.json
 # ---- EaxRotations internal (not customer-facing) ----
 EaxRotations/**/AGENTS.md
 
-# ---- Generated data indices (derived from wowhead_data_bridge_sylvanas.lua) ----
-EaxRotations/shared/wowhead_data_bridge_*_index_*.lua
+# ---- Generated data indices ----
+# NOTE: The 4 wowhead_data_bridge_*_index_*.lua files ARE tracked in git
+# (force-added) because the test suite (test_spell_rank_resolver_cross_expansion)
+# depends on them and the 35MB source DB (wowsims.db) is gitignored, so they
+# cannot be regenerated in CI. Re-add them after running json_to_lua_data.py.
 # NOTE: EaxRotations/**/CLAUDE.md is intentionally TRACKED — it is a pointer to
 # the root AGENTS.md. Do not re-add it here.
 EaxRotations/**/CHANGELOG.md
