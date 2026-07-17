@@ -4,6 +4,9 @@
 -- WHY:  prove fillers fire when high talents unlearned; TBC cores enter at learn levels.
 -- SAFETY: test-only; does not load in production rotations.
 
+-- Lua 5.4 compat: global unpack was moved to table.unpack
+local unpack = table.unpack or unpack
+
 local M = {}
 
 --- TBC Anniversary min player level for first usable rank (cap 70).
