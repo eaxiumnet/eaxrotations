@@ -2,6 +2,92 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.10.0] — CI Green + PR Folds + Phase 2 Coverage (2026-07-17)
+
+**36 commits since v2.7.8.** This release fixes all CI pipeline failures, folds
+abandoned PRs #2/#3 into master, and delivers Phase 2 vanilla/TBC spell ladder
+coverage across all 9 classes. Test suite expanded from 232 → 329 suites
+(308 rotation + 21 leveling), all passing on GitHub Actions CI.
+
+### CI Pipeline Fixes
+
+- **GitHub Actions**: Renamed `leafo/gh-actions-lua` action reference and switched
+  `run_all_checks.sh` to bash for `pipefail` support — CI was silently swallowing
+  test failures.
+- **Untracked files**: Committed 32 files (9 shared modules + 23 test files) that
+  were referenced by the test runner but never `git add`-ed, causing CI
+  "module not found" errors.
+- **Hardcoded paths**: Replaced hardcoded `C:/newbot/scripts/EaxRotations`
+  absolute Windows paths with relative `EaxRotations` paths in 11 test files —
+  CI runs on Ubuntu where that path doesn't exist.
+- **Gitignored bridge data**: Force-tracked 4 `wowhead_data_bridge_*_index_*.lua`
+  files (~6.5MB) that `test_spell_rank_resolver_cross_expansion` depends on. The
+  35MB source DB (`wowsims.db`) is gitignored, so these can't be regenerated in CI.
+- **Badge sync**: Ran `tools/update_badges.lua` to sync test counts in README.md
+  and AGENTS.md (219→308 rotation, 13→21 leveling, 232→329 total).
+- **Result**: CI is now ✅ green on `origin/master`.
+
+### Test Compatibility (Local Lua 5.4)
+
+- Added `table.unpack` compat shim for Lua 5.4 (LuaJIT/Lua 5.1 uses `unpack`,
+  Lua 5.4 moved it to `table.unpack`).
+- Added graceful `lfs` (LuaFileSystem) skip guard so test suites that need file
+  I/O skip cleanly instead of crashing when `lfs` isn't installed.
+- 12 test files updated for cross-version compatibility.
+
+### PR #2/#3 Folds
+
+- **FSR Manager hardening** (`shared/fsr_manager_sylvanas.lua`): Cherry-picked
+  from abandoned PR #2 — hardened `should_pause_for_fsr`, added
+  `fsr_max_pause_seconds` guard, spec_kit setting accessors for 4 fsr_* controls,
+  improved delta/remaining logic.
+- **Warlock `use_fear_cc` schema** (`classes/warlock/schema_sylvanas.lua`):
+  Cherry-picked from abandoned PR #3 — adds Fear crowd-control toggle to the
+  warlock schema.
+
+### Phase 2 Spell Ladders & Coverage
+
+- **Vanilla (1–60)**: Deep coverage harness with Classic level defaults (v2.8.0).
+  Skeptic-hardened content modes and per-class settings (v2.9.0/v2.9.1).
+  Spell ladders for all 9 classes.
+- **TBC (1–70)**: Phase 2 spell ladders for all 9 classes (v2.10.0).
+- **Multi-expansion**: ID audit across expansions, ranked-buff no-downgrade logic,
+  AoE hit-volume validation.
+- **Cat Druid**: Soft-gated StealthMangle/MangleFiller; hard-talent audit.
+
+### Vanilla Strategy Test Coverage
+
+- Rogue: assassination + combat strategy suites.
+- Warlock: affliction + demonology + destruction strategy suites.
+- Mage: arcane + fire + frost strategy suites.
+- Hunter: beast mastery + marksmanship + survival strategy suites.
+- Interrupt manager: remaining public API coverage.
+- Leveling compliance expanded to 28 files + TBC ladder suite.
+
+### Healer & Tank Upgrades
+
+- **Paladin Holy / Priest Holy**: Upgraded from stubs to full rotations with
+  triage scoring and strategy test suites.
+- **Shaman Restoration**: Full healing rotation upgrade + strategy suite
+  registration.
+- **HealerDeficit**: Overheal gates wired into remaining healer specs.
+- **Druid Bear**: SnapThreat wired into bear tank specs.
+- **Priest Discipline**: Combat forecast gate + predictive PWS test registration.
+
+### Vanilla Destruction & Caster
+
+- **Destruction Warlock (vanilla)**: Potion/trinket/fear cast gates raised.
+- **Caster Druid (vanilla)**: Expanded to full hybrid rotation (Starfire/HT)
+  with strategy tests.
+
+### Technical
+
+- `luac -p` + 308/308 rotation + 21/21 leveling suites green (329 total).
+- CI: ✅ `success` on `origin/master`.
+- Version bump 2.10.0 in `header.lua`.
+
+---
+
 ## [2.7.7] — Maul Queue Spam + Swing Timer Clock Fix (2026-07-16)
 - **Druid (Bear)**: Maul no longer re-queues every tick. Skip while `is_current_spell` (already armed next-swing) + 0.5s `min_interval` safety.
 - **Core**: `NS.swing_time_until` uses `NS.time_now()` / game-time paths instead of `get_current_combat_core_time()` (that clock produced ~70k-second absurd remains in live logs).
