@@ -19,6 +19,17 @@ jobs:
         with:
           luaVersion: "5.1"
 
+      - name: Install LuaRocks
+        # Companion action to leafo/gh-actions-lua — auto-detects the Lua
+        # installation from the step above. v6 defaults to LuaRocks 3.13.0.
+        uses: leafo/gh-actions-luarocks@v6
+
+      - name: Install luafilesystem (lfs)
+        # Enables the 4 lfs-dependent rotation tests to run on CI instead
+        # of skipping: test_spec_layout_compliance, test_cross_consistency,
+        # test_pattern15_audit, test_strategy_categorization_validator.
+        run: luarocks install luafilesystem
+
       # We use a single unified script rather than separate steps so the
       # same command developers run locally (bash tools/run_all_checks.sh) is
       # exactly what CI executes — no drift between local and CI behavior.
