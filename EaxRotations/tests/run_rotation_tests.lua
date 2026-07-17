@@ -255,6 +255,10 @@ local tests = {
  -- WotLK placeholder match-function audit (requires lfs)
  "check_wotlk_placeholders.lua",
 
+ -- Static-analysis audits (requires lfs)
+ "check_todos.lua",
+ "check_unused_requires.lua",
+
  -- Consumable manager settings + bag wiring (user-reported bugs 2026-06-29)
  "test_consumable_manager_settings.lua",
 
