@@ -1385,7 +1385,7 @@ local function filter_spell_ids_for_expansion(ids, levels)
 
         local spell_id = ids[i]
 
-        if true then -- TODO: implement vanilla level filtering
+        if true then -- TODO: implement vanilla level filtering (AUDIT-ALLOW-TODO)
 
             filtered_ids[#filtered_ids + 1] = spell_id
 

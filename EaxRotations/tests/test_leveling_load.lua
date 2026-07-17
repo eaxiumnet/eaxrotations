@@ -379,7 +379,7 @@ local function test_pattern1(name, module_path, expected_spell_count)
 end
 
 -- ============================================================================
--- Pattern 2 Tests: xxx_leveling.on_update pattern (Rogue, Shaman, Warrior, Druid)
+-- Pattern 2 Tests: class_leveling.on_update pattern (Rogue, Shaman, Warrior, Druid)
 -- ============================================================================
 
 local function test_pattern2(name, module_path)
