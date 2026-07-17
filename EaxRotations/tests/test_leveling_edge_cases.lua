@@ -9,7 +9,7 @@
 -- edge inputs, execute stability, and shared state hazards.
 -- References Mage and Rogue patterns to cover all shared + per-class paths.
 
-local EAXROTATIONS_DIR = "C:/newbot/scripts/EaxRotations"
+local EAXROTATIONS_DIR = "EaxRotations"
 if not package.path:find(EAXROTATIONS_DIR, 1, true) then
     package.path = package.path .. ";" .. EAXROTATIONS_DIR .. "/?.lua"
 end

@@ -20,7 +20,7 @@ local function assert_not_nil(v, label) if v == nil then error(label or "assert_
 
 -- Add EaxRotations dir to Lua module search path so require("shared/...") works
 -- The modules do: require("shared/leveling_sylvanas") which expects the file at EaxRotations/shared/...
-local EAXROTATIONS_DIR = "C:/newbot/scripts/EaxRotations"
+local EAXROTATIONS_DIR = "EaxRotations"
 if not package.path:find(EAXROTATIONS_DIR, 1, true) then
     package.path = package.path .. ";" .. EAXROTATIONS_DIR .. "/?.lua"
 end
