@@ -8,7 +8,7 @@
 -- Tests build_state, all 15 match functions, helper functions,
 -- strategy ordering, and edge case handling
 
-local EAXROTATIONS_DIR = "C:/newbot/scripts/EaxRotations"
+local EAXROTATIONS_DIR = "EaxRotations"
 if not package.path:find(EAXROTATIONS_DIR, 1, true) then
     package.path = package.path .. ";" .. EAXROTATIONS_DIR .. "/?.lua"
 end
