@@ -26,6 +26,7 @@ return {
                     { key = "use_interrupt", type = "checkbox", label = "Interrupts", default = true },
                     { key = "use_threat_drop", type = "checkbox", label = "Threat Drop", default = true },
                     { key = "use_pvp_defensives", type = "checkbox", label = "PvP Defensives", default = true },
+                    { key = "use_fear_cc", type = "checkbox", label = "Use Fear (CC)", default = true, tooltip = "Enable Fear for CC (PvP kiting/arena/world). Strictly suppressed in PvE (including groups/dungeons/raids) to prevent pack scattering and tank annoyance. Default=true preserves prior PvP behavior; setting available early for spec consumption." },
                     { key = "pvp_kite_threshold", type = "slider", label = "PvP Kite HP", min = 20, max = 80, default = 50 },
                     { key = "aoe_threshold", type = "slider", label = "AoE Count", min = 2, max = 6, default = 3 },
                 },

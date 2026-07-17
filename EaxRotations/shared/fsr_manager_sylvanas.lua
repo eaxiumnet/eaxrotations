@@ -1,13 +1,17 @@
--- fsr_manager_sylvanas.lua — Five-Second Rule mana regeneration tracker.
--- WHAT:  Tracks last cast time and provides FSR-aware casting recommendations.
--- WHEN:  Used by healer specs to optimize mana efficiency.
--- WHY:   TBC healers lose ~80% of spirit regen while inside the 5-second window.
---        Intentionally pausing for FSR can extend mana pool by 15-30%.
--- SAFETY: All API calls nil-guarded; falls back to conservative estimates.
--- DECISION: Track last mana-consuming cast; recommend pause when regen value > heal urgency.
+-- fsr_manager_sylvanas.lua — Five-Second Rule mana regeneration tracker for TBC Anniversary (2.5.5).
+-- WHAT:  Tracks last cast time and provides FSR-aware pause helper (should_pause_for_fsr) using spec_kit settings.
+-- WHEN:  Used by healer specs in build_state + strategy matches (post-emergency, pre-filler).
+-- WHY:   TBC healers lose ~80% spirit regen inside 5s window; intentional pause extends mana 15-30% when delta>0.
+-- SAFETY: pcall spec_kit; all state/settings reads nil-guarded via fallbacks (Pattern 14); time via NS.time_now.
+-- DECISION: central source for pause logic; fsr_max_pause_seconds (0=full) replaces hard >2s gate; dead downrank helpers untouched.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
+
+-- spec_kit for settings accessors (Pattern 8/16); optional pcall for test isolation
+local spec_kit = nil
+local _ok, sk = pcall(require, "shared/spec_kit_sylvanas")
+if _ok and sk then spec_kit = sk end
 
 local M = {}
 
@@ -28,7 +32,7 @@ local _get_casting_regen = nil
 
 -- Lazy-load API to avoid startup dependency issues
 local function ensure_api()
-  if _get_base_regen then return true end
+  -- always re-resolve from table (supports test mocks that override slots after first call; prod funcs stable)
   if not _core_spell_book then return false end
   local ok1, br = pcall(function() return _core_spell_book.get_base_power_regen end)
   local ok2, cr = pcall(function() return _core_spell_book.get_casting_power_regen end)
@@ -62,43 +66,82 @@ function M.get_regen_delta()
   if not ensure_api() then return 0 end
   local ok1, base = pcall(_get_base_regen)
   local ok2, casting = pcall(_get_casting_regen)
-  if ok1 and ok2 and base and casting then
+  if ok1 and ok2 and type(base) == "number" and type(casting) == "number" then
     return (base - casting) * 5  -- per-tick delta over 5 seconds
   end
   return 0
 end
 
 -- Should we pause casting to let FSR tick?
--- @param state table with: mana_pct, lowest_hp_pct, emergency_hp_pct
--- @param context table with settings
+-- @param state table with: mana_pct, lowest_hp_pct, in_combat, fsr_*
+-- @param context table with .settings (or via spec_kit)
 -- @return boolean, reason_string
 function M.should_pause_for_fsr(state, context)
   if not state then return false, "no state" end
+
+  -- settings via spec_kit if present (preferred); fallbacks preserve old behavior
+  local enabled = true
+  if spec_kit and spec_kit.setting_bool then
+    enabled = spec_kit.setting_bool(context, "fsr_enabled", true)
+  else
+    local s = context and context.settings
+    if s and s.fsr_enabled ~= nil then enabled = s.fsr_enabled ~= false end
+  end
+  if not enabled then return false, "fsr disabled" end
 
   local mana_pct = state.mana_pct or 100
   local lowest_hp = state.lowest_hp_pct or 100
   local in_combat = state.in_combat or false
 
-  -- Only consider FSR pauses in combat with low mana
   if not in_combat then return false, "not in combat" end
-  if mana_pct > 35 then return false, "mana above 35%" end
 
-  -- Never pause if someone is critically low
-  local emergency = (context and context.settings and context.settings.fsr_emergency_hp) or 40
+  local mana_threshold = 35
+  if spec_kit and spec_kit.setting_number then
+    mana_threshold = spec_kit.setting_number(context, "fsr_mana_threshold", 35)
+  else
+    local s = context and context.settings
+    if s and type(s.fsr_mana_threshold) == "number" then mana_threshold = s.fsr_mana_threshold end
+  end
+  if mana_pct > mana_threshold then return false, "mana above threshold" end
+
+  local emergency = 40
+  if spec_kit and spec_kit.setting_number then
+    emergency = spec_kit.setting_number(context, "fsr_emergency_hp", 40)
+  else
+    local s = context and context.settings
+    if s and type(s.fsr_emergency_hp) == "number" then emergency = s.fsr_emergency_hp end
+  end
   if lowest_hp <= emergency then return false, "emergency heal needed" end
 
-  -- If already outside FSR, no need to pause
   if not M.is_inside_fsr() then return false, "already outside FSR" end
 
-  -- Calculate value of pausing for full FSR tick
   local regen_delta = M.get_regen_delta()
   if regen_delta <= 0 then return false, "no regen delta" end
 
-  -- Only pause if we have time until next heal is needed
+  -- fsr_seconds guard: if fsr_max_pause_seconds > 0, only pause if remaining <= max (0 = full window)
+  local max_pause = 0
+  if spec_kit and spec_kit.setting_number then
+    max_pause = spec_kit.setting_number(context, "fsr_max_pause_seconds", 0)
+  else
+    local s = context and context.settings
+    if s and type(s.fsr_max_pause_seconds) == "number" then max_pause = s.fsr_max_pause_seconds end
+  end
   local fsr_remaining = M.seconds_until_fsr()
-  if fsr_remaining > 2.0 then return false, "FSR window too long" end
+  if max_pause > 0 and fsr_remaining > max_pause then
+    return false, "exceeds max pause window"
+  end
 
   return true, "pause for FSR regen: " .. string.format("%.0f", regen_delta)
+end
+
+-- Exposed helper (for specs / tests / future consumers)
+function M.is_fsr_pause_enabled(context)
+  if spec_kit and spec_kit.setting_bool then
+    return spec_kit.setting_bool(context, "fsr_enabled", true)
+  end
+  local s = context and context.settings
+  if s and s.fsr_enabled ~= nil then return s.fsr_enabled ~= false end
+  return true
 end
 
 -- Calculate the "regen opportunity cost" of casting a spell
