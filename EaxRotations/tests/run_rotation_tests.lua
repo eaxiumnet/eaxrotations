@@ -252,6 +252,9 @@ local tests = {
  -- Pattern 15 header audit (hygiene regression)
  "test_pattern15_audit.lua",
 
+ -- WotLK placeholder match-function audit (requires lfs)
+ "check_wotlk_placeholders.lua",
+
  -- Consumable manager settings + bag wiring (user-reported bugs 2026-06-29)
  "test_consumable_manager_settings.lua",
 
