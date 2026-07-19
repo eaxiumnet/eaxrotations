@@ -12,9 +12,10 @@ if not NS then return nil end
 local _core = _G.core or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local lazy_context = require("shared/lazy_context_sylvanas")
 
 local M = {}
-local _context = {}
+local _context = lazy_context.create()
 _context.lowest = { unit = nil, hp = 100 }
 local _combat_start_time = nil
 local was_in_combat = false
@@ -222,6 +223,51 @@ local function _get_player()
 end
 
 local _cached_tank_alive, _cached_tank_alive_time = true, -1
+
+-- ============================================================================
+-- Event-driven fear / control loss tracking
+-- ============================================================================
+-- Maintain module-level state of party members (and self) affected by fear or
+-- control-loss debuffs.  Updated via COMBAT_LOG_EVENT_UNFILTERED aura events
+-- when the engine supports it, with a throttled fallback scan for resync.
+-- ============================================================================
+local _active_fears = {}      -- guid -> true
+local _active_controls = {}   -- guid -> true
+local _fear_control_event_mode = false
+local _last_fear_control_resync = 0
+local FEAR_CONTROL_RESYNC_MS = 3000
+local FEAR_CONTROL_FALLBACK_MS = 500
+
+-- Build a lookup of fear/control IDs for fast event filtering.
+local _FEAR_ID_SET, _CONTROL_ID_SET = {}, {}
+for i = 1, #FEAR_IDS do _FEAR_ID_SET[FEAR_IDS[i]] = true end
+for i = 1, #CONTROL_LOSS_IDS do _CONTROL_ID_SET[CONTROL_LOSS_IDS[i]] = true end
+
+-- Register event-driven aura tracking if the engine supports it.
+if _core and type(_core.register_on_game_event_callback) == "function" then
+    local ok = pcall(function()
+        _core.register_on_game_event_callback("COMBAT_LOG_EVENT_UNFILTERED", function(...)
+            local _, event, _, source_guid, _, _, _, dest_guid, _, _, spell_id = ...
+            if not dest_guid or dest_guid == "" then return end
+            if event == "SPELL_AURA_APPLIED" or event == "SPELL_AURA_REFRESH" or event == "SPELL_AURA_APPLIED_DOSE" then
+                if _FEAR_ID_SET[spell_id] then
+                    _active_fears[dest_guid] = true
+                end
+                if _CONTROL_ID_SET[spell_id] then
+                    _active_controls[dest_guid] = true
+                end
+            elseif event == "SPELL_AURA_REMOVED" or event == "SPELL_AURA_REMOVED_DOSE" then
+                if _FEAR_ID_SET[spell_id] then
+                    _active_fears[dest_guid] = nil
+                end
+                if _CONTROL_ID_SET[spell_id] then
+                    _active_controls[dest_guid] = nil
+                end
+            end
+        end)
+    end)
+    _fear_control_event_mode = ok
+end
 
 -- ============================================================================
 -- Auto-AoE Toggle State
@@ -561,11 +607,11 @@ end
 
 
 local function build_context()
-    local _lowest = _context.lowest
-    for k in pairs(_context) do _context[k] = nil end
-    _context.lowest = _lowest
-    _context.lowest.unit = nil
-    _context.lowest.hp = 100
+    -- Create a fresh lazy context each tick so stale caches from the previous
+    -- frame cannot leak into the current frame.  Roots are set eagerly below;
+    -- everything else is resolved on first access.
+    _context = lazy_context.create()
+    _context.lowest = { unit = nil, hp = 100 }
     local me = _get_player()
     if not me then
         NS.current_context = nil
@@ -659,66 +705,35 @@ local function build_context()
         end
     end
     -- ============================================================================
-    -- TTD (Time-To-Death) Fallback Chain
+    -- TTD (Time-To-Death) Fallback Chain (LAZY)
     -- ============================================================================
-    -- The system resolves a single TTD value through a priority fallback chain:
-    --
-    --   1st: EMA TTD (ttd_ema_tracker_sylvanas.lua)
-    --        - Combat-log-driven exponential moving average of incoming DPS.
-    --        - Available ~1.5-3s after first damage event (requires 2+ hits + 1.5s elapsed).
-    --        - Most reliable: adapts to real-time combat log data.
-    --        - Returns nil when: no combat log data, target not valid, or insufficient samples.
-    --
-    --   2nd: Regression TTD (ttd_tracker_sylvanas.lua — linear regression)
-    --        - Uses HP/time samples to project a straight-line TTD.
-    --        - ONLY attempted when: EMA is nil AND target is boss, or targets above player level.
-    --        - More stable than engine TTD but slower to converge (needs multiple HP readings).
-    --        - Skipped for non-boss targets at or below player level — regression needs sustained
-    --          HP/time samples to converge.
-    --
-    --   3rd: Engine TTD (target:time_to_die() or target:get_time_to_death())
-    --        - Provided by the game client/PS framework.
-    --        - Last resort: often returns nil or unreliable values on private servers.
-    --        - When this fires, it means neither EMA nor regression had data.
-    --
-    --   4th (implicit): nil
-    --        - No TTD source could provide a value.
-    --        - _context.ttd defaults to 999 (\"infinite\"), _context.ttd_known is false.
-    --
-    -- _context.ttd_known == false when:
-    --   - No valid enemy target (target is nil or friendly).
-    --   - All three TTD sources returned nil (early combat, OOC, insufficient data).
-    --   - The target lacks health or incoming damage data entirely.
-    --
-    -- Downstream consumers: always check context.ttd_known before using context.ttd.
-    -- Strategies with require_ttd=true will be skipped when ttd_known is false
-    -- (see NS.action_execute() in core_sylvanas.lua).
+    -- A single shared resolver computes the TTD fallback chain once per tick;
+    -- individual fields (ttd, ttd_source, ttd_known) read from the cached result.
+    -- Resolution is deferred until all root fields are populated below.
     -- ============================================================================
-    local ema_ttd = nil
-    local regression_ttd = nil
-    if in_combat and enemy_ok then
-        ema_ttd = get_ema_ttd(target)
-        if not ema_ttd and (is_target_boss or (target_level and target_level > player_level)) then
-            regression_ttd = get_linear_regression_ttd(target, NS.settings)
+    _context._register("ttd_data", {"target", "in_combat", "has_valid_enemy_target", "target_level", "target_is_boss", "player_level"}, function(ctx)
+        local t = ctx.target
+        if not ctx.in_combat or not ctx.has_valid_enemy_target or not t then
+            return { ttd = 999, source = "none", known = false }
         end
-    end
-    -- Resolve TTD from the fallback chain: EMA → regression → engine → nil
-    local ttd_source = "none"
-    local ttd = nil
-    if ema_ttd then
-        ttd = ema_ttd
-        ttd_source = "ema"
-    elseif regression_ttd then
-        ttd = regression_ttd
-        ttd_source = "regression"
-    elseif engine_ttd then
-        ttd = engine_ttd
-        ttd_source = "engine"
-    end
+        local ema = get_ema_ttd(t)
+        if ema then return { ttd = ema, source = "ema", known = true } end
+        local lvl = ctx.target_level or 0
+        local boss = ctx.target_is_boss or false
+        if boss or lvl > ctx.player_level then
+            local regression = get_linear_regression_ttd(t, NS.settings)
+            if regression then return { ttd = regression, source = "regression", known = true } end
+        end
+        local engine = target_time_to_die(t)
+        if engine then return { ttd = engine, source = "engine", known = true } end
+        return { ttd = 999, source = "none", known = false }
+    end)
+    _context._register("ttd", {"ttd_data"}, function(ctx) return ctx.ttd_data.ttd end)
+    _context._register("ttd_source", {"ttd_data"}, function(ctx) return ctx.ttd_data.source end)
+    _context._register("ttd_known", {"ttd_data"}, function(ctx) return ctx.ttd_data.known end)
     _context.me = me
     _context.target = target
     _context.target_casting = target and (unit_bool(target, "is_casting") or unit_bool(target, "is_channeling") or false) or false
-    _context.target_ttd = ttd
     _context.has_aggro = false
     if target and me then
         local get_threat = _api.safe_field and _api.safe_field(target, "get_threat_situation")
@@ -905,99 +920,252 @@ local function build_context()
         local ok, pf = pcall(_core.object_manager.get_party_frames)
         if ok and type(pf) == "table" then _context.party_frame_count = #pf end
     end
-    -- Combined party scan: tank_alive, group_injured, fear_nearby in a single ipairs pass.
-    -- Replaces 3 separate loops (was: tank_alive 568-612, group_injured 679-690, fear_nearby 715-729).
-    -- tank_alive detection is throttled to 500ms; other flags are per-frame but early-exit on first match.
-    local tank_alive = _cached_tank_alive
-    _context.group_injured = false
-    _context.fear_nearby = false
-    _context.fear_on_tank = false
-    _context.feared_tank = nil
-    _context.known_fear_boss = false
-    _context.control_nearby = false
-    _context.control_on_tank = false
-    _context.controlled_tank = nil
-    if _context.is_group then
-        local now = NS.game_time_ms and NS.game_time_ms() or 0
-        local refresh_tank = now - _cached_tank_alive_time > 500
-        if refresh_tank then
-            tank_alive = true
-            _cached_tank_alive_time = now
-        end
-        local party = _party_members
+    -- ============================================================================
+    -- Lazy party / group scans
+    -- ============================================================================
+    -- These fields are expensive and only needed by some specs (healers, tanks,
+    -- PvP). They are resolved on first access and cached for the rest of the tick.
+    -- A single shared scan computes all party-derived flags in one pass; the
+    -- individual resolvers below simply read from the cached scan result.
+    --
+    -- Fear/control detection is event-driven when the engine supports it; the
+    -- scan here is used as a fallback/resync path.
+    -- ============================================================================
+    _context._register("party_scan", {"is_group", "party", "me", "target"}, function(ctx)
+        local result = {
+            tank_alive = true,
+            group_injured = false,
+            fear_nearby = false,
+            fear_on_tank = false,
+            feared_tank = nil,
+            control_nearby = false,
+            control_on_tank = false,
+            controlled_tank = nil,
+            known_fear_boss = false,
+            lowest_unit = nil,
+            lowest_hp = 100,
+            party_injured_count = 0,
+            party_tanks = {},
+            party_imminent_deaths = 0,
+            party_burst_count = 0,
+            party_will_die_count = 0,
+        }
+
+        -- Event-driven fear/control state: derive from tracked GUIDs.
+        -- Build a set of valid party GUIDs so we can ignore stale entries.
+        local party_guids = {}
+        local party = ctx.party
+        local m = ctx.me
         if party then
             for _, u in ipairs(party) do
                 if u then
-                    local alive = _unit_alive(u)
-                    if not alive then
-                        if refresh_tank and tank_alive then
-                            local is_tank = false
-                            if health_prediction and type(health_prediction.is_tank) == "function" then
-                                local ok, result = pcall(health_prediction.is_tank, health_prediction, u)
-                                if ok and result then is_tank = true end
-                            else
-                                local ok, result = pcall(function() return u.is_tank and u:is_tank() end)
-                                if ok and result then is_tank = true end
-                            end
-                            if is_tank then tank_alive = false end
+                    local guid = nil
+                    if u.get_guid then
+                        local ok, g = pcall(u.get_guid, u)
+                        if ok then guid = g end
+                    end
+                    if not guid and u.guid then guid = u.guid end
+                    if guid then party_guids[guid] = u end
+                end
+            end
+        end
+        -- Include self GUID.
+        local self_guid = nil
+        if m then
+            if m.get_guid then
+                local ok, g = pcall(m.get_guid, m)
+                if ok then self_guid = g end
+            end
+            if not self_guid and m.guid then self_guid = m.guid end
+            if self_guid then party_guids[self_guid] = m end
+        end
+
+        -- Determine if event-driven state indicates fear/control nearby.
+        local event_fear_nearby = false
+        local event_control_nearby = false
+        local event_feared_tank = nil
+        local event_controlled_tank = nil
+        local event_fear_on_tank = false
+        local event_control_on_tank = false
+
+        if _fear_control_event_mode then
+            for guid, u in pairs(party_guids) do
+                if _active_fears[guid] then
+                    event_fear_nearby = true
+                    if NS.is_tank_unit then
+                        local ok, is_tank = pcall(NS.is_tank_unit, u)
+                        if ok and is_tank then
+                            event_fear_on_tank = true
+                            event_feared_tank = u
                         end
-                    else
-                        if not _context.group_injured and _api.unit_health_pct(u) < 90 then
-                            _context.group_injured = true
+                    end
+                end
+                if _active_controls[guid] then
+                    event_control_nearby = true
+                    if NS.is_tank_unit then
+                        local ok, is_tank = pcall(NS.is_tank_unit, u)
+                        if ok and is_tank then
+                            event_control_on_tank = true
+                            event_controlled_tank = u
                         end
                     end
                 end
             end
         end
-        -- fear_nearby / control protection: ALWAYS check in groups for dungeons & raids.
-        -- Critical to avoid tanks getting feared/charmed/MC/slept into packs (common wipe cause in Shadow Lab Hellmaw/Blackheart, Karazhan Nightbane, Hyjal Archimonde, Ramparts Scryers, OHF Wardens, Sethekk Prophets, etc.).
-        -- Uses accurate party frames list (core.party). Detects on any + specifically on tanks.
-        -- Advanced: broader CONTROL_LOSS_IDS for charm/MC (Incite Chaos), fear, etc.
-        local party2 = _party_members
-        if party2 then
-            for _, u in ipairs(party2) do
-                if u and _unit_alive(u) then
-                    local has_fear = _api.debuff_up(u, FEAR_IDS)
-                    local has_control = has_fear or _api.debuff_up(u, CONTROL_LOSS_IDS)
-                    if has_control then
-                        if has_fear then _context.fear_nearby = true end
-                        _context.control_nearby = true
-                        -- Track if tank specifically controlled (high priority for breaks/wards/heals/triage)
+
+        -- Fallback / resync scan: run periodically even in event mode to recover
+        -- from missed removals, and always run when event mode is unavailable.
+        local now_ms = NS.game_time_ms and NS.game_time_ms() or 0
+        local should_scan = not _fear_control_event_mode
+            or (now_ms - _last_fear_control_resync > FEAR_CONTROL_RESYNC_MS)
+        if should_scan then
+            _last_fear_control_resync = now_ms
+            -- In event mode, clear stale entries for units no longer in party.
+            if _fear_control_event_mode then
+                for guid in pairs(_active_fears) do
+                    if not party_guids[guid] then _active_fears[guid] = nil end
+                end
+                for guid in pairs(_active_controls) do
+                    if not party_guids[guid] then _active_controls[guid] = nil end
+                end
+            end
+
+            if party then
+                for _, u in ipairs(party) do
+                    if not u then
+                        -- skip nil slots
+                    else
+                        local alive = _unit_alive(u)
+                        if alive then
+                            local has_fear = _api.debuff_up(u, FEAR_IDS)
+                            local has_control = has_fear or _api.debuff_up(u, CONTROL_LOSS_IDS)
+                            if has_fear then result.fear_nearby = true end
+                            if has_control then result.control_nearby = true end
+                            if NS.is_tank_unit then
+                                local ok, is_tank = pcall(NS.is_tank_unit, u)
+                                if ok and is_tank then
+                                    if has_fear then
+                                        result.fear_on_tank = true
+                                        result.feared_tank = u
+                                    end
+                                    if has_control then
+                                        result.control_on_tank = true
+                                        result.controlled_tank = u
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- player self fear/control
+            if m and _unit_alive(m) then
+                if not result.fear_nearby and _api.debuff_up(m, FEAR_IDS) then result.fear_nearby = true end
+                if not result.control_nearby and _api.debuff_up(m, CONTROL_LOSS_IDS) then
+                    result.control_nearby = true
+                    if NS.is_tank_unit and NS.is_tank_unit(m) then
+                        result.control_on_tank = true
+                        result.controlled_tank = m
+                        if _api.debuff_up(m, FEAR_IDS) then
+                            result.fear_on_tank = true
+                            result.feared_tank = m
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Merge event-driven state on top of fallback scan results.
+        if event_fear_nearby then result.fear_nearby = true end
+        if event_control_nearby then result.control_nearby = true end
+        if event_fear_on_tank then
+            result.fear_on_tank = true
+            result.feared_tank = event_feared_tank
+        end
+        if event_control_on_tank then
+            result.control_on_tank = true
+            result.controlled_tank = event_controlled_tank
+        end
+
+        if not ctx.is_group then return result end
+
+        if party then
+            for _, u in ipairs(party) do
+                if not u then
+                    -- skip nil slots
+                else
+                    local alive = _unit_alive(u)
+
+                    -- tank_alive: check even dead units so we know if the tank died
+                    if result.tank_alive and not alive then
                         local is_tank = false
-                        if NS.is_tank_unit then
-                            local ok, res = pcall(NS.is_tank_unit, u)
+                        if health_prediction and type(health_prediction.is_tank) == "function" then
+                            local ok, res = pcall(health_prediction.is_tank, health_prediction, u)
+                            is_tank = ok and res
+                        else
+                            local ok, res = pcall(function() return u.is_tank and u:is_tank() end)
                             is_tank = ok and res
                         end
                         if is_tank then
-                            if has_fear then
-                                _context.fear_on_tank = true
-                                _context.feared_tank = u
-                            end
-                            _context.control_on_tank = true
-                            _context.controlled_tank = u
+                            result.tank_alive = false
                         end
-                        break
+                    end
+
+                    if alive then
+                        local hp = _api.unit_health_pct(u)
+
+                        -- group_injured
+                        if hp and hp < 90 then
+                            result.group_injured = true
+                            result.party_injured_count = result.party_injured_count + 1
+                        end
+
+                        -- lowest
+                        if hp and hp < result.lowest_hp then
+                            result.lowest_hp = hp
+                            result.lowest_unit = u
+                        end
+
+                        -- tanks
+                        if NS.is_tank_unit then
+                            local ok, res = pcall(NS.is_tank_unit, u)
+                            if ok and res then
+                                result.party_tanks[#result.party_tanks + 1] = u
+                            end
+                        end
+
+                        -- imminent deaths / will die
+                        if NS.will_die_soon and NS.will_die_soon(u, 3.5, 22) then
+                            result.party_will_die_count = result.party_will_die_count + 1
+                            result.party_imminent_deaths = result.party_imminent_deaths + 1
+                        end
+                        if _unit_helper and type(_unit_helper.get_health_percentage_inc) == "function" then
+                            local okf, f = pcall(_unit_helper.get_health_percentage_inc, _unit_helper, u, 3)
+                            if okf and type(f) == "number" and f < 25 then
+                                result.party_imminent_deaths = result.party_imminent_deaths + 1
+                            end
+                        end
+
+                        -- burst
+                        local hpred = NS.health_prediction or (NS.GetAPIModule and NS.GetAPIModule("health_prediction"))
+                        if hpred and type(hpred.get_incoming_damage) == "function" then
+                            local oki, inc = pcall(hpred.get_incoming_damage, hpred, u, 2)
+                            if oki and type(inc) == "number" and inc > 1200 then
+                                result.party_burst_count = result.party_burst_count + 1
+                            end
+                        end
                     end
                 end
             end
         end
-        if not _context.fear_nearby and me and _api.debuff_up(me, FEAR_IDS) then _context.fear_nearby = true end
-        if not _context.control_nearby and me and _api.debuff_up(me, CONTROL_LOSS_IDS) then _context.control_nearby = true end
-        if _context.control_nearby and not _context.control_on_tank and me and _api.debuff_up(me, CONTROL_LOSS_IDS) and NS.is_tank_unit and NS.is_tank_unit(me) then
-            _context.control_on_tank = true
-            _context.controlled_tank = me
-            if _api.debuff_up(me, FEAR_IDS) then _context.fear_on_tank = true; _context.feared_tank = me end
+
+        -- known fear boss
+        local t = ctx.target
+        if t and NS.AutoTremor and NS.AutoTremor.is_fear_boss then
+            if NS.AutoTremor.is_fear_boss(t) then result.known_fear_boss = true end
         end
-        -- Detect known fear/control boss engagement for proactive wards/tremor (even without current debuff)
-        -- Covers all major TBC dungeons/raids per WoWHead guides (SSC Striders/Honor Guards, Magtheridon, Arcatraz Skyriss, SWP Dusk Priests, MGT Delrissa, etc.)
-        _context.known_fear_boss = false
-        if _context.target and NS.AutoTremor and NS.AutoTremor.is_fear_boss then
-            _context.known_fear_boss = NS.AutoTremor.is_fear_boss(_context.target)
-        end
-        -- Throttled nearby enemy scan (group only) to catch fear casters before (or in addition to) explicit target (early pull / multi-mob protection)
-        -- Limited to ~15 objects + time throttle. Now covers expanded list incl. Auchenai Crypts Possessors (MC), Steamvault Sirens, Botanica Fear-Shriekers, Slave Pens/Underbog Rays (horrors), etc. for proactive FearWard/Tremor/control_risk.
-        local now_ms = (NS.game_time_ms and NS.game_time_ms()) or 0
-        if _context.is_group and (now_ms - _fear_boss_scan_time > FEAR_BOSS_SCAN_INTERVAL_MS) then
+        if now_ms - _fear_boss_scan_time > FEAR_BOSS_SCAN_INTERVAL_MS then
             _fear_boss_scan_time = now_ms
             if _core.object_manager and type(_core.object_manager.get_enemies) == "function" and NS.AutoTremor and NS.AutoTremor.is_fear_boss then
                 local ok, enemies = pcall(_core.object_manager.get_enemies)
@@ -1005,92 +1173,48 @@ local function build_context()
                     for i = 1, math.min(#enemies, 15) do
                         local e = enemies[i]
                         if e and NS.AutoTremor.is_fear_boss(e) then
-                            _context.known_fear_boss = true
+                            result.known_fear_boss = true
                             break
                         end
                     end
                 end
             end
         end
-        _context.control_risk = _context.control_nearby or _context.known_fear_boss or false
-    end
-    _cached_tank_alive = tank_alive
-    _context.tank_alive = tank_alive
-    _context.lowest_unit = nil
-    _context.lowest_hp = 100
-    _context.lowest.unit = nil
-    _context.lowest.hp = 100
-    _context.lowest_ally_hp = 100
-    _context.lowest_group_hp = 100
-    -- Advanced party data powered by core.party frames (accurate list)
-    _context.party_injured_count = 0
-    _context.party_tanks = {}
-    _context.party_imminent_deaths = 0
-    _context.party_burst_count = 0
-    _context.party_will_die_count = 0
-    if _context.is_group and _party_members then
-        local lowest_val, lowest_unit = 100, nil
-        local injured = 0
-        local tanks = {}
-        local imminent = 0
-        local bursts = 0
-        local will_die_c = 0
-        for _, u in ipairs(_party_members) do
-            if u and _unit_alive(u) then
-                local hp = _api.unit_health_pct(u)
-                if hp and hp < lowest_val then
-                    lowest_val = hp
-                    lowest_unit = u
-                end
-                if hp and hp < 90 then
-                    injured = injured + 1
-                end
-                -- Collect tanks using safe is_tank logic (from unit_helper bridge)
-                local tank_ok = false
-                if NS.is_tank_unit then
-                    local ok, res = pcall(NS.is_tank_unit, u)
-                    tank_ok = ok and res
-                end
-                if tank_ok then
-                    tanks[#tanks+1] = u
-                end
-                -- Ultra "no one dies" counts from advanced prediction
-                if NS.will_die_soon and NS.will_die_soon(u, 3.5, 22) then
-                    will_die_c = will_die_c + 1
-                    imminent = imminent + 1
-                end
-                local fut = nil
-                if _unit_helper and type(_unit_helper.get_health_percentage_inc) == "function" then
-                    local okf, f = pcall(_unit_helper.get_health_percentage_inc, _unit_helper, u, 3)
-                    if okf and type(f) == "number" and f < 25 then imminent = imminent + 1 end
-                end
-                -- burst
-                local hp = NS.health_prediction or (NS.GetAPIModule and NS.GetAPIModule("health_prediction"))
-                if hp and type(hp.get_incoming_damage) == "function" then
-                    local oki, inc = pcall(hp.get_incoming_damage, hp, u, 2)
-                    if oki and type(inc) == "number" and inc > 1200 then bursts = bursts + 1 end
-                end
-            end
-        end
-        _context.lowest_unit = lowest_unit
-        _context.lowest_hp = lowest_val
-        _context.lowest.unit = lowest_unit
-        _context.lowest.hp = lowest_val
-        _context.lowest_ally_hp = lowest_val
-        _context.lowest_group_hp = lowest_val
-        _context.party_injured_count = injured
-        _context.party_tanks = tanks
-        _context.party_imminent_deaths = imminent
-        _context.party_burst_count = bursts
-        _context.party_will_die_count = will_die_c
-    end
-    -- Advanced heal targets from platform target_selector (menu configured best heals)
-    _context.heal_targets = NS.get_targets_heal and NS.get_targets_heal(5) or {}
-    _context.heal_targets_count = #_context.heal_targets
+
+        return result
+    end)
+
+    _context._register("tank_alive", {"party_scan"}, function(ctx) return ctx.party_scan.tank_alive end)
+    _context._register("group_injured", {"party_scan"}, function(ctx) return ctx.party_scan.group_injured end)
+    _context._register("fear_nearby", {"party_scan"}, function(ctx) return ctx.party_scan.fear_nearby end)
+    _context._register("control_nearby", {"party_scan"}, function(ctx) return ctx.party_scan.control_nearby end)
+    _context._register("fear_on_tank", {"party_scan"}, function(ctx) return ctx.party_scan.fear_on_tank end)
+    _context._register("feared_tank", {"party_scan"}, function(ctx) return ctx.party_scan.feared_tank end)
+    _context._register("control_on_tank", {"party_scan"}, function(ctx) return ctx.party_scan.control_on_tank end)
+    _context._register("controlled_tank", {"party_scan"}, function(ctx) return ctx.party_scan.controlled_tank end)
+    _context._register("known_fear_boss", {"party_scan"}, function(ctx) return ctx.party_scan.known_fear_boss end)
+    _context._register("control_risk", {"party_scan"}, function(ctx) return ctx.party_scan.control_nearby or ctx.party_scan.known_fear_boss or false end)
+    _context._register("lowest_unit", {"party_scan"}, function(ctx) return ctx.party_scan.lowest_unit end)
+    _context._register("lowest_hp", {"party_scan"}, function(ctx) return ctx.party_scan.lowest_hp end)
+    _context._register("party_injured_count", {"party_scan"}, function(ctx) return ctx.party_scan.party_injured_count end)
+    _context._register("party_tanks", {"party_scan"}, function(ctx) return ctx.party_scan.party_tanks end)
+    _context._register("party_imminent_deaths", {"party_scan"}, function(ctx) return ctx.party_scan.party_imminent_deaths end)
+    _context._register("party_burst_count", {"party_scan"}, function(ctx) return ctx.party_scan.party_burst_count end)
+    _context._register("party_will_die_count", {"party_scan"}, function(ctx) return ctx.party_scan.party_will_die_count end)
+
+    -- `lowest` table is the legacy interface used by healers.  Keep it in sync
+    -- with the lazy `lowest_unit` / `lowest_hp` fields.
+    _context._register("lowest", {"lowest_unit", "lowest_hp"}, function(ctx)
+        return { unit = ctx.lowest_unit, hp = ctx.lowest_hp }
+    end)
+
+    _context._register("heal_targets", {}, function(ctx)
+        return NS.get_targets_heal and NS.get_targets_heal(5) or {}
+    end)
+    _context._register("heal_targets_count", {"heal_targets"}, function(ctx) return #ctx.heal_targets end)
 
     _context.settings = NS.settings or {}
-    _context.ttd = ttd or 999
-    _context.ttd_source = ttd_source
+    -- ttd, ttd_source, ttd_known are now lazy (registered above)
     _context.has_breakable_cc_nearby = _api.has_breakable_cc_nearby and _api.has_breakable_cc_nearby() or false
     -- Boss school immunities for strategy gating
     local school_immunities = get_target_school_immunities(target)
@@ -1109,6 +1233,10 @@ local function build_context()
         end
     end
     _context.target_is_boss = is_target_boss
+    if _context.in_combat and _context.has_valid_enemy_target and _context.target then
+        _context.target_ttd = _context.ttd
+        _context.target_ttd_source = _context.ttd_source
+    end
     -- ============================================================================
     -- Derived context fields (for specs that consume nil-unsafe guards)
     -- ============================================================================
@@ -1252,7 +1380,7 @@ local function build_context()
             _context.combat_length_forecast = dm_dur
         end
     end
-    _context.ttd_known = ttd ~= nil
+    -- ttd_known is now lazy (registered above)
     -- Consumable inventory: throttled to 1000ms (was every frame)
     if inventory_helper and type(inventory_helper.update_consumables_list) == "function" then
         local now = NS.game_time_ms and NS.game_time_ms() or 0
