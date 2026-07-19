@@ -23,6 +23,7 @@ end
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local SpellQueue = require("shared/spell_queue_helper_sylvanas")
 local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
@@ -893,6 +894,167 @@ local function healthstone_matches(context, state)
     return true
 end
 
+-- ============================================================================
+-- Declarative Strategy DSL definitions
+-- ============================================================================
+-- These strategies are compiled from declarative definitions and replace the
+-- imperative match/execute pairs below for the same names.  Complex conditions
+-- that are awkward to express declaratively are kept in `custom` nodes so the
+-- behavior is preserved exactly.
+local DSL_DEFS = {
+    {
+        name = "BattleShout",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
+                return true
+            end },
+            { type = "state", field = "has_battle_shout", op = "falsy" },
+            { type = "state", field = "has_commanding_shout", op = "falsy" },
+            { type = "state", field = "rage", op = ">=", value = 10 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("BattleShout", ACTION.BattleShout, { target = "self", kind = "buff", buff = BATTLE_SHOUT_BUFF, requires_target = false }))
+        end },
+    },
+    {
+        name = "VictoryRush",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not (context.me or NS.GetPlayer()) then return false end
+                return true
+            end },
+            { type = "state", field = "victory_rush_ready", op = "truthy" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("VictoryRush", ACTION.VictoryRush, {}))
+        end },
+    },
+    {
+        name = "Execute",
+        conditions = {
+            { type = "state", field = "execute_phase", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                local min_rage = spec_kit.setting_number(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
+                return (state.rage or 0) >= min_rage
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("Execute", ACTION.Execute, { min_rage = 15 }))
+        end },
+    },
+
+    {
+        name = "Overpower",
+        conditions = {
+            { type = "state", field = "overpower_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if _cleu and _cleu.is_active and _cleu.is_active() and _cleu.is_overpower_proc_active then
+                    if not _cleu.is_overpower_proc_active() then return false end
+                end
+                local ms_cd = state.ms_cd or 99
+                if ms_cd <= 1.5 and state.rage < MORTAL_STRIKE_RAGE then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }))
+        end },
+    },
+    {
+        name = "Rend",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rend, 2.0) then return false end
+                if execute_phase(context, state) then return false end
+                if state.rend_remains > 3 then return false end
+                if state.target_hp < 25 then return false end
+                if (state.ttd or 999) > 0 and (state.ttd or 999) < 15 then return false end
+                local target = context.target
+                if target and target.get_creature_type then
+                    local ok, ctype = pcall(function() return target:get_creature_type() end)
+                    if ok and ctype and BLEED_IMMUNE_TYPES[ctype] then return false end
+                end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3 }))
+        end },
+    },
+    {
+        name = "Hamstring",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if state.is_pvp then
+                    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
+                    if state.hamstring_remains > 3 then return false end
+                    return true
+                end
+                local tactician_enabled = spec_kit.setting_bool(context, "hamstring_tactician_weave", true)
+                local weave_rage = spec_kit.setting_number(context, "hamstring_weave_rage", HAMSTRING_SPAM_RAGE)
+                if tactician_enabled and not state.execute_phase and state.rage >= weave_rage and state.ms_cd > 1.5 then
+                    return true
+                end
+                if spec_kit.setting_bool(context, "hamstring_fleeing_mobs", true) and state.hamstring_remains <= 3 then
+                    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
+                    return true
+                end
+                return false
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
+        end },
+    },
+    {
+        name = "DemoralizingShout",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
+                if state.demo_remains > 5 then return false end
+                if not state.is_pvp and state.hp > 70
+                    and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)) then
+                    return false
+                end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("DemoralizingShout", ACTION.DemoralizingShout, {
+                target = "self", min_rage = 10, requires_target = false,
+                debuff = DEMO_SHOUT_DEBUFF, refresh = 5, hit_radius = 10, hit_origin = "me",
+            }))
+        end },
+    },
+    {
+        name = "ThunderClap",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
+                if state.aoe_cc_nearby then return false end
+                if state.tclap_remains > 5 then return false end
+                if not state.is_pvp and state.hp > 65
+                    and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
+                    return false
+                end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("ThunderClap", ACTION.ThunderClap, {
+                target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false,
+                debuff = THUNDER_CLAP_DEBUFF, refresh = 5, cooldown = 4,
+                hit_radius = 8, hit_origin = "me",
+            }))
+        end },
+    },
+}
+
+-- Compile declarative strategies, injecting build_state so unit tests that call
+-- strategy.matches(context) without state get a freshly-built state.
+local DSL_STRATEGIES = dsl.compile_strategies(DSL_DEFS, { get_state = build_state })
+
 local STRATEGY_SPECS = {
     { "HealthPotion", function(context)
           if not context.in_combat then return false end
@@ -969,37 +1131,50 @@ local STRATEGY_SPECS = {
 local strategies = {}
 local _build = build_state
 
+-- Build a lookup of DSL strategies by name so they can be substituted in-place
+-- for the imperative entries with the same names, preserving priority order.
+local DSL_BY_NAME = {}
+for i = 1, #DSL_STRATEGIES do
+    DSL_BY_NAME[DSL_STRATEGIES[i].name] = DSL_STRATEGIES[i]
+end
+
 for i = 1, #STRATEGY_SPECS do
     local spec = STRATEGY_SPECS[i]
     local name = spec[1]
     local matches = spec[2]
     local row = spec[3]
 
-    strategies[#strategies + 1] = {
-        name = name,
-        spell = row.spell,
-        required_stance = row.required_stance,
-        min_rage = row.min_rage,
-        cooldown = row.cooldown,
-        matches = function(context)
-            local state = _build(context or {})
-            return matches(context or {}, state)
-        end,
-        execute = spec[4] or function(context)
-            return cast(context or {}, row)
-        end,
-    }
+    -- If a declarative DSL strategy exists with this name, use it in place of
+    -- the imperative entry so priority order is preserved.
+    local dsl_strategy = DSL_BY_NAME[name]
+    if dsl_strategy then
+        strategies[#strategies + 1] = dsl_strategy
+    else
+        strategies[#strategies + 1] = {
+            name = name,
+            spell = row.spell,
+            required_stance = row.required_stance,
+            min_rage = row.min_rage,
+            cooldown = row.cooldown,
+            matches = function(context, state)
+                return matches(context or {}, state or _build(context or {}))
+            end,
+            execute = spec[4] or function(context)
+                return cast(context or {}, row)
+            end,
+        }
+    end
 end
 
 -- Hit-cap awareness: gate missable abilities when significantly below cap
 strategies[#strategies + 1] = {
     name = "HitCapPriority",
-    matches = function(context)
-        local state = _build(context or {})
-        if not state.hit_cap_rating_needed then return false end
+    matches = function(context, state)
+        local s = state or _build(context or {})
+        if not s.hit_cap_rating_needed then return false end
         local hit_rating = context.hit_rating
         if not hit_rating then return false end
-        local deficit = state.hit_cap_rating_needed - hit_rating
+        local deficit = s.hit_cap_rating_needed - hit_rating
         if deficit <= 30 then return false end
         if NS.log then NS.log(string.format("[ARMS] Hit cap deficit %d — gating missable abilities", deficit)) end
         return true
