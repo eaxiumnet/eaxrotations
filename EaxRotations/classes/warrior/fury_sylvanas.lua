@@ -1,8 +1,13 @@
 -- fury_sylvanas.lua — Warrior Fury rotation for TBC Anniversary (2.5.5).
--- WHAT:  priority-list strategies (BT → WW → Rampage → Execute → Slam → rage dumps).
+-- WHAT:  priority-list strategies (BT → WW → Rampage → Execute → Slam → rage dumps);
+--        7 strategies (BattleShout, VictoryRush, Rampage, Execute, Bloodthirst,
+--        Whirlwind, DemoralizingShout) declared via the shared strategy DSL and
+--        substituted in-place by name, preserving priority order.
 -- WHEN:  combat with valid enemy target, dual-wield or 2H.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
 -- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+--         DSL custom nodes replicate imperative gates verbatim (incl.
+--         NS.broken_api_throttled); behavior preserved 1:1.
 
 -- Warrior Fury priority list — parity v1.0.6+ parity (auto-charge, rampage stacks, sunder, rend, overpower, defensives)
 local NS = _G.EaxRotations
@@ -22,6 +27,7 @@ if _cleu then
 end
 local potion_helper = require("shared/potion_helper_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local WH = require("classes/warrior/shared_helpers_sylvanas") or {}
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
@@ -942,6 +948,133 @@ local function battle_stance_matches(context, state)
 end
 
 -- ============================================================================
+-- Declarative Strategy DSL definitions
+-- ============================================================================
+-- These strategies are compiled from declarative definitions and replace the
+-- imperative match/execute pairs below for the same names.  Complex conditions
+-- that are awkward to express declaratively are kept in `custom` nodes so the
+-- behavior is preserved exactly.
+local DSL_DEFS = {
+    {
+        name = "BattleShout",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
+                return true
+            end },
+            { type = "state", field = "has_battle_shout", op = "falsy" },
+            { type = "state", field = "has_commanding_shout", op = "falsy" },
+            { type = "state", field = "rage", op = ">=", value = 10 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("BattleShout", ACTION.BattleShout, { target = "self", kind = "buff", buff = BATTLE_SHOUT_BUFF, requires_target = false, min_rage = 10 }))
+        end },
+    },
+    {
+        name = "VictoryRush",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not (context.me or NS.GetPlayer()) then return false end
+                return true
+            end },
+            { type = "state", field = "victory_rush_ready", op = "truthy" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("VictoryRush", ACTION.VictoryRush, {}))
+        end },
+    },
+    {
+        name = "Rampage",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rampage, 3.0) then return false end
+                return true
+            end },
+            { type = "in_combat" },
+            { type = "custom", fn = function(context, state)
+                -- TBC Rampage: cast to APPLY the buff (only usable after a crit)
+                -- or REFRESH it before it falls off (<= 3s remaining).
+                if not state.has_rampage then return true end
+                local rampage_remains = NS.buff_remains and NS.buff_remains(context.me or NS.GetPlayer(), RAMPAGE_BUFF) or 0
+                return rampage_remains <= 3
+            end },
+            { type = "state", field = "rage", op = ">=", value = 30 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }))
+        end },
+    },
+    {
+        name = "Execute",
+        conditions = {
+            { type = "state", field = "execute_phase", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                local min_rage = spec_kit.setting_number(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
+                return (state.rage or 0) >= min_rage
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("Execute", ACTION.Execute, { required_stance = STANCE.BERSERKER, min_rage = 15 }))
+        end },
+    },
+    {
+        name = "Bloodthirst",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                -- WW priority: yield to Whirlwind when enough enemies nearby and WW is ready
+                local ww_prio = spec_kit.setting_number(context, "fury_ww_prio_count", 2)
+                if ww_prio > 0 and (context.rage or 0) >= 25 and state.ww_ready
+                    and NS.aoe_self_meets and NS.aoe_self_meets(ww_prio, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state) then
+                    return false
+                end
+                return true
+            end },
+            { type = "state", field = "bt_ready", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 30 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("Bloodthirst", ACTION.Bloodthirst, { required_stance = STANCE.BERSERKER, min_rage = 30, cooldown = 6 }))
+        end },
+    },
+    {
+        name = "Whirlwind",
+        conditions = {
+            { type = "state", field = "ww_ready", op = "truthy" },
+            { type = "state", field = "aoe_cc_nearby", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                if (state.rage or 0) < 25 and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
+        end },
+    },
+    {
+        name = "DemoralizingShout",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
+                return true
+            end },
+            { type = "state", field = "demo_remains", op = "<=", value = 5 },
+            { type = "custom", fn = function(context, state)
+                if not state.is_pvp and (state.enemy_count or 0) < 2 and (state.hp or 100) > 70 then return false end
+                return true
+            end },
+            { type = "state", field = "rage", op = ">=", value = 10 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return cast(context, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false, debuff = DEMO_SHOUT_DEBUFF, refresh = 5 }))
+        end },
+    },
+}
+
+-- Compile declarative strategies, injecting build_state so unit tests that call
+-- strategy.matches(context) without state get a freshly-built state.
+local DSL_STRATEGIES = dsl.compile_strategies(DSL_DEFS, { get_state = build_state })
+
+-- ============================================================================
 -- Strategies
 -- ============================================================================
 local STRATEGY_SPECS = {
@@ -1021,27 +1154,41 @@ local STRATEGY_SPECS = {
 local strategies = {}
 local _build = build_state
 
+-- Build a lookup of DSL strategies by name so they can be substituted in-place
+-- for the imperative entries with the same names, preserving priority order.
+local DSL_BY_NAME = {}
+for i = 1, #DSL_STRATEGIES do
+    DSL_BY_NAME[DSL_STRATEGIES[i].name] = DSL_STRATEGIES[i]
+end
+
 for i = 1, #STRATEGY_SPECS do
     local spec = STRATEGY_SPECS[i]
     local name = spec[1]
     local matches = spec[2]
     local row = spec[3]
 
-    local custom_execute = spec[4]
-    strategies[#strategies + 1] = {
-        name = name,
-        spell = row.spell,
-        required_stance = row.required_stance,
-        min_rage = row.min_rage,
-        cooldown = row.cooldown,
-        matches = function(context)
-            local state = _build(context or {})
-            return matches(context or {}, state)
-        end,
-        execute = custom_execute or function(context)
-            return cast(context or {}, row)
-        end,
-    }
+    -- If a declarative DSL strategy exists with this name, use it in place of
+    -- the imperative entry so priority order is preserved.
+    local dsl_strategy = DSL_BY_NAME[name]
+    if dsl_strategy then
+        strategies[#strategies + 1] = dsl_strategy
+    else
+        local custom_execute = spec[4]
+        strategies[#strategies + 1] = {
+            name = name,
+            spell = row.spell,
+            required_stance = row.required_stance,
+            min_rage = row.min_rage,
+            cooldown = row.cooldown,
+            matches = function(context)
+                local state = _build(context or {})
+                return matches(context or {}, state)
+            end,
+            execute = custom_execute or function(context)
+                return cast(context or {}, row)
+            end,
+        }
+    end
 end
 
 strategies[#strategies + 1] = {
