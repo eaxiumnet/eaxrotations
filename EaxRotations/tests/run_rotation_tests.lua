@@ -58,7 +58,9 @@ local tests = {
  "test_shadow_multidot.lua",
  "test_shadow_inner_focus_combo.lua",
  "test_shadow_refresh_windows.lua",
+ "test_shadow_debuff_scan_regression.lua",
  "test_affliction_dot_ttd.lua",
+ "test_affliction_corruption_spam_regression.lua",
  "test_hunter_shot_timer_integration.lua",
  "test_hunter_melee_weave.lua",
 
@@ -121,6 +123,7 @@ local tests = {
 
  -- Core/shared infrastructure tests
  "test_aura_probe_sylvanas.lua",
+ "test_lazy_context_sylvanas.lua",
  "test_trinket_manager.lua",
  "test_cooldown_planner.lua",
  "test_spell_resolver_cache.lua",
@@ -146,7 +149,9 @@ local tests = {
  "test_rotation_strategy_compliance.lua",
  "test_quality_bar_compliance.lua",
  "test_spec_layout_compliance.lua",
- "test_schema_compliance.lua",
+  "test_strategy_dsl_sylvanas.lua",
+  "test_arms_dsl_priority.lua",
+  "test_schema_compliance.lua",
  "test_cross_consistency.lua",
  "test_hunter_adaptive_nil_globals.lua",
  "test_vec2_api_lint.lua",

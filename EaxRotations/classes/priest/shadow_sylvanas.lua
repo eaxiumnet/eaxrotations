@@ -83,10 +83,20 @@ local function scan_target_debuffs(target)
     return out
 end
 
-local function debuff_remains_from_scan(scan, ids)
-    if not scan or not ids then return 0 end
-    for _, id in ipairs(ids) do
-        if scan[id] then return scan[id] end
+local function debuff_remains_from_scan(target, scan, ids)
+    if not ids then return 0 end
+    if scan then
+        for _, id in ipairs(ids) do
+            if scan[id] then return scan[id] end
+        end
+    end
+    -- Fallback: if the bulk buff_manager cache is empty/unavailable, use the
+    -- standard NS.debuff_remains path so DoTs are not treated as expired.
+    if target and NS.debuff_remains then
+        local ok, remains = pcall(NS.debuff_remains, target, ids)
+        if ok and type(remains) == "number" and remains > 0 then
+            return remains
+        end
     end
     return 0
 end
@@ -426,10 +436,10 @@ local function build_state(context)
     shadow_state.mounted = false
     
     local debuff_scan = target and scan_target_debuffs(target) or {}
-    shadow_state.vt_remaining = debuff_remains_from_scan(debuff_scan, VAMPIRIC_TOUCH_DEBUFF)
-    shadow_state.swp_remaining = debuff_remains_from_scan(debuff_scan, SHADOW_WORD_PAIN_DEBUFF)
-    shadow_state.ve_remaining = debuff_remains_from_scan(debuff_scan, VAMPIRIC_EMBRACE_DEBUFF)
-    shadow_state.dp_remaining = debuff_remains_from_scan(debuff_scan, DEVOURING_PLAGUE_DEBUFF)
+    shadow_state.vt_remaining = debuff_remains_from_scan(target, debuff_scan, VAMPIRIC_TOUCH_DEBUFF)
+    shadow_state.swp_remaining = debuff_remains_from_scan(target, debuff_scan, SHADOW_WORD_PAIN_DEBUFF)
+    shadow_state.ve_remaining = debuff_remains_from_scan(target, debuff_scan, VAMPIRIC_EMBRACE_DEBUFF)
+    shadow_state.dp_remaining = debuff_remains_from_scan(target, debuff_scan, DEVOURING_PLAGUE_DEBUFF)
     shadow_state.mb_ready = target and NS.spell_ready(ACTION.MindBlast, target, { expected_cooldown = 5.5 }) or false
     shadow_state.mb_cd_remains = NS.cooldown_remains and NS.cooldown_remains(ACTION.MindBlast) or 0
     shadow_state.swd_ready = target and NS.spell_ready(ACTION.ShadowWordDeath, target, { expected_cooldown = 12 }) or false

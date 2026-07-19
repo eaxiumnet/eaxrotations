@@ -30,11 +30,15 @@ function M.get_buff_data(unit, ids, ttl_ms)
 end
 
 function M.get_all_debuffs(unit, ttl_ms)
-    return safe_bm_call("get_debuffs", unit, nil, ttl_ms)
+    -- Use the documented buff_manager cache method. The legacy "get_debuffs"
+    -- method does not exist in the Sylvanas buff_manager API, so the old call
+    -- always returned nil and caused specs (affliction/shadow) to see every
+    -- DoT as expired, resulting in spam re-casts.
+    return safe_bm_call("get_debuff_cache", unit, nil, ttl_ms)
 end
 
 function M.get_all_buffs(unit, ttl_ms)
-    return safe_bm_call("get_buffs", unit, nil, ttl_ms)
+    return safe_bm_call("get_buff_cache", unit, nil, ttl_ms)
 end
 
 function M.has_any_debuff(unit, ids, ttl_ms)

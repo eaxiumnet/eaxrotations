@@ -124,10 +124,20 @@ local function scan_target_dots(target)
     return out
 end
 
-local function dot_remains_from_scan(scan, id_list)
-    if not scan or not id_list then return 0 end
-    for _, id in ipairs(id_list) do
-        if scan[id] then return scan[id] end
+local function dot_remains_from_scan(target, scan, id_list)
+    if not id_list then return 0 end
+    if scan then
+        for _, id in ipairs(id_list) do
+            if scan[id] then return scan[id] end
+        end
+    end
+    -- Fallback: if the bulk buff_manager cache is empty/unavailable, use the
+    -- standard NS.debuff_remains path so DoTs are not treated as expired.
+    if target and NS.debuff_remains then
+        local ok, remains = pcall(NS.debuff_remains, target, id_list)
+        if ok and type(remains) == "number" and remains > 0 then
+            return remains
+        end
     end
     return 0
 end
@@ -381,15 +391,15 @@ local function build_state(context)
     local target = context.target
     if target then
         local dot_scan = scan_target_dots(target)
-        aff_state.ua_remains = dot_remains_from_scan(dot_scan, UNSTABLE_AFFL_DEBUFF)
-        aff_state.corruption_remains = dot_remains_from_scan(dot_scan, CORRUPTION_DEBUFF)
-        aff_state.agony_remains = dot_remains_from_scan(dot_scan, CURSE_OF_AGONY_DEBUFF)
-        aff_state.doom_remains = dot_remains_from_scan(dot_scan, CURSE_OF_DOOM_DEBUFF)
-        aff_state.siphon_remains = dot_remains_from_scan(dot_scan, SIPHON_LIFE_DEBUFF)
-        aff_state.immolate_remains = dot_remains_from_scan(dot_scan, IMMOLATE_DEBUFF)
-        aff_state.coe_remains = dot_remains_from_scan(dot_scan, CURSE_OF_ELEMENTS_DEBUFF)
-        aff_state.recklessness_remains = dot_remains_from_scan(dot_scan, curse_helper.CURSE_OF_RECKLESSNESS_DEBUFF)
-        aff_state.weakness_remains     = dot_remains_from_scan(dot_scan, curse_helper.CURSE_OF_WEAKNESS_DEBUFF)
+        aff_state.ua_remains = dot_remains_from_scan(target, dot_scan, UNSTABLE_AFFL_DEBUFF)
+        aff_state.corruption_remains = dot_remains_from_scan(target, dot_scan, CORRUPTION_DEBUFF)
+        aff_state.agony_remains = dot_remains_from_scan(target, dot_scan, CURSE_OF_AGONY_DEBUFF)
+        aff_state.doom_remains = dot_remains_from_scan(target, dot_scan, CURSE_OF_DOOM_DEBUFF)
+        aff_state.siphon_remains = dot_remains_from_scan(target, dot_scan, SIPHON_LIFE_DEBUFF)
+        aff_state.immolate_remains = dot_remains_from_scan(target, dot_scan, IMMOLATE_DEBUFF)
+        aff_state.coe_remains = dot_remains_from_scan(target, dot_scan, CURSE_OF_ELEMENTS_DEBUFF)
+        aff_state.recklessness_remains = dot_remains_from_scan(target, dot_scan, curse_helper.CURSE_OF_RECKLESSNESS_DEBUFF)
+        aff_state.weakness_remains     = dot_remains_from_scan(target, dot_scan, curse_helper.CURSE_OF_WEAKNESS_DEBUFF)
         aff_state.se_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SHADOW_EMBRACE_DEBUFF) or 0
         aff_state.isb_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, ISB_DEBUFF) or 0
         aff_state.target_hp = (target.get_health_percentage and target:get_health_percentage()) or 100
