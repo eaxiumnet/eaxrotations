@@ -1,7 +1,7 @@
 # Plan: Strategy DSL + Lazy Context — Finish & Commit In-Flight Work
 
 **Created:** 2026-07-19 (Sisyphus orchestration session)
-**Status:** In progress
+**Status:** COMPLETE (2026-07-19 — commits 4c4ab694 + 37f4bb01; gate 316+21 green)
 **One concern:** land the uncommitted strategy-DSL / lazy-context enhancement so HEAD is self-consistent, then gate.
 
 ## Background
@@ -33,14 +33,23 @@ in a broken intermediate state (runner references missing files).
 ## Steps
 
 1. [x] Audit in-flight diffs — coherent, tests green
-2. [ ] `luac -p` on all 4 changed/new Lua files
-3. [ ] Commit A (lazy context): `shared/lazy_context_sylvanas.lua`,
+2. [x] `luac -p` on all 4 changed/new Lua files
+3. [x] Commit A (lazy context): `4c4ab694` — `shared/lazy_context_sylvanas.lua`,
        `tests/test_lazy_context_sylvanas.lua`, `main_sylvanas.lua`
-4. [ ] Commit B (strategy DSL): `shared/strategy_dsl_sylvanas.lua`,
+4. [x] Commit B (strategy DSL): `37f4bb01` — `shared/strategy_dsl_sylvanas.lua`,
        `tests/test_strategy_dsl_sylvanas.lua`, `tests/test_arms_dsl_priority.lua`,
        `classes/warrior/arms_sylvanas.lua`
-5. [ ] Remove stale debris `tests/run_rotation_tests.lua.tmp` (2026-07-16 leftover)
-6. [ ] Re-run full gate (rotation + leveling) — must stay 316 + 21 green
+5. [x] Removed stale debris `tests/run_rotation_tests.lua.tmp` (2026-07-16 leftover)
+6. [x] Re-ran full gate post-commit — 316 rotation + 21 leveling green
+
+## Environment fix landed along the way
+
+`.git/hooks/pre-commit` (local-only) pinned to the Lua 5.1 toolchain
+(`LUAC`/`LUA` vars, portable conditional). Root cause of prior commit failures:
+a stray `lua` **directory** inside `C:\Program Files (x86)\Lua\5.1\` shadows
+`lua.exe` during PATH resolution in Git Bash, so bare `lua`/"luac" in the hook
+either missed or hit the wrong toolchain. Hook now passes end-to-end
+(613 files luac + vanilla audit 31/31 + sylvanas DBC audit 61/61).
 
 ## Follow-ups (NOT this plan)
 
