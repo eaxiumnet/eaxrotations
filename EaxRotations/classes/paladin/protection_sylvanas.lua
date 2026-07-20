@@ -5,6 +5,7 @@
 --         Shield, with seal twisting (SoR/SoW/SoC), downranked Consecration, and layered
 
 --         defensives (Divine Protection/Shield, Lay on Hands, Flash of Light/Holy Light).
+--         6 strategies use the declarative strategy DSL (fifth DSL adopter, first tank).
 
 -- WHEN:  in combat, with valid enemy target. OOC aura/blessing maintenance gated by combat.
 
@@ -31,8 +32,8 @@ local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.PaladinSpells or {}
 
 
-
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local _hp_ok, HealthPred = pcall(require, "shared/health_pred_helper_sylvanas")
 if not _hp_ok or type(HealthPred) ~= "table" then HealthPred = nil end
 
@@ -93,7 +94,6 @@ local ACTION = {
 }
 
 
-
 -- ============================================================================
 
 -- Buff & Debuff ID tables
@@ -151,7 +151,6 @@ local function first_ready_item(item_ids)
 end
 
 
-
 -- ============================================================================
 
 -- Consecration downrank table: { min_mana_pct, spell_id }
@@ -173,7 +172,6 @@ local CONSECRATION_DOWNRANK = {
 }
 
 
-
 local function get_consecration_id_for_mana(mana_pct)
 
  mana_pct = mana_pct or 100
@@ -193,7 +191,6 @@ local function get_consecration_id_for_mana(mana_pct)
 end
 
 
-
 -- ============================================================================
 
 -- Settings helper
@@ -201,15 +198,11 @@ end
 -- ============================================================================
 
 
-
-
-
 -- ============================================================================
 
 -- Time-based gates (buff detection via Sylvanas API returns nil)
 
 -- ============================================================================
-
 
 
 -- ============================================================================
@@ -273,7 +266,6 @@ local PROT_SCHEMA = {
     swing_remains = 99,
 
 }
-
 
 
 -- ============================================================================
@@ -367,9 +359,7 @@ local prot_state = {
  last_judgement_mode = nil,
 
 
-
     healthstone_ready = 0,}
-
 
 
 local function self_needs_cleanse(unit)
@@ -391,7 +381,6 @@ local function self_needs_cleanse(unit)
 end
 
 
-
 local function creature_type(unit)
 
  if not unit or not unit.get_creature_type then return nil end
@@ -403,13 +392,11 @@ local function creature_type(unit)
 end
 
 
-
 local function build_state(context)
 
  local me = context.me or NS.GetPlayer()
 
  local target = context.target
-
 
 
  prot_state.now_ms = NS.game_time_ms and NS.game_time_ms() or 0
@@ -545,7 +532,6 @@ local function build_state(context)
  prot_state.target_casting = target and target.is_casting and target:is_casting() or false
 
 
-
  -- Scan allies for threat and low HP (Righteous Defense / BoP peel)
 
  prot_state.ally_threatened = nil
@@ -581,7 +567,6 @@ local function build_state(context)
   end
 
  end
-
 
 
  -- CC proximity check (skip Avenger's Shield near controlled mobs)
@@ -627,7 +612,6 @@ local function build_state(context)
  end
 
 
-
  -- parity: Snap Threat — immediate high-threat opener on combat start
 
  if NS.SnapThreat and type(NS.SnapThreat.check) == "function" then
@@ -649,7 +633,6 @@ local function build_state(context)
  end
 
 
-
      prot_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
 
      local swing_remains = 99
@@ -662,7 +645,6 @@ local function build_state(context)
     return spec_kit.safe_state(prot_state, PROT_SCHEMA)
 
 end
-
 
 
 local function post_swing_judge_gate(context, state)
@@ -698,7 +680,6 @@ local function find_ally(context, predicate)
 end
 
 
-
 local function unit_has_buff(unit, ids)
 
  return NS.buff_up(unit, ids)
@@ -706,13 +687,11 @@ local function unit_has_buff(unit, ids)
 end
 
 
-
 local function cooldowns_enabled(context)
 
  return spec_kit.setting_bool(context, "use_cooldowns", false)
 
 end
-
 
 
 -- ============================================================================
@@ -744,13 +723,11 @@ local function righteous_fury_matches(context, state)
 end
 
 
-
 local function has_combat_target(context)
 
  return context.has_valid_enemy_target and context.in_combat
 
 end
-
 
 
 local function holy_shield_matches(context, state)
@@ -792,7 +769,6 @@ local function holy_shield_matches(context, state)
 end
 
 
-
 local function consecration_matches(context, state)
 
  if not spec_kit.setting_bool(context, "prot_consecration", true) then return false end
@@ -820,7 +796,6 @@ local function consecration_matches(context, state)
  return true
 
 end
-
 
 
 local function avenger_shield_matches(context, state)
@@ -852,7 +827,6 @@ local function avenger_shield_matches(context, state)
 end
 
 
-
 local function judgement_matches(context, state)
 
  if not spec_kit.setting_bool(context, "prot_judgement", true) then return false end
@@ -880,7 +854,6 @@ local function judgement_matches(context, state)
  return true
 
 end
-
 
 
 -- Anti-loop throttle: belt-and-suspenders to RighteousFury + BlessingOfSanctuary.
@@ -928,7 +901,6 @@ local function seal_righteousness_matches(context, state)
 end
 
 
-
 local _last_seal_command_aoe_match_time = 0
 
 local _last_divine_protection_prot_match_time = 0
@@ -958,45 +930,6 @@ local function seal_command_aoe_matches(context, state)
 end
 
 
-
-local function hammer_of_wrath_matches(context, state)
-
- if not spec_kit.setting_bool(context, "prot_hammer_of_wrath", true) then return false end
-
- if not has_combat_target(context) then return false end
-
- if not state.hammer_of_wrath_ready then return false end
-
- local execute_hp = spec_kit.setting_number(context, "prot_hammer_of_wrath_hp", 20)
-
- if (state.target_hp_pct or 100) > execute_hp then return false end
-
- return true
-
-end
-
-
-
-local function avenging_wrath_matches(context, state)
-
- if not spec_kit.setting_bool(context, "prot_avenging_wrath", true) then return false end
-
- if not cooldowns_enabled(context) then return false end
-
- if state.has_forbearance then return false end
-
- if not state.avenging_wrath_ready then return false end
-
- -- TTD gate: don't waste 3min CD on a dying target
-
- if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
-
- return true
-
-end
-
-
-
 local function exorcism_matches(context, state)
 
  if not spec_kit.setting_bool(context, "prot_exorcism", true) then return false end
@@ -1014,53 +947,6 @@ local function exorcism_matches(context, state)
 end
 
 
-
-local function holy_wrath_matches(context, state)
-
- if not spec_kit.setting_bool(context, "prot_holy_wrath", true) then return false end
-
- if not has_combat_target(context) then return false end
-
- -- Holy Wrath is AoE; only cast when 2+ demon/undead targets present
-
- if (state.enemy_count or 0) < 2 then return false end
-
- if not state.holy_wrath_ready then return false end
-
- if not state.target_creature_type then return false end
-
- if not DEMON_OR_UNDEAD[state.target_creature_type] then return false end
-
- return true
-
-end
-
-
-
-local function divine_protection_matches(context, state)
-
- local threshold = spec_kit.setting_number(context, "prot_divine_protection_hp", 25)
-
- if (state.hp_pct or 100) > threshold then return false end
-
- if state.has_forbearance then return false end
-
- if state.has_divine_shield then return false end
-
- if not state.divine_protection_ready then return false end
-
- local now = NS.time_now and NS.time_now() or 0
-
- if (now - _last_divine_protection_prot_match_time) < 3.0 then return false end
-
- _last_divine_protection_prot_match_time = now
-
- return true
-
-end
-
-
-
 local function divine_shield_matches(context, state)
 
  local threshold = spec_kit.setting_number(context, "prot_divine_shield_hp", 15)
@@ -1076,7 +962,6 @@ local function divine_shield_matches(context, state)
  return true
 
 end
-
 
 
 local function lay_on_hands_matches(context, state)
@@ -1098,7 +983,6 @@ local function lay_on_hands_matches(context, state)
 end
 
 
-
 local function hammer_of_justice_matches(context, state)
 
  if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
@@ -1114,27 +998,6 @@ local function hammer_of_justice_matches(context, state)
 end
 
 
-
-local function holy_shock_matches(context, state)
-
- if not has_combat_target(context) then return false end
-
- if not state.holy_shock_ready then return false end
-
- -- Don't burn Holy Shock offensively when the tank needs self-healing;
-
- -- let Flash of Light / Holy Light (positioned below) get priority instead.
-
- local fol_threshold = spec_kit.setting_number(context, "prot_flash_of_light_hp", 40)
-
- if (state.hp_pct or 100) <= fol_threshold then return false end
-
- return true
-
-end
-
-
-
 local function flash_of_light_matches(context, state)
 
  local threshold = spec_kit.setting_number(context, "prot_flash_of_light_hp", 40)
@@ -1148,7 +1011,6 @@ local function flash_of_light_matches(context, state)
 end
 
 
-
 local function holy_light_matches(context, state)
 
  local threshold = spec_kit.setting_number(context, "prot_holy_light_hp", 25)
@@ -1160,21 +1022,6 @@ local function holy_light_matches(context, state)
  return true
 
 end
-
-
-
-local function cleanse_matches(context, state)
-
- if not spec_kit.setting_bool(context, "prot_cleanse", true) then return false end
-
- if not state.needs_cleanse then return false end
-
- if not state.cleanse_ready then return false end
-
- return true
-
-end
-
 
 
 local function seal_of_wisdom_matches(context, state)
@@ -1197,7 +1044,6 @@ local function seal_of_wisdom_matches(context, state)
  return true
 
 end
-
 
 
 local _last_devotion_aura_prot_match_time = 0
@@ -1229,7 +1075,6 @@ local function devotion_aura_matches(context, state)
  return true
 
 end
-
 
 
 -- Anti-loop throttle for OOC blessing (prevents matched=true / executed=false cycle
@@ -1267,7 +1112,6 @@ local function blessing_of_sanctuary_matches(context, state)
 end
 
 
-
 -- ============================================================================
 
 -- Strategies
@@ -1287,11 +1131,9 @@ local function RighteousDefense_matches(context, state)  return spec_kit.setting
 local function RighteousDefense_execute(context, state) return NS.try_cast(ACTION.RighteousDefense, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end
 
 
-
 local function BlessingOfProtectionAlly_matches(context, state)  return spec_kit.setting_bool(context, "prot_blessing_of_protection", true) and state.low_hp_ally ~= nil and NS.spell_ready(ACTION.BlessingOfProtection, state.low_hp_ally, {}) or false end
 
 local function BlessingOfProtectionAlly_execute(context, state) return NS.try_cast(ACTION.BlessingOfProtection, state.low_hp_ally, "[PROTECTION] BoP emergency peel") end
-
 
 
 local strategies = {
@@ -1323,7 +1165,6 @@ local strategies = {
       end,
 
     },
-
 
 
  { name = "ManaPotion",
@@ -1384,11 +1225,11 @@ local strategies = {
 
  { name = "Exorcism", matches = exorcism_matches, execute = function(context) return NS.try_cast(ACTION.Exorcism, context.target, "[PROTECTION] Exorcism") end },
 
- { name = "HolyWrath", matches = holy_wrath_matches, execute = function(context) return NS.try_cast(ACTION.HolyWrath, context.me, "[PROTECTION] HolyWrath") end },
+ { name = "HolyWrath" },  -- DSL-substituted at runtime
 
- { name = "HammerOfWrath", matches = hammer_of_wrath_matches, execute = function(context) return NS.try_cast(ACTION.HammerOfWrath, context.target, "[PROTECTION] HammerOfWrath") end },
+ { name = "HammerOfWrath" },  -- DSL-substituted at runtime
 
- { name = "AvengingWrath", matches = avenging_wrath_matches, execute = function(context) return NS.try_cast(ACTION.AvengingWrath, context.me, "[PROTECTION] AvengingWrath") end },
+ { name = "AvengingWrath" },  -- DSL-substituted at runtime
 
  { name = "AvengerShield", matches = avenger_shield_matches, execute = function(context) return NS.try_cast(ACTION.AvengerShield, context.target, "[PROTECTION] AvengerShield") end },
 
@@ -1396,15 +1237,15 @@ local strategies = {
 
  { name = "BlessingOfSanctuary", matches = blessing_of_sanctuary_matches, execute = function(context) return NS.try_cast(ACTION.BlessingOfSanctuary, context.me, "[PROTECTION] BlessingOfSanctuary") end },
 
- { name = "HolyShock", matches = holy_shock_matches, execute = function(context) return NS.try_cast(ACTION.HolyShock, context.target, "[PROTECTION] HolyShock") end },
+ { name = "HolyShock" },  -- DSL-substituted at runtime
 
  { name = "FlashOfLight", matches = flash_of_light_matches, execute = function(context) return NS.try_cast(ACTION.FlashOfLight, context.me, "[PROTECTION] FlashOfLight") end },
 
  { name = "HolyLight", matches = holy_light_matches, execute = function(context) return NS.try_cast(ACTION.HolyLight, context.me, "[PROTECTION] HolyLight") end },
 
- { name = "Cleanse", matches = cleanse_matches, execute = function(context) return NS.try_cast(ACTION.Cleanse, context.me, "[PROTECTION] Cleanse") end },
+ { name = "Cleanse" },  -- DSL-substituted at runtime
 
- { name = "DivineProtection", matches = divine_protection_matches, execute = function(context) return NS.try_cast(ACTION.DivineProtection, context.me, "[PROTECTION] DivineProtection", { skip_range = true }) end },
+ { name = "DivineProtection" },  -- DSL-substituted at runtime
 
  { name = "DivineShield", matches = divine_shield_matches, execute = function(context) return NS.try_cast(ACTION.DivineShield, context.me, "[PROTECTION] DivineShield") end },
 
@@ -1437,6 +1278,147 @@ local strategies = {
 }
 
 
+-- ============================================================================
+-- Declarative Strategy DSL definitions (fifth DSL adopter, first tank)
+-- ============================================================================
+-- These strategies are compiled from declarative definitions and replace the
+-- imperative match functions in the strategies table above for the same names.
+-- This proves the DSL generalizes beyond DPS specs to tank mechanics: defensive
+-- cooldown throttles, creature-type gating, settings-driven HP thresholds, and
+-- mana-based resource management.
+local DSL_DEFS = {
+    {
+        name = "HammerOfWrath",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "prot_hammer_of_wrath", true) then return false end
+                if not has_combat_target(context) then return false end
+                return true
+            end },
+            { type = "state", field = "hammer_of_wrath_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                local execute_hp = spec_kit.setting_number(context, "prot_hammer_of_wrath_hp", 20)
+                if (state.target_hp_pct or 100) > execute_hp then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.HammerOfWrath, context.target, "[PROTECTION] HammerOfWrath")
+        end },
+    },
+    {
+        name = "AvengingWrath",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "prot_avenging_wrath", true) then return false end
+                if not cooldowns_enabled(context) then return false end
+                return true
+            end },
+            { type = "state", field = "has_forbearance", op = "falsy" },
+            { type = "state", field = "avenging_wrath_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.AvengingWrath, context.me, "[PROTECTION] AvengingWrath")
+        end },
+    },
+    {
+        name = "HolyShock",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not has_combat_target(context) then return false end
+                return true
+            end },
+            { type = "state", field = "holy_shock_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                local fol_threshold = spec_kit.setting_number(context, "prot_flash_of_light_hp", 40)
+                if (state.hp_pct or 100) <= fol_threshold then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.HolyShock, context.target, "[PROTECTION] HolyShock")
+        end },
+    },
+    {
+        name = "Cleanse",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "prot_cleanse", true) then return false end
+                return true
+            end },
+            { type = "state", field = "needs_cleanse", op = "truthy" },
+            { type = "state", field = "cleanse_ready", op = "truthy" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.Cleanse, context.me, "[PROTECTION] Cleanse")
+        end },
+    },
+    {
+        name = "HolyWrath",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "prot_holy_wrath", true) then return false end
+                if not has_combat_target(context) then return false end
+                return true
+            end },
+            { type = "enemy_count", op = ">=", value = 2 },
+            { type = "state", field = "holy_wrath_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not state.target_creature_type then return false end
+                if not DEMON_OR_UNDEAD[state.target_creature_type] then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.HolyWrath, context.me, "[PROTECTION] HolyWrath")
+        end },
+    },
+    {
+        name = "DivineProtection",
+        -- Single custom condition: the 3s anti-loop throttle has a side effect
+        -- (_last_divine_protection_prot_match_time = now) that can't be expressed
+        -- via declarative DSL condition types, so the full logic stays in one fn.
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                local threshold = spec_kit.setting_number(context, "prot_divine_protection_hp", 25)
+                if (state.hp_pct or 100) > threshold then return false end
+                if state.has_forbearance then return false end
+                if state.has_divine_shield then return false end
+                if not state.divine_protection_ready then return false end
+                local now = NS.time_now and NS.time_now() or 0
+                if (now - _last_divine_protection_prot_match_time) < 3.0 then return false end
+                _last_divine_protection_prot_match_time = now
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.DivineProtection, context.me, "[PROTECTION] DivineProtection", { skip_range = true })
+        end },
+    },
+}
+
+-- Compile declarative strategies, injecting build_state so unit tests that call
+-- strategy.matches(context) without state get a freshly-built state.
+local DSL_STRATEGIES = dsl.compile_strategies(DSL_DEFS, { get_state = build_state })
+
+-- ============================================================================
+-- DSL in-place substitution (preserves priority order)
+-- ============================================================================
+local DSL_BY_NAME = {}
+for i = 1, #DSL_STRATEGIES do
+    DSL_BY_NAME[DSL_STRATEGIES[i].name] = DSL_STRATEGIES[i]
+end
+
+for i = 1, #strategies do
+    local dsl_strategy = DSL_BY_NAME[strategies[i].name]
+    if dsl_strategy then
+        strategies[i] = dsl_strategy
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
 
