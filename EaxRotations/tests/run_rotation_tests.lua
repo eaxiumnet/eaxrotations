@@ -153,6 +153,7 @@ local tests = {
   "test_arms_dsl_priority.lua",
   "test_fury_dsl_priority.lua",
   "test_combat_dsl_priority.lua",
+    "test_balance_dsl_priority.lua",
   "test_schema_compliance.lua",
  "test_cross_consistency.lua",
  "test_hunter_adaptive_nil_globals.lua",
