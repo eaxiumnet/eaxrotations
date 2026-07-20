@@ -28,6 +28,7 @@ local SPELLS = NS.ShamanSpells or {}
 
 -- spec_kit migration #21
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
     Bloodlust           = define("Bloodlust",           { 2825 }, "Bloodlust"),
@@ -1209,6 +1210,103 @@ local function totemic_call_execute(ctx)
 end
 
 -- ============================================================================
+-- Declarative strategy DSL definitions (6 strategies)
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "ShamanisticRage",
+        conditions = {
+            { type = "in_combat" },
+            { type = "buff", unit = "self", ids = SHAMANISTIC_RAGE_BUFF, invert = true },
+            { type = "state", field = "shamanistic_rage_ready", op = "truthy" },
+            { type = "setting", key = "enhancement_cd_shamanistic_rage", op = "==", value = true },
+            { type = "custom", fn = function(context, state)
+                if not NS.gate_cooldown_boss_only(context) then return false end
+                if context.ttd_known and context.ttd < 8 then return false end
+                local offensive_use = state.major_cd_window or false
+                local defensive_use = (state.mana_pct or 100) <= 40 or (state.hp_pct or 100) <= 40
+                if not offensive_use and not defensive_use then return false end
+                if state.sr_melee_only then
+                    local target = context.target
+                    if not target then return false end
+                    local dist = target.get_distance and target:get_distance(NS.PLAYER_UNIT or context.me)
+                    if dist and dist > 8 then return false end
+                end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.ShamanisticRage, target = "self", label = "[ENHANCEMENT] Shamanistic Rage", opts = { skip_range = true } },
+    },
+    {
+        name = "Bloodlust",
+        conditions = {
+            { type = "setting", key = "use_cooldowns", op = "==", value = true, default = true },
+            { type = "setting", key = "enhancement_cd_bloodlust", op = "==", value = true, default = true },
+            { type = "in_combat" },
+            { type = "buff", unit = "self", ids = BLOODLUST_BUFF_ID, invert = true },
+            { type = "state", field = "bloodlust_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 600) then return false end
+                if not NS.gate_cooldown_boss_only(context) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Bloodlust, target = "self", label = "[ENHANCEMENT] Bloodlust", opts = { skip_range = true } },
+    },
+    {
+        name = "ManaTideTotem",
+        conditions = {
+            { type = "setting", key = "use_cooldowns", op = "==", value = true, default = true },
+            { type = "setting", key = "enhancement_cd_mana_tide", op = "==", value = true, default = true },
+            { type = "state", field = "mana_tide_totem_ready", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<=", value = 60 },
+        },
+        action = { type = "cast", spell = ACTION.ManaTideTotem, target = "self", label = "[ENHANCEMENT] Mana Tide Totem", opts = { skip_range = true } },
+    },
+    {
+        name = "Stormstrike",
+        conditions = {
+            { type = "state", field = "stormstrike_ready", op = "truthy" },
+            { type = "state", field = "mana_emergency", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.Stormstrike, target = "target", label = "[ENHANCEMENT] Stormstrike" },
+    },
+    {
+        name = "FlameShock",
+        conditions = {
+            { type = "state", field = "flame_shock_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if state.hold_shocks_focus and not state.in_combat then return false end
+                return true
+            end },
+            { type = "state", field = "mana_low", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                if context.ttd_known and context.ttd < 6 then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                if state.fs_multi_target and state.effective_mode == "aoe" and state.target_has_flame_shock then return false end
+                if state.target_has_flame_shock and (state.flame_shock_remains or 0) > 3 then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.FlameShock, target = "target", label = "[ENHANCEMENT] Flame Shock" },
+    },
+    {
+        name = "FrostShock",
+        conditions = {
+            { type = "state", field = "frost_shock_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if state.hold_shocks_focus and not state.in_combat then return false end
+                return true
+            end },
+            { type = "state", field = "mana_low", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.FrostShock, target = "target", label = "[ENHANCEMENT] Frost Shock" },
+    },
+}
+
+-- ============================================================================
 -- Strategies
 -- ============================================================================
 local strategies = {
@@ -1277,9 +1375,9 @@ local strategies = {
     { name = "LightningShield", matches = lightning_shield_matches, execute = lightning_shield_execute },
 
     -- 7. Cooldowns
-    { name = "ShamanisticRage", matches = shamanistic_rage_matches, execute = function(ctx) return NS.try_cast(ACTION.ShamanisticRage, NS.PLAYER_UNIT, "[ENHANCEMENT] Shamanistic Rage", { skip_range = true }) end },
-    { name = "Bloodlust", matches = bloodlust_matches, execute = function(ctx) return NS.try_cast(ACTION.Bloodlust, NS.PLAYER_UNIT, "[ENHANCEMENT] Bloodlust", { skip_range = true }) end },
-    { name = "ManaTideTotem", matches = mana_tide_totem_matches, execute = function(ctx) return NS.try_cast(ACTION.ManaTideTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Mana Tide Totem", { skip_range = true }) end },
+    { name = "ShamanisticRage" },  -- DSL-substituted at runtime
+    { name = "Bloodlust" },  -- DSL-substituted at runtime
+    { name = "ManaTideTotem" },  -- DSL-substituted at runtime
     { name = "NaturesSwiftness", matches = natures_swiftness_matches, execute = function(ctx) return NS.try_cast(ACTION.NaturesSwiftness, NS.PLAYER_UNIT, "[ENHANCEMENT] Nature's Swiftness", { skip_range = true }) end },
 
     -- 7b. Utility totems (fear break, spell absorb)
@@ -1297,15 +1395,25 @@ local strategies = {
     { name = "ChainHeal", matches = chain_heal_matches, execute = function(ctx) return NS.try_cast(ACTION.ChainHeal, NS.PLAYER_UNIT, "[ENHANCEMENT] Chain Heal", { skip_range = true }) end },
 
     -- 9. Offensive priority (parity v2.0.1: Flame Shock first, Earth Shock only while FS active)
-    { name = "Stormstrike", matches = stormstrike_matches, execute = function(ctx) return NS.try_cast(ACTION.Stormstrike, ctx.target, "[ENHANCEMENT] Stormstrike") end },
-    { name = "FlameShock", matches = flame_shock_matches, execute = function(ctx) return NS.try_cast(ACTION.FlameShock, ctx.target, "[ENHANCEMENT] Flame Shock") end },
+    { name = "Stormstrike" },  -- DSL-substituted at runtime
+    { name = "FlameShock" },  -- DSL-substituted at runtime
     { name = "EarthShock", matches = earth_shock_matches, execute = function(ctx) return NS.try_cast(ACTION.EarthShock, ctx.target, "[ENHANCEMENT] Earth Shock") end },
-    { name = "FrostShock", matches = frost_shock_matches, execute = function(ctx) return NS.try_cast(ACTION.FrostShock, ctx.target, "[ENHANCEMENT] Frost Shock") end },
+    { name = "FrostShock" },  -- DSL-substituted at runtime
 
     -- 10. AoE / filler
     { name = "ChainLightning", matches = chain_lightning_matches, execute = function(ctx) return NS.try_cast(ACTION.ChainLightning, ctx.target, "[ENHANCEMENT] Chain Lightning") end },
     { name = "LightningBolt", matches = lightning_bolt_matches, execute = function(ctx) return NS.try_cast(ACTION.LightningBolt, ctx.target, "[ENHANCEMENT] Lightning Bolt") end },
 }
+
+-- Replace imperative match functions with DSL-compiled equivalents.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("enhancement", strategies, { get_state = build_state })
