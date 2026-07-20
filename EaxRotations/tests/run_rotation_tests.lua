@@ -162,6 +162,7 @@ local tests = {
     "test_arcane_dsl_priority.lua",
     "test_fire_dsl_priority.lua",
     "test_enhancement_dsl_priority.lua",
+    "test_destruction_dsl_priority.lua",
   "test_schema_compliance.lua",
  "test_cross_consistency.lua",
  "test_hunter_adaptive_nil_globals.lua",

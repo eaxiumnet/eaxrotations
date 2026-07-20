@@ -70,6 +70,12 @@ _G.EaxRotations = {
     spell_action = function(spell_ids, name)
         return { spell = spell_ids, name = name }
     end,
+    GetPlayer = function() return {} end,
+    debuff_remains = function() return 0 end,
+    buff_up = function() return false end,
+    time_now = function() return 0 end,
+    is_item_ready = function() return false end,
+    should_refresh_dot = function() return true end,
     log = function() end,
     rotation_registry = {
         register = function() end,
