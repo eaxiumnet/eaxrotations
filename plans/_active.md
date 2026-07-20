@@ -42,6 +42,7 @@
 | shadow priest DSL | COMPLETE (2026-07-20) | Eighth DSL adopter (first shadow priest/DoT-tracking spec) — `d4172362`. 6 strategies (shadow priest, mana + DoT). Bumped 322→323. |
 | frost mage DSL | COMPLETE (2026-07-20) | Ninth DSL adopter (first frost mage/proc-tracking spec) — `4c77806d`. 6 strategies (frost mage, mana + proc tracking). Bumped 323→324. |
 | arcane mage DSL | COMPLETE (2026-07-20) | Tenth DSL adopter (first arcane mage/mana-proc spec) — `fd9e3dd1`. 6 strategies (arcane mage, mana + proc/phase state machine). Bumped 324→325. |
+| fire mage DSL | COMPLETE (2026-07-20) | Eleventh DSL adopter (first fire mage/debuff-stack spec) — `e28be175`. 6 strategies (IceBarrier, ManaShield, PresenceOfMind, Combustion, Scorch, Evocation). New `test_fire_dsl_priority.lua`; `test_fire_custom_matches.lua` migrated to DSL state schema. Bumped 325→326. |
 | `tests/_staging/` cleanup | COMPLETE (2026-07-20) | Deleted untracked debris (`test_wotlk_integration.lua` was failing + 90% redundant; empty `phase2_hide/`). Promoted the one unique gap (WotLK `get_expansion_max_level()==80`) into `test_expansion_helpers.lua`. Gate 317+21 green. |
 
 ## Reference Documents (not plans)
@@ -57,13 +58,13 @@
 
 ## Baseline (ALL GREEN — verified 2026-07-20)
 
-- 325 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +8 from combat/balance/protection/restoration/beast-mastery/shadow/frost/arcane DSL adoption suites
+- 326 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +9 from combat/balance/protection/restoration/beast-mastery/shadow/frost/arcane/fire DSL adoption suites
 - 21 leveling suites: ALL PASS — was 17 at 2026-07-10; +4 from leveling ladder + verification
 - 31 vanilla audit: PASS (0 tainted)
 - 61 sylvanas audit: PASS (0 invalid)
 - luac -p + pre-commit DBC/vanilla: PASS (617+ files)
 
-> **DSL adoption progress:** 10 of 29 specs on the strategy DSL — arms (`37f4bb01`), fury (`33c77110`), combat rogue (`f280bd72`), balance druid (`cbc60cfe`), protection paladin (`ccc60645`), restoration shaman (`e6ec9143`), beast mastery hunter (`efa0abe4`), shadow priest (`d4172362`), frost mage (`4c77806d`), arcane mage (`fd9e3dd1`). Each adopted 6–7 strategies via declarative `DSL_DEFS` + in-place substitution. `AGENTS.md` synced to 325+21=346.
+> **DSL adoption progress:** 11 of 29 specs on the strategy DSL — arms (`37f4bb01`), fury (`33c77110`), combat rogue (`f280bd72`), balance druid (`cbc60cfe`), protection paladin (`ccc60645`), restoration shaman (`e6ec9143`), beast mastery hunter (`efa0abe4`), shadow priest (`d4172362`), frost mage (`4c77806d`), arcane mage (`fd9e3dd1`), fire mage (`e28be175`). Each adopted 6–7 strategies via declarative `DSL_DEFS` + in-place substitution. `AGENTS.md` synced to 326+21=347.
 
 ---
 
