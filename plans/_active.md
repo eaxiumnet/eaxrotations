@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-20 (Strategy DSL + lazy context landed; 11 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage; `tests/_staging/` debris cleaned; baseline re-verified 326 rot + 21 leveling = 347 total).
+**Last updated:** 2026-07-20 (Strategy DSL + lazy context landed; 12 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman; `tests/_staging/` debris cleaned; baseline re-verified 327 rot + 21 leveling = 348 total).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -58,13 +58,13 @@
 
 ## Baseline (ALL GREEN — verified 2026-07-20)
 
-- 326 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +9 from combat/balance/protection/restoration/beast-mastery/shadow/frost/arcane/fire DSL adoption suites
+- 327 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +10 from combat/balance/protection/restoration/beast-mastery/shadow/frost/arcane/fire/enhancement DSL adoption suites
 - 21 leveling suites: ALL PASS — was 17 at 2026-07-10; +4 from leveling ladder + verification
 - 31 vanilla audit: PASS (0 tainted)
 - 61 sylvanas audit: PASS (0 invalid)
 - luac -p + pre-commit DBC/vanilla: PASS (617+ files)
 
-> **DSL adoption progress:** 11 of 29 specs on the strategy DSL — arms (`37f4bb01`), fury (`33c77110`), combat rogue (`f280bd72`), balance druid (`cbc60cfe`), protection paladin (`ccc60645`), restoration shaman (`e6ec9143`), beast mastery hunter (`efa0abe4`), shadow priest (`d4172362`), frost mage (`4c77806d`), arcane mage (`fd9e3dd1`), fire mage (`e28be175`). Each adopted 6–7 strategies via declarative `DSL_DEFS` + in-place substitution. `AGENTS.md` synced to 326+21=347.
+> **DSL adoption progress:** 12 of 29 specs on the strategy DSL — arms (`37f4bb01`), fury (`33c77110`), combat rogue (`f280bd72`), balance druid (`cbc60cfe`), protection paladin (`ccc60645`), restoration shaman (`e6ec9143`), beast mastery hunter (`efa0abe4`), shadow priest (`d4172362`), frost mage (`4c77806d`), arcane mage (`fd9e3dd1`), fire mage (`e28be175`), enhancement shaman (`708796b1`). Each adopted 6–7 strategies via declarative `DSL_DEFS` + in-place substitution. `AGENTS.md` synced to 327+21=348.
 
 ---
 
