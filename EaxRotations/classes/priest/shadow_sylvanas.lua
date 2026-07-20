@@ -20,6 +20,7 @@ do
 end
 local SPELLS = NS.PriestSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 
 local mf_tick = require("shared/mf_tick_compute_sylvanas")
 
@@ -726,13 +727,6 @@ end
 -- ============================================================================
 -- Match functions
 -- ============================================================================
-local function shadowform_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Shadowform, 3.0) then return false end
-    if s.has_shadowform then return false end
-    if not s.shadowform_known then return false end
-    return true
-end
-
 local function pre_combat_pull_matches(context, s)
     if context.in_combat then return false end
     if not context.has_valid_enemy_target then return false end
@@ -819,16 +813,6 @@ local function shadow_vt_spread_matches(context, s)
     return true
 end
 
-local function inner_fire_matches(context, s)
-    if not s.inner_fire_known then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.InnerFire, 3.0) then return false end
-    if s.has_inner_fire then return false end
-    if not spec_kit.setting_bool(context, "shadow_use_inner_fire", true) then return false end
-    -- OOC only: casting Inner Fire in combat wastes a GCD that could be VT/SWP
-    if context.in_combat then return false end
-    return true
-end
-
 local function power_word_shield_matches(context, s)
     -- HP-gated self-shield
     if (context.hp or 100) > (s.shield_hp or 35) then return false end
@@ -868,48 +852,6 @@ local function racial_matches(context, s)
     local combat_time = context.combat_time or 0
     local ttd = context.ttd or 999
     if not align and combat_time < 45 and ttd > 15 then return false end
-    return true
-end
-
-local function vampiric_touch_matches(context, s)
-    if not s.vampiric_touch_known then return false end
-    if context.is_casting or context.is_channeling then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.VampiricTouch, 2.0) then return false end
-    if not can_break_mind_flay(s) then return false end
-    if context.is_moving then return false end
-    if not context.has_valid_enemy_target or s.vt_remaining > vt_clip_threshold(context) then return false end
-    -- TTD gate: skip VT if target dying soon (1.5s cast + 15s to get full value)
-    if context.ttd_known and context.ttd > 0 and context.ttd < 6 then return false end
-    -- DoT TTD gating: skip reapplication if target dies before threshold % of DoT duration
-    local ttd_threshold = spec_kit.setting_number(context, "shadow_dot_ttd_threshold", 50) / 100
-    if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.vampiric_touch, ttd_threshold) then return false end
-    -- Mana emergency: drop all spells (wand only)
-    if s.mana_emergency then return false end
-    -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
-    local ratio = s.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
-    if s.vt_remaining > 0 and not should_snapshot_upgrade(s.spell_damage, s.snapshot_vt_dmg, s.vt_remaining, 3, ratio) then return false end
-    if (s.vt_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
-    return true
-end
-
-local function shadow_word_pain_matches(context, s)
-    if not s.swp_known then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShadowWordPain, 2.0) then return false end
-    if not can_break_mind_flay(s) then return false end
-    if not context.has_valid_enemy_target then return false end
-    -- Mana emergency: drop all spells (wand only)
-    if s.mana_emergency then return false end
-    if (s.swp_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
-    -- Shadow Weaving maintenance: extend refresh window from 3s to 5s when stacks < 5
-    local sw_window = swp_clip_threshold(context)
-    local effective_window = (s.weaving_stacks > 0 and s.weaving_stacks < 5) and 5 or sw_window
-    if s.swp_remaining > effective_window then return false end
-    -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
-    local ratio = s.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
-    if s.swp_remaining > 0 and not should_snapshot_upgrade(s.spell_damage, s.snapshot_swp_dmg, s.swp_remaining, sw_window, ratio) then return false end
-    -- DoT TTD gating: skip reapplication if target dies before threshold % of DoT duration
-    local ttd_threshold = spec_kit.setting_number(context, "shadow_dot_ttd_threshold", 50) / 100
-    if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.shadow_word_pain, ttd_threshold) then return false end
     return true
 end
 
@@ -954,39 +896,6 @@ local function inner_focus_matches(context, s)
     if not s.mb_ready then return false end
     -- TTD gate: don't burn 180s cooldown if combat ends within threshold
     if context.ttd_known and context.ttd > 0 and context.ttd < MIN_TTD_FOR_CD_INNER_FOCUS then return false end
-    return true
-end
-
-local function mind_blast_matches(context, s)
-    if context.is_casting or context.is_channeling then return false end
-    if not can_break_mind_flay(s) then return false end
-    if context.is_moving then return false end
-    if not context.has_valid_enemy_target then return false end
-    if not s.mb_ready then return false end
-    -- Mana conservation: drop Mind Blast below 30% mana
-    if s.mana_low then return false end
-    -- Threat safety: hold MB if tank threat lead insufficient
-    if not s.threat_safe then return false end
-    if not _engaged_with_player(context) then return false end
-    return true
-end
-
-local function shadow_word_death_matches(context, s)
-    if not can_break_mind_flay(s) then return false end
-    if not context.has_valid_enemy_target then return false end
-    if not s.swd_ready then return false end
-    -- TTD gate: skip SW:D if target is about to die (don't waste GCD)
-    if context.ttd_known and context.ttd > 0 and context.ttd < 3 then return false end
-    -- Mana conservation: hold SW:D in emergency mana
-    if s.mana_emergency then return false end
-    -- Threat safety: hold SW:D if tank threat lead insufficient
-    if not s.threat_safe then return false end
-    -- Execute range: fire SW:D when target < 25% HP even with lower safety margin
-    local target_hp = (context.target_hp_pct or context.target_hp or 100)
-    local in_execute = target_hp <= 25
-    local safety_floor = in_execute and 60 or (s.swd_safety_hp or 80)
-    if (context.hp or 100) < safety_floor then return false end
-    if not _engaged_with_player(context) then return false end
     return true
 end
 
@@ -1159,11 +1068,11 @@ local strategies = {
     -- Out-of-combat Fortitude buff
     { name = "PowerWordFortitude", matches = fortitude_matches, execute = function(context, s) return NS.try_cast(ACTION.PowerWordFortitude, s.fortitude_target, "[SHADOW] PowerWordFortitude") end },
     { name = "PreCombatPull", matches = pre_combat_pull_matches, execute = function(context) return NS.try_cast(ACTION.VampiricTouch, context.target, "[SHADOW] PreCombatPull") end },
-    { name = "Shadowform", matches = shadowform_matches, execute = function(context) return NS.try_cast(ACTION.Shadowform, NS.PLAYER_UNIT, "[SHADOW] Shadowform", { skip_range = true }) end },
+    { name = "Shadowform" }, -- DSL-substituted at runtime
     { name = "SWDCCBreak", matches = swd_cc_break_matches, execute = swd_cc_break_execute },
     { name = "Shadowfiend", matches = shadowfiend_matches, execute = function(context) return NS.try_cast(ACTION.Shadowfiend, context.target, "[SHADOW] Shadowfiend") end },
-    { name = "VampiricTouch", matches = vampiric_touch_matches, execute = function(context) local ok = NS.try_cast(ACTION.VampiricTouch, context.target, "[SHADOW] VampiricTouch"); if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end; return ok end },
-    { name = "ShadowWordPain", matches = shadow_word_pain_matches, execute = function(context) local ok = NS.try_cast(ACTION.ShadowWordPain, context.target, "[SHADOW] ShadowWordPain"); if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end; return ok end },
+    { name = "VampiricTouch" }, -- DSL-substituted at runtime
+    { name = "ShadowWordPain" }, -- DSL-substituted at runtime
     { name = "MovingSWP", matches = function(context, s)
         if not s.swp_known then return false end
         if not context.is_moving then return false end
@@ -1177,9 +1086,9 @@ local strategies = {
     { name = "VampiricEmbrace", matches = vampiric_embrace_matches, execute = function(context) return NS.try_cast(ACTION.VampiricEmbrace, context.target, "[SHADOW] VampiricEmbrace") end },
     { name = "DevouringPlague", matches = devouring_plague_matches, execute = function(context) local ok = NS.try_cast(ACTION.DevouringPlague, context.target, "[SHADOW] DevouringPlague"); if ok then shadow_state.snapshot_dp_dmg = shadow_state.spell_damage end; return ok end },
     { name = "InnerFocusMindBlast", matches = inner_focus_matches, execute = function(context) return NS.try_cast(ACTION.InnerFocus, NS.PLAYER_UNIT, "[SHADOW] InnerFocusâ†’MB Combo", { skip_range = true }) end },
-    { name = "MindBlast", matches = mind_blast_matches, execute = function(context) return NS.try_cast(ACTION.MindBlast, context.target, "[SHADOW] MindBlast") end },
+    { name = "MindBlast" }, -- DSL-substituted at runtime
     { name = "Starshards", matches = starshards_matches, execute = function(context) return NS.try_cast(ACTION.Starshards, context.target, "[SHADOW] Starshards") end },
-    { name = "ShadowWordDeath", matches = shadow_word_death_matches, execute = function(context) return NS.try_cast(ACTION.ShadowWordDeath, context.target, "[SHADOW] ShadowWordDeath") end },
+    { name = "ShadowWordDeath" }, -- DSL-substituted at runtime
     { name = "MindFlay", matches = mind_flay_matches, execute = function(context) return NS.try_cast(ACTION.MindFlay, context.target, "[SHADOW] MindFlay") end },
     { name = "PsychicScream", matches = psychic_scream_matches, execute = function(context) return NS.try_cast(ACTION.PsychicScream, context.target, "[SHADOW] PsychicScream") end },
     { name = "Fade",
@@ -1247,7 +1156,7 @@ local strategies = {
         context._shadow_vt_spread_target = nil
         return ok
     end },
-    { name = "InnerFire", matches = inner_fire_matches, execute = function(context) return NS.try_cast(ACTION.InnerFire, NS.PLAYER_UNIT, "[SHADOW] InnerFire", { skip_range = true }) end },
+    { name = "InnerFire" }, -- DSL-substituted at runtime
     { name = "PowerWordShield", matches = power_word_shield_matches, execute = function(context) return NS.try_cast(ACTION.PowerWordShield, NS.PLAYER_UNIT, "[SHADOW] PowerWordShield", { skip_range = true }) end },
     { name = "FlashHeal", matches = flash_heal_matches, execute = function(context) return NS.try_cast(ACTION.FlashHeal, NS.PLAYER_UNIT, "[SHADOW] FlashHeal", { skip_range = true }) end },
     { name = "HolyNovaAoE", matches = holy_nova_aoe_matches, execute = function(context) return NS.try_cast(ACTION.HolyNova, context.target, "[SHADOW] HolyNova") end },
@@ -1257,6 +1166,212 @@ local strategies = {
     { name = "RacialBloodFury", matches = racial_matches, execute = function(context) return NS.try_cast(ACTION.BloodFury, NS.PLAYER_UNIT, "[SHADOW] BloodFury", { skip_range = true }) end },
     { name = "RacialArcaneTorrent", matches = racial_matches, execute = function(context) return NS.try_cast(ACTION.ArcaneTorrent, NS.PLAYER_UNIT, "[SHADOW] ArcaneTorrent", { skip_range = true }) end },
 }
+
+-- ============================================================================
+-- Strategy DSL definitions (8th DSL adopter — first shadow priest/DoT-tracking spec)
+-- Converts 6 strategies to declarative DSL, preserving priority order via
+-- in-place substitution. Exercises: DoT tracking (VT, SW:P), execute range
+-- (SW:D), shadow form management (Shadowform), cooldown/resource gating
+-- (MindBlast mana/threat), OOC buffing (InnerFire), and the first use of
+-- `context` condition type for is_casting/is_moving checks.
+-- Resource model: mana-based DoT/caster.
+-- ============================================================================
+local DSL_DEFS = {
+    -- Shadowform: apply shadow form if not already active and spell is known.
+    -- Conditions: not broken_api throttled, no shadowform buff, spell known.
+    {
+        name = "Shadowform",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Shadowform, 3.0) then return false end
+                return true
+            end },
+            { type = "state", field = "has_shadowform", op = "falsy" },
+            { type = "state", field = "shadowform_known", op = "truthy" },
+        },
+        execute = function(context)
+            return NS.try_cast(ACTION.Shadowform, NS.PLAYER_UNIT, "[SHADOW] Shadowform", { skip_range = true })
+        end,
+    },
+    -- VampiricTouch: primary DoT application/refresh with snapshot awareness.
+    -- Conditions: spell known, not casting/channeling, not broken_api, can break MF, not moving,
+    --              valid target, VT remaining <= clip threshold, TTD gate, DoT TTD gating,
+    --              not mana emergency, snapshot upgrade check, engaged with player.
+    {
+        name = "VampiricTouch",
+        conditions = {
+            { type = "state", field = "vampiric_touch_known", op = "truthy" },
+            { type = "context", field = "is_casting", op = "falsy" },
+            { type = "context", field = "is_channeling", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.VampiricTouch, 2.0) then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                return can_break_mind_flay(state)
+            end },
+            { type = "context", field = "is_moving", op = "falsy" },
+            { type = "context", field = "has_valid_enemy_target", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if (state.vt_remaining or 0) > vt_clip_threshold(context) then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                if context.ttd_known and context.ttd > 0 and context.ttd < 6 then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                local ttd_threshold = spec_kit.setting_number(context, "shadow_dot_ttd_threshold", 50) / 100
+                if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.vampiric_touch, ttd_threshold) then return false end
+                return true
+            end },
+            { type = "state", field = "mana_emergency", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+                if state.vt_remaining > 0 and not should_snapshot_upgrade(state.spell_damage, state.snapshot_vt_dmg, state.vt_remaining, 3, ratio) then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                if (state.vt_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
+                return true
+            end },
+        },
+        execute = function(context)
+            local ok = NS.try_cast(ACTION.VampiricTouch, context.target, "[SHADOW] VampiricTouch")
+            if ok then shadow_state.snapshot_vt_dmg = shadow_state.spell_damage end
+            return ok
+        end,
+    },
+    -- ShadowWordPain: DoT application/refresh with shadow weaving and snapshot awareness.
+    -- Conditions: spell known, not broken_api, can break MF, valid target, not mana emergency,
+    --              weaving-aware refresh window, snapshot upgrade, TTD gate.
+    {
+        name = "ShadowWordPain",
+        conditions = {
+            { type = "state", field = "swp_known", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShadowWordPain, 2.0) then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                return can_break_mind_flay(state)
+            end },
+            { type = "context", field = "has_valid_enemy_target", op = "truthy" },
+            { type = "state", field = "mana_emergency", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                if (state.swp_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                local sw_window = swp_clip_threshold(context)
+                local effective_window = (state.weaving_stacks > 0 and state.weaving_stacks < 5) and 5 or sw_window
+                if state.swp_remaining > effective_window then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+                if state.swp_remaining > 0 and not should_snapshot_upgrade(state.spell_damage, state.snapshot_swp_dmg, state.swp_remaining, swp_clip_threshold(context), ratio) then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                local ttd_threshold = spec_kit.setting_number(context, "shadow_dot_ttd_threshold", 50) / 100
+                if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.shadow_word_pain, ttd_threshold) then return false end
+                return true
+            end },
+        },
+        execute = function(context)
+            local ok = NS.try_cast(ACTION.ShadowWordPain, context.target, "[SHADOW] ShadowWordPain")
+            if ok then shadow_state.snapshot_swp_dmg = shadow_state.spell_damage end
+            return ok
+        end,
+    },
+    -- MindBlast: primary nuke with mana/threat/engagement gating.
+    -- Conditions: not casting/channeling, can break MF, not moving, valid target,
+    --              spell ready, not mana low, threat safe, engaged with player.
+    {
+        name = "MindBlast",
+        conditions = {
+            { type = "context", field = "is_casting", op = "falsy" },
+            { type = "context", field = "is_channeling", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                return can_break_mind_flay(state)
+            end },
+            { type = "context", field = "is_moving", op = "falsy" },
+            { type = "context", field = "has_valid_enemy_target", op = "truthy" },
+            { type = "state", field = "mb_ready", op = "truthy" },
+            { type = "state", field = "mana_low", op = "falsy" },
+            { type = "state", field = "threat_safe", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                return _engaged_with_player(context)
+            end },
+        },
+        execute = function(context)
+            return NS.try_cast(ACTION.MindBlast, context.target, "[SHADOW] MindBlast")
+        end,
+    },
+    -- ShadowWordDeath: execute-range nuke with safety and threat gating.
+    -- Conditions: can break MF, valid target, spell ready, TTD gate, not mana emergency,
+    --              threat safe, execute/safety HP check, engaged with player.
+    {
+        name = "ShadowWordDeath",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                return can_break_mind_flay(state)
+            end },
+            { type = "context", field = "has_valid_enemy_target", op = "truthy" },
+            { type = "state", field = "swd_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if context.ttd_known and context.ttd > 0 and context.ttd < 3 then return false end
+                return true
+            end },
+            { type = "state", field = "mana_emergency", op = "falsy" },
+            { type = "state", field = "threat_safe", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                local target_hp = (context.target_hp_pct or context.target_hp or 100)
+                local in_execute = target_hp <= 25
+                local safety_floor = in_execute and 60 or (state.swd_safety_hp or 80)
+                if (context.hp or 100) < safety_floor then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                return _engaged_with_player(context)
+            end },
+        },
+        execute = function(context)
+            return NS.try_cast(ACTION.ShadowWordDeath, context.target, "[SHADOW] ShadowWordDeath")
+        end,
+    },
+    -- InnerFire: OOC self-buff with broken_api throttle and setting gate.
+    -- Conditions: spell known, not broken_api, no inner fire buff, setting enabled, not in combat.
+    {
+        name = "InnerFire",
+        conditions = {
+            { type = "state", field = "inner_fire_known", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.InnerFire, 3.0) then return false end
+                return true
+            end },
+            { type = "state", field = "has_inner_fire", op = "falsy" },
+            { type = "setting", key = "shadow_use_inner_fire", default = true },
+            { type = "context", field = "in_combat", op = "falsy" },
+        },
+        execute = function(context)
+            return NS.try_cast(ACTION.InnerFire, NS.PLAYER_UNIT, "[SHADOW] InnerFire", { skip_range = true })
+        end,
+    },
+}
+
+-- In-place substitution: replace matching strategy entries with DSL-compiled versions,
+-- preserving priority order. Named match functions remain as dead code (cleaned up later).
+local DSL_STRATEGIES = dsl.compile_strategies(DSL_DEFS, { get_state = build_state })
+local _dsl_by_name = {}
+for _i = 1, #DSL_STRATEGIES do _dsl_by_name[DSL_STRATEGIES[_i].name] = DSL_STRATEGIES[_i] end
+for _i = 1, #strategies do
+    local _dsl = _dsl_by_name[strategies[_i].name]
+    if _dsl then
+        strategies[_i] = _dsl
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
