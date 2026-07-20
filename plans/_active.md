@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-20 (Strategy DSL + lazy context landed; 8 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest; `tests/_staging/` debris cleaned; baseline re-verified 323 rot + 21 leveling = 344 total).
+**Last updated:** 2026-07-20 (Strategy DSL + lazy context landed; 9 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage; `tests/_staging/` debris cleaned; baseline re-verified 324 rot + 21 leveling = 345 total).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -40,6 +40,7 @@
 | restoration shaman DSL | COMPLETE (2026-07-20) | Sixth DSL adopter (first healer spec) — `e6ec9143`. 6 strategies (restoration shaman, mana/healer). Bumped 320→321. |
 | beast mastery hunter DSL | COMPLETE (2026-07-20) | Seventh DSL adopter (first hunter/pet-management spec) — `efa0abe4`. 6 strategies (beast mastery hunter, focus/mana + pet). Bumped 321→322. |
 | shadow priest DSL | COMPLETE (2026-07-20) | Eighth DSL adopter (first shadow priest/DoT-tracking spec) — `d4172362`. 6 strategies (shadow priest, mana + DoT). Bumped 322→323. |
+| frost mage DSL | COMPLETE (2026-07-20) | Ninth DSL adopter (first frost mage/proc-tracking spec) — `4c77806d`. 6 strategies (frost mage, mana + proc tracking). Bumped 323→324. |
 | `tests/_staging/` cleanup | COMPLETE (2026-07-20) | Deleted untracked debris (`test_wotlk_integration.lua` was failing + 90% redundant; empty `phase2_hide/`). Promoted the one unique gap (WotLK `get_expansion_max_level()==80`) into `test_expansion_helpers.lua`. Gate 317+21 green. |
 
 ## Reference Documents (not plans)
@@ -55,13 +56,13 @@
 
 ## Baseline (ALL GREEN — verified 2026-07-20)
 
-- 323 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +6 from combat/balance/protection/restoration/beast-mastery/shadow DSL adoption suites
+- 324 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +7 from combat/balance/protection/restoration/beast-mastery/shadow/frost DSL adoption suites
 - 21 leveling suites: ALL PASS — was 17 at 2026-07-10; +4 from leveling ladder + verification
 - 31 vanilla audit: PASS (0 tainted)
 - 61 sylvanas audit: PASS (0 invalid)
 - luac -p + pre-commit DBC/vanilla: PASS (617+ files)
 
-> **DSL adoption progress:** 8 of 29 specs on the strategy DSL — arms (`37f4bb01`), fury (`33c77110`), combat rogue (`f280bd72`), balance druid (`cbc60cfe`), protection paladin (`ccc60645`), restoration shaman (`e6ec9143`), beast mastery hunter (`efa0abe4`), shadow priest (`d4172362`). Each adopted 6–7 strategies via declarative `DSL_DEFS` + in-place substitution. `AGENTS.md` synced to 323+21=344.
+> **DSL adoption progress:** 9 of 29 specs on the strategy DSL — arms (`37f4bb01`), fury (`33c77110`), combat rogue (`f280bd72`), balance druid (`cbc60cfe`), protection paladin (`ccc60645`), restoration shaman (`e6ec9143`), beast mastery hunter (`efa0abe4`), shadow priest (`d4172362`), frost mage (`4c77806d`). Each adopted 6–7 strategies via declarative `DSL_DEFS` + in-place substitution. `AGENTS.md` synced to 324+21=345.
 
 ---
 
