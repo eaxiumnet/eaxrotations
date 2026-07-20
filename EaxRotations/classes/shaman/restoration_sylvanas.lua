@@ -5,6 +5,7 @@
 -- WHEN:  combat or pre-combat, with valid friendly targets.
 -- WHY:   mirrors TBC resto shaman consensus from wowsims (no APL), Icy Veins, Wowhead: Chain Heal primary + Earth Shield tank + downrank CH + Water Shield + totem twisting.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no on_update() allocs.
+--         6 strategies use the declarative strategy DSL (sixth DSL adopter, first healer).
 
 -- Shaman Restoration group-healing playstyle.
 
@@ -16,6 +17,7 @@ local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helpe
 if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local SPELLS = NS.ShamanSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 
 -- Centralized spell resolver via spec_kit (rank IDs from shaman/class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -373,7 +375,6 @@ local function cooldowns_enabled(context)
 end
 
 
-
 -- ============================================================================
 -- Match functions
 -- ============================================================================
@@ -438,21 +439,6 @@ local function natures_swiftness_matches(context, state)
  return true
 end
 
-local function mana_tide_totem_matches(context, state)
- if not cooldowns_enabled(context) then return false end
- if not state.in_combat then return false end    local threshold = spec_kit.setting_number(context, "restoration_mana_tide_pct", 60)
- -- Self mana must be below threshold
- if (state.mana_pct or 100) > threshold then return false end
- -- Also check group mana if available
- if Healing.group_mana_avg then
-  local group_mana = Healing.group_mana_avg()
-  if group_mana and group_mana > threshold then return false end
- end
- if Healing.all_members_above_hp and not Healing.all_members_above_hp(80) then return false end
- local me = context.me or NS.GetPlayer()
- if not me or not NS.spell_ready(ACTION.ManaTideTotem, me, { skip_range = true }) then return false end
- return true
-end
 
 local function bloodlust_matches(context, state)
  if not cooldowns_enabled(context) then return false end
@@ -545,65 +531,15 @@ local function chain_lightning_matches(context, state)
  return true
 end
 
-local function purge_matches(context, state)
- if not state.purge_ready then return false end
- if not context.target then return false end
- if not (context.is_pvp == true or context.purge_target == true) then return false end
- return true
-end
-
-local function tremor_totem_matches(context, state)
- if not state.tremor_totem_ready then return false end
- if not state.in_combat then return false end
- -- Drop Tremor for fear/charm/sleep/control protection in dungeons AND raids.
- -- Uses control_risk / fear flags (with tank/known_boss from accurate party frames) to avoid tank fears/MC = wipes (e.g. Shadow Lab Hellmaw/Blackheart, Ramparts, OHF, Sethekk, Kara Nightbane, Hyjal, etc.).
- if not (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_nearby or context.control_risk or false) then return false end
- return true
-end
-
-local function grounding_totem_matches(context, state)
- if not state.grounding_totem_ready then return false end
- if not state.in_combat then return false end
- if (state.enemy_count or 0) < 1 then return false end
- -- Drop Grounding when facing caster mobs (enemy casting or PvP)
- if not (context.is_pvp == true or context.target_casting == true) then return false end
- return true
-end
 
 -- ============================================================================
--- Cure Poison / Cure Disease dispel strategies
+-- Cleanse target helper (used by DSL_DEFS for CurePoison / CureDisease)
 -- ============================================================================
-
 
 local function _get_cleanse_target(state)
  return state and state.cleanse_target
 end
 
-local function cure_poison_matches(context, state)
- if not state.cure_poison_ready then return false end
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurePoison, 3.0) then return false end
- if state.mana_emergency then return false end
- local dispel_target = _get_cleanse_target(state)
- if not dispel_target then return false end
- if not dispel_target.has_poison then return false end
- if state.lowest and (state.lowest.effective_hp or 100) < 25 then return false end
- -- Dungeon opt: if control_risk (from fear/MC research), dispel poison aggressively
- if context and (context.control_risk or context.is_group) then return true end
- return true
-end
-
-local function cure_disease_matches(context, state)
- if not state.cure_disease_ready then return false end
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CureDisease, 3.0) then return false end
- if state.mana_emergency then return false end
- local dispel_target = _get_cleanse_target(state)
- if not dispel_target then return false end
- if not dispel_target.has_disease then return false end
- if state.lowest and (state.lowest.effective_hp or 100) < 25 then return false end
- -- Dungeon opt: control_risk boost for disease dispel to avoid deaths/slow clears
- if context and (context.control_risk or context.is_group) then return true end
- return true
-end
 
 local function poison_cleansing_totem_matches(context, state)
  if not state.poison_cleansing_totem_ready then return false end
@@ -812,9 +748,7 @@ local healing_strategies = {
  { name = "NaturesSwiftness", matches = natures_swiftness_matches, execute = function()
   return NS.try_cast(ACTION.NaturesSwiftness, NS.PLAYER_UNIT, "[RESTO] NaturesSwiftness")
  end },
- { name = "ManaTideTotem", matches = mana_tide_totem_matches, execute = function()
-  return NS.try_cast(ACTION.ManaTideTotem, NS.PLAYER_UNIT, "[RESTO] ManaTideTotem", { expected_cooldown = 300 })
- end },
+ { name = "ManaTideTotem" },  -- DSL-substituted at runtime
  { name = "Bloodlust", matches = bloodlust_matches, execute = function()
   return NS.try_cast(ACTION.Bloodlust, NS.PLAYER_UNIT, "[RESTO] Bloodlust", { expected_cooldown = 600 })
  end },
@@ -850,15 +784,15 @@ local healing_strategies = {
   if not state.lowest or not state.lowest.unit then return false end
   return NS.try_cast(heal.spell, state.lowest.unit, string.format("[RESTO] %s %.0f%%", heal.label, state.lowest.effective_hp or 0))
  end },
- { name = "Purge", matches = purge_matches, execute = function(context) return NS.try_cast(ACTION.Purge, context.target, "[RESTO] Purge") end },
- { name = "TremorTotem", matches = tremor_totem_matches, execute = function() return NS.try_cast(ACTION.TremorTotem, NS.PLAYER_UNIT, "[RESTO] TremorTotem") end },
- { name = "GroundingTotem", matches = grounding_totem_matches, execute = function() return NS.try_cast(ACTION.GroundingTotem, NS.PLAYER_UNIT, "[RESTO] GroundingTotem") end },
+ { name = "Purge" },  -- DSL-substituted at runtime
+ { name = "TremorTotem" },  -- DSL-substituted at runtime
+ { name = "GroundingTotem" },  -- DSL-substituted at runtime
  { name = "StrengthOfEarthTotem", matches = totem_strength_matches, execute = function() return NS.try_cast(ACTION.StrengthOfEarthTotem, NS.PLAYER_UNIT, "[RESTO] StrengthOfEarthTotem") end },
  { name = "ManaSpringTotem", matches = totem_mana_spring_matches, execute = function() return NS.try_cast(ACTION.ManaSpringTotem, NS.PLAYER_UNIT, "[RESTO] ManaSpringTotem") end },
  { name = "GraceOfAirTotem", matches = totem_grace_air_matches, execute = function() return NS.try_cast(ACTION.GraceOfAirTotem, NS.PLAYER_UNIT, "[RESTO] GraceOfAirTotem") end },
  { name = "WindfuryTotem", matches = totem_windfury_matches, execute = function() return NS.try_cast(ACTION.WindfuryTotem, NS.PLAYER_UNIT, "[RESTO] WindfuryTotem") end },
- { name = "CurePoison", matches = cure_poison_matches, execute = function(context, state) local ct = state and state.cleanse_target; local target = ct and ct.unit or NS.PLAYER_UNIT; return NS.try_cast(ACTION.CurePoison, target, "[RESTO] CurePoison") end },
- { name = "CureDisease", matches = cure_disease_matches, execute = function(context, state) local ct = state and state.cleanse_target; local target = ct and ct.unit or NS.PLAYER_UNIT; return NS.try_cast(ACTION.CureDisease, target, "[RESTO] CureDisease") end },
+ { name = "CurePoison" },  -- DSL-substituted at runtime
+ { name = "CureDisease" },  -- DSL-substituted at runtime
  { name = "PoisonCleansingTotem", matches = poison_cleansing_totem_matches, execute = function() return NS.try_cast(ACTION.PoisonCleansingTotem, NS.PLAYER_UNIT, "[RESTO] PoisonCleansingTotem") end },
  { name = "DiseaseCleansingTotem", matches = disease_cleansing_totem_matches, execute = function() return NS.try_cast(ACTION.DiseaseCleansingTotem, NS.PLAYER_UNIT, "[RESTO] DiseaseCleansingTotem") end },
 }
@@ -874,6 +808,166 @@ local idle_dps_strategies = {
 -- Earth Shock doubles as an interrupt (target casting check in earth_shock_matches).
 for _, strategy in ipairs(idle_dps_strategies) do
  healing_strategies[#healing_strategies + 1] = strategy
+end
+
+-- ============================================================================
+-- Declarative Strategy DSL definitions (sixth DSL adopter, first healer)
+-- ============================================================================
+-- These strategies are compiled from declarative definitions and replace the
+-- imperative match functions in the strategies table above for the same names.
+-- This proves the DSL generalizes beyond DPS/tank specs to healer mechanics:
+-- dispel management (cleanse target + debuff checks), totem auto-management
+-- (fear/CC/caster drops), PvP purge conditionals, and mana-conservation CD gating.
+local DSL_DEFS = {
+    {
+        name = "ManaTideTotem",
+        conditions = {
+            { type = "setting", key = "use_cooldowns", default = true },
+            { type = "in_combat" },
+            { type = "custom", fn = function(context, state)
+                local threshold = spec_kit.setting_number(context, "restoration_mana_tide_pct", 60)
+                if (state.mana_pct or 100) > threshold then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                if Healing.group_mana_avg then
+                    local threshold = spec_kit.setting_number(context, "restoration_mana_tide_pct", 60)
+                    local group_mana = Healing.group_mana_avg()
+                    if group_mana and group_mana > threshold then return false end
+                end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                if Healing.all_members_above_hp and not Healing.all_members_above_hp(80) then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                local me = context.me or NS.GetPlayer()
+                if not me or not NS.spell_ready(ACTION.ManaTideTotem, me, { skip_range = true }) then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function()
+            return NS.try_cast(ACTION.ManaTideTotem, NS.PLAYER_UNIT, "[RESTO] ManaTideTotem", { expected_cooldown = 300 })
+        end },
+    },
+    {
+        name = "Purge",
+        conditions = {
+            { type = "state", field = "purge_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not context.target then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                if not (context.is_pvp == true or context.purge_target == true) then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.Purge, context.target, "[RESTO] Purge")
+        end },
+    },
+    {
+        name = "TremorTotem",
+        conditions = {
+            { type = "state", field = "tremor_totem_ready", op = "truthy" },
+            { type = "in_combat" },
+            { type = "custom", fn = function(context, state)
+                if not (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_nearby or context.control_risk or false) then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function()
+            return NS.try_cast(ACTION.TremorTotem, NS.PLAYER_UNIT, "[RESTO] TremorTotem")
+        end },
+    },
+    {
+        name = "GroundingTotem",
+        conditions = {
+            { type = "state", field = "grounding_totem_ready", op = "truthy" },
+            { type = "in_combat" },
+            { type = "enemy_count", op = ">=", value = 1 },
+            { type = "custom", fn = function(context, state)
+                if not (context.is_pvp == true or context.target_casting == true) then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function()
+            return NS.try_cast(ACTION.GroundingTotem, NS.PLAYER_UNIT, "[RESTO] GroundingTotem")
+        end },
+    },
+    {
+        name = "CurePoison",
+        conditions = {
+            { type = "state", field = "cure_poison_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurePoison, 3.0) then return false end
+                return true
+            end },
+            { type = "state", field = "mana_emergency", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                local dt = _get_cleanse_target(state)
+                if not dt then return false end
+                if not dt.has_poison then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                if state.lowest and (state.lowest.effective_hp or 100) < 25 then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            local ct = state and state.cleanse_target
+            local target = ct and ct.unit or NS.PLAYER_UNIT
+            return NS.try_cast(ACTION.CurePoison, target, "[RESTO] CurePoison")
+        end },
+    },
+    {
+        name = "CureDisease",
+        conditions = {
+            { type = "state", field = "cure_disease_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CureDisease, 3.0) then return false end
+                return true
+            end },
+            { type = "state", field = "mana_emergency", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                local dt = _get_cleanse_target(state)
+                if not dt then return false end
+                if not dt.has_disease then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                if state.lowest and (state.lowest.effective_hp or 100) < 25 then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            local ct = state and state.cleanse_target
+            local target = ct and ct.unit or NS.PLAYER_UNIT
+            return NS.try_cast(ACTION.CureDisease, target, "[RESTO] CureDisease")
+        end },
+    },
+}
+
+-- Compile declarative strategies, injecting build_state so unit tests that call
+-- strategy.matches(context) without state get a freshly-built state.
+local DSL_STRATEGIES = dsl.compile_strategies(DSL_DEFS, { get_state = build_state })
+
+-- ============================================================================
+-- DSL in-place substitution (preserves priority order)
+-- ============================================================================
+local DSL_BY_NAME = {}
+for i = 1, #DSL_STRATEGIES do
+    DSL_BY_NAME[DSL_STRATEGIES[i].name] = DSL_STRATEGIES[i]
+end
+
+for i = 1, #healing_strategies do
+    local dsl_strategy = DSL_BY_NAME[healing_strategies[i].name]
+    if dsl_strategy then
+        healing_strategies[i] = dsl_strategy
+    end
 end
 
 if NS.rotation_registry and NS.rotation_registry.register then
