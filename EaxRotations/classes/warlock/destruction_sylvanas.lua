@@ -20,6 +20,7 @@ do
 end
 local SPELLS = NS.WarlockSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local curse_helper = require("shared/warlock_curse_helper_sylvanas")
 local CURSE_REFRESH_WINDOW = curse_helper.CURSE_REFRESH_WINDOW
 
@@ -146,7 +147,7 @@ local function build_state(context)
     if now == _last_build_state_time then return spec_kit.safe_state(destro_state, DESTRO_SCHEMA) end
     if context.now then _last_build_state_time = now end
     local target = context.target
-    local me = NS.GetPlayer()
+    local me = NS.GetPlayer and NS.GetPlayer()
     local state = destro_state
     if not me then return spec_kit.safe_state(destro_state, DESTRO_SCHEMA) end
     state.immolate_remains = target and NS.debuff_remains(target, IMMOLATE_DEBUFF) or 0
@@ -534,6 +535,95 @@ local function aoe_matches(context, action, state)
     return true
 end
 
+-- ============================================================================
+-- Declarative Strategy DSL
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "Immolate",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Immolate, 2.0) then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                local min_sp = spec_kit.setting_number(context, "destro_immolate_min_sp", IMMOLATE_MIN_SP_DEFAULT)
+                if (state.level or 70) >= 40 and (state.spell_damage or 0) < min_sp then return false end
+                if (state.immolate_remains or 0) > IMMOLATE_PANDEMIC_WINDOW then return false end
+                return NS.should_refresh_dot and NS.should_refresh_dot((state.immolate_remains or 0), 1.5, context.ttd, 15)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Immolate, target = "target", label = "[DESTRUCTION] Immolate" },
+    },
+    {
+        name = "Conflagrate",
+        conditions = {
+            { type = "state", field = "immolate_remains", op = ">", value = 0 },
+            { type = "custom", fn = function(context, state)
+                if context.ttd_known and context.ttd < 3 then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Conflagrate, target = "target", label = "[DESTRUCTION] Conflagrate" },
+    },
+    {
+        name = "Shadowburn",
+        conditions = {
+            { type = "context", field = "target", op = "!=", value = nil },
+            { type = "custom", fn = function(context, state)
+                if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
+                local hp_threshold = spec_kit.setting_number(context, "destro_shadowburn_hp", SHADOWBURN_HP_PCT)
+                if not (NS.is_execute_phase and NS.is_execute_phase(context.target_hp, hp_threshold)) then return false end
+                return NS.spell_ready(ACTION.Shadowburn, context.target)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Shadowburn, target = "target", label = "[DESTRUCTION] Shadowburn" },
+    },
+    {
+        name = "Incinerate",
+        conditions = {
+            { type = "context", field = "is_moving", op = "==", value = false },
+            { type = "state", field = "immolate_remains", op = ">", value = 0 },
+            { type = "custom", fn = function(context, state)
+                if context.ttd_known and context.ttd < 6 then return false end
+                return NS.spell_ready(ACTION.Incinerate, context.target)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Incinerate, target = "target", label = "[DESTRUCTION] Incinerate" },
+    },
+    {
+        name = "CurseOfDoom",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfDoom, 2.0) then return false end
+                if assigned_curse_blocks(context, "doom") then return false end
+                if select_curse(context, state) ~= "doom" then return false end
+                if not (NS.should_use_long_cd and NS.should_use_long_cd(context, 60)) then return false end
+                if (state.cod_remains or 0) > CURSE_REFRESH_WINDOW then return false end
+                if other_curse_active(state, "doom") then return false end
+                return NS.spell_ready(ACTION.CurseOfDoom, context.target)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.CurseOfDoom, target = "target", label = "[DESTRUCTION] Curse of Doom" },
+    },
+    {
+        name = "LifeTap",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if context.is_casting or context.is_channeling then return false end
+                if (NS.time_now() - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then return false end
+                return true
+            end },
+            { type = "state", field = "mana_pct", op = "<=", value = MANA_LIFE_TAP_THRESHOLD },
+            { type = "state", field = "hp", op = ">=", value = 40 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            _last_life_tap = NS.time_now()
+            return NS.try_cast(ACTION.LifeTap, context.me or NS.GetPlayer() or NS.PLAYER_UNIT, "[DESTRUCTION] Life Tap", { skip_range = true })
+        end },
+    },
+}
+
 local strategies = {}
 for i = 1, #ACTIONS do
     local action = ACTIONS[i]
@@ -688,6 +778,16 @@ table.insert(strategies, 25, {
         return NS.try_cast(ACTION.Soulshatter, me, "[DESTRUCTION] Soulshatter", { skip_range = true })
     end,
 })
+
+-- Replace imperative match functions with DSL-compiled equivalents.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("destruction", strategies, { get_state = build_state })
