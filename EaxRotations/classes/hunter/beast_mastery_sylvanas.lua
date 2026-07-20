@@ -350,7 +350,6 @@ local function is_item_ready(me, item_id)
 end
 
 
-
 -- ============================================================================
 -- Match functions
 -- ============================================================================
@@ -424,17 +423,6 @@ local function auto_aspect_execute(context)
     return NS.try_cast(ACTION.AspectOfTheHawk, context.me, "[BEAST_MASTERY] AutoAspect Hawk", { skip_range = true })
 end
 
--- IN COMBAT — Hunter's Mark
-local function hunters_mark_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.HuntersMark, 2.0) then return false end
-    if not mounted_bail(context, s) then return false end
-    if not s.in_combat then return false end
-    if not context.target then return false end
-    if s.has_hunters_mark then return false end
-    if not s.hunters_mark_ready then return false end
-    return true
-end
-
 -- Misdirection (pull window)
 local function misdirection_matches(context, s)
     if not mounted_bail(context, s) then return false end
@@ -451,66 +439,11 @@ local function misdirection_matches(context, s)
     return true
 end
 
--- Mend Pet (in combat)
-local function mend_pet_matches(context, s)
-    if not mounted_bail(context, s) then return false end
-    if not s.in_combat then return false end
-    if not s.pet_alive then return false end
-    if (s.pet_hp or 100) > 45 then return false end
-    if not s.mend_pet_ready then return false end
-    return true
-end
-
--- Bestial Wrath: align with major power windows (Bloodlust/Drums/trinkets).
-local function bestial_wrath_matches(context, s)
-    if not mounted_bail(context, s) then return false end
-    if not cooldowns_allowed(context) then return false end
-    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
-    if not s.pet_alive then return false end
-    if not s.bestial_wrath_ready then return false end
-    -- TTD gate: don't waste 2min CD on a dying target
-    if context.ttd_known and (context.ttd or 0) < 15 then return false end
-    -- Stack with major CDs; timeout fallback so BW fires by ~45s
-    local align = s.major_cd_window or false
-    local combat_time = context.combat_time or 0
-    local ttd = context.ttd or 999
-    if not align and combat_time < 45 and ttd > 15 then return false end
-    return true
-end
-
 -- Intimidation (BM pet stun)
 local function intimidation_matches(context, s)
     if not mounted_bail(context, s) then return false end
     if not s.pet_alive then return false end
     if not s.intimidation_ready then return false end
-    return true
-end
-
--- Rapid Fire
-local function rapid_fire_matches(context, s)
-    if not mounted_bail(context, s) then return false end
-    if not cooldowns_allowed(context) then return false end
-    if not s.rapid_fire_ready then return false end
-    return true
-end
-
--- Readiness (reset Rapid Fire after it has been used and has substantial cooldown remaining)
-local function readiness_matches(context, s)
-    if not mounted_bail(context, s) then return false end
-    if not cooldowns_allowed(context) then return false end
-    if not spec_kit.setting_bool(context, "use_readiness", true) then return false end
-    if not s.readiness_ready then return false end
-    -- Only use if Rapid Fire is on cooldown with >= 60 s remaining
-    if (s.rapid_fire_cd or 0) < 60 then return false end
-    return true
-end
-
--- Kill Command (off-GCD, high priority)
-local function kill_command_matches(context, s)
-    if not mounted_bail(context, s) then return false end
-    if not s.in_combat then return false end
-    if not s.pet_alive then return false end
-    if not s.kill_command_ready then return false end
     return true
 end
 
@@ -882,22 +815,9 @@ local strategies = {
           return true
       end,
       execute = function() return pet_manager.set_aggressive() end },
-    { name = "MendPet",
-        matches = mend_pet_matches,
-        execute = function(context)
-            local pet = hunter_core.get_pet()
-            if not pet then return false end
-            local result = NS.try_cast(ACTION.MendPet, pet, "[BEAST_MASTERY] MendPet")
-            if result then hunter_core.record_mend() end
-            return result
-        end,
-    },
+    { name = "MendPet" }, -- DSL-substituted at runtime
     -- 6. Hunter's Mark
-    {
-        name = "HuntersMark",
-        matches = hunters_mark_matches,
-        execute = function(context) return NS.try_cast(ACTION.HuntersMark, context.target, "[BEAST_MASTERY] HuntersMark") end,
-    },
+    { name = "HuntersMark" }, -- DSL-substituted at runtime
     -- 9. Freezing Trap (OOC CC)
     {
         name = "FreezingTrap",
@@ -905,21 +825,9 @@ local strategies = {
         execute = function(context) return NS.try_cast(ACTION.FreezingTrap, context.me, "[BEAST_MASTERY] FreezingTrap", { skip_range = true, expected_cooldown = 30 }) end,
     },
     -- 10. Kill Command (off-GCD, highest DPS ability for BM — IcyVeins #1 priority)
-    {
-        name = "KillCommand",
-        matches = kill_command_matches,
-        execute = function(context) return NS.try_cast(ACTION.KillCommand, context.target, "[BEAST_MASTERY] KillCommand") end,
-    },
+    { name = "KillCommand" }, -- DSL-substituted at runtime
     -- 11. Bestial Wrath
-    {
-        name = "BestialWrath",
-        matches = bestial_wrath_matches,
-        execute = function(context)
-            local pet = hunter_core.get_pet()
-            local target = pet or context.me
-            return NS.try_cast(ACTION.BestialWrath, target, "[BEAST_MASTERY] BestialWrath", { skip_range = true })
-        end,
-    },
+    { name = "BestialWrath" }, -- DSL-substituted at runtime
     -- 11b. Intimidation (BM pet stun)
     {
         name = "Intimidation",
@@ -927,17 +835,9 @@ local strategies = {
         execute = function(context) return NS.try_cast(ACTION.Intimidation, context.target, "[BEAST_MASTERY] Intimidation") end,
     },
     -- 12. Rapid Fire
-    {
-        name = "RapidFire",
-        matches = rapid_fire_matches,
-        execute = function(context) return NS.try_cast(ACTION.RapidFire, context.me, "[BEAST_MASTERY] RapidFire", { skip_range = true }) end,
-    },
+    { name = "RapidFire" }, -- DSL-substituted at runtime
     -- 13. Readiness (reset CDs)
-    {
-        name = "Readiness",
-        matches = readiness_matches,
-        execute = function(context) return NS.try_cast(ACTION.Readiness, context.me, "[BEAST_MASTERY] Readiness", { skip_range = true, expected_cooldown = 300 }) end,
-    },
+    { name = "Readiness" }, -- DSL-substituted at runtime
     -- 14. Feign Death (threat management)
     {
         name = "FeignDeath",
