@@ -162,41 +162,6 @@ end
 -- Matches functions
 -- ============================================================================
 
-local function combustion_matches_fn(context, state)
-    if not state.combustion_ready then return false end
-    if not context.in_combat then return false end
-    if context.settings and context.settings.use_cooldowns == false then return false end
-    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
-    -- TTD gate: don't waste 3min CD on a dying target
-    if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
-    -- Prefer 5-stack Scorch before popping Combustion, unless burst forced
-    local stacks = (state and state.scorch_stacks) or (context.scorch_stacks or 0)
-    if not context.should_burst and stacks < 5 then return false end
-    -- Align with major power windows (Bloodlust/Drums/trinkets/other CDs).
-    local align = state.major_cd_window or false
-    local combat_time = context.combat_time or 0
-    local ttd = context.ttd or 999
-    if not context.should_burst and not align and combat_time < 45 and ttd > 15 then return false end
-    return true
-end
-
-local function scorch_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Scorch, 2.0) then return false end
-    if context.is_moving then return false end
-    if not context.target then return false end
-    -- Gate on user toggle for assigned Scorch debuff duty
-    if context.settings and context.settings.use_scorch_debuff == false then return false end
-    -- Build 5-stack Fire Vulnerability; maintain when about to drop
-
-    -- Context fallbacks: context.scorch_stacks / context.scorch_remains / context.pyroblast_ready
-    -- Are all harmless dead code with or 0/or false guards -- no functional change needed.
-    local stacks = (state and state.scorch_stacks) or (context.scorch_stacks or 0)
-    local remains = (state and state.scorch_remains) or (context.scorch_remains or 0)
-    if stacks < 5 then return NS.spell_ready(ACTION.Scorch, context.target) end
-    if remains <= 4 then return NS.spell_ready(ACTION.Scorch, context.target) end
-    return false
-end
-
 local function fireball_matches_fn(context, state)
     if context.is_moving then return false end
     -- Clearcasting: always consume on Fireball (highest damage) per research
@@ -248,29 +213,6 @@ local function arcane_explosion_matches_fn(context, state)
 end
 
 -- Defensives / Utility
-local function ice_barrier_matches_fn(context, state)
-    if (context.hp or 100) > 60 then return false end
-    if context.settings and (context.settings.use_defensives == false or context.settings.use_ice_barrier == false) then return false end
-    if NS.has_player_buff(11426) then return false end
-
-    return NS.spell_ready(ACTION.IceBarrier, NS.PLAYER_UNIT, { skip_range = true })
-end
-
-local function mana_shield_matches_fn(context, state)
-    if (context.hp or 100) > 40 then return false end
-    if context.settings and (context.settings.use_defensives == false or context.settings.use_mana_shield == false) then return false end
-
-    return NS.spell_ready(ACTION.ManaShield, NS.PLAYER_UNIT, { skip_range = true })
-end
-
-local function evocation_matches_fn(context, state)
-    if context.settings and context.settings.use_evocation == false then return false end
-    if ((state and state.mana_pct) or (context.mana_pct or 100)) > 20 then return false end
-    if not context.in_combat then return false end
-
-    return NS.spell_ready(ACTION.Evocation, NS.PLAYER_UNIT, { skip_range = true })
-end
-
 local function mana_gem_conjure_matches_fn(context, state)
     if context.in_combat then return false end
     if state and state.mana_gem_available then return false end
@@ -332,14 +274,6 @@ local function pyroblast_matches_fn(context, state)
     if not ((state and state.pyroblast_ready) or context.pyroblast_ready or pom_active) then return false end
 
     return NS.spell_ready(ACTION.Pyroblast, context.target)
-end
-
-local function presence_of_mind_matches_fn(context, state)
-    if not context.in_combat then return false end
-    if context.settings and context.settings.use_cooldowns == false then return false end
-    if not context.should_burst then return false end
-    if NS.has_player_buff(12043) then return false end
-    return NS.spell_ready(ACTION.PresenceOfMind, NS.PLAYER_UNIT, { skip_range = true })
 end
 
 local function remove_curse_matches_fn(context, state)
