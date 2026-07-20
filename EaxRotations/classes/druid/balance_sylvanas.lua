@@ -1,6 +1,7 @@
 -- balance_sylvanas.lua — Druid Balance (moonkin) rotation for TBC Anniversary (2.5.5).
 -- WHAT:  ranged DPS rotation (Moonfire + Insect Swarm up, Faerie Fire, Starfire filler with Wrath for mana,
 --         optional multi-DoT spread via TSHelper.get_dps_targets, Starfall, Force of Nature).
+--         6 strategies use the declarative strategy DSL (fourth DSL adopter, first mana-based caster).
 -- WHEN:  combat, in Moonkin form, with valid enemy target.
 -- WHY:   mirrors wowsims/tbc-new balance APL and TBC guides (dots up, Faerie Fire, Starfire primary filler,
 --         Starfall on CD, self-Innervate low mana, treants on CD; multi-DoT when enabled).
@@ -16,6 +17,7 @@ do
 end
 local SPELLS = NS.DruidSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local _potion_helper = require("shared/potion_helper_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
@@ -706,6 +708,108 @@ local strategies = {
         end,
     },
 }
+
+-- ============================================================================
+-- Declarative Strategy DSL definitions (fourth DSL adopter, first mana-based caster)
+-- ============================================================================
+-- These strategies are compiled from declarative definitions and replace the
+-- inline match/execute pairs in the strategies table above for the same names.
+-- This proves the DSL generalizes beyond warrior rage and rogue energy/combo
+-- points to mana-based caster resource models (mana thresholds, DoT windows,
+-- spell readiness, PvP gates, AoE enemy count checks).
+local DSL_DEFS = {
+    {
+        name = "ManaPotionEmergency",
+        conditions = {
+            { type = "state", field = "mana_pct", op = "<=", value = 15 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return _potion_helper.try_use_potion(context, _potion_helper.MANA_POTION_IDS)
+        end },
+    },
+    {
+        name = "ManaPotion",
+        conditions = {
+            { type = "state", field = "mana_pct", op = "<=", value = 25 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return _potion_helper.try_use_potion(context, _potion_helper.MANA_POTION_IDS)
+        end },
+    },
+    {
+        name = "MoonkinForm",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not (context.settings and context.settings.balance_moonkin_auto) then return false end
+                return true
+            end },
+            { type = "in_combat", invert = true },
+            { type = "spell_ready", spell = SPELLS.MoonkinForm, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(SPELLS.MoonkinForm, NS.PLAYER_UNIT, "[BALANCE] Moonkin Form")
+        end },
+    },
+    {
+        name = "WarStomp",
+        conditions = {
+            { type = "in_combat" },
+            { type = "enemy_count", op = ">=", value = 4 },
+            { type = "spell_ready", spell = ACTION.WarStomp, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.WarStomp, NS.PLAYER_UNIT, "[BALANCE] War Stomp (4+ enemies)")
+        end },
+    },
+    {
+        name = "Healthstone",
+        conditions = {
+            { type = "in_combat" },
+            { type = "hp_threshold", unit = "self", op = "<=", value = 28 },
+            { type = "state", field = "healthstone_ready", op = ">", value = 0 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            local item_id = first_ready_item(HEALTHSTONE_IDS)
+            if item_id > 0 and NS.use_item_by_id then
+                return NS.use_item_by_id(item_id, context.me) and true or false
+            end
+            return false
+        end },
+    },
+    {
+        name = "PvP_NaturesGrasp",
+        conditions = {
+            { type = "is_pvp" },
+            { type = "context", field = "melee_on_you", op = "truthy" },
+            { type = "spell_ready", spell = ACTION.NaturesGrasp, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.NaturesGrasp, NS.PLAYER_UNIT, "[BALANCE PvP] Nature's Grasp")
+        end },
+    },
+}
+
+-- Compile declarative strategies, injecting build_state so unit tests that call
+-- strategy.matches(context) without state get a freshly-built state.
+local DSL_STRATEGIES = dsl.compile_strategies(DSL_DEFS, { get_state = build_state })
+
+-- ============================================================================
+-- DSL in-place substitution (preserves priority order)
+-- ============================================================================
+-- Build a lookup of DSL strategies by name and replace the inline entries
+-- at the same indices. This preserves the exact priority order while swapping
+-- in the declaratively-compiled match/execute functions.
+local DSL_BY_NAME = {}
+for i = 1, #DSL_STRATEGIES do
+    DSL_BY_NAME[DSL_STRATEGIES[i].name] = DSL_STRATEGIES[i]
+end
+
+for i = 1, #strategies do
+    local dsl_strategy = DSL_BY_NAME[strategies[i].name]
+    if dsl_strategy then
+        strategies[i] = dsl_strategy
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("balance", strategies, { get_state = build_state })
