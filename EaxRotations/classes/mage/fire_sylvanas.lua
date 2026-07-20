@@ -40,6 +40,7 @@ local ACTION = {
 }
 
 local potion_helper = require("shared/potion_helper_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 
 local SCORCH_DEBUFF = { 22959 }
 local CLEARCASTING_BUFF = { 12536 }  -- Clearcasting proc from Arcane Concentration talent
@@ -81,10 +82,13 @@ local FIRE_SCHEMA = {
     remove_curse_ready = false,
     healthstone_ready = 0,
     has_clearcasting = false,
+    has_presence_of_mind = false,
     bloodlust_active = false,
     major_cd_window = false,
     hit_cap_pct = 16,
     hit_cap_rating_needed = 202,
+    in_combat = false,
+    is_moving = false,
 }
 
 local fire_state = {
@@ -114,11 +118,17 @@ local function use_mana_gem()
     return ok and used == true
 end
 
+local PRESENCE_OF_MIND_BUFF = { 12043 }
+
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
+    -- Context passthrough (used by DSL conditions)
+    fire_state.in_combat = context.in_combat or false
+    fire_state.is_moving = context.is_moving or false
     -- Clearcasting proc (Arcane Concentration) — consumed on Fireball below. [#fix-1]
     fire_state.has_clearcasting = me and NS.buff_up(me, CLEARCASTING_BUFF) or false
+    fire_state.has_presence_of_mind = me and NS.buff_up(me, PRESENCE_OF_MIND_BUFF) or false
     if target then
         fire_state.scorch_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, SCORCH_DEBUFF) or 0
         fire_state.scorch_remains = NS.debuff_remains and NS.debuff_remains(target, SCORCH_DEBUFF) or 0
@@ -340,6 +350,91 @@ local function remove_curse_matches_fn(context, state)
 end
 
 -- ============================================================================
+-- Declarative Strategy DSL
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "IceBarrier",
+        conditions = {
+            { type = "setting", key = "use_defensives", op = "!=", value = false },
+            { type = "setting", key = "use_ice_barrier", op = "!=", value = false },
+            { type = "state", field = "hp_pct", op = "<=", value = 60 },
+            { type = "buff", unit = "self", ids = { 11426 }, invert = true },
+            { type = "spell_ready", spell = ACTION.IceBarrier, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.IceBarrier, target = "self", opts = { skip_range = true }, label = "[FIRE] Ice Barrier" },
+    },
+    {
+        name = "ManaShield",
+        conditions = {
+            { type = "setting", key = "use_defensives", op = "!=", value = false },
+            { type = "setting", key = "use_mana_shield", op = "!=", value = false },
+            { type = "state", field = "hp_pct", op = "<=", value = 40 },
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+            { type = "spell_ready", spell = ACTION.ManaShield, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.ManaShield, target = "self", opts = { skip_range = true }, label = "[FIRE] Mana Shield" },
+    },
+    {
+        name = "PresenceOfMind",
+        conditions = {
+            { type = "setting", key = "use_cooldowns", op = "!=", value = false },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "context", field = "should_burst", op = "==", value = true },
+            { type = "buff", unit = "self", ids = { 12043 }, invert = true },
+        },
+        action = { type = "cast", spell = ACTION.PresenceOfMind, target = "self", opts = { skip_range = true }, label = "[FIRE] Presence of Mind" },
+    },
+    {
+        name = "Combustion",
+        conditions = {
+            { type = "state", field = "combustion_ready", op = "truthy" },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "setting", key = "use_cooldowns", op = "!=", value = false },
+            { type = "custom", fn = function(context, state)
+                if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
+                local ttd = context.ttd or 999
+                if not context.should_burst and ttd > 0 and ttd < 15 then return false end
+                local stacks = state.scorch_stacks or 0
+                if not context.should_burst and stacks < 5 then return false end
+                local align = state.major_cd_window or false
+                local combat_time = context.combat_time or 0
+                if not context.should_burst and not align and combat_time < 45 and ttd > 15 then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Combustion, target = "self", opts = { skip_range = true }, label = "[FIRE] Combustion" },
+    },
+    {
+        name = "Scorch",
+        conditions = {
+            { type = "context", field = "is_moving", op = "==", value = false },
+            { type = "context", field = "target", op = "!=", value = nil },
+            { type = "setting", key = "use_scorch_debuff", op = "!=", value = false },
+            { type = "OR", conditions = {
+                { type = "state", field = "scorch_stacks", op = "<", value = 5 },
+                { type = "state", field = "scorch_remains", op = "<=", value = 4 },
+            } },
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Scorch, 2.0) then return false end
+                return NS.spell_ready(ACTION.Scorch, context.target)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Scorch, target = "target", label = "[FIRE] Scorch" },
+    },
+    {
+        name = "Evocation",
+        conditions = {
+            { type = "setting", key = "use_evocation", op = "!=", value = false },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<=", value = 20 },
+            { type = "spell_ready", spell = ACTION.Evocation, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.Evocation, target = "self", opts = { skip_range = true }, label = "[FIRE] Evocation" },
+    },
+}
+
+-- ============================================================================
 -- Strategies
 -- ============================================================================
 
@@ -354,12 +449,8 @@ local strategies = {
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
     -- Defensives
-    { name = "IceBarrier",
-      matches = ice_barrier_matches_fn,
-      execute = function() return NS.try_cast(ACTION.IceBarrier, NS.PLAYER_UNIT, "[FIRE] Ice Barrier") end },
-    { name = "ManaShield",
-      matches = mana_shield_matches_fn,
-      execute = function() return NS.try_cast(ACTION.ManaShield, NS.PLAYER_UNIT, "[FIRE] Mana Shield") end },
+    { name = "IceBarrier" },  -- DSL-substituted at runtime
+    { name = "ManaShield" },  -- DSL-substituted at runtime
     { name = "Healthstone",
       matches = function(context, state)
           if not context.in_combat then return false end
@@ -375,21 +466,15 @@ local strategies = {
       end,
     },
     -- Presence of Mind burst setup
-    { name = "PresenceOfMind",
-      matches = presence_of_mind_matches_fn,
-      execute = function() return NS.try_cast(ACTION.PresenceOfMind, NS.PLAYER_UNIT, "[FIRE] Presence of Mind") end },
+    { name = "PresenceOfMind" },  -- DSL-substituted at runtime
     -- Combustion burst
-    { name = "Combustion",
-      matches = combustion_matches_fn,
-      execute = function() return NS.try_cast(ACTION.Combustion, NS.PLAYER_UNIT, "[FIRE] Combustion") end },
+    { name = "Combustion" },  -- DSL-substituted at runtime
     -- Pyroblast (PoM / opener)
     { name = "Pyroblast",
       matches = pyroblast_matches_fn,
       execute = function(context) return NS.try_cast(ACTION.Pyroblast, context.target, "[FIRE] Pyroblast") end },
     -- Scorch 5-stack maintenance
-    { name = "Scorch",
-      matches = scorch_matches_fn,
-      execute = function(context) return NS.try_cast(ACTION.Scorch, context.target, "[FIRE] Scorch") end },
+    { name = "Scorch" },  -- DSL-substituted at runtime
     -- Main nuke
     { name = "Fireball",
       matches = fireball_matches_fn,
@@ -455,9 +540,7 @@ local strategies = {
     { name = "ManaGem",
       matches = mana_gem_matches_fn,
       execute = function() return use_mana_gem() end },
-    { name = "Evocation",
-      matches = evocation_matches_fn,
-      execute = function() return NS.try_cast(ACTION.Evocation, NS.PLAYER_UNIT, "[FIRE] Evocation") end },
+    { name = "Evocation" },  -- DSL-substituted at runtime
     { name = "HitCapPriority",
       matches = function(context, s)
           if not s.hit_cap_rating_needed then return false end
@@ -470,6 +553,16 @@ local strategies = {
       end,
       execute = function() return true end },
 }
+
+-- Replace imperative match functions with DSL-compiled equivalents.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("fire", strategies, { get_state = build_state })
