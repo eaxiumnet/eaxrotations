@@ -11,6 +11,7 @@ if not NS then return nil end
 local SPELLS = NS.MageSpells or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local _base_define = spec_kit.define_action_for_class(SPELLS)
 -- Nil-safe wrapper: in unit-test environments SPELLS is empty → _base_define
 -- returns nil; fall back to NS.spell_action or a raw { id, name } table.
@@ -556,13 +557,142 @@ local function low_level_bolt_matches(context, s)
 end
 
 -- ============================================================================
+-- Declarative Strategy DSL
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "IceBarrier",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.IceBarrier, 3.0) then return false end
+                return true
+            end },
+            { type = "setting", key = "use_defensives", op = "!=", value = false },
+            { type = "setting", key = "use_ice_barrier", op = "!=", value = false },
+            { type = "state", field = "has_ice_barrier", op = "==", value = false },
+            { type = "state", field = "hp_pct", op = "<=", value = 60 },
+        },
+        action = { type = "cast", spell = ACTION.IceBarrier, target = "self", opts = { skip_range = true }, label = "[ARCANE] IceBarrier" },
+    },
+    {
+        name = "ManaShield",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ManaShield, 3.0) then return false end
+                return true
+            end },
+            { type = "setting", key = "use_defensives", op = "!=", value = false },
+            { type = "setting", key = "use_mana_shield", op = "!=", value = false },
+            { type = "state", field = "has_mana_shield", op = "==", value = false },
+            { type = "state", field = "hp_pct", op = "<=", value = 40 },
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.ManaShield, target = "self", opts = { skip_range = true }, label = "[ARCANE] ManaShield" },
+    },
+    {
+        name = "PresenceOfMind",
+        conditions = {
+            { type = "setting", key = "use_cooldowns", op = "!=", value = false },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "has_presence_of_mind", op = "==", value = false },
+            { type = "custom", fn = function(context, state)
+                -- Wowsims: PoM when AP is active and about to expire (<= AB cast time remaining)
+                if state.has_arcane_power then
+                    local ab_cast_time = math.max(1.0, AB_BASE_CAST_TIME - AB_CAST_REDUCTION_PER_STACK * (state.ab_stacks or 0))
+                    local ap_remains = NS.buff_remains and NS.buff_remains(context.me, ARCANE_POWER_BUFF) or 0
+                    if ap_remains > 0 and ap_remains <= ab_cast_time then
+                        return true
+                    end
+                end
+                -- Fallback: use PoM during burn phase or bloodlust
+                if state.phase ~= PHASE_BURN and not state.bloodlust_active then return false end
+                -- Sync with AP: fire PoM only when AP is already active or on cooldown
+                local ap_active = state.has_arcane_power or false
+                local ap_on_cd = state.arcane_power_available == false
+                if not ap_active and not ap_on_cd then return false end
+                -- Use PoM while moving to maintain DPS
+                if state.is_moving then return true end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.PresenceOfMind, target = "self", opts = { skip_range = true }, label = "[ARCANE] PresenceOfMind" },
+    },
+    {
+        name = "ArcanePower",
+        conditions = {
+            { type = "setting", key = "use_cooldowns", op = "!=", value = false },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "has_arcane_power", op = "==", value = false },
+            { type = "setting", key = "arcane_use_burn", op = "!=", value = false },
+            { type = "custom", fn = function(context, state)
+                if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
+                local cd_window = state.bloodlust_active
+                    or ((state.icy_veins_remains or 0) > 0)
+                    or (planner and planner.is_major_offensive_cd_active and planner.is_major_offensive_cd_active(context))
+                    or false
+                if state.phase ~= PHASE_BURN and not cd_window then return false end
+                if (state.mana_pct or 0) < 35 then return false end
+                if (state.ab_stacks or 0) >= 2 then return true end
+                if state.phase == PHASE_BURN and (state.mana_pct or 0) >= 50 then return true end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.ArcanePower, target = "self", opts = { skip_range = true }, label = "[ARCANE] ArcanePower" },
+    },
+    {
+        name = "Evocation",
+        conditions = {
+            { type = "setting", key = "use_evocation", op = "!=", value = false },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "evocation_available", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                local evo_mana = spec_kit.setting_number(context, "arcane_evocation_mana", 20)
+                local ap_inactive = not state.has_arcane_power
+                local iv_inactive = (state.icy_veins_remains or 0) <= 0
+                if ap_inactive and iv_inactive and (state.mana_pct or 100) <= CONSERVE_START_PCT then
+                    return true
+                end
+                if (state.mana_pct or 100) <= evo_mana then
+                    return true
+                end
+                if state.phase == PHASE_CONSERVE and (state.mana_pct or 100) <= 30 then
+                    return true
+                end
+                return false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Evocation, target = "self", opts = { skip_range = true }, label = "[ARCANE] Evocation" },
+    },
+    {
+        name = "ManaGem",
+        conditions = {
+            { type = "setting", key = "use_mana_gem", op = "!=", value = false },
+            { type = "state", field = "mana_gem_available", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                local gem_restore = state.has_serpent_coil and 3100 or 2500
+                local current_mana = state.current_mana or (state.max_mana or 15000) * (state.mana_pct or 100) / 100
+                local max_mana = state.max_mana or 15000
+                local threshold = current_mana + gem_restore + (state.mana_regen or 0)
+                if max_mana > threshold then
+                    return true
+                end
+                local gem_mana = spec_kit.setting_number(context, "arcane_mana_gem_mana", 55)
+                if (state.mana_pct or 100) <= gem_mana then
+                    return true
+                end
+                return false
+            end },
+        },
+        action = { type = "custom", fn = function(context, state) return use_mana_gem() end },
+    },
+}
+
+-- ============================================================================
 -- Strategies (state passed by framework via get_state)
 -- ============================================================================
 local strategies = {
     -- Defensives (highest priority)
-    { name = "IceBarrier",
-      matches = ice_barrier_matches,
-      execute = function(context) return NS.try_cast(ACTION.IceBarrier, context.me, "[ARCANE] IceBarrier") end },
+    { name = "IceBarrier" },  -- DSL-substituted at runtime
     { name = "IceBlock",
       matches = function(context, s)
           local threshold = s.is_group and 30 or 20
@@ -578,9 +708,7 @@ local strategies = {
     { name = "Blink",
       matches = function(context, s) return s.in_combat and (context.self_rooted_snared or (NS.has_player_debuff and NS.has_player_debuff(COMMON_SNARES) or false)) and NS.spell_ready(ACTION.Blink) end,
       execute = function() return NS.try_cast(ACTION.Blink, NS.PLAYER_UNIT, "[ARCANE] Blink", { skip_range = true }) end },
-    { name = "ManaShield",
-      matches = mana_shield_matches,
-      execute = function(context) return NS.try_cast(ACTION.ManaShield, context.me, "[ARCANE] ManaShield") end },
+    { name = "ManaShield" },  -- DSL-substituted at runtime
     { name = "Healthstone",
       matches = function(context, state)
           if not context.in_combat then return false end
@@ -616,12 +744,8 @@ local strategies = {
       execute = function(context) return NS.try_cast(ACTION.Slow, context.target, "[ARCANE] Slow") end },
 
     -- Burst cooldowns (synced with burn phase)
-    { name = "PresenceOfMind",
-      matches = pom_matches,
-      execute = function(context) return NS.try_cast(ACTION.PresenceOfMind, context.me, "[ARCANE] PresenceOfMind") end },
-    { name = "ArcanePower",
-      matches = arcane_power_matches,
-      execute = function(context) return NS.try_cast(ACTION.ArcanePower, context.me, "[ARCANE] ArcanePower") end },
+    { name = "PresenceOfMind" },  -- DSL-substituted at runtime
+    { name = "ArcanePower" },  -- DSL-substituted at runtime
 
     -- Burst cooldowns
     { name = "IcyVeins",
@@ -647,12 +771,8 @@ local strategies = {
           return NS.try_cast(ACTION.ColdSnap, NS.PLAYER_UNIT, "[ARCANE] ColdSnapIVReset", { skip_range = true })
       end },
     -- Mana management
-    { name = "Evocation",
-      matches = evocation_matches,
-      execute = function() return NS.try_cast(ACTION.Evocation, NS.PLAYER_UNIT, "[ARCANE] Evocation", { skip_range = true }) end },
-    { name = "ManaGem",
-      matches = mana_gem_matches,
-      execute = function() return use_mana_gem() end },
+    { name = "Evocation" },  -- DSL-substituted at runtime
+    { name = "ManaGem" },  -- DSL-substituted at runtime
 
     -- Primary nuke: Arcane Blast (stack management)
     { name = "ArcaneBlast",
@@ -687,6 +807,16 @@ local strategies = {
       matches = function(context, s) return low_level_bolt_matches(context, s) end,
       execute = function(context) return NS.try_cast(ACTION.Frostbolt, context.target, "[ARCANE] Frostbolt") end },
 }
+
+-- Replace imperative match functions with DSL-compiled equivalents.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("arcane", strategies, { get_state = build_state })
