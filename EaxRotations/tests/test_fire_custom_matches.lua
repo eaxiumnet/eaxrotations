@@ -21,6 +21,7 @@ setup_asserts()
 local action_calls = {}
 local spell_ready_calls = {}
 local has_buff_calls = {}
+local buff_up_value = false
 _G.EaxRotations = {
     MageSpells = {
         Scorch = 2948,
@@ -41,6 +42,8 @@ _G.EaxRotations = {
         Combustion = 11129,
     },
     PLAYER_UNIT = {},
+    GetPlayer = function() return _G.EaxRotations.PLAYER_UNIT end,
+    GetTarget = function() return nil end,
     action_matches = function(ctx, act)
         action_calls[#action_calls + 1] = { fn = "action_matches", ctx = ctx, act = act }
         return true
@@ -55,6 +58,9 @@ _G.EaxRotations = {
     has_player_buff = function(buff_list)
         has_buff_calls[#has_buff_calls + 1] = { buff = buff_list }
         return false
+    end,
+    buff_up = function(unit, buff_list)
+        return buff_up_value
     end,
     log = function() end,
     should_use_long_cd = function() return false end,
@@ -77,6 +83,21 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
+-- Default state matching the DSL's expected schema
+local function make_state(overrides)
+    local s = {
+        in_combat = true,
+        hp_pct = 100,
+        mana_pct = 100,
+        combustion_ready = true,
+        scorch_stacks = 0,
+        scorch_remains = 0,
+        major_cd_window = false,
+    }
+    for k, v in pairs(overrides or {}) do s[k] = v end
+    return s
+end
+
 -- ============================================================================
 -- Combustion: in combat, aligned with power windows, 5-stack Scorch preferred
 -- ============================================================================
@@ -85,23 +106,23 @@ local combustion = find_strategy("Combustion")
 
 -- Not in combat -> should NOT match
 action_calls = {}
-assert_false(combustion.matches({ in_combat = false, should_burst = true }, { combustion_ready = true, scorch_stacks = 5 }), "Combustion should not match when OOC")
+assert_false(combustion.matches({ in_combat = true, should_burst = true }, make_state({ in_combat = false, combustion_ready = true, scorch_stacks = 5 })), "Combustion should not match when OOC")
 
 -- In combat, no power window, early fight -> should NOT match
 action_calls = {}
-assert_false(combustion.matches({ in_combat = true, should_burst = false, combat_time = 10, ttd = 120 }, { combustion_ready = true, scorch_stacks = 5 }), "Combustion should not match early without power window")
+assert_false(combustion.matches({ in_combat = true, should_burst = false, combat_time = 10, ttd = 120 }, make_state({ in_combat = true, combustion_ready = true, scorch_stacks = 5 })), "Combustion should not match early without power window")
 
 -- In combat, major power window active -> should match
 action_calls = {}
-assert_true(combustion.matches({ in_combat = true, should_burst = false, combat_time = 10, ttd = 120 }, { combustion_ready = true, scorch_stacks = 5, major_cd_window = true }), "Combustion should match during major power window")
+assert_true(combustion.matches({ in_combat = true, should_burst = false, combat_time = 10, ttd = 120 }, make_state({ in_combat = true, combustion_ready = true, scorch_stacks = 5, major_cd_window = true })), "Combustion should match during major power window")
 
 -- In combat, timeout fallback -> should match
 action_calls = {}
-assert_true(combustion.matches({ in_combat = true, should_burst = false, combat_time = 60, ttd = 120 }, { combustion_ready = true, scorch_stacks = 5 }), "Combustion should match after timeout fallback")
+assert_true(combustion.matches({ in_combat = true, should_burst = false, combat_time = 60, ttd = 120 }, make_state({ in_combat = true, combustion_ready = true, scorch_stacks = 5 })), "Combustion should match after timeout fallback")
 
 -- Burst can skip Scorch requirement
 action_calls = {}
-assert_true(combustion.matches({ in_combat = true, should_burst = true, combat_time = 10, ttd = 120 }, { combustion_ready = true, scorch_stacks = 2 }), "Combustion should match during burst without full Scorch")
+assert_true(combustion.matches({ in_combat = true, should_burst = true, combat_time = 10, ttd = 120 }, make_state({ in_combat = true, combustion_ready = true, scorch_stacks = 2 })), "Combustion should match during burst without full Scorch")
 
 -- ============================================================================
 -- Scorch: only when not moving, has target, and stacks < 5 or about to drop
@@ -111,23 +132,23 @@ local scorch = find_strategy("Scorch")
 
 -- Moving -> should NOT match
 action_calls = {}
-assert_false(scorch.matches({ is_moving = true, target = {} }), "Scorch should not match when moving")
+assert_false(scorch.matches({ is_moving = true, target = {} }, make_state()), "Scorch should not match when moving")
 assert_eq(#action_calls, 0, "action_matches should not be called when moving")
 
 -- No target -> should NOT match
-assert_false(scorch.matches({ is_moving = false }), "Scorch should not match without target")
+assert_false(scorch.matches({ is_moving = false }, make_state()), "Scorch should not match without target")
 
 -- Not moving, target, stacks < 5 -> should match
 action_calls = {}
-assert_true(scorch.matches({ is_moving = false, target = {}, scorch_stacks = 3, scorch_remains = 10 }), "Scorch should match when stacks < 5")
+assert_true(scorch.matches({ is_moving = false, target = {} }, make_state({ scorch_stacks = 3, scorch_remains = 10 })), "Scorch should match when stacks < 5")
 
 -- Not moving, target, stacks >= 5 but remains <= 4 -> should match
 action_calls = {}
-assert_true(scorch.matches({ is_moving = false, target = {}, scorch_stacks = 5, scorch_remains = 2 }), "Scorch should match when about to drop")
+assert_true(scorch.matches({ is_moving = false, target = {} }, make_state({ scorch_stacks = 5, scorch_remains = 2 })), "Scorch should match when about to drop")
 
 -- Not moving, target, stacks >= 5, remains > 4 -> should NOT match
 action_calls = {}
-assert_false(scorch.matches({ is_moving = false, target = {}, scorch_stacks = 5, scorch_remains = 10 }), "Scorch should not match when maintained")
+assert_false(scorch.matches({ is_moving = false, target = {} }, make_state({ scorch_stacks = 5, scorch_remains = 10 })), "Scorch should not match when maintained")
 
 -- ============================================================================
 -- Fireball: only when not moving and scorch stacks >= 5
@@ -198,22 +219,22 @@ local pom = find_strategy("PresenceOfMind")
 
 -- Not in combat -> should NOT match
 action_calls = {}
-assert_false(pom.matches({ in_combat = false, should_burst = true }), "PoM should not match when OOC")
+assert_false(pom.matches({ in_combat = true, should_burst = true }, make_state({ in_combat = false })), "PoM should not match when OOC")
 
 -- No burst -> should NOT match
 action_calls = {}
-assert_false(pom.matches({ in_combat = true, should_burst = false }), "PoM should not match without burst")
+assert_false(pom.matches({ in_combat = true, should_burst = false }, make_state({ in_combat = true })), "PoM should not match without burst")
 
 -- Already has buff -> should NOT match
 action_calls = {}
-local orig_has_buff2 = _G.EaxRotations.has_player_buff
-_G.EaxRotations.has_player_buff = function(buff_list) return true end
-assert_false(pom.matches({ in_combat = true, should_burst = true }), "PoM should not match when already buffed")
-_G.EaxRotations.has_player_buff = orig_has_buff2
+local orig_buff_up = _G.EaxRotations.buff_up
+_G.EaxRotations.buff_up = function(unit, buff_list) return true end
+assert_false(pom.matches({ in_combat = true, should_burst = true }, make_state({ in_combat = true })), "PoM should not match when already buffed")
+_G.EaxRotations.buff_up = orig_buff_up
 
 -- In combat, burst, no buff -> should match
 action_calls = {}
-assert_true(pom.matches({ in_combat = true, should_burst = true }), "PoM should match during burst")
+assert_true(pom.matches({ in_combat = true, should_burst = true }, make_state({ in_combat = true })), "PoM should match during burst")
 
 -- ============================================================================
 -- Counterspell removed — handled by interrupt_manager middleware
@@ -225,15 +246,15 @@ local evocation = find_strategy("Evocation")
 
 -- Not in combat -> should NOT match
 action_calls = {}
-assert_false(evocation.matches({ in_combat = false, mana_pct = 10 }), "Evocation should not match when OOC")
+assert_false(evocation.matches({ in_combat = true, mana_pct = 10 }, make_state({ in_combat = false, mana_pct = 10 })), "Evocation should not match when OOC")
 
 -- High mana -> should NOT match
 action_calls = {}
-assert_false(evocation.matches({ in_combat = true, mana_pct = 50 }), "Evocation should not match when mana > 20%")
+assert_false(evocation.matches({ in_combat = true, mana_pct = 50 }, make_state({ in_combat = true, mana_pct = 50 })), "Evocation should not match when mana > 20%")
 
 -- Low mana, in combat -> should match
 action_calls = {}
-assert_true(evocation.matches({ in_combat = true, mana_pct = 15 }), "Evocation should match when mana <= 20% and in combat")
+assert_true(evocation.matches({ in_combat = true, mana_pct = 15 }, make_state({ in_combat = true, mana_pct = 15 })), "Evocation should match when mana <= 20% and in combat")
 
 -- ============================================================================
 -- Ice Barrier: only when HP <= 60 and not already buffed
@@ -243,18 +264,18 @@ local ice_barrier = find_strategy("IceBarrier")
 
 -- High HP -> should NOT match
 action_calls = {}
-assert_false(ice_barrier.matches({ hp = 70 }), "IceBarrier should not match when HP > 60")
+assert_false(ice_barrier.matches({ hp = 70 }, make_state({ hp_pct = 70 })), "IceBarrier should not match when HP > 60")
 
 -- Low HP, already buffed -> should NOT match
 action_calls = {}
-local orig_has_buff3 = _G.EaxRotations.has_player_buff
-_G.EaxRotations.has_player_buff = function(buff_list) return true end
-assert_false(ice_barrier.matches({ hp = 40 }), "IceBarrier should not match when already buffed")
-_G.EaxRotations.has_player_buff = orig_has_buff3
+local orig_buff_up2 = _G.EaxRotations.buff_up
+_G.EaxRotations.buff_up = function(unit, buff_list) return true end
+assert_false(ice_barrier.matches({ hp = 40 }, make_state({ hp_pct = 40 })), "IceBarrier should not match when already buffed")
+_G.EaxRotations.buff_up = orig_buff_up2
 
 -- Low HP, no buff -> should match
 action_calls = {}
-assert_true(ice_barrier.matches({ hp = 40 }), "IceBarrier should match when HP <= 60 and no buff")
+assert_true(ice_barrier.matches({ hp = 40 }, make_state({ hp_pct = 40 })), "IceBarrier should match when HP <= 60 and no buff")
 
 -- ============================================================================
 -- Mana Shield: only when HP <= 40
@@ -264,11 +285,11 @@ local mana_shield = find_strategy("ManaShield")
 
 -- High HP -> should NOT match
 action_calls = {}
-assert_false(mana_shield.matches({ hp = 50 }), "ManaShield should not match when HP > 40")
+assert_false(mana_shield.matches({ hp = 50 }, make_state({ hp_pct = 50 })), "ManaShield should not match when HP > 40")
 
 -- Low HP -> should match
 action_calls = {}
-assert_true(mana_shield.matches({ hp = 30 }), "ManaShield should match when HP <= 40")
+assert_true(mana_shield.matches({ hp = 30 }, make_state({ hp_pct = 30, mana_pct = 100 })), "ManaShield should match when HP <= 40")
 
 -- ============================================================================
 -- Flamestrike: only when not moving and 3+ enemies
