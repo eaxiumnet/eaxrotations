@@ -19,6 +19,7 @@ end
 local SPELLS = NS.HunterSpells or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -1053,9 +1054,7 @@ local strategies = {
         name = "RaptorStrike",
         matches = raptor_strike_matches,
         execute = function(context) return NS.try_cast(RAPTOR_STRIKE_IDS, context.target, "[BEAST_MASTERY] RaptorStrike") end,
-    },
-    {
-        name = "HitCapPriority",
+    },    { name = "HitCapPriority",
         matches = function(context, s)
             if not s.hit_cap_rating_needed then return false end
             local hit_rating = context.hit_rating
@@ -1068,6 +1067,161 @@ local strategies = {
         execute = function() return true end,
     },
 }
+
+-- ============================================================================
+-- Strategy DSL definitions (7th DSL adopter — first hunter/pet-management spec)
+-- Converts 6 strategies to declarative DSL, preserving priority order via
+-- in-place substitution. Exercises: pet management (KillCommand, MendPet,
+-- BestialWrath), cooldown alignment (BestialWrath, RapidFire, Readiness),
+-- debuff tracking (HuntersMark), and the first state-comparison ops (pet_hp,
+-- rapid_fire_cd). Resource model: focus/mana + pet management.
+-- ============================================================================
+local DSL_DEFS = {
+    -- KillCommand: off-GCD pet ability, highest BM priority (IcyVeins #1).
+    -- Conditions: not mounted, in combat, pet alive, spell ready.
+    {
+        name = "KillCommand",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if state.is_mounted then return false end
+                return true
+            end },
+            { type = "in_combat" },
+            { type = "state", field = "pet_alive", op = "truthy" },
+            { type = "state", field = "kill_command_ready", op = "truthy" },
+        },
+        execute = function(context)
+            return NS.try_cast(ACTION.KillCommand, context.target, "[BEAST_MASTERY] KillCommand")
+        end,
+    },
+    -- BestialWrath: major CD aligned with power windows (Bloodlust/Drums/trinkets).
+    -- Conditions: not mounted, cooldowns allowed, boss-only gate, pet alive,
+    -- spell ready, TTD gate, CD alignment (major_cd_window or combat_time ≥ 45).
+    {
+        name = "BestialWrath",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if state.is_mounted then return false end
+                if not (state.use_cooldowns and state.in_combat) then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
+                return true
+            end },
+            { type = "state", field = "pet_alive", op = "truthy" },
+            { type = "state", field = "bestial_wrath_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if context.ttd_known and (context.ttd or 0) < 15 then return false end
+                local align = state.major_cd_window or false
+                local combat_time = context.combat_time or 0
+                local ttd = context.ttd or 999
+                if not align and combat_time < 45 and ttd > 15 then return false end
+                return true
+            end },
+        },
+        execute = function(context)
+            local pet = hunter_core.get_pet()
+            local target = pet or context.me
+            return NS.try_cast(ACTION.BestialWrath, target, "[BEAST_MASTERY] BestialWrath", { skip_range = true })
+        end,
+    },
+    -- RapidFire: personal DPS cooldown.
+    -- Conditions: not mounted, cooldowns allowed, spell ready.
+    {
+        name = "RapidFire",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if state.is_mounted then return false end
+                if not (state.use_cooldowns and state.in_combat) then return false end
+                return true
+            end },
+            { type = "state", field = "rapid_fire_ready", op = "truthy" },
+        },
+        execute = function(context)
+            return NS.try_cast(ACTION.RapidFire, context.me, "[BEAST_MASTERY] RapidFire", { skip_range = true })
+        end,
+    },
+    -- Readiness: reset Rapid Fire when it has substantial cooldown remaining.
+    -- Conditions: not mounted, cooldowns allowed, use_readiness setting,
+    --              spell ready, Rapid Fire CD >= 60s.
+    {
+        name = "Readiness",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if state.is_mounted then return false end
+                if not (state.use_cooldowns and state.in_combat) then return false end
+                return true
+            end },
+            { type = "setting", key = "use_readiness", default = true },
+            { type = "state", field = "readiness_ready", op = "truthy" },
+            { type = "state", field = "rapid_fire_cd", op = ">=", value = 60 },
+        },
+        execute = function(context)
+            return NS.try_cast(ACTION.Readiness, context.me, "[BEAST_MASTERY] Readiness", { skip_range = true, expected_cooldown = 300 })
+        end,
+    },
+    -- MendPet: heal pet when critically low.
+    -- Conditions: not mounted, in combat, pet alive, pet_hp ≤ 45, spell ready.
+    {
+        name = "MendPet",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if state.is_mounted then return false end
+                return true
+            end },
+            { type = "in_combat" },
+            { type = "state", field = "pet_alive", op = "truthy" },
+            { type = "state", field = "pet_hp", op = "<=", value = 45 },
+            { type = "state", field = "mend_pet_ready", op = "truthy" },
+        },
+        execute = function(context)
+            local pet = hunter_core.get_pet()
+            if not pet then return false end
+            local result = NS.try_cast(ACTION.MendPet, pet, "[BEAST_MASTERY] MendPet")
+            if result then hunter_core.record_mend() end
+            return result
+        end,
+    },
+    -- HuntersMark: apply debuff at combat start.
+    -- Conditions: not broken_api throttled, not mounted, in combat, target exists,
+    -- debuff not already applied, spell ready.
+    {
+        name = "HuntersMark",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.HuntersMark, 2.0) then return false end
+                return true
+            end },
+            { type = "custom", fn = function(context, state)
+                if state.is_mounted then return false end
+                return true
+            end },
+            { type = "in_combat" },
+            { type = "custom", fn = function(context, state)
+                if not context.target then return false end
+                return true
+            end },
+            { type = "state", field = "has_hunters_mark", op = "falsy" },
+            { type = "state", field = "hunters_mark_ready", op = "truthy" },
+        },
+        execute = function(context)
+            return NS.try_cast(ACTION.HuntersMark, context.target, "[BEAST_MASTERY] HuntersMark")
+        end,
+    },
+}
+
+-- In-place substitution: replace matching strategy entries with DSL-compiled versions,
+-- preserving priority order. Named match functions remain as dead code (cleaned up later).
+local DSL_STRATEGIES = dsl.compile_strategies(DSL_DEFS, { get_state = build_state })
+local _dsl_by_name = {}
+for _i = 1, #DSL_STRATEGIES do _dsl_by_name[DSL_STRATEGIES[_i].name] = DSL_STRATEGIES[_i] end
+for _i = 1, #strategies do
+    local _dsl = _dsl_by_name[strategies[_i].name]
+    if _dsl then
+        strategies[_i] = _dsl
+    end
+end
 
 -- Register strategies
 if NS.rotation_registry and NS.rotation_registry.register then

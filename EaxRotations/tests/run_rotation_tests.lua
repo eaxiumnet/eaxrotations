@@ -156,6 +156,7 @@ local tests = {
     "test_balance_dsl_priority.lua",
     "test_protection_dsl_priority.lua",
     "test_restoration_dsl_priority.lua",
+    "test_beast_mastery_dsl_priority.lua",
   "test_schema_compliance.lua",
  "test_cross_consistency.lua",
  "test_hunter_adaptive_nil_globals.lua",
