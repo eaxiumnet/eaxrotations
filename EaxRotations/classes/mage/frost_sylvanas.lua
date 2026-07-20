@@ -319,14 +319,6 @@ end
 -- ============================================================================
 -- Match functions
 -- ============================================================================
-local function ice_barrier_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.IceBarrier, 3.0) then return false end
-    if context.settings and (context.settings.use_defensives == false or context.settings.use_ice_barrier == false) then return false end
-    if s.has_ice_barrier and (s.ice_barrier_remains or 999) > 5 then return false end
-    if not s.ice_barrier_ready then return false end
-    return true
-end
-
 local function ice_block_wrapper(context)
     return ice_block_matches(context)
 end
@@ -335,37 +327,8 @@ local function cold_snap_wrapper(context, s)
     return cold_snap_matches(context, s)
 end
 
-local function icy_veins_matches(context, s)
-    if context.settings and context.settings.use_cooldowns == false then return false end
-    if not NS.gate_cooldown_boss_only(context) then return false end
-    if not s.in_combat then return false end
-    if not s.icy_veins_ready then return false end
-    -- TTD gate: don't waste 3min CD on a dying target
-    if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
-    return true
-end
-
-local function water_elemental_matches(context, s)
-    if context.settings and context.settings.use_cooldowns == false then return false end
-    if not s.in_combat then return false end
-    if s.has_water_elemental then return false end
-    if not s.water_elemental_ready then return false end
-    -- TTD gate: don't waste 3min CD on a dying target
-    if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
-    return true
-end
-
 local function frost_nova_wrapper(context)
     return frost_nova_matches(context)
-end
-
-local function ice_lance_matches(context, s)
-    if not context.target then return false end
-    if not s.ice_lance_ready then return false end
-    -- Ice Lance deals 3x damage to frozen targets; otherwise only use when moving
-    if s.target_frozen then return true end
-    if context.is_moving then return true end
-    return false
 end
 
 local function cone_of_cold_wrapper(context)
@@ -488,25 +451,6 @@ local function mage_armor_matches(context, s)
     -- Skip when Mage Armor is not learned so we never spam an unlearned spell;
     -- frost_armor_matches handles the Frost/Ice Armor fallback below it.
     if NS.is_spell_learned and not NS.is_spell_learned(ACTION.MageArmor) then return false end
-    return true
-end
-
-local function winter_chill_fb_matches(context, s)
-    if not context.target then return false end
-    if context.is_moving then return false end
-    if not s.frostbolt_ready then return false end
-    if (s.winter_chill_stacks or 0) >= 5 then
-        local wc_remains = NS.debuff_remains and NS.debuff_remains(context.target, WINTERS_CHILL_DEBUFF) or 999
-        if wc_remains > 3 then return false end
-    end
-    return true
-end
-
-local function frostbite_fb_matches(context, s)
-    if not context.target then return false end
-    if context.is_moving then return false end
-    if not s.frostbite_active then return false end
-    if not s.frostbolt_ready then return false end
     return true
 end
 
@@ -647,7 +591,7 @@ local strategies = {
     { name = "FrostArmor", matches = frost_armor_matches, execute = function() return NS.try_cast(ACTION.FrostArmor, NS.PLAYER_UNIT, "[FROST] Frost Armor", { skip_range = true }) end },
     { name = "MageArmor", matches = mage_armor_matches, execute = function() return NS.try_cast(ACTION.MageArmor, NS.PLAYER_UNIT, "[FROST] Mage Armor", { skip_range = true }) end },
     { name = "ArcaneIntellect", matches = arcane_intellect_matches, execute = function() return NS.try_cast(ACTION.ArcaneIntellect, NS.PLAYER_UNIT, "[FROST] ArcaneIntellect", { skip_range = true }) end },
-    { name = "IceBarrier", matches = ice_barrier_matches, execute = function() return NS.try_cast(ACTION.IceBarrier, NS.PLAYER_UNIT, "[FROST] IceBarrier", { skip_range = true }) end },
+    { name = "IceBarrier" },  -- DSL-substituted at runtime
     { name = "IceBlock", matches = ice_block_wrapper, execute = function() return NS.try_cast(ACTION.IceBlock, NS.PLAYER_UNIT, "[FROST] IceBlock", { skip_range = true }) end },
     { name = "Healthstone",
       matches = function(context, state)
@@ -665,10 +609,10 @@ local strategies = {
     },
     { name = "Blink", matches = blink_matches, execute = function() return NS.try_cast(ACTION.Blink, NS.PLAYER_UNIT, "[FROST] Blink", { skip_range = true }) end },
     { name = "ColdSnap", matches = cold_snap_wrapper, execute = function() return NS.try_cast(ACTION.ColdSnap, NS.PLAYER_UNIT, "[FROST] ColdSnap", { skip_range = true }) end },
-    { name = "IcyVeins", matches = icy_veins_matches, execute = function() return NS.try_cast(ACTION.IcyVeins, NS.PLAYER_UNIT, "[FROST] IcyVeins", { skip_range = true, expected_cooldown = 180 }) end },
-    { name = "WaterElemental", matches = water_elemental_matches, execute = function() return NS.try_cast(ACTION.WaterElemental, NS.PLAYER_UNIT, "[FROST] WaterElemental", { skip_range = true, expected_cooldown = 180 }) end },
-    { name = "FrostbiteFrostbolt", matches = frostbite_fb_matches, execute = function(context) return NS.try_cast(ACTION.Frostbolt, context.target, "[FROST] Frostbite FB") end },
-    { name = "FrozenIceLance", matches = ice_lance_matches, execute = function(context) return NS.try_cast(ACTION.IceLance, context.target, "[FROST] Frozen IceLance") end },
+    { name = "IcyVeins" },  -- DSL-substituted at runtime
+    { name = "WaterElemental" },  -- DSL-substituted at runtime
+    { name = "FrostbiteFrostbolt" },  -- DSL-substituted at runtime
+    { name = "FrozenIceLance" },  -- DSL-substituted at runtime
     { name = "PresenceOfMind", matches = presence_of_mind_matches, execute = function() return NS.try_cast(ACTION.PresenceOfMind, NS.PLAYER_UNIT, "[FROST] PresenceOfMind", { skip_range = true }) end },
     { name = "Evocation", matches = evocation_matches, execute = function() return NS.try_cast(ACTION.Evocation, NS.PLAYER_UNIT, "[FROST] Evocation", { skip_range = true }) end },
     { name = "ManaGemConjure", matches = mana_gem_conjure_matches_fn, execute = function() return NS.try_cast(ACTION.ConjureManaEmerald, NS.PLAYER_UNIT, "[FROST] ConjureManaGem", { skip_range = true }) end },
@@ -676,7 +620,7 @@ local strategies = {
     { name = "ManaShield", matches = mana_shield_matches, execute = function() return NS.try_cast(ACTION.ManaShield, NS.PLAYER_UNIT, "[FROST] ManaShield", { skip_range = true }) end },
     { name = "FrostWard", matches = frost_ward_matches, execute = function() return NS.try_cast(ACTION.FrostWard, NS.PLAYER_UNIT, "[FROST] FrostWard", { skip_range = true }) end },
     { name = "RemoveCurse", matches = remove_curse_matches, execute = function() return NS.try_cast(ACTION.RemoveCurse, NS.PLAYER_UNIT, "[FROST] RemoveCurse", { skip_range = true }) end },
-    { name = "WintersChill", matches = winter_chill_fb_matches, execute = function(context) return NS.try_cast(ACTION.Frostbolt, context.target, "[FROST] Winter's Chill") end },
+    { name = "WintersChill" },  -- DSL-substituted at runtime
     { name = "FrostNova", matches = frost_nova_wrapper, execute = function(context) return NS.try_cast(ACTION.FrostNova, context.me or NS.GetPlayer(), "[FROST] FrostNova", { skip_range = true }) end },
     { name = "ConeOfCold", matches = cone_of_cold_wrapper, execute = function(context) return NS.try_cast(ACTION.ConeOfCold, context.me or NS.GetPlayer(), "[FROST] ConeOfCold", { skip_range = true }) end },
     { name = "Polymorph", matches = polymorph_matches, execute = function(context) return NS.try_cast(ACTION.Polymorph, context.target, "[FROST] Polymorph") end },
