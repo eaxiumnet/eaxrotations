@@ -96,7 +96,6 @@ return {
             "EaxRotations/classes/warrior/leveling_vanilla.lua",
             "EaxRotations/classes/warrior/leveling_sylvanas.lua",
             "EaxRotations/classes/warrior/leveling_wotlk.lua",
-            "EaxRotations/classes/warrior/fury_sylvanas.lua",
         },
     },
     {
@@ -106,6 +105,7 @@ return {
         paths = {
             "EaxRotations/classes/warrior/kebab_vanilla.lua",
             "EaxRotations/classes/warrior/kebab_sylvanas.lua",
+            "EaxRotations/classes/warrior/fury_sylvanas.lua",  -- DSL-converted: imperative whirlwind_matches removed
         },
         window = 900,
     },
@@ -116,12 +116,20 @@ return {
         helper = "aoe_self_meets",
         paths = {
             "EaxRotations/classes/warrior/arms_vanilla.lua",
-            "EaxRotations/classes/warrior/arms_sylvanas.lua",
             "EaxRotations/classes/warrior/arms_wotlk.lua",
             "EaxRotations/classes/warrior/leveling_vanilla.lua",
             "EaxRotations/classes/warrior/leveling_sylvanas.lua",
             "EaxRotations/classes/warrior/leveling_wotlk.lua",
         },
+    },
+    {
+        family = "ThunderClap",
+        needle = 'name = "ThunderClap"',
+        helper = "aoe_self_meets",
+        paths = {
+            "EaxRotations/classes/warrior/arms_sylvanas.lua",  -- DSL-converted: imperative thunder_clap_matches removed
+        },
+        window = 900,
     },
     {
         family = "ThunderClap",

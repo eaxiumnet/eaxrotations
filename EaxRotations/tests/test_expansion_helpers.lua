@@ -1,16 +1,32 @@
 -- test_expansion_helpers.lua -- cross-expansion tests.
--- WHAT:  cross-expansion tests
+-- WHAT:  cross-expansion tests covering NS.is_tbc / is_vanilla / is_wotlk / get_expansion_max_level.
 -- WHEN:  During rotation test suite execution.
--- WHY:   Protects against regressions in rotation logic and state handling.
--- SAFETY: Pure unit tests with mocked API context.
+-- WHY:   Protects against regressions in expansion detection across all three expansions.
+-- SAFETY: Pure unit tests with mocked API context; no rotation logic, no engine calls.
 
 -- Expansion helper regression test.
--- Validates NS.get_expansion_max_level, NS.is_tbc, NS.is_vanilla for TBC and Classic.
+-- Validates NS.get_expansion_max_level, NS.is_tbc, NS.is_vanilla, NS.is_wotlk for all three expansions (WotLK/TBC/Vanilla) plus the unknown-default fallback.
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 local function assert_eq(a, b, label) if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end end
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;?.lua;" .. package.path
+
+-- Test 0: WotLK returns max level 80 (promoted from tests/_staging/test_wotlk_integration.lua)
+-- Covers the WotLK case that the original TBC/Vanilla-only suite missed.
+_G.core = {
+    time = function() return 0 end,
+    log = function() end,
+    get_game_version = function() return "Wotlk" end,
+    get_exact_game_version = function() return "wow_wotlk" end,
+}
+package.loaded.core_sylvanas = nil; _G.EaxRotations = nil
+local core_mod_wotlk = require("core_sylvanas")
+assert_true(type(core_mod_wotlk.is_wotlk) == "function", "NS.is_wotlk should exist")
+assert_true(core_mod_wotlk.is_wotlk(), "NS.is_wotlk() should be true for WotLK")
+assert_true(not core_mod_wotlk.is_tbc(), "NS.is_tbc() should be false for WotLK")
+assert_true(not core_mod_wotlk.is_vanilla(), "NS.is_vanilla() should be false for WotLK")
+assert_eq(core_mod_wotlk.get_expansion_max_level(), 80, "WotLK max level should be 80")
 
 -- Test 1: TBC returns max level 70
 _G.core = {
@@ -64,4 +80,4 @@ package.loaded.core_sylvanas = nil; _G.EaxRotations = nil
 local core_mod4 = require("core_sylvanas")
 assert_eq(core_mod4.get_expansion_max_level(), 60, "Vanilla max level 60")
 
-print("PASS expansion_helpers")
+print("PASS expansion_helpers (WotLK+TBC+Vanilla+Unknown)")
