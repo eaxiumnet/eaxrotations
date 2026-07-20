@@ -1,7 +1,8 @@
 -- combat_sylvanas.lua -- Rogue Combat DPS for TBC Anniversary (2.5.5).
 -- WHAT:  sword/fist DPS spec with SnD/Rupture/Eviscerate finisher priority,
 --         energy tick synchronization, Blade Flurry + Adrenaline Rush CDs,
---         Shiv dispel, and stealth opener support.
+--         Shiv dispel, and stealth opener support. 6 strategies use the
+--         declarative strategy DSL (third DSL adopter, first non-warrior).
 -- WHEN:  combat, with valid enemy target.
 -- WHY:   mirrors wowsims APL: SnD > Rupture > Eviscerate > SS builder,
 --         with energy pooling gating and TTD-aware finisher selection.
@@ -13,6 +14,7 @@ if not NS then return nil end
 	local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 	local SPELLS = NS.RogueSpells or {}
 	local spec_kit = require("shared/spec_kit_sylvanas")
+	local dsl = require("shared/strategy_dsl_sylvanas")
 
 -- Centralized spell resolver via spec_kit (rank IDs from rogue/class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -565,6 +567,111 @@ local function blind_matches(context, s)
 end
 
 -- ============================================================================
+-- Declarative Strategy DSL definitions (third DSL adopter, first non-warrior)
+-- ============================================================================
+-- These strategies are compiled from declarative definitions and replace the
+-- imperative match/execute pairs in the strategies table below for the same
+-- names. Complex conditions (energy pooling, leveling-aware CP thresholds,
+-- poison-stack deferral) are kept in `custom` nodes so behavior is preserved
+-- exactly. This proves the DSL generalizes beyond warrior rage mechanics.
+local DSL_DEFS = {
+    {
+        name = "SliceAndDice",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.SliceAndDice, 3.0) then return false end
+                return true
+            end },
+            { type = "state", field = "slice_and_dice_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                -- maintain 100% uptime; refresh when <3s remains, skip if fresh
+                if state.has_snd and not state.snd_needs_refresh then return false end
+                return true
+            end },
+            { type = "state", field = "combo_points", op = ">=", value = 2 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.SliceAndDice, NS.PLAYER_UNIT, "[COMBAT] SliceAndDice", { skip_range = true })
+        end },
+    },
+    {
+        name = "Eviscerate",
+        conditions = {
+            { type = "state", field = "eviscerate_ready", op = "truthy" },
+            { type = "state", field = "energy_pool_finisher", op = "falsy" },
+            { type = "state", field = "energy", op = ">=", value = 35 },
+            { type = "custom", fn = function(context, state)
+                -- Endgame: 5 CP; low-level/leveling: dump at 4 CP (short fights, no Envenom)
+                local min_cp = 5
+                local level = leveling_helpers.level_from_context(context, 70)
+                if leveling_helpers.is_low_level(level) or context.is_leveling then min_cp = 4 end
+                if (state.combo_points or 0) < min_cp then return false end
+                -- Prefer Envenom when 5 deadly poison stacks are up
+                if (state.deadly_poison_stacks or 0) >= 5 and state.envenom_ready then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.Eviscerate, context.target, "[COMBAT] Eviscerate")
+        end },
+    },
+    {
+        name = "Envenom",
+        conditions = {
+            { type = "state", field = "envenom_ready", op = "truthy" },
+            { type = "state", field = "energy_pool_finisher", op = "falsy" },
+            { type = "state", field = "energy", op = ">=", value = 35 },
+            { type = "state", field = "combo_points", op = ">=", value = 5 },
+            { type = "state", field = "deadly_poison_stacks", op = ">=", value = 5 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.Envenom, context.target, "[COMBAT] Envenom")
+        end },
+    },
+    {
+        name = "SinisterStrike",
+        conditions = {
+            { type = "state", field = "sinister_strike_ready", op = "truthy" },
+            { type = "state", field = "energy_low", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                -- Energy pooling: only spend if we just had a tick or the next one is far
+                local energy = context.energy or 0
+                if energy < 85 then
+                    if not should_spend_energy(context, 45) then return false end
+                end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.SinisterStrike, context.target, "[COMBAT] SinisterStrike")
+        end },
+    },
+    {
+        name = "Gouge",
+        conditions = {
+            { type = "state", field = "gouge_ready", op = "truthy" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.Gouge, context.target, "[COMBAT] Gouge")
+        end },
+    },
+    {
+        name = "Sprint",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "sprint_ready", op = "truthy" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.Sprint, NS.PLAYER_UNIT, "[COMBAT] Sprint", { skip_range = true })
+        end },
+    },
+}
+
+-- Compile declarative strategies, injecting build_state so unit tests that call
+-- strategy.matches(context) without state get a freshly-built state.
+local DSL_STRATEGIES = dsl.compile_strategies(DSL_DEFS, { get_state = build_state })
+
+-- ============================================================================
 -- Strategies
 -- ============================================================================
 local strategies = {
@@ -618,6 +725,24 @@ local strategies = {
       end,
       execute = function() return true end },
 }
+
+-- ============================================================================
+-- DSL in-place substitution (preserves priority order)
+-- ============================================================================
+-- Build a lookup of DSL strategies by name and replace the imperative entries
+-- at the same indices. This preserves the exact priority order while swapping
+-- in the declaratively-compiled match/execute functions.
+local DSL_BY_NAME = {}
+for i = 1, #DSL_STRATEGIES do
+    DSL_BY_NAME[DSL_STRATEGIES[i].name] = DSL_STRATEGIES[i]
+end
+
+for i = 1, #strategies do
+    local dsl_strategy = DSL_BY_NAME[strategies[i].name]
+    if dsl_strategy then
+        strategies[i] = dsl_strategy
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("combat", strategies, { get_state = build_state })
