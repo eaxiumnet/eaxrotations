@@ -273,62 +273,11 @@ local function other_curse_active(state, this_curse)
     return curse_helper.other_curse_active(state, this_curse)
 end
 
-local function immolate_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Immolate, 2.0) then return false end
-    if not state then return false end
-    state = state or {}
-    -- SP-aware gating: skip Immolate when spell damage is below the threshold.
-    -- Low-level warlocks won't reach the threshold, so ignore it until level 40.
-    local min_sp = spec_kit.setting_number(context, "destro_immolate_min_sp", IMMOLATE_MIN_SP_DEFAULT)
-    if (state.level or 70) >= 40 and (state.spell_damage or 0) < min_sp then return false end
-    if (state.immolate_remains or 0) > IMMOLATE_PANDEMIC_WINDOW then return false end
-    if not (NS.should_refresh_dot and NS.should_refresh_dot((state.immolate_remains or 0), 1.5, context.ttd, 15)) then return false end
-    return true
-end
-
-local function conflagrate_matches(context, action, state)
-    if not state then return false end
-    state = state or {}
-    if (state.immolate_remains or 0) <= 0 then return false end
-    -- TTD gate: skip Conflagrate on a nearly dead target (save GCD for harder hit)
-    if context.ttd_known and context.ttd < 3 then return false end
-    return true
-end
-
-local function shadowburn_matches(context, action, state)
-    if not context.target then return false end
-    if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
-    local hp_threshold = spec_kit.setting_number(context, "destro_shadowburn_hp", SHADOWBURN_HP_PCT)
-    if not (NS.is_execute_phase and NS.is_execute_phase(context.target_hp, hp_threshold)) then return false end
-    return NS.spell_ready(action.spell, context.target)
-end
-
-local function curse_of_doom_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfDoom, 2.0) then return false end
-    if assigned_curse_blocks(context, "doom") then return false end
-    if select_curse(context, state) ~= "doom" then return false end
-    if not (NS.should_use_long_cd and NS.should_use_long_cd(context, action.cooldown)) then return false end
-    if not state then return false end
-    state = state or {}
-    if (state.cod_remains or 0) > CURSE_REFRESH_WINDOW then return false end
-    if other_curse_active(state, "doom") then return false end
-    return true
-end
-
 local function backlash_matches(context, action, state)
     if not state then return false end
     state = state or {}
     if not state.has_backlash then return false end
     return true
-end
-
-local function incinerate_matches(context, action, state)
-    if not state then return false end
-    state = state or {}
-    if (state.immolate_remains or 0) <= 0 then return false end
-    -- TTD gate: prefer Shadow Bolt (harder hit) when target is dying fast
-    if context.ttd_known and context.ttd < 6 then return false end
-    return NS.spell_ready(action.spell, context.target)
 end
 
 local function searing_pain_matches(context, action, state)
@@ -446,16 +395,6 @@ local function create_healthstone_matches(context, action, state)
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
     if context.in_combat then return false end
     if context.has_valid_enemy_target then return false end
-    return true
-end
-
-local function life_tap_matches(context, action, state)
-    if context.is_casting or context.is_channeling then return false end
-    if (NS.time_now() - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then return false end
-    if not state then return false end
-    state = state or {}
-    if (state.mana_pct or 100) > MANA_LIFE_TAP_THRESHOLD then return false end
-    if (state.hp or 100) < (action.min_hp or 0) then return false end
     return true
 end
 
@@ -628,18 +567,8 @@ local strategies = {}
 for i = 1, #ACTIONS do
     local action = ACTIONS[i]
     local custom_matches
-    if action.name == "Immolate" then
-        custom_matches = function(context, state) return immolate_matches(context, action, state) end
-    elseif action.name == "Conflagrate" then
-        custom_matches = function(context, state) return conflagrate_matches(context, action, state) end
-    elseif action.name == "Shadowburn" then
-        custom_matches = function(context, state) return shadowburn_matches(context, action, state) end
-    elseif action.name == "CurseOfDoom" then
-        custom_matches = function(context, state) return curse_of_doom_matches(context, action, state) end
-    elseif action.name == "BacklashShadowBolt" then
+    if action.name == "BacklashShadowBolt" then
         custom_matches = function(context, state) return backlash_matches(context, action, state) end
-    elseif action.name == "Incinerate" then
-        custom_matches = function(context, state) return incinerate_matches(context, action, state) end
     elseif action.name == "SearingPain" then
         custom_matches = function(context, state) return searing_pain_matches(context, action, state) end
     elseif action.name == "SoulFire" then
@@ -668,8 +597,6 @@ for i = 1, #ACTIONS do
         custom_matches = function(context, state) return shadow_ward_matches(context, action, state) end
     elseif action.name == "CreateHealthstone" then
         custom_matches = function(context, state) return create_healthstone_matches(context, action, state) end
-    elseif action.name == "LifeTap" then
-        custom_matches = function(context, state) return life_tap_matches(context, action, state) end
     elseif action.name == "DeathCoil" then
         custom_matches = function(context, state) return death_coil_matches(context, action, state) end
     elseif action.name == "Shadowfury" then
@@ -780,6 +707,12 @@ table.insert(strategies, 25, {
 })
 
 -- Replace imperative match functions with DSL-compiled equivalents.
+-- NOTE: The strategies table above is built dynamically from the ACTIONS table,
+-- and parity strategies (ManaGem, Healthstone, Soulshatter) are inserted at
+-- specific priority positions with table.insert. Because those inserts shift
+-- indices, we cannot safely substitute by numeric index. Matching by strategy
+-- name keeps the DSL substitution robust against future parity additions or
+-- reordering of the underlying ACTIONS list.
 for i = 1, #strategies do
     for j = 1, #DSL_DEFS do
         if strategies[i].name == DSL_DEFS[j].name then
