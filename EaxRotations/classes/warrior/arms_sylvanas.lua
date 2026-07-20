@@ -498,61 +498,10 @@ local function defensive_stance_action()
     return build_action("DefensiveStance", ACTION.DefensiveStance, { target = "self", kind = "form", form = "defensive", requires_target = false })
 end
 
-local function battle_shout_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
-    if state.has_battle_shout or state.has_commanding_shout then return false end
-    return action(context, build_action("BattleShout", ACTION.BattleShout, { target = "self", kind = "buff", buff = BATTLE_SHOUT_BUFF, requires_target = false, min_rage = 10 }))
-end
-
-local function victory_rush_matches(context, state)
-    if not (context.me or NS.GetPlayer()) then return false end
-    if not state.victory_rush_ready then return false end
-    return action(context, build_action("VictoryRush", ACTION.VictoryRush, {}))
-end
-
-local function execute_matches(context, state)
-    if not execute_phase(context, state) then return false end
-    local min_rage = spec_kit.setting_number(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
-    if context.rage ~= nil and state.rage < min_rage then return false end
-    return action(context, build_action("Execute", ACTION.Execute, { min_rage = 15 }))
-end
-
 local function mortal_strike_matches(context, state)
     -- Rage cap: bypass min_rage gate to prevent rage waste when capped
     if state.rage >= RAGE_CAP then return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, cooldown = 6 })) end
     return action(context, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }))
-end
-
-local function overpower_matches(context, state)
-    if not state.overpower_ready then return false end
-    -- Overpower is proc-gated: only usable for 5s after the player's attack is dodged.
-    -- When CLEU diagnostics are active, require a recent dodge proc so the rotation
-    -- doesn't burn a tick attempting a non-castable Overpower. Falls back to
-    -- spell_ready-only when CLEU is unavailable (legacy behavior).
-    if _cleu and _cleu.is_active and _cleu.is_active() and _cleu.is_overpower_proc_active then
-        if not _cleu.is_overpower_proc_active() then return false end
-    end
-    -- Rage protection: skip Overpower if MS is imminent and rage is too low for both
-    local ms_cd = state.ms_cd or 99
-    if ms_cd <= 1.5 and state.rage < MORTAL_STRIKE_RAGE then return false end
-    return action(context, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }))
-end
-
-local function rend_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rend, 2.0) then return false end
-    if execute_phase(context, state) then return false end
-    if state.rend_remains > 3 then return false end
-    if state.target_hp < 25 then return false end
-    -- TTD gate: skip Rend if target dying soon (bleed won't tick enough).
-    -- (state.ttd or 999): TTD unknown -> assume target lives long (allow Rend).
-    if (state.ttd or 999) > 0 and (state.ttd or 999) < 15 then return false end
-    -- Skip Rend on bleed-immune creature types (Elemental, Undead, Mechanical)
-    local target = context.target
-    if target and target.get_creature_type then
-        local ok, ctype = pcall(function() return target:get_creature_type() end)
-        if ok and ctype and BLEED_IMMUNE_TYPES[ctype] then return false end
-    end
-    return action(context, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3 }))
 end
 
 local function slam_matches(context, state)
@@ -679,27 +628,6 @@ local function cleave_matches(context, state)
     return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true, hit_radius = 8, hit_origin = "target" }))
 end
 
-local function hamstring_matches(context, state)
-    -- PvP snare maintenance (highest priority in PvP)
-    if state.is_pvp then
-        if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
-        if state.hamstring_remains > 3 then return false end
-        return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
-    end
-    -- Tactician fishing — spam Hamstring when MS is on CD and rage is high
-    local tactician_enabled = spec_kit.setting_bool(context, "hamstring_tactician_weave", true)
-    local weave_rage = spec_kit.setting_number(context, "hamstring_weave_rage", HAMSTRING_SPAM_RAGE)
-    if tactician_enabled and not state.execute_phase and state.rage >= weave_rage and state.ms_cd > 1.5 then
-        return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10 }))
-    end
-    -- Fleeing mobs (snare utility)
-    if spec_kit.setting_bool(context, "hamstring_fleeing_mobs", true) and state.hamstring_remains <= 3 then
-        if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
-        return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
-    end
-    return false
-end
-
 local function piercing_howl_matches(context, state)
     -- Piercing Howl: 10yd self PBAoE (DBC) — not 40yd enemy_count
     if not state.is_pvp and not (NS.aoe_self_meets and NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)) then
@@ -709,35 +637,6 @@ local function piercing_howl_matches(context, state)
     return action(context, build_action("PiercingHowl", ACTION.PiercingHowl, {
         target = "self", min_rage = 10, requires_target = false,
         enemy_count = 2, is_aoe = true, hit_radius = 10, hit_origin = "me",
-    }))
-end
-
-local function demo_shout_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
-    if state.demo_remains > 5 then return false end
-    if not state.is_pvp and state.hp > 70
-        and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)) then
-        return false
-    end
-    return action(context, build_action("DemoralizingShout", ACTION.DemoralizingShout, {
-        target = "self", min_rage = 10, requires_target = false,
-        debuff = DEMO_SHOUT_DEBUFF, refresh = 5, hit_radius = 10, hit_origin = "me",
-    }))
-end
-
-local function thunder_clap_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
-    if state.aoe_cc_nearby then return false end  -- don't break nearby CC
-    if state.tclap_remains > 5 then return false end
-    -- Thunder Clap: 8yd self PBAoE — not 40yd enemy_count
-    if not state.is_pvp and state.hp > 65
-        and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
-        return false
-    end
-    return action(context, build_action("ThunderClap", ACTION.ThunderClap, {
-        target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false,
-        debuff = THUNDER_CLAP_DEBUFF, refresh = 5, cooldown = 4,
-        hit_radius = 8, hit_origin = "me",
     }))
 end
 
@@ -1085,17 +984,17 @@ local STRATEGY_SPECS = {
     { "BattleStance", battle_stance_matches, battle_stance_action() },
     { "BerserkerStance", berserker_stance_matches, berserker_stance_action() },
     { "CommandingShout", commanding_shout_matches, build_action("CommandingShout", ACTION.CommandingShout, { target = "self", kind = "buff", buff = COMMANDING_SHOUT_BUFF, requires_target = false, min_rage = 10 }) },
-    { "BattleShout", battle_shout_matches, build_action("BattleShout", ACTION.BattleShout, { target = "self", kind = "buff", buff = BATTLE_SHOUT_BUFF, requires_target = false }) },
+    { "BattleShout" },  -- DSL-substituted at runtime
     { "SunderArmor", sunder_armor_matches, build_action("SunderArmor", ACTION.SunderArmor, { required_stance = STANCE.BATTLE, min_rage = 15, debuff = SUNDER_DEBUFF, refresh = 28 }) },
     { "Bloodrage", bloodrage_matches, build_action("Bloodrage", ACTION.Bloodrage, { target = "self", requires_target = false, skip_gcd = true }) },
-    { "VictoryRush", victory_rush_matches, build_action("VictoryRush", ACTION.VictoryRush, {}) },
+    { "VictoryRush" },  -- DSL-substituted at runtime
     { "Retaliation", retaliation_matches, build_action("Retaliation", ACTION.Retaliation, { target = "self", required_stance = STANCE.BATTLE, requires_target = false }) },
     { "Recklessness", recklessness_matches, build_action("Recklessness", ACTION.Recklessness, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false }) },
     { "DeathWish", death_wish_matches, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false }) },
     { "BerserkerRage", berserker_rage_matches, build_action("BerserkerRage", ACTION.BerserkerRage, { target = "self", required_stance = STANCE.BERSERKER, requires_target = false }) },
-    { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { min_rage = 15 }) },
+    { "Execute" },  -- DSL-substituted at runtime
     { "MortalStrike", mortal_strike_matches, build_action("MortalStrike", ACTION.MortalStrike, { required_stance = STANCE.BATTLE, min_rage = MORTAL_STRIKE_RAGE, cooldown = 6 }) },
-    { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = OVERPOWER_RAGE }) },
+    { "Overpower" },  -- DSL-substituted at runtime
     { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { required_stance = STANCE.BATTLE, min_rage = SLAM_RAGE, not_moving = true }), function(context)
         if spec_kit.setting_bool(context, "use_spell_queue_slam", false) then
             return SpellQueue.queue_spell_target(ACTION.Slam, context.target, 1, "[ARMS] Slam weave", false)
@@ -1104,11 +1003,11 @@ local STRATEGY_SPECS = {
     end },
     { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
     { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false }) },
-    { "Rend", rend_matches, build_action("Rend", ACTION.Rend, { required_stance = STANCE.BATTLE, min_rage = 10, debuff = REND_DEBUFF, refresh = 3, creature_types = BLEED_IMMUNE_TYPES }) },
+    { "Rend" },  -- DSL-substituted at runtime
     { "PiercingHowl", piercing_howl_matches, build_action("PiercingHowl", ACTION.PiercingHowl, { target = "self", min_rage = 10, requires_target = false, enemy_count = 2 }) },
-    { "Hamstring", hamstring_matches, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }) },
-    { "DemoralizingShout", demo_shout_matches, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false }) },
-    { "ThunderClap", thunder_clap_matches, build_action("ThunderClap", ACTION.ThunderClap, { target = "self", required_stance = STANCE.BATTLE, min_rage = 20, requires_target = false, cooldown = 4 }) },
+    { "Hamstring" },  -- DSL-substituted at runtime
+    { "DemoralizingShout" },  -- DSL-substituted at runtime
+    { "ThunderClap" },  -- DSL-substituted at runtime
     { "Cleave", cleave_matches, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true, hit_radius = 8, hit_origin = "target" }) },
     { "HeroicStrike", heroic_strike_matches, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = HEROIC_STRIKE_RAGE }) },
     { "Healthstone", healthstone_matches, build_action("Healthstone", nil, { target = "self", requires_target = false }), function(context)

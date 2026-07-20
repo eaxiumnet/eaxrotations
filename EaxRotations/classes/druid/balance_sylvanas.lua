@@ -326,17 +326,7 @@ local strategies = {
             return NS.try_cast(SPELLS.Barkskin, NS.PLAYER_UNIT, "[BALANCE] Barkskin defense")
         end,
     },
-    {
-        name="ManaPotionEmergency",
-        matches=function(_, s)
-            local floor = 15
-            if (s.mana_pct or 100) > floor then return false end
-            return true
-        end,
-        execute=function(ctx)
-            return _potion_helper.try_use_potion(ctx, _potion_helper.MANA_POTION_IDS)
-        end,
-    },
+    { name="ManaPotionEmergency" },  -- DSL-substituted at runtime
     {
         name="ForceOfNature",
         matches=function(ctx)
@@ -347,17 +337,7 @@ local strategies = {
         end,
         execute=function(ctx) return NS.action_execute(ctx, _ACT_FON, "[BALANCE]") end,
     },
-    {
-        name="MoonkinForm",
-        matches=function(ctx)
-            if not (ctx.settings and ctx.settings.balance_moonkin_auto) then return false end
-            if ctx.in_combat then return false end
-            return NS.spell_ready(SPELLS.MoonkinForm, NS.PLAYER_UNIT, { skip_range = true })
-        end,
-        execute=function()
-            return NS.try_cast(SPELLS.MoonkinForm, NS.PLAYER_UNIT, "[BALANCE] Moonkin Form")
-        end,
-    },
+    { name="MoonkinForm" },  -- DSL-substituted at runtime
     {
         name="InnervateSelf",
         matches=function(ctx, s)
@@ -593,28 +573,8 @@ local strategies = {
             return use_mana_gem()
         end,
     },
-    {
-        name="ManaPotion",
-        matches=function(_, s)
-            local threshold = 25
-            if (s.mana_pct or 100) > threshold then return false end
-            return true
-        end,
-        execute=function(ctx)
-            return _potion_helper.try_use_potion(ctx, _potion_helper.MANA_POTION_IDS)
-        end,
-    },
-    {
-        name="PvP_NaturesGrasp",
-        matches=function(ctx)
-            if not ctx.is_pvp then return false end
-            if not (ctx.melee_on_you or false) then return false end
-            return NS.spell_ready(ACTION.NaturesGrasp, NS.PLAYER_UNIT, { skip_range = true })
-        end,
-        execute=function()
-            return NS.try_cast(ACTION.NaturesGrasp, NS.PLAYER_UNIT, "[BALANCE PvP] Nature's Grasp")
-        end,
-    },
+    { name="ManaPotion" },  -- DSL-substituted at runtime
+    { name="PvP_NaturesGrasp" },  -- DSL-substituted at runtime
     {
         name="PvP_EntanglingRoots",
         matches=function(ctx)
@@ -640,32 +600,8 @@ local strategies = {
             return NS.try_cast(ACTION.Cyclone, ctx.target, "[BALANCE PvP] Cyclone on healer")
         end,
     },
-    {
-        name="WarStomp",
-        matches=function(ctx, s)
-            if not ctx.in_combat then return false end
-            if (s.enemy_count or ctx.enemy_count or 1) < 4 then return false end
-            return NS.spell_ready(ACTION.WarStomp, NS.PLAYER_UNIT, { skip_range = true })
-        end,
-        execute=function()
-            return NS.try_cast(ACTION.WarStomp, NS.PLAYER_UNIT, "[BALANCE] War Stomp (4+ enemies)")
-        end,
-    },
-    {
-        name="Healthstone",
-        matches=function(ctx, s)
-            if not ctx.in_combat then return false end
-            if (ctx.hp or 100) > 28 then return false end
-            return (s.healthstone_ready or 0) > 0
-        end,
-        execute=function(ctx)
-            local item_id = first_ready_item(HEALTHSTONE_IDS)
-            if item_id > 0 and NS.use_item_by_id then
-                return NS.use_item_by_id(item_id, ctx.me) and true or false
-            end
-            return false
-        end,
-    },
+    { name="WarStomp" },  -- DSL-substituted at runtime
+    { name="Healthstone" },  -- DSL-substituted at runtime
     {
         name="MarkOfTheWild",
         matches=function(ctx)

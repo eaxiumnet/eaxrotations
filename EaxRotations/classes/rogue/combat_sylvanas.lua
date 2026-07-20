@@ -178,6 +178,7 @@ local COMBAT_SCHEMA = {
     stealth_ready = false, adrenaline_rush_ready = false,
     blade_flurry_ready = false, slice_and_dice_ready = false,
     rupture_ready = false, eviscerate_ready = false,
+    envenom_ready = false,
     sinister_strike_ready = false, kick_ready = false,
     gouge_ready = false, sprint_ready = false,
     vanish_ready = false, feint_ready = false,
@@ -186,6 +187,8 @@ local COMBAT_SCHEMA = {
     expose_armor_ready = false,
     -- Shiv
     shiv_ready = false,
+    -- Poison
+    deadly_poison_stacks = 0,
     hit_cap_pct = 9,
     hit_cap_rating_needed = 142,
     expertise_soft_cap = 26,
@@ -373,15 +376,6 @@ local function blade_flurry_wrapper(context, s)
     return true
 end
 
-local function slice_and_dice_wrapper(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.SliceAndDice, 3.0) then return false end
-    if not s.slice_and_dice_ready then return false end
-    -- Research: maintain 100% uptime; refresh when <3s remains
-    if s.has_snd and not s.snd_needs_refresh then return false end
-    if (s.combo_points or 0) < 2 then return false end
-    return true
-end
-
 local function rupture_wrapper(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Rupture, 2.0) then return false end
     if not s.rupture_ready then return false end
@@ -393,38 +387,6 @@ local function rupture_wrapper(context, s)
     local rupture_remains = NS.debuff_remains(context.target, RUPTURE_DEBUFF) or 0
     if rupture_remains > RUPTURE_REFRESH_WINDOW then return false end
     if (s.combo_points or 0) < 5 then return false end
-    return true
-end
-
-	local function eviscerate_matches(context, s)
-	    if not s.eviscerate_ready then return false end
-	    if s.energy_pool_finisher then return false end
-	    if (s.energy or 0) < 35 then return false end  -- hard floor: spell costs 35 energy
-	    -- Endgame: 5 CP; low-level/leveling: dump at 4 CP (short fights, no Envenom)
-	    local min_cp = 5
-	    local level = leveling_helpers.level_from_context(context, 70)
-	    if leveling_helpers.is_low_level(level) or context.is_leveling then min_cp = 4 end
-	    if (s.combo_points or 0) < min_cp then return false end
-	    if (s.deadly_poison_stacks or 0) >= 5 and s.envenom_ready then return false end  -- prefer Envenom
-	    return true
-	end
-
-local function envenom_matches(context, s)
-    if not s.envenom_ready then return false end
-    if s.energy_pool_finisher then return false end
-    if (s.energy or 0) < 35 then return false end
-    if (s.combo_points or 0) < 5 then return false end
-    if (s.deadly_poison_stacks or 0) < 5 then return false end
-    return true
-end
-
-local function sinister_strike_wrapper(context, s)
-    if not s.sinister_strike_ready then return false end
-    if s.energy_low then return false end  -- Research: pool energy below 45
-    local energy = context.energy or 0
-    if energy < 85 then
-        if not should_spend_energy(context, 45) then return false end
-    end
     return true
 end
 
@@ -442,17 +404,6 @@ local function shiv_purge_matches(context, s)
         local ok, is_player = pcall(function() return context.target:is_player() end)
         if not (ok and is_player) then return false end
     end
-    return true
-end
-
-local function gouge_matches(context, s)
-    if not s.gouge_ready then return false end
-    return true
-end
-
-local function sprint_matches(context, s)
-    if not s.in_combat then return false end
-    if not s.sprint_ready then return false end
     return true
 end
 
@@ -696,15 +647,15 @@ local strategies = {
     { name = "Stealth", matches = stealth_matches, execute = function(context) return Stealth.try(context) end },
     { name = "CheapShot", matches = cheap_shot_matches, execute = function(context) return NS.try_cast(ACTION.CheapShot, context.target, "[COMBAT] Cheap Shot") end },
     { name = "Garrote", matches = garrote_matches, execute = function(context) return NS.try_cast(ACTION.Garrote, context.target, "[COMBAT] Garrote") end },
-    { name = "SliceAndDice", matches = slice_and_dice_wrapper, execute = function(context) return NS.try_cast(ACTION.SliceAndDice, NS.PLAYER_UNIT, "[COMBAT] SliceAndDice", { skip_range = true }) end },
+    { name = "SliceAndDice" },  -- DSL-substituted at runtime
     { name = "AdrenalineRush", matches = adrenaline_rush_wrapper, execute = function(context) return NS.try_cast(ACTION.AdrenalineRush, NS.PLAYER_UNIT, "[COMBAT] AdrenalineRush", { skip_range = true }) end },
     { name = "BladeFlurry", matches = blade_flurry_wrapper, execute = function(context) return NS.try_cast(ACTION.BladeFlurry, NS.PLAYER_UNIT, "[COMBAT] BladeFlurry", { skip_range = true }) end },
     { name = "Rupture", matches = rupture_wrapper, execute = function(context) return NS.try_cast(ACTION.Rupture, context.target, "[COMBAT] Rupture") end },
-    { name = "Eviscerate", matches = eviscerate_matches, execute = function(context) return NS.try_cast(ACTION.Eviscerate, context.target, "[COMBAT] Eviscerate") end },
-    { name = "Envenom", matches = envenom_matches, execute = function(context) return NS.try_cast(ACTION.Envenom, context.target, "[COMBAT] Envenom") end },
+    { name = "Eviscerate" },  -- DSL-substituted at runtime
+    { name = "Envenom" },  -- DSL-substituted at runtime
     { name = "ShivPurge", matches = function(context, s) if shiv_purge_matches(context, s) then context._shiv_purge_name = s.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return NS.try_cast(ACTION.Shiv, context.target, "[COMBAT] Shiv purge → " .. name, { expected_cooldown = 10 }) end },
-    { name = "Gouge", matches = gouge_matches, execute = function(context) return NS.try_cast(ACTION.Gouge, context.target, "[COMBAT] Gouge") end },
-    { name = "Sprint", matches = sprint_matches, execute = function(context) return NS.try_cast(ACTION.Sprint, NS.PLAYER_UNIT, "[COMBAT] Sprint", { skip_range = true }) end },
+    { name = "Gouge" },  -- DSL-substituted at runtime
+    { name = "Sprint" },  -- DSL-substituted at runtime
     { name = "Vanish", matches = vanish_matches, execute = function(context) return NS.try_cast(ACTION.Vanish, NS.PLAYER_UNIT, "[COMBAT] Vanish", { skip_range = true }) end },
     { name = "Feint", matches = feint_matches, execute = function(context) return NS.try_cast(ACTION.Feint, NS.PLAYER_UNIT, "[COMBAT] Feint", { skip_range = true }) end },
     { name = "Hemorrhage", matches = hemorrhage_matches, execute = function(context) return NS.try_cast(ACTION.Hemorrhage, context.target, "[COMBAT] Hemorrhage") end },
@@ -712,7 +663,7 @@ local strategies = {
     { name = "Backstab", matches = backstab_matches, execute = function(context) return NS.try_cast(ACTION.Backstab, context.target, "[COMBAT] Backstab") end },
     { name = "KidneyShot", matches = kidney_shot_matches, execute = function(context) return NS.try_cast(ACTION.KidneyShot, context.target, "[COMBAT] KidneyShot") end },
     { name = "ExposeArmor", matches = expose_armor_matches, execute = function(context) return NS.try_cast(ACTION.ExposeArmor, context.target, "[COMBAT] ExposeArmor") end },
-    { name = "SinisterStrike", matches = sinister_strike_wrapper, execute = function(context) return NS.try_cast(ACTION.SinisterStrike, context.target, "[COMBAT] SinisterStrike") end },
+    { name = "SinisterStrike" },  -- DSL-substituted at runtime
     { name = "HitCapPriority",
       matches = function(context, s)
           if not s.hit_cap_rating_needed then return false end

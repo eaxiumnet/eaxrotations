@@ -536,25 +536,11 @@ local function charge_matches(context, state)
     return action(context, build_action("Charge", ACTION.Charge, { required_stance = STANCE.BATTLE, cooldown = 15 }))
 end
 
--- Battle Shout / Commanding Shout
-local function battle_shout_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
-    if state.has_battle_shout or state.has_commanding_shout then return false end
-    return action(context, build_action("BattleShout", ACTION.BattleShout, { target = "self", kind = "buff", buff = BATTLE_SHOUT_BUFF, requires_target = false, min_rage = 10 }))
-end
-
 -- Bloodrage: low rage generation
 local function bloodrage_matches(context, state)
     if (state.rage or 0) >= 20 then return false end
     if not state.in_combat and (state.hp or 100) < 90 then return false end
     return action(context, build_action("Bloodrage", ACTION.Bloodrage, { target = "self", requires_target = false, skip_gcd = true, cooldown = 60 }))
-end
-
--- Victory Rush: post-kill
-local function victory_rush_matches(context, state)
-    if not (context.me or NS.GetPlayer()) then return false end
-    if not state.victory_rush_ready then return false end
-    return action(context, build_action("VictoryRush", ACTION.VictoryRush, {}))
 end
 
 -- Healthstone / HealthPotion: auto-use consumable at low HP (healthstone preferred, potion fallback)
@@ -612,24 +598,6 @@ local function death_wish_matches(context, state)
     return action(context, build_action("DeathWish", ACTION.DeathWish, { target = "self", requires_target = false, cooldown = 180 }))
 end
 
--- Rampage: stack management — recast when stacks < min threshold or buff about to fall off
-local function rampage_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rampage, 3.0) then return false end
-    if not state.in_combat then return false end
-    -- TBC Rampage: cast to APPLY the buff (only usable after a crit) or REFRESH it
-    -- before it falls off. Stacks build automatically from successful melee hits
-    -- (up to 5) — NOT from recasting. The old `rampage_min_stacks` branch recast
-    -- Rampage whenever stacks < 5, wasting 30 rage during the ramp-up window.
-    if not state.has_rampage then
-        return action(context, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }))
-    end
-    local rampage_remains = NS.buff_remains and NS.buff_remains(context.me or NS.GetPlayer(), RAMPAGE_BUFF) or 0
-    if rampage_remains <= 3 then
-        return action(context, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }))
-    end
-    return false
-end
-
 -- Overpower weaving: wowsims-aligned TBC Fury optimization.
 -- When BT and WW are both on cooldown (>=1.5s) and not in execute phase,
 -- swap to Battle Stance to consume an Overpower proc, then swap back.
@@ -682,17 +650,6 @@ local function would_starve_core_fury(context, state, cost)
     return false
 end
 
--- Bloodthirst: core Fury ability
-local function bt_matches(context, state)
-    -- WW priority: yield to Whirlwind when enough enemies nearby and WW is ready
-    local ww_prio = spec_kit.setting_number(context, "fury_ww_prio_count", 2)
-    if ww_prio > 0 and (context.rage or 0) >= 25 and state.ww_ready
-        and NS.aoe_self_meets and NS.aoe_self_meets(ww_prio, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state) then
-        return false
-    end
-    return action(context, build_action("Bloodthirst", ACTION.Bloodthirst, { required_stance = STANCE.BERSERKER, min_rage = 30, cooldown = 6 }))
-end
-
 -- Rend removed: not used in TBC Fury rotation per Icy Veins/Wowhead
 
 -- Sunder Armor: stack armor reduction
@@ -719,22 +676,6 @@ local function sweeping_strikes_matches(context, state)
     if state.has_sweeping_strikes then return false end
     if state.stance ~= STANCE.BATTLE then return false end
     return action(context, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false, enemy_count = min_count, cooldown = 30 }))
-end
-
--- Whirlwind: filler + AoE — use with any extra rage per Icy Veins
-local function whirlwind_matches(context, state)
-    if not state.ww_ready then return false end
-    if state.aoe_cc_nearby then return false end  -- don't break nearby CC
-    if (state.rage or 0) < 25 and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then return false end
-    return action(context, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }))
-end
-
--- Execute: finish phase
-local function execute_matches(context, state)
-    if not execute_phase(context, state) then return false end
-    local min_rage = spec_kit.setting_number(context, "execute_phase_rage", EXECUTE_DEFAULT_RAGE)
-    if (state.rage or 0) < min_rage then return false end
-    return action(context, build_action("Execute", ACTION.Execute, { required_stance = STANCE.BERSERKER, min_rage = 15 }))
 end
 
 -- Slam: weave between swings (when Bloodthirst on CD)
@@ -813,14 +754,6 @@ local function cleave_matches(context, state)
         if would_starve_core_fury(context, state, 15) then return false end
     end
     return action(context, build_action("Cleave", ACTION.Cleave, { min_rage = cleave_rage, enemy_count = 2, is_aoe = true, hit_radius = 8, hit_origin = "target" }))
-end
-
--- Demoralizing Shout: enemy damage reduction
-local function demo_shout_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
-    if (state.demo_remains or 0) > 5 then return false end
-    if not state.is_pvp and (state.enemy_count or 0) < 2 and (state.hp or 100) > 70 then return false end
-    return action(context, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false, debuff = DEMO_SHOUT_DEBUFF, refresh = 5 }))
 end
 
 -- Thunder Clap removed: not used by Fury warrior (tank/Arms debuff)
@@ -1116,7 +1049,7 @@ local STRATEGY_SPECS = {
     { "BerserkerStance", berserker_stance_matches, berserker_stance_action() },
     { "BattleStance", battle_stance_matches, battle_stance_action() },
     -- Buffs
-    { "BattleShout", battle_shout_matches, build_action("BattleShout", ACTION.BattleShout, { target = "self", kind = "buff", buff = BATTLE_SHOUT_BUFF, requires_target = false }) },
+    { "BattleShout" },  -- DSL-substituted at runtime
     { "BerserkerRage", berserker_rage_matches, build_action("BerserkerRage", ACTION.BerserkerRage, { target = "self", requires_target = false, cooldown = 30 }) },
     { "Bloodrage", bloodrage_matches, build_action("Bloodrage", ACTION.Bloodrage, { target = "self", requires_target = false, skip_gcd = true }) },
     -- Engineering bombs (wowsims APL "Engineering" group — filler during rage downtime)
@@ -1127,7 +1060,7 @@ local STRATEGY_SPECS = {
           if not engineering then return false end
           return engineering.use_best_bomb(context)
       end },
-    { "VictoryRush", victory_rush_matches, build_action("VictoryRush", ACTION.VictoryRush, {}) },
+    { "VictoryRush" },  -- DSL-substituted at runtime
     -- Charge opener (OOC)
     { "Charge", charge_matches, build_action("Charge", ACTION.Charge, { required_stance = STANCE.BATTLE, cooldown = 15 }) },
     -- Cooldowns
@@ -1136,16 +1069,16 @@ local STRATEGY_SPECS = {
     -- AoE
     { "SweepingStrikes", sweeping_strikes_matches, build_action("SweepingStrikes", ACTION.SweepingStrikes, { target = "self", required_stance = STANCE.BATTLE, min_rage = 30, requires_target = false }) },
     -- Core rotation (APL-aligned: Rampage upkeep → Execute → BT → WW → Overpower weave → Slam)
-    { "Rampage", rampage_matches, build_action("Rampage", ACTION.Rampage, { target = "self", requires_target = false, min_rage = 30 }) },
-    { "Execute", execute_matches, build_action("Execute", ACTION.Execute, { required_stance = STANCE.BERSERKER, min_rage = 15 }) },
-    { "Bloodthirst", bt_matches, build_action("Bloodthirst", ACTION.Bloodthirst, { required_stance = STANCE.BERSERKER, min_rage = 30, cooldown = 6 }) },
-    { "Whirlwind", whirlwind_matches, build_action("Whirlwind", ACTION.Whirlwind, { required_stance = STANCE.BERSERKER, min_rage = 25, cooldown = 10 }) },
+    { "Rampage" },  -- DSL-substituted at runtime
+    { "Execute" },  -- DSL-substituted at runtime
+    { "Bloodthirst" },  -- DSL-substituted at runtime
+    { "Whirlwind" },  -- DSL-substituted at runtime
     { "Overpower", overpower_matches, build_action("Overpower", ACTION.Overpower, { required_stance = STANCE.BATTLE, min_rage = 5 }) },
     { "Slam", slam_matches, build_action("Slam", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }) },
     { "SwingDesync", swing_desync_matches, build_action("SwingDesync", ACTION.Slam, { min_rage = SLAM_RAGE_COST, not_moving = true }) },
     -- Overpower REMOVED from Fury: Arms-only in TBC
     { "SunderArmor", sunder_armor_matches, build_action("SunderArmor", ACTION.SunderArmor, { min_rage = 15, debuff = SUNDER_DEBUFF }) },
-    { "DemoralizingShout", demo_shout_matches, build_action("DemoralizingShout", ACTION.DemoralizingShout, { target = "self", min_rage = 10, requires_target = false }) },
+    { "DemoralizingShout" },  -- DSL-substituted at runtime
     -- Rage dumps
     { "Cleave", cleave_matches, build_action("Cleave", ACTION.Cleave, { min_rage = CLEAVE_RAGE, enemy_count = 2, is_aoe = true, hit_radius = 8, hit_origin = "target" }) },
     { "HeroicStrike", heroic_strike_matches, build_action("HeroicStrike", ACTION.HeroicStrike, { min_rage = HEROIC_STRIKE_RAGE }) },
