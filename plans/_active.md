@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-20 (Strategy DSL + lazy context landed; 10 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage; `tests/_staging/` debris cleaned; baseline re-verified 325 rot + 21 leveling = 346 total).
+**Last updated:** 2026-07-20 (Strategy DSL + lazy context landed; 11 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage; `tests/_staging/` debris cleaned; baseline re-verified 326 rot + 21 leveling = 347 total).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
