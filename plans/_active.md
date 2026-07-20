@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-16 (EaxRotations coverage validation campaign COMPLETE — 305 rot + 21 leveling, scorecard 4.41).
+**Last updated:** 2026-07-20 (Strategy DSL + lazy context landed; 6 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman; `tests/_staging/` debris cleaned; baseline re-verified 321 rot + 21 leveling = 342 total).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -32,6 +32,13 @@
 | `plans/wire-dormant-shared-modules-2026-07-16.md` | COMPLETE (2026-07-16) | Bootstrap-loaded supremacy modules that had call sites but were never required (StopCast, PetHeal, SnapThreat, StanceManager, SwingDiagnostics/Timer, DispelManager, RageManager, HealthPredHelper). Remaining: Phase 2 healer/tank *usage* of NS.predicted_hp_pct, wotlk_data consumable wire, _dbc_spell_ids for audit tests. |
 | `plans/spell-id-and-leveling-verification-2026-07-16.md` | COMPLETE (2026-07-16) | Leveling ladder helper + Vanilla/WotLK ladder tests added; all 28 leveling files expose strategies/build_state; 285 rotation + 20 leveling suites pass. |
 | `plans/_archive/ulw-validate-eaxrotations-coverage-2026-07-16.md` | COMPLETE (2026-07-16) | Coverage validation: interrupt/dispel/heal/tank hardening, 15 vanilla strategy suites, leveling adaptive fixes, low-score healing/caster upgrades. 305 rot + 21 leveling PASS; scorecard avg 4.41. |
+| `plans/strategy-dsl-lazy-context-2026-07-19.md` | COMPLETE (2026-07-19) | Lazy per-tick context proxy + declarative strategy DSL. Commit A `4c4ab694` (lazy context: `shared/lazy_context_sylvanas.lua` + `main_sylvanas.lua` +test). Commit B `37f4bb01` (DSL: `shared/strategy_dsl_sylvanas.lua` + arms warrior first adoption + 2 tests). Gate 316+21 green at landing. |
+| `plans/fury-dsl-adoption-2026-07-19.md` | COMPLETE (2026-07-19) | Second-spec DSL adoption (fury warrior, 7 strategies) — `33c77110`. Validates DSL generality beyond arms. Bumped rotation suites 316→317 via `test_fury_dsl_priority.lua`. |
+| combat rogue DSL | COMPLETE (2026-07-20) | Third DSL adopter (first non-warrior) — `f280bd72`. 6 strategies (combat rogue, energy/combo). Bumped 317→318. |
+| balance druid DSL | COMPLETE (2026-07-20) | Fourth DSL adopter (first mana-based caster) — `cbc60cfe`. 6 strategies (balance druid, mana). Bumped 318→319. |
+| protection paladin DSL | COMPLETE (2026-07-20) | Fifth DSL adopter (first tank spec) — `ccc60645`. 6 strategies (protection paladin, mana/tank). Bumped 319→320. |
+| restoration shaman DSL | COMPLETE (2026-07-20) | Sixth DSL adopter (first healer spec) — `e6ec9143`. 6 strategies (restoration shaman, mana/healer). Bumped 320→321. |
+| `tests/_staging/` cleanup | COMPLETE (2026-07-20) | Deleted untracked debris (`test_wotlk_integration.lua` was failing + 90% redundant; empty `phase2_hide/`). Promoted the one unique gap (WotLK `get_expansion_max_level()==80`) into `test_expansion_helpers.lua`. Gate 317+21 green. |
 
 ## Reference Documents (not plans)
 
@@ -44,13 +51,15 @@
 
 ---
 
-## Baseline (ALL GREEN — verified 2026-07-10)
+## Baseline (ALL GREEN — verified 2026-07-20)
 
-- 252 rotation suites: ALL PASS (0 failures)
-- 17 leveling suites: ALL PASS
+- 321 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +4 from combat/balance/protection/restoration DSL adoption suites
+- 21 leveling suites: ALL PASS — was 17 at 2026-07-10; +4 from leveling ladder + verification
 - 31 vanilla audit: PASS (0 tainted)
 - 61 sylvanas audit: PASS (0 invalid)
-- luac -p + pre-commit DBC/vanilla: PASS (476+ files)
+- luac -p + pre-commit DBC/vanilla: PASS (617+ files)
+
+> **DSL adoption progress:** 6 of 29 specs on the strategy DSL — arms (`37f4bb01`), fury (`33c77110`), combat rogue (`f280bd72`), balance druid (`cbc60cfe`), protection paladin (`ccc60645`), restoration shaman (`e6ec9143`). Each adopted 6–7 strategies via declarative `DSL_DEFS` + in-place substitution. `AGENTS.md` synced to 321+21=342.
 
 ---
 

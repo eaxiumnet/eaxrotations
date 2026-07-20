@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-11** (v2.5.15: control panel entries always show fallback "Unbound" (999), removed set_setting writes, inject states from widgets; verified; version bump all files; clean zip to GH with changelogs; tests green; rotations COMPLETE).
+> up to date after every work session. Last updated: **2026-07-20** (strategy DSL + lazy context landed 2026-07-19; 6 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman; `tests/_staging/` debris cleaned; baseline re-verified 321 rotation + 21 leveling = 342 total suites green).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
@@ -19,9 +19,9 @@ have to context-switch.
 - **Project:** 29 WoW TBC Classic Anniversary (2.5.5.x) + Vanilla Anniversary
   rotation plugins for **Project Sylvanas**, in Lua 5.1/LuaJIT. Repo:
   `https://github.com/eaxiumnet/eaxrotations`. Work dir: `C:\newbot\scripts`.
-- **Baseline is GREEN:** **234 rotation suites + 13 leveling suites** pass on
+- **Baseline is GREEN:** **321 rotation suites + 21 leveling suites (342 total)** pass on
   **Lua 5.1**. Don't break this.
-- **What's done (2026-06-27 → 2026-07-07, 284 commits):**
+- **What's done (2026-06-27 → 2026-07-20, 288+ commits):**
   - **wowsims APL alignment** for all 29 TBC specs (priority orders grounded in
     SimulationCraft / wowsims APLs + TBC community guides). Multiple releases shipped.
   - **Swing mechanics overhaul** — CLEU-backed swing timer, parry-haste, enemy
@@ -41,10 +41,15 @@ have to context-switch.
   - **567 vanilla nil-guard test cases** added across 9 new test files (38 specs).
   - **Plan cleanup** — 44 → 15 active plans (35 archived to `plans/_archive/`).
 - **What's next:** (1) Continue spec_kit migration (only when already editing a
-  spec — never big-bang). (2) `become-1-rotation-system` roadmap — ground every
-  spec in wowsims/SimC/guides to be #1. (3) `spec-standardization` for
-  open-source release. (4) EaxFishing v2.4.0–12 features. (5) EaxAutoQuester
-  verification (separate product, NOT covered by the rotation gate).
+  spec — never big-bang) — ALL 29 specs done; now opportunistic. (1b) Continue
+  strategy DSL adoption — 6 of 29 specs on DSL (arms, fury, combat rogue, balance
+  druid, protection paladin, restoration shaman); a 7th spec from a new class
+  (e.g. beast mastery hunter for focus/pet management) would expand to a new
+  resource model. (2) `become-1-rotation-system`
+  roadmap — ground every spec in wowsims/SimC/guides to be #1. (3)
+  `spec-standardization` for open-source release. (4) EaxFishing v2.4.0–12
+  features. (5) EaxAutoQuester verification (separate product, NOT covered by
+  the rotation gate).
 - **Golden rule:** one concern per commit; run `validate.cmd` (at repo root)
   before marking anything done; if a task loops >2 attempts, STOP and write a
   debugging note in `plans/` instead of retrying.
@@ -114,8 +119,8 @@ have to context-switch.
 - **gh auth:** `gh` is authenticated as **eaxiumnet** (keyring). Can create
   releases and push.
 - **Author config:** `Support <support@eaxrotations.local>` (already set).
-- **Commit style:** conventional commits, one concern per commit. The repo has
-  a **pre-commit hook** that runs: `luac -p` on all 457 Lua files → vanilla TBC
+- **Commit style:** conventional commits, one concern per commit. The repo hasa **pre-commit hook**
+  that runs: `luac -p` on all 617 Lua files → vanilla TBC
   spell audit (31 files) → Sylvanas DBC spell audit (296 files). If it fails,
   a spell ID in your change doesn't exist in the DBC; fix it, don't bypass it.
 - **Push:** `git push origin master` (fast-forwards; repo is usually 0 ahead
@@ -170,7 +175,7 @@ cd /c/newbot/scripts
 cmd.exe //c "validate.cmd"
 ```
 Expected output ends with `ALL CHECKS PASSED`. It runs: `luac -p` on modified
-files → rotation suite (234) → leveling suite (13) → spell audit. All on Lua
+files → rotation suite (321) → leveling suite (21) → spell audit. All on Lua
 5.1. If it says `VALIDATION FAILED`, read the FAIL line and fix it.
 
 For a quick single-file syntax check: `luac -p <file>` (uses the 5.1 luac).
@@ -186,15 +191,15 @@ Or run the suites directly:
 
 ## CURRENT STATE (v2.5.15, HEAD current)
 
-**Baseline:** 252 rotation + 17 leveling suites PASS / 0 fail on Lua 5.1.5.
+**Baseline:** 321 rotation + 21 leveling suites PASS / 0 fail on Lua 5.1.5.
 Spell audit PASS. Pre-commit hooks green (luac + vanilla audit + DBC audit).
 test_spec_layout_compliance.lua PASS (31 converted + shared + vanilla).
 eaxrotations.zip re-verified: 490 entries, 0 bad, 0 .txt (only .lua/.md).
 All 29 specs + leveling grounded in wowsims APLs/guides. Tier 3 complete.
 Healer standardization + Warlock dispel + BT/SWP raid polish committed.
-API standardization COMPLETE. Tree: only junk M/untracked left. Release zip clean on v2.5.11.
+API standardization COMPLETE. Strategy DSL + lazy context landed (2026-07-19). Tree: only junk M/untracked left. Release zip clean on v2.5.11.
 
-### Recent major work (2026-06-27 → 2026-07-10, 285+ commits)
+### Recent major work (2026-06-27 → 2026-07-20, 288+ commits)
 | Category | Item | Commit | One-line |
 |----------|------|--------|----------|
 | wowsims APL | All 29 TBC specs aligned to wowsims/SimC APLs | multiple | priority orders grounded in simulation data |
@@ -219,7 +224,15 @@ API standardization COMPLETE. Tree: only junk M/untracked left. Release zip clea
 | Dispel polish (cont) | Additional dungeon debuff IDs (Virulent Poison 39029, Initial Infection 39032) + will_die_soon priority in control_risk | `314f6c60` | shared + healing priest; more TBC dungeon support |
 | Dispel raid polish | BT/SWP high-tier debuffs (Soul Drain 41303, Polymorph 46280, Flame Buffet 46279, hound poisons/disease) | `43abafd1`, `2e7a63ae` | healing priest + shared dispel_manager; verified in DBC |
 | Healer bug fixes | Shaman rank helper (no undefined MID/LOW), priest player scope, druid indent clean + warlock DevourMagicFriendly | fb1a6675, b23fcdd8 | per fix-healer-bugs-and-polish plan; tests 252 green |
-| Validation | Full rotation (252) + leveling (17) suites + pre-commit audits | multiple | all green post-commits |
+| Lazy context | Per-tick dependency-aware context proxy; expensive fields resolve on demand | `4c4ab694` (2026-07-19) | `shared/lazy_context_sylvanas.lua` + `main_sylvanas.lua` build_context conversion + test |
+| Strategy DSL | Declarative `{conditions, action}` → `{name, matches, execute}` compiler; arms warrior first adoption (6 strategies) | `37f4bb01` (2026-07-19) | `shared/strategy_dsl_sylvanas.lua` + arms_sylvanas.lua + 2 tests (test_strategy_dsl, test_arms_dsl_priority) |
+| Fury DSL | Second-spec DSL adoption (fury warrior, 7 strategies) — validates generality beyond arms | `33c77110` (2026-07-19) | fury_sylvanas.lua + test_fury_dsl_priority.lua; bumped rotation suites 316→317 |
+| Combat rogue DSL | Third DSL adopter (first non-warrior) — 6 strategies, energy/combo resource model | `f280bd72` (2026-07-20) | combat_sylvanas.lua + test_combat_dsl_priority.lua; bumped 317→318 |
+| Balance druid DSL | Fourth DSL adopter (first mana-based caster) — 6 strategies, mana resource model | `cbc60cfe` (2026-07-20) | balance_sylvanas.lua + test_balance_dsl_priority.lua; bumped 318→319 |
+| Protection paladin DSL | Fifth DSL adopter (first tank spec) — 6 strategies, mana/tank resource model | `ccc60645` (2026-07-20) | protection_sylvanas.lua + test_protection_dsl_priority.lua; bumped 319→320 |
+| Restoration shaman DSL | Sixth DSL adopter (first healer spec) — 6 strategies, mana/healer resource model | `e6ec9143` (2026-07-20) | restoration_sylvanas.lua + test_restoration_dsl_priority.lua; bumped 320→321 |
+| Staging cleanup | Deleted untracked `tests/_staging/` debris (failing redundant test + empty dir); promoted WotLK max-level-80 gap into test_expansion_helpers.lua | (uncommitted, 2026-07-20) | gate 317+21 green; test_expansion_helpers now covers WotLK/TBC/Vanilla/Unknown |
+| Validation | Full rotation (317) + leveling (21) suites + pre-commit audits | multiple | all green post-commits |
 
 ### spec_kit migration progress — COMPLETE (29 of 29 specs) 🎉
 All specs migrated to canonical `spec_kit.safe_state` + `define_action_for_class` + guarded registration + return shape (per refactor-developer-experience and _active.md). Reference: arms_sylvanas.lua. See test_spec_layout_compliance.lua CONVERTED table and EaxRotations/README.md for details. No legacy remaining.
@@ -262,11 +275,21 @@ All specs migrated to canonical `spec_kit.safe_state` + `define_action_for_class
   ACTION table with rank IDs, add SCHEMA + `safe_state` in `build_state`,
   guard registration. Reference: `arms_sylvanas.lua`.
 
+### 1b. Continue strategy DSL adoption (opportunistic — only when editing a spec)
+- **6 of 29 specs on DSL** (arms `37f4bb01`, fury `33c77110`, combat rogue `f280bd72`,
+  balance druid `cbc60cfe`, protection paladin `ccc60645`, restoration shaman `e6ec9143`) —
+  covers rage, energy/combo, mana (caster/tank/healer) resource models across 4 classes.
+- Next candidates: a spec from a new class to prove generality across remaining resource
+  models (e.g. beast mastery hunter for focus/pet management, shadow priest for mana/DoT tracking).
+- Never big-bang (AGENTS Rule 5). One spec per commit, gated with `luac -p` + full 321+21 suite.
+- Reference: `arms_sylvanas.lua` (first adopter), `restoration_sylvanas.lua` (latest — healer pattern).
+- Plans: `plans/strategy-dsl-lazy-context-2026-07-19.md` (COMPLETE) + `plans/fury-dsl-adoption-2026-07-19.md` (COMPLETE).
+
 ### 2. `integrate-advanced-modules` — Phase 1 complete (`plans/integrate-advanced-modules-2026-07-13.md`)
 - All remaining TBC combat_forecast CD gates now implemented:
   - `warrior/protection_sylvanas.lua` — Shield Wall (1800s)
   - `shaman/enhancement_sylvanas.lua` — Bloodlust (600s)
-- Verified: 267 rotation + 18 leveling + 6 WotLK suites pass.
+- Verified at landing: 278 rotation + 18 leveling + 6 WotLK suites pass (2026-07-16); since then rotation suites grew to 317 via coverage validation + DSL/lazy-context + fury DSL work.
 
 ### 3. `become-1-rotation-system` roadmap (`plans/become-1-rotation-system-classic-tbc-2026-07-05.md`)
 - Ground every spec in wowsims/SimC/guides to be the #1 rotation system.
@@ -307,8 +330,10 @@ at some point to see its real status. Sibling product — its own concern.
 - `EaxRotations/classes/<class>/<spec>_sylvanas.lua` — 29 spec files (flat).
 - `EaxRotations/shared/` — ~50 shared modules (healer_deficit, preemptive_heal,
   aura_cache, enemy_count_hysteresis, pvp_burst_window, offensive_dispel, …).
-- `EaxRotations/tests/run_rotation_tests.lua` — rotation suite runner (234 suites).
-- `EaxRotations/tests/run_leveling_tests.lua` — leveling suite runner (13 suites).
+- `EaxRotations/tests/run_rotation_tests.lua` — rotation suite runner (321 suites).
+- `EaxRotations/tests/run_leveling_tests.lua` — leveling suite runner (21 suites).
+- `EaxRotations/shared/strategy_dsl_sylvanas.lua` — declarative strategy DSL compiler (6 specs adopted: arms, fury, combat, balance, protection, restoration).
+- `EaxRotations/shared/lazy_context_sylvanas.lua` — per-tick dependency-aware context proxy.
 - `EaxRotations/shared/spec_kit_sylvanas.lua` — spec_kit boilerplate + nil-guard kit.
 - `EaxRotations/shared/swing_diagnostics_sylvanas.lua` — CLEU swing timer.
 - `EaxRotations/shared/snapshot_sylvanas.lua` — DoT/finisher snapshot upgrade gating.
