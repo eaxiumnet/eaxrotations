@@ -16,6 +16,7 @@ do
 end
 local SPELLS = NS.MageSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 
 -- Centralized spell resolver via spec_kit (rank IDs from mage/class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -539,6 +540,97 @@ local function blizzard_execute(context)
 end
 
 -- ============================================================================
+-- Declarative Strategy DSL
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "IceBarrier",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.IceBarrier, 3.0) then return false end
+                return true
+            end },
+            { type = "setting", key = "use_defensives", op = "!=", value = false },
+            { type = "setting", key = "use_ice_barrier", op = "!=", value = false },
+            { type = "custom", fn = function(context, state)
+                if state.has_ice_barrier and (state.ice_barrier_remains or 999) > 5 then return false end
+                return true
+            end },
+            { type = "state", field = "ice_barrier_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.IceBarrier, target = "self", opts = { skip_range = true }, label = "[FROST] IceBarrier" },
+    },
+    {
+        name = "IcyVeins",
+        conditions = {
+            { type = "setting", key = "use_cooldowns", op = "!=", value = false },
+            { type = "custom", fn = function(context, state)
+                return NS.gate_cooldown_boss_only(context)
+            end },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "icy_veins_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.IcyVeins, target = "self", opts = { skip_range = true, expected_cooldown = 180 }, label = "[FROST] IcyVeins" },
+    },
+    {
+        name = "WaterElemental",
+        conditions = {
+            { type = "setting", key = "use_cooldowns", op = "!=", value = false },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "has_water_elemental", op = "falsy" },
+            { type = "state", field = "water_elemental_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.WaterElemental, target = "self", opts = { skip_range = true, expected_cooldown = 180 }, label = "[FROST] WaterElemental" },
+    },
+    {
+        name = "FrozenIceLance",
+        conditions = {
+            { type = "custom", fn = function(context, state) return context.target ~= nil end },
+            { type = "state", field = "ice_lance_ready", op = "truthy" },
+            { type = "OR", conditions = {
+                { type = "state", field = "target_frozen", op = "truthy" },
+                { type = "context", field = "is_moving", op = "truthy" },
+            } },
+        },
+        action = { type = "cast", spell = ACTION.IceLance, target = "target", label = "[FROST] Frozen IceLance" },
+    },
+    {
+        name = "FrostbiteFrostbolt",
+        conditions = {
+            { type = "custom", fn = function(context, state) return context.target ~= nil end },
+            { type = "context", field = "is_moving", op = "falsy" },
+            { type = "state", field = "frostbite_active", op = "truthy" },
+            { type = "state", field = "frostbolt_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Frostbolt, target = "target", label = "[FROST] Frostbite FB" },
+    },
+    {
+        name = "WintersChill",
+        conditions = {
+            { type = "custom", fn = function(context, state) return context.target ~= nil end },
+            { type = "context", field = "is_moving", op = "falsy" },
+            { type = "state", field = "frostbolt_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if (state.winter_chill_stacks or 0) >= 5 then
+                    local wc_remains = NS.debuff_remains and NS.debuff_remains(context.target, WINTERS_CHILL_DEBUFF) or 999
+                    if wc_remains > 3 then return false end
+                end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Frostbolt, target = "target", label = "[FROST] Winter's Chill" },
+    },
+}
+
+-- ============================================================================
 -- Strategies
 -- ============================================================================
 local strategies = {
@@ -595,6 +687,16 @@ local strategies = {
     { name = "ArcaneMissiles", matches = arcane_missiles_matches, execute = function(context) return NS.try_cast(ACTION.ArcaneMissiles, context.target, "[FROST] ArcaneMissiles") end },
     { name = "Frostbolt", matches = frostbolt_matches, execute = function(context) return NS.try_cast(ACTION.Frostbolt, context.target, "[FROST] Frostbolt") end },
 }
+
+-- Replace imperative match functions with DSL-compiled equivalents.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("frost", strategies, { get_state = build_state })
