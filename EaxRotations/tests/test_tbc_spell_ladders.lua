@@ -727,7 +727,7 @@ end)
 setting_flip("flip bear bear_demo_roar DemoralizingRoar",
     "EaxRotations/classes/druid/bear_sylvanas.lua", "druid", "DemoralizingRoar",
     { bear_demo_roar = true }, { bear_demo_roar = false },
-    { is_bear = true, demo_roar_enabled = true, enemy_count = 3, rage = 50 })
+    { is_bear = true, enemy_count = 3, rage = 50 })
 setting_flip("flip balance balance_use_insect_swarm InsectSwarmDoT",
     "EaxRotations/classes/druid/balance_sylvanas.lua", "druid", "InsectSwarmDoT",
     { balance_use_insect_swarm = true }, { balance_use_insect_swarm = false },

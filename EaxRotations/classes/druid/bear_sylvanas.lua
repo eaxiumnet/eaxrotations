@@ -38,6 +38,7 @@ local _opts = {}
 
 local SPELLS = NS.DruidSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local _hp_ok, HealthPred = pcall(require, "shared/health_pred_helper_sylvanas")
 if not _hp_ok or type(HealthPred) ~= "table" then HealthPred = nil end
 
@@ -782,6 +783,144 @@ local function enrage_combat_matches(context, action)
 end
 
 -------------------------------------------------------------------------------
+-- DSL DEFS  (declarative equivalents for 7 core strategies)
+-- WHY:   validates DSL generality across rage tanking + bear form mechanics.
+-- NOTE:  Conditions below are intentionally faithful to the imperative match
+--        functions above so behavior is preserved exactly.
+-------------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "BearForm",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if state.is_bear then return false end
+                if not state.auto_bear_form then return false end
+                local now = state.now or (NS.time_now and NS.time_now()) or 0
+                if now - _last_bear_form_attempt < BEAR_FORM_RESHIFT_INTERVAL then return false end
+                if now - _bear_form_cast_at < BEAR_FORM_POST_CAST_LOCKOUT then return false end
+                if not action_ready(context, { spell = ACTION.BearForm, target = "self", requires_target = false }) then return false end
+                _last_bear_form_attempt = now
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            local ok = execute_action(context, { spell = ACTION.BearForm, target = "self", requires_target = false })
+            if ok then
+                _bear_form_cast_at = (context and context.now) or (NS.time_now and NS.time_now()) or 0
+            end
+            return ok
+        end },
+    },
+    {
+        name = "FrenziedRegeneration",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not state.is_bear or not state.in_combat then return false end
+                if not state.use_cooldowns then return false end
+                if state.has_frenzied_regen then return false end
+                if (state.rage or 0) < RAGE_FRENZIED_REGEN then return false end
+                local hp = state.hp or 100
+                local threshold = state.frenzied_regen_hp or 35
+                if hp > threshold then
+                    local me = state.me or (NS.GetPlayer and NS.GetPlayer())
+                    local pred_hp = hp
+                    if me and HealthPred and HealthPred.predicted_hp_pct then
+                        local ok, pct = pcall(HealthPred.predicted_hp_pct, me, 2.0)
+                        if ok and type(pct) == "number" then pred_hp = pct end
+                    end
+                    if pred_hp > threshold then return false end
+                end
+                return action_ready(context, { spell = ACTION.FrenziedRegeneration, target = "self", requires_target = false })
+            end },
+        },
+        action = { type = "cast", spell = ACTION.FrenziedRegeneration, target = "self" },
+    },
+    {
+        name = "DemoralizingRoar",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not state.is_bear or not state.in_combat or not state.demo_roar_enabled then return false end
+                if (state.target_range or 40) > DEMO_ROAR_RANGE then return false end
+                if (state.enemy_count or 0) <= 0 then return false end
+                if (state.demo_remains or 0) > DEMO_ROAR_REFRESH then return false end
+                if target_is_demo_immune(state) then return false end
+                if (state.enemy_count or 0) < 2 and not state.is_target_boss then
+                    if (state.target_ttd or 999) < 10 then return false end
+                    if (state.target_hp or 100) <= 20 then return false end
+                end
+                return action_ready(context, { spell = ACTION.DemoralizingRoar, target = "self", requires_target = false, cooldown = 25 })
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            local ok = execute_action(context, { spell = ACTION.DemoralizingRoar, target = "self", requires_target = false, cooldown = 25 })
+            local key = target_key(state.target)
+            if key then _demo_roar_attempts[key] = state.now end
+            return ok
+        end },
+    },
+    {
+        name = "FaerieFireFeral",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not state.is_bear or not state.in_combat or not state.has_valid_target then return false end
+                if (context.target_armor or 0) == 1 then return false end
+                if (state.target_range or 40) > 30 then return false end
+                if (state.faerie_remains or 0) > FAERIE_FIRE_REFRESH then return false end
+                return action_ready(context, { spell = ACTION.FaerieFireFeral })
+            end },
+        },
+        action = { type = "cast", spell = ACTION.FaerieFireFeral },
+    },
+    {
+        name = "MangleBear",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not can_use_bear_ability(state) then return false end
+                return action_ready(context, { spell = ACTION.MangleBear })
+            end },
+        },
+        action = { type = "cast", spell = ACTION.MangleBear },
+    },
+    {
+        name = "Lacerate",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not state.target or not can_use_bear_ability(state) then return false end
+                if (state.enemy_count or 0) >= (state.aoe_threshold or 3) and (state.lacerate_stacks or 0) >= 3 then return false end
+                if (state.lacerate_stacks or 0) < LACERATE_MAX_STACKS then return action_ready(context, { spell = ACTION.Lacerate }) end
+                if (state.lacerate_remains or 0) <= LACERATE_REFRESH_WINDOW then return action_ready(context, { spell = ACTION.Lacerate }) end
+                return false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Lacerate },
+    },
+    {
+        name = "Maul",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not can_use_bear_ability(state) then return false end
+                if maul_is_queued() then return false end
+                if (state.enemy_count or 0) >= (state.aoe_threshold or 3) and (state.rage or 0) < HIGH_RAGE then return false end
+                local maul_threshold = state.maul_rage or 50
+                if not spell_exists(ACTION.MangleBear) then
+                    local scaled = math.max(15, math.min(40, 15 + math.floor((state.level or 70) / 2)))
+                    if scaled < maul_threshold then maul_threshold = scaled end
+                end
+                if (state.rage or 0) < maul_threshold then return false end
+                if not state.target and NS.spell_ready == nil then return action_ready(context, { spell = ACTION.Maul }) end
+                if would_starve_mangle(state, RAGE_MAUL) then return false end
+                if not state.is_target_boss and (state.target_ttd or 999) < 3 then return false end
+                if not swing_timer_gate(context, state) then return false end
+                return action_ready(context, { spell = ACTION.Maul })
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return maul_execute(context, { spell = ACTION.Maul })
+        end },
+    },
+}
+
+-------------------------------------------------------------------------------
 -- ACTIONS TABLE  (bear-form abilities + OOC prep — NO caster/cat combat spells)
 -- Order = dispatch priority (first match wins).
 -------------------------------------------------------------------------------
@@ -809,8 +948,8 @@ local ACTIONS = {
     { name = "Thorns",            spell = ACTION.Thorns,           target = "self", requires_target = false, matches = thorns_matches },
 
     -- Bear form (the one allowed shift — into bear, not out of it)
-    { name = "BearForm",         spell = ACTION.BearForm,  target = "self", requires_target = false,
-      matches = bear_form_matches, execute = bear_form_execute },
+    -- DSL-substituted: matches/execute replaced by DSL compiled strategy.
+    { name = "BearForm",         spell = ACTION.BearForm,  target = "self", requires_target = false },
 
     -- Pre-pull rage gen
     { name = "PrePullEnrage",    spell = ACTION.Enrage,           target = "self", requires_target = false, matches = pre_pull_enrage_matches },
@@ -820,8 +959,9 @@ local ACTIONS = {
     { name = "FaerieFirePull",   spell = ACTION.FaerieFireFeral, matches = faerie_fire_pull_matches },
 
     -- Defensives
+    -- DSL-substituted: matches replaced by DSL compiled strategy.
     { name = "FrenziedRegeneration", spell = ACTION.FrenziedRegeneration, target = "self",
-      requires_target = false, matches = frenzied_regen_matches },
+      requires_target = false },
     { name = "Barkskin",         spell = ACTION.Barkskin,   target = "self", requires_target = false, matches = barkskin_matches },
 
     -- Taunts
@@ -833,19 +973,23 @@ local ACTIONS = {
     { name = "BashInterrupt",    spell = ACTION.Bash,             matches = bash_interrupt_matches },
 
     -- Debuffs (Demo Roar BEFORE Faerie Fire — TBC tanking priority + test contract)
+    -- DSL-substituted: matches/execute replaced by DSL compiled strategy.
     { name = "DemoralizingRoar", spell = ACTION.DemoralizingRoar, target = "self",
-      requires_target = false, cooldown = 25, matches = demo_roar_matches, execute = demo_roar_execute },
-    { name = "FaerieFireFeral",  spell = ACTION.FaerieFireFeral, matches = faerie_fire_matches },
+      requires_target = false, cooldown = 25 },
+    { name = "FaerieFireFeral",  spell = ACTION.FaerieFireFeral },
+
 
     -- Core rotation (wowsims APL)
-    { name = "MangleBear",       spell = ACTION.MangleBear, matches = mangle_matches },
-    { name = "Lacerate",         spell = ACTION.Lacerate,   matches = lacerate_matches },
+    -- DSL-substituted: matches replaced by DSL compiled strategy.
+    { name = "MangleBear",       spell = ACTION.MangleBear },
+    { name = "Lacerate",         spell = ACTION.Lacerate },
     -- Swipe: hostile target required in TBC (melee cone). Do NOT use target="self"
     -- — self-cast is rejected by the client and spam-loops via the spell queue.
     { name = "SwipeAoE",         spell = ACTION.SwipeBear,  matches = swipe_aoe_matches },
     { name = "Swipe",            spell = ACTION.SwipeBear,  matches = swipe_cleave_matches },
     -- Maul is on-next-swing: custom execute with min_interval + is_current_spell gate.
-    { name = "Maul",             spell = ACTION.Maul,       matches = maul_matches, execute = maul_execute },
+    -- DSL-substituted: matches/execute replaced by DSL compiled strategy.
+    { name = "Maul",             spell = ACTION.Maul },
 
     -- Rage gen (in-combat, when starved)
     { name = "EnrageCombat",     spell = ACTION.Enrage,            target = "self", requires_target = false, matches = enrage_combat_matches },
@@ -869,6 +1013,19 @@ for i = 1, #ACTIONS do
             return execute_action(context, action)
         end,
     }
+end
+
+-- Replace selected strategies with DSL-compiled equivalents.
+-- NOTE: The strategies table above is built dynamically from the ACTIONS table.
+-- Because parity strategies may be inserted or reordered in the future, we match
+-- by name rather than numeric index to keep the substitution robust.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
 end
 
 -------------------------------------------------------------------------------
