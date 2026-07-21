@@ -694,6 +694,29 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.TigersFury, target = "self" },
     },
+    {
+        name = "CatForm",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if state.is_mounted then return false end
+                if NS.has_form and NS.has_form("cat") then return false end
+                if context.stance == STANCE_CAT then return false end
+                if _last_form_shift_time > 0 and (get_now() - _last_form_shift_time) < FORM_SWITCH_COOLDOWN then return false end
+                -- Respect travel form for movement: if we're in travel form, OOC,
+                -- moving toward a distant target, stay in travel form until closer.
+                if not context.in_combat and context.is_moving and (context.target_range or 0) >= TRAVEL_FORM_RANGE then
+                    if NS.has_form and NS.has_form("travel") then return false end
+                    if context.stance == 4 then return false end
+                end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context)
+            local ok = NS.try_cast(ACTION.CatForm, context.me or NS.GetPlayer(), "[CAT] Cat Form", { skip_range = true })
+            if ok then _last_form_shift_time = get_now() end
+            return ok
+        end },
+    },
 }
 
 local function prowl_matches(context, action)
@@ -1041,20 +1064,7 @@ local function wait_execute_execute()
 end
 
 local ACTIONS = {
-    { name = "CatForm", spell = ACTION.CatForm, target = "self", kind = "form", form = "cat", requires_target = false, matches = function(context)
-        local state = build_state(context)
-        if state.is_mounted then return false end
-        if NS.has_form and NS.has_form("cat") then return false end
-        if context.stance == STANCE_CAT then return false end
-        if _last_form_shift_time > 0 and (get_now() - _last_form_shift_time) < FORM_SWITCH_COOLDOWN then return false end
-        -- Respect travel form for movement: if we're in travel form, OOC,
-        -- moving toward a distant target, stay in travel form until closer.
-        if not context.in_combat and context.is_moving and (context.target_range or 0) >= TRAVEL_FORM_RANGE then
-            if NS.has_form and NS.has_form("travel") then return false end
-            if context.stance == 4 then return false end
-        end
-        return true
-    end },
+    { name = "CatForm", spell = ACTION.CatForm, target = "self", kind = "form", form = "cat", requires_target = false, matches = function() return false end },
     { name = "TravelForm", spell = ACTION.TravelForm, target = "self", kind = "form", form = "travel", requires_target = false, matches = travel_form_matches },
     { name = "TrackHumanoids", spell = ACTION.TrackHumanoids, target = "self", kind = "buff", buff = TRACK_HUMANOIDS_BUFF, required_form = "cat", requires_target = false, matches = track_humanoids_matches },
     { name = "Prowl", spell = ACTION.Prowl, target = "self", kind = "buff", buff = PROWL_BUFF, ooc = true, required_form = "cat", requires_target = false, matches = prowl_matches },
