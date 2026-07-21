@@ -18,6 +18,7 @@ local SPELLS = NS.PaladinSpells or {}
 
 -- spec_kit migration #24
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
@@ -764,6 +765,99 @@ add_strategy(strategies, "HitCapPriority", 430, function(context, state)
     if NS.log then NS.log(string.format("[RET] Hit cap deficit %d — gating missable abilities", deficit)) end
     return true
 end, function() return true end)
+
+-- ============================================================================
+-- Declarative Strategy DSL
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "Ret_DivineShield_Emergency",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                local default_threshold = (state.is_group and 25) or 15
+                local threshold = spec_kit.setting_number(context, "divine_shield_hp", spec_kit.setting_number(context, "retri_ds_hp", default_threshold))
+                return (state.hp_pct or 100) <= threshold
+            end },
+            { type = "state", field = "has_forbearance", op = "==", value = false },
+            { type = "spell_ready", spell = ACTION.DivineShield, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.DivineShield, target = "self", opts = { skip_range = true }, label = "[RET] Divine Shield emergency" },
+    },
+    {
+        name = "Ret_LayOnHands_LastResort",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                local default_threshold = (state.is_group and 15) or 8
+                local threshold = spec_kit.setting_number(context, "lay_on_hands_hp", default_threshold)
+                return (state.hp_pct or 100) <= threshold
+            end },
+            { type = "spell_ready", spell = ACTION.LayOnHands, target = "self", opts = { skip_range = true, expected_cooldown = 3600 } },
+        },
+        action = { type = "cast", spell = ACTION.LayOnHands, target = "self", opts = { skip_range = true, expected_cooldown = 3600 }, label = "[RET] Lay on Hands last resort" },
+    },
+    {
+        name = "Ret_SanctityAura",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                return spec_kit.setting_bool(context, "sanctity_aura_enabled", spec_kit.setting_bool(context, "retri_aura_enabled", true))
+            end },
+            { type = "custom", fn = function(context, state) return not has_player_buff(SANCTITY_AURA_GATE_BUFF) end },
+            { type = "spell_ready", spell = ACTION.SanctityAura, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.SanctityAura, target = "self", opts = { skip_range = true }, label = "[RET] Sanctity Aura" },
+    },
+    {
+        name = "Ret_HealthstoneOrPotion",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                local default_threshold = (state.is_group and 45) or 35
+                local threshold = spec_kit.setting_number(context, "healing_item_hp", default_threshold)
+                return (state.hp_pct or 100) <= threshold
+            end },
+            { type = "custom", fn = function(context, state) return state.healing_item ~= nil end },
+        },
+        execute = function(context, state) return use_item(state.healing_item) end,
+    },
+    {
+        name = "Ret_HammerWrath_Execute",
+        conditions = {
+            { type = "state", field = "target_hp_pct", op = "<", value = 20 },
+            { type = "spell_ready", spell = HammerWrath, target = "target", opts = { expected_cooldown = 6 } },
+        },
+        action = { type = "cast", spell = HammerWrath, target = "target", opts = { expected_cooldown = 6 }, label = "[RET] Hammer of Wrath execute" },
+    },
+    {
+        name = "Ret_Cleanse_Self",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                return spec_kit.setting_bool(context, "use_cleanse", spec_kit.setting_bool(context, "retri_auto_cleanse", true))
+            end },
+            { type = "custom", fn = function(context, state) return has_player_debuff(COMMON_CLEANSE) end },
+            { type = "spell_ready", spell = ACTION.Cleanse, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.Cleanse, target = "self", opts = { skip_range = true }, label = "[RET] Cleanse self" },
+    },
+    {
+        name = "Ret_SealCommand_Primary",
+        conditions = {
+            { type = "custom", fn = function(context, state) return seal_refresh_allowed(context) end },
+            { type = "state", field = "preferred_damage_seal", op = "==", value = "command" },
+            { type = "state", field = "has_command", op = "==", value = false },
+            { type = "spell_ready", spell = ACTION.SealCommand, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.SealCommand, target = "self", opts = { skip_range = true }, label = "[RET] Seal of Command primary" },
+    },
+}
+
+-- Replace imperative strategies with DSL-compiled equivalents.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("retribution", strategies, { get_state = build_state })

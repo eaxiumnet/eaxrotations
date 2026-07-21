@@ -21,6 +21,7 @@ local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helpe
 if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
 local SPELLS = NS.ShamanSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 
 -- Centralized spell resolver via spec_kit (rank IDs from shaman/class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -440,6 +441,113 @@ local function totemic_call_matches_fn(context, state)
 end
 
 -- ============================================================================
+-- Declarative Strategy DSL
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "WaterShield",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                return not (NS.broken_api_throttled and NS.broken_api_throttled(ACTION.WaterShield, 3.0))
+            end },
+            { type = "state", field = "mana_emergency", op = "==", value = false },
+            { type = "custom", fn = function(context, state)
+                local threshold = spec_kit.setting_number(context, "elemental_water_shield_mana", WATER_SHIELD_MANA_DEFAULT)
+                return (state.mana_pct or 100) <= threshold
+            end },
+            { type = "spell_ready", spell = ACTION.WaterShield, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.WaterShield, target = "self", opts = { skip_range = true }, label = "[ELEMENTAL] Water Shield" },
+    },
+    {
+        name = "GhostWolf",
+        conditions = {
+            { type = "context", field = "in_combat", op = "==", value = false },
+            { type = "spell_ready", spell = ACTION.GhostWolf, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.GhostWolf, target = "self", opts = { skip_range = true }, label = "[ELEMENTAL] Ghost Wolf" },
+    },
+    {
+        name = "EarthbindTotem",
+        conditions = {
+            { type = "context", field = "is_pvp", op = "==", value = true },
+            { type = "state", field = "mana_emergency", op = "==", value = false },
+            { type = "spell_ready", spell = ACTION.EarthbindTotem, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.EarthbindTotem, target = "self", opts = { skip_range = true }, label = "[ELEMENTAL] Earthbind Totem" },
+    },
+    {
+        name = "ManaTideTotem",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                return not (NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ManaTideTotem, 3.0))
+            end },
+            { type = "state", field = "mana_emergency", op = "==", value = false },
+            { type = "state", field = "mana_pct", op = "<=", value = 30 },
+            { type = "spell_ready", spell = ACTION.ManaTideTotem, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.ManaTideTotem, target = "self", opts = { skip_range = true }, label = "[ELEMENTAL] Mana Tide Totem" },
+    },
+    {
+        name = "FlameShock",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                return not (NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FlameShock, 2.0))
+            end },
+            { type = "custom", fn = function(context, state) return context.target ~= nil end },
+            { type = "state", field = "flame_remains", op = "<=", value = 1 },
+            { type = "custom", fn = function(context, state)
+                if NS.should_refresh_dot and not NS.should_refresh_dot(state.flame_remains, 1.5, context.ttd, 12) then return false end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.FlameShock, target = "target" },
+        },
+        action = { type = "cast", spell = ACTION.FlameShock, target = "target", label = "[ELEMENTAL] Flame Shock" },
+    },
+    {
+        name = "ElementalMastery",
+        conditions = {
+            { type = "setting", key = "elemental_use_elemental_mastery", op = "==", value = true },
+            { type = "context", field = "in_combat", op = "==", value = true },
+            { type = "state", field = "mana_conserve", op = "==", value = false },
+            { type = "context", field = "should_burst", op = "==", value = true },
+            { type = "custom", fn = function(context, state)
+                local min_targets = spec_kit.setting_number(context, "elemental_cl_min_targets", CL_MIN_TARGETS)
+                if (state.target_count or 0) >= min_targets then
+                    local cl_cd = NS.cooldown_remains and NS.cooldown_remains(ACTION.ChainLightning) or 0
+                    if cl_cd > 1.5 then return false end
+                end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.ElementalMastery, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.ElementalMastery, target = "self", opts = { skip_range = true }, label = "[ELEMENTAL] Elemental Mastery" },
+    },
+    {
+        name = "ChainLightning",
+        conditions = {
+            { type = "context", field = "is_moving", op = "==", value = false },
+            { type = "state", field = "mana_emergency", op = "==", value = false },
+            { type = "state", field = "mana_conserve", op = "==", value = false },
+            { type = "custom", fn = function(context, state)
+                if context.cc_safe == false then return false end
+                if context.threat_pct and context.threat_pct > 80 then return false end
+                if state.clearcast_active then return true end
+                local min_targets = spec_kit.setting_number(context, "elemental_cl_min_targets", CL_MIN_TARGETS)
+                return NS.aoe_target_meets and NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10, context.target, context, state)
+            end },
+            { type = "custom", fn = function(context, state)
+                -- Preserve parity with the original imperative match function:
+                -- NS.spell_ready was called even with a nil target, so do not
+                -- require a target here.
+                return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ChainLightning, context.target) or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.ChainLightning, target = "target", label = "[ELEMENTAL] Chain Lightning" },
+    },
+}
+
+-- ============================================================================
 -- Strategies
 -- ============================================================================
 
@@ -493,29 +601,19 @@ local strategies = {
       matches = lightning_shield_matches_fn,
       execute = lightning_shield_execute },
     -- Water Shield (mana sustain)
-    { name = "WaterShield",
-      matches = water_shield_matches_fn,
-      execute = function() return NS.try_cast(ACTION.WaterShield, NS.PLAYER_UNIT, "[ELEMENTAL] Water Shield") end },
+    { name = "WaterShield" },
     -- Ghost Wolf (OOC movement)
-    { name = "GhostWolf",
-      matches = ghost_wolf_matches_fn,
-      execute = function() return NS.try_cast(ACTION.GhostWolf, NS.PLAYER_UNIT, "[ELEMENTAL] Ghost Wolf") end },
+    { name = "GhostWolf" },
     -- Tremor Totem (fear break)
     { name = "TremorTotem",
       matches = tremor_totem_matches_fn,
       execute = function() return NS.try_cast(ACTION.TremorTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Tremor Totem") end },
     -- Earthbind Totem (PvP slow)
-    { name = "EarthbindTotem",
-      matches = earthbind_totem_matches_fn,
-      execute = function() return NS.try_cast(ACTION.EarthbindTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Earthbind Totem") end },
+    { name = "EarthbindTotem" },
     -- Mana Tide Totem
-    { name = "ManaTideTotem",
-      matches = mana_tide_totem_matches_fn,
-      execute = function() return NS.try_cast(ACTION.ManaTideTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Mana Tide Totem") end },
+    { name = "ManaTideTotem" },
     -- Elemental Mastery burst
-    { name = "ElementalMastery",
-      matches = elemental_mastery_matches_fn,
-      execute = function() return NS.try_cast(ACTION.ElementalMastery, NS.PLAYER_UNIT, "[ELEMENTAL] Elemental Mastery") end },
+    { name = "ElementalMastery" },
     -- Nature's Swiftness burst
     { name = "NaturesSwiftness",
       matches = natures_swiftness_matches_fn,
@@ -525,13 +623,9 @@ local strategies = {
       matches = bloodlust_matches_fn,
       execute = function() return NS.try_cast(ACTION.Bloodlust, NS.PLAYER_UNIT, "[ELEMENTAL] Bloodlust") end },
     -- Chain Lightning (test assertion string: cooldown = 6)
-    { name = "ChainLightning", spell = ACTION.ChainLightning, not_moving = true, cooldown = 6,
-      matches = chain_lightning_matches_fn,
-      execute = function(context) return NS.try_cast(ACTION.ChainLightning, context.target, "[ELEMENTAL] Chain Lightning") end },
+    { name = "ChainLightning" },
     -- Flame Shock DoT maintenance (before filler to keep it up)
-    { name = "FlameShock",
-      matches = flame_shock_matches_fn,
-      execute = function(context) return NS.try_cast(ACTION.FlameShock, context.target, "[ELEMENTAL] Flame Shock") end },
+    { name = "FlameShock" },
     -- Lightning Bolt main nuke
     { name = "LightningBolt",
       matches = lightning_bolt_matches_fn,
@@ -575,6 +669,16 @@ local strategies = {
       matches = totemic_call_matches_fn,
       execute = function() return NS.try_cast(ACTION.TotemicCall, NS.PLAYER_UNIT, "[ELEMENTAL] Totemic Call") end },
 }
+
+-- Replace imperative placeholders with DSL-compiled strategies.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("elemental", strategies, { get_state = build_state })

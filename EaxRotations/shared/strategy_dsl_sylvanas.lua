@@ -349,13 +349,21 @@ function M.compile_strategy(dsl_def, opts)
         matches = default_matches(conditions)
     end
 
-    -- Wrap matches so that callers (e.g. unit tests) that omit state get a
-    -- freshly-built state table from the spec's build_state function.
+    -- Wrap matches/execute so that callers (e.g. unit tests) that omit state
+    -- get a freshly-built state table from the spec's build_state function.
+    -- Existing pre-DSL tests often pass an empty table {} as the second
+    -- argument (it used to be the action table and was ignored). Treat an
+    -- empty table the same as nil so those tests continue to work after DSL
+    -- adoption.
     local get_state = dsl_def.get_state or opts.get_state
-    local wrapped_matches = function(context, state)
-        if state == nil and get_state then
-            state = get_state(context)
+    local function ensure_state(state, context)
+        if get_state and (state == nil or (type(state) == "table" and next(state) == nil)) then
+            return get_state(context)
         end
+        return state
+    end
+    local wrapped_matches = function(context, state)
+        state = ensure_state(state, context)
         return matches(context, state)
     end
 
@@ -363,11 +371,23 @@ function M.compile_strategy(dsl_def, opts)
     if not execute and action then
         execute = default_execute(action)
     end
+    -- Custom actions may read state in their execute (e.g. bear DemoRoar
+    -- tracks immune targets). Wrap their execute so callers that omit state
+    -- get a freshly-built state, but fall back to nil if build_state fails
+    -- (some unit tests mock only part of the engine).
+    local is_custom_execute = dsl_def.execute ~= nil or (action and action.type == "custom")
+    local wrapped_execute = function(context, state)
+        if is_custom_execute and get_state and (state == nil or (type(state) == "table" and next(state) == nil)) then
+            local ok, built = pcall(get_state, context)
+            if ok then state = built end
+        end
+        return execute(context, state)
+    end
 
     return {
         name = dsl_def.name,
         matches = wrapped_matches,
-        execute = execute,
+        execute = wrapped_execute,
     }
 end
 
