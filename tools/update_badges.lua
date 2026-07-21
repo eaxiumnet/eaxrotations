@@ -1,5 +1,7 @@
 -- update_badges.lua -- sync test-count badges with runner reality
--- WHAT: counts test_*.lua entries in runners, rewrites README.md + AGENTS.md
+-- WHAT: counts quoted .lua entries in runners, rewrites README.md + AGENTS.md
+-- WHEN:  badge counts in README/AGENTS drift from the actual runner lists
+-- WHY:   runner treats any registered .lua entry as a suite (including check_*.lua audits)
 -- USAGE: lua tools/update_badges.lua [--check]
 
 local ROOT = arg and arg[0] and arg[0]:match('^(.*)[\\/]tools[\\/]') or '.'
@@ -25,7 +27,9 @@ local function count_tests_in_runner(path)
     for line in content:gmatch('([^\r\n]*)\r?\n?') do
         local trimmed = line:gsub('^%s+', '')
         if not trimmed:match('^%-%-') then
-            for _ in trimmed:gmatch('"test_[%w_]+%.lua"') do count = count + 1 end
+            -- Count any quoted .lua entry in the runner (includes check_*.lua static-analysis suites).
+            -- Note: %.lua is a Lua pattern escape for the literal dot; no backslash is involved.
+            for _ in trimmed:gmatch('"[^"]+%.lua"') do count = count + 1 end
         end
     end
     return count

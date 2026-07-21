@@ -7,6 +7,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PriestSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local Healing = NS.PriestHealing or require("classes/priest/healing_sylvanas")
 local PreemptiveHeal = require("shared/preemptive_heal_sylvanas")
 local FsrManager = require("shared/fsr_manager_sylvanas")
@@ -798,6 +799,119 @@ local function healthstone_matches(context, s)
 end
 
 -- ============================================================================
+-- DSL-converted strategy definitions (name-based substitution below)
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "PowerWordShieldTank",
+        conditions = {
+            { type = "state", field = "pws_ready", op = "truthy" },
+            { type = "custom", fn = function(context, s)
+                if not s.tank then return false end
+                local threshold = spec_kit.setting_number(context, "discipline_pws_hp", 35)
+                local current_hp = s.tank.effective_hp or 100
+                local pred_hp = current_hp
+                if s.tank.unit and HealthPred and HealthPred.predicted_hp_pct then
+                    local ok, pct = pcall(HealthPred.predicted_hp_pct, s.tank.unit, 1.5)
+                    if ok and type(pct) == "number" then pred_hp = pct end
+                end
+                if current_hp > threshold and pred_hp > threshold then return false end
+                if s.tank.has_weakened_soul then return false end
+                if Healing.pws_absorb_remaining then
+                    if Healing.pws_absorb_remaining(s.tank.unit) > 200 then return false end
+                end
+                return true
+            end }
+        },
+        execute = function(context, s) return NS.try_cast(ACTION.PowerWordShield, s.tank.unit, string.format("[DISCIPLINE] PW:S tank %.0f%%", s.tank.effective_hp or 0)) end
+    },
+    {
+        name = "EmergencyPowerWordShield",
+        conditions = {
+            { type = "state", field = "pws_ready", op = "truthy" },
+            { type = "custom", fn = function(context, s)
+                if spec_kit.setting_bool(context, "disc_shield_tank_only", false) then return false end
+                if not s.lowest then return false end
+                if s.tank and s.lowest == s.tank then return false end
+                if (s.lowest.effective_hp or 100) > spec_kit.setting_number(context, "discipline_pws_hp", 35) then return false end
+                if s.lowest.has_weakened_soul then return false end
+                if Healing.pws_absorb_remaining then
+                    if Healing.pws_absorb_remaining(s.lowest.unit) > 200 then return false end
+                end
+                return true
+            end }
+        },
+        execute = function(context, s) return NS.try_cast(ACTION.PowerWordShield, s.lowest.unit, string.format("[DISCIPLINE] PW:S %.0f%%", s.lowest.effective_hp or 0)) end
+    },
+    {
+        name = "PrayerOfMendingTank",
+        conditions = {
+            { type = "state", field = "pom_ready", op = "truthy" },
+            { type = "custom", fn = function(context, s)
+                if not context.in_combat then
+                    if not spec_kit.setting_bool(context, "disc_prepull_pom", true) then return false end
+                end
+                local target = s.tank or s.lowest
+                if not target then return false end
+                if NS.has_buff and target.unit and NS.has_buff(target.unit, PRAYER_OF_MENDING_BUFF) then return false end
+                return true
+            end }
+        },
+        execute = function(context, s) return NS.try_cast(ACTION.PrayerofMending, (s.tank and s.tank.unit) or (s.lowest and s.lowest.unit), "[DISCIPLINE] Prayer of Mending") end
+    },
+    {
+        name = "EmergencyFlashHeal",
+        conditions = {
+            { type = "context", field = "is_moving", op = "falsy" },
+            { type = "state", field = "flash_heal_ready", op = "truthy" },
+            { type = "custom", fn = function(context, s)
+                if not s.lowest then return false end
+                if (s.lowest.effective_hp or 100) > spec_kit.setting_number(context, "discipline_flash_hp", 55) then return false end
+                if (s.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
+                if gate_overheal("FlashHeal", s.lowest.unit, 1.5, context.settings, _spell_id(ACTION.FlashHeal)) then return false end
+                return true
+            end }
+        },
+        execute = function(context, s) return NS.try_cast(ACTION.FlashHeal, s.lowest.unit, string.format("[DISCIPLINE] Flash Heal %.0f%%", s.lowest.effective_hp or 0)) end
+    },
+    {
+        name = "RenewTank",
+        conditions = {
+            { type = "state", field = "renew_ready", op = "truthy" },
+            { type = "custom", fn = function(context, s)
+                if not s.tank or s.tank.has_renew then return false end
+                return (s.tank.effective_hp or 100) <= spec_kit.setting_number(context, "discipline_renew_hp", 90)
+            end }
+        },
+        execute = function(context, s) return NS.try_cast(ACTION.Renew, s.tank.unit, string.format("[DISCIPLINE] Renew tank %.0f%%", s.tank.effective_hp or 0)) end
+    },
+    {
+        name = "InnerFire",
+        conditions = {
+            { type = "state", field = "inner_fire_ready", op = "truthy" },
+            { type = "state", field = "has_inner_fire", op = "falsy" },
+            { type = "custom", fn = function(context, s)
+                if _buff_on_cooldown(ACTION.InnerFire) then return false end
+                return _safe_buff_in_combat(context, s)
+            end }
+        },
+        execute = function() return NS.try_cast(ACTION.InnerFire, NS.PLAYER_UNIT, "[DISCIPLINE] InnerFire") end
+    },
+    {
+        name = "PainSuppression",
+        conditions = {
+            { type = "context", field = "in_combat", op = "truthy" },
+            { type = "state", field = "pain_suppression_ready", op = "truthy" },
+            { type = "custom", fn = function(context, s)
+                if not s.tank then return false end
+                return (s.tank.effective_hp or 100) <= spec_kit.setting_number(context, "discipline_pain_suppression_hp", 30)
+            end }
+        },
+        execute = function(_, s) return NS.try_cast(ACTION.PainSuppression, s.tank.unit, string.format("[DISCIPLINE] Pain Suppression on tank %.0f%%", s.tank.effective_hp or 0)) end
+    }
+}
+
+-- ============================================================================
 -- Strategies
 -- ============================================================================
 local healing_strategies = {
@@ -945,6 +1059,19 @@ end },
   end },
  { name = "Healthstone", matches = healthstone_matches, execute = function(_, s) if s.healthstone_id and s.healthstone_ready and NS.use_item_by_id then return NS.use_item_by_id(s.healthstone_id) end; return false end },
 }
+
+-- Substitute DSL-compiled strategies into the healing list via name matching.
+-- We use name-based replacement so that the priority order declared above is
+-- preserved even if table.insert parity shifts during future edits.
+for _, def in ipairs(DSL_DEFS) do
+    local compiled = dsl.compile_strategy(def, { get_state = build_state })
+    for i, strat in ipairs(healing_strategies) do
+        if strat.name == compiled.name then
+            healing_strategies[i] = compiled
+            break
+        end
+    end
+end
 
 local idle_dps_strategies = {
  { name = "IdleShadowWordPain", matches = idle_swp_matches, execute = function(context) return NS.try_cast(ACTION.ShadowWordPain, context.target, "[DISCIPLINE] IdleShadowWordPain", { expected_cooldown = 1.5 }) end },

@@ -156,6 +156,7 @@ local tests = {
     "test_balance_dsl_priority.lua",
     "test_protection_dsl_priority.lua",
     "test_restoration_dsl_priority.lua",
+    "test_discipline_dsl_priority.lua",
     "test_beast_mastery_dsl_priority.lua",
     "test_shadow_dsl_priority.lua",
     "test_frost_dsl_priority.lua",

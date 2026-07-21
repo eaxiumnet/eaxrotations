@@ -104,7 +104,7 @@ assert_true(pws.matches(ctx_pws_ok, { lowest = { effective_hp = 20, has_weakened
 
 -- No lowest -> should NOT match
 action_calls = {}
-assert_false(pws.matches({}, { lowest = nil }), "EmergencyPWS should not match without lowest")
+assert_false(pws.matches({}, { lowest = false }), "EmergencyPWS should not match without lowest")
 
 -- ============================================================================
 -- PrayerOfMendingTank: pre-pull enabled by disc_prepull_pom setting
@@ -139,7 +139,7 @@ assert_true(pom.matches(ctx_pom_ok, { tank = { unit = {} }, lowest = { unit = {}
 
 -- No tank or lowest -> should NOT match
 action_calls = {}
-assert_false(pom.matches({ in_combat = true, settings = {} }, { tank = nil, lowest = nil }), "PrayerOfMendingTank should not match without tank or lowest")
+assert_false(pom.matches({ in_combat = true, settings = {} }, { tank = false, lowest = false }), "PrayerOfMendingTank should not match without tank or lowest")
 
 -- ============================================================================
 -- EmergencyFlashHeal: only in combat, not moving, lowest HP <= threshold
@@ -165,7 +165,7 @@ assert_true(fh.matches({ in_combat = true, is_moving = false, settings = { disci
 
 -- No lowest -> should NOT match
 action_calls = {}
-assert_false(fh.matches({ in_combat = true, is_moving = false, settings = { discipline_flash_hp = 55 } }, { lowest = nil }), "EmergencyFlashHeal should not match without lowest")
+assert_false(fh.matches({ in_combat = true, is_moving = false, settings = { discipline_flash_hp = 55 } }, { lowest = false }), "EmergencyFlashHeal should not match without lowest")
 
 -- ============================================================================
 -- GreaterHeal: only in combat, not moving, HP in flash_hp < HP <= greater_heal_hp range
@@ -191,7 +191,7 @@ assert_true(gh.matches({ in_combat = true, is_moving = false, settings = { disci
 
 -- No lowest -> should NOT match
 action_calls = {}
-assert_false(gh.matches({ in_combat = true, is_moving = false, settings = { discipline_greater_heal_hp = 82, discipline_flash_hp = 55 } }, { lowest = nil }), "GreaterHeal should not match without lowest")
+assert_false(gh.matches({ in_combat = true, is_moving = false, settings = { discipline_greater_heal_hp = 82, discipline_flash_hp = 55 } }, { lowest = false }), "GreaterHeal should not match without lowest")
 
 -- ============================================================================
 -- IdleShadowWordPain: only in combat, dps_when_idle, valid enemy, group stable
