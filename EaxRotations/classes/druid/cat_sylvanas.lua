@@ -20,6 +20,7 @@ local _snap_ok, Snapshot = pcall(require, "shared/snapshot_sylvanas")
 if not _snap_ok or type(Snapshot) ~= "table" then Snapshot = nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local leveling_helpers = require("shared/leveling_helpers_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 
 -- Static reusable opts table to avoid per-frame allocation in hot path (Pattern 4)
 local _opts = {}
@@ -609,6 +610,92 @@ build_state = function(context)
     return spec_kit.safe_state(state, CAT_SCHEMA)
 end
 
+-- ============================================================================
+-- Declarative strategy DSL definitions
+-- Replaces 6 imperative strategies with compiled DSL equivalents while preserving
+-- the existing priority order via name-based substitution after the strategies
+-- table is fully built.
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "HealthPotion",
+        conditions = {
+            { type = "in_combat" },
+            { type = "setting", key = "use_auto_potions", op = "truthy", default = true },
+            { type = "context", field = "has_health_potion", op = "truthy" },
+            { type = "hp_threshold", op = "<=", value = 35 },
+        },
+        action = { type = "custom", fn = function(context)
+            return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS)
+        end },
+    },
+    {
+        name = "ManaPotion",
+        conditions = {
+            { type = "in_combat" },
+            { type = "setting", key = "use_auto_potions", op = "truthy", default = true },
+            { type = "context", field = "has_mana_potion", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<=", value = 20 },
+        },
+        action = { type = "custom", fn = function(context)
+            return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS)
+        end },
+    },
+    {
+        name = "RemoveCurse",
+        conditions = {
+            { type = "setting", key = "cat_auto_dispel", op = "truthy" },
+            { type = "custom", fn = function(context)
+                return NS.spell_ready(ACTION.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
+            end },
+        },
+        action = { type = "custom", fn = function()
+            return NS.try_cast(ACTION.RemoveCurse, NS.PLAYER_UNIT, "[CAT] Remove Curse self", { skip_range = true })
+        end },
+    },
+    {
+        name = "Barkskin",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                local threshold = spec_kit.setting_number(context, "cat_barkskin_hp", 85)
+                return (state.hp or 100) <= threshold and not state.has_barkskin
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Barkskin, target = "self" },
+    },
+    {
+        name = "Dash",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if state.has_dash then return false end
+                if not state.target or state.target_range <= MELEE_RANGE then return false end
+                if state.target_range > 25 then return false end
+                if not state.is_pvp and state.target_range < TRAVEL_FORM_RANGE then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Dash, target = "self" },
+    },
+    {
+        name = "TigersFury",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not state.me and not NS.GetPlayer then return false end
+                if state.has_tigers_fury then return false end
+                if state.target_ttd > 0 and state.target_ttd < SHORT_TTD then return false end
+                local max_energy = safe_method_arg(state.me, "get_max_power", NS.POWER_ENERGY or 3, ENERGY_CAP) or ENERGY_CAP
+                local fury_gain = TIGERS_FURY_ENERGY
+                if not NS.spell_exists then fury_gain = POWERSHIFT_GAIN_WOLFSHEAD end
+                if state.energy + fury_gain > max_energy then return false end
+                if state.energy > ENERGY_CAP - TIGERS_FURY_ENERGY - 5 and state.next_tick_in <= 0.6 then return false end
+                if (state.combo_points or 0) >= 5 and (state.energy or 0) >= RIP_COST then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.TigersFury, target = "self" },
+    },
+}
+
 local function cat_form_matches(context, action)
     local state = build_state(context)
     if state.is_mounted then return false end
@@ -1106,6 +1193,18 @@ table.insert(strategies, { name = "Healthstone",
         return false
     end,
 })
+
+-- Replace the 6 imperative strategies with compiled DSL equivalents by name.
+-- Name-based substitution keeps the priority order intact even though the
+-- strategies table is built partly by looping over the ACTIONS table.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("cat", strategies, { get_state = build_state })
