@@ -24,6 +24,7 @@ _G.EaxRotations = {
     spell_ready = function() return true end,
     debuff_remains = function() return 0 end,
     try_cast = function() return true end,
+    GetPlayer = function() return {} end,
     log = function() end,
     rotation_registry = { register = function() end },
 }
