@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-21** (strategy DSL + lazy context landed 2026-07-19; 23 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, feral cat druid, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter, affliction warlock, protection warrior; `tests/_staging/` debris cleaned; baseline re-verified 338 rotation + 21 leveling = 359 total suites green).
+> up to date after every work session. Last updated: **2026-07-21** (strategy DSL + lazy context landed 2026-07-19; 24 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, feral cat druid, assassination rogue, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter, affliction warlock, protection warrior; `tests/_staging/` debris cleaned; baseline re-verified 339 rotation + 21 leveling = 360 total suites green).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
@@ -19,7 +19,7 @@ have to context-switch.
 - **Project:** 29 WoW TBC Classic Anniversary (2.5.5.x) + Vanilla Anniversary
   rotation plugins for **Project Sylvanas**, in Lua 5.1/LuaJIT. Repo:
   `https://github.com/eaxiumnet/eaxrotations`. Work dir: `C:\newbot\scripts`.
-- **Baseline is GREEN:** **338 rotation suites + 21 leveling suites (359 total)** pass on
+- **Baseline is GREEN:** **339 rotation suites + 21 leveling suites (360 total)** pass on
   **Lua 5.1**. Don't break this.
 - **What's done (2026-06-27 → 2026-07-20, 288+ commits):**
   - **wowsims APL alignment** for all 29 TBC specs (priority orders grounded in

@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-21 (Strategy DSL + lazy context landed; 23 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, feral cat druid, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter, affliction warlock, protection warrior; `tests/_staging/` debris cleaned; baseline re-verified 338 rot + 21 leveling = 359 total).
+**Last updated:** 2026-07-21 (Strategy DSL + lazy context landed; 24 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, feral cat druid, assassination rogue, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter, affliction warlock, protection warrior; `tests/_staging/` debris cleaned; baseline re-verified 339 rot + 21 leveling = 360 total).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -58,7 +58,7 @@
 
 ## Baseline (ALL GREEN — verified 2026-07-20)
 
-- 338 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +21 from combat/balance/protection/restoration/beast-mastery/shadow/frost/arcane/fire/enhancement/destruction/demonology/bear/feral-cat/elemental/retribution/discipline/survival/marksmanship/affliction/protection-warrior DSL adoption suites
+- 339 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +22 from combat/balance/protection/restoration/beast-mastery/shadow/frost/arcane/fire/enhancement/destruction/demonology/bear/feral-cat/assassination/elemental/retribution/discipline/survival/marksmanship/affliction/protection-warrior DSL adoption suites
 - 21 leveling suites: ALL PASS — was 17 at 2026-07-10; +4 from leveling ladder + verification
 - 31 vanilla audit: PASS (0 tainted)
 - 61 sylvanas audit: PASS (0 invalid)
