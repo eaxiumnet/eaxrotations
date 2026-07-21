@@ -1290,8 +1290,8 @@ local DSL_DEFS = {
     {
         name = "HammerOfWrath",
         conditions = {
+            { type = "setting", key = "prot_hammer_of_wrath", op = "truthy", default = true },
             { type = "custom", fn = function(context, state)
-                if not spec_kit.setting_bool(context, "prot_hammer_of_wrath", true) then return false end
                 if not has_combat_target(context) then return false end
                 return true
             end },
@@ -1309,8 +1309,8 @@ local DSL_DEFS = {
     {
         name = "AvengingWrath",
         conditions = {
+            { type = "setting", key = "prot_avenging_wrath", op = "truthy", default = true },
             { type = "custom", fn = function(context, state)
-                if not spec_kit.setting_bool(context, "prot_avenging_wrath", true) then return false end
                 if not cooldowns_enabled(context) then return false end
                 return true
             end },
@@ -1346,10 +1346,7 @@ local DSL_DEFS = {
     {
         name = "Cleanse",
         conditions = {
-            { type = "custom", fn = function(context, state)
-                if not spec_kit.setting_bool(context, "prot_cleanse", true) then return false end
-                return true
-            end },
+            { type = "setting", key = "prot_cleanse", op = "truthy", default = true },
             { type = "state", field = "needs_cleanse", op = "truthy" },
             { type = "state", field = "cleanse_ready", op = "truthy" },
         },
@@ -1360,8 +1357,8 @@ local DSL_DEFS = {
     {
         name = "HolyWrath",
         conditions = {
+            { type = "setting", key = "prot_holy_wrath", op = "truthy", default = true },
             { type = "custom", fn = function(context, state)
-                if not spec_kit.setting_bool(context, "prot_holy_wrath", true) then return false end
                 if not has_combat_target(context) then return false end
                 return true
             end },
