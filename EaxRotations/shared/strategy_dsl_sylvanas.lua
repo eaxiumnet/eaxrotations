@@ -79,18 +79,11 @@ end
 condition_evaluators["setting"] = function(context, state, node)
     local val = spec_kit.setting(context, node.key, node.default)
     if node.op then
-        local op = node.op
-        local target = node.value
-        if op == "==" then return val == target
-        elseif op == "!=" then return val ~= target
-        elseif op == ">" then return (val or 0) > target
-        elseif op == ">=" then return (val or 0) >= target
-        elseif op == "<" then return (val or 0) < target
-        elseif op == "<=" then return (val or 0) <= target
-        end
-        return false
+        return compare_value(val, node.op, node.value)
     end
-    -- Default: truthy check
+    -- Default: Lua-truthy check (passes for any value except false or nil).
+    -- Use op="truthy" for strict `val == true` and op="falsy" for
+    -- `val == false or val == nil`.
     return val ~= false and val ~= nil
 end
 
