@@ -172,6 +172,7 @@ local tests = {
     "test_bear_dsl_priority.lua",
     "test_cat_dsl_priority.lua",
     "test_assassination_dsl_priority.lua",
+    "test_subtlety_dsl_priority.lua",
     "test_elemental_dsl_priority.lua",
     "test_retribution_dsl_priority.lua",
   "test_schema_compliance.lua",
