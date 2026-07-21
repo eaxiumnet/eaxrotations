@@ -7,7 +7,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.10.0-blue" alt="Version 2.10.0">
   <img src="https://img.shields.io/badge/specs-29%20%2B%2013%20leveling-brightgreen" alt="29 Specs + 13 Leveling">
-  <img src="https://img.shields.io/badge/tests-252%2F252%20passing-success" alt="334/334 Tests Passing">
+  <img src="https://img.shields.io/badge/tests-252%2F252%20passing-success" alt="335/335 Tests Passing">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="CC-BY-4.0">
 </p>
 
@@ -44,7 +44,7 @@ scripts/
     main_sylvanas.lua       # Update dispatcher
     classes/                # Per-class rotation modules
     shared/                 # ~50 reusable combat modules
-    tests/                  # 334 regression test suites
+    tests/                  # 335 regression test suites
 ```
 
 ---
@@ -163,7 +163,7 @@ Run syntax checks on all Lua files:
 find EaxRotations -name "*.lua" -exec luac -p {} \;
 ```
 
-Run the full rotation regression suite (**334 suites**):
+Run the full rotation regression suite (**335 suites**):
 
 ```bash
 lua EaxRotations/tests/run_rotation_tests.lua
