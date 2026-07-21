@@ -7,6 +7,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.DruidSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local Healing = NS.DruidHealing or require("classes/druid/healing_sylvanas")
 -- Preemptive heal module (Sonah-style predictive healing)
@@ -601,23 +602,89 @@ end
 -- [26-27] Light PvP control using only TBC-era Cyclone and Entangling Roots.
 -- [28-29] Movement form support for repositioning.
 -- [30] Fallback direct heal when all higher-value options are unavailable.
-local function BarkskinSelfPreservation_matches(context) return (context.hp or 100) <= spec_kit.setting_number(context, "barkskin_hp", 55) and NS.spell_ready(ACTION.Barkskin, PLAYER_UNIT, BARKSKIN_OPTS) end
-local function BarkskinSelfPreservation_execute() return NS.try_cast(ACTION.Barkskin, PLAYER_UNIT, "[RESTO] Barkskin self", BARKSKIN_OPTS) end
-
-local function BearFormFocusedByMelee_matches(context, state) return context.is_pvp and (context.hp or 100) <= 35 and state.melee_pressure_count > 0 and context.stance ~= STANCE_BEAR and NS.spell_ready(ACTION.BearForm, PLAYER_UNIT, SKIP_RANGE) end
-local function BearFormFocusedByMelee_execute() return NS.try_cast(ACTION.BearForm, PLAYER_UNIT, "[RESTO] Bear Form under melee focus", SKIP_RANGE) end
-
-local function NaturesGraspMelee_matches(context, state) return context.is_pvp and state.melee_pressure_count > 0 and not NS.has_player_buff(NATURES_GRASP_BUFF) and NS.spell_ready(ACTION.NaturesGrasp, PLAYER_UNIT, SKIP_RANGE) end
-local function NaturesGraspMelee_execute() return NS.try_cast(ACTION.NaturesGrasp, PLAYER_UNIT, "[RESTO] Nature's Grasp melee peel", SKIP_RANGE) end
-
-local function InnervateSelf_matches(context, state) return state.innervate_target and NS.same_unit(state.innervate_target, context.me) and NS.spell_ready(ACTION.Innervate, state.innervate_target, INNERVATE_OPTS) end
-local function InnervateSelf_execute(_, state) return NS.try_cast(ACTION.Innervate, state.innervate_target, "[RESTO] Innervate self", INNERVATE_OPTS) end
-
-local function InnervateHealer_matches(context, state) return state.innervate_target and not NS.same_unit(state.innervate_target, context.me) and NS.spell_ready(ACTION.Innervate, state.innervate_target, INNERVATE_OPTS) end
-local function InnervateHealer_execute(_, state) return NS.try_cast(ACTION.Innervate, state.innervate_target, "[RESTO] Innervate healer", INNERVATE_OPTS) end
-
-local function RebirthBattleRez_matches(context) return context.in_combat and (NS.is_in_party and NS.is_in_party() or NS.is_in_raid and NS.is_in_raid()) and NS.spell_ready(ACTION.Rebirth, PLAYER_UNIT, { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD }) end
-local function RebirthBattleRez_execute() return NS.try_cast(ACTION.Rebirth, PLAYER_UNIT, "[RESTO] Rebirth battle rez", { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD }) end
+-- ============================================================================
+-- Declarative strategy DSL definitions
+-- Replaces 6 imperative strategies with compiled DSL equivalents while preserving
+-- the existing priority order via name-based substitution.
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "BarkskinSelfPreservation",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                return (context.hp or 100) <= spec_kit.setting_number(context, "barkskin_hp", 55)
+            end },
+            { type = "spell_ready", spell = ACTION.Barkskin, target = "self", opts = BARKSKIN_OPTS },
+        },
+        action = { type = "custom", fn = function()
+            return NS.try_cast(ACTION.Barkskin, PLAYER_UNIT, "[RESTO] Barkskin self", BARKSKIN_OPTS)
+        end },
+    },
+    {
+        name = "BearFormFocusedByMelee",
+        conditions = {
+            { type = "context", field = "is_pvp", op = "truthy" },
+            { type = "context", field = "hp", op = "<=", value = 35 },
+            { type = "state", field = "melee_pressure_count", op = ">", value = 0 },
+            { type = "context", field = "stance", op = "!=", value = STANCE_BEAR },
+            { type = "spell_ready", spell = ACTION.BearForm, target = "self", opts = SKIP_RANGE },
+        },
+        action = { type = "custom", fn = function()
+            return NS.try_cast(ACTION.BearForm, PLAYER_UNIT, "[RESTO] Bear Form under melee focus", SKIP_RANGE)
+        end },
+    },
+    {
+        name = "NaturesGraspMelee",
+        conditions = {
+            { type = "context", field = "is_pvp", op = "truthy" },
+            { type = "state", field = "melee_pressure_count", op = ">", value = 0 },
+            { type = "custom", fn = function(context, state)
+                return not NS.has_player_buff(NATURES_GRASP_BUFF)
+            end },
+            { type = "spell_ready", spell = ACTION.NaturesGrasp, target = "self", opts = SKIP_RANGE },
+        },
+        action = { type = "custom", fn = function()
+            return NS.try_cast(ACTION.NaturesGrasp, PLAYER_UNIT, "[RESTO] Nature's Grasp melee peel", SKIP_RANGE)
+        end },
+    },
+    {
+        name = "InnervateSelf",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                return state.innervate_target and NS.same_unit(state.innervate_target, context.me)
+                    and NS.spell_ready(ACTION.Innervate, state.innervate_target, INNERVATE_OPTS)
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.Innervate, state.innervate_target, "[RESTO] Innervate self", INNERVATE_OPTS)
+        end },
+    },
+    {
+        name = "InnervateHealer",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                return state.innervate_target and not NS.same_unit(state.innervate_target, context.me)
+                    and NS.spell_ready(ACTION.Innervate, state.innervate_target, INNERVATE_OPTS)
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.Innervate, state.innervate_target, "[RESTO] Innervate healer", INNERVATE_OPTS)
+        end },
+    },
+    {
+        name = "RebirthBattleRez",
+        conditions = {
+            { type = "in_combat" },
+            { type = "custom", fn = function(context, state)
+                return (NS.is_in_party and NS.is_in_party()) or (NS.is_in_raid and NS.is_in_raid())
+            end },
+            { type = "spell_ready", spell = ACTION.Rebirth, target = "self", opts = { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD } },
+        },
+        action = { type = "custom", fn = function()
+            return NS.try_cast(ACTION.Rebirth, PLAYER_UNIT, "[RESTO] Rebirth battle rez", { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD })
+        end },
+    },
+}
 
 local function SwiftmendEmergency_matches(_, state) return state.swiftmend_target and NS.spell_ready(ACTION.Swiftmend, state.swiftmend_target.unit, SWIFTMEND_OPTS) end
 local function SwiftmendEmergency_execute(_, state) return NS.try_cast(ACTION.Swiftmend, state.swiftmend_target.unit, "[RESTO] Swiftmend triage") end
@@ -700,9 +767,9 @@ local strategies = {
        return false
    end,
  },
-  { name = "BarkskinSelfPreservation", matches = BarkskinSelfPreservation_matches, execute = BarkskinSelfPreservation_execute },
-  { name = "BearFormFocusedByMelee", matches = BearFormFocusedByMelee_matches, execute = BearFormFocusedByMelee_execute },
-  { name = "NaturesGraspMelee", matches = NaturesGraspMelee_matches, execute = NaturesGraspMelee_execute },
+  { name = "BarkskinSelfPreservation" },
+  { name = "BearFormFocusedByMelee" },
+  { name = "NaturesGraspMelee" },
  { name = "RemoveCurse", matches = function(context, state)
    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.RemoveCurse, 3.0) then return false end
    if context and (context.control_risk or context.is_group) and state.cursed_target then return true end
@@ -714,9 +781,9 @@ local strategies = {
    return state.poison_target and NS.spell_ready(ACTION.AbolishPoison, state.poison_target.unit)
   end, execute = function(_, state) return NS.try_cast(ACTION.AbolishPoison, state.poison_target.unit, "[RESTO] Abolish Poison") end },
  { name = "ManaPotionFloor", matches = function(_, s) return (s.mana_pct or 100) <= 18 end, execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
-  { name = "InnervateSelf", matches = InnervateSelf_matches, execute = InnervateSelf_execute },
-  { name = "InnervateHealer", matches = InnervateHealer_matches, execute = InnervateHealer_execute },
-  { name = "RebirthBattleRez", matches = RebirthBattleRez_matches, execute = RebirthBattleRez_execute },
+  { name = "InnervateSelf" },
+  { name = "InnervateHealer" },
+  { name = "RebirthBattleRez" },
   { name = "SwiftmendEmergency", matches = SwiftmendEmergency_matches, execute = SwiftmendEmergency_execute },
  { name = "PreemptiveRegrowth", matches = function(context, state)
   if not context.in_combat then return false end
@@ -820,6 +887,16 @@ local strategies = {
   return true
  end, execute = function(_, state) return NS.try_cast(ACTION.HealingTouch, state.lowest.unit, "[RESTO] Healing Touch fallback") end },
 }
+
+-- Replace the 6 imperative strategies with compiled DSL equivalents by name.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 local module = { strategies = strategies, build_state = build_state }
 if NS.rotation_registry and NS.rotation_registry.register then
