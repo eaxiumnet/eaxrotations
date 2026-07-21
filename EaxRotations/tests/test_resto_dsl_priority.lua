@@ -210,9 +210,12 @@ assert_false(grasp.matches(make_ctx({ is_pvp = false }), make_state({ melee_pres
 -- Mock the buff present case by overriding has_player_buff
 local original_has_buff = NS.has_player_buff
 NS.has_player_buff = function() return true end
-assert_false(grasp.matches(make_ctx({ is_pvp = true }), make_state({ melee_pressure_count = 1 })),
-    "NaturesGrasp skips when buff already active")
+local ok_has_buff, err_has_buff = pcall(function()
+    assert_false(grasp.matches(make_ctx({ is_pvp = true }), make_state({ melee_pressure_count = 1 })),
+        "NaturesGrasp skips when buff already active")
+end)
 NS.has_player_buff = original_has_buff
+if not ok_has_buff then error(err_has_buff) end
 
 -- ============================================================================
 -- InnervateSelf / InnervateHealer equivalence
@@ -239,9 +242,12 @@ local reb = find_strategy("RebirthBattleRez")
 -- Simulate in party for the positive case
 local old_is_party = NS.is_in_party
 NS.is_in_party = function() return true end
-assert_true(reb.matches(make_ctx({ in_combat = true }), make_state({ in_combat = true })),
-    "Rebirth matches in combat when in party/raid")
+local ok_party, err_party = pcall(function()
+    assert_true(reb.matches(make_ctx({ in_combat = true }), make_state({ in_combat = true })),
+        "Rebirth matches in combat when in party/raid")
+end)
 NS.is_in_party = old_is_party
+if not ok_party then error(err_party) end
 
 assert_false(reb.matches(make_ctx({ in_combat = false }), make_state({ in_combat = false })),
     "Rebirth skips out of combat")
@@ -249,10 +255,14 @@ assert_false(reb.matches(make_ctx({ in_combat = true }), make_state({ in_combat 
     "Rebirth skips when not in party or raid")
 
 -- Simulate in party again for explicit in-party check
+local old_is_party_2 = NS.is_in_party
 NS.is_in_party = function() return true end
-assert_true(reb.matches(make_ctx({ in_combat = true }), make_state({ in_combat = true })),
-    "Rebirth matches in combat while in party")
-NS.is_in_party = old_is_party
+local ok_party_2, err_party_2 = pcall(function()
+    assert_true(reb.matches(make_ctx({ in_combat = true }), make_state({ in_combat = true })),
+        "Rebirth matches in combat while in party")
+end)
+NS.is_in_party = old_is_party_2
+if not ok_party_2 then error(err_party_2) end
 
 -- ============================================================================
 -- Summary
