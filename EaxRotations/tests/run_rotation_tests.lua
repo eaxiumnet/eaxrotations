@@ -176,6 +176,7 @@ local tests = {
     "test_elemental_dsl_priority.lua",
     "test_retribution_dsl_priority.lua",
     "test_holy_dsl_priority.lua",
+    "test_holy_priest_dsl_priority.lua",
     "test_resto_dsl_priority.lua",
   "test_schema_compliance.lua",
  "test_cross_consistency.lua",
