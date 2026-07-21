@@ -418,66 +418,6 @@ end
 -- PW:S on tank — always allowed, ignores tank-only setting.
 -- This is the primary tank mitigation tool.
 -- ============================================================================
-local function pws_tank_matches(context, s)
- if not s.tank then return false end
- local threshold = spec_kit.setting_number(context, "discipline_pws_hp", 35)
- local current_hp = s.tank.effective_hp or 100
- local pred_hp = current_hp
- if s.tank.unit and HealthPred and HealthPred.predicted_hp_pct then
-  local ok, pct = pcall(HealthPred.predicted_hp_pct, s.tank.unit, 1.5)
-  if ok and type(pct) == "number" then pred_hp = pct end
- end
- if current_hp > threshold and pred_hp > threshold then return false end
- if s.tank.has_weakened_soul then return false end
- if not s.pws_ready then return false end
- -- Respect existing absorb: don't overwrite a healthy PW:S shield.
- if Healing.pws_absorb_remaining then
-  local absorb = Healing.pws_absorb_remaining(s.tank.unit)
-  if absorb > 200 then return false end
- end
- return true
-end
-
--- ============================================================================
--- PW:S on lowest non-tank — gated by disc_shield_tank_only setting.
--- When tank-only mode is active, this strategy never fires.
--- ============================================================================
-local function pws_lowest_matches(context, s)
- if spec_kit.setting_bool(context, "disc_shield_tank_only", false) then return false end
- if not s.lowest then return false end
- -- Skip if the lowest target is already the tank (handled by pws_tank_matches)
- if s.tank and s.lowest == s.tank then return false end
- if (s.lowest.effective_hp or 100) > spec_kit.setting_number(context, "discipline_pws_hp", 35) then return false end
- if s.lowest.has_weakened_soul then return false end
- if not s.pws_ready then return false end
- if Healing.pws_absorb_remaining then
-  local absorb = Healing.pws_absorb_remaining(s.lowest.unit)
-  if absorb > 200 then return false end
- end
- return true
-end
-
-local function pom_tank_matches(context, s)
- if not context.in_combat and spec_kit.setting_bool(context, "disc_prepull_pom", true) == false then return false end
- local target = s.tank or s.lowest
- if not target then return false end
- if not s.pom_ready then return false end
- -- Skip if PoM already active on target (don't overwrite bounces in progress)
- if NS.has_buff and target.unit and NS.has_buff(target.unit, PRAYER_OF_MENDING_BUFF) then return false end
- return true
-end
-
-local function flash_heal_matches(context, s)
- if context.is_moving then return false end
- if not s.lowest then return false end
- if (s.lowest.effective_hp or 100) > spec_kit.setting_number(context, "discipline_flash_hp", 55) then return false end
- if (s.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
- if not s.flash_heal_ready then return false end
-  -- Predictive overheal gate: don't cast FH if predicted deficit is smaller than the heal
-  if gate_overheal("FlashHeal", s.lowest.unit, 1.5, context.settings, _spell_id(ACTION.FlashHeal)) then return false end
- return true
-end
-
 local function greater_heal_matches(context, s)
  if not context.in_combat then return false end
  if context.is_moving then return false end
@@ -495,14 +435,6 @@ local function greater_heal_matches(context, s)
   local mana_pct = s.mana_pct or context.mana_pct or 100
   local spell_id = (mana_pct > 30) and GREATER_HEAL_MAX or ((mana_pct > 15) and GREATER_HEAL_CONSERVE or GREATER_HEAL_EFFICIENT)
   if gate_overheal("GreaterHeal", s.lowest.unit, 2.5, context.settings, spell_id) then return false end
- return true
-end
-
-local function renew_tank_matches(context, s)
- if not s.tank then return false end
- if s.tank.has_renew then return false end
- if (s.tank.effective_hp or 100) > spec_kit.setting_number(context, "discipline_renew_hp", 90) then return false end
- if not s.renew_ready then return false end
  return true
 end
 
@@ -557,13 +489,6 @@ local function _safe_buff_in_combat(context, s)
  local has_target = context.has_valid_enemy_target or false
  if context.in_combat and enemies == 0 and not has_target then return false end
  return true
-end
-
-local function inner_fire_matches(context, s)
- if s.has_inner_fire then return false end
- if not s.inner_fire_ready then return false end
- if _buff_on_cooldown(ACTION.InnerFire) then return false end
- return _safe_buff_in_combat(context, s)
 end
 
 local function fear_ward_matches(context, s)
@@ -682,15 +607,6 @@ end
 -- ============================================================================
 -- Pain Suppression: emergency external CD for tank lethal spikes
 -- ============================================================================
-local function pain_suppression_matches(context, s)
- if not context.in_combat then return false end
- if not s.tank then return false end
- local tank_hp = s.tank.effective_hp or 100
- if tank_hp > spec_kit.setting_number(context, "discipline_pain_suppression_hp", 30) then return false end
- if not s.pain_suppression_ready then return false end
- return true
-end
-
 -- ============================================================================
 -- Power Infusion: grant +20% haste to highest DPS caster in group (or self)
 -- ============================================================================
@@ -941,11 +857,11 @@ local healing_strategies = {
   else spell_id = GREATER_HEAL_EFFICIENT end
   return NS.try_cast(spell_id, ft.unit, string.format("[DISCIPLINE] Greater Heal (friendly target) %.0f%%", ft.hp_pct or 0))
  end },
- { name = "PowerWordShieldTank", matches = pws_tank_matches, execute = function(context, s) return NS.try_cast(ACTION.PowerWordShield, s.tank.unit, string.format("[DISCIPLINE] PW:S tank %.0f%%", s.tank.effective_hp or 0)) end },
- { name = "EmergencyPowerWordShield", matches = pws_lowest_matches, execute = function(context, s) return NS.try_cast(ACTION.PowerWordShield, s.lowest.unit, string.format("[DISCIPLINE] PW:S %.0f%%", s.lowest.effective_hp or 0)) end },
+ { name = "PowerWordShieldTank" },
+ { name = "EmergencyPowerWordShield" },
  -- PowerWordShieldLowest removed: duplicate of EmergencyPowerWordShield (same matches + execute)
- { name = "PrayerOfMendingTank", matches = pom_tank_matches, execute = function(context, s) return NS.try_cast(ACTION.PrayerofMending, (s.tank and s.tank.unit) or (s.lowest and s.lowest.unit), "[DISCIPLINE] Prayer of Mending") end },
- { name = "EmergencyFlashHeal", matches = flash_heal_matches, execute = function(context, s) return NS.try_cast(ACTION.FlashHeal, s.lowest.unit, string.format("[DISCIPLINE] Flash Heal %.0f%%", s.lowest.effective_hp or 0)) end },
+ { name = "PrayerOfMendingTank" },
+ { name = "EmergencyFlashHeal" },
  { name = "PreemptiveGreaterHeal", matches = function(context, s)
   if not context.in_combat then return false end
   if context.is_moving then return false end
@@ -986,9 +902,9 @@ local healing_strategies = {
   { name = "BindingHeal", matches = binding_heal_matches, execute = function(context, s) return NS.try_cast(ACTION.BindingHeal, s.lowest.unit, "[DISCIPLINE] Binding Heal") end },
  { name = "CircleOfHealing", matches = circle_of_healing_matches, execute = function() return NS.try_cast(ACTION.CircleofHealing, NS.PLAYER_UNIT, "[DISCIPLINE] CircleOfHealing") end },
  { name = "PrayerOfHealing", matches = prayer_of_healing_matches, execute = function() return NS.try_cast(ACTION.PrayerOfHealing, NS.PLAYER_UNIT, "[DISCIPLINE] PrayerOfHealing") end },
- { name = "RenewTank", matches = renew_tank_matches, execute = function(context, s) return NS.try_cast(ACTION.Renew, s.tank.unit, string.format("[DISCIPLINE] Renew tank %.0f%%", s.tank.effective_hp or 0)) end },
+ { name = "RenewTank" },
  { name = "RenewLowest", matches = renew_lowest_matches, execute = function(context, s) return NS.try_cast(ACTION.Renew, s.lowest.unit, string.format("[DISCIPLINE] Renew %.0f%%", s.lowest.effective_hp or 0)) end },
- { name = "InnerFire", matches = inner_fire_matches, execute = function() return NS.try_cast(ACTION.InnerFire, NS.PLAYER_UNIT, "[DISCIPLINE] InnerFire") end },
+ { name = "InnerFire" },
  { name = "FearWard", matches = fear_ward_matches, execute = function(context, s)
     -- Proper Fear Ward for dungeons/raids (WoWHead guides): Pre-ward the TANK before fear bosses/trash (Hellmaw AoE Fear, Scryer Fear, Warden Psychic Scream, etc.).
     -- "be prepared in case he fears the Tank", "Fear Ward on the tank", "keep the tank warded". Uses state.fear_ward_target set from context.party_tanks / frames.
@@ -1028,7 +944,7 @@ end },
    return true
  end, execute = function() return NS.try_cast(ACTION.MassDispel, NS.PLAYER_UNIT, "[DISCIPLINE] MassDispel (dungeon AoE)") end },
  -- Cooldown Features
- { name = "PainSuppression", matches = pain_suppression_matches, execute = function(_, s) return NS.try_cast(ACTION.PainSuppression, s.tank.unit, string.format("[DISCIPLINE] Pain Suppression on tank %.0f%%", s.tank.effective_hp or 0)) end },
+ { name = "PainSuppression" },
  { name = "PowerInfusion", matches = power_infusion_matches, execute = function(_, s)
   local pi_target = s.pi_target or NS.PLAYER_UNIT
   local label = s.pi_target and "[DISCIPLINE] Power Infusion on caster DPS" or "[DISCIPLINE] Power Infusion (self)"
