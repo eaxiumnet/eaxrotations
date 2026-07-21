@@ -630,6 +630,58 @@ end
 -- ============================================================================
 local DSL_DEFS = {
     {
+        name = "LayOnHandsLastResort",
+        conditions = {
+            { type = "custom", fn = function(context, s)
+                if not can_help(s.lowest) then return false end
+                if hp_of(s.lowest) > 12 then return false end
+                return NS.spell_ready(ACTION.LayOnHands, s.lowest.unit, EXPECTED_LOH)
+            end },
+        },
+        action = { type = "custom", fn = function(context, s)
+            return cast_on(ACTION.LayOnHands, s.lowest, format("[HOLY] Lay on Hands last resort %.0f%%", hp_of(s.lowest)), EXPECTED_LOH)
+        end },
+    },
+    {
+        name = "AvengingWrathHeavyHealing",
+        conditions = {
+            { type = "setting", key = "holy_avenging_wrath", default = true, op = "truthy" },
+            { type = "in_combat" },
+            { type = "custom", fn = function(context, s)
+                if not s.heavy_healing then
+                    if NS.PvPBurstWindow and context.is_pvp then
+                        local ok, should = pcall(NS.PvPBurstWindow.should_burst, NS.PvPBurstWindow, context)
+                        if not (ok and should) then return false end
+                    else
+                        return false
+                    end
+                end
+                if context.ttd_known and context.ttd and context.ttd > 0 and context.ttd < 15 then return false end
+                return NS.spell_ready(ACTION.AvengingWrath, NS.PLAYER_UNIT, SELF_OPTS)
+            end },
+        },
+        action = { type = "custom", fn = function()
+            return NS.try_cast(ACTION.AvengingWrath, NS.PLAYER_UNIT, "[HOLY] Avenging Wrath +20% healing (heavy window)", SELF_OPTS)
+        end },
+    },
+    {
+        name = "LightGraceChain",
+        conditions = {
+            { type = "setting", key = "holy_lg_chain_enabled", default = true, op = "truthy" },
+            { type = "in_combat" },
+            { type = "state", field = "lights_grace_remains", op = ">", value = 0 },
+            { type = "state", field = "lights_grace_remains", op = "<", value = 2.5 },
+            { type = "custom", fn = function(context, s)
+                if not s.tank or not can_help(s.tank) or deficit_of(s.tank) <= 0 then return false end
+                s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.tank)
+                return NS.spell_ready(s.holy_light_spell, s.tank.unit, EMPTY_OPTS)
+            end },
+        },
+        action = { type = "custom", fn = function(context, s)
+            return cast_on(s.holy_light_spell, s.tank, format("[HOLY] %s (Light's Grace chain %.1fs)", s.holy_light_label, s.lights_grace_remains or 0))
+        end },
+    },
+    {
         name = "DivineShieldSelfPreservation",
         conditions = {
             { type = "state", field = "hp_pct", op = "<=", value = 18 },
@@ -726,17 +778,7 @@ local strategies = {
    return cast_on(spell, ft, format("[HOLY] %s (friendly target) %.0f%%", label, hp_of(ft)))
   end,
  },
- {
-  name = "LayOnHandsLastResort",
-  matches = function(context, s)
-   if not can_help(s.lowest) then return false end
-   if hp_of(s.lowest) > 12 then return false end
-   return NS.spell_ready(ACTION.LayOnHands, s.lowest.unit, EXPECTED_LOH)
-  end,
-  execute = function(_, s)
-   return cast_on(ACTION.LayOnHands, s.lowest, format("[HOLY] Lay on Hands last resort %.0f%%", hp_of(s.lowest)), EXPECTED_LOH)
-  end,
- },
+ { name = "LayOnHandsLastResort" },
  { name = "DivineShieldSelfPreservation" },
  {
   name = "BlessingOfProtectionFocusedAlly",
@@ -817,31 +859,7 @@ local strategies = {
   end,
  },
  { name = "DivineIlluminationHeavyHealing" },
- -- Avenging Wrath: +20% healing (and damage) for 20s on a 3-min CD. Valid TBC
- -- baseline (spell 31884; already used by Ret + Prot). Fire during a heavy-
- -- healing window for max HPS value; gate on a setting + TTD so it isn't wasted.
- {
-  name = "AvengingWrathHeavyHealing",
-  matches = function(context, s)
-   if not spec_kit.setting_bool(context, "holy_avenging_wrath", true) then return false end
-   if not (context and context.in_combat) then return false end
-   -- Fire during heavy healing OR PvP burst-heal window
-   if not s.heavy_healing then
-    if NS.PvPBurstWindow and context.is_pvp then
-     local ok, should = pcall(NS.PvPBurstWindow.should_burst, NS.PvPBurstWindow, context)
-     if not (ok and should) then return false end
-    else
-     return false
-    end
-   end
-   -- Don't waste a 3-min burst CD on a target about to die.
-   if context.ttd_known and context.ttd and context.ttd > 0 and context.ttd < 15 then return false end
-   return NS.spell_ready(ACTION.AvengingWrath, NS.PLAYER_UNIT, SELF_OPTS)
-  end,
-  execute = function()
-   return NS.try_cast(ACTION.AvengingWrath, NS.PLAYER_UNIT, "[HOLY] Avenging Wrath +20% healing (heavy window)", SELF_OPTS)
-  end,
- },
+ { name = "AvengingWrathHeavyHealing" },
  {
   name = "HolyShock",
   matches = function(context, s)
@@ -885,26 +903,7 @@ local strategies = {
    return cast_on(s.holy_light_spell, s.lowest, format("[HOLY] %s guaranteed crit %.0f%%", s.holy_light_label, hp_of(s.lowest)))
   end,
  },
- -- Light's Grace Chain: when LG is active but about to expire (< 2.5s),
- -- cast another Holy Light to keep the haste rolling. Positioned after
- -- DivineFavorHolyLightFollowup so DF+HS still wins emergencies.
- {
-  name = "LightGraceChain",
-  matches = function(context, s)
-   if not spec_kit.setting_bool(context, "holy_lg_chain_enabled", true) then return false end
-   if not (context and context.in_combat) then return false end
-   if (s.lights_grace_remains or 0) <= 0 then return false end
-   if (s.lights_grace_remains or 0) >= 2.5 then return false end
-   if not s.tank then return false end
-   if not can_help(s.tank) then return false end
-   if deficit_of(s.tank) <= 0 then return false end
-   s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.tank)
-   return NS.spell_ready(s.holy_light_spell, s.tank.unit, EMPTY_OPTS)
-  end,
-  execute = function(_, s)
-   return cast_on(s.holy_light_spell, s.tank, format("[HOLY] %s (Light's Grace chain %.1fs)", s.holy_light_label, s.lights_grace_remains or 0))
-  end,
- },
+ { name = "LightGraceChain" },
  -- Light's Grace Build (proactive downrank): per TBC guides, cast lower-rank Holy Light when LG is not active or expiring to proc/refresh Light's Grace cheaply on the tank.
  -- This enables faster subsequent max-rank HL. Uses downrank ranks when LG down.
  {
