@@ -178,6 +178,7 @@ local tests = {
     "test_holy_dsl_priority.lua",
     "test_holy_priest_dsl_priority.lua",
     "test_resto_dsl_priority.lua",
+    "test_caster_dsl_priority.lua",
   "test_schema_compliance.lua",
  "test_cross_consistency.lua",
  "test_hunter_adaptive_nil_globals.lua",
