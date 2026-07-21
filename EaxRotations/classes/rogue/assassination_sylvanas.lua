@@ -11,6 +11,7 @@ local SPELLS = NS.RogueSpells or {}
 
 -- spec_kit migration #22
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
     Blind          = define("Blind",          { 2094 }, "Blind"),
@@ -275,6 +276,80 @@ end
 	    end
 	    return NS.spell_ready(ACTION.SinisterStrike, target)
 	end
+
+-- ============================================================================
+-- Declarative strategy DSL definitions
+-- Replaces 6 imperative strategies with compiled DSL equivalents while preserving
+-- the existing priority order via name-based substitution.
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "HealthPotion",
+        conditions = {
+            { type = "in_combat" },
+            { type = "setting", key = "use_auto_potions", op = "truthy", default = true },
+            { type = "context", field = "has_health_potion", op = "truthy" },
+            { type = "hp_threshold", op = "<=", value = 35 },
+        },
+        action = { type = "custom", fn = function(context)
+            return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS)
+        end },
+    },
+    {
+        name = "DamagePotion",
+        conditions = {
+            { type = "in_combat" },
+            { type = "setting", key = "use_auto_potions", op = "truthy", default = true },
+            { type = "context", field = "has_damage_potion", op = "truthy" },
+            { type = "context", field = "should_burst", op = "truthy" },
+        },
+        action = { type = "custom", fn = function(context)
+            return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS)
+        end },
+    },
+    {
+        name = "EvasionDefense",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                local hp = spec_kit.setting_number(context, "assassin_evasion_hp", 25)
+                return (state.hp_pct or 100) <= hp
+            end },
+            { type = "spell_ready", spell = ACTION.Evasion, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.Evasion, target = "self" },
+    },
+    {
+        name = "CloakOfShadows",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                local hp = spec_kit.setting_number(context, "assassin_clos_hp", 30)
+                return (state.hp_pct or 100) <= hp
+            end },
+            { type = "spell_ready", spell = ACTION.CloakOfShadows, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.CloakOfShadows, target = "self" },
+    },
+    {
+        name = "HealingItem",
+        conditions = {
+            { type = "state", field = "hp_pct", op = "<=", value = 35 },
+            { type = "custom", fn = function(context, state) return state.healing_item_id ~= nil end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            if NS.use_item_by_id then NS.use_item_by_id(state.healing_item_id) end
+            return true
+        end },
+    },
+    {
+        name = "VanishReopen",
+        conditions = {
+            { type = "in_combat" },
+            { type = "context", field = "threat_pct", op = ">=", value = 90 },
+            { type = "spell_ready", spell = ACTION.Vanish, target = "self" },
+        },
+        action = { type = "cast", spell = ACTION.Vanish, target = "self" },
+    },
+}
 
 -- ============================================================================
 -- Strategies (priority order: survival → cooldowns → finishers → builders → PvP)
@@ -712,6 +787,18 @@ local strategies = {
         end,
     },
 }
+
+-- Replace the 6 imperative strategies with compiled DSL equivalents by name.
+-- Name-based substitution keeps the priority order intact even when strategies
+-- are inserted or reordered in the future.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("assassination", strategies, { get_state = build_state })
