@@ -1,5 +1,5 @@
 -- test_cat_dsl_priority.lua — Feral Cat DSL priority + equivalence test.
--- WHAT:  Verifies that the 6 DSL-converted strategies preserve their priority order
+-- WHAT:  Verifies that the 8 DSL-converted strategies preserve their priority order
 --        and behave equivalently to the original imperative match functions.
 -- WHEN:  Run by the rotation test suite.
 -- WHY:   Regression guard for the 23rd strategy DSL adopter (feral cat druid).
@@ -185,6 +185,26 @@ assert_true(manapot_idx < removecurse_idx, "ManaPotion should remain before Remo
 assert_true(removecurse_idx < barkskin_idx, "RemoveCurse should remain before Barkskin")
 assert_true(barkskin_idx < dash_idx, "Barkskin should remain before Dash")
 assert_true(dash_idx < tigersfury_idx, "Dash should remain before TigersFury")
+
+-- ============================================================================
+-- Prowl equivalence
+-- ============================================================================
+local prowl = find_strategy("Prowl")
+local ctx_prowl = { settings = {} }
+local st_prowl = { in_combat = false, is_stealthed = false, target = {}, target_range = 10, energy = 100, combo_points = 0, enemy_count = 1, target_hp = 100, target_ttd = 999 }
+assert_true(prowl.matches(ctx_prowl, st_prowl), "Prowl matches out of combat, not stealthed, close target")
+st_prowl.in_combat = true
+assert_false(prowl.matches(ctx_prowl, st_prowl), "Prowl skips in combat")
+st_prowl.in_combat = false
+st_prowl.is_stealthed = true
+assert_false(prowl.matches(ctx_prowl, st_prowl), "Prowl skips when already stealthed")
+st_prowl.is_stealthed = false
+st_prowl.target_range = 25
+assert_false(prowl.matches(ctx_prowl, st_prowl), "Prowl skips when target is far away")
+st_prowl.target_range = 10
+assert_true(prowl.matches(ctx_prowl, st_prowl), "Prowl matches again after reset")
+st_prowl.target = nil
+assert_true(prowl.matches(ctx_prowl, st_prowl), "Prowl matches when no target is present")
 
 -- ============================================================================
 -- HealthPotion equivalence
