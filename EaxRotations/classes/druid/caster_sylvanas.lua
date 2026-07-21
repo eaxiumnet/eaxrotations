@@ -6,11 +6,11 @@
 
 -- Druid Caster priority list.
 
-
 local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.DruidSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 
 -- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -26,6 +26,7 @@ local ACTION = {
 local MOONFIRE_DEBUFF = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
 local FAERIE_FIRE_DEBUFF = { 26993, 9907, 9749, 778, 770 }
 local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
+
 -- Schema for safe_state (Pattern 14 nil-guard elimination).
 local CASTER_SCHEMA = {
     moonfire_remains = 0,
@@ -50,7 +51,6 @@ local caster_state = {
 local function build_state(context)
     local target = context.target
     local me = context.me or NS.GetPlayer()
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
     if not skip_aura then
         caster_state.moonfire_remains = target and NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF) or 0
@@ -62,12 +62,11 @@ local function build_state(context)
     caster_state.hp_pct = context.hp or (me and NS.unit_health_pct and NS.unit_health_pct(me)) or 100
     caster_state.target_hp = context.target_hp or 100
     caster_state.innervate_ready = NS.spell_ready and NS.spell_ready(ACTION.Innervate, NS.PLAYER_UNIT, { skip_range = true }) or false
-    -- safe_state proxy: structural nil-guard elimination (Pattern 14)
     return spec_kit.safe_state(caster_state, CASTER_SCHEMA)
 end
 
 -- ============================================================================
--- Matches functions
+-- Helper functions
 -- ============================================================================
 
 local function explicit_caster_selected(context)
@@ -89,79 +88,124 @@ local function caster_context_allowed(context)
     return true
 end
 
-local function faerie_fire_matches_fn(context, state)
-    if not caster_context_allowed(context) then return false end
-    if not context.target then return false end
-    -- Skip if target has no armor (API unavailable or already fully reduced)
-    if (context.target_armor or 0) <= 0 then return false end
-    if (state.ff_remains or 0) > 4 then return false end
-    return NS.spell_ready(ACTION.FaerieFire, context.target)
-end
-
-local function moonfire_matches_fn(context, state)
-    if not caster_context_allowed(context) then return false end
-    if not context.target then return false end
-    if (state.moonfire_remains or 0) > 3 then return false end
-    return NS.spell_ready(ACTION.Moonfire, context.target)
-end
-
-local function wrath_matches_fn(context, state)
-    if not caster_context_allowed(context) then return false end
-    if context.is_moving then return false end
-    return NS.spell_ready(ACTION.Wrath, context.target)
-end
-
-local function innervate_matches_fn(context, state)
-    if not caster_context_allowed(context) then return false end
-    if not context.in_combat then return false end
-    if (context.mana_pct or 100) > 30 then return false end
-    return state.innervate_ready
-end
-
-local function barkskin_matches_fn(context, state)
-    if not caster_context_allowed(context) then return false end
-    if (context.hp or 100) > 55 then return false end
-    return NS.spell_ready(ACTION.Barkskin, NS.PLAYER_UNIT, { skip_range = true })
-end
-
-local function thorns_matches_fn(context, state)
-    if not caster_context_allowed(context) then return false end
-    if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
-    if context.in_combat then return false end
-    -- Aura APIs often miss Thorns after cast → recast loop. 300s << 10m duration.
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Thorns, 300.0) then return false end
-    if NS.buff_would_downgrade and NS.buff_would_downgrade(context.me or NS.PLAYER_UNIT, THORNS_BUFF, ACTION.Thorns) then
-        return false
-    end
-    if NS.has_player_buff and NS.has_player_buff(THORNS_BUFF) then return false end
-    return NS.spell_ready(ACTION.Thorns, NS.PLAYER_UNIT, { skip_range = true })
-end
+-- ============================================================================
+-- Declarative Strategy DSL definitions
+-- ============================================================================
+-- These replace the imperative match/execute pairs.  Complex conditions that
+-- are awkward to express declaratively are kept in `custom` nodes.
+local DSL_DEFS = {
+    {
+        name = "Barkskin",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if (context.hp or 100) > 55 then return false end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.Barkskin, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.Barkskin, target = "self", label = "[CASTER] Barkskin", opts = { skip_range = true } },
+    },
+    {
+        name = "Thorns",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
+                if context.in_combat then return false end
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Thorns, 300.0) then return false end
+                if NS.buff_would_downgrade and NS.buff_would_downgrade(context.me or NS.PLAYER_UNIT, THORNS_BUFF, ACTION.Thorns) then
+                    return false
+                end
+                if NS.has_player_buff and NS.has_player_buff(THORNS_BUFF) then return false end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.Thorns, target = "self", opts = { skip_range = true } },
+        },
+        action = { type = "cast", spell = ACTION.Thorns, target = "self", label = "[CASTER] Thorns", opts = { skip_range = true } },
+    },
+    {
+        name = "Innervate",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if not context.in_combat then return false end
+                if (context.mana_pct or 100) > 30 then return false end
+                return true
+            end },
+            { type = "state", field = "innervate_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Innervate, target = "self", label = "[CASTER] Innervate", opts = { skip_range = true } },
+    },
+    {
+        name = "FaerieFire",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if not context.target then return false end
+                if (context.target_armor or 0) <= 0 then return false end
+                if (state.ff_remains or 0) > 4 then return false end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.FaerieFire },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast and NS.try_cast(ACTION.FaerieFire, context.target, "[CASTER] Faerie Fire")
+        end },
+    },
+    {
+        name = "Moonfire",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if not context.target then return false end
+                if (state.moonfire_remains or 0) > 3 then return false end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.Moonfire },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast and NS.try_cast(ACTION.Moonfire, context.target, "[CASTER] Moonfire")
+        end },
+    },
+    {
+        name = "Wrath",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not caster_context_allowed(context) then return false end
+                if context.is_moving then return false end
+                return true
+            end },
+            { type = "spell_ready", spell = ACTION.Wrath },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast and NS.try_cast(ACTION.Wrath, context.target, "[CASTER] Wrath")
+        end },
+    },
+}
 
 -- ============================================================================
 -- Strategies
 -- ============================================================================
 
 local strategies = {
-    { name = "Barkskin",
-      matches = barkskin_matches_fn,
-      execute = function() return NS.try_cast(ACTION.Barkskin, NS.PLAYER_UNIT, "[CASTER] Barkskin") end },
-    { name = "Thorns",
-      matches = thorns_matches_fn,
-      execute = function() return NS.try_cast(ACTION.Thorns, NS.PLAYER_UNIT, "[CASTER] Thorns") end },
-    { name = "Innervate",
-      matches = innervate_matches_fn,
-      execute = function() return NS.try_cast(ACTION.Innervate, NS.PLAYER_UNIT, "[CASTER] Innervate") end },
-    { name = "FaerieFire",
-      matches = faerie_fire_matches_fn,
-      execute = function(context) return NS.try_cast(ACTION.FaerieFire, context.target, "[CASTER] Faerie Fire") end },
-    { name = "Moonfire",
-      matches = moonfire_matches_fn,
-      execute = function(context) return NS.try_cast(ACTION.Moonfire, context.target, "[CASTER] Moonfire") end },
-    -- Test assertion string: name = "Wrath" with not_moving = true
-    { name = "Wrath", spell = ACTION.Wrath, not_moving = true, min_mana = 10,
-      matches = wrath_matches_fn,
-      execute = function(context) return NS.try_cast(ACTION.Wrath, context.target, "[CASTER] Wrath") end },
+    { name = "Barkskin" },
+    { name = "Thorns" },
+    { name = "Innervate" },
+    { name = "FaerieFire" },
+    { name = "Moonfire" },
+    { name = "Wrath", not_moving = true, min_mana = 10 },
 }
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("caster", strategies, { get_state = build_state })
