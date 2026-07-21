@@ -296,6 +296,80 @@ assert_false(light_grace_chain.matches(make_ctx({ in_combat = true, settings = {
     "LightGraceChain skips when setting disabled")
 
 -- ============================================================================
+-- DivineFavor equivalence
+-- ============================================================================
+local divine_favor = find_strategy("DivineFavor")
+assert_true(divine_favor.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 30 } })),
+    "DivineFavor matches when lowest is low HP and buff not active")
+assert_false(divine_favor.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 30 }, has_divine_favor = true })),
+    "DivineFavor skips when Divine Favor already active")
+assert_false(divine_favor.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 80 } })),
+    "DivineFavor skips when lowest HP is above threshold")
+assert_false(divine_favor.matches(make_ctx(), make_state({ lowest = nil })),
+    "DivineFavor skips when no lowest/tank target")
+
+-- ============================================================================
+-- DivineFavorHolyShockCombo equivalence
+-- ============================================================================
+local df_holy_shock = find_strategy("DivineFavorHolyShockCombo")
+assert_true(df_holy_shock.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 30 }, has_divine_favor = true })),
+    "DivineFavorHolyShockCombo matches with Divine Favor active and low target")
+assert_false(df_holy_shock.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 30 }, has_divine_favor = false })),
+    "DivineFavorHolyShockCombo skips without Divine Favor")
+assert_false(df_holy_shock.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 80 }, has_divine_favor = true })),
+    "DivineFavorHolyShockCombo skips when target HP is above threshold")
+
+-- ============================================================================
+-- HolyShock equivalence
+-- ============================================================================
+local holy_shock = find_strategy("HolyShock")
+assert_true(holy_shock.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 30 } })),
+    "HolyShock matches at low HP")
+assert_false(holy_shock.matches(make_ctx({ is_moving = false }), make_state({ lowest = { unit = "party1", effective_hp = 80 } })),
+    "HolyShock skips at high HP when not moving")
+assert_true(holy_shock.matches(make_ctx({ is_moving = true }), make_state({ lowest = { unit = "party1", effective_hp = 80 } })),
+    "HolyShock matches at high HP when moving")
+assert_false(holy_shock.matches(make_ctx(), make_state({ lowest = nil })),
+    "HolyShock skips when no lowest target")
+
+-- ============================================================================
+-- HolyLightEmergency equivalence
+-- ============================================================================
+local holy_light_emergency = find_strategy("HolyLightEmergency")
+assert_true(holy_light_emergency.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 40 } })),
+    "HolyLightEmergency matches at low HP")
+assert_false(holy_light_emergency.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 80 } })),
+    "HolyLightEmergency skips at high HP")
+assert_false(holy_light_emergency.matches(make_ctx(), make_state({ lowest = nil })),
+    "HolyLightEmergency skips when no lowest target")
+
+-- ============================================================================
+-- DivineFavorHolyLightFollowup equivalence
+-- ============================================================================
+local df_holy_light = find_strategy("DivineFavorHolyLightFollowup")
+assert_true(df_holy_light.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 40 }, has_divine_favor = true })),
+    "DivineFavorHolyLightFollowup matches with Divine Favor and low target")
+assert_false(df_holy_light.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 40 }, has_divine_favor = false })),
+    "DivineFavorHolyLightFollowup skips without Divine Favor")
+assert_false(df_holy_light.matches(make_ctx(), make_state({ lowest = nil, has_divine_favor = true })),
+    "DivineFavorHolyLightFollowup skips when no lowest target")
+
+-- ============================================================================
+-- LightGraceBuild equivalence
+-- ============================================================================
+local light_grace_build = find_strategy("LightGraceBuild")
+assert_true(light_grace_build.matches(make_ctx({ in_combat = true }), make_state({ tank = { unit = "tank1", deficit = 500, effective_hp = 50 }, lights_grace_remains = 1.0 })),
+    "LightGraceBuild matches in combat with expiring LG and tank deficit")
+assert_false(light_grace_build.matches(make_ctx({ in_combat = true }), make_state({ tank = { unit = "tank1", deficit = 0, effective_hp = 50 }, lights_grace_remains = 1.0 })),
+    "LightGraceBuild skips when tank has no deficit")
+assert_false(light_grace_build.matches(make_ctx({ in_combat = true }), make_state({ tank = { unit = "tank1", deficit = 500, effective_hp = 50 }, lights_grace_remains = 10.0 })),
+    "LightGraceBuild skips when Light's Grace buffer is safe")
+assert_false(light_grace_build.matches(make_ctx({ in_combat = false }), make_state({ tank = { unit = "tank1", deficit = 500, effective_hp = 50 }, lights_grace_remains = 1.0 })),
+    "LightGraceBuild skips out of combat")
+assert_false(light_grace_build.matches(make_ctx({ in_combat = true, settings = { holy_lg_build_enabled = false } }), make_state({ tank = { unit = "tank1", deficit = 500, effective_hp = 50 }, lights_grace_remains = 1.0 })),
+    "LightGraceBuild skips when setting disabled")
+
+-- ============================================================================
 -- Summary
 -- ============================================================================
 print(string.format("test_holy_dsl_priority: %d passed, %d failed", _pass, _fail))

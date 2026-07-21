@@ -750,6 +750,101 @@ local DSL_DEFS = {
             return false
         end },
     },
+    {
+        name = "DivineFavor",
+        conditions = {
+            { type = "custom", fn = function(context, s)
+                if s.has_divine_favor then return false end
+                local target = s.lowest or s.tank
+                if not can_help(target) then return false end
+                return hp_of(target) <= spec_kit.setting_number(context, "holy_divine_favor_hp", 45)
+            end },
+            { type = "spell_ready", spell = ACTION.DivineFavor, target = "self", opts = SELF_OPTS },
+        },
+        action = { type = "cast", spell = ACTION.DivineFavor, target = "self", label = "[HOLY] Divine Favor before critical Holy Light", opts = SELF_OPTS },
+    },
+    {
+        name = "DivineFavorHolyShockCombo",
+        conditions = {
+            { type = "state", field = "has_divine_favor", op = "truthy" },
+            { type = "custom", fn = function(context, s)
+                local target = s.lowest or s.tank
+                if not can_help(target) then return false end
+                return hp_of(target) <= spec_kit.setting_number(context, "holy_shock_hp", 40)
+            end },
+            { type = "custom", fn = function(context, s)
+                local target = s.lowest or s.tank
+                return NS.spell_ready(ACTION.HolyShock, target.unit, EMPTY_OPTS)
+            end },
+        },
+        action = { type = "custom", fn = function(context, s)
+            local target = s.lowest or s.tank
+            return cast_on(ACTION.HolyShock, target, format("[HOLY] Holy Shock guaranteed crit %.0f%%", hp_of(target)))
+        end },
+    },
+    {
+        name = "HolyShock",
+        conditions = {
+            { type = "custom", fn = function(context, s)
+                if not can_help(s.lowest) then return false end
+                local moving = s.moving or (context and context.is_moving)
+                if hp_of(s.lowest) > spec_kit.setting_number(context, "holy_shock_hp", 40) and not moving then return false end
+                if not (NS.spell_ready and NS.spell_ready(ACTION.HolyShock, s.lowest.unit, EMPTY_OPTS)) then return false end
+                return not gate_overheal("HolyShock", s.lowest.unit, 1.5, context.settings, _spell_id(ACTION.HolyShock))
+            end },
+        },
+        action = { type = "custom", fn = function(context, s)
+            return cast_on(ACTION.HolyShock, s.lowest, format("[HOLY] Holy Shock %.0f%%", hp_of(s.lowest)))
+        end },
+    },
+    {
+        name = "HolyLightEmergency",
+        conditions = {
+            { type = "custom", fn = function(context, s)
+                if not can_help(s.lowest) or hp_of(s.lowest) > 55 then return false end
+                s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.lowest)
+                if not (NS.spell_ready and NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS)) then return false end
+                return not gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings, _spell_id(s.holy_light_spell))
+            end },
+        },
+        action = { type = "custom", fn = function(context, s)
+            return cast_on(s.holy_light_spell, s.lowest, format("[HOLY] %s emergency %.0f%%", s.holy_light_label, hp_of(s.lowest)))
+        end },
+    },
+    {
+        name = "DivineFavorHolyLightFollowup",
+        conditions = {
+            { type = "state", field = "has_divine_favor", op = "truthy" },
+            { type = "custom", fn = function(context, s)
+                if not can_help(s.lowest) then return false end
+                s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.lowest)
+                if not (NS.spell_ready and NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS)) then return false end
+                return not gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings, _spell_id(s.holy_light_spell))
+            end },
+        },
+        action = { type = "custom", fn = function(context, s)
+            return cast_on(s.holy_light_spell, s.lowest, format("[HOLY] %s guaranteed crit %.0f%%", s.holy_light_label, hp_of(s.lowest)))
+        end },
+    },
+    {
+        name = "LightGraceBuild",
+        conditions = {
+            { type = "setting", key = "holy_lg_build_enabled", default = true, op = "truthy" },
+            { type = "in_combat" },
+            { type = "custom", fn = function(context, s)
+                if not s.tank or not can_help(s.tank) then return false end
+                if deficit_of(s.tank) <= 0 then return false end
+                if (s.lights_grace_remains or 0) > 5 then return false end
+                local build_rank = (s.mana_pct or 100) < 40 and HolyLightRank4 or HolyLightRank7
+                s.holy_light_spell = build_rank
+                s.holy_light_label = (build_rank == HolyLightRank4) and "Holy Light R4 (LG build)" or "Holy Light R7 (LG build)"
+                return NS.spell_ready(s.holy_light_spell, s.tank.unit, EMPTY_OPTS)
+            end },
+        },
+        action = { type = "custom", fn = function(context, s)
+            return cast_on(s.holy_light_spell, s.tank, format("[HOLY] %s (build Light's Grace)", s.holy_light_label))
+        end },
+    },
 }
 
 local strategies = {
@@ -832,98 +927,17 @@ local strategies = {
    return cast_on(BlessingOfFreedom, s.freedom_target, "[HOLY] Blessing of Freedom snare/root")
   end,
  },
- {
-  name = "DivineFavor",
-  matches = function(context, s)
-   local target = s.lowest or s.tank
-   if not can_help(target) or s.has_divine_favor then return false end
-   if hp_of(target) > spec_kit.setting_number(context, "holy_divine_favor_hp", 45) then return false end
-   return NS.spell_ready(ACTION.DivineFavor, NS.PLAYER_UNIT, SELF_OPTS)
-  end,
-  execute = function()
-   return NS.try_cast(ACTION.DivineFavor, NS.PLAYER_UNIT, "[HOLY] Divine Favor before critical Holy Light", SELF_OPTS)
-  end,
- },
- {
-  name = "DivineFavorHolyShockCombo",
-  matches = function(context, s)
-   if not s.has_divine_favor then return false end
-   local target = s.lowest or s.tank
-   if not can_help(target) then return false end
-   if hp_of(target) > spec_kit.setting_number(context, "holy_shock_hp", 40) then return false end
-   return NS.spell_ready(ACTION.HolyShock, target.unit, EMPTY_OPTS)
-  end,
-  execute = function(_, s)
-   local target = s.lowest or s.tank
-   return cast_on(ACTION.HolyShock, target, format("[HOLY] Holy Shock guaranteed crit %.0f%%", hp_of(target)))
-  end,
- },
+ { name = "DivineFavor" },
+ { name = "DivineFavorHolyShockCombo" },
  { name = "DivineIlluminationHeavyHealing" },
  { name = "AvengingWrathHeavyHealing" },
- {
-  name = "HolyShock",
-  matches = function(context, s)
-   if not can_help(s.lowest) then return false end
-   local moving = s.moving or context and context.is_moving
-   if hp_of(s.lowest) > spec_kit.setting_number(context, "holy_shock_hp", 40) and not moving then return false end
-   if not (NS.spell_ready and NS.spell_ready(ACTION.HolyShock, s.lowest.unit, EMPTY_OPTS)) then return false end
-   -- Predictive overheal gate: Holy Shock is instant but still gated at higher HP
-   if gate_overheal("HolyShock", s.lowest.unit, 1.5, context.settings, _spell_id(ACTION.HolyShock)) then return false end
-   return true
-  end,
-  execute = function(_, s)
-   return cast_on(ACTION.HolyShock, s.lowest, format("[HOLY] Holy Shock %.0f%%", hp_of(s.lowest)))
-  end,
- },
- {
-  name = "HolyLightEmergency",
-  matches = function(context, s)
-   if not can_help(s.lowest) or hp_of(s.lowest) > 55 then return false end
-   s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.lowest)
-   if not (NS.spell_ready and NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS)) then return false end
-   -- Predictive overheal gate
-   if gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings, _spell_id(s.holy_light_spell)) then return false end
-   return true
-  end,
-  execute = function(_, s)
-   return cast_on(s.holy_light_spell, s.lowest, format("[HOLY] %s emergency %.0f%%", s.holy_light_label, hp_of(s.lowest)))
-  end,
- },
- {
-  name = "DivineFavorHolyLightFollowup",
-  matches = function(context, s)
-   if not s.has_divine_favor or not can_help(s.lowest) then return false end
-   s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.lowest)
-   if not (NS.spell_ready and NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS)) then return false end
-   -- Predictive overheal gate: even with Divine Favor, avoid wasteful overheal
-   if gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings, _spell_id(s.holy_light_spell)) then return false end
-   return true
-  end,
-  execute = function(_, s)
-   return cast_on(s.holy_light_spell, s.lowest, format("[HOLY] %s guaranteed crit %.0f%%", s.holy_light_label, hp_of(s.lowest)))
-  end,
- },
+ { name = "HolyShock" },
+ { name = "HolyLightEmergency" },
+ { name = "DivineFavorHolyLightFollowup" },
  { name = "LightGraceChain" },
  -- Light's Grace Build (proactive downrank): per TBC guides, cast lower-rank Holy Light when LG is not active or expiring to proc/refresh Light's Grace cheaply on the tank.
  -- This enables faster subsequent max-rank HL. Uses downrank ranks when LG down.
- {
-  name = "LightGraceBuild",
-  matches = function(context, s)
-   if not spec_kit.setting_bool(context, "holy_lg_build_enabled", true) then return false end
-   if not (context and context.in_combat) then return false end
-   if not s.tank or not can_help(s.tank) then return false end
-   if deficit_of(s.tank) <= 0 then return false end
-   if (s.lights_grace_remains or 0) > 5 then return false end  -- only when weak or absent
-   -- Prefer downrank for cheap proc when building
-   local build_rank = (s.mana_pct or 100) < 40 and HolyLightRank4 or HolyLightRank7
-   s.holy_light_spell = build_rank
-   s.holy_light_label = (build_rank == HolyLightRank4) and "Holy Light R4 (LG build)" or "Holy Light R7 (LG build)"
-   return NS.spell_ready(s.holy_light_spell, s.tank.unit, EMPTY_OPTS)
-  end,
-  execute = function(_, s)
-   return cast_on(s.holy_light_spell, s.tank, format("[HOLY] %s (build Light's Grace)", s.holy_light_label))
-  end,
- },
+ { name = "LightGraceBuild" },
  -- FriendlyTarget (B6): honor the player's manually-selected friendly target.
  -- Placed after the emergency direct-heal tier (HolyShock / HolyLightEmergency /
  -- DivineFavorHolyLightFollowup) so life-critical saves win, but before the
