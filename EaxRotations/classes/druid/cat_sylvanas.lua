@@ -612,7 +612,7 @@ end
 
 -- ============================================================================
 -- Declarative strategy DSL definitions
--- Replaces 6 imperative strategies with compiled DSL equivalents while preserving
+-- Replaces 8 imperative strategies with compiled DSL equivalents while preserving
 -- the existing priority order via name-based substitution after the strategies
 -- table is fully built.
 -- ============================================================================
@@ -717,15 +717,19 @@ local DSL_DEFS = {
             return ok
         end },
     },
+    {
+        name = "Prowl",
+        conditions = {
+            { type = "in_combat", invert = true },
+            { type = "state", field = "is_stealthed", op = "!=", value = true },
+            { type = "custom", fn = function(context, state)
+                if state.target and state.target_range > 18 then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Prowl, target = "self", label = "[CAT] Prowl", opts = {} },
+    },
 }
-
-local function prowl_matches(context, action)
-    local state = build_state(context)
-    if state.in_combat then return false end
-    if state.is_stealthed then return false end
-    if state.target and state.target_range > 0 and state.target_range > 18 then return false end
-    return true
-end
 
 local function track_humanoids_matches(context, action)
     local state = build_state(context)
@@ -1067,7 +1071,7 @@ local ACTIONS = {
     { name = "CatForm", spell = ACTION.CatForm, target = "self", kind = "form", form = "cat", requires_target = false, matches = function() return false end },
     { name = "TravelForm", spell = ACTION.TravelForm, target = "self", kind = "form", form = "travel", requires_target = false, matches = travel_form_matches },
     { name = "TrackHumanoids", spell = ACTION.TrackHumanoids, target = "self", kind = "buff", buff = TRACK_HUMANOIDS_BUFF, required_form = "cat", requires_target = false, matches = track_humanoids_matches },
-    { name = "Prowl", spell = ACTION.Prowl, target = "self", kind = "buff", buff = PROWL_BUFF, ooc = true, required_form = "cat", requires_target = false, matches = prowl_matches },
+    { name = "Prowl", spell = ACTION.Prowl, target = "self", kind = "buff", buff = PROWL_BUFF, ooc = true, required_form = "cat", requires_target = false, matches = function() return false end },
 
     { name = "Barkskin", spell = ACTION.Barkskin, target = "self", required_form = "cat", requires_target = false, matches = function() return false end },
 
