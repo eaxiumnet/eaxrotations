@@ -58,7 +58,7 @@ EaxRotations/
 ├── core_sylvanas.lua          # NS helpers (buff_points, spell_ready, etc.)
 ├── classes/<class>/<spec>_sylvanas.lua  # 29 spec files (flat, one per spec)
 ├── shared/                    # ~50 shared modules (interrupts, consumables, etc.)
-├── tests/                     # ~356 test files (335 rotation + 21 leveling suites)
+├── tests/                     # ~358 test files (337 rotation + 21 leveling suites)
 └── tools/                     # Build/validation scripts
 
 api/                           # Sylvanas API definitions (runtime, .gitignored)
