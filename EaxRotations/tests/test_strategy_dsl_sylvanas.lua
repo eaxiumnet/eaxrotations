@@ -246,6 +246,31 @@ for _, case in ipairs(setting_conditions) do
     end
 end
 
+-- 6b. Setting conditions with truthy/falsy ops (default-sensitive checks).
+local setting_truthy_cases = {
+    { context = { settings = { enabled = true } }, op = "truthy", expect = true },
+    { context = { settings = { enabled = false } }, op = "truthy", expect = false },
+    { context = { settings = {} }, op = "truthy", expect = false },
+    { context = { settings = { enabled = true } }, op = "falsy", expect = false },
+    { context = { settings = { enabled = false } }, op = "falsy", expect = true },
+    { context = { settings = {} }, op = "falsy", expect = true },
+}
+for i, case in ipairs(setting_truthy_cases) do
+    local setting_strategy = dsl.compile_strategy({
+        name = "SettingTruthyTest_" .. i,
+        conditions = {
+            { type = "setting", key = "enabled", op = case.op },
+        },
+        action = { type = "custom", fn = function() return true end },
+    })
+    local result = setting_strategy.matches(case.context, {})
+    if case.expect then
+        assert_true(result, "setting condition op " .. case.op .. " matches (case " .. i .. ")")
+    else
+        assert_false(result, "setting condition op " .. case.op .. " does not match (case " .. i .. ")")
+    end
+end
+
 -- 7. NOT condition evaluator edge cases.
 local not_truthy_strategy = dsl.compile_strategy({
     name = "NotTruthyTest",
