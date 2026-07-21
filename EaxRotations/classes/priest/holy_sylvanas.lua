@@ -17,6 +17,7 @@ if not ok_cls or cls_id ~= enums.class_id.PRIEST then return end
 
 local SPELLS = NS.PriestSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 
 local function load_healing_helpers()
  if NS.PriestHealing then return NS.PriestHealing end
@@ -498,19 +499,6 @@ local function fade_matches(context, state)
 end
 
 -- ============================================================================
--- parity Feature: Healthstone
--- Auto-use healthstone below HP threshold, off-GCD.
--- ============================================================================
-local function healthstone_matches_parity(context, state)
- local auto_hs = spec_kit.setting_bool(context, "auto_healthstone", true)
- if not auto_hs then return false end
- if not state.healthstone_ready then return false end
- local hs_hp = spec_kit.setting_number(context, "healthstone_hp_threshold", 30)
- if context.hp > hs_hp then return false end
- return true
-end
-
--- ============================================================================
 -- parity Feature: MountedProtection
 -- Safety net: prevent actions while mounted.
 -- build_state returns early when mounted, but this strategy acts as
@@ -547,6 +535,108 @@ local function encounter_reactions_matches(context, state)
  end
  return false
 end
+
+-- ============================================================================
+-- Declarative strategy DSL definitions
+-- Replaces 6 imperative strategies with compiled DSL equivalents while preserving
+-- the existing priority order via name-based substitution.
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "DesperatePrayer",
+        conditions = {
+            { type = "in_combat" },
+            { type = "context", field = "player_control_locked", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "holy_use_desperate_prayer", true) then return false end
+                local threshold = spec_kit.setting_number(context, "holy_desp_prayer_hp", 30)
+                return (context.hp or 100) <= threshold and spell_exists(ACTION.DesperatePrayer) and spell_ready(ACTION.DesperatePrayer, NS.PLAYER_UNIT)
+            end },
+        },
+        action = { type = "custom", fn = function()
+            return try_cast(ACTION.DesperatePrayer, NS.PLAYER_UNIT, "[HOLY] Desperate Prayer")
+        end },
+    },
+    {
+        name = "Shadowfiend",
+        conditions = {
+            { type = "in_combat" },
+            { type = "context", field = "player_control_locked", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "use_shadowfiend", spec_kit.setting_bool(context, "use_cooldowns", true)) then return false end
+                if not state.shadowfiend_ready then return false end
+                local threshold = spec_kit.setting_number(context, "shadowfiend_mana_threshold", 30)
+                return (context.mana_pct or 100) < threshold and spell_exists(ACTION.Shadowfiend) and spell_ready(ACTION.Shadowfiend, NS.PLAYER_UNIT)
+            end },
+        },
+        action = { type = "custom", fn = function()
+            return try_cast(ACTION.Shadowfiend, nil, "[HOLY] Shadowfiend (mana regen)", { skip_range = true })
+        end },
+    },
+    {
+        name = "ManaPotion",
+        conditions = {
+            { type = "in_combat" },
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "use_mana_potions", true) then return false end
+                local threshold = spec_kit.setting_number(context, "mana_potion_threshold", 20)
+                local mana = state.mana_pct or context.mana_pct or 100
+                return mana < threshold
+            end },
+        },
+        action = { type = "custom", fn = function()
+            if NS.ConsumableManager and NS.ConsumableManager.use_mana_potion then
+                return pcall(NS.ConsumableManager.use_mana_potion, NS.ConsumableManager)
+            end
+            return false
+        end },
+    },
+    {
+        name = "Healthstone",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "auto_healthstone", true) then return false end
+                if not state.healthstone_ready then return false end
+                local hs_hp = spec_kit.setting_number(context, "healthstone_hp_threshold", 30)
+                return (context.hp or 100) <= hs_hp
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            if state.healthstone_id and state.healthstone_ready then
+                if NS.use_item_by_id then
+                    return NS.use_item_by_id(state.healthstone_id)
+                end
+                return try_cast(state.healthstone_id, nil, "[HOLY] Healthstone", { skip_range = true })
+            end
+            return false
+        end },
+    },
+    {
+        name = "SymbolOfHope",
+        conditions = {
+            { type = "state", field = "symbol_of_hope_ready", op = "truthy" },
+            { type = "context", field = "is_group", op = "truthy" },
+            { type = "context", field = "player_control_locked", op = "falsy" },
+        },
+        action = { type = "custom", fn = function()
+            return try_cast(ACTION.SymbolOfHope, NS.PLAYER_UNIT, "[HOLY] Symbol of Hope")
+        end },
+    },
+    {
+        name = "FearWard",
+        conditions = {
+            { type = "state", field = "has_fear_ward", op = "falsy" },
+            { type = "state", field = "fear_ward_ready", op = "truthy" },
+        },
+        action = { type = "custom", fn = function(context, state)
+            local target = (state and state.fear_ward_target) or NS.PLAYER_UNIT
+            if context and context.is_group and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk) then
+                if context.party_tanks and #context.party_tanks > 0 then target = context.party_tanks[1] end
+            end
+            return try_cast(ACTION.FearWard, target, "[HOLY] FearWard (tank protection)")
+        end },
+    },
+}
 
 local strategies = {
  -- FriendlyTarget (Step 0): honor the player's manually-selected friendly target.
@@ -846,51 +936,9 @@ local strategies = {
     return try_cast(spell_id, target, format("[HOLY] Flash Heal %.0f%% (rank %s, penalty %.0f%%)", state.lowest.effective_hp or 0, mana_pct > 30 and "9" or (mana_pct > 15 and "8" or "7"), (penalty or 1) * 100))
    end,
  },
- {
-  name = "DesperatePrayer",
-  matches = function(context, state)
-   if not context.in_combat then return false end
-   if context.player_control_locked then return false end
-   if not spec_kit.setting_bool(context, "holy_use_desperate_prayer", true) then return false end
-   if context.hp > spec_kit.setting_number(context, "holy_desp_prayer_hp", 30) then return false end
-   if not spell_exists(ACTION.DesperatePrayer) or not spell_ready(ACTION.DesperatePrayer, NS.PLAYER_UNIT) then return false end
-   return true
-  end,
-  execute = function()
-   return try_cast(ACTION.DesperatePrayer, NS.PLAYER_UNIT, "[HOLY] Desperate Prayer")
-  end,
- },
- {
-  name = "Shadowfiend",
-  is_gcd_gated = false,
-  is_burst = true,
-  matches = function(context, state)
-   if not context.in_combat then return false end
-   if context.player_control_locked then return false end
-   if not spec_kit.setting_bool(context, "use_shadowfiend", spec_kit.setting_bool(context, "use_cooldowns", true)) then return false end
-   if not state.shadowfiend_ready then return false end
-   -- Mana floor gate: only use Shadowfiend when mana is actually low
-   return context.mana_pct < spec_kit.setting_number(context, "shadowfiend_mana_threshold", 30)
-  end,
-  execute = function()
-   return try_cast(ACTION.Shadowfiend, nil, "[HOLY] Shadowfiend (mana regen)", { skip_range = true })
-  end,
- },
- {
-  name = "ManaPotion",
-  matches = function(context, state)
-   if not context.in_combat then return false end
-   if not spec_kit.setting_bool(context, "use_mana_potions", true) then return false end
-   local threshold = spec_kit.setting_number(context, "mana_potion_threshold", 20)
-   return (state.mana_pct or context.mana_pct or 100) < threshold
-  end,
-  execute = function()
-   if NS.ConsumableManager and NS.ConsumableManager.use_mana_potion then
-    return pcall(NS.ConsumableManager.use_mana_potion, NS.ConsumableManager)
-   end
-   return false
-  end,
- },
+ { name = "DesperatePrayer" },
+ { name = "Shadowfiend", is_gcd_gated = false, is_burst = true },
+ { name = "ManaPotion" },
  {
   name = "DispelMagic",
   matches = function(context, state)
@@ -987,34 +1035,8 @@ local strategies = {
    return try_cast(ACTION.AbolishDisease, state.tank.unit, "[HOLY] Abolish Disease (preventive)")
   end,
  },
- {
-  name = "SymbolOfHope",
-  matches = function(context, state)
-   if not state.symbol_of_hope_ready then return false end
-   if not context.is_group then return false end
-   if context.player_control_locked then return false end
-   return true
-  end,
-  execute = function(_, _state)
-   return try_cast(ACTION.SymbolOfHope, NS.PLAYER_UNIT, "[HOLY] Symbol of Hope")
-  end,
- },
- { name = "FearWard",
-  matches = function(context, state)
-   if state.has_fear_ward then return false end
-   if not state.fear_ward_ready then return false end
-   local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
-   -- always available but prefer when risk (dungeon/raid fear/control protection per WoWHead guides)
-   return true
-  end,
-  execute = function(context, state)
-   local target = (state and state.fear_ward_target) or NS.PLAYER_UNIT
-   if context and context.is_group and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk) then
-    if context.party_tanks and #context.party_tanks > 0 then target = context.party_tanks[1] end
-   end
-   return try_cast(ACTION.FearWard, target, "[HOLY] FearWard (tank protection)")
-  end,
- },
+ { name = "SymbolOfHope" },
+ { name = "FearWard" },
  {
   name = "RenewTank",
   matches = function(context, state)
@@ -1183,19 +1205,7 @@ local strategies = {
   end,
  },
  -- parity Feature: Healthstone
- {
-  name = "Healthstone",
-  matches = healthstone_matches_parity,
-  execute = function(_, state)
-   if state.healthstone_id and state.healthstone_ready then
-    if NS.use_item_by_id then
-     return NS.use_item_by_id(state.healthstone_id)
-    end
-    return try_cast(state.healthstone_id, nil, "[HOLY] Healthstone", { skip_range = true })
-   end
-   return false
-  end,
- },
+ { name = "Healthstone" },
  -- parity Feature: MountedProtection
  {
   name = "MountedProtection",
@@ -1213,9 +1223,29 @@ local strategies = {
    local chosen_spell, spell_label = cast_best_heal_rank(FLASH_HEAL_RANKS, target, context, "Encounter FH", HOLY_OPTS_FH)
    if not chosen_spell then return false end
    return try_cast(chosen_spell, target, format("[HOLY] %s (Encounter) %.0f%%", spell_label, (state.tank_hp or state.lowest_hp or 0)))
-  end,
- },
+  end,  },
 }
+
+-- ============================================================================
+-- Apply DSL definitions to name-only strategy placeholders.
+-- Preserves original extra fields (e.g. is_gcd_gated / is_burst) when present.
+-- ============================================================================
+for i = 1, #strategies do
+    local s = strategies[i]
+    if s and s.name and s.matches == nil then
+        for _, def in ipairs(DSL_DEFS) do
+            if def.name == s.name then
+                local is_gcd_gated = s.is_gcd_gated
+                local is_burst = s.is_burst
+                local compiled = dsl.compile_strategy(def, { get_state = build_state })
+                compiled.is_gcd_gated = is_gcd_gated
+                compiled.is_burst = is_burst
+                strategies[i] = compiled
+                break
+            end
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
  NS.rotation_registry:register("holy", strategies, {
