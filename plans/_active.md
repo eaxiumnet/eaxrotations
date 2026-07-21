@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-21 (Strategy DSL + lazy context landed; 21 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter, affliction warlock; `tests/_staging/` debris cleaned; baseline re-verified 336 rot + 21 leveling = 357 total).
+**Last updated:** 2026-07-21 (Strategy DSL + lazy context landed; 22 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter, affliction warlock, protection warrior; `tests/_staging/` debris cleaned; baseline re-verified 337 rot + 21 leveling = 358 total).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -58,7 +58,7 @@
 
 ## Baseline (ALL GREEN — verified 2026-07-20)
 
-- 336 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +19 from combat/balance/protection/restoration/beast-mastery/shadow/frost/arcane/fire/enhancement/destruction/demonology/bear/elemental/retribution/discipline/survival/marksmanship/affliction DSL adoption suites
+- 337 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +20 from combat/balance/protection/restoration/beast-mastery/shadow/frost/arcane/fire/enhancement/destruction/demonology/bear/elemental/retribution/discipline/survival/marksmanship/affliction/protection-warrior DSL adoption suites
 - 21 leveling suites: ALL PASS — was 17 at 2026-07-10; +4 from leveling ladder + verification
 - 31 vanilla audit: PASS (0 tainted)
 - 61 sylvanas audit: PASS (0 invalid)

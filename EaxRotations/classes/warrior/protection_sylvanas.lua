@@ -15,6 +15,7 @@ do
     if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
 end
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local _inv_ok, inventory_helper = pcall(require, "common/utility/inventory_helper")
 if not _inv_ok or type(inventory_helper) ~= "table" then inventory_helper = nil end
@@ -792,6 +793,96 @@ local function stance_switch_matches_fn(context, state)
 end
 
 -- ============================================================================
+-- Declarative Strategy DSL
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "LastStand",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LastStand, 3.0) then return false end
+                return true
+            end },
+            { type = "in_combat" },
+            { type = "setting", key = "use_last_stand", op = "truthy", default = true },
+            { type = "state", field = "has_last_stand", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                local default_threshold = (state.is_group and 50) or 35
+                local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
+                return (state.hp or 100) <= threshold
+            end },
+        },
+        action = { type = "cast", spell = ACTION.LastStand, target = "self", opts = { skip_range = true, expected_cooldown = FINAL_STAND_CD }, label = "[PROT] LastStand" },
+    },
+    {
+        name = "ShieldWall",
+        conditions = {
+            { type = "in_combat" },
+            { type = "setting", key = "use_shield_wall", op = "truthy", default = true },
+            { type = "state", field = "has_shield_wall", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShieldWall, 3.0) then return false end
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, SHIELD_WALL_CD) then return false end
+                local default_threshold = (state.is_group and 50) or 35
+                local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
+                return (state.hp or 100) <= threshold
+            end },
+        },
+        action = { type = "cast", spell = ACTION.ShieldWall, target = "self", opts = { skip_range = true, expected_cooldown = SHIELD_WALL_CD }, label = "[PROT] ShieldWall" },
+    },
+    {
+        name = "Healthstone",
+        conditions = {
+            { type = "in_combat" },
+            { type = "state", field = "healthstone_ready", op = ">", value = 0 },
+            { type = "hp_threshold", unit = "self", op = "<=", value = 28 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            local id = first_ready_item(HEALTHSTONE_IDS)
+            if id then return NS.use_item_by_id(id, context.me) end
+            return false
+        end },
+    },
+    {
+        name = "BattleShout",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.BattleShout, 3.0) then return false end
+                return true
+            end },
+            { type = "state", field = "has_battle_shout", op = "falsy" },
+            { type = "state", field = "has_commanding_shout", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.BattleShout, target = "self", opts = { skip_range = true }, label = "[PROT] BattleShout" },
+    },
+    {
+        name = "CommandingShout",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CommandingShout, 3.0) then return false end
+                return true
+            end },
+            { type = "setting", key = "use_commanding_shout", op = "truthy", default = false },
+            { type = "state", field = "has_commanding_shout", op = "falsy" },
+            { type = "state", field = "has_battle_shout", op = "falsy" },
+            { type = "state", field = "commanding_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.CommandingShout, target = "self", opts = { skip_range = true }, label = "[PROT] CommandingShout" },
+    },
+    {
+        name = "BerserkerRage",
+        conditions = {
+            { type = "state", field = "berserker_rage_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                local me = context.me or NS.GetPlayer()
+                return is_feared_sapped_or_incapacitated(me) == true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.BerserkerRage, target = "self", opts = { skip_range = true }, label = "[PROT] BerserkerRage" },
+    },
+}
+
+-- ============================================================================
 -- Strategies
 -- ============================================================================
 local strategies = {
@@ -1148,6 +1239,16 @@ local strategies = {
   end,
  },
 }
+
+-- Replace imperative match functions with DSL-compiled equivalents.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("protection", strategies, { get_state = build_state })
