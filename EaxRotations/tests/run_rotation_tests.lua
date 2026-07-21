@@ -170,6 +170,7 @@ local tests = {
     "test_affliction_dsl_priority.lua",
     "test_warrior_protection_dsl_priority.lua",
     "test_bear_dsl_priority.lua",
+    "test_cat_dsl_priority.lua",
     "test_elemental_dsl_priority.lua",
     "test_retribution_dsl_priority.lua",
   "test_schema_compliance.lua",
