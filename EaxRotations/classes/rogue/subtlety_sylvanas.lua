@@ -16,6 +16,7 @@ local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvan
 
 -- spec_kit migration #25
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local define = spec_kit.define_action_for_class(BASE_SPELLS)
 local ACTION = {
     Ambush          = define("Ambush",          { 27441, 11269, 11268, 11267, 8725, 8724, 8676 }, "Ambush"),
@@ -561,40 +562,87 @@ local function fallback_builder_matches(context, state)
     return NS.spell_ready(ACTION.SinisterStrike, context.target)
 end
 
-local strategies = {
-    { name = "HealthPotion",
-      matches = function(context)
-          if not context.in_combat then return false end
-          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
-          if not context.has_health_potion then return false end
-          if (context.hp or 100) > 35 then return false end
-          return true
-      end,
-      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS) end },
-    { name = "DamagePotion",
-      matches = function(context)
-          if not context.in_combat then return false end
-          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
-          if not context.has_damage_potion then return false end
-          if not context.should_burst then return false end
-          return true
-      end,
-      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
+local DSL_DEFS = {
+    {
+        name = "HealthPotion",
+        conditions = {
+            { type = "in_combat" },
+            { type = "setting", key = "use_auto_potions", op = "truthy", default = true },
+            { type = "context", field = "has_health_potion", op = "truthy" },
+            { type = "hp_threshold", op = "<=", value = 35 },
+        },
+        action = { type = "custom", fn = function(context)
+            return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS)
+        end },
+    },
+    {
+        name = "DamagePotion",
+        conditions = {
+            { type = "in_combat" },
+            { type = "setting", key = "use_auto_potions", op = "truthy", default = true },
+            { type = "context", field = "has_damage_potion", op = "truthy" },
+            { type = "context", field = "should_burst", op = "truthy" },
+        },
+        action = { type = "custom", fn = function(context)
+            return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS)
+        end },
+    },
+    {
+        name = "Healthstone",
+        conditions = {
+            { type = "in_combat" },
+            { type = "state", field = "hp", op = "<=", value = 28 },
+            { type = "custom", fn = function(context, state)
+                return (state.healthstone_ready or 0) > 0
+            end },
+        },
+        action = { type = "custom", fn = function(context)
+            local id = first_ready_item(HEALTHSTONE_IDS)
+            if id then NS.use_item_by_id(id, context.me) end
+            return true
+        end },
+    },
+    {
+        name = "Kick",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                return kick_matches(context, state)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Kick, target = "target" },
+    },
+    {
+        name = "ShivPurge",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not shiv_purge_matches(context, state) then return false end
+                context._shiv_purge_name = state.shiv_purge_name
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context)
+            local name = context._shiv_purge_name or "buff"
+            return NS.try_cast(ACTION.Shiv, context.target, "[SUBTLETY] Shiv purge → " .. name, { expected_cooldown = 10 })
+        end },
+    },
+    {
+        name = "CloakOfShadows",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                return cloak_matches(context, state)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.CloakOfShadows, target = "self" },
+    },
+}
 
-	    { name = "Healthstone",
-	      matches = function(context, state)
-	          if not context.in_combat then return false end
-	          if (state.hp or 100) > 28 then return false end
-	          if (state.healthstone_ready or 0) <= 0 then return false end
-	          return true
-	      end,
-      execute = function(context)
-          local id = first_ready_item(HEALTHSTONE_IDS)
-          if id then NS.use_item_by_id(id, context.me) end
-      end },
-    { name = "Kick", matches = kick_matches, execute = function(context) return cast(ACTION.Kick, context.target, "[SUBTLETY] Kick") end },
-    { name = "ShivPurge", matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end, execute = function(context) local name = context._shiv_purge_name or "buff" return cast(ACTION.Shiv, context.target, "[SUBTLETY] Shiv purge → " .. name, { expected_cooldown = 10 }) end },
-    { name = "CloakOfShadows", matches = cloak_matches, execute = function() return cast(ACTION.CloakOfShadows, NS.PLAYER_UNIT, "[SUBTLETY] Cloak of Shadows", { skip_range = true }) end },
+local strategies = {
+    { name = "HealthPotion" },
+    { name = "DamagePotion" },
+    { name = "Healthstone" },
+    { name = "Kick" },
+    { name = "ShivPurge" },
+    { name = "CloakOfShadows" },
     { name = "Evasion", matches = evasion_matches, execute = function() return cast(ACTION.Evasion, NS.PLAYER_UNIT, "[SUBTLETY] Evasion", { skip_range = true }) end },
     { name = "GhostlyStrike", matches = ghostly_strike_matches, execute = function(context) return cast(ACTION.GhostlyStrike, context.target, "[SUBTLETY] Ghostly Strike") end },
     { name = "Blind", matches = blind_matches, execute = function(context) return cast(ACTION.Blind, context.target, "[SUBTLETY] Blind") end },
@@ -624,6 +672,16 @@ local strategies = {
     { name = "Hemorrhage", matches = hemorrhage_matches, execute = function(context) return cast(ACTION.Hemorrhage, context.target, "[SUBTLETY] Hemorrhage") end },
     { name = "SinisterStrikeFallback", matches = fallback_builder_matches, execute = function(context) return cast(ACTION.SinisterStrike, context.target, "[SUBTLETY] Sinister Strike fallback") end },
 }
+
+-- Substitute declarative DSL strategies into the priority list by name.
+local DSL_BY_NAME = {}
+for _, def in ipairs(DSL_DEFS) do DSL_BY_NAME[def.name] = def end
+for i = 1, #strategies do
+    local name = strategies[i].name
+    if DSL_BY_NAME[name] then
+        strategies[i] = dsl.compile_strategy(DSL_BY_NAME[name])
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("subtlety", strategies, { get_state = build_state })
