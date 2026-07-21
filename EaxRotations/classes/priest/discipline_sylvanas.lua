@@ -765,10 +765,13 @@ local DSL_DEFS = {
         name = "PrayerOfMendingTank",
         conditions = {
             { type = "state", field = "pom_ready", op = "truthy" },
+            -- Out-of-combat PoM is only allowed when the prepull setting is true;
+            -- in combat the strategy always proceeds.
+            { type = "OR", conditions = {
+                { type = "in_combat" },
+                { type = "setting", key = "disc_prepull_pom", op = "truthy", default = true }
+            } },
             { type = "custom", fn = function(context, s)
-                if not context.in_combat then
-                    if not spec_kit.setting_bool(context, "disc_prepull_pom", true) then return false end
-                end
                 local target = s.tank or s.lowest
                 if not target then return false end
                 if NS.has_buff and target.unit and NS.has_buff(target.unit, PRAYER_OF_MENDING_BUFF) then return false end
