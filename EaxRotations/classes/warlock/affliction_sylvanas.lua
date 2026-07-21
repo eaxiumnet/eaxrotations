@@ -29,6 +29,7 @@ local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
 if not _planner_ok or type(planner) ~= "table" then planner = nil end
 local SPELLS = NS.WarlockSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local curse_helper = require("shared/warlock_curse_helper_sylvanas")
 local CURSE_REFRESH_WINDOW = curse_helper.CURSE_REFRESH_WINDOW
 
@@ -321,6 +322,7 @@ local AFFL_SCHEMA = {
     -- Pet
     pet_alive = false, pet_health = 100, pet_mana = 100,
     pet_type_imp = false, pet_casting_firebolt = false, has_pet = false,
+    in_combat = false,
     has_demonic_sacrifice = false,
     -- Items
     mana_potion_id = nil, healthstone_id = nil, healthstone_ready = false,
@@ -418,10 +420,10 @@ local function build_state(context)
 	    end
 	    -- Nightfall proc
 	    aff_state.nightfall_active = NS.has_player_buff and NS.has_player_buff(NIGHTFALL_BUFF) or false
-	    -- Resources
-	    aff_state.mana_pct = context.mana_pct or 100
-	    aff_state.hp_pct = context.hp or 100
-	    aff_state.enemy_count = context.enemy_count or 1            -- Pet status (via pet object if available)
+	    -- Resources	aff_state.mana_pct = context.mana_pct or 100
+	aff_state.hp_pct = context.hp or 100
+	aff_state.enemy_count = context.enemy_count or 1
+	aff_state.in_combat = context.in_combat or false            -- Pet status (via pet object if available)
             local pet = context.pet
             if pet then
                 aff_state.pet_alive = (pet.is_alive and pet:is_alive())
@@ -601,6 +603,83 @@ end
 local function broken_api_dot_throttled(spell_id)
     return NS.is_api_health_broken and NS.is_api_health_broken() and NS.recent_spell_cast and NS.recent_spell_cast(spell_id, 2.0)
 end
+-- ============================================================================
+-- Declarative Strategy DSL definitions (6 strategies converted)
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "PetDefensive",
+        conditions = {
+            { type = "state", field = "pet_alive", op = "==", value = true },
+            { type = "in_combat" },
+            { type = "state", field = "pet_health", op = "<=", value = 35 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return pet_manager.set_defensive()
+        end },
+    },
+    {
+        name = "PetPassive",
+        conditions = {
+            { type = "state", field = "pet_alive", op = "==", value = true },
+            { type = "in_combat" },
+            { type = "hp_threshold", unit = "self", op = "<=", value = 25 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return pet_manager.set_passive()
+        end },
+    },
+    {
+        name = "PetAggressive",
+        conditions = {
+            { type = "state", field = "pet_alive", op = "==", value = true },
+            { type = "in_combat" },
+            { type = "state", field = "pet_health", op = ">=", value = 50 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return pet_manager.set_aggressive()
+        end },
+    },
+    {
+        name = "DeathCoilSurvival",
+        conditions = {
+            { type = "context", field = "has_valid_enemy_target", op = "==", value = true },
+            { type = "state", field = "hp_pct", op = "<=", value = 30 },
+            { type = "spell_ready", spell = LOCAL_SPELLS.DeathCoil, target = "target" },
+        },
+        action = { type = "cast", spell = LOCAL_SPELLS.DeathCoil, target = "target", label = "[AFFL] Death Coil (survival + heal)" },
+    },
+    {
+        name = "Healthstone",
+        conditions = {
+            { type = "setting", key = "use_auto_consumables", op = "truthy", default = true },
+            { type = "setting", key = "use_healthstones", op = "truthy", default = true },
+            { type = "custom", fn = function(context, state)
+                local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
+                if threshold <= 0 then return false end
+                return (context.hp or 100) <= threshold
+            end },
+            { type = "context", field = "is_casting", op = "falsy" },
+            { type = "state", field = "healthstone_ready", op = "==", value = true },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return state and state.healthstone_id and NS.use_item_by_id and NS.use_item_by_id(state.healthstone_id) or false
+        end },
+    },
+    {
+        name = "NightfallProc",
+        conditions = {
+            { type = "context", field = "has_valid_enemy_target", op = "==", value = true },
+            { type = "state", field = "nightfall_active", op = "==", value = true },
+            { type = "spell_ready", spell = ACTION.ShadowBolt, target = "target" },
+        },
+        action = { type = "cast", spell = ACTION.ShadowBolt, target = "target", label = "[AFFL] Nightfall instant Shadow Bolt" },
+    },
+}
+
+-- ============================================================================
+-- Strategies
+-- ============================================================================
 local strategies = {
 
     -- Auto Damage Potion — gate on context.has_damage_potion (inventory_helper)
@@ -1424,6 +1503,21 @@ local strategies = {
         end,
     },
 }
+
+-- Substitute any DSL-defined strategies into the priority list by name.
+-- This preserves the existing order while replacing imperative match functions
+-- with their declarative equivalents.
+local dsl_map = {}
+for _, def in ipairs(DSL_DEFS) do
+    dsl_map[def.name] = def
+end
+for i = 1, #strategies do
+    local strat = strategies[i]
+    local dsl_def = dsl_map[strat.name]
+    if dsl_def then
+        strategies[i] = dsl.compile_strategy(dsl_def, { get_state = build_state })
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("affliction", strategies, { get_state = build_state })
