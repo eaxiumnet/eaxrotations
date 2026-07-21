@@ -745,8 +745,10 @@ local DSL_DEFS = {
         name = "EmergencyPowerWordShield",
         conditions = {
             { type = "state", field = "pws_ready", op = "truthy" },
+            -- Declarative default-sensitive check: the strategy fires when the
+            -- setting is false or unset (falsy), and is skipped when true.
+            { type = "setting", key = "disc_shield_tank_only", op = "falsy" },
             { type = "custom", fn = function(context, s)
-                if spec_kit.setting_bool(context, "disc_shield_tank_only", false) then return false end
                 if not s.lowest then return false end
                 if s.tank and s.lowest == s.tank then return false end
                 if (s.lowest.effective_hp or 100) > spec_kit.setting_number(context, "discipline_pws_hp", 35) then return false end
