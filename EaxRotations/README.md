@@ -76,7 +76,7 @@ scripts/
 | ⚔️ **PvP Support** | DR tracking, enemy CD monitoring, burst window detection, arena priority |
 | 🛡️ **Defensive Middleware** | Auto healthstones, potions, and class-specific defensive CDs |
 | ⚙️ **Role-Aware Settings** | PvE / PvP modes with customizable thresholds per spec |
-| 🧪 **334 Regression Tests** | All rotation + leveling suites pass with zero failures |
+| 🧪 **335 Regression Tests** | All rotation + leveling suites pass with zero failures |
 | ⚡ **Performance-Focused** | Cached API calls, squared-distance checks, sub-20ms strategy evaluation |
 | 🧠 **Smart Buff Upgrades** | Auto-detects and refreshes lower-rank party buffs |
 | 🏥 **Healer Engine** | Predictive triage, overheal avoidance, tank bias, shield tracking |
@@ -114,7 +114,7 @@ EaxRotations/
 │   └── ... (50+ modules)
 │
 └── tests/                  # Regression test suite
-    ├── run_rotation_tests.lua    # 334 rotation suites
+    ├── run_rotation_tests.lua    # 335 rotation suites
     ├── run_leveling_tests.lua    # 21 leveling suites
     └── test_*.lua                # Individual test files
 ```

@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-21** (strategy DSL + lazy context landed 2026-07-19; 19 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, elemental shaman, retribution paladin, discipline priest, survival hunter; `tests/_staging/` debris cleaned; baseline re-verified 334 rotation + 21 leveling = 355 total suites green).
+> up to date after every work session. Last updated: **2026-07-21** (strategy DSL + lazy context landed 2026-07-19; 20 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter; `tests/_staging/` debris cleaned; baseline re-verified 335 rotation + 21 leveling = 356 total suites green).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and

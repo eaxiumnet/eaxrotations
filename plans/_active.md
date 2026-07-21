@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-21 (Strategy DSL + lazy context landed; 19 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, elemental shaman, retribution paladin, discipline priest, survival hunter; `tests/_staging/` debris cleaned; baseline re-verified 334 rot + 21 leveling = 355 total).
+**Last updated:** 2026-07-21 (Strategy DSL + lazy context landed; 20 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter; `tests/_staging/` debris cleaned; baseline re-verified 335 rot + 21 leveling = 356 total).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -64,7 +64,7 @@
 - 61 sylvanas audit: PASS (0 invalid)
 - luac -p + pre-commit DBC/vanilla: PASS (617+ files)
 
-> **DSL adoption progress:** 19 of 29 specs on the strategy DSL — arms (`37f4bb01`), fury (`33c77110`), combat rogue (`f280bd72`), balance druid (`cbc60cfe`), protection paladin (`ccc60645`), restoration shaman (`e6ec9143`), beast mastery hunter (`efa0abe4`), shadow priest (`d4172362`), frost mage (`4c77806d`), arcane mage (`fd9e3dd1`), fire mage (`e28be175`), enhancement shaman (`708796b1`), destruction warlock (`3bc689ad`), demonology warlock (`492481cb`), bear druid, elemental shaman, retribution paladin, discipline priest, survival hunter. Each adopted 6–7 strategies via declarative `DSL_DEFS` + in-place substitution. `AGENTS.md` synced to 334+21=355.
+> **DSL adoption progress:** 20 of 29 specs on the strategy DSL — arms (`37f4bb01`), fury (`33c77110`), combat rogue (`f280bd72`), balance druid (`cbc60cfe`), protection paladin (`ccc60645`), restoration shaman (`e6ec9143`), beast mastery hunter (`efa0abe4`), shadow priest (`d4172362`), frost mage (`4c77806d`), arcane mage (`fd9e3dd1`), fire mage (`e28be175`), enhancement shaman (`708796b1`), destruction warlock (`3bc689ad`), demonology warlock (`492481cb`), bear druid, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter. Each adopted 6–7 strategies via declarative `DSL_DEFS` + in-place substitution. `AGENTS.md` synced to 335+21=356.
 
 ---
 
