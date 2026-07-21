@@ -18,6 +18,7 @@ do
 end
 local SPELLS = NS.WarlockSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local curse_helper = require("shared/warlock_curse_helper_sylvanas")
 local CURSE_REFRESH_WINDOW = curse_helper.CURSE_REFRESH_WINDOW
 
@@ -671,6 +672,92 @@ local function rain_of_fire_execute(context)
 end
 
 -- ============================================================================
+-- Declarative Strategy DSL definitions (6 strategies converted)
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "FelArmor",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FelArmor, 3.0) then return false end
+                return true
+            end },
+            { type = "state", field = "has_fel_armor", op = "==", value = false },
+            { type = "state", field = "fel_armor_ready", op = "==", value = true },
+        },
+        action = { type = "cast", spell = ACTION.FelArmor, target = "self", label = "[DEMONOLOGY] Fel Armor" },
+    },
+    {
+        name = "SoulLink",
+        conditions = {
+            { type = "state", field = "has_pet", op = "==", value = true },
+            { type = "state", field = "has_soul_link", op = "==", value = false },
+            { type = "state", field = "soul_link_ready", op = "==", value = true },
+        },
+        action = { type = "cast", spell = 25228, target = "self", label = "[DEMONOLOGY] Soul Link" },
+    },
+    {
+        name = "Corruption",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Corruption, 2.0) then return false end
+                return true
+            end },
+            { type = "context", field = "target", op = "!=", value = nil },
+            { type = "state", field = "corruption_ready", op = "==", value = true },
+            { type = "custom", fn = function(context, state)
+                local remains = NS.debuff_remains and NS.debuff_remains(context.target, CORRUPTION_DEBUFF) or 0
+                return remains <= DOT_REFRESH_WINDOW
+            end },
+            { type = "custom", fn = function(context, state)
+                if context.ttd_known and context.ttd > 0 and context.ttd < 4 then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Corruption, target = "target", label = "[DEMONOLOGY] Corruption" },
+    },
+    {
+        name = "ShadowBolt",
+        conditions = {
+            { type = "context", field = "target", op = "!=", value = nil },
+            { type = "context", field = "is_moving", op = "==", value = false },
+            { type = "state", field = "shadow_bolt_ready", op = "==", value = true },
+        },
+        action = { type = "cast", spell = ACTION.ShadowBolt, target = "target", label = "[DEMONOLOGY] Shadow Bolt" },
+    },
+    {
+        name = "PetDefensive",
+        conditions = {
+            { type = "state", field = "has_pet", op = "==", value = true },
+            { type = "custom", fn = function(context, state)
+                return (context.in_combat or state.in_combat) == true
+            end },
+            { type = "state", field = "pet_hp_pct", op = "<=", value = 35 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return pet_manager.set_defensive()
+        end },
+    },
+    {
+        name = "LifeTap",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if context.is_casting or context.is_channeling then return false end
+                if (NS.time_now() - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then return false end
+                return true
+            end },
+            { type = "state", field = "hp_pct", op = ">", value = 55 },
+            { type = "state", field = "mana_pct", op = "<", value = 65 },
+            { type = "state", field = "life_tap_ready", op = "==", value = true },
+        },
+        action = { type = "custom", fn = function(context, state)
+            _last_life_tap = NS.time_now()
+            return NS.try_cast(ACTION.LifeTap, context.me, "[DEMONOLOGY] Life Tap", { skip_range = true })
+        end },
+    },
+}
+
+-- ============================================================================
 -- Strategies
 -- ============================================================================
 local strategies = {
@@ -685,14 +772,7 @@ local strategies = {
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
     -- Pet State: set defensive when pet HP is critically low
-    { name = "PetDefensive",
-      matches = function(context, state)
-          if not state.has_pet then return false end
-          if not (context.in_combat or state.in_combat) then return false end
-          if (state.pet_hp_pct or 100) > 35 then return false end
-          return true
-      end,
-      execute = function() return pet_manager.set_defensive() end },
+    { name = "PetDefensive" },
     -- Pet State: set passive when player HP critically low (survival mode)
     { name = "PetPassive",
       matches = function(context, state)
@@ -711,8 +791,8 @@ local strategies = {
           return true
       end,
       execute = function() return pet_manager.set_aggressive() end },
-    { name = "FelArmor", matches = fel_armor_matches, execute = function(context) return NS.try_cast(ACTION.FelArmor, context.me, "[DEMONOLOGY] Fel Armor", { skip_range = true }) end },
-    { name = "SoulLink", matches = soul_link_matches, execute = function(context) return NS.try_cast(25228, context.me, "[DEMONOLOGY] Soul Link", { skip_range = true }) end },
+    { name = "FelArmor" },
+    { name = "SoulLink" },
     { name = "SummonFelguard", matches = function(context) return needs_felguard(context, { name = "SummonFelguard", spell = ACTION.SummonFelguard }) end, execute = function(context) return NS.try_cast(ACTION.SummonFelguard, context.me, "[DEMONOLOGY] Summon Felguard", { skip_range = true }) end },
     { name = "SummonImp", matches = function(context) return needs_imp_fallback(context) end, execute = function(context) return NS.try_cast(ACTION.SummonImp, context.me, "[DEMONOLOGY] Summon Imp", { skip_range = true }) end },
     { name = "FelDomination", matches = fel_domination_matches, execute = function(context) return NS.try_cast(ACTION.FelDomination, context.me, "[DEMONOLOGY] Fel Domination", { skip_range = true, expected_cooldown = 900 }) end },
@@ -724,7 +804,7 @@ local strategies = {
     { name = "CurseOfWeakness", matches = curse_of_weakness_matches, execute = function(context) return NS.try_cast(ACTION.CurseOfWeakness, context.target, "[DEMONOLOGY] Curse of Weakness") end },
     { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(context) return NS.try_cast(ACTION.CurseOfAgony, context.target, "[DEMONOLOGY] Curse of Agony") end },
     -- TBC guide order: Corruption > Immolate (higher DPCT, longer DoT) — apply Corruption first when both need refresh.
-    { name = "Corruption", matches = corruption_matches, execute = function(context) return NS.try_cast(ACTION.Corruption, context.target, "[DEMONOLOGY] Corruption") end },
+    { name = "Corruption" },
     { name = "Immolate", matches = immolate_matches, execute = function(context) return NS.try_cast(ACTION.Immolate, context.target, "[DEMONOLOGY] Immolate") end },
     { name = "SiphonLife", matches = siphon_life_matches, execute = function(context) return NS.try_cast(ACTION.SiphonLife, context.target, "[DEMONOLOGY] Siphon Life") end },
     { name = "SeedOfCorruption", matches = seed_of_corruption_matches, execute = function(context) return NS.try_cast(ACTION.SeedOfCorruption, context.target, "[DEMONOLOGY] Seed of Corruption") end },
@@ -735,17 +815,14 @@ local strategies = {
     { name = "RainOfFire", matches = rain_of_fire_matches, execute = rain_of_fire_execute },
     { name = "Hellfire", matches = hellfire_matches, execute = function(context) return NS.try_cast(ACTION.Hellfire, context.me, "[DEMONOLOGY] Hellfire", { skip_range = true }) end },
     { name = "DeathCoil", matches = function(context, state) return death_coil_matches(context, { name = "DeathCoil", spell = ACTION.DeathCoil }) end, execute = function(context) return NS.try_cast(ACTION.DeathCoil, context.target, "[DEMONOLOGY] Death Coil", { expected_cooldown = 120 }) end },
-    { name = "LifeTap", matches = life_tap_matches, execute = function(context)
-        _last_life_tap = NS.time_now()
-        return NS.try_cast(ACTION.LifeTap, context.me, "[DEMONOLOGY] Life Tap", { skip_range = true })
-    end },
+    { name = "LifeTap" },
     { name = "DarkPact", matches = dark_pact_matches, execute = function(context) return NS.try_cast(ACTION.DarkPact, context.me, "[DEMONOLOGY] Dark Pact", { skip_range = true, expected_cooldown = 10 }) end },
     { name = "ShadowWard", matches = shadow_ward_matches, execute = function(context) return NS.try_cast(ACTION.ShadowWard, context.me, "[DEMONOLOGY] Shadow Ward", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "HowlofTerror", matches = howl_of_terror_matches, execute = function(context) return NS.try_cast(ACTION.HowlofTerror, context.me, "[DEMONOLOGY] Howl of Terror", { skip_range = true, expected_cooldown = 40 }) end },
     { name = "Fear", matches = fear_matches, execute = function(context) return NS.try_cast(ACTION.Fear, context.target, "[DEMONOLOGY] Fear") end },
     { name = "Seduction", matches = seduction_matches, execute = function(context) return NS.try_cast(ACTION.Seduction, context.target, "[DEMONOLOGY] Seduction") end },
     { name = "Soulshatter", matches = soulshatter_matches, execute = function(context) return NS.try_cast(ACTION.Soulshatter, context.me, "[DEMONOLOGY] Soulshatter", { skip_range = true }) end },
-    { name = "ShadowBolt", matches = shadow_bolt_matches, execute = function(context) return NS.try_cast(ACTION.ShadowBolt, context.target, "[DEMONOLOGY] Shadow Bolt") end },
+    { name = "ShadowBolt" },
     { name = "Incinerate", matches = incinerate_matches, execute = function(context) return NS.try_cast(ACTION.Incinerate, context.target, "[DEMONOLOGY] Incinerate") end },
     { name = "Healthstone",
       matches = function(context, state)
@@ -762,6 +839,19 @@ local strategies = {
       end,
     },
 }
+
+-- Replace imperative match functions with DSL-compiled equivalents.
+-- The strategies table is static, but we still match by name so future
+-- insertions/deletions in the priority list do not silently break the
+-- substitution indices.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("demonology", strategies, { get_state = build_state })
