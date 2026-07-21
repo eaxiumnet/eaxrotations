@@ -12,6 +12,7 @@ if not NS then return nil end
 local SPELLS = NS.PaladinSpells or {}
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local define = spec_kit.define_action_for_class(SPELLS)
 
 -- Safe spell-ID extraction: handles production spell_action objects (with :id())
@@ -615,13 +616,89 @@ local function solo_damage_enabled(context, s)
  if not (context.is_solo == true or context.is_leveling == true or settings.holy_dps_when_idle == true) then return false end
  local safe_hp = settings.holy_idle_hp or 88
  if s and can_help(s.lowest) and hp_of(s.lowest) < safe_hp then return false end
- if s and (s.mana_pct or 100) < (settings.holy_dps_mana_floor or 35) then return false end
- return true
+ if s and (s.mana_pct or 100) < (settings.holy_dps_mana_floor or 35) then return false end	return true
 end
 
 local function cast_judgement(context, label)
- return NS.try_cast(ACTION.Judgement, context.target, label, EXPECTED_10S)
+	return NS.try_cast(ACTION.Judgement, context.target, label, EXPECTED_10S)
 end
+
+-- ============================================================================
+-- Declarative strategy DSL definitions
+-- Replaces 6 imperative strategies with compiled DSL equivalents while preserving
+-- the existing priority order via name-based substitution.
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "DivineShieldSelfPreservation",
+        conditions = {
+            { type = "state", field = "hp_pct", op = "<=", value = 18 },
+            { type = "state", field = "has_forbearance", op = "falsy" },
+            { type = "spell_ready", spell = ACTION.DivineShield, target = "self", opts = EXPECTED_300S },
+        },
+        action = { type = "custom", fn = function()
+            return NS.try_cast(ACTION.DivineShield, NS.PLAYER_UNIT, "[HOLY] Divine Shield self-preservation", EXPECTED_300S)
+        end },
+    },
+    {
+        name = "DivineIlluminationHeavyHealing",
+        conditions = {
+            { type = "state", field = "has_divine_illumination", op = "falsy" },
+            { type = "OR", conditions = {
+                { type = "state", field = "heavy_healing", op = "truthy" },
+                { type = "state", field = "mana_pct", op = "<=", value = LOW_MANA_PCT },
+            } },
+            { type = "spell_ready", spell = ACTION.DivineIllumination, target = "self", opts = SELF_OPTS },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.DivineIllumination, NS.PLAYER_UNIT, format("[HOLY] Divine Illumination mana %.0f%%", state.mana_pct), SELF_OPTS)
+        end },
+    },
+    {
+        name = "ManaPotion",
+        conditions = {
+            { type = "state", field = "mana_pct", op = "<=", value = POTION_MANA_PCT },
+        },
+        action = { type = "custom", fn = function(context)
+            return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS)
+        end },
+    },
+    {
+        name = "DarkRune",
+        conditions = {
+            { type = "state", field = "mana_pct", op = "<=", value = 18 },
+            { type = "state", field = "hp_pct", op = ">", value = 45 },
+        },
+        action = { type = "custom", fn = function()
+            return try_use_item(DARK_RUNE_IDS, "[HOLY] Dark Rune")
+        end },
+    },
+    {
+        name = "SealOfWisdomLowMana",
+        conditions = {
+            { type = "state", field = "mana_pct", op = "<=", value = LOW_MANA_PCT },
+            { type = "state", field = "has_seal_wisdom", op = "falsy" },
+            { type = "spell_ready", spell = ACTION.SealOfWisdom, target = "self", opts = SELF_OPTS },
+        },
+        action = { type = "custom", fn = function(context, state)
+            return NS.try_cast(ACTION.SealOfWisdom, NS.PLAYER_UNIT, format("[HOLY] Seal of Wisdom mana %.0f%%", state.mana_pct), SELF_OPTS)
+        end },
+    },
+    {
+        name = "Healthstone",
+        conditions = {
+            { type = "in_combat" },
+            { type = "hp_threshold", op = "<=", value = 28 },
+            { type = "state", field = "healthstone_ready", op = ">", value = 0 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            if state.healthstone_ready > 0 and NS.use_item_by_id then
+                return NS.use_item_by_id(state.healthstone_ready, context.me) and true or false
+            end
+            return false
+        end },
+    },
+}
 
 local strategies = {
  -- FriendlyTarget (Step 0): honor the player's manually-selected friendly target.
@@ -660,16 +737,7 @@ local strategies = {
    return cast_on(ACTION.LayOnHands, s.lowest, format("[HOLY] Lay on Hands last resort %.0f%%", hp_of(s.lowest)), EXPECTED_LOH)
   end,
  },
- {
-  name = "DivineShieldSelfPreservation",
-  matches = function(context, s)
-   if (s.hp_pct or 100) > 18 or s.has_forbearance then return false end
-   return NS.spell_ready(ACTION.DivineShield, NS.PLAYER_UNIT, EXPECTED_300S)
-  end,
-  execute = function()
-   return NS.try_cast(ACTION.DivineShield, NS.PLAYER_UNIT, "[HOLY] Divine Shield self-preservation", EXPECTED_300S)
-  end,
- },
+ { name = "DivineShieldSelfPreservation" },
  {
   name = "BlessingOfProtectionFocusedAlly",
   matches = function(_, s)
@@ -748,17 +816,7 @@ local strategies = {
    return cast_on(ACTION.HolyShock, target, format("[HOLY] Holy Shock guaranteed crit %.0f%%", hp_of(target)))
   end,
  },
- {
-  name = "DivineIlluminationHeavyHealing",
-  matches = function(_, s)
-   if s.has_divine_illumination then return false end
-   if not s.heavy_healing and (s.mana_pct or 100) > LOW_MANA_PCT then return false end
-   return NS.spell_ready(ACTION.DivineIllumination, NS.PLAYER_UNIT, SELF_OPTS)
-  end,
-  execute = function(_, s)
-   return NS.try_cast(ACTION.DivineIllumination, NS.PLAYER_UNIT, format("[HOLY] Divine Illumination mana %.0f%%", s.mana_pct), SELF_OPTS)
-  end,
- },
+ { name = "DivineIlluminationHeavyHealing" },
  -- Avenging Wrath: +20% healing (and damage) for 20s on a 3-min CD. Valid TBC
  -- baseline (spell 31884; already used by Ret + Prot). Fire during a heavy-
  -- healing window for max HPS value; gate on a setting + TTD so it isn't wasted.
@@ -882,24 +940,8 @@ local strategies = {
    return cast_on(BlessingOfSacrifice, s.sacrifice_target, "[HOLY] Blessing of Sacrifice on tank")
   end,
  },
- {
-  name = "ManaPotion",
-  matches = function(_, s)
-   return (s.mana_pct or 100) <= POTION_MANA_PCT
-  end,
-  execute = function(context)
-   return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS)
-  end,
- },
- {
-  name = "DarkRune",
-  matches = function(_, s)
-   return (s.mana_pct or 100) <= 18 and (s.hp_pct or 100) > 45
-  end,
-  execute = function()
-   return try_use_item(DARK_RUNE_IDS, "[HOLY] Dark Rune")
-  end,
- },
+ { name = "ManaPotion" },
+ { name = "DarkRune" },
  {
   name = "AuraManagement",
   matches = function(_, s)
@@ -992,16 +1034,7 @@ local strategies = {
    return cast_on(ACTION.FlashOfLight, s.lowest, format("[HOLY] Flash of Light efficient %.0f%%", hp_of(s.lowest)))
   end,
  },
- {
-  name = "SealOfWisdomLowMana",
-  matches = function(_, s)
-   if (s.mana_pct or 100) > LOW_MANA_PCT or s.has_seal_wisdom then return false end
-   return NS.spell_ready(ACTION.SealOfWisdom, NS.PLAYER_UNIT, SELF_OPTS)
-  end,
-  execute = function(_, s)
-   return NS.try_cast(ACTION.SealOfWisdom, NS.PLAYER_UNIT, format("[HOLY] Seal of Wisdom mana %.0f%%", s.mana_pct), SELF_OPTS)
-  end,
- },
+ { name = "SealOfWisdomLowMana" },
  {
   name = "JudgementOfWisdomBoss",
   matches = function(context, s)
@@ -1112,22 +1145,20 @@ local strategies = {
    return NS.try_cast(ACTION.SealRighteousness, NS.PLAYER_UNIT, "[HOLY] Seal of Righteousness idle", SELF_OPTS)
   end,
  },
- {
-  name = "Healthstone",
-  matches = function(context, s)
-   if not context.in_combat then return false end
-   if (context.hp or 100) > 28 then return false end
-   return (s.healthstone_ready or 0) > 0
-  end,
-  execute = function(context)
-   local item_id = first_ready_item(HEALTHSTONE_IDS)
-   if item_id > 0 and NS.use_item_by_id then
-    return NS.use_item_by_id(item_id, context.me) and true or false
-   end
-   return false
-  end,
- },
+ { name = "Healthstone" },
 }
+
+-- Replace the 6 imperative strategies with compiled DSL equivalents by name.
+-- Name-based substitution keeps the priority order intact even when strategies
+-- are inserted or reordered in the future.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("holy", strategies, { get_state = build_state })
