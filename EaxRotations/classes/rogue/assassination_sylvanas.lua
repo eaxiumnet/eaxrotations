@@ -246,40 +246,9 @@ local function build_state(context)
     return spec_kit.safe_state(assassin_state, ASSN_SCHEMA)
 end
 
-local function shiv_purge_matches(context, state)
-    if not spec_kit.setting_bool(context, "use_shiv_purge", true) then return false end
-    if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
-    if not context.in_combat then return false end
-    if not (context.is_pvp or false) then return false end
-    if not context.target then return false end
-    if not (context.in_melee_range or false) then return false end
-    if not state.shiv_ready then return false end
-    if not state.shiv_purge_name then return false end
-    if spec_kit.setting_bool(context, "shiv_purge_pvp_only", true) then
-        local ok, is_player = pcall(function() return context.target:is_player() end)
-        if not (ok and is_player) then return false end
-    end
-    return true
-end
-
-	-- SS builder when Mutilate is unavailable (pre-50 / not talented / leveling).
-	-- Mirrors Druid cat is_low_level pattern: do not assume endgame builders exist.
-	local function assassination_leveling_builder_matches(context, state)
-	    local target = context.target
-	    if not target then return false end
-	    if (state.energy or 0) < 45 then return false end
-	    local level = leveling_helpers.level_from_context(context, 70)
-	    local mutilate_known = NS.spell_exists and NS.spell_exists(ACTION.Mutilate)
-	    -- High-level with Mutilate + daggers: prefer Mutilate path
-	    if not leveling_helpers.is_low_level(level) and not context.is_leveling then
-	        if mutilate_known and state.has_daggers then return false end
-	    end
-	    return NS.spell_ready(ACTION.SinisterStrike, target)
-	end
-
 -- ============================================================================
 -- Declarative strategy DSL definitions
--- Replaces 6 imperative strategies with compiled DSL equivalents while preserving
+-- Replaces 8 imperative strategies with compiled DSL equivalents while preserving
 -- the existing priority order via name-based substitution.
 -- ============================================================================
 local DSL_DEFS = {
@@ -349,6 +318,48 @@ local DSL_DEFS = {
         },
         action = { type = "cast", spell = ACTION.Vanish, target = "self" },
     },
+    {
+        name = "AssassinationShivPurge",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "use_shiv_purge", true) then return false end
+                if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
+                if not context.in_combat then return false end
+                if not (context.is_pvp or false) then return false end
+                if not context.target then return false end
+                if not (context.in_melee_range or false) then return false end
+                if not state.shiv_ready then return false end
+                if not state.shiv_purge_name then return false end
+                if spec_kit.setting_bool(context, "shiv_purge_pvp_only", true) then
+                    local ok, is_player = pcall(function() return context.target:is_player() end)
+                    if not (ok and is_player) then return false end
+                end
+                context._shiv_purge_name = state.shiv_purge_name
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context)
+            local name = context._shiv_purge_name or "buff"
+            return NS.try_cast(ACTION.Shiv, context.target, "[ASSASS] Shiv purge → " .. name, { expected_cooldown = 10 })
+        end },
+    },
+    {
+        name = "LevelingSinisterStrike",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                local target = context.target
+                if not target then return false end
+                if (state.energy or 0) < 45 then return false end
+                local level = leveling_helpers.level_from_context(context, 70)
+                local mutilate_known = NS.spell_exists and NS.spell_exists(ACTION.Mutilate)
+                if not leveling_helpers.is_low_level(level) and not context.is_leveling then
+                    if mutilate_known and state.has_daggers then return false end
+                end
+                return NS.spell_ready(ACTION.SinisterStrike, target)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.SinisterStrike, target = "target", label = "[ASSASS] Sinister Strike leveling" },
+    },
 }
 
 -- ============================================================================
@@ -367,14 +378,7 @@ local strategies = {
     -- PvP: Shiv Purge — dispel 1 magic buff via Wound Poison (BoP, PW:S, etc.)
     -- Ported from middleware/combat/subtlety ShivPurge pattern.
     -- ------------------------------------------------------------------------
-    {
-        name = "AssassinationShivPurge",
-        matches = function(context, state) if shiv_purge_matches(context, state) then context._shiv_purge_name = state.shiv_purge_name return true end return false end,
-        execute = function(context)
-            local name = context._shiv_purge_name or "buff"
-            return NS.try_cast(ACTION.Shiv, context.target, "[ASSASS] Shiv purge → " .. name, { expected_cooldown = 10 })
-        end,
-    },
+    { name = "AssassinationShivPurge" },
 
     -- ------------------------------------------------------------------------
     -- 6. Slice and Dice (100% uptime, refresh when < 3s remains)
@@ -516,13 +520,7 @@ local strategies = {
     -- Research: "+50% damage against poisoned targets, behind-target requirement."
     -- Energy gate: pool below 40 energy (Research floor).
     -- ------------------------------------------------------------------------
-    {
-        name = "LevelingSinisterStrike",
-        matches = assassination_leveling_builder_matches,
-        execute = function(context)
-            return NS.try_cast(ACTION.SinisterStrike, context.target, "[ASSASS] Sinister Strike leveling")
-        end,
-    },
+    { name = "LevelingSinisterStrike" },
     {
         name = "Mutilate",
         matches = function(context, state)
