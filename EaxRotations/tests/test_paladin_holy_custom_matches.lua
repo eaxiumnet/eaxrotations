@@ -28,6 +28,7 @@ _G.EaxRotations = {
         AvengingWrath = 31884,
     },
     PLAYER_UNIT = {},
+    GetPlayer = function() return _G.EaxRotations.PLAYER_UNIT end,
     action_matches = function(ctx, act)
         action_calls[#action_calls + 1] = { fn = "action_matches", ctx = ctx, act = act }
         return true
