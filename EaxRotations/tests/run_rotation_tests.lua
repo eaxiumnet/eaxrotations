@@ -175,6 +175,7 @@ local tests = {
     "test_subtlety_dsl_priority.lua",
     "test_elemental_dsl_priority.lua",
     "test_retribution_dsl_priority.lua",
+    "test_holy_dsl_priority.lua",
   "test_schema_compliance.lua",
  "test_cross_consistency.lua",
  "test_hunter_adaptive_nil_globals.lua",

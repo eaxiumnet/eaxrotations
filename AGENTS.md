@@ -12,7 +12,7 @@
 **Local Path**: `C:\newbot\scripts`
 **Last Updated**: 2026-07-21
 **Specs**: 29 TBC Classic class specializations (all 29 completed)
-**Tests**: 340 rotation suites registered in `run_rotation_tests.lua` + 21 leveling suites in `run_leveling_tests.lua` (361 total)
+**Tests**: 341 rotation suites registered in `run_rotation_tests.lua` + 21 leveling suites in `run_leveling_tests.lua` (362 total)
 
 ---
 
@@ -58,7 +58,7 @@ EaxRotations/
 ├── core_sylvanas.lua          # NS helpers (buff_points, spell_ready, etc.)
 ├── classes/<class>/<spec>_sylvanas.lua  # 29 spec files (flat, one per spec)
 ├── shared/                    # ~50 shared modules (interrupts, consumables, etc.)
-├── tests/                     # ~361 test files (340 rotation + 21 leveling suites)
+├── tests/                     # ~362 test files (341 rotation + 21 leveling suites)
 └── tools/                     # Build/validation scripts
 
 api/                           # Sylvanas API definitions (runtime, .gitignored)
@@ -427,7 +427,7 @@ return { strategies = strategies, build_state = build_state }
 ## Testing Rules
 
 - Run `luac -p` on every modified file before commit
-- Run `lua EaxRotations/tests/run_rotation_tests.lua` — all 340 rotation suites must pass
+- Run `lua EaxRotations/tests/run_rotation_tests.lua` — all 341 rotation suites must pass
 - Run `lua EaxRotations/tests/run_leveling_tests.lua` — all 21 leveling suites must pass
 - `lsp_diagnostics` must show 0 errors on changed files
 
