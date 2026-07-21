@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-20** (strategy DSL + lazy context landed 2026-07-19; 13 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock; `tests/_staging/` debris cleaned; baseline re-verified 328 rotation + 21 leveling = 349 total suites green).
+> up to date after every work session. Last updated: **2026-07-21** (strategy DSL + lazy context landed 2026-07-19; 14 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock; `tests/_staging/` debris cleaned; baseline re-verified 329 rotation + 21 leveling = 350 total suites green).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
@@ -19,7 +19,7 @@ have to context-switch.
 - **Project:** 29 WoW TBC Classic Anniversary (2.5.5.x) + Vanilla Anniversary
   rotation plugins for **Project Sylvanas**, in Lua 5.1/LuaJIT. Repo:
   `https://github.com/eaxiumnet/eaxrotations`. Work dir: `C:\newbot\scripts`.
-- **Baseline is GREEN:** **328 rotation suites + 21 leveling suites (349 total)** pass on
+- **Baseline is GREEN:** **329 rotation suites + 21 leveling suites (350 total)** pass on
   **Lua 5.1**. Don't break this.
 - **What's done (2026-06-27 → 2026-07-20, 288+ commits):**
   - **wowsims APL alignment** for all 29 TBC specs (priority orders grounded in
@@ -42,9 +42,9 @@ have to context-switch.
   - **Plan cleanup** — 44 → 15 active plans (35 archived to `plans/_archive/`).
 - **What's next:** (1) Continue spec_kit migration (only when already editing a
   spec — never big-bang) — ALL 29 specs done; now opportunistic. (1b) Continue
-  strategy DSL adoption — 13 of 29 specs on DSL (arms, fury, combat rogue, balance
-  druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock); a 14th spec
-  from a new class (e.g. affliction warlock or demonology warlock) would continue expanding coverage. (2) `become-1-rotation-system`
+  strategy DSL adoption — 14 of 29 specs on DSL (arms, fury, combat rogue, balance
+  druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock); a 15th spec
+  from a new class (e.g. affliction warlock or a different class entirely) would continue expanding coverage. (2) `become-1-rotation-system`
   roadmap — ground every spec in wowsims/SimC/guides to be #1. (3)
   `spec-standardization` for open-source release. (4) EaxFishing v2.4.0–12
   features. (5) EaxAutoQuester verification (separate product, NOT covered by
