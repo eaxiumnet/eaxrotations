@@ -238,6 +238,64 @@ assert_false(healthstone.matches(make_ctx({ in_combat = true, hp = 20 }), make_s
     "Healthstone skips when no item ready")
 
 -- ============================================================================
+-- Priority order sanity check for expanded strategies
+-- ============================================================================
+local loh = index_of("LayOnHandsLastResort")
+local aw = index_of("AvengingWrathHeavyHealing")
+local lgc = index_of("LightGraceChain")
+
+assert_true(loh > index_of("FriendlyTarget"), "LayOnHandsLastResort after FriendlyTarget")
+assert_true(loh < ds, "LayOnHandsLastResort before DivineShieldSelfPreservation")
+assert_true(aw > di, "AvengingWrathHeavyHealing after DivineIlluminationHeavyHealing")
+assert_true(aw < index_of("HolyShock"), "AvengingWrathHeavyHealing before HolyShock")
+assert_true(lgc > index_of("DivineFavorHolyLightFollowup"), "LightGraceChain after DivineFavorHolyLightFollowup")
+assert_true(lgc < index_of("LightGraceBuild"), "LightGraceChain before LightGraceBuild")
+
+-- ============================================================================
+-- LayOnHandsLastResort equivalence
+-- ============================================================================
+local lay_on_hands = find_strategy("LayOnHandsLastResort")
+assert_true(lay_on_hands.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 10 } })),
+    "LayOnHands matches on lowest with <=12% HP and spell ready")
+assert_false(lay_on_hands.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 50 } })),
+    "LayOnHands skips when lowest HP is above threshold")
+assert_false(lay_on_hands.matches(make_ctx(), make_state({ lowest = nil })),
+    "LayOnHands skips when lowest is nil")
+local original_spell_ready = NS.spell_ready
+NS.spell_ready = function() return false end
+assert_false(lay_on_hands.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 10 } })),
+    "LayOnHands skips when spell is not ready")
+NS.spell_ready = original_spell_ready
+
+-- ============================================================================
+-- AvengingWrathHeavyHealing equivalence
+-- ============================================================================
+local avenging_wrath = find_strategy("AvengingWrathHeavyHealing")
+assert_true(avenging_wrath.matches(make_ctx({ in_combat = true }), make_state({ heavy_healing = true })),
+    "AvengingWrath matches in combat during heavy healing")
+assert_false(avenging_wrath.matches(make_ctx({ in_combat = false }), make_state({ heavy_healing = true })),
+    "AvengingWrath skips out of combat")
+assert_false(avenging_wrath.matches(make_ctx({ in_combat = true, settings = { holy_avenging_wrath = false } }), make_state({ heavy_healing = true })),
+    "AvengingWrath skips when setting disabled")
+assert_false(avenging_wrath.matches(make_ctx({ in_combat = true, ttd_known = true, ttd = 10 }), make_state({ heavy_healing = true })),
+    "AvengingWrath skips when target time-to-die is too short")
+
+-- ============================================================================
+-- LightGraceChain equivalence
+-- ============================================================================
+local light_grace_chain = find_strategy("LightGraceChain")
+assert_true(light_grace_chain.matches(make_ctx({ in_combat = true }), make_state({ lights_grace_remains = 1.8, tank = { unit = "tank1", deficit = 500, effective_hp = 50 } })),
+    "LightGraceChain matches when LG expiring, tank has deficit and spell ready")
+assert_false(light_grace_chain.matches(make_ctx({ in_combat = true }), make_state({ lights_grace_remains = 0, tank = { unit = "tank1", deficit = 500, effective_hp = 50 } })),
+    "LightGraceChain skips when Light's Grace has expired")
+assert_false(light_grace_chain.matches(make_ctx({ in_combat = true }), make_state({ lights_grace_remains = 3.0, tank = { unit = "tank1", deficit = 500, effective_hp = 50 } })),
+    "LightGraceChain skips when Light's Grace buffer is still safe")
+assert_false(light_grace_chain.matches(make_ctx({ in_combat = true }), make_state({ lights_grace_remains = 1.8, tank = nil })),
+    "LightGraceChain skips when no tank is available")
+assert_false(light_grace_chain.matches(make_ctx({ in_combat = true, settings = { holy_lg_chain_enabled = false } }), make_state({ lights_grace_remains = 1.8, tank = { unit = "tank1", deficit = 500, effective_hp = 50 } })),
+    "LightGraceChain skips when setting disabled")
+
+-- ============================================================================
 -- Summary
 -- ============================================================================
 print(string.format("test_holy_dsl_priority: %d passed, %d failed", _pass, _fail))
