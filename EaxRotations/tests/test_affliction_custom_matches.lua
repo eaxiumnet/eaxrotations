@@ -110,6 +110,7 @@ assert_false(death_coil.matches({
 spell_ready_calls = {}
 assert_true(death_coil.matches({
     has_valid_enemy_target = true,
+    target = {},
 }, {
     hp_pct = 25,
 }), "DeathCoil should match when HP <= 30%")
@@ -180,6 +181,7 @@ assert_false(nightfall.matches({
 spell_ready_calls = {}
 assert_true(nightfall.matches({
     has_valid_enemy_target = true,
+    target = {},
 }, {
     nightfall_active = true,
 }), "Nightfall should match with proc and valid target")

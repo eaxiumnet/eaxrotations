@@ -167,6 +167,7 @@ local tests = {
     "test_enhancement_dsl_priority.lua",
     "test_destruction_dsl_priority.lua",
     "test_demonology_dsl_priority.lua",
+    "test_affliction_dsl_priority.lua",
     "test_bear_dsl_priority.lua",
     "test_elemental_dsl_priority.lua",
     "test_retribution_dsl_priority.lua",
