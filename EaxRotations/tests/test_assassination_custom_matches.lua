@@ -114,14 +114,17 @@ at(evis.matches({ target = {}, level = 70, player_level = 70, is_leveling = fals
 -- LevelingSinisterStrike: must fire pre-Mutilate (level 42, daggers, Mutilate not known)
 local lss = fs("LevelingSinisterStrike")
 local saved_exists = NS.spell_exists
-NS.spell_exists = function() return false end  -- Mutilate not learned
-at(lss.matches({ target = {}, level = 42, player_level = 42, is_leveling = true, energy = 60 },
-    cs({ energy = 60, has_daggers = true })),
-    "LevelingSinisterStrike at 42 with daggers when Mutilate unknown")
-NS.spell_exists = function() return true end  -- Mutilate known
-af(lss.matches({ target = {}, level = 70, player_level = 70, is_leveling = false, energy = 60 },
-    cs({ energy = 60, has_daggers = true })),
-    "LevelingSinisterStrike skipped at 70 with Mutilate + daggers")
+local ok_lss, err_lss = pcall(function()
+    NS.spell_exists = function() return false end  -- Mutilate not learned
+    at(lss.matches({ target = {}, level = 42, player_level = 42, is_leveling = true, energy = 60 },
+        cs({ energy = 60, has_daggers = true })),
+        "LevelingSinisterStrike at 42 with daggers when Mutilate unknown")
+    NS.spell_exists = function() return true end  -- Mutilate known
+    af(lss.matches({ target = {}, level = 70, player_level = 70, is_leveling = false, energy = 60 },
+        cs({ energy = 60, has_daggers = true })),
+        "LevelingSinisterStrike skipped at 70 with Mutilate + daggers")
+end)
 NS.spell_exists = saved_exists
+if not ok_lss then error(err_lss) end
 
 print("PASS test_assassination_custom_matches")

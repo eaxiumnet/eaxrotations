@@ -152,9 +152,12 @@ assert_true(execute.matches({}, execute_state_low_hp), "Execute should match whe
 -- Target HP low but insufficient rage -> should NOT match
 local original_get_rage = NS.me.get_rage
 NS.me.get_rage = function() return 5 end
-local execute_state_low_rage = arms.build_state({ in_combat = true, target = { get_health_percentage = function() return 15 end }, settings = {} })
-assert_false(execute.matches({}, execute_state_low_rage), "Execute should not match when rage < 10")
+local ok_rage, err_rage = pcall(function()
+    local execute_state_low_rage = arms.build_state({ in_combat = true, target = { get_health_percentage = function() return 15 end }, settings = {} })
+    assert_false(execute.matches({}, execute_state_low_rage), "Execute should not match when rage < 10")
+end)
 NS.me.get_rage = original_get_rage
+if not ok_rage then error(err_rage) end
 
 -- ============================================================================
 -- Rend refresh behavior: refresh when remaining duration < 3s
@@ -166,16 +169,17 @@ assert_true(rend ~= nil, "Rend strategy should exist")
 -- Rend debuff healthy -> should NOT match
 local original_debuff_remains = NS.debuff_remains
 NS.debuff_remains = function(unit, ids) return 5 end
-local rend_state_healthy = arms.build_state({ in_combat = true, target = {}, settings = {} })
-assert_false(rend.matches({}, rend_state_healthy), "Rend should not match when debuff remains >= 3s")
+local ok_rend_healthy, err_rend_healthy = pcall(function()
+    local rend_state_healthy = arms.build_state({ in_combat = true, target = {}, settings = {} })
+    assert_false(rend.matches({}, rend_state_healthy), "Rend should not match when debuff remains >= 3s")
 
--- Rend debuff about to expire -> should match
-NS.debuff_remains = function(unit, ids) return 2 end
-local rend_state_refresh = arms.build_state({ in_combat = true, target = {}, settings = {} })
-assert_true(rend.matches({}, rend_state_refresh), "Rend should match when debuff remains < 3s")
-
--- Restore mock
+    -- Rend debuff about to expire -> should match
+    NS.debuff_remains = function(unit, ids) return 2 end
+    local rend_state_refresh = arms.build_state({ in_combat = true, target = {}, settings = {} })
+    assert_true(rend.matches({}, rend_state_refresh), "Rend should match when debuff remains < 3s")
+end)
 NS.debuff_remains = original_debuff_remains
+if not ok_rend_healthy then error(err_rend_healthy) end
 
 print("Tests: " .. total_passed .. "/" .. total_tests .. " passed")
 if #failures > 0 then
