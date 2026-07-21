@@ -1,5 +1,5 @@
 -- test_assassination_dsl_priority.lua — Assassination Rogue DSL priority + equivalence test.
--- WHAT:  Verifies that the 6 DSL-converted strategies preserve their priority order
+-- WHAT:  Verifies that the 8 DSL-converted strategies preserve their priority order
 --        and behave equivalently to the original imperative match functions.
 -- WHEN:  Run by the rotation test suite.
 -- WHY:   Regression guard for the 24th strategy DSL adopter (assassination rogue).
@@ -234,5 +234,50 @@ assert_false(vanish.matches(ctx, st), "VanishReopen skips out of combat")
 ctx.in_combat = true
 ctx.threat_pct = 50
 assert_false(vanish.matches(ctx, st), "VanishReopen skips with low threat")
+
+-- ============================================================================
+-- AssassinationShivPurge equivalence
+-- ============================================================================
+local shivpurge = find_strategy("AssassinationShivPurge")
+ctx = {
+    in_combat = true,
+    is_pvp = true,
+    in_melee_range = true,
+    target = { is_player = function() return true end },
+    settings = { use_shiv_purge = true, shiv_purge_pvp_only = false },
+}
+st = { shiv_ready = true, shiv_purge_name = "Power Word: Shield" }
+assert_true(shivpurge.matches(ctx, st), "AssassinationShivPurge matches in PvP melee with purge target")
+ctx.in_combat = false
+assert_false(shivpurge.matches(ctx, st), "AssassinationShivPurge skips out of combat")
+ctx.in_combat = true
+ctx.is_pvp = false
+assert_false(shivpurge.matches(ctx, st), "AssassinationShivPurge skips non-PvP")
+ctx.is_pvp = true
+ctx.in_melee_range = false
+assert_false(shivpurge.matches(ctx, st), "AssassinationShivPurge skips outside melee")
+ctx.in_melee_range = true
+st.shiv_purge_name = nil
+assert_false(shivpurge.matches(ctx, st), "AssassinationShivPurge skips without purge target")
+ctx.shiv_purge_name = "Power Word: Shield"
+st.shiv_purge_name = "Power Word: Shield"
+ctx.settings = { use_shiv_purge = true, shiv_purge_pvp_only = true }
+ctx.target = { is_player = function() return false end }
+assert_false(shivpurge.matches(ctx, st), "AssassinationShivPurge skips PvP-only on non-player target")
+ctx.target = { is_player = function() return true end }
+assert_true(shivpurge.matches(ctx, st), "AssassinationShivPurge matches PvP-only on player target")
+
+-- ============================================================================
+-- LevelingSinisterStrike equivalence
+-- ============================================================================
+local levelingss = find_strategy("LevelingSinisterStrike")
+ctx = { target = {}, settings = {} }
+st = { energy = 50, has_daggers = false }
+assert_true(levelingss.matches(ctx, st), "LevelingSinisterStrike matches with energy and no daggers")
+st.energy = 40
+assert_false(levelingss.matches(ctx, st), "LevelingSinisterStrike skips with low energy")
+st.energy = 50
+st.has_daggers = true
+assert_false(levelingss.matches(ctx, st), "LevelingSinisterStrike skips when Mutilate/daggers available")
 
 print("PASS test_assassination_dsl_priority")
