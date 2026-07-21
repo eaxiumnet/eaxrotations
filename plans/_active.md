@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-21 (Strategy DSL + lazy context landed; 27 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, feral cat druid, assassination rogue, subtlety rogue, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter, affliction warlock, protection warrior, holy paladin, restoration druid; `tests/_staging/` debris cleaned; baseline re-verified 342 rot + 21 leveling = 363 total).
+**Last updated:** 2026-07-22 (Strategy DSL + lazy context landed; 28 DSL adoptions committed — arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, feral cat druid, assassination rogue, subtlety rogue, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter, affliction warlock, protection warrior, holy paladin, restoration druid, holy priest; `tests/_staging/` debris cleaned; baseline re-verified 343 rot + 21 leveling = 364 total).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -58,13 +58,13 @@
 
 ## Baseline (ALL GREEN — verified 2026-07-20)
 
-- 342 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +27 from combat/balance/protection/restoration/beast-mastery/shadow/frost/arcane/fire/enhancement/destruction/demonology/bear/feral-cat/assassination/subtlety/elemental/retribution/discipline/survival/marksmanship/affliction/protection-warrior/holy-paladin/resto-druid DSL adoption suites
+- 343 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +28 from combat/balance/protection/restoration/beast-mastery/shadow/frost/arcane/fire/enhancement/destruction/demonology/bear/feral-cat/assassination/subtlety/elemental/retribution/discipline/survival/marksmanship/affliction/protection-warrior/holy-paladin/resto-druid/holy-priest DSL adoption suites
 - 21 leveling suites: ALL PASS — was 17 at 2026-07-10; +4 from leveling ladder + verification
 - 31 vanilla audit: PASS (0 tainted)
 - 61 sylvanas audit: PASS (0 invalid)
 - luac -p + pre-commit DBC/vanilla: PASS (617+ files)
 
-> **DSL adoption progress:** 27 of 29 specs on the strategy DSL — arms (`37f4bb01`), fury (`33c77110`), combat rogue (`f280bd72`), balance druid (`cbc60cfe`), protection paladin (`ccc60645`), restoration shaman (`e6ec9143`), beast mastery hunter (`efa0abe4`), shadow priest (`d4172362`), frost mage (`4c77806d`), arcane mage (`fd9e3dd1`), fire mage (`e28be175`), enhancement shaman (`708796b1`), destruction warlock (`3bc689ad`), demonology warlock (`492481cb`), bear druid, feral cat druid, assassination rogue, subtlety rogue, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter, affliction warlock, protection warrior, holy paladin, restoration druid. Each adopted 6 strategies via declarative `DSL_DEFS` + in-place substitution. `AGENTS.md` synced to 342+21=363.
+> **DSL adoption progress:** 28 of 29 specs on the strategy DSL — arms (`37f4bb01`), fury (`33c77110`), combat rogue (`f280bd72`), balance druid (`cbc60cfe`), protection paladin (`ccc60645`), restoration shaman (`e6ec9143`), beast mastery hunter (`efa0abe4`), shadow priest (`d4172362`), frost mage (`4c77806d`), arcane mage (`fd9e3dd1`), fire mage (`e28be175`), enhancement shaman (`708796b1`), destruction warlock (`3bc689ad`), demonology warlock (`492481cb`), bear druid, feral cat druid, assassination rogue, subtlety rogue, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter, affliction warlock, protection warrior, holy paladin, restoration druid, holy priest. Each adopted 6 strategies via declarative `DSL_DEFS` + in-place substitution. `AGENTS.md` synced to 343+21=364.
 
 ---
 
