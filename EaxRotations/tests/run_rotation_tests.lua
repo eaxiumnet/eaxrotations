@@ -180,6 +180,7 @@ local tests = {
     "test_resto_dsl_priority.lua",
     "test_caster_dsl_priority.lua",
     "test_smite_dsl_priority.lua",
+    "test_kebab_dsl_priority.lua",
   "test_schema_compliance.lua",
  "test_cross_consistency.lua",
  "test_hunter_adaptive_nil_globals.lua",
