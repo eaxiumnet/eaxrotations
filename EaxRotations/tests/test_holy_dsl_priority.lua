@@ -263,9 +263,12 @@ assert_false(lay_on_hands.matches(make_ctx(), make_state({ lowest = nil })),
     "LayOnHands skips when lowest is nil")
 local original_spell_ready = NS.spell_ready
 NS.spell_ready = function() return false end
-assert_false(lay_on_hands.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 10 } })),
-    "LayOnHands skips when spell is not ready")
+local ok, err = pcall(function()
+    assert_false(lay_on_hands.matches(make_ctx(), make_state({ lowest = { unit = "party1", effective_hp = 10 } })),
+        "LayOnHands skips when spell is not ready")
+end)
 NS.spell_ready = original_spell_ready
+if not ok then error(err) end
 
 -- ============================================================================
 -- AvengingWrathHeavyHealing equivalence
