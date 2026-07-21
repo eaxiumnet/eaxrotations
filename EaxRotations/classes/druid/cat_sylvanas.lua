@@ -696,21 +696,6 @@ local DSL_DEFS = {
     },
 }
 
-local function cat_form_matches(context, action)
-    local state = build_state(context)
-    if state.is_mounted then return false end
-    if NS.has_form and NS.has_form("cat") then return false end
-    if context.stance == STANCE_CAT then return false end
-    if _last_form_shift_time > 0 and (get_now() - _last_form_shift_time) < FORM_SWITCH_COOLDOWN then return false end
-    -- Respect travel form for movement: if we're in travel form, OOC,
-    -- moving toward a distant target, stay in travel form until closer.
-    if not context.in_combat and context.is_moving and (context.target_range or 0) >= TRAVEL_FORM_RANGE then
-        if NS.has_form and NS.has_form("travel") then return false end
-        if context.stance == 4 then return false end
-    end
-    return true
-end
-
 local function prowl_matches(context, action)
     local state = build_state(context)
     if state.in_combat then return false end
@@ -759,23 +744,6 @@ local function stealth_mangle_matches(context, action)
     local state = build_state(context)
     if not state.is_stealthed then return false end
     if state.energy < MANGLE_COST then return false end
-    return true
-end
-
-local function barkskin_matches(context, action)
-    local state = build_state(context)
-    local threshold = spec_kit.setting_number(context, "cat_barkskin_hp", 85)
-    if (state.hp or 100) > threshold then return false end
-    if state.has_barkskin then return false end
-    return true
-end
-
-local function dash_matches(context, action)
-    local state = build_state(context)
-    if state.has_dash then return false end
-    if not state.target or state.target_range <= MELEE_RANGE then return false end
-    if state.target_range > 25 then return false end
-    if not state.is_pvp and state.target_range < TRAVEL_FORM_RANGE then return false end
     return true
 end
 
@@ -1022,20 +990,6 @@ local function claw_matches(context, action)
     return true
 end
 
-local function tigers_fury_matches(context, action)
-    local state = build_state(context)
-    if not state.me and not NS.GetPlayer then return false end
-    if state.has_tigers_fury then return false end
-    if state.target_ttd > 0 and state.target_ttd < SHORT_TTD then return false end
-    local max_energy = safe_method_arg(state.me, "get_max_power", NS.POWER_ENERGY or 3, ENERGY_CAP) or ENERGY_CAP
-    local fury_gain = TIGERS_FURY_ENERGY
-    if not NS.spell_exists then fury_gain = POWERSHIFT_GAIN_WOLFSHEAD end
-    if state.energy + fury_gain > max_energy then return false end
-    if state.energy > ENERGY_CAP - TIGERS_FURY_ENERGY - 5 and state.next_tick_in <= 0.6 then return false end
-    if (state.combo_points or 0) >= 5 and (state.energy or 0) >= RIP_COST then return false end
-    return true
-end
-
 local function berserk_matches(context, action)
     local state = build_state(context)
     if not state.target then return false end
@@ -1087,19 +1041,32 @@ local function wait_execute_execute()
 end
 
 local ACTIONS = {
-    { name = "CatForm", spell = ACTION.CatForm, target = "self", kind = "form", form = "cat", requires_target = false, matches = cat_form_matches },
+    { name = "CatForm", spell = ACTION.CatForm, target = "self", kind = "form", form = "cat", requires_target = false, matches = function(context)
+        local state = build_state(context)
+        if state.is_mounted then return false end
+        if NS.has_form and NS.has_form("cat") then return false end
+        if context.stance == STANCE_CAT then return false end
+        if _last_form_shift_time > 0 and (get_now() - _last_form_shift_time) < FORM_SWITCH_COOLDOWN then return false end
+        -- Respect travel form for movement: if we're in travel form, OOC,
+        -- moving toward a distant target, stay in travel form until closer.
+        if not context.in_combat and context.is_moving and (context.target_range or 0) >= TRAVEL_FORM_RANGE then
+            if NS.has_form and NS.has_form("travel") then return false end
+            if context.stance == 4 then return false end
+        end
+        return true
+    end },
     { name = "TravelForm", spell = ACTION.TravelForm, target = "self", kind = "form", form = "travel", requires_target = false, matches = travel_form_matches },
     { name = "TrackHumanoids", spell = ACTION.TrackHumanoids, target = "self", kind = "buff", buff = TRACK_HUMANOIDS_BUFF, required_form = "cat", requires_target = false, matches = track_humanoids_matches },
     { name = "Prowl", spell = ACTION.Prowl, target = "self", kind = "buff", buff = PROWL_BUFF, ooc = true, required_form = "cat", requires_target = false, matches = prowl_matches },
 
-    { name = "Barkskin", spell = ACTION.Barkskin, target = "self", required_form = "cat", requires_target = false, matches = barkskin_matches },
+    { name = "Barkskin", spell = ACTION.Barkskin, target = "self", required_form = "cat", requires_target = false, matches = function() return false end },
 
     { name = "PounceOpener", spell = ACTION.Pounce, requires_buff = PROWL_BUFF, required_form = "cat", min_energy = POUNCE_COST, matches = pounce_matches },
     { name = "RavageOpener", spell = ACTION.Ravage, requires_buff = PROWL_BUFF, required_form = "cat", requires_behind = true, min_energy = RAVAGE_COST, matches = ravage_matches },
     { name = "StealthShred", spell = ACTION.Shred, requires_buff = PROWL_BUFF, required_form = "cat", requires_behind = true, min_energy = SHRED_COST, matches = stealth_shred_matches },
     { name = "StealthMangle", spell = ACTION.MangleCat, requires_buff = PROWL_BUFF, required_form = "cat", min_energy = MANGLE_COST, matches = stealth_mangle_matches },
 
-    { name = "Dash", spell = ACTION.Dash, target = "self", required_form = "cat", requires_target = false, matches = dash_matches },
+    { name = "Dash", spell = ACTION.Dash, target = "self", required_form = "cat", requires_target = false, matches = function() return false end },
     { name = "FeralChargeCat", spell = ACTION.FeralCharge, target = "self", required_form = "cat", requires_target = false, matches = function(context) return context.in_combat and context.target and context.target_range and context.target_range >= 8 and context.target_range <= 25 end },
 
     { name = "MaimInterrupt", spell = ACTION.Maim, required_form = "cat", min_energy = MAIM_COST, min_combo = 1, matches = maim_interrupt_matches },
@@ -1115,7 +1082,7 @@ local ACTIONS = {
     { name = "BiteTrick", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 5, matches = bite_trick_matches },
     { name = "MaimControl", spell = ACTION.Maim, required_form = "cat", min_energy = MAIM_COST, min_combo = 3, matches = maim_control_matches },
 
-    { name = "TigersFury", spell = ACTION.TigersFury, target = "self", required_form = "cat", requires_target = false, cooldown = 30, matches = tigers_fury_matches },
+    { name = "TigersFury", spell = ACTION.TigersFury, target = "self", required_form = "cat", requires_target = false, cooldown = 30, matches = function() return false end },
     { name = "Berserk", spell = ACTION.Berserk, target = "self", required_form = "cat", requires_target = false, cooldown = 180, matches = berserk_matches },
     { name = "Powershift", spell = ACTION.CatForm, target = "self", skip_gcd = true, requires_target = false, matches = powershift_matches },
     { name = "EmergencyPowershift", spell = ACTION.CatForm, target = "self", skip_gcd = true, requires_target = false, matches = emergency_powershift_matches },
@@ -1131,24 +1098,8 @@ local ACTIONS = {
 }
 
 local strategies = {
-    { name = "HealthPotion",
-      matches = function(context)
-          if not context.in_combat then return false end
-          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
-          if not context.has_health_potion then return false end
-          if (context.hp or 100) > 35 then return false end
-          return true
-      end,
-      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.HEALTH_POTION_IDS) end },
-    { name = "ManaPotion",
-      matches = function(context)
-          if not context.in_combat then return false end
-          if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
-          if not context.has_mana_potion then return false end
-          if (context.mana_pct or 100) > 20 then return false end
-          return true
-      end,
-      execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+    { name = "HealthPotion" },
+    { name = "ManaPotion" },
     { name = "EngineeringBomb",
       matches = function(context, s)
           if not engineering then return false end
