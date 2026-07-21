@@ -11,6 +11,7 @@ local SPELLS = NS.HunterSpells or {}
 
 -- spec_kit migration #23
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local define = spec_kit.define_action_for_class(SPELLS)
 local ACTION = {
     AimedShot        = define("AimedShot",        { 27065, 20904, 20903, 20902, 20901, 20900, 19434 }, "AimedShot"),
@@ -475,7 +476,7 @@ local strategies = {
           local id = first_ready_item(HEALTHSTONE_IDS)
           if id then NS.use_item_by_id(id, ctx.me) end
       end },
-    { name = "MendPet", matches = mend_pet_matches, execute = function(context) return NS.try_cast(ACTION.MendPet, context.pet or (NS.GetPet and NS.GetPet()) or context.me, "[MARKSMANSHIP] Mend Pet", { skip_range = true }) end },
+    { name = "MendPet" },
     -- Deterrence -- emergency dodge/parry when critically low
     { name = "Deterrence",
       matches = function(context, state)
@@ -521,16 +522,16 @@ local strategies = {
       execute = function() return pet_manager.set_aggressive() end },
     { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) local r = NS.try_cast(ACTION.AspectOfTheHawk, context.me, "[MARKSMANSHIP] Aspect of the Hawk", { skip_range = true }); if r then _last_aspect_hawk_cast = NS.time_now() end; return r end },
     { name = "AspectOfTheViper", matches = aspect_viper_matches, execute = function(context) return NS.try_cast(ACTION.AspectOfTheViper, context.me, "[MARKSMANSHIP] Aspect of the Viper", { skip_range = true }) end },
-    { name = "FreezingTrap", matches = freezing_trap_matches, execute = function(context) return NS.try_cast(ACTION.FreezingTrap, context.me, "[MARKSMANSHIP] Freezing Trap", { skip_range = true, expected_cooldown = 30 }) end },
-    { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return NS.try_cast(ACTION.HuntersMark, context.target, "[MARKSMANSHIP] Hunter's Mark") end },
-    { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(ACTION.RapidFire, context.me, "[MARKSMANSHIP] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },
+    { name = "FreezingTrap" },
+    { name = "HuntersMark" },
+    { name = "RapidFire" },
     { name = "TrueshotAura", matches = trueshot_aura_matches, execute = function(context) return NS.try_cast(ACTION.TrueshotAura, context.me, "[MARKSMANSHIP] Trueshot Aura", { skip_range = true, expected_cooldown = 120 }) end },
     { name = "BestialWrath", matches = bestial_wrath_matches, execute = function(context) local pet = context.pet or (NS.GetPet and NS.GetPet()) or context.me; return NS.try_cast(ACTION.BestialWrath, pet, "[MARKSMANSHIP] Bestial Wrath", { skip_range = true, expected_cooldown = 120 }) end },
     { name = "Readiness", matches = readiness_matches, execute = function(context) return NS.try_cast(ACTION.Readiness, context.me, "[MARKSMANSHIP] Readiness", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "InCombatAimedShot", matches = in_combat_aimed_shot_matches, execute = function(context) if NS.try_cast(ACTION.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "AimedShotPrepull", matches = aimed_shot_prepull_matches, execute = function(context) if NS.try_cast(ACTION.AimedShot, context.target, "[MARKSMANSHIP] Aimed Shot (prepull)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
-    { name = "KillCommand", matches = kill_command_matches, execute = function(context) return NS.try_cast(ACTION.KillCommand, context.target, "[MARKSMANSHIP] Kill Command", { expected_cooldown = 5, skip_gcd = true }) end },
-    { name = "FeignDeath", matches = feign_death_matches, execute = function(context) return NS.try_cast(ACTION.FeignDeath, context.me, "[MARKSMANSHIP] Feign Death", { skip_range = true, expected_cooldown = 30 }) end },
+    { name = "KillCommand" },
+    { name = "FeignDeath" },
     { name = "LevelingArcaneShot", matches = leveling_arcane_shot_matches, execute = function(context) if NS.try_cast(ACTION.ArcaneShot, context.target, "[MARKSMANSHIP] Arcane Shot (leveling)", { expected_cooldown = 6 }) then record_manual_shot() return true end return false end },
     { name = "LevelingSting", matches = leveling_sting_matches, execute = function(context) return NS.try_cast(ACTION.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting (leveling)") end },
     { name = "AdaptiveRotation", matches = function(c) return NS.HunterAdaptive and (spec_kit.setting_bool(c, "use_adaptive_rotation", false)) and c.in_combat and c.target end, execute = function(c) return (NS.create_adaptive_rotation_strategy and NS.create_adaptive_rotation_strategy()(c)) or false end },
@@ -551,6 +552,82 @@ local strategies = {
     { name = "RaptorStrike", matches = raptor_strike_matches, execute = function(context) return NS.try_cast(ACTION.RaptorStrike, context.target, "[MARKSMANSHIP] Raptor Strike") end },
     { name = "WingClip", matches = wing_clip_matches, execute = function(context) return NS.try_cast(ACTION.WingClip, context.target, "[MARKSMANSHIP] Wing Clip") end },
 }
+
+-- ============================================================================
+-- Strategy DSL definitions (20th DSL adopter — marksmanship hunter).
+-- Converts 6 strategies to declarative DSL, preserving priority order via
+-- in-place substitution.
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "MendPet",
+        conditions = {
+            { type = "state", field = "pet_alive", value = true },
+            { type = "state", field = "pet_hp_pct", op = "<=", value = 45 },
+            { type = "state", field = "mend_pet_ready", value = true },
+        },
+        execute = function(context)
+            return NS.try_cast(ACTION.MendPet, context.pet or (NS.GetPet and NS.GetPet()) or context.me, "[MARKSMANSHIP] Mend Pet", { skip_range = true })
+        end,
+    },
+    {
+        name = "HuntersMark",
+        conditions = {
+            { type = "state", field = "has_hunters_mark", value = false },
+            { type = "state", field = "hunters_mark_ready", value = true },
+        },
+        action = { type = "cast", spell = ACTION.HuntersMark, target = "target", label = "[MARKSMANSHIP] Hunter's Mark" },
+    },
+    {
+        name = "RapidFire",
+        conditions = {
+            { type = "setting", key = "use_cooldowns", op = "truthy", default = true },
+            { type = "state", field = "in_combat", value = true },
+            { type = "state", field = "rapid_fire_ready", value = true },
+            { type = "custom", fn = function(context, state)
+                if context.ttd_known and (context.ttd or 0) < 15 then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.RapidFire, target = "self", opts = { skip_range = true, expected_cooldown = 300 }, label = "[MARKSMANSHIP] Rapid Fire" },
+    },
+    {
+        name = "KillCommand",
+        conditions = {
+            { type = "state", field = "in_combat", value = true },
+            { type = "state", field = "pet_alive", value = true },
+            { type = "state", field = "kill_command_ready", value = true },
+        },
+        action = { type = "cast", spell = ACTION.KillCommand, target = "target", opts = { expected_cooldown = 5, skip_gcd = true }, label = "[MARKSMANSHIP] Kill Command" },
+    },
+    {
+        name = "FeignDeath",
+        conditions = {
+            { type = "state", field = "in_combat", value = true },
+            { type = "state", field = "feign_death_ready", value = true },
+        },
+        action = { type = "cast", spell = ACTION.FeignDeath, target = "self", opts = { skip_range = true, expected_cooldown = 30 }, label = "[MARKSMANSHIP] Feign Death" },
+    },
+    {
+        name = "FreezingTrap",
+        conditions = {
+            { type = "state", field = "in_combat", value = false },
+            { type = "state", field = "freezing_trap_ready", value = true },
+        },
+        action = { type = "cast", spell = ACTION.FreezingTrap, target = "self", opts = { skip_range = true, expected_cooldown = 30 }, label = "[MARKSMANSHIP] Freezing Trap" },
+    },
+}
+
+-- Substitute DSL-compiled strategies into the list via name matching.
+local dsl_map = {}
+for _, def in ipairs(DSL_DEFS) do
+    dsl_map[def.name] = def
+end
+for i, strat in ipairs(strategies) do
+    if dsl_map[strat.name] then
+        strategies[i] = dsl.compile_strategy(dsl_map[strat.name], { get_state = build_state })
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("marksmanship", strategies, { get_state = build_state })
