@@ -4,8 +4,8 @@
 --        Hamstring PvP root, stance management, Shield Wall/Retaliation defensives.
 -- WHEN:  combat with a valid enemy target; Battle Stance default, Berserker for Intercept/Pummel.
 -- WHY:   mirrors SimulationCraft / wowsims WotLK Arms APL with 3.3.5a-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); all match functions return
---         explicit booleans; no on_update() allocations; cooldown reads guarded for raw-ID fallbacks.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace imperative
+--         match functions; no on_update() allocations; cooldown reads guarded for raw-ID fallbacks.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -17,6 +17,7 @@ do
 end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
@@ -183,203 +184,250 @@ local function build_state(context)
 end
 
 -- -----------------------------------------------------------------------------
--- Match functions (one per strategy). Each returns an explicit boolean.
+-- Declarative Strategy DSL definitions
 -- -----------------------------------------------------------------------------
-
--- Shield Wall: defensive emergency when HP < 30%.
-local function shield_wall_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.shieldwall_ready then return false end
-    if (state.hp or 100) >= 30 then return false end
-    return true
-end
-
--- Retaliation: boss offensive cooldown.
-local function retaliation_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.retaliation_ready then return false end
-    if not state.is_boss then return false end
-    if (state.rage or 0) < 10 then return false end
-    return true
-end
-
--- Battle Shout: maintain the buff when it is not up.
-local function battle_shout_matches(context, state)
-    if state.battle_shout_up then return false end
-    return true
-end
-
--- Charge: opener / gap closer when out of combat and target is in Charge range.
-local function charge_matches(context, state)
-    if state.in_combat then return false end
-    if not state.charge_ready then return false end
-    local dist = (state.target_distance or 0)
-    if dist < 8 or dist > 25 then return false end
-    return true
-end
-
--- Berserker Stance: switch when we need Intercept (far target) or Pummel (target casting).
-local function berserker_stance_matches(context, state)
-    if not state.in_combat then return false end
-    if (state.stance or STANCE.BATTLE) == STANCE.BERSERKER then return false end
-    local dist = (state.target_distance or 0)
-    local need_intercept = dist >= 8 and dist <= 25 and state.intercept_ready
-    local need_pummel = state.target_casting and target_is_interruptible(context.target) and state.pummel_ready
-    if need_intercept or need_pummel then return true end
-    return false
-end
-
--- Battle Stance: switch back to the default stance when Battle-only abilities are needed.
-local function battle_stance_matches(context, state)
-    if not state.in_combat then return false end
-    if (state.stance or STANCE.BATTLE) == STANCE.BATTLE then return false end
-    -- Return to Battle when Rend needs refreshing or Overpower is proc'd/available.
-    if (state.rend_remains or 0) < REND_REFRESH_SECONDS then return true end
-    if state.overpower_ready then return true end
-    return false
-end
-
--- Intercept: gap closer in Berserker Stance when target is far.
-local function intercept_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.intercept_ready then return false end
-    local dist = (state.target_distance or 0)
-    if dist < 8 or dist > 25 then return false end
-    if (state.rage or 0) < 10 then return false end
-    return true
-end
-
--- Pummel: interrupt a casting target (requires Berserker Stance).
-local function pummel_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.target_casting then return false end
-    if not target_is_interruptible(context.target) then return false end
-    if not state.pummel_ready then return false end
-    return true
-end
-
--- Rend: maintain the bleed, refresh when remaining < 5s.
-local function rend_matches(context, state)
-    if not state.in_combat then return false end
-    if (state.rage or 0) < 10 then return false end
-    if (state.rend_remains or 0) >= REND_REFRESH_SECONDS then return false end
-    return true
-end
-
--- Mortal Strike: primary attack, on cooldown.
-local function mortal_strike_matches(context, state)
-    if not state.in_combat then return false end
-    if (state.ms_cd or 99) > 0 then return false end
-    if (state.rage or 0) < 30 then return false end
-    return true
-end
-
--- Overpower: when Taste for Blood procs or the ability is available.
-local function overpower_matches(context, state)
-    if not state.in_combat then return false end
-    if (state.rage or 0) < 5 then return false end
-    if state.overpower_ready then return true end
-    if (state.overpower_cd or 99) <= 0 then return true end
-    return false
-end
-
--- Execute: when target is below 20% HP.
-local function execute_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.execute_ready then return false end
-    if (state.rage or 0) < EXECUTE_RAGE_MIN then return false end
-    return true
-end
-
--- Sweeping Strikes: AoE setup when 2+ near primary target.
-local function sweeping_strikes_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.sweeping_ready then return false end
-    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context and context.target, context, state)) then
-        return false
-    end
-    if (state.rage or 0) < 30 then return false end
-    return true
-end
-
--- Bladestorm: on cooldown for boss fights or AoE (2+ in melee volume).
-local function bladestorm_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.bladestorm_ready then return false end
-    if (state.rage or 0) < 25 then return false end
-    local aoe = NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)
-    if not (state.is_boss or aoe) then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 90) then return false end
-    return true
-end
-
--- Thunder Clap: 8yd self PBAoE attack-speed slow for AoE pulls.
-local function thunder_clap_matches(context, state)
-    if not state.in_combat then return false end
-    if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
-        return false
-    end
-    if (state.tclap_remains or 0) >= 3 then return false end
-    if (state.rage or 0) < 20 then return false end
-    return true
-end
-
--- Demoralizing Shout: maintain the attack-power debuff.
-local function demoralizing_shout_matches(context, state)
-    if not state.in_combat then return false end
-    if (state.demo_remains or 0) >= 3 then return false end
-    if (state.rage or 0) < 10 then return false end
-    return true
-end
-
--- Hamstring: PvP root, maintain the snare in PvP mode.
-local function hamstring_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.is_pvp then return false end
-    if (state.hamstring_remains or 0) >= 3 then return false end
-    if (state.rage or 0) < 10 then return false end
-    return true
-end
-
--- Slam: rage dump / filler when nothing else is available and not moving.
-local function slam_matches(context, state)
-    if not state.in_combat then return false end
-    if state.is_moving then return false end
-    if (state.rage or 0) < SLAM_RAGE_MIN then return false end
-    return true
-end
-
--- Heroic Strike: high-rage dump (queued next swing) when rage is abundant.
-local function heroic_strike_matches(context, state)
-    if not state.in_combat then return false end
-    if (state.rage or 0) < HEROIC_RAGE_MIN then return false end
-    return true
-end
+local DSL_DEFS = {
+    {
+        name = "ShieldWall",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "shieldwall_ready", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.ShieldWall, target = "self" },
+    },
+    {
+        name = "Retaliation",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "retaliation_ready", op = "truthy" },
+            { type = "state", field = "is_boss", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Retaliation, target = "self" },
+    },
+    {
+        name = "BattleShout",
+        conditions = {
+            { type = "state", field = "battle_shout_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.BattleShout, target = "self" },
+    },
+    {
+        name = "Charge",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "charge_ready", op = "truthy" },
+            { type = "distance", op = ">=", value = 8 },
+            { type = "distance", op = "<=", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.Charge, target = "target" },
+    },
+    {
+        name = "BerserkerStance",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if (state.stance or STANCE.BATTLE) == STANCE.BERSERKER then return false end
+                local dist = (state.target_distance or 0)
+                local need_intercept = dist >= 8 and dist <= 25 and state.intercept_ready
+                local need_pummel = state.target_casting and target_is_interruptible(context.target) and state.pummel_ready
+                return need_intercept or need_pummel
+            end },
+        },
+        action = { type = "cast", spell = ACTION.BerserkerStance, target = "self" },
+    },
+    {
+        name = "BattleStance",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if (state.stance or STANCE.BATTLE) == STANCE.BATTLE then return false end
+                if (state.rend_remains or 0) < REND_REFRESH_SECONDS then return true end
+                if state.overpower_ready then return true end
+                return false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.BattleStance, target = "self" },
+    },
+    {
+        name = "Intercept",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "intercept_ready", op = "truthy" },
+            { type = "distance", op = ">=", value = 8 },
+            { type = "distance", op = "<=", value = 25 },
+            { type = "state", field = "rage", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Intercept, target = "target" },
+    },
+    {
+        name = "Pummel",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_casting", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                return target_is_interruptible(context.target)
+            end },
+            { type = "state", field = "pummel_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Pummel, target = "target" },
+    },
+    {
+        name = "Rend",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 10 },
+            { type = "state", field = "rend_remains", op = "<", value = REND_REFRESH_SECONDS },
+        },
+        action = { type = "cast", spell = ACTION.Rend, target = "target" },
+    },
+    {
+        name = "MortalStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "ms_cd", op = "<=", value = 0 },
+            { type = "state", field = "rage", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.MortalStrike, target = "target" },
+    },
+    {
+        name = "Overpower",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 5 },
+            { type = "custom", fn = function(context, state)
+                if state.overpower_ready then return true end
+                if (state.overpower_cd or 99) <= 0 then return true end
+                return false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Overpower, target = "target" },
+    },
+    {
+        name = "Execute",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "execute_ready", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = EXECUTE_RAGE_MIN },
+        },
+        action = { type = "cast", spell = ACTION.Execute, target = "target" },
+    },
+    {
+        name = "SweepingStrikes",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "sweeping_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context and context.target, context, state)) then
+                    return false
+                end
+                return (state.rage or 0) >= 30
+            end },
+        },
+        action = { type = "cast", spell = ACTION.SweepingStrikes, target = "self" },
+    },
+    {
+        name = "Bladestorm",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "bladestorm_ready", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 25 },
+            { type = "custom", fn = function(context, state)
+                local aoe = NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)
+                if not (state.is_boss or aoe) then return false end
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 90) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Bladestorm, target = "target" },
+    },
+    {
+        name = "ThunderClap",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
+                    return false
+                end
+                if (state.tclap_remains or 0) >= 3 then return false end
+                return (state.rage or 0) >= 20
+            end },
+        },
+        action = { type = "cast", spell = ACTION.ThunderClap, target = "target" },
+    },
+    {
+        name = "DemoralizingShout",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "demo_remains", op = "<", value = 3 },
+            { type = "state", field = "rage", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.DemoralizingShout, target = "target" },
+    },
+    {
+        name = "Hamstring",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "is_pvp", op = "truthy" },
+            { type = "state", field = "hamstring_remains", op = "<", value = 3 },
+            { type = "state", field = "rage", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Hamstring, target = "target" },
+    },
+    {
+        name = "Slam",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "is_moving", op = "falsy" },
+            { type = "state", field = "rage", op = ">=", value = SLAM_RAGE_MIN },
+        },
+        action = { type = "cast", spell = ACTION.Slam, target = "target" },
+    },
+    {
+        name = "HeroicStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = HEROIC_RAGE_MIN },
+        },
+        action = { type = "cast", spell = ACTION.HeroicStrike, target = "target" },
+    },
+}
 
 -- -----------------------------------------------------------------------------
--- Strategy table (ordered priority list — first match wins each tick)
+-- Strategies (name-only placeholders; substituted by DSL)
 -- -----------------------------------------------------------------------------
 local strategies = {
-    { name = "ShieldWall",        matches = shield_wall_matches,        execute = function(ctx) return ACTION.ShieldWall and ACTION.ShieldWall:cast_safe() end },
-    { name = "Retaliation",       matches = retaliation_matches,         execute = function(ctx) return ACTION.Retaliation and ACTION.Retaliation:cast_safe() end },
-    { name = "BattleShout",       matches = battle_shout_matches,        execute = function(ctx) return ACTION.BattleShout and ACTION.BattleShout:cast_safe() end },
-    { name = "Charge",            matches = charge_matches,              execute = function(ctx) return ACTION.Charge and ACTION.Charge:cast_safe(ctx.target) end },
-    { name = "BerserkerStance",   matches = berserker_stance_matches,    execute = function(ctx) return ACTION.BerserkerStance and ACTION.BerserkerStance:cast_safe() end },
-    { name = "BattleStance",      matches = battle_stance_matches,       execute = function(ctx) return ACTION.BattleStance and ACTION.BattleStance:cast_safe() end },
-    { name = "Intercept",         matches = intercept_matches,           execute = function(ctx) return ACTION.Intercept and ACTION.Intercept:cast_safe(ctx.target) end },
-    { name = "Pummel",            matches = pummel_matches,              execute = function(ctx) return ACTION.Pummel and ACTION.Pummel:cast_safe(ctx.target) end },
-    { name = "Rend",              matches = rend_matches,                execute = function(ctx) return ACTION.Rend and ACTION.Rend:cast_safe(ctx.target) end },
-    { name = "MortalStrike",      matches = mortal_strike_matches,       execute = function(ctx) return ACTION.MortalStrike and ACTION.MortalStrike:cast_safe(ctx.target) end },
-    { name = "Overpower",         matches = overpower_matches,           execute = function(ctx) return ACTION.Overpower and ACTION.Overpower:cast_safe(ctx.target) end },
-    { name = "Execute",           matches = execute_matches,             execute = function(ctx) return ACTION.Execute and ACTION.Execute:cast_safe(ctx.target) end },
-    { name = "SweepingStrikes",   matches = sweeping_strikes_matches,    execute = function(ctx) return ACTION.SweepingStrikes and ACTION.SweepingStrikes:cast_safe() end },
-    { name = "Bladestorm",        matches = bladestorm_matches,          execute = function(ctx) return ACTION.Bladestorm and ACTION.Bladestorm:cast_safe() end },
-    { name = "ThunderClap",       matches = thunder_clap_matches,        execute = function(ctx) return ACTION.ThunderClap and ACTION.ThunderClap:cast_safe(ctx.target) end },
-    { name = "DemoralizingShout", matches = demoralizing_shout_matches,  execute = function(ctx) return ACTION.DemoralizingShout and ACTION.DemoralizingShout:cast_safe(ctx.target) end },
-    { name = "Hamstring",         matches = hamstring_matches,           execute = function(ctx) return ACTION.Hamstring and ACTION.Hamstring:cast_safe(ctx.target) end },
-    { name = "Slam",              matches = slam_matches,                execute = function(ctx) return ACTION.Slam and ACTION.Slam:cast_safe(ctx.target) end },
-    { name = "HeroicStrike",      matches = heroic_strike_matches,       execute = function(ctx) return ACTION.HeroicStrike and ACTION.HeroicStrike:cast_safe(ctx.target) end },
+    { name = "ShieldWall" },
+    { name = "Retaliation" },
+    { name = "BattleShout" },
+    { name = "Charge" },
+    { name = "BerserkerStance" },
+    { name = "BattleStance" },
+    { name = "Intercept" },
+    { name = "Pummel" },
+    { name = "Rend" },
+    { name = "MortalStrike" },
+    { name = "Overpower" },
+    { name = "Execute" },
+    { name = "SweepingStrikes" },
+    { name = "Bladestorm" },
+    { name = "ThunderClap" },
+    { name = "DemoralizingShout" },
+    { name = "Hamstring" },
+    { name = "Slam" },
+    { name = "HeroicStrike" },
 }
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 -- Register (guarded — nil-safe in unit tests)
 if NS.rotation_registry and NS.rotation_registry.register then

@@ -9,6 +9,8 @@ local mode, root = runner.parse_args(arg, "EaxRotations")
 
 local tests = {
     "test_warrior_arms_wotlk.lua",
+    "test_arms_wotlk_dsl_priority.lua",
+    "test_fury_wotlk_dsl_priority.lua",
     "test_wotlk_specs_load.lua",
 }
 

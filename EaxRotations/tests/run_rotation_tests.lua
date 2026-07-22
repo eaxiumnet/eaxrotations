@@ -81,6 +81,8 @@ local tests = {
   "test_arms_critical_fixes.lua",
   "test_warrior_defensive_threshold_wiring.lua",
   "test_warrior_arms_wotlk.lua",
+  "test_arms_wotlk_dsl_priority.lua",
+  "test_fury_wotlk_dsl_priority.lua",
   "test_wotlk_specs_load.lua",
   "test_wotlk_leveling_load.lua",
   "test_deathknight_blood_wotlk.lua",
