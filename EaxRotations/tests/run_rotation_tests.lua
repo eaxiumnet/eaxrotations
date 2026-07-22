@@ -96,6 +96,7 @@ local tests = {
   "test_frost_deathknight_wotlk_dsl_priority.lua",    "test_survival_wotlk_dsl_priority.lua",
     "test_marksmanship_wotlk_dsl_priority.lua",
     "test_beast_mastery_wotlk_dsl_priority.lua",
+    "test_protection_paladin_wotlk_dsl_priority.lua",
     "test_elemental_wotlk_dsl_priority.lua",
   "test_combat_wotlk_dsl_priority.lua",
   "test_discipline_wotlk_dsl_priority.lua",
