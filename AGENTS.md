@@ -58,7 +58,7 @@ EaxRotations/
 ├── core_sylvanas.lua          # NS helpers (buff_points, spell_ready, etc.)
 ├── classes/<class>/<spec>_sylvanas.lua  # 29 spec files (flat, one per spec)
 ├── shared/                    # ~50 shared modules (interrupts, consumables, etc.)
-├── tests/                     # ~364 test files (343 rotation + 21 leveling suites)
+├── tests/                     # ~367 test files (346 rotation + 21 leveling suites)
 └── tools/                     # Build/validation scripts
 
 api/                           # Sylvanas API definitions (runtime, .gitignored)
@@ -325,7 +325,7 @@ local HEALER_CLASS_IDS = { [2]=true, [5]=true, [7]=true, [11]=true }  -- Pally, 
 | `enemy_count` / `enemies` | `0` | Assume none → skip AoE |
 | `target_hp` / `target_hp_pct` | `100` | Assume full → skip execute-range |
 
-**Scope**: 24 files (14 spec + 9 leveling + 1 shadow), ~170 locations guarded. All 343 rotation + 21 leveling suites pass.
+**Scope**: 24 files (14 spec + 9 leveling + 1 shadow), ~170 locations guarded. All 346 rotation + 21 leveling suites pass.
 
 ### Pattern 15: File Readability Header
 
@@ -406,7 +406,7 @@ return { strategies = strategies, build_state = build_state }
 
 **Migration rules:**
 - Convert a spec **only when already editing it** — never big-bang (per `plans/refactor-developer-experience-2026-06.md`).
-- One spec per commit. Gate each with `luac -p` + full 343+21 suite.
+- One spec per commit. Gate each with `luac -p` + full 346+21 suite.
 - **R5: if a task loops more than 2 attempts, STOP.** Write a debugging note in `plans/`.
 - Migration state is tracked in `EaxRotations/README.md` ("How to Read a Spec") and enforced by `tests/test_spec_layout_compliance.lua`.
 

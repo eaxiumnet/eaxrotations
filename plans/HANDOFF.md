@@ -172,7 +172,7 @@ cd /c/newbot/scripts
 cmd.exe //c "validate.cmd"
 ```
 Expected output ends with `ALL CHECKS PASSED`. It runs: `luac -p` on modified
-files → rotation suite (324) → leveling suite (21) → spell audit. All on Lua
+files → rotation suite (346) → leveling suite (21) → spell audit. All on Lua
 5.1. If it says `VALIDATION FAILED`, read the FAIL line and fix it.
 
 For a quick single-file syntax check: `luac -p <file>` (uses the 5.1 luac).
