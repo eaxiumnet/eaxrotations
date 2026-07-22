@@ -119,9 +119,12 @@ function M.snapshot()
     for k, v in pairs(_G) do g[k] = v end
     local loaded = {}
     for k, v in pairs(package.loaded) do loaded[k] = v end
+    local preload = {}
+    for k, v in pairs(package.preload) do preload[k] = v end
     return {
         g = g,
         loaded = loaded,
+        preload = preload,
         path = package.path,
         cpath = package.cpath,
     }
@@ -135,18 +138,79 @@ end
 -- the runner deterministic while still restoring modified values for keys that
 -- existed at snapshot time.
 function M.restore(snap)
-    -- Re-apply the snapshot's keys+values. We deliberately do NOT remove keys
-    -- that were added during the test. Mutating a table while iterating it with
-    -- pairs() is undefined in Lua 5.1 and caused non-deterministic cleanup (and
-    -- different test results) on Windows vs Ubuntu. Preserving added keys keeps
-    -- the runner deterministic while still restoring modified values for keys
-    -- that existed at snapshot time.
+    -- Restore _G, package.loaded, and package.preload from the snapshot.
+    -- First remove any keys added during the test (deterministically, by
+    -- collecting them before mutating), then re-apply snapshot values. This
+    -- prevents mocks/stubs leaked via package.preload (or package.loaded) from
+    -- contaminating later tests. We avoid mutating a table while iterating it
+    -- with pairs(), which is undefined in Lua 5.1 and previously caused
+    -- non-deterministic cleanup on Windows vs Ubuntu.
+    local function added_keys(current, snapshot)
+        local out = {}
+        for k in pairs(current) do
+            if snapshot[k] == nil then out[#out + 1] = k end
+        end
+        return out
+    end
+
+    -- _G
+    local g_added = added_keys(_G, snap.g)
+    for i = 1, #g_added do _G[g_added[i]] = nil end
     for k, v in pairs(snap.g) do _G[k] = v end
 
+    -- package.loaded
+    local loaded_added = added_keys(package.loaded, snap.loaded)
+    for i = 1, #loaded_added do package.loaded[loaded_added[i]] = nil end
     for k, v in pairs(snap.loaded) do package.loaded[k] = v end
+
+    -- package.preload
+    local preload_added = added_keys(package.preload, snap.preload)
+    for i = 1, #preload_added do package.preload[preload_added[i]] = nil end
+    for k, v in pairs(snap.preload) do package.preload[k] = v end
 
     package.path = snap.path
     package.cpath = snap.cpath
+end
+
+--- Remove cached EaxRotations modules from package.loaded (and matching
+-- package.preload entries so prior-test stubs do not shadow real files).
+-- Call this at the top of a test that needs to load project modules fresh with
+-- its own mocked _G state. Standard library / third-party modules are preserved.
+function M.clear_eax_modules()
+    for k in pairs(package.loaded) do
+        if k:find("^shared/") or k:find("^classes/") or k:find("^common/")
+           or k:find("^EaxRotations/")
+           or k == "core_sylvanas" or k == "main_sylvanas" then
+            package.loaded[k] = nil
+        end
+    end
+    -- Also clear matching preload stubs; a previous test may have registered a
+    -- lightweight fake under package.preload, and require() consults preload
+    -- before searching package.path. Removing them enforces real-file loads.
+    for k in pairs(package.preload) do
+        if k:find("^shared/") or k:find("^classes/") or k:find("^common/")
+           or k:find("^EaxRotations/")
+           or k == "core_sylvanas" or k == "main_sylvanas" then
+            package.preload[k] = nil
+        end
+    end
+end
+
+--- Clear specific modules from both package.loaded and package.preload.
+-- Accepts either an array of module names, or varargs of names. Use this in
+-- tests that need to evict a small, explicit set of modules without
+-- resorting to repeated `package.loaded[name] = nil` lines.
+function M.clear_loaded(names, ...)
+    if type(names) == "string" then
+        names = { names, ... }
+    elseif type(names) ~= "table" then
+        error("clear_loaded expects a table or string names", 2)
+    end
+    for i = 1, #names do
+        local name = names[i]
+        package.loaded[name] = nil
+        package.preload[name] = nil
+    end
 end
 
 -- ---------------------------------------------------------------------------

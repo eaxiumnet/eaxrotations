@@ -8,6 +8,8 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
+local runner_lib = require("tests/test_runner_lib")
+
 local passed, failed, assertions = 0, 0, 0
 
 local function assert_true(v, label)
@@ -317,7 +319,7 @@ end)
 
 -- --------------------------------------------------------------------------
 -- Scrub mocks so later suites in run_rotation_tests.lua are not polluted.
-for _, key in ipairs({
+runner_lib.clear_loaded({
     "shared/hunter_core_sylvanas",
     "shared/shot_timer_sylvanas",
     "shared/targeting_sylvanas",
@@ -329,10 +331,7 @@ for _, key in ipairs({
     "shared/leveling_sylvanas",
     "shared/leveling_helpers_sylvanas",
     "shared/spec_kit_sylvanas",
-}) do
-    package.preload[key] = nil
-    package.loaded[key] = nil
-end
+})
 
 print(string.format("\nResults: %d passed, %d failed, %d assertions", passed, failed, assertions))
 if failed > 0 then
