@@ -8,6 +8,19 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
+-- Start from a clean global namespace so earlier tests cannot leak mocked
+-- state into this test.
+_G.EaxRotations = nil
+
+-- Ensure the spec and shared modules reload with this test's mocked globals,
+-- not a cached version from an earlier test.
+package.loaded["classes/shaman/restoration_sylvanas"] = nil
+package.loaded["classes/shaman/healing_sylvanas"] = nil
+package.loaded["shared/spec_kit_sylvanas"] = nil
+package.loaded["shared/strategy_dsl_sylvanas"] = nil
+package.loaded["shared/aoe_hit_volume_sylvanas"] = nil
+package.loaded["shared/offensive_dispel_sylvanas"] = nil
+
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 local function assert_false(v, label) if v then error(label or "assert_false failed", 2) end end
 local function assert_eq(a, b, label) if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end end

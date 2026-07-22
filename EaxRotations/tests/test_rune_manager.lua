@@ -6,6 +6,15 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path
 
+-- Start from a clean global namespace so earlier tests cannot leak mocked
+-- state into this test.
+_G.EaxRotations = nil
+_G.core = nil
+
+-- Ensure the module under test reloads with this test's mocked globals,
+-- not a cached version from an earlier test.
+package.loaded["shared/rune_manager_sylvanas"] = nil
+
 -- ---------------------------------------------------------------------------
 -- Helpers
 -- ---------------------------------------------------------------------------

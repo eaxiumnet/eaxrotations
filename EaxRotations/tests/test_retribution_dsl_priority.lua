@@ -9,6 +9,21 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
+-- Start from a clean global namespace so earlier tests cannot leak mocked
+-- state into this test.
+_G.EaxRotations = nil
+_G.core = nil
+
+-- Ensure the spec and shared modules reload with this test's mocked globals,
+-- not a cached version from an earlier test.
+package.loaded["classes/paladin/retribution_sylvanas"] = nil
+package.loaded["shared/spec_kit_sylvanas"] = nil
+package.loaded["shared/strategy_dsl_sylvanas"] = nil
+package.loaded["shared/hit_cap_tracker_sylvanas"] = nil
+package.loaded["shared/cooldown_planner_sylvanas"] = nil
+package.loaded["shared/tbc_data_sylvanas"] = nil
+package.loaded["shared/aoe_hit_volume_sylvanas"] = nil
+
 local _pass, _fail = 0, 0
 local function assert_true(v, label)
     if v then _pass = _pass + 1 else _fail = _fail + 1; print("  FAIL: " .. label) end
