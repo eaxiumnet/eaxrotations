@@ -2,12 +2,14 @@
 -- WHAT:  priority-list strategies for Bear druid.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
+--         imperative match functions; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.DruidSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -47,33 +49,73 @@ local function build_state(context)
     return state
 end
 
-local function feral_faerie_fire_matches(context, state)
-    return state.faerie_fire_remains < 3
-end
-
-local function lacerate_matches(context, state)
-    return state.lacerate_remains < 3 and state.rage >= 15
-end
-
-local function swipe_matches(context, state)
-    return state.enemy_count >= 2 and state.rage >= 15
-end
-
-local function mangle_bear_matches(context, state)
-    return state.rage >= 15
-end
-
-local function maul_matches(context, state)
-    return state.rage >= 30
-end
-
-local strategies = {
-    { name = "FeralFaerieFire", matches = feral_faerie_fire_matches, execute = function(ctx) return ACTION.FeralFaerieFire and ACTION.FeralFaerieFire:cast_safe(ctx.target) end },
-    { name = "Lacerate", matches = lacerate_matches, execute = function(ctx) return ACTION.Lacerate and ACTION.Lacerate:cast_safe(ctx.target) end },
-    { name = "SwipeBear", matches = swipe_matches, execute = function(ctx) return ACTION.SwipeBear and ACTION.SwipeBear:cast_safe(ctx.target) end },
-    { name = "MangleBear", matches = mangle_bear_matches, execute = function(ctx) return ACTION.MangleBear and ACTION.MangleBear:cast_safe(ctx.target) end },
-    { name = "Maul", matches = maul_matches, execute = function(ctx) return ACTION.Maul and ACTION.Maul:cast_safe(ctx.target) end },
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "FeralFaerieFire",
+        conditions = {
+            { type = "state", field = "faerie_fire_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.FeralFaerieFire, target = "target" },
+    },
+    {
+        name = "Lacerate",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "lacerate_remains", op = "<", value = 3 },
+            { type = "state", field = "rage", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Lacerate, target = "target" },
+    },
+    {
+        name = "SwipeBear",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "state", field = "rage", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.SwipeBear, target = "target" },
+    },
+    {
+        name = "MangleBear",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.MangleBear, target = "target" },
+    },
+    {
+        name = "Maul",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.Maul, target = "target" },
+    },
 }
+
+-- -----------------------------------------------------------------------------
+-- Strategies (name-only placeholders; substituted by DSL)
+-- -----------------------------------------------------------------------------
+local strategies = {
+    { name = "FeralFaerieFire" },
+    { name = "Lacerate" },
+    { name = "SwipeBear" },
+    { name = "MangleBear" },
+    { name = "Maul" },
+}
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("bear", strategies, { get_state = build_state })
