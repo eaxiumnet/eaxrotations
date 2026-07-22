@@ -12,7 +12,7 @@
 **Local Path**: `C:\newbot\scripts`
 **Last Updated**: 2026-07-22
 **Specs**: 29 TBC Classic class specializations (all 29 completed)
-**Tests**: 371 rotation suites registered in `run_rotation_tests.lua` + 21 leveling suites in `run_leveling_tests.lua` (392 total)
+**Tests**: 372 rotation suites registered in `run_rotation_tests.lua` + 21 leveling suites in `run_leveling_tests.lua` (393 total)
 
 ---
 
@@ -58,7 +58,7 @@ EaxRotations/
 ├── core_sylvanas.lua          # NS helpers (buff_points, spell_ready, etc.)
 ├── classes/<class>/<spec>_sylvanas.lua  # 29 spec files (flat, one per spec)
 ├── shared/                    # ~50 shared modules (interrupts, consumables, etc.)
-├── tests/                     # ~392 test files (371 rotation + 21 leveling suites)
+├── tests/                     # ~393 test files (372 rotation + 21 leveling suites)
 └── tools/                     # Build/validation scripts
 
 api/                           # Sylvanas API definitions (runtime, .gitignored)
@@ -325,7 +325,7 @@ local HEALER_CLASS_IDS = { [2]=true, [5]=true, [7]=true, [11]=true }  -- Pally, 
 | `enemy_count` / `enemies` | `0` | Assume none → skip AoE |
 | `target_hp` / `target_hp_pct` | `100` | Assume full → skip execute-range |
 
-**Scope**: 24 files (14 spec + 9 leveling + 1 shadow), ~170 locations guarded. All 371 rotation + 21 leveling suites pass.
+**Scope**: 24 files (14 spec + 9 leveling + 1 shadow), ~170 locations guarded. All 372 rotation + 21 leveling suites pass.
 
 ### Pattern 15: File Readability Header
 
@@ -427,7 +427,7 @@ return { strategies = strategies, build_state = build_state }
 ## Testing Rules
 
 - Run `luac -p` on every modified file before commit
-- Run `lua EaxRotations/tests/run_rotation_tests.lua` — all 371 rotation suites must pass
+- Run `lua EaxRotations/tests/run_rotation_tests.lua` — all 372 rotation suites must pass
 - Run `lua EaxRotations/tests/run_leveling_tests.lua` — all 21 leveling suites must pass
 - `lsp_diagnostics` must show 0 errors on changed files
 

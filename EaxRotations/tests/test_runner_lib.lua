@@ -322,6 +322,73 @@ function M.assert_eq(a, b, label)
 end
 
 -- ---------------------------------------------------------------------------
+-- Mock helpers for tests that exercise strategy.matches() directly.
+-- These pre-populate context fields required by centralized generic guards
+-- such as cat_sylvanas.lua::base_matches() (min_energy, min_combo,
+-- requires_behind, required_form, target existence).
+-- ---------------------------------------------------------------------------
+
+M.Mock = {}
+
+--- Return a default melee test context.
+--
+-- NOTE: This helper is currently tailored to feral-cat-style specs that use a
+-- centralized base_matches() guard (e.g., cat_sylvanas.lua). As more specs
+-- adopt centralized guards, extend or rename this helper to cover their
+-- required fields.
+-- Override any field by passing a table of overrides.
+-- Default values are chosen so that base_matches-style guards pass:
+--   in_combat = true
+--   target = {}
+--   enemy_count = 1
+--   settings = {}
+--   combo_points = 0
+--   is_behind = true
+--   is_cat = true
+--   stance = 3  (cat form)
+--   me = minimal mock unit with get_power/get_max_power/get_health_percentage
+--
+-- NOTE: `energy` is intentionally NOT defaulted. cat_sylvanas.lua's get_energy()
+-- falls back to me.get_power() when context.energy is absent, so defaulting it
+-- would silently override the me.get_power mock. Tests that need a specific
+-- energy value should pass energy = <value> in overrides.
+function M.Mock.DefaultMeleeContext(overrides)
+    local ctx = {
+        in_combat = true,
+        has_valid_enemy_target = true,
+        target = {},
+        target_ttd = 60,
+        enemy_count = 1,
+        settings = {},
+        combo_points = 0,
+        pooling = false,
+        is_behind = true,
+        is_cat = true,
+        stance = 3, -- cat form
+        me = {
+            get_power = function() return 50 end,
+            get_max_power = function() return 100 end,
+            get_health_percentage = function() return 100 end,
+        },
+    }
+    if type(overrides) == "table" then
+        -- Merge me overrides into the default me mock so tests don't have to
+        -- re-supply get_max_power/get_health_percentage just to tweak get_power.
+        if type(overrides.me) == "table" then
+            for k, v in pairs(overrides.me) do
+                ctx.me[k] = v
+            end
+        end
+        for k, v in pairs(overrides) do
+            if k ~= "me" then
+                ctx[k] = v
+            end
+        end
+    end
+    return ctx
+end
+
+-- ---------------------------------------------------------------------------
 -- Test execution
 -- ---------------------------------------------------------------------------
 
