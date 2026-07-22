@@ -6,6 +6,11 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;" .. package.path
 
+-- Prevent a previously-cached buff_manager (possibly set to a boolean by an
+-- earlier test) from corrupting this test.
+package.loaded["common/modules/buff_manager"] = nil
+package.loaded["shared/aura_probe_sylvanas"] = nil
+
 local logs = {}
 _G.core = {
     log = function(message) logs[#logs + 1] = message end,

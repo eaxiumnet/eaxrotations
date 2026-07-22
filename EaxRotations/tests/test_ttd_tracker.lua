@@ -6,6 +6,10 @@
 
 -- TTD Tracker regression tests.
 
+-- Prevent leaked _G.EaxRotations state (e.g. a mocked unit_health_pct) from
+-- overriding the mock target's get_health_percentage method used below.
+_G.EaxRotations = {}
+
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
 local function assert_eq(a, b, label) if a ~= b then error((label or "assert_eq") .. ": " .. tostring(a) .. " ~= " .. tostring(b), 2) end end
 local function assert_near(a, b, tolerance, label)
