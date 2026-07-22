@@ -428,6 +428,53 @@ function M.Mock.DefaultBearContext(overrides)
     return ctx
 end
 
+--- Return a default protection-warrior tank test context.
+--
+-- NOTE: This helper is tailored to protection_sylvanas.lua-style specs that use
+-- a centralized base_matches() guard. Default values are chosen so that
+-- base_matches-style guards pass:
+--   in_combat = true
+--   target = {}
+--   target_ttd = 60
+--   enemy_count = 1
+--   settings = {}
+--   rage = 100
+--   stance = 2  (defensive stance)
+--   is_pvp = false
+--   has_valid_enemy_target = true
+--   me = minimal mock unit with get_health
+function M.Mock.DefaultProtectionContext(overrides)
+    local ctx = {
+        in_combat = true,
+        has_valid_enemy_target = true,
+        target = {},
+        target_ttd = 60,
+        enemy_count = 1,
+        settings = {},
+        rage = 100,
+        stance = 2, -- defensive stance
+        is_pvp = false,
+        me = {
+            get_health = function() return 100 end,
+            get_health_percentage = function() return 100 end,
+        },
+    }
+    if type(overrides) == "table" then
+        -- Merge me overrides into the default me mock.
+        if type(overrides.me) == "table" then
+            for k, v in pairs(overrides.me) do
+                ctx.me[k] = v
+            end
+        end
+        for k, v in pairs(overrides) do
+            if k ~= "me" then
+                ctx[k] = v
+            end
+        end
+    end
+    return ctx
+end
+
 -- ---------------------------------------------------------------------------
 -- Test execution
 -- ---------------------------------------------------------------------------

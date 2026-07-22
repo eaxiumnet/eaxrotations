@@ -281,6 +281,7 @@ local function build_state(context)
   prot_state.tclap_remains = 0
  end
  prot_state.is_group = context.is_group or false
+ prot_state.has_valid_target = context.has_valid_enemy_target ~= false and context.target ~= nil
  prot_state.hp = context.hp or 100
  prot_state.rage = context.rage or 0
  prot_state.stance = context.stance or 2
@@ -471,6 +472,53 @@ local function swing_timer_gate(context, state)
     if not spec_kit.setting_bool(context, "prot_swing_timer", true) then return true end
     local swing_remains = state.swing_remains or 99
     return swing_remains > 0.3 or swing_remains < 0
+end
+
+-- ============================================================================
+-- Centralized base_matches guards
+-- ============================================================================
+
+local function base_guard_passes(action_def, s)
+    if action_def.spell and NS.spell_exists and not NS.spell_exists(action_def.spell) then return false end
+    if action_def.requires_target ~= false and not s.has_valid_target then return false end
+    if action_def.requires_in_combat and not s.in_combat then return false end
+    if action_def.requires_not_in_combat and s.in_combat then return false end
+    if action_def.requires_pvp and not s.is_pvp then return false end
+    if action_def.min_enemies and (s.enemy_count or 0) < action_def.min_enemies then return false end
+    return true
+end
+
+-- Merge a caller-provided state override into the state built from context.
+-- This keeps tests ergonomic (callers can pass partial states) without
+-- mutating the static cached state table (Pattern 4).
+local function merge_state(context, state_override)
+    local s = build_state(context)
+    if not state_override or next(state_override) == nil then return s end
+    local merged = {}
+    for k, v in pairs(s) do merged[k] = v end
+    for k, v in pairs(state_override) do merged[k] = v end
+    -- Preserve safe_state metatable defaults (schema-backed __index) so that
+    -- fields not explicitly set on the cached table are still visible. We copy
+    -- the metatable to avoid sharing mutable state with the cached proxy.
+    local mt = getmetatable(s)
+    if mt then
+        local mt_copy = {}
+        for k, v in pairs(mt) do mt_copy[k] = v end
+        setmetatable(merged, mt_copy)
+    end
+    return merged
+end
+
+local function apply_base_matches(strategies, actions)
+    for i = 1, #strategies do
+        local action = actions[i]
+        local original_matches = strategies[i].matches
+        strategies[i].matches = function(context, state)
+            local s = merge_state(context, state)
+            if not base_guard_passes(action, s) then return false end
+            return original_matches(context, s)
+        end
+    end
 end
 
 local function sunder_matches_fn(context, state)
@@ -664,8 +712,6 @@ end
 local function challenging_shout_matches_fn(context, state)
  if not state.challenging_ready then return false end
  if state.aoe_cc_nearby then return false end  -- AoE taunt would pull CC'd mobs
- -- Challenging Shout is AoE — needs 3+ enemies to be worth the 1min cooldown
- if (state.enemy_count or 0) < 3 then return false end
  -- Smart taunt: only shout on elites/bosses (classification >= 1)
  if (context.target_classification or 0) < 1 then return false end
  -- Skip CC'd targets
@@ -675,7 +721,6 @@ end
 
 local function concussion_blow_matches_fn(context, state)
  if not state.concussion_ready then return false end
- if not state.is_pvp then return false end
  return true
 end
 
@@ -693,14 +738,12 @@ end
 
 local function spell_reflect_matches_fn(context, state)
  if not state.spell_reflect_ready then return false end
- if not state.is_pvp then return false end
  if not state.target_is_casting then return false end
  return true
 end
 
 local function intercept_matches_fn(context, state)
  if not state.intercept_ready then return false end
- if not state.is_pvp then return false end
  return true
 end
 
@@ -727,7 +770,6 @@ end
 
 local function hamstring_matches_fn(context, state)
  if not state.hamstring_ready then return false end
- if not state.is_pvp then return false end
  return true
 end
 
@@ -776,8 +818,6 @@ end
 
 local function intimidating_shout_matches_fn(context, state)
  if not state.intimidating_shout_ready then return false end
- if not state.in_combat then return false end
- if (state.enemy_count or 0) < 3 then return false end
  if (state.hp or 100) > 50 then return false end
  return true
 end
@@ -883,6 +923,54 @@ local DSL_DEFS = {
 }
 
 -- ============================================================================
+-- Strategy action metadata for centralized base_matches guards
+-- ============================================================================
+-- Each entry maps 1:1 to the strategies table below. Guards applied here are
+-- evaluated before the strategy's own match function. DSL-substituted strategies
+-- are replaced after apply_base_matches(), so their metadata is effectively a
+-- placeholder; keeping it in the table preserves the 1:1 index parity.
+local ACTIONS = {
+    { name = "HealthPotion",        requires_target = false, requires_in_combat = true },
+    { name = "DamagePotion",        requires_target = false, requires_in_combat = true },
+    { name = "Healthstone",           requires_target = false },
+    { name = "LastStand",             requires_target = false },
+    { name = "ShieldWall",            requires_target = false },
+    { name = "ShieldBash",            requires_in_combat = true },
+    { name = "Pummel",                requires_in_combat = true },
+    { name = "ShieldSlamPurge",       requires_in_combat = true, requires_pvp = true },
+    { name = "ShieldSlam",            requires_in_combat = true },
+    { name = "Revenge",               requires_in_combat = true },
+    { name = "ShieldBlock",           requires_in_combat = true, requires_target = false },
+    { name = "Taunt",                 requires_in_combat = true },
+    { name = "TauntSecondary",        requires_in_combat = true },
+    { name = "MockingBlow",           requires_in_combat = true },
+    { name = "ChallengingShout",        requires_in_combat = true, requires_target = false, min_enemies = 3 },
+    { name = "DemoralizingShout",     requires_in_combat = true, requires_target = false },
+    { name = "ThunderClap",           requires_in_combat = true, requires_target = false },
+    { name = "Devastate",             requires_in_combat = true },
+    { name = "SunderArmor",           requires_in_combat = true },
+    { name = "Execute",               requires_in_combat = true },
+    { name = "BattleShout",             requires_target = false },
+    { name = "CommandingShout",         requires_target = false },
+    { name = "Cleave",                  requires_in_combat = true, min_enemies = 2 },
+    { name = "HeroicStrike",            requires_in_combat = true },
+    { name = "WhirlwindMulti",          requires_in_combat = true, requires_target = false, min_enemies = 2 },
+    { name = "SpellReflection",         requires_in_combat = true, requires_pvp = true, requires_target = false },
+    { name = "Disarm",                  requires_in_combat = true, requires_pvp = true },
+    { name = "ConcussionBlow",          requires_in_combat = true, requires_pvp = true },
+    { name = "Hamstring",               requires_in_combat = true, requires_pvp = true },
+    { name = "Intercept",               requires_in_combat = true, requires_pvp = true },
+    { name = "Intervene",               requires_in_combat = true, requires_target = false },
+    { name = "BerserkerRage",           requires_target = false },
+    { name = "Bloodrage",               requires_target = false },
+    { name = "VictoryRush",             requires_in_combat = true },
+    { name = "Rend",                    requires_in_combat = true },
+    { name = "IntimidatingShout",       requires_in_combat = true, requires_target = false, min_enemies = 3 },
+    { name = "RageDumpSafetyNet",       requires_in_combat = true },
+    { name = "StanceSwitch",            requires_target = false },
+}
+
+-- ============================================================================
 -- Strategies
 -- ============================================================================
 local strategies = {
@@ -956,8 +1044,6 @@ local strategies = {
   name = "ShieldSlamPurge",
   matches = function(context, state)
    if spec_kit.setting_bool(context, "use_shield_slam_purge", true) == false then return false end
-   if not context.is_pvp then return false end
-   if not context.in_combat then return false end
    if not state.ss_ready then return false end
    if not state.ss_purge_name then return false end
    -- Player-only gate
@@ -1109,7 +1195,6 @@ local strategies = {
   name = "WhirlwindMulti",
   matches = function(context, state)
    if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then return false end
-   if not state.in_combat then return false end
    if not NS.spell_ready or not NS.spell_ready(ACTION.Whirlwind, context.me, { skip_range = true }) then return false end
    -- Prefer in Berserker for WW; the StanceSwitch will handle dance if configured
    return true
@@ -1132,7 +1217,6 @@ local strategies = {
   matches = function(context, state)
    if spec_kit.setting_bool(context, "use_disarm", true) == false then return false end
    if not (NS.is_spell_learned and NS.is_spell_learned(676)) then return false end
-   if not context.in_combat then return false end
    if spec_kit.setting_bool(context, "disarm_pvp_only", true) then
     local ok, is_player = pcall(function() return context.target:is_player() end)
     if not (ok and is_player) then return false end
@@ -1222,23 +1306,26 @@ local strategies = {
   execute = function(context)
    return NS.try_cast(ACTION.HeroicStrike, context.target, "[PROT] RageDump")
   end,
- },
- {
-  name = "StanceSwitch",
-  matches = stance_switch_matches_fn,
-  execute = function(context)
-   local desired = prot_state.desired_stance
-   if desired == "battle" then
-    return NS.try_cast(ACTION.BattleStance, context.me or NS.GetPlayer(), "[PROT] BattleStance", { skip_range = true })
-   elseif desired == "berserker" then
-    return NS.try_cast(ACTION.BerserkerStance, context.me or NS.GetPlayer(), "[PROT] BerserkerStance", { skip_range = true })
-   elseif desired == "defensive" then
-    return NS.try_cast(ACTION.DefensiveStance, context.me or NS.GetPlayer(), "[PROT] DefensiveStance", { skip_range = true })
-   end
-   return false
-  end,
- },
+ },    { name = "StanceSwitch",
+      matches = stance_switch_matches_fn,
+      execute = function(context)
+       local desired = prot_state.desired_stance
+       if desired == "battle" then
+        return NS.try_cast(ACTION.BattleStance, context.me or NS.GetPlayer(), "[PROT] BattleStance", { skip_range = true })
+       elseif desired == "berserker" then
+        return NS.try_cast(ACTION.BerserkerStance, context.me or NS.GetPlayer(), "[PROT] BerserkerStance", { skip_range = true })
+       elseif desired == "defensive" then
+        return NS.try_cast(ACTION.DefensiveStance, context.me or NS.GetPlayer(), "[PROT] DefensiveStance", { skip_range = true })
+       end
+       return false
+      end,
+     },
 }
+
+-- Apply centralized base_matches guards to imperative strategies. DSL-substituted
+-- strategies are replaced in the loop below, so their placeholders are not
+-- affected by the wrapper.
+apply_base_matches(strategies, ACTIONS)
 
 -- Replace imperative match functions with DSL-compiled equivalents.
 for i = 1, #strategies do
