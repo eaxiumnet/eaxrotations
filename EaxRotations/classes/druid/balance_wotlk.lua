@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.DruidSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -53,41 +54,80 @@ local function build_state(context)
     return state
 end
 
-local function moonkin_form_matches(context, state)
-    return not state.moonkin_up
-end
-
-local function insect_swarm_matches(context, state)
-    return state.insect_swarm_remains < 3
-end
-
-local function moonfire_matches(context, state)
-    return state.moonfire_remains < 3
-end
-
-local function starfall_matches(context, state)
-    if not state.in_combat then return false end
-    if (state.enemy_count or 0) < 2 then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 60) then return false end
-    return true
-end
-
-local function wrath_matches(context, state)
-    return state.mana_pct >= 15
-end
-
-local function starfire_matches(context, state)
-    return state.mana_pct >= 15
-end
-
-local strategies = {
-    { name = "MoonkinForm", matches = moonkin_form_matches, execute = function(ctx) return ACTION.MoonkinForm and ACTION.MoonkinForm:cast_safe() end },
-    { name = "Starfall", matches = starfall_matches, execute = function(ctx) return ACTION.Starfall and ACTION.Starfall:cast_safe(ctx.target) end },
-    { name = "InsectSwarm", matches = insect_swarm_matches, execute = function(ctx) return ACTION.InsectSwarm and ACTION.InsectSwarm:cast_safe(ctx.target) end },
-    { name = "Moonfire", matches = moonfire_matches, execute = function(ctx) return ACTION.Moonfire and ACTION.Moonfire:cast_safe(ctx.target) end },
-    { name = "Wrath", matches = wrath_matches, execute = function(ctx) return ACTION.Wrath and ACTION.Wrath:cast_safe(ctx.target) end },
-    { name = "Starfire", matches = starfire_matches, execute = function(ctx) return ACTION.Starfire and ACTION.Starfire:cast_safe(ctx.target) end },
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "MoonkinForm",
+        conditions = {
+            { type = "state", field = "moonkin_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.MoonkinForm, target = "self" },
+    },
+    {
+        name = "Starfall",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 60) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Starfall, target = "target" },
+    },
+    {
+        name = "InsectSwarm",
+        conditions = {
+            { type = "state", field = "insect_swarm_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.InsectSwarm, target = "target" },
+    },
+    {
+        name = "Moonfire",
+        conditions = {
+            { type = "state", field = "moonfire_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Moonfire, target = "target" },
+    },
+    {
+        name = "Wrath",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Wrath, target = "target" },
+    },
+    {
+        name = "Starfire",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Starfire, target = "target" },
+    },
 }
+
+-- -----------------------------------------------------------------------------
+-- Strategies (name-only placeholders; substituted by DSL)
+-- -----------------------------------------------------------------------------
+local strategies = {
+    { name = "MoonkinForm" },
+    { name = "Starfall" },
+    { name = "InsectSwarm" },
+    { name = "Moonfire" },
+    { name = "Wrath" },
+    { name = "Starfire" },
+}
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("balance", strategies, { get_state = build_state })
