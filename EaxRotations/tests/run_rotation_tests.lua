@@ -92,6 +92,7 @@ local tests = {
   "test_shadow_wotlk_dsl_priority.lua",
   "test_enhancement_wotlk_dsl_priority.lua",
   "test_unholy_wotlk_dsl_priority.lua",
+  "test_frost_deathknight_wotlk_dsl_priority.lua",
   "test_survival_wotlk_dsl_priority.lua",
   "test_marksmanship_wotlk_dsl_priority.lua",
   "test_elemental_wotlk_dsl_priority.lua",

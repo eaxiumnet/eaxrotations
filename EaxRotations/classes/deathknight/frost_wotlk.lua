@@ -19,7 +19,7 @@ do
 end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
-local SPELLS = NS.DeathKnightSpells or {}
+local dsl      = require("shared/strategy_dsl_sylvanas")
 
 -- Optional shared managers (pcall-guarded: spec still loads if a module is missing).
 local _ok_rune, rune_manager = pcall(require, "shared/rune_manager_sylvanas")
@@ -29,6 +29,7 @@ if not _ok_pres then presence_manager = nil end
 local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 if not _ok_int then interrupt_manager = nil end
 
+local SPELLS = NS.DeathKnightSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
@@ -127,17 +128,120 @@ local function build_state(context)
     return state
 end
 
--- Match functions (each returns a strict boolean) --------------------------------
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "HornOfWinter",
+        conditions = {
+            { type = "state", field = "horn_of_winter_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.HornOfWinter, target = "self" },
+    },
+    {
+        name = "UnbreakableArmor",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "unbreakable_armor_up", op = "falsy" },
+            { type = "state", field = "unbreakable_armor_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 60) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.UnbreakableArmor, target = "self" },
+    },
+    {
+        name = "EmpowerRuneWeapon",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "empower_rune_weapon_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                return (state.total_runes_ready or 0) == 0
+            end },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.EmpowerRuneWeapon, target = "self" },
+    },
+    {
+        name = "IcyTouch",
+        conditions = {
+            { type = "state", field = "frost_fever_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.IcyTouch, target = "target" },
+    },
+    {
+        name = "PlagueStrike",
+        conditions = {
+            { type = "state", field = "blood_plague_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.PlagueStrike, target = "target" },
+    },
+    {
+        name = "HowlingBlast",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if state.rime_proc then return true end
+                if (state.frost_fever_remains or 0) > 0
+                    and NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10, context and context.target, context, state) then
+                    return true
+                end
+                return false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.HowlingBlast, target = "target" },
+    },
+    {
+        name = "FrostStrikeKM",
+        conditions = {
+            { type = "state", field = "killing_machine", op = "truthy" },
+            { type = "state", field = "runic_power", op = ">=", value = 40 },
+        },
+        action = { type = "cast", spell = ACTION.FrostStrike, target = "target" },
+    },
+    {
+        name = "Obliterate",
+        conditions = {
+            { type = "state", field = "frost_fever_remains", op = ">", value = 0 },
+            { type = "state", field = "blood_plague_remains", op = ">", value = 0 },
+            { type = "custom", fn = function(context, state)
+                local frost = (state.frost_runes_ready or 0) + (state.death_runes_ready or 0)
+                local unholy = (state.unholy_runes_ready or 0) + (state.death_runes_ready or 0)
+                return frost >= 1 and unholy >= 1
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Obliterate, target = "target" },
+    },
+    {
+        name = "FrostStrike",
+        conditions = {
+            { type = "state", field = "runic_power", op = ">=", value = 40 },
+        },
+        action = { type = "cast", spell = ACTION.FrostStrike, target = "target" },
+    },
+    {
+        name = "BloodStrike",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                local blood = (state.blood_runes_ready or 0) + (state.death_runes_ready or 0)
+                return blood >= 1
+            end },
+        },
+        action = { type = "cast", spell = ACTION.BloodStrike, target = "target" },
+    },
+}
 
-local function horn_of_winter_matches(context, state)
-    return state.horn_of_winter_up == false
-end
-
+-- -----------------------------------------------------------------------------
+-- Frost Presence execute helper
+-- -----------------------------------------------------------------------------
 local function frost_presence_matches(context, state)
     if not (NS.is_wotlk and NS.is_wotlk()) then return false end
     local mode = spec_kit.setting(context, "presence_mode", "auto")
     if mode == "manual" then return false end
-    -- Frost DK DPS default presence is Frost (per spec contract); honor explicit overrides.
     local desired = mode
     if mode == "auto" then desired = "frost" end
     if desired ~= "frost" then return false end
@@ -147,67 +251,13 @@ local function frost_presence_matches(context, state)
     return state.frost_presence_up == false
 end
 
-local function unbreakable_armor_matches(context, state)
-    if not state.in_combat then return false end
-    if state.unbreakable_armor_up then return false end
-    if not state.unbreakable_armor_ready then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 60) then return false end
-    return true
+local function frost_presence_execute(ctx)
+    return ACTION.FrostPresence and ACTION.FrostPresence:cast_safe() and true or false
 end
 
-local function empower_rune_weapon_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.empower_rune_weapon_ready then return false end
-    if (state.total_runes_ready or 0) > 0 then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
-    return true
-end
-
-local function icy_touch_matches(context, state)
-    return (state.frost_fever_remains or 0) < 3
-end
-
-local function plague_strike_matches(context, state)
-    return (state.blood_plague_remains or 0) < 3
-end
-
-local function howling_blast_matches(context, state)
-    -- Rime proc grants a free Howling Blast; AoE uses it when Frost Fever is up.
-    if state.rime_proc then return true end
-    if (state.frost_fever_remains or 0) > 0
-        and NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10, context and context.target, context, state) then
-        return true
-    end
-    return false
-end
-
-local function frost_strike_km_matches(context, state)
-    -- Killing Machine proc prioritizes Frost Strike (guaranteed crit) above Obliterate.
-    if not state.killing_machine then return false end
-    return (state.runic_power or 0) >= 40
-end
-
-local function obliterate_matches(context, state)
-    if (state.frost_fever_remains or 0) <= 0 then return false end
-    if (state.blood_plague_remains or 0) <= 0 then return false end
-    -- Obliterate consumes one frost and one unholy rune (death runes substitute either).
-    local frost = (state.frost_runes_ready or 0) + (state.death_runes_ready or 0)
-    local unholy = (state.unholy_runes_ready or 0) + (state.death_runes_ready or 0)
-    return frost >= 1 and unholy >= 1
-end
-
-local function frost_strike_matches(context, state)
-    -- Primary runic-power spender (40 RP cost).
-    return (state.runic_power or 0) >= 40
-end
-
-local function blood_strike_matches(context, state)
-    -- Blood rune (or death rune) filler.
-    local blood = (state.blood_runes_ready or 0) + (state.death_runes_ready or 0)
-    return blood >= 1
-end
-
+-- -----------------------------------------------------------------------------
 -- Interrupt strategy via interrupt_manager (nil-safe fallback if manager absent).
+-- -----------------------------------------------------------------------------
 local interrupt_strategy
 if interrupt_manager and interrupt_manager.register_interrupt_spell then
     local ok, strat = pcall(interrupt_manager.register_interrupt_spell, "deathknight", "MindFreeze", SPELLS, nil)
@@ -224,22 +274,34 @@ if not interrupt_strategy then
     }
 end
 
+-- -----------------------------------------------------------------------------
+-- Strategies (interrupt + FrostPresence kept manual; remaining substituted by DSL)
+-- -----------------------------------------------------------------------------
 local strategies = {
     interrupt_strategy,
-    { name = "HornOfWinter", matches = horn_of_winter_matches, execute = function(ctx) return ACTION.HornOfWinter and ACTION.HornOfWinter:cast_safe() end },
-    { name = "FrostPresence", matches = frost_presence_matches, execute = function(ctx)
-        return ACTION.FrostPresence and ACTION.FrostPresence:cast_safe() and true or false
-      end },
-    { name = "UnbreakableArmor", matches = unbreakable_armor_matches, execute = function(ctx) return ACTION.UnbreakableArmor and ACTION.UnbreakableArmor:cast_safe() end },
-    { name = "EmpowerRuneWeapon", matches = empower_rune_weapon_matches, execute = function(ctx) return ACTION.EmpowerRuneWeapon and ACTION.EmpowerRuneWeapon:cast_safe() end },
-    { name = "IcyTouch", matches = icy_touch_matches, execute = function(ctx) return ACTION.IcyTouch and ACTION.IcyTouch:cast_safe(ctx.target) end },
-    { name = "PlagueStrike", matches = plague_strike_matches, execute = function(ctx) return ACTION.PlagueStrike and ACTION.PlagueStrike:cast_safe(ctx.target) end },
-    { name = "HowlingBlast", matches = howling_blast_matches, execute = function(ctx) return ACTION.HowlingBlast and ACTION.HowlingBlast:cast_safe(ctx.target) end },
-    { name = "FrostStrikeKM", matches = frost_strike_km_matches, execute = function(ctx) return ACTION.FrostStrike and ACTION.FrostStrike:cast_safe(ctx.target) end },
-    { name = "Obliterate", matches = obliterate_matches, execute = function(ctx) return ACTION.Obliterate and ACTION.Obliterate:cast_safe(ctx.target) end },
-    { name = "FrostStrike", matches = frost_strike_matches, execute = function(ctx) return ACTION.FrostStrike and ACTION.FrostStrike:cast_safe(ctx.target) end },
-    { name = "BloodStrike", matches = blood_strike_matches, execute = function(ctx) return ACTION.BloodStrike and ACTION.BloodStrike:cast_safe(ctx.target) end },
+    { name = "HornOfWinter" },
+    { name = "FrostPresence", matches = frost_presence_matches, execute = frost_presence_execute },
+    { name = "UnbreakableArmor" },
+    { name = "EmpowerRuneWeapon" },
+    { name = "IcyTouch" },
+    { name = "PlagueStrike" },
+    { name = "HowlingBlast" },
+    { name = "FrostStrikeKM" },
+    { name = "Obliterate" },
+    { name = "FrostStrike" },
+    { name = "BloodStrike" },
 }
+
+-- Name-based substitution preserves the existing priority order.
+-- interrupt_strategy and FrostPresence have no DSL_DEFS name match, so they remain as-is.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("frost", strategies, { get_state = build_state })
