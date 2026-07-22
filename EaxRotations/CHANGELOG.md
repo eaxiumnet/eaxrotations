@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.11.0 — 2026-07-22
+
+### Customer Changelog
+- **100% strategy DSL coverage** — all 29 specs now use the declarative strategy DSL.
+- Final 3 adopters: Caster Druid (6 strategies), Smite Priest (17 strategies), Kebab Warrior (16 strategies).
+- Pre-commit badge-drift check — prevents stale test-count badges from reaching commits.
+- 346 rotation + 21 leveling = 367 total test suites, all green.
+- Version **2.11.0**.
+
+### Developer Notes
+- `shared/strategy_dsl_sylvanas.lua` — declarative strategy compiler used by all 29 specs.
+- `shared/lazy_context_sylvanas.lua` — per-tick dependency-aware context proxy.
+- Pre-commit hook step [4/4] runs `lua tools/update_badges.lua --check`.
+- Badge drift caught at commit time, matching CI's `run_all_checks.sh` step [4/4].
+- All spec-to-spec variations validated: rage, energy/combo, mana (caster/tank/healer),
+  focus/pet, shadow DoT, frost/arcane/fire proc, melee/totem, warlock curse/execute,
+  bear tank, feral cat powershift across all 10 classes.
+- 346 rotation suites + 21 leveling suites = 367 total, all green.
+
 ## 2.10.0 - 2026-07-16
 
 ### Customer Changelog
