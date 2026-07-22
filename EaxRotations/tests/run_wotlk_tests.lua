@@ -20,6 +20,7 @@ local tests = {
     "test_shadow_wotlk_dsl_priority.lua",
     "test_enhancement_wotlk_dsl_priority.lua",
     "test_unholy_wotlk_dsl_priority.lua",
+    "test_survival_wotlk_dsl_priority.lua",
     "test_wotlk_specs_load.lua",
 }
 
