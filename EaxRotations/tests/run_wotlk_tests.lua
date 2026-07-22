@@ -28,6 +28,7 @@ local tests = {
     "test_affliction_wotlk_dsl_priority.lua",
     "test_resto_wotlk_dsl_priority.lua",
     "test_holy_priest_wotlk_dsl_priority.lua",
+    "test_demonology_wotlk_dsl_priority.lua",
     "test_wotlk_specs_load.lua",
 }
 
