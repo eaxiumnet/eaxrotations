@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.RogueSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -50,43 +51,76 @@ local function build_state(context)
     return state
 end
 
-local function slice_and_dice_matches(context, state)
-    return state.snd_remains < 3 and state.combo_points >= 1
-end
-
-local function blade_flurry_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.blade_flurry_ready then return false end
-    if (state.enemy_count or 0) < 2 then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
-    return true
-end
-
-local function killing_spree_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.killing_spree_ready then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
-    return true
-end
-
-local function eviscerate_matches(context, state)
-    return state.combo_points >= 4
-end
-
-local function sinister_strike_matches(context, state)
-    return state.energy >= 45
-end
+local DSL_DEFS = {
+    {
+        name = "SliceAndDice",
+        conditions = {
+            { type = "state", field = "snd_remains", op = "<", value = 3 },
+            { type = "state", field = "combo_points", op = ">=", value = 1 },
+        },
+        action = { type = "cast", spell = ACTION.SliceAndDice, target = "self" },
+    },
+    {
+        name = "BladeFlurry",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "blade_flurry_ready", op = "truthy" },
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.BladeFlurry, target = "self" },
+    },
+    {
+        name = "KillingSpree",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "killing_spree_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.KillingSpree, target = "target" },
+    },
+    {
+        name = "Eviscerate",
+        conditions = {
+            { type = "state", field = "combo_points", op = ">=", value = 4 },
+        },
+        action = { type = "cast", spell = ACTION.Eviscerate, target = "target" },
+    },
+    {
+        name = "SinisterStrike",
+        conditions = {
+            { type = "state", field = "energy", op = ">=", value = 45 },
+        },
+        action = { type = "cast", spell = ACTION.SinisterStrike, target = "target" },
+    },
+}
 
 local strategies = {
-    { name = "SliceAndDice", matches = slice_and_dice_matches, execute = function(ctx) return ACTION.SliceAndDice and ACTION.SliceAndDice:cast_safe() end },
-    { name = "BladeFlurry", matches = blade_flurry_matches, execute = function(ctx) return ACTION.BladeFlurry and ACTION.BladeFlurry:cast_safe() end },
-    { name = "KillingSpree", matches = killing_spree_matches, execute = function(ctx) return ACTION.KillingSpree and ACTION.KillingSpree:cast_safe(ctx.target) end },
-    { name = "Eviscerate", matches = eviscerate_matches, execute = function(ctx) return ACTION.Eviscerate and ACTION.Eviscerate:cast_safe(ctx.target) end },
-    { name = "SinisterStrike", matches = sinister_strike_matches, execute = function(ctx) return ACTION.SinisterStrike and ACTION.SinisterStrike:cast_safe(ctx.target) end },
+    { name = "SliceAndDice" },
+    { name = "BladeFlurry" },
+    { name = "KillingSpree" },
+    { name = "Eviscerate" },
+    { name = "SinisterStrike" },
 }
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("combat", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Rogue combat rotation registered") end
 
 return { strategies = strategies, build_state = build_state }

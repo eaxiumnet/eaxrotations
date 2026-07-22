@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -44,36 +45,65 @@ local function build_state(context)
     return state
 end
 
-local function flame_shock_matches(context, state)
-    return state.flame_shock_remains < 3
-end
-
-local function lava_burst_matches(context, state)
-    return state.mana_pct >= 20
-end
-
-local function chain_lightning_matches(context, state)
-    return state.enemy_count >= 2 and state.mana_pct >= 25
-end
-
-local function thunderstorm_matches(context, state)
-    return state.mana_pct < 50
-end
-
-local function lightning_bolt_matches(context, state)
-    return state.mana_pct >= 15
-end
+local DSL_DEFS = {
+    {
+        name = "FlameShock",
+        conditions = {
+            { type = "state", field = "flame_shock_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.FlameShock, target = "target" },
+    },
+    {
+        name = "LavaBurst",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.LavaBurst, target = "target" },
+    },
+    {
+        name = "ChainLightning",
+        conditions = {
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "state", field = "mana_pct", op = ">=", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.ChainLightning, target = "target" },
+    },
+    {
+        name = "Thunderstorm",
+        conditions = {
+            { type = "state", field = "mana_pct", op = "<", value = 50 },
+        },
+        action = { type = "cast", spell = ACTION.Thunderstorm, target = "self" },
+    },
+    {
+        name = "LightningBolt",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.LightningBolt, target = "target" },
+    },
+}
 
 local strategies = {
-    { name = "FlameShock", matches = flame_shock_matches, execute = function(ctx) return ACTION.FlameShock and ACTION.FlameShock:cast_safe(ctx.target) end },
-    { name = "LavaBurst", matches = lava_burst_matches, execute = function(ctx) return ACTION.LavaBurst and ACTION.LavaBurst:cast_safe(ctx.target) end },
-    { name = "ChainLightning", matches = chain_lightning_matches, execute = function(ctx) return ACTION.ChainLightning and ACTION.ChainLightning:cast_safe(ctx.target) end },
-    { name = "Thunderstorm", matches = thunderstorm_matches, execute = function(ctx) return ACTION.Thunderstorm and ACTION.Thunderstorm:cast_safe() end },
-    { name = "LightningBolt", matches = lightning_bolt_matches, execute = function(ctx) return ACTION.LightningBolt and ACTION.LightningBolt:cast_safe(ctx.target) end },
+    { name = "FlameShock" },
+    { name = "LavaBurst" },
+    { name = "ChainLightning" },
+    { name = "Thunderstorm" },
+    { name = "LightningBolt" },
 }
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("elemental", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Shaman elemental rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
