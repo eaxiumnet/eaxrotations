@@ -116,7 +116,7 @@ return {
         helper = "aoe_self_meets",
         paths = {
             "EaxRotations/classes/warrior/arms_vanilla.lua",
-            "EaxRotations/classes/warrior/arms_wotlk.lua",
+            -- "EaxRotations/classes/warrior/arms_wotlk.lua" -- DSL-converted: use name=ThunderClap entry below
             "EaxRotations/classes/warrior/leveling_vanilla.lua",
             "EaxRotations/classes/warrior/leveling_sylvanas.lua",
             "EaxRotations/classes/warrior/leveling_wotlk.lua",
@@ -128,6 +128,7 @@ return {
         helper = "aoe_self_meets",
         paths = {
             "EaxRotations/classes/warrior/arms_sylvanas.lua",  -- DSL-converted: imperative thunder_clap_matches removed
+            "EaxRotations/classes/warrior/arms_wotlk.lua",    -- DSL-converted: imperative thunder_clap_matches removed
         },
         window = 900,
     },

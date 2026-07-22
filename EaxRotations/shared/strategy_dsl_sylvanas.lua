@@ -348,9 +348,18 @@ function M.compile_strategy(dsl_def, opts)
     -- argument (it used to be the action table and was ignored). Treat an
     -- empty table the same as nil so those tests continue to work after DSL
     -- adoption.
+    --
+    -- NOTE: next(state) returns nil for spec_kit.safe_state() proxies because
+    -- the proxy table stores keys on raw_state via __newindex.  We detect
+    -- proxies via getmetatable() — a table with a metatable is assumed to
+    -- have functional state accessors even when ":next()" sees no own keys.
     local get_state = dsl_def.get_state or opts.get_state
     local function ensure_state(state, context)
-        if get_state and (state == nil or (type(state) == "table" and next(state) == nil)) then
+        if get_state and (state == nil or (
+            type(state) == "table" and
+            not getmetatable(state) and
+            next(state) == nil
+        )) then
             return get_state(context)
         end
         return state
