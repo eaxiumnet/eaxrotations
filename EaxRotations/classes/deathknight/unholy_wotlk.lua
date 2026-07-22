@@ -15,7 +15,8 @@ do
     if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
 end
 
-local spec_kit = require("shared/spec_kit_sylvanas")
+local spec_kit          = require("shared/spec_kit_sylvanas")
+local dsl               = require("shared/strategy_dsl_sylvanas")
 local rune_manager = require("shared/rune_manager_sylvanas")
 local presence_manager = require("shared/presence_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
@@ -103,76 +104,118 @@ local function build_state(context)
     return state
 end
 
--- ---------------------------------------------------------------------------
--- Match functions (one per strategy)
--- ---------------------------------------------------------------------------
-
-local function horn_of_winter_matches(context, state)
-    return not (state.horn_of_winter_up or false)
-end
-
-local function bone_shield_matches(context, state)
-    return not (state.bone_shield_up or false)
-end
-
-local function presence_matches(context, state)
-    if not presence_manager then return false end
-    local desired = presence_manager.get_optimal_presence(context, state)
-    if not desired then return false end
-    return presence_manager.should_switch_presence(context, state, desired)
-end
-
-local function raise_dead_matches(context, state)
-    return not (state.pet_present or false)
-end
-
-local function summon_gargoyle_matches(context, state)
-    if not (state.is_boss or false) then return false end
-    if (state.runic_power or 0) < 60 then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
-    return true
-end
-
-local function empower_rune_weapon_matches(context, state)
-    local ready = state.rune_ready or { blood = 0, frost = 0, unholy = 0, death = 0 }
-    local total = (ready.blood or 0) + (ready.frost or 0) + (ready.unholy or 0) + (ready.death or 0)
-    return total == 0
-end
-
-local function icy_touch_matches(context, state)
-    return (state.frost_fever_remains or 0) < 3
-end
-
-local function plague_strike_matches(context, state)
-    return (state.blood_plague_remains or 0) < 3
-end
-
-local function pestilence_matches(context, state)
-    local ff = state.frost_fever_remains or 0
-    local bp = state.blood_plague_remains or 0
-    return (ff < 3 or bp < 3)
-        and NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10, context and context.target, context)
-end
-
-local function death_coil_overcap_matches(context, state)
-    return (state.runic_power or 0) >= 100
-end
-
-local function death_and_decay_matches(context, state)
-    return NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_10) or 10, context and context.target, context, state)
-end
-
-local function scourge_strike_matches(context, state)
-    return (state.frost_fever_remains or 0) > 0 and (state.blood_plague_remains or 0) > 0
-end
-
-local function blood_strike_matches(context, state)
-    return true
-end
-
-local function death_coil_dump_matches(context, state)
-    return (state.runic_power or 0) >= 40
-end
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "HornOfWinter",
+        conditions = {
+            { type = "state", field = "horn_of_winter_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.HornOfWinter, target = "self" },
+    },
+    {
+        name = "BoneShield",
+        conditions = {
+            { type = "state", field = "bone_shield_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.BoneShield, target = "self" },
+    },
+    {
+        name = "RaiseDead",
+        conditions = {
+            { type = "state", field = "pet_present", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.RaiseDead, target = "target" },
+    },
+    {
+        name = "SummonGargoyle",
+        conditions = {
+            { type = "state", field = "is_boss", op = "truthy" },
+            { type = "state", field = "runic_power", op = ">=", value = 60 },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.SummonGargoyle, target = "target" },
+    },
+    {
+        name = "EmpowerRuneWeapon",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                local ready = state.rune_ready or { blood = 0, frost = 0, unholy = 0, death = 0 }
+                local total = (ready.blood or 0) + (ready.frost or 0) + (ready.unholy or 0) + (ready.death or 0)
+                return total == 0
+            end },
+        },
+        action = { type = "cast", spell = ACTION.EmpowerRuneWeapon, target = "self" },
+    },
+    {
+        name = "IcyTouch",
+        conditions = {
+            { type = "state", field = "frost_fever_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.IcyTouch, target = "target" },
+    },
+    {
+        name = "PlagueStrike",
+        conditions = {
+            { type = "state", field = "blood_plague_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.PlagueStrike, target = "target" },
+    },
+    {
+        name = "Pestilence",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                local ff = (state.frost_fever_remains or 0)
+                local bp = (state.blood_plague_remains or 0)
+                if ff <= 0 or bp <= 0 then return false end
+                return (ff < 3 or bp < 3)
+                    and NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10, context and context.target, context)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Pestilence, target = "target" },
+    },
+    {
+        name = "DeathCoil",
+        conditions = {
+            { type = "state", field = "runic_power", op = ">=", value = 100 },
+        },
+        action = { type = "cast", spell = ACTION.DeathCoil, target = "target" },
+    },
+    {
+        name = "DeathAndDecay",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                return NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_10) or 10, context and context.target, context, state)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.DeathAndDecay, target = "target" },
+    },
+    {
+        name = "ScourgeStrike",
+        conditions = {
+            { type = "state", field = "frost_fever_remains", op = ">", value = 0 },
+            { type = "state", field = "blood_plague_remains", op = ">", value = 0 },
+        },
+        action = { type = "cast", spell = ACTION.ScourgeStrike, target = "target" },
+    },
+    {
+        name = "BloodStrike",
+        conditions = {},
+        action = { type = "cast", spell = ACTION.BloodStrike, target = "target" },
+    },
+    {
+        name = "DeathCoilDump",
+        conditions = {
+            { type = "state", field = "runic_power", op = ">=", value = 40 },
+        },
+        action = { type = "cast", spell = ACTION.DeathCoil, target = "target" },
+    },
+}
 
 -- ---------------------------------------------------------------------------
 -- Presence execute helper
@@ -201,7 +244,7 @@ if interrupt_manager and interrupt_manager.register_interrupt_spell then
 end
 
 -- ---------------------------------------------------------------------------
--- Strategy table (ordered priority list)
+-- Strategies (interrupt + Presence kept manual for complex multi-action execute)
 -- ---------------------------------------------------------------------------
 
 local strategies = {}
@@ -210,25 +253,45 @@ if interrupt_strategy then
     strategies[#strategies + 1] = interrupt_strategy
 end
 
-strategies[#strategies + 1] = { name = "HornOfWinter",      matches = horn_of_winter_matches,      execute = function(ctx) return ACTION.HornOfWinter and ACTION.HornOfWinter:cast_safe() end }
-strategies[#strategies + 1] = { name = "BoneShield",        matches = bone_shield_matches,         execute = function(ctx) return ACTION.BoneShield and ACTION.BoneShield:cast_safe() end }
-strategies[#strategies + 1] = { name = "Presence",          matches = presence_matches,            execute = presence_execute }
-strategies[#strategies + 1] = { name = "RaiseDead",         matches = raise_dead_matches,          execute = function(ctx) return ACTION.RaiseDead and ACTION.RaiseDead:cast_safe() end }
-strategies[#strategies + 1] = { name = "SummonGargoyle",    matches = summon_gargoyle_matches,     execute = function(ctx) return ACTION.SummonGargoyle and ACTION.SummonGargoyle:cast_safe() end }
-strategies[#strategies + 1] = { name = "EmpowerRuneWeapon", matches = empower_rune_weapon_matches,  execute = function(ctx) return ACTION.EmpowerRuneWeapon and ACTION.EmpowerRuneWeapon:cast_safe() end }
-strategies[#strategies + 1] = { name = "IcyTouch",          matches = icy_touch_matches,           execute = function(ctx) return ACTION.IcyTouch and ACTION.IcyTouch:cast_safe(ctx.target) end }
-strategies[#strategies + 1] = { name = "PlagueStrike",      matches = plague_strike_matches,       execute = function(ctx) return ACTION.PlagueStrike and ACTION.PlagueStrike:cast_safe(ctx.target) end }
-strategies[#strategies + 1] = { name = "Pestilence",        matches = pestilence_matches,          execute = function(ctx) return ACTION.Pestilence and ACTION.Pestilence:cast_safe(ctx.target) end }
-strategies[#strategies + 1] = { name = "DeathCoil",         matches = death_coil_overcap_matches,  execute = function(ctx) return ACTION.DeathCoil and ACTION.DeathCoil:cast_safe(ctx.target) end }
-strategies[#strategies + 1] = { name = "DeathAndDecay",     matches = death_and_decay_matches,     execute = function(ctx) return ACTION.DeathAndDecay and ACTION.DeathAndDecay:cast_safe(ctx.target) end }
-strategies[#strategies + 1] = { name = "ScourgeStrike",     matches = scourge_strike_matches,      execute = function(ctx) return ACTION.ScourgeStrike and ACTION.ScourgeStrike:cast_safe(ctx.target) end }
-strategies[#strategies + 1] = { name = "BloodStrike",       matches = blood_strike_matches,        execute = function(ctx) return ACTION.BloodStrike and ACTION.BloodStrike:cast_safe(ctx.target) end }
-strategies[#strategies + 1] = { name = "DeathCoilDump",     matches = death_coil_dump_matches,     execute = function(ctx) return ACTION.DeathCoil and ACTION.DeathCoil:cast_safe(ctx.target) end }
+-- Name-only placeholders — substituted by DSL loop below
+strategies[#strategies + 1] = { name = "HornOfWinter" }
+strategies[#strategies + 1] = { name = "BoneShield" }
 
+-- Presence kept manual because its execute chooses between 3 spells dynamically
+strategies[#strategies + 1] = { name = "Presence", matches = function(context, state)
+    if not presence_manager then return false end
+    local desired = presence_manager.get_optimal_presence(context, state)
+    if not desired then return false end
+    return presence_manager.should_switch_presence(context, state, desired)
+end, execute = presence_execute }
+
+strategies[#strategies + 1] = { name = "RaiseDead" }
+strategies[#strategies + 1] = { name = "SummonGargoyle" }
+strategies[#strategies + 1] = { name = "EmpowerRuneWeapon" }
+strategies[#strategies + 1] = { name = "IcyTouch" }
+strategies[#strategies + 1] = { name = "PlagueStrike" }
+strategies[#strategies + 1] = { name = "Pestilence" }
+strategies[#strategies + 1] = { name = "DeathCoil" }
+strategies[#strategies + 1] = { name = "DeathAndDecay" }
+strategies[#strategies + 1] = { name = "ScourgeStrike" }
+strategies[#strategies + 1] = { name = "BloodStrike" }
+strategies[#strategies + 1] = { name = "DeathCoilDump" }
+
+-- Name-based substitution preserves the existing priority order.
+-- interrupt_strategy and Presence (position 4) have no DSL_DEFS name match, so they remain as-is.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
+
+-- Register (guarded — nil-safe in unit tests)
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("unholy", strategies, { get_state = build_state })
 end
-
 if NS.log then NS.log("Death Knight unholy rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
