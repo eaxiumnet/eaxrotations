@@ -87,6 +87,7 @@ local tests = {
   "test_frost_wotlk_dsl_priority.lua",
   "test_blood_wotlk_dsl_priority.lua",
   "test_fire_wotlk_dsl_priority.lua",
+  "test_retribution_wotlk_dsl_priority.lua",
   "test_wotlk_specs_load.lua",
   "test_wotlk_leveling_load.lua",
   "test_deathknight_blood_wotlk.lua",
