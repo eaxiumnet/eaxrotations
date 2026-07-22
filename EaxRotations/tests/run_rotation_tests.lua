@@ -91,6 +91,7 @@ local tests = {
   "test_arcane_wotlk_dsl_priority.lua",
   "test_shadow_wotlk_dsl_priority.lua",
   "test_enhancement_wotlk_dsl_priority.lua",
+  "test_unholy_wotlk_dsl_priority.lua",
   "test_wotlk_specs_load.lua",
   "test_wotlk_leveling_load.lua",
   "test_deathknight_blood_wotlk.lua",
