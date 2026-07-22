@@ -128,6 +128,8 @@ local DEMON_OR_UNDEAD = { [3] = true, [6] = true }
 
 local CC_DEBUFFS = { 118, 12824, 12825, 12826, 28271, 28272, 3355, 14308, 14309, 20066 }
 
+local MELEE_RANGE = 8
+
 local CONSECRATION_MIN_MANA = 35
 
 local CONSECRATION_AOE_THRESHOLD = 3
@@ -229,6 +231,10 @@ local PROT_SCHEMA = {
 
     is_group = false,
 
+    -- Base-match guards (Pattern 14)
+
+    in_combat = false,  has_valid_enemy_target = false,  in_melee = false,
+
     -- Spell readiness: assume ready (Pattern 14: nil → fallback reads true)
 
     consecration_ready = true,  holy_shield_ready = true,  avenger_ready = true,
@@ -251,7 +257,7 @@ local PROT_SCHEMA = {
 
     hp_pct = 100,  mana_pct = 100,  target_hp_pct = 100,
 
-    -- Counts: assume zero → skip AoE/spenders (Pattern 14)
+    -- Counts: assume zero → skip AoE/spender (Pattern 14)
 
     enemy_count = 0,  consecration_remains = 0,  holy_shield_charges = 0,
 
@@ -635,6 +641,32 @@ local function build_state(context)
 
      prot_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS)
 
+     -- Centralized guard fields used by base_matches guards
+     prot_state.in_combat = context.in_combat == true
+     local t = context.target
+     if context.has_valid_enemy_target ~= nil then
+         prot_state.has_valid_enemy_target = context.has_valid_enemy_target == true
+     elseif t ~= nil then
+         local is_valid = false
+         if NS.is_valid_target then
+             is_valid = NS.is_valid_target(t)
+         elseif t.is_valid then
+             is_valid = t:is_valid()
+         end
+         prot_state.has_valid_enemy_target = is_valid and not (t.is_dead and t:is_dead())
+     else
+         prot_state.has_valid_enemy_target = false
+     end
+     -- Compute in_melee from explicit context flag or fallback to distance check
+     if context.in_melee ~= nil then
+         prot_state.in_melee = context.in_melee == true
+     elseif me and target and me.get_distance then
+         local ok, dist = pcall(me.get_distance, me, target)
+         prot_state.in_melee = ok and dist and dist <= MELEE_RANGE or false
+     else
+         prot_state.in_melee = false
+     end
+
      local swing_remains = 99
      if NS.swing_time_until then
          local ok, sr = pcall(NS.swing_time_until, me)
@@ -686,17 +718,61 @@ local function unit_has_buff(unit, ids)
 
 end
 
-
 local function cooldowns_enabled(context)
-
  return spec_kit.setting_bool(context, "use_cooldowns", false)
+end
 
+
+-- ============================================================================
+-- Centralized base_matches guards
+-- ============================================================================
+-- Merge a caller-provided state override into the state built from context.
+-- This keeps tests ergonomic (callers can pass partial states) without
+-- mutating the static cached state table (Pattern 4).
+local function merge_state(context, state_override)
+    local s = build_state(context)
+    if not state_override or next(state_override) == nil then return s end
+    local merged = {}
+    for k, v in pairs(s) do merged[k] = v end
+    for k, v in pairs(state_override) do merged[k] = v end
+    -- Preserve safe_state metatable defaults (schema-backed __index) so that
+    -- fields not explicitly set on the cached table are still visible. We copy
+    -- the metatable to avoid sharing mutable state with the cached proxy.
+    local mt = getmetatable(s)
+    if mt then
+        local mt_copy = {}
+        for k, v in pairs(mt) do mt_copy[k] = v end
+        setmetatable(merged, mt_copy)
+    end
+    return merged
+end
+
+local function base_guard_passes(action_def, s)
+    if not action_def then return true end
+    if action_def.requires_in_combat and not s.in_combat then return false end
+    if action_def.requires_not_in_combat and s.in_combat then return false end
+    if action_def.requires_target and not s.has_valid_enemy_target then return false end
+    if action_def.requires_melee and not s.in_melee then return false end
+    return true
+end
+
+local function apply_base_matches(strategies, actions)
+    for i = 1, #strategies do
+        local action = actions[strategies[i].name]
+        local original_matches = strategies[i].matches
+        strategies[i].matches = function(context, state)
+            local s = merge_state(context, state)
+            if not base_guard_passes(action, s) then return false end
+            return original_matches(context, s)
+        end
+    end
 end
 
 
 -- ============================================================================
 
 -- Match functions
+
 
 -- ============================================================================
 
@@ -723,18 +799,9 @@ local function righteous_fury_matches(context, state)
 end
 
 
-local function has_combat_target(context)
-
- return context.has_valid_enemy_target and context.in_combat
-
-end
-
-
 local function holy_shield_matches(context, state)
 
  if not spec_kit.setting_bool(context, "prot_holy_shield", true) then return false end
-
- if not has_combat_target(context) then return false end
 
  if not state.holy_shield_ready then return false end
 
@@ -772,8 +839,6 @@ end
 local function consecration_matches(context, state)
 
  if not spec_kit.setting_bool(context, "prot_consecration", true) then return false end
-
- if not has_combat_target(context) then return false end
 
  if not state.consecration_ready then return false end
 
@@ -830,8 +895,6 @@ end
 local function judgement_matches(context, state)
 
  if not spec_kit.setting_bool(context, "prot_judgement", true) then return false end
-
- if not has_combat_target(context) then return false end
 
  if not state.judgement_ready then return false end
 
@@ -911,8 +974,6 @@ local function seal_command_aoe_matches(context, state)
 
  if not spec_kit.setting_bool(context, "prot_seal_of_command", false) then return false end
 
- if not has_combat_target(context) then return false end
-
  if (state.enemy_count or 0) < 3 then return false end
 
  if state.has_seal or state.has_seal_command then return false end
@@ -933,8 +994,6 @@ end
 local function exorcism_matches(context, state)
 
  if not spec_kit.setting_bool(context, "prot_exorcism", true) then return false end
-
- if not has_combat_target(context) then return false end
 
  if not state.exorcism_ready then return false end
 
@@ -1052,10 +1111,6 @@ local function devotion_aura_matches(context, state)
 
  if not spec_kit.setting_bool(context, "prot_devotion_aura", true) then return false end
 
- -- Don't block combat rotation with aura maintenance when in combat
-
- if has_combat_target(context) then return false end
-
  if state.has_devotion_aura then return false end
 
  if NS.buff_remains and context.me then
@@ -1087,10 +1142,6 @@ local function blessing_of_sanctuary_matches(context, state)
 
  if not spec_kit.setting_bool(context, "prot_blessing_sanctuary", true) then return false end
 
- -- Don't block combat rotation with blessing maintenance when in combat
-
- if has_combat_target(context) then return false end
-
  if state.has_blessing_sanctuary then return false end
 
  if NS.buff_remains and context.me then
@@ -1116,17 +1167,43 @@ end
 
 -- Strategies
 
--- ============================================================================
-
--- Priority order: Consecration > HolyShield > AvengerShield for AoE threat.
-
+-- ============================================================================-- Priority order: Consecration > HolyShield > AvengerShield for AoE threat.
 -- Consecration generates more AoE threat per GCD; HolyShield provides mitigation.
-
 -- DevotionAura and BlessingOfSanctuary are placed low so they don't block
-
 -- the actual combat rotation.
 
+-- Strategy metadata for centralized guards. Keys correspond to strategy.name.
+local ACTIONS = {
+    Healthstone = { requires_in_combat = true },
+    ManaPotion = { requires_in_combat = true },
+    RighteousFury = {},
+    HolyShield = { requires_in_combat = true, requires_target = true },
+    Judgement = { requires_in_combat = true, requires_target = true },
+    SealOfCommandAoE = { requires_in_combat = true, requires_target = true },
+    SealRighteousness = {},
+    SealOfWisdom = {},
+    Consecration = { requires_in_combat = true, requires_target = true },
+    Exorcism = { requires_in_combat = true, requires_target = true },
+    HolyWrath = { requires_in_combat = true, requires_target = true },
+    HammerOfWrath = { requires_in_combat = true, requires_target = true },
+    AvengingWrath = { requires_in_combat = true },
+    AvengerShield = { requires_target = true },
+    DevotionAura = { requires_not_in_combat = true },
+    BlessingOfSanctuary = { requires_not_in_combat = true },
+    HolyShock = { requires_in_combat = true, requires_target = true },
+    FlashOfLight = {},
+    HolyLight = {},
+    Cleanse = {},
+    DivineProtection = { requires_in_combat = true },
+    DivineShield = {},
+    LayOnHands = {},
+    RighteousDefense = { requires_in_combat = true },
+    BlessingOfProtectionAlly = { requires_in_combat = true },
+    BlessingOfKingsParty = { requires_not_in_combat = true },
+}
+
 local function RighteousDefense_matches(context, state)  return spec_kit.setting_bool(context, "prot_righteous_defense", true) and state.ally_threatened ~= nil and state.righteous_defense_ready and (context.target_classification or 0) >= 1 end
+
 
 local function RighteousDefense_execute(context, state) return NS.try_cast(ACTION.RighteousDefense, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end
 
@@ -1141,8 +1218,6 @@ local strategies = {
     { name = "Healthstone",
 
       matches = function(context, state)
-
-          if not context.in_combat then return false end
 
           if (context.hp or 100) > 28 then return false end
 
@@ -1170,8 +1245,6 @@ local strategies = {
  { name = "ManaPotion",
 
   matches = function(context)
-
-   if not context.in_combat then return false end
 
    if not spec_kit.setting_bool(context, "use_auto_potions", true) then return false end
 
@@ -1261,8 +1334,6 @@ local strategies = {
 
  { name = "BlessingOfKingsParty", matches = function(context, state)
 
-  if context.in_combat then return false end
-
   if not spec_kit.setting_bool(context, "prot_bok_party", true) then return false end
 
   if not state.is_group then return false end
@@ -1291,10 +1362,6 @@ local DSL_DEFS = {
         name = "HammerOfWrath",
         conditions = {
             { type = "setting", key = "prot_hammer_of_wrath", op = "truthy", default = true },
-            { type = "custom", fn = function(context, state)
-                if not has_combat_target(context) then return false end
-                return true
-            end },
             { type = "state", field = "hammer_of_wrath_ready", op = "truthy" },
             { type = "custom", fn = function(context, state)
                 local execute_hp = spec_kit.setting_number(context, "prot_hammer_of_wrath_hp", 20)
@@ -1328,10 +1395,6 @@ local DSL_DEFS = {
     {
         name = "HolyShock",
         conditions = {
-            { type = "custom", fn = function(context, state)
-                if not has_combat_target(context) then return false end
-                return true
-            end },
             { type = "state", field = "holy_shock_ready", op = "truthy" },
             { type = "custom", fn = function(context, state)
                 local fol_threshold = spec_kit.setting_number(context, "prot_flash_of_light_hp", 40)
@@ -1358,10 +1421,6 @@ local DSL_DEFS = {
         name = "HolyWrath",
         conditions = {
             { type = "setting", key = "prot_holy_wrath", op = "truthy", default = true },
-            { type = "custom", fn = function(context, state)
-                if not has_combat_target(context) then return false end
-                return true
-            end },
             { type = "enemy_count", op = ">=", value = 2 },
             { type = "state", field = "holy_wrath_ready", op = "truthy" },
             { type = "custom", fn = function(context, state)
@@ -1416,6 +1475,10 @@ for i = 1, #strategies do
         strategies[i] = dsl_strategy
     end
 end
+
+-- Apply centralized base_matches guards after DSL substitution so both
+-- imperative and DSL-compiled strategies share the same guard layer.
+apply_base_matches(strategies, ACTIONS)
 
 if NS.rotation_registry and NS.rotation_registry.register then
 
