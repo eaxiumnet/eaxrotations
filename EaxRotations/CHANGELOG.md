@@ -6,7 +6,7 @@
 - **100% strategy DSL coverage** — all 29 specs now use the declarative strategy DSL.
 - Final 3 adopters: Caster Druid (6 strategies), Smite Priest (17 strategies), Kebab Warrior (16 strategies).
 - Pre-commit badge-drift check — prevents stale test-count badges from reaching commits.
-- 372 rotation + 21 leveling = 393 total test suites, all green.
+- 373 rotation + 21 leveling = 394 total test suites, all green.
 - Version **2.11.0**.
 
 ### Developer Notes
@@ -17,7 +17,7 @@
 - All spec-to-spec variations validated: rage, energy/combo, mana (caster/tank/healer),
   focus/pet, shadow DoT, frost/arcane/fire proc, melee/totem, warlock curse/execute,
   bear tank, feral cat powershift across all 10 classes.
-- 372 rotation suites + 21 leveling suites = 393 total, all green.
+- 373 rotation suites + 21 leveling suites = 394 total, all green.
 
 ## 2.10.0 - 2026-07-16
 

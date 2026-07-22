@@ -35,15 +35,15 @@ across all 29 TBC specs and adds badge-drift detection to the pre-commit hook.
 
 ### Documentation
 
-- `AGENTS.md`: test count synced to 372+21=393 across 3 stale reference locations.
-- `plans/_active.md`: updated to 100% DSL coverage, 29/29 specs, 393 total tests.
+- `AGENTS.md`: test count synced to 373+21=394 across 3 stale reference locations.
+- `plans/_active.md`: updated to 100% DSL coverage, 29/29 specs, 394 total tests.
 - `plans/HANDOFF.md`: all 28/29 stale references replaced; DSL adoption marked COMPLETE
   in WHAT'S NEXT section.
 - Test counts validated across all active markdown files.
 
 ### Technical
 
-- `luac -p` + 372/372 rotation + 21/21 leveling suites green (393 total).
+- `luac -p` + 373/373 rotation + 21/21 leveling suites green (394 total).
 - Pre-commit hook: 642 luac + 31 vanilla audit + 61 sylvanas audit + badge check — all PASS.
 - Version bump 2.11.0 in `VERSION.txt`, `README.md`, `CHANGELOG.md`.
 - Clean `eaxrotations.zip` (lua + md only).
