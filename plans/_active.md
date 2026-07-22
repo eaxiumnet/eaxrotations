@@ -58,7 +58,7 @@
 
 ## Baseline (ALL GREEN — verified 2026-07-22)
 
-- 370 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +52 from all 29 DSL adoption suites + 22 WotLK DSL suites
+- 371 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +53 from all 29 DSL adoption suites + 23 WotLK DSL suites
 - 21 leveling suites: ALL PASS
 - 31 vanilla audit: PASS (0 tainted)
 - 61 sylvanas audit: PASS (0 invalid)
