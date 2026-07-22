@@ -491,6 +491,10 @@ if #leveling_missing > 0 then
 end
 
 if #issues > 0 then
+    print("spec layout compliance issues:")
+    for _, issue in ipairs(issues) do
+        print("- " .. issue)
+    end
     error("spec layout compliance failed:\n- " .. table.concat(issues, "\n- "), 0)
 end
 
