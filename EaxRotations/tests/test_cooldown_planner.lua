@@ -6,6 +6,8 @@
 
 -- Test: shared/cooldown_planner_sylvanas.lua alignment helpers.
 
+package.loaded["shared/cooldown_planner_sylvanas"] = nil
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local assert_true, assert_false

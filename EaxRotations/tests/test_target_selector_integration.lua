@@ -4,6 +4,8 @@
 -- WHY:   Ensures Phase 4 (target_selector direct queries) works and falls back gracefully when unavailable.
 -- SAFETY: Uses synthetic contexts; no live game data required.
 
+package.loaded["shared/ts_helper_sylvanas"] = nil
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local function assert_true(v, label) if not v then error(label or "assert_true failed", 2) end end
