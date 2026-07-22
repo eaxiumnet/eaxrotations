@@ -19,6 +19,11 @@ local function assert_eq(a, b, label)
 end
 
 -- ============================================================================
+-- Shared test helpers
+-- ============================================================================
+local runner = dofile("EaxRotations/tests/test_runner_lib.lua")
+
+-- ============================================================================
 -- Mock NS for protection_sylvanas.lua
 -- ============================================================================
 local mock_hp = 100
@@ -183,14 +188,12 @@ assert_true(br_idx > cs_idx, "BerserkerRage after CommandingShout")
 -- Test 4: DSL condition equivalence
 -- ============================================================================
 local function make_ctx(overrides)
-    local ctx = {
-        me = { get_health = function() return mock_hp end },
-        target = { get_health = function() return 50 end, is_valid = function() return true end, is_dead = function() return false end },
+    local ctx = runner.Mock.DefaultProtectionContext({
         in_combat = mock_in_combat,
         hp = mock_hp,
-        settings = {},
         is_group = mock_is_group,
-    }
+        settings = {},
+    })
     for k, v in pairs(overrides or {}) do ctx[k] = v end
     return ctx
 end
