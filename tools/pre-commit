@@ -1,0 +1,104 @@
+#!/bin/sh
+# Git pre-commit hook: prevent Lua syntax, TBC spell ID, and badge-count
+# regressions in EaxRotations.
+#
+# Runs in this order:
+#   1. luac -p on all .lua files (syntax check)
+#   2. Vanilla TBC spell ID audit (negative: blocks TBC IDs in vanilla files)
+#   3. Sylvanas spell ID audit (positive: every ID exists in DBC)
+#   4. Badge drift check (README.md + AGENTS.md test counts match runners)
+#
+# INSTALL:
+#   cp tools/pre-commit .git/hooks/pre-commit
+#
+# BYPASS:
+#   SKIP_LUAC=1 git commit ...
+#   git commit --no-verify (git commit -n)
+
+set -e
+
+# Allow bypass with --no-verify (git commit -n) or SKIP_LUAC=1
+if [ -n "$SKIP_LUAC" ]; then
+    echo "[pre-commit] SKIP_LUAC is set — skipping all checks"
+    exit 0
+fi
+
+echo "[pre-commit] Running EaxRotations validation gate..."
+
+# Pin the project's Lua 5.1 toolchain when present.
+_LUA51="/c/Program Files (x86)/Lua/5.1"
+if [ -x "$_LUA51/luac.exe" ]; then LUAC="$_LUA51/luac.exe"; else LUAC=luac; fi
+if [ -x "$_LUA51/lua.exe" ]; then LUA="$_LUA51/lua.exe"; else LUA=lua; fi
+
+# ---------------------------------------------------------------------------
+# 1. luac -p syntax check
+# ---------------------------------------------------------------------------
+echo "[pre-commit] [1/4] Parsing all .lua files with luac -p..."
+
+FAILED=0
+TOTAL=0
+
+TMPFILE=$(mktemp)
+trap 'rm -f "$TMPFILE"' EXIT
+find EaxRotations -name '*.lua' > "$TMPFILE"
+
+while IFS= read -r file; do
+    TOTAL=$((TOTAL + 1))
+    if ! "$LUAC" -p "$file" 2>/dev/null; then
+        echo "  SYNTAX ERROR: $file"
+        FAILED=$((FAILED + 1))
+    fi
+done < "$TMPFILE"
+
+echo "[pre-commit] Checked $TOTAL files."
+
+if [ "$FAILED" -gt 0 ]; then
+    echo "[pre-commit] $FAILED file(s) failed luac -p. Commit aborted."
+    echo "[pre-commit] Fix syntax errors or bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+echo "[pre-commit] All Lua files pass syntax check."
+
+# ---------------------------------------------------------------------------
+# 2. Vanilla TBC spell ID audit (negative: blocks TBC IDs in vanilla files)
+# ---------------------------------------------------------------------------
+echo "[pre-commit] [2/4] Running vanilla TBC spell ID audit..."
+
+if ! "$LUA" EaxRotations/tests/run_vanilla_audit_tests.lua 2>&1; then
+    echo "[pre-commit] Vanilla TBC spell ID audit FAILED. Commit aborted."
+    echo "[pre-commit] Remove TBC-only spell IDs from vanilla spec files or bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+echo "[pre-commit] Vanilla TBC spell ID audit passed."
+
+# ---------------------------------------------------------------------------
+# 3. Sylvanas spell ID audit (positive: ensures every ID exists in DBC)
+# ---------------------------------------------------------------------------
+echo "[pre-commit] [3/4] Running sylvanas spell ID audit..."
+
+if ! "$LUA" EaxRotations/tests/run_sylvanas_audit_tests.lua 2>&1; then
+    echo "[pre-commit] Sylvanas spell ID audit FAILED. Commit aborted."
+    echo "[pre-commit] Remove or fix invalid spell IDs (not in WoW 2.5.5.68101 DBC)."
+    echo "[pre-commit] Bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+echo "[pre-commit] Sylvanas spell ID audit passed."
+
+# ---------------------------------------------------------------------------
+# 4. Badge drift check (README.md + AGENTS.md test counts match runners)
+# ---------------------------------------------------------------------------
+echo "[pre-commit] [4/4] Checking badge counts are in sync..."
+
+if ! "$LUA" tools/update_badges.lua --check 2>&1; then
+    echo "[pre-commit] Badge count drift detected. Commit aborted."
+    echo "[pre-commit] Fix: run 'lua tools/update_badges.lua' and stage the diff, then commit again."
+    echo "[pre-commit] Bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+echo "[pre-commit] Badge counts are in sync."
+echo "[pre-commit] All 4 checks passed."
+exit 0
