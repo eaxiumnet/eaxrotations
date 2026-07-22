@@ -2,12 +2,14 @@
 -- WHAT:  priority-list strategies for Beast Mastery hunter.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
+--          imperative match functions; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.HunterSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -50,41 +52,69 @@ local function build_state(context)
     return state
 end
 
-local function hunters_mark_matches(context, state)
-    return state.mark_remains < 3
-end
-
-local function serpent_sting_matches(context, state)
-    return state.serpent_remains < 3
-end
-
-local function bestial_wrath_matches(context, state)
-    return state.bestial_wrath_ready
-end
-
-local function kill_command_matches(context, state)
-    return true
-end
-
-local function arcane_shot_matches(context, state)
-    return state.mana_pct >= 20
-end
-
-local function steady_shot_matches(context, state)
-    return true
-end
+local DSL_DEFS = {
+    {
+        name = "HuntersMark",
+        conditions = {
+            { type = "state", field = "mark_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.HuntersMark, target = "target" },
+    },
+    {
+        name = "BestialWrath",
+        conditions = {
+            { type = "state", field = "bestial_wrath_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.BestialWrath, target = "self" },
+    },
+    {
+        name = "KillCommand",
+        conditions = {},
+        action = { type = "cast", spell = ACTION.KillCommand, target = "target" },
+    },
+    {
+        name = "SerpentSting",
+        conditions = {
+            { type = "state", field = "serpent_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.SerpentSting, target = "target" },
+    },
+    {
+        name = "ArcaneShot",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.ArcaneShot, target = "target" },
+    },
+    {
+        name = "SteadyShot",
+        conditions = {},
+        action = { type = "cast", spell = ACTION.SteadyShot, target = "target" },
+    },
+}
 
 local strategies = {
-    { name = "HuntersMark", matches = hunters_mark_matches, execute = function(ctx) return ACTION.HuntersMark and ACTION.HuntersMark:cast_safe(ctx.target) end },
-    { name = "BestialWrath", matches = bestial_wrath_matches, execute = function(ctx) return ACTION.BestialWrath and ACTION.BestialWrath:cast_safe() end },
-    { name = "KillCommand", matches = kill_command_matches, execute = function(ctx) return ACTION.KillCommand and ACTION.KillCommand:cast_safe(ctx.target) end },
-    { name = "SerpentSting", matches = serpent_sting_matches, execute = function(ctx) return ACTION.SerpentSting and ACTION.SerpentSting:cast_safe(ctx.target) end },
-    { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(ctx) return ACTION.ArcaneShot and ACTION.ArcaneShot:cast_safe(ctx.target) end },
-    { name = "SteadyShot", matches = steady_shot_matches, execute = function(ctx) return ACTION.SteadyShot and ACTION.SteadyShot:cast_safe(ctx.target) end },
+    { name = "HuntersMark" },
+    { name = "BestialWrath" },
+    { name = "KillCommand" },
+    { name = "SerpentSting" },
+    { name = "ArcaneShot" },
+    { name = "SteadyShot" },
 }
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("beast_mastery", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Hunter beast_mastery rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
