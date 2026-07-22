@@ -1,13 +1,17 @@
 -- frost_wotlk.lua — Mage Frost rotation for Wrath of the Lich King (3.3.5).
--- WHAT:  priority-list strategies for Frost mage.
+-- WHAT:  priority-list strategies for Frost mage: ColdSnap panic heal, DeepFreeze
+--        on frozen targets, FrostfireBolt debuff refresh, IceLance on frozen,
+--        Frostbolt filler.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
+--         imperative match functions; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.MageSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -50,36 +54,73 @@ local function build_state(context)
     return state
 end
 
-local function cold_snap_matches(context, state)
-    return state.hp < 50
-end
-
-local function deep_freeze_matches(context, state)
-    return state.target_frozen
-end
-
-local function frostfire_bolt_matches(context, state)
-    return state.frostfire_remains < 3 and state.mana_pct >= 20
-end
-
-local function ice_lance_matches(context, state)
-    return state.target_frozen
-end
-
-local function frostbolt_matches(context, state)
-    return state.mana_pct >= 15
-end
-
-local strategies = {
-    { name = "ColdSnap", matches = cold_snap_matches, execute = function(ctx) return ACTION.ColdSnap and ACTION.ColdSnap:cast_safe() end },
-    { name = "DeepFreeze", matches = deep_freeze_matches, execute = function(ctx) return ACTION.DeepFreeze and ACTION.DeepFreeze:cast_safe(ctx.target) end },
-    { name = "FrostfireBolt", matches = frostfire_bolt_matches, execute = function(ctx) return ACTION.FrostfireBolt and ACTION.FrostfireBolt:cast_safe(ctx.target) end },
-    { name = "IceLance", matches = ice_lance_matches, execute = function(ctx) return ACTION.IceLance and ACTION.IceLance:cast_safe(ctx.target) end },
-    { name = "Frostbolt", matches = frostbolt_matches, execute = function(ctx) return ACTION.Frostbolt and ACTION.Frostbolt:cast_safe(ctx.target) end },
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "ColdSnap",
+        conditions = {
+            { type = "state", field = "hp", op = "<", value = 50 },
+        },
+        action = { type = "cast", spell = ACTION.ColdSnap, target = "self" },
+    },
+    {
+        name = "DeepFreeze",
+        conditions = {
+            { type = "state", field = "target_frozen", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.DeepFreeze, target = "target" },
+    },
+    {
+        name = "FrostfireBolt",
+        conditions = {
+            { type = "state", field = "frostfire_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.FrostfireBolt, target = "target" },
+    },
+    {
+        name = "IceLance",
+        conditions = {
+            { type = "state", field = "target_frozen", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.IceLance, target = "target" },
+    },
+    {
+        name = "Frostbolt",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Frostbolt, target = "target" },
+    },
 }
 
+-- -----------------------------------------------------------------------------
+-- Strategies (name-only placeholders; substituted by DSL)
+-- -----------------------------------------------------------------------------
+local strategies = {
+    { name = "ColdSnap" },
+    { name = "DeepFreeze" },
+    { name = "FrostfireBolt" },
+    { name = "IceLance" },
+    { name = "Frostbolt" },
+}
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
+
+-- Register (guarded — nil-safe in unit tests)
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("frost", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Mage Frost WotLK rotation registered") end
 
 return { strategies = strategies, build_state = build_state }

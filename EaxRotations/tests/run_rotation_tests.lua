@@ -83,6 +83,8 @@ local tests = {
   "test_warrior_arms_wotlk.lua",
   "test_arms_wotlk_dsl_priority.lua",
   "test_fury_wotlk_dsl_priority.lua",
+  "test_protection_wotlk_dsl_priority.lua",
+  "test_frost_wotlk_dsl_priority.lua",
   "test_wotlk_specs_load.lua",
   "test_wotlk_leveling_load.lua",
   "test_deathknight_blood_wotlk.lua",

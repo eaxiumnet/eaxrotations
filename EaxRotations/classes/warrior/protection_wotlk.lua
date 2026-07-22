@@ -1,13 +1,17 @@
 -- protection_wotlk.lua — Warrior Protection rotation for Wrath of the Lich King (3.3.5).
--- WHAT:  priority-list strategies for Protection warrior.
--- WHEN:  combat with valid enemy target.
--- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- WHAT:  priority-list strategies for Protection warrior tanking: Shield Block CD,
+--        Shield Slam, Revenge, Thunder Clap AoE debuff refresh, Devastate filler,
+--        Heroic Strike rage dump.
+-- WHEN:  combat with a valid enemy target; Defensive Stance.
+-- WHY:   mirrors SimulationCraft / wowsims WotLK Protection APL with 3.3.5-era mechanics.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
+--         imperative match functions; no on_update() allocations.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
@@ -25,6 +29,20 @@ local ACTION = {
 
 local THUNDER_CLAP_DEBUFF = { 47502, 25264, 11581, 11580, 8205, 8204, 8198, 6343 }
 
+-- -----------------------------------------------------------------------------
+-- Cooldown helper: returns remaining seconds, or `fallback` when unavailable.
+-- -----------------------------------------------------------------------------
+local function cd_remaining(action, fallback)
+    if action and type(action.cooldown_remaining) == "function" then
+        local ok, val = pcall(action.cooldown_remaining, action)
+        if ok and type(val) == "number" then return val end
+    end
+    return fallback or 99
+end
+
+-- -----------------------------------------------------------------------------
+-- State table (raw; safe_state proxy applied in build_state)
+-- -----------------------------------------------------------------------------
 local protection_state = {
     rage = 0,
     hp = 100,
@@ -35,55 +53,107 @@ local protection_state = {
     shield_block_ready = false,
 }
 
+-- -----------------------------------------------------------------------------
+-- build_state(context) — populate state from context + NS, return safe_state proxy
+-- -----------------------------------------------------------------------------
 local function build_state(context)
     local state = spec_kit.safe_state(protection_state)
+    context = context or {}
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
-    local target = context and context.target
-    state.rage = (me and me.get_rage and me:get_rage()) or 0
-    state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
-    state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
-    state.enemy_count = (context and context.enemy_count) or 1
-    state.in_combat = (context and context.in_combat) or false
+    local target = context.target
+
+    state.rage = (me and type(me.get_rage) == "function" and me:get_rage()) or 0
+    state.hp = (me and type(me.get_health_percentage) == "function" and me:get_health_percentage()) or 100
+    state.target_hp = (target and type(target.get_health_percentage) == "function" and target:get_health_percentage()) or 100
+    state.enemy_count = (context.enemy_count or 1)
+    state.in_combat = (context.in_combat == true)
     state.tclap_remains = (target and NS.debuff_remains and NS.debuff_remains(target, THUNDER_CLAP_DEBUFF)) or 0
-    state.shield_block_ready = (ACTION.ShieldBlock and ACTION.ShieldBlock.cooldown_remaining and ACTION.ShieldBlock:cooldown_remaining() <= 0) or false
+    state.shield_block_ready = cd_remaining(ACTION.ShieldBlock, 999) <= 0
+
     return state
 end
 
-local function shield_block_matches(context, state)
-    return state.shield_block_ready
-end
-
-local function shield_slam_matches(context, state)
-    return state.rage >= 20
-end
-
-local function revenge_matches(context, state)
-    return state.rage >= 5
-end
-
-local function thunder_clap_matches(context, state)
-    return state.tclap_remains < 3 and state.rage >= 20
-end
-
-local function devastate_matches(context, state)
-    return state.rage >= 15
-end
-
-local function heroic_strike_matches(context, state)
-    return state.rage >= 60
-end
-
-local strategies = {
-    { name = "ShieldBlock", matches = shield_block_matches, execute = function(ctx) return ACTION.ShieldBlock and ACTION.ShieldBlock:cast_safe() end },
-    { name = "ShieldSlam", matches = shield_slam_matches, execute = function(ctx) return ACTION.ShieldSlam and ACTION.ShieldSlam:cast_safe(ctx.target) end },
-    { name = "Revenge", matches = revenge_matches, execute = function(ctx) return ACTION.Revenge and ACTION.Revenge:cast_safe(ctx.target) end },
-    { name = "ThunderClap", matches = thunder_clap_matches, execute = function(ctx) return ACTION.ThunderClap and ACTION.ThunderClap:cast_safe(ctx.target) end },
-    { name = "Devastate", matches = devastate_matches, execute = function(ctx) return ACTION.Devastate and ACTION.Devastate:cast_safe(ctx.target) end },
-    { name = "HeroicStrike", matches = heroic_strike_matches, execute = function(ctx) return ACTION.HeroicStrike and ACTION.HeroicStrike:cast_safe(ctx.target) end },
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "ShieldBlock",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "shield_block_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.ShieldBlock, target = "self" },
+    },
+    {
+        name = "ShieldSlam",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.ShieldSlam, target = "target" },
+    },
+    {
+        name = "Revenge",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 5 },
+        },
+        action = { type = "cast", spell = ACTION.Revenge, target = "target" },
+    },
+    {
+        name = "ThunderClap",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "tclap_remains", op = "<", value = 3 },
+            { type = "state", field = "rage", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.ThunderClap, target = "target" },
+    },
+    {
+        name = "Devastate",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Devastate, target = "target" },
+    },
+    {
+        name = "HeroicStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 60 },
+        },
+        action = { type = "cast", spell = ACTION.HeroicStrike, target = "target" },
+    },
 }
 
+-- -----------------------------------------------------------------------------
+-- Strategies (name-only placeholders; substituted by DSL)
+-- -----------------------------------------------------------------------------
+local strategies = {
+    { name = "ShieldBlock" },
+    { name = "ShieldSlam" },
+    { name = "Revenge" },
+    { name = "ThunderClap" },
+    { name = "Devastate" },
+    { name = "HeroicStrike" },
+}
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
+
+-- Register (guarded — nil-safe in unit tests)
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("protection", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Warrior Protection WotLK rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
