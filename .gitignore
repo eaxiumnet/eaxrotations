@@ -56,6 +56,7 @@ tools/*
 !tools/update_badges.lua
 !tools/run_all_checks.sh
 !tools/run_all_checks.bat
+!tools/check_lua51_compat.lua
 node_modules/
 wowsims_classic/
 

@@ -100,5 +100,18 @@ if ! "$LUA" tools/update_badges.lua --check 2>&1; then
 fi
 
 echo "[pre-commit] Badge counts are in sync."
-echo "[pre-commit] All 4 checks passed."
+
+# ---------------------------------------------------------------------------
+# 5. Lua 5.1 compatibility check (luac -p on all project .lua files)
+# ---------------------------------------------------------------------------
+echo "[pre-commit] [5/5] Checking Lua 5.1 compatibility..."
+
+if ! "$LUA" tools/check_lua51_compat.lua --luac "$LUAC" 2>&1; then
+    echo "[pre-commit] Lua 5.1 compatibility check FAILED. Commit aborted."
+    echo "[pre-commit] Fix syntax errors in affected files or bypass with: SKIP_LUAC=1 git commit ..."
+    exit 1
+fi
+
+echo "[pre-commit] Lua 5.1 compatibility check passed."
+echo "[pre-commit] All 5 checks passed."
 exit 0

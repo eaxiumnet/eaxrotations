@@ -36,5 +36,10 @@ echo ""
 echo "[4/4] Checking badge counts are in sync ..."
 ( cd "$ROOT" && lua tools/update_badges.lua --check )
 
+# 5. Lua 5.1 compatibility check
+echo ""
+echo "[5/5] Checking Lua 5.1 compatibility (luac -p on all project .lua files) ..."
+( cd "$ROOT" && lua tools/check_lua51_compat.lua )
+
 echo ""
 echo "=== All checks passed ==="

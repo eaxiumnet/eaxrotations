@@ -37,4 +37,9 @@ lua tools\update_badges.lua --check
 if errorlevel 1 exit /b 1
 
 echo.
+echo [5/5] Checking Lua 5.1 compatibility (luac -p on all project .lua files) ...
+lua tools\check_lua51_compat.lua
+if errorlevel 1 exit /b 1
+
+echo.
 echo === All checks passed ===
