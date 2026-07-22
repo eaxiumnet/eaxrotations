@@ -172,7 +172,7 @@ cd /c/newbot/scripts
 cmd.exe //c "validate.cmd"
 ```
 Expected output ends with `ALL CHECKS PASSED`. It runs: `luac -p` on modified
-files → rotation suite (367) → leveling suite (21) → spell audit. All on Lua
+files → rotation suite (372) → leveling suite (21) → spell audit. All on Lua
 5.1. If it says `VALIDATION FAILED`, read the FAIL line and fix it.
 
 For a quick single-file syntax check: `luac -p <file>` (uses the 5.1 luac).
@@ -238,7 +238,7 @@ API standardization COMPLETE. Strategy DSL + lazy context landed (2026-07-19). T
 | Kebab warrior DSL | **29th and final DSL adopter** — 16 strategies, stance dancing + HS trick | `0b4b9651` (2026-07-22) | kebab_sylvanas.lua + test_kebab_dsl_priority.lua; bumped 345→346 |
 | Strategy DSL 100% | **ALL 29/29 specs now on declarative DSL** — 100% coverage milestone | `0b4b9651` (2026-07-22) | Covers all 10 classes, every resource model (rage, energy/combo, mana, focus, pet) |
 | Test fix | Fixed test_druid_caster_custom_matches.lua — missing NS.GetPlayer mock | (uncommitted) | was crashing build_state() with nil GetPlayer; now green |
-| Docs update | AGENTS.md, plans/_active.md, plans/HANDOFF.md — 346+21=367, 100% DSL | (historical) | test counts + DSL progress synced to final state |
+| Docs update | AGENTS.md, plans/_active.md, plans/HANDOFF.md — 372+21=393, 100% DSL | (historical) | test counts + DSL progress synced to final state |
 
 ### spec_kit migration progress — COMPLETE (29 of 29 specs) 🎉
 All specs migrated to canonical `spec_kit.safe_state` + `define_action_for_class` + guarded registration + return shape (per refactor-developer-experience and _active.md). Reference: arms_sylvanas.lua. See test_spec_layout_compliance.lua CONVERTED table and EaxRotations/README.md for details. No legacy remaining.
