@@ -475,6 +475,64 @@ function M.Mock.DefaultProtectionContext(overrides)
     return ctx
 end
 
+--- Return a default retribution-paladin test context.
+--
+-- NOTE: This helper is tailored to retribution_sylvanas.lua-style specs that use
+-- a centralized base_matches() guard. Default values are chosen so that
+-- base_matches-style guards pass:
+--   in_combat = true
+--   target = {}
+--   target_ttd = 60
+--   enemy_count = 1
+--   settings = {}
+--   mana_pct = 100
+--   hp_pct = 100
+--   in_melee = true
+--   has_valid_enemy_target = true
+--   has_damage_seal = true (simulates an active seal)
+--   me = minimal mock unit with get_health_percentage
+function M.Mock.DefaultRetributionContext(overrides)
+    local ctx = {
+        in_combat = true,
+        has_valid_enemy_target = true,
+        target = {
+            is_valid = function() return true end,
+            is_dead = function() return false end,
+            is_player = function() return false end,
+            get_health_percentage = function() return 100 end,
+            get_creature_type = function() return 1 end,
+        },
+        target_ttd = 60,
+        enemy_count = 1,
+        settings = {},
+        mana_pct = 100,
+        hp = 100,
+        hp_pct = 100,
+        in_melee = true,
+        is_pvp = false,
+        has_damage_seal = true,
+        me = {
+            get_health = function() return 10000 end,
+            get_health_percentage = function() return 100 end,
+            get_distance = function() return 5 end,
+        },
+    }
+    if type(overrides) == "table" then
+        -- Merge me overrides into the default me mock.
+        if type(overrides.me) == "table" then
+            for k, v in pairs(overrides.me) do
+                ctx.me[k] = v
+            end
+        end
+        for k, v in pairs(overrides) do
+            if k ~= "me" then
+                ctx[k] = v
+            end
+        end
+    end
+    return ctx
+end
+
 -- ---------------------------------------------------------------------------
 -- Test execution
 -- ---------------------------------------------------------------------------

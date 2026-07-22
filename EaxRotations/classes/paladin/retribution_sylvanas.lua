@@ -213,6 +213,8 @@ local ret_state = {
     in_melee = true,
     can_twist = false,
     can_use_blood = false,
+    has_valid_enemy_target = false,
+    in_combat = false,
 }
 
 -- get_setting now delegated to spec_kit.setting_*() (Pattern 8)
@@ -351,7 +353,7 @@ local function build_state(context)
     local twist_ms = spec_kit.setting_number(context, "retri_twist_window", 450)
     ret_state.twist_window = twist_ms / 1000
     -- Alliance faction override: Seal of the Martyr replaces Seal of Blood
-    if ACTION.SealOfTheMartyr and NS.unit_faction and NS.GetPlayer() then
+    if ACTION.SealOfTheMartyr and NS.unit_faction and NS.GetPlayer and NS.GetPlayer() then
         local faction = NS.unit_faction(NS.GetPlayer())
         if faction == "Alliance" and ret_state.preferred_damage_seal == "blood" then
             ret_state.preferred_damage_seal = "martyr"
@@ -376,8 +378,13 @@ local function build_state(context)
     ret_state.target_casting_interruptible = ret_state.target_casting and (NS.is_interruptible and NS.is_interruptible(context.target) or false)
     ret_state.target_player = is_player(context.target)
     ret_state.target_fleeing = context.target_fleeing == true or context.target_is_fleeing == true
+    ret_state.in_combat = context.in_combat == true
     ret_state.in_melee = distance_to(context, context.target) <= MELEE_RANGE
-    ret_state.can_twist = NS.get_any_setting(context, "seal_twisting_enabled", "retri_seal_twisting", true) and ret_state.mana_pct >= spec_kit.setting_number(context, "retri_twist_mana_floor", 20)
+    local twist_enabled = true
+    if type(NS.get_any_setting) == "function" then
+        twist_enabled = NS.get_any_setting(context, "seal_twisting_enabled", "retri_seal_twisting", true)
+    end
+    ret_state.can_twist = twist_enabled and ret_state.mana_pct >= spec_kit.setting_number(context, "retri_twist_mana_floor", 20)
     ret_state.utility_target = nil
     ret_state.secondary_target = find_secondary_enemy(context)
     ret_state.mana_item = first_ready_item(MANA_POTIONS)
@@ -401,6 +408,19 @@ local function build_state(context)
             ret_state.expertise_hard_cap = exp_info.hard_expertise
         end
     end
+    -- Centralized target validity gate used by base_matches guards
+    local t = context.target
+    if t ~= nil then
+        local is_valid = false
+        if NS.is_valid_target then
+            is_valid = NS.is_valid_target(t)
+        elseif t.is_valid then
+            is_valid = t:is_valid()
+        end
+        if is_valid and not (t.is_dead and t:is_dead()) then
+            ret_state.has_valid_enemy_target = true
+        end
+    end
     return spec_kit.safe_state(ret_state, RET_SCHEMA)
 end
 
@@ -417,6 +437,103 @@ end
 local function add_strategy(list, name, priority, matches, execute, cooldown)
     list[#list + 1] = { name = name, priority = priority, matches = matches, execute = execute, cooldown = cooldown }
 end
+
+-- ============================================================================
+-- Centralized base_matches guards
+-- ============================================================================
+-- Merge a caller-provided state override into the state built from context.
+-- This keeps tests ergonomic (callers can pass partial states) without
+-- mutating the static cached state table (Pattern 4).
+local function merge_state(context, state_override)
+    local s = build_state(context)
+    if not state_override or next(state_override) == nil then return s end
+    local merged = {}
+    for k, v in pairs(s) do merged[k] = v end
+    for k, v in pairs(state_override) do merged[k] = v end
+    -- Preserve safe_state metatable defaults (schema-backed __index) so that
+    -- fields not explicitly set on the cached table are still visible. We copy
+    -- the metatable to avoid sharing mutable state with the cached proxy.
+    local mt = getmetatable(s)
+    if mt then
+        local mt_copy = {}
+        for k, v in pairs(mt) do mt_copy[k] = v end
+        setmetatable(merged, mt_copy)
+    end
+    return merged
+end
+
+local function base_guard_passes(action_def, s)
+    if not action_def then return true end
+    if action_def.requires_in_combat and not s.in_combat then return false end
+    if action_def.requires_not_in_combat and s.in_combat then return false end
+    if action_def.requires_target and not s.has_valid_enemy_target then return false end
+    if action_def.requires_melee and not s.in_melee then return false end
+    if action_def.mana_emergency_ok == false and s.mana_emergency then return false end
+    if action_def.requires_no_forbearance and s.has_forbearance then return false end
+    return true
+end
+
+local function apply_base_matches(strategies, actions)
+    for i = 1, #strategies do
+        local action = actions[strategies[i].name]
+        local original_matches = strategies[i].matches
+        strategies[i].matches = function(context, state)
+            local s = merge_state(context, state)
+            if not base_guard_passes(action, s) then return false end
+            return original_matches(context, s)
+        end
+    end
+end
+
+-- Strategy metadata for centralized guards. Keys correspond to strategy.name.
+local ACTIONS = {
+    Ret_DivineShield_Emergency         = { requires_target = false, mana_emergency_ok = true },
+    Ret_LayOnHands_LastResort          = { requires_target = false, mana_emergency_ok = true },
+    Ret_SanctityAura                   = { requires_target = false, mana_emergency_ok = true },
+    Ret_DivineProtection_Physical      = { requires_target = false, requires_in_combat = true, mana_emergency_ok = true, requires_no_forbearance = true },
+    Ret_HealthstoneOrPotion            = { requires_target = false, mana_emergency_ok = true },
+    Ret_BlessingProtection_FocusedAlly = { requires_target = false, mana_emergency_ok = true },
+    Ret_BlessingFreedom_Self           = { requires_target = false, mana_emergency_ok = true },
+    Ret_BlessingFreedom_Ally           = { requires_target = false, mana_emergency_ok = true },
+    Ret_Cleanse_Self                   = { requires_target = false, mana_emergency_ok = true },
+    Ret_Purify_SelfFallback            = { requires_target = false, mana_emergency_ok = true },
+    Ret_Cleanse_Ally                   = { requires_target = false, mana_emergency_ok = true },
+    Ret_PvP_Repentance_Opener          = { requires_target = true,  requires_in_combat = true, mana_emergency_ok = false },
+    Ret_PvP_HammerJustice_Burst        = { requires_target = true,  requires_in_combat = true, mana_emergency_ok = false },
+    Ret_HammerWrath_Execute            = { requires_target = true,  mana_emergency_ok = false },
+    Ret_HammerWrath_FleeingPvP         = { requires_target = true,  mana_emergency_ok = false },
+    Ret_AvengingWrath_Burst            = { requires_target = true,  requires_in_combat = true, requires_no_forbearance = true, mana_emergency_ok = false },
+    Ret_HotC_Opener_Seal               = { requires_target = true,  requires_in_combat = true, mana_emergency_ok = false },
+    Ret_HotC_Opener_Judge              = { requires_target = true,  requires_in_combat = true, mana_emergency_ok = false },
+    SealTwistBlood                     = { requires_target = false, requires_melee = true,     mana_emergency_ok = false },
+    SealTwistPrepCommand               = { requires_target = false, requires_melee = true,     mana_emergency_ok = false },
+    Ret_CrusaderStrike_AfterJudgement  = { requires_target = true,  requires_melee = true,     mana_emergency_ok = false },
+    Ret_JudgeCrusader                  = { requires_target = true,  mana_emergency_ok = false },
+    Ret_ApplyCrusaderSeal              = { requires_target = false, mana_emergency_ok = false },
+    CrusaderStrike                     = { requires_target = true,  requires_melee = true,     mana_emergency_ok = false },
+    Ret_JudgeDamageSeal                = { requires_target = true,  mana_emergency_ok = false },
+    Ret_SealBlood_Primary              = { requires_target = false, mana_emergency_ok = false },
+    Ret_SealMartyr_Primary             = { requires_target = false, mana_emergency_ok = false },
+    Ret_SealCommand_Primary            = { requires_target = false, mana_emergency_ok = false },
+    Ret_JudgementWisdom_LowMana        = { requires_target = true,  mana_emergency_ok = true },
+    Ret_SealWisdom_Emergency           = { requires_target = false, mana_emergency_ok = true },
+    Ret_ManaPotion                     = { requires_target = false, mana_emergency_ok = true },
+    Consecration                       = { requires_target = false, requires_in_combat = true, mana_emergency_ok = false },
+    Ret_Consecration_ManaDump          = { requires_target = false, requires_in_combat = true, mana_emergency_ok = false },
+    Exorcism                           = { requires_target = true,  mana_emergency_ok = false },
+    Ret_HolyWrath_AoE                  = { requires_target = false, requires_in_combat = true, mana_emergency_ok = false },
+    Ret_JudgeSecondary_CommandCleave   = { requires_target = true,  mana_emergency_ok = false },
+    Ret_BlessingMight_Self             = { requires_target = false, mana_emergency_ok = true },
+    Ret_BlessingKings_Self             = { requires_target = false, mana_emergency_ok = true },
+    Ret_BlessingMight_MeleeAlly        = { requires_target = false, mana_emergency_ok = true },
+    Ret_BlessingKings_Party            = { requires_target = false, mana_emergency_ok = true },
+    Ret_SealCommand_AoE                = { requires_target = false, mana_emergency_ok = false },
+    Ret_SealRighteousness_Filler       = { requires_target = false, mana_emergency_ok = false },
+    Ret_Judgement_RighteousnessFiller  = { requires_target = true,  mana_emergency_ok = false },
+    Ret_SealCommand_Fallback           = { requires_target = false, mana_emergency_ok = false },
+    Ret_SealBlood_Fallback             = { requires_target = false, mana_emergency_ok = false },
+    Ret_SealMartyr_Fallback            = { requires_target = false, mana_emergency_ok = false },
+}
 
 local strategies = {}
 
@@ -858,6 +975,8 @@ for i = 1, #strategies do
         end
     end
 end
+
+apply_base_matches(strategies, ACTIONS)
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("retribution", strategies, { get_state = build_state })

@@ -47,6 +47,7 @@ _G.EaxRotations = {
     log = function() end,
     time_now = function() return 1000 end,
     unit_alive = function(u) return true end,
+    is_valid_target = function(u) return true end,
     unit_health_pct = function(u) return 100 end,
     unit_mana_pct = function(u) return 100 end,
     cooldown_remains = function(spell) return 99 end,

@@ -9,6 +9,9 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
+-- Shared test helpers
+local runner_lib = require("EaxRotations/tests/test_runner_lib")
+
 -- Start from a clean global namespace so earlier tests cannot leak mocked
 -- state into this test.
 _G.EaxRotations = nil
@@ -68,6 +71,8 @@ NS.use_item_by_id = function(id) return id ~= nil end
 NS.broken_api_throttled = function() return false end
 NS.unit_health_pct = function() return mock_hp_pct end
 NS.unit_mana_pct = function() return mock_mana_pct end
+NS.get_any_setting = function(ctx, key, alt, default) return default end
+NS.is_valid_target = function(unit) return unit ~= nil and (unit.is_valid == nil or unit:is_valid()) and not (unit.is_dead and unit:is_dead()) end
 NS.rotation_registry = { register = function() end }
 NS.PaladinSpells = {
     AvengingWrath = 31884, BlessingOfFreedom = 1044, BlessingOfKings = 20217,
@@ -140,17 +145,7 @@ local strategies = ret.strategies
 -- Helpers
 -- ============================================================================
 local function make_ctx(overrides)
-    local ctx = {
-        me = { get_health = function() return mock_hp_pct end, is_valid = function() return true end, is_dead = function() return false end, get_distance = function() return 5 end },
-        target = { get_health = function() return mock_target_hp_pct end, is_valid = function() return true end, is_dead = function() return false end, is_player = function() return false end, get_creature_type = function() return 1 end },
-        in_combat = mock_in_combat,
-        is_pvp = false,
-        settings = {},
-        hp = mock_hp_pct,
-        mana_pct = mock_mana_pct,
-    }
-    for k, v in pairs(overrides or {}) do ctx[k] = v end
-    return ctx
+    return runner_lib.Mock.DefaultRetributionContext(overrides)
 end
 
 local function make_state(overrides)

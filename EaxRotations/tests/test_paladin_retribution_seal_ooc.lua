@@ -36,6 +36,7 @@ _G.EaxRotations = {
     spell_ready = T, try_cast = T, is_interruptible = T, unit_alive = T,
     has_player_buff = F, has_player_debuff = F, has_target_debuff = F,
     buff_up = F, is_item_ready = F, is_casting = F, broken_api_throttled = F,
+    is_valid_target = function(u) return true end,
     unit_faction = function() return "Horde" end,
     GetPlayer = function() return { _mock = true } end,
     get_time_until_swing = function() return 99 end,
