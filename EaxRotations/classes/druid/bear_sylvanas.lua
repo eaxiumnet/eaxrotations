@@ -509,7 +509,6 @@ end
 
 local function pre_pull_enrage_matches(context, action)
     local s = build_state(context)
-    if not s.is_bear or s.in_combat then return false end
     if (s.rage or 0) >= RAGE_POOL_PULL then return false end
     if (s.rage or 0) > OOC_ENRAGE_MAX then return false end
     return action_ready(context, action)
@@ -519,7 +518,6 @@ end
 
 local function feral_charge_pull_matches(context, action)
     local s = build_state(context)
-    if not s.is_bear or not s.has_valid_target then return false end
     local rng = s.target_range or 30
     if rng < CHARGE_MIN_RANGE or rng > CHARGE_MAX_RANGE then return false end
     if s.in_combat and (s.combat_time or 0) > 6 then return false end
@@ -528,8 +526,7 @@ end
 
 local function faerie_fire_pull_matches(context, action)
     local s = build_state(context)
-    if not s.is_bear or not s.has_valid_target then return false end
-    if s.in_combat then return false end   -- pull only; never chain-pull mid-combat
+    -- pull only; never chain-pull mid-combat
     if (context.target_armor or 0) == 1 then return false end   -- mob has no armor
     if s.in_melee then return false end
     if (s.target_range or 40) > 30 then return false end
@@ -541,7 +538,6 @@ end
 
 local function frenzied_regen_matches(context, action)
     local s = build_state(context)
-    if not s.is_bear or not s.in_combat then return false end
     if not s.use_cooldowns then return false end   -- gated on Cooldowns setting
     if s.has_frenzied_regen then return false end
     if (s.rage or 0) < RAGE_FRENZIED_REGEN then return false end
@@ -574,7 +570,6 @@ end
 
 local function challenging_roar_matches(context, action)
     local s = build_state(context)
-    if not s.is_bear or not s.in_combat then return false end
     if not s.use_challenging_roar then return false end  -- gated on dedicated toggle (default OFF)
     if (s.enemy_count or 0) < 3 then return false end
     return action_ready(context, action)
@@ -582,7 +577,6 @@ end
 
 local function growl_matches(context, action)
     local s = build_state(context)
-    if not s.is_bear or not s.has_valid_target then return false end
     if not s.target_target_exists then return false end
     if s.target_target_is_me then return false end          -- I have aggro
     if s.target_target_is_tank then return false end        -- another tank has it
@@ -599,7 +593,6 @@ end
 local function bash_interrupt_matches(context, action)
     local s = build_state(context)
     if not spec_kit.setting_bool(context, "use_interrupt", true) then return false end
-    if not s.is_bear or not s.has_valid_target then return false end
     if (s.rage or 0) < RAGE_BASH then return false end
     -- Route through InterruptManager when available for cast-window + humanization
     local mgr = NS.InterruptManager
@@ -646,7 +639,7 @@ end
 
 local function demo_roar_matches(context, action)
     local s = build_state(context)
-    if not s.is_bear or not s.in_combat or not s.demo_roar_enabled then return false end
+    if not s.demo_roar_enabled then return false end
     if (s.target_range or 40) > DEMO_ROAR_RANGE then return false end
     if (s.enemy_count or 0) <= 0 then return false end
     if (s.demo_remains or 0) > DEMO_ROAR_REFRESH then return false end
@@ -660,7 +653,6 @@ end
 
 local function faerie_fire_matches(context, action)
     local s = build_state(context)
-    if not s.is_bear or not s.in_combat or not s.has_valid_target then return false end
     if (context.target_armor or 0) == 1 then return false end   -- mob has no armor
     if (s.target_range or 40) > 30 then return false end
     if (s.faerie_remains or 0) > FAERIE_FIRE_REFRESH then return false end
@@ -670,14 +662,11 @@ end
 -- CORE ROTATION  (wowsims APL) ----------------------------------------------
 
 local function mangle_matches(context, action)
-    local s = build_state(context)
-    if not can_use_bear_ability(s) then return false end
     return action_ready(context, action)
 end
 
 local function lacerate_matches(context, action)
     local s = build_state(context)
-    if not s.target or not can_use_bear_ability(s) then return false end
     -- AoE with loose adds: don't tunnel Lacerate on current target
     if (s.enemy_count or 0) >= (s.aoe_threshold or 3) and (s.lacerate_stacks or 0) >= 3 then return false end
     if (s.lacerate_stacks or 0) < LACERATE_MAX_STACKS then return action_ready(context, action) end
@@ -689,7 +678,6 @@ local function swipe_aoe_matches(context, action)
     local s = build_state(context)
     -- TBC Swipe requires a hostile melee target (not self). Self-cast spam-loops
     -- when the client rejects the cast and the strategy rematches every frame.
-    if not can_use_bear_ability(s) then return false end
     if not s.in_combat and NS.spell_ready then return false end
     if not (NS.aoe_target_meets and NS.aoe_target_meets(s.aoe_threshold or 3, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s)) then return false end
     if s.use_pvp_cc_gate and context.has_breakable_cc_nearby then return false end
@@ -700,7 +688,6 @@ end
 local function swipe_cleave_matches(context, action)
     local s = build_state(context)
     -- TBC Swipe requires a hostile melee target (not self). See swipe_aoe_matches.
-    if not can_use_bear_ability(s) then return false end
     if not s.in_combat and NS.spell_ready then return false end
     if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s)) then return false end
     if s.use_pvp_cc_gate and context.has_breakable_cc_nearby then return false end
@@ -739,7 +726,6 @@ end
 -- SAFETY: never re-queue while already current (spam loop in spell queue log).
 local function maul_matches(context, action)
     local s = build_state(context)
-    if not can_use_bear_ability(s) then return false end
     if maul_is_queued() then return false end
     if (s.enemy_count or 0) >= (s.aoe_threshold or 3) and (s.rage or 0) < HIGH_RAGE then return false end
     local maul_threshold = s.maul_rage or 50
@@ -773,7 +759,6 @@ end
 
 local function enrage_combat_matches(context, action)
     local s = build_state(context)
-    if not s.is_bear or not s.in_combat then return false end
     if s.is_target_boss then return false end
     if (s.rage or 0) > RAGE_LOW then return false end
     if (s.hp or 100) < 60 and (s.enemy_count or 0) >= 2 then return false end
@@ -941,6 +926,57 @@ local function demo_roar_execute(context, action)
     return ok
 end
 
+-------------------------------------------------------------------------------
+-- CENTRALIZED BASE MATCH GUARDS
+-- WHY:  eliminates repeated is_bear/in_combat/target boilerplate from every
+--       match function. Per-strategy logic stays in *_matches(); generic guards
+--       are declared as properties in the ACTIONS table.
+-- WHEN: applied to the strategies table after DSL substitution so DSL and
+--       imperative strategies share the same guard layer.
+-------------------------------------------------------------------------------
+local function base_guard_passes(action_def, s)
+    if action_def.spell and NS.spell_exists and not spell_exists(action_def.spell) then return false end
+    if action_def.requires_target ~= false and not s.has_valid_target then return false end
+    if action_def.required_form == "bear" and not s.is_bear then return false end
+    if action_def.requires_in_combat and not s.in_combat then return false end
+    if action_def.requires_not_in_combat and s.in_combat then return false end
+    if action_def.min_rage and (s.rage or 0) < action_def.min_rage then return false end
+    return true
+end
+
+-- Merge a caller-provided state override into the state built from context.
+-- This keeps tests ergonomic (callers can pass partial states) without
+-- mutating the static cached state table (Pattern 4).
+local function merge_state(context, state_override)
+    local s = build_state(context)
+    if not state_override or next(state_override) == nil then return s end
+    local merged = {}
+    for k, v in pairs(s) do merged[k] = v end
+    for k, v in pairs(state_override) do merged[k] = v end
+    -- Preserve safe_state metatable defaults (schema-backed __index) so that
+    -- fields not explicitly set on the cached table are still visible. We copy
+    -- the metatable to avoid sharing mutable state with the cached proxy.
+    local mt = getmetatable(s)
+    if mt then
+        local mt_copy = {}
+        for k, v in pairs(mt) do mt_copy[k] = v end
+        setmetatable(merged, mt_copy)
+    end
+    return merged
+end
+
+local function apply_base_matches(strategies, actions)
+    for i = 1, #strategies do
+        local action = actions[i]
+        local original_matches = strategies[i].matches
+        strategies[i].matches = function(context, state)
+            local s = merge_state(context, state)
+            if not base_guard_passes(action, s) then return false end
+            return original_matches(context, s)
+        end
+    end
+end
+
 local ACTIONS = {
     -- OOC pre-pull buffs (caster-form prep — never in combat)
     { name = "MarkOfTheWild",    spell = ACTION.MarkOfTheWild, target = "self", requires_target = false, matches = mark_matches },
@@ -952,47 +988,56 @@ local ACTIONS = {
     { name = "BearForm",         spell = ACTION.BearForm,  target = "self", requires_target = false },
 
     -- Pre-pull rage gen
-    { name = "PrePullEnrage",    spell = ACTION.Enrage,           target = "self", requires_target = false, matches = pre_pull_enrage_matches },
+    { name = "PrePullEnrage",    spell = ACTION.Enrage,           target = "self", requires_target = false,
+      requires_not_in_combat = true, required_form = "bear", matches = pre_pull_enrage_matches },
 
     -- Pull / gap close
-    { name = "FeralChargePull",  spell = ACTION.FeralCharge,     matches = feral_charge_pull_matches },
-    { name = "FaerieFirePull",   spell = ACTION.FaerieFireFeral, matches = faerie_fire_pull_matches },
+    { name = "FeralChargePull",  spell = ACTION.FeralCharge,     required_form = "bear", matches = feral_charge_pull_matches },
+    { name = "FaerieFirePull",   spell = ACTION.FaerieFireFeral, required_form = "bear",
+      requires_not_in_combat = true, matches = faerie_fire_pull_matches },
 
     -- Defensives
     -- DSL-substituted: matches replaced by DSL compiled strategy.
     { name = "FrenziedRegeneration", spell = ACTION.FrenziedRegeneration, target = "self",
-      requires_target = false },
-    { name = "Barkskin",         spell = ACTION.Barkskin,   target = "self", requires_target = false, matches = barkskin_matches },
+      requires_target = false, required_form = "bear", requires_in_combat = true, min_rage = RAGE_FRENZIED_REGEN },
+    { name = "Barkskin",         spell = ACTION.Barkskin,   target = "self", requires_target = false,
+      requires_in_combat = true, matches = barkskin_matches },
 
     -- Taunts
     { name = "ChallengingRoar",  spell = ACTION.ChallengingRoar, target = "self",
-      requires_target = false, matches = challenging_roar_matches, execute = taunt_execute },
-    { name = "Growl",            spell = ACTION.Growl,     matches = growl_matches, execute = taunt_execute },
+      requires_target = false, required_form = "bear", requires_in_combat = true, min_rage = RAGE_CHALLENGING,
+      matches = challenging_roar_matches, execute = taunt_execute },
+    { name = "Growl",            spell = ACTION.Growl,     required_form = "bear", matches = growl_matches, execute = taunt_execute },
 
     -- Interrupt
-    { name = "BashInterrupt",    spell = ACTION.Bash,             matches = bash_interrupt_matches },
+    { name = "BashInterrupt",    spell = ACTION.Bash,             required_form = "bear",
+      min_rage = RAGE_BASH, matches = bash_interrupt_matches },
 
     -- Debuffs (Demo Roar BEFORE Faerie Fire — TBC tanking priority + test contract)
     -- DSL-substituted: matches/execute replaced by DSL compiled strategy.
     { name = "DemoralizingRoar", spell = ACTION.DemoralizingRoar, target = "self",
-      requires_target = false, cooldown = 25 },
-    { name = "FaerieFireFeral",  spell = ACTION.FaerieFireFeral },
+      requires_target = false, required_form = "bear", requires_in_combat = true, min_rage = RAGE_DEMO_ROAR,
+      cooldown = 25 },
+    { name = "FaerieFireFeral",  spell = ACTION.FaerieFireFeral, required_form = "bear", requires_in_combat = true },
 
 
     -- Core rotation (wowsims APL)
     -- DSL-substituted: matches replaced by DSL compiled strategy.
-    { name = "MangleBear",       spell = ACTION.MangleBear },
-    { name = "Lacerate",         spell = ACTION.Lacerate },
+    { name = "MangleBear",       spell = ACTION.MangleBear, required_form = "bear", min_rage = RAGE_MANGLE },
+    { name = "Lacerate",         spell = ACTION.Lacerate, required_form = "bear", min_rage = RAGE_LACERATE },
     -- Swipe: hostile target required in TBC (melee cone). Do NOT use target="self"
     -- — self-cast is rejected by the client and spam-loops via the spell queue.
-    { name = "SwipeAoE",         spell = ACTION.SwipeBear,  matches = swipe_aoe_matches },
-    { name = "Swipe",            spell = ACTION.SwipeBear,  matches = swipe_cleave_matches },
+    { name = "SwipeAoE",         spell = ACTION.SwipeBear, required_form = "bear", min_rage = RAGE_SWIPE,
+      matches = swipe_aoe_matches },
+    { name = "Swipe",            spell = ACTION.SwipeBear, required_form = "bear", min_rage = RAGE_SWIPE,
+      matches = swipe_cleave_matches },
     -- Maul is on-next-swing: custom execute with min_interval + is_current_spell gate.
     -- DSL-substituted: matches/execute replaced by DSL compiled strategy.
-    { name = "Maul",             spell = ACTION.Maul },
+    { name = "Maul",             spell = ACTION.Maul, required_form = "bear", min_rage = RAGE_MAUL },
 
     -- Rage gen (in-combat, when starved)
-    { name = "EnrageCombat",     spell = ACTION.Enrage,            target = "self", requires_target = false, matches = enrage_combat_matches },
+    { name = "EnrageCombat",     spell = ACTION.Enrage,            target = "self", requires_target = false,
+      required_form = "bear", requires_in_combat = true, matches = enrage_combat_matches },
 }
 
 -------------------------------------------------------------------------------
@@ -1027,6 +1072,11 @@ for i = 1, #strategies do
         end
     end
 end
+
+-- Apply centralized base_matches guards on top of both imperative and DSL
+-- strategies. This must happen AFTER DSL substitution so the wrapper does not
+-- get overwritten by the compiled DSL strategy.
+apply_base_matches(strategies, ACTIONS)
 
 -------------------------------------------------------------------------------
 -- REGISTER + RETURN

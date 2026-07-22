@@ -388,6 +388,46 @@ function M.Mock.DefaultMeleeContext(overrides)
     return ctx
 end
 
+--- Return a default bear tank test context.
+--
+-- NOTE: This helper is tailored to bear_sylvanas.lua-style specs that use a
+-- centralized base_matches() guard. As more specs adopt centralized guards,
+-- extend this helper or add new variants for their required fields.
+-- Override any field by passing a table of overrides.
+-- Default values are chosen so that base_matches-style guards pass:
+--   in_combat = true
+--   target = {}
+--   target_ttd = 60
+--   enemy_count = 1
+--   settings = {}
+--   rage = 100
+--   is_bear = true
+--   stance = 1  (bear form)
+--   has_valid_enemy_target = true
+--   me = minimal mock unit with get_health_percentage
+function M.Mock.DefaultBearContext(overrides)
+    local ctx = {
+        in_combat = true,
+        has_valid_enemy_target = true,
+        target = {},
+        target_ttd = 60,
+        enemy_count = 1,
+        settings = {},
+        rage = 100,
+        is_bear = true,
+        stance = 1, -- bear form
+        me = {
+            get_health_percentage = function() return 100 end,
+        },
+    }
+    if type(overrides) == "table" then
+        for k, v in pairs(overrides) do
+            ctx[k] = v
+        end
+    end
+    return ctx
+end
+
 -- ---------------------------------------------------------------------------
 -- Test execution
 -- ---------------------------------------------------------------------------

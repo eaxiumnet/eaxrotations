@@ -8,6 +8,9 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
+local test_runner_lib = require("EaxRotations/tests/test_runner_lib")
+local Mock = test_runner_lib.Mock
+
 local assert_true, assert_eq, assert_false
 
 local function setup_asserts()
@@ -70,6 +73,11 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
+-- Build a bear test context with the centralized base_matches guard defaults.
+local function make_ctx(overrides)
+    return Mock.DefaultBearContext(overrides)
+end
+
 -- ============================================================================
 -- OOC buffs must NEVER cast in bear form (MotW/Thorns cancel form → shift loop)
 -- ============================================================================
@@ -80,14 +88,14 @@ local _prev_has_form = _G.EaxRotations.has_form
 
 -- In bear form: never rebuff (would cancel form and spam BearForm)
 _G.EaxRotations.has_form = function(form) return form == "bear" end
-assert_false(mark.matches({ in_combat = false }, {}), "MarkOfTheWild must not match in bear form")
-assert_false(thorns.matches({ in_combat = false }, {}), "Thorns must not match in bear form")
+assert_false(mark.matches(make_ctx({ in_combat = false }), {}), "MarkOfTheWild must not match in bear form")
+assert_false(thorns.matches(make_ctx({ in_combat = false }), {}), "Thorns must not match in bear form")
 
 -- Caster form OOC: buffs allowed
 _G.EaxRotations.has_form = function(form) return false end
-assert_true(mark.matches({ in_combat = false }, {}), "MarkOfTheWild should match OOC out of bear when buff missing")
-assert_true(thorns.matches({ in_combat = false }, {}), "Thorns should match OOC out of bear when buff missing")
-assert_false(mark.matches({ in_combat = true }, {}), "MarkOfTheWild must not match in combat")
+assert_true(mark.matches(make_ctx({ in_combat = false }), {}), "MarkOfTheWild should match OOC out of bear when buff missing")
+assert_true(thorns.matches(make_ctx({ in_combat = false }), {}), "Thorns should match OOC out of bear when buff missing")
+assert_false(mark.matches(make_ctx({ in_combat = true }), {}), "MarkOfTheWild must not match in combat")
 _G.EaxRotations.has_form = _prev_has_form
 
 -- ============================================================================
@@ -98,15 +106,15 @@ local faerie_fire = find_strategy("FaerieFireFeral")
 
 -- Debuff fresh -> should NOT match
 action_calls = {}
-assert_false(faerie_fire.matches({ target = { _debuff_remains = 10 }, target_armor = 5000, in_combat = true, in_melee_range = true, target_range = 5 }, {}), "FaerieFireFeral should not match when debuff > 4 sec")
+assert_false(faerie_fire.matches(make_ctx({ target = { _debuff_remains = 10 }, target_armor = 5000, in_melee_range = true, target_range = 5 })), "FaerieFireFeral should not match when debuff > 4 sec")
 assert_eq(#action_calls, 0, "action_matches should not be called when debuff fresh")
 
 -- Debuff low -> should match
 action_calls = {}
-assert_true(faerie_fire.matches({ target = { _debuff_remains = 2 }, target_armor = 5000, in_combat = true, in_melee_range = true, target_range = 5 }, {}), "FaerieFireFeral should match when debuff <= 4 sec")
+assert_true(faerie_fire.matches(make_ctx({ target = { _debuff_remains = 2 }, target_armor = 5000, in_melee_range = true, target_range = 5 })), "FaerieFireFeral should match when debuff <= 4 sec")
 
 -- No target -> should return false
-assert_false(faerie_fire.matches({ in_combat = true, in_melee_range = true, target_range = 5 }, {}), "FaerieFireFeral should not match without target")
+assert_false(faerie_fire.matches(make_ctx({ in_melee_range = true, target_range = 5, target = nil, has_valid_enemy_target = false })), "FaerieFireFeral should not match without target")
 
 -- ============================================================================
 -- Lacerate: stack to 5 ASAP, then maintain
@@ -116,19 +124,19 @@ local lacerate = find_strategy("Lacerate")
 
 -- Stacks < 5 -> should match (regardless of remains)
 action_calls = {}
-assert_true(lacerate.matches({ target = { _debuff_stacks = 3, _debuff_remains = 10 } }), "Lacerate should match when stacks < 5")
+assert_true(lacerate.matches(make_ctx({ target = { _debuff_stacks = 3, _debuff_remains = 10 } })), "Lacerate should match when stacks < 5")
 
 -- Stacks at 5, remains > 3 -> should NOT match
 action_calls = {}
-assert_false(lacerate.matches({ target = { _debuff_stacks = 5, _debuff_remains = 8 } }), "Lacerate should not match when 5-stack maintained")
+assert_false(lacerate.matches(make_ctx({ target = { _debuff_stacks = 5, _debuff_remains = 8 } })), "Lacerate should not match when 5-stack maintained")
 assert_eq(#action_calls, 0, "action_matches should not be called when 5-stack maintained")
 
 -- Stacks at 5, remains <= 3 -> should match
 action_calls = {}
-assert_true(lacerate.matches({ target = { _debuff_stacks = 5, _debuff_remains = 2 } }), "Lacerate should match when 5-stack about to drop")
+assert_true(lacerate.matches(make_ctx({ target = { _debuff_stacks = 5, _debuff_remains = 2 } })), "Lacerate should match when 5-stack about to drop")
 
 -- No target -> should return false
-assert_false(lacerate.matches({}), "Lacerate should not match without target")
+assert_false(lacerate.matches(make_ctx({ target = nil, has_valid_enemy_target = false })), "Lacerate should not match without target")
 
 -- ============================================================================
 -- Swipe AoE: only when 3+ enemies
@@ -138,12 +146,12 @@ local swipe_aoe = find_strategy("SwipeAoE")
 
 -- Too few enemies -> should NOT match
 action_calls = {}
-assert_false(swipe_aoe.matches({ enemy_count = 2 }), "SwipeAoE should not match with < 3 enemies")
+assert_false(swipe_aoe.matches(make_ctx({ enemy_count = 2 })), "SwipeAoE should not match with < 3 enemies")
 assert_eq(#action_calls, 0, "action_matches should not be called with < 3 enemies")
 
 -- 3+ enemies -> should match
 action_calls = {}
-assert_true(swipe_aoe.matches({ enemy_count = 4 }), "SwipeAoE should match with >= 3 enemies")
+assert_true(swipe_aoe.matches(make_ctx({ enemy_count = 4 })), "SwipeAoE should match with >= 3 enemies")
 
 -- ============================================================================
 -- Swipe: only when 2+ enemies
@@ -153,12 +161,12 @@ local swipe = find_strategy("Swipe")
 
 -- Too few enemies -> should NOT match
 action_calls = {}
-assert_false(swipe.matches({ enemy_count = 1 }), "Swipe should not match with < 2 enemies")
+assert_false(swipe.matches(make_ctx({ enemy_count = 1 })), "Swipe should not match with < 2 enemies")
 assert_eq(#action_calls, 0, "action_matches should not be called with < 2 enemies")
 
--- 2+ enemies -> should match
+-- 2+ enemies -> should match (set lacerate at 5 stacks to bypass Lacerate-stack gate)
 action_calls = {}
-assert_true(swipe.matches({ enemy_count = 3 }), "Swipe should match with >= 2 enemies")
+assert_true(swipe.matches(make_ctx({ enemy_count = 3, target = { _debuff_stacks = 5, _debuff_remains = 8 } })), "Swipe should match with >= 2 enemies")
 
 -- TBC Swipe must cast on the enemy target (not self). Self-cast is rejected by the
 -- client and spam-loops via the spell queue (see live logs: Swipe | Target <player>).
@@ -169,12 +177,12 @@ _G.EaxRotations.try_cast = function(spell, target, reason, opts)
 end
 local enemy = { name = "Axxarien Hellcaller" }
 local me = { name = "Rarbarber" }
-local swipe_ok = swipe.execute({ target = enemy, me = me, enemy_count = 3, in_combat = true })
+local swipe_ok = swipe.execute(make_ctx({ target = enemy, me = me, enemy_count = 3, lacerate_stacks = 5 }), {})
 assert_true(swipe_ok, "Swipe execute should succeed when try_cast returns true")
 assert_true(last_try_cast ~= nil, "Swipe execute should call try_cast")
 assert_eq(last_try_cast.target, enemy, "Swipe must cast on enemy target, not player self")
 assert_true(last_try_cast.target ~= me, "Swipe must not cast on player self")
-local swipe_aoe_ok = swipe_aoe.execute({ target = enemy, me = me, enemy_count = 4, in_combat = true })
+local swipe_aoe_ok = swipe_aoe.execute(make_ctx({ target = enemy, me = me, enemy_count = 4, lacerate_stacks = 5 }), {})
 assert_true(swipe_aoe_ok, "SwipeAoE execute should succeed when try_cast returns true")
 assert_eq(last_try_cast.target, enemy, "SwipeAoE must cast on enemy target, not player self")
 _G.EaxRotations.try_cast = nil
@@ -188,14 +196,14 @@ _G.EaxRotations.spell_exists = function(spell)
     return true
 end
 action_calls = {}
-assert_true(swipe.matches({ enemy_count = 2, target = { _debuff_stacks = 0 }, target_ttd = 30 }),
+assert_true(swipe.matches(make_ctx({ enemy_count = 2, target = { _debuff_stacks = 0 }, target_ttd = 30, lacerate_stacks = 5 })),
     "Swipe cleave should match pre-Lacerate with 0 stacks and long TTD")
 _G.EaxRotations.spell_exists = _prev_swipe_exists
 
 -- With Lacerate learned: still require stacks or short TTD
 _G.EaxRotations.spell_exists = function() return true end
 action_calls = {}
-assert_false(swipe.matches({ enemy_count = 2, target = { _debuff_stacks = 0 }, target_ttd = 30 }),
+assert_false(swipe.matches(make_ctx({ enemy_count = 2, target = { _debuff_stacks = 0 }, target_ttd = 30 })),
     "Swipe cleave should NOT match with Lacerate learned, <3 stacks, long TTD")
 _G.EaxRotations.spell_exists = _prev_swipe_exists
 
@@ -208,11 +216,11 @@ local maul = find_strategy("Maul")
 local maul_settings = { bear_maul_rage = 50 }
 
 action_calls = {}
-assert_false(maul.matches({ rage = 20, target = { _debuff_stacks = 5 }, settings = maul_settings }), "Maul should not match when rage < maul_rage")
+assert_false(maul.matches(make_ctx({ rage = 20, target = { _debuff_stacks = 5 }, settings = maul_settings })), "Maul should not match when rage < maul_rage")
 assert_eq(#action_calls, 0, "action_matches should not be called when rage < maul_rage")
 
 action_calls = {}
-assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 5 }, settings = maul_settings }), "Maul should match when rage >= maul_rage and lacerate at 5")
+assert_true(maul.matches(make_ctx({ rage = 50, target = { _debuff_stacks = 5 }, settings = maul_settings })), "Maul should match when rage >= maul_rage and lacerate at 5")
 
 -- Already-queued next-swing Maul must not rematch (prevents spell-queue spam)
 local _prev_is_current = _G.EaxRotations.is_current_spell
@@ -220,31 +228,31 @@ _G.EaxRotations.is_current_spell = function(spell_id)
     return spell_id == 6807 or spell_id == 26996
 end
 action_calls = {}
-assert_false(maul.matches({ rage = 80, target = { _debuff_stacks = 5 }, settings = maul_settings }),
+assert_false(maul.matches(make_ctx({ rage = 80, target = { _debuff_stacks = 5 }, settings = maul_settings })),
     "Maul must not match when already queued (is_current_spell)")
 _G.EaxRotations.is_current_spell = _prev_is_current
 
 action_calls = {}
-assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 12, settings = maul_settings }), "Maul should match as rage dump when rage >= maul_rage, even with low lacerate")
+assert_true(maul.matches(make_ctx({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 12, settings = maul_settings })), "Maul should match as rage dump when rage >= maul_rage, even with low lacerate")
 
 action_calls = {}
-assert_false(maul.matches({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 1, settings = maul_settings }), "Maul should not match when target_ttd < 3 (on-next-swing rage waste)")
+assert_false(maul.matches(make_ctx({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 1, settings = maul_settings })), "Maul should not match when target_ttd < 3 (on-next-swing rage waste)")
 
-assert_true(maul.matches({ rage = 50, settings = maul_settings }), "Maul without target falls through to action_matches (mock returns true)")
+assert_true(maul.matches(make_ctx({ rage = 50, settings = maul_settings, target = {}, has_valid_enemy_target = true })), "Maul falls through to action_matches (mock returns true)")
 
 -- Boss bypass: Maul should match even at target_ttd=1 when target_is_boss=true
 action_calls = {}
-assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 1, target_is_boss = true, settings = maul_settings }), "Maul should match on boss even with target_ttd < 3")
+assert_true(maul.matches(make_ctx({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 1, target_is_boss = true, settings = maul_settings })), "Maul should match on boss even with target_ttd < 3")
 
 -- AoE suppression: 3+ enemies with rage < HIGH_RAGE (75) should NOT match
 action_calls = {}
-assert_false(maul.matches({ rage = 50, target = { _debuff_stacks = 5 }, enemy_count = 4, settings = maul_settings }), "Maul should not match in AoE (3+ enemies) with rage < 75")
+assert_false(maul.matches(make_ctx({ rage = 50, target = { _debuff_stacks = 5 }, enemy_count = 4, settings = maul_settings })), "Maul should not match in AoE (3+ enemies) with rage < 75")
 
 -- Exact threshold: rage = maul_rage (50) should match; rage = 49 should not
 action_calls = {}
-assert_true(maul.matches({ rage = 50, target = { _debuff_stacks = 5 }, settings = maul_settings }), "Maul should match at exactly maul_rage threshold")
+assert_true(maul.matches(make_ctx({ rage = 50, target = { _debuff_stacks = 5 }, settings = maul_settings })), "Maul should match at exactly maul_rage threshold")
 action_calls = {}
-assert_false(maul.matches({ rage = 49, target = { _debuff_stacks = 5 }, settings = maul_settings }), "Maul should not match just below maul_rage threshold")
+assert_false(maul.matches(make_ctx({ rage = 49, target = { _debuff_stacks = 5 }, settings = maul_settings })), "Maul should not match just below maul_rage threshold")
 
 -- Pre-Mangle (not learned): Maul is primary spender — level-scaled threshold (~23 at L17)
 -- so we do not bank to endgame 50 rage on leveling bears.
@@ -257,17 +265,17 @@ _G.EaxRotations.spell_exists = function(spell)
 end
 -- L17 scaled floor = max(15, min(40, 15+floor(17/2))) = 23
 action_calls = {}
-assert_true(maul.matches({ rage = 23, level = 17, target = { _debuff_stacks = 0 }, settings = maul_settings }),
+assert_true(maul.matches(make_ctx({ rage = 23, level = 17, target = { _debuff_stacks = 0 }, settings = maul_settings })),
     "Maul should match at level-scaled threshold when Mangle not learned (L17 ~23)")
 action_calls = {}
-assert_false(maul.matches({ rage = 22, level = 17, target = { _debuff_stacks = 0 }, settings = maul_settings }),
+assert_false(maul.matches(make_ctx({ rage = 22, level = 17, target = { _debuff_stacks = 0 }, settings = maul_settings })),
     "Maul should not match below level-scaled threshold when Mangle not learned")
 -- User slider still caps: configured 30 with scaled 23 → 23; configured below scaled uses configured
 action_calls = {}
-assert_false(maul.matches({ rage = 20, level = 17, target = {}, settings = { bear_maul_rage = 30 } }),
+assert_false(maul.matches(make_ctx({ rage = 20, level = 17, target = {}, settings = { bear_maul_rage = 30 } })),
     "Pre-Mangle Maul still respects a configured floor when above scaled")
 action_calls = {}
-assert_true(maul.matches({ rage = 20, level = 10, target = {}, settings = { bear_maul_rage = 20 } }),
+assert_true(maul.matches(make_ctx({ rage = 20, level = 10, target = {}, settings = { bear_maul_rage = 20 } })),
     "Pre-Mangle Maul uses configured when lower than scaled")
 _G.EaxRotations.spell_exists = _prev_spell_exists
 
@@ -290,59 +298,59 @@ assert_false(strategy_exists("HealingPotion"), "HealingPotion strategy should be
 
 local bear_form = find_strategy("BearForm")
 action_calls = {}
-assert_true(bear_form.matches({ now = 10, in_combat = true, combat_time = 10, stance = 0, is_bear = false, settings = { auto_bear_form_ooc = true } }), "BearForm should match in combat when not in bear form")
+assert_true(bear_form.matches(make_ctx({ now = 10, in_combat = true, combat_time = 10, stance = 0, is_bear = false, settings = { auto_bear_form_ooc = true } })), "BearForm should match in combat when not in bear form")
 
 action_calls = {}
-assert_true(bear_form.matches({ now = 13, in_combat = true, combat_time = 10, stance = 0, is_bear = false, enrage_on_cd = true, settings = { auto_bear_form_ooc = true } }), "BearForm should re-shift in combat even while Enrage is on cooldown")
+assert_true(bear_form.matches(make_ctx({ now = 13, in_combat = true, combat_time = 10, stance = 0, is_bear = false, enrage_on_cd = true, settings = { auto_bear_form_ooc = true } })), "BearForm should re-shift in combat even while Enrage is on cooldown")
 
 local faerie_fire_pull = find_strategy("FaerieFirePull")
 action_calls = {}
-assert_false(faerie_fire_pull.matches({ in_combat = true, is_bear = true, has_valid_enemy_target = true, target = { _debuff_remains = 0 }, target_armor = 5000, target_range = 20 }), "FaerieFirePull should not match while in combat")
+assert_false(faerie_fire_pull.matches(make_ctx({ in_combat = true, is_bear = true, has_valid_enemy_target = true, target = { _debuff_remains = 0 }, target_armor = 5000, target_range = 20 })), "FaerieFirePull should not match while in combat")
 
 local demo_roar = find_strategy("DemoralizingRoar")
 action_calls = {}
-assert_false(demo_roar.matches({ in_combat = true, is_bear = true, target_range = 15, enemy_count = 1, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true } }), "DemoralizingRoar should not match beyond 10 yards")
+assert_false(demo_roar.matches(make_ctx({ target_range = 15, enemy_count = 1, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true } })), "DemoralizingRoar should not match beyond 10 yards")
 assert_eq(#action_calls, 0, "action_matches should not be called beyond 10 yards")
 
 action_calls = {}
-assert_true(demo_roar.matches({ now = 100, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true } }), "DemoralizingRoar should match within 10 yards")
+assert_true(demo_roar.matches(make_ctx({ now = 100, target_range = 8, enemy_count = 1, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true } })), "DemoralizingRoar should match within 10 yards")
 
 -- Dying single-target trash: HP gate (TTD often unknown / defaults to 999)
 action_calls = {}
-assert_false(demo_roar.matches({
-    now = 105, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1,
+assert_false(demo_roar.matches(make_ctx({
+    now = 105, target_range = 8, enemy_count = 1,
     target_hp = 5, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true },
-}), "DemoralizingRoar should not match on single-target trash at <=20% HP")
+})), "DemoralizingRoar should not match on single-target trash at <=20% HP")
 action_calls = {}
-assert_false(demo_roar.matches({
-    now = 106, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1,
+assert_false(demo_roar.matches(make_ctx({
+    now = 106, target_range = 8, enemy_count = 1,
     target_ttd = 4, target_hp = 50, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true },
-}), "DemoralizingRoar should not match on single-target with TTD < 10")
+})), "DemoralizingRoar should not match on single-target with TTD < 10")
 -- Multi-pack: still allow Demo even if current target is low (AoE mitigation)
 action_calls = {}
-assert_true(demo_roar.matches({
-    now = 107, in_combat = true, is_bear = true, target_range = 8, enemy_count = 3,
+assert_true(demo_roar.matches(make_ctx({
+    now = 107, target_range = 8, enemy_count = 3,
     target_hp = 5, target = { _debuff_remains = 0 }, settings = { bear_demo_roar = true },
-}), "DemoralizingRoar should still match multi-pack even if current target is low HP")
+})), "DemoralizingRoar should still match multi-pack even if current target is low HP")
 
 action_calls = {}
-assert_false(faerie_fire.matches({ in_combat = true, is_bear = true, has_valid_enemy_target = true, in_melee_range = true, target_range = 35, target = { _debuff_remains = 0 }, target_armor = 5000, settings = { bear_demo_roar = true } }), "FaerieFireFeral should not match beyond 30 yards")
+assert_false(faerie_fire.matches(make_ctx({ target_range = 35, target = { _debuff_remains = 0 }, target_armor = 5000, settings = { bear_demo_roar = true } })), "FaerieFireFeral should not match beyond 30 yards")
 assert_eq(#action_calls, 0, "action_matches should not be called beyond 30 yards")
 
 local immune_target = { _debuff_remains = 0, get_guid = function() return "immune-mob" end }
 local normal_target = { _debuff_remains = 0, get_guid = function() return "normal-mob" end }
 
 action_calls = {}
-assert_true(demo_roar.matches({ now = 200, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = immune_target, settings = { bear_demo_roar = true } }), "DemoralizingRoar should match on fresh immune target")
-demo_roar.execute({ now = 200, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = immune_target, settings = { bear_demo_roar = true } })
+assert_true(demo_roar.matches(make_ctx({ now = 200, target_range = 8, enemy_count = 1, target = immune_target, settings = { bear_demo_roar = true } })), "DemoralizingRoar should match on fresh immune target")
+demo_roar.execute(make_ctx({ now = 200, target_range = 8, enemy_count = 1, target = immune_target, settings = { bear_demo_roar = true } }))
 
 action_calls = {}
-assert_false(demo_roar.matches({ now = 202, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = immune_target, settings = { bear_demo_roar = true } }), "DemoralizingRoar should be throttled on same immune target within 8s")
+assert_false(demo_roar.matches(make_ctx({ now = 202, target_range = 8, enemy_count = 1, target = immune_target, settings = { bear_demo_roar = true } })), "DemoralizingRoar should be throttled on same immune target within 8s")
 
 action_calls = {}
-assert_true(demo_roar.matches({ now = 203, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = normal_target, settings = { bear_demo_roar = true } }), "DemoralizingRoar should still match on a different target")
+assert_true(demo_roar.matches(make_ctx({ now = 203, target_range = 8, enemy_count = 1, target = normal_target, settings = { bear_demo_roar = true } })), "DemoralizingRoar should still match on a different target")
 
 action_calls = {}
-assert_true(demo_roar.matches({ now = 210, in_combat = true, is_bear = true, target_range = 8, enemy_count = 1, target = immune_target, settings = { bear_demo_roar = true } }), "DemoralizingRoar should retry immune target after 8s cooldown")
+assert_true(demo_roar.matches(make_ctx({ now = 210, target_range = 8, enemy_count = 1, target = immune_target, settings = { bear_demo_roar = true } })), "DemoralizingRoar should retry immune target after 8s cooldown")
 
 print("PASS test_bear_custom_matches")
