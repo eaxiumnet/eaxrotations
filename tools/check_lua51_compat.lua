@@ -138,7 +138,7 @@ local LUA54_PATTERNS = {
     { pattern = "string.unpack(", hint = "string.unpack() not available in Lua 5.1" },
     { pattern = "utf8.",          hint = "utf8.* not available in Lua 5.1" },
     { pattern = "%g",             hint = "'%g' pattern class requires Lua 5.2+" },
-    { pattern = "::",             hint = "goto/label syntax (::label::) requires Lua 5.2+" },
+    { pattern = "::%a+",          hint = "goto/label syntax (::label::) requires Lua 5.2+", use_pattern = true },
 }
 
 -- ---------------------------------------------------------------------------
@@ -273,11 +273,23 @@ for i = 1, #all_files do
             local content = fh:read("*a") or ""
             fh:close()
             for _, p in ipairs(LUA54_PATTERNS) do
-                if content:find(p.pattern, 1, true) then
+                local content_match
+                if p.use_pattern then
+                    content_match = content:find(p.pattern)
+                else
+                    content_match = content:find(p.pattern, 1, true)
+                end
+                if content_match then
                     local line_num = 0
                     for line in content:gmatch("[^\r\n]+") do
                         line_num = line_num + 1
-                        if line:find(p.pattern, 1, true) and not line:match("^%s*%-%-") then
+                        local line_match
+                        if p.use_pattern then
+                            line_match = line:find(p.pattern)
+                        else
+                            line_match = line:find(p.pattern, 1, true)
+                        end
+                        if line_match and not line:match("^%s*%-%-") then
                             warnings[#warnings + 1] = string.format(
                                 "  WARN %s:%d %s", file, line_num, p.hint
                             )
