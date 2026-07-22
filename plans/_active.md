@@ -1,6 +1,6 @@
 # Active Plan
 
-**Last updated:** 2026-07-22 (Strategy DSL 100% coverage — all 29/29 specs adopted: arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, feral cat druid, assassination rogue, subtlety rogue, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter, affliction warlock, protection warrior, holy paladin, restoration druid, holy priest, caster druid, smite priest, kebab warrior; baseline re-verified 346 rot + 21 leveling = 367 total).
+**Last updated:** 2026-07-22 (Strategy DSL 100% coverage — all 29/29 specs adopted: arms, fury, combat rogue, balance druid, protection paladin, restoration shaman, beast mastery hunter, shadow priest, frost mage, arcane mage, fire mage, enhancement shaman, destruction warlock, demonology warlock, bear druid, feral cat druid, assassination rogue, subtlety rogue, elemental shaman, retribution paladin, discipline priest, survival hunter, marksmanship hunter, affliction warlock, protection warrior, holy paladin, restoration druid, holy priest, caster druid, smite priest, kebab warrior; baseline re-verified 348 rot + 21 leveling = 369 total).
 
 **Current roadmap:** `plans/become-1-rotation-system-classic-tbc-2026-07-05.md` — ground every spec in wowsims/SimC/guides to be the #1 rotation system.
 
@@ -58,13 +58,13 @@
 
 ## Baseline (ALL GREEN — verified 2026-07-22)
 
-- 346 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +29 from all 29 DSL adoption suites (final 3: caster druid, smite priest, kebab warrior)
+- 348 rotation suites: ALL PASS (0 failures) — was 317 at 2026-07-20; +31 from all 29 DSL adoption suites + 2 WotLK DSL suites (arms_wotlk, fury_wotlk)
 - 21 leveling suites: ALL PASS
 - 31 vanilla audit: PASS (0 tainted)
 - 61 sylvanas audit: PASS (0 invalid)
 - luac -p + pre-commit DBC/vanilla: PASS (617+ files)
 
-> **DSL adoption progress:** **100% — ALL 29/29 specs** on the strategy DSL. Final 3 adopters: caster druid (`b6a063f0`), smite priest (`934b2c86`), kebab warrior (`0b4b9651`). `AGENTS.md` synced to 346+21=367.
+> **DSL adoption progress:** **100% — ALL 29/29 specs** on the strategy DSL. Final 3 adopters: caster druid (`b6a063f0`), smite priest (`934b2c86`), kebab warrior (`0b4b9651`). `AGENTS.md` synced to 348+21=369.
 
 ---
 

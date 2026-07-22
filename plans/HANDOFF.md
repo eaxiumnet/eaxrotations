@@ -3,7 +3,7 @@
 > **Read this first.** If you are a fresh AI agent (any model — Kimi, DeepSeek, GLM,
 > Claude, etc.) picking up this project with no prior context, this single file
 > tells you the current state and exactly how to continue safely. It is kept
-> up to date after every work session. Last updated: **2026-07-22** (Strategy DSL 100% coverage — all 29/29 specs adopted; final 3: caster druid, smite priest, kebab warrior; baseline re-verified 346 rotation + 21 leveling = 367 total suites green).
+> up to date after every work session. Last updated: **2026-07-22** (Strategy DSL 100% coverage — all 29/29 specs adopted; final 3: caster druid, smite priest, kebab warrior; baseline re-verified 348 rotation + 21 leveling = 369 total suites green).
 
 **This file is the always-current "where are we / what's next" doc.**
 The detailed task matrix lives in `plans/_active.md` and
@@ -19,7 +19,7 @@ have to context-switch.
 - **Project:** 29 WoW TBC Classic Anniversary (2.5.5.x) + Vanilla Anniversary
   rotation plugins for **Project Sylvanas**, in Lua 5.1/LuaJIT. Repo:
   `https://github.com/eaxiumnet/eaxrotations`. Work dir: `C:\newbot\scripts`.
-- **Baseline is GREEN:** **346 rotation suites + 21 leveling suites (367 total)** pass on
+- **Baseline is GREEN:** **348 rotation suites + 21 leveling suites (369 total)** pass on
   **Lua 5.1**. Don't break this.
 - **What's done (2026-06-27 → 2026-07-22, 290+ commits):**
   - **wowsims APL alignment** for all 29 TBC specs (priority orders grounded in
@@ -172,7 +172,7 @@ cd /c/newbot/scripts
 cmd.exe //c "validate.cmd"
 ```
 Expected output ends with `ALL CHECKS PASSED`. It runs: `luac -p` on modified
-files → rotation suite (346) → leveling suite (21) → spell audit. All on Lua
+files → rotation suite (348) → leveling suite (21) → spell audit. All on Lua
 5.1. If it says `VALIDATION FAILED`, read the FAIL line and fix it.
 
 For a quick single-file syntax check: `luac -p <file>` (uses the 5.1 luac).
@@ -188,7 +188,7 @@ Or run the suites directly:
 
 ## CURRENT STATE (v2.5.15, HEAD current)
 
-**Baseline:** 346 rotation + 21 leveling suites PASS / 0 fail on Lua 5.1.5.
+**Baseline:** 348 rotation + 21 leveling suites PASS / 0 fail on Lua 5.1.5.
 Spell audit PASS. Pre-commit hooks green (luac + vanilla audit + DBC audit).
 test_spec_layout_compliance.lua PASS (31 converted + shared + vanilla).
 eaxrotations.zip re-verified: 490 entries, 0 bad, 0 .txt (only .lua/.md).
@@ -238,7 +238,7 @@ API standardization COMPLETE. Strategy DSL + lazy context landed (2026-07-19). T
 | Kebab warrior DSL | **29th and final DSL adopter** — 16 strategies, stance dancing + HS trick | `0b4b9651` (2026-07-22) | kebab_sylvanas.lua + test_kebab_dsl_priority.lua; bumped 345→346 |
 | Strategy DSL 100% | **ALL 29/29 specs now on declarative DSL** — 100% coverage milestone | `0b4b9651` (2026-07-22) | Covers all 10 classes, every resource model (rage, energy/combo, mana, focus, pet) |
 | Test fix | Fixed test_druid_caster_custom_matches.lua — missing NS.GetPlayer mock | (uncommitted) | was crashing build_state() with nil GetPlayer; now green |
-| Docs update | AGENTS.md, plans/_active.md, plans/HANDOFF.md — 346+21=367, 100% DSL | (uncommitted) | test counts + DSL progress synced to final state |
+| Docs update | AGENTS.md, plans/_active.md, plans/HANDOFF.md — 346+21=367, 100% DSL | (historical) | test counts + DSL progress synced to final state |
 
 ### spec_kit migration progress — COMPLETE (29 of 29 specs) 🎉
 All specs migrated to canonical `spec_kit.safe_state` + `define_action_for_class` + guarded registration + return shape (per refactor-developer-experience and _active.md). Reference: arms_sylvanas.lua. See test_spec_layout_compliance.lua CONVERTED table and EaxRotations/README.md for details. No legacy remaining.
@@ -337,7 +337,7 @@ at some point to see its real status. Sibling product — its own concern.
 - `EaxRotations/classes/<class>/<spec>_sylvanas.lua` — 29 spec files (flat).
 - `EaxRotations/shared/` — ~50 shared modules (healer_deficit, preemptive_heal,
   aura_cache, enemy_count_hysteresis, pvp_burst_window, offensive_dispel, …).
-- `EaxRotations/tests/run_rotation_tests.lua` — rotation suite runner (346 suites).
+- `EaxRotations/tests/run_rotation_tests.lua` — rotation suite runner (348 suites).
 - `EaxRotations/tests/run_leveling_tests.lua` — leveling suite runner (21 suites).
 - `EaxRotations/shared/strategy_dsl_sylvanas.lua` — declarative strategy DSL compiler (ALL 29 specs adopted — 100% coverage).
 - `EaxRotations/shared/lazy_context_sylvanas.lua` — per-tick dependency-aware context proxy.
