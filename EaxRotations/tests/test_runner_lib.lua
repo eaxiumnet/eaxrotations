@@ -135,15 +135,12 @@ end
 -- the runner deterministic while still restoring modified values for keys that
 -- existed at snapshot time.
 function M.restore(snap)
-    -- Re-apply the snapshot values.  We intentionally do NOT remove keys that
-    -- were added during the test.  The original removal loop iterated _G with
-    -- pairs() while mutating it, which is undefined in Lua 5.1 and produced
-    -- different cleanup (and different test results) on Windows vs Ubuntu.
-    -- Many rotation tests implicitly rely on state (e.g. _G.EaxRotations or
-    -- cached modules) leaking from earlier tests, so preserving added keys
-    -- makes the runner deterministic while keeping the existing suite green.
-    -- Isolation is therefore best-effort; individual tests should mock their
-    -- own global dependencies.
+    -- Re-apply the snapshot's keys+values. We deliberately do NOT remove keys
+    -- that were added during the test. Mutating a table while iterating it with
+    -- pairs() is undefined in Lua 5.1 and caused non-deterministic cleanup (and
+    -- different test results) on Windows vs Ubuntu. Preserving added keys keeps
+    -- the runner deterministic while still restoring modified values for keys
+    -- that existed at snapshot time.
     for k, v in pairs(snap.g) do _G[k] = v end
 
     for k, v in pairs(snap.loaded) do package.loaded[k] = v end

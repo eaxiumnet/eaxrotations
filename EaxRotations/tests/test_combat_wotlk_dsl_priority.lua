@@ -1,4 +1,11 @@
--- test_combat_wotlk_dsl_priority.lua â€” WotLK combat rogue DSL priority + match/no-match gate tests
+-- test_combat_wotlk_dsl_priority.lua — WotLK Combat DSL priority order validation.
+-- WHAT:  Asserts the declarative DSL strategies appear in the correct priority order
+--        and that key match/no-match gates behave correctly under mocked combat state.
+-- WHEN:  Runs as part of the WotLK rotation test suite.
+-- WHY:   Regression guard for the WotLK DSL adoption — ensures declarative conditions
+--        produce the same behavior as the original imperative match functions.
+-- SAFETY: Uses synthetic context/state; no live game data required.
+
 -- Validates the 5 strategies in the DSL_DEFS table.
 
 local mock_ns = {
