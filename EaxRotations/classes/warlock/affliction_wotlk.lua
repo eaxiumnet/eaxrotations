@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.WarlockSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -54,41 +55,72 @@ local function build_state(context)
     return state
 end
 
-local function unstable_affliction_matches(context, state)
-    return state.unstable_remains < 3
-end
-
-local function haunt_matches(context, state)
-    return state.haunt_remains < 3
-end
-
-local function corruption_matches(context, state)
-    return state.corruption_remains < 3
-end
-
-local function curse_of_agony_matches(context, state)
-    return state.agony_remains < 3
-end
-
-local function drain_soul_matches(context, state)
-    return state.target_hp < 25
-end
-
-local function shadow_bolt_matches(context, state)
-    return state.mana_pct >= 20
-end
+local DSL_DEFS = {
+    {
+        name = "Haunt",
+        conditions = {
+            { type = "state", field = "haunt_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Haunt, target = "target" },
+    },
+    {
+        name = "UnstableAffliction",
+        conditions = {
+            { type = "state", field = "unstable_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.UnstableAffliction, target = "target" },
+    },
+    {
+        name = "Corruption",
+        conditions = {
+            { type = "state", field = "corruption_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Corruption, target = "target" },
+    },
+    {
+        name = "CurseOfAgony",
+        conditions = {
+            { type = "state", field = "agony_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.CurseOfAgony, target = "target" },
+    },
+    {
+        name = "DrainSoul",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.DrainSoul, target = "target" },
+    },
+    {
+        name = "ShadowBolt",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.ShadowBolt, target = "target" },
+    },
+}
 
 local strategies = {
-    { name = "Haunt", matches = haunt_matches, execute = function(ctx) return ACTION.Haunt and ACTION.Haunt:cast_safe(ctx.target) end },
-    { name = "UnstableAffliction", matches = unstable_affliction_matches, execute = function(ctx) return ACTION.UnstableAffliction and ACTION.UnstableAffliction:cast_safe(ctx.target) end },
-    { name = "Corruption", matches = corruption_matches, execute = function(ctx) return ACTION.Corruption and ACTION.Corruption:cast_safe(ctx.target) end },
-    { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(ctx) return ACTION.CurseOfAgony and ACTION.CurseOfAgony:cast_safe(ctx.target) end },
-    { name = "DrainSoul", matches = drain_soul_matches, execute = function(ctx) return ACTION.DrainSoul and ACTION.DrainSoul:cast_safe(ctx.target) end },
-    { name = "ShadowBolt", matches = shadow_bolt_matches, execute = function(ctx) return ACTION.ShadowBolt and ACTION.ShadowBolt:cast_safe(ctx.target) end },
+    { name = "Haunt" },
+    { name = "UnstableAffliction" },
+    { name = "Corruption" },
+    { name = "CurseOfAgony" },
+    { name = "DrainSoul" },
+    { name = "ShadowBolt" },
 }
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("affliction", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Warlock affliction rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
