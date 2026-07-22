@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.WarlockSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -24,19 +25,17 @@ local IMMOLATE_DEBUFF = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 34
 local CORRUPTION_DEBUFF = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
 local METAMORPHOSIS_BUFF = { 47241 }
 
-local demonology_state = {
-    hp = 100,
-    target_hp = 100,
-    mana_pct = 100,
-    enemy_count = 1,
-    in_combat = false,
-    immolate_remains = 0,
-    corruption_remains = 0,
+local DEMO_SCHEMA = {
+    hp = 100, target_hp = 100, mana_pct = 100,
+    enemy_count = 1, in_combat = false,
+    immolate_remains = 0, corruption_remains = 0,
     metamorphosis_up = false,
 }
 
+local demonology_state = {}
+
 local function build_state(context)
-    local state = spec_kit.safe_state(demonology_state)
+    local state = spec_kit.safe_state(demonology_state, DEMO_SCHEMA)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
     local target = context and context.target
     state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
@@ -50,39 +49,74 @@ local function build_state(context)
     return state
 end
 
-local function metamorphosis_matches(context, state)
-    if not state.in_combat then return false end
-    if state.metamorphosis_up then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
-    return true
-end
-
-local function immolate_matches(context, state)
-    return state.immolate_remains < 3
-end
-
-local function corruption_matches(context, state)
-    return state.corruption_remains < 3
-end
-
-local function soul_fire_matches(context, state)
-    return state.mana_pct >= 30
-end
-
-local function shadow_bolt_matches(context, state)
-    return state.mana_pct >= 20
-end
-
-local strategies = {
-    { name = "Metamorphosis", matches = metamorphosis_matches, execute = function(ctx) return ACTION.Metamorphosis and ACTION.Metamorphosis:cast_safe() end },
-    { name = "Immolate", matches = immolate_matches, execute = function(ctx) return ACTION.Immolate and ACTION.Immolate:cast_safe(ctx.target) end },
-    { name = "Corruption", matches = corruption_matches, execute = function(ctx) return ACTION.Corruption and ACTION.Corruption:cast_safe(ctx.target) end },
-    { name = "SoulFire", matches = soul_fire_matches, execute = function(ctx) return ACTION.SoulFire and ACTION.SoulFire:cast_safe(ctx.target) end },
-    { name = "ShadowBolt", matches = shadow_bolt_matches, execute = function(ctx) return ACTION.ShadowBolt and ACTION.ShadowBolt:cast_safe(ctx.target) end },
+-- ============================================================================
+-- Declarative Strategy DSL definitions (5 strategies, 100% declarative)
+-- ============================================================================
+local DSL_DEFS = {
+    {
+        name = "Metamorphosis",
+        conditions = {
+            { type = "context", field = "in_combat", op = "==", value = true },
+            { type = "state", field = "metamorphosis_up", op = "==", value = false },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Metamorphosis, target = "self", label = "[DEMONOLOGY WOTLK] Metamorphosis" },
+    },
+    {
+        name = "Immolate",
+        conditions = {
+            { type = "state", field = "immolate_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Immolate, target = "target", label = "[DEMONOLOGY WOTLK] Immolate" },
+    },
+    {
+        name = "Corruption",
+        conditions = {
+            { type = "state", field = "corruption_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Corruption, target = "target", label = "[DEMONOLOGY WOTLK] Corruption" },
+    },
+    {
+        name = "SoulFire",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.SoulFire, target = "target", label = "[DEMONOLOGY WOTLK] Soul Fire" },
+    },
+    {
+        name = "ShadowBolt",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.ShadowBolt, target = "target", label = "[DEMONOLOGY WOTLK] Shadow Bolt" },
+    },
 }
+
+-- ============================================================================
+-- Strategies (name-only placeholders; DSL-compiled equivalents replace them)
+-- ============================================================================
+local strategies = {
+    { name = "Metamorphosis" },
+    { name = "Immolate" },
+    { name = "Corruption" },
+    { name = "SoulFire" },
+    { name = "ShadowBolt" },
+}
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("demonology", strategies, { get_state = build_state })
 end
-
+if NS.log then NS.log("Warlock demonology WotLK rotation registered") end
 return { strategies = strategies, build_state = build_state }
