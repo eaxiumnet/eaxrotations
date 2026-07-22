@@ -6,6 +6,8 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
+local runner_lib = require("tests/test_runner_lib")
+
 local now = 0
 local engine_callback = nil
 
@@ -35,9 +37,11 @@ _G.core = {
     input = {},
 }
 
-package.loaded.core_sylvanas = nil
-package.loaded["shared/racial_manager_sylvanas"] = nil
-package.loaded["shared/trinket_manager_sylvanas"] = nil
+runner_lib.clear_loaded({
+    "core_sylvanas",
+    "shared/racial_manager_sylvanas",
+    "shared/trinket_manager_sylvanas",
+})
 _G.EaxRotations = nil
 
 package.preload["shared/racial_manager_sylvanas"] = function()
