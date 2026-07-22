@@ -6,14 +6,14 @@
 -- WHEN:  combat with a valid enemy target; Blood Presence is the default DPS presence.
 -- WHY:   mirrors the DarhangeR Blood_DPS PQR profile / SimulationCraft APL with
 --        WotLK 3.3.5a mechanics (rune + runic-power economy, disease refresh windows).
--- SAFETY: all state.* reads are nil-guarded via spec_kit.safe_state(); rune and
---         runic-power state sourced from RuneManager; presence via PresenceManager;
---         interrupts via InterruptManager; no on_update() allocations.
+-- SAFETY: all state.* reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
+--         imperative match functions; no on_update() allocations.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit          = require("shared/spec_kit_sylvanas")
+local dsl               = require("shared/strategy_dsl_sylvanas")
 local RuneManager       = require("shared/rune_manager_sylvanas")
 local PresenceManager   = require("shared/presence_manager_sylvanas")
 local interrupt_manager = require("shared/interrupt_manager_sylvanas")
@@ -54,6 +54,7 @@ local blood_state = {
     horn_of_winter_up    = false,
     runic_power          = 0,
     presence             = nil,
+    rune_state           = nil,
 }
 
 -- safe_cast: invoke an action's cast_safe only when it is a real action table.
@@ -98,86 +99,137 @@ local function build_state(context)
     return state
 end
 
--- ---------------------------------------------------------------------------
--- Match functions (one per strategy)
--- ---------------------------------------------------------------------------
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "Presence",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not (NS.is_wotlk and NS.is_wotlk()) then return false end
+                local desired = PresenceManager.get_optimal_presence(context, state)
+                if not desired then return false end
+                return PresenceManager.should_switch_presence(context, state, desired)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.BloodPresence, target = "self" },
+    },
+    {
+        name = "IceboundFortitude",
+        conditions = {
+            { type = "state", field = "hp", op = "<", value = 40 },
+        },
+        action = { type = "cast", spell = ACTION.IceboundFortitude, target = "self" },
+    },
+    {
+        name = "VampiricBlood",
+        conditions = {
+            { type = "state", field = "hp", op = "<", value = 50 },
+        },
+        action = { type = "cast", spell = ACTION.VampiricBlood, target = "self" },
+    },
+    {
+        name = "HornOfWinter",
+        conditions = {
+            { type = "state", field = "horn_of_winter_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.HornOfWinter, target = "self" },
+    },
+    {
+        name = "DancingRuneWeapon",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_hp", op = ">", value = 50 },
+            { type = "state", field = "runic_power", op = ">=", value = 60 },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 90) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.DancingRuneWeapon, target = "target" },
+    },
+    {
+        name = "Pestilence",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                local ff = (state.frost_fever_remains or 0)
+                local bp = (state.blood_plague_remains or 0)
+                if ff <= 0 or bp <= 0 then return false end
+                return ff < 3 or bp < 3
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Pestilence, target = "target" },
+    },
+    {
+        name = "IcyTouch",
+        conditions = {
+            { type = "state", field = "frost_fever_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.IcyTouch, target = "target" },
+    },
+    {
+        name = "PlagueStrike",
+        conditions = {
+            { type = "state", field = "blood_plague_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.PlagueStrike, target = "target" },
+    },
+    {
+        name = "DeathStrike",
+        conditions = {
+            { type = "state", field = "hp", op = "<", value = 80 },
+        },
+        action = { type = "cast", spell = ACTION.DeathStrike, target = "target" },
+    },
+    {
+        name = "HeartStrike",
+        conditions = {},
+        action = { type = "cast", spell = ACTION.HeartStrike, target = "target" },
+    },
+    {
+        name = "DeathCoil",
+        conditions = {
+            { type = "state", field = "runic_power", op = ">=", value = 40 },
+        },
+        action = { type = "cast", spell = ACTION.DeathCoil, target = "target" },
+    },
+}
 
-local function presence_matches(context, state)
-    if not (NS.is_wotlk and NS.is_wotlk()) then return false end
-    local desired = PresenceManager.get_optimal_presence(context, state)
-    if not desired then return false end
-    return PresenceManager.should_switch_presence(context, state, desired)
-end
-
-local function icebound_fortitude_matches(context, state)
-    return (state.hp or 100) < 40
-end
-
-local function vampiric_blood_matches(context, state)
-    return (state.hp or 100) < 50
-end
-
-local function horn_of_winter_matches(context, state)
-    return not state.horn_of_winter_up
-end
-
-local function dancing_rune_weapon_matches(context, state)
-    if not state.in_combat then return false end
-    if (state.target_hp or 100) <= 50 then return false end
-    if (state.runic_power or 0) < 60 then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 90) then return false end
-    return true
-end
-
-local function pestilence_matches(context, state)
-    local ff = (state.frost_fever_remains or 0)
-    local bp = (state.blood_plague_remains or 0)
-    if ff <= 0 or bp <= 0 then return false end
-    return ff < 3 or bp < 3
-end
-
-local function icy_touch_matches(context, state)
-    return (state.frost_fever_remains or 0) < 3
-end
-
-local function plague_strike_matches(context, state)
-    return (state.blood_plague_remains or 0) < 3
-end
-
-local function death_strike_matches(context, state)
-    return (state.hp or 100) < 80
-end
-
-local function heart_strike_matches(context, state)
-    return true
-end
-
-local function death_coil_matches(context, state)
-    return (state.runic_power or 0) >= 40
-end
-
--- ---------------------------------------------------------------------------
--- Strategy table (ordered by priority, highest first)
--- ---------------------------------------------------------------------------
-
+-- -----------------------------------------------------------------------------
+-- Strategies (interrupt_strategy injected by interrupt_manager, then
+-- name-only placeholders substituted by DSL)
+-- -----------------------------------------------------------------------------
 local interrupt_strategy = interrupt_manager.register_interrupt_spell(
     "deathknight", "MindFreeze", SPELLS)
 
 local strategies = {
     interrupt_strategy,
-    { name = "Presence",          matches = presence_matches,          execute = function(ctx) return safe_cast(ACTION.BloodPresence, NS.me) end },
-    { name = "IceboundFortitude", matches = icebound_fortitude_matches, execute = function(ctx) return safe_cast(ACTION.IceboundFortitude, NS.me) end },
-    { name = "VampiricBlood",     matches = vampiric_blood_matches,     execute = function(ctx) return safe_cast(ACTION.VampiricBlood, NS.me) end },
-    { name = "HornOfWinter",      matches = horn_of_winter_matches,     execute = function(ctx) return safe_cast(ACTION.HornOfWinter) end },
-    { name = "DancingRuneWeapon", matches = dancing_rune_weapon_matches, execute = function(ctx) return safe_cast(ACTION.DancingRuneWeapon) end },
-    { name = "Pestilence",        matches = pestilence_matches,         execute = function(ctx) return safe_cast(ACTION.Pestilence, ctx.target) end },
-    { name = "IcyTouch",          matches = icy_touch_matches,          execute = function(ctx) return safe_cast(ACTION.IcyTouch, ctx.target) end },
-    { name = "PlagueStrike",      matches = plague_strike_matches,      execute = function(ctx) return safe_cast(ACTION.PlagueStrike, ctx.target) end },
-    { name = "DeathStrike",       matches = death_strike_matches,       execute = function(ctx) return safe_cast(ACTION.DeathStrike, ctx.target) end },
-    { name = "HeartStrike",       matches = heart_strike_matches,       execute = function(ctx) return safe_cast(ACTION.HeartStrike, ctx.target) end },
-    { name = "DeathCoil",         matches = death_coil_matches,         execute = function(ctx) return safe_cast(ACTION.DeathCoil, ctx.target) end },
+    { name = "Presence" },
+    { name = "IceboundFortitude" },
+    { name = "VampiricBlood" },
+    { name = "HornOfWinter" },
+    { name = "DancingRuneWeapon" },
+    { name = "Pestilence" },
+    { name = "IcyTouch" },
+    { name = "PlagueStrike" },
+    { name = "DeathStrike" },
+    { name = "HeartStrike" },
+    { name = "DeathCoil" },
 }
 
+-- Name-based substitution preserves the existing priority order.
+-- interrupt_strategy (position 1) has no DSL_DEFS name match, so it remains as-is.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
+
+-- Register (guarded — nil-safe in unit tests)
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("blood", strategies, { get_state = build_state })
 end
