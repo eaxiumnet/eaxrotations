@@ -21,6 +21,9 @@ local tests = {
     "test_enhancement_wotlk_dsl_priority.lua",
     "test_unholy_wotlk_dsl_priority.lua",
     "test_survival_wotlk_dsl_priority.lua",
+    "test_marksmanship_wotlk_dsl_priority.lua",
+    "test_elemental_wotlk_dsl_priority.lua",
+    "test_combat_wotlk_dsl_priority.lua",
     "test_wotlk_specs_load.lua",
 }
 
