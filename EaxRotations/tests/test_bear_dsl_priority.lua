@@ -178,10 +178,10 @@ predicted_hp_value = 30
 -- ============================================================================
 local demo_roar = find_strategy("DemoralizingRoar")
 local ctx_demo = { target = {}, me = "player", settings = { bear_demo_roar = true } }
-local st_demo = { is_bear = true, in_combat = true, demo_roar_enabled = true, target_range = 8, enemy_count = 1, demo_remains = 0, target_ttd = 30, target_hp = 50 }
+local st_demo = { is_bear = true, in_combat = true, demo_roar_enabled = true, target_range = 8, enemy_count = 1, demo_remains = 0, target_ttd = 30, target_hp = 50, rage = 100 }
 assert_true(demo_roar.matches(ctx_demo, st_demo), "DemoralizingRoar matches within range with debuff expired")
 
-local st_demo_far = { is_bear = true, in_combat = true, demo_roar_enabled = true, target_range = 15, enemy_count = 1, demo_remains = 0, target_ttd = 30, target_hp = 50 }
+local st_demo_far = { is_bear = true, in_combat = true, demo_roar_enabled = true, target_range = 15, enemy_count = 1, demo_remains = 0, target_ttd = 30, target_hp = 50, rage = 100 }
 assert_false(demo_roar.matches(ctx_demo, st_demo_far), "DemoralizingRoar does not match beyond 10 yards")
 
 -- ============================================================================
@@ -200,10 +200,10 @@ assert_false(ff.matches(ctx_ff, st_ff_fresh), "FaerieFireFeral does not match wh
 -- ============================================================================
 local mangle = find_strategy("MangleBear")
 local ctx_mangle = { target = {}, me = "player", settings = {} }
-local st_mangle = { is_bear = true, has_valid_target = true }
+local st_mangle = { is_bear = true, has_valid_target = true, rage = 100 }
 assert_true(mangle.matches(ctx_mangle, st_mangle), "MangleBear matches when in bear form with valid target")
 
-local st_mangle_no_bear = { is_bear = false, has_valid_target = true }
+local st_mangle_no_bear = { is_bear = false, has_valid_target = true, rage = 100 }
 assert_false(mangle.matches(ctx_mangle, st_mangle_no_bear), "MangleBear does not match when not in bear form")
 
 -- ============================================================================
@@ -211,13 +211,13 @@ assert_false(mangle.matches(ctx_mangle, st_mangle_no_bear), "MangleBear does not
 -- ============================================================================
 local lacerate = find_strategy("Lacerate")
 local ctx_lac = { target = {}, me = "player", settings = {} }
-local st_lac = { is_bear = true, has_valid_target = true, target = {}, aoe_threshold = 3, enemy_count = 1, lacerate_stacks = 3, lacerate_remains = 0 }
+local st_lac = { is_bear = true, has_valid_target = true, target = {}, aoe_threshold = 3, enemy_count = 1, lacerate_stacks = 3, lacerate_remains = 0, rage = 100 }
 assert_true(lacerate.matches(ctx_lac, st_lac), "Lacerate matches when stacks < 5")
 
-local st_lac_maintain = { is_bear = true, has_valid_target = true, target = {}, aoe_threshold = 3, enemy_count = 1, lacerate_stacks = 5, lacerate_remains = 2 }
+local st_lac_maintain = { is_bear = true, has_valid_target = true, target = {}, aoe_threshold = 3, enemy_count = 1, lacerate_stacks = 5, lacerate_remains = 2, rage = 100 }
 assert_true(lacerate.matches(ctx_lac, st_lac_maintain), "Lacerate matches when 5-stack about to drop")
 
-local st_lac_fresh = { is_bear = true, has_valid_target = true, target = {}, aoe_threshold = 3, enemy_count = 1, lacerate_stacks = 5, lacerate_remains = 10 }
+local st_lac_fresh = { is_bear = true, has_valid_target = true, target = {}, aoe_threshold = 3, enemy_count = 1, lacerate_stacks = 5, lacerate_remains = 10, rage = 100 }
 assert_false(lacerate.matches(ctx_lac, st_lac_fresh), "Lacerate does not match when 5-stack fresh")
 
 -- ============================================================================
