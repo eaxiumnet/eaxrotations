@@ -8,6 +8,9 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
+local runner = require("EaxRotations/tests/test_runner_lib")
+local Mock = runner.Mock
+
 local assert_true, assert_eq, assert_false
 
 local function setup_asserts()
@@ -79,25 +82,23 @@ local rip = find_strategy("Rip")
 
 -- Debuff fresh -> should NOT match
 action_calls = {}
-local ctx_rip_fresh = {
+local ctx_rip_fresh = Mock.DefaultMeleeContext({
     combo_points = 5,
     energy = 35,
-    is_cat = true,
     target = { _debuff_remains = 10 },
     ttd = 60,
-}
+})
 assert_false(rip.matches(ctx_rip_fresh), "Rip should not match when debuff is fresh")
 assert_eq(#action_calls, 0, "action_matches should not be called when debuff fresh")
 
 -- Debuff expiring -> should match
 action_calls = {}
-local ctx_rip_refresh = {
+local ctx_rip_refresh = Mock.DefaultMeleeContext({
     combo_points = 5,
     energy = 35,
-    is_cat = true,
     target = { _debuff_remains = 1 },
     ttd = 60,
-}
+})
 assert_true(rip.matches(ctx_rip_refresh), "Rip should match when debuff needs refresh")
 
 -- No target -> should return false
@@ -123,40 +124,34 @@ assert_eq(#action_calls, 0, "action_matches should not be called when energy wou
 
 -- In combat with low energy -> should match (mid-combat use enabled)
 action_calls = {}
-local ctx_tf_combat = {
-    is_cat = true,
+local ctx_tf_combat = Mock.DefaultMeleeContext({
     me = {
         get_power = function(pt) return 20 end,
         get_max_power = function(pt) return 100 end,
     },
-    in_combat = true,
-}
+})
 assert_true(tigers_fury.matches(ctx_tf_combat), "TigersFury should match in combat with low energy")
 assert_eq(#action_calls, 0, "action_matches should not be called in combat")
 
 -- In combat with 5cp and enough energy for Rip -> should NOT match (save for Rip)
 action_calls = {}
-local ctx_tf_rip_ready = {
-    is_cat = true,
+local ctx_tf_rip_ready = Mock.DefaultMeleeContext({
     me = {
         get_power = function(pt) return 30 end,
         get_max_power = function(pt) return 100 end,
     },
-    in_combat = true,
     combo_points = 5,
-}
+})
 assert_false(tigers_fury.matches(ctx_tf_rip_ready), "TigersFury should not match when Rip is ready")
 
 -- Energy low, OOC -> should match (pre-cast opener)
 action_calls = {}
-local ctx_tf_ok = {
-    is_cat = true,
+local ctx_tf_ok = Mock.DefaultMeleeContext({
     me = {
         get_power = function(pt) return 20 end,
         get_max_power = function(pt) return 100 end,
     },
-    in_combat = true,
-}
+})
 assert_true(tigers_fury.matches(ctx_tf_ok), "TigersFury should match in combat with low energy")
 
 -- No me -> should return false
@@ -170,25 +165,17 @@ local shred_omen = find_strategy("ShredOmen")
 
 -- No Omen buff -> should NOT match
 action_calls = {}
-local ctx_omen_none = {
-    is_cat = true,
-    is_behind = true,
+local ctx_omen_none = Mock.DefaultMeleeContext({
     me = { _buff_up = false },
-    target = {},
-    in_combat = true,
-}
+})
 assert_false(shred_omen.matches(ctx_omen_none), "ShredOmen should not match without Omen buff")
 assert_eq(#action_calls, 0, "action_matches should not be called without Omen buff")
 
 -- With Omen buff -> should match
 action_calls = {}
-local ctx_omen_up = {
-    is_cat = true,
-    is_behind = true,
+local ctx_omen_up = Mock.DefaultMeleeContext({
     me = { _buff_up = true },
-    target = {},
-    in_combat = true,
-}
+})
 assert_true(shred_omen.matches(ctx_omen_up), "ShredOmen should match with Omen buff")
 
 -- ============================================================================
@@ -199,41 +186,33 @@ local dash = find_strategy("Dash")
 
 -- Not PvP -> should NOT match
 action_calls = {}
-local ctx_dash_pve = {
+local ctx_dash_pve = Mock.DefaultMeleeContext({
     is_pvp = false,
-    is_cat = true,
     settings = { pvp_mode = false },
     me = {},
-    in_combat = true,
-}
+})
 assert_false(dash.matches(ctx_dash_pve), "Dash should not match in PvE")
 assert_eq(#action_calls, 0, "action_matches should not be called in PvE")
 
 -- PvP but target close -> should NOT match
 action_calls = {}
-local ctx_dash_close = {
+local ctx_dash_close = Mock.DefaultMeleeContext({
     is_pvp = true,
-    is_cat = true,
     me = {
         get_distance = function() return 5 end,
     },
-    target = {},
-    in_combat = true,
-}
+})
 assert_false(dash.matches(ctx_dash_close), "Dash should not match when target < 10 yards")
 assert_eq(#action_calls, 0, "action_matches should not be called when target close")
 
 -- PvP, target far -> should match
 action_calls = {}
-local ctx_dash_far = {
+local ctx_dash_far = Mock.DefaultMeleeContext({
     is_pvp = true,
-    is_cat = true,
     me = {
         get_distance = function() return 15 end,
     },
-    target = {},
-    in_combat = true,
-}
+})
 assert_true(dash.matches(ctx_dash_far), "Dash should match in PvP when target > 10 yards")
 
 print("PASS test_cat_custom_matches")

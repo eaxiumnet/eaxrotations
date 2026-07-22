@@ -174,6 +174,7 @@ local tests = {
  "test_quality_bar_compliance.lua",
  "test_spec_layout_compliance.lua",
   "test_strategy_dsl_sylvanas.lua",
+  "test_mock_helper.lua",
   "test_arms_dsl_priority.lua",
   "test_fury_dsl_priority.lua",
   "test_combat_dsl_priority.lua",
