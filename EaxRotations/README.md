@@ -7,7 +7,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.11.0-blue" alt="Version 2.11.0">
   <img src="https://img.shields.io/badge/specs-29%20%2B%2013%20leveling-brightgreen" alt="29 Specs + 13 Leveling">
-  <img src="https://img.shields.io/badge/tests-354%2F354%20passing-success" alt="367/367 Tests Passing">
+  <img src="https://img.shields.io/badge/tests-367%2F367%20passing-success" alt="367/367 Tests Passing">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="CC-BY-4.0">
 </p>
 
