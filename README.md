@@ -6,8 +6,8 @@
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/TBC%20Specs-29-brightgreen" alt="29 TBC Specs">
-  <img src="https://img.shields.io/badge/Rotation%20Tests-252%2F252%20passing-success" alt="252 Tests Passing">
-  <img src="https://img.shields.io/badge/Leveling%20Tests-13%2F13%20passing-success" alt="13 Leveling Tests Passing">
+  <img src="https://img.shields.io/badge/Rotation%20Tests-372%2F372%20passing-success" alt="372 Tests Passing">
+  <img src="https://img.shields.io/badge/Leveling%20Tests-21%2F21%20passing-success" alt="21 Leveling Tests Passing">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0%20(EaxRotations)-lightgrey" alt="CC-BY-4.0">
 </p>
 
@@ -78,8 +78,7 @@ EaxRotations/
 │   ├── arena_priority_sylvanas.lua
 │   ├── healer_engine_sylvanas.lua
 │   ├── burst_logic_sylvanas.lua
-│   └── ... (50+ modules)
-└── tests/                  # 208 rotation suites + 11 leveling suites
+│   └── ... (50+ modules)    └── tests/                  # 372 rotation suites + 21 leveling suites
     ├── run_rotation_tests.lua
     └── run_leveling_tests.lua
 ```
@@ -117,16 +116,16 @@ EaxRotations/
 # Syntax check all Lua files
 find EaxRotations -name "*.lua" -exec luac -p {} \;
 
-# Run rotation test suite (208 suites)
+# Run rotation test suite (372 suites)
 lua EaxRotations/tests/run_rotation_tests.lua
 
-# Run leveling test suite (11 suites)
+# Run leveling test suite (21 suites)
 lua EaxRotations/tests/run_leveling_tests.lua
 ```
 
 **Current status:**
-- 🟢 208 rotation suites: **PASS**
-- 🟢 11 leveling suites: **PASS**
+- 🟢 372 rotation suites: **PASS**
+- 🟢 21 leveling suites: **PASS**
 - 🟢 Spell audit (all IDs verified against DBC): **PASS**
 
 ---
