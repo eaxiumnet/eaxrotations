@@ -1,13 +1,17 @@
 -- shadow_wotlk.lua — Priest Shadow rotation for Wrath of the Lich King (3.3.5).
--- WHAT:  priority-list strategies for Shadow priest.
+-- WHAT:  priority-list strategies for Shadow priest: DoT maintenance
+--        (VampiricTouch, ShadowWordPain, DevouringPlague), Mind Blast filler,
+--        Mind Flay channel filler.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
+--         imperative match functions; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.PriestSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -50,36 +54,71 @@ local function build_state(context)
     return state
 end
 
-local function vampiric_touch_matches(context, state)
-    return state.vampiric_touch_remains < 3
-end
-
-local function shadow_word_pain_matches(context, state)
-    return state.shadow_word_pain_remains < 3
-end
-
-local function devouring_plague_matches(context, state)
-    return state.devouring_plague_remains < 3
-end
-
-local function mind_blast_matches(context, state)
-    return state.mana_pct >= 20
-end
-
-local function mind_flay_matches(context, state)
-    return state.mana_pct >= 20
-end
-
-local strategies = {
-    { name = "VampiricTouch", matches = vampiric_touch_matches, execute = function(ctx) return ACTION.VampiricTouch and ACTION.VampiricTouch:cast_safe(ctx.target) end },
-    { name = "ShadowWordPain", matches = shadow_word_pain_matches, execute = function(ctx) return ACTION.ShadowWordPain and ACTION.ShadowWordPain:cast_safe(ctx.target) end },
-    { name = "DevouringPlague", matches = devouring_plague_matches, execute = function(ctx) return ACTION.DevouringPlague and ACTION.DevouringPlague:cast_safe(ctx.target) end },
-    { name = "MindBlast", matches = mind_blast_matches, execute = function(ctx) return ACTION.MindBlast and ACTION.MindBlast:cast_safe(ctx.target) end },
-    { name = "MindFlay", matches = mind_flay_matches, execute = function(ctx) return ACTION.MindFlay and ACTION.MindFlay:cast_safe(ctx.target) end },
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "VampiricTouch",
+        conditions = {
+            { type = "state", field = "vampiric_touch_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.VampiricTouch, target = "target" },
+    },
+    {
+        name = "ShadowWordPain",
+        conditions = {
+            { type = "state", field = "shadow_word_pain_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.ShadowWordPain, target = "target" },
+    },
+    {
+        name = "DevouringPlague",
+        conditions = {
+            { type = "state", field = "devouring_plague_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.DevouringPlague, target = "target" },
+    },
+    {
+        name = "MindBlast",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.MindBlast, target = "target" },
+    },
+    {
+        name = "MindFlay",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.MindFlay, target = "target" },
+    },
 }
+
+-- -----------------------------------------------------------------------------
+-- Strategies (name-only placeholders; substituted by DSL)
+-- -----------------------------------------------------------------------------
+local strategies = {
+    { name = "VampiricTouch" },
+    { name = "ShadowWordPain" },
+    { name = "DevouringPlague" },
+    { name = "MindBlast" },
+    { name = "MindFlay" },
+}
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Priest Shadow WotLK rotation registered") end
 
 return { strategies = strategies, build_state = build_state }

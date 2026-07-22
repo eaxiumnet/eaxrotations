@@ -114,7 +114,7 @@ No DSL engine extensions are expected for WotLK — the existing condition types
 2. `lua EaxRotations/tests/run_wotlk_tests.lua` — all suites pass
 3. `lua EaxRotations/tests/check_wotlk_placeholders.lua` — 0 placeholders (passes)
 4. `luac -p` — clean on all modified files
-5. No regressions in TBC rotation suite (`lua EaxRotations/tests/run_rotation_tests.lua` — 350/350 green)
+5. No regressions in TBC rotation suite (`lua EaxRotations/tests/run_rotation_tests.lua` — 354/354 green)
 6. Each spec's behavior is preserved (DSL definitions match original match/execute logic)
 
 ## Risk Assessment
