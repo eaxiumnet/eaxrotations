@@ -82,12 +82,12 @@ local shred_no_mangle = find_strategy(cat_strats_no_mangle, "Shred")
 local stealth_shred_no_mangle = find_strategy(cat_strats_no_mangle, "StealthShred")
 
 assert_true(shred_no_mangle.matches(
-    { has_valid_enemy_target = true, level = 42, is_behind = true, combo_points = 0, energy = 60, target_ttd = 60, mangle_remains = 0, pooling = false },
+    { has_valid_enemy_target = true, level = 42, is_behind = true, combo_points = 0, energy = 60, target_ttd = 60, mangle_remains = 0, pooling = false, target = {} },
     {}
 ), "cat_sylvanas Shred should match when Mangle is not learned even without Mangle debuff")
 
 assert_true(stealth_shred_no_mangle.matches(
-    { has_valid_enemy_target = true, level = 42, is_stealthed = true, is_behind = true, energy = 60, mangle_remains = 0 },
+    { has_valid_enemy_target = true, level = 42, is_stealthed = true, is_behind = true, energy = 60, mangle_remains = 0, target = {} },
     {}
 ), "cat_sylvanas StealthShred should match when Mangle is not learned even without Mangle debuff")
 
@@ -96,12 +96,12 @@ local shred_mangle = find_strategy(cat_strats_mangle, "Shred")
 local stealth_shred_mangle = find_strategy(cat_strats_mangle, "StealthShred")
 
 assert_false(shred_mangle.matches(
-    { has_valid_enemy_target = true, level = 70, is_behind = true, combo_points = 0, energy = 60, target_ttd = 60, mangle_remains = 0, pooling = false },
+    { has_valid_enemy_target = true, level = 70, is_behind = true, combo_points = 0, energy = 60, target_ttd = 60, mangle_remains = 0, pooling = false, target = {} },
     {}
 ), "cat_sylvanas Shred should not match when Mangle is learned and debuff is missing")
 
 assert_false(stealth_shred_mangle.matches(
-    { has_valid_enemy_target = true, level = 70, is_stealthed = true, is_behind = true, energy = 60, mangle_remains = 0 },
+    { has_valid_enemy_target = true, level = 70, is_stealthed = true, is_behind = true, energy = 60, mangle_remains = 0, target = {} },
     {}
 ), "cat_sylvanas StealthShred should not match when Mangle is learned and debuff is missing")
 

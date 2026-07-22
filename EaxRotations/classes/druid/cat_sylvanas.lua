@@ -151,7 +151,21 @@ local POUNCE_DEBUFF = { 27006, 9827, 9005 }
 local MAIM_DEBUFF = { 22570 }
 local OMEN_OF_CLARITY_BUFF = { 16864 }
 local TIGERS_FURY_BUFF = { 9846, 9845, 6793, 5217 }
+local BERSERK_BUFF = { 50334 }
 local DASH_BUFF = { 33357, 9821, 1850 }
+local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
+
+local function first_ready_item(item_ids)
+    if not NS.is_item_ready then return 0 end
+    for i = 1, #item_ids do
+        local id = item_ids[i]
+        if id and NS.is_item_ready(id) then
+            local ok, count = pcall(NS.get_item_count, id)
+            if ok and (count or 0) > 0 then return id end
+        end
+    end
+    return 0
+end
 local BARKSKIN_BUFF = { 22812 }
 local TRACK_HUMANOIDS_BUFF = { 5225 }
 local WOLFSHEAD_BUFF = { 29940, 17770 }
@@ -188,6 +202,7 @@ local cat_state = {
     has_track_humanoids = false,
     has_wolfshead = false,
     has_bloodlust = false,
+    has_berserk = false,
     rip_remains = 0,
     rake_remains = 0,
     mangle_remains = 0,
@@ -209,6 +224,9 @@ local cat_state = {
     should_execute = false,
     should_tab_rake = false,
     should_aoe = false,
+    healthstone_ready = 0,
+    combat_time = 0,
+    should_burst = false,
 }
 
 local snapshot_state = {
@@ -253,6 +271,7 @@ local CAT_SCHEMA = {
     has_track_humanoids = false,
     has_wolfshead = false,
     has_bloodlust = false,
+    has_berserk = false,
     rip_remains = 0,
     rake_remains = 0,
     mangle_remains = 0,
@@ -274,6 +293,9 @@ local CAT_SCHEMA = {
     should_execute = false,
     should_tab_rake = false,
     should_aoe = false,
+    healthstone_ready = 0,
+    combat_time = 0,
+    should_burst = false,
 }
 
 -- Throttle build_state to once per frame to avoid rebuilding state N times
@@ -484,8 +506,34 @@ local function has_valid_target(context)
 end
 
 local function base_matches(context, action)
-    if action.spell == nil and NS.spell_exists then return false end
-    if action.matches then return action.matches(context, action) end
+    if not action then return false end
+    -- Generic action prerequisite checks. Individual match functions still own
+    -- complex logic; this layer catches the simple declarative guards.
+    if action.spell ~= nil and NS.spell_exists and not NS.spell_exists(action.spell) then
+        return false
+    end
+    if action.min_energy then
+        if get_energy(context) < action.min_energy then return false end
+    end
+    if action.min_combo then
+        if get_combo_points(context, context.target) < action.min_combo then return false end
+    end
+    if action.requires_behind then
+        if not is_behind_target(context.target, context) then return false end
+    end
+    if action.required_form == "cat" then
+        if not ((NS.has_form and NS.has_form("cat")) or context.stance == STANCE_CAT or context.is_cat == true) then
+            return false
+        end
+    end
+    if action.requires_target == false then
+        -- no target required; continue
+    elseif action.target ~= "self" and action.requires_target ~= false then
+        if not context.target then return false end
+    end
+    if action.matches and type(action.matches) == "function" then
+        return action.matches(context, action)
+    end
     return true
 end
 
@@ -509,11 +557,11 @@ end
 local function record_bleed_snapshot(action_name, state)
     if action_name == "Rip" or action_name == "RipSnapshot" or action_name == "RipExecute" then
         snapshot_state.rip_target = state.target
-        snapshot_state.rip_ap = state.attack_power
+        snapshot_state.rip_ap = state.attack_power or 0
         snapshot_state.rip_cast_time = state.now
     elseif action_name == "Rake" or action_name == "RakeSnapshot" or action_name == "RakeTab" then
         snapshot_state.rake_target = state.target
-        snapshot_state.rake_ap = state.attack_power
+        snapshot_state.rake_ap = state.attack_power or 0
         snapshot_state.rake_cast_time = state.now
     end
 end
@@ -573,6 +621,7 @@ build_state = function(context)
         state.has_track_humanoids = NS.buff_up(me, TRACK_HUMANOIDS_BUFF) or false
         state.has_wolfshead = has_wolfshead_equipped(me) or NS.buff_up(me, WOLFSHEAD_BUFF) or spec_kit.setting_bool(context, "cat_wolfshead_helm", false)
         state.has_bloodlust = NS.buff_up(me, BLOODLUST_BUFFS) or false
+        state.has_berserk = NS.buff_up(me, BERSERK_BUFF) or false
         state.rip_remains = NS.debuff_remains(target, RIP_DEBUFF) or 0
         state.rake_remains = NS.debuff_remains(target, RAKE_DEBUFF) or 0
         state.mangle_remains = NS.debuff_remains(target, MANGLE_DEBUFF) or 0
@@ -599,6 +648,9 @@ build_state = function(context)
     state.should_pool_for_shred = (state.combo_points or 0) < 5 and (state.energy or 0) < SHRED_COST and (state.energy or 0) + ENERGY_PER_TICK >= SHRED_COST
     state.pooling = state.should_pool_for_rip or state.should_pool_for_shred
     state.should_powershift = false
+    state.combat_time = context.combat_time or 0
+    state.should_burst = context.should_burst == true or spec_kit.setting_bool(context, "cat_burst_mode", false)
+    state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
     if spec_kit.setting_bool(context, "cat_powershift_enabled", true) and state.is_cat and state.in_combat then
         -- Wowsims-aligned: powershift at <=25 energy (APL uses <=30; 25 is conservative for live play)
         local shift_energy = spec_kit.setting_number(context, "cat_powershift_energy", 25)
