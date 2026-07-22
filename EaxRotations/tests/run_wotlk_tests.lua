@@ -16,6 +16,7 @@ local tests = {
     "test_blood_wotlk_dsl_priority.lua",
     "test_fire_wotlk_dsl_priority.lua",
     "test_retribution_wotlk_dsl_priority.lua",
+    "test_arcane_wotlk_dsl_priority.lua",
     "test_wotlk_specs_load.lua",
 }
 

@@ -2,12 +2,14 @@
 -- WHAT:  Arcane Blast stacking (0-3), Missile Barrage procs, PoM/AP/IV burst, mana management.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
+--         imperative match functions; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.MageSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -68,82 +70,143 @@ local function build_state(context)
     return state
 end
 
--- Counterspell: interrupt when target is casting
-local function counterspell_matches(context, state)
-    return state.in_combat and state.target_is_casting
-end
-
--- Mage Armor: maintain if not up
-local function mage_armor_matches(context, state)
-    return not state.mage_armor_up
-end
-
--- Evocation: mana emergency at < 20%
-local function evocation_matches(context, state)
-    return (state.mana_pct or 100) < 20
-end
-
--- Mana Gem: mana recovery at < 40% (above evocation threshold)
-local function mana_gem_matches(context, state)
-    return (state.mana_pct or 100) < 40 and (state.mana_pct or 100) >= 20
-end
-
--- Arcane Power: burst cooldown (not already active)
-local function arcane_power_matches(context, state)
-    if not state.in_combat or state.arcane_power_up then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
-    return true
-end
-
-local function icy_veins_matches(context, state)
-    if not state.in_combat or state.icy_veins_up then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
-    return true
-end
-
--- Mirror Image: cooldown
-local function mirror_image_matches(context, state)
-    return state.in_combat
-end
-
--- Presence of Mind: enables instant Arcane Blast combo
-local function presence_of_mind_matches(context, state)
-    if not state.in_combat or not state.pom_ready then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
-    return true
-end
-
--- Arcane Missiles: filler with Missile Barrage proc (instant) or at 3 AB stacks
-local function arcane_missiles_matches(context, state)
-    return state.missile_barrage_proc or (state.arcane_blast_stacks or 0) >= 3
-end
-
--- Arcane Barrage: instant finisher with Missile Barrage proc or at 3 AB stacks (reset)
-local function arcane_barrage_matches(context, state)
-    return state.missile_barrage_proc or (state.arcane_blast_stacks or 0) >= 3
-end
-
--- Arcane Blast: spam at 0-2 stacks, mana permitting
-local function arcane_blast_matches(context, state)
-    return (state.mana_pct or 100) >= 20 and (state.arcane_blast_stacks or 0) < 3
-end
-
-local strategies = {
-    { name = "Counterspell", matches = counterspell_matches, execute = function(ctx) return ACTION.Counterspell and ACTION.Counterspell:cast_safe(ctx.target) end },
-    { name = "MageArmor", matches = mage_armor_matches, execute = function(ctx) return ACTION.MageArmor and ACTION.MageArmor:cast_safe() end },
-    { name = "Evocation", matches = evocation_matches, execute = function(ctx) return ACTION.Evocation and ACTION.Evocation:cast_safe() end },
-    { name = "ManaGem", matches = mana_gem_matches, execute = function(ctx) return ACTION.ConjureManaEmerald and ACTION.ConjureManaEmerald:cast_safe() end },
-    { name = "ArcanePower", matches = arcane_power_matches, execute = function(ctx) return ACTION.ArcanePower and ACTION.ArcanePower:cast_safe() end },
-    { name = "IcyVeins", matches = icy_veins_matches, execute = function(ctx) return ACTION.IcyVeins and ACTION.IcyVeins:cast_safe() end },
-    { name = "MirrorImage", matches = mirror_image_matches, execute = function(ctx) return ACTION.MirrorImage and ACTION.MirrorImage:cast_safe() end },
-    { name = "PresenceOfMind", matches = presence_of_mind_matches, execute = function(ctx) return ACTION.PresenceOfMind and ACTION.PresenceOfMind:cast_safe() end },
-    { name = "ArcaneMissiles", matches = arcane_missiles_matches, execute = function(ctx) return ACTION.ArcaneMissiles and ACTION.ArcaneMissiles:cast_safe(ctx.target) end },
-    { name = "ArcaneBarrage", matches = arcane_barrage_matches, execute = function(ctx) return ACTION.ArcaneBarrage and ACTION.ArcaneBarrage:cast_safe(ctx.target) end },
-    { name = "ArcaneBlast", matches = arcane_blast_matches, execute = function(ctx) return ACTION.ArcaneBlast and ACTION.ArcaneBlast:cast_safe(ctx.target) end },
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "Counterspell",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_is_casting", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Counterspell, target = "target" },
+    },
+    {
+        name = "MageArmor",
+        conditions = {
+            { type = "state", field = "mage_armor_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.MageArmor, target = "self" },
+    },
+    {
+        name = "Evocation",
+        conditions = {
+            { type = "state", field = "mana_pct", op = "<", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.Evocation, target = "self" },
+    },
+    {
+        name = "ManaGem",
+        conditions = {
+            { type = "state", field = "mana_pct", op = "<", value = 40 },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.ConjureManaEmerald, target = "self" },
+    },
+    {
+        name = "ArcanePower",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "arcane_power_up", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.ArcanePower, target = "self" },
+    },
+    {
+        name = "IcyVeins",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "icy_veins_up", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.IcyVeins, target = "self" },
+    },
+    {
+        name = "MirrorImage",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.MirrorImage, target = "self" },
+    },
+    {
+        name = "PresenceOfMind",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "pom_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.PresenceOfMind, target = "self" },
+    },
+    {
+        name = "ArcaneMissiles",
+        conditions = {
+            -- OR logic: proc OR stacks >= 3 (compound check inline via custom)
+            { type = "custom", fn = function(context, state)
+                return state.missile_barrage_proc or (state.arcane_blast_stacks or 0) >= 3
+            end },
+        },
+        action = { type = "cast", spell = ACTION.ArcaneMissiles, target = "target" },
+    },
+    {
+        name = "ArcaneBarrage",
+        conditions = {
+            -- OR logic: proc OR stacks >= 3 (compound check inline via custom)
+            { type = "custom", fn = function(context, state)
+                return state.missile_barrage_proc or (state.arcane_blast_stacks or 0) >= 3
+            end },
+        },
+        action = { type = "cast", spell = ACTION.ArcaneBarrage, target = "target" },
+    },
+    {
+        name = "ArcaneBlast",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+            { type = "state", field = "arcane_blast_stacks", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.ArcaneBlast, target = "target" },
+    },
 }
+
+-- -----------------------------------------------------------------------------
+-- Strategies (name-only placeholders; substituted by DSL)
+-- -----------------------------------------------------------------------------
+local strategies = {
+    { name = "Counterspell" },
+    { name = "MageArmor" },
+    { name = "Evocation" },
+    { name = "ManaGem" },
+    { name = "ArcanePower" },
+    { name = "IcyVeins" },
+    { name = "MirrorImage" },
+    { name = "PresenceOfMind" },
+    { name = "ArcaneMissiles" },
+    { name = "ArcaneBarrage" },
+    { name = "ArcaneBlast" },
+}
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("arcane", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Mage Arcane WotLK rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
