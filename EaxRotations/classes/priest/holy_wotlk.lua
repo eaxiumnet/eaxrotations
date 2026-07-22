@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.PriestSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -47,36 +48,65 @@ local function build_state(context)
     return state
 end
 
-local function guardian_spirit_matches(context, state)
-    return not state.guardian_spirit_up and state.target_hp < 30
-end
-
-local function renew_matches(context, state)
-    return state.renew_remains < 3
-end
-
-local function prayer_of_mending_matches(context, state)
-    return true
-end
-
-local function flash_heal_matches(context, state)
-    return state.target_hp < 70 and state.mana_pct >= 20
-end
-
-local function greater_heal_matches(context, state)
-    return state.target_hp < 50 and state.mana_pct >= 30
-end
+local DSL_DEFS = {
+    {
+        name = "GuardianSpirit",
+        conditions = {
+            { type = "state", field = "guardian_spirit_up", op = "falsy" },
+            { type = "state", field = "target_hp", op = "<", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.GuardianSpirit, target = "target" },
+    },
+    {
+        name = "Renew",
+        conditions = {
+            { type = "state", field = "renew_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Renew, target = "target" },
+    },
+    {
+        name = "PrayerOfMending",
+        conditions = {},
+        action = { type = "cast", spell = ACTION.PrayerOfMending, target = "target" },
+    },
+    {
+        name = "GreaterHeal",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 50 },
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.GreaterHeal, target = "target" },
+    },
+    {
+        name = "FlashHeal",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 70 },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.FlashHeal, target = "target" },
+    },
+}
 
 local strategies = {
-    { name = "GuardianSpirit", matches = guardian_spirit_matches, execute = function(ctx) return ACTION.GuardianSpirit and ACTION.GuardianSpirit:cast_safe(ctx.target) end },
-    { name = "Renew", matches = renew_matches, execute = function(ctx) return ACTION.Renew and ACTION.Renew:cast_safe(ctx.target) end },
-    { name = "PrayerOfMending", matches = prayer_of_mending_matches, execute = function(ctx) return ACTION.PrayerOfMending and ACTION.PrayerOfMending:cast_safe(ctx.target) end },
-    { name = "GreaterHeal", matches = greater_heal_matches, execute = function(ctx) return ACTION.GreaterHeal and ACTION.GreaterHeal:cast_safe(ctx.target) end },
-    { name = "FlashHeal", matches = flash_heal_matches, execute = function(ctx) return ACTION.FlashHeal and ACTION.FlashHeal:cast_safe(ctx.target) end },
+    { name = "GuardianSpirit" },
+    { name = "Renew" },
+    { name = "PrayerOfMending" },
+    { name = "GreaterHeal" },
+    { name = "FlashHeal" },
 }
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("holy", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Priest holy rotation registered") end
 
 return { strategies = strategies, build_state = build_state }

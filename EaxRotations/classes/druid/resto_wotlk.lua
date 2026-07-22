@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.DruidSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -50,36 +51,70 @@ local function build_state(context)
     return state
 end
 
-local function wild_growth_matches(context, state)
-    return state.enemy_count >= 2 and state.mana_pct >= 25
-end
-
-local function swiftmend_matches(context, state)
-    return (state.rejuvenation_remains > 0 or state.regrowth_remains > 0) and state.target_hp < 50
-end
-
-local function lifebloom_matches(context, state)
-    return state.lifebloom_remains < 3
-end
-
-local function rejuvenation_matches(context, state)
-    return state.rejuvenation_remains < 3
-end
-
-local function regrowth_matches(context, state)
-    return state.regrowth_remains < 3 and state.target_hp < 70 and state.mana_pct >= 25
-end
+local DSL_DEFS = {
+    {
+        name = "WildGrowth",
+        conditions = {
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "state", field = "mana_pct", op = ">=", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.WildGrowth, target = "target" },
+    },
+    {
+        name = "Swiftmend",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 50 },
+            { type = "custom", fn = function(context, state)
+                return (state.rejuvenation_remains or 0) > 0 or (state.regrowth_remains or 0) > 0
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Swiftmend, target = "target" },
+    },
+    {
+        name = "Lifebloom",
+        conditions = {
+            { type = "state", field = "lifebloom_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Lifebloom, target = "target" },
+    },
+    {
+        name = "Rejuvenation",
+        conditions = {
+            { type = "state", field = "rejuvenation_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Rejuvenation, target = "target" },
+    },
+    {
+        name = "Regrowth",
+        conditions = {
+            { type = "state", field = "regrowth_remains", op = "<", value = 3 },
+            { type = "state", field = "target_hp", op = "<", value = 70 },
+            { type = "state", field = "mana_pct", op = ">=", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.Regrowth, target = "target" },
+    },
+}
 
 local strategies = {
-    { name = "WildGrowth", matches = wild_growth_matches, execute = function(ctx) return ACTION.WildGrowth and ACTION.WildGrowth:cast_safe(ctx.target) end },
-    { name = "Swiftmend", matches = swiftmend_matches, execute = function(ctx) return ACTION.Swiftmend and ACTION.Swiftmend:cast_safe(ctx.target) end },
-    { name = "Lifebloom", matches = lifebloom_matches, execute = function(ctx) return ACTION.Lifebloom and ACTION.Lifebloom:cast_safe(ctx.target) end },
-    { name = "Rejuvenation", matches = rejuvenation_matches, execute = function(ctx) return ACTION.Rejuvenation and ACTION.Rejuvenation:cast_safe(ctx.target) end },
-    { name = "Regrowth", matches = regrowth_matches, execute = function(ctx) return ACTION.Regrowth and ACTION.Regrowth:cast_safe(ctx.target) end },
+    { name = "WildGrowth" },
+    { name = "Swiftmend" },
+    { name = "Lifebloom" },
+    { name = "Rejuvenation" },
+    { name = "Regrowth" },
 }
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("resto", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Druid resto rotation registered") end
 
 return { strategies = strategies, build_state = build_state }

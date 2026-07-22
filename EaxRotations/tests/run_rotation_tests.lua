@@ -99,6 +99,7 @@ local tests = {
   "test_discipline_wotlk_dsl_priority.lua",
   "test_affliction_wotlk_dsl_priority.lua",
   "test_resto_wotlk_dsl_priority.lua",
+  "test_holy_priest_wotlk_dsl_priority.lua",
   "test_wotlk_specs_load.lua",
   "test_wotlk_leveling_load.lua",
   "test_deathknight_blood_wotlk.lua",
