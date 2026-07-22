@@ -8,6 +8,9 @@
 -- Tests build_state, all 13 match functions, strategy ordering,
 -- helper functions, and edge case handling
 
+package.loaded["shared/leveling_sylvanas"] = nil
+package.loaded["shared/leveling_helpers_sylvanas"] = nil
+
 local EAXROTATIONS_DIR = "EaxRotations"
 if not package.path:find(EAXROTATIONS_DIR, 1, true) then
     package.path = package.path .. ";" .. EAXROTATIONS_DIR .. "/?.lua"
