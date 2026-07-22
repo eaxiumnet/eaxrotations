@@ -4,7 +4,8 @@
 --          Avenging Wrath burst, Divine Plea mana management.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK 3.3.5a mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
+--         imperative match functions; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -16,6 +17,7 @@ do
 end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.PaladinSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -93,78 +95,127 @@ local function build_state(context)
     return state
 end
 
--- Seal of Vengeance: preferred for single-target (enemy_count < 2) when no seal is active.
-local function seal_of_vengeance_matches(context, state)
-    return not state.seal_up and (state.enemy_count or 1) < 2
-end
-
--- Seal of Command: preferred for AoE (enemy_count >= 2) when no seal is active.
-local function seal_of_command_matches(context, state)
-    return not state.seal_up and (state.enemy_count or 1) >= 2
-end
-
--- Divine Plea: mana recovery when below 40% mana, not already active, off cooldown.
-local function divine_plea_matches(context, state)
-    return (state.mana_pct or 100) < 40 and not state.divine_plea_up and state.divine_plea_cd <= 0
-end
-
--- Avenging Wrath: burst cooldown for boss fights; gated by setting (default on).
-local function avenging_wrath_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.avenging_wrath_ready then return false end
-    if not spec_kit.setting_bool(context, "use_avenging_wrath", true) then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
-    return true
-end
-
--- Hammer of Wrath: execute when target HP < 20%, off cooldown.
-local function hammer_of_wrath_matches(context, state)
-    return (state.target_hp or 100) < 20 and state.hammer_of_wrath_cd <= 0
-end
-
--- Judgement: on cooldown — mana return via Judgements of the Wise + damage.
-local function judgement_matches(context, state)
-    return state.judgement_cd <= 0
-end
-
--- Crusader Strike: primary melee attack, 4s cooldown.
-local function crusader_strike_matches(context, state)
-    return state.crusader_strike_cd <= 0
-end
-
--- Divine Storm: weapon strike hitting up to 4 targets, 10s cooldown (AoE + single target).
-local function divine_storm_matches(context, state)
-    return state.divine_storm_cd <= 0
-end
-
--- Exorcism: instant cast when Art of War proc is active, 15s cooldown.
-local function exorcism_matches(context, state)
-    return state.art_of_war_proc and state.exorcism_cd <= 0
-end
-
--- Consecration: AoE ground effect for 2+ enemies, mana-gated.
-local function consecration_matches(context, state)
-    return (state.mana_pct or 100) >= 30 and state.consecration_cd <= 0
-        and NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)
-end
-
-local strategies = {
-    { name = "SealOfVengeance", matches = seal_of_vengeance_matches, execute = function(ctx) return ACTION.SealOfVengeance and ACTION.SealOfVengeance:cast_safe() end },
-    { name = "SealOfCommand",   matches = seal_of_command_matches,   execute = function(ctx) return ACTION.SealOfCommand and ACTION.SealOfCommand:cast_safe() end },
-    { name = "DivinePlea",      matches = divine_plea_matches,       execute = function(ctx) return ACTION.DivinePlea and ACTION.DivinePlea:cast_safe() end },
-    { name = "AvengingWrath",   matches = avenging_wrath_matches,    execute = function(ctx) return ACTION.AvengingWrath and ACTION.AvengingWrath:cast_safe() end },
-    { name = "HammerOfWrath",   matches = hammer_of_wrath_matches,   execute = function(ctx) return ACTION.HammerOfWrath and ACTION.HammerOfWrath:cast_safe(ctx.target) end },
-    { name = "Judgement",       matches = judgement_matches,         execute = function(ctx) return ACTION.Judgement and ACTION.Judgement:cast_safe(ctx.target) end },
-    { name = "CrusaderStrike",  matches = crusader_strike_matches,   execute = function(ctx) return ACTION.CrusaderStrike and ACTION.CrusaderStrike:cast_safe(ctx.target) end },
-    { name = "DivineStorm",     matches = divine_storm_matches,      execute = function(ctx) return ACTION.DivineStorm and ACTION.DivineStorm:cast_safe(ctx.target) end },
-    { name = "Exorcism",        matches = exorcism_matches,          execute = function(ctx) return ACTION.Exorcism and ACTION.Exorcism:cast_safe(ctx.target) end },
-    { name = "Consecration",    matches = consecration_matches,      execute = function(ctx) return ACTION.Consecration and ACTION.Consecration:cast_safe(ctx.target) end },
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "SealOfVengeance",
+        conditions = {
+            { type = "state", field = "seal_up", op = "falsy" },
+            { type = "state", field = "enemy_count", op = "<", value = 2 },
+        },
+        action = { type = "cast", spell = ACTION.SealOfVengeance, target = "self" },
+    },
+    {
+        name = "SealOfCommand",
+        conditions = {
+            { type = "state", field = "seal_up", op = "falsy" },
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+        },
+        action = { type = "cast", spell = ACTION.SealOfCommand, target = "self" },
+    },
+    {
+        name = "DivinePlea",
+        conditions = {
+            { type = "state", field = "mana_pct", op = "<", value = 40 },
+            { type = "state", field = "divine_plea_up", op = "falsy" },
+            { type = "state", field = "divine_plea_cd", op = "<=", value = 0 },
+        },
+        action = { type = "cast", spell = ACTION.DivinePlea, target = "self" },
+    },
+    {
+        name = "AvengingWrath",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "avenging_wrath_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "use_avenging_wrath", true) then return false end
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.AvengingWrath, target = "self" },
+    },
+    {
+        name = "HammerOfWrath",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 20 },
+            { type = "state", field = "hammer_of_wrath_cd", op = "<=", value = 0 },
+        },
+        action = { type = "cast", spell = ACTION.HammerOfWrath, target = "target" },
+    },
+    {
+        name = "Judgement",
+        conditions = {
+            { type = "state", field = "judgement_cd", op = "<=", value = 0 },
+        },
+        action = { type = "cast", spell = ACTION.Judgement, target = "target" },
+    },
+    {
+        name = "CrusaderStrike",
+        conditions = {
+            { type = "state", field = "crusader_strike_cd", op = "<=", value = 0 },
+        },
+        action = { type = "cast", spell = ACTION.CrusaderStrike, target = "target" },
+    },
+    {
+        name = "DivineStorm",
+        conditions = {
+            { type = "state", field = "divine_storm_cd", op = "<=", value = 0 },
+        },
+        action = { type = "cast", spell = ACTION.DivineStorm, target = "target" },
+    },
+    {
+        name = "Exorcism",
+        conditions = {
+            { type = "state", field = "art_of_war_proc", op = "truthy" },
+            { type = "state", field = "exorcism_cd", op = "<=", value = 0 },
+        },
+        action = { type = "cast", spell = ACTION.Exorcism, target = "target" },
+    },
+    {
+        name = "Consecration",
+        conditions = {
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+            { type = "state", field = "consecration_cd", op = "<=", value = 0 },
+            { type = "custom", fn = function(context, state)
+                return NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Consecration, target = "target" },
+    },
 }
+
+-- -----------------------------------------------------------------------------
+-- Strategies (name-only placeholders; substituted by DSL)
+-- -----------------------------------------------------------------------------
+local strategies = {
+    { name = "SealOfVengeance" },
+    { name = "SealOfCommand" },
+    { name = "DivinePlea" },
+    { name = "AvengingWrath" },
+    { name = "HammerOfWrath" },
+    { name = "Judgement" },
+    { name = "CrusaderStrike" },
+    { name = "DivineStorm" },
+    { name = "Exorcism" },
+    { name = "Consecration" },
+}
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("retribution", strategies, { get_state = build_state })
 end
-
 if NS.log then NS.log("Paladin retribution WotLK rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
