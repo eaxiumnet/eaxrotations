@@ -2,6 +2,52 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.11.0] — 100% Strategy DSL Coverage + Badge-Drift Pre-Commit Check (2026-07-22)
+
+**21 commits since v2.10.0.** This release achieves 100% strategy DSL coverage
+across all 29 TBC specs and adds badge-drift detection to the pre-commit hook.
+
+### Strategy DSL — 100% Coverage
+
+- **All 29/29 specs** now use the declarative strategy DSL (`shared/strategy_dsl_sylvanas.lua`).
+- Final 3 adopters:
+  - Caster Druid (6 strategies, first caster variant) — `b6a063f0`
+  - Smite Priest (17 strategies, first smite variant) — `934b2c86`
+  - Kebab Warrior (16 strategies, final adopter) — `0b4b9651`
+- Every resource model covered: rage, energy/combo, mana (caster/tank/healer),
+  focus/pet management, shadow DoT tracking, frost/arcane/fire proc/debuff,
+  melee/totem, warlock curse/execute, bear tank, feral cat powershift — all 10 classes.
+- Lazy context proxy (`shared/lazy_context_sylvanas.lua`) provides per-tick
+  dependency-aware field resolution to reduce per-frame computation.
+
+### Badge-Drift Pre-Commit Check
+
+- Created `tools/pre-commit` as tracked source template for the pre-commit hook.
+- Added step [4/4]: `lua tools/update_badges.lua --check` — catches stale
+  test-count badges in `README.md` and `AGENTS.md` at commit time, not post-push.
+- Matches the same check already in CI (`tools/run_all_checks.sh` step [4/4]).
+- On drift, the hook prints the exact fix command and aborts the commit.
+
+### Bug Fixes
+
+- Fixed `test_druid_caster_custom_matches.lua` — missing `NS.GetPlayer()` mock
+  caused `attempt to call field 'GetPlayer' (a nil value)` in `build_state()`.
+
+### Documentation
+
+- `AGENTS.md`: test count synced to 346+21=367 across 3 stale reference locations.
+- `plans/_active.md`: updated to 100% DSL coverage, 29/29 specs, 367 total tests.
+- `plans/HANDOFF.md`: all 28/29 stale references replaced; DSL adoption marked COMPLETE
+  in WHAT'S NEXT section.
+- Test counts validated across all active markdown files.
+
+### Technical
+
+- `luac -p` + 346/346 rotation + 21/21 leveling suites green (367 total).
+- Pre-commit hook: 642 luac + 31 vanilla audit + 61 sylvanas audit + badge check — all PASS.
+- Version bump 2.11.0 in `VERSION.txt`, `README.md`, `CHANGELOG.md`.
+- Clean `eaxrotations.zip` (lua + md only).
+
 ## [2.10.0] — CI Green + PR Folds + Phase 2 Coverage (2026-07-17)
 
 **36 commits since v2.7.8.** This release fixes all CI pipeline failures, folds
