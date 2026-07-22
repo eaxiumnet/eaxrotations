@@ -94,13 +94,13 @@ local bite_no_mangle = find_strategy(strats_no_mangle, "FerociousBiteExecute")
 
 -- Shred works without Mangle debuff at level 42
 assert_true(shred_no_mangle.matches(
-    { has_valid_enemy_target = true, level = 42, is_behind = true, combo_points = 0, energy = 60, target_ttd = 60, mangle_remains = 0, pooling = false },
+    { has_valid_enemy_target = true, level = 42, is_behind = true, combo_points = 0, energy = 60, target_ttd = 60, mangle_remains = 0, pooling = false, target = {} },
     {}
 ), "cat_sylvanas Shred should match at level 42 without Mangle debuff")
 
 -- StealthShred works without Mangle debuff at level 42
 assert_true(stealth_shred_no_mangle.matches(
-    { has_valid_enemy_target = true, level = 42, is_stealthed = true, is_behind = true, energy = 60, mangle_remains = 0 },
+    { has_valid_enemy_target = true, level = 42, is_stealthed = true, is_behind = true, energy = 60, mangle_remains = 0, target = {} },
     {}
 ), "cat_sylvanas StealthShred should match at level 42 without Mangle debuff")
 
@@ -111,7 +111,7 @@ assert_true(rip_no_mangle.matches(
 
 -- Ravage works at level 42 opener
 assert_true(ravage_no_mangle.matches(
-    { has_valid_enemy_target = true, level = 42, is_stealthed = true, is_cat = true, target_hp = 100, is_behind = true, energy = 60 },
+    { has_valid_enemy_target = true, level = 42, is_stealthed = true, is_cat = true, target_hp = 100, is_behind = true, energy = 60, target = {} },
     {}
 ), "cat_sylvanas Ravage should match at level 42 opener")
 
@@ -123,7 +123,7 @@ assert_true(bite_no_mangle.matches(
 -- With Mangle learned, Shred should not match without Mangle debuff
 local shred_mangle = find_strategy(strats_mangle, "Shred")
 assert_false(shred_mangle.matches(
-    { has_valid_enemy_target = true, level = 70, is_behind = true, combo_points = 0, energy = 60, target_ttd = 60, mangle_remains = 0, pooling = false },
+    { has_valid_enemy_target = true, level = 70, is_behind = true, combo_points = 0, energy = 60, target_ttd = 60, mangle_remains = 0, pooling = false, target = {} },
     {}
 ), "cat_sylvanas Shred should not match when Mangle is learned and debuff is missing")
 
