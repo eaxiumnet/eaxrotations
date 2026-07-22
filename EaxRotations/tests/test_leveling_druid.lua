@@ -8,6 +8,9 @@
 -- Tests build_state, all 12 match functions, strategy ordering,
 -- helper functions, and edge case handling
 
+package.loaded["shared/leveling_sylvanas"] = nil
+package.loaded["shared/leveling_helpers_sylvanas"] = nil
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local passed = 0
