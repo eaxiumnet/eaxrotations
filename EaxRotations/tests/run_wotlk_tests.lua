@@ -18,6 +18,7 @@ local tests = {
     "test_retribution_wotlk_dsl_priority.lua",
     "test_arcane_wotlk_dsl_priority.lua",
     "test_shadow_wotlk_dsl_priority.lua",
+    "test_enhancement_wotlk_dsl_priority.lua",
     "test_wotlk_specs_load.lua",
 }
 

@@ -1,13 +1,16 @@
 -- enhancement_wotlk.lua — Shaman Enhancement rotation for Wrath of the Lich King (3.3.5).
--- WHAT:  priority-list strategies for Enhancement shaman.
+-- WHAT:  priority-list strategies for Enhancement shaman: Shamanistic Rage mana/CD,
+--        Feral Spirit wolves, Stormstrike debuff, Lava Lash off-hand.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
+--         imperative match functions; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -47,37 +50,69 @@ local function build_state(context)
     return state
 end
 
-local function shamanistic_rage_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.shamanistic_rage_ready then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 60) then return false end
-    return true
-end
-
-local function feral_spirit_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.feral_spirit_ready then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
-    return true
-end
-
-local function stormstrike_matches(context, state)
-    return true
-end
-
-local function lava_lash_matches(context, state)
-    return true
-end
-
-local strategies = {
-    { name = "ShamanisticRage", matches = shamanistic_rage_matches, execute = function(ctx) return ACTION.ShamanisticRage and ACTION.ShamanisticRage:cast_safe() end },
-    { name = "FeralSpirit", matches = feral_spirit_matches, execute = function(ctx) return ACTION.FeralSpirit and ACTION.FeralSpirit:cast_safe(ctx.target) end },
-    { name = "Stormstrike", matches = stormstrike_matches, execute = function(ctx) return ACTION.Stormstrike and ACTION.Stormstrike:cast_safe(ctx.target) end },
-    { name = "LavaLash", matches = lava_lash_matches, execute = function(ctx) return ACTION.LavaLash and ACTION.LavaLash:cast_safe(ctx.target) end },
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "ShamanisticRage",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "shamanistic_rage_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 60) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.ShamanisticRage, target = "self" },
+    },
+    {
+        name = "FeralSpirit",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "feral_spirit_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
+                return true
+            end },
+        },
+        action = { type = "cast", spell = ACTION.FeralSpirit, target = "target" },
+    },
+    {
+        name = "Stormstrike",
+        conditions = {},
+        action = { type = "cast", spell = ACTION.Stormstrike, target = "target" },
+    },
+    {
+        name = "LavaLash",
+        conditions = {},
+        action = { type = "cast", spell = ACTION.LavaLash, target = "target" },
+    },
 }
+
+-- -----------------------------------------------------------------------------
+-- Strategies (name-only placeholders; substituted by DSL)
+-- -----------------------------------------------------------------------------
+local strategies = {
+    { name = "ShamanisticRage" },
+    { name = "FeralSpirit" },
+    { name = "Stormstrike" },
+    { name = "LavaLash" },
+}
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("enhancement", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Shaman Enhancement WotLK rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
