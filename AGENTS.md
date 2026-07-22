@@ -58,7 +58,7 @@ EaxRotations/
 ├── core_sylvanas.lua          # NS helpers (buff_points, spell_ready, etc.)
 ├── classes/<class>/<spec>_sylvanas.lua  # 29 spec files (flat, one per spec)
 ├── shared/                    # ~50 shared modules (interrupts, consumables, etc.)
-├── tests/                     # ~386 test files (365 rotation + 21 leveling suites)
+├── tests/                     # ~388 test files (367 rotation + 21 leveling suites)
 └── tools/                     # Build/validation scripts
 
 api/                           # Sylvanas API definitions (runtime, .gitignored)
@@ -325,7 +325,7 @@ local HEALER_CLASS_IDS = { [2]=true, [5]=true, [7]=true, [11]=true }  -- Pally, 
 | `enemy_count` / `enemies` | `0` | Assume none → skip AoE |
 | `target_hp` / `target_hp_pct` | `100` | Assume full → skip execute-range |
 
-**Scope**: 24 files (14 spec + 9 leveling + 1 shadow), ~170 locations guarded. All 365 rotation + 21 leveling suites pass.
+**Scope**: 24 files (14 spec + 9 leveling + 1 shadow), ~170 locations guarded. All 367 rotation + 21 leveling suites pass.
 
 ### Pattern 15: File Readability Header
 
