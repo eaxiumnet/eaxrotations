@@ -18,6 +18,24 @@ local SPELLS = NS.PaladinSpells or {}
 
 -- spec_kit migration #24
 local spec_kit = require("shared/spec_kit_sylvanas")
+
+-- Fallback merge_state for test environments that mock an older spec_kit
+-- without the shared helper. Production uses spec_kit.merge_state.
+local merge_state = spec_kit.merge_state or function(build_state, context, state_override)
+    local s = build_state(context)
+    if not state_override or next(state_override) == nil then return s end
+    local merged = {}
+    for k, v in pairs(s) do merged[k] = v end
+    for k, v in pairs(state_override) do merged[k] = v end
+    local mt = getmetatable(s)
+    if mt then
+        local mt_copy = {}
+        for k, v in pairs(mt) do mt_copy[k] = v end
+        mt_copy.__newindex = nil
+        setmetatable(merged, mt_copy)
+    end
+    return merged
+end
 local dsl = require("shared/strategy_dsl_sylvanas")
 local HitCap = require("shared/hit_cap_tracker_sylvanas")
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -444,23 +462,6 @@ end
 -- Merge a caller-provided state override into the state built from context.
 -- This keeps tests ergonomic (callers can pass partial states) without
 -- mutating the static cached state table (Pattern 4).
-local function merge_state(context, state_override)
-    local s = build_state(context)
-    if not state_override or next(state_override) == nil then return s end
-    local merged = {}
-    for k, v in pairs(s) do merged[k] = v end
-    for k, v in pairs(state_override) do merged[k] = v end
-    -- Preserve safe_state metatable defaults (schema-backed __index) so that
-    -- fields not explicitly set on the cached table are still visible. We copy
-    -- the metatable to avoid sharing mutable state with the cached proxy.
-    local mt = getmetatable(s)
-    if mt then
-        local mt_copy = {}
-        for k, v in pairs(mt) do mt_copy[k] = v end
-        setmetatable(merged, mt_copy)
-    end
-    return merged
-end
 
 local function base_guard_passes(action_def, s)
     if not action_def then return true end
@@ -478,7 +479,7 @@ local function apply_base_matches(strategies, actions)
         local action = actions[strategies[i].name]
         local original_matches = strategies[i].matches
         strategies[i].matches = function(context, state)
-            local s = merge_state(context, state)
+            local s = merge_state(build_state, context, state)
             if not base_guard_passes(action, s) then return false end
             return original_matches(context, s)
         end

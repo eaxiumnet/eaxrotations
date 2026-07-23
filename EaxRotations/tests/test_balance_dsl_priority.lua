@@ -88,6 +88,7 @@ _G.EaxRotations._balance_ACTION = ACTION
 
 -- Mock shared modules
 package.loaded["shared/spec_kit_sylvanas"] = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     safe_state = function(raw, schema)
         -- Return a simple proxy that falls back to schema defaults
         local proxy = {}

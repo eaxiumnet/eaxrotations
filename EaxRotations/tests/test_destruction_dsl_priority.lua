@@ -1,10 +1,10 @@
--- test_destruction_dsl_priority.lua — Warlock Destruction DSL priority + equivalence test.
+-- test_destruction_dsl_priority.lua â Warlock Destruction DSL priority + equivalence test.
 -- WHAT:  verifies full strategy priority order, DSL position checks, and condition
 --        equivalence for 6 DSL-converted strategies (Immolate, Conflagrate,
 --        Shadowburn, Incinerate, CurseOfDoom, LifeTap).
 -- WHEN:  runs as part of the rotation test suite.
 -- WHY:   regression guard for the thirteenth DSL adopter (first warlock spec).
--- SAFETY: standalone — mocks NS, spec_kit, and shared modules; no game API calls.
+-- SAFETY: standalone â mocks NS, spec_kit, and shared modules; no game API calls.
 
 local _pass, _fail = 0, 0
 local function assert_true(cond, msg)
@@ -89,6 +89,7 @@ local _setting = function(context, key, default)
     return default
 end
 local mock_spec_kit = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     define_action_for_class = function(SPELLS)
         return function(field, rank_ids, label)
             if SPELLS and SPELLS[field] then return SPELLS[field] end

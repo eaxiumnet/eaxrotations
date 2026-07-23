@@ -215,4 +215,82 @@ local ctx_dash_far = Mock.DefaultMeleeContext({
 })
 assert_true(dash.matches(ctx_dash_far), "Dash should match in PvP when target > 10 yards")
 
+-- ============================================================================
+-- Pounce opener: should work in PvE when stealthed and OOC
+-- ============================================================================
+
+local pounce = find_strategy("PounceOpener")
+
+-- OOC + stealthed + enough energy -> should match
+action_calls = {}
+local ctx_pounce_ok = Mock.DefaultMeleeContext({
+    in_combat = false,
+    is_stealthed = true,
+})
+assert_true(pounce.matches(ctx_pounce_ok), "PounceOpener should match when OOC, stealthed, and energy >= 50")
+
+-- In combat -> should NOT match
+action_calls = {}
+local ctx_pounce_combat = Mock.DefaultMeleeContext({
+    in_combat = true,
+    is_stealthed = true,
+})
+assert_false(pounce.matches(ctx_pounce_combat), "PounceOpener should not match in combat")
+
+-- Not stealthed -> should NOT match
+action_calls = {}
+local ctx_pounce_visible = Mock.DefaultMeleeContext({
+    in_combat = false,
+    is_stealthed = false,
+})
+assert_false(pounce.matches(ctx_pounce_visible), "PounceOpener should not match when not stealthed")
+
+-- ============================================================================
+-- Faerie Fire (Feral): should NOT match while stealthed
+-- ============================================================================
+
+local faerie_fire = find_strategy("FaerieFireFeral")
+
+-- Not stealthed, debuff expired, target has armor -> should match
+action_calls = {}
+local ctx_ff_ok = Mock.DefaultMeleeContext({
+    target = { _debuff_remains = 0 },
+    target_armor = 100,
+    is_stealthed = false,
+})
+assert_true(faerie_fire.matches(ctx_ff_ok), "FaerieFireFeral should match when not stealthed and debuff expired")
+
+-- Stealthed -> should NOT match
+action_calls = {}
+local ctx_ff_stealth = Mock.DefaultMeleeContext({
+    target = { _debuff_remains = 0 },
+    target_armor = 100,
+    is_stealthed = true,
+})
+assert_false(faerie_fire.matches(ctx_ff_stealth), "FaerieFireFeral should not match while stealthed")
+
+-- ============================================================================
+-- Ferocious Bite (execute): should fire at full CP while Rip is up
+-- ============================================================================
+
+local bite = find_strategy("FerociousBiteExecute")
+
+-- Full CP, Rip up, long TTD -> should match
+action_calls = {}
+local ctx_bite_ok = Mock.DefaultMeleeContext({
+    combo_points = 5,
+    target = { _debuff_remains = 10 },
+    target_ttd = 60,
+})
+assert_true(bite.matches(ctx_bite_ok), "FerociousBiteExecute should match at full CP while Rip is up")
+
+-- Low CP -> should NOT match
+action_calls = {}
+local ctx_bite_low_cp = Mock.DefaultMeleeContext({
+    combo_points = 2,
+    target = { _debuff_remains = 10 },
+    target_ttd = 60,
+})
+assert_false(bite.matches(ctx_bite_low_cp), "FerociousBiteExecute should not match with low CP")
+
 print("PASS test_cat_custom_matches")

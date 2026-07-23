@@ -1,4 +1,4 @@
--- test_holy_dsl_priority.lua — Holy Paladin DSL priority + equivalence test.
+-- test_holy_dsl_priority.lua â Holy Paladin DSL priority + equivalence test.
 -- WHAT:  Verifies that the 6 DSL-converted strategies preserve priority order
 --        and behave equivalently to the original imperative match functions.
 -- WHEN:  Run by the rotation test suite.
@@ -60,6 +60,7 @@ local _setting = function(context, key, default)
     return default
 end
 local mock_spec_kit = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     define_action_for_class = function(SPELLS)
         return function(field, rank_ids, label)
             if SPELLS and SPELLS[field] then return SPELLS[field] end

@@ -119,6 +119,21 @@ package.loaded["shared/spec_kit_sylvanas"] = {
         if ctx and ctx.settings and ctx.settings[key] ~= nil then return ctx.settings[key] end
         return default
     end,
+    merge_state = function(build_state, context, state_override)
+        local s = build_state(context)
+        if not state_override or next(state_override) == nil then return s end
+        local merged = {}
+        for k, v in pairs(s) do merged[k] = v end
+        for k, v in pairs(state_override) do merged[k] = v end
+        local mt = getmetatable(s)
+        if mt then
+            local mt_copy = {}
+            for k, v in pairs(mt) do mt_copy[k] = v end
+            mt_copy.__newindex = nil
+            setmetatable(merged, mt_copy)
+        end
+        return merged
+    end,
 }
 package.loaded["shared/strategy_dsl_sylvanas"] = dofile("EaxRotations/shared/strategy_dsl_sylvanas.lua")
 package.loaded["shared/potion_helper_sylvanas"] = {

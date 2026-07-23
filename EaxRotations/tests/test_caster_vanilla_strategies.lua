@@ -30,6 +30,7 @@ _G.EaxRotations = {
 }
 
 package.loaded["shared/spec_kit_sylvanas"] = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     setting = function(_, _, d) return d end,
     setting_bool = function(_, _, d) return d end,
     setting_number = function(_, _, d) return d end,

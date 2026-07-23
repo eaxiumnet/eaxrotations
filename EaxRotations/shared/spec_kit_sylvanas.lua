@@ -154,6 +154,38 @@ function M.safe_state(raw_state, schema)
 end
 
 -- -----------------------------------------------------------------------------
+-- merge_state(build_state, context, state_override)
+--
+-- Builds a fresh state from context, then layers an optional caller-provided
+-- state override on top. The returned table keeps the safe_state schema
+-- default-fallback (__index) but isolates writes so match functions cannot
+-- mutate the shared raw_state table (e.g. state.utility_target).
+--
+-- Use this in centralized base_matches guards to keep tests ergonomic
+-- (callers can pass partial states) without leaking state between strategies.
+-- -----------------------------------------------------------------------------
+function M.merge_state(build_state, context, state_override)
+    local s = build_state(context)
+    if not state_override or next(state_override) == nil then return s end
+    local merged = {}
+    for k, v in pairs(s) do merged[k] = v end
+    for k, v in pairs(state_override) do merged[k] = v end
+    -- Preserve safe_state metatable defaults (schema-backed __index) so that
+    -- fields not explicitly set on the cached table are still visible. We copy
+    -- the metatable to avoid sharing mutable state with the cached proxy.
+    -- Also isolate writes so state mutations in one test do not leak into the
+    -- shared raw_state table (e.g. state.utility_target set by match funcs).
+    local mt = getmetatable(s)
+    if mt then
+        local mt_copy = {}
+        for k, v in pairs(mt) do mt_copy[k] = v end
+        mt_copy.__newindex = nil  -- use default table writes so mutations stay local
+        setmetatable(merged, mt_copy)
+    end
+    return merged
+end
+
+-- -----------------------------------------------------------------------------
 -- setting(context, key, default)
 --
 -- Centralized context.settings -> NS.get_setting -> default lookup. Replaces

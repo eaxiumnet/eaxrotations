@@ -43,7 +43,7 @@ return {
                 settings = {
                     { key = "bear_swing_timer", type = "checkbox", label = "Swing Timer Maul", default = true, tooltip = "Avoid Maul within 0.3s of a melee swing to prevent clipping auto-attacks" },
                     { key = "bear_aoe_threshold", type = "slider", label = "Bear AoE Count", min = 2, max = 5, default = 3 },
-                    { key = "bear_maul_rage", type = "slider", label = "Maul Rage", min = 30, max = 80, default = 50, tooltip = "Rage required before Maul (endgame dump). Pre-Mangle, the rotation auto-scales this down by level so low-level bears spend sooner; never raises above this slider." },
+                    { key = "bear_maul_rage", type = "slider", label = "Maul Rage", min = 15, max = 80, default = 30, tooltip = "Rage required before Maul (endgame dump). Pre-Mangle, the rotation auto-scales this down by level so low-level bears spend sooner; never raises above this slider." },
                     { key = "bear_barkskin_hp", type = "slider", label = "Barkskin HP%", min = 0, max = 100, default = 55 },
                     { key = "bear_frenzied_regen_hp", type = "slider", label = "Frenzied Regen HP%", min = 0, max = 100, default = 35 },
                     { key = "bear_use_barkskin", type = "checkbox", label = "Barkskin (breaks form)", default = false, tooltip = "WARNING: Barkskin forces you out of Bear form in TBC. Only enable if you pre-shift manually." },
@@ -58,6 +58,8 @@ return {
                 settings = {
                     { key = "cat_powershift_enabled", type = "checkbox", label = "Powershifting", default = true },
                     { key = "cat_powershift_energy", type = "slider", label = "Powershift Energy", min = 10, max = 50, default = 20 },
+                    { key = "cat_auto_cat_form", type = "checkbox", label = "Auto Cat Form OOC", default = true, tooltip = "Automatically shift to Cat Form out of combat when a valid enemy target is nearby." },
+                    { key = "cat_form_target_range", type = "slider", label = "Cat Form Target Range", min = 5, max = 40, default = 30, tooltip = "Maximum target distance (yards) to auto-shift into Cat Form out of combat." },
                     { key = "cat_auto_travel_form", type = "checkbox", label = "Auto Travel Form OOC", default = false, tooltip = "Automatically shift to Travel Form when out of combat, moving, and target is far away." },
                     { key = "cat_shred_positional", type = "checkbox", label = "Shred Positional Check", default = true, tooltip = "Require being behind target to cast Shred. Disable if you play without positional awareness or on buggy servers." },
                     { key = "cat_execute_hp", type = "slider", label = "Ferocious Bite HP%", min = 0, max = 100, default = 25 },

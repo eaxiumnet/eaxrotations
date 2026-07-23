@@ -244,9 +244,10 @@ assert_true(maul.matches(make_ctx({ rage = 50, settings = maul_settings, target 
 action_calls = {}
 assert_true(maul.matches(make_ctx({ rage = 50, target = { _debuff_stacks = 3 }, target_ttd = 1, target_is_boss = true, settings = maul_settings })), "Maul should match on boss even with target_ttd < 3")
 
--- AoE suppression: 3+ enemies with rage < HIGH_RAGE (75) should NOT match
+-- Maul in AoE: now queues at any rage above threshold so we don't sit capped.
+-- Swipe is higher priority, so Maul only fills when Swipe is on cooldown.
 action_calls = {}
-assert_false(maul.matches(make_ctx({ rage = 50, target = { _debuff_stacks = 5 }, enemy_count = 4, settings = maul_settings })), "Maul should not match in AoE (3+ enemies) with rage < 75")
+assert_true(maul.matches(make_ctx({ rage = 50, target = { _debuff_stacks = 5 }, enemy_count = 4, settings = maul_settings })), "Maul should match in AoE at any rage above threshold")
 
 -- Exact threshold: rage = maul_rage (50) should match; rage = 49 should not
 action_calls = {}

@@ -396,11 +396,12 @@ local function select_curse(context, s)
     if curse_mode == "doom" then return "doom" end
     if curse_mode == "elements" then return "elements" end
     if curse_mode == "recklessness" then return "recklessness" end
-    if curse_mode == "weakness" then return "weakness" end
-    if curse_mode == "none" then return nil end
-
-    local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
-    if context.is_group and (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
+    if curse_mode == "weakness" then return "weakness" end    if curse_mode == "none" then return nil end
+    -- Group/raid curse auto-selection is gated by player setting (default off)
+    if spec_kit.setting_bool(context, "warlock_curse_group_aware", false) then
+        local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
+        if context.is_group and (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
+    end
     return "doom"
 end
 
@@ -822,6 +823,7 @@ local strategies = {
     { name = "Fear", matches = fear_matches, execute = function(context) return NS.try_cast(ACTION.Fear, context.target, "[DEMONOLOGY] Fear") end },
     { name = "Seduction", matches = seduction_matches, execute = function(context) return NS.try_cast(ACTION.Seduction, context.target, "[DEMONOLOGY] Seduction") end },
     { name = "Soulshatter", matches = soulshatter_matches, execute = function(context) return NS.try_cast(ACTION.Soulshatter, context.me, "[DEMONOLOGY] Soulshatter", { skip_range = true }) end },
+    { name = "LifeTap" },
     { name = "ShadowBolt" },
     { name = "Incinerate", matches = incinerate_matches, execute = function(context) return NS.try_cast(ACTION.Incinerate, context.target, "[DEMONOLOGY] Incinerate") end },
     { name = "Healthstone",

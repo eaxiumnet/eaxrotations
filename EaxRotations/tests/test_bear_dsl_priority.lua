@@ -58,6 +58,21 @@ local restore_spec = install_mock("shared/spec_kit_sylvanas", function()
         setmetatable(raw, mt)
         return raw
     end
+    function M.merge_state(build_state, context, state_override)
+        local s = build_state(context)
+        if not state_override or next(state_override) == nil then return s end
+        local merged = {}
+        for k, v in pairs(s) do merged[k] = v end
+        for k, v in pairs(state_override) do merged[k] = v end
+        local mt = getmetatable(s)
+        if mt then
+            local mt_copy = {}
+            for k, v in pairs(mt) do mt_copy[k] = v end
+            mt_copy.__newindex = nil
+            setmetatable(merged, mt_copy)
+        end
+        return merged
+    end
     return M
 end)
 

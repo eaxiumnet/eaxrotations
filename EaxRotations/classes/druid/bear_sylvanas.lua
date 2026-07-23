@@ -38,6 +38,24 @@ local _opts = {}
 
 local SPELLS = NS.DruidSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+
+-- Fallback merge_state for test environments that mock an older spec_kit
+-- without the shared helper. Production uses spec_kit.merge_state.
+local merge_state = spec_kit.merge_state or function(build_state, context, state_override)
+    local s = build_state(context)
+    if not state_override or next(state_override) == nil then return s end
+    local merged = {}
+    for k, v in pairs(s) do merged[k] = v end
+    for k, v in pairs(state_override) do merged[k] = v end
+    local mt = getmetatable(s)
+    if mt then
+        local mt_copy = {}
+        for k, v in pairs(mt) do mt_copy[k] = v end
+        mt_copy.__newindex = nil
+        setmetatable(merged, mt_copy)
+    end
+    return merged
+end
 local dsl = require("shared/strategy_dsl_sylvanas")
 local _hp_ok, HealthPred = pcall(require, "shared/health_pred_helper_sylvanas")
 if not _hp_ok or type(HealthPred) ~= "table" then HealthPred = nil end
@@ -363,7 +381,7 @@ local function build_state(context)
     -- settings (Pattern 8: nil-guarded via NS.setting_number / NS.setting_bool)
     state.aoe_threshold     = spec_kit.setting_number(context, "bear_aoe_threshold",
                                    spec_kit.setting_number(context, "aoe_threshold", 3))
-    state.maul_rage         = spec_kit.setting_number(context, "bear_maul_rage", 50)
+    state.maul_rage         = spec_kit.setting_number(context, "bear_maul_rage", 30)
     state.barkskin_hp       = spec_kit.setting_number(context, "bear_barkskin_hp",
                                    is_group and 70 or 55)
     state.frenzied_regen_hp = spec_kit.setting_number(context, "bear_frenzied_regen_hp",
@@ -679,9 +697,16 @@ local function swipe_aoe_matches(context, action)
     -- TBC Swipe requires a hostile melee target (not self). Self-cast spam-loops
     -- when the client rejects the cast and the strategy rematches every frame.
     if not s.in_combat and NS.spell_ready then return false end
-    if not (NS.aoe_target_meets and NS.aoe_target_meets(s.aoe_threshold or 3, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s)) then return false end
+    -- Fallback: if the engine AoE helper is unavailable or disagrees with the
+    -- context enemy count, trust the context when it reports enough enemies.
+    local aoe_ok = NS.aoe_target_meets and NS.aoe_target_meets(s.aoe_threshold or 3, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s)
+    if not aoe_ok and (s.enemy_count or 0) < (s.aoe_threshold or 3) then return false end
     if s.use_pvp_cc_gate and context.has_breakable_cc_nearby then return false end
-    if not rage_allows_filler(s, RAGE_SWIPE) then return false end
+    if not rage_allows_filler(s, RAGE_SWIPE) then
+        -- High-rage bypass: don't sit rage-capped in AoE just because Mangle
+        -- is about to come off cooldown.
+        if (s.rage or 0) < 70 then return false end
+    end
     return action_ready(context, action)
 end
 
@@ -689,7 +714,8 @@ local function swipe_cleave_matches(context, action)
     local s = build_state(context)
     -- TBC Swipe requires a hostile melee target (not self). See swipe_aoe_matches.
     if not s.in_combat and NS.spell_ready then return false end
-    if not (NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s)) then return false end
+    local aoe_ok = NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context, s)
+    if not aoe_ok and (s.enemy_count or 0) < 2 then return false end
     if s.use_pvp_cc_gate and context.has_breakable_cc_nearby then return false end
     if s.target and spell_exists(ACTION.Lacerate) and (s.lacerate_stacks or 0) < 3 and (s.target_ttd or 999) > 8 then return false end
     if not rage_allows_filler(s, RAGE_SWIPE) then return false end
@@ -699,8 +725,8 @@ end
 local function swing_timer_gate(context, state)
     if not spec_kit.setting_bool(context, "bear_swing_timer", true) then return true end
     local swing_remains = (state and state.swing_remains) or 99
-    -- Unknown (999) / disabled timer: fail open. Near-swing (0–0.3s): hold re-queue.
-    return swing_remains > 0.3 or swing_remains < 0
+    -- Unknown (999) / disabled timer: fail open. Near-swing (0–0.15s): hold re-queue.
+    return swing_remains > 0.15 or swing_remains < 0
 end
 
 -- Maul rank IDs (TBC) — used with is_current_spell to detect an already-queued next swing.
@@ -885,8 +911,7 @@ local DSL_DEFS = {
             { type = "custom", fn = function(context, state)
                 if not can_use_bear_ability(state) then return false end
                 if maul_is_queued() then return false end
-                if (state.enemy_count or 0) >= (state.aoe_threshold or 3) and (state.rage or 0) < HIGH_RAGE then return false end
-                local maul_threshold = state.maul_rage or 50
+                local maul_threshold = state.maul_rage or 30
                 if not spell_exists(ACTION.MangleBear) then
                     local scaled = math.max(15, math.min(40, 15 + math.floor((state.level or 70) / 2)))
                     if scaled < maul_threshold then maul_threshold = scaled end
@@ -896,7 +921,10 @@ local DSL_DEFS = {
                 if would_starve_mangle(state, RAGE_MAUL) then return false end
                 if not state.is_target_boss and (state.target_ttd or 999) < 3 then return false end
                 if not swing_timer_gate(context, state) then return false end
-                return action_ready(context, { spell = ACTION.Maul })
+                -- Maul is on-next-swing and does not share the GCD, so do not gate
+                -- it on spell_ready/GCD. This fixes rage-capping while Lacerate/Swipe
+                -- consume GCD ticks.
+                return true
             end },
         },
         action = { type = "custom", fn = function(context, state)
@@ -944,33 +972,13 @@ local function base_guard_passes(action_def, s)
     return true
 end
 
--- Merge a caller-provided state override into the state built from context.
--- This keeps tests ergonomic (callers can pass partial states) without
--- mutating the static cached state table (Pattern 4).
-local function merge_state(context, state_override)
-    local s = build_state(context)
-    if not state_override or next(state_override) == nil then return s end
-    local merged = {}
-    for k, v in pairs(s) do merged[k] = v end
-    for k, v in pairs(state_override) do merged[k] = v end
-    -- Preserve safe_state metatable defaults (schema-backed __index) so that
-    -- fields not explicitly set on the cached table are still visible. We copy
-    -- the metatable to avoid sharing mutable state with the cached proxy.
-    local mt = getmetatable(s)
-    if mt then
-        local mt_copy = {}
-        for k, v in pairs(mt) do mt_copy[k] = v end
-        setmetatable(merged, mt_copy)
-    end
-    return merged
-end
 
 local function apply_base_matches(strategies, actions)
     for i = 1, #strategies do
         local action = actions[i]
         local original_matches = strategies[i].matches
         strategies[i].matches = function(context, state)
-            local s = merge_state(context, state)
+            local s = merge_state(build_state, context, state)
             if not base_guard_passes(action, s) then return false end
             return original_matches(context, s)
         end

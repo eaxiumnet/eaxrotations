@@ -252,8 +252,11 @@ local function select_curse(context, state)
     if curse_mode == "recklessness" then return "recklessness" end
     if curse_mode == "weakness" then return "weakness" end
     if curse_mode == "none" then return nil end
-    local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
-    if context.is_group and (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
+    -- Group/raid curse auto-selection is gated by player setting (default off)
+    if spec_kit.setting_bool(context, "warlock_curse_group_aware", false) then
+        local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
+        if context.is_group and (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
+    end
     return "doom"
 end
 

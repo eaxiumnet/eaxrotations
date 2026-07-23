@@ -1,10 +1,10 @@
--- test_beast_mastery_dsl_priority.lua — Beast Mastery Hunter DSL priority + equivalence test.
+-- test_beast_mastery_dsl_priority.lua â Beast Mastery Hunter DSL priority + equivalence test.
 -- WHAT:  verifies full strategy priority order, DSL position checks, and condition
 --        equivalence for 6 DSL-converted strategies (KillCommand, BestialWrath,
 --        RapidFire, Readiness, MendPet, HuntersMark).
 -- WHEN:  runs as part of the rotation test suite.
 -- WHY:   regression guard for the seventh DSL adopter (first hunter/pet-management spec).
--- SAFETY: standalone — mocks NS, spec_kit, and shared modules; no game API calls.
+-- SAFETY: standalone â mocks NS, spec_kit, and shared modules; no game API calls.
 
 local _pass, _fail = 0, 0
 local function assert_true(cond, msg)
@@ -67,6 +67,7 @@ local _setting = function(context, key, default)
     return default
 end
 local mock_spec_kit = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     define_action_for_class = function(SPELLS)
         return function(field, rank_ids, label)
             if SPELLS and SPELLS[field] then return SPELLS[field] end
@@ -164,7 +165,7 @@ for i = 1, math.min(#strategies, #expected_order) do
         string.format("priority[%d] = %s (expected %s)", i, strategies[i].name or "?", expected_order[i]))
 end
 
--- DSL position checks — verify the 6 DSL-converted strategies are at expected indices
+-- DSL position checks â verify the 6 DSL-converted strategies are at expected indices
 local dsl_indices = {}
 for i = 1, #strategies do dsl_indices[strategies[i].name] = i end
 assert_true(dsl_indices["KillCommand"] == 16, "KillCommand at index 16")
@@ -349,7 +350,7 @@ assert_false(strategies[idx_hm].matches(make_ctx(), make_state({ has_hunters_mar
 -- Negative: not in combat
 assert_false(strategies[idx_hm].matches(make_ctx({ in_combat = false }), make_state({ in_combat = false })),
     "HuntersMark skips when not in combat")
--- Negative: no target (must set nil explicitly — { target = nil } is empty in Lua)
+-- Negative: no target (must set nil explicitly â { target = nil } is empty in Lua)
 local ctx_no_target = make_ctx()
 ctx_no_target.target = nil
 assert_false(strategies[idx_hm].matches(ctx_no_target, make_state()),

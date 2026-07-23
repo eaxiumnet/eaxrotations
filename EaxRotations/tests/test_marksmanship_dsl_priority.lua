@@ -1,9 +1,9 @@
--- test_marksmanship_dsl_priority.lua — Marksmanship Hunter DSL priority + equivalence test.
+-- test_marksmanship_dsl_priority.lua â Marksmanship Hunter DSL priority + equivalence test.
 -- WHAT:  verifies that 6 DSL-converted strategies are present, preserve priority
 --        order, and behave equivalently to the original imperative logic.
 -- WHEN:  runs as part of the rotation test suite.
 -- WHY:   regression guard for the 20th DSL adopter (marksmanship hunter/ranged-DPS spec).
--- SAFETY: standalone — mocks NS, spec_kit, and shared modules; no game API calls.
+-- SAFETY: standalone â mocks NS, spec_kit, and shared modules; no game API calls.
 
 local _pass, _fail = 0, 0
 local function assert_true(cond, msg)
@@ -55,6 +55,7 @@ local _setting = function(context, key, default)
     return default
 end
 local mock_spec_kit = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     define_action_for_class = function(SPELLS)
         return function(field, rank_ids, label)
             if SPELLS and SPELLS[field] then return SPELLS[field] end
