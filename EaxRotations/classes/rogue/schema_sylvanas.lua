@@ -37,6 +37,8 @@ return {
                     { key = "rogue_evasion_hp", type = "slider", label = "Evasion HP", min = 10, max = 50, default = 35 },
                     { key = "rogue_use_cloak", type = "checkbox", label = "Cloak of Shadows", default = true },
                     { key = "rogue_cloak_hp", type = "slider", label = "Cloak HP", min = 20, max = 60, default = 45 },
+                    { key = "rogue_group_aware_defensives", type = "checkbox", label = "Group-Aware Defensive Thresholds", default = true, tooltip = "Raise defensive cooldown HP thresholds when in a group or raid. Disable to use solo thresholds everywhere." },
+                    { key = "rogue_group_aware_utility", type = "checkbox", label = "Group-Aware Utility", default = true, tooltip = "Allow group/raid context to enable utility spells such as Blind and Kidney Shot. Disable to ignore group/raid requirements." },
                     { key = "use_pvp_cc_gating", type = "checkbox", label = "PvP CC Gate (skip AoE near CC)", default = true, tooltip = "Skip Blade Flurry when a nearby enemy is Polymorphed/Sapped/etc." },
                     { key = "use_cc_break", type = "checkbox", label = "CC Break (Cloak/Vanish)", default = true, tooltip = "Preemptively Cloak or Vanish when enemy casts Polymorph/Fear/Blind at you" },
                     { key = "rogue_poison_check", type = "checkbox", label = "Poison Check", default = true, tooltip = "Warn when weapon poisons are missing in combat. Applies to all rogue specs." },

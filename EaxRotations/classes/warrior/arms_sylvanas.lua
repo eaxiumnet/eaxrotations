@@ -777,8 +777,8 @@ local function retaliation_matches(context, state)
     return action(context, build_action("Retaliation", ACTION.Retaliation, { target = "self", required_stance = STANCE.BATTLE, requires_target = false, cooldown = 1800 }))
 end
 
-local function shield_wall_matches(context, state)
-    local threshold = state.is_group and 40 or 25
+local function shield_wall_matches(context, state)     local group_aware = spec_kit.setting_bool(context, "warrior_group_aware_defensives", true)
+     local threshold = (group_aware and state.is_group) and 40 or 25
     if state.hp > threshold then return false end
     return action(context, build_action("ShieldWall", ACTION.ShieldWall, { target = "self", required_stance = STANCE.DEFENSIVE, requires_target = false, cooldown = 1800 }))
 end

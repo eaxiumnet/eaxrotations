@@ -35,6 +35,8 @@ return {
                     { key = "barkskin_hp", type = "slider", label = "Barkskin HP Threshold", min = 0, max = 100, default = 0, tooltip = "Self-cast Barkskin when HP drops below this in combat (0 = disabled)" },
                     { key = "use_innervate", type = "checkbox", label = "Innervate", default = true },
                     { key = "innervate_mana_pct", type = "slider", label = "Innervate Mana %", min = 0, max = 100, default = 30 },
+                    { key = "druid_group_aware_defensives", type = "checkbox", label = "Group-Aware Defensive Thresholds", default = true, tooltip = "Raise defensive cooldown HP thresholds when in a group or raid. Disable to use solo thresholds everywhere." },
+                    { key = "druid_caster_raid_aware_utility", type = "checkbox", label = "Caster Raid-Aware Utility", default = true, tooltip = "In raid context, restrict caster-form utility to only activate when Balance/Caster is explicitly selected. Disable to always allow caster utility in raids." },
                     { key = "use_rebirth", type = "checkbox", label = "Rebirth (Combat Res)", default = true },
                 },
             },
@@ -96,6 +98,7 @@ return {
                     { key = "balance_mana_potion", type = "slider", label = "Mana Potion Mana%", min = 0, max = 100, default = 25 },
                     { key = "balance_insect_swarm_min_sp", type = "slider", label = "Insect Swarm Min SP", min = 0, max = 2000, default = 800 },
                     { key = "balance_moonfire_min_sp", type = "slider", label = "Moonfire Min SP", min = 0, max = 2000, default = 800 },
+                    { key = "druid_group_aware_utility", type = "checkbox", label = "Group-Aware Utility", default = true, tooltip = "Allow group/raid context to enable utility spells such as Innervate on low-mana party members. Disable to ignore group/raid requirements." },
                 },
             },
             {
@@ -109,6 +112,7 @@ return {
                     { key = "resto_tranquility_count", type = "slider", label = "Tranquility Count", min = 2, max = 5, default = 3 },
                     { key = "resto_auto_dispel", type = "checkbox", label = "Auto Dispel", default = true },
                     { key = "resto_tol_enabled", type = "checkbox", label = "Tree of Life", default = true },
+                    { key = "druid_resto_group_aware_utility", type = "checkbox", label = "Group-Aware Restoration Utility", default = true, tooltip = "Require group/raid context for Rebirth battle rez and group dispels. Disable to ignore group/raid requirements." },
                 },
             },
             {

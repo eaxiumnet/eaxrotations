@@ -292,7 +292,8 @@ local function build_state(context)
   -- Pre-ward the tank to prevent feared tank pulling packs and wipes.
   local ward_target = me
   local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
-  if context and context.is_group and fear_risk then
+  local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
+  if context and (group_aware and context.is_group) and fear_risk then
     if context.party_tanks and #context.party_tanks > 0 then
       ward_target = context.party_tanks[1]
     elseif NS.GetPartyMembers then
@@ -511,10 +512,11 @@ local function pwf_matches(context, s)
 end
 
 local function symbol_of_hope_matches(context, s)
- if not s.symbol_of_hope_ready then return false end
- if not context.is_group then return false end
- if _buff_on_cooldown(ACTION.SymbolOfHope) then return false end
- return _safe_buff_in_combat(context, s)
+	if not s.symbol_of_hope_ready then return false end
+	local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
+	if group_aware and not context.is_group then return false end
+	if _buff_on_cooldown(ACTION.SymbolOfHope) then return false end
+	return _safe_buff_in_combat(context, s)
 end
 
 -- ============================================================================
@@ -596,7 +598,8 @@ local function dispel_magic_matches(context, s)
  if not s.dispel_magic_ready then return false end
  if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.DispelMagic, 3.0) then return false end
  -- Dungeon opt: if control_risk (from researched MC/fear), dispel to speed and save
- if context.control_risk or context.fear_nearby or context.is_group then
+ local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
+ if context.control_risk or context.fear_nearby or (group_aware and context.is_group) then
   return true
  end
  local me = context.me or NS.GetPlayer()
@@ -918,7 +921,8 @@ local healing_strategies = {
     if not target or NS.same_unit(target, NS.PLAYER_UNIT) then
       -- fallback scan if state not set
       local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
-      if context and context.is_group and fear_risk then
+      local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
+      if context and (group_aware and context.is_group) and fear_risk then
         local party = NS.GetPartyMembers and NS.GetPartyMembers() or {}
         for _, u in ipairs(party) do
           if u and (u.is_alive and u:is_alive()) and NS.is_tank_unit and NS.is_tank_unit(u) then
@@ -942,11 +946,11 @@ end },
    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.MassDispel, 3.0) then return false end
    if not context.in_combat then return false end
    if not s.mass_dispel_ready then return false end
-   if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end
-   if context.mana_pct < 30 then return false end
-   -- Dungeon opt: Mass for AoE magic (WoWHead TBC: efficient for packs, removes tough magic, speeds clear, saves lives)
-   if not context.is_group then return false end
-   return true
+   if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end    if context.mana_pct < 30 then return false end
+    -- Dungeon opt: Mass for AoE magic (WoWHead TBC: efficient for packs, removes tough magic, speeds clear, saves lives)
+    local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
+    if group_aware and not context.is_group then return false end
+    return true
  end, execute = function() return NS.try_cast(ACTION.MassDispel, NS.PLAYER_UNIT, "[DISCIPLINE] MassDispel (dungeon AoE)") end },
  -- Cooldown Features
  { name = "PainSuppression" },

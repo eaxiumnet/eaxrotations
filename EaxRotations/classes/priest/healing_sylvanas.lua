@@ -562,7 +562,8 @@ local function fade_matches(context, state)
     if not context.in_combat then return false end
     if not state.fade_ready then return false end
     if (state.hp_pct or 100) > FADE_HP then return false end
-    if not (context.is_group or context.is_raid) then return false end
+    local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
+    if group_aware and not (context.is_group or context.is_raid) then return false end
     return true
 end
 

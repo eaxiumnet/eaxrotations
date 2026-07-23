@@ -565,7 +565,8 @@ local strategies = {
         execute = function(context)
             if not SPELLS.BlessingOfKings then return false end
             local useGreater = false
-            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
+            local auto_greater = spec_kit.setting_bool(context, "paladin_auto_greater_blessings_in_raid", true)
+            if auto_greater and NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
                 if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
             end
             local spell = useGreater and SPELLS.GreaterBlessingOfKings or SPELLS.BlessingOfKings
@@ -634,7 +635,8 @@ local strategies = {
                 return true
             end
             local useGreater = false
-            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25894) and NS.has_item then
+            local auto_greater = spec_kit.setting_bool(context, "paladin_auto_greater_blessings_in_raid", true)
+            if auto_greater and NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25894) and NS.has_item then
                 if NS.has_item(REAGENT_SYMBOL_OF_WISDOM) then useGreater = true end
             end
             if NS.GetPartyMembers then
@@ -665,7 +667,8 @@ local strategies = {
             end
             -- Group members
             local useGreater = false
-            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25894) and NS.has_item then
+            local auto_greater = spec_kit.setting_bool(context, "paladin_auto_greater_blessings_in_raid", true)
+            if auto_greater and NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25894) and NS.has_item then
                 if NS.has_item(REAGENT_SYMBOL_OF_WISDOM) then useGreater = true end
             end
             if NS.GetPartyMembers then
@@ -700,7 +703,8 @@ local strategies = {
             local manaPct = context.mana_pct or 100
             if manaPct < (spec_kit.setting_number(context, "combat_kings_refresh_mana", 30)) then return false end
             local useGreater = false
-            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
+            local auto_greater = spec_kit.setting_bool(context, "paladin_auto_greater_blessings_in_raid", true)
+            if auto_greater and NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
                 if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
             end
             if NS.GetPartyMembers then
@@ -724,7 +728,8 @@ local strategies = {
         execute = function(context)
             local threshold = spec_kit.setting_number(context, "combat_kings_refresh_threshold", 60)
             local useGreater = false
-            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
+            local auto_greater = spec_kit.setting_bool(context, "paladin_auto_greater_blessings_in_raid", true)
+            if auto_greater and NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
                 if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
             end
             if NS.GetPartyMembers then
@@ -757,7 +762,8 @@ local strategies = {
             if (context.is_mounted or false) then return false end
             if not SPELLS.BlessingOfKings then return false end
             local useGreater = false
-            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
+            local auto_greater = spec_kit.setting_bool(context, "paladin_auto_greater_blessings_in_raid", true)
+            if auto_greater and NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
                 if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
             end
             if NS.GetPartyMembers then
@@ -781,7 +787,8 @@ local strategies = {
         end,
         execute = function(context)
             local useGreater = false
-            if NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
+            local auto_greater = spec_kit.setting_bool(context, "paladin_auto_greater_blessings_in_raid", true)
+            if auto_greater and NS.is_in_raid and NS.is_in_raid() and NS.is_spell_learned and NS.is_spell_learned(25898) and NS.has_item then
                 if NS.has_item(REAGENT_SYMBOL_OF_KINGS) then useGreater = true end
             end
             if NS.GetPartyMembers then

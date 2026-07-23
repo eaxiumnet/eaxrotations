@@ -461,7 +461,8 @@ end
 	    if not (NS.is_spell_learned and NS.is_spell_learned(ACTION.Evasion)) then return false end
 	    local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(ACTION.Evasion) or 0
 	    if cd > 0 then return false end
-	    local default_hp = s.is_group and 45 or 30
+	    local group_aware = spec_kit.setting_bool(context, "rogue_group_aware_defensives", true)
+	    local default_hp = (group_aware and s.is_group) and 45 or 30
 	    local evasion_hp = spec_kit.setting_number(context, "combat_evasion_hp", default_hp)
 	    return (s.hp_pct or 100) <= evasion_hp
 	end
@@ -471,7 +472,8 @@ local function cloak_of_shadows_matches(context, s)
     if not (NS.is_spell_learned and NS.is_spell_learned(31224)) then return false end
     local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(ACTION.CloakOfShadows) or 0
     if cd > 0 then return false end
-    local default_hp = s.is_group and 35 or 20
+    local group_aware = spec_kit.setting_bool(context, "rogue_group_aware_defensives", true)
+    local default_hp = (group_aware and s.is_group) and 35 or 20
     local cloak_hp = spec_kit.setting_number(context, "combat_cloak_hp", default_hp)
     return (s.hp_pct or 100) <= cloak_hp
 end
@@ -509,7 +511,8 @@ end
 local function blind_matches(context, s)
     if not s.in_combat then return false end
     if not context.target then return false end
-    if not (context.is_pvp or context.is_group or false) then return false end
+    local group_aware = spec_kit.setting_bool(context, "rogue_group_aware_utility", true)
+    if not (context.is_pvp or (group_aware and context.is_group) or false) then return false end
     if not (NS.is_spell_learned and NS.is_spell_learned(2094)) then return false end
     local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(ACTION.Blind) or 0
     if cd > 0 then return false end

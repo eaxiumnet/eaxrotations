@@ -543,7 +543,8 @@ local function fear_matches(context, s)
     if not context.in_combat then return false end
     if not context.target then return false end
     if not s.fear_ready then return false end
-    if not (context.is_pvp or context.is_group) then return false end
+    local group_aware = spec_kit.setting_bool(context, "warlock_group_aware_utility", true)
+    if not (context.is_pvp or (group_aware and context.is_group)) then return false end
     return true
 end
 
@@ -554,7 +555,8 @@ local function seduction_matches(context, s)
     if not context.in_combat then return false end
     if not context.target then return false end
     -- PvP only: arena, battleground, or world PvP flagged
-    if not (context.is_pvp or context.is_group) then return false end
+    local group_aware = spec_kit.setting_bool(context, "warlock_group_aware_utility", true)
+    if not (context.is_pvp or (group_aware and context.is_group)) then return false end
     -- Must have Succubus summoned and alive
     if not s.pet_type_succubus then return false end
     if not s.pet_alive then return false end

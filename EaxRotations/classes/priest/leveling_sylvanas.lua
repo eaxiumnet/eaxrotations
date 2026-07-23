@@ -1117,7 +1117,8 @@ local strategies = {
 
             if not state.symbol_of_hope_ready then return false end
 
-            if not context.is_group then return false end
+            local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
+            if group_aware and not context.is_group then return false end
 
             if not spec_kit.setting_bool(context, "use_symbol_of_hope", true) then return false end
 

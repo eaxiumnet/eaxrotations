@@ -96,7 +96,8 @@ local function ice_block_matches(context)
     local me = context.me
     if not me then return false end
     local hp = me.get_health_percentage and me:get_health_percentage() or 100
-    local threshold = (context.is_group or false) and 30 or 20
+    local group_aware = spec_kit.setting_bool(context, "mage_group_aware_defensives", true)
+    local threshold = ((context.is_group or false) and group_aware) and 30 or 20
     if hp > threshold then return false end
     return true
 end
@@ -108,7 +109,8 @@ local function cold_snap_matches(context, s)
     -- Defensive path: Ice Block on cooldown, low HP
     if not (me and NS.spell_ready(ACTION.IceBlock, me)) then
         local hp = me.get_health_percentage and me:get_health_percentage() or 100
-        local threshold = (context.is_group or false) and 45 or 35
+        local group_aware = spec_kit.setting_bool(context, "mage_group_aware_defensives", true)
+        local threshold = ((context.is_group or false) and group_aware) and 45 or 35
         if hp <= threshold then return true end
     end
     -- DPS path: double-pet or double-IV
@@ -405,7 +407,8 @@ local function frost_ward_matches(context, s)
 end
 
 local function polymorph_matches(context, s)
-    if not (context.is_pvp or context.is_group) then return false end
+    local group_aware = spec_kit.setting_bool(context, "mage_group_aware_utility", true)
+    if not (context.is_pvp or (group_aware and context.is_group)) then return false end
     if not context.target then return false end
     if not s.polymorph_ready then return false end
     return true

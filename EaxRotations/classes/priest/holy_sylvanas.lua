@@ -366,11 +366,11 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
  if not skip_aura then
   holy_state.swp_remaining = context.target and debuff_remains(context.target, SHADOW_WORD_PAIN_DEBUFF) or 0
   holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0
- end
- -- Fear Ward target logic for dungeons (WoWHead): ward tank on fear risk
- local ward_target = player
- local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
- if context and context.is_group and fear_risk then
+ end -- Fear Ward target logic for dungeons (WoWHead): ward tank on fear risk
+  local ward_target = player
+  local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
+  local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
+  if context and (group_aware and context.is_group) and fear_risk then
   if context.party_tanks and #context.party_tanks > 0 then
    ward_target = context.party_tanks[1]
   end
@@ -630,7 +630,8 @@ local DSL_DEFS = {
         },
         action = { type = "custom", fn = function(context, state)
             local target = (state and state.fear_ward_target) or NS.PLAYER_UNIT
-            if context and context.is_group and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk) then
+            local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
+            if context and (group_aware and context.is_group) and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk) then
                 if context.party_tanks and #context.party_tanks > 0 then target = context.party_tanks[1] end
             end
             return try_cast(ACTION.FearWard, target, "[HOLY] FearWard (tank protection)")
@@ -978,9 +979,9 @@ local strategies = {
    if context.player_control_locked then return false end
    if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end
    if not state.mass_dispel_ready then return false end
-   if context.mana_pct < spec_kit.setting_number(context, "party_dispel_mana_floor", 30) then return false end
-   -- Dungeon opt: use Mass Dispel for AoE magic in packs (WoWHead: removes undispellable magic too, speeds clears, prevents deaths)
-   if not context.is_group then return false end
+   if context.mana_pct < spec_kit.setting_number(context, "party_dispel_mana_floor", 30) then return false end    -- Dungeon opt: use Mass Dispel for AoE magic in packs (WoWHead: removes undispellable magic too, speeds clears, prevents deaths)
+    local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
+    if group_aware and not context.is_group then return false end
    -- Check if any party has dangerous magic (reuse)
    if Healing.has_dangerous_dispel then
     -- scan a few to see if worth

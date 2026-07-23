@@ -63,6 +63,7 @@ return {
                     { key = "use_cc_break", type = "checkbox", label = "CC Break (Death Coil)", default = true, tooltip = "Preemptively Death Coil when enemy casts Polymorph/Fear/Cyclone at you to interrupt + self-heal" },
                     { key = "healthstone_hp", type = "slider", label = "Healthstone HP", min = 0, max = 100, default = 0 },
                     { key = "use_shadow_ward", type = "checkbox", label = "Shadow Ward", default = true },
+                    { key = "warlock_group_aware_utility", type = "checkbox", label = "Group-Aware Utility (CC/Ward)", default = true, tooltip = "Allow group/raid context to enable utility spells such as Fear, Howl of Terror, Curse of Tongues, Shadow Ward, and Shadowfury. Disable to ignore group/raid requirements." },
                     { key = "shadow_ward_hp", type = "slider", label = "Shadow Ward HP", min = 0, max = 100, default = 70 },
                 },
             },

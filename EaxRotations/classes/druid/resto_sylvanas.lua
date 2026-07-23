@@ -676,6 +676,8 @@ local DSL_DEFS = {
         conditions = {
             { type = "in_combat" },
             { type = "custom", fn = function(context, state)
+                local group_aware = spec_kit.setting_bool(context, "druid_resto_group_aware_utility", true)
+                if not group_aware then return true end
                 return (NS.is_in_party and NS.is_in_party()) or (NS.is_in_raid and NS.is_in_raid())
             end },
             { type = "spell_ready", spell = ACTION.Rebirth, target = "self", opts = { skip_range = true, expected_cooldown = REBIRTH_EXPECTED_CD } },
@@ -771,13 +773,13 @@ local strategies = {
   { name = "BearFormFocusedByMelee" },
   { name = "NaturesGraspMelee" },
  { name = "RemoveCurse", matches = function(context, state)
-   if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.RemoveCurse, 3.0) then return false end
-   if context and (context.control_risk or context.is_group) and state.cursed_target then return true end
+   if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.RemoveCurse, 3.0) then return false end    local group_aware = spec_kit.setting_bool(context, "druid_resto_group_aware_utility", true)
+    if context and (context.control_risk or (group_aware and context.is_group)) and state.cursed_target then return true end
    return state.cursed_target and NS.spell_ready(ACTION.RemoveCurse, state.cursed_target.unit)
   end, execute = function(_, state) return NS.try_cast(ACTION.RemoveCurse, state.cursed_target.unit, "[RESTO] Remove Curse") end },
  { name = "AbolishPoison", matches = function(context, state)
-   if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.AbolishPoison, 3.0) then return false end
-   if context and (context.control_risk or context.is_group) and state.poison_target then return true end
+   if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.AbolishPoison, 3.0) then return false end    local group_aware = spec_kit.setting_bool(context, "druid_resto_group_aware_utility", true)
+    if context and (context.control_risk or (group_aware and context.is_group)) and state.poison_target then return true end
    return state.poison_target and NS.spell_ready(ACTION.AbolishPoison, state.poison_target.unit)
   end, execute = function(_, state) return NS.try_cast(ACTION.AbolishPoison, state.poison_target.unit, "[RESTO] Abolish Poison") end },
  { name = "ManaPotionFloor", matches = function(_, s) return (s.mana_pct or 100) <= 18 end, execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },

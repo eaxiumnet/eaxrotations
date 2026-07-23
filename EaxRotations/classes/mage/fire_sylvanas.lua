@@ -254,7 +254,8 @@ end
 local function polymorph_matches_fn(context, state)
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.cc_target and NS.DRTracker.is_dr_immune(context.cc_target, "incapacitate") then return false end
     if NS.pvp_trinket_used_recently and NS.pvp_trinket_used_recently(context.cc_target) then return false end
-    if not (context.is_pvp or context.is_group) then return false end
+    local group_aware = spec_kit.setting_bool(context, "mage_group_aware_utility", true)
+    if not (context.is_pvp or (group_aware and context.is_group)) then return false end
     if not context.cc_target then return false end
 
     return NS.spell_ready(ACTION.Polymorph, context.cc_target or context.target)

@@ -80,7 +80,8 @@ local function _build_state(ctx)
     _state.wand_threshold = (ctx.settings and ctx.settings.balance_wand_threshold) or 30
     _state.innervate_target = nil
     local floor_mana = (ctx.settings and ctx.settings.balance_innervate_mana) or 30
-    if ctx.in_combat and ctx.is_group and ctx.me and NS.GetPartyMembers then
+    local group_aware = spec_kit.setting_bool(ctx, "druid_group_aware_utility", true)
+    if ctx.in_combat and (group_aware and ctx.is_group) and ctx.me and NS.GetPartyMembers then
         local party = NS.GetPartyMembers()
         if party and type(party)=="table" then
             for _, u in ipairs(party) do

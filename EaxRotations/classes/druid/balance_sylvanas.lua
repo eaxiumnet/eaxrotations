@@ -246,7 +246,8 @@ local function build_state(ctx)
     local now = NS.time_now and NS.time_now() or 0
     if now - _last_innervate_scan_time >= _INNERVATE_SCAN_INTERVAL then
         _last_innervate_scan_time = now
-        if ctx.in_combat and ctx.is_group and ctx.me and NS.GetPartyMembers then
+        local group_aware = spec_kit.setting_bool(ctx, "druid_group_aware_utility", true)
+        if ctx.in_combat and (group_aware and ctx.is_group) and ctx.me and NS.GetPartyMembers then
             local party = NS.GetPartyMembers()
             if party and type(party)=="table" then
                 for _, u in ipairs(party) do
