@@ -2,6 +2,29 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.12.0] — WotLK Strategy DSL Rollout, spec_kit Refactor, and Class Fixes (2026-07-23)
+
+**Rotations + class fixes since v2.11.0.**
+
+### Features & Refactoring
+
+- **WotLK Strategy DSL adoption**: Continued migration of Wrath-era spec variants to the declarative strategy DSL (`shared/strategy_dsl_sylvanas.lua`), including Druid/Bear, Protection Paladin, Beast Mastery Hunter, Balance Druid, Frost Death Knight, Destruction Warlock, and others.
+- **Centralized `base_matches` guards**: Paladin Protection/Retribution, Warrior Protection, and Druid/Bear now share a unified `base_matches` guard implementation, reducing duplication and drift across specs.
+- **`merge_state` extraction**: `shared/spec_kit_sylvanas.lua` now exports a canonical `merge_state(build_state, context, state_override)` helper. A local fallback was added in the four specs so test mocks remain compatible.
+- **Test mock audit**: Proactively added `merge_state` to all remaining `shared/spec_kit_sylvanas` test mocks via a shared helper (`EaxRotations/tests/spec_kit_merge_state.lua`).
+
+### Bug Fixes
+
+- **Druid (Cat)**: PvE Pounce opener is now properly gated by stealth/out-of-combat; Faerie Fire (Feral) no longer fires while stealthed; Ferocious Bite now fires at full combo points, with emergency low-TTD paths.
+- **Druid (Bear)**: Maul queues sooner, is no longer blocked by the GCD, and can queue during AoE pulls; Swipe gets a high-rage bypass so rage is still spent while saving for Mangle.
+- **Warlock**: Curse selection in dungeons is now controlled by the `warlock_curse_group_aware` setting (default off); Life Tap is ordered before Shadow Bolt filler so mana sustain happens before mana-consuming casts.
+
+### Technical
+
+- `luac -p` + 373/373 rotation + 21/21 leveling suites green (394 total).
+- Pre-commit badge-drift check remains in place.
+- Clean `eaxrotations.zip` (lua + md only).
+
 ## [2.11.0] — 100% Strategy DSL Coverage + Badge-Drift Pre-Commit Check (2026-07-22)
 
 **21 commits since v2.10.0.** This release achieves 100% strategy DSL coverage
