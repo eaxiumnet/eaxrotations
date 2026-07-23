@@ -58,6 +58,7 @@ _G.EaxRotations = {
 }
 
 package.loaded["shared/spec_kit_sylvanas"] = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     setting = function(ctx, key, default)
         local s = ctx and ctx.settings
         if s and s[key] ~= nil then return s[key] end

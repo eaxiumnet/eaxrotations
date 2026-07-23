@@ -66,6 +66,7 @@ package.loaded["shared/leveling_helpers_sylvanas"] = {
     is_low_level = function(level) return level and level < 20 or false end,
 }
 package.loaded["shared/spec_kit_sylvanas"] = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     define_action_for_class = function(SPELLS)
         return function(name, ids, label)
             local id = type(ids) == "table" and ids[1] or ids

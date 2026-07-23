@@ -560,11 +560,14 @@ local function select_curse(context, state)
         if context.enemy_healer then return "tongues" end
         if context.melee_on_you then return "exhaustion" end
     end
-    if (state.enemy_count or 0) >= 3 then return "elements" end
-    if context.is_group then
-        local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
-        if (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
-        return "elements"
+    -- Group/raid curse auto-selection is gated by player setting (default off)
+    if spec_kit.setting_bool(context, "warlock_curse_group_aware", false) then
+        if (state.enemy_count or 0) >= 3 then return "elements" end
+        if context.is_group then
+            local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
+            if (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
+            return "elements"
+        end
     end
     return "agony"
 end
@@ -1259,25 +1262,8 @@ local strategies = {
         end,
     },
 
-    {
-        name = "ShadowBoltFiller",
-        matches = function(context, state)
-            if not context.has_valid_enemy_target then return false end
-            -- v2.5.1: don't try to cast Shadow Bolt when mana is critically low —
-            -- let Wand catch it instead. Shadow Bolt costs ~380 mana at max rank;
-            -- if we have less than 5% mana and can't Life Tap (HP unsafe), skip.
-            local mana = state and state.mana_pct or (context.mana_pct or 100)
-            local hp = state and state.hp_pct or (context.hp or 100)
-            if mana < 5 and hp < LIFE_TAP_SAFETY_HP then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ShadowBolt, context.target) or false
-        end,
-        execute = function(context)
-            return NS.try_cast(ACTION.ShadowBolt, context.target, "[AFFL] Shadow Bolt filler")
-        end,
-    },
-
     -- ------------------------------------------------------------------------
-    -- 13. Life Tap (HP → Mana)
+    -- 12. Life Tap (HP → Mana) — before fillers so it can sustain zero-mana states.
     -- ------------------------------------------------------------------------
     {
         name = "LifeTap",
@@ -1293,6 +1279,26 @@ local strategies = {
         execute = function()
             _last_life_tap = NS.time_now()
             return NS.try_cast(ACTION.LifeTap, NS.PLAYER_UNIT, "[AFFL] Life Tap")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- 13. Shadow Bolt filler
+    -- ------------------------------------------------------------------------
+    {
+        name = "ShadowBoltFiller",
+        matches = function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            -- v2.5.1: don't try to cast Shadow Bolt when mana is critically low —
+            -- let Wand catch it instead. Shadow Bolt costs ~380 mana at max rank;
+            -- if we have less than 5% mana and can't Life Tap (HP unsafe), skip.
+            local mana = state and state.mana_pct or (context.mana_pct or 100)
+            local hp = state and state.hp_pct or (context.hp or 100)
+            if mana < 5 and hp < LIFE_TAP_SAFETY_HP then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ShadowBolt, context.target) or false
+        end,
+        execute = function(context)
+            return NS.try_cast(ACTION.ShadowBolt, context.target, "[AFFL] Shadow Bolt filler")
         end,
     },
 

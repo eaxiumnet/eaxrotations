@@ -68,6 +68,7 @@ package.loaded["shared/fsr_manager_sylvanas"] = {
 
 -- Mock spec_kit
 package.loaded["shared/spec_kit_sylvanas"] = package.loaded["shared/spec_kit_sylvanas"] or {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     define_action_for_class = function(SPELLS)
         return function(field, ids, label)
             if type(ids) == "table" then return ids[1] end

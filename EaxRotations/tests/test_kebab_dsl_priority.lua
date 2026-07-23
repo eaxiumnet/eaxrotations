@@ -1,4 +1,4 @@
--- test_kebab_dsl_priority.lua — Kebab Warrior DSL priority test.
+-- test_kebab_dsl_priority.lua â Kebab Warrior DSL priority test.
 -- WHAT:  Verifies the 16 DSL-converted strategies preserve priority order.
 -- WHEN:  Run by the rotation test suite.
 -- WHY:   Regression guard for the final DSL adopter (kebab warrior).
@@ -52,6 +52,7 @@ local _setting = function(context, key, default)
     return default
 end
 local mock_spec_kit = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     define_action_for_class = function() return function(field, ids, label) return ids and ids[1] or field end end,
     safe_state = function(raw, schema) return setmetatable({}, { __index = function(t, k) if raw[k] ~= nil then return raw[k] end if schema and schema[k] ~= nil then return schema[k] end return nil end }) end,
     setting = _setting, setting_bool = function(ctx, key, def) local v = _setting(ctx, key, nil); if v == nil then return def end return v ~= false end,

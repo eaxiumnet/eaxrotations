@@ -35,6 +35,7 @@ end
 local function load_dm(class_id)
     _G.EaxRotations = mock_NS(class_id)
     package.loaded["shared/spec_kit_sylvanas"] = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
         define_action_for_class = function() return function() end end,
         setting = function(_, _, d) return d end,
         setting_bool = function(_, _, d) return d end,

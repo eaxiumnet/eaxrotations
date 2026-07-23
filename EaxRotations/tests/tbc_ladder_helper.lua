@@ -332,6 +332,21 @@ function M.setup(opts)
             end
         end,
         safe_state = function(s) return s end,
+        merge_state = function(build_state, context, state_override)
+            local s = build_state(context)
+            if not state_override or next(state_override) == nil then return s end
+            local merged = {}
+            for k, v in pairs(s) do merged[k] = v end
+            for k, v in pairs(state_override) do merged[k] = v end
+            local mt = getmetatable(s)
+            if mt then
+                local mt_copy = {}
+                for k, v in pairs(mt) do mt_copy[k] = v end
+                mt_copy.__newindex = nil
+                setmetatable(merged, mt_copy)
+            end
+            return merged
+        end,
     }
     package.loaded["shared/potion_helper_sylvanas"] = {
         try_use_potion = function() return false end,

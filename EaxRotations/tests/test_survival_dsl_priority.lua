@@ -1,9 +1,9 @@
--- test_survival_dsl_priority.lua — Survival Hunter DSL priority + equivalence test.
+-- test_survival_dsl_priority.lua â Survival Hunter DSL priority + equivalence test.
 -- WHAT:  verifies that 6 DSL-converted strategies are present, preserve priority
 --        order, and behave equivalently to the original imperative logic.
 -- WHEN:  runs as part of the rotation test suite.
 -- WHY:   regression guard for the 19th DSL adopter (first trap/melee-weave spec).
--- SAFETY: standalone — mocks NS, spec_kit, and shared modules; no game API calls.
+-- SAFETY: standalone â mocks NS, spec_kit, and shared modules; no game API calls.
 
 local _pass, _fail = 0, 0
 local function assert_true(cond, msg)
@@ -55,6 +55,7 @@ local _setting = function(context, key, default)
     return default
 end
 local mock_spec_kit = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     define_action_for_class = function(SPELLS)
         return function(field, rank_ids, label)
             if SPELLS and SPELLS[field] then return SPELLS[field] end

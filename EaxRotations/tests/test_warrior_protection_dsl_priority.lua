@@ -88,6 +88,7 @@ NS.OffensiveDispelDB = { find_best_dispel_target = function() return nil, nil, n
 
 -- Mock shared modules
 package.loaded["shared/spec_kit_sylvanas"] = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     safe_state = function(raw, schema)
         local proxy = {}
         setmetatable(proxy, {

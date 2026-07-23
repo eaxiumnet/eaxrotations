@@ -40,6 +40,7 @@ end)
 -- Mock spec_kit
 local restore_spec = install_mock("shared/spec_kit_sylvanas", function()
     local M = {}
+    M.merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state
     function M.define_action_for_class(_)
         return function(_, ids, name) return { ids = ids, name = name } end
     end

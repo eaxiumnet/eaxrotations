@@ -1,10 +1,10 @@
--- test_enhancement_dsl_priority.lua — Enhancement Shaman DSL priority + equivalence test.
+-- test_enhancement_dsl_priority.lua â Enhancement Shaman DSL priority + equivalence test.
 -- WHAT:  verifies full strategy priority order, DSL position checks, and condition
 --        equivalence for 6 DSL-converted strategies (ShamanisticRage, Bloodlust,
 --        ManaTideTotem, Stormstrike, FlameShock, FrostShock).
 -- WHEN:  runs as part of the rotation test suite.
 -- WHY:   regression guard for the twelfth DSL adopter (first enhancement shaman/melee+totem spec).
--- SAFETY: standalone — mocks NS, spec_kit, and shared modules; no game API calls.
+-- SAFETY: standalone â mocks NS, spec_kit, and shared modules; no game API calls.
 
 local _pass, _fail = 0, 0
 local function assert_true(cond, msg)
@@ -86,6 +86,7 @@ local _setting = function(context, key, default)
     return default
 end
 local mock_spec_kit = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     define_action_for_class = function(SPELLS)
         return function(field, rank_ids, label)
             if SPELLS and SPELLS[field] then return SPELLS[field] end
@@ -152,7 +153,7 @@ for i = 1, math.min(#strategies, #expected_order) do
         string.format("priority[%d] = %s (expected %s)", i, strategies[i].name or "?", expected_order[i]))
 end
 
--- DSL position checks — verify the 6 DSL-converted strategies are at expected indices
+-- DSL position checks â verify the 6 DSL-converted strategies are at expected indices
 local dsl_indices = {}
 for i = 1, #strategies do dsl_indices[strategies[i].name] = i end
 assert_true(dsl_indices["ShamanisticRage"] == 18, "ShamanisticRage at index 18")

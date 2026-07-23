@@ -1,8 +1,8 @@
--- test_elemental_wotlk_dsl_priority.lua — WotLK Elemental DSL priority order validation.
+-- test_elemental_wotlk_dsl_priority.lua Â— WotLK Elemental DSL priority order validation.
 -- WHAT:  Asserts the declarative DSL strategies appear in the correct priority order
 --        and that key match/no-match gates behave correctly under mocked combat state.
 -- WHEN:  Runs as part of the WotLK rotation test suite.
--- WHY:   Regression guard for the WotLK DSL adoption — ensures declarative conditions
+-- WHY:   Regression guard for the WotLK DSL adoption Â— ensures declarative conditions
 --        produce the same behavior as the original imperative match functions.
 -- SAFETY: Uses synthetic context/state; no live game data required.
 
@@ -30,6 +30,7 @@ local mock_ns = {
 _G.EaxRotations = mock_ns
 
 local _mock_spec_kit = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     define_action_for_class = function(spells)
         return function(name, ids, label)
             local id = type(ids) == "table" and ids[1] or ids

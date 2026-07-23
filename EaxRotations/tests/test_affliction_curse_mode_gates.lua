@@ -82,7 +82,7 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
-local function make_context(mode, group, playstyle, enemy_count, assigned, physical_dps_count)
+local function make_context(mode, group, playstyle, enemy_count, assigned, physical_dps_count, group_aware)
     return {
         target = {},
         has_valid_enemy_target = true,
@@ -92,7 +92,7 @@ local function make_context(mode, group, playstyle, enemy_count, assigned, physi
         physical_dps_count = physical_dps_count or 0,
         ttd_known = true,
         ttd = 120,
-        settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none", warlock_curse_reck_threshold = 2, dot_ttd_threshold = 50 },
+        settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none", warlock_curse_reck_threshold = 2, warlock_curse_group_aware = group_aware ~= false, dot_ttd_threshold = 50 },
     }
 end
 

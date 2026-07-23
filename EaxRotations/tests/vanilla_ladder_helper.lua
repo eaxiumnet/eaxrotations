@@ -259,6 +259,7 @@ function M.setup(opts)
     _G.EaxRotations = NS
 
     package.loaded["shared/spec_kit_sylvanas"] = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
         setting = function(ctx, key, d)
             if ctx and ctx.settings and ctx.settings[key] ~= nil then return ctx.settings[key] end
             return d

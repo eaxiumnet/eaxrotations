@@ -754,6 +754,13 @@ local DSL_DEFS = {
                 if NS.has_form and NS.has_form("cat") then return false end
                 if context.stance == STANCE_CAT then return false end
                 if _last_form_shift_time > 0 and (get_now() - _last_form_shift_time) < FORM_SWITCH_COOLDOWN then return false end
+                -- Avoid shifting OOC with no target or at a distant target (prevents no-target form spam)
+                if not context.in_combat then
+                    if not spec_kit.setting_bool(context, "cat_auto_cat_form", true) then return false end
+                    if not state.target then return false end
+                    local max_range = spec_kit.setting_number(context, "cat_form_target_range", 30)
+                    if (state.target_range or 99) > max_range then return false end
+                end
                 -- Respect travel form for movement: if we're in travel form, OOC,
                 -- moving toward a distant target, stay in travel form until closer.
                 if not context.in_combat and context.is_moving and (context.target_range or 0) >= TRAVEL_FORM_RANGE then
@@ -795,7 +802,7 @@ end
 local function pounce_matches(context, action)
     local state = build_state(context)
     if not state.is_stealthed then return false end
-    if not state.is_pvp and not state.is_player_target then return false end
+    if state.in_combat then return false end
     if state.energy < POUNCE_COST then return false end
     return true
 end
@@ -843,6 +850,7 @@ end
 local function faerie_fire_matches(context, action)
     local state = build_state(context)
     if not state.target then return false end
+    if state.is_stealthed then return false end
     if state.faerie_fire_remains > FAERIE_FIRE_REFRESH then return false end
     if leveling_helpers.is_low_level(state.level) then return true end
     -- Use on players or long living targets even if armor check fails (for level 42+)
@@ -957,9 +965,6 @@ local function bite_matches(context, action)
     if leveling_helpers.is_low_level(state.level) then required_cp = math.min(required_cp, 4) end
     if state.combo_points < required_cp then return false end
     if state.rip_remains <= RIP_REFRESH_WINDOW and target_lives(state, MIN_RIP_TTD) then return false end
-    -- TTD awareness: prefer Ferocious Bite when target dying soon (instant > DoT)
-    local short_ttd = state.target_ttd > 0 and state.target_ttd < 6
-    if not state.should_execute and not short_ttd and state.target_ttd_known and state.target_ttd > SHORT_TTD then return false end
     if should_wait_for_tick(state, BITE_COST) then return false end
     return true
 end

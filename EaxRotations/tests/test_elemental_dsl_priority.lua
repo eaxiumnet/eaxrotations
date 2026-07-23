@@ -1,10 +1,10 @@
--- test_elemental_dsl_priority.lua — Shaman Elemental DSL priority + equivalence test.
+-- test_elemental_dsl_priority.lua â Shaman Elemental DSL priority + equivalence test.
 -- WHAT:  verifies full strategy priority order, DSL position checks, and condition
 --        equivalence for 7 DSL-converted strategies (WaterShield, GhostWolf,
 --        EarthbindTotem, ManaTideTotem, FlameShock, ElementalMastery, ChainLightning).
 -- WHEN:  runs as part of the rotation test suite.
 -- WHY:   regression guard for the 16th DSL adopter (elemental shaman).
--- SAFETY: standalone — mocks NS, spec_kit, and shared modules; no game API calls.
+-- SAFETY: standalone â mocks NS, spec_kit, and shared modules; no game API calls.
 
 local _pass, _fail = 0, 0
 local function assert_true(cond, msg)
@@ -76,6 +76,7 @@ local _setting = function(context, key, default)
     return default
 end
 local mock_spec_kit = {
+    merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     define_action_for_class = function(SPELLS)
         return function(field, rank_ids, label)
             if SPELLS and SPELLS[field] then return SPELLS[field] end
