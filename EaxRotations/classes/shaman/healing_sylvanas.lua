@@ -415,7 +415,8 @@ local function chain_heal_matches(context, state)
     local target = state.lowest
     if not target or not target.unit then return false end
     if (entry_hp(target) or 100) >= CH_HP then return false end
-    if (state.injured_count or 0) < 2 and not context.is_raid then return false end
+    local group_aware = spec_kit.setting_bool(context, "shaman_group_aware_utility", true)
+    if (state.injured_count or 0) < 2 and not (group_aware and context.is_raid) then return false end
     if gate_overheal("ChainHeal", target.unit, 2.5, context.settings) then return false end
     return true
 end
@@ -453,7 +454,8 @@ local function mana_tide_matches(context, state)
     if not context.in_combat then return false end
     if not state.mana_tide_ready then return false end
     if (state.mana_pct or 100) > 35 then return false end
-    if not (context.is_group or context.is_raid) then return false end
+    local group_aware = spec_kit.setting_bool(context, "shaman_group_aware_utility", true)
+    if group_aware and not (context.is_group or context.is_raid) then return false end
     return true
 end
 

@@ -82,7 +82,8 @@ local function caster_context_allowed(context)
     if context.is_pvp == true or context.is_arena == true or context.is_battleground == true then
         return explicit_caster_selected(context)
     end
-    if context.is_raid == true then
+    local raid_aware = spec_kit.setting_bool(context, "druid_caster_raid_aware_utility", true)
+    if raid_aware and context.is_raid == true then
         return explicit_caster_selected(context)
     end
     return true

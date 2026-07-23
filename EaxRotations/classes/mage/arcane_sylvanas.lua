@@ -320,7 +320,8 @@ end
 local function polymorph_matches(context, s)
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.cc_target and NS.DRTracker.is_dr_immune(context.cc_target, "incapacitate") then return false end
     if NS.pvp_trinket_used_recently and NS.pvp_trinket_used_recently(context.cc_target) then return false end
-    if not (context.is_pvp or context.is_group) then return false end
+    local group_aware = spec_kit.setting_bool(context, "mage_group_aware_utility", true)
+    if not (context.is_pvp or (group_aware and context.is_group)) then return false end
     if not context.cc_target then return false end
     if context.is_moving then return false end
     return true
@@ -328,7 +329,8 @@ end
 
 --- Frost Nova: self-peel when target is in melee range
 local function frost_nova_matches(context, s)
-    if not (context.is_pvp or context.is_leveling or context.is_solo or context.is_group) then return false end
+    local group_aware = spec_kit.setting_bool(context, "mage_group_aware_utility", true)
+    if not (context.is_pvp or context.is_leveling or context.is_solo or (group_aware and context.is_group)) then return false end
     if not context.target then return false end
     local me = context.me
     if not me then return false end
@@ -582,13 +584,15 @@ local strategies = {
     { name = "IceBarrier" },  -- DSL-substituted at runtime
     { name = "IceBlock",
       matches = function(context, s)
-          local threshold = s.is_group and 30 or 20
+          local group_aware = spec_kit.setting_bool(context, "mage_group_aware_defensives", true)
+          local threshold = (group_aware and s.is_group) and 30 or 20
           return (s.hp_pct or 100) <= threshold and NS.spell_ready(ACTION.IceBlock)
       end,
       execute = function() return NS.try_cast(ACTION.IceBlock, NS.PLAYER_UNIT, "[ARCANE] IceBlock", { skip_range = true }) end },
     { name = "ColdSnap",
       matches = function(context, s)
-          local threshold = s.is_group and 45 or 35
+          local group_aware = spec_kit.setting_bool(context, "mage_group_aware_defensives", true)
+          local threshold = (group_aware and s.is_group) and 45 or 35
           return (s.hp_pct or 100) <= threshold and not NS.spell_ready(ACTION.IceBlock) and NS.spell_ready(ACTION.ColdSnap)
       end,
       execute = function() return NS.try_cast(ACTION.ColdSnap, NS.PLAYER_UNIT, "[ARCANE] ColdSnap", { skip_range = true }) end },

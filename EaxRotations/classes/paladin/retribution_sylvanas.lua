@@ -540,13 +540,15 @@ local strategies = {}
 
 add_strategy(strategies, "Ret_DivineShield_Emergency", 1000, function(context, state)
     -- Group: preventative at higher HP; solo: emergency only
-    local default_threshold = state.is_group and 25 or 15
+    local group_aware = spec_kit.setting_bool(context, "paladin_group_aware_defensives", true)
+    local default_threshold = (group_aware and state.is_group) and 25 or 15
     local threshold = spec_kit.setting_number(context, "divine_shield_hp", spec_kit.setting_number(context, "retri_ds_hp", default_threshold))
     return (state.hp_pct or 100) <= threshold and not state.has_forbearance and NS.spell_ready(ACTION.DivineShield, PLAYER, { skip_range = true }) or false
 end, function() return cast(ACTION.DivineShield, PLAYER, "[RET] Divine Shield emergency", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_LayOnHands_LastResort", 990, function(context, state)
-    local default_threshold = state.is_group and 15 or 8
+    local group_aware = spec_kit.setting_bool(context, "paladin_group_aware_defensives", true)
+    local default_threshold = (group_aware and state.is_group) and 15 or 8
     local threshold = spec_kit.setting_number(context, "lay_on_hands_hp", default_threshold)
     return (state.hp_pct or 100) <= threshold and NS.spell_ready(ACTION.LayOnHands, PLAYER, { skip_range = true, expected_cooldown = 3600 }) or false
 end, function() return cast(ACTION.LayOnHands, PLAYER, "[RET] Lay on Hands last resort", { skip_range = true, expected_cooldown = 3600 }) end)
@@ -558,13 +560,15 @@ add_strategy(strategies, "Ret_SanctityAura", 550, function(context, state)
 end, function() return cast(ACTION.SanctityAura, PLAYER, "[RET] Sanctity Aura", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_DivineProtection_Physical", 980, function(context, state)
-    local default_threshold = state.is_group and 35 or 22
+    local group_aware = spec_kit.setting_bool(context, "paladin_group_aware_defensives", true)
+    local default_threshold = (group_aware and state.is_group) and 35 or 22
     local threshold = spec_kit.setting_number(context, "divine_protection_hp", default_threshold)
     return (state.hp_pct or 100) <= threshold and not state.has_forbearance and NS.spell_ready(DivineProtection, PLAYER, { skip_range = true }) or false
 end, function() return cast(DivineProtection, PLAYER, "[RET] Divine Protection", { skip_range = true }) end)
 
 add_strategy(strategies, "Ret_HealthstoneOrPotion", 970, function(context, state)
-    local default_threshold = state.is_group and 45 or 35
+    local group_aware = spec_kit.setting_bool(context, "paladin_group_aware_defensives", true)
+    local default_threshold = (group_aware and state.is_group) and 45 or 35
     local threshold = spec_kit.setting_number(context, "healing_item_hp", default_threshold)
     return (state.hp_pct or 100) <= threshold and state.healing_item ~= nil
 end, function(_, state) return use_item(state.healing_item) end)
@@ -892,7 +896,8 @@ local DSL_DEFS = {
         name = "Ret_DivineShield_Emergency",
         conditions = {
             { type = "custom", fn = function(context, state)
-                local default_threshold = (state.is_group and 25) or 15
+                local group_aware = spec_kit.setting_bool(context, "paladin_group_aware_defensives", true)
+                local default_threshold = (group_aware and state.is_group) and 25 or 15
                 local threshold = spec_kit.setting_number(context, "divine_shield_hp", spec_kit.setting_number(context, "retri_ds_hp", default_threshold))
                 return (state.hp_pct or 100) <= threshold
             end },
@@ -905,7 +910,8 @@ local DSL_DEFS = {
         name = "Ret_LayOnHands_LastResort",
         conditions = {
             { type = "custom", fn = function(context, state)
-                local default_threshold = (state.is_group and 15) or 8
+                local group_aware = spec_kit.setting_bool(context, "paladin_group_aware_defensives", true)
+                local default_threshold = (group_aware and state.is_group) and 15 or 8
                 local threshold = spec_kit.setting_number(context, "lay_on_hands_hp", default_threshold)
                 return (state.hp_pct or 100) <= threshold
             end },
@@ -928,7 +934,8 @@ local DSL_DEFS = {
         name = "Ret_HealthstoneOrPotion",
         conditions = {
             { type = "custom", fn = function(context, state)
-                local default_threshold = (state.is_group and 45) or 35
+                local group_aware = spec_kit.setting_bool(context, "paladin_group_aware_defensives", true)
+                local default_threshold = (group_aware and state.is_group) and 45 or 35
                 local threshold = spec_kit.setting_number(context, "healing_item_hp", default_threshold)
                 return (state.hp_pct or 100) <= threshold
             end },

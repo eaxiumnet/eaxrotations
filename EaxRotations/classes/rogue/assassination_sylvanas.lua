@@ -470,7 +470,8 @@ local strategies = {
         name = "KidneyShotCC",
         matches = function(context, state)
             if (state.combo or 0) < 3 then return false end
-            if not (context.is_pvp or context.is_group) then return false end
+            local group_aware = spec_kit.setting_bool(context, "rogue_group_aware_utility", true)
+            if not (context.is_pvp or (group_aware and context.is_group)) then return false end
             -- Don't DR stun if already stunned recently
             if (context.target_dr_stun or false) then return false end
             return NS.spell_ready(ACTION.KidneyShot, context.target)
@@ -619,7 +620,8 @@ local strategies = {
     {
         name = "BlindCC",
         matches = function(context)
-            if not (context.is_pvp or context.is_group) then return false end
+            local group_aware = spec_kit.setting_bool(context, "rogue_group_aware_utility", true)
+            if not (context.is_pvp or (group_aware and context.is_group)) then return false end
             return NS.spell_ready(ACTION.Blind, context.target)
         end,
         execute = function(context)

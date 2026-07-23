@@ -1360,7 +1360,8 @@ local strategies = {
     {
         name = "CC_Fear",
         matches = function(context)
-            if not (context.is_pvp or context.is_group) then return false end
+            local group_aware = spec_kit.setting_bool(context, "warlock_group_aware_utility", true)
+            if not (context.is_pvp or (group_aware and context.is_group)) then return false end
             if not context.target then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.Fear, context.target) or false
         end,
@@ -1371,7 +1372,8 @@ local strategies = {
     {
         name = "CC_HowlOfTerror",
         matches = function(context)
-            if not (context.is_pvp or context.is_group) then return false end
+            local group_aware = spec_kit.setting_bool(context, "warlock_group_aware_utility", true)
+            if not (context.is_pvp or (group_aware and context.is_group)) then return false end
             if not context.melee_on_you then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.HowlOfTerror, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
@@ -1394,7 +1396,8 @@ local strategies = {
     {
         name = "PvP_CurseTongues",
         matches = function(context)
-            if not (context.is_pvp or context.is_group) then return false end
+            local group_aware = spec_kit.setting_bool(context, "warlock_group_aware_utility", true)
+            if not (context.is_pvp or (group_aware and context.is_group)) then return false end
             if not context.target then return false end
             if not context.enemy_caster then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.CurseTongues, context.target) or false
@@ -1445,7 +1448,8 @@ local strategies = {
     {
         name = "ShadowWard",
         matches = function(context)
-            if not (context.is_pvp or context.is_group) then return false end
+            local group_aware = spec_kit.setting_bool(context, "warlock_group_aware_utility", true)
+            if not (context.is_pvp or (group_aware and context.is_group)) then return false end
             if not context.enemy_shadow_caster then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.ShadowWard, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,

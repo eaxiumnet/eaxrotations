@@ -449,7 +449,8 @@ local function fear_matches(context, action, state)
 end
 
 local function shadowfury_matches(context, action, state)
-    if not (context.is_pvp or context.is_group) then return false end
+    local group_aware = spec_kit.setting_bool(context, "warlock_group_aware_utility", true)
+    if not (context.is_pvp or (group_aware and context.is_group)) then return false end
     -- AoE stun: only worth casting with 2+ enemies nearby or in PvP
     if not context.is_pvp and (context.enemy_count or 0) < 2 then return false end
     if not NS.spell_ready(action.spell, NS.PLAYER_UNIT, { skip_range = true }) then return false end

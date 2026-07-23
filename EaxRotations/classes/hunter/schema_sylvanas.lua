@@ -102,6 +102,7 @@ return {
 	                    { key = "use_misdirection", type = "checkbox", label = "Misdirection", default = true },
                     { key = "misdirection_pull_window", type = "slider", label = "Misdirection Window (s)", min = 1, max = 10, default = 6 },
                     { key = "misdirection_on_focus", type = "checkbox", label = "Misdirection on Focus", default = true },
+                    { key = "hunter_group_aware_utility", type = "checkbox", label = "Group-Aware Utility", default = true, tooltip = "Allow group/raid context to enable utility spells such as Wyvern Sting. Disable to ignore group/raid requirements." },
                 },
             },
         },

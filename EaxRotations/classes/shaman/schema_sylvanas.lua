@@ -262,6 +262,7 @@ return {
                             { text = "Water Shield", value = "water" },
                     } },
                     { key = "restoration_earth_shield_charge_threshold", type = "slider", label = "Earth Shield Refresh at Charges ≤", min = 0, max = 5, default = 2 },
+                    { key = "shaman_group_aware_utility", type = "checkbox", label = "Group-Aware Healing Utility", default = true, tooltip = "When enabled, Chain Heal requires 2+ injured (or raid) and Mana Tide Totem requires group/raid. When disabled, Chain Heal always requires 2+ injured and Mana Tide ignores group status." },
                 },
             },
             {

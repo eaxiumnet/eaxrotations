@@ -34,6 +34,7 @@ return {
             {
                 header = "Defensives",
                 settings = {
+                    { key = "mage_group_aware_defensives", type = "checkbox", label = "Group-Aware Defensive Thresholds", default = true, tooltip = "Raise defensive cooldown HP thresholds when in a group or raid. Disable to use solo thresholds everywhere." },
                     { key = "use_defensives", type = "checkbox", label = "Defensives", default = true },
                     { key = "defensive_hp_threshold", type = "slider", label = "Defensive HP", min = 0, max = 100, default = 30 },
                     { key = "use_ice_block", type = "checkbox", label = "Ice Block", default = true },
@@ -62,6 +63,7 @@ return {
                     { key = "auto_conjure_water", type = "checkbox", label = "Conjure Water (OOC)", default = true },
                     { key = "auto_conjure_food", type = "checkbox", label = "Conjure Food (OOC)", default = true },
                     { key = "healthstone_hp", type = "slider", label = "Healthstone / Potion HP", min = 0, max = 100, default = 0, tooltip = "Use healthstone or healing potion when HP drops below this threshold (0 = disabled)" },
+                    { key = "mage_group_aware_utility", type = "checkbox", label = "Group-Aware Utility", default = true, tooltip = "Allow group/raid context to enable utility spells such as Polymorph and Frost Nova. Disable to ignore group/raid requirements." },
                 },
             },
         },

@@ -47,6 +47,7 @@ return {
                     { key = "offensive_dispel_mana_floor", type = "slider", label = "Offensive Dispel Mana Floor", min = 10, max = 60, default = 30 },
                     { key = "use_mass_dispel", type = "checkbox", label = "Mass Dispel", default = false, tooltip = "AoE dispel all friendlies within 15yd; 100 mana cost, no CD" },
                     { key = "mass_dispel_mana_floor", type = "slider", label = "Mass Dispel Mana Floor", min = 10, max = 80, default = 50 },
+                    { key = "priest_group_aware_utility", type = "checkbox", label = "Group-Aware Utility", default = true, tooltip = "When enabled, group-only utility (Fade, Symbol of Hope, Mass Dispel, Fear Ward, Dispel Magic) requires group/raid context. Disable to allow these regardless of group status." },
                     { key = "use_mana_burn", type = "checkbox", label = "Mana Burn", default = true, tooltip = "Burn enemy mana (caster classes, healers) to deny casts" },
                     { key = "mana_burn_mana_floor", type = "slider", label = "Mana Burn Mana Floor", min = 10, max = 60, default = 40 },
                 },

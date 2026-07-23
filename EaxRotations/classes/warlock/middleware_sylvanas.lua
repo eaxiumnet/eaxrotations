@@ -172,7 +172,6 @@ local strategies = {
         matches = function(context)
             if spec_kit.setting_bool(context, "use_devour_magic_friendly", false) == false then return false end
             if not context.in_combat then return false end
-            if not context.is_group then return false end
             if not (NS.is_spell_learned and NS.is_spell_learned(19505)) then return false end
             if not (NS.spell_ready and NS.spell_ready(19505)) then return false end
             local M = NS.DispelManager

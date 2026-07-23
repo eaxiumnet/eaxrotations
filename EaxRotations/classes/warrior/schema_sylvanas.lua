@@ -29,6 +29,7 @@ return {
                     { key = "use_pvp_defensives", type = "checkbox", label = "PvP Defensives", default = true },
                     { key = "use_defensives", type = "checkbox", label = "Defensives (auto-use)", default = true },
                     { key = "defensive_hp_threshold", type = "slider", label = "Defensive HP%", min = 0, max = 100, default = 30, description = "HP threshold to trigger defensive cooldowns" },
+                    { key = "warrior_group_aware_defensives", type = "checkbox", label = "Group-Aware Defensive Thresholds", default = true, tooltip = "Raise defensive cooldown HP thresholds when in a group or raid. Disable to use solo thresholds everywhere." },
                     { key = "use_last_stand", type = "checkbox", label = "Last Stand", default = true },
                     { key = "use_shield_wall", type = "checkbox", label = "Shield Wall", default = true },
                     { key = "use_self_buffs", type = "checkbox", label = "Self Buffs", default = true },

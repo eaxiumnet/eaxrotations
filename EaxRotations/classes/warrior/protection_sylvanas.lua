@@ -612,9 +612,9 @@ end
 
 local function shield_wall_matches_fn(context, state)
  if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShieldWall, 3.0) then return false end
- if spec_kit.setting_bool(context, "use_shield_wall", true) == false then return false end
- local default_threshold = state.is_group and 50 or 35
- local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
+ if spec_kit.setting_bool(context, "use_shield_wall", true) == false then return false end  local group_aware = spec_kit.setting_bool(context, "warrior_group_aware_defensives", true)
+  local default_threshold = (group_aware and state.is_group) and 50 or 35
+  local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
  if (state.hp or 100) > threshold then return false end
  if state.has_shield_wall then return false end
  if NS.should_use_long_cd and not NS.should_use_long_cd(context, SHIELD_WALL_CD) then return false end
@@ -623,9 +623,9 @@ end
 
 local function last_stand_matches_fn(context, state)
  if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LastStand, 3.0) then return false end
- if spec_kit.setting_bool(context, "use_last_stand", true) == false then return false end
- local default_threshold = state.is_group and 50 or 35
- local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
+ if spec_kit.setting_bool(context, "use_last_stand", true) == false then return false end  local group_aware = spec_kit.setting_bool(context, "warrior_group_aware_defensives", true)
+  local default_threshold = (group_aware and state.is_group) and 50 or 35
+  local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
  if (state.hp or 100) > threshold then return false end
  if state.has_last_stand then return false end
  return true
@@ -848,7 +848,8 @@ local DSL_DEFS = {
             { type = "setting", key = "use_last_stand", op = "truthy", default = true },
             { type = "state", field = "has_last_stand", op = "falsy" },
             { type = "custom", fn = function(context, state)
-                local default_threshold = (state.is_group and 50) or 35
+                local group_aware = spec_kit.setting_bool(context, "warrior_group_aware_defensives", true)
+                local default_threshold = (group_aware and state.is_group) and 50 or 35
                 local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
                 return (state.hp or 100) <= threshold
             end },
@@ -864,7 +865,8 @@ local DSL_DEFS = {
             { type = "custom", fn = function(context, state)
                 if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShieldWall, 3.0) then return false end
                 if NS.should_use_long_cd and not NS.should_use_long_cd(context, SHIELD_WALL_CD) then return false end
-                local default_threshold = (state.is_group and 50) or 35
+                local group_aware = spec_kit.setting_bool(context, "warrior_group_aware_defensives", true)
+                local default_threshold = (group_aware and state.is_group) and 50 or 35
                 local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
                 return (state.hp or 100) <= threshold
             end },

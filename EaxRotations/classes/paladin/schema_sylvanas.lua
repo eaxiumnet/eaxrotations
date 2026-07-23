@@ -33,6 +33,7 @@ return {
             {
                 header = "Blessing Refresh",
                 settings = {
+                    { key = "paladin_auto_greater_blessings_in_raid", type = "checkbox", label = "Auto Greater Blessings in Raid", default = true, tooltip = "Automatically use Greater Blessing variants when in a raid and reagents are available." },
                     { key = "holy_refresh_enabled", type = "checkbox", label = "Combat Refresh", default = true, tooltip = "Refresh Wisdom and Kings in combat when duration is low" },
                     { key = "holy_refresh_threshold", type = "slider", label = "Refresh When < (sec)", min = 30, max = 300, default = 120, tooltip = "Refresh blessings when remaining time drops below this" },
                     { key = "holy_refresh_mana", type = "slider", label = "Min Mana %", min = 0, max = 100, default = 30, tooltip = "Only refresh blessings when mana is above this threshold" },
@@ -82,6 +83,8 @@ return {
                     { key = "seal_of_wisdom_mana_pct", type = "slider", label = "Seal of Wisdom Mana", min = 0, max = 100, default = 20 },
                     { key = "use_cc_break", type = "checkbox", label = "CC Break (Divine Shield/Freedom)", default = true, tooltip = "Preemptively Divine Shield or Blessing of Freedom when enemy casts Polymorph/Fear/Repentance at you" },
                     { key = "use_pvp_cc_gating", type = "checkbox", label = "PvP CC Gate (skip AoE near CC)", default = true, tooltip = "Skip Consecration/Holy Wrath when a nearby enemy is Polymorphed/Repentance/etc." },
+                    { key = "paladin_group_aware_defensives", type = "checkbox", label = "Group-Aware Defensive Thresholds", default = true, tooltip = "Raise defensive cooldown HP thresholds when in a group or raid. Disable to use solo thresholds everywhere." },
+                    { key = "paladin_group_aware_utility", type = "checkbox", label = "Group-Aware Utility", default = true, tooltip = "Allow group/raid context to enable utility spells such as Cleanse Party. Disable to ignore group/raid requirements." },
                     { key = "use_cleanse", type = "checkbox", label = "Cleanse", default = true },
                     { key = "use_hammer_of_justice", type = "checkbox", label = "Hammer of Justice", default = true },
                     { key = "combat_kings_refresh_mana", type = "slider", label = "Kings Refresh Min Mana", min = 0, max = 100, default = 30 },

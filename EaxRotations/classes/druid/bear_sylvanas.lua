@@ -382,10 +382,11 @@ local function build_state(context)
     state.aoe_threshold     = spec_kit.setting_number(context, "bear_aoe_threshold",
                                    spec_kit.setting_number(context, "aoe_threshold", 3))
     state.maul_rage         = spec_kit.setting_number(context, "bear_maul_rage", 30)
+    local group_aware = spec_kit.setting_bool(context, "druid_group_aware_defensives", true)
     state.barkskin_hp       = spec_kit.setting_number(context, "bear_barkskin_hp",
-                                   is_group and 70 or 55)
+                                   (group_aware and is_group) and 70 or 55)
     state.frenzied_regen_hp = spec_kit.setting_number(context, "bear_frenzied_regen_hp",
-                                   is_group and 50 or 35)
+                                   (group_aware and is_group) and 50 or 35)
     state.use_barkskin        = spec_kit.setting_bool(context, "bear_use_barkskin", false)
     state.use_challenging_roar= spec_kit.setting_bool(context, "bear_use_challenging_roar", false)
     state.demo_roar_enabled = spec_kit.setting_bool(context, "bear_demo_roar", true)
