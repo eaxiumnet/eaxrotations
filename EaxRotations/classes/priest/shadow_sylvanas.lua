@@ -63,6 +63,8 @@ local _tracker_ok, ActiveFightTracker = pcall(require, "shared/active_fight_trac
 if not _tracker_ok or type(ActiveFightTracker) ~= "table" then ActiveFightTracker = nil end
 local _ts_ok, TSHelper = pcall(require, "shared/ts_helper_sylvanas")
 if not _ts_ok or type(TSHelper) ~= "table" then TSHelper = nil end
+local _izi_ok, _izi = pcall(require, "common/izi_sdk")
+if not _izi_ok or type(_izi) ~= "table" then _izi = nil end
 local _last_shadow_cc_scan = 0
 local _last_multidot_scan = 0
 local _cached_dotted_swp = 0
@@ -190,7 +192,7 @@ end
 -- Used so SW:P/VT spread/cleave strategies actually hit a missing target instead
 -- of recasting on context.target (which already has the DoT).
 -- Priority: TSHelper.get_dps_targets (target_selector) → ActiveFightTracker
--- (engagement-aware, GUID model, setting-gated) → legacy GetEnemiesInRange.
+-- (engagement-aware, GUID model, setting-gated) → legacy GetEnemiesInRange → IZI enemies().
 local function _find_multidot_target(context, debuff_ids, range)
     local current = context and context.target
     local function is_valid_target(enemy)
@@ -236,9 +238,25 @@ local function _find_multidot_target(context, debuff_ids, range)
     end
 
     -- 3) Legacy fallback (raw GetEnemiesInRange path)
-    if not context or not NS.GetEnemiesInRange then return nil end
-    range = range or spec_kit.setting_number(context, "shadow_multidot_range", 30)
-    return pick_undotted(NS.GetEnemiesInRange(range))
+    if not context or not NS.GetEnemiesInRange then
+        -- Skip to IZI fallback if GetEnemiesInRange unavailable
+    else
+        range = range or spec_kit.setting_number(context, "shadow_multidot_range", 30)
+        local t = pick_undotted(NS.GetEnemiesInRange(range))
+        if t then return t end
+    end
+
+    -- 4) IZI SDK enemies() fallback (always available at runtime)
+    if _izi and _izi.enemies then
+        range = range or 30
+        local ok_e, enemies = pcall(_izi.enemies, range)
+        if ok_e and type(enemies) == "table" then
+            local t = pick_undotted(enemies)
+            if t then return t end
+        end
+    end
+
+    return nil
 end
 
 -- ============================================================================

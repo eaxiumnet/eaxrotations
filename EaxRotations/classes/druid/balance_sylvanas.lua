@@ -27,6 +27,8 @@ local _find_dead_helper = _fnd_mod and _fnd_mod.find_dead_party_ally or nil
 local _find_dead = NS.find_dead_party_ally or _find_dead_helper
 local _ts_ok, TSHelper = pcall(require, "shared/ts_helper_sylvanas")
 if not _ts_ok or type(TSHelper) ~= "table" then TSHelper = nil end
+local _izi_ok, _izi = pcall(require, "common/izi_sdk")
+if not _izi_ok or type(_izi) ~= "table" then _izi = nil end
 
 local _INSECT_DEBUFF = { 27013, 24977, 24976, 24975, 24974, 5570 }
 local _MOONFIRE_DEBUFF = { 26988, 26987, 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }
@@ -86,7 +88,7 @@ local function _is_valid_enemy(unit)
     return true
 end
 
---- Collect enemy list for multi-DoT: prefer TSHelper.get_dps_targets, fall back to GetEnemiesInRange.
+--- Collect enemy list for multi-DoT: prefer TSHelper.get_dps_targets, fall back to GetEnemiesInRange, then IZI.
 ---@param range number|nil
 ---@return table enemies
 local function _multidot_enemy_list(range)
@@ -98,6 +100,11 @@ local function _multidot_enemy_list(range)
     end
     if NS.GetEnemiesInRange then
         local ok, result = pcall(NS.GetEnemiesInRange, range or 30)
+        if ok and type(result) == "table" and #result > 0 then return result end
+    end
+    -- IZI enemies() fallback (always available at runtime)
+    if _izi and _izi.enemies then
+        local ok, result = pcall(_izi.enemies, range or 30)
         if ok and type(result) == "table" then return result end
     end
     return {}

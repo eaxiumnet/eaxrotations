@@ -212,20 +212,28 @@ local function find_dot_target(spell_id, radius)
         end
     end
 
-    -- Fallback: IZI spread_dot when TSHelper unavailable or no valid target
-    if not result and _izi then
-        local ok, target = pcall(_izi.spread_dot, spell_id, radius or 40, 1, false, function(unit)
-            if not unit then return false end
-            -- Skip CC'd targets (don't break Polymorph/Sap/Banish/etc.)
-            if is_cc_target(unit) then return false end
-            -- Skip unengaged patrols (don't pull new mobs)
-            if me and not is_engaged(unit, me) then return false end
-            -- Skip dying adds (don't waste GCD on < 20% HP targets)
-            local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
-            if ok_hp and hp and hp < 20 then return false end
-            return true
-        end)
-        result = (ok and target) or nil
+    -- Fallback: IZI enemies() when TSHelper unavailable or no valid target
+    if not result and _izi and _izi.enemies then
+        local ok_e, enemies = pcall(_izi.enemies, radius or 40)
+        if ok_e and type(enemies) == "table" then
+            for i = 1, #enemies do
+                local unit = enemies[i]
+                if unit then
+                    if not is_cc_target(unit)
+                        and (not me or is_engaged(unit, me))
+                    then
+                        local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
+                        if not (ok_hp and hp and hp < 20) then
+                            local has_dot = NS.debuff_up and NS.debuff_up(unit, { spell_id })
+                            if not has_dot then
+                                result = unit
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
     end
 
     _dot_target_cache[spell_id] = result or false  -- cache nil as false
@@ -820,11 +828,10 @@ local strategies = {
             return ok
         end,
     },
-    -- Corruption Spread — multi-DoT via IZI spread_dot
+    -- Corruption Spread — multi-DoT via find_dot_target (TSHelper + IZI enemies fallback)
     {
         name = "CorruptionSpread",
         matches = function(context, state)
-            if not _izi then return false end
             -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
             -- Inverted from previous to match intended multi-dot behavior.
             if (state.corruption_remains or 0) <= DOT_REFRESH_WINDOW then return false end
@@ -881,11 +888,10 @@ local strategies = {
             return ok
         end,
     },
-    -- Unstable Affliction Spread — multi-DoT via IZI spread_dot (v2.5.1)
+    -- Unstable Affliction Spread — multi-DoT (TSHelper + IZI enemies fallback)
     {
         name = "UnstableAfflictionSpread",
         matches = function(context, state)
-            if not _izi then return false end
             -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
             -- Inverted from previous to match intended multi-dot behavior.
             if (state.ua_remains or 0) <= DOT_REFRESH_WINDOW then return false end
@@ -925,11 +931,10 @@ local strategies = {
             return ok
         end,
     },
-    -- Siphon Life Spread — multi-DoT via IZI spread_dot
+    -- Siphon Life Spread — multi-DoT (TSHelper + IZI enemies fallback)
     {
         name = "SiphonLifeSpread",
         matches = function(context, state)
-            if not _izi then return false end
             -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
             -- Inverted from previous to match intended multi-dot behavior.
             if (state.siphon_remains or 0) <= DOT_REFRESH_WINDOW then return false end
@@ -969,11 +974,10 @@ local strategies = {
             return ok
         end,
     },
-    -- Immolate Spread — multi-DoT via IZI spread_dot (v2.5.1)
+    -- Immolate Spread — multi-DoT (TSHelper + IZI enemies fallback)
     {
         name = "ImmolateSpread",
         matches = function(context, state)
-            if not _izi then return false end
             -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
             -- Inverted from previous to match intended multi-dot behavior.
             if (state.immolate_remains or 0) <= DOT_REFRESH_WINDOW then return false end
@@ -1108,11 +1112,10 @@ local strategies = {
             return NS.try_cast(ACTION.CurseOfAgony, context.target, "[AFFL] Curse of Agony")
         end,
     },
-    -- Curse of Agony Spread — multi-DoT via IZI spread_dot
+    -- Curse of Agony Spread — multi-DoT (TSHelper + IZI enemies fallback)
     {
         name = "CurseOfAgonySpread",
         matches = function(context, state)
-            if not _izi then return false end
             if assigned_curse_blocks(context, "agony") then return false end
             local curse = select_curse(context, state)
             if curse ~= "agony" then return false end
