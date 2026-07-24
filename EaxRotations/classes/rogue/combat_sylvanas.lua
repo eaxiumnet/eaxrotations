@@ -340,6 +340,25 @@ end
 -- ============================================================================
 -- Match functions
 -- ============================================================================
+local function kick_matches(context, s)
+    -- Route through InterruptManager for cast-window detection + humanization
+    -- (mirrors subtlety_sylvanas.lua). Falls back to the state-computed
+    -- interruptible flag when the manager is unavailable.
+    if not spec_kit.setting_bool(context, "use_interrupt", true) then return false end
+    if not s.in_combat then return false end
+    if not context.target then return false end
+    if not s.kick_ready then return false end
+    local mgr = NS.InterruptManager
+    if mgr then
+        if not (NS.try_interrupt and NS.try_interrupt(context.target)) then return false end
+        if not mgr.cast_has_interrupt_window(context.target, context.settings or {}) then return false end
+        if not mgr.humanize_interrupt_elapsed(context.target, context.settings or {}) then return false end
+    else
+        if not s.target_casting_interruptible then return false end
+    end
+    return true
+end
+
 local function stealth_matches(context, s)
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Stealth, 3.0) then return false end
     if s.in_combat then return false end
@@ -647,6 +666,9 @@ local strategies = {
           return true
       end,
       execute = function(context) return potion_helper.try_use_potion(context, potion_helper.DAMAGE_POTION_IDS) end },
+    -- Interrupt (reactive, high priority — beats DPS filler). InterruptManager
+    -- provides cast-window detection + humanization; state gates readiness.
+    { name = "Kick", matches = kick_matches, execute = function(context) return NS.try_cast(ACTION.Kick, context.target, "[COMBAT] Kick interrupt") end },
     { name = "Stealth", matches = stealth_matches, execute = function(context) return Stealth.try(context) end },
     { name = "CheapShot", matches = cheap_shot_matches, execute = function(context) return NS.try_cast(ACTION.CheapShot, context.target, "[COMBAT] Cheap Shot") end },
     { name = "Garrote", matches = garrote_matches, execute = function(context) return NS.try_cast(ACTION.Garrote, context.target, "[COMBAT] Garrote") end },
