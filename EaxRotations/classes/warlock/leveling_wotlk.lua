@@ -2,7 +2,7 @@
 -- WHAT:  priority-list strategies for warlock leveling in WotLK.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   simple dot/drain/nuke rotation using core leveling abilities.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -14,6 +14,7 @@ do
 end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local helpers = require("shared/leveling_helpers_sylvanas")
 local pet_manager = require("shared/pet_manager_sylvanas")
 local SPELLS = NS.WarlockSpells or {}
@@ -96,128 +97,247 @@ local function build_state(context)
     return state
 end
 
-local function summon_pet_matches(context, state)
+local DSL_DEFS = {
+    -- Spell Lock (Felhunter) is an interrupt: only fire when the target is actually casting.
+    {
+        name = "SpellLock",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_casting", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 5 },
+        },
+        action = { type = "cast", spell = ACTION.SpellLock, target = "target" },
+    },
     -- Keep a demon out: resummon out of combat when the pet is missing or dead.
     -- 10s cast time makes in-combat summoning impractical for leveling.
-    return not state.in_combat and (not state.has_pet or not state.pet_alive) and state.mana_pct >= 60
-end
-
-local function create_soulstone_matches(context, state)
+    -- Prefer Felhunter (Spell Lock interrupt), fall back to Voidwalker (tank), then Imp (no shard).
+    {
+        name = "SummonPet",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "OR", conditions = {
+                { type = "state", field = "has_pet", op = "falsy" },
+                { type = "state", field = "pet_alive", op = "falsy" },
+            } },
+            { type = "state", field = "mana_pct", op = ">=", value = 60 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            if NS.try_cast(ACTION.SummonFelhunter, nil, "SummonFelhunter") == true then return true end
+            if NS.try_cast(ACTION.SummonVoidwalker, nil, "SummonVoidwalker") == true then return true end
+            return NS.try_cast(ACTION.SummonImp, nil, "SummonImp") == true
+        end },
+    },
     -- Stock a Soulstone out of combat for self-res insurance while leveling.
-    return not state.in_combat
-end
-
-local function spell_lock_matches(context, state)
-    -- Spell Lock (Felhunter) is an interrupt: only fire when the target is actually casting.
-    return state.in_combat and state.target_casting == true and state.mana_pct >= 5
-end
-
-local function create_healthstone_matches(context, state)
-    return not state.in_combat
-end
-
-local function fel_armor_matches(context, state)
-    return not state.in_combat and not state.fel_armor_up and not state.demon_armor_up
-end
-
-local function haunt_matches(context, state)
-    return state.in_combat and state.haunt_remains < 3 and state.mana_pct >= 10
-end
-
-local function unstable_affliction_matches(context, state)
-    return state.in_combat and state.unstable_remains < 3 and state.mana_pct >= 10
-end
-
-local function corruption_matches(context, state)
-    return state.in_combat and state.corruption_remains < 3 and state.mana_pct >= 10
-end
-
-local function immolate_matches(context, state)
-    return state.in_combat and state.immolate_remains < 3 and state.mana_pct >= 15
-end
-
-local function curse_of_agony_matches(context, state)
-    return state.in_combat and state.curse_remains < 3 and state.mana_pct >= 10
-end
-
-local function conflagrate_matches(context, state)
-    return state.in_combat and state.immolate_remains > 3 and state.mana_pct >= 15
-end
-
-local function drain_soul_matches(context, state)
-    return state.in_combat and state.target_hp < 25
-end
-
-local function drain_life_matches(context, state)
-    return state.in_combat and state.hp < 60 and state.mana_pct >= 15
-end
-
-local function life_tap_matches(context, state)
-    return state.in_combat and state.mana_pct < 30 and state.hp > 40
-end
-
-local function chaos_bolt_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function incinerate_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function shadow_bolt_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function seed_of_corruption_matches(context, state)
-    return state.in_combat and state.mana_pct >= 34
-        and NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_15) or 15, context and context.target, context)
-end
-
-local function rain_of_fire_matches(context, state)
-    return state.in_combat and state.mana_pct >= 57
-        and NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context and context.target, context, state)
-end
-
-local function shoot_wand_matches(context, state)
+    {
+        name = "CreateSoulstone",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.CreateSoulstone, target = "self" },
+    },
+    {
+        name = "CreateHealthstone",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.CreateHealthstone, target = "self" },
+    },
+    {
+        name = "FelArmor",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "fel_armor_up", op = "falsy" },
+            { type = "state", field = "demon_armor_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.FelArmor, target = "self" },
+    },
+    {
+        name = "Haunt",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "haunt_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Haunt, target = "target" },
+    },
+    {
+        name = "SeedOfCorruption",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 34 },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_target_meets then return false end
+                local radius = (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_15) or 15
+                return NS.aoe_target_meets(3, radius, context and context.target, context) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.SeedOfCorruption, target = "target" },
+    },
+    {
+        name = "RainOfFire",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 57 },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_target_meets then return false end
+                local radius = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+                return NS.aoe_target_meets(3, radius, context and context.target, context, state) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.RainOfFire, target = "target" },
+    },
+    {
+        name = "UnstableAffliction",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "unstable_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.UnstableAffliction, target = "target" },
+    },
+    {
+        name = "Corruption",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "corruption_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Corruption, target = "target" },
+    },
+    {
+        name = "Immolate",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "immolate_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Immolate, target = "target" },
+    },
+    {
+        name = "CurseOfAgony",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "curse_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.CurseOfAgony, target = "target" },
+    },
+    {
+        name = "Conflagrate",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "immolate_remains", op = ">", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Conflagrate, target = "target" },
+    },
+    {
+        name = "DrainSoul",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_hp", op = "<", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.DrainSoul, target = "target" },
+    },
+    {
+        name = "DrainLife",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 60 },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.DrainLife, target = "target" },
+    },
+    {
+        name = "LifeTap",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 30 },
+            { type = "state", field = "hp", op = ">", value = 40 },
+        },
+        action = { type = "cast", spell = ACTION.LifeTap, target = "self" },
+    },
+    {
+        name = "ChaosBolt",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.ChaosBolt, target = "target" },
+    },
+    {
+        name = "Incinerate",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Incinerate, target = "target" },
+    },
+    {
+        name = "ShadowBolt",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.ShadowBolt, target = "target" },
+    },
+    {
+        name = "SoulFire",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.SoulFire, target = "target" },
+    },
     -- OOM fallback: wand when too low to cast and Life Tap would be unsafe.
-    return state.in_combat and state.mana_pct < 10
-end
-
-local function soul_fire_matches(context, state)
-    return state.in_combat and state.mana_pct >= 30
-end
-
-local strategies = {
-    { name = "SpellLock", matches = spell_lock_matches, execute = function(ctx) return ACTION.SpellLock and ACTION.SpellLock:cast_safe(ctx.target) end },
-    { name = "SummonPet", matches = summon_pet_matches, execute = function(ctx)
-        -- Prefer Felhunter (Spell Lock interrupt), fall back to Voidwalker (tank), then Imp (no shard).
-        if ACTION.SummonFelhunter and ACTION.SummonFelhunter:cast_safe() then return true end
-        if ACTION.SummonVoidwalker and ACTION.SummonVoidwalker:cast_safe() then return true end
-        return ACTION.SummonImp and ACTION.SummonImp:cast_safe()
-    end },
-    { name = "CreateSoulstone", matches = create_soulstone_matches, execute = function(ctx) return ACTION.CreateSoulstone and ACTION.CreateSoulstone:cast_safe() end },
-    { name = "CreateHealthstone", matches = create_healthstone_matches, execute = function(ctx) return ACTION.CreateHealthstone and ACTION.CreateHealthstone:cast_safe() end },
-    { name = "FelArmor", matches = fel_armor_matches, execute = function(ctx) return ACTION.FelArmor and ACTION.FelArmor:cast_safe() end },
-    { name = "Haunt", matches = haunt_matches, execute = function(ctx) return ACTION.Haunt and ACTION.Haunt:cast_safe(ctx.target) end },
-    { name = "SeedOfCorruption", matches = seed_of_corruption_matches, execute = function(ctx) return ACTION.SeedOfCorruption and ACTION.SeedOfCorruption:cast_safe(ctx.target) end },
-    { name = "RainOfFire", matches = rain_of_fire_matches, execute = function(ctx) return ACTION.RainOfFire and ACTION.RainOfFire:cast_safe(ctx.target) end },
-    { name = "UnstableAffliction", matches = unstable_affliction_matches, execute = function(ctx) return ACTION.UnstableAffliction and ACTION.UnstableAffliction:cast_safe(ctx.target) end },
-    { name = "Corruption", matches = corruption_matches, execute = function(ctx) return ACTION.Corruption and ACTION.Corruption:cast_safe(ctx.target) end },
-    { name = "Immolate", matches = immolate_matches, execute = function(ctx) return ACTION.Immolate and ACTION.Immolate:cast_safe(ctx.target) end },
-    { name = "CurseOfAgony", matches = curse_of_agony_matches, execute = function(ctx) return ACTION.CurseOfAgony and ACTION.CurseOfAgony:cast_safe(ctx.target) end },
-    { name = "Conflagrate", matches = conflagrate_matches, execute = function(ctx) return ACTION.Conflagrate and ACTION.Conflagrate:cast_safe(ctx.target) end },
-    { name = "DrainSoul", matches = drain_soul_matches, execute = function(ctx) return ACTION.DrainSoul and ACTION.DrainSoul:cast_safe(ctx.target) end },
-    { name = "DrainLife", matches = drain_life_matches, execute = function(ctx) return ACTION.DrainLife and ACTION.DrainLife:cast_safe(ctx.target) end },
-    { name = "LifeTap", matches = life_tap_matches, execute = function(ctx) return ACTION.LifeTap and ACTION.LifeTap:cast_safe() end },
-    { name = "ChaosBolt", matches = chaos_bolt_matches, execute = function(ctx) return ACTION.ChaosBolt and ACTION.ChaosBolt:cast_safe(ctx.target) end },
-    { name = "Incinerate", matches = incinerate_matches, execute = function(ctx) return ACTION.Incinerate and ACTION.Incinerate:cast_safe(ctx.target) end },
-    { name = "ShadowBolt", matches = shadow_bolt_matches, execute = function(ctx) return ACTION.ShadowBolt and ACTION.ShadowBolt:cast_safe(ctx.target) end },
-    { name = "SoulFire", matches = soul_fire_matches, execute = function(ctx) return ACTION.SoulFire and ACTION.SoulFire:cast_safe(ctx.target) end },
-    { name = "Shoot", matches = shoot_wand_matches, execute = function(ctx) return ACTION.Shoot and ACTION.Shoot:cast_safe(ctx.target) end },
+    {
+        name = "Shoot",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Shoot, target = "target" },
+    },
 }
+
+-- Priority order (compiled in place from DSL_DEFS below).
+local strategies = {
+    { name = "SpellLock" },
+    { name = "SummonPet" },
+    { name = "CreateSoulstone" },
+    { name = "CreateHealthstone" },
+    { name = "FelArmor" },
+    { name = "Haunt" },
+    { name = "SeedOfCorruption" },
+    { name = "RainOfFire" },
+    { name = "UnstableAffliction" },
+    { name = "Corruption" },
+    { name = "Immolate" },
+    { name = "CurseOfAgony" },
+    { name = "Conflagrate" },
+    { name = "DrainSoul" },
+    { name = "DrainLife" },
+    { name = "LifeTap" },
+    { name = "ChaosBolt" },
+    { name = "Incinerate" },
+    { name = "ShadowBolt" },
+    { name = "SoulFire" },
+    { name = "Shoot" },
+}
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 end
+
+if NS.log then NS.log("Warlock leveling rotation registered") end
 
 return { strategies = strategies, build_state = build_state }

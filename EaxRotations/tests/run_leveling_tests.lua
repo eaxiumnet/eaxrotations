@@ -29,6 +29,7 @@ local tests = {
     "test_rogue_leveling_wotlk_dsl_priority.lua",
     "test_hunter_leveling_wotlk_dsl_priority.lua",
     "test_priest_leveling_wotlk_dsl_priority.lua",
+    "test_warlock_leveling_wotlk_dsl_priority.lua",
     "test_vanilla_leveling_ladders.lua",
     "test_tbc_leveling_ladders.lua",
     "test_wotlk_leveling_ladders.lua",
