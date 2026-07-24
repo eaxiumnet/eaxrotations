@@ -39,6 +39,7 @@ local tests = {
     "test_priest_leveling_wotlk_dsl_priority.lua",
     "test_warlock_leveling_wotlk_dsl_priority.lua",
     "test_shaman_leveling_wotlk_dsl_priority.lua",
+    "test_paladin_leveling_wotlk_dsl_priority.lua",
     "test_discipline_wotlk_dsl_priority.lua",
     "test_affliction_wotlk_dsl_priority.lua",
     "test_resto_wotlk_dsl_priority.lua",
