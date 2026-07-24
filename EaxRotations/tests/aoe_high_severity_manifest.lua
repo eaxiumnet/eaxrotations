@@ -88,11 +88,12 @@ return {
     -- ========== DK Blood Boil (self 10yd) ==========
     {
         family = "BloodBoil",
-        needle = "blood_boil",
+        needle = 'name = "BloodBoil"',
         helper = "aoe_self_meets",
         paths = {
             "EaxRotations/classes/deathknight/leveling_wotlk.lua",
         },
+        window = 900,
     },
     -- ========== Warrior Whirlwind (self 8yd) ==========
     {

@@ -2,7 +2,7 @@
 -- WHAT:  priority-list strategies for death knight leveling in WotLK.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   simple disease-first rotation using core leveling abilities.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -14,6 +14,7 @@ do
 end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local helpers = require("shared/leveling_helpers_sylvanas")
 local SPELLS = NS.DeathKnightSpells or {}
 
@@ -81,107 +82,198 @@ local function build_state(context)
     return state
 end
 
-local function mind_freeze_matches(context, state)
-    return state.in_combat and state.target_casting == true
-end
-
-local function blood_presence_matches(context, state)
-    return not state.blood_presence_up
-end
-
-local function horn_of_winter_matches(context, state)
-    return not state.horn_of_winter_up
-end
-
-local function icy_touch_matches(context, state)
-    return state.in_combat and state.frost_fever_remains < 3
-end
-
-local function plague_strike_matches(context, state)
-    return state.in_combat and state.blood_plague_remains < 3
-end
-
-local function death_strike_matches(context, state)
-    return state.in_combat and state.hp < 80
-end
-
-local function obliterate_matches(context, state)
-    return state.in_combat
-end
-
-local function scourge_strike_matches(context, state)
-    return state.in_combat
-end
-
-local function heart_strike_matches(context, state)
-    return state.in_combat
-end
-
-local function howling_blast_matches(context, state)
-    return state.in_combat
-        and NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10, context and context.target, context)
-end
-
-local function blood_strike_matches(context, state)
-    return state.in_combat
-end
-
-local function death_coil_matches(context, state)
-    return state.in_combat and state.runic_power >= 40
-end
-
-local function pestilence_matches(context, state)
-    -- Spread existing diseases to nearby targets when fighting a pack.
-    return state.in_combat and state.diseases_up == true
-        and NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10, context and context.target, context)
-end
-
-local function death_and_decay_matches(context, state)
-    -- Ground-target AoE for larger packs (~10yd Community/WotLK).
-    return state.in_combat
-        and NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_10) or 10, context and context.target, context, state)
-end
-
-local function blood_boil_matches(context, state)
-    -- Instant AoE that also detonates diseases; good for 2+ targets (~10yd self).
-    return state.in_combat
-        and NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)
-end
-
-local function rune_strike_matches(context, state)
-    -- Runic-power dump that hits harder than Death Coil; fire before it.
-    return state.in_combat and state.runic_power >= 30
-end
-
-local function empower_rune_weapon_matches(context, state)
-    if not state.in_combat then return false end
-    if not state.empower_rune_weapon_ready then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 120) then return false end
-    return true
-end
-
-local strategies = {
-    { name = "MindFreeze", matches = mind_freeze_matches, execute = function(ctx) return ACTION.MindFreeze and ACTION.MindFreeze:cast_safe(ctx.target) end },
-    { name = "BloodPresence", matches = blood_presence_matches, execute = function(ctx) return ACTION.BloodPresence and ACTION.BloodPresence:cast_safe() end },
-    { name = "HornOfWinter", matches = horn_of_winter_matches, execute = function(ctx) return ACTION.HornOfWinter and ACTION.HornOfWinter:cast_safe() end },
-    { name = "IcyTouch", matches = icy_touch_matches, execute = function(ctx) return ACTION.IcyTouch and ACTION.IcyTouch:cast_safe(ctx.target) end },
-    { name = "PlagueStrike", matches = plague_strike_matches, execute = function(ctx) return ACTION.PlagueStrike and ACTION.PlagueStrike:cast_safe(ctx.target) end },
-    { name = "Pestilence", matches = pestilence_matches, execute = function(ctx) return ACTION.Pestilence and ACTION.Pestilence:cast_safe(ctx.target) end },
-    { name = "DeathAndDecay", matches = death_and_decay_matches, execute = function(ctx) return ACTION.DeathAndDecay and ACTION.DeathAndDecay:cast_safe(ctx.target) end },
-    { name = "BloodBoil", matches = blood_boil_matches, execute = function(ctx) return ACTION.BloodBoil and ACTION.BloodBoil:cast_safe() end },
-    { name = "DeathStrike", matches = death_strike_matches, execute = function(ctx) return ACTION.DeathStrike and ACTION.DeathStrike:cast_safe(ctx.target) end },
-    { name = "Obliterate", matches = obliterate_matches, execute = function(ctx) return ACTION.Obliterate and ACTION.Obliterate:cast_safe(ctx.target) end },
-    { name = "ScourgeStrike", matches = scourge_strike_matches, execute = function(ctx) return ACTION.ScourgeStrike and ACTION.ScourgeStrike:cast_safe(ctx.target) end },
-    { name = "HeartStrike", matches = heart_strike_matches, execute = function(ctx) return ACTION.HeartStrike and ACTION.HeartStrike:cast_safe(ctx.target) end },
-    { name = "HowlingBlast", matches = howling_blast_matches, execute = function(ctx) return ACTION.HowlingBlast and ACTION.HowlingBlast:cast_safe(ctx.target) end },
-    { name = "BloodStrike", matches = blood_strike_matches, execute = function(ctx) return ACTION.BloodStrike and ACTION.BloodStrike:cast_safe(ctx.target) end },
-    { name = "RuneStrike", matches = rune_strike_matches, execute = function(ctx) return ACTION.RuneStrike and ACTION.RuneStrike:cast_safe(ctx.target) end },
-    { name = "DeathCoil", matches = death_coil_matches, execute = function(ctx) return ACTION.DeathCoil and ACTION.DeathCoil:cast_safe(ctx.target) end },
-    { name = "EmpowerRuneWeapon", matches = empower_rune_weapon_matches, execute = function(ctx) return ACTION.EmpowerRuneWeapon and ACTION.EmpowerRuneWeapon:cast_safe() end },
+local DSL_DEFS = {
+    {
+        name = "MindFreeze",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_casting", op = "==", value = true },
+        },
+        action = { type = "cast", spell = ACTION.MindFreeze, target = "target" },
+    },
+    {
+        name = "BloodPresence",
+        conditions = {
+            { type = "state", field = "blood_presence_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.BloodPresence, target = "self" },
+    },
+    {
+        name = "HornOfWinter",
+        conditions = {
+            { type = "state", field = "horn_of_winter_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.HornOfWinter, target = "self" },
+    },
+    {
+        name = "IcyTouch",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "frost_fever_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.IcyTouch, target = "target" },
+    },
+    {
+        name = "PlagueStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "blood_plague_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.PlagueStrike, target = "target" },
+    },
+    {
+        name = "Pestilence",
+        -- Spread existing diseases to nearby targets when fighting a pack.
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "diseases_up", op = "==", value = true },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_target_meets then return false end
+                local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10
+                return NS.aoe_target_meets(2, r, context and context.target, context) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Pestilence, target = "target" },
+    },
+    {
+        name = "DeathAndDecay",
+        -- Ground-target AoE for larger packs (~10yd Community/WotLK).
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_target_meets then return false end
+                local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_10) or 10
+                return NS.aoe_target_meets(3, r, context and context.target, context, state) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.DeathAndDecay, target = "target" },
+    },
+    {
+        name = "BloodBoil",
+        -- Instant AoE that also detonates diseases; good for 2+ targets (~10yd self).
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_self_meets then return false end
+                local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10
+                return NS.aoe_self_meets(2, r, context, state) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.BloodBoil, target = "self" },
+    },
+    {
+        name = "DeathStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 80 },
+        },
+        action = { type = "cast", spell = ACTION.DeathStrike, target = "target" },
+    },
+    {
+        name = "Obliterate",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Obliterate, target = "target" },
+    },
+    {
+        name = "ScourgeStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.ScourgeStrike, target = "target" },
+    },
+    {
+        name = "HeartStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.HeartStrike, target = "target" },
+    },
+    {
+        name = "HowlingBlast",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_target_meets then return false end
+                local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_10) or 10
+                return NS.aoe_target_meets(2, r, context and context.target, context) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.HowlingBlast, target = "target" },
+    },
+    {
+        name = "BloodStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.BloodStrike, target = "target" },
+    },
+    {
+        name = "RuneStrike",
+        -- Runic-power dump that hits harder than Death Coil; fire before it.
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "runic_power", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.RuneStrike, target = "target" },
+    },
+    {
+        name = "DeathCoil",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "runic_power", op = ">=", value = 40 },
+        },
+        action = { type = "cast", spell = ACTION.DeathCoil, target = "target" },
+    },
+    {
+        name = "EmpowerRuneWeapon",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "empower_rune_weapon_ready", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                if not NS.should_use_long_cd then return true end
+                return NS.should_use_long_cd(context, 120) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.EmpowerRuneWeapon, target = "self" },
+    },
 }
+
+-- Placeholder priority order (compiled in place from DSL_DEFS below).
+local strategies = {
+    { name = "MindFreeze" },
+    { name = "BloodPresence" },
+    { name = "HornOfWinter" },
+    { name = "IcyTouch" },
+    { name = "PlagueStrike" },
+    { name = "Pestilence" },
+    { name = "DeathAndDecay" },
+    { name = "BloodBoil" },
+    { name = "DeathStrike" },
+    { name = "Obliterate" },
+    { name = "ScourgeStrike" },
+    { name = "HeartStrike" },
+    { name = "HowlingBlast" },
+    { name = "BloodStrike" },
+    { name = "RuneStrike" },
+    { name = "DeathCoil" },
+    { name = "EmpowerRuneWeapon" },
+}
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 end
+
+if NS.log then NS.log("Death Knight leveling rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
