@@ -542,9 +542,8 @@ end
 local function can_drop_totem(ctx, spell, slot, buff_ids)
     if not can_manage_totems(ctx) then return false end
     if enh_state.mana_low then return false end
-    -- Don't drop totems while moving or during global cooldown.
+    -- Don't drop totems while moving; NS.spell_ready handles GCD/resource checks below.
     if enh_state.is_moving then return false end
-    if NS.gcd_remains and NS.gcd_remains() > 0 then return false end
     if slot and totem_active(slot) then return false end
     if buff_ids and NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, buff_ids) then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(spell, NS.PLAYER_UNIT, { skip_range = true }) or false

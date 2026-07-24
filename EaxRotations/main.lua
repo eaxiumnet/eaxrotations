@@ -211,6 +211,8 @@ local schema_tabs = {}
 local schema_widgets = {}
 -- [#11] Cache last synced values per widget key to avoid redundant set_setting calls every frame.
 local schema_widget_last_values = {}
+-- Track duplicate schema key warnings so we only log once per key per init.
+local _warned_duplicate_schema_keys = {}
 -- [#5] Section headers created once per schema tab/section at init time.
 -- Must be declared BEFORE initialize_schema_menu() which populates it.
 local section_headers = {}
@@ -486,7 +488,8 @@ local function initialize_schema_menu()
                 local existing = def and def.key and schema_widgets[def.key]
                 if existing then
                     -- Warn once about the duplicate so schema authors notice accidental collisions.
-                    if core and core.log_warning then
+                    if core and core.log_warning and not _warned_duplicate_schema_keys[def.key] then
+                        _warned_duplicate_schema_keys[def.key] = true
                         core.log_warning("[EaxRotations] Duplicate schema key '" .. tostring(def.key) .. "' in " .. tostring(tab.name or "General") .. "/" .. tostring(section.header or "?") .. "; reusing existing control.")
                     end
                     normalized_section.settings[#normalized_section.settings + 1] = existing
