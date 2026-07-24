@@ -19,6 +19,7 @@ local tests = {
     "test_arcane_wotlk_dsl_priority.lua",
     "test_balance_wotlk_dsl_priority.lua",
     "test_bear_wotlk_dsl_priority.lua",
+    "test_cat_wotlk_dsl_priority.lua",
     "test_shadow_wotlk_dsl_priority.lua",
     "test_enhancement_wotlk_dsl_priority.lua",
     "test_unholy_wotlk_dsl_priority.lua",
