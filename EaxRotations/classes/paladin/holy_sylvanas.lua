@@ -912,7 +912,8 @@ local strategies = {
     if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Cleanse, 3.0) then return false end
    if spec_kit.setting_bool(context, "holy_auto_cleanse", true) == false then return false end
    local group_aware = spec_kit.setting_bool(context, "paladin_group_aware_utility", true)
-   if context and (context.control_risk or (group_aware and context.is_group)) and s.cleanse_target then return true end
+   if not (context.control_risk or (group_aware and context.is_group)) then return false end
+   if not s.cleanse_target then return false end
    return can_cast_on(ACTION.Cleanse, s.cleanse_target)
   end,
   execute = function(_, s)

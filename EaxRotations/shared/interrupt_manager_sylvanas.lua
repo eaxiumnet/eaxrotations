@@ -412,7 +412,7 @@ function M.create_interrupt_strategy(spell_entry, target_validator)
         name = "Interrupt",
         matches = function(context, state)
             local settings = context and context.settings or EMPTY
-            if settings.use_interrupts == false then return false end
+            if settings.use_interrupt == false then return false end
             if not (NS and NS.try_interrupt and NS.spell_ready and NS.gcd_remains) then return false end
             if not player_can_act(context) then return false end
             if NS.gcd_remains() > 0 then return false end

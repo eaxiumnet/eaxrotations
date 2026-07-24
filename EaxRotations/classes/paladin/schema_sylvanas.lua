@@ -84,7 +84,7 @@ return {
                     { key = "use_cc_break", type = "checkbox", label = "CC Break (Divine Shield/Freedom)", default = true, tooltip = "Preemptively Divine Shield or Blessing of Freedom when enemy casts Polymorph/Fear/Repentance at you" },
                     { key = "use_pvp_cc_gating", type = "checkbox", label = "PvP CC Gate (skip AoE near CC)", default = true, tooltip = "Skip Consecration/Holy Wrath when a nearby enemy is Polymorphed/Repentance/etc." },
                     { key = "paladin_group_aware_defensives", type = "checkbox", label = "Group-Aware Defensive Thresholds", default = true, tooltip = "Raise defensive cooldown HP thresholds when in a group or raid. Disable to use solo thresholds everywhere." },
-                    { key = "paladin_group_aware_utility", type = "checkbox", label = "Group-Aware Utility", default = true, tooltip = "Allow group/raid context to enable utility spells such as Cleanse Party. Disable to ignore group/raid requirements." },
+                    { key = "paladin_group_aware_utility", type = "checkbox", label = "Group-Aware Utility", default = true, tooltip = "Allow group/raid context to enable utility spells such as Cleanse Party. Disable to block group-only Cleanse Party." },
                     { key = "use_cleanse", type = "checkbox", label = "Cleanse", default = true },
                     { key = "use_hammer_of_justice", type = "checkbox", label = "Hammer of Justice", default = true },
                     { key = "combat_kings_refresh_mana", type = "slider", label = "Kings Refresh Min Mana", min = 0, max = 100, default = 30 },

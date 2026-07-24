@@ -661,6 +661,12 @@ local strategies = {
     { name = "Sprint" },  -- DSL-substituted at runtime
     { name = "Vanish", matches = vanish_matches, execute = function(context) return NS.try_cast(ACTION.Vanish, NS.PLAYER_UNIT, "[COMBAT] Vanish", { skip_range = true }) end },
     { name = "Feint", matches = feint_matches, execute = function(context) return NS.try_cast(ACTION.Feint, NS.PLAYER_UNIT, "[COMBAT] Feint", { skip_range = true }) end },
+    -- Blind is intentionally positioned near the end of the priority list. It is a
+    -- defensive/utility CC that only fires when the rogue is low HP and in a
+    -- group or PvP context. Keeping it after core DPS/cooldowns and before filler
+    -- builders (Hemorrhage/Backstab/Sinister Strike) ensures it does not steal
+    -- GCDs from rotation-essential actions, but still fires before pure filler.
+    { name = "Blind", matches = blind_matches, execute = function(context) return NS.try_cast(ACTION.Blind, context.target, "[COMBAT] Blind") end },
     { name = "Hemorrhage", matches = hemorrhage_matches, execute = function(context) return NS.try_cast(ACTION.Hemorrhage, context.target, "[COMBAT] Hemorrhage") end },
     { name = "GhostlyStrike", matches = ghostly_strike_matches, execute = function(context) return NS.try_cast(ACTION.GhostlyStrike, context.target, "[COMBAT] GhostlyStrike") end },
     { name = "Backstab", matches = backstab_matches, execute = function(context) return NS.try_cast(ACTION.Backstab, context.target, "[COMBAT] Backstab") end },

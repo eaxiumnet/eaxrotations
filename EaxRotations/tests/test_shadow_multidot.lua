@@ -130,9 +130,9 @@ assert_false(multidot_swp.matches({ in_combat = true, target_hp_pct = 100, setti
 assert_true(multidot_swp.matches({ in_combat = true, target_hp_pct = 100, settings = {} },
     { swp_known = true, multidot_mode = 3, enemy_count = 3, dotted_swp_count = 0, enemies_missing_swp = 2, swp_remaining = 0, mana_emergency = false }), "mode On + missing -> match")
 
--- Target HP <= 30% -> should not match
-assert_false(multidot_swp.matches({ in_combat = true, target_hp_pct = 25, settings = {} },
-    { swp_known = true, multidot_mode = 3, enemy_count = 3, dotted_swp_count = 0, enemies_missing_swp = 2, swp_remaining = 0, mana_emergency = false }), "low HP target -> no match")
+-- Target HP <= 30% -> should not match (HP lives on the state arg at runtime, set by build_state)
+assert_false(multidot_swp.matches({ in_combat = true, settings = {} },
+    { swp_known = true, multidot_mode = 3, enemy_count = 3, dotted_swp_count = 0, enemies_missing_swp = 2, swp_remaining = 0, mana_emergency = false, target_hp_pct = 25 }), "low HP target -> no match")
 
 -- Max targets reached -> should not match
 assert_false(multidot_swp.matches({ in_combat = true, target_hp_pct = 100, settings = {} },
