@@ -33,6 +33,7 @@ local tests = {
     "test_shaman_leveling_wotlk_dsl_priority.lua",
     "test_paladin_leveling_wotlk_dsl_priority.lua",
     "test_druid_leveling_wotlk_dsl_priority.lua",
+    "test_mage_leveling_wotlk_dsl_priority.lua",
     "test_vanilla_leveling_ladders.lua",
     "test_tbc_leveling_ladders.lua",
     "test_wotlk_leveling_ladders.lua",
