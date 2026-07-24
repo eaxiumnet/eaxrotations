@@ -32,8 +32,10 @@ local _is_spell_learned = (type(core) == "table" and type(core.spell_book) == "t
 -- for accurate, ordered party list. Direct frames access removed in favor of unified API.
 
 -- ============================================================================
--- FORM-AWARE CONSUMABLES
--- Use pots/runes in Cat/Bear forms — auto-reshift back to form after use.
+-- FORM-SAFE CONSUMABLES
+-- Only consume when un-shifted (caster/humanoid). NEVER break Bear/Cat/Moonkin/
+-- Tree to drink — the GCD out of Dire Bear Form (armor mult + stamina loss) can
+-- kill a tank. A shifted druid simply skips consumables.
 -- ============================================================================
 local STANCE_CAT = 3
 local STANCE_BEAR = 1
@@ -50,21 +52,9 @@ local FORM_BUFF_CAT = { 768 }
 local FORM_BUFF_MOONKIN = { 24858 }
 local FORM_BUFF_TREE = { 33891 }
 
--- Stances where consumable use is allowed (caster, cat, bear)
-local ITEM_ALLOWED_STANCE = {
-    [STANCE_CASTER] = true,
-    [STANCE_CAT] = true,
-    [STANCE_BEAR] = true,
-}
-local function can_use_items(stance)
-    if ITEM_ALLOWED_STANCE[stance] then return true end
-    -- Moonkin/Tree at stance 5 - check if known
-    if stance == 5 then
-        if _is_spell_learned and _is_spell_learned(24858) then return true end
-        if _is_spell_learned and _is_spell_learned(33891) then return true end
-    end
-    return false
-end
+-- Consumables are caster-form-only (see FORM-SAFE CONSUMABLES above): a shifted
+-- druid never drinks, so the old stance-allow table and can_use_items() /
+-- can_afford_reshift() helpers were removed — there is nothing to allow or reshift.
 
 -- Check if a spell can be cast in the druid's current form.
 -- Moonkin/Tree/Humanoid always return true (rotation logic handles spell selection).
@@ -78,32 +68,6 @@ local function can_cast_in_current_form(spell_id)
         return NS.can_cast_in_form(spell_id, FORM_ID_CAT)
     end
     -- Moonkin, Tree, Humanoid: rotation logic handles spell selection
-    return true
-end
-
--- Get form cost for reshift
-local function get_form_cost_for_spell(spell_id)
-    -- Cat: 30 energy, Bear: 20 rage
-    if spell_id == 768 then return 30 end
-    if spell_id == 9634 or spell_id == 5487 then return 20 end
-    return 0
-end
-
--- Check if we can afford to reshift after using an item in a shifted form
-local function can_afford_reshift(stance)
-    if stance == STANCE_CASTER then return true end
-    local form_spell_id = (stance == STANCE_CAT) and 768 or (stance == STANCE_BEAR) and 9634 or nil
-    if not form_spell_id then return true end
-    local cost = get_form_cost_for_spell(form_spell_id)
-    if cost <= 0 then return true end
-    -- Check if we have enough resource to reshift
-    if stance == STANCE_CAT then
-        local energy = NS.power_current and NS.power_current(NS.POWER_ENERGY) or 0
-        return energy >= cost
-    elseif stance == STANCE_BEAR then
-        local rage = NS.power_current and NS.power_current(NS.POWER_RAGE) or 0
-        return rage >= cost
-    end
     return true
 end
 
@@ -275,7 +239,7 @@ local strategies = {
     },
 
     -- ============================================================================
-    -- FORM-AWARE CONSUMABLES (pots/runes usable in Cat/Bear with auto-reshift)
+    -- FORM-SAFE CONSUMABLES (caster/humanoid only — never break a shapeshift)
     -- ============================================================================
     {
         name = "FormAwareConsumables",
@@ -283,8 +247,12 @@ local strategies = {
             if not context.in_combat then return false end
             if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
             if NS.buff_up(context.me, { 5215, 5217, 5216, 5218, 9839, 9840, 9841, 24249, 24389, 24404 }) then return false end
-            if not can_use_items(context.stance) then return false end
-            if not can_afford_reshift(context.stance) then return false end
+            -- Never break shapeshift form to consume. Using an item shifts the
+            -- druid out of Bear/Cat/Moonkin/Tree; the GCD spent out of Dire Bear
+            -- Form (armor mult + stamina loss) can kill a tank. Only consume when
+            -- already un-shifted (caster/humanoid, stance 0) — a shifted druid
+            -- simply skips consumables rather than dropping form.
+            if context.stance ~= STANCE_CASTER then return false end
 
             -- Check healthstone
             if spec_kit.setting_bool(context, "use_healthstone", true) and context.hp and context.hp <= spec_kit.setting_number(context, "healthstone_hp", 30) then
@@ -300,49 +268,23 @@ local strategies = {
             return false
         end,
         execute = function(context)
-            local stance = context.stance
+            -- Safety: never consume while shifted (matches already gates this).
+            if context.stance ~= STANCE_CASTER then return false end
 
-            -- Try healthstone first
+            -- Healthstone first
             if spec_kit.setting_bool(context, "use_healthstone", true) and context.hp and context.hp <= spec_kit.setting_number(context, "healthstone_hp", 30) then
                 if NS.is_item_ready and NS.is_item_ready(22103) then
-                    if NS.use_item_by_id and NS.use_item_by_id(22103, context.me) then
-                        -- Reshift back to form if needed
-                        if stance == STANCE_CAT or stance == STANCE_BEAR then
-                            local form_spell = (stance == STANCE_CAT) and SPELLS.CatForm or SPELLS.BearForm
-                            if form_spell then
-                                NS.try_cast(form_spell, context.me, "[DRUID] Reshift after item", { skip_range = true })
-                            end
-                        end
-                        return true
-                    end
+                    if NS.use_item_by_id and NS.use_item_by_id(22103, context.me) then return true end
                 end
             end
 
-            -- Try healing potion
+            -- Healing / mana potion
             if spec_kit.setting_bool(context, "use_healing_potion", true) and context.hp and context.hp <= spec_kit.setting_number(context, "healing_potion_hp", 35) then
                 if NS.is_item_ready and NS.is_item_ready(22829) then
-                    if NS.use_item_by_id and NS.use_item_by_id(22829, context.me) then
-                        -- Reshift back to form if needed
-                        if stance == STANCE_CAT or stance == STANCE_BEAR then
-                            local form_spell = (stance == STANCE_CAT) and SPELLS.CatForm or SPELLS.BearForm
-                            if form_spell then
-                                NS.try_cast(form_spell, context.me, "[DRUID] Reshift after item", { skip_range = true })
-                            end
-                        end
-                        return true
-                    end
+                    if NS.use_item_by_id and NS.use_item_by_id(22829, context.me) then return true end
                 end
                 if NS.is_item_ready and NS.is_item_ready(22850) then
-                    if NS.use_item_by_id and NS.use_item_by_id(22850, context.me) then
-                        -- Reshift back to form if needed
-                        if stance == STANCE_CAT or stance == STANCE_BEAR then
-                            local form_spell = (stance == STANCE_CAT) and SPELLS.CatForm or SPELLS.BearForm
-                            if form_spell then
-                                NS.try_cast(form_spell, context.me, "[DRUID] Reshift after item", { skip_range = true })
-                            end
-                        end
-                        return true
-                    end
+                    if NS.use_item_by_id and NS.use_item_by_id(22850, context.me) then return true end
                 end
             end
 

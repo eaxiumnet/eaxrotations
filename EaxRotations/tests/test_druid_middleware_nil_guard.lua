@@ -325,6 +325,44 @@ do
 end
 
 -- ============================================================================
+-- FORM-SAFE CONSUMABLES: never break shapeshift form to consume (regression)
+-- A shifted druid (Bear/Cat) must NOT fire consumables — the GCD spent out of
+-- Dire Bear Form (armor + stamina loss) can kill a tank. Only un-shifted may.
+-- ============================================================================
+do
+    local form_cons2 = find_strategy("FormAwareConsumables")
+    assert_true(form_cons2 ~= nil, "FormAwareConsumables strategy should exist")
+
+    local mock_me = {
+        buff_remains = function() return 0 end,
+        has_buff = function() return false end,
+    }
+    local function ctx_for(stance)
+        return {
+            in_combat = true,
+            is_stealthed = false,
+            stance = stance,
+            hp = 20,
+            me = mock_me,
+            settings = { use_auto_consumables = true, use_healthstone = true, healthstone_hp = 30 },
+        }
+    end
+
+    -- Healthstone (22103) is ready, so only the form guard can block the cast.
+    local orig_iir = _G.EaxRotations.is_item_ready
+    _G.EaxRotations.is_item_ready = function(id) return id == 22103 end
+
+    assert_false(form_cons2.matches(ctx_for(1)),
+        "FormAwareConsumables must NOT fire in Bear form (stance 1) — would drop Dire Bear Form")
+    assert_false(form_cons2.matches(ctx_for(3)),
+        "FormAwareConsumables must NOT fire in Cat form (stance 3)")
+    assert_true(form_cons2.matches(ctx_for(0)),
+        "FormAwareConsumables SHOULD fire in caster form (stance 0) when HP low + item ready")
+
+    _G.EaxRotations.is_item_ready = orig_iir
+end
+
+-- ============================================================================
 -- Cleanup
 -- ============================================================================
 _G._druid_strategies = nil
