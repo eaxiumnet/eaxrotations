@@ -2,12 +2,13 @@
 -- WHAT:  priority-list strategies for Subtlety rogue.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.RogueSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -46,36 +47,63 @@ local function build_state(context)
     return state
 end
 
-local function premeditation_matches(context, state)
-    return true
-end
-
-local function shadow_dance_matches(context, state)
-    return not state.shadow_dance_up
-end
-
-local function ambush_matches(context, state)
-    return state.shadow_dance_up and state.energy >= 60
-end
-
-local function eviscerate_matches(context, state)
-    return state.combo_points >= 4
-end
-
-local function backstab_matches(context, state)
-    return state.energy >= 60
-end
+local DSL_DEFS = {
+    {
+        name = "Premeditation",
+        conditions = {},
+        action = { type = "cast", spell = ACTION.Premeditation, target = "target" },
+    },
+    {
+        name = "ShadowDance",
+        conditions = {
+            { type = "state", field = "shadow_dance_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.ShadowDance, target = "self" },
+    },
+    {
+        name = "Ambush",
+        conditions = {
+            { type = "state", field = "shadow_dance_up", op = "truthy" },
+            { type = "state", field = "energy", op = ">=", value = 60 },
+        },
+        action = { type = "cast", spell = ACTION.Ambush, target = "target" },
+    },
+    {
+        name = "Eviscerate",
+        conditions = {
+            { type = "state", field = "combo_points", op = ">=", value = 4 },
+        },
+        action = { type = "cast", spell = ACTION.Eviscerate, target = "target" },
+    },
+    {
+        name = "Backstab",
+        conditions = {
+            { type = "state", field = "energy", op = ">=", value = 60 },
+        },
+        action = { type = "cast", spell = ACTION.Backstab, target = "target" },
+    },
+}
 
 local strategies = {
-    { name = "Premeditation", matches = premeditation_matches, execute = function(ctx) return ACTION.Premeditation and ACTION.Premeditation:cast_safe(ctx.target) end },
-    { name = "ShadowDance", matches = shadow_dance_matches, execute = function(ctx) return ACTION.ShadowDance and ACTION.ShadowDance:cast_safe() end },
-    { name = "Ambush", matches = ambush_matches, execute = function(ctx) return ACTION.Ambush and ACTION.Ambush:cast_safe(ctx.target) end },
-    { name = "Eviscerate", matches = eviscerate_matches, execute = function(ctx) return ACTION.Eviscerate and ACTION.Eviscerate:cast_safe(ctx.target) end },
-    { name = "Backstab", matches = backstab_matches, execute = function(ctx) return ACTION.Backstab and ACTION.Backstab:cast_safe(ctx.target) end },
+    { name = "Premeditation" },
+    { name = "ShadowDance" },
+    { name = "Ambush" },
+    { name = "Eviscerate" },
+    { name = "Backstab" },
 }
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("subtlety", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Rogue subtlety rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
