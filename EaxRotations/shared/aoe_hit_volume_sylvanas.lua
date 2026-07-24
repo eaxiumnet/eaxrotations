@@ -126,6 +126,13 @@ function M.count_enemies_around_me(radius)
     local r = type(radius) == "number" and radius or 8
     local r2 = r * r
     local me = safe_player()
+
+    -- IZI SDK fast-path: get_enemies_in_splash_range_count on player object
+    if me and type(me.get_enemies_in_splash_range_count) == "function" then
+        local ok, count = pcall(me.get_enemies_in_splash_range_count, me, r)
+        if ok and type(count) == "number" then return count end
+    end
+
     local me_p = me and unit_pos_raw(me) or nil
 
     -- Prefer live list + vec3 horizontal squared distance when player position is known.
@@ -179,6 +186,14 @@ function M.count_enemies_around_unit(unit, radius)
     local me = safe_player()
     local n = 0
     local origin_pos = unit_pos_raw(unit)
+
+    -- IZI SDK fast-path: get_enemies_in_splash_range_count is a native O(1) API
+    -- that counts enemies within (meters + target_radius) of this unit, PvP-aware.
+    -- Prefer this over manual spatial math whenever available.
+    if type(unit.get_enemies_in_splash_range_count) == "function" then
+        local ok, count = pcall(unit.get_enemies_in_splash_range_count, unit, r)
+        if ok and type(count) == "number" then return count end
+    end
 
     -- Unit-native list: still re-filter with vec3 horizontal distance when positions exist
     -- (never treat get_enemies_in_range as sole authority if we can do accurate math).

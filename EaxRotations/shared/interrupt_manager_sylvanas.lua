@@ -304,6 +304,15 @@ local function player_can_act(context)
     if context.is_casting or context.is_channeling then return false end
     if NS and NS.unit_alive and not NS.unit_alive(context.me) then return false end
     if NS and NS.player_control_locked and NS.player_control_locked() then return false end
+    -- IZI SDK: check loss-of-control (stun, silence, fear, etc.) via native API
+    local me = context.me
+    if me and type(me.get_loss_of_control_info) == "function" then
+        local ok, loc = pcall(me.get_loss_of_control_info, me)
+        if ok and type(loc) == "table" and loc.valid then
+            -- Player is under loss of control — cannot interrupt
+            return false
+        end
+    end
     return true
 end
 
