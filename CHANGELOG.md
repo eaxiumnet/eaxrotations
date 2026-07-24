@@ -2,6 +2,25 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.14.0] — IZI SDK Fast-Paths: Splash Range, Loss-of-Control, Energy Prediction (2026-07-24)
+
+**API audit implementation.** Three high-impact IZI SDK methods integrated across
+the rotation framework — native splash-range counting, loss-of-control interrupt
+gating, and energy prediction for all rogue specs.
+
+### Improvements
+
+- **AoE Hit Volume (all specs)**: Added `get_enemies_in_splash_range_count()` as first-class fast-path in both `count_enemies_around_me()` and `count_enemies_around_unit()`. This native IZI SDK method replaces 500+ lines of manual spatial math with an O(1) engine call when available — faster and more accurate (accounts for target hitbox radius + PvP awareness). Falls back gracefully to existing vec3 spatial math in unit tests.
+- **Interrupt Manager (all specs)**: Added `get_loss_of_control_info()` check to `player_can_act()`. The interrupt system now correctly detects when the player is stunned, feared, silenced, or otherwise CC'd and skips interrupt attempts. Previously relied only on `player_control_locked()` which didn't cover all CC types.
+- **Rogue (Combat)**: Added `energy_predicted()` for smarter energy pooling — if the next energy tick will push past the builder threshold, acts immediately instead of wastefully pooling.
+- **Rogue (Assassination)**: Added `energy_predicted()` state field for future pooling improvements.
+- **Rogue (Subtlety)**: Added `energy_predicted()` state field for future pooling improvements.
+
+### Technical
+
+- `luac -p` + 390/390 rotation + 31/31 leveling suites green (421 total).
+- All changes are backward-compatible: IZI SDK methods are feature-detected via `type(unit.method) == "function"` + pcall.
+
 ## [2.13.0] — Multi-DoT Spread Fix, API Audit, WotLK Leveling DSL (2026-07-24)
 
 **15 commits since v2.12.1.** Major multi-DoT spreading fix, comprehensive API

@@ -1,5 +1,20 @@
 # EaxRotations Changelog
 
+## v2.14.0 — Faster AoE Detection & Smarter Rogue Pooling (July 24, 2026)
+
+> **Release:** v2.14.0
+> **Game:** The Burning Crusade Classic (2.5.5.x)
+
+### What you'll notice
+
+- **AoE/Cleave decisions are faster and more accurate** — multi-target gating now uses a native engine call instead of manual position math. Spells like Whirlwind, Consecration, Chain Lightning, and Starfall trigger more reliably when enemies are clustered.
+- **Interrupts are smarter** — the bot no longer tries to interrupt while you're stunned, feared, or silenced. Previously it could waste internal cooldowns queueing kick during CC.
+- **Rogue energy pooling improved** — all three rogue specs (Combat, Assassination, Subtlety) now predict incoming energy ticks. Combat spec especially benefits: it will act immediately when a tick is about to push past threshold instead of sitting at low energy.
+
+Reload for **v2.14.0**.
+
+---
+
 ## v2.13.0 — Multi-DoT Spreading & Healer Intelligence (July 24, 2026)
 
 > **Release:** v2.13.0

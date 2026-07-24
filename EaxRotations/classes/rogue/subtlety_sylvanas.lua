@@ -240,6 +240,14 @@ local function build_state(context)
     end
     subtlety_state.combo = context.combo_points or context.combo or 0
     subtlety_state.energy = context.energy or 0
+    -- IZI SDK: energy_predicted for smarter pooling decisions
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+    if me and type(me.energy_predicted) == "function" then
+        local ok, pred = pcall(me.energy_predicted, me)
+        subtlety_state.energy_predicted = (ok and type(pred) == "number") and pred or subtlety_state.energy
+    else
+        subtlety_state.energy_predicted = subtlety_state.energy
+    end
     subtlety_state.energy_low = subtlety_state.energy < ENERGY_LOW_BUILDER
     subtlety_state.energy_pool_finisher = subtlety_state.energy < ENERGY_LOW_FINISHER
     subtlety_state.hp = context.hp or context.player_hp or 100

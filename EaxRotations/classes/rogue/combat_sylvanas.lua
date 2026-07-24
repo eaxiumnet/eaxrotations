@@ -256,6 +256,17 @@ local function build_state(context)
     combat_state.rupture_remains = target and NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
     combat_state.combo_points = context.combo_points or 0
     combat_state.energy = context.energy or (me and NS.unit_energy_pct and NS.unit_energy_pct(me)) or 100
+    -- IZI SDK: energy_predicted gives projected energy after next tick (better pooling)
+    if me and type(me.energy_predicted) == "function" then
+        local ok, pred = pcall(me.energy_predicted, me)
+        if ok and type(pred) == "number" then
+            combat_state.energy_predicted = pred
+        else
+            combat_state.energy_predicted = combat_state.energy
+        end
+    else
+        combat_state.energy_predicted = combat_state.energy
+    end
     combat_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     combat_state.in_combat = context.in_combat or false
     combat_state.enemy_count = context.enemy_count or context.enemies_count or 1
@@ -287,8 +298,10 @@ local function build_state(context)
 
     -- Research: energy pooling gates (wowsims canPoolEnergy)
     -- Pool at <= 50 energy when fight >= 6s; during AR, pool only if <= 30
+    -- Use energy_predicted for smarter pool decisions (accounts for incoming regen)
     do
         local energy = combat_state.energy
+        local predicted = combat_state.energy_predicted or energy
         local ttd_known = context.ttd_known or false
         local ttd = context.ttd or 999
         local should_pool = false
@@ -296,7 +309,8 @@ local function build_state(context)
             if combat_state.has_adrenaline_rush then
                 should_pool = energy <= 30
             else
-                should_pool = true
+                -- If predicted energy will exceed threshold soon, don't pool (act immediately)
+                should_pool = predicted <= ENERGY_LOW_BUILDER
             end
         end
         combat_state.energy_low = should_pool

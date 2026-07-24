@@ -215,6 +215,13 @@ local function build_state(context)
     -- Resources
     assassin_state.combo = context.combo_points or context.combo or 0
     assassin_state.energy = context.energy or 0
+    -- IZI SDK: energy_predicted for smarter pooling decisions
+    if me and type(me.energy_predicted) == "function" then
+        local ok, pred = pcall(me.energy_predicted, me)
+        assassin_state.energy_predicted = (ok and type(pred) == "number") and pred or assassin_state.energy
+    else
+        assassin_state.energy_predicted = assassin_state.energy
+    end
     assassin_state.energy_low = assassin_state.energy < ENERGY_LOW_BUILDER
     assassin_state.energy_pool_finisher = assassin_state.energy < ENERGY_LOW_FINISHER
     assassin_state.hp_pct = context.hp or 100
