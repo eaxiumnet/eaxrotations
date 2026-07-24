@@ -2,7 +2,7 @@
 -- WHAT:  priority-list strategies for mage leveling in WotLK.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   simple nuke/dot rotation with emergency shields and mana recovery.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -14,6 +14,7 @@ do
 end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local helpers = require("shared/leveling_helpers_sylvanas")
 local pet_manager = require("shared/pet_manager_sylvanas")
 local SPELLS = NS.MageSpells or {}
@@ -90,146 +91,269 @@ local function build_state(context)
     return state
 end
 
-local function summon_water_elemental_matches(context, state)
-    -- Frost talent pet on a 3-min CD; cast_safe() gates the actual cooldown.
-    -- Bring it out in combat when we don't already have one active.
-    if not state.in_combat then return false end
-    if state.pet_alive then return false end
-    if state.mana_pct < 16 then return false end
-    if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
-    return true
-end
-
-local function counterspell_matches(context, state)
-    return state.in_combat and state.target_casting == true
-end
-
-local function arcane_intellect_matches(context, state)
-    return not state.arcane_intellect_up and state.mana_pct >= 20
-end
-
-local function mage_armor_matches(context, state)
-    return not state.mage_armor_up and state.mana_pct >= 20
-end
-
-local function arcane_explosion_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-        and NS.aoe_self_meets and NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)
-end
-
-local function blizzard_matches(context, state)
-    return state.in_combat and state.mana_pct >= 25
-        and NS.aoe_target_meets and NS.aoe_target_meets(4, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context and context.target, context, state)
-end
-
-local function shoot_wand_matches(context, state)
-    -- OOM fallback: fire the wand when too low on mana to cast a real nuke.
-    return state.in_combat and state.mana_pct < 10
-end
-
-local function ice_barrier_matches(context, state)
-    return state.in_combat and state.hp < 50 and not state.ice_barrier_up
-end
-
-local function mana_shield_matches(context, state)
-    return state.in_combat and state.hp < 40 and not state.mana_shield_up
-end
-
-local function evocation_matches(context, state)
-    return state.in_combat and state.mana_pct < 20
-end
-
-local function blink_matches(context, state)
-    return state.in_combat and state.hp < 30
-end
-
-local function cone_of_cold_matches(context, state)
-    -- Cone of Cold ~10yd frontal sector (ESP-style facing cone; not 40yd density)
-    if not state.in_combat then return false end
-    local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10
-    if NS.aoe_cone_meets then
-        return NS.aoe_cone_meets(2, r, nil, context, state)
-    end
-    return NS.aoe_self_meets and NS.aoe_self_meets(2, r, context, state)
-end
-
-local function living_bomb_matches(context, state)
-    return state.in_combat and state.living_bomb_remains < 3 and state.mana_pct >= 15
-end
-
-local function pyroblast_matches(context, state)
-    return state.in_combat and state.mana_pct >= 20
-end
-
-local function fireball_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function frostbolt_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function arcane_missiles_matches(context, state)
-    return state.in_combat and state.mana_pct >= 25
-end
-
-local function arcane_barrage_matches(context, state)
-    return state.in_combat and state.mana_pct >= 20
-end
-
-local function fire_blast_matches(context, state)
-    return state.in_combat and state.mana_pct >= 10
-end
-
-local function scorch_matches(context, state)
-    return state.in_combat and state.mana_pct >= 10
-end
-
-local function ice_lance_matches(context, state)
-    return state.in_combat and state.mana_pct >= 5
-end
-
-local function frostfire_bolt_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function deep_freeze_matches(context, state)
-    return state.in_combat and state.mana_pct >= 10
-end
-
-local function conjure_mana_gem_matches(context, state)
-    return not state.in_combat and state.mana_pct < 80
-end
-
-local strategies = {
-    { name = "Counterspell", matches = counterspell_matches, execute = function(ctx) return ACTION.Counterspell and ACTION.Counterspell:cast_safe(ctx.target) end },
-    { name = "ArcaneIntellect", matches = arcane_intellect_matches, execute = function(ctx) return ACTION.ArcaneIntellect and ACTION.ArcaneIntellect:cast_safe() end },
-    { name = "MageArmor", matches = mage_armor_matches, execute = function(ctx) return ACTION.MageArmor and ACTION.MageArmor:cast_safe() end },
-    { name = "IceBarrier", matches = ice_barrier_matches, execute = function(ctx) return ACTION.IceBarrier and ACTION.IceBarrier:cast_safe() end },
-    { name = "ManaShield", matches = mana_shield_matches, execute = function(ctx) return ACTION.ManaShield and ACTION.ManaShield:cast_safe() end },
-    { name = "Evocation", matches = evocation_matches, execute = function(ctx) return ACTION.Evocation and ACTION.Evocation:cast_safe() end },
-    { name = "Blink", matches = blink_matches, execute = function(ctx) return ACTION.Blink and ACTION.Blink:cast_safe() end },
-    { name = "ConjureManaGem", matches = conjure_mana_gem_matches, execute = function(ctx) return ACTION.ConjureManaGem and ACTION.ConjureManaGem:cast_safe() end },
-    { name = "ConeOfCold", matches = cone_of_cold_matches, execute = function(ctx) return ACTION.ConeOfCold and ACTION.ConeOfCold:cast_safe(ctx.target) end },
-    { name = "ArcaneExplosion", matches = arcane_explosion_matches, execute = function(ctx) return ACTION.ArcaneExplosion and ACTION.ArcaneExplosion:cast_safe() end },
-    { name = "Blizzard", matches = blizzard_matches, execute = function(ctx) return ACTION.Blizzard and ACTION.Blizzard:cast_safe(ctx.target) end },
-    { name = "SummonWaterElemental", matches = summon_water_elemental_matches, execute = function(ctx) return ACTION.SummonWaterElemental and ACTION.SummonWaterElemental:cast_safe() end },
-    { name = "LivingBomb", matches = living_bomb_matches, execute = function(ctx) return ACTION.LivingBomb and ACTION.LivingBomb:cast_safe(ctx.target) end },
-    { name = "Pyroblast", matches = pyroblast_matches, execute = function(ctx) return ACTION.Pyroblast and ACTION.Pyroblast:cast_safe(ctx.target) end },
-    { name = "Fireball", matches = fireball_matches, execute = function(ctx) return ACTION.Fireball and ACTION.Fireball:cast_safe(ctx.target) end },
-    { name = "Frostbolt", matches = frostbolt_matches, execute = function(ctx) return ACTION.Frostbolt and ACTION.Frostbolt:cast_safe(ctx.target) end },
-    { name = "FrostfireBolt", matches = frostfire_bolt_matches, execute = function(ctx) return ACTION.FrostfireBolt and ACTION.FrostfireBolt:cast_safe(ctx.target) end },
-    { name = "ArcaneBarrage", matches = arcane_barrage_matches, execute = function(ctx) return ACTION.ArcaneBarrage and ACTION.ArcaneBarrage:cast_safe(ctx.target) end },
-    { name = "ArcaneMissiles", matches = arcane_missiles_matches, execute = function(ctx) return ACTION.ArcaneMissiles and ACTION.ArcaneMissiles:cast_safe(ctx.target) end },
-    { name = "FireBlast", matches = fire_blast_matches, execute = function(ctx) return ACTION.FireBlast and ACTION.FireBlast:cast_safe(ctx.target) end },
-    { name = "Scorch", matches = scorch_matches, execute = function(ctx) return ACTION.Scorch and ACTION.Scorch:cast_safe(ctx.target) end },
-    { name = "IceLance", matches = ice_lance_matches, execute = function(ctx) return ACTION.IceLance and ACTION.IceLance:cast_safe(ctx.target) end },
-    { name = "DeepFreeze", matches = deep_freeze_matches, execute = function(ctx) return ACTION.DeepFreeze and ACTION.DeepFreeze:cast_safe(ctx.target) end },
-    { name = "Shoot", matches = shoot_wand_matches, execute = function(ctx) return ACTION.Shoot and ACTION.Shoot:cast_safe(ctx.target) end },
+local DSL_DEFS = {
+    {
+        name = "Counterspell",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_casting", op = "==", value = true },
+        },
+        action = { type = "cast", spell = ACTION.Counterspell, target = "target" },
+    },
+    {
+        name = "ArcaneIntellect",
+        conditions = {
+            { type = "state", field = "arcane_intellect_up", op = "falsy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.ArcaneIntellect, target = "self" },
+    },
+    {
+        name = "MageArmor",
+        conditions = {
+            { type = "state", field = "mage_armor_up", op = "falsy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.MageArmor, target = "self" },
+    },
+    {
+        name = "IceBarrier",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 50 },
+            { type = "state", field = "ice_barrier_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.IceBarrier, target = "self" },
+    },
+    {
+        name = "ManaShield",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 40 },
+            { type = "state", field = "mana_shield_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.ManaShield, target = "self" },
+    },
+    {
+        name = "Evocation",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.Evocation, target = "self" },
+    },
+    {
+        name = "Blink",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.Blink, target = "self" },
+    },
+    {
+        name = "ConjureManaGem",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "mana_pct", op = "<", value = 80 },
+        },
+        action = { type = "cast", spell = ACTION.ConjureManaGem, target = "self" },
+    },
+    {
+        name = "ConeOfCold",
+        -- Cone of Cold ~10yd frontal sector (ESP-style facing cone; not 40yd density)
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "custom", fn = function(context, state)
+                local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10
+                if NS.aoe_cone_meets then
+                    return NS.aoe_cone_meets(2, r, nil, context, state) and true or false
+                end
+                return (NS.aoe_self_meets and NS.aoe_self_meets(2, r, context, state)) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.ConeOfCold, target = "target" },
+    },
+    {
+        name = "ArcaneExplosion",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_self_meets then return false end
+                local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10
+                return NS.aoe_self_meets(3, r, context, state) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.ArcaneExplosion, target = "self" },
+    },
+    {
+        name = "Blizzard",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 25 },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_target_meets then return false end
+                local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+                return NS.aoe_target_meets(4, r, context and context.target, context, state) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Blizzard, target = "target" },
+    },
+    {
+        name = "SummonWaterElemental",
+        -- Frost talent pet on a 3-min CD; try_cast gates the actual cooldown.
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "pet_alive", op = "falsy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 16 },
+            { type = "custom", fn = function(context, state)
+                if not NS.should_use_long_cd then return true end
+                return NS.should_use_long_cd(context, 180) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.SummonWaterElemental, target = "self" },
+    },
+    {
+        name = "LivingBomb",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "living_bomb_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.LivingBomb, target = "target" },
+    },
+    {
+        name = "Pyroblast",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.Pyroblast, target = "target" },
+    },
+    {
+        name = "Fireball",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Fireball, target = "target" },
+    },
+    {
+        name = "Frostbolt",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Frostbolt, target = "target" },
+    },
+    {
+        name = "FrostfireBolt",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.FrostfireBolt, target = "target" },
+    },
+    {
+        name = "ArcaneBarrage",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.ArcaneBarrage, target = "target" },
+    },
+    {
+        name = "ArcaneMissiles",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.ArcaneMissiles, target = "target" },
+    },
+    {
+        name = "FireBlast",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.FireBlast, target = "target" },
+    },
+    {
+        name = "Scorch",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Scorch, target = "target" },
+    },
+    {
+        name = "IceLance",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 5 },
+        },
+        action = { type = "cast", spell = ACTION.IceLance, target = "target" },
+    },
+    {
+        name = "DeepFreeze",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.DeepFreeze, target = "target" },
+    },
+    {
+        name = "Shoot",
+        -- OOM fallback: fire the wand when too low on mana to cast a real nuke.
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Shoot, target = "target" },
+    },
 }
+
+-- Priority order (compiled in place from DSL_DEFS below).
+local strategies = {
+    { name = "Counterspell" },
+    { name = "ArcaneIntellect" },
+    { name = "MageArmor" },
+    { name = "IceBarrier" },
+    { name = "ManaShield" },
+    { name = "Evocation" },
+    { name = "Blink" },
+    { name = "ConjureManaGem" },
+    { name = "ConeOfCold" },
+    { name = "ArcaneExplosion" },
+    { name = "Blizzard" },
+    { name = "SummonWaterElemental" },
+    { name = "LivingBomb" },
+    { name = "Pyroblast" },
+    { name = "Fireball" },
+    { name = "Frostbolt" },
+    { name = "FrostfireBolt" },
+    { name = "ArcaneBarrage" },
+    { name = "ArcaneMissiles" },
+    { name = "FireBlast" },
+    { name = "Scorch" },
+    { name = "IceLance" },
+    { name = "DeepFreeze" },
+    { name = "Shoot" },
+}
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 end
+
+if NS.log then NS.log("Mage leveling rotation registered") end
 
 return { strategies = strategies, build_state = build_state }

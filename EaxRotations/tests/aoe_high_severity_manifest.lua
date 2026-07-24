@@ -26,8 +26,16 @@ return {
             "EaxRotations/classes/mage/frost_sylvanas.lua",
             "EaxRotations/classes/mage/fire_vanilla.lua",
             "EaxRotations/classes/mage/frost_vanilla.lua",
+        },
+    },
+    {
+        family = "ArcaneExplosion",
+        needle = 'name = "ArcaneExplosion"',  -- DSL-converted: imperative arcane_explosion_matches removed
+        helper = "aoe_self_meets",
+        paths = {
             "EaxRotations/classes/mage/leveling_wotlk.lua",
         },
+        window = 900,
     },
     -- ========== Priest Holy Nova (self 10yd) ==========
     {
@@ -184,8 +192,16 @@ return {
         window = 900, -- frost_sylvanas has frozen-target branch before multi cone gate
         paths = {
             "EaxRotations/classes/mage/frost_sylvanas.lua",
-            "EaxRotations/classes/mage/leveling_wotlk.lua",
             "EaxRotations/classes/mage/frost_vanilla.lua",
+        },
+    },
+    {
+        family = "ConeOfCold",
+        needle = 'name = "ConeOfCold"',  -- DSL-converted: imperative cone_of_cold_matches removed
+        helper = "aoe_cone_meets",
+        window = 900,
+        paths = {
+            "EaxRotations/classes/mage/leveling_wotlk.lua",
         },
     },
     -- ========== Mage Dragon's Breath (frontal 10yd cone) ==========
