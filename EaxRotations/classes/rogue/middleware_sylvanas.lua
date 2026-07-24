@@ -9,7 +9,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
-local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
+if not _ok_int or type(interrupt_manager) ~= "table" then interrupt_manager = nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local _imbue_ok, WeaponImbue = pcall(require, "shared/weapon_imbue_sylvanas")
 if not _imbue_ok or type(WeaponImbue) ~= "table" then WeaponImbue = nil end
@@ -75,7 +76,9 @@ local ROGUE_AOE_IDS = { 13877 }  -- Blade Flurry
 
 local strategies = {
 
-    interrupt_manager.register_interrupt_spell("rogue", "Kick", SPELLS),
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("rogue", "Kick", SPELLS))
+        or { name = "KickSkip", matches = function() return false end, execute = function() return false end },
 
     -- ============================================================================
     -- PvP: SHIV PURGE — dispel 1 magic buff via Wound Poison (BoP, PW:S, Ice Barrier)

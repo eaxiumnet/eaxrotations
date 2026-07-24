@@ -10,7 +10,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
-local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
+if not _ok_int or type(interrupt_manager) ~= "table" then interrupt_manager = nil end
 local dispel_manager = NS.DispelManager or require("shared/dispel_manager_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.PriestSpells or {}
@@ -140,8 +141,12 @@ end
 
 local strategies = {
 
-    interrupt_manager.register_interrupt_spell("priest", "Silence", SPELLS),
-    interrupt_manager.register_interrupt_spell("priest", "PsychicScream", SPELLS),
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("priest", "Silence", SPELLS))
+        or { name = "SilenceSkip", matches = function() return false end, execute = function() return false end },
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("priest", "PsychicScream", SPELLS))
+        or { name = "PsychicScreamSkip", matches = function() return false end, execute = function() return false end },
 
     -- Defensive dispel via shared DispelManager (Dispel Magic / Abolish Disease)
     (dispel_manager and dispel_manager.create_dispel_strategy
