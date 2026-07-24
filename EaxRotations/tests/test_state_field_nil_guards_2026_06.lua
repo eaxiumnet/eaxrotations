@@ -270,7 +270,7 @@ expect_no_crash("cat: RipSnapshot with nil combo_points — state.combo_points (
 end)
 
 -- Line 900: bite_matches → state.combo_points < required_cp
-local bite = find_cat_strategy("FerociousBiteExecute")
+local bite = find_cat_strategy("FerociousBite")
 expect_no_crash("cat: FerociousBite with nil combo_points — state.combo_points (L900)", function()
     return bite.matches({ in_combat = true, me = nil, target = nil, settings = {}, in_melee = true })
 end)

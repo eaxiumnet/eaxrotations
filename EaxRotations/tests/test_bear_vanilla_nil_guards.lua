@@ -168,7 +168,7 @@ expect_no_crash("bear_vanilla: Maul with minimal context (L561, L562)", function
     return find_strategy("Maul").matches(base_ctx)
 end)
 
--- FerociousBiteExecute test removed: strategy was stripped because Ferocious
+-- FerociousBite test removed: strategy was stripped because Ferocious
 -- Bite is a cat-form ability (requires combo points) that has no place in a bear
 -- tank rotation. Vanilla bear uses Maul > Swipe > Demo Roar (no Mangle/Lacerate).
 

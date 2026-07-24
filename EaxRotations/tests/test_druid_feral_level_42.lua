@@ -90,7 +90,7 @@ local shred_no_mangle = find_strategy(strats_no_mangle, "Shred")
 local stealth_shred_no_mangle = find_strategy(strats_no_mangle, "StealthShred")
 local rip_no_mangle = find_strategy(strats_no_mangle, "Rip")
 local ravage_no_mangle = find_strategy(strats_no_mangle, "RavageOpener")
-local bite_no_mangle = find_strategy(strats_no_mangle, "FerociousBiteExecute")
+local bite_no_mangle = find_strategy(strats_no_mangle, "FerociousBite")
 
 -- Shred works without Mangle debuff at level 42
 assert_true(shred_no_mangle.matches(

@@ -1196,7 +1196,7 @@ local ACTIONS = {
     { name = "RipSnapshot", spell = ACTION.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 5, matches = rip_snapshot_matches },
     { name = "RipTrick", spell = ACTION.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 1, matches = rip_trick_matches },
     { name = "Rip", spell = ACTION.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 3, matches = rip_matches },
-    { name = "FerociousBiteExecute", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, matches = bite_matches },
+    { name = "FerociousBite", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, matches = bite_matches },
     { name = "FerociousBiteTtd", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, matches = emergency_bite_matches },
     { name = "BiteTrick", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 5, matches = bite_trick_matches },
     { name = "MaimControl", spell = ACTION.Maim, required_form = "cat", min_energy = MAIM_COST, min_combo = 3, matches = maim_control_matches },

@@ -635,7 +635,7 @@ local ACTIONS = {
     { name = "Swipe", spell = SPELLS.SwipeBear, required_form = "bear", min_rage = RAGE_SWIPE, is_aoe = true, enemy_count = 2, hit_radius = 8, hit_origin = "target", matches = swipe_cleave_matches },
     { name = "Maul", spell = SPELLS.Maul, required_form = "bear", min_rage = RAGE_MAUL, matches = maul_matches },
     { name = "EnrageCombat", spell = ENRAGE, target = "self", required_form = "bear", requires_target = false, matches = enrage_combat_matches },
-    -- FerociousBiteExecute REMOVED: Ferocious Bite is a cat-form ability requiring combo
+    -- FerociousBite REMOVED: Ferocious Bite is a cat-form ability requiring combo
     -- points. A bear tank has no combo points and cannot cast it. Vanilla bear uses
     -- Maul > Swipe > Demo Roar per guide (no Mangle, no Lacerate in Classic).
 }
