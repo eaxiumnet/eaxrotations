@@ -314,7 +314,7 @@ local strategies = {
         end,
         execute = function(context)
             if NS.use_item then
-                return NS.use_item(THISTLE_TEA_ID, context.me, "[ROGUE] Thistle Tea")
+                return NS.use_item(THISTLE_TEA_ID, context.me)
             end
             return false
         end,

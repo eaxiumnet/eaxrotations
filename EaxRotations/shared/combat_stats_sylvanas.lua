@@ -265,14 +265,14 @@ function M.init()
     if not NS then return end
     
     -- Register combat start/end callbacks if available
-    if NS.on_combat_start then
-        NS.on_combat_start(function(context)
+    if NS.register_on_combat_start then
+        NS.register_on_combat_start(function(context)
             M.on_combat_start(context)
         end)
     end
     
-    if NS.on_combat_end then
-        NS.on_combat_end(function(context)
+    if NS.register_on_combat_end then
+        NS.register_on_combat_end(function(context)
             M.on_combat_end(context)
         end)
     end
