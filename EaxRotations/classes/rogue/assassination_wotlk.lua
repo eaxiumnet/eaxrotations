@@ -2,12 +2,14 @@
 -- WHAT:  priority-list strategies for Assassination rogue.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
+--         imperative match functions; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.RogueSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -50,38 +52,73 @@ local function build_state(context)
     return state
 end
 
-local function tricks_of_the_trade_matches(context, state)
-    return true
-end
-
-local function hunger_for_blood_matches(context, state)
-    return true
-end
-
-local function slice_and_dice_matches(context, state)
-    return state.snd_remains < 3 and state.combo_points >= 1
-end
-
-local function rupture_matches(context, state)
-    return state.rupture_remains < 3 and state.combo_points >= 1
-end
-
-local function envenom_matches(context, state)
-    return state.combo_points >= 4
-end
-
-local function mutilate_matches(context, state)
-    return state.energy >= 60
-end
-
-local strategies = {
-    { name = "TricksOfTheTrade", matches = tricks_of_the_trade_matches, execute = function(ctx) return ACTION.TricksOfTheTrade and ACTION.TricksOfTheTrade:cast_safe() end },
-    { name = "HungerForBlood", matches = hunger_for_blood_matches, execute = function(ctx) return ACTION.HungerForBlood and ACTION.HungerForBlood:cast_safe(ctx.target) end },
-    { name = "SliceAndDice", matches = slice_and_dice_matches, execute = function(ctx) return ACTION.SliceAndDice and ACTION.SliceAndDice:cast_safe() end },
-    { name = "Rupture", matches = rupture_matches, execute = function(ctx) return ACTION.Rupture and ACTION.Rupture:cast_safe(ctx.target) end },
-    { name = "Envenom", matches = envenom_matches, execute = function(ctx) return ACTION.Envenom and ACTION.Envenom:cast_safe(ctx.target) end },
-    { name = "Mutilate", matches = mutilate_matches, execute = function(ctx) return ACTION.Mutilate and ACTION.Mutilate:cast_safe(ctx.target) end },
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "TricksOfTheTrade",
+        conditions = {},
+        action = { type = "cast", spell = ACTION.TricksOfTheTrade, target = "self" },
+    },
+    {
+        name = "HungerForBlood",
+        conditions = {},
+        action = { type = "cast", spell = ACTION.HungerForBlood, target = "target" },
+    },
+    {
+        name = "SliceAndDice",
+        conditions = {
+            { type = "state", field = "snd_remains", op = "<", value = 3 },
+            { type = "state", field = "combo_points", op = ">=", value = 1 },
+        },
+        action = { type = "cast", spell = ACTION.SliceAndDice, target = "self" },
+    },
+    {
+        name = "Rupture",
+        conditions = {
+            { type = "state", field = "rupture_remains", op = "<", value = 3 },
+            { type = "state", field = "combo_points", op = ">=", value = 1 },
+        },
+        action = { type = "cast", spell = ACTION.Rupture, target = "target" },
+    },
+    {
+        name = "Envenom",
+        conditions = {
+            { type = "state", field = "combo_points", op = ">=", value = 4 },
+        },
+        action = { type = "cast", spell = ACTION.Envenom, target = "target" },
+    },
+    {
+        name = "Mutilate",
+        conditions = {
+            { type = "state", field = "energy", op = ">=", value = 60 },
+        },
+        action = { type = "cast", spell = ACTION.Mutilate, target = "target" },
+    },
 }
+
+-- -----------------------------------------------------------------------------
+-- Strategies (name-only placeholders; substituted by DSL). Priority preserved.
+-- -----------------------------------------------------------------------------
+local strategies = {
+    { name = "TricksOfTheTrade" },
+    { name = "HungerForBlood" },
+    { name = "SliceAndDice" },
+    { name = "Rupture" },
+    { name = "Envenom" },
+    { name = "Mutilate" },
+}
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("assassination", strategies, { get_state = build_state })
