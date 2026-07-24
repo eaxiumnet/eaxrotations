@@ -2,6 +2,20 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.12.1] — Feral Cat Full-CP Bite and Rip Elite Gating (2026-07-24)
+
+### Bug Fixes
+
+- **Druid (Cat)**: Removed duplicate `SNAPSHOT_RESET_GRACE` constant.
+- **Druid (Cat)**: Added `target_is_boss`/`target_classification` to `build_state` so Rip elite-only gating works with live API values.
+- **Druid (Cat)**: Centralized `cat_use_rip`/`cat_rip_elites_only` checks in a new `would_rip_fire` helper and used it in Rip, Rip Trick, Rip Snapshot, and Ferocious Bite strategies.
+- **Druid (Cat)**: Removed the execute-HP gate from `FerociousBiteExecute` so full-combo-point Ferocious Bite actually fires.
+
+### Technical
+
+- `luac -p` + 375/375 rotation + 21/21 leveling suites green (396 total).
+- Clean `eaxrotations.zip` (lua + md only).
+
 ## [2.12.0] — WotLK Strategy DSL Rollout, spec_kit Refactor, and Class Fixes (2026-07-23)
 
 **Rotations + class fixes since v2.11.0.**

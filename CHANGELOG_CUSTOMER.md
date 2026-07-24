@@ -1,5 +1,20 @@
 # EaxRotations Changelog
 
+## v2.12.1 — Feral Cat Fixes (July 24, 2026)
+
+> **Release:** v2.12.1
+> **Game:** The Burning Crusade Classic (2.5.5.x)
+
+### What you’ll notice
+
+- **Ferocious Bite now fires at full combo points** when Rip is disabled or set to elites-only on a normal mob. No more combo points wasted because the rotation kept waiting for Rip.
+- **Rip elite-only setting is now respected** — when enabled, Rip only goes on elite/boss targets and Ferocious Bite takes over on everything else.
+- **Cleaner snapshot reset** — removed a duplicate constant so Rake/Rip snapshot grace timing is consistent.
+
+Reload for **v2.12.1**.
+
+---
+
 ## v2.10.0 — TBC 1–70 Spell Ladders (All Classes) (July 16, 2026)
 
 > **Release:** v2.10.0  
