@@ -2,12 +2,13 @@
 -- WHAT:  priority-list strategies for Restoration shaman.
 -- WHEN:  combat with valid friendly target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -46,31 +47,58 @@ local function build_state(context)
     return state
 end
 
-local function earth_shield_matches(context, state)
-    return not state.earth_shield_up
-end
-
-local function riptide_matches(context, state)
-    return state.riptide_remains < 3
-end
-
-local function chain_heal_matches(context, state)
-    return state.enemy_count >= 2 and state.mana_pct >= 25
-end
-
-local function healing_wave_matches(context, state)
-    return state.target_hp < 70 and state.mana_pct >= 20
-end
+local DSL_DEFS = {
+    {
+        name = "EarthShield",
+        conditions = {
+            { type = "state", field = "earth_shield_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.EarthShield, target = "target" },
+    },
+    {
+        name = "Riptide",
+        conditions = {
+            { type = "state", field = "riptide_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Riptide, target = "target" },
+    },
+    {
+        name = "ChainHeal",
+        conditions = {
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "state", field = "mana_pct", op = ">=", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.ChainHeal, target = "target" },
+    },
+    {
+        name = "HealingWave",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 70 },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.HealingWave, target = "target" },
+    },
+}
 
 local strategies = {
-    { name = "EarthShield", matches = earth_shield_matches, execute = function(ctx) return ACTION.EarthShield and ACTION.EarthShield:cast_safe(ctx.target) end },
-    { name = "Riptide", matches = riptide_matches, execute = function(ctx) return ACTION.Riptide and ACTION.Riptide:cast_safe(ctx.target) end },
-    { name = "ChainHeal", matches = chain_heal_matches, execute = function(ctx) return ACTION.ChainHeal and ACTION.ChainHeal:cast_safe(ctx.target) end },
-    { name = "HealingWave", matches = healing_wave_matches, execute = function(ctx) return ACTION.HealingWave and ACTION.HealingWave:cast_safe(ctx.target) end },
+    { name = "EarthShield" },
+    { name = "Riptide" },
+    { name = "ChainHeal" },
+    { name = "HealingWave" },
 }
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("restoration", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Shaman restoration rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
