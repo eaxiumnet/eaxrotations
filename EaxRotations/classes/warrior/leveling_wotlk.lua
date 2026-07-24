@@ -2,7 +2,7 @@
 -- WHAT:  priority-list strategies for warrior leveling in WotLK.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   simple rage-based rotation using core leveling abilities.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -14,6 +14,7 @@ do
 end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local helpers = require("shared/leveling_helpers_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 
@@ -66,76 +67,150 @@ local function build_state(context)
     return state
 end
 
-local function battle_stance_matches(context, state)
-    -- Default leveling stance: enables Charge and the Battle-stance ability set.
-    -- Only correct stance out of combat so we don't fight the combat rotation.
-    return not state.in_combat and not state.battle_stance_up
-end
-
-local function pummel_matches(context, state)
-    return state.in_combat and state.target_casting == true and state.rage >= 10
-end
-
-local function battle_shout_matches(context, state)
-    return not state.in_combat and not state.battle_shout_up
-end
-
-local function charge_matches(context, state)
-    return not state.in_combat
-end
-
-local function rend_matches(context, state)
-    return state.in_combat and state.rend_remains < 3
-end
-
-local function overpower_matches(context, state)
-    return state.in_combat
-end
-
-local function execute_matches(context, state)
-    return state.in_combat and state.target_hp < 20 and state.rage >= 10
-end
-
-local function thunder_clap_matches(context, state)
-    return state.in_combat and state.rage >= 20
-        and NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)
-end
-
-local function whirlwind_matches(context, state)
-    return state.in_combat and state.rage >= 25
-        and NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)
-end
-
-local function cleave_matches(context, state)
-    return state.in_combat and state.rage >= 20
-        and NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context and context.target, context, state)
-end
-
-local function victory_rush_matches(context, state)
-    return state.in_combat
-end
-
-local function heroic_strike_matches(context, state)
-    return state.in_combat and state.rage >= 30
-end
-
-local strategies = {
-    { name = "Pummel", matches = pummel_matches, execute = function(ctx) return ACTION.Pummel and ACTION.Pummel:cast_safe(ctx.target) end },
-    { name = "BattleStance", matches = battle_stance_matches, execute = function(ctx) return ACTION.BattleStance and ACTION.BattleStance:cast_safe() end },
-    { name = "BattleShout", matches = battle_shout_matches, execute = function(ctx) return ACTION.BattleShout and ACTION.BattleShout:cast_safe() end },
-    { name = "Charge", matches = charge_matches, execute = function(ctx) return ACTION.Charge and ACTION.Charge:cast_safe(ctx.target) end },
-    { name = "VictoryRush", matches = victory_rush_matches, execute = function(ctx) return ACTION.VictoryRush and ACTION.VictoryRush:cast_safe(ctx.target) end },
-    { name = "Execute", matches = execute_matches, execute = function(ctx) return ACTION.Execute and ACTION.Execute:cast_safe(ctx.target) end },
-    { name = "Overpower", matches = overpower_matches, execute = function(ctx) return ACTION.Overpower and ACTION.Overpower:cast_safe(ctx.target) end },
-    { name = "ThunderClap", matches = thunder_clap_matches, execute = function(ctx) return ACTION.ThunderClap and ACTION.ThunderClap:cast_safe(ctx.target) end },
-    { name = "Whirlwind", matches = whirlwind_matches, execute = function(ctx) return ACTION.Whirlwind and ACTION.Whirlwind:cast_safe() end },
-    { name = "Cleave", matches = cleave_matches, execute = function(ctx) return ACTION.Cleave and ACTION.Cleave:cast_safe(ctx.target) end },
-    { name = "Rend", matches = rend_matches, execute = function(ctx) return ACTION.Rend and ACTION.Rend:cast_safe(ctx.target) end },
-    { name = "HeroicStrike", matches = heroic_strike_matches, execute = function(ctx) return ACTION.HeroicStrike and ACTION.HeroicStrike:cast_safe(ctx.target) end },
+local DSL_DEFS = {
+    {
+        name = "Pummel",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_casting", op = "==", value = true },
+            { type = "state", field = "rage", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Pummel, target = "target" },
+    },
+    {
+        name = "BattleStance",
+        -- Default leveling stance: enables Charge and the Battle-stance ability set.
+        -- Only correct stance out of combat so we don't fight the combat rotation.
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "battle_stance_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.BattleStance, target = "self" },
+    },
+    {
+        name = "BattleShout",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "battle_shout_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.BattleShout, target = "self" },
+    },
+    {
+        name = "Charge",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.Charge, target = "target" },
+    },
+    {
+        name = "VictoryRush",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.VictoryRush, target = "target" },
+    },
+    {
+        name = "Execute",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_hp", op = "<", value = 20 },
+            { type = "state", field = "rage", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Execute, target = "target" },
+    },
+    {
+        name = "Overpower",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Overpower, target = "target" },
+    },
+    {
+        name = "ThunderClap",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 20 },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_self_meets then return false end
+                local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8
+                return NS.aoe_self_meets(2, r, context, state) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.ThunderClap, target = "target" },
+    },
+    {
+        name = "Whirlwind",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 25 },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_self_meets then return false end
+                local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8
+                return NS.aoe_self_meets(2, r, context, state) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Whirlwind, target = "self" },
+    },
+    {
+        name = "Cleave",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 20 },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_target_meets then return false end
+                local r = (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8
+                return NS.aoe_target_meets(2, r, context and context.target, context, state) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Cleave, target = "target" },
+    },
+    {
+        name = "Rend",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rend_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Rend, target = "target" },
+    },
+    {
+        name = "HeroicStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "rage", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.HeroicStrike, target = "target" },
+    },
 }
+
+-- Priority order (compiled in place from DSL_DEFS below).
+local strategies = {
+    { name = "Pummel" },
+    { name = "BattleStance" },
+    { name = "BattleShout" },
+    { name = "Charge" },
+    { name = "VictoryRush" },
+    { name = "Execute" },
+    { name = "Overpower" },
+    { name = "ThunderClap" },
+    { name = "Whirlwind" },
+    { name = "Cleave" },
+    { name = "Rend" },
+    { name = "HeroicStrike" },
+}
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 end
+
+if NS.log then NS.log("Warrior leveling rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
