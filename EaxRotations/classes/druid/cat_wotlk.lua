@@ -2,12 +2,14 @@
 -- WHAT:  priority-list strategies for Feral Cat druid.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); DSL conditions replace
+--         imperative match functions; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.DruidSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -69,49 +71,100 @@ local function build_state(context)
     return state
 end
 
-local function faerie_fire_feral_matches(context, state)
-    return state.in_combat and state.faerie_fire_remains < 3
-end
-
-local function ravage_matches(context, state)
-    return state.in_combat and state.is_stealthed and state.is_behind and state.energy >= 60
-end
-
-local function savage_roar_matches(context, state)
-    return state.savage_roar_remains < 3 and state.combo_points >= 1
-end
-
-local function rake_matches(context, state)
-    return state.rake_remains < 3 and state.energy >= 40
-end
-
-local function rip_matches(context, state)
-    return state.rip_remains < 3 and state.combo_points >= 4
-end
-
-local function ferocious_bite_matches(context, state)
-    return state.combo_points >= 4 and state.target_hp < 25
-end
-
-local function mangle_matches(context, state)
-    return state.energy >= 45
-end
-
-local function shred_matches(context, state)
-    if not state.is_behind then return false end
-    return state.energy >= 50
-end
-
-local strategies = {
-    { name = "FaerieFireFeral", matches = faerie_fire_feral_matches, execute = function(ctx) return ACTION.FaerieFireFeral and ACTION.FaerieFireFeral:cast_safe(ctx.target) end },
-    { name = "Ravage", matches = ravage_matches, execute = function(ctx) return ACTION.Ravage and ACTION.Ravage:cast_safe(ctx.target) end },
-    { name = "SavageRoar", matches = savage_roar_matches, execute = function(ctx) return ACTION.SavageRoar and ACTION.SavageRoar:cast_safe() end },
-    { name = "Rip", matches = rip_matches, execute = function(ctx) return ACTION.Rip and ACTION.Rip:cast_safe(ctx.target) end },
-    { name = "Rake", matches = rake_matches, execute = function(ctx) return ACTION.Rake and ACTION.Rake:cast_safe(ctx.target) end },
-    { name = "FerociousBite", matches = ferocious_bite_matches, execute = function(ctx) return ACTION.FerociousBite and ACTION.FerociousBite:cast_safe(ctx.target) end },
-    { name = "MangleCat", matches = mangle_matches, execute = function(ctx) return ACTION.MangleCat and ACTION.MangleCat:cast_safe(ctx.target) end },
-    { name = "Shred", matches = shred_matches, execute = function(ctx) return ACTION.Shred and ACTION.Shred:cast_safe(ctx.target) end },
+-- -----------------------------------------------------------------------------
+-- Declarative Strategy DSL definitions
+-- -----------------------------------------------------------------------------
+local DSL_DEFS = {
+    {
+        name = "FaerieFireFeral",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "faerie_fire_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.FaerieFireFeral, target = "target" },
+    },
+    {
+        name = "Ravage",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "is_stealthed", op = "truthy" },
+            { type = "state", field = "is_behind", op = "truthy" },
+            { type = "state", field = "energy", op = ">=", value = 60 },
+        },
+        action = { type = "cast", spell = ACTION.Ravage, target = "target" },
+    },
+    {
+        name = "SavageRoar",
+        conditions = {
+            { type = "state", field = "savage_roar_remains", op = "<", value = 3 },
+            { type = "state", field = "combo_points", op = ">=", value = 1 },
+        },
+        action = { type = "cast", spell = ACTION.SavageRoar, target = "self" },
+    },
+    {
+        name = "Rip",
+        conditions = {
+            { type = "state", field = "rip_remains", op = "<", value = 3 },
+            { type = "state", field = "combo_points", op = ">=", value = 4 },
+        },
+        action = { type = "cast", spell = ACTION.Rip, target = "target" },
+    },
+    {
+        name = "Rake",
+        conditions = {
+            { type = "state", field = "rake_remains", op = "<", value = 3 },
+            { type = "state", field = "energy", op = ">=", value = 40 },
+        },
+        action = { type = "cast", spell = ACTION.Rake, target = "target" },
+    },
+    {
+        name = "FerociousBite",
+        conditions = {
+            { type = "state", field = "combo_points", op = ">=", value = 4 },
+            { type = "state", field = "target_hp", op = "<", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.FerociousBite, target = "target" },
+    },
+    {
+        name = "MangleCat",
+        conditions = {
+            { type = "state", field = "energy", op = ">=", value = 45 },
+        },
+        action = { type = "cast", spell = ACTION.MangleCat, target = "target" },
+    },
+    {
+        name = "Shred",
+        conditions = {
+            { type = "state", field = "is_behind", op = "truthy" },
+            { type = "state", field = "energy", op = ">=", value = 50 },
+        },
+        action = { type = "cast", spell = ACTION.Shred, target = "target" },
+    },
 }
+
+-- -----------------------------------------------------------------------------
+-- Strategies (name-only placeholders; substituted by DSL). Priority preserved.
+-- -----------------------------------------------------------------------------
+local strategies = {
+    { name = "FaerieFireFeral" },
+    { name = "Ravage" },
+    { name = "SavageRoar" },
+    { name = "Rip" },
+    { name = "Rake" },
+    { name = "FerociousBite" },
+    { name = "MangleCat" },
+    { name = "Shred" },
+}
+
+-- Name-based substitution preserves the existing priority order.
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("cat", strategies, { get_state = build_state })
