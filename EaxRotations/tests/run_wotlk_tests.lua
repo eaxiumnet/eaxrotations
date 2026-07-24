@@ -31,6 +31,7 @@ local tests = {
     "test_elemental_wotlk_dsl_priority.lua",
     "test_combat_wotlk_dsl_priority.lua",
     "test_assassination_wotlk_dsl_priority.lua",
+    "test_subtlety_wotlk_dsl_priority.lua",
     "test_discipline_wotlk_dsl_priority.lua",
     "test_affliction_wotlk_dsl_priority.lua",
     "test_resto_wotlk_dsl_priority.lua",
