@@ -118,7 +118,7 @@ Gated for: solo, dungeon, pvp
 23. Swipe
 24. Maul
 25. EnrageCombat
-26. FerociousBiteExecute
+26. FerociousBite
 27. BashPvP
 28. BashInterrupt
 29. FeralChargePvP
@@ -162,7 +162,7 @@ Gated for: dungeon, raid
 17. Swipe
 18. Maul
 19. EnrageCombat
-20. FerociousBiteExecute
+20. FerociousBite
 
 ### Features
 
@@ -197,7 +197,7 @@ Gated for: dungeon, raid
 15. MangleDebuff
 16. RipSnapshot
 17. Rip
-18. FerociousBiteExecute
+18. FerociousBite
 19. FerociousBiteTtd
 20. MaimControl
 21. TigersFury
@@ -245,7 +245,7 @@ Gated for: dungeon, pvp
 12. FaerieFireStealthLock
 13. FaerieFireFeral
 14. RipSnapshot
-15. FerociousBiteExecute
+15. FerociousBite
 16. TigersFury
 17. Powershift
 18. RakeSnapshot

@@ -498,7 +498,7 @@ local _strategies = {
         end,
     },
     {
-        name = "FerociousBiteExecute",
+        name = "FerociousBite",
         matches = function(ctx, s)
             if not s.is_cat then return false end
             if not ctx.has_valid_enemy_target then return false end

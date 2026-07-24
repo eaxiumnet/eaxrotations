@@ -325,7 +325,7 @@ assert_false(faerie_fire_stealth.matches(ctx_ffs_visible), "FaerieFireStealthLoc
 -- Ferocious Bite (execute): should fire at full CP while Rip is up
 -- ============================================================================
 
-local bite = find_strategy("FerociousBiteExecute")
+local bite = find_strategy("FerociousBite")
 
 -- Full CP, Rip up, long TTD -> should match
 action_calls = {}
@@ -334,7 +334,7 @@ local ctx_bite_ok = Mock.DefaultMeleeContext({
     target = { _debuff_remains = 10 },
     target_ttd = 60,
 })
-assert_true(bite.matches(ctx_bite_ok), "FerociousBiteExecute should match at full CP while Rip is up")
+assert_true(bite.matches(ctx_bite_ok), "FerociousBite should match at full CP while Rip is up")
 
 -- Low CP -> should NOT match
 action_calls = {}
@@ -343,7 +343,7 @@ local ctx_bite_low_cp = Mock.DefaultMeleeContext({
     target = { _debuff_remains = 10 },
     target_ttd = 60,
 })
-assert_false(bite.matches(ctx_bite_low_cp), "FerociousBiteExecute should not match with low CP")
+assert_false(bite.matches(ctx_bite_low_cp), "FerociousBite should not match with low CP")
 
 -- Full CP, Rip down, normal mob with cat_rip_elites_only enabled -> should bite
 action_calls = {}
@@ -355,7 +355,7 @@ local ctx_bite_elite_only = Mock.DefaultMeleeContext({
     target_is_boss = false,
     target_classification = 0,
 })
-assert_true(bite.matches(ctx_bite_elite_only), "FerociousBiteExecute should bite non-elites when Rip is elite-only")
+assert_true(bite.matches(ctx_bite_elite_only), "FerociousBite should bite non-elites when Rip is elite-only")
 
 -- ============================================================================
 -- Rip: respect cat_rip_elites_only setting

@@ -9,7 +9,7 @@ All notable changes to the EAX TBC Classic Rotations project.
 - **Druid (Cat)**: Removed duplicate `SNAPSHOT_RESET_GRACE` constant.
 - **Druid (Cat)**: Added `target_is_boss`/`target_classification` to `build_state` so Rip elite-only gating works with live API values.
 - **Druid (Cat)**: Centralized `cat_use_rip`/`cat_rip_elites_only` checks in a new `would_rip_fire` helper and used it in Rip, Rip Trick, Rip Snapshot, and Ferocious Bite strategies.
-- **Druid (Cat)**: Removed the execute-HP gate from `FerociousBiteExecute` so full-combo-point Ferocious Bite actually fires.
+- **Druid (Cat)**: Removed the execute-HP gate from `FerociousBite` so full-combo-point Ferocious Bite actually fires.
 
 ### Technical
 
