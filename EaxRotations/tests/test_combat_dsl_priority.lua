@@ -93,14 +93,14 @@ local combat = require("classes/rogue/combat_sylvanas")
 -- ============================================================================--
 -- Priority order: the 6 DSL-converted names must sit at their original indices.
 -- The full strategy list (in order) from combat_sylvanas.lua is:
---   1 HealthPotion, 2 DamagePotion, 3 Stealth, 4 CheapShot, 5 Garrote,
---   6 SliceAndDice, 7 AdrenalineRush, 8 BladeFlurry, 9 Rupture,
---   10 Eviscerate, 11 Envenom, 12 ShivPurge, 13 Gouge, 14 Sprint,
---   15 Vanish, 16 Feint, 17 Blind, 18 Hemorrhage, 19 GhostlyStrike, 20 Backstab,
---   21 KidneyShot, 22 ExposeArmor, 23 SinisterStrike, 24 HitCapPriority
+--   1 HealthPotion, 2 DamagePotion, 3 Kick, 4 Stealth, 5 CheapShot, 6 Garrote,
+--   7 SliceAndDice, 8 AdrenalineRush, 9 BladeFlurry, 10 Rupture,
+--   11 Eviscerate, 12 Envenom, 13 ShivPurge, 14 Gouge, 15 Sprint,
+--   16 Vanish, 17 Feint, 18 Blind, 19 Hemorrhage, 20 GhostlyStrike, 21 Backstab,
+--   22 KidneyShot, 23 ExposeArmor, 24 SinisterStrike, 25 HitCapPriority
 -- ============================================================================--
 local expected_order = {
-    "HealthPotion", "DamagePotion", "Stealth", "CheapShot", "Garrote",
+    "HealthPotion", "DamagePotion", "Kick", "Stealth", "CheapShot", "Garrote",
     "SliceAndDice", "AdrenalineRush", "BladeFlurry", "Rupture",
     "Eviscerate", "Envenom", "ShivPurge", "Gouge", "Sprint",
     "Vanish", "Feint", "Blind", "Hemorrhage", "GhostlyStrike", "Backstab",
@@ -120,12 +120,12 @@ end
 
 -- Explicitly verify the 6 DSL-converted names sit at their original indices.
 local dsl_positions = {
-    SliceAndDice = 6,
-    Eviscerate = 10,
-    Envenom = 11,
-    Gouge = 13,
-    Sprint = 14,
-    SinisterStrike = 23,
+    SliceAndDice = 7,
+    Eviscerate = 11,
+    Envenom = 12,
+    Gouge = 14,
+    Sprint = 15,
+    SinisterStrike = 24,
 }
 
 for name, expected_index in pairs(dsl_positions) do
@@ -209,5 +209,20 @@ assert_false(sprint.matches({}, { in_combat = true, sprint_ready = false }),
     "Sprint does not match when not ready")
 assert_true(sprint.matches({}, { in_combat = true, sprint_ready = true }),
     "Sprint matches in combat when ready")
+
+-- Kick: interrupt gated on setting + combat + target + kick_ready + interruptible.
+-- (InterruptManager is absent in this harness, so it uses the state fallback path;
+-- the spec_kit mock always returns the setting default, so use_interrupt stays on.)
+local kick = find_strategy("Kick")
+assert_false(kick.matches({ target = {} }, { in_combat = false, kick_ready = true, target_casting_interruptible = true }),
+    "Kick does not match out of combat")
+assert_false(kick.matches({ target = nil }, { in_combat = true, kick_ready = true, target_casting_interruptible = true }),
+    "Kick does not match without a target")
+assert_false(kick.matches({ target = {} }, { in_combat = true, kick_ready = false, target_casting_interruptible = true }),
+    "Kick does not match when not ready")
+assert_false(kick.matches({ target = {} }, { in_combat = true, kick_ready = true, target_casting_interruptible = false }),
+    "Kick does not match when target cast is not interruptible")
+assert_true(kick.matches({ target = {} }, { in_combat = true, kick_ready = true, target_casting_interruptible = true }),
+    "Kick matches when ready and target is casting an interruptible spell")
 
 print(string.format("PASS test_combat_dsl_priority (%d/%d assertions passed)", pass_count, test_count))
