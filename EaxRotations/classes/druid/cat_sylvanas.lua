@@ -709,6 +709,11 @@ local DSL_DEFS = {
     {
         name = "HealthPotion",
         conditions = {
+            { type = "custom", fn = function(context, state)
+                -- Never break cat form to drink — using an item drops us out of
+                -- form (lost DPS + re-shift mana). Only consume when un-shifted.
+                return not state.is_cat
+            end },
             { type = "in_combat" },
             { type = "setting", key = "use_auto_potions", op = "truthy", default = true },
             { type = "context", field = "has_health_potion", op = "truthy" },
@@ -721,6 +726,11 @@ local DSL_DEFS = {
     {
         name = "ManaPotion",
         conditions = {
+            { type = "custom", fn = function(context, state)
+                -- Never break cat form to drink — using an item drops us out of
+                -- form (lost DPS + re-shift mana). Only consume when un-shifted.
+                return not state.is_cat
+            end },
             { type = "in_combat" },
             { type = "setting", key = "use_auto_potions", op = "truthy", default = true },
             { type = "context", field = "has_mana_potion", op = "truthy" },
@@ -1261,6 +1271,8 @@ table.insert(strategies, { name = "Healthstone",
     matches = function(context)
         local state = build_state(context)
         if not state.in_combat then return false end
+        -- Never break cat form to use a healthstone — it drops us out of form.
+        if state.is_cat then return false end
         if (state.hp or 100) > 28 then return false end
         return (state.healthstone_ready or 0) > 0
     end,

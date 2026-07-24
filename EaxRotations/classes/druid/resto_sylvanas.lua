@@ -762,6 +762,8 @@ local strategies = {
  { name = "Healthstone",
    matches = function(context, state)
        if not context.in_combat then return false end
+       -- Never break Tree of Life form to use a healthstone — it drops the form.
+       if state.in_tree then return false end
        if (context.hp or 100) > 28 then return false end
        return (state.healthstone_ready or 0) > 0
    end,
@@ -787,7 +789,7 @@ local strategies = {
     if not (context.control_risk or (group_aware and context.is_group)) then return false end
     return state.poison_target and NS.spell_ready(ACTION.AbolishPoison, state.poison_target.unit)
    end, execute = function(_, state) return NS.try_cast(ACTION.AbolishPoison, state.poison_target.unit, "[RESTO] Abolish Poison") end },
- { name = "ManaPotionFloor", matches = function(_, s) return (s.mana_pct or 100) <= 18 end, execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
+ { name = "ManaPotionFloor", matches = function(_, s) if s.in_tree then return false end return (s.mana_pct or 100) <= 18 end, execute = function(context) return potion_helper.try_use_potion(context, potion_helper.MANA_POTION_IDS) end },
   { name = "InnervateSelf" },
   { name = "InnervateHealer" },
   { name = "RebirthBattleRez" },
