@@ -2,7 +2,7 @@
 -- WHAT:  priority-list strategies for paladin leveling in WotLK.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   simple seal/judgement rotation for leveling.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -14,6 +14,7 @@ do
 end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.PaladinSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -63,55 +64,116 @@ local function build_state(context)
     return state
 end
 
-local function seal_matches(context, state)
+local DSL_DEFS = {
     -- Keep a seal up in and out of combat. Seal of Righteousness (rank 1, level 3)
     -- covers the 1-19 dead zone before Seal of Command/Vengeance are learnable.
-    return not state.seal_up and state.mana_pct >= 5
-end
-
-local function blessing_of_might_matches(context, state)
-    return not state.in_combat and not state.might_up and state.mana_pct >= 5
-end
-
-local function devotion_aura_matches(context, state)
-    return not state.in_combat and not state.aura_up
-end
-
-local function judgement_matches(context, state)
-    return state.in_combat and state.mana_pct >= 10
-end
-
-local function crusader_strike_matches(context, state)
-    return state.in_combat and state.mana_pct >= 10
-end
-
-local function divine_storm_matches(context, state)
-    return state.in_combat and state.mana_pct >= 20
-        and NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)
-end
-
-local function consecration_matches(context, state)
-    return state.in_combat and state.mana_pct >= 25
-        and NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)
-end
-
-local function hammer_of_wrath_matches(context, state)
-    return state.in_combat and state.target_hp < 20 and state.mana_pct >= 10
-end
-
-local strategies = {
-    { name = "Seal", matches = seal_matches, execute = function(ctx) return (ACTION.SealOfVengeance and ACTION.SealOfVengeance:cast_safe()) or (ACTION.SealOfCommand and ACTION.SealOfCommand:cast_safe()) or (ACTION.SealOfRighteousness and ACTION.SealOfRighteousness:cast_safe()) end },
-    { name = "BlessingOfMight", matches = blessing_of_might_matches, execute = function(ctx) return ACTION.BlessingOfMight and ACTION.BlessingOfMight:cast_safe() end },
-    { name = "DevotionAura", matches = devotion_aura_matches, execute = function(ctx) return ACTION.DevotionAura and ACTION.DevotionAura:cast_safe() end },
-    { name = "Judgement", matches = judgement_matches, execute = function(ctx) return ACTION.Judgement and ACTION.Judgement:cast_safe(ctx.target) end },
-    { name = "HammerOfWrath", matches = hammer_of_wrath_matches, execute = function(ctx) return ACTION.HammerOfWrath and ACTION.HammerOfWrath:cast_safe(ctx.target) end },
-    { name = "DivineStorm", matches = divine_storm_matches, execute = function(ctx) return ACTION.DivineStorm and ACTION.DivineStorm:cast_safe(ctx.target) end },
-    { name = "Consecration", matches = consecration_matches, execute = function(ctx) return ACTION.Consecration and ACTION.Consecration:cast_safe(ctx.target) end },
-    { name = "CrusaderStrike", matches = crusader_strike_matches, execute = function(ctx) return ACTION.CrusaderStrike and ACTION.CrusaderStrike:cast_safe(ctx.target) end },
+    {
+        name = "Seal",
+        conditions = {
+            { type = "state", field = "seal_up", op = "falsy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 5 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            if NS.try_cast(ACTION.SealOfVengeance, nil, "SealOfVengeance") == true then return true end
+            if NS.try_cast(ACTION.SealOfCommand, nil, "SealOfCommand") == true then return true end
+            return NS.try_cast(ACTION.SealOfRighteousness, nil, "SealOfRighteousness") == true
+        end },
+    },
+    {
+        name = "BlessingOfMight",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "might_up", op = "falsy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 5 },
+        },
+        action = { type = "cast", spell = ACTION.BlessingOfMight, target = "self" },
+    },
+    {
+        name = "DevotionAura",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "aura_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.DevotionAura, target = "self" },
+    },
+    {
+        name = "Judgement",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Judgement, target = "target" },
+    },
+    {
+        name = "HammerOfWrath",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_hp", op = "<", value = 20 },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.HammerOfWrath, target = "target" },
+    },
+    {
+        name = "DivineStorm",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_self_meets then return false end
+                local radius = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8
+                return NS.aoe_self_meets(2, radius, context, state) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.DivineStorm, target = "target" },
+    },
+    {
+        name = "Consecration",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 25 },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_self_meets then return false end
+                local radius = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8
+                return NS.aoe_self_meets(2, radius, context, state) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Consecration, target = "target" },
+    },
+    {
+        name = "CrusaderStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.CrusaderStrike, target = "target" },
+    },
 }
+
+-- Priority order (compiled in place from DSL_DEFS below).
+local strategies = {
+    { name = "Seal" },
+    { name = "BlessingOfMight" },
+    { name = "DevotionAura" },
+    { name = "Judgement" },
+    { name = "HammerOfWrath" },
+    { name = "DivineStorm" },
+    { name = "Consecration" },
+    { name = "CrusaderStrike" },
+}
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 end
+
+if NS.log then NS.log("Paladin leveling rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
