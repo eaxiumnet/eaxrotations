@@ -289,7 +289,7 @@ assert_false(dash.matches(ctx_dash, st_dash), "Dash skips in PvE when target clo
 -- ============================================================================
 local tigersfury = find_strategy("TigersFury")
 local ctx_tf = { settings = {} }
-local st_tf = { has_tigers_fury = false, target_ttd = 20, energy = 30, combo_points = 0, next_tick_in = 1.0, energy = 30 }
+local st_tf = { has_tigers_fury = false, in_combat = true, is_stealthed = false, target_ttd = 20, energy = 30, combo_points = 0, next_tick_in = 1.0, energy = 30 }
 assert_true(tigersfury.matches(ctx_tf, st_tf), "TigersFury matches when energy can be gained")
 st_tf.has_tigers_fury = true
 assert_false(tigersfury.matches(ctx_tf, st_tf), "TigersFury skips when already active")

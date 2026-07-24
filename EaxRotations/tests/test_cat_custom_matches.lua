@@ -56,6 +56,7 @@ _G.EaxRotations = {
         return value ~= false
     end,
     log = function() end,
+    try_cast = function(spell, target, label, opts) return true end,
     rotation_registry = {
         register = function() end,
     },
@@ -144,9 +145,34 @@ local ctx_tf_rip_ready = Mock.DefaultMeleeContext({
 })
 assert_false(tigers_fury.matches(ctx_tf_rip_ready), "TigersFury should not match when Rip is ready")
 
--- Energy low, OOC -> should match (pre-cast opener)
+-- Energy low, OOC -> should NOT match (prevents stealth break / wasted TF)
+action_calls = {}
+local ctx_tf_ooc = Mock.DefaultMeleeContext({
+    in_combat = false,
+    me = {
+        get_power = function(pt) return 20 end,
+        get_max_power = function(pt) return 100 end,
+    },
+})
+assert_false(tigers_fury.matches(ctx_tf_ooc), "TigersFury should not match out of combat")
+
+-- Energy low, in combat, but stealthed -> should NOT match
+action_calls = {}
+local ctx_tf_stealth = Mock.DefaultMeleeContext({
+    in_combat = true,
+    is_stealthed = true,
+    me = {
+        get_power = function(pt) return 20 end,
+        get_max_power = function(pt) return 100 end,
+    },
+})
+assert_false(tigers_fury.matches(ctx_tf_stealth), "TigersFury should not match while stealthed")
+
+-- Energy low, in combat, not stealthed -> should match
 action_calls = {}
 local ctx_tf_ok = Mock.DefaultMeleeContext({
+    in_combat = true,
+    is_stealthed = false,
     me = {
         get_power = function(pt) return 20 end,
         get_max_power = function(pt) return 100 end,
@@ -270,6 +296,32 @@ local ctx_ff_stealth = Mock.DefaultMeleeContext({
 assert_false(faerie_fire.matches(ctx_ff_stealth), "FaerieFireFeral should not match while stealthed")
 
 -- ============================================================================
+-- Faerie Fire (Stealth Lock): should ONLY match while stealthed in PvP
+-- ============================================================================
+
+local faerie_fire_stealth = find_strategy("FaerieFireStealthLock")
+
+-- Stealthed, PvP target, debuff expired, target has armor -> should match
+action_calls = {}
+local ctx_ffs_ok = Mock.DefaultMeleeContext({
+    is_pvp = true,
+    is_stealthed = true,
+    target = { _debuff_remains = 0 },
+    target_armor = 100,
+})
+assert_true(faerie_fire_stealth.matches(ctx_ffs_ok), "FaerieFireStealthLock should match when stealthed in PvP")
+
+-- Not stealthed -> should NOT match
+action_calls = {}
+local ctx_ffs_visible = Mock.DefaultMeleeContext({
+    is_pvp = true,
+    is_stealthed = false,
+    target = { _debuff_remains = 0 },
+    target_armor = 100,
+})
+assert_false(faerie_fire_stealth.matches(ctx_ffs_visible), "FaerieFireStealthLock should not match when not stealthed")
+
+-- ============================================================================
 -- Ferocious Bite (execute): should fire at full CP while Rip is up
 -- ============================================================================
 
@@ -292,5 +344,132 @@ local ctx_bite_low_cp = Mock.DefaultMeleeContext({
     target_ttd = 60,
 })
 assert_false(bite.matches(ctx_bite_low_cp), "FerociousBiteExecute should not match with low CP")
+
+-- Full CP, Rip down, normal mob with cat_rip_elites_only enabled -> should bite
+action_calls = {}
+local ctx_bite_elite_only = Mock.DefaultMeleeContext({
+    combo_points = 5,
+    settings = { cat_rip_elites_only = true, cat_use_rip = true },
+    target = { _debuff_remains = 0 },
+    target_ttd = 60,
+    target_is_boss = false,
+    target_classification = 0,
+})
+assert_true(bite.matches(ctx_bite_elite_only), "FerociousBiteExecute should bite non-elites when Rip is elite-only")
+
+-- ============================================================================
+-- Rip: respect cat_rip_elites_only setting
+-- ============================================================================
+
+-- Elite/boss target with cat_rip_elites_only enabled -> Rip should match
+action_calls = {}
+local ctx_rip_elite = Mock.DefaultMeleeContext({
+    combo_points = 5,
+    energy = 35,
+    settings = { cat_rip_elites_only = true, cat_use_rip = true },
+    target = { _debuff_remains = 0 },
+    target_ttd = 60,
+    target_is_boss = true,
+    target_classification = 3,
+})
+assert_true(rip.matches(ctx_rip_elite), "Rip should match elite/boss when cat_rip_elites_only is enabled")
+
+-- Normal mob with cat_rip_elites_only enabled -> Rip should NOT match
+action_calls = {}
+local ctx_rip_normal = Mock.DefaultMeleeContext({
+    combo_points = 5,
+    energy = 35,
+    settings = { cat_rip_elites_only = true, cat_use_rip = true },
+    target = { _debuff_remains = 0 },
+    target_ttd = 60,
+    target_is_boss = false,
+    target_classification = 0,
+})
+assert_false(rip.matches(ctx_rip_normal), "Rip should not match normal mob when cat_rip_elites_only is enabled")
+
+-- cat_use_rip disabled -> Rip should NOT match
+action_calls = {}
+local ctx_rip_disabled = Mock.DefaultMeleeContext({
+    combo_points = 5,
+    energy = 35,
+    settings = { cat_use_rip = false },
+    target = { _debuff_remains = 0 },
+    target_ttd = 60,
+})
+assert_false(rip.matches(ctx_rip_disabled), "Rip should not match when cat_use_rip is disabled")
+
+-- ============================================================================
+-- Rake / Rip post-cast grace: don't recast while debuff is still applying
+-- ============================================================================
+
+local rake = find_strategy("Rake")
+
+-- Cast Rake at t=0, then at t=0.5 debuff remains is still 0 (latency) -> should NOT match
+local ctx_rake_cast = Mock.DefaultMeleeContext({
+    now = 0,
+    energy = 100,
+    target = { _debuff_remains = 0 },
+    target_ttd = 60,
+})
+rake.execute(ctx_rake_cast)
+
+action_calls = {}
+local ctx_rake_latent = Mock.DefaultMeleeContext({
+    now = 0.5,
+    energy = 100,
+    target = { _debuff_remains = 0 },
+    target_ttd = 60,
+})
+assert_false(rake.matches(ctx_rake_latent), "Rake should not match within the post-cast grace window when debuff is not yet visible")
+
+-- After the grace window, debuff still not visible -> should match again
+action_calls = {}
+local ctx_rake_after_grace = Mock.DefaultMeleeContext({
+    now = 2.0,
+    energy = 100,
+    target = { _debuff_remains = 0 },
+    target_ttd = 60,
+})
+assert_true(rake.matches(ctx_rake_after_grace), "Rake should match again after the post-cast grace window if debuff is still missing")
+
+-- Same for Rip: cast at t=0, then at t=0.5 debuff remains is still 0 -> should NOT match
+local ctx_rip_cast = Mock.DefaultMeleeContext({
+    now = 0,
+    combo_points = 5,
+    energy = 100,
+    settings = { cat_use_rip = true },
+    target = { _debuff_remains = 0 },
+    target_ttd = 60,
+    target_is_boss = true,
+    target_classification = 3,
+})
+rip.execute(ctx_rip_cast)
+
+action_calls = {}
+local ctx_rip_latent = Mock.DefaultMeleeContext({
+    now = 0.5,
+    combo_points = 5,
+    energy = 100,
+    settings = { cat_use_rip = true },
+    target = { _debuff_remains = 0 },
+    target_ttd = 60,
+    target_is_boss = true,
+    target_classification = 3,
+})
+assert_false(rip.matches(ctx_rip_latent), "Rip should not match within the post-cast grace window when debuff is not yet visible")
+
+-- After the grace window -> should match again
+action_calls = {}
+local ctx_rip_after_grace = Mock.DefaultMeleeContext({
+    now = 2.0,
+    combo_points = 5,
+    energy = 100,
+    settings = { cat_use_rip = true },
+    target = { _debuff_remains = 0 },
+    target_ttd = 60,
+    target_is_boss = true,
+    target_classification = 3,
+})
+assert_true(rip.matches(ctx_rip_after_grace), "Rip should match again after the post-cast grace window if debuff is still missing")
 
 print("PASS test_cat_custom_matches")

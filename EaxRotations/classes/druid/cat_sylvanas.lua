@@ -130,6 +130,8 @@ local MANGLE_REFRESH_WINDOW = 3.0
 local FAERIE_FIRE_REFRESH = 6.0
 local MIN_RIP_TTD = 10.0
 local MIN_RAKE_TTD = 6.0
+local SNAPSHOT_RESET_GRACE = 1.5  -- seconds after cast before recasting when debuff API lags
+local POST_CAST_GRACE = 1.5  -- seconds to suppress Rip/Rake recast while debuff API still reads 0
 local EXECUTE_HP = 25
 local HARD_EXECUTE_HP = 20
 local MELEE_RANGE = 5.0
@@ -234,9 +236,16 @@ local snapshot_state = {
     rake_target = nil,
     rip_ap = 0,
     rake_ap = 0,
-    rip_cast_time = 0,
-    rake_cast_time = 0,
+    rip_cast_time = -99999,
+    rake_cast_time = -99999,
 }
+
+-- Target-independent post-cast timestamps for the recast grace window. Unlike
+-- snapshot_state.*_cast_time (which build_state resets on target change), these
+-- persist so a freshly-cast Rip/Rake isn't double-cast while the debuff API
+-- still reads 0 (application latency).
+local _rip_recast_time = -99999
+local _rake_recast_time = -99999
 
 -- Form-switch throttle: prevent rapid cat↔travel form oscillation when OOC.
 -- Any form cast sets this; subsequent form casts are blocked for FORM_SWITCH_COOLDOWN seconds.
@@ -496,6 +505,19 @@ local function target_lives(state, seconds)
     return (state.target_ttd or 999) >= seconds
 end
 
+-- Determine whether Rip is intended for this target, accounting for user
+-- settings that disable Rip or restrict it to elite/boss targets.
+local function would_rip_fire(state, context)
+    if not spec_kit.setting_bool(context, "cat_use_rip", true) then return false end
+    if not target_lives(state, MIN_RIP_TTD) then return false end
+    if spec_kit.setting_bool(context, "cat_rip_elites_only", false) then
+        if state.target_is_boss then return true end
+        if (state.target_classification or 0) >= 1 then return true end
+        return false
+    end
+    return true
+end
+
 local function prevent_cp_waste(state, added_cp)
     -- (state.combo_points or 0): nil combo_points -> arithmetic crash guard.
     return (state.combo_points or 0) + (added_cp or 1) <= 5
@@ -559,10 +581,12 @@ local function record_bleed_snapshot(action_name, state)
         snapshot_state.rip_target = state.target
         snapshot_state.rip_ap = state.attack_power or 0
         snapshot_state.rip_cast_time = state.now
+        _rip_recast_time = state.now
     elseif action_name == "Rake" or action_name == "RakeSnapshot" or action_name == "RakeTab" then
         snapshot_state.rake_target = state.target
         snapshot_state.rake_ap = state.attack_power or 0
         snapshot_state.rake_cast_time = state.now
+        _rake_recast_time = state.now
     end
 end
 
@@ -632,12 +656,25 @@ build_state = function(context)
     state.is_cat = NS.has_form and NS.has_form("cat") or context.stance == STANCE_CAT
     state.is_behind = is_behind_target(target, context)
     state.level = context.level or context.player_level or 70
+    state.target_is_boss = context.target_is_boss == true or safe_method(target, "is_boss", false) == true
+    state.target_classification = context.target_classification or safe_method(target, "get_classification", 0) or 0
     state.attack_power = get_attack_power(context, me)
-    if _not_same_unit(snapshot_state.rip_target, target) or state.rip_remains <= 0 then snapshot_state.rip_ap = 0 end
-    if _not_same_unit(snapshot_state.rake_target, target) or state.rake_remains <= 0 then snapshot_state.rake_ap = 0 end
-    state.rip_ap = snapshot_state.rip_ap
-    state.rake_ap = snapshot_state.rake_ap
-    state.has_high_ap_window = state.has_bloodlust or (state.attack_power > 0 and state.rip_ap > 0 and state.attack_power >= state.rip_ap * AP_UPGRADE_RATIO) or (state.attack_power > 0 and state.rake_ap > 0 and state.attack_power >= state.rake_ap * AP_UPGRADE_RATIO)
+    if _not_same_unit(snapshot_state.rip_target, target) then
+        snapshot_state.rip_ap = 0
+        snapshot_state.rip_cast_time = -99999
+    elseif (state.rip_remains or 0) <= 0 and ((state.now or 0) - (snapshot_state.rip_cast_time or -99999)) > SNAPSHOT_RESET_GRACE then
+        snapshot_state.rip_ap = 0
+    end
+    if _not_same_unit(snapshot_state.rake_target, target) then
+        snapshot_state.rake_ap = 0
+        snapshot_state.rake_cast_time = -99999
+    elseif (state.rake_remains or 0) <= 0 and ((state.now or 0) - (snapshot_state.rake_cast_time or -99999)) > SNAPSHOT_RESET_GRACE then
+        snapshot_state.rake_ap = 0
+    end
+    state.rip_ap = snapshot_state.rip_ap or 0
+    state.rake_ap = snapshot_state.rake_ap or 0
+    local ap = state.attack_power or 0
+    state.has_high_ap_window = state.has_bloodlust or (ap > 0 and state.rip_ap > 0 and ap >= state.rip_ap * AP_UPGRADE_RATIO) or (ap > 0 and state.rake_ap > 0 and ap >= state.rake_ap * AP_UPGRADE_RATIO)
     update_energy_tick(state)
     state.should_execute = state.target_hp <= spec_kit.setting_number(context, "cat_execute_hp", EXECUTE_HP)
     local aoe_threshold = spec_kit.setting_number(context, "aoe_threshold", 3)
@@ -734,6 +771,8 @@ local DSL_DEFS = {
             { type = "custom", fn = function(context, state)
                 if not state.me and not NS.GetPlayer then return false end
                 if state.has_tigers_fury then return false end
+                if not state.in_combat then return false end
+                if state.is_stealthed then return false end
                 if state.target_ttd > 0 and state.target_ttd < SHORT_TTD then return false end
                 local max_energy = safe_method_arg(state.me, "get_max_power", NS.POWER_ENERGY or 3, ENERGY_CAP) or ENERGY_CAP
                 local fury_gain = TIGERS_FURY_ENERGY
@@ -864,6 +903,7 @@ end
 
 local function faerie_fire_stealth_matches(context, action)
     local state = build_state(context)
+    if not state.is_stealthed then return false end
     if not state.is_pvp and not state.is_player_target then return false end
     -- Skip if target has no armor (API unavailable or already fully reduced)
     if (context.target_armor or 0) <= 0 then return false end
@@ -884,11 +924,14 @@ end
 
 local function rip_matches(context, action)
     local state = build_state(context)
+    if not would_rip_fire(state, context) then return false end
     local required_cp = spec_kit.setting_number(context, "cat_rip_cp", 5)
     if leveling_helpers.is_low_level(state.level) then required_cp = math.min(required_cp, 4) end
     if not state.target then return false end
     if context.combo_points ~= nil and state.combo_points < required_cp then return false end
-    if not target_lives(state, MIN_RIP_TTD) then return false end
+    -- Post-cast grace: don't recast Rip while the debuff API still reads 0 right
+    -- after a cast (application latency); wait out POST_CAST_GRACE first.
+    if (state.rip_remains or 0) <= 0 and ((state.now or 0) - _rip_recast_time) < POST_CAST_GRACE then return false end
     -- TTD gate: skip Rip if target dying soon (needs time to tick)
     if state.target_ttd > 0 and state.target_ttd < 6 then return false end
     if should_wait_for_tick(state, RIP_COST) then return false end
@@ -905,12 +948,12 @@ end
 local function rip_trick_matches(context, action)
     local state = build_state(context)
     if not spec_kit.setting_bool(context, "cat_use_rip_trick", false) then return false end
+    if not would_rip_fire(state, context) then return false end
     if not state.target then return false end
     if not state.is_cat or not state.in_combat then return false end
     if (state.mana_pct or 100) < POWERSHIFT_MIN_MANA then return false end
     if (state.combo_points or 0) < 1 then return false end
     if (state.rip_remains or 0) > 0 then return false end
-    if not target_lives(state, MIN_RIP_TTD) then return false end
     if (state.target_ttd or 999) > 0 and (state.target_ttd or 999) < 6 then return false end
     local energy = (state.energy or 0)
     local next_energy = energy + ENERGY_PER_TICK
@@ -948,10 +991,10 @@ end
 
 local function rip_snapshot_matches(context, action)
     local state = build_state(context)
+    if not would_rip_fire(state, context) then return false end
     local required_cp = spec_kit.setting_number(context, "cat_rip_cp", 5)
     if state.combo_points < required_cp then return false end
     if state.rip_remains <= RIP_REFRESH_WINDOW then return false end
-    if not target_lives(state, MIN_RIP_TTD) then return false end
     if state.rip_ap <= 0 then return false end
     -- Use lower threshold during bloodlust/high-AP windows to catch the snapshot opportunity
     local ratio = state.has_high_ap_window and HIGH_AP_UPGRADE_RATIO or STRONG_AP_UPGRADE_RATIO
@@ -964,7 +1007,9 @@ local function bite_matches(context, action)
     local required_cp = spec_kit.setting_number(context, "cat_ferocious_bite_cp", 5)
     if leveling_helpers.is_low_level(state.level) then required_cp = math.min(required_cp, 4) end
     if state.combo_points < required_cp then return false end
-    if state.rip_remains <= RIP_REFRESH_WINDOW and target_lives(state, MIN_RIP_TTD) then return false end
+    -- Only defer to Rip if Rip will actually be used on this target. When Rip is
+    -- disabled, or elites-only on a non-elite, spend CP on Ferocious Bite instead.
+    if would_rip_fire(state, context) and state.rip_remains <= RIP_REFRESH_WINDOW then return false end
     if should_wait_for_tick(state, BITE_COST) then return false end
     return true
 end
@@ -978,7 +1023,7 @@ local function bite_trick_matches(context, action)
     if (state.energy or 0) > bite_max_energy then return false end
     if (state.energy or 0) < BITE_COST then return false end
     if state.next_tick_in <= 0.1 then return false end
-    if state.rip_remains <= 2 and target_lives(state, MIN_RIP_TTD) then return false end
+    if would_rip_fire(state, context) and state.rip_remains <= 2 then return false end
     return true
 end
 
@@ -1014,6 +1059,9 @@ local function rake_matches(context, action)
     if not state.target then return false end
     if not target_lives(state, MIN_RAKE_TTD) then return false end
     if context.combo_points ~= nil and (state.combo_points or 0) >= 5 then return false end
+    -- Post-cast grace: don't recast Rake while the debuff API still reads 0 right
+    -- after a cast (application latency); wait out POST_CAST_GRACE first.
+    if (state.rake_remains or 0) <= 0 and ((state.now or 0) - _rake_recast_time) < POST_CAST_GRACE then return false end
     if should_wait_for_tick(state, RAKE_COST) then return false end
     if not should_snapshot_upgrade(state.attack_power, state.rake_ap, state.rake_remains, RAKE_REFRESH_WINDOW, AP_UPGRADE_RATIO) then return false end
     return true
@@ -1148,7 +1196,7 @@ local ACTIONS = {
     { name = "RipSnapshot", spell = ACTION.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 5, matches = rip_snapshot_matches },
     { name = "RipTrick", spell = ACTION.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 1, matches = rip_trick_matches },
     { name = "Rip", spell = ACTION.Rip, required_form = "cat", min_energy = RIP_COST, min_combo = 3, matches = rip_matches },
-    { name = "FerociousBiteExecute", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, target_max_hp = EXECUTE_HP, matches = bite_matches },
+    { name = "FerociousBiteExecute", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, matches = bite_matches },
     { name = "FerociousBiteTtd", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 3, matches = emergency_bite_matches },
     { name = "BiteTrick", spell = ACTION.FerociousBite, required_form = "cat", min_energy = BITE_COST, min_combo = 5, matches = bite_trick_matches },
     { name = "MaimControl", spell = ACTION.Maim, required_form = "cat", min_energy = MAIM_COST, min_combo = 3, matches = maim_control_matches },
