@@ -1,5 +1,24 @@
 # EaxRotations Changelog
 
+## v2.13.0 — Multi-DoT Spreading & Healer Intelligence (July 24, 2026)
+
+> **Release:** v2.13.0
+> **Game:** The Burning Crusade Classic (2.5.5.x)
+
+### What you'll notice
+
+- **Affliction Warlock auto-spreads DoTs in dungeons** — no more manual tab-targeting. Agony, Corruption, and UA now automatically find new targets in combat range without you having to switch targets.
+- **Shadow Priest and Balance Druid multi-DoT** also improved — both specs now have more robust target-finding and will only DoT mobs that are actually fighting your group (no more pulling patrols).
+- **Feral Cat** — Tiger's Fury no longer spams constantly (was firing every frame after the buff expired). Ferocious Bite now actually gets used at full combo points.
+- **Affliction Life Tap** works again in dungeon content.
+- **Healers are smarter** — fixed a bug where the healer AI thought every party member was about to die (causing excessive cooldown/triage usage). Healing should feel much more measured now.
+- **Faster cooldown tracking** — spell cooldown checks now use a more accurate primary API path.
+- **Combat stats** now properly track fight data (was silently broken before).
+
+Reload for **v2.13.0**.
+
+---
+
 ## v2.12.1 — Feral Cat Fixes (July 24, 2026)
 
 > **Release:** v2.12.1

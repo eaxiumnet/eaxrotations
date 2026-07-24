@@ -2,6 +2,35 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.13.0] — Multi-DoT Spread Fix, API Audit, WotLK Leveling DSL (2026-07-24)
+
+**15 commits since v2.12.1.** Major multi-DoT spreading fix, comprehensive API
+usage audit with 6 bugs corrected, and all 10 WotLK leveling specs converted
+to the declarative strategy DSL.
+
+### Bug Fixes
+
+- **Warlock (Affliction)**: Multi-DoT spreading now works without manual tab-targeting. The IZI `spread_dot` call was completely broken (wrong parameter types/order). Replaced with proper `izi.enemies()` + debuff/CC/engagement filter loop. Removed `_izi` gate that blocked spread when only TSHelper was available.
+- **Priest (Shadow)**: Added `izi.enemies()` as 4th fallback tier in `_find_multidot_target`. Added `is_in_combat()` engagement check to prevent dotting unengaged patrol mobs.
+- **Druid (Balance)**: Added `izi.enemies()` as 3rd fallback tier in `_multidot_enemy_list`. Added `_is_in_combat()` engagement filter to skip patrols.
+- **Druid (Cat)**: Tiger's Fury no longer spams after buff expires (added cooldown_remaining check — buff is 6s but CD is 30s). Ferocious Bite now fires (added `me:get_combo_points()` fallback).
+- **Warlock (Affliction)**: Life Tap now fires in dungeons (added `me:get_mana_percentage()` fallback when middleware doesn't provide `context.mana_pct`).
+- **Combat Stats**: `NS.on_combat_start`/`NS.on_combat_end` don't exist — fixed to `NS.register_on_combat_start`/`NS.register_on_combat_end`. Combat stats tracking was silently never activating.
+- **Core (Healer urgency)**: `get_health_percentage_inc` returns 0.0–1.0 scale but was compared against 25 (0–100 scale). Every party member was always flagged as imminent death, causing healers to over-triage. Fixed by multiplying by 100.
+- **Core (Cooldowns)**: `_spell_helper:get_spell_cooldown()` method doesn't exist in the API. Replaced with `get_remaining_charge_cooldown()` — the primary cooldown path was dead code, always falling through to a slower engine fallback.
+- **Buff Manager Helper**: `get_debuff_cache`/`get_buff_cache` take `(self, unit, cache_ms?)` with NO ids parameter, but was called with `(self, unit, nil, ttl)` — the nil occupied the cache_duration slot and the real TTL was discarded.
+- **Rogue (Middleware)**: Removed extra unused message arg from `NS.use_item` call.
+
+### Refactoring
+
+- **WotLK Leveling DSL**: All 10 leveling specs (Rogue, Hunter, Priest, Warlock, Shaman, Paladin, Druid, Mage, Warrior, Deathknight) converted to the declarative strategy DSL with full priority-order test coverage.
+
+### Technical
+
+- `luac -p` + 390/390 rotation + 31/31 leveling suites green (421 total).
+- Pre-commit badge-drift check remains in place.
+- Clean `eaxrotations.zip` (lua + md only).
+
 ## [2.12.1] — Feral Cat Full-CP Bite and Rip Elite Gating (2026-07-24)
 
 ### Bug Fixes
