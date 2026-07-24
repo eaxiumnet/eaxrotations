@@ -421,7 +421,9 @@ local function build_state(context)
 	    -- Nightfall proc
 	    aff_state.nightfall_active = NS.has_player_buff and NS.has_player_buff(NIGHTFALL_BUFF) or false
 	    -- Resources
-	aff_state.mana_pct = context.mana_pct or 100
+	aff_state.mana_pct = context.mana_pct
+	    or (context.me and context.me.get_mana_percentage and context.me:get_mana_percentage())
+	    or 100
 	aff_state.hp_pct = context.hp or 100
 	aff_state.enemy_count = context.enemy_count or 1
 	aff_state.in_combat = context.in_combat or false            -- Pet status (via pet object if available)

@@ -389,6 +389,12 @@ local function get_combo_points(context, target)
     if type(context.cp) == "number" then return context.cp end
     if NS.combo_points then return NS.combo_points(target) or 0 end
     if NS.get_combo_points then return NS.get_combo_points(target) or 0 end
+    -- Fallback: query the player unit directly (common private-server API shape)
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+    if me and type(me.get_combo_points) == "function" then
+        local ok, cp = pcall(me.get_combo_points, me)
+        if ok and type(cp) == "number" then return cp end
+    end
     return 0
 end
 
@@ -790,6 +796,11 @@ local DSL_DEFS = {
             { type = "custom", fn = function(context, state)
                 if not state.me and not NS.GetPlayer then return false end
                 if state.has_tigers_fury then return false end
+                -- Cooldown check: buff lasts 6s but CD is 30s; don't spam after buff expires
+                if type(ACTION.TigersFury) == "table" and ACTION.TigersFury.cooldown_remaining then
+                    local ok, cd = pcall(ACTION.TigersFury.cooldown_remaining, ACTION.TigersFury)
+                    if ok and type(cd) == "number" and cd > 0 then return false end
+                end
                 if not state.in_combat then return false end
                 if state.is_stealthed then return false end
                 if state.target_ttd > 0 and state.target_ttd < SHORT_TTD then return false end
