@@ -2,12 +2,13 @@
 -- WHAT:  priority-list strategies for Holy paladin.
 -- WHEN:  combat with valid friendly target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with WotLK-era mechanics.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.PaladinSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -49,36 +50,66 @@ local function build_state(context)
     return state
 end
 
-local function beacon_of_light_matches(context, state)
-    return not state.beacon_up
-end
-
-local function sacred_shield_matches(context, state)
-    return not state.sacred_shield_up
-end
-
-local function holy_shock_matches(context, state)
-    return state.target_hp < 80
-end
-
-local function flash_of_light_matches(context, state)
-    return state.target_hp < 70 and state.mana_pct >= 20
-end
-
-local function holy_light_matches(context, state)
-    return state.target_hp < 50 and state.mana_pct >= 30
-end
+local DSL_DEFS = {
+    {
+        name = "BeaconOfLight",
+        conditions = {
+            { type = "state", field = "beacon_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.BeaconOfLight, target = "target" },
+    },
+    {
+        name = "SacredShield",
+        conditions = {
+            { type = "state", field = "sacred_shield_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.SacredShield, target = "target" },
+    },
+    {
+        name = "HolyShock",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 80 },
+        },
+        action = { type = "cast", spell = ACTION.HolyShock, target = "target" },
+    },
+    {
+        name = "HolyLight",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 50 },
+            { type = "state", field = "mana_pct", op = ">=", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.HolyLight, target = "target" },
+    },
+    {
+        name = "FlashOfLight",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 70 },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.FlashOfLight, target = "target" },
+    },
+}
 
 local strategies = {
-    { name = "BeaconOfLight", matches = beacon_of_light_matches, execute = function(ctx) return ACTION.BeaconOfLight and ACTION.BeaconOfLight:cast_safe(ctx.target) end },
-    { name = "SacredShield", matches = sacred_shield_matches, execute = function(ctx) return ACTION.SacredShield and ACTION.SacredShield:cast_safe(ctx.target) end },
-    { name = "HolyShock", matches = holy_shock_matches, execute = function(ctx) return ACTION.HolyShock and ACTION.HolyShock:cast_safe(ctx.target) end },
-    { name = "HolyLight", matches = holy_light_matches, execute = function(ctx) return ACTION.HolyLight and ACTION.HolyLight:cast_safe(ctx.target) end },
-    { name = "FlashOfLight", matches = flash_of_light_matches, execute = function(ctx) return ACTION.FlashOfLight and ACTION.FlashOfLight:cast_safe(ctx.target) end },
+    { name = "BeaconOfLight" },
+    { name = "SacredShield" },
+    { name = "HolyShock" },
+    { name = "HolyLight" },
+    { name = "FlashOfLight" },
 }
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("holy", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Paladin holy rotation registered") end
 
 return { strategies = strategies, build_state = build_state }

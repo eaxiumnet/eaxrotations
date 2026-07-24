@@ -99,6 +99,7 @@ local tests = {
     "test_marksmanship_wotlk_dsl_priority.lua",
     "test_beast_mastery_wotlk_dsl_priority.lua",
     "test_protection_paladin_wotlk_dsl_priority.lua",
+    "test_holy_wotlk_dsl_priority.lua",
     "test_elemental_wotlk_dsl_priority.lua",
   "test_combat_wotlk_dsl_priority.lua",
   "test_assassination_wotlk_dsl_priority.lua",
