@@ -2,7 +2,7 @@
 -- WHAT:  priority-list strategies for hunter leveling in WotLK.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   simple shot rotation with pet cooldowns.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -14,6 +14,7 @@ do
 end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local helpers = require("shared/leveling_helpers_sylvanas")
 local pet_manager = require("shared/pet_manager_sylvanas")
 local SPELLS = NS.HunterSpells or {}
@@ -85,86 +86,174 @@ local function build_state(context)
     return state
 end
 
-local function silencing_shot_matches(context, state)
+local DSL_DEFS = {
     -- Silencing Shot is an interrupt: only fire when the target is actually casting.
-    return state.in_combat and state.target_casting == true and state.mana_pct >= 6
-end
-
-local function aspect_of_the_viper_matches(context, state)
+    {
+        name = "SilencingShot",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_casting", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 6 },
+        },
+        action = { type = "cast", spell = ACTION.SilencingShot, target = "target" },
+    },
     -- Mana recovery stance: swap to Viper when low, hysteresis vs dps-aspect switch-back.
-    return not state.viper_up and state.mana_pct < 20
-end
-
-local function dps_aspect_matches(context, state)
+    {
+        name = "AspectOfTheViper",
+        conditions = {
+            { type = "state", field = "viper_up", op = "falsy" },
+            { type = "state", field = "mana_pct", op = "<", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.AspectOfTheViper, target = "self" },
+    },
     -- Establish/return to Hawk/Dragonhawk once mana recovers past the hysteresis gap.
-    return not state.dps_aspect_up and state.mana_pct >= 40
-end
-
-local function call_pet_matches(context, state)
-    return not state.in_combat and not state.has_pet
-end
-
-local function revive_pet_matches(context, state)
-    return not state.in_combat and state.has_pet and not state.pet_alive
-end
-
-local function mend_pet_matches(context, state)
-    return state.pet_alive and state.pet_hp < 80 and state.mana_pct >= 10
-end
-
-local function hunters_mark_matches(context, state)
-    return state.in_combat and state.mark_remains < 3 and state.mana_pct >= 10
-end
-
-local function bestial_wrath_matches(context, state)
-    return state.in_combat and state.bestial_wrath_ready
-end
-
-local function kill_command_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function serpent_sting_matches(context, state)
-    return state.in_combat and state.serpent_remains < 3 and state.mana_pct >= 15
-end
-
-local function multi_shot_matches(context, state)
-    return state.in_combat and state.mana_pct >= 9
-        and NS.aoe_target_meets and NS.aoe_target_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context and context.target, context)
-end
-
-local function volley_matches(context, state)
-    return state.in_combat and state.mana_pct >= 17
-        and NS.aoe_target_meets and NS.aoe_target_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, context and context.target, context, state)
-end
-
-local function arcane_shot_matches(context, state)
-    return state.in_combat and state.mana_pct >= 20
-end
-
-local function steady_shot_matches(context, state)
-    return state.in_combat and state.mana_pct >= 10
-end
+    -- Custom action preserves the Dragonhawk-first, Hawk-fallback cast order.
+    {
+        name = "DpsAspect",
+        conditions = {
+            { type = "state", field = "dps_aspect_up", op = "falsy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 40 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            if NS.try_cast(ACTION.AspectOfTheDragonhawk, nil, "AspectOfTheDragonhawk") == true then return true end
+            return NS.try_cast(ACTION.AspectOfTheHawk, nil, "AspectOfTheHawk") == true
+        end },
+    },
+    {
+        name = "CallPet",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "has_pet", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.CallPet, target = "self" },
+    },
+    {
+        name = "RevivePet",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "has_pet", op = "truthy" },
+            { type = "state", field = "pet_alive", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.RevivePet, target = "self" },
+    },
+    {
+        name = "MendPet",
+        conditions = {
+            { type = "state", field = "pet_alive", op = "truthy" },
+            { type = "state", field = "pet_hp", op = "<", value = 80 },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.MendPet, target = "self" },
+    },
+    {
+        name = "HuntersMark",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mark_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.HuntersMark, target = "target" },
+    },
+    -- Ground AoE volley when enough enemies cluster near the target.
+    {
+        name = "Volley",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 17 },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_target_meets then return false end
+                local radius = (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8
+                return NS.aoe_target_meets(3, radius, context and context.target, context, state) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Volley, target = "target" },
+    },
+    -- Multi-Shot cleave when 2+ enemies are near the target.
+    {
+        name = "MultiShot",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 9 },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_target_meets then return false end
+                local radius = (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8
+                return NS.aoe_target_meets(2, radius, context and context.target, context) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.MultiShot, target = "target" },
+    },
+    {
+        name = "BestialWrath",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "bestial_wrath_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.BestialWrath, target = "self" },
+    },
+    {
+        name = "KillCommand",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.KillCommand, target = "target" },
+    },
+    {
+        name = "SerpentSting",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "serpent_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.SerpentSting, target = "target" },
+    },
+    {
+        name = "ArcaneShot",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.ArcaneShot, target = "target" },
+    },
+    {
+        name = "SteadyShot",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.SteadyShot, target = "target" },
+    },
+}
 
 local strategies = {
-    { name = "SilencingShot", matches = silencing_shot_matches, execute = function(ctx) return ACTION.SilencingShot and ACTION.SilencingShot:cast_safe(ctx.target) end },
-    { name = "AspectOfTheViper", matches = aspect_of_the_viper_matches, execute = function(ctx) return ACTION.AspectOfTheViper and ACTION.AspectOfTheViper:cast_safe() end },
-    { name = "DpsAspect", matches = dps_aspect_matches, execute = function(ctx) return (ACTION.AspectOfTheDragonhawk and ACTION.AspectOfTheDragonhawk:cast_safe()) or (ACTION.AspectOfTheHawk and ACTION.AspectOfTheHawk:cast_safe()) end },
-    { name = "CallPet", matches = call_pet_matches, execute = function(ctx) return ACTION.CallPet and ACTION.CallPet:cast_safe() end },
-    { name = "RevivePet", matches = revive_pet_matches, execute = function(ctx) return ACTION.RevivePet and ACTION.RevivePet:cast_safe() end },
-    { name = "MendPet", matches = mend_pet_matches, execute = function(ctx) return ACTION.MendPet and ACTION.MendPet:cast_safe() end },
-    { name = "HuntersMark", matches = hunters_mark_matches, execute = function(ctx) return ACTION.HuntersMark and ACTION.HuntersMark:cast_safe(ctx.target) end },
-    { name = "Volley", matches = volley_matches, execute = function(ctx) return ACTION.Volley and ACTION.Volley:cast_safe(ctx.target) end },
-    { name = "MultiShot", matches = multi_shot_matches, execute = function(ctx) return ACTION.MultiShot and ACTION.MultiShot:cast_safe(ctx.target) end },
-    { name = "BestialWrath", matches = bestial_wrath_matches, execute = function(ctx) return ACTION.BestialWrath and ACTION.BestialWrath:cast_safe() end },
-    { name = "KillCommand", matches = kill_command_matches, execute = function(ctx) return ACTION.KillCommand and ACTION.KillCommand:cast_safe(ctx.target) end },
-    { name = "SerpentSting", matches = serpent_sting_matches, execute = function(ctx) return ACTION.SerpentSting and ACTION.SerpentSting:cast_safe(ctx.target) end },
-    { name = "ArcaneShot", matches = arcane_shot_matches, execute = function(ctx) return ACTION.ArcaneShot and ACTION.ArcaneShot:cast_safe(ctx.target) end },
-    { name = "SteadyShot", matches = steady_shot_matches, execute = function(ctx) return ACTION.SteadyShot and ACTION.SteadyShot:cast_safe(ctx.target) end },
+    { name = "SilencingShot" },
+    { name = "AspectOfTheViper" },
+    { name = "DpsAspect" },
+    { name = "CallPet" },
+    { name = "RevivePet" },
+    { name = "MendPet" },
+    { name = "HuntersMark" },
+    { name = "Volley" },
+    { name = "MultiShot" },
+    { name = "BestialWrath" },
+    { name = "KillCommand" },
+    { name = "SerpentSting" },
+    { name = "ArcaneShot" },
+    { name = "SteadyShot" },
 }
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Hunter leveling rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
