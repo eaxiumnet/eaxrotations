@@ -123,11 +123,12 @@ local strategies = elemental.strategies
 -- ============================================================================
 local expected_order = {
     "ManaPotion", "Healthstone", "ManaEmergencyWand",
-    "TotemOfWrath", "WrathOfAirTotem", "ManaSpringTotem",
+    "TotemOfWrath", "WrathOfAirTotem",
     "LightningShield", "WaterShield", "GhostWolf", "TremorTotem", "EarthbindTotem",
     "ManaTideTotem", "ElementalMastery", "NaturesSwiftness", "Bloodlust",
     "ChainLightning", "FlameShock", "LightningBolt", "ChainHeal",
     "FlameShockMoving", "EarthShockMoving", "FrostShockMoving",
+    "ManaSpringTotem",
     "FireNovaTotem", "MagmaTotem",
     "FlametongueWeapon", "WindfuryWeapon", "RockbiterWeapon",
     "HealingWave", "TotemicCall",
@@ -141,13 +142,16 @@ end
 -- DSL position checks
 local dsl_indices = {}
 for i = 1, #strategies do dsl_indices[strategies[i].name] = i end
-assert_true(dsl_indices["WaterShield"] == 8, "WaterShield at index 8")
-assert_true(dsl_indices["GhostWolf"] == 9, "GhostWolf at index 9")
-assert_true(dsl_indices["EarthbindTotem"] == 11, "EarthbindTotem at index 11")
-assert_true(dsl_indices["ManaTideTotem"] == 12, "ManaTideTotem at index 12")
-assert_true(dsl_indices["ElementalMastery"] == 13, "ElementalMastery at index 13")
-assert_true(dsl_indices["ChainLightning"] == 16, "ChainLightning at index 16")
-assert_true(dsl_indices["FlameShock"] == 17, "FlameShock at index 17")
+assert_true(dsl_indices["WaterShield"] == 7, "WaterShield at index 7")
+assert_true(dsl_indices["GhostWolf"] == 8, "GhostWolf at index 8")
+assert_true(dsl_indices["EarthbindTotem"] == 10, "EarthbindTotem at index 10")
+assert_true(dsl_indices["ManaTideTotem"] == 11, "ManaTideTotem at index 11")
+assert_true(dsl_indices["ElementalMastery"] == 12, "ElementalMastery at index 12")
+assert_true(dsl_indices["ChainLightning"] == 15, "ChainLightning at index 15")
+assert_true(dsl_indices["FlameShock"] == 16, "FlameShock at index 16")
+-- Mana Spring Totem is demoted below the DPS/moving-shock block (guide position ~21)
+-- while Totem of Wrath + Wrath of Air stay high for buff uptime.
+assert_true(dsl_indices["ManaSpringTotem"] == 22, "ManaSpringTotem demoted to index 22")
 
 -- ============================================================================
 -- Mock context + state helpers
@@ -192,7 +196,7 @@ end
 -- ============================================================================
 -- WaterShield: not mana emergency, mana_pct <= threshold, spell_ready self
 -- ============================================================================
-local idx_ws = 8
+local idx_ws = 7
 assert_true(strategies[idx_ws].matches(make_ctx(), make_state({ mana_pct = 40 })),
     "WaterShield matches when low mana and not emergency")
 assert_false(strategies[idx_ws].matches(make_ctx(), make_state({ mana_pct = 60 })),
@@ -203,7 +207,7 @@ assert_false(strategies[idx_ws].matches(make_ctx(), make_state({ mana_emergency 
 -- ============================================================================
 -- GhostWolf: not in_combat, spell_ready self
 -- ============================================================================
-local idx_gw = 9
+local idx_gw = 8
 assert_true(strategies[idx_gw].matches(make_ctx({ in_combat = false }), make_state()),
     "GhostWolf matches when out of combat")
 assert_false(strategies[idx_gw].matches(make_ctx({ in_combat = true }), make_state()),
@@ -212,7 +216,7 @@ assert_false(strategies[idx_gw].matches(make_ctx({ in_combat = true }), make_sta
 -- ============================================================================
 -- EarthbindTotem: is_pvp, not mana emergency, spell_ready self
 -- ============================================================================
-local idx_et = 11
+local idx_et = 10
 assert_true(strategies[idx_et].matches(make_ctx({ is_pvp = true }), make_state()),
     "EarthbindTotem matches in PvP and not emergency")
 assert_false(strategies[idx_et].matches(make_ctx({ is_pvp = false }), make_state()),
@@ -223,7 +227,7 @@ assert_false(strategies[idx_et].matches(make_ctx({ is_pvp = true }), make_state(
 -- ============================================================================
 -- ManaTideTotem: mana_pct <= 30, not mana emergency, spell_ready self
 -- ============================================================================
-local idx_mtt = 12
+local idx_mtt = 11
 assert_true(strategies[idx_mtt].matches(make_ctx(), make_state({ mana_pct = 20 })),
     "ManaTideTotem matches when very low mana and not emergency")
 assert_false(strategies[idx_mtt].matches(make_ctx(), make_state({ mana_pct = 50 })),
@@ -234,7 +238,7 @@ assert_false(strategies[idx_mtt].matches(make_ctx(), make_state({ mana_pct = 20,
 -- ============================================================================
 -- ElementalMastery: in_combat, should_burst, not mana_conserve, setting enabled, spell_ready self
 -- ============================================================================
-local idx_em = 13
+local idx_em = 12
 assert_true(strategies[idx_em].matches(make_ctx(), make_state()),
     "ElementalMastery matches with burst enabled and not conserving mana")
 assert_false(strategies[idx_em].matches(make_ctx({ in_combat = false }), make_state()),
@@ -250,7 +254,7 @@ assert_false(strategies[idx_em].matches(make_ctx({ settings = { elemental_use_el
 -- ChainLightning: not moving, not mana emergency/conserve, cc_safe, low threat,
 --                 clearcast or AoE target meets, spell_ready target
 -- ============================================================================
-local idx_cl = 16
+local idx_cl = 15
 assert_true(strategies[idx_cl].matches(make_ctx(), make_state({ clearcast_active = true })),
     "ChainLightning matches when Clearcast is active")
 assert_false(strategies[idx_cl].matches(make_ctx({ is_moving = true }), make_state()),
@@ -267,7 +271,7 @@ assert_false(strategies[idx_cl].matches(make_ctx({ threat_pct = 90 }), make_stat
 -- ============================================================================
 -- FlameShock: target exists, flame_remains <= 1, should_refresh_dot true, spell_ready target
 -- ============================================================================
-local idx_fs = 17
+local idx_fs = 16
 assert_true(strategies[idx_fs].matches(make_ctx(), make_state({ flame_remains = 0 })),
     "FlameShock matches when debuff absent and should_refresh_dot agrees")
 assert_false(strategies[idx_fs].matches(make_ctx(), make_state({ flame_remains = 5 })),

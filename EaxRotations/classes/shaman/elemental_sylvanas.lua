@@ -586,16 +586,16 @@ local strategies = {
         end
         return true
       end },
-    -- Totem maintenance high priority (per APL: Totems group first)
+    -- DPS-buff totems stay high priority so Totem of Wrath (+3% crit/hit) and
+    -- Wrath of Air (+spell power) keep ~100% uptime. They gate on buff-down, so
+    -- this only costs ~1 GCD per 120s. Mana Spring (minor mana regen) is demoted
+    -- below the DPS block (guide position ~21) so it never clips a nuke.
     { name = "TotemOfWrath",
       matches = totem_of_wrath_matches_fn,
       execute = function() return NS.try_cast(ACTION.TotemOfWrath, NS.PLAYER_UNIT, "[ELEMENTAL] Totem of Wrath") end },
     { name = "WrathOfAirTotem",
       matches = wrath_of_air_totem_matches_fn,
       execute = function() return NS.try_cast(ACTION.WrathOfAirTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Wrath of Air Totem") end },
-    { name = "ManaSpringTotem",
-      matches = mana_spring_totem_matches_fn,
-      execute = function() return NS.try_cast(ACTION.ManaSpringTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Mana Spring Totem") end },
     -- Lightning Shield buff
     { name = "LightningShield",
       matches = lightning_shield_matches_fn,
@@ -644,6 +644,12 @@ local strategies = {
     { name = "FrostShockMoving",
       matches = frost_shock_matches_fn,
       execute = function(context) return NS.try_cast(ACTION.FrostShock, context.target, "[ELEMENTAL] Frost Shock (moving)") end },
+
+    -- Mana Spring Totem (minor mana regen) — demoted below the DPS/moving-shock
+    -- block (guide position ~21) so refreshing it never interrupts the nuke.
+    { name = "ManaSpringTotem",
+      matches = mana_spring_totem_matches_fn,
+      execute = function() return NS.try_cast(ACTION.ManaSpringTotem, NS.PLAYER_UNIT, "[ELEMENTAL] Mana Spring Totem") end },
 
     -- AoE totems (Research: Fire Nova/Magma for stacked AoE)
     { name = "FireNovaTotem",
