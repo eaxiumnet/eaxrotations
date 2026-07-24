@@ -2,12 +2,13 @@
 -- WHAT:  priority-list strategies for priest leveling in WotLK.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   simple shadow/holy damage rotation with emergency heal.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.PriestSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -66,69 +67,133 @@ local function build_state(context)
     return state
 end
 
-local function flash_heal_matches(context, state)
-    return state.in_combat and state.hp < 50 and state.mana_pct >= 25
-end
-
-local function power_word_fortitude_matches(context, state)
-    return not state.in_combat and not state.fortitude_up and state.mana_pct >= 10
-end
-
-local function inner_fire_matches(context, state)
-    return not state.in_combat and not state.inner_fire_up and state.mana_pct >= 10
-end
-
-local function shadowform_matches(context, state)
+local DSL_DEFS = {
+    {
+        name = "PowerWordFortitude",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "fortitude_up", op = "falsy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.PowerWordFortitude, target = "self" },
+    },
+    {
+        name = "InnerFire",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "inner_fire_up", op = "falsy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.InnerFire, target = "self" },
+    },
     -- Opt-in: Shadowform blocks holy spells (heals), so gate behind a setting.
-    return state.use_shadowform == true and not state.in_combat and not state.shadowform_up
-end
-
-local function power_word_shield_matches(context, state)
+    {
+        name = "Shadowform",
+        conditions = {
+            { type = "state", field = "use_shadowform", op = "truthy" },
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "shadowform_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.Shadowform, target = "self" },
+    },
     -- Proactive absorb; never re-cast into the Weakened Soul lockout.
-    return state.in_combat and not state.pws_up and not state.weakened_soul and state.mana_pct >= 15
-end
-
-local function shadow_word_pain_matches(context, state)
-    return state.in_combat and state.swp_remains < 3 and state.mana_pct >= 15
-end
-
-local function penance_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function mind_blast_matches(context, state)
-    return state.in_combat and state.mana_pct >= 20
-end
-
-local function mind_flay_matches(context, state)
-    return state.in_combat and state.mana_pct >= 20
-end
-
-local function smite_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function shoot_wand_matches(context, state)
+    {
+        name = "PowerWordShield",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "pws_up", op = "falsy" },
+            { type = "state", field = "weakened_soul", op = "falsy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.PowerWordShield, target = "self" },
+    },
+    {
+        name = "FlashHeal",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 50 },
+            { type = "state", field = "mana_pct", op = ">=", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.FlashHeal, target = "self" },
+    },
+    {
+        name = "ShadowWordPain",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "swp_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.ShadowWordPain, target = "target" },
+    },
+    {
+        name = "Penance",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Penance, target = "target" },
+    },
+    {
+        name = "MindBlast",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.MindBlast, target = "target" },
+    },
+    {
+        name = "MindFlay",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.MindFlay, target = "target" },
+    },
+    {
+        name = "Smite",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Smite, target = "target" },
+    },
     -- OOM fallback: fire the wand when too low on mana to cast a real nuke.
-    return state.in_combat and state.mana_pct < 10
-end
+    {
+        name = "Shoot",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Shoot, target = "target" },
+    },
+}
 
 local strategies = {
-    { name = "PowerWordFortitude", matches = power_word_fortitude_matches, execute = function(ctx) return ACTION.PowerWordFortitude and ACTION.PowerWordFortitude:cast_safe() end },
-    { name = "InnerFire", matches = inner_fire_matches, execute = function(ctx) return ACTION.InnerFire and ACTION.InnerFire:cast_safe() end },
-    { name = "Shadowform", matches = shadowform_matches, execute = function(ctx) return ACTION.Shadowform and ACTION.Shadowform:cast_safe() end },
-    { name = "PowerWordShield", matches = power_word_shield_matches, execute = function(ctx) return ACTION.PowerWordShield and ACTION.PowerWordShield:cast_safe() end },
-    { name = "FlashHeal", matches = flash_heal_matches, execute = function(ctx) return ACTION.FlashHeal and ACTION.FlashHeal:cast_safe() end },
-    { name = "ShadowWordPain", matches = shadow_word_pain_matches, execute = function(ctx) return ACTION.ShadowWordPain and ACTION.ShadowWordPain:cast_safe(ctx.target) end },
-    { name = "Penance", matches = penance_matches, execute = function(ctx) return ACTION.Penance and ACTION.Penance:cast_safe(ctx.target) end },
-    { name = "MindBlast", matches = mind_blast_matches, execute = function(ctx) return ACTION.MindBlast and ACTION.MindBlast:cast_safe(ctx.target) end },
-    { name = "MindFlay", matches = mind_flay_matches, execute = function(ctx) return ACTION.MindFlay and ACTION.MindFlay:cast_safe(ctx.target) end },
-    { name = "Smite", matches = smite_matches, execute = function(ctx) return ACTION.Smite and ACTION.Smite:cast_safe(ctx.target) end },
-    { name = "Shoot", matches = shoot_wand_matches, execute = function(ctx) return ACTION.Shoot and ACTION.Shoot:cast_safe(ctx.target) end },
+    { name = "PowerWordFortitude" },
+    { name = "InnerFire" },
+    { name = "Shadowform" },
+    { name = "PowerWordShield" },
+    { name = "FlashHeal" },
+    { name = "ShadowWordPain" },
+    { name = "Penance" },
+    { name = "MindBlast" },
+    { name = "MindFlay" },
+    { name = "Smite" },
+    { name = "Shoot" },
 }
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Priest leveling rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
