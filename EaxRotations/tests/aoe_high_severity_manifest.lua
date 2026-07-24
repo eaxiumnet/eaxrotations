@@ -104,7 +104,6 @@ return {
             "EaxRotations/classes/warrior/arms_sylvanas.lua",
             "EaxRotations/classes/warrior/leveling_vanilla.lua",
             "EaxRotations/classes/warrior/leveling_sylvanas.lua",
-            "EaxRotations/classes/warrior/leveling_wotlk.lua",
         },
     },
     {
@@ -115,6 +114,7 @@ return {
             "EaxRotations/classes/warrior/kebab_vanilla.lua",
             "EaxRotations/classes/warrior/kebab_sylvanas.lua",
             "EaxRotations/classes/warrior/fury_sylvanas.lua",  -- DSL-converted: imperative whirlwind_matches removed
+            "EaxRotations/classes/warrior/leveling_wotlk.lua",  -- DSL-converted: imperative whirlwind_matches removed
         },
         window = 900,
     },
@@ -128,7 +128,6 @@ return {
             -- "EaxRotations/classes/warrior/arms_wotlk.lua" -- DSL-converted: use name=ThunderClap entry below
             "EaxRotations/classes/warrior/leveling_vanilla.lua",
             "EaxRotations/classes/warrior/leveling_sylvanas.lua",
-            "EaxRotations/classes/warrior/leveling_wotlk.lua",
         },
     },
     {
@@ -138,6 +137,7 @@ return {
         paths = {
             "EaxRotations/classes/warrior/arms_sylvanas.lua",  -- DSL-converted: imperative thunder_clap_matches removed
             "EaxRotations/classes/warrior/arms_wotlk.lua",    -- DSL-converted: imperative thunder_clap_matches removed
+            "EaxRotations/classes/warrior/leveling_wotlk.lua", -- DSL-converted: imperative thunder_clap_matches removed
         },
         window = 900,
     },
@@ -170,7 +170,6 @@ return {
             "EaxRotations/classes/warrior/arms_sylvanas.lua",
             "EaxRotations/classes/warrior/fury_sylvanas.lua",
             "EaxRotations/classes/warrior/leveling_sylvanas.lua",
-            "EaxRotations/classes/warrior/leveling_wotlk.lua",
             "EaxRotations/classes/warrior/protection_vanilla.lua",
             "EaxRotations/classes/warrior/protection_sylvanas.lua",
         },
@@ -183,6 +182,15 @@ return {
             "EaxRotations/classes/warrior/fury_vanilla.lua",
         },
         window = 500,
+    },
+    {
+        family = "Cleave",
+        needle = 'name = "Cleave"',
+        helper = "aoe_target_meets",
+        paths = {
+            "EaxRotations/classes/warrior/leveling_wotlk.lua",  -- DSL-converted: imperative cleave_matches removed
+        },
+        window = 900,
     },
     -- ========== Mage Cone of Cold (frontal 10yd cone) ==========
     {
