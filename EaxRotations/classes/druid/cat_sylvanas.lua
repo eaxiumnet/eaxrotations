@@ -734,7 +734,11 @@ local DSL_DEFS = {
         name = "RemoveCurse",
         conditions = {
             { type = "setting", key = "cat_auto_dispel", op = "truthy" },
-            { type = "custom", fn = function(context)
+            { type = "custom", fn = function(context, state)
+                -- Remove Curse cannot be cast while shapeshifted (TBC, spell 2782).
+                -- In cat form the client rejects it; a real druid shifts to caster,
+                -- dispels, then shifts back. Only offer it out of form.
+                if state.is_cat then return false end
                 return NS.spell_ready(ACTION.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
             end },
         },
@@ -746,6 +750,11 @@ local DSL_DEFS = {
         name = "Barkskin",
         conditions = {
             { type = "custom", fn = function(context, state)
+                -- Barkskin cannot be cast while shapeshifted (TBC, spell 22812) — in
+                -- cat form the client rejects the cast, so has_barkskin never becomes
+                -- true and this would re-fire every frame below the HP threshold.
+                -- Gate on caster form (mirrors bear_sylvanas.lua's is_bear guard).
+                if state.is_cat then return false end
                 local threshold = spec_kit.setting_number(context, "cat_barkskin_hp", 85)
                 return (state.hp or 100) <= threshold and not state.has_barkskin
             end },
