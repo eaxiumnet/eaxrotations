@@ -1827,11 +1827,9 @@ function NS.cooldown_remains(spell, expected_cooldown)
     local id = type(spell) == "number" and spell or NS.get_spell_id(spell)
     if not id then return 0 end
 
-    -- Primary: spell_helper cooldown API
-    if _spell_helper then
-        local ok, cd_remaining = pcall(function()
-            return _spell_helper:get_spell_cooldown(id)
-        end)
+    -- Primary: spell_helper charge cooldown API
+    if _spell_helper and type(_spell_helper.get_remaining_charge_cooldown) == "function" then
+        local ok, cd_remaining = pcall(_spell_helper.get_remaining_charge_cooldown, _spell_helper, id)
         if ok and type(cd_remaining) == "number" and cd_remaining > 0 then
             return cd_remaining
         end
@@ -2531,7 +2529,7 @@ function NS.find_death_save_heal_position(spell_id, radius, max_range)
             }
             if type(p.time_to_die) == "function" then local ok,t=pcall(p.time_to_die,p); if ok and t then risk_map[key].ttd = t end end
             if _unit_helper and type(_unit_helper.get_health_percentage_inc) == "function" then
-                local ok,f=pcall(_unit_helper.get_health_percentage_inc, _unit_helper, p, 3); if ok and f then risk_map[key].fut = f end
+                local ok,f=pcall(_unit_helper.get_health_percentage_inc, _unit_helper, p, 3); if ok and f then risk_map[key].fut = f * 100 end
             end
             if type(NS.predict_effective_deficit) == "function" then
                 local def = NS.predict_effective_deficit(p) or 0

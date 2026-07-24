@@ -16,7 +16,14 @@ local function safe_bm_call(method_name, unit, ids, ttl_ms)
     if not _buff_manager then return nil end
     local method = _buff_manager[method_name]
     if type(method) ~= "function" then return nil end
-    local ok, data = pcall(method, _buff_manager, unit, ids, ttl_ms or 50)
+    -- API: get_buff_data/get_debuff_data(self, unit, ids, cache_ms?)
+    --      get_buff_cache/get_debuff_cache(self, unit, cache_ms?)  — NO ids param
+    local ok, data
+    if ids then
+        ok, data = pcall(method, _buff_manager, unit, ids, ttl_ms or 50)
+    else
+        ok, data = pcall(method, _buff_manager, unit, ttl_ms or 50)
+    end
     if not ok then return nil end
     return data
 end

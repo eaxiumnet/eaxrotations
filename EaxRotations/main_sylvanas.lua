@@ -1142,7 +1142,7 @@ local function build_context()
                         end
                         if _unit_helper and type(_unit_helper.get_health_percentage_inc) == "function" then
                             local okf, f = pcall(_unit_helper.get_health_percentage_inc, _unit_helper, u, 3)
-                            if okf and type(f) == "number" and f < 25 then
+                            if okf and type(f) == "number" and (f * 100) < 25 then
                                 result.party_imminent_deaths = result.party_imminent_deaths + 1
                             end
                         end
