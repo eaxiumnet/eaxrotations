@@ -43,6 +43,7 @@ local tests = {
     "test_druid_leveling_wotlk_dsl_priority.lua",
     "test_mage_leveling_wotlk_dsl_priority.lua",
     "test_warrior_leveling_wotlk_dsl_priority.lua",
+    "test_deathknight_leveling_wotlk_dsl_priority.lua",
     "test_discipline_wotlk_dsl_priority.lua",
     "test_affliction_wotlk_dsl_priority.lua",
     "test_resto_wotlk_dsl_priority.lua",
