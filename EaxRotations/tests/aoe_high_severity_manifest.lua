@@ -70,11 +70,12 @@ return {
     -- ========== Rogue Fan of Knives (self 8yd WotLK) ==========
     {
         family = "FanOfKnives",
-        needle = "fan_of_knives",
+        needle = 'name = "FanOfKnives"',  -- DSL-converted: imperative fan_of_knives_matches removed
         helper = "aoe_self_meets",
         paths = {
             "EaxRotations/classes/rogue/leveling_wotlk.lua",
         },
+        window = 900,
     },
     -- ========== DK Blood Boil (self 10yd) ==========
     {

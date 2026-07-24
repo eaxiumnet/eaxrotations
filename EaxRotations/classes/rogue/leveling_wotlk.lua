@@ -2,7 +2,7 @@
 -- WHAT:  priority-list strategies for rogue leveling in WotLK.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   simple combo-point builder/finisher rotation.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -14,6 +14,7 @@ do
 end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local helpers = require("shared/leveling_helpers_sylvanas")
 local SPELLS = NS.RogueSpells or {}
 
@@ -67,63 +68,119 @@ local function build_state(context)
     return state
 end
 
-local function stealth_matches(context, state)
+local DSL_DEFS = {
     -- Enter stealth out of combat so we can open with Ambush.
-    return not state.in_combat and not state.stealth_active
-end
-
-local function ambush_matches(context, state)
+    {
+        name = "Stealth",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "stealth_active", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.Stealth, target = "self" },
+    },
     -- Stealth opener: high-damage strike while stealthed.
-    return state.stealth_active and state.energy >= 60
-end
-
-local function fan_of_knives_matches(context, state)
-    -- Physical AoE when surrounded (>=3 targets) with enough energy.
-    return state.in_combat and state.energy >= 50
-        and NS.aoe_self_meets and NS.aoe_self_meets(3, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)
-end
-
-local function rupture_matches(context, state)
-    -- Bleed finisher on long-lived targets; refresh when about to fall off.
-    return state.in_combat and state.combo_points >= 4
-        and state.rupture_remains < 3 and state.target_hp > 25
-end
-
-local function slice_and_dice_matches(context, state)
-    return state.in_combat and state.snd_remains < 3 and state.combo_points >= 1
-end
-
-local function kick_matches(context, state)
+    {
+        name = "Ambush",
+        conditions = {
+            { type = "state", field = "stealth_active", op = "truthy" },
+            { type = "state", field = "energy", op = ">=", value = 60 },
+        },
+        action = { type = "cast", spell = ACTION.Ambush, target = "target" },
+    },
     -- Kick is an interrupt: only fire when the target is actually casting.
-    return state.in_combat and state.target_casting == true and state.energy >= 25
-end
-
-local function gouge_matches(context, state)
-    return state.in_combat and state.energy >= 45
-end
-
-local function eviscerate_matches(context, state)
-    return state.in_combat and state.combo_points >= 4
-end
-
-local function sinister_strike_matches(context, state)
-    return state.in_combat and state.energy >= 45
-end
+    {
+        name = "Kick",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_casting", op = "truthy" },
+            { type = "state", field = "energy", op = ">=", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.Kick, target = "target" },
+    },
+    {
+        name = "SliceAndDice",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "snd_remains", op = "<", value = 3 },
+            { type = "state", field = "combo_points", op = ">=", value = 1 },
+        },
+        action = { type = "cast", spell = ACTION.SliceAndDice, target = "self" },
+    },
+    -- Physical AoE when surrounded (>=3 targets) with enough energy.
+    {
+        name = "FanOfKnives",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "energy", op = ">=", value = 50 },
+            { type = "custom", fn = function(context, state)
+                if not NS.aoe_self_meets then return false end
+                local radius = (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8
+                return NS.aoe_self_meets(3, radius, context, state) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.FanOfKnives, target = "self" },
+    },
+    -- Bleed finisher on long-lived targets; refresh when about to fall off.
+    {
+        name = "Rupture",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "combo_points", op = ">=", value = 4 },
+            { type = "state", field = "rupture_remains", op = "<", value = 3 },
+            { type = "state", field = "target_hp", op = ">", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.Rupture, target = "target" },
+    },
+    {
+        name = "Gouge",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "energy", op = ">=", value = 45 },
+        },
+        action = { type = "cast", spell = ACTION.Gouge, target = "target" },
+    },
+    {
+        name = "Eviscerate",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "combo_points", op = ">=", value = 4 },
+        },
+        action = { type = "cast", spell = ACTION.Eviscerate, target = "target" },
+    },
+    {
+        name = "SinisterStrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "energy", op = ">=", value = 45 },
+        },
+        action = { type = "cast", spell = ACTION.SinisterStrike, target = "target" },
+    },
+}
 
 local strategies = {
-    { name = "Stealth", matches = stealth_matches, execute = function(ctx) return ACTION.Stealth and ACTION.Stealth:cast_safe() end },
-    { name = "Ambush", matches = ambush_matches, execute = function(ctx) return ACTION.Ambush and ACTION.Ambush:cast_safe(ctx.target) end },
-    { name = "Kick", matches = kick_matches, execute = function(ctx) return ACTION.Kick and ACTION.Kick:cast_safe(ctx.target) end },
-    { name = "SliceAndDice", matches = slice_and_dice_matches, execute = function(ctx) return ACTION.SliceAndDice and ACTION.SliceAndDice:cast_safe() end },
-    { name = "FanOfKnives", matches = fan_of_knives_matches, execute = function(ctx) return ACTION.FanOfKnives and ACTION.FanOfKnives:cast_safe() end },
-    { name = "Rupture", matches = rupture_matches, execute = function(ctx) return ACTION.Rupture and ACTION.Rupture:cast_safe(ctx.target) end },
-    { name = "Gouge", matches = gouge_matches, execute = function(ctx) return ACTION.Gouge and ACTION.Gouge:cast_safe(ctx.target) end },
-    { name = "Eviscerate", matches = eviscerate_matches, execute = function(ctx) return ACTION.Eviscerate and ACTION.Eviscerate:cast_safe(ctx.target) end },
-    { name = "SinisterStrike", matches = sinister_strike_matches, execute = function(ctx) return ACTION.SinisterStrike and ACTION.SinisterStrike:cast_safe(ctx.target) end },
+    { name = "Stealth" },
+    { name = "Ambush" },
+    { name = "Kick" },
+    { name = "SliceAndDice" },
+    { name = "FanOfKnives" },
+    { name = "Rupture" },
+    { name = "Gouge" },
+    { name = "Eviscerate" },
+    { name = "SinisterStrike" },
 }
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 end
+if NS.log then NS.log("Rogue leveling rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
