@@ -2,12 +2,13 @@
 -- WHAT:  priority-list strategies for druid leveling in WotLK (caster + feral fallback).
 -- WHEN:  combat with valid enemy target.
 -- WHY:   simple DoT/caster rotation with emergency heals and feral finishers.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.DruidSpells or {}
 
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -90,122 +91,240 @@ local function build_state(context)
     return state
 end
 
-local function mark_of_the_wild_matches(context, state)
-    return not state.in_combat and (NS.buff_up and not NS.buff_up(NS.me, MARK_OF_THE_WILD_BUFF))
-end
-
-local function thorns_matches(context, state)
-    return not state.in_combat and (NS.buff_up and not NS.buff_up(NS.me, THORNS_BUFF))
-end
-
-local function rejuvenation_matches(context, state)
-    return state.in_combat and state.hp < 50 and state.mana_pct >= 20
-end
-
-local function healing_touch_matches(context, state)
-    return state.in_combat and state.hp < 30 and state.mana_pct >= 25
-end
-
--- Feral shifting is opt-in (caster is the default leveling playstyle). When the
--- bear setting is on it wins over cat; once shifted, the existing form-gated
--- strategies (Mangle/Rake/Shred vs Lacerate/Swipe) take over.
-local function shift_bear_matches(context, state)
-    if not spec_kit.setting_bool(context, "druid_leveling_bear", false) then return false end
-    return state.in_combat and state.form ~= "bear"
-end
-
-local function shift_cat_matches(context, state)
-    if spec_kit.setting_bool(context, "druid_leveling_bear", false) then return false end
-    if not spec_kit.setting_bool(context, "druid_leveling_feral", false) then return false end
-    return state.in_combat and state.form ~= "cat"
-end
-
-local function entangling_roots_matches(context, state)
-    return state.in_combat and state.hp < 40 and state.enemy_count >= 2 and state.mana_pct >= 15
-end
-
-local function moonfire_matches(context, state)
-    return state.in_combat and state.moonfire_remains < 3 and state.mana_pct >= 15
-end
-
-local function insect_swarm_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function faerie_fire_matches(context, state)
-    return state.in_combat and state.mana_pct >= 10
-end
-
-local function starfire_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function wrath_matches(context, state)
-    return state.in_combat and state.mana_pct >= 10
-end
-
-local function rake_matches(context, state)
-    return state.in_combat and state.form == "cat" and state.rake_remains < 3
-end
-
-local function rip_matches(context, state)
-    return state.in_combat and state.form == "cat" and state.combo_points >= 4 and state.rip_remains < 3
-end
-
-local function ferocious_bite_matches(context, state)
-    return state.in_combat and state.form == "cat" and state.combo_points >= 4
-end
-
-local function shred_matches(context, state)
-    return state.in_combat and state.form == "cat" and state.combo_points < 5
-end
-
-local function claw_matches(context, state)
-    return state.in_combat and state.form == "cat" and state.combo_points < 5
-end
-
-local function mangle_cat_matches(context, state)
-    return state.in_combat and state.form == "cat" and state.combo_points < 5
-end
-
-local function mangle_bear_matches(context, state)
-    return state.in_combat and state.form == "bear"
-end
-
-local function swipe_matches(context, state)
-    return state.in_combat and state.form == "bear" and state.enemy_count >= 2
-end
-
-local function lacerate_matches(context, state)
-    return state.in_combat and state.form == "bear"
-end
-
-local strategies = {
-    { name = "MarkOfTheWild", matches = mark_of_the_wild_matches, execute = function(ctx) return ACTION.MarkOfTheWild and ACTION.MarkOfTheWild:cast_safe() end },
-    { name = "Thorns", matches = thorns_matches, execute = function(ctx) return ACTION.Thorns and ACTION.Thorns:cast_safe() end },
-    { name = "Rejuvenation", matches = rejuvenation_matches, execute = function(ctx) return ACTION.Rejuvenation and ACTION.Rejuvenation:cast_safe() end },
-    { name = "HealingTouch", matches = healing_touch_matches, execute = function(ctx) return ACTION.HealingTouch and ACTION.HealingTouch:cast_safe() end },
-    { name = "DireBearForm", matches = shift_bear_matches, execute = function(ctx) return ACTION.DireBearForm and ACTION.DireBearForm:cast_safe() end },
-    { name = "CatForm", matches = shift_cat_matches, execute = function(ctx) return ACTION.CatForm and ACTION.CatForm:cast_safe() end },
-    { name = "EntanglingRoots", matches = entangling_roots_matches, execute = function(ctx) return ACTION.EntanglingRoots and ACTION.EntanglingRoots:cast_safe(ctx.target) end },
-    { name = "Rip", matches = rip_matches, execute = function(ctx) return ACTION.Rip and ACTION.Rip:cast_safe(ctx.target) end },
-    { name = "FerociousBite", matches = ferocious_bite_matches, execute = function(ctx) return ACTION.FerociousBite and ACTION.FerociousBite:cast_safe(ctx.target) end },
-    { name = "Rake", matches = rake_matches, execute = function(ctx) return ACTION.Rake and ACTION.Rake:cast_safe(ctx.target) end },
-    { name = "MangleCat", matches = mangle_cat_matches, execute = function(ctx) return ACTION.MangleCat and ACTION.MangleCat:cast_safe(ctx.target) end },
-    { name = "Shred", matches = shred_matches, execute = function(ctx) return ACTION.Shred and ACTION.Shred:cast_safe(ctx.target) end },
-    { name = "Claw", matches = claw_matches, execute = function(ctx) return ACTION.Claw and ACTION.Claw:cast_safe(ctx.target) end },
-    { name = "Swipe", matches = swipe_matches, execute = function(ctx) return ACTION.Swipe and ACTION.Swipe:cast_safe(ctx.target) end },
-    { name = "Lacerate", matches = lacerate_matches, execute = function(ctx) return ACTION.Lacerate and ACTION.Lacerate:cast_safe(ctx.target) end },
-    { name = "MangleBear", matches = mangle_bear_matches, execute = function(ctx) return ACTION.MangleBear and ACTION.MangleBear:cast_safe(ctx.target) end },
-    { name = "Moonfire", matches = moonfire_matches, execute = function(ctx) return ACTION.Moonfire and ACTION.Moonfire:cast_safe(ctx.target) end },
-    { name = "InsectSwarm", matches = insect_swarm_matches, execute = function(ctx) return ACTION.InsectSwarm and ACTION.InsectSwarm:cast_safe(ctx.target) end },
-    { name = "FaerieFire", matches = faerie_fire_matches, execute = function(ctx) return ACTION.FaerieFire and ACTION.FaerieFire:cast_safe(ctx.target) end },
-    { name = "Starfire", matches = starfire_matches, execute = function(ctx) return ACTION.Starfire and ACTION.Starfire:cast_safe(ctx.target) end },
-    { name = "Wrath", matches = wrath_matches, execute = function(ctx) return ACTION.Wrath and ACTION.Wrath:cast_safe(ctx.target) end },
+local DSL_DEFS = {
+    {
+        name = "MarkOfTheWild",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                if not NS.buff_up then return false end
+                return (not NS.buff_up(NS.me, MARK_OF_THE_WILD_BUFF)) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.MarkOfTheWild, target = "self" },
+    },
+    {
+        name = "Thorns",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "custom", fn = function(context, state)
+                if not NS.buff_up then return false end
+                return (not NS.buff_up(NS.me, THORNS_BUFF)) and true or false
+            end },
+        },
+        action = { type = "cast", spell = ACTION.Thorns, target = "self" },
+    },
+    {
+        name = "Rejuvenation",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 50 },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.Rejuvenation, target = "self" },
+    },
+    {
+        name = "HealingTouch",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 30 },
+            { type = "state", field = "mana_pct", op = ">=", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.HealingTouch, target = "self" },
+    },
+    -- Feral shifting is opt-in (caster is the default leveling playstyle). When the
+    -- bear setting is on it wins over cat; once shifted, the existing form-gated
+    -- strategies (Mangle/Rake/Shred vs Lacerate/Swipe) take over.
+    {
+        name = "DireBearForm",
+        conditions = {
+            { type = "custom", fn = function(context, state) return spec_kit.setting_bool(context, "druid_leveling_bear", false) == true end },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "form", op = "!=", value = "bear" },
+        },
+        action = { type = "cast", spell = ACTION.DireBearForm, target = "self" },
+    },
+    {
+        name = "CatForm",
+        conditions = {
+            { type = "custom", fn = function(context, state) return spec_kit.setting_bool(context, "druid_leveling_bear", false) == false end },
+            { type = "custom", fn = function(context, state) return spec_kit.setting_bool(context, "druid_leveling_feral", false) == true end },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "form", op = "!=", value = "cat" },
+        },
+        action = { type = "cast", spell = ACTION.CatForm, target = "self" },
+    },
+    {
+        name = "EntanglingRoots",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 40 },
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.EntanglingRoots, target = "target" },
+    },
+    {
+        name = "Rip",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "form", op = "==", value = "cat" },
+            { type = "state", field = "combo_points", op = ">=", value = 4 },
+            { type = "state", field = "rip_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Rip, target = "target" },
+    },
+    {
+        name = "FerociousBite",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "form", op = "==", value = "cat" },
+            { type = "state", field = "combo_points", op = ">=", value = 4 },
+        },
+        action = { type = "cast", spell = ACTION.FerociousBite, target = "target" },
+    },
+    {
+        name = "Rake",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "form", op = "==", value = "cat" },
+            { type = "state", field = "rake_remains", op = "<", value = 3 },
+        },
+        action = { type = "cast", spell = ACTION.Rake, target = "target" },
+    },
+    {
+        name = "MangleCat",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "form", op = "==", value = "cat" },
+            { type = "state", field = "combo_points", op = "<", value = 5 },
+        },
+        action = { type = "cast", spell = ACTION.MangleCat, target = "target" },
+    },
+    {
+        name = "Shred",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "form", op = "==", value = "cat" },
+            { type = "state", field = "combo_points", op = "<", value = 5 },
+        },
+        action = { type = "cast", spell = ACTION.Shred, target = "target" },
+    },
+    {
+        name = "Claw",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "form", op = "==", value = "cat" },
+            { type = "state", field = "combo_points", op = "<", value = 5 },
+        },
+        action = { type = "cast", spell = ACTION.Claw, target = "target" },
+    },
+    {
+        name = "Swipe",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "form", op = "==", value = "bear" },
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+        },
+        action = { type = "cast", spell = ACTION.Swipe, target = "target" },
+    },
+    {
+        name = "Lacerate",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "form", op = "==", value = "bear" },
+        },
+        action = { type = "cast", spell = ACTION.Lacerate, target = "target" },
+    },
+    {
+        name = "MangleBear",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "form", op = "==", value = "bear" },
+        },
+        action = { type = "cast", spell = ACTION.MangleBear, target = "target" },
+    },
+    {
+        name = "Moonfire",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "moonfire_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Moonfire, target = "target" },
+    },
+    {
+        name = "InsectSwarm",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.InsectSwarm, target = "target" },
+    },
+    {
+        name = "FaerieFire",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.FaerieFire, target = "target" },
+    },
+    {
+        name = "Starfire",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.Starfire, target = "target" },
+    },
+    {
+        name = "Wrath",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Wrath, target = "target" },
+    },
 }
+
+-- Priority order (compiled in place from DSL_DEFS below).
+local strategies = {
+    { name = "MarkOfTheWild" },
+    { name = "Thorns" },
+    { name = "Rejuvenation" },
+    { name = "HealingTouch" },
+    { name = "DireBearForm" },
+    { name = "CatForm" },
+    { name = "EntanglingRoots" },
+    { name = "Rip" },
+    { name = "FerociousBite" },
+    { name = "Rake" },
+    { name = "MangleCat" },
+    { name = "Shred" },
+    { name = "Claw" },
+    { name = "Swipe" },
+    { name = "Lacerate" },
+    { name = "MangleBear" },
+    { name = "Moonfire" },
+    { name = "InsectSwarm" },
+    { name = "FaerieFire" },
+    { name = "Starfire" },
+    { name = "Wrath" },
+}
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 end
+
+if NS.log then NS.log("Druid leveling rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
