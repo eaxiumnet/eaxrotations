@@ -2,12 +2,13 @@
 -- WHAT:  priority-list strategies for shaman leveling in WotLK.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   simple shock/bolt rotation with emergency heal.
--- SAFETY: state reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
+-- SAFETY: state reads nil-guarded via spec_kit.safe_state(); declarative DSL strategies; no on_update() allocs.
 
 local NS = _G.EaxRotations
 if not NS then return nil end
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local dsl      = require("shared/strategy_dsl_sylvanas")
 local helpers = require("shared/leveling_helpers_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 
@@ -64,75 +65,156 @@ local function build_state(context)
     return state
 end
 
-local function healing_wave_matches(context, state)
-    return state.in_combat and state.hp < 50 and state.mana_pct >= 25
-end
-
-local function flame_shock_matches(context, state)
-    return state.in_combat and state.flame_shock_remains < 3 and state.mana_pct >= 15
-end
-
-local function lava_burst_matches(context, state)
-    -- Lava Burst is only worth casting while Flame Shock is on the target (guaranteed crit).
-    return state.in_combat and state.flame_shock_remains > 0 and state.mana_pct >= 20
-end
-
-local function stormstrike_matches(context, state)
-    return state.in_combat and state.mana_pct >= 10
-end
-
-local function earth_shock_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function lightning_bolt_matches(context, state)
-    return state.in_combat and state.mana_pct >= 15
-end
-
-local function chain_lightning_matches(context, state)
-    return state.in_combat and state.enemy_count >= 2 and state.mana_pct >= 20
-end
-
-local function magma_totem_matches(context, state)
-    -- Fire AoE totem for tight packs; throttle recast to avoid GCD spam.
-    return state.in_combat and state.enemy_count >= 3 and (time_now() - _last_magma) >= 18 and state.mana_pct >= 20
-end
-
-local function wind_shear_matches(context, state)
-    return state.in_combat and state.target_casting == true
-end
-
-local function lightning_shield_matches(context, state)
-    return not state.lightning_shield_up and state.mana_pct >= 5
-end
-
-local function flametongue_weapon_matches(context, state)
+local DSL_DEFS = {
+    {
+        name = "WindShear",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "target_casting", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.WindShear, target = "target" },
+    },
+    {
+        name = "HealingWave",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "hp", op = "<", value = 50 },
+            { type = "state", field = "mana_pct", op = ">=", value = 25 },
+        },
+        action = { type = "cast", spell = ACTION.HealingWave, target = "self" },
+    },
+    {
+        name = "LightningShield",
+        conditions = {
+            { type = "state", field = "lightning_shield_up", op = "falsy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 5 },
+        },
+        action = { type = "cast", spell = ACTION.LightningShield, target = "self" },
+    },
     -- Weapon imbues have no player aura; re-apply out of combat on a long throttle.
-    return not state.in_combat and (time_now() - _last_flametongue) >= 1500 and state.mana_pct >= 5
-end
-
-local function searing_totem_matches(context, state)
+    {
+        name = "FlametongueWeapon",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "custom", fn = function(context, state) return (time_now() - _last_flametongue) >= 1500 end },
+            { type = "state", field = "mana_pct", op = ">=", value = 5 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            if NS.try_cast(ACTION.FlametongueWeapon, nil, "FlametongueWeapon") == true then _last_flametongue = time_now(); return true end
+            return false
+        end },
+    },
     -- Fire totem lasts ~60s; recast in combat on a throttle to avoid GCD spam.
-    return state.in_combat and state.enemy_count >= 1 and (time_now() - _last_searing) >= 55 and state.mana_pct >= 10
-end
-
-local strategies = {
-    { name = "WindShear", matches = wind_shear_matches, execute = function(ctx) return ACTION.WindShear and ACTION.WindShear:cast_safe(ctx.target) end },
-    { name = "HealingWave", matches = healing_wave_matches, execute = function(ctx) return ACTION.HealingWave and ACTION.HealingWave:cast_safe() end },
-    { name = "LightningShield", matches = lightning_shield_matches, execute = function(ctx) return ACTION.LightningShield and ACTION.LightningShield:cast_safe() end },
-    { name = "FlametongueWeapon", matches = flametongue_weapon_matches, execute = function(ctx) if ACTION.FlametongueWeapon and ACTION.FlametongueWeapon:cast_safe() then _last_flametongue = time_now(); return true end return false end },
-    { name = "SearingTotem", matches = searing_totem_matches, execute = function(ctx) if ACTION.SearingTotem and ACTION.SearingTotem:cast_safe() then _last_searing = time_now(); return true end return false end },
-    { name = "MagmaTotem", matches = magma_totem_matches, execute = function(ctx) if ACTION.MagmaTotem and ACTION.MagmaTotem:cast_safe() then _last_magma = time_now(); return true end return false end },
-    { name = "ChainLightning", matches = chain_lightning_matches, execute = function(ctx) return ACTION.ChainLightning and ACTION.ChainLightning:cast_safe(ctx.target) end },
-    { name = "FlameShock", matches = flame_shock_matches, execute = function(ctx) return ACTION.FlameShock and ACTION.FlameShock:cast_safe(ctx.target) end },
-    { name = "LavaBurst", matches = lava_burst_matches, execute = function(ctx) return ACTION.LavaBurst and ACTION.LavaBurst:cast_safe(ctx.target) end },
-    { name = "Stormstrike", matches = stormstrike_matches, execute = function(ctx) return ACTION.Stormstrike and ACTION.Stormstrike:cast_safe(ctx.target) end },
-    { name = "EarthShock", matches = earth_shock_matches, execute = function(ctx) return ACTION.EarthShock and ACTION.EarthShock:cast_safe(ctx.target) end },
-    { name = "LightningBolt", matches = lightning_bolt_matches, execute = function(ctx) return ACTION.LightningBolt and ACTION.LightningBolt:cast_safe(ctx.target) end },
+    {
+        name = "SearingTotem",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "enemy_count", op = ">=", value = 1 },
+            { type = "custom", fn = function(context, state) return (time_now() - _last_searing) >= 55 end },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            if NS.try_cast(ACTION.SearingTotem, nil, "SearingTotem") == true then _last_searing = time_now(); return true end
+            return false
+        end },
+    },
+    -- Fire AoE totem for tight packs; throttle recast to avoid GCD spam.
+    {
+        name = "MagmaTotem",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "enemy_count", op = ">=", value = 3 },
+            { type = "custom", fn = function(context, state) return (time_now() - _last_magma) >= 18 end },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "custom", fn = function(context, state)
+            if NS.try_cast(ACTION.MagmaTotem, nil, "MagmaTotem") == true then _last_magma = time_now(); return true end
+            return false
+        end },
+    },
+    {
+        name = "ChainLightning",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.ChainLightning, target = "target" },
+    },
+    {
+        name = "FlameShock",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "flame_shock_remains", op = "<", value = 3 },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.FlameShock, target = "target" },
+    },
+    -- Lava Burst is only worth casting while Flame Shock is on the target (guaranteed crit).
+    {
+        name = "LavaBurst",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "flame_shock_remains", op = ">", value = 0 },
+            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+        },
+        action = { type = "cast", spell = ACTION.LavaBurst, target = "target" },
+    },
+    {
+        name = "Stormstrike",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.Stormstrike, target = "target" },
+    },
+    {
+        name = "EarthShock",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.EarthShock, target = "target" },
+    },
+    {
+        name = "LightningBolt",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+        },
+        action = { type = "cast", spell = ACTION.LightningBolt, target = "target" },
+    },
 }
+
+-- Priority order (compiled in place from DSL_DEFS below).
+local strategies = {
+    { name = "WindShear" },
+    { name = "HealingWave" },
+    { name = "LightningShield" },
+    { name = "FlametongueWeapon" },
+    { name = "SearingTotem" },
+    { name = "MagmaTotem" },
+    { name = "ChainLightning" },
+    { name = "FlameShock" },
+    { name = "LavaBurst" },
+    { name = "Stormstrike" },
+    { name = "EarthShock" },
+    { name = "LightningBolt" },
+}
+
+for i = 1, #strategies do
+    for j = 1, #DSL_DEFS do
+        if strategies[i].name == DSL_DEFS[j].name then
+            strategies[i] = dsl.compile_strategy(DSL_DEFS[j], { get_state = build_state })
+            break
+        end
+    end
+end
 
 if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("leveling", strategies, { get_state = build_state })
 end
+
+if NS.log then NS.log("Shaman leveling rotation registered") end
 
 return { strategies = strategies, build_state = build_state }
