@@ -202,17 +202,30 @@ local function _find_multidot_target(context, debuff_ids, range)
         -- Fallback for test stubs / raw tables without unit API
         return ok == false and false or true
     end
+    -- Safety: only spread to mobs in combat with our group (skip patrols)
+    local function is_in_combat_with_group(enemy)
+        if not enemy then return false end
+        local ok, combat = pcall(function()
+            if enemy.is_in_combat then return enemy:is_in_combat() end
+            return true  -- assume engaged if API unavailable
+        end)
+        return (ok and combat) or false
+    end
     -- Prefer an enemy that is NOT the current target first (real spread)
-    local function pick_undotted(enemies)
+    local function pick_undotted(enemies, require_combat)
         if type(enemies) ~= "table" or #enemies == 0 then return nil end
         for pass = 1, 2 do
             for _, enemy in ipairs(enemies) do
                 if is_valid_target(enemy) then
-                    local is_current = current and NS.same_unit and NS.same_unit(enemy, current)
-                    if pass == 1 and is_current then
-                        -- skip current target on first pass
-                    elseif not NS.debuff_up(enemy, debuff_ids) then
-                        return enemy
+                    if require_combat and not is_in_combat_with_group(enemy) then
+                        -- skip non-combat patrols
+                    else
+                        local is_current = current and NS.same_unit and NS.same_unit(enemy, current)
+                        if pass == 1 and is_current then
+                            -- skip current target on first pass
+                        elseif not NS.debuff_up(enemy, debuff_ids) then
+                            return enemy
+                        end
                     end
                 end
             end
@@ -220,10 +233,10 @@ local function _find_multidot_target(context, debuff_ids, range)
         return nil
     end
 
-    -- 1) Primary: target_selector via TSHelper (scored DPS targets)
+    -- 1) Primary: target_selector via TSHelper (scored DPS targets — already engagement-filtered)
     if TSHelper and TSHelper.get_dps_targets then
         local ts_targets = TSHelper.get_dps_targets(10)
-        local t = pick_undotted(ts_targets)
+        local t = pick_undotted(ts_targets, false)
         if t then return t end
     end
 
@@ -237,21 +250,21 @@ local function _find_multidot_target(context, debuff_ids, range)
         if ok and t then return t end
     end
 
-    -- 3) Legacy fallback (raw GetEnemiesInRange path)
+    -- 3) Legacy fallback (raw GetEnemiesInRange — requires combat check)
     if not context or not NS.GetEnemiesInRange then
         -- Skip to IZI fallback if GetEnemiesInRange unavailable
     else
         range = range or spec_kit.setting_number(context, "shadow_multidot_range", 30)
-        local t = pick_undotted(NS.GetEnemiesInRange(range))
+        local t = pick_undotted(NS.GetEnemiesInRange(range), true)
         if t then return t end
     end
 
-    -- 4) IZI SDK enemies() fallback (always available at runtime)
+    -- 4) IZI SDK enemies() fallback (requires combat check)
     if _izi and _izi.enemies then
         range = range or 30
         local ok_e, enemies = pcall(_izi.enemies, range)
         if ok_e and type(enemies) == "table" then
-            local t = pick_undotted(enemies)
+            local t = pick_undotted(enemies, true)
             if t then return t end
         end
     end

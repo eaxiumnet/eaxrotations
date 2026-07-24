@@ -110,8 +110,18 @@ local function _multidot_enemy_list(range)
     return {}
 end
 
+--- Check if a unit is in combat (engaged with someone — don't DoT patrols).
+local function _is_in_combat(unit)
+    if not unit then return false end
+    local ok, combat = pcall(function()
+        if unit.is_in_combat then return unit:is_in_combat() end
+        return true  -- assume engaged if API unavailable
+    end)
+    return (ok and combat) or false
+end
+
 --- Find a valid enemy missing any of the given debuff IDs (multi-DoT spread target).
---- Skips CC'd targets and targets under 20% HP.
+--- Skips CC'd targets, targets under 20% HP, and non-combat patrols.
 ---@param debuff_ids table
 ---@param range number|nil
 ---@return game_object|nil
@@ -119,7 +129,7 @@ local function _find_multidot_target(debuff_ids, range)
     if not debuff_ids then return nil end
     local enemies = _multidot_enemy_list(range)
     for _, enemy in ipairs(enemies) do
-        if _is_valid_enemy(enemy) and not is_cc_target(enemy) and _unit_hp_pct(enemy) >= 20 then
+        if _is_valid_enemy(enemy) and _is_in_combat(enemy) and not is_cc_target(enemy) and _unit_hp_pct(enemy) >= 20 then
             local has_dot = NS.debuff_up and NS.debuff_up(enemy, debuff_ids)
             if not has_dot then
                 return enemy
