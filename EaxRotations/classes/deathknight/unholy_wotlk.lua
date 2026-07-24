@@ -19,7 +19,8 @@ local spec_kit          = require("shared/spec_kit_sylvanas")
 local dsl               = require("shared/strategy_dsl_sylvanas")
 local rune_manager = require("shared/rune_manager_sylvanas")
 local presence_manager = require("shared/presence_manager_sylvanas")
-local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
+if not _ok_int or type(interrupt_manager) ~= "table" then interrupt_manager = nil end
 
 local SPELLS = NS.DeathKnightSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)

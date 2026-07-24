@@ -16,7 +16,8 @@ local spec_kit          = require("shared/spec_kit_sylvanas")
 local dsl               = require("shared/strategy_dsl_sylvanas")
 local RuneManager       = require("shared/rune_manager_sylvanas")
 local PresenceManager   = require("shared/presence_manager_sylvanas")
-local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
+if not _ok_int or type(interrupt_manager) ~= "table" then interrupt_manager = nil end
 
 local SPELLS = NS.DeathKnightSpells or {}
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -200,11 +201,14 @@ local DSL_DEFS = {
 -- Strategies (interrupt_strategy injected by interrupt_manager, then
 -- name-only placeholders substituted by DSL)
 -- -----------------------------------------------------------------------------
-local interrupt_strategy = interrupt_manager.register_interrupt_spell(
-    "deathknight", "MindFreeze", SPELLS)
+local interrupt_strategy = nil
+if interrupt_manager and interrupt_manager.register_interrupt_spell then
+    local ok, strat = pcall(interrupt_manager.register_interrupt_spell, "deathknight", "MindFreeze", SPELLS)
+    if ok and strat then interrupt_strategy = strat end
+end
 
 local strategies = {
-    interrupt_strategy,
+    interrupt_strategy or { name = "MindFreezeSkip", matches = function() return false end, execute = function() return false end },
     { name = "Presence" },
     { name = "IceboundFortitude" },
     { name = "VampiricBlood" },

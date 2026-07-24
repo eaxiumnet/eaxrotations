@@ -114,6 +114,7 @@ load_modules({
     "shared/swing_timer_sylvanas",
     "shared/dispel_manager_sylvanas",
     "shared/rage_manager_sylvanas",
+    "shared/interrupt_manager_sylvanas",
 
     -- Rotation and profile support
     -- Metrics and utility support

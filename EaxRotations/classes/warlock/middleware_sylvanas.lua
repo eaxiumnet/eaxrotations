@@ -9,7 +9,8 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local consumable_manager = require("shared/consumable_manager_sylvanas")
-local interrupt_manager = require("shared/interrupt_manager_sylvanas")
+local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
+if not _ok_int or type(interrupt_manager) ~= "table" then interrupt_manager = nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
@@ -80,7 +81,9 @@ local SOUL_SHARD_ITEM = 6265  -- TBC soul shard reagent
 -- CC Break: interrupt incoming CC with Death Coil (horror + self-heal)
 -- ============================================================================
 local strategies = {
-    interrupt_manager.register_interrupt_spell("warlock", "SpellLock", SPELLS),
+    (interrupt_manager and interrupt_manager.register_interrupt_spell
+        and interrupt_manager.register_interrupt_spell("warlock", "SpellLock", SPELLS))
+        or { name = "SpellLockSkip", matches = function() return false end, execute = function() return false end },
     {
         name = "WarlockCCBreak",
         matches = function(context)
