@@ -473,10 +473,24 @@ local function initialize_schema_menu()
             normalized_section.header_widget = section_header
 
             for _, def in ipairs(section.settings or EMPTY_TABLE) do
-                local widget = create_schema_widget(def)
-                if widget then
-                    normalized_section.settings[#normalized_section.settings + 1] = widget
-                    schema_widgets[widget.key] = widget
+                -- Honor the menu API's unique-id contract (core.menu.checkbox/
+                -- slider_int(..., id) require a unique id). A schema key can
+                -- legitimately appear in multiple tabs/sections — e.g. healer
+                -- settings shared across the Discipline+Holy priest tabs, or the
+                -- hunter Shot Weaving section duplicated into General + every spec
+                -- tab. Creating a second control with the same id collides on the
+                -- single settings-store key and can crash menu registration.
+                -- Reuse the already-created control so the setting still renders
+                -- in each section but is backed by one unique widget.
+                local existing = def and def.key and schema_widgets[def.key]
+                if existing then
+                    normalized_section.settings[#normalized_section.settings + 1] = existing
+                else
+                    local widget = create_schema_widget(def)
+                    if widget then
+                        normalized_section.settings[#normalized_section.settings + 1] = widget
+                        schema_widgets[widget.key] = widget
+                    end
                 end
             end
 

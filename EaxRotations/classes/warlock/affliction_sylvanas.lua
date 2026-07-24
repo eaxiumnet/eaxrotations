@@ -420,7 +420,8 @@ local function build_state(context)
 	    end
 	    -- Nightfall proc
 	    aff_state.nightfall_active = NS.has_player_buff and NS.has_player_buff(NIGHTFALL_BUFF) or false
-	    -- Resources	aff_state.mana_pct = context.mana_pct or 100
+	    -- Resources
+	aff_state.mana_pct = context.mana_pct or 100
 	aff_state.hp_pct = context.hp or 100
 	aff_state.enemy_count = context.enemy_count or 1
 	aff_state.in_combat = context.in_combat or false            -- Pet status (via pet object if available)
@@ -1220,7 +1221,7 @@ local strategies = {
         name = "ShadowburnExecute",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            local target_hp = context.target_hp_pct or 100
+            local target_hp = context.target_hp or 100
             local execute_threshold = spec_kit.setting_number(context, "destro_shadowburn_hp", 20)
             if target_hp > execute_threshold then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.Shadowburn, context.target) or false

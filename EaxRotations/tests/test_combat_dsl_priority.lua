@@ -96,14 +96,14 @@ local combat = require("classes/rogue/combat_sylvanas")
 --   1 HealthPotion, 2 DamagePotion, 3 Stealth, 4 CheapShot, 5 Garrote,
 --   6 SliceAndDice, 7 AdrenalineRush, 8 BladeFlurry, 9 Rupture,
 --   10 Eviscerate, 11 Envenom, 12 ShivPurge, 13 Gouge, 14 Sprint,
---   15 Vanish, 16 Feint, 17 Hemorrhage, 18 GhostlyStrike, 19 Backstab,
---   20 KidneyShot, 21 ExposeArmor, 22 SinisterStrike, 23 HitCapPriority
+--   15 Vanish, 16 Feint, 17 Blind, 18 Hemorrhage, 19 GhostlyStrike, 20 Backstab,
+--   21 KidneyShot, 22 ExposeArmor, 23 SinisterStrike, 24 HitCapPriority
 -- ============================================================================--
 local expected_order = {
     "HealthPotion", "DamagePotion", "Stealth", "CheapShot", "Garrote",
     "SliceAndDice", "AdrenalineRush", "BladeFlurry", "Rupture",
     "Eviscerate", "Envenom", "ShivPurge", "Gouge", "Sprint",
-    "Vanish", "Feint", "Hemorrhage", "GhostlyStrike", "Backstab",
+    "Vanish", "Feint", "Blind", "Hemorrhage", "GhostlyStrike", "Backstab",
     "KidneyShot", "ExposeArmor", "SinisterStrike", "HitCapPriority",
 }
 
@@ -125,7 +125,7 @@ local dsl_positions = {
     Envenom = 11,
     Gouge = 13,
     Sprint = 14,
-    SinisterStrike = 22,
+    SinisterStrike = 23,
 }
 
 for name, expected_index in pairs(dsl_positions) do

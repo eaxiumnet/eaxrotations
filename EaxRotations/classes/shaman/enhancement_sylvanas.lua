@@ -84,7 +84,11 @@ local _totem_scan_result = false
 -- ============================================================================
 local TOTEMIC_CALL_SPELL = { 36936 }
 local TOTEM_CALL_DISTANCE = 20           -- yards
-local TOTEM_CALL_MAGMA_DISTANCE = 8      -- yards (tighter for Magma)
+local TOTEM_CALL_MAGMA_DISTANCE = 8     -- yards (tighter for Magma)
+
+-- Air totem spell IDs (as returned by core.spell_book.get_totem_info slot 4).
+local WF_TOTEM_SPELLS = { 8512, 10607, 10611, 25585, 25587 }
+local GOA_TOTEM_SPELLS = { 8835, 10626, 10627, 25359 }
 
 local LIGHTNING_SHIELD_BUFF = TBC_SHAMAN.lightning_shield or { 25472, 25469, 10432, 10431, 8134, 945, 905, 325, 324 }
 local WATER_SHIELD_BUFF = TBC_SHAMAN.water_shield or { 33736, 24398 }
@@ -116,9 +120,9 @@ end
 -- ============================================================================
 local totem_state = {
     -- Twisting
-    next_air = "windfury",
-    twist_phase = "windfury",  -- current active phase ("windfury" or "grace")
     air_totem_remains = 0,
+    last_wf_cast_ms = -99999,  -- throttle Windfury re-casts; negative = never cast
+    last_goa_cast_ms = -99999, -- throttle Grace-of-Air re-casts; negative = never cast
     -- Earth
     -- Water
     -- Fire
@@ -503,13 +507,9 @@ local function build_state(context)
             if sid == WINDFURY_WEAPON_SPELLS[i] then is_wf = true; break end
         end
         -- Windfury Totem spell IDs differ from weapon imbues; check against totem spell list
-        local WF_TOTEM_SPELLS = { 8512, 10607, 10611, 25585, 25587 }
-        local GOA_TOTEM_SPELLS = { 8835, 10626, 10627, 25359 }
         for i = 1, #WF_TOTEM_SPELLS do if sid == WF_TOTEM_SPELLS[i] then is_wf = true; break end end
         for i = 1, #GOA_TOTEM_SPELLS do if sid == GOA_TOTEM_SPELLS[i] then is_grace = true; break end end
-        if is_wf then totem_state.twist_phase = "windfury"
-        elseif is_grace then totem_state.twist_phase = "grace"
-        end
+        -- twist_phase intentionally removed; matching is now buff-driven
     else
         totem_state.air_totem_remains = 0
     end
@@ -686,6 +686,42 @@ local function windfury_maintain_matches(ctx)
     return can_drop_totem(ctx, ACTION.WindfuryTotem, 4, ACTION.WindfuryTotem)
 end
 
+local function _wf_buff_remains()
+    return (NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, ACTION.WindfuryTotem)) or 0
+end
+
+local function _goa_buff_remains()
+    return (NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, ACTION.GraceOfAirTotem)) or 0
+end
+
+local function _air_totem_active(ids)
+    -- Use NS.get_totem_info rather than the module-cached _get_totem_info so
+    -- test mocks that replace the runtime API after the spec loads still work.
+    if not NS.get_totem_info then return false end
+    local info = NS.get_totem_info(4)
+    if not info or not info.have_totem then return false end
+    local sid = info.spell_id or 0
+    for i = 1, #ids do if sid == ids[i] then return true end end
+    return false
+end
+
+local function _wf_totem_active() return _air_totem_active(WF_TOTEM_SPELLS) end
+local function _goa_totem_active() return _air_totem_active(GOA_TOTEM_SPELLS) end
+
+local function _recent_wf_cast()
+    return (enh_state.now_ms - (totem_state.last_wf_cast_ms or 0)) < 1500
+end
+
+local function _recent_goa_cast()
+    return (enh_state.now_ms - (totem_state.last_goa_cast_ms or 0)) < 1500
+end
+
+-- TBC totem twisting: Windfury Totem applies a ~10s weapon-enchant aura to the
+-- party. Drop WF when that aura is missing/expiring, then immediately drop GoA
+-- to keep the Agility aura up while the WF buff persists, and refresh WF just
+-- before the 10s buff fades. This replaces the old (buggy) logic that gated
+-- twisting on the physical totem's 120s lifespan, which caused the rotation to
+-- only "twist ground" once every two minutes.
 local function windfury_twist_matches(ctx)
     if not enh_state.totem_twisting then return false end
     if not enh_state.in_combat then return false end
@@ -693,10 +729,25 @@ local function windfury_twist_matches(ctx)
     local mana_floor = spec_kit.setting_number(ctx, "enhancement_twist_mana_threshold", 40)
     if (enh_state.mana_pct or 0) < mana_floor then return false end
     if not enh_state.windfury_totem_ready then return false end
-    if totem_state.next_air ~= "windfury" then return false end
-    -- Enhanced: only drop when current air totem is expiring (< 3s) or none active
-    if (totem_state.air_totem_remains or 0) > 3 then return false end
-    return not (NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, ACTION.WindfuryTotem))
+    if _recent_wf_cast() then return false end
+    local wf_remains = _wf_buff_remains()
+    -- Fallback: if the weapon-enchant aura isn't visible to the buff API, trust
+    -- the totem we just dropped and don't recast until the ~10s proc window has
+    -- elapsed. This prevents spam on clients where the aura ID differs.
+    if wf_remains <= 0 and (totem_state.last_wf_cast_ms or 0) >= 0 then
+        local ms_since_cast = enh_state.now_ms - totem_state.last_wf_cast_ms
+        if ms_since_cast < 10000 then return false end
+    end
+    return wf_remains < 2.0
+end
+
+local function _windfury_buff_active()
+    -- Visible weapon-enchant aura (preferred) or an active WF totem that we
+    -- dropped within the last ~10s, for clients where the aura ID is hidden.
+    if _wf_buff_remains() > 2.0 then return true end
+    if not _wf_totem_active() then return false end
+    local ms_since_wf_cast = enh_state.now_ms - (totem_state.last_wf_cast_ms or -99999)
+    return ms_since_wf_cast < 10000
 end
 
 local function grace_air_twist_matches(ctx)
@@ -706,10 +757,12 @@ local function grace_air_twist_matches(ctx)
     local mana_floor = spec_kit.setting_number(ctx, "enhancement_twist_mana_threshold", 40)
     if (enh_state.mana_pct or 0) < mana_floor then return false end
     if not enh_state.grace_of_air_totem_ready then return false end
-    if totem_state.next_air ~= "grace" then return false end
-    -- Enhanced: only drop when current air totem is expiring (< 3s) or none active
-    if (totem_state.air_totem_remains or 0) > 3 then return false end
-    return not (NS.buff_up and NS.buff_up(NS.PLAYER_UNIT, ACTION.GraceOfAirTotem))
+    if _recent_goa_cast() then return false end
+    -- Only drop GoA while the WF proc buff is active (visible aura or our own
+    -- active WF totem as a fallback).
+    if not _windfury_buff_active() then return false end
+    -- Drop GoA if its aura is missing or about to expire
+    return _goa_buff_remains() < 5.0
 end
 
 -- ============================================================================
@@ -1025,7 +1078,7 @@ end
 
 local function windfury_twist_execute()
     if NS.try_cast(ACTION.WindfuryTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Windfury Totem twist") then
-        totem_state.next_air = "grace"
+        totem_state.last_wf_cast_ms = enh_state.now_ms
         return true
     end
     return false
@@ -1033,7 +1086,7 @@ end
 
 local function grace_air_twist_execute()
     if NS.try_cast(ACTION.GraceOfAirTotem, NS.PLAYER_UNIT, "[ENHANCEMENT] Grace of Air Totem twist") then
-        totem_state.next_air = "windfury"
+        totem_state.last_goa_cast_ms = enh_state.now_ms
         return true
     end
     return false

@@ -221,12 +221,12 @@ assert_false(healthstone.matches(ctx, st), "Healthstone skips at high HP")
 -- Kick equivalence
 -- ============================================================================
 local kick = find_strategy("Kick")
-ctx = { in_combat = true, target = "target", target_distance = 5, settings = { use_interrupts = true } }
+ctx = { in_combat = true, target = "target", target_distance = 5, settings = { use_interrupt = true } }
 st = { energy = 100, target_distance = 5 }
 assert_true(kick.matches(ctx, st), "Kick matches when interrupt conditions are met")
-ctx.settings.use_interrupts = false
+ctx.settings.use_interrupt = false
 assert_false(kick.matches(ctx, st), "Kick skips when interrupts disabled")
-ctx.settings.use_interrupts = true
+ctx.settings.use_interrupt = true
 st.energy = 0
 assert_false(kick.matches(ctx, st), "Kick skips without enough energy")
 

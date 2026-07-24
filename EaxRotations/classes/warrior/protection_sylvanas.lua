@@ -632,7 +632,7 @@ local function last_stand_matches_fn(context, state)
 end
 
 local function shield_bash_matches_fn(context, state)
- if spec_kit.setting_bool(context, "use_interrupts", true) == false then return false end
+ if spec_kit.setting_bool(context, "use_interrupt", true) == false then return false end
  -- Route through InterruptManager for cast window + humanization
  local mgr = NS.InterruptManager
  local target = context.target

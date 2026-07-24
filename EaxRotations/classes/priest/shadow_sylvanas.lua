@@ -966,7 +966,7 @@ local function multidot_swp_matches(context, s)
     if not _engaged_with_player(context) then return false end
     if (s.enemy_count or 0) < 2 then return false end
     -- Only multidot when target HP > 30% (don't waste on dying adds)
-    if (context.target_hp_pct or 100) <= 30 then return false end
+    if (s.target_hp_pct or 100) <= 30 then return false end
     -- Limit to max targets
     if (s.dotted_swp_count or 0) >= (s.multidot_max or 3) then return false end
     -- Mana gate: don't spread below emergency
@@ -988,7 +988,7 @@ local function multidot_vt_matches(context, s)
     if context.is_moving then return false end
     if (s.enemy_count or 0) < 2 then return false end
     -- Only multidot when target HP > 30% (don't waste on dying adds)
-    if (context.target_hp_pct or 100) <= 30 then return false end
+    if (s.target_hp_pct or 100) <= 30 then return false end
     -- Limit to max targets
     if (s.dotted_vt_count or 0) >= (s.multidot_max or 3) then return false end
     -- Mana emergency: drop all spells

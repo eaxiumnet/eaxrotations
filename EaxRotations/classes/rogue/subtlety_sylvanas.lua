@@ -364,7 +364,7 @@ end
 
 local function kick_matches(context, state)
     -- Route through InterruptManager for cast window + humanization
-    if not spec_kit.setting_bool(context, "use_interrupts", true) then return false end
+    if not spec_kit.setting_bool(context, "use_interrupt", true) then return false end
     local mgr = NS.InterruptManager
     if mgr then
         if not NS.try_interrupt(context.target) then return false end

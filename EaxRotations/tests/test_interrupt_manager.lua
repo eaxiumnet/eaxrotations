@@ -98,7 +98,7 @@ local strategy = M.create_interrupt_strategy(
 local ctx1 = {
     me = {is_casting = function() return false end, is_channeling = function() return false end},
     target = mock_target_casting,
-    settings = {use_interrupts = true},
+    settings = {use_interrupt = true},
     gcd_remains = 0,
     in_combat = true,
 }
@@ -119,7 +119,7 @@ try_interrupt_called = false
 local ctx2 = {
     me = {is_casting = function() return false end, is_channeling = function() return false end},
     target = mock_target_not_casting,
-    settings = {use_interrupts = true},
+    settings = {use_interrupt = true},
     gcd_remains = 0,
     in_combat = true,
 }
@@ -131,29 +131,29 @@ NS.gcd_remains = function() return 1.5 end
 local ctx3 = {
     me = {is_casting = function() return false end, is_channeling = function() return false end},
     target = mock_target_casting,
-    settings = {use_interrupts = true},
+    settings = {use_interrupt = true},
     gcd_remains = 1.5,
     in_combat = true,
 }
 local match3 = strategy.matches(ctx3)
 assert_false(match3, "strategy should NOT match when GCD is active")
 
--- Case 4: use_interrupts disabled => should NOT match
+-- Case 4: use_interrupt disabled => should NOT match
 local ctx4 = {
     me = {is_casting = function() return false end, is_channeling = function() return false end},
     target = mock_target_casting,
-    settings = {use_interrupts = false},
+    settings = {use_interrupt = false},
     gcd_remains = 0,
     in_combat = true,
 }
 local match4 = strategy.matches(ctx4)
-assert_false(match4, "strategy should NOT match when use_interrupts is false")
+assert_false(match4, "strategy should NOT match when use_interrupt is false")
 
 -- Case 5: Player is casting => should NOT match
 local ctx5 = {
     me = {is_casting = function() return true end, is_channeling = function() return false end},
     target = mock_target_casting,
-    settings = {use_interrupts = true},
+    settings = {use_interrupt = true},
     gcd_remains = 0,
     in_combat = true,
 }
@@ -166,7 +166,7 @@ NS.spell_ready = function(spell, target, opts) return false end
 local ctx6 = {
     me = {is_casting = function() return false end, is_channeling = function() return false end},
     target = mock_target_casting,
-    settings = {use_interrupts = true},
+    settings = {use_interrupt = true},
     gcd_remains = 0,
     in_combat = true,
 }
@@ -303,7 +303,7 @@ local exec_target = {
 local exec_ctx = {
     me = { is_casting = function() return false end, is_channeling = function() return false end },
     target = exec_target,
-    settings = { use_interrupts = true, interrupt_humanize_enabled = false },
+    settings = { use_interrupt = true, interrupt_humanize_enabled = false },
 }
 local exec_strategy = M.create_interrupt_strategy({ spell = mock_spell, class_key = "mage" })
 assert_true(exec_strategy.matches(exec_ctx), "execute path: matches when casting")

@@ -117,6 +117,35 @@ return {
                     { key = "hunter_melee_weave", type = "checkbox", label = "Melee Weave", default = true, tooltip = "Use Raptor Strike / Wing Clip when in melee range" },
                 },
             },
+            {
+                header = "AoE & Melee",
+                settings = {
+                    { key = "use_melee", type = "checkbox", label = "Melee Weaving", default = true, tooltip = "Use melee attacks (Raptor Strike) when a target is in melee range." },
+                    { key = "use_volley", type = "checkbox", label = "Volley (AoE)", default = false, tooltip = "Channel Volley on grouped enemies (uses AoE Count)." },
+                    { key = "use_explosive_trap", type = "checkbox", label = "Explosive Trap (AoE)", default = false, tooltip = "Drop Explosive Trap for AoE damage on grouped enemies." },
+                },
+            },
+            {
+                header = "Stings & Utility",
+                settings = {
+                    { key = "sting_mode", type = "dropdown", label = "Sting", default = "serpent", options = {
+                        { text = "Serpent Sting", value = "serpent" },
+                        { text = "None", value = "none" },
+                    } },
+                    { key = "fd_mode", type = "dropdown", label = "Feign Death", default = "high_threat", options = {
+                        { text = "Off", value = "off" },
+                        { text = "High Threat", value = "high_threat" },
+                        { text = "Aggro Only", value = "aggro_only" },
+                    } },
+                    { key = "trinket_mode", type = "dropdown", label = "Trinket Use", default = "off", options = {
+                        { text = "Off", value = "off" },
+                        { text = "Slot 1", value = "slot1" },
+                        { text = "Slot 2", value = "slot2" },
+                        { text = "Both", value = "both" },
+                    } },
+                    { key = "hunter_viper_exit_threshold", type = "slider", label = "Viper Exit Mana (%)", min = 0, max = 100, default = 25, tooltip = "Leave Aspect of the Viper once mana rises above this percent." },
+                },
+            },
         },
     },
     {

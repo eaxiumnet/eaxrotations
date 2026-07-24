@@ -198,7 +198,7 @@ local DSL_DEFS = {
         { type = "custom", fn = function(context, state)
             local settings = settings_for(context)
             if not can_attack_target(context) then return false end
-            if settings.use_interrupts == false then return false end
+            if settings.use_interrupt == false then return false end
             if not context.target then return false end
             local ok, casting = pcall(function() return context.target:is_casting() end)
             if not (ok and casting) then return false end

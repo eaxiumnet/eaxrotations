@@ -12,7 +12,7 @@
 --   4. Rogue Subtlety (kick_matches)
 --
 -- Key behaviors tested per spec:
---   - settings.use_interrupts == false gate
+--   - settings.use_interrupt == false gate
 --   - InterruptManager path: try_interrupt + cast_has_interrupt_window + humanize_interrupt_elapsed
 --   - Fallback path (IM nil): bare target_is_casting + target_casting_interruptible
 --   - Cast window gating at various percentages
@@ -108,7 +108,7 @@ end
 -- ============================================================================
 
 local function shield_bash_matches_pattern(context, state)
-    if not spec_kit.setting_bool(context, "use_interrupts", true) then return false end
+    if not spec_kit.setting_bool(context, "use_interrupt", true) then return false end
     local mgr = NS.InterruptManager
     local target = context.target
     if mgr then
@@ -128,19 +128,19 @@ end
 
 print("--- Warrior Protection: ShieldBash pattern ---")
 
--- Test 1: use_interrupts == false blocks everything
+-- Test 1: use_interrupt == false blocks everything
 reset_call_log()
 assert_false(shield_bash_matches_pattern(
-    { settings = { use_interrupts = false }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = false }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { shield_bash_ready = true, defensive_stance = true, target_is_casting = true, target_casting_interruptible = true }
-), "use_interrupts==false should block")
-assert_eq(call_log.im_path_called, 0, "IM path should NOT be called when use_interrupts==false")
-assert_eq(call_log.fallback_path_called, 0, "fallback path should NOT be called when use_interrupts==false")
+), "use_interrupt==false should block")
+assert_eq(call_log.im_path_called, 0, "IM path should NOT be called when use_interrupt==false")
+assert_eq(call_log.fallback_path_called, 0, "fallback path should NOT be called when use_interrupt==false")
 
 -- Test 2: IM path with valid target (casting at 30%, should pass window)
 reset_call_log()
 assert_true(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { shield_bash_ready = true, defensive_stance = true }
 ), "valid interrupt with IM should match")
 assert_eq(call_log.im_path_called, 1, "IM path should be called")
@@ -150,7 +150,7 @@ assert_eq(call_log.window_calls, 1, "cast_has_interrupt_window should be called 
 -- Test 3: IM path — target at 60% cast (above default 50% threshold) → blocked by window
 reset_call_log()
 assert_false(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 60 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 60 }) },
     { shield_bash_ready = true, defensive_stance = true }
 ), "60% cast should be blocked by default 50% window")
 assert_eq(call_log.im_path_called, 1, "IM path should be called (but window fails)")
@@ -159,7 +159,7 @@ assert_eq(call_log.window_calls, 1, "cast_has_interrupt_window should be called"
 -- Test 4: IM path — target at 60% but custom 80% threshold → passes
 reset_call_log()
 assert_true(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true, interrupt_cast_percent = 80 }, target = mock_target({ is_casting = true, cast_pct = 60 }) },
+    { settings = { use_interrupt = true, interrupt_cast_percent = 80 }, target = mock_target({ is_casting = true, cast_pct = 60 }) },
     { shield_bash_ready = true, defensive_stance = true }
 ), "60% cast should pass with 80% threshold")
 assert_eq(call_log.window_calls, 1, "cast_has_interrupt_window should be called")
@@ -167,7 +167,7 @@ assert_eq(call_log.window_calls, 1, "cast_has_interrupt_window should be called"
 -- Test 5b: Explicit humanize disabled → humanize passes through, call_log not incremented
 reset_call_log()
 assert_true(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { shield_bash_ready = true, defensive_stance = true }
 ), "without humanize_enabled, interrupt should match (humanize defaults to pass-through)")
 assert_eq(call_log.humanize_calls, 0, "humanize should NOT be called when interrupt_humanize_enabled is nil (default pass-through)")
@@ -175,7 +175,7 @@ assert_eq(call_log.humanize_calls, 0, "humanize should NOT be called when interr
 -- Test 6: IM path — target NOT casting → blocked by try_interrupt
 reset_call_log()
 assert_false(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = false }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = false }) },
     { shield_bash_ready = true, defensive_stance = true }
 ), "non-casting target should be blocked by try_interrupt")
 assert_eq(call_log.im_path_called, 1, "IM path entered")
@@ -187,7 +187,7 @@ M.humanize_cleanup(999)
 NS.time_now = function() return 0 end
 local humanized_target = mock_target({ is_casting = true, cast_pct = 30, cast_spell_id = 118 })
 assert_false(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true, interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1 }, target = humanized_target },
+    { settings = { use_interrupt = true, interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1 }, target = humanized_target },
     { shield_bash_ready = true, defensive_stance = true }
 ), "humanization should block first call")
 assert_eq(call_log.humanize_calls, 1, "humanize should be called")
@@ -196,7 +196,7 @@ assert_eq(call_log.humanize_calls, 1, "humanize should be called")
 reset_call_log()
 NS.time_now = function() return 1 end
 assert_true(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true, interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1 }, target = humanized_target },
+    { settings = { use_interrupt = true, interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1 }, target = humanized_target },
     { shield_bash_ready = true, defensive_stance = true }
 ), "humanization should allow after 1s delay")
 assert_eq(call_log.humanize_calls, 1, "humanize should be called")
@@ -205,7 +205,7 @@ assert_eq(call_log.humanize_calls, 1, "humanize should be called")
 reset_call_log()
 NS.InterruptManager = nil
 assert_true(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true }) },
     { shield_bash_ready = true, defensive_stance = true, target_is_casting = true, target_casting_interruptible = true }
 ), "fallback: target casting + interruptible should match")
 assert_eq(call_log.fallback_path_called, 1, "fallback path should be used when IM is nil")
@@ -213,7 +213,7 @@ assert_eq(call_log.fallback_path_called, 1, "fallback path should be used when I
 -- Test 8: Fallback path — target casting but NOT interruptible
 reset_call_log()
 assert_false(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true }) },
     { shield_bash_ready = true, defensive_stance = true, target_is_casting = true, target_casting_interruptible = false }
 ), "fallback: target casting but not interruptible should NOT match")
 assert_eq(call_log.fallback_path_called, 1, "fallback path entered but blocked by interruptible check")
@@ -221,7 +221,7 @@ assert_eq(call_log.fallback_path_called, 1, "fallback path entered but blocked b
 -- Test 9: Fallback path — target NOT casting
 reset_call_log()
 assert_false(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = false }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = false }) },
     { shield_bash_ready = true, defensive_stance = true, target_is_casting = false, target_casting_interruptible = true }
 ), "fallback: target not casting should NOT match")
 assert_eq(call_log.fallback_path_called, 1, "fallback path entered but blocked by is_casting check")
@@ -233,14 +233,14 @@ M.humanize_cleanup(999)
 -- Test 10: Spec-specific gates — shield_bash_ready == false
 reset_call_log()
 assert_false(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { shield_bash_ready = false, defensive_stance = true }
 ), "shield_bash_ready==false should block even with valid interrupt")
 
 -- Test 11: Spec-specific gates — not in defensive stance
 reset_call_log()
 assert_false(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { shield_bash_ready = true, defensive_stance = false }
 ), "non-defensive stance should block even with valid interrupt")
 
@@ -250,7 +250,7 @@ assert_false(shield_bash_matches_pattern(
 -- ============================================================================
 
 local function kick_matches_pattern(context, state)
-    if not spec_kit.setting_bool(context, "use_interrupts", true) then return false end
+    if not spec_kit.setting_bool(context, "use_interrupt", true) then return false end
     local mgr = NS.InterruptManager
     if mgr then
         call_log.im_path_called = call_log.im_path_called + 1
@@ -271,17 +271,17 @@ end
 
 print("--- Rogue Subtlety: Kick pattern ---")
 
--- Test 12: use_interrupts == false blocks
+-- Test 12: use_interrupt == false blocks
 reset_call_log()
 assert_false(kick_matches_pattern(
-    { settings = { use_interrupts = false }, target = mock_target({ is_casting = true, cast_pct = 30 }), spell = 1766 },
+    { settings = { use_interrupt = false }, target = mock_target({ is_casting = true, cast_pct = 30 }), spell = 1766 },
     { enough_energy = true }
-), "use_interrupts==false should block Kick")
+), "use_interrupt==false should block Kick")
 
 -- Test 13: IM path — casting at 30% passes window
 reset_call_log()
 assert_true(kick_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }), spell = 1766 },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }), spell = 1766 },
     { enough_energy = true }
 ), "Kick should match when target casting at 30%")
 assert_eq(call_log.try_interrupt_calls, 1, "try_interrupt should be called")
@@ -290,14 +290,14 @@ assert_eq(call_log.window_calls, 1, "cast_has_interrupt_window should be called"
 -- Test 14: IM path — target at 80% cast → blocked by default 50% window
 reset_call_log()
 assert_false(kick_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 80 }), spell = 1766 },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 80 }), spell = 1766 },
     { enough_energy = true }
 ), "80% cast should be blocked by 50% default window")
 
 -- Test 15: IM path — 80% cast with 85% threshold → passes
 reset_call_log()
 assert_true(kick_matches_pattern(
-    { settings = { use_interrupts = true, interrupt_cast_percent = 85 }, target = mock_target({ is_casting = true, cast_pct = 80 }), spell = 1766 },
+    { settings = { use_interrupt = true, interrupt_cast_percent = 85 }, target = mock_target({ is_casting = true, cast_pct = 80 }), spell = 1766 },
     { enough_energy = true }
 ), "80% cast should pass with 85% threshold")
 
@@ -305,7 +305,7 @@ assert_true(kick_matches_pattern(
 reset_call_log()
 NS.InterruptManager = nil
 assert_true(kick_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true }), spell = 1766 },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true }), spell = 1766 },
     { enough_energy = true }
 ), "fallback: target casting should match Kick")
 assert_eq(call_log.fallback_path_called, 1, "fallback path used when IM nil")
@@ -313,7 +313,7 @@ assert_eq(call_log.fallback_path_called, 1, "fallback path used when IM nil")
 -- Test 17: Fallback — IM nil, target NOT casting → blocked
 reset_call_log()
 assert_false(kick_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = false }), spell = 1766 },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = false }), spell = 1766 },
     { enough_energy = true }
 ), "fallback: target not casting should NOT match Kick")
 
@@ -322,7 +322,7 @@ NS.InterruptManager = M
 -- Test 18: Spec-specific gate — not enough energy
 reset_call_log()
 assert_false(kick_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }), spell = 1766 },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }), spell = 1766 },
     { enough_energy = false }
 ), "not enough energy should block Kick")
 
@@ -333,7 +333,7 @@ assert_false(kick_matches_pattern(
 -- ============================================================================
 
 local function bash_interrupt_pattern(context, state)
-    if not spec_kit.setting_bool(context, "use_interrupts", true) then return false end
+    if not spec_kit.setting_bool(context, "use_interrupt", true) then return false end
     if not state.can_use_bear_ability then return false end
     local mgr = NS.InterruptManager
     local target = context.target
@@ -353,17 +353,17 @@ end
 
 print("--- Druid Bear: BashInterrupt pattern ---")
 
--- Test 19: use_interrupts == false blocks
+-- Test 19: use_interrupt == false blocks
 reset_call_log()
 assert_false(bash_interrupt_pattern(
-    { settings = { use_interrupts = false }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = false }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { can_use_bear_ability = true, rage = 20, bash_ready = true }
-), "use_interrupts==false should block BashInterrupt")
+), "use_interrupt==false should block BashInterrupt")
 
 -- Test 20: IM path — valid interrupt
 reset_call_log()
 assert_true(bash_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { can_use_bear_ability = true, rage = 20, bash_ready = true }
 ), "BashInterrupt should match when target casting at 30%")
 assert_eq(call_log.im_path_called, 1, "IM path should be used")
@@ -373,7 +373,7 @@ assert_eq(call_log.window_calls, 1, "cast_has_interrupt_window called")
 -- Test 21: IM path — target at 70% cast blocked by window
 reset_call_log()
 assert_false(bash_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 70 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 70 }) },
     { can_use_bear_ability = true, rage = 20, bash_ready = true }
 ), "70% cast should be blocked by 50% default window for Bash")
 
@@ -381,7 +381,7 @@ assert_false(bash_interrupt_pattern(
 reset_call_log()
 NS.InterruptManager = nil
 assert_true(bash_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true }) },
     { can_use_bear_ability = true, rage = 20, bash_ready = true, target_is_casting = true, target_interruptible = true }
 ), "fallback: casting + interruptible should match BashInterrupt")
 assert_eq(call_log.fallback_path_called, 1, "fallback path used")
@@ -389,7 +389,7 @@ assert_eq(call_log.fallback_path_called, 1, "fallback path used")
 -- Test 23: Fallback — IM nil, target not interruptible → blocked
 reset_call_log()
 assert_false(bash_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true }) },
     { can_use_bear_ability = true, rage = 20, bash_ready = true, target_is_casting = true, target_interruptible = false }
 ), "fallback: not interruptible should block BashInterrupt")
 
@@ -398,21 +398,21 @@ NS.InterruptManager = M
 -- Test 24: Spec-specific gate — not in bear form
 reset_call_log()
 assert_false(bash_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { can_use_bear_ability = false, rage = 20, bash_ready = true }
 ), "not in bear form should block BashInterrupt")
 
 -- Test 25: Spec-specific gate — insufficient rage
 reset_call_log()
 assert_false(bash_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { can_use_bear_ability = true, rage = 5, bash_ready = true }
 ), "insufficient rage (< 10) should block BashInterrupt")
 
 -- Test 26: Bash not ready
 reset_call_log()
 assert_false(bash_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { can_use_bear_ability = true, rage = 20, bash_ready = false }
 ), "bash_ready==false should block")
 
@@ -423,7 +423,7 @@ assert_false(bash_interrupt_pattern(
 -- ============================================================================
 
 local function shaman_im_interrupt_pattern(context, state)
-    if not spec_kit.setting_bool(context, "use_interrupts", true) then return false end
+    if not spec_kit.setting_bool(context, "use_interrupt", true) then return false end
     if state.earth_shock_mode ~= "interrupts" then return false end
     if not state.earth_shock_ready then return false end
     local mgr = NS.InterruptManager
@@ -457,17 +457,17 @@ end
 
 print("--- Shaman Enhancement: IM integration pattern ---")
 
--- Test 36: use_interrupts == false blocks
+-- Test 36: use_interrupt == false blocks
 reset_call_log()
 assert_false(shaman_im_interrupt_pattern(
-    { settings = { use_interrupts = false }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = false }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { earth_shock_mode = "interrupts", earth_shock_ready = true, target_can_interrupt = true, interrupt_mode = "target", target_cast_pct = 30, kick_min_pct = 0, kick_max_pct = 90 }
-), "use_interrupts==false should block shaman interrupt")
+), "use_interrupt==false should block shaman interrupt")
 
 -- Test 37: IM path — valid interrupt through IM + enh cast_pct window
 reset_call_log()
 assert_true(shaman_im_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { earth_shock_mode = "interrupts", earth_shock_ready = true, target_can_interrupt = true, interrupt_mode = "target", target_cast_pct = 30, kick_min_pct = 0, kick_max_pct = 90 }
 ), "shaman IM path: casting at 30% within enh window should match")
 assert_eq(call_log.im_path_called, 1, "IM path used")
@@ -477,7 +477,7 @@ assert_eq(call_log.window_calls, 1, "cast_has_interrupt_window called")
 -- Test 38: IM path — IM window passes but enh cast_pct above max → blocked
 reset_call_log()
 assert_false(shaman_im_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { earth_shock_mode = "interrupts", earth_shock_ready = true, target_can_interrupt = true, interrupt_mode = "target", target_cast_pct = 95, kick_min_pct = 0, kick_max_pct = 90 }
 ), "IM passes but enh max_pct blocks")
 assert_eq(call_log.im_path_called, 1, "IM path entered but enh gate blocked")
@@ -488,7 +488,7 @@ M.humanize_cleanup(999)
 NS.time_now = function() return 0 end
 local enh_target = mock_target({ is_casting = true, cast_pct = 30, cast_spell_id = 2054 })
 assert_false(shaman_im_interrupt_pattern(
-    { settings = { use_interrupts = true, interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1 }, target = enh_target },
+    { settings = { use_interrupt = true, interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1 }, target = enh_target },
     { earth_shock_mode = "interrupts", earth_shock_ready = true, target_can_interrupt = true, interrupt_mode = "target", target_cast_pct = 30, kick_min_pct = 0, kick_max_pct = 90 }
 ), "shaman humanization should block first call")
 assert_eq(call_log.humanize_calls, 1, "humanize called")
@@ -497,7 +497,7 @@ assert_eq(call_log.humanize_calls, 1, "humanize called")
 reset_call_log()
 NS.time_now = function() return 1 end
 assert_true(shaman_im_interrupt_pattern(
-    { settings = { use_interrupts = true, interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1 }, target = enh_target },
+    { settings = { use_interrupt = true, interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 1 }, target = enh_target },
     { earth_shock_mode = "interrupts", earth_shock_ready = true, target_can_interrupt = true, interrupt_mode = "target", target_cast_pct = 30, kick_min_pct = 0, kick_max_pct = 90 }
 ), "shaman humanization should allow after delay")
 
@@ -505,7 +505,7 @@ assert_true(shaman_im_interrupt_pattern(
 reset_call_log()
 NS.InterruptManager = nil
 assert_true(shaman_im_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { earth_shock_mode = "interrupts", earth_shock_ready = true, target_can_interrupt = true, interrupt_mode = "target", target_cast_pct = 30, kick_min_pct = 0, kick_max_pct = 90 }
 ), "shaman fallback: valid cast_pct window should match")
 assert_eq(call_log.fallback_path_called, 1, "fallback used")
@@ -513,7 +513,7 @@ assert_eq(call_log.fallback_path_called, 1, "fallback used")
 -- Test 42: Fallback — IM nil, cast_pct outside window → blocked
 reset_call_log()
 assert_false(shaman_im_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 95 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 95 }) },
     { earth_shock_mode = "interrupts", earth_shock_ready = true, target_can_interrupt = true, interrupt_mode = "target", target_cast_pct = 95, kick_min_pct = 0, kick_max_pct = 90 }
 ), "shaman fallback: cast_pct outside enh window should block")
 
@@ -523,35 +523,35 @@ M.humanize_cleanup(999)
 -- Test 43: dps mode blocks (even with valid target, IM path)
 reset_call_log()
 assert_false(shaman_im_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { earth_shock_mode = "dps", earth_shock_ready = true, target_can_interrupt = true, interrupt_mode = "target", target_cast_pct = 30, kick_min_pct = 0, kick_max_pct = 90 }
 ), "earth_shock_mode==dps should block even with valid target")
 
 -- Test 44: earth_shock_ready == false blocks
 reset_call_log()
 assert_false(shaman_im_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { earth_shock_mode = "interrupts", earth_shock_ready = false, target_can_interrupt = true, interrupt_mode = "target", target_cast_pct = 30, kick_min_pct = 0, kick_max_pct = 90 }
 ), "earth_shock_ready==false should block")
 
 -- Test 45: any-in-range mode bypasses target_can_interrupt (IM path)
 reset_call_log()
 assert_true(shaman_im_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { earth_shock_mode = "interrupts", earth_shock_ready = true, target_can_interrupt = false, interrupt_mode = "any", target_cast_pct = 30, kick_min_pct = 0, kick_max_pct = 90 }
 ), "any-in-range mode should bypass target_can_interrupt and cast_pct window")
 
 -- Test 46: min>=max clamp guard — min clamped to max-10, cast_pct within clamped range
 reset_call_log()
 assert_true(shaman_im_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { earth_shock_mode = "interrupts", earth_shock_ready = true, target_can_interrupt = true, interrupt_mode = "target", target_cast_pct = 75, kick_min_pct = 90, kick_max_pct = 80 }
 ), "min>=max guard: cast_pct 75 should pass (min clamped from 90 to 70, range [70,80])")
 
 -- Test 47: min>=max clamp guard — cast_pct below clamped range → blocked
 reset_call_log()
 assert_false(shaman_im_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true, cast_pct = 30 }) },
     { earth_shock_mode = "interrupts", earth_shock_ready = true, target_can_interrupt = true, interrupt_mode = "target", target_cast_pct = 20, kick_min_pct = 90, kick_max_pct = 80 }
 ), "min>=max guard: cast_pct 20 should be blocked (min clamped to 70, 20 < 70)")
 
@@ -566,7 +566,7 @@ NS.time_now = function() return 0 end
 M.humanize_cleanup(999)
 
 local human_target = mock_target({ is_casting = true, cast_pct = 30, cast_spell_id = 2054 })
-local human_settings = { use_interrupts = true, interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 2 }
+local human_settings = { use_interrupt = true, interrupt_humanize_enabled = true, interrupt_cast_jitter_min = 2 }
 local ready_state = { shield_bash_ready = true, defensive_stance = true }
 local energy_state = { enough_energy = true }
 local bear_state = { can_use_bear_ability = true, rage = 20, bash_ready = true }
@@ -602,7 +602,7 @@ NS.InterruptManager = nil
 -- Warrior fallback: needs target_is_casting + target_casting_interruptible
 reset_call_log()
 assert_true(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true }) },
     { shield_bash_ready = true, defensive_stance = true, target_is_casting = true, target_casting_interruptible = true }
 ), "Warrior fallback: both casting and interruptible → match")
 assert_eq(call_log.fallback_path_called, 1, "fallback used")
@@ -610,29 +610,29 @@ assert_eq(call_log.fallback_path_called, 1, "fallback used")
 -- Rogue fallback: only needs target._is_casting (simpler)
 reset_call_log()
 assert_true(kick_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true }), spell = 1766 },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true }), spell = 1766 },
     { enough_energy = true }
 ), "Rogue fallback: target casting → match (simpler fallback)")
 
 -- Druid fallback: needs target_is_casting + target_interruptible
 reset_call_log()
 assert_true(bash_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = true }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = true }) },
     { can_use_bear_ability = true, rage = 20, bash_ready = true, target_is_casting = true, target_interruptible = true }
 ), "Druid fallback: both casting and interruptible → match")
 
 -- All 3 should block when target not casting in fallback
 reset_call_log()
 assert_false(shield_bash_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = false }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = false }) },
     { shield_bash_ready = true, defensive_stance = true, target_is_casting = false, target_casting_interruptible = true }
 ), "Warrior fallback: not casting → block")
 assert_false(kick_matches_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = false }), spell = 1766 },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = false }), spell = 1766 },
     { enough_energy = true }
 ), "Rogue fallback: not casting → block")
 assert_false(bash_interrupt_pattern(
-    { settings = { use_interrupts = true }, target = mock_target({ is_casting = false }) },
+    { settings = { use_interrupt = true }, target = mock_target({ is_casting = false }) },
     { can_use_bear_ability = true, rage = 20, bash_ready = true, target_is_casting = false, target_interruptible = true }
 ), "Druid fallback: not casting → block")
 
