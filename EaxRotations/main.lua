@@ -485,6 +485,10 @@ local function initialize_schema_menu()
                 -- in each section but is backed by one unique widget.
                 local existing = def and def.key and schema_widgets[def.key]
                 if existing then
+                    -- Warn once about the duplicate so schema authors notice accidental collisions.
+                    if core and core.log_warning then
+                        core.log_warning("[EaxRotations] Duplicate schema key '" .. tostring(def.key) .. "' in " .. tostring(tab.name or "General") .. "/" .. tostring(section.header or "?") .. "; reusing existing control.")
+                    end
                     normalized_section.settings[#normalized_section.settings + 1] = existing
                 else
                     local widget = create_schema_widget(def)
