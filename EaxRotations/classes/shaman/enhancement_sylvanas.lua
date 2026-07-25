@@ -337,6 +337,12 @@ local function build_state(context)
     enh_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     enh_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     enh_state.now_ms = NS.game_time_ms()
+    -- IZI SDK: time_in_combat() for opener vs sustained phase decisions
+    enh_state.combat_time = context.combat_time or 0
+    if me and type(me.time_in_combat) == "function" then
+        local ok_t, t = pcall(me.time_in_combat, me)
+        if ok_t and type(t) == "number" then enh_state.combat_time = t end
+    end
     enh_state.mana_low = enh_state.mana_pct < spec_kit.setting_number(context, "enhancement_mana_low_pct", 20)
     enh_state.mana_emergency = enh_state.mana_pct < spec_kit.setting_number(context, "enhancement_mana_emergency_pct", 10)
     enh_state.in_combat = context.in_combat or false
@@ -494,7 +500,17 @@ local function build_state(context)
     enh_state.gift_of_the_naaru_ready = me and NS.spell_ready(ACTION.GiftOfTheNaaru, me, { skip_range = true, expected_cooldown = 120 }) or false
 
     -- -- Totem phase tracking for twisting (check air slot = 4)
-    local air_info = NS.get_totem_info and NS.get_totem_info(4)
+    -- IZI SDK: prefer unit:get_totem_info(slot) on player for accurate duration tracking
+    local air_info = nil
+    if me and type(me.get_totem_info) == "function" then
+        local ok_ti, active, name, start, dur = pcall(me.get_totem_info, me, 4)
+        if ok_ti and active then
+            air_info = { have_totem = true, spell_id = 0, start_time = start or 0, duration = dur or 0 }
+        end
+    end
+    if not air_info then
+        air_info = NS.get_totem_info and NS.get_totem_info(4)
+    end
     if air_info and air_info.have_totem then
         local air_remains = (air_info.duration or 0) - ((NS.game_time_ms and NS.game_time_ms() or 0) / 1000 - (air_info.start_time or 0))
         if air_remains < 0 then air_remains = 0 end

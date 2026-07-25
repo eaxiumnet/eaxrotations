@@ -130,9 +130,17 @@ local function _find_multidot_target(debuff_ids, range)
     local enemies = _multidot_enemy_list(range)
     for _, enemy in ipairs(enemies) do
         if _is_valid_enemy(enemy) and _is_in_combat(enemy) and not is_cc_target(enemy) and _unit_hp_pct(enemy) >= 20 then
-            local has_dot = NS.debuff_up and NS.debuff_up(enemy, debuff_ids)
-            if not has_dot then
-                return enemy
+            -- IZI SDK: skip damage-immune targets (Divine Shield, Ice Block, etc.)
+            local skip_immune = false
+            if type(enemy.is_damage_immune) == "function" then
+                local ok_im, im = pcall(enemy.is_damage_immune, enemy)
+                if ok_im and im then skip_immune = true end
+            end
+            if not skip_immune then
+                local has_dot = NS.debuff_up and NS.debuff_up(enemy, debuff_ids)
+                if not has_dot then
+                    return enemy
+                end
             end
         end
     end

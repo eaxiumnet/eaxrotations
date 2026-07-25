@@ -242,6 +242,11 @@ local function build_state(context)
     subtlety_state.energy = context.energy or 0
     -- IZI SDK: energy_predicted for smarter pooling decisions
     local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+    -- IZI SDK: combo_points_current() is a more reliable source when available
+    if me and type(me.combo_points_current) == "function" then
+        local ok, cp = pcall(me.combo_points_current, me)
+        if ok and type(cp) == "number" then subtlety_state.combo = cp end
+    end
     if me and type(me.energy_predicted) == "function" then
         local ok, pred = pcall(me.energy_predicted, me)
         subtlety_state.energy_predicted = (ok and type(pred) == "number") and pred or subtlety_state.energy
@@ -422,6 +427,12 @@ end
 local function blind_matches(context, state)
     if not is_pvp_target(context) then return false end
     if state.control_active then return false end
+    -- IZI SDK: skip Blind if target is already CC'd
+    local target = context.target
+    if target and type(target.is_cc) == "function" then
+        local ok, cc = pcall(target.is_cc, target)
+        if ok and cc then return false end
+    end
     if (state.hp or 100) > 35 and (state.target_hp or 100) > 25 then return false end
     return NS.spell_ready(ACTION.Blind, context.target)
 end
@@ -429,6 +440,12 @@ end
 local function gouge_matches(context, state)
     if not is_pvp_target(context) then return false end
     if state.control_active then return false end
+    -- IZI SDK: skip Gouge if target is already CC'd
+    local target = context.target
+    if target and type(target.is_cc) == "function" then
+        local ok, cc = pcall(target.is_cc, target)
+        if ok and cc then return false end
+    end
     if not in_melee(state) or (state.energy or 0) < 45 then return false end
     return NS.spell_ready(ACTION.Gouge, context.target)
 end

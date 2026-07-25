@@ -1,5 +1,22 @@
 # EaxRotations Changelog
 
+## v2.15.0 — Smarter CC, Immunity Awareness & Combat Timing (July 24, 2026)
+
+> **Release:** v2.15.0
+> **Game:** The Burning Crusade Classic (2.5.5.x)
+
+### What you'll notice
+
+- **No more wasted CC** — Polymorph, Fear, Blind, and Gouge won't fire on targets that are already stunned/CC'd. Previously the bot could overwrite your group's CC chain with a redundant cast.
+- **Cooldowns respect immunity** — Adrenaline Rush, Bestial Wrath, Arcane Power, and Shield Wall now detect when the target is immune (Paladin bubble, Ice Block) and hold their cooldown instead of wasting it.
+- **DoT spreading skips immune targets** — Affliction Warlock and Balance Druid multi-DoT no longer waste casts on bubbled or immune enemies.
+- **Better rogue combo tracking** — All three rogue specs use a more reliable combo point source, fixing rare desync issues.
+- **Shaman totem twist timing improved** — Enhancement uses more accurate totem duration tracking for air totem twisting.
+
+Reload for **v2.15.0**.
+
+---
+
 ## v2.14.0 — Faster AoE Detection & Smarter Rogue Pooling (July 24, 2026)
 
 > **Release:** v2.14.0

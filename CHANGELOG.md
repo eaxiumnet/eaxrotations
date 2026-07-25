@@ -2,6 +2,29 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.15.0] — IZI SDK CC Awareness, Immunity Gating, Combat Timing (2026-07-24)
+
+**Second API audit wave.** Eight IZI SDK integrations across 13 spec files:
+CC-state awareness for crowd control abilities, damage-immunity gating for
+cooldowns and DoT spreading, time_in_combat for opener/sustained decisions,
+combo_points_current for rogue reliability, and totem duration tracking.
+
+### Improvements
+
+- **CC Awareness (Mage ×3, Warlock, Rogue ×3)**: Polymorph, Fear, Blind, and Gouge now check `target:is_cc()` before casting. Prevents wasting CC on already crowd-controlled targets.
+- **Damage Immunity Gating (Rogue, Hunter, Mage, Warrior)**: Offensive CDs (Adrenaline Rush, Bestial Wrath, Arcane Power) and tank defensives (Shield Wall) now skip when the target is immune (Divine Shield, Ice Block). Prevents wasting long cooldowns.
+- **Multi-DoT Immunity Skip (Warlock, Balance Druid)**: DoT spreading now skips damage-immune targets in both TSHelper and IZI enemy scans.
+- **Combat Timer (Rogue, Shaman, Bear)**: `unit:time_in_combat()` provides accurate combat timing for opener/sustained phase decisions.
+- **Combo Points (Rogue ×3)**: `combo_points_current()` IZI SDK method used as primary source when available, more reliable than context pipeline.
+- **Totem Duration (Enhancement Shaman)**: `unit:get_totem_info(slot)` provides accurate remaining time for air totem twisting.
+- **Shared Module**: New `izi_unit_state_sylvanas.lua` centralizes IZI SDK CC/immunity/timing helpers.
+
+### Technical
+
+- `luac -p` + 390/390 rotation + 31/31 leveling suites green (421 total).
+- All changes backward-compatible: IZI SDK methods are feature-detected via `type(unit.method) == "function"` + pcall.
+- 13 files modified, 1 new shared module.
+
 ## [2.14.0] — IZI SDK Fast-Paths: Splash Range, Loss-of-Control, Energy Prediction (2026-07-24)
 
 **API audit implementation.** Three high-impact IZI SDK methods integrated across

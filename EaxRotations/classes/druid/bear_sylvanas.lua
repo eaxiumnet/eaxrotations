@@ -360,6 +360,11 @@ local function build_state(context)
     state.stance    = context.stance or (NS.get_player_stance and NS.get_player_stance()) or STANCE_CASTER
     state.in_combat   = context.in_combat == true
     state.combat_time = context.combat_time or 0
+    -- IZI SDK: time_in_combat() provides more accurate combat timing
+    if state.me and type(state.me.time_in_combat) == "function" then
+        local ok_t, t = pcall(state.me.time_in_combat, state.me)
+        if ok_t and type(t) == "number" then state.combat_time = t end
+    end
     state.has_valid_target = (context.has_valid_enemy_target ~= false) and (state.target ~= nil)
     state.target_hp    = context.target_hp or 100
     state.target_ttd   = context.ttd or context.target_ttd or 999

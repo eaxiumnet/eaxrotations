@@ -255,6 +255,11 @@ local function build_state(context)
     combat_state.snd_remains = me and NS.buff_remains(me, SND_BUFF) or 0
     combat_state.rupture_remains = target and NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
     combat_state.combo_points = context.combo_points or 0
+    -- IZI SDK: combo_points_current() is a more reliable source when available
+    if me and type(me.combo_points_current) == "function" then
+        local ok, cp = pcall(me.combo_points_current, me)
+        if ok and type(cp) == "number" then combat_state.combo_points = cp end
+    end
     combat_state.energy = context.energy or (me and NS.unit_energy_pct and NS.unit_energy_pct(me)) or 100
     -- IZI SDK: energy_predicted gives projected energy after next tick (better pooling)
     if me and type(me.energy_predicted) == "function" then
@@ -269,6 +274,12 @@ local function build_state(context)
     end
     combat_state.hp_pct = context.hp or (me and NS.unit_health_pct(me)) or 100
     combat_state.in_combat = context.in_combat or false
+    -- IZI SDK: time_in_combat() for opener vs sustained phase decisions
+    combat_state.combat_time = context.combat_time or 0
+    if me and type(me.time_in_combat) == "function" then
+        local ok_t, t = pcall(me.time_in_combat, me)
+        if ok_t and type(t) == "number" then combat_state.combat_time = t end
+    end
     combat_state.enemy_count = context.enemy_count or context.enemies_count or 1
     local ok_casting, casting = false, false
     if target and target.is_casting then
@@ -386,6 +397,12 @@ local function adrenaline_rush_wrapper(context, s)
     if not s.in_combat then return false end
     if s.has_adrenaline_rush then return false end
     if not s.adrenaline_rush_ready then return false end
+    -- IZI SDK: skip offensive CD if target is damage-immune (Divine Shield, Ice Block, etc.)
+    local target = context.target
+    if target and type(target.is_damage_immune) == "function" then
+        local ok, immune = pcall(target.is_damage_immune, target)
+        if ok and immune then return false end
+    end
     -- Wowsims: fire AR at <=40 energy (when energy is actually needed, not at cap)
     if (s.energy or 100) > 40 then return false end
     -- Optimal: USE AR during Heroism for maximum combo point generation
@@ -546,6 +563,12 @@ local function blind_matches(context, s)
     if not context.target then return false end
     local group_aware = spec_kit.setting_bool(context, "rogue_group_aware_utility", true)
     if not (context.is_pvp or (group_aware and context.is_group) or false) then return false end
+    -- IZI SDK: skip Blind if target is already CC'd
+    local target = context.target
+    if target and type(target.is_cc) == "function" then
+        local ok, cc = pcall(target.is_cc, target)
+        if ok and cc then return false end
+    end
     if not (NS.is_spell_learned and NS.is_spell_learned(2094)) then return false end
     local cd = NS.get_spell_cooldown and NS.get_spell_cooldown(ACTION.Blind) or 0
     if cd > 0 then return false end

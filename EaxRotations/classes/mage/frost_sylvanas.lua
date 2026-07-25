@@ -411,6 +411,12 @@ local function polymorph_matches(context, s)
     if not (context.is_pvp or (group_aware and context.is_group)) then return false end
     if not context.target then return false end
     if not s.polymorph_ready then return false end
+    -- IZI SDK: skip Polymorph if target is already CC'd
+    local target = context.target
+    if target and type(target.is_cc) == "function" then
+        local ok, cc = pcall(target.is_cc, target)
+        if ok and cc then return false end
+    end
     return true
 end
 

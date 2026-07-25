@@ -257,6 +257,12 @@ local function polymorph_matches_fn(context, state)
     local group_aware = spec_kit.setting_bool(context, "mage_group_aware_utility", true)
     if not (context.is_pvp or (group_aware and context.is_group)) then return false end
     if not context.cc_target then return false end
+    -- IZI SDK: skip Polymorph if target is already CC'd
+    local cc_t = context.cc_target
+    if cc_t and type(cc_t.is_cc) == "function" then
+        local ok, cc = pcall(cc_t.is_cc, cc_t)
+        if ok and cc then return false end
+    end
 
     return NS.spell_ready(ACTION.Polymorph, context.cc_target or context.target)
 end
