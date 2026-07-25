@@ -2,7 +2,7 @@
 -- WHAT:  priority-list strategies for leveling_sylvanas gameplay.
 -- WHEN:  combat with valid enemy target (or healing context for healers).
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update() allocs.
 
 -- Druid leveling rotation.
 -- Auto-activates in solo/leveling context or when playstyle = "leveling".
@@ -36,6 +36,7 @@ local is_leveling_context = leveling.create_context_guard()
 -- Constants
 -- ============================================================================
 local SPELLS = NS.DruidSpells or {}
+local define = spec_kit.define_action_for_class(SPELLS)
 local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
 local MARK_OF_THE_WILD_BUFF = (_rbf_ok and RBF and RBF.detect("mark_of_the_wild")) or { 26991, 21850, 21849, 26990, 9885, 9884, 8907, 5234, 6756, 5232, 1126, 24752, 39233, 16878 }
 local THORNS_BUFF = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
@@ -92,6 +93,40 @@ local function safe_debuff_remains(unit, debuff_ids)
     return (ok and remains) or 0
 end
 
+-- Combo points live on the PLAYER in TBC (bound to whatever target they're on),
+-- NOT on the target. The dispatcher populates context.combo_points from
+-- me:combo_points_current(), but some PS builds return nil there. Without a
+-- player-side fallback, state.combo_points silently becomes 0 and BOTH
+-- finishers (Rip/Bite, which need CP >= RIP_CP_MIN) never fire — exactly the
+-- "Rip didn't fire at all" symptom. Mirrors the fallback chain in
+-- cat_sylvanas.lua and the rogue specs (combat/assassination/subtlety).
+local function get_combo_points(context, target)
+    if type(context.combo_points) == "number" then return context.combo_points end
+    if type(context.cp) == "number" then return context.cp end
+    -- NS helpers (some builds expose a global combo-point reader)
+    if NS.combo_points then
+        local ok, cp = pcall(NS.combo_points, target)
+        if ok and type(cp) == "number" then return cp end
+    end
+    if NS.get_combo_points then
+        local ok, cp = pcall(NS.get_combo_points, target)
+        if ok and type(cp) == "number" then return cp end
+    end
+    -- Fallback: query the local PLAYER directly (TBC CP live on the player).
+    local me = (context.me or (NS.GetPlayer and NS.GetPlayer()))
+    if me then
+        if type(me.combo_points_current) == "function" then
+            local ok, cp = pcall(me.combo_points_current, me)
+            if ok and type(cp) == "number" then return cp end
+        end
+        if type(me.get_power) == "function" then
+            local ok, cp = pcall(me.get_power, me, 4)
+            if ok and type(cp) == "number" then return cp end
+        end
+    end
+    return 0
+end
+
 -- ============================================================================
 -- State builder
 -- ============================================================================
@@ -126,7 +161,7 @@ function druid_leveling.build_state(context)
 
     -- Feral resources
     state.energy = context.energy or 0
-    state.combo_points = context.combo_points or context.cp or 0
+    state.combo_points = get_combo_points(context, context.target)
     state.rage = context.rage or 0
     state.level = context.level or context.player_level or 60
     state.is_behind = NS.is_behind_target and NS.is_behind_target(context.target) or false
@@ -228,9 +263,10 @@ local cat_form_entry_matches = function(_, state)
 end
 
 --- Prowl - stealth opener preparation (OOC)
-local prowl_opener_matches = function(_, state)
+local prowl_opener_matches = function(context, state)
     if not state then return false end
     if state.in_combat then return false end
+    if not spec_kit.setting_bool(context, "cat_auto_prowl", true) then return false end
     if not state.use_feral then return false end
     if not state.prowl_ready then return false end
     if not state.is_cat and not state.cat_form_ready then return false end  -- Need cat form
@@ -790,6 +826,4 @@ function druid_leveling.on_update(context)
 end
 
 -- [Druid] Leveling rotation loaded
-druid_leveling.strategies = strategies
-
-return druid_leveling
+return { strategies = strategies, build_state = druid_leveling.build_state, on_update = druid_leveling.on_update }

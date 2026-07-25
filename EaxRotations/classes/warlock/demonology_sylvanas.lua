@@ -545,6 +545,12 @@ local function fear_matches(context, s)
     if not s.fear_ready then return false end
     local group_aware = spec_kit.setting_bool(context, "warlock_group_aware_utility", true)
     if not (context.is_pvp or (group_aware and context.is_group)) then return false end
+    -- IZI SDK: skip Fear if target is already CC'd
+    local target = context.target
+    if target and type(target.is_cc) == "function" then
+        local ok, cc = pcall(target.is_cc, target)
+        if ok and cc then return false end
+    end
     return true
 end
 

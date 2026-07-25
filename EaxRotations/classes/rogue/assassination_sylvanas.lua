@@ -635,6 +635,13 @@ local strategies = {
         matches = function(context)
             local group_aware = spec_kit.setting_bool(context, "rogue_group_aware_utility", true)
             if not (context.is_pvp or (group_aware and context.is_group)) then return false end
+            if not context.target then return false end
+            -- IZI SDK: skip Blind if target is already CC'd
+            local target = context.target
+            if target and type(target.is_cc) == "function" then
+                local ok, cc = pcall(target.is_cc, target)
+                if ok and cc then return false end
+            end
             return NS.spell_ready(ACTION.Blind, context.target)
         end,
         execute = function(context)

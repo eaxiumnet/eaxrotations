@@ -2,7 +2,7 @@
 -- WHAT:  priority-list strategies for leveling_sylvanas gameplay.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update() allocs.
 
 -- Hunter leveling priority list.
 -- Designed for solo/leveling play, from level 1 to 70.
@@ -15,6 +15,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.HunterSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
+local define = spec_kit.define_action_for_class(SPELLS)
 local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 
 local leveling = require("shared/leveling_sylvanas")

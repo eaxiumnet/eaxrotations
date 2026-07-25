@@ -444,6 +444,12 @@ end
 
 local function fear_matches(context, action, state)
     if not context.target then return false end
+    -- IZI SDK: skip Fear if target is already CC'd
+    local target = context.target
+    if target and type(target.is_cc) == "function" then
+        local ok, cc = pcall(target.is_cc, target)
+        if ok and cc then return false end
+    end
     if not NS.spell_ready(action.spell, context.target) then return false end
     return true
 end

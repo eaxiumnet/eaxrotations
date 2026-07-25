@@ -1203,7 +1203,7 @@ local ACTIONS = {
     BlessingOfKingsParty = { requires_not_in_combat = true },
 }
 
-local function RighteousDefense_matches(context, state)  return spec_kit.setting_bool(context, "prot_righteous_defense", true) and state.ally_threatened ~= nil and state.righteous_defense_ready and (context.target_classification or 0) >= 1 end
+local function RighteousDefense_matches(context, state)  return spec_kit.setting_bool(context, "auto_taunt", true) and spec_kit.setting_bool(context, "prot_righteous_defense", true) and state.ally_threatened ~= nil and state.righteous_defense_ready and (context.target_classification or 0) >= 1 end
 
 
 local function RighteousDefense_execute(context, state) return NS.try_cast(ACTION.RighteousDefense, state.ally_threatened, "[PROTECTION] Righteous Defense peel") end

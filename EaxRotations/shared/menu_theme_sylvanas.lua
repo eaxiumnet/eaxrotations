@@ -113,10 +113,12 @@ end
 
 -- Which Control Panel toggles are relevant for a role.
 local ROLE_CAPABILITIES = {
-    healer = { healing = true,  damage = true, cooldowns = true, aoe = true, interrupts = false, utility = true, threat_drop = false },
-    tank   = { healing = false, damage = true, cooldowns = true, aoe = true, interrupts = true,  utility = true, threat_drop = true  },
-    dps    = { healing = false, damage = true, cooldowns = true, aoe = true, interrupts = true,  utility = true, threat_drop = true  },
-    hybrid = { healing = true,  damage = true, cooldowns = true, aoe = true, interrupts = true,  utility = true, threat_drop = true  },
+    -- auto_taunt: only relevant for tanks (and hybrids whose leveling spec may tank).
+    -- Pure DPS specs (cat, balance, arms, ret, etc.) and healers never taunt.
+    healer = { healing = true,  damage = true, cooldowns = true, aoe = true, interrupts = false, utility = true, threat_drop = false, auto_taunt = false },
+    tank   = { healing = false, damage = true, cooldowns = true, aoe = true, interrupts = true,  utility = true, threat_drop = true,  auto_taunt = true  },
+    dps    = { healing = false, damage = true, cooldowns = true, aoe = true, interrupts = true,  utility = true, threat_drop = true,  auto_taunt = false },
+    hybrid = { healing = true,  damage = true, cooldowns = true, aoe = true, interrupts = true,  utility = true, threat_drop = true,  auto_taunt = true  },
 }
 
 --- capability table for a role. Each entry is bool "should this toggle be visible on the Control Panel".

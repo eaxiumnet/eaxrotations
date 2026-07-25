@@ -566,6 +566,12 @@ local function recklessness_matches(context, state)
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if not state.in_combat then return false end
     if (state.hp or 100) < 50 then return false end
+    -- IZI SDK: skip offensive CD if target is damage-immune
+    local target = context.target
+    if target and type(target.is_damage_immune) == "function" then
+        local ok, immune = pcall(target.is_damage_immune, target)
+        if ok and immune then return false end
+    end
     -- TTD gate: don't waste 30min CD if target is about to die
     if (state.ttd or 0) > 0 and (state.ttd or 0) < 20 then return false end
     -- Stack with major power windows; timeout fallback so it never rots
@@ -587,6 +593,12 @@ local function death_wish_matches(context, state)
     if not cds_enabled or not state.death_wish_ready then return false end
     if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
     if (state.hp or 100) < 45 then return false end
+    -- IZI SDK: skip offensive CD if target is damage-immune
+    local target = context.target
+    if target and type(target.is_damage_immune) == "function" then
+        local ok, immune = pcall(target.is_damage_immune, target)
+        if ok and immune then return false end
+    end
     -- TTD gate: don't waste burst CD if target is about to die
     if (state.ttd or 0) > 0 and (state.ttd or 0) < 10 then return false end
     if (state.target_hp or 100) < 20 and (state.rage or 0) < 25 then return false end

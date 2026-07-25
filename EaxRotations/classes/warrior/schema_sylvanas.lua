@@ -86,6 +86,7 @@ return {
                 header = "Threat & Combat Mode",
                 settings = {
                     { key = "snap_threat_enabled", type = "checkbox", label = "Snap Threat on Combat Start", default = true, tooltip = "Fire Shield Slam immediately when entering combat to establish threat" },
+                    { key = "auto_taunt", type = "checkbox", label = "Auto Taunt", default = true, tooltip = "Automatically use Taunt/Mocking Blow/Challenging Shout. Disable to save taunt for manual use (e.g. pulling mobs off healers)." },
                     { key = "combat_mode", type = "dropdown", label = "Combat Mode", default = "auto", options = {
                         { text = "Auto", value = "auto" },
                         { text = "Single Target", value = "single" },

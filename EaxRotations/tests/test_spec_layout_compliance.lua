@@ -29,6 +29,7 @@ local spec_files = {
     "EaxRotations/classes/druid/bear_sylvanas.lua",
     "EaxRotations/classes/druid/cat_sylvanas.lua",
     "EaxRotations/classes/druid/caster_sylvanas.lua",
+    "EaxRotations/classes/druid/healing_sylvanas.lua",
     "EaxRotations/classes/druid/leveling_sylvanas.lua",
     "EaxRotations/classes/druid/resto_sylvanas.lua",
     "EaxRotations/classes/hunter/beast_mastery_sylvanas.lua",
@@ -102,6 +103,24 @@ local CONVERTED = {
     ["EaxRotations/classes/paladin/holy_sylvanas.lua"] = true,
     ["EaxRotations/classes/mage/arcane_sylvanas.lua"] = true,
     ["EaxRotations/classes/priest/smite_sylvanas.lua"] = true,
+    -- Leveling specs (spec_kit migration 2026-07)
+    ["EaxRotations/classes/warrior/leveling_sylvanas.lua"] = true,
+    ["EaxRotations/classes/druid/leveling_sylvanas.lua"] = true,
+    ["EaxRotations/classes/hunter/leveling_sylvanas.lua"] = true,
+    ["EaxRotations/classes/mage/leveling_sylvanas.lua"] = true,
+    ["EaxRotations/classes/paladin/leveling_sylvanas.lua"] = true,
+    ["EaxRotations/classes/priest/leveling_sylvanas.lua"] = true,
+    ["EaxRotations/classes/rogue/leveling_sylvanas.lua"] = true,
+    ["EaxRotations/classes/shaman/leveling_sylvanas.lua"] = true,
+    ["EaxRotations/classes/warlock/leveling_sylvanas.lua"] = true,
+    -- Non-spec helper modules (uses spec_kit but no strategies/registration)
+    ["EaxRotations/classes/druid/healing_sylvanas.lua"] = true,
+}
+
+-- Non-spec modules: use spec_kit but are helper modules without strategies/registration.
+-- Exempt from rule (b) registration, build_state, and return-shape checks.
+local NON_SPEC_MODULES = {
+    ["EaxRotations/classes/druid/healing_sylvanas.lua"] = true,
 }
 
 local function add_issue(issues, path, rule, detail)
@@ -191,21 +210,23 @@ for _, path in ipairs(spec_files) do
         end
 
         -- Guarded registration form (nil-safe in unit tests).
-        if not has_lit(text, "NS.rotation_registry and NS.rotation_registry.register") then
+        if not NON_SPEC_MODULES[path] and not has_lit(text, "NS.rotation_registry and NS.rotation_registry.register") then
             add_issue(issues, path, "converted-unguarded-registration", "guarded registration form not found")
         end
 
         -- build_state symbol exists (function definition or aliased in return).
+        if not NON_SPEC_MODULES[path] then
         local has_build_state_fn = has_lit(text, "function build_state") or
             text:find("build_state%s*=%s*function", 1) ~= nil
         local has_build_state_alias = text:find("build_state%s*=", 1) ~= nil
         if not (has_build_state_fn or has_build_state_alias) then
             add_issue(issues, path, "converted-missing-build_state", "build_state function or alias not found")
         end
+        end
 
         -- Valid return shape: "return strategies", "return module" (table with
         -- strategies key), or "return { strategies" — all accepted.
-        if not (has_lit(text, "return strategies") or
+        if not NON_SPEC_MODULES[path] and not (has_lit(text, "return strategies") or
                 has_lit(text, "return module") or
                 text:find("return%s*%{%s*strategies", 1) ~= nil) then
             add_issue(issues, path, "converted-invalid-return", "no return strategies/module/{ strategies found")
