@@ -607,6 +607,12 @@ local strategies = {
             if NS.pvp_trinket_used_recently(ctx.target) then return false end
             if not ctx.is_pvp then return false end
             if not (ctx.melee_on_you or false) then return false end
+            -- IZI SDK: skip if target is already CC'd
+            local target = ctx.target
+            if target and type(target.is_cc) == "function" then
+                local ok, cc = pcall(target.is_cc, target)
+                if ok and cc then return false end
+            end
             return NS.spell_ready(ACTION.EntanglingRoots, ctx.target)
         end,
         execute=function(ctx)
@@ -620,6 +626,12 @@ local strategies = {
             if NS.pvp_trinket_used_recently(ctx.target) then return false end
             if not ctx.is_pvp then return false end
             if not (ctx.enemy_healer or false) then return false end
+            -- IZI SDK: skip if target is already CC'd
+            local target = ctx.target
+            if target and type(target.is_cc) == "function" then
+                local ok, cc = pcall(target.is_cc, target)
+                if ok and cc then return false end
+            end
             return NS.spell_ready(ACTION.Cyclone, ctx.target)
         end,
         execute=function(ctx)

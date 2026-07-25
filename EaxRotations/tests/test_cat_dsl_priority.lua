@@ -207,6 +207,15 @@ assert_true(prowl.matches(ctx_prowl, st_prowl), "Prowl matches again after reset
 st_prowl.target = nil
 assert_true(prowl.matches(ctx_prowl, st_prowl), "Prowl matches when no target is present")
 
+-- Setting gate: cat_auto_prowl = false disables auto-prowl
+local ctx_prowl_off = { settings = { cat_auto_prowl = false } }
+local st_prowl_off = { in_combat = false, is_stealthed = false, target = {}, target_range = 10, energy = 100, combo_points = 0, enemy_count = 1, target_hp = 100, target_ttd = 999 }
+assert_false(prowl.matches(ctx_prowl_off, st_prowl_off), "Prowl skips when cat_auto_prowl = false")
+
+-- Setting gate: cat_auto_prowl = true (explicit) allows prowl
+local ctx_prowl_on = { settings = { cat_auto_prowl = true } }
+assert_true(prowl.matches(ctx_prowl_on, st_prowl_off), "Prowl matches when cat_auto_prowl = true")
+
 -- ============================================================================
 -- HealthPotion equivalence
 -- ============================================================================

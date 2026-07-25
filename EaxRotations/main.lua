@@ -200,6 +200,15 @@ local MENU_COLORS = {
 local _mt_ok, MenuTheme = pcall(require, "shared/menu_theme_sylvanas")
 if not _mt_ok or type(MenuTheme) ~= "table" then MenuTheme = nil end
 
+-- Runtime theme override: recolor the centralized menu palette (purple → blue).
+-- The runtime v2 theme table is read-only on disk but reachable at load via
+-- require("common/menu/theme"); mutating its T.p in place cascades to every
+-- widget. Best-effort at load; retried from render_menu() until it sticks.
+local _to_ok, ThemeOverride = pcall(require, "shared/theme_override_sylvanas")
+if _to_ok and ThemeOverride and ThemeOverride.apply_once then
+    pcall(ThemeOverride.apply_once)
+end
+
 -- Pre-allocated empty table for 'or {}' fallbacks (avoids GC pressure from repeated table creation)
 local EMPTY_TABLE = {}
 
@@ -236,6 +245,7 @@ local QUICK_TOGGLE_SETTING_KEYS = {
     use_cooldowns = true,
     use_interrupt = true,
     use_threat_drop = true,
+    auto_taunt = true,
 }
 
 if class_name then
@@ -307,6 +317,29 @@ local _class_key = class_config and class_config.class_key or class_name
 local _ps_keyset, _ps_n2k
 if MenuTheme and #playstyle_keys > 0 then
     _ps_keyset, _ps_n2k = MenuTheme.build_playstyle_lookup(playstyle_keys, playstyle_options)
+end
+
+-- Sanitise a string into a stable menu-id fragment (lowercase, [a-z0-9_]).
+local function _sanitize_id(s)
+    s = tostring(s or ""):lower()
+    s = s:gsub("%s+", "_")
+    s = s:gsub("[^a-z0-9_]", "")
+    s = s:gsub("_+", "_")
+    s = s:gsub("^_", ""):gsub("_$", "")
+    return s
+end
+
+-- Safe tree constructor: pass a UNIQUE id so the PS menu's retained backend
+-- keeps each tree_node as a distinct collapsible section/page. Without unique
+-- ids every sibling tree_node merges into the last one rendered (all widgets
+-- dump into it) — which is exactly the "Auto Consumables has everything" bug.
+-- pcall-guarded so old PS builds that ignore extra args are unaffected.
+local function make_tree(id)
+    if id and type(id) == "string" and #id > 0 then
+        local ok, tree = pcall(core.menu.tree_node, id)
+        if ok and tree then return tree end
+    end
+    return core.menu.tree_node()
 end
 
 local function normalize_schema_tabs(schema)
@@ -444,10 +477,12 @@ local function initialize_schema_menu()
     for tab_index, tab in ipairs(normalize_schema_tabs(class_schema)) do
         local normalized_tab = {
             name = tab.name or ("Tab " .. tostring(tab_index)),
-            tree = core.menu.tree_node(),
             sections = {},
         }
         -- Theme: scope this tab to a playstyle if its name matches one (e.g. "Bear", "Arcane").
+        -- NOTE: no per-tab tree_node here — the flatten fix (PS menu rework) renders
+        -- each section directly under "Class Settings" (2-level nesting) so we never
+        -- allocate an orphaned tab-level tree widget.
         if MenuTheme and _ps_n2k then
             normalized_tab.playscope = MenuTheme.tab_playscope(normalized_tab.name, _ps_n2k)
         end
@@ -470,10 +505,17 @@ local function initialize_schema_menu()
                 normalized_section.header_label = normalized_section.header
             end
 
-            -- [#4] Pre-allocate section header — created once, reused every render frame.
-            local section_header = core.menu.header()
-            section_headers[#section_headers + 1] = section_header
-            normalized_section.header_widget = section_header
+            -- [#4] Pre-allocate a collapsible tree_node for each section.
+            -- CRITICAL: each section_tree gets a UNIQUE id so the PS retained menu
+            -- keeps them as distinct collapsible cards. Sections are rendered at
+            -- DEPTH-1 (directly inside main_tree, NOT nested inside settings_tree)
+            -- because depth-2 trees merge in the PS menu rework. Depth-1 trees
+            -- (like Quick Toggles) are collapsible and don't merge.
+            local _sec_id = "eaxrot_" .. _sanitize_id(_class_key or "class") ..
+                "_sec_" .. _sanitize_id(normalized_section.header)
+            local section_tree = make_tree(_sec_id)
+            section_headers[#section_headers + 1] = section_tree
+            normalized_section.section_tree = section_tree
 
             for _, def in ipairs(section.settings or EMPTY_TABLE) do
                 -- Honor the menu API's unique-id contract (core.menu.checkbox/
@@ -556,8 +598,8 @@ local function get_active_playstyle()
 end
 
 local menu_elements = {
-    main_tree = core.menu.tree_node(),
-    quick_toggles_tree = core.menu.tree_node(),
+    main_tree = make_tree("eaxrot_main"),
+    quick_toggles_tree = make_tree("eaxrot_quick_toggles"),
     playstyle_combo = core.menu.combobox(get_initial_playstyle_index(), "eaxrotations_active_playstyle_combo"),
     enable_script_check = core.menu.keybind(999, true, "eax_rotation_enabled_keybind"),
     healing_toggle = core.menu.keybind(999, true, "eax_healing_enabled_keybind"),
@@ -567,11 +609,17 @@ local menu_elements = {
     interrupts_toggle = core.menu.keybind(999, true, "eax_interrupts_enabled_keybind"),
     utility_toggle = core.menu.keybind(999, true, "eax_utility_enabled_keybind"),
     threat_drop_toggle = core.menu.keybind(999, true, "eax_threat_drop_enabled_keybind"),
-    settings_tree = core.menu.tree_node(),
-    diagnostics_tree = core.menu.tree_node(),
+    taunt_toggle = core.menu.keybind(999, true, "eax_auto_taunt_keybind"),
+    settings_tree = make_tree("eaxrot_class_settings"),
+    header_class_settings = core.menu.header(),
+    diagnostics_tree = make_tree("eaxrot_diagnostics"),
     dump_spells_btn = core.menu.button("eax_dump_spells"),
     debug_swing_timer_chk = core.menu.checkbox(false, "eax_debug_swing_timer"),
     debug_game_events_chk = core.menu.checkbox(false, "eax_debug_game_events"),
+    -- Theme customization
+    theme_tree = make_tree("eaxrot_theme"),
+    theme_enabled_chk = core.menu.checkbox(true, "eax_theme_override_enabled"),
+    theme_accent_picker = core.menu.color_picker(color.new(80, 180, 160, 255), "eax_theme_accent_color"),
     -- [#4] Pre-allocated header widgets — created ONCE, not every render frame.
     -- core.menu.header() returns a new widget each call; creating inside render_menu()
     -- leaked instances every frame. Now stored and reused.
@@ -606,6 +654,7 @@ local quick_toggle_defs = {
         tooltip = "Allow offensive rotation actions.",
         control = menu_elements.damage_toggle,
         default = true,
+        capability = "damage",
     },
     {
         key = "use_cooldowns",
@@ -613,6 +662,7 @@ local quick_toggle_defs = {
         tooltip = "Allow major cooldowns and burst actions.",
         control = menu_elements.cooldowns_toggle,
         default = true,
+        capability = "cooldowns",
     },
     {
         key = "aoe_enabled",
@@ -620,6 +670,7 @@ local quick_toggle_defs = {
         tooltip = "Allow AoE actions that require multiple enemies.",
         control = menu_elements.aoe_toggle,
         default = true,
+        capability = "aoe",
     },
     {
         key = "use_interrupt",
@@ -635,6 +686,7 @@ local quick_toggle_defs = {
         tooltip = "Allow utility middleware such as forms, shouts, dispels, and threat tools.",
         control = menu_elements.utility_toggle,
         default = true,
+        capability = "utility",
     },
     {
         key = "use_threat_drop",
@@ -643,6 +695,14 @@ local quick_toggle_defs = {
         control = menu_elements.threat_drop_toggle,
         default = true,
         capability = "threat_drop",
+    },
+    {
+        key = "auto_taunt",
+        label = "Auto Taunt",
+        tooltip = "Allow automatic taunt usage (Taunt/Growl/Righteous Defense). Disable to save taunt for manual pulls.",
+        control = menu_elements.taunt_toggle,
+        default = true,
+        capability = "auto_taunt",
     },
 }
 
@@ -717,8 +777,30 @@ local function render_quick_toggles()
         if menu_elements.playstyle_combo and #playstyle_options > 0 then
             menu_elements.playstyle_combo:render("Playstyle", playstyle_options, "Select active " .. (class_config and class_config.class_name or "class") .. " rotation.")
         end
+
+        -- Theme: hide toggles that don't apply to the active playstyle's role.
+        -- Mirrors the role-based filtering already used by on_control_panel_render()
+        -- so e.g. Cat (dps) never sees Healing or Auto Taunt, Resto (healer) never
+        -- sees Threat Drops/Interrupts/Auto Taunt, Bear (tank) never sees Healing.
+        -- Leveling (hybrid) keeps everything since the spec may shift mid-run.
+        local _caps = nil
+        if MenuTheme and _class_key then
+            local _active = get_active_playstyle()
+            local _role = MenuTheme.role_for_playstyle(_class_key, _active)
+            _caps = MenuTheme.capabilities(_role)
+        end
         for _, def in ipairs(quick_toggle_defs) do
-            def.control:render(def.label, def.tooltip)
+            -- Role-based visibility: skip toggles that don't make sense for this role.
+            -- Same _skip pattern used by on_control_panel_render() so the main menu
+            -- and Control Panel stay in sync on which toggles appear per playstyle.
+            local _skip = false
+            if _caps then
+                local cap_key = def.capability or def.key
+                if _caps[cap_key] == false then _skip = true end
+            end
+            if not _skip then
+                def.control:render(def.label, def.tooltip)
+            end
         end
     end)
 end
@@ -792,6 +874,7 @@ end
 
 local function render_menu()
     if framework_core.runtime_generation ~= runtime_generation then return end
+
     -- [#5] All subtrees rendered INSIDE main_tree so they appear as children,
     -- not orphaned top-level trees floating independently.
     menu_elements.main_tree:render("EaxRotations", function()
@@ -814,58 +897,54 @@ local function render_menu()
 
         render_quick_toggles()
 
-        -- [#5] Settings subtree nested inside main_tree
-        menu_elements.settings_tree:render("Class Settings", function()
-            -- Reuse active_playstyle from outer closure (no shadowing issue)
-            -- Theme: color the active-playstyle header with the playstyle signature color.
-            local _ps_header_color = MENU_COLORS.white
-            if MenuTheme and _class_key then
-                local _c = MenuTheme.playstyle_color(_class_key, active_playstyle)
-                if _c then _ps_header_color = _c end
-            end
-            menu_elements.header_active_playstyle:render("Active Playstyle: " .. tostring(active_playstyle), _ps_header_color)
+        -- [#5] Class Settings — rendered as a header label followed by
+        -- collapsible section trees at DEPTH-1 (directly inside main_tree, NOT
+        -- nested inside a settings_tree wrapper). Depth-2 trees merge in the PS
+        -- menu rework (the "Auto Consumables has everything" bug), but depth-1
+        -- trees are collapsible and don't merge — Quick Toggles proves this.
+        -- The "Class Settings" label provides visual grouping without an extra
+        -- nesting level that would break widget scoping.
+        menu_elements.header_class_settings:render("Class Settings", MENU_COLORS.yellow)
 
-            for _, tab in ipairs(schema_tabs) do
-                -- Theme: skip tabs scoped to a different playstyle.
-                local _tab_visible = true
-                if MenuTheme and tab.playscope then
-                    _tab_visible = MenuTheme.scope_admits({tab.playscope}, active_playstyle)
-                end
-                if _tab_visible then
-                    -- Count visible sections so we don't render an empty tab tree.
-                    local _has_visible = false
-                    if MenuTheme then
-                        for _, section in ipairs(tab.sections) do
-                            if MenuTheme.scope_admits(section.playscope, active_playstyle) then
-                                _has_visible = true; break
-                            end
-                        end
-                    else
-                        _has_visible = true
+        -- Active playstyle label (colored by playstyle signature color)
+        local _ps_header_color = MENU_COLORS.white
+        if MenuTheme and _class_key then
+            local _c = MenuTheme.playstyle_color(_class_key, active_playstyle)
+            if _c then _ps_header_color = _c end
+        end
+        menu_elements.header_active_playstyle:render("Active Playstyle: " .. tostring(active_playstyle), _ps_header_color)
+
+        -- Each schema section is its own collapsible tree at depth-1.
+        for _, tab in ipairs(schema_tabs) do
+            -- Theme: skip tabs scoped to a different playstyle.
+            local _tab_visible = true
+            if MenuTheme and tab.playscope then
+                _tab_visible = MenuTheme.scope_admits({tab.playscope}, active_playstyle)
+            end
+            if _tab_visible then
+                for _, section in ipairs(tab.sections) do
+                    -- Theme: skip sections scoped to a different playstyle.
+                    local _sec_visible = true
+                    if MenuTheme and section.playscope then
+                        _sec_visible = MenuTheme.scope_admits(section.playscope, active_playstyle)
                     end
-                    if _has_visible then
-                        tab.tree:render(tab.name, function()
-                            for _, section in ipairs(tab.sections) do
-                                -- Theme: skip sections scoped to a different playstyle.
-                                local _sec_visible = true
-                                if MenuTheme and section.playscope then
-                                    _sec_visible = MenuTheme.scope_admits(section.playscope, active_playstyle)
-                                end
-                                if _sec_visible then
-                                    -- [#4] Use pre-allocated section header with themed color.
-                                    section.header_widget:render(section.header_label or section.header, section.header_color or MENU_COLORS.white)
-                                    for _, widget in ipairs(section.settings) do
-                                        -- [#6] Guard against nil widgets (e.g. unsupported schema type)
-                                        if widget and widget.render then
-                                            widget.render()
-                                        end
-                                    end
+                    if _sec_visible and #section.settings > 0 then
+                        section.section_tree:render(section.header_label or section.header, function()
+                            for _, widget in ipairs(section.settings) do
+                                if widget and widget.render then
+                                    widget.render()
                                 end
                             end
                         end)
                     end
                 end
             end
+        end
+
+        -- [Theme] Accent color picker for the menu theme override
+        menu_elements.theme_tree:render("Theme", function()
+            menu_elements.theme_enabled_chk:render("Enable Theme Override", "Recolor the EaxRotations menu section with your chosen accent")
+            menu_elements.theme_accent_picker:render("Accent Color", "Pick the accent color for the EaxRotations menu")
         end)
 
         -- [#5] Diagnostics subtree nested inside main_tree
@@ -886,6 +965,7 @@ local function render_menu()
             end
         end)
     end)
+
 end
 
 -- ============================================================================
@@ -1017,6 +1097,7 @@ local function on_update()
     local interrupts_enabled = get_keybind_toggle_state(menu_elements.interrupts_toggle, true)
     local utility_enabled = get_keybind_toggle_state(menu_elements.utility_toggle, true)
     local threat_drop_enabled = get_keybind_toggle_state(menu_elements.threat_drop_toggle, true)
+    local auto_taunt_enabled = get_keybind_toggle_state(menu_elements.taunt_toggle, true)
 
     local st = NS.settings or {}
     st.rotation_enabled = rotation_enabled
@@ -1027,6 +1108,7 @@ local function on_update()
     st.use_interrupt = interrupts_enabled
     st.utility_enabled = utility_enabled
     st.use_threat_drop = threat_drop_enabled
+    st.auto_taunt = auto_taunt_enabled
 
     -- Playstyle is driven by the Quick Toggles combobox. Inject so that:
     -- * context.settings.playstyle is visible to spec_kit.setting / NS.setting
@@ -1157,6 +1239,54 @@ do
                 _movement_assist.on_render()
             end)
         end
+    end
+end
+
+-- Theme override: continuous global mutation gated by toggle checkbox.
+-- Must run every frame because PS resets palette per frame.
+if ThemeOverride and ThemeOverride.apply_continuous then
+    if type(core.register_on_render_callback) == "function" then
+        local _was_active = true  -- track toggle state for restore
+        core.register_on_render_callback(function()
+            -- Check toggle: get_state() returns boolean for checkboxes
+            local chk_ok, chk_val = pcall(function() return menu_elements.theme_enabled_chk:get_state() end)
+            if chk_ok and chk_val == false then
+                -- One-shot restore on transition from active → inactive
+                if _was_active and ThemeOverride.restore_palette then
+                    ThemeOverride.restore_palette()
+                end
+                _was_active = false
+                return
+            end
+            _was_active = true
+
+            -- Read accent from color picker
+            if ThemeOverride.set_accent and menu_elements.theme_accent_picker then
+                local ok, col = pcall(menu_elements.theme_accent_picker.get, menu_elements.theme_accent_picker)
+                if ok and col then
+                    local r, g, b
+                    -- color object (table with :get() method)
+                    if type(col) == "table" and type(col.get) == "function" then
+                        local gok, cr, cg, cb = pcall(col.get, col)
+                        if gok and type(cr) == "number" then r, g, b = cr, cg, cb end
+                    -- userdata color object (C++-backed)
+                    elseif type(col) == "userdata" then
+                        local gok, cr, cg, cb = pcall(function() return col:get() end)
+                        if gok and type(cr) == "number" then r, g, b = cr, cg, cb end
+                    -- plain table fallback
+                    elseif type(col) == "table" then
+                        r = col[1] or col.r
+                        g = col[2] or col.g
+                        b = col[3] or col.b
+                    end
+                    if r and g and b then
+                        ThemeOverride.set_accent(r, g, b)
+                    end
+                end
+            end
+
+            ThemeOverride.apply_continuous()
+        end)
     end
 end
 

@@ -544,11 +544,23 @@ local function throttled_enemies_count()
 end
 
 local function combo_points(me)
-    local combo_points_current = NS.safe_field and NS.safe_field(me, "combo_points_current") or nil
-    local v = combo_points_current and fast(combo_points_current, me) or nil
-    local get_power = NS.safe_field and NS.safe_field(me, "get_power") or nil
-    if type(v) ~= "number" and get_power then v = fast(get_power, me, 4) end
-    return type(v) == "number" and v or 0
+    if not me then return nil end
+    -- IZI SDK: combo_points_current() is the documented combo-point reader
+    -- (see .api/common/izi_sdk.lua). Call it directly via pcall — the
+    -- safe_field/fast indirection was silently masking read failures.
+    if type(me.combo_points_current) == "function" then
+        local ok, cp = pcall(me.combo_points_current, me)
+        if ok and type(cp) == "number" then return cp end
+    end
+    -- Fallback: native get_power with power type 4 (combo points in WoW API).
+    if type(me.get_power) == "function" then
+        local ok, cp = pcall(me.get_power, me, 4)
+        if ok and type(cp) == "number" then return cp end
+    end
+    -- Return nil (NOT 0) on failure so consumers' fallback chains activate.
+    -- Returning 0 is indistinguishable from "genuinely zero CP" and masks
+    -- read failures — this was the root cause of Rip never firing.
+    return nil
 end
 
 local function target_time_to_die(target)

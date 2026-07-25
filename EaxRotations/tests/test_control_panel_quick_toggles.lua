@@ -24,8 +24,9 @@ end
 local main = read_file("EaxRotations/main.lua")
 local dispatcher = read_file("EaxRotations/main_sylvanas.lua")
 local core = read_file("EaxRotations/core_sylvanas.lua")
+local menu_theme = read_file("EaxRotations/shared/menu_theme_sylvanas.lua")
 
-assert_true(contains(main, "quick_toggles_tree = core.menu.tree_node()"), "main menu should have one Quick Toggles section")
+assert_true(contains(main, 'quick_toggles_tree = make_tree("eaxrot_quick_toggles")'), "main menu should have one Quick Toggles section")
 assert_true(contains(main, "enable_script_check = core.menu.keybind"), "rotation enable should be a keybind toggle, not a separate checkbox")
 assert_true(contains(main, 'key = "rotation_enabled"'), "rotation toggle should sync rotation_enabled")
 assert_true(contains(main, 'key = "healing_enabled"'), "healing toggle should sync healing_enabled")
@@ -42,6 +43,27 @@ assert_true(contains(main, 'require, "common/utility/control_panel_helper"'), "c
 assert_true(contains(main, "control_panel_helper:insert_toggle_"), "control panel should use the helper for drag/drop and duplicate handling")
 assert_true(contains(main, "control_panel_helper:on_update(menu_elements)"), "control panel helper update should run for drag/drop support")
 assert_true(contains(main, 'get_keybind_toggle_state(menu_elements.enable_script_check'), "master rotation toggle should read widget directly for persistence")
+
+-- Quick Toggles role-based visibility: render_quick_toggles must filter toggles by
+-- the active playstyle's role, mirroring on_control_panel_render. Otherwise a Cat
+-- (feral DPS) druid would see Healing and Auto Taunt, which it can never use.
+assert_true(contains(main, 'capability = "auto_taunt"'), "auto_taunt quick toggle should declare a capability key")
+-- Every role-filterable toggle must declare an explicit capability key that maps
+-- to a ROLE_CAPABILITIES entry; otherwise the def.key fallback misses and the
+-- toggle silently stays visible for roles that should hide it.
+assert_true(contains(main, 'capability = "healing"'), "healing toggle should declare capability = healing")
+assert_true(contains(main, 'capability = "damage"'), "damage toggle should declare capability = damage")
+assert_true(contains(main, 'capability = "cooldowns"'), "cooldowns toggle should declare capability = cooldowns")
+assert_true(contains(main, 'capability = "aoe"'), "aoe toggle should declare capability = aoe")
+assert_true(contains(main, 'capability = "interrupts"'), "interrupts toggle should declare capability = interrupts")
+assert_true(contains(main, 'capability = "utility"'), "utility toggle should declare capability = utility")
+assert_true(contains(main, 'capability = "threat_drop"'), "threat drop toggle should declare capability = threat_drop")
+assert_true(contains(main, 'local _role = MenuTheme.role_for_playstyle(_class_key, _active)'), "render_quick_toggles should resolve the active role for visibility filtering")
+assert_true(contains(main, '_caps[cap_key] == false then _skip = true end'), "render_quick_toggles should skip toggles whose role capability is explicitly false")
+-- menu_theme must expose auto_taunt in every role capability table so both the
+-- main menu and Control Panel hide it for dps/healer and show it for tank/hybrid.
+assert_true(contains(menu_theme, 'auto_taunt = false'), "ROLE_CAPABILITIES should disable auto_taunt for healer/dps roles")
+assert_true(contains(menu_theme, 'auto_taunt = true'), "ROLE_CAPABILITIES should enable auto_taunt for tank/hybrid roles")
 
 assert_true(contains(dispatcher, "strategy_allowed"), "dispatcher should gate strategies from quick toggles")
 assert_true(contains(dispatcher, 'not spec_kit.setting_bool(context, "utility_enabled"'), "utility toggle should gate utility rows")

@@ -610,12 +610,24 @@ add_strategy(strategies, "Ret_PvP_Repentance_Opener", 850, function(context, sta
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "disorient") then return false end
     if NS.pvp_trinket_used_recently(context.target) then return false end
     if not spec_kit.setting_bool(context, "repentance_pvp_usage", true) then return false end
+    -- IZI SDK: skip if target is already CC'd
+    local target = context.target
+    if target and type(target.is_cc) == "function" then
+        local ok, cc = pcall(target.is_cc, target)
+        if ok and cc then return false end
+    end
     return context.is_pvp and state.target_player and NS.spell_ready(Repentance, context.target, {}) or false
 end, function(context) return cast(Repentance, context.target, "[RET PvP] Repentance opener") end)
 
 add_strategy(strategies, "Ret_PvP_HammerJustice_Burst", 820, function(context, state)
     if NS.DRTracker and NS.DRTracker.is_dr_immune and context.target and NS.DRTracker.is_dr_immune(context.target, "stun") then return false end
     if NS.pvp_trinket_used_recently(context.target) then return false end
+    -- IZI SDK: skip if target is already CC'd
+    local target = context.target
+    if target and type(target.is_cc) == "function" then
+        local ok, cc = pcall(target.is_cc, target)
+        if ok and cc then return false end
+    end
     return context.is_pvp and state.target_player and NS.spell_ready(HammerJustice, context.target, { expected_cooldown = 60 }) or false
 end, function(context) return cast(HammerJustice, context.target, "[RET PvP] Hammer of Justice burst", { expected_cooldown = 60 }) end)
 

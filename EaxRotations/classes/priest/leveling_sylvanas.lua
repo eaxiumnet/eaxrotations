@@ -6,7 +6,7 @@
 
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
 
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update() allocs.
 
 
 
@@ -39,6 +39,7 @@ local SPELLS = NS.PriestSpells or {}
 local leveling = require("shared/leveling_sylvanas")
 
 local spec_kit = require("shared/spec_kit_sylvanas")
+local define = spec_kit.define_action_for_class(SPELLS)
 
 
 

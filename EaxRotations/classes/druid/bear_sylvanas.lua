@@ -593,6 +593,7 @@ end
 -- TAUNTS ---------------------------------------------------------------------
 
 local function challenging_roar_matches(context, action)
+    if not spec_kit.setting_bool(context, "auto_taunt", true) then return false end
     local s = build_state(context)
     if not s.use_challenging_roar then return false end  -- gated on dedicated toggle (default OFF)
     if (s.enemy_count or 0) < 3 then return false end
@@ -600,6 +601,7 @@ local function challenging_roar_matches(context, action)
 end
 
 local function growl_matches(context, action)
+    if not spec_kit.setting_bool(context, "auto_taunt", true) then return false end
     local s = build_state(context)
     if not s.target_target_exists then return false end
     if s.target_target_is_me then return false end          -- I have aggro

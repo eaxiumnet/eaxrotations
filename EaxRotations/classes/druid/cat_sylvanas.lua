@@ -387,13 +387,31 @@ end
 local function get_combo_points(context, target)
     if type(context.combo_points) == "number" then return context.combo_points end
     if type(context.cp) == "number" then return context.cp end
-    if NS.combo_points then return NS.combo_points(target) or 0 end
-    if NS.get_combo_points then return NS.get_combo_points(target) or 0 end
-    -- Fallback: query the player unit directly (common private-server API shape)
-    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
-    if me and type(me.get_combo_points) == "function" then
-        local ok, cp = pcall(me.get_combo_points, me)
+    -- NS helpers (pcall-guarded; some builds expose a global combo-point reader)
+    if NS.combo_points then
+        local ok, cp = pcall(NS.combo_points, target)
         if ok and type(cp) == "number" then return cp end
+    end
+    if NS.get_combo_points then
+        local ok, cp = pcall(NS.get_combo_points, target)
+        if ok and type(cp) == "number" then return cp end
+    end
+    -- Fallback: query the local PLAYER directly.
+    -- TBC combo points live on the PLAYER (bound to the target), NOT the target.
+    -- IZI SDK exposes combo_points_current() (preferred); native get_power(4)
+    -- is the fallback (combo points = power type 4 in the WoW API). Without this
+    -- fallback, state.combo_points silently becomes 0 and Rip/Bite (which need
+    -- CP >= cat_rip_cp) never fire.
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+    if me then
+        if type(me.combo_points_current) == "function" then
+            local ok, cp = pcall(me.combo_points_current, me)
+            if ok and type(cp) == "number" then return cp end
+        end
+        if type(me.get_power) == "function" then
+            local ok, cp = pcall(me.get_power, me, 4)
+            if ok and type(cp) == "number" then return cp end
+        end
     end
     return 0
 end
@@ -851,6 +869,7 @@ local DSL_DEFS = {
             { type = "in_combat", invert = true },
             { type = "state", field = "is_stealthed", op = "!=", value = true },
             { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "cat_auto_prowl", true) then return false end
                 if state.target and state.target_range > 18 then return false end
                 return true
             end },
@@ -958,7 +977,7 @@ local function rip_matches(context, action)
     local required_cp = spec_kit.setting_number(context, "cat_rip_cp", 5)
     if leveling_helpers.is_low_level(state.level) then required_cp = math.min(required_cp, 4) end
     if not state.target then return false end
-    if context.combo_points ~= nil and state.combo_points < required_cp then return false end
+    if (state.combo_points or 0) < required_cp then return false end
     -- Post-cast grace: don't recast Rip while the debuff API still reads 0 right
     -- after a cast (application latency); wait out POST_CAST_GRACE first.
     if (state.rip_remains or 0) <= 0 and ((state.now or 0) - _rip_recast_time) < POST_CAST_GRACE then return false end
@@ -1088,7 +1107,7 @@ local function rake_matches(context, action)
     local state = build_state(context)
     if not state.target then return false end
     if not target_lives(state, MIN_RAKE_TTD) then return false end
-    if context.combo_points ~= nil and (state.combo_points or 0) >= 5 then return false end
+    if (state.combo_points or 0) >= 5 then return false end
     -- Post-cast grace: don't recast Rake while the debuff API still reads 0 right
     -- after a cast (application latency); wait out POST_CAST_GRACE first.
     if (state.rake_remains or 0) <= 0 and ((state.now or 0) - _rake_recast_time) < POST_CAST_GRACE then return false end
@@ -1119,7 +1138,7 @@ local function clearcasting_shred_matches(context, action)
     local state = build_state(context)
     if not state.clearcasting then return false end
     if state.target and not state.is_behind then return false end
-    if context.combo_points ~= nil and (state.combo_points or 0) >= 5 then return false end
+    if (state.combo_points or 0) >= 5 then return false end
     action.min_energy = CLEARCASTING_COST_FLOOR
     return true
 end

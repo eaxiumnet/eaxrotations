@@ -346,6 +346,18 @@ end
 local function try_self_buffs(context, settings, me, class_id)
     if below_healer_mana_floor(context, settings) then return false end
 
+    -- Druid form guard: MotW/Thorns require caster form — never break Cat/Bear/
+    -- Moonkin/Travel form to rebuff. Wait until player is in humanoid form.
+    if class_id == CLASS.DRUID then
+        local in_form = (NS.has_form and (NS.has_form("cat") or NS.has_form("bear") or NS.has_form("moonkin") or NS.has_form("travel")))
+        if in_form then return false end
+        -- Fallback: stance-based detection (0 = caster, anything else = shifted)
+        if not NS.has_form and NS.get_player_stance then
+            local stance = NS.get_player_stance()
+            if type(stance) == "number" and stance ~= 0 then return false end
+        end
+    end
+
     local entries = DEFAULT_BUFFS_BY_CLASS[class_id]
     if type(entries) ~= "table" then return false end
     local threshold = get_setting(settings, "ooc_buff_threshold", 30)

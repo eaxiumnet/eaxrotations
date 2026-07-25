@@ -1,5 +1,22 @@
 # EaxRotations Changelog
 
+## v2.16.0 — Menu Fix, Rip Firing, Auto Prowl & Taunt Toggles (July 25, 2026)
+
+> **Release:** v2.16.0
+> **Game:** The Burning Crusade Classic (2.5.5.x)
+
+### What you'll notice
+
+- **Class Settings menu is fixed** — the PS menu rework broke section collapsibility so all your class settings got dumped into one "Auto Consumables" fold-out. Each category (Rotation, Bear Tank, Cat DPS, Consumables, etc.) is now its own collapsible section again with working arrows.
+- **Feral Cat Rip now fires** — combo points were always reading 0, so Rip never cast and Claw spammed endlessly. Fixed: Rip now correctly fires at 4+ combo points (leveling) or 5 (cat), and Claw stops at the cap.
+- **Auto Prowl toggle works** — disabling "Auto Prowl OOC" in the menu now actually stops the bot from auto-Prowling. Previously the leveling rotation ignored the toggle entirely.
+- **New Auto Taunt toggle** — Bear Druid and Protection Paladin now have an "Auto Taunt" checkbox (default on). Disable to save Growl/Righteous Defense for manual use.
+- **Smarter CC across more specs** — Balance Druid (Entangling Roots, Cyclone), Shadow Priest (Psychic Scream), Warlock (Fear), Rogue (Blind), and Ret Paladin (Repentance, Hammer of Justice) now skip targets that are already CC'd.
+
+Reload for **v2.16.0**.
+
+---
+
 ## v2.15.0 — Smarter CC, Immunity Awareness & Combat Timing (July 24, 2026)
 
 > **Release:** v2.15.0

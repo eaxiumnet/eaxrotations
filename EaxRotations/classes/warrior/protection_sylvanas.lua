@@ -657,6 +657,7 @@ local function shield_bash_matches_fn(context, state)
 end
 
 local function taunt_matches_fn(context, state)
+ if not spec_kit.setting_bool(context, "auto_taunt", true) then return false end
  if not state.taunt_ready then return false end
  local me = context.me or NS.GetPlayer()
  local target = context.target
@@ -687,6 +688,7 @@ local function taunt_matches_fn(context, state)
 end
 
 local function mocking_blow_matches_fn(context, state)
+ if not spec_kit.setting_bool(context, "auto_taunt", true) then return false end
  if not state.mocking_ready then return false end
  -- Smart taunt: only mocking blow elites/bosses (classification >= 1)
  if (context.target_classification or 0) < 1 then return false end
@@ -701,6 +703,7 @@ local function mocking_blow_matches_fn(context, state)
 end
 
 local function taunt_secondary_matches_fn(context, state)
+ if not spec_kit.setting_bool(context, "auto_taunt", true) then return false end
  if not state.mocking_ready then return false end
  if not spec_kit.setting_bool(context, "prot_tab_targeting", true) then return false end
  if (state.enemy_count or 0) < 3 then return false end
@@ -717,6 +720,7 @@ local function taunt_secondary_matches_fn(context, state)
 end
 
 local function challenging_shout_matches_fn(context, state)
+ if not spec_kit.setting_bool(context, "auto_taunt", true) then return false end
  if not state.challenging_ready then return false end
  if state.aoe_cc_nearby then return false end  -- AoE taunt would pull CC'd mobs
  -- Smart taunt: only shout on elites/bosses (classification >= 1)

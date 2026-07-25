@@ -2,7 +2,7 @@
 -- WHAT:  priority-list strategies for leveling_sylvanas gameplay.
 -- WHEN:  combat with valid enemy target.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
--- SAFETY: every state field read is nil-guarded via build_state() defaults; no on_update() allocs.
+-- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update() allocs.
 
 -- Warrior leveling rotation.
 -- Auto-activates in solo/leveling context or when playstyle = "leveling".
@@ -36,6 +36,7 @@ local is_leveling_context = leveling.create_context_guard()
 -- Constants
 -- ============================================================================
 local SPELLS = NS.WarriorSpells or NS.SPELLS or {}
+local define = spec_kit.define_action_for_class(SPELLS)
 local CONSTANTS = NS.WarriorConstants or {}
 local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
@@ -689,7 +690,5 @@ function warrior_leveling.on_update(context)
     return false
 end
 
-warrior_leveling.strategies = strategies
-
 -- [Warrior] Leveling rotation loaded
-return warrior_leveling
+return { strategies = strategies, build_state = warrior_leveling.build_state, on_update = warrior_leveling.on_update }

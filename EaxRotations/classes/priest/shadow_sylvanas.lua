@@ -982,6 +982,12 @@ local function psychic_scream_matches(context, s)
     if not context.in_combat then return false end
     if (s.enemy_count or 0) < 3 then return false end
     if not s.psychic_scream_ready then return false end
+    -- IZI SDK: skip AoE fear if primary target is already CC'd
+    local target = context.target
+    if target and type(target.is_cc) == "function" then
+        local ok, cc = pcall(target.is_cc, target)
+        if ok and cc then return false end
+    end
     return true
 end
 

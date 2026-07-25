@@ -10,7 +10,7 @@
 
 **Repo**: https://github.com/eaxiumnet/eaxrotations
 **Local Path**: `C:\newbot\scripts`
-**Last Updated**: 2026-07-22
+**Last Updated**: 2026-07-25
 **Specs**: 29 TBC Classic class specializations (all 29 completed)
 **Tests**: 390 rotation suites registered in `run_rotation_tests.lua` + 31 leveling suites in `run_leveling_tests.lua` (421 total)
 
@@ -66,13 +66,27 @@ api/                           # Sylvanas API definitions (runtime, .gitignored)
 ├── game_object.lua            # Unit/entity access
 └── common/                    # buff_db, enums, izi_sdk, modules/, utility/
 
-NOTE: `api/` and `apidocs/` are .gitignored (local-only). A leftover `.api/`
-mirror also exists with identical content — use `api/` (no dot); they are the
-same. If one appears missing in your checkout, the other is equivalent.
+NOTE: `api/` and `.api/` are .gitignored (local-only runtime API stubs from
+Project Sylvanas; strictly read-only — never edit). A leftover `.api/` mirror
+also exists with identical content — use `api/` (no dot); they are the same.
+If one appears missing in your checkout, the other is equivalent.
 
-apidocs/                       # Offline API documentation
-├── corpus.jsonl               # LLM retrieval corpus (2877 chunks)
-└── pages/dev/api/             # core.md, game-object.md, spellbook.md, buffs.md
+NOTE: `apidocs/` was historically .gitignored but was REBUILT 2026-07-25 as a
+hand-maintained offline mirror of https://docs.project-sylvanas.net/dev/.
+If you want the scraped docs to persist in git, remove the `apidocs/` line from
+`.gitignore` (currently line 46). Until then the files exist locally but are
+not tracked.
+
+apidocs/                       # Offline API documentation (REBUILT 2026-07-25 from live docs)
+├── README.md                  # Index + source URLs + scrape date; lists un-mirrored pages
+└── pages/
+    ├── dev/api/               # core.md, ui.md, ui-custom.md, color.md, graphics.md
+    └── modules/menu.md        # Declarative _G.menu guide
+# NOTE: corpus.jsonl (2877 chunks) referenced in older versions was NOT present
+# on disk and has not been rebuilt. Many pages in the doc-lookup table below
+# (spellbook.md, object-manager.md, input.md, buffs.md, etc.) are not yet
+# mirrored — see apidocs/README.md for the full un-mirrored URL list and
+# re-scrape from https://docs.project-sylvanas.net/dev/ as needed.
 
 wowhead_data/                  # AUTHORITATIVE data sources (verified against WoW 2.5.5.68101 client)
 ├── lua/                       # NEW: cMaNGOS-extracted Lua tables (items, NPCs, quests, objects)
@@ -153,28 +167,32 @@ Full docs in `apidocs/`. Key entry points:
 
 **Models: open these files directly when the task touches the topic.** Do not guess API behavior from memory — these MD files are the source of truth and are small enough to read fully.
 
-| If the task involves… | Read this file first |
+| If the task involves… | Read this file first (✓ = mirrored, ✗ = live site only) |
 |----------------------|----------------------|
-| Casting spells, GCD, spell IDs, ranks, forms | `apidocs/pages/dev/api/spellbook.md` + `api/spell-helper.md` |
-| Reading/iterating units, enemies, party, target | `apidocs/pages/dev/api/object-manager.md` + `api/game-object.md` |
-| Input — casting on target, moving, clicking | `apidocs/pages/dev/api/input.md` |
-| Buffs/debuffs — stacks, remains, points, auras | `apidocs/pages/dev/api/buffs.md` |
-| Cooldowns — tracking, remaining, charges | `apidocs/pages/dev/api/cooldown-tracker.md` |
-| Menus — checkboxes, sliders, keybinds | `apidocs/pages/dev/api/ui.md` |
-| Drawing — circles, lines, text on screen | `apidocs/pages/dev/api/graphics.md` |
-| IZI SDK (`izi.spell()`, `izi.enemies()`, `izi.pick_enemy()`) | `apidocs/pages/dev/libraries/izi/` (all files) |
-| Modules — buff_manager, spell_queue, target_selector | `apidocs/pages/dev/modules/` + `libraries/modules/` |
-| Enums (class_id, power_type, spec_enum, buff_type) | `apidocs/pages/dev/api/enums.md` |
-| Geometry, vectors, distance | `apidocs/pages/dev/api/geometry.md`, `vector-2.md`, `vector-3.md` |
-| Quests (for EaxAutoQuester) | `apidocs/pages/dev/api/quests.md` |
-| Movement / navigation | `apidocs/pages/dev/api/movement-handler.md`, `simple-movement.md` |
-| Pets | `apidocs/pages/dev/api/pet-handler.md` |
+| Core callbacks, time, logging, file I/O | ✓ `apidocs/pages/dev/api/core.md` |
+| Menus — checkboxes, sliders, keybinds (`core.menu.*`) | ✓ `apidocs/pages/dev/api/ui.md` |
+| Custom windows, `window:begin()`, cross theme enums | ✓ `apidocs/pages/dev/api/ui-custom.md` |
+| Colors — `color.new()`, `color.purple()`, recoloring notes | ✓ `apidocs/pages/dev/api/color.md` |
+| Drawing — circles, lines, text on screen | ✓ `apidocs/pages/dev/api/graphics.md` |
+| Declarative menu (`_G.menu`) guide | ✓ `apidocs/pages/modules/menu.md` |
+| Casting spells, GCD, spell IDs, ranks, forms | ✗ `apidocs/pages/dev/api/spellbook.md` (scrape: /dev/api/spellbook) |
+| Reading/iterating units, enemies, party, target | ✗ `apidocs/pages/dev/api/object-manager.md` (scrape: /dev/api/object-manager) |
+| Input — casting on target, moving, clicking | ✗ `apidocs/pages/dev/api/input.md` (scrape: /dev/api/input) |
+| Buffs/debuffs — stacks, remains, points, auras | ✗ `apidocs/pages/dev/api/buffs.md` (scrape: /dev/api/buffs) |
+| Cooldowns — tracking, remaining, charges | ✗ `apidocs/pages/dev/api/cooldown-tracker.md` (scrape: /dev/api/cooldown-tracker) |
+| IZI SDK (`izi.spell()`, `izi.enemies()`, `izi.pick_enemy()`) | ✗ `apidocs/pages/dev/libraries/izi/` (scrape: /dev/libraries) |
+| Modules — buff_manager, spell_queue, target_selector | ✗ `apidocs/pages/dev/modules/` (scrape: /dev/libraries) |
+| Enums (class_id, power_type, spec_enum, buff_type) | ✗ `apidocs/pages/dev/api/enums.md` (scrape: /dev/api/enums) |
+| Geometry, vectors, distance | ✗ `apidocs/pages/dev/api/geometry.md` (scrape: /dev/api/geometry, /dev/api/vector-2, /dev/api/vector-3) |
+| Quests (for EaxAutoQuester) | ✗ `apidocs/pages/dev/api/quests.md` (scrape: /dev/api/quests) |
+| Movement / navigation | ✗ `apidocs/pages/dev/api/movement-handler.md` (scrape: /dev/api/movement-handler, /dev/api/simple-movement) |
+| Pets | ✗ `apidocs/pages/dev/api/pet-handler.md` (scrape: /dev/api/pet-handler) |
+| **Runtime theme recoloring (purple→blue)** | ✓ `apidocs/pages/dev/api/color.md` + `apidocs/pages/dev/api/ui-custom.md` + `EaxRotations/shared/theme_override_sylvanas.lua` |
 
-**For exhaustive / fuzzy lookups** there is also a pre-chunked RAG corpus at
-`apidocs/corpus.jsonl` (2,882 chunks, ~2.5MB) — one JSON object per line. Use it
-when you need to grep across all docs at once (e.g. "which API touches
-'immunity'?"). For a single known topic, prefer the MD file above — it's faster
-and more readable than the JSONL.
+**For exhaustive / fuzzy lookups** across all docs, scrape the live site
+(https://docs.project-sylvanas.net/dev/api/) — the `apidocs/corpus.jsonl` RAG
+corpus referenced in older versions was NOT present on disk. For a single known
+topic, prefer the mirrored MD file above (✓ rows) — it's faster and more readable.
 
 ---
 

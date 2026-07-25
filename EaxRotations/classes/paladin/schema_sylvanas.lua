@@ -142,6 +142,7 @@ return {
                     { key = "prot_lay_on_hands_hp", type = "slider", label = "Lay on Hands HP %", min = 0, max = 50, default = 10, tooltip = "Emergency Lay on Hands below this HP" },
                     { key = "prot_hammer_of_justice", type = "checkbox", label = "Hammer of Justice", default = true, tooltip = "Interrupt casting enemies" },
                     { key = "prot_righteous_defense", type = "checkbox", label = "Righteous Defense", default = true, tooltip = "Peel aggro from threatened allies" },
+                    { key = "auto_taunt", type = "checkbox", label = "Auto Taunt (Righteous Defense)", default = true, tooltip = "Automatically use Righteous Defense to peel aggro. Disable to save it for manual use." },
                     { key = "prot_blessing_of_protection", type = "checkbox", label = "Blessing of Protection", default = true, tooltip = "BoP emergency peel for low HP allies" },
                 },
             },

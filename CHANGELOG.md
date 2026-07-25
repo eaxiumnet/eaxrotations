@@ -2,6 +2,37 @@
 
 All notable changes to the EAX TBC Classic Rotations project.
 
+## [2.16.0] — Menu Collapsibility, Combo Points Fix, Auto Prowl & Auto Taunt Toggles (2026-07-25)
+
+**Menu rework fix + gameplay bug fixes.** The PS menu rework broke section
+collapsibility (all class settings merged into "Auto Consumables"). Fixed
+by rendering sections at depth-1 with collapsible tree_nodes. Also fixed
+three gameplay bugs: combo points always reading 0 (Rip never fired),
+Auto Prowl toggle ignored, and added Auto Taunt toggle for tanks.
+
+### Bug Fixes
+
+- **Menu: Section Collapsibility (all classes)**: The PS menu rework broke `tree_node:render()` at depth-2 — sibling section trees merged so all widgets dumped into the last one rendered ("Auto Consumables has everything"). Fixed by rendering section trees at depth-1 (directly inside `main_tree`) with a "Class Settings" header label for visual grouping. Sections are now individually collapsible again.
+- **Druid (Cat/Leveling): Combo Points Always 0 → Rip Never Fired**: The dispatcher's `combo_points(me)` returned `0` on failure (indistinguishable from genuine zero CP), and the `get_combo_points` helper's `if type(context.combo_points) == "number"` early-return treated `0` as valid, blocking the fallback chain. Also called non-existent `me.get_combo_points()`. Fixed: dispatcher returns `nil` on failure, helpers use `me:combo_points_current()` + `me:get_power(4)` fallback. Rip now fires at 4+ CP (leveling) / 5 CP (cat).
+- **Druid (Leveling): Auto Prowl Toggle Ignored**: The leveling rotation's `prowl_opener_matches` never checked the `cat_auto_prowl` setting — it cast Prowl whenever ready and OOC. Disabling Auto Prowl did nothing. Fixed: added `spec_kit.setting_bool(context, "cat_auto_prowl", true)` gate.
+
+### Features
+
+- **Auto Taunt Toggle (Bear, Protection Paladin)**: Added `auto_taunt` checkbox to druid and paladin schemas. Bear's Growl/Challenging Roar and Paladin's Righteous Defense are now gated behind this toggle (default on). Disable to save taunt for manual use.
+- **Auto Prowl Toggle (Druid)**: Added `cat_auto_prowl` checkbox to druid schema (default on). Controls the ProwlOpener strategy in both cat and leveling rotations.
+- **IZI SDK CC Awareness (Druid Balance, Priest Shadow, Warlock Demo/Destro, Rogue Assassination, Paladin Ret)**: Additional `is_cc()` checks added to Entangling Roots, Cyclone, Psychic Scream, Fear, Blind, Repentance, and Hammer of Justice to prevent wasting CC on already-controlled targets.
+
+### Documentation
+
+- **AGENTS.md**: Updated `apidocs/` documentation references, rebuilt API doc mirror table with ✓/✗ indicators, updated Last Updated date.
+- **Plan**: Created `plans/migrate-to-declarative-menu-2026-07-25.md` — plan for migrating to the declarative `_G.menu` API for proper nested collapsibility.
+
+### Technical
+
+- `luac -p` + 390/390 rotation + 31/31 leveling suites green (421 total).
+- 34 files modified across menu infrastructure, class specs, schemas, and docs (plus 3 release documentation files).
+- All changes backward-compatible: new settings default to their previous behavior.
+
 ## [2.15.0] — IZI SDK CC Awareness, Immunity Gating, Combat Timing (2026-07-24)
 
 **Second API audit wave.** Eight IZI SDK integrations across 13 spec files:
