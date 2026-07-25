@@ -1145,7 +1145,19 @@ local function on_update()
     sync_quick_toggles()
     sync_playstyle_control()
 
-    -- schema widget sync (writes removed)
+    -- Schema widget sync: read each schema checkbox/slider/dropdown value from
+    -- its menu widget and inject into NS.settings so spec_kit.setting_bool /
+    -- NS.get_setting see the live user-selected value. Without this, schema
+    -- checkboxes like cat_auto_prowl are purely cosmetic — the setting always
+    -- returns its default because the widget value never reaches NS.settings.
+    for key, widget in pairs(schema_widgets) do
+        if widget and widget.sync then
+            local ok, value = pcall(widget.sync)
+            if ok and value ~= nil then
+                st[key] = value
+            end
+        end
+    end
 
     -- Check if script is enabled after menu settings are synchronized.
     -- rotation_enabled already resolved above (before widget sync) to allow
