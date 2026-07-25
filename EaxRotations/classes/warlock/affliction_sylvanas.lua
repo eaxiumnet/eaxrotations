@@ -198,12 +198,20 @@ local function find_dot_target(spell_id, radius)
                         and not is_cc_target(unit)
                         and (not me or is_engaged(unit, me))
                     then
-                        local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
-                        if not (ok_hp and hp and hp < 20) then
-                            local has_dot = NS.debuff_up and NS.debuff_up(unit, { spell_id })
-                            if not has_dot then
-                                result = unit
-                                break
+                        -- IZI SDK: skip damage-immune targets (Divine Shield, etc.)
+                        local skip_immune = false
+                        if type(unit.is_damage_immune) == "function" then
+                            local ok_im, im = pcall(unit.is_damage_immune, unit)
+                            if ok_im and im then skip_immune = true end
+                        end
+                        if not skip_immune then
+                            local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
+                            if not (ok_hp and hp and hp < 20) then
+                                local has_dot = NS.debuff_up and NS.debuff_up(unit, { spell_id })
+                                if not has_dot then
+                                    result = unit
+                                    break
+                                end
                             end
                         end
                     end
@@ -222,12 +230,20 @@ local function find_dot_target(spell_id, radius)
                     if not is_cc_target(unit)
                         and (not me or is_engaged(unit, me))
                     then
-                        local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
-                        if not (ok_hp and hp and hp < 20) then
-                            local has_dot = NS.debuff_up and NS.debuff_up(unit, { spell_id })
-                            if not has_dot then
-                                result = unit
-                                break
+                        -- IZI SDK: skip damage-immune targets
+                        local skip_immune = false
+                        if type(unit.is_damage_immune) == "function" then
+                            local ok_im, im = pcall(unit.is_damage_immune, unit)
+                            if ok_im and im then skip_immune = true end
+                        end
+                        if not skip_immune then
+                            local ok_hp, hp = pcall(function() return unit:get_health_percentage() end)
+                            if not (ok_hp and hp and hp < 20) then
+                                local has_dot = NS.debuff_up and NS.debuff_up(unit, { spell_id })
+                                if not has_dot then
+                                    result = unit
+                                    break
+                                end
                             end
                         end
                     end
@@ -1369,6 +1385,12 @@ local strategies = {
             local group_aware = spec_kit.setting_bool(context, "warlock_group_aware_utility", true)
             if not (context.is_pvp or (group_aware and context.is_group)) then return false end
             if not context.target then return false end
+            -- IZI SDK: skip Fear if target is already CC'd
+            local target = context.target
+            if target and type(target.is_cc) == "function" then
+                local ok, cc = pcall(target.is_cc, target)
+                if ok and cc then return false end
+            end
             return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.Fear, context.target) or false
         end,
         execute = function(context)

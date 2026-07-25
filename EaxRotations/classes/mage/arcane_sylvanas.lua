@@ -324,6 +324,12 @@ local function polymorph_matches(context, s)
     if not (context.is_pvp or (group_aware and context.is_group)) then return false end
     if not context.cc_target then return false end
     if context.is_moving then return false end
+    -- IZI SDK: skip Polymorph if target is already CC'd
+    local cc_t = context.cc_target
+    if cc_t and type(cc_t.is_cc) == "function" then
+        local ok, cc = pcall(cc_t.is_cc, cc_t)
+        if ok and cc then return false end
+    end
     return true
 end
 
@@ -515,6 +521,12 @@ local DSL_DEFS = {
             { type = "setting", key = "arcane_use_burn", op = "!=", value = false },
             { type = "custom", fn = function(context, state)
                 if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
+                -- IZI SDK: skip offensive CD if target is damage-immune
+                local target = context.target
+                if target and type(target.is_damage_immune) == "function" then
+                    local ok, immune = pcall(target.is_damage_immune, target)
+                    if ok and immune then return false end
+                end
                 local cd_window = state.bloodlust_active
                     or ((state.icy_veins_remains or 0) > 0)
                     or (planner and planner.is_major_offensive_cd_active and planner.is_major_offensive_cd_active(context))

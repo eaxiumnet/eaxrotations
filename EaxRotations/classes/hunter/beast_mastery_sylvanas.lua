@@ -1003,6 +1003,12 @@ local DSL_DEFS = {
             { type = "custom", fn = function(context, state)
                 if state.is_mounted then return false end
                 if not (state.use_cooldowns and state.in_combat) then return false end
+                -- IZI SDK: skip offensive CD if target is damage-immune
+                local target = context.target
+                if target and type(target.is_damage_immune) == "function" then
+                    local ok, immune = pcall(target.is_damage_immune, target)
+                    if ok and immune then return false end
+                end
                 return true
             end },
             { type = "custom", fn = function(context, state)

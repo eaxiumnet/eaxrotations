@@ -618,6 +618,12 @@ local function shield_wall_matches_fn(context, state)
  if (state.hp or 100) > threshold then return false end
  if state.has_shield_wall then return false end
  if NS.should_use_long_cd and not NS.should_use_long_cd(context, SHIELD_WALL_CD) then return false end
+ -- IZI SDK: skip if target is damage-immune (no incoming damage)
+ local target = context.target
+ if target and type(target.is_damage_immune) == "function" then
+     local ok, immune = pcall(target.is_damage_immune, target)
+     if ok and immune then return false end
+ end
  return true
 end
 

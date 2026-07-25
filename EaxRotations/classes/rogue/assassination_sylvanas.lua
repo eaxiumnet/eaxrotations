@@ -214,6 +214,12 @@ local function build_state(context)
     end
     -- Resources
     assassin_state.combo = context.combo_points or context.combo or 0
+    -- IZI SDK: combo_points_current() is a more reliable source when available
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+    if me and type(me.combo_points_current) == "function" then
+        local ok, cp = pcall(me.combo_points_current, me)
+        if ok and type(cp) == "number" then assassin_state.combo = cp end
+    end
     assassin_state.energy = context.energy or 0
     -- IZI SDK: energy_predicted for smarter pooling decisions
     if me and type(me.energy_predicted) == "function" then
