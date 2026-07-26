@@ -238,6 +238,7 @@ local tests = {
 
  -- Control panel / settings tests
  "test_control_panel_quick_toggles.lua",
+ "test_schema_widget_sync.lua",
  "test_playstyle_label_fallback_fires.lua",
  "test_playstyle_setting_overrides_stale_active.lua",
  "test_playstyle_setting_seeds_active.lua",

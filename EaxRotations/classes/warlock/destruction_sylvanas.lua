@@ -84,7 +84,8 @@ local IMMOLATE_PANDEMIC_WINDOW = 3.5
 local IMMOLATE_MIN_SP_DEFAULT = 400  -- SP below which Immolate is skipped (conservative GCD-positive threshold)
 local SHADOWBURN_HP_PCT = 20
 local DRAIN_LIFE_HP_THRESHOLD = 40
-local MANA_LIFE_TAP_THRESHOLD = 35
+local MANA_LIFE_TAP_THRESHOLD = 35  -- legacy default; overridable via destro_life_tap_mana setting
+local LIFE_TAP_MOVING_MIN_HP = 50   -- never Life Tap while moving below this HP (safety gate)
 local DARK_PACT_MANA_THRESHOLD = 45
 local LIFE_TAP_MIN_INTERVAL = 1.5
 local _last_life_tap = 0
@@ -222,6 +223,9 @@ local ACTIONS = {
     { name = "Incinerate", spell = ACTION.Incinerate, not_moving = true },
     { name = "ShadowBolt", spell = ACTION.ShadowBolt, not_moving = true },
     { name = "SoulFire", spell = SoulFire, not_moving = true },
+    -- LifeTapMoving: placeholder for DSL-compiled strategy (fires while moving to tap mana
+    -- instead of Searing Pain). Positioned before SearingPain so it wins the moving filler slot.
+    { name = "LifeTapMoving", spell = ACTION.LifeTap, target = "self", moving = true, requires_target = false },
     { name = "SearingPain", spell = SearingPain, moving = true },
     -- AoE
     { name = "SeedOfCorruption", spell = SeedOfCorruption, enemy_count = 3, hit_radius = 15, hit_origin = "target" },
@@ -257,7 +261,11 @@ local function select_curse(context, state)
         local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
         if context.is_group and (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
     end
-    return "doom"
+    -- Auto mode: Doom for long fights (TTD >= 60s), Agony for short fights.
+    -- CoD needs ~60s to deal its damage, so it's a DPS loss on short-lived targets.
+    local ttd = context.ttd or 999
+    if ttd >= 60 then return "doom" end
+    return "agony"
 end
 
 -- Centralized assigned-curse gate (strict: when user sets Agony or assigned=agony, no CoE etc)
@@ -492,6 +500,8 @@ local DSL_DEFS = {
         name = "Immolate",
         conditions = {
             { type = "custom", fn = function(context, state)
+                -- Toggle: skip Immolate entirely when disabled (speed kills / pure SB spam)
+                if not spec_kit.setting_bool(context, "destro_use_immolate", true) then return false end
                 if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Immolate, 2.0) then return false end
                 return true
             end },
@@ -563,12 +573,42 @@ local DSL_DEFS = {
                 if (NS.time_now() - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then return false end
                 return true
             end },
-            { type = "state", field = "mana_pct", op = "<=", value = MANA_LIFE_TAP_THRESHOLD },
-            { type = "state", field = "hp", op = ">=", value = 40 },
+            { type = "custom", fn = function(context, state)
+                -- Configurable mana threshold (default 20% per user request)
+                local mana_thresh = spec_kit.setting_number(context, "destro_life_tap_mana", 20)
+                return (state.mana_pct or 100) <= mana_thresh
+            end },
+            { type = "custom", fn = function(context, state)
+                -- Safety gate: configurable min HP (default 50% per user request)
+                local min_hp = spec_kit.setting_number(context, "destro_life_tap_min_hp", 50)
+                return (state.hp or 100) >= min_hp
+            end },
         },
         action = { type = "custom", fn = function(context, state)
             _last_life_tap = NS.time_now()
             return NS.try_cast(ACTION.LifeTap, context.me or NS.GetPlayer() or NS.PLAYER_UNIT, "[DESTRUCTION] Life Tap", { skip_range = true })
+        end },
+    },
+    {
+        -- Life Tap while moving: when moving and mana isn't full, tap for mana
+        -- instead of casting Searing Pain. Safety-gated on HP so we don't kill ourselves.
+        name = "LifeTapMoving",
+        conditions = {
+            { type = "context", field = "is_moving", op = "==", value = true },
+            { type = "custom", fn = function(context, state)
+                if context.is_casting or context.is_channeling then return false end
+                if (NS.time_now() - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then return false end
+                -- Only tap if mana isn't already full
+                if (state.mana_pct or 100) >= 99 then return false end
+                -- Safety gate: don't Life Tap if HP too low (default 50%)
+                local min_hp = spec_kit.setting_number(context, "destro_life_tap_min_hp", LIFE_TAP_MOVING_MIN_HP)
+                if (state.hp or 100) < min_hp then return false end
+                return true
+            end },
+        },
+        action = { type = "custom", fn = function(context, state)
+            _last_life_tap = NS.time_now()
+            return NS.try_cast(ACTION.LifeTap, context.me or NS.GetPlayer() or NS.PLAYER_UNIT, "[DESTRUCTION] Life Tap (moving)", { skip_range = true })
         end },
     },
 }
