@@ -402,7 +402,10 @@ local function select_curse(context, s)
         local reck_threshold = spec_kit.setting_number(context, "warlock_curse_reck_threshold", 2)
         if context.is_group and (context.physical_dps_count or 0) >= reck_threshold then return "recklessness" end
     end
-    return "doom"
+    -- Auto mode: Doom for long fights (TTD >= 60s), Agony for short fights.
+    local ttd = context.ttd or 999
+    if ttd >= 60 then return "doom" end
+    return "agony"
 end
 
 -- Centralized assigned-curse gate (strict enforcement so agony/assigned always wins)

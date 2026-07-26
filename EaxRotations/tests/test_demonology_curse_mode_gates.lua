@@ -65,14 +65,14 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
-local function make_context(mode, group, assigned, physical_dps_count, group_aware)
+local function make_context(mode, group, assigned, physical_dps_count, group_aware, ttd)
     return {
         target = {},
         is_group = group,
         party_size = group and 2 or 1,
         physical_dps_count = physical_dps_count or 0,
-        ttd_known = true,
-        ttd = 120,
+        ttd_known = ttd ~= nil,
+        ttd = ttd or 120,
         settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none", warlock_curse_reck_threshold = 2, warlock_curse_group_aware = group_aware ~= false },
     }
 end
@@ -140,5 +140,45 @@ assert_true(cow.matches(make_context("auto", false, "weakness"), make_state()),
 
 assert_true(cor.matches(make_context("auto", true, nil, 2), make_state()),
     "CoR should match in auto when physical_dps_count >= warlock_curse_reck_threshold")
+
+-- TTD-based auto curse switch: Doom for long fights (>=60s), Agony for short fights (<60s)
+action_calls = {}
+assert_true(coa.matches(make_context("auto", false, nil, 0, true, 30), make_state()),
+    "CoA should match in auto mode when TTD < 60s (short fight -> Agony)")
+assert_false(coa.matches(make_context("auto", false, nil, 0, true, 90), make_state()),
+    "CoA should skip in auto mode when TTD >= 60s (long fight -> Doom)")
+assert_false(cod.matches(make_context("auto", false, nil, 0, true, 30), make_state()),
+    "CoD should skip in auto mode when TTD < 60s (short fight -> Agony)")
+assert_true(cod.matches(make_context("auto", false, nil, 0, true, 90), make_state()),
+    "CoD should match in auto mode when TTD >= 60s (long fight -> Doom)")
+
+-- Boundary cases around the 60s switch
+action_calls = {}
+assert_true(coa.matches(make_context("auto", false, nil, 0, true, 59), make_state()),
+    "CoA should match at TTD = 59s (boundary: < 60 selects Agony)")
+assert_false(coa.matches(make_context("auto", false, nil, 0, true, 60), make_state()),
+    "CoA should skip at TTD = 60s (boundary: >= 60 selects Doom)")
+
+-- Explicit curse_mode overrides TTD-based auto selection
+action_calls = {}
+assert_true(coa.matches(make_context("agony", false, nil, 0, true, 90), make_state()),
+    "CoA should match when curse_mode=agony even with long TTD")
+assert_false(coa.matches(make_context("doom", false, nil, 0, true, 30), make_state()),
+    "CoA should skip when curse_mode=doom even with short TTD")
+assert_true(cod.matches(make_context("doom", false, nil, 0, true, 90), make_state()),
+    "CoD should match when curse_mode=doom with long TTD")
+assert_false(cod.matches(make_context("agony", false, nil, 0, true, 90), make_state()),
+    "CoD should skip when curse_mode=agony even with long TTD")
+
+-- Assigned curse overrides TTD-based auto selection
+action_calls = {}
+assert_true(coa.matches(make_context("auto", false, "agony", 0, true, 90), make_state()),
+    "CoA should match when assigned_curse=agony even with long TTD")
+assert_false(coa.matches(make_context("auto", false, "doom", 0, true, 30), make_state()),
+    "CoA should skip when assigned_curse=doom even with short TTD")
+assert_true(cod.matches(make_context("auto", false, "doom", 0, true, 90), make_state()),
+    "CoD should match when assigned_curse=doom with long TTD")
+assert_false(cod.matches(make_context("auto", false, "agony", 0, true, 90), make_state()),
+    "CoD should skip when assigned_curse=agony even with long TTD")
 
 print("PASS test_demonology_curse_mode_gates")

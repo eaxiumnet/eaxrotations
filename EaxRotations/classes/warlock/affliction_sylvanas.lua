@@ -596,6 +596,9 @@ local function select_curse(context, state)
             return "elements"
         end
     end
+    -- Auto mode: Doom for long fights (TTD >= 60s), Agony for short fights.
+    local ttd = context.ttd or 999
+    if ttd >= 60 then return "doom" end
     return "agony"
 end
 

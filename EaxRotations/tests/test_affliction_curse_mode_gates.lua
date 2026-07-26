@@ -82,7 +82,7 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
-local function make_context(mode, group, playstyle, enemy_count, assigned, physical_dps_count, group_aware)
+local function make_context(mode, group, playstyle, enemy_count, assigned, physical_dps_count, group_aware, ttd)
     return {
         target = {},
         has_valid_enemy_target = true,
@@ -90,8 +90,8 @@ local function make_context(mode, group, playstyle, enemy_count, assigned, physi
         active_playstyle = playstyle,
         enemy_count = enemy_count or 1,
         physical_dps_count = physical_dps_count or 0,
-        ttd_known = true,
-        ttd = 120,
+        ttd_known = ttd ~= nil,
+        ttd = ttd or 120,
         settings = { warlock_curse_mode = mode, warlock_assigned_curse = assigned or "none", warlock_curse_reck_threshold = 2, warlock_curse_group_aware = group_aware ~= false, dot_ttd_threshold = 50 },
     }
 end
@@ -164,5 +164,45 @@ assert_true(cow.matches(make_context("auto", false, "affliction", 1, "weakness")
 spell_ready_calls = {}
 assert_true(cor.matches(make_context("auto", true, "affliction", 1, nil, 2), make_state()),
     "CoR should match in auto/group/affliction when physical_dps_count >= threshold")
+
+-- TTD-based auto curse switch: Doom for long fights (>=60s), Agony for short fights (<60s)
+spell_ready_calls = {}
+assert_true(coa.matches(make_context("auto", false, "affliction", 1, nil, 0, false, 30), make_state()),
+    "CoA should match in auto mode when TTD < 60s (short fight -> Agony)")
+assert_false(coa.matches(make_context("auto", false, "affliction", 1, nil, 0, false, 90), make_state()),
+    "CoA should skip in auto mode when TTD >= 60s (long fight -> Doom)")
+assert_false(cod.matches(make_context("auto", false, "affliction", 1, nil, 0, false, 30), make_state()),
+    "CoD should skip in auto mode when TTD < 60s (short fight -> Agony)")
+assert_true(cod.matches(make_context("auto", false, "affliction", 1, nil, 0, false, 90), make_state()),
+    "CoD should match in auto mode when TTD >= 60s (long fight -> Doom)")
+
+-- Boundary cases around the 60s switch
+spell_ready_calls = {}
+assert_true(coa.matches(make_context("auto", false, "affliction", 1, nil, 0, false, 59), make_state()),
+    "CoA should match at TTD = 59s (boundary: < 60 selects Agony)")
+assert_false(coa.matches(make_context("auto", false, "affliction", 1, nil, 0, false, 60), make_state()),
+    "CoA should skip at TTD = 60s (boundary: >= 60 selects Doom)")
+
+-- Explicit curse_mode overrides TTD-based auto selection
+spell_ready_calls = {}
+assert_true(coa.matches(make_context("agony", false, "affliction", 1, nil, 0, false, 90), make_state()),
+    "CoA should match when curse_mode=agony even with long TTD")
+assert_false(coa.matches(make_context("doom", false, "affliction", 1, nil, 0, false, 30), make_state()),
+    "CoA should skip when curse_mode=doom even with short TTD")
+assert_true(cod.matches(make_context("doom", false, "affliction", 1, nil, 0, false, 90), make_state()),
+    "CoD should match when curse_mode=doom with long TTD")
+assert_false(cod.matches(make_context("agony", false, "affliction", 1, nil, 0, false, 90), make_state()),
+    "CoD should skip when curse_mode=agony even with long TTD")
+
+-- Assigned curse overrides TTD-based auto selection
+spell_ready_calls = {}
+assert_true(coa.matches(make_context("auto", false, "affliction", 1, "agony", 0, false, 90), make_state()),
+    "CoA should match when assigned_curse=agony even with long TTD")
+assert_false(coa.matches(make_context("auto", false, "affliction", 1, "doom", 0, false, 30), make_state()),
+    "CoA should skip when assigned_curse=doom even with short TTD")
+assert_true(cod.matches(make_context("auto", false, "affliction", 1, "doom", 0, false, 90), make_state()),
+    "CoD should match when assigned_curse=doom with long TTD")
+assert_false(cod.matches(make_context("auto", false, "affliction", 1, "agony", 0, false, 90), make_state()),
+    "CoD should skip when assigned_curse=agony even with long TTD")
 
 print("PASS test_affliction_curse_mode_gates")
