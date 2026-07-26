@@ -84,7 +84,6 @@ local IMMOLATE_PANDEMIC_WINDOW = 3.5
 local IMMOLATE_MIN_SP_DEFAULT = 400  -- SP below which Immolate is skipped (conservative GCD-positive threshold)
 local SHADOWBURN_HP_PCT = 20
 local DRAIN_LIFE_HP_THRESHOLD = 40
-local MANA_LIFE_TAP_THRESHOLD = 35  -- legacy default; overridable via destro_life_tap_mana setting
 local LIFE_TAP_MOVING_MIN_HP = 50   -- never Life Tap while moving below this HP (safety gate)
 local DARK_PACT_MANA_THRESHOLD = 45
 local LIFE_TAP_MIN_INTERVAL = 1.5
