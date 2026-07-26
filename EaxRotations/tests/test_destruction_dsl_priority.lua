@@ -277,6 +277,43 @@ assert_false(strategies[idx_cod].matches(make_ctx({ ttd_known = true, ttd = 30 }
     "CurseOfDoom skips in auto mode when TTD < 60s (switches to Agony)")
 
 -- ============================================================================
+-- CurseOfAgony: complement to CoD test — verify Agony MATCHES when TTD < 60s in auto mode
+-- CurseOfAgony uses the imperative match function (not DSL-compiled), so find by name.
+-- ============================================================================
+local idx_coa = nil
+for i = 1, #strategies do
+    if strategies[i].name == "CurseOfAgony" then idx_coa = i break end
+end
+assert_true(idx_coa ~= nil, "CurseOfAgony found in strategies table")
+
+-- Core TTD switch: Agony matches for short fights, skips for long fights (auto mode)
+assert_true(strategies[idx_coa].matches(make_ctx({ ttd_known = true, ttd = 30 }), make_state({ coa_remains = 0 })),
+    "CurseOfAgony matches in auto mode when TTD < 60s (short fight → Agony)")
+assert_false(strategies[idx_coa].matches(make_ctx({ ttd_known = true, ttd = 90 }), make_state({ coa_remains = 0 })),
+    "CurseOfAgony skips in auto mode when TTD >= 60s (long fight → Doom)")
+-- TTD boundary: exactly 60s → Doom (>= 60), 59s → Agony (< 60)
+assert_false(strategies[idx_coa].matches(make_ctx({ ttd_known = true, ttd = 60 }), make_state({ coa_remains = 0 })),
+    "CurseOfAgony skips at TTD = 60s (boundary: >= 60 selects Doom)")
+assert_true(strategies[idx_coa].matches(make_ctx({ ttd_known = true, ttd = 59 }), make_state({ coa_remains = 0 })),
+    "CurseOfAgony matches at TTD = 59s (boundary: < 60 selects Agony)")
+-- Explicit curse_mode overrides TTD-based auto selection
+assert_true(strategies[idx_coa].matches(make_ctx({ settings = { warlock_curse_mode = "agony" }, ttd_known = true, ttd = 90 }), make_state({ coa_remains = 0 })),
+    "CurseOfAgony matches when curse_mode=agony even with long TTD")
+assert_false(strategies[idx_coa].matches(make_ctx({ settings = { warlock_curse_mode = "doom" }, ttd_known = true, ttd = 10 }), make_state({ coa_remains = 0 })),
+    "CurseOfAgony skips when curse_mode=doom even with short TTD")
+-- Assigned curse overrides everything
+assert_true(strategies[idx_coa].matches(make_ctx({ settings = { warlock_assigned_curse = "agony" }, ttd_known = true, ttd = 90 }), make_state({ coa_remains = 0 })),
+    "CurseOfAgony matches when assigned_curse=agony even with long TTD")
+assert_false(strategies[idx_coa].matches(make_ctx({ settings = { warlock_assigned_curse = "doom" }, ttd_known = true, ttd = 10 }), make_state({ coa_remains = 0 })),
+    "CurseOfAgony skips when assigned_curse=doom even with short TTD")
+-- Existing debuff blocks refresh (CURSE_REFRESH_WINDOW = 3 in mock)
+assert_false(strategies[idx_coa].matches(make_ctx({ ttd_known = true, ttd = 30 }), make_state({ coa_remains = 10 })),
+    "CurseOfAgony skips when CoA debuff still has time remaining")
+-- Unknown TTD defaults to 999 (long fight) → Doom selected, Agony skips
+assert_false(strategies[idx_coa].matches(make_ctx({ ttd_known = false }), make_state({ coa_remains = 0 })),
+    "CurseOfAgony skips when TTD unknown (defaults to long fight → Doom)")
+
+-- ============================================================================
 -- LifeTap: not casting/channeling, mana low (default 20%), hp safe (default 50%)
 -- ============================================================================
 local idx_lt = dsl_indices["LifeTap"]
