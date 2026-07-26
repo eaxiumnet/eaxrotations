@@ -1,5 +1,33 @@
 # Changelog
 
+## 2.17.0 — 2026-07-26
+
+### Customer Changelog
+- **Schema settings sync fix**: All class settings (checkboxes, sliders, dropdowns) now properly sync to the rotation engine. Previously, settings like Auto Prowl, Auto Taunt, and Curse Mode were purely cosmetic — toggling them did nothing. Toggling Auto Prowl OOC off now correctly disables auto-prowl.
+- **Warlock (Destruction)**: Auto curse mode now picks Curse of Doom for long fights (≥60s TTD) and Curse of Agony for short fights (<60s), instead of always defaulting to Doom.
+- **Warlock (Destruction)**: New **Immolate toggle** checkbox — disable for speed-kill guilds that skip Immolate for pure Shadow Bolt spam.
+- **Warlock (Destruction)**: **Life Tap while moving** — replaces Searing Pain as the movement filler. When moving and mana isn't full, the rotation taps for mana instead of casting Searing Pain. Safety-gated on HP so you don't kill yourself.
+- **Warlock (Destruction)**: **Configurable Life Tap thresholds** — mana threshold slider (default 20%) and HP safety gate slider (default 50%) replace the old hardcoded 35%/40% values.
+- Version **2.17.0**.
+- Clean `eaxrotations.zip` (lua + md only).
+- All tests passing: 391 rotation + 31 leveling suites.
+
+### Developer Notes
+- `main.lua` — `create_schema_widget` dropdown sync: replaced `or`-chained lookups (`vals[i] or vals[i+1]`) with `resolve_index`/`resolve_label` helpers using explicit nil-checks (`if v ~= nil then return v end`). Fixes Lua truthiness bug where option values of `0` or `false` would silently fall through `or` to the wrong index. No current schema uses value=0/false but priest `shadow_multidot_mode` uses numeric values 1,2,3.
+- `main.lua` — schema widget sync loop now writes settings directly to the settings table (`st[key] = value`) instead of only syncing hardcoded quick-toggle keybinds + playstyle. This is the fix that made Auto Prowl, Auto Taunt, Curse Mode, and all other class settings actually work.
+- `classes/warlock/destruction_sylvanas.lua` — `select_curse()` auto mode: Doom for TTD ≥ 60s, Agony for TTD < 60s.
+- `classes/warlock/destruction_sylvanas.lua` — Immolate DSL: added `destro_use_immolate` checkbox gate as first condition.
+- `classes/warlock/destruction_sylvanas.lua` — LifeTap DSL: configurable `destro_life_tap_mana` (default 20%) / `destro_life_tap_min_hp` (default 50%) via `spec_kit.setting_number`. Added `LifeTapMoving` strategy to ACTIONS table (positioned before SearingPain) so DSL substitution picks it up.
+- `classes/warlock/schema_sylvanas.lua` — 3 new Destruction tab settings: `destro_use_immolate`, `destro_life_tap_mana`, `destro_life_tap_min_hp`.
+- `tests/test_schema_widget_sync.lua` — new regression guard: 6 parts (static scan, functional mock, setting_bool consumer, nil-sync guard, set_setting spam guard, dropdown edge-case audit with 8 cases covering 1-based/0-based indices, value=0/false truthiness, out-of-bounds, label resolution).
+- `tests/test_destruction_dsl_priority.lua` — updated LifeTap test values to match new defaults (mana 15% instead of 30%); added coverage for Immolate toggle, curse TTD switch, configurable LifeTap threshold, and LifeTapMoving strategy.
+- `shared/declarative_menu_sylvanas.lua` — declarative `_G.menu` builder (feature-flagged behind `eax_use_declarative_menu`, default false). Infrastructure for future menu migration.
+
+## 2.16.1 — 2026-07-25
+
+### Developer Notes
+- Internal fix: schema widget sync hardening (precursor to the v2.17.0 full sync fix).
+
 ## 2.11.0 — 2026-07-22
 
 ### Customer Changelog

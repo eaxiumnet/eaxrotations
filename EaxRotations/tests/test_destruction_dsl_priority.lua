@@ -143,7 +143,7 @@ local strategies = destruction.strategies
 -- Priority order verification (partial; dynamic build, just verify DSL indices)
 -- ============================================================================
 local dsl_names = { Immolate = true, Conflagrate = true, Shadowburn = true,
-                    Incinerate = true, CurseOfDoom = true, LifeTap = true }
+                    Incinerate = true, CurseOfDoom = true, LifeTap = true, LifeTapMoving = true }
 local dsl_indices = {}
 for i = 1, #strategies do
     if dsl_names[strategies[i].name] then
@@ -227,6 +227,9 @@ assert_false(strategies[idx_imm].matches(make_ctx(), make_state({ immolate_remai
     "Immolate skips when debuff has plenty of time")
 assert_false(strategies[idx_imm].matches(make_ctx(), make_state({ spell_damage = 200, level = 70 })),
     "Immolate skips when spell damage below threshold at high level")
+-- New: Immolate toggle — disable destro_use_immolate to skip entirely (speed kills)
+assert_false(strategies[idx_imm].matches(make_ctx({ settings = { destro_use_immolate = false } }), make_state()),
+    "Immolate skips when destro_use_immolate is false (speed kill mode)")
 -- Original match function does not gate on target presence, so DSL equivalence
 -- preserves that behavior (target check is left to the framework/execute path).
 
@@ -269,22 +272,47 @@ assert_true(strategies[idx_cod].matches(make_ctx(), make_state({ cod_remains = 0
     "CurseOfDoom matches when CoD debuff absent and curse assignment is doom")
 assert_false(strategies[idx_cod].matches(make_ctx({ settings = { warlock_curse_mode = "agony" } }), make_state({ cod_remains = 0 })),
     "CurseOfDoom skips when curse mode is not doom")
+-- New: auto mode switches to Agony when TTD < 60s (short fight = Doom is a DPS loss)
+assert_false(strategies[idx_cod].matches(make_ctx({ ttd_known = true, ttd = 30 }), make_state({ cod_remains = 0 })),
+    "CurseOfDoom skips in auto mode when TTD < 60s (switches to Agony)")
 
 -- ============================================================================
--- LifeTap: not casting/channeling, mana low, hp safe
+-- LifeTap: not casting/channeling, mana low (default 20%), hp safe (default 50%)
 -- ============================================================================
 local idx_lt = dsl_indices["LifeTap"]
 local _orig_time_now = NS.time_now
+-- Keep time_now at 2 for all LifeTap/LifeTapMoving tests so the throttle doesn't block
 NS.time_now = function() return 2 end
-assert_true(strategies[idx_lt].matches(make_ctx(), make_state({ mana_pct = 30, hp = 100 })),
-    "LifeTap matches when mana low and HP safe")
-NS.time_now = _orig_time_now
+assert_true(strategies[idx_lt].matches(make_ctx(), make_state({ mana_pct = 15, hp = 100 })),
+    "LifeTap matches when mana <= 20% and HP >= 50%")
 assert_false(strategies[idx_lt].matches(make_ctx(), make_state({ mana_pct = 80, hp = 100 })),
     "LifeTap skips when mana above threshold")
-assert_false(strategies[idx_lt].matches(make_ctx(), make_state({ mana_pct = 30, hp = 30 })),
-    "LifeTap skips when HP below threshold")
-assert_false(strategies[idx_lt].matches(make_ctx({ is_casting = true }), make_state({ mana_pct = 30, hp = 100 })),
+assert_false(strategies[idx_lt].matches(make_ctx(), make_state({ mana_pct = 15, hp = 30 })),
+    "LifeTap skips when HP below 50% threshold")
+assert_false(strategies[idx_lt].matches(make_ctx({ is_casting = true }), make_state({ mana_pct = 15, hp = 100 })),
     "LifeTap skips while casting")
+-- Configurable threshold: override destro_life_tap_mana to 35%
+assert_true(strategies[idx_lt].matches(make_ctx({ settings = { destro_life_tap_mana = 35 } }), make_state({ mana_pct = 30, hp = 100 })),
+    "LifeTap matches when mana 30% with destro_life_tap_mana=35")
+assert_false(strategies[idx_lt].matches(make_ctx({ settings = { destro_life_tap_mana = 35 } }), make_state({ mana_pct = 40, hp = 100 })),
+    "LifeTap skips when mana 40% with destro_life_tap_mana=35")
+
+-- ============================================================================
+-- LifeTapMoving: fires when moving, mana not full, HP safe (replaces Searing Pain)
+-- ============================================================================
+local idx_ltm = dsl_indices["LifeTapMoving"]
+assert_true(dsl_indices["LifeTapMoving"] ~= nil, "LifeTapMoving found in strategies table")
+assert_true(strategies[idx_ltm].matches(make_ctx({ is_moving = true }), make_state({ mana_pct = 50, hp = 100 })),
+    "LifeTapMoving matches when moving, mana not full, HP safe")
+assert_false(strategies[idx_ltm].matches(make_ctx({ is_moving = false }), make_state({ mana_pct = 50, hp = 100 })),
+    "LifeTapMoving skips when not moving")
+assert_false(strategies[idx_ltm].matches(make_ctx({ is_moving = true }), make_state({ mana_pct = 100, hp = 100 })),
+    "LifeTapMoving skips when mana is full")
+assert_false(strategies[idx_ltm].matches(make_ctx({ is_moving = true }), make_state({ mana_pct = 50, hp = 30 })),
+    "LifeTapMoving skips when HP below safety gate")
+assert_false(strategies[idx_ltm].matches(make_ctx({ is_moving = true, is_casting = true }), make_state({ mana_pct = 50, hp = 100 })),
+    "LifeTapMoving skips while casting")
+NS.time_now = _orig_time_now
 
 -- ============================================================================
 -- Summary

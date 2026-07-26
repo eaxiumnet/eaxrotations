@@ -209,6 +209,14 @@ if _to_ok and ThemeOverride and ThemeOverride.apply_once then
     pcall(ThemeOverride.apply_once)
 end
 
+-- Declarative _G.menu module: provides retained-mode menu with native collapsibility
+-- (section:subsection()). Behind a feature flag (eax_use_declarative_menu, default false).
+-- When active, replaces the imperative core.menu.* render + sync path.
+-- Phase 1: scaffolding only — imperative menu stays active by default.
+local _dm_ok, DeclarativeMenu = pcall(require, "shared/declarative_menu_sylvanas")
+if not _dm_ok or type(DeclarativeMenu) ~= "table" then DeclarativeMenu = nil end
+local _declarative_menu_active = false
+
 -- Pre-allocated empty table for 'or {}' fallbacks (avoids GC pressure from repeated table creation)
 local EMPTY_TABLE = {}
 
@@ -431,29 +439,44 @@ local function create_schema_widget(def)
         widget.render = function()
             widget.control:render(widget.label, option_labels, widget.tooltip)
         end
+        -- Index-based resolve helper: try 1-based first, then 0-based (some PS builds).
+        -- Uses explicit nil-check (NOT `or`) because option values can be 0 or false,
+        -- which are falsy in Lua and would fall through `or` to the wrong value.
+        local function resolve_index(idx, vals)
+            local v = vals[idx]
+            if v ~= nil then return v end
+            return vals[idx + 1]  -- 0-based fallback
+        end
+        -- Label-based resolve helper: try exact match, then lowercased.
+        -- Uses explicit nil-check (NOT `or`) for the same truthiness reason.
+        local function resolve_label(label, by_label)
+            local v = by_label[tostring(label)]
+            if v ~= nil then return v end
+            return by_label[tostring(label):lower()]
+        end
         widget.sync = function()
             if not widget.control then return nil end
             local ok, raw_value = pcall(function() return widget.control:get() end)
             if ok and type(raw_value) == "number" then
-                return widget.option_values[raw_value] or widget.option_values[raw_value + 1]
+                return resolve_index(raw_value, widget.option_values)
             end
             if ok and raw_value ~= nil then
-                return widget.option_values_by_label[tostring(raw_value)] or widget.option_values_by_label[tostring(raw_value):lower()]
+                return resolve_label(raw_value, widget.option_values_by_label)
             end
             ok, raw_value = pcall(function()
                 return widget.control.get_value and widget.control:get_value() or nil
             end)
             if ok and type(raw_value) == "number" then
-                return widget.option_values[raw_value] or widget.option_values[raw_value + 1]
+                return resolve_index(raw_value, widget.option_values)
             end
             if ok and raw_value ~= nil then
-                return widget.option_values_by_label[tostring(raw_value)] or widget.option_values_by_label[tostring(raw_value):lower()]
+                return resolve_label(raw_value, widget.option_values_by_label)
             end
             ok, raw_value = pcall(function()
                 return widget.control.get_selected_text and widget.control:get_selected_text() or nil
             end)
             if ok and raw_value ~= nil then
-                return widget.option_values_by_label[tostring(raw_value)] or widget.option_values_by_label[tostring(raw_value):lower()]
+                return resolve_label(raw_value, widget.option_values_by_label)
             end
             return nil
         end
@@ -579,6 +602,14 @@ end
 -- Falls back to settings / framework. Used for labels, roles, and to keep UI responsive
 -- even if manager cache or get_setting lags after a user selection.
 local function get_active_playstyle()
+    -- Declarative menu: read playstyle from _G.menu dropdown when active
+    if _declarative_menu_active and DeclarativeMenu then
+        local ps_idx = DeclarativeMenu.get_widget_value("playstyle")
+        if type(ps_idx) == "number" and playstyle_keys[ps_idx] then
+            local v = playstyle_keys[ps_idx]
+            if type(v) == "string" and v ~= "" then return v end
+        end
+    end
     if menu_elements and menu_elements.playstyle_combo then
         local ok, idx = pcall(function() return menu_elements.playstyle_combo:get() end)
         if ok and type(idx) == "number" and playstyle_keys[idx] then
@@ -628,7 +659,25 @@ local menu_elements = {
 
 }
 
-
+-- Declarative _G.menu initialization: build the page/section/subsection tree when
+-- _G.menu is available and the feature flag (eax_use_declarative_menu) is enabled.
+-- Phase 1: default OFF — imperative menu stays active. Enable via
+-- NS.set_setting("eax_use_declarative_menu", true) then /reload.
+if DeclarativeMenu and DeclarativeMenu.is_available and DeclarativeMenu.is_available() then
+    local _dm_flag = framework_core and framework_core.get_setting and
+        framework_core.get_setting("eax_use_declarative_menu", false) or false
+    if _dm_flag then
+        local _init_ok, _init_result = pcall(DeclarativeMenu.initialize, DeclarativeMenu,
+            class_schema, class_config, MenuTheme, playstyle_keys, playstyle_options,
+            QUICK_TOGGLE_SETTING_KEYS, get_active_playstyle)
+        if _init_ok and _init_result then
+            _declarative_menu_active = true
+            core.log("[EaxRotations] Declarative _G.menu initialized (feature flag ON)")
+        else
+            core.log_warning("[EaxRotations] Declarative _G.menu init failed: " .. tostring(_init_result))
+        end
+    end
+end
 
 -- section_headers is declared above (before initialize_schema_menu() call)
 
@@ -1150,12 +1199,24 @@ local function on_update()
     -- NS.get_setting see the live user-selected value. Without this, schema
     -- checkboxes like cat_auto_prowl are purely cosmetic — the setting always
     -- returns its default because the widget value never reaches NS.settings.
-    for key, widget in pairs(schema_widgets) do
-        if widget and widget.sync then
-            local ok, value = pcall(widget.sync)
-            if ok and value ~= nil then
-                st[key] = value
+    -- Skip when declarative menu is active (declarative sync below handles it).
+    if not _declarative_menu_active then
+        for key, widget in pairs(schema_widgets) do
+            if widget and widget.sync then
+                local ok, value = pcall(widget.sync)
+                if ok and value ~= nil then
+                    st[key] = value
+                end
             end
+        end
+    end
+
+    -- Declarative menu sync: when active, read all widget values via menu:get
+    -- and write to NS.settings. Replaces the imperative sync loop above.
+    if _declarative_menu_active and DeclarativeMenu then
+        pcall(DeclarativeMenu.sync_to_settings, DeclarativeMenu, st, playstyle_keys)
+        if NS and NS.refresh_settings_cache then
+            pcall(NS.refresh_settings_cache)
         end
     end
 
@@ -1229,11 +1290,16 @@ if NS and NS.register_on_update_callback then
 else
     core.log_error("[EaxRotations:main] FAIL: NS.register_on_update_callback is nil -- PS build missing API")
 end
-if type(core.register_on_render_menu_callback) == "function" then
-    pcall(core.register_on_render_menu_callback, render_menu)
-end
-if type(core.register_on_render_control_panel_callback) == "function" then
-    pcall(core.register_on_render_control_panel_callback, on_control_panel_render)
+-- Declarative menu: skip imperative render + control panel callbacks when active.
+-- The declarative _G.menu renders itself (retained mode); control panel migration
+-- is Phase 3 (menu.control_panel.add). The imperative menu stays active by default.
+if not _declarative_menu_active then
+    if type(core.register_on_render_menu_callback) == "function" then
+        pcall(core.register_on_render_menu_callback, render_menu)
+    end
+    if type(core.register_on_render_control_panel_callback) == "function" then
+        pcall(core.register_on_render_control_panel_callback, on_control_panel_render)
+    end
 end
 
 -- Movement handler render callback: required for pause/face delays and auto-resume.

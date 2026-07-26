@@ -12,7 +12,7 @@
 **Local Path**: `C:\newbot\scripts`
 **Last Updated**: 2026-07-25
 **Specs**: 29 TBC Classic class specializations (all 29 completed)
-**Tests**: 390 rotation suites registered in `run_rotation_tests.lua` + 31 leveling suites in `run_leveling_tests.lua` (421 total)
+**Tests**: 391 rotation suites registered in `run_rotation_tests.lua` + 31 leveling suites in `run_leveling_tests.lua` (422 total)
 
 ---
 
@@ -445,7 +445,7 @@ return { strategies = strategies, build_state = build_state }
 ## Testing Rules
 
 - Run `luac -p` on every modified file before commit
-- Run `lua EaxRotations/tests/run_rotation_tests.lua` — all 390 rotation suites must pass
+- Run `lua EaxRotations/tests/run_rotation_tests.lua` — all 391 rotation suites must pass
 - Run `lua EaxRotations/tests/run_leveling_tests.lua` — all 31 leveling suites must pass
 - `lsp_diagnostics` must show 0 errors on changed files
 
