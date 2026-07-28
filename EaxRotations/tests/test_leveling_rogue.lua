@@ -141,7 +141,7 @@ local function build_mock_env()
         is_in_combat = function() return false end,
         get_target = function() return mock_target end,
         get_position = function() return { x = 0, y = 0, z = 0 } end,
-        get_power = function() return 100 end,
+        get_power = function(_, pt) if pt == 4 then return NS.combo_points or 0 end return 100 end,
     }
 
     NS.log = function() end
@@ -211,7 +211,7 @@ local function make_context(overrides)
             get_max_health = function() return 10000 end,
             has_buff = function(id) return false end,
             get_position = function() return { x = 0, y = 0, z = 0 } end,
-            get_power = function() return 100 end,
+            get_power = function(_, pt) if pt == 4 then return NS.combo_points or 0 end return 100 end,
         },
         target = {
             is_valid = function() return true end,
@@ -290,7 +290,7 @@ test("build_state: missing context fields use defaults", function()
     local ctx = {
         is_solo = false,
         is_leveling = true,
-        me = { is_valid = function() return true end, has_buff = function() return false end, get_health = function() return 10000 end, get_max_health = function() return 10000 end, get_power = function() return 100 end },
+        me = { is_valid = function() return true end, has_buff = function() return false end, get_health = function() return 10000 end, get_max_health = function() return 10000 end, get_power = function(_, pt) if pt == 4 then return NS.combo_points or 0 end return 100 end },
         target = { is_valid = function() return true end, get_health = function() return 8000 end, get_max_health = function() return 10000 end, is_casting = function() return false end, is_alive = function() return true end, get_guid = function() return "mock-target" end, get_distance = function() return 5 end, get_health_percentage = function() return 80 end },
         settings = {},
     }
