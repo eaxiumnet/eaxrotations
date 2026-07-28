@@ -80,12 +80,33 @@ local resto_state = {
     lowest_time_to_die = 999,
 }
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local RESTO_VANILLA_SCHEMA = {
+    lowest = nil,  tank = nil,
+    natures_swiftness_active = false,  has_lightning_shield = false,
+    lightning_shield_ready = false,  chain_heal_ready = false,
+    healing_wave_ready = false,  lesser_healing_wave_ready = false,
+    mana_tide_ready = false,  bloodlust_ready = false,
+    natures_swiftness_ready = false,  earth_shock_ready = false,
+    flame_shock_ready = false,  lightning_bolt_ready = false,
+    chain_lightning_ready = false,  purge_ready = false,
+    cure_poison_ready = false,  cure_disease_ready = false,
+    mana_pct = 100,  hp_pct = 100,  mana_low = false,
+    mana_conserve = false,  mana_emergency = false,
+    in_combat = false,  enemy_count = 1,  target_casting = false,
+    flame_shock_remains = 0,  healing_way_stacks = 0,
+    healing_way_remains = 0,  chain_heal_target_count = 0,
+    tremor_totem_ready = false,  grounding_totem_ready = false,
+    poison_cleansing_totem_ready = false,  disease_cleansing_totem_ready = false,
+    cleanse_target = nil,  lowest_hp_pct = 100,  lowest_time_to_die = 999,
+}
+
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
-    if not me then return resto_state end
+    if not me then return spec_kit.safe_state(resto_state, RESTO_VANILLA_SCHEMA) end
     -- Mounted bail: healer should not queue buffs/heals while mounted
     if me.is_mounted and me:is_mounted() then
-        return resto_state
+        return spec_kit.safe_state(resto_state, RESTO_VANILLA_SCHEMA)
     end
     local target = context.target
     local entries, count = Healing.scan_healing_targets()
@@ -141,7 +162,7 @@ local function build_state(context)
     -- Resolve cleanse target for dispel strategies (cached per frame)
     resto_state.cleanse_target = Healing.get_cleanse_target and Healing.get_cleanse_target() or nil
 
-    return resto_state
+    return spec_kit.safe_state(resto_state, RESTO_VANILLA_SCHEMA)
 end
 
 local function cooldowns_enabled(context)

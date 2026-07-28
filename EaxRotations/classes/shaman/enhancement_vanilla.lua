@@ -7,6 +7,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 
 local _core = (NS and NS.core) or rawget(_G, "core")
@@ -139,6 +140,42 @@ local runtime = {
 }
 
 ---@diagnostic disable-next-line: duplicate-set-field
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local ENH_VANILLA_SCHEMA = {
+    now_ms = 0,  has_lightning_shield = false,
+    has_windfury_weapon = false,  has_flametongue_weapon = false,
+    has_rockbiter_weapon = false,  has_frostbrand_weapon = false,
+    has_ghost_wolf = false,
+    oh_has_windfury_weapon = false,  oh_has_flametongue_weapon = false,
+    oh_has_rockbiter_weapon = false,  oh_has_frostbrand_weapon = false,
+    mh_enchant_id = nil,  oh_enchant_id = nil,
+    mana_pct = 100,  hp_pct = 100,  mana_low = false,
+    mana_emergency = false,  in_combat = false,  enemy_count = 1,
+    is_moving = false,  target_is_casting = false,  target_cast_pct = 0,
+    lightning_shield_ready = false,  lightning_shield_charges = 0,
+    stormstrike_ready = false,  flame_shock_ready = false,
+    earth_shock_ready = false,  frost_shock_ready = false,
+    chain_lightning_ready = false,  lightning_bolt_ready = false,
+    windfury_totem_ready = false,  grace_of_air_totem_ready = false,
+    strength_of_earth_totem_ready = false,  stoneskin_totem_ready = false,
+    mana_spring_totem_ready = false,  healing_stream_totem_ready = false,
+    searing_totem_ready = false,  magma_totem_ready = false,
+    fire_nova_totem_ready = false,  mana_tide_totem_ready = false,
+    natures_swiftness_ready = false,  lesser_healing_wave_ready = false,
+    chain_heal_ready = false,  tremor_totem_ready = false,
+    grounding_totem_ready = false,  ghost_wolf_ready = false,
+    target_has_flame_shock = false,  flame_shock_remains = 0,
+    target_is_interruptible = false,  target_can_interrupt = false,
+    combat_mode = "auto",  earth_shock_mode = "interrupts",
+    shield_type = "auto",  aoe_threshold = 3,
+    self_heal_hp = 40,  chain_heal_hp = 35,
+    kick_min_pct = 40,  kick_max_pct = 80,
+    ghost_wolf_ooc = true,  water_shield_mana = 60,
+    lightning_shield_mana = 80,  manage_totems = true,
+    totem_twisting = true,  totemic_call_ready = false,
+    gift_of_the_naaru_ready = false,
+}
+
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
@@ -278,7 +315,7 @@ local function build_state(context)
     enh_state.totemic_call_ready = me and NS.spell_ready(SPELLS.TotemicCall, me, { skip_range = true, expected_cooldown = 120 }) or false
     enh_state.gift_of_the_naaru_ready = me and NS.spell_ready(SPELLS.GiftOfTheNaaru, me, { skip_range = true, expected_cooldown = 120 }) or false
 
-    return enh_state
+    return spec_kit.safe_state(enh_state, ENH_VANILLA_SCHEMA)
 end
 
 -- ============================================================================

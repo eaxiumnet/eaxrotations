@@ -28,6 +28,7 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 local NS = _G.EaxRotations
 if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 
 -- Fallback spell definitions for keys not yet in class_sylvanas.lua
@@ -81,6 +82,15 @@ local ele_state = {
     spell_damage = 0,
 }
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local ELE_VANILLA_SCHEMA = {
+    flame_remains = 0,  lightning_shield_up = false,
+    mana_pct = 100,  mana_low = false,  mana_conserve = false,
+    mana_emergency = false,  hp_pct = 100,  target_count = 1,
+    has_flametongue = false,  has_windfury = false,
+    has_rockbiter = false,  now_ms = 0,  spell_damage = 0,
+}
+
 local function build_state(context)
     local target = context.target
     if target then
@@ -106,7 +116,7 @@ local function build_state(context)
     ele_state.has_flametongue = (ele_state.now_ms - runtime.last_flametongue_ms) < WEAPON_BUFF_REFRESH_MS
     ele_state.has_windfury = (ele_state.now_ms - runtime.last_windfury_ms) < WEAPON_BUFF_REFRESH_MS
     ele_state.has_rockbiter = (ele_state.now_ms - runtime.last_rockbiter_ms) < WEAPON_BUFF_REFRESH_MS
-    return ele_state
+    return spec_kit.safe_state(ele_state, ELE_VANILLA_SCHEMA)
 end
 
 -- ============================================================================

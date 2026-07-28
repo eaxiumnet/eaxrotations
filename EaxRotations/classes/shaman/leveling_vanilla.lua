@@ -118,6 +118,31 @@ local function select_weapon_imbue(setting)
     return nil
 end
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local LEVELING_VANILLA_SCHEMA = {
+    in_combat = false,  mana_pct = 100,  hp = 100,  enemies = 0,
+    target = nil,  is_moving = false,  is_pvp = false,
+    is_channeling = false,  in_melee_range = false,
+    heal_hp = 50,  wand_threshold = 30,  use_shocks = true,
+    default_shock = "flame",  use_weapon_imbue = true,
+    weapon_imbue = nil,  use_totems = true,
+    use_searing_totem = true,  use_strength_totem = true,
+    use_water_totem = true,  now_ms = 0,
+    has_lightning_shield = false,  has_mainhand_imbue = false,
+    weapon_imbue_api_known = true,
+    lightning_bolt_ready = false,  earth_shock_ready = false,
+    flame_shock_ready = false,  frost_shock_ready = false,
+    chain_lightning_ready = false,  lightning_shield_ready = false,
+    healing_wave_ready = false,  lesser_healing_wave_ready = false,
+    ghost_wolf_ready = false,  purge_ready = false,
+    earthbind_totem_ready = false,  stoneclaw_totem_ready = false,
+    fire_nova_totem_ready = false,  searing_totem_ready = false,
+    strength_of_earth_ready = false,  grace_of_air_ready = false,
+    mana_spring_ready = false,  healing_stream_ready = false,
+    grounding_totem_ready = false,  windfury_totem_ready = false,
+    tremor_totem_ready = false,  stormstrike_ready = false,
+}
+
 function shaman_leveling.build_state(context)
     if not context then return nil end
     local state = {}
@@ -166,7 +191,7 @@ function shaman_leveling.build_state(context)
     state.use_water_totem = spec_kit.setting_bool(context, "leveling_use_water_totem", true)
     state.wand_threshold = spec_kit.setting_number(context, "leveling_wand_threshold", 30)
 
-    return state
+    return spec_kit.safe_state(state, LEVELING_VANILLA_SCHEMA)
 end
 
 local function has_enemy_target(context, state)
