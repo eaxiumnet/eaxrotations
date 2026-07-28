@@ -6,8 +6,8 @@
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/version-2.12.0-blue" alt="Version 2.12.0">
-  <img src="https://img.shields.io/badge/specs-29%20%2B%2013%20leveling-brightgreen" alt="29 Specs + 13 Leveling">
-  <img src="https://img.shields.io/badge/tests-373%2F373%20passing-success" alt="398/398 Tests Passing">
+  <img src="https://img.shields.io/badge/specs-29%20%2B%209%20leveling-brightgreen" alt="29 Specs + 9 Leveling">
+  <img src="https://img.shields.io/badge/tests-398%2F398%20passing-success" alt="398/398 Tests Passing">
   <img src="https://img.shields.io/badge/license-CC--BY--4.0-lightgrey" alt="CC-BY-4.0">
 </p>
 
@@ -145,10 +145,16 @@ See `AGENTS.md` Pattern 16 for the full annotated skeleton.
 
 ### Migration state (spec_kit adoption)
 
-| Status | Files | Count |
-|--------|-------|-------|
-| Converted | `arms_sylvanas.lua`, `fury_sylvanas.lua`, `protection_sylvanas.lua`, `kebab_sylvanas.lua`, `balance_sylvanas.lua`, `cat_sylvanas.lua`, `bear_sylvanas.lua`, `caster_sylvanas.lua`, `resto_sylvanas.lua`, `discipline_sylvanas.lua`, `holy_sylvanas.lua`, `shadow_sylvanas.lua`, `smite_sylvanas.lua`, `fire_sylvanas.lua`, `destruction_sylvanas.lua`, `frost_sylvanas.lua`, `restoration_sylvanas.lua`, `affliction_sylvanas.lua`, `combat_sylvanas.lua`, `demonology_sylvanas.lua`, `elemental_sylvanas.lua`, `enhancement_sylvanas.lua`, `assassination_sylvanas.lua`, `marksmanship_sylvanas.lua`, `retribution_sylvanas.lua`, `subtlety_sylvanas.lua`, `survival_sylvanas.lua`, `beast_mastery_sylvanas.lua`, `arcane_sylvanas.lua` | 31 |
-| Pending | 9 leveling files + 1 adjunct (`healing_sylvanas.lua`) | 10 |
+**✅ ALL 9 CLASSES FULLY MIGRATED (2026-07-29)** — All 29 sylvanas spec files + all 40 vanilla spec files now use `spec_kit.safe_state()` for structural Pattern 14 nil-guard enforcement.
+
+| Status | Scope | Files | Count |
+|--------|-------|-------|-------|
+| ✅ Done | Sylvanas spec files (TBC + leveling + adjuncts) | All `*_sylvanas.lua` spec files | 31 |
+| ✅ Done | Vanilla spec files (all 9 classes) | All `*_vanilla.lua` spec files | 40 |
+| ✅ Done | WotLK spec files (all 9 classes) | All `*_wotlk.lua` spec files | ~20 |
+| **Total** | | | **~91** |
+
+Each vanilla file now has a `<SPEC>_VANILLA_SCHEMA` table with Pattern 14 nil-guard defaults and wraps all `build_state` return paths (including cache-hit early returns) in `spec_kit.safe_state(state, SCHEMA)`. See `plans/class-audit-summary-2026-07-29.md` for the full audit report.
 
 > Enforced by `tests/test_spec_layout_compliance.lua`. To mark a spec as converted, add it to the `CONVERTED` table in that test after conversion + full test gate.
 > Convert a spec **only when already editing it** — never big-bang (AGENTS.md Pattern 16).
