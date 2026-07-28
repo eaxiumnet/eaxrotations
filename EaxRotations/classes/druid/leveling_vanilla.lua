@@ -51,6 +51,33 @@ local function has_buff(buff_ids)
     return false
 end
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local LEVELING_DRUID_VANILLA_SCHEMA = {
+    in_combat = false,  mana_pct = 100,  hp = 100,  enemies = 0,
+    target = nil,  is_moving = false,  pet = nil,
+    wand_learned = false,  use_interrupt = true,
+    mark_of_the_wild_ready = false,  thorns_ready = false,
+    moonfire_ready = false,  wrath_ready = false,  starfire_ready = false,
+    insect_swarm_ready = false,  hurricane_ready = false,
+    rejuvenation_ready = false,  healing_touch_ready = false,
+    barkskin_ready = false,  entangling_roots_ready = false,
+    natures_grasp_ready = false,  faerie_fire_ready = false,
+    is_bear = false,  is_cat = false,  in_caster = false,
+    energy = 0,  combo_points = 0,  rage = 0,
+    is_behind = false,  is_stealthed = false,
+    cat_form_ready = false,  bear_form_ready = false,
+    prowl_ready = false,  pounce_ready = false,  ravage_ready = false,
+    rake_ready = false,  shred_ready = false,  rip_ready = false,
+    bite_ready = false,  claw_ready = false,  swipe_ready = false,
+    maul_ready = false,  frenzied_regen_ready = false,
+    faerie_fire_feral_ready = false,
+    rake_remains = 0,  rip_remains = 0,  faerie_fire_feral_remains = 0,
+    target_ttd = 999,  target_ttd_known = false,  target_hp = 100,
+    in_melee = false,  target_range = 40,
+    has_mark_of_wild = false,  has_thorns = false,
+    heal_hp = 40,  bear_hp = 40,  use_feral = true,  wand_threshold = 30,
+}
+
 function druid_leveling.build_state(context)
     if not context then return nil end
     local state = {}
@@ -119,7 +146,7 @@ function druid_leveling.build_state(context)
     state.use_feral = spec_kit.setting_bool(context, "leveling_use_feral", true)
     state.wand_threshold = spec_kit.setting_number(context, "leveling_wand_threshold", 30)
 
-    return state
+    return spec_kit.safe_state(state, LEVELING_DRUID_VANILLA_SCHEMA)
 end
 
 -- ============================================================================

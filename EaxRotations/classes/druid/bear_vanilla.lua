@@ -329,10 +329,41 @@ end
 -- available (real game); falls back to no caching in test environments.
 local _last_build_state_time = -1
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local BEAR_VANILLA_SCHEMA = {
+    now = 0,  me = nil,  target = nil,  settings = nil,
+    hp = 100,  rage = 0,  rage_deficit = 100,
+    stance = 0,  in_combat = false,  combat_time = 0,
+    target_hp = 100,  target_ttd = 999,  target_range = 40,
+    in_melee = false,  enemy_count = 1,  aoe_threshold = 3,
+    maul_rage = 50,  barkskin_hp = 55,  frenzied_regen_hp = 35,
+    demo_roar_enabled = true,  should_burst = false,
+    has_valid_target = false,  is_bear = false,
+    is_target_boss = false,  is_target_player = false,
+    target_is_casting = false,  target_interruptible = true,
+    target_target_is_me = false,  target_target_exists = false,
+    target_target_is_player = false,  target_target_is_tank = false,
+    target_target_is_healer = false,
+    has_clearcasting = false,  has_barkskin = false,
+    has_frenzied_regen = false,  has_mark = false,  has_thorns = false,
+    faerie_remains = 0,  demo_remains = 0,
+    swipe_ready = false,  maul_ready = false,  growl_ready = false,
+    challenging_ready = false,  barkskin_ready = false,
+    frenzied_ready = false,  bash_ready = false,
+    faerie_ready = false,  demo_ready = false,  enrage_ready = false,
+    healthstone_ready = 0,  potion_ready = 0,
+    loose_target = false,  group_pressure = false,
+    heavy_damage = false,  emergency_damage = false,
+    rage_per_second = 0,  rage_delta = 0,  last_rage = 0,
+    last_rage_time = 0,  pack_needs_demo = false,
+    off_target = nil,  off_target_threat_low = false,
+    pack_loose = 0,  pack_elites = 0,  last_scan_time = 0,
+}
+
 local function build_state(context)
     local state = bear_state
     local now = context.now
-    if now and now == _last_build_state_time then return state end
+    if now and now == _last_build_state_time then return spec_kit.safe_state(state, BEAR_VANILLA_SCHEMA) end
     now = now or (NS.time_now and NS.time_now() or 0)
     if context.now then _last_build_state_time = now end
     state.now = now
@@ -412,7 +443,7 @@ local function build_state(context)
         end
     end
 
-    return state
+    return spec_kit.safe_state(state, BEAR_VANILLA_SCHEMA)
 end
 
 local function action_ready(context, action)

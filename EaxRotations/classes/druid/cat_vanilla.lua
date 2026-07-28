@@ -107,6 +107,25 @@ local cat_state = {
     should_aoe = false,
 }
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local CAT_VANILLA_SCHEMA = {
+    now = 0,  me = nil,  target = nil,  settings = nil,
+    hp = 100,  mana_pct = 100,  energy = 0,  projected_energy = 0,
+    combo_points = 0,  enemy_count = 1,  target_hp = 100,  target_ttd = 0,
+    target_range = 0,  in_combat = false,  is_pvp = false,
+    is_player_target = false,  is_stealthed = false,  is_cat = false,
+    is_behind = false,  clearcasting = false,  has_tigers_fury = false,
+    has_dash = false,  has_barkskin = false,  has_track_humanoids = false,
+    has_wolfshead = false,  rip_remains = 0,  rake_remains = 0,
+    faerie_fire_remains = 0,  pounce_remains = 0,  rip_ap = 0,  rake_ap = 0,
+    attack_power = 0,  next_tick_in = ENERGY_TICK_INTERVAL,
+    last_energy = 0,  last_tick_time = 0,  last_shift_time = -100,
+    tick_confident = false,  pooling = false,  should_powershift = false,
+    should_pool_for_rip = false,  should_pool_for_shred = false,
+    should_execute = false,  should_tab_rake = false,  should_aoe = false,
+    level = 60,
+}
+
 local snapshot_state = {
     rip_target = nil,
     rake_target = nil,
@@ -248,7 +267,7 @@ local _last_build_state_time = -1
 local function build_state(context)
     local state = cat_state
     local now = context.now
-    if now and now == _last_build_state_time then return state end
+    if now and now == _last_build_state_time then return spec_kit.safe_state(state, CAT_VANILLA_SCHEMA) end
     now = now or get_now()
     if context.now then _last_build_state_time = now end
     state.now = now
@@ -301,7 +320,7 @@ local function build_state(context)
     state.should_tab_rake = false
     state.should_aoe = (state.enemy_count or 0) >= 3
 
-    return state
+    return spec_kit.safe_state(state, CAT_VANILLA_SCHEMA)
 end
 
 local function execute_cast(spell, target, label)

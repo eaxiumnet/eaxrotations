@@ -95,6 +95,31 @@ local resto_state = {
     should_move_form = false,
     moonfire_remains = 0,
     insect_swarm_remains = 0,
+    has_clearcasting = false,
+    mana_pct = 100,
+    mana_conserve = false,
+    mana_emergency = false,
+    mana_critical = false,
+    melee_pressure_count = 0,
+    melee_target = nil,
+    enemy_healer = nil,
+    root_target = nil,
+}
+
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local RESTO_VANILLA_SCHEMA = {
+    entries = nil,  count = 0,  tank = nil,  lowest = nil,
+    lowest_tank = nil,  lowest_healer = nil,  lowest_dps = nil,
+    swiftmend_target = nil,  ns_target = nil,  ht_target = nil,
+    regrowth_target = nil,  rejuv_target = nil,  innervate_target = nil,
+    cursed_target = nil,  poison_target = nil,
+    tranquility_count = 0,  melee_pressure_count = 0,
+    melee_target = nil,  enemy_healer = nil,  root_target = nil,
+    has_natures_swiftness = false,  has_clearcasting = false,
+    in_caster = false,  should_move_form = false,
+    moonfire_remains = 0,  insect_swarm_remains = 0,
+    mana_pct = 100,  mana_conserve = false,
+    mana_emergency = false,  mana_critical = false,
 }
 
 
@@ -278,7 +303,7 @@ local function build_state(context)
     resto_state.innervate_target = find_priority_innervate(entries, count, context)
     if context.is_moving and (context.target_distance or 0) >= REPOSITION_RANGE then resto_state.should_move_form = true end
     scan_pvp_pressure(context, resto_state)
-    return resto_state
+    return spec_kit.safe_state(resto_state, RESTO_VANILLA_SCHEMA)
 end
 
 local function solo_damage_enabled(context, state)

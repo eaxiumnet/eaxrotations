@@ -14,6 +14,7 @@ do
 end
 local SPELLS = NS.DruidSpells or {}
 local _potion_helper = require("shared/potion_helper_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = { potions = {} } } end
 local _TBC_P = (TBC.ITEMS and TBC.ITEMS.potions) or {}
@@ -53,6 +54,15 @@ local _state = {
     barkskin_active=false, mana_pct=100,
     enemy_count=1, target_ttd=999, innervate_target=nil, spell_damage=0,
     target_range=40, wand_threshold=30,
+}
+
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local BAL_VANILLA_SCHEMA = {
+    insect_remains = 0,  moonfire_remains = 0,  ff_remains = 0,
+    natures_grace_active = false,  barkskin_active = false,
+    mana_pct = 100,  enemy_count = 1,  target_ttd = 999,
+    innervate_target = nil,  spell_damage = 0,
+    target_range = 40,  wand_threshold = 30,
 }
 
 local function _build_state(ctx)
@@ -107,7 +117,7 @@ local function _build_state(ctx)
     if not _state.innervate_target then
         if (_state.mana_pct or 100) <= floor_mana then _state.innervate_target = ctx.me end
     end
-    return _state
+    return spec_kit.safe_state(_state, BAL_VANILLA_SCHEMA)
 end
 
 local function _mana_now(s, ctx) return s.mana_pct or ctx.mana or ctx.mana_pct or 100 end
