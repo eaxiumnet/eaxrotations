@@ -80,6 +80,25 @@ local mm_state = {
     is_ooc = false,
 }
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local MM_VANILLA_SCHEMA = {
+    has_pet = false,  pet_alive = false,  pet_dead = false,
+    pre_steady_leveling = false,  pet_hp_pct = 100,
+    has_hunters_mark = false,  has_serpent_sting = false,
+    serpent_sting_remains = 0,  has_aspect_hawk = false,
+    has_aspect_viper = false,  mend_pet_ready = false,
+    hunters_mark_ready = false,  rapid_fire_ready = false,
+    aimed_shot_prepull_ready = false,  aimed_shot_ready = false,
+    target_is_casting = false,  target_interruptible = false,
+    multi_shot_ready = false,  steady_shot_ready = false,
+    arcane_shot_ready = false,  serpent_sting_ready = false,
+    call_pet_ready = false,  revive_pet_ready = false,
+    feign_death_ready = false,  freezing_trap_ready = false,
+    viper_sting_ready = false,  bestial_wrath_ready = false,
+    mana_pct = 100,  in_combat = false,  enemy_count = 1,
+    is_ooc = false,
+}
+
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
@@ -123,7 +142,7 @@ local function build_state(context)
         or (not mm_state.aimed_shot_ready)
         or (context.is_leveling == true)
 
-    return mm_state
+    return spec_kit.safe_state(mm_state, MM_VANILLA_SCHEMA)
 end
 
 local function cooldowns_enabled(context)

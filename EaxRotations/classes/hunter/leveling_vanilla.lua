@@ -18,6 +18,25 @@ local HUNTERS_MARK_IDS = { 14325, 14324, 14323, 1130 }
 local context_allowed = leveling.create_context_guard()
 local leveling_state = {}
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local LEVELING_HUNTER_VANILLA_SCHEMA = {
+    in_combat = false,  mana_pct = 100,  hp = 100,  enemies = 0,
+    target = nil,  is_moving = false,  pet = nil,
+    wand_learned = false,  use_interrupt = true,
+    has_aspect_hawk = false,  low_mana = false,
+    serpent_sting_use = true,  hunters_mark_use = true,
+    serpent_sting_ready = false,  hunters_mark_ready = false,
+    arcane_shot_ready = false,  multi_shot_ready = false,
+    aimed_shot_ready = false,  mend_pet_ready = false,
+    call_pet_ready = false,  aspect_hawk_ready = false,
+    aspect_cheetah_ready = false,  has_aspect_cheetah = false,
+    concussive_shot_ready = false,  wing_clip_ready = false,
+    raptor_strike_ready = false,  mongoose_bite_ready = false,
+    rapid_fire_ready = false,  scare_beast_ready = false,
+    freezing_trap_ready = false,  feign_death_ready = false,
+    pet_hp = 100,
+}
+
 local function safe_buff_up(unit, ids)
     if not unit or not NS.buff_up then return false end
     local ok, result = pcall(NS.buff_up, unit, ids)
@@ -72,7 +91,7 @@ local function build_state(context)
         leveling_state.pet_hp = 100
     end
 
-    return leveling_state
+    return spec_kit.safe_state(leveling_state, LEVELING_HUNTER_VANILLA_SCHEMA)
 end
 
 local function aspect_hawk_matches(context, state)

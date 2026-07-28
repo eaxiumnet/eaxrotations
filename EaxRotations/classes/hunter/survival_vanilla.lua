@@ -84,6 +84,25 @@ local sv_state = {
     enemy_count = 1,
 }
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local SV_VANILLA_SCHEMA = {
+    has_pet = false,  pet_alive = false,  pet_dead = false,
+    pet_hp_pct = 100,  has_hunters_mark = false,
+    has_serpent_sting = false,  has_aspect_hawk = false,
+    mend_pet_ready = false,  hunters_mark_ready = false,
+    rapid_fire_ready = false,  explosive_trap_ready = false,
+    multi_shot_ready = false,  arcane_shot_ready = false,
+    aimed_shot_ready = false,  serpent_sting_ready = false,
+    call_pet_ready = false,  revive_pet_ready = false,
+    feign_death_ready = false,  freezing_trap_ready = false,
+    viper_sting_ready = false,  scorpid_sting_ready = false,
+    raptor_strike_ready = false,  wing_clip_ready = false,
+    volley_ready = false,  has_scorpid_sting = false,
+    wing_clip_active = false,  mana_pct = 100,
+    in_combat = false,  enemy_count = 1,
+    pre_steady_leveling = false,
+}
+
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
@@ -125,7 +144,7 @@ local function build_state(context)
         or (not sv_state.aimed_shot_ready)
         or (context.is_leveling == true)
 
-    return sv_state
+    return spec_kit.safe_state(sv_state, SV_VANILLA_SCHEMA)
 end
 
 local function cooldowns_enabled(context)

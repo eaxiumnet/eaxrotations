@@ -103,6 +103,36 @@ local state = {
     trinket_2_ready = false,
 }
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local BM_VANILLA_SCHEMA = {
+    pet_alive = false,  pet_hp = 100,  has_pet = false,
+    mana_pct = 100,  in_combat = false,  enemy_count = 1,
+    has_hawk = false,  has_viper = false,  has_cheetah = false,
+    has_hunters_mark = false,  has_serpent_sting = false,
+    has_scorpid_sting = false,  has_viper_sting = false,
+    arcane_shot_ready = false,  multi_shot_ready = false,
+    aimed_shot_ready = false,  bestial_wrath_ready = false,
+    rapid_fire_ready = false,  feign_death_ready = false,
+    mend_pet_ready = false,  call_pet_ready = false,
+    revive_pet_ready = false,  hunters_mark_ready = false,
+    serpent_sting_ready = false,  scorpid_sting_ready = false,
+    viper_sting_ready = false,  aspect_mode = "auto",
+    sting_mode = "serpent",  fd_mode = "high_threat",
+    multishot_mode = 2,  pull_mode = "combat_only",
+    use_cooldowns = true,  use_misdirection = false,
+    misdirection_target = nil,  trinket_mode = "off",
+    sticky_target = false,  prioritize_markers = false,
+    shot_buffer = 150,  threat_level = 0,
+    is_mounted = false,  has_pet_spell = false,
+    wing_clip_active = false,  use_melee = true,
+    raptor_strike_ready = false,  concussive_shot_ready = false,
+    volley_ready = false,  explosive_trap_ready = false,
+    aoe_threshold = 3,  use_volley = false,
+    use_explosive_trap = false,  trinket_1_id = nil,
+    trinket_2_id = nil,  trinket_1_ready = false,
+    trinket_2_ready = false,
+}
+
 local function build_state(context)
     local me = context.me or NS.GetPlayer()
     local target = context.target
@@ -193,7 +223,7 @@ local function build_state(context)
     state.aoe_threshold = spec_kit.setting_number(context, "aoe_threshold", spec_kit.setting_number(context, "volley_threshold", 3))
     state.trinket_mode = spec_kit.setting(context, "trinket_mode", "off")
 
-    return state
+    return spec_kit.safe_state(state, BM_VANILLA_SCHEMA)
 end
 
 -- ============================================================================
