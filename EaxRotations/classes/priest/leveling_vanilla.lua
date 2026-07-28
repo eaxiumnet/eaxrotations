@@ -14,6 +14,7 @@ do
 end
 local SPELLS = NS.PriestSpells or {}
 local leveling = require("shared/leveling_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- ============================================================================
 -- Constants
@@ -78,6 +79,27 @@ end
 -- State builder
 -- ============================================================================
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local LEVELING_VANILLA_SCHEMA = {
+    in_combat = false,  mana_pct = 100,  hp = 100,  enemies = 0,
+    target = nil,  is_moving = false,  is_channeling = false,
+    heal_hp = 60,  wand_threshold = 20,  use_shadowform = true,
+    fortitude_ready = false,  inner_fire_ready = false,
+    shield_ready = false,  renew_ready = false,
+    greater_heal_ready = false,  flash_heal_ready = false,
+    swp_ready = false,  smite_ready = false,
+    holy_fire_ready = false,  mind_blast_ready = false,
+    holy_nova_ready = false,  scream_ready = false,
+    shackle_ready = false,  fade_ready = false,
+    inner_focus_ready = false,  shadowform_ready = false,
+    mf_ready = false,  vampiric_embrace_ready = false,
+    desperate_prayer_ready = false,
+    has_fortitude = false,  has_inner_fire = false,
+    has_shadowform = false,  has_shield = false,
+    has_renew = false,  has_inner_focus = false,
+    target_creature_type = nil,
+}
+
 function build_state(context)
     if not context then return nil end
 
@@ -122,7 +144,7 @@ function build_state(context)
     state.mana_pct = context.mana_pct or 100
     state.use_shadowform = (context.settings and context.settings.leveling_use_shadowform) ~= false
 
-    return state
+    return spec_kit.safe_state(state, LEVELING_VANILLA_SCHEMA)
 end
 
 -- ============================================================================

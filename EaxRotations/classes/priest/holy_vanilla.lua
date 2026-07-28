@@ -7,6 +7,7 @@
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 local load_player = NS.GetPlayer and NS.GetPlayer()
 
@@ -127,6 +128,20 @@ local try_cast, spell_exists, spell_ready, debuff_remains, health_pct, player_co
     "try_cast", "spell_exists", "spell_ready", "debuff_remains", "health_pct",
     "player_control_locked", "has_player_buff"
 )
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local HOLY_VANILLA_SCHEMA = {
+    lowest = nil,  lowest_hp = 100,  tank = nil,  tank_hp = 100,
+    group_damaged_count = 0,  surge_of_light = false,
+    clearcasting = false,  pom_ready = false,  coh_ready = false,
+    has_inner_focus = false,  swp_remaining = 0,  holy_fire_remaining = 0,
+    healthstone_ready = false,  healthstone_id = nil,
+    has_fade_buff = false,  fade_ready = false,
+    encounter_id = 0,  lightwell_ready = false,
+    dispel_magic_ready = false,  cure_disease_ready = false,
+    abolish_disease_ready = false,  flash_heal_ready = false,
+    prayer_of_healing_ready = false,  greater_heal_ready = false,
+}
+
 local function build_holy_state(context)
     context.settings = context.settings or EMPTY_SETTINGS
     local aoe_hp = context.settings.holy_aoe_hp or 80
@@ -137,10 +152,10 @@ local function build_holy_state(context)
     local damaged_count = 0
 
     local player = NS.GetPlayer()
-    if not player then return holy_state end
+    if not player then return spec_kit.safe_state(holy_state, HOLY_VANILLA_SCHEMA) end
     -- Mounted bail: healer should not queue buffs/heals while mounted
     if player.is_mounted and player:is_mounted() then
-        return holy_state
+        return spec_kit.safe_state(holy_state, HOLY_VANILLA_SCHEMA)
     end
     context.player_control_locked = (type(player_control_locked) == "function" and player_control_locked()) or false
     context.is_moving = context.is_moving or (player.is_moving and player:is_moving()) or false
@@ -215,7 +230,7 @@ local function build_holy_state(context)
     holy_state.prayer_of_healing_ready = NS.spell_ready(SPELLS.PrayerOfHealing, NS.PLAYER_UNIT, { skip_range = true }) or false
     holy_state.greater_heal_ready = NS.spell_ready(SPELLS.GreaterHeal, NS.PLAYER_UNIT, { skip_range = true }) or false
 
-    return holy_state
+    return spec_kit.safe_state(holy_state, HOLY_VANILLA_SCHEMA)
 end
 
 local function _engaged_with_player(context)

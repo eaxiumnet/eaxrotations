@@ -169,15 +169,41 @@ local shadow_state = {
     snapshot_target = nil,
 }
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local SHADOW_VANILLA_SCHEMA = {
+    mf_channeling = false,  mf_ticks = 0,  should_clip_mf = false,
+    vt_remaining = 0,  swp_remaining = 0,  ve_remaining = 0,  dp_remaining = 0,
+    mb_ready = false,  has_shadowform = false,
+    shadowform_known = false,  swp_known = false,  vampiric_embrace_known = false,
+    devouring_plague_known = false,  mind_flay_known = false,
+    inner_fire_known = false,  flash_heal_known = false,
+    berserking_known = false,  blood_fury_known = false,
+    arcane_torrent_known = false,  starshards_known = false,
+    has_inner_focus = false,  has_inner_fire = false,
+    combat_mode = "auto",  vt_refresh_window = 3,
+    swp_refresh_window = 3,  dp_refresh_window = 3,
+    shield_hp = 35,  flash_heal_hp = 25,  mounted = false,
+    psychic_scream_ready = false,  silence_ready = false,
+    fade_ready = false,  dispel_magic_ready = false,
+    shackle_undead_ready = false,
+    mana_pct = 100,  hp_pct = 100,  in_combat = false,
+    enemy_count = 1,  target_hp_pct = 100,
+    target_casting = false,  target_creature_type = nil,
+    weaving_stacks = 0,  threat_safe = true,
+    mana_low = false,  mana_emergency = false,
+    spell_damage = 0,  snapshot_vt_dmg = 0,  snapshot_swp_dmg = 0,
+    snapshot_dp_dmg = 0,  has_bloodlust = false,  snapshot_target = nil,
+}
+
 local function build_state(context)
     local target = context.target
     local me = NS.GetPlayer()
-    if not me then return shadow_state end
+    if not me then return spec_kit.safe_state(shadow_state, SHADOW_VANILLA_SCHEMA) end
     local mounted_bail = spec_kit.setting_bool(context, "shadow_mounted_bail", true)
     if mounted_bail then
         if me.is_mounted and me:is_mounted() then
             shadow_state.mounted = true
-            return shadow_state
+            return spec_kit.safe_state(shadow_state, SHADOW_VANILLA_SCHEMA)
         end
     end
     shadow_state.mounted = false
@@ -278,7 +304,7 @@ local function build_state(context)
         if shadow_state.dp_remaining <= 0 then shadow_state.snapshot_dp_dmg = 0 end
     end
 
-    return shadow_state
+    return spec_kit.safe_state(shadow_state, SHADOW_VANILLA_SCHEMA)
 end
 
 -- ============================================================================

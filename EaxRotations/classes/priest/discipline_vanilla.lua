@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.PriestSpells or {}
 local Healing = NS.PriestHealing or require("classes/priest/healing_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local EMPTY_SETTINGS = {}
 
 -- ============================================================================
@@ -129,13 +130,37 @@ local disc_state = {
     power_word_fortitude_ready = false,
 }
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local DISC_VANILLA_SCHEMA = {
+    lowest = nil,  tank = nil,  group_damaged_count = 0,
+    has_inner_fire = false,  has_fear_ward = false,
+    has_power_word_fortitude = false,
+    pws_ready = false,  pom_ready = false,
+    flash_heal_ready = false,  greater_heal_ready = false,
+    renew_ready = false,  circle_of_healing_ready = false,
+    prayer_of_healing_ready = false,  prayer_of_mending_ready = false,
+    shadow_word_pain_ready = false,  smite_ready = false,
+    holy_fire_ready = false,  psychic_scream_ready = false,
+    dispel_magic_ready = false,  shackle_undead_ready = false,
+    mana_pct = 100,  hp_pct = 100,  in_combat = false,
+    target_creature_type = nil,  target_casting = false,
+    enemy_count = 0,  has_divine_spirit = false,
+    has_prayer_of_fortitude = false,
+    pain_suppression_ready = false,  power_infusion_ready = false,
+    inner_focus_ready = false,  has_inner_focus = false,
+    healthstone_ready = false,  healthstone_id = nil,
+    has_fade_buff = false,  fade_ready = false,
+    inner_fire_ready = false,  fear_ward_ready = false,
+    power_word_fortitude_ready = false,
+}
+
 local function build_state(context)
     context.settings = context.settings or EMPTY_SETTINGS
     local me = context.me or NS.GetPlayer()
-    if not me then return disc_state end
+    if not me then return spec_kit.safe_state(disc_state, DISC_VANILLA_SCHEMA) end
     -- Mounted bail: healer should not queue buffs/heals while mounted
     if me.is_mounted and me:is_mounted() then
-        return disc_state
+        return spec_kit.safe_state(disc_state, DISC_VANILLA_SCHEMA)
     end
     local target = context.target
     local entries, count = Healing.scan_healing_targets()
@@ -200,7 +225,7 @@ local function build_state(context)
     disc_state.has_fade_buff = me and NS.buff_up(me, FADE_BUFF) or false
     disc_state.fade_ready = me and NS.spell_ready(SPELLS.Fade, me, { skip_range = true }) or false
 
-    return disc_state
+    return spec_kit.safe_state(disc_state, DISC_VANILLA_SCHEMA)
 end
 
 local function _engaged_with_player(context)

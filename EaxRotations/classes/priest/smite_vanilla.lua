@@ -7,6 +7,7 @@
 local _G = _G
 local NS = _G.EaxRotations
 if not NS then return nil end
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- Hit-volume AoE gates (install if core not loaded, e.g. unit tests)
 do
@@ -88,6 +89,20 @@ local smite_state = {
     enemy_count = 1,
 }
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local SMITE_VANILLA_SCHEMA = {
+    swp_active = false,  swp_remaining = 0,  surge_of_light = false,
+    hf_ready = false,  mb_ready = false,  swd_ready = false,
+    swd_safe = false,  in_weave_window = false,  dp_remaining = 0,
+    has_inner_focus = false,  has_inner_fire = false,
+    inner_fire_remains = 0,  has_renew = false,
+    has_weakened_soul = false,  inner_focus_ready = false,
+    inner_fire_ready = false,  power_word_shield_ready = false,
+    renew_ready = false,  psychic_scream_ready = false,
+    hp_pct = 100,  mana_pct = 100,  mana_emergency = false,
+    mana_low = false,  threat_safe = true,  enemy_count = 1,
+}
+
 local function build_smite_state(context)
     context.settings = context.settings or EMPTY_SETTINGS
     local target = context.target
@@ -138,7 +153,7 @@ local function build_smite_state(context)
         and swp_dur > SMITE_CAST_BASE
         and swp_dur < HF_CAST_BASE
 
-    return smite_state
+    return spec_kit.safe_state(smite_state, SMITE_VANILLA_SCHEMA)
 end
 
 local function solo_like_context(context)
