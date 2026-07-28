@@ -51,7 +51,7 @@ for _, p in ipairs(paths) do
     report = read(p)
     if report then break end
 end
-assert(report, "missing buff_debuff_full_verification.json — run verify_buff_debuff_ids_full.py")
+assert(report, "missing buff_debuff_full_verification.json — run python build_tools/generate_buff_debuff_verification.py")
 
 local unique = json_number(report, "unique_ids")
 local ok = json_number(report, "ok")

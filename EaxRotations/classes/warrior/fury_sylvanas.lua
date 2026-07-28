@@ -361,7 +361,7 @@ local _last_build_state_time = -1
 local function build_state(context)
     local state = fury_state
     local now = context.now
-    if now and now == _last_build_state_time then return state end
+    if now and now == _last_build_state_time then return spec_kit.safe_state(state, FURY_SCHEMA) end
     now = now or (NS.time_now and NS.time_now() or 0)
     if context.now then _last_build_state_time = now end
     state.now = now
