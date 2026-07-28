@@ -90,25 +90,6 @@ local function build_state(context)
         assassin_state.target_poisoned = false
         assassin_state.find_weakness_active = false
     end
-    assassin_state.snd_needs_refresh = assassin_state.slice_dice_active and assassin_state.snd_remains <= SND_REFRESH_WINDOW
-    assassin_state.has_cold_blood = NS.has_player_buff(COLD_BLOOD_BUFF)
-    -- Debuffs on target
-    if target then
-        assassin_state.rupture_remains = NS.debuff_remains and NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
-        assassin_state.garrote_remains = NS.debuff_remains and NS.debuff_remains(target, GARROTE_DEBUFF) or 0
-        assassin_state.dp_stacks = NS.get_debuff_stacks and NS.get_debuff_stacks(target, DEADLY_POISON_DEBUFF) or 0
-        assassin_state.dp_remains = NS.debuff_remains and NS.debuff_remains(target, DEADLY_POISON_DEBUFF) or 0
-        assassin_state.target_poisoned = assassin_state.dp_stacks > 0
-            or (NS.has_target_debuff and NS.has_target_debuff(target, CRIPPLING_POISON_DEBUFF))
-            or (NS.has_target_debuff and NS.has_target_debuff(target, WOUND_POISON_DEBUFF))
-        assassin_state.find_weakness_active = NS.has_target_debuff and NS.has_target_debuff(target, FIND_WEAKNESS_BUFF)
-    else
-        assassin_state.rupture_remains = 0
-        assassin_state.garrote_remains = 0
-        assassin_state.dp_stacks = 0
-        assassin_state.dp_remains = 0
-        assassin_state.find_weakness_active = false
-    end
     -- Resources
     assassin_state.combo = context.combo or 0
     assassin_state.energy = context.energy or 0
@@ -456,5 +437,7 @@ local strategies = {
     },
 }
 
-NS.rotation_registry:register("assassination", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("assassination", strategies, { get_state = build_state })
+end
 return { strategies = strategies, build_state = build_state }

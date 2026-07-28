@@ -376,6 +376,8 @@ local strategies = {
     { name = "SinisterStrike", matches = sinister_strike_wrapper, execute = function(context) return NS.try_cast(SPELLS.SinisterStrike, context.target, "[COMBAT] SinisterStrike") end },
 }
 
-NS.rotation_registry:register("combat", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("combat", strategies, { get_state = build_state })
+end
 -- Rogue combat rotation registered
 return strategies

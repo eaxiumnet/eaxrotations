@@ -155,15 +155,6 @@ local sap_matches = function(context, state)
     return true
 end
 
-local garrote_matches = function(context, state)
-    if not state then return false end
-    if state.in_combat then return false end
-    if not state.stealthed then return false end
-    if not state.garrote_ready then return false end
-    if not context.target then return false end
-    return true
-end
-
 local gouge_matches = function(context, state)
     if not state then return false end
     if not state.in_combat then return false end
@@ -389,7 +380,6 @@ local strategies = {
       matches = eviscerate_matches,
       execute = function(context) return try_cast(SPELLS.Eviscerate, context and context.target, "[LEVELING] Eviscerate") end },
 
-
     { name = "ExposeArmor",
       matches = expose_armor_matches,
       execute = function(context) return try_cast(SPELLS.ExposeArmor, context and context.target, "[LEVELING] Expose Armor") end },
@@ -397,10 +387,6 @@ local strategies = {
     { name = "KidneyShot",
       matches = kidney_shot_matches,
       execute = function(context) return try_cast(SPELLS.KidneyShot, context and context.target, "[LEVELING] Kidney Shot") end },
-
-    { name = "Eviscerate",
-      matches = eviscerate_matches,
-      execute = function(context) return try_cast(SPELLS.Eviscerate, context and context.target, "[LEVELING] Eviscerate") end },
 
     { name = "SinisterStrike",
       matches = sinister_strike_matches,

@@ -248,6 +248,12 @@ function rogue_leveling.build_state(context)
     -- Combo points
 
     state.combo_points = context.combo_points or context.combo or read_numeric_helper(NS.combo_points) or 0
+    -- IZI SDK: combo_points_current() and get_power(4) fallbacks for reliable CP reads
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+    if me and type(me.combo_points_current) == "function" then
+        local ok_cp, cp = pcall(me.combo_points_current, me)
+        if ok_cp and type(cp) == "number" then state.combo_points = cp end
+    end
     -- Fallback: get_power(me, 4) — combo points = power type 4 in WoW API
     if me and type(me.get_power) == "function" then
         local ok2, cp2 = pcall(me.get_power, me, 4)

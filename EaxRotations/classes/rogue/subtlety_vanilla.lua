@@ -426,6 +426,8 @@ local strategies = {
     { name = "SinisterStrikeFallback", matches = fallback_builder_matches, execute = function(context) return cast(SPELLS.SinisterStrike, context.target, "[SUBTLETY] Sinister Strike fallback") end },
 }
 
-NS.rotation_registry:register("subtlety", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("subtlety", strategies, { get_state = build_state })
+end
 -- Rogue subtlety rotation registered (Vanilla PvP/stealth)
 return strategies
