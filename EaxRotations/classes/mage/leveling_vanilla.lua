@@ -422,7 +422,6 @@ local strategies = {
       matches = frostbolt_matches,
       execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Frostbolt, context.target, "[LEVELING] Frostbolt") or false end },
 
-
     { name = "Scorch",
       matches = scorch_matches,
       execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Scorch, context.target, "[LEVELING] Scorch") or false end },
@@ -430,10 +429,6 @@ local strategies = {
     { name = "ArcaneMissiles",
       matches = arcane_missiles_matches,
       execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.ArcaneMissiles, context.target, "[LEVELING] Arcane Missiles") or false end },
-
-    { name = "Frostbolt",
-      matches = frostbolt_matches,
-      execute = function(context) return context and NS.try_cast and NS.try_cast(SPELLS.Frostbolt, context.target, "[LEVELING] Frostbolt") or false end },
 
     { name = "UseManaGem",
       matches = use_mana_gem_matches,

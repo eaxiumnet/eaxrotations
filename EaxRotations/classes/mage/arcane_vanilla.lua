@@ -446,7 +446,9 @@ local strategies = {
       execute = function(context) return NS.try_cast(SPELLS.Frostbolt, context.target, "[ARCANE] Frostbolt") end },
 }
 
-NS.rotation_registry:register("arcane", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("arcane", strategies, { get_state = build_state })
+end
 -- Mage arcane rotation registered (burn/conserve phase state machine + configurable AB stack limits)
 return strategies
 

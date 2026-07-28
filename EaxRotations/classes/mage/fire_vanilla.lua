@@ -331,7 +331,9 @@ local strategies = {
       execute = function() return NS.try_cast(SPELLS.Evocation, NS.PLAYER_UNIT, "[FIRE] Evocation") end },
 }
 
-NS.rotation_registry:register("fire", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("fire", strategies, { get_state = build_state })
+end
 -- Mage fire rotation registered (deep enhanced)
 return strategies
 

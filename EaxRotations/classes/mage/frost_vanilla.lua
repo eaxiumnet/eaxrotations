@@ -390,7 +390,9 @@ local strategies = {
     { name = "ArcaneMissiles", matches = arcane_missiles_matches, execute = function(context) return NS.try_cast(SPELLS.ArcaneMissiles, context.target, "[FROST] ArcaneMissiles") end },
 }
 
-NS.rotation_registry:register("frost", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("frost", strategies, { get_state = build_state })
+end
 -- Mage frost rotation registered
 return strategies
 
