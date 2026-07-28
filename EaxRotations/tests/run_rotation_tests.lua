@@ -312,6 +312,7 @@ local tests = {
   "test_destruction_immolate_low_level.lua",
   "test_destruction_vanilla_immolate_low_level.lua",
   "test_demonology_life_tap.lua",
+  "test_warlock_soulshatter_helper.lua",
 
  -- Discipline
  "test_discipline_custom_matches.lua",
@@ -503,6 +504,12 @@ local tests = {
   "test_multidot_engagement_filter.lua",
   "test_active_fight_tracker.lua",
   "test_strategy_categorization_validator.lua",
+
+ -- Auto-CC strategy tests (Shackle Undead + Turn Evil)
+ "test_priest_holy_shackle.lua",
+ "test_priest_smite_shackle.lua",
+ "test_paladin_protection_turn_evil.lua",
+ "test_paladin_retribution_turn_evil.lua",
 }
 
 local function first_failure_line(output)
