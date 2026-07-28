@@ -327,6 +327,8 @@ local strategies = {
     { name = "SerpentSting", matches = serpent_sting_matches, execute = function(context) return NS.try_cast(SPELLS.SerpentSting, context.target, "[MARKSMANSHIP] Serpent Sting") end },
 }
 
-NS.rotation_registry:register("marksmanship", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("marksmanship", strategies, { get_state = build_state })
+end
 -- Hunter marksmanship rotation registered
 return strategies

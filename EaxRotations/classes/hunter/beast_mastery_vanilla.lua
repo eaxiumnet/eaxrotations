@@ -755,8 +755,7 @@ local strategies = {
 }
 
 -- Register strategies
-local ok, existing = pcall(NS.rotation_registry.register, NS.rotation_registry, "beast_mastery", strategies, { get_state = build_state })
-if not ok then
+if NS.rotation_registry and NS.rotation_registry.register then
     NS.rotation_registry:register("beast_mastery", strategies, { get_state = build_state })
 end
 -- Hunter beast_mastery rotation registered (parity parity)
