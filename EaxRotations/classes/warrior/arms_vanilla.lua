@@ -322,7 +322,6 @@ local function defensive_stance_action()
 end
 
 local function battle_shout_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
     if state.has_battle_shout then return false end
     return action(context, build_action("BattleShout", ACTION.BattleShout, { target = "self", kind = "buff", buff = BATTLE_SHOUT_BUFF, requires_target = false, min_rage = 10 }))
 end
@@ -355,7 +354,6 @@ end
 local BLEED_IMMUNE_TYPES = { [4]=true, [6]=true, [9]=true }  -- Elemental, Undead, Mechanical
 
 local function rend_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rend, 2.0) then return false end
     if execute_phase(context, state) then return false end
     if (state.rend_remains or 0) > 3 then return false end
     if (state.target_hp or 100) < 25 then return false end
@@ -378,7 +376,6 @@ local function slam_matches(context, state)
 end
 
 local function sweeping_strikes_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SweepingStrikes, 3.0) then return false end
     local min_count = setting(context, "sweeping_strikes_count", SWEEPING_STRIKES_COUNT)
     if (state.enemy_count or 0) < min_count then return false end
     if state.has_sweeping_strikes then return false end
@@ -386,7 +383,6 @@ local function sweeping_strikes_matches(context, state)
 end
 
 local function sunder_armor_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
     if not setting(context, "use_sunder_armor", false) then return false end
     -- Skip if target has no armor (API unavailable or already fully reduced)
     if (context.target_armor or 0) <= 0 then return false end
@@ -448,7 +444,6 @@ end
 
 local function hamstring_matches(context, state)
     if state.is_pvp then
-        if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
         if (state.hamstring_remains or 0) > 3 then return false end
         return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
     end
@@ -458,7 +453,6 @@ local function hamstring_matches(context, state)
         return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10 }))
     end
     if setting(context, "hamstring_fleeing_mobs", true) and (state.hamstring_remains or 0) <= 3 then
-        if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
         return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
     end
     return false
@@ -477,7 +471,6 @@ local function piercing_howl_matches(context, state)
 end
 
 local function demo_shout_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
     if (state.demo_remains or 0) > 5 then return false end
     if not state.is_pvp and (state.hp or 100) > 70
         and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)) then
@@ -490,7 +483,6 @@ local function demo_shout_matches(context, state)
 end
 
 local function thunder_clap_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
     if (state.tclap_remains or 0) > 5 then return false end
     -- Thunder Clap: 8yd self PBAoE
     if not state.is_pvp and (state.hp or 100) > 65

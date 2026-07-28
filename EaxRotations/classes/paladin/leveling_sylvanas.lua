@@ -98,16 +98,12 @@ local function build_state(context)
     leveling_state.needs_cleanse = needs_cleanse(context.me)
 
     -- Buffs
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(25780, 3.0) or false
-    if not skip_aura then
-        leveling_state.has_blessing_might = safe_buff_up(context.me, BLESSING_MIGHT_BUFF)
-        leveling_state.has_blessing_wisdom = safe_buff_up(context.me, BLESSING_WISDOM_BUFF)
-        leveling_state.has_devotion_aura = safe_buff_up(context.me, DEVOTION_AURA_BUFF)
-        leveling_state.has_retribution_aura = safe_buff_up(context.me, RETRIBUTION_AURA_BUFF)
-        leveling_state.has_holy_shield = safe_buff_up(context.me, HOLY_SHIELD_BUFF)
-        leveling_state.has_any_seal = safe_buff_up(context.me, ANY_SEAL_BUFF)
-    end
+    leveling_state.has_blessing_might = safe_buff_up(context.me, BLESSING_MIGHT_BUFF)
+    leveling_state.has_blessing_wisdom = safe_buff_up(context.me, BLESSING_WISDOM_BUFF)
+    leveling_state.has_devotion_aura = safe_buff_up(context.me, DEVOTION_AURA_BUFF)
+    leveling_state.has_retribution_aura = safe_buff_up(context.me, RETRIBUTION_AURA_BUFF)
+    leveling_state.has_holy_shield = safe_buff_up(context.me, HOLY_SHIELD_BUFF)
+    leveling_state.has_any_seal = safe_buff_up(context.me, ANY_SEAL_BUFF)
 
     -- Player level for death-zone-aware thresholds (context first, then unit API)
     local level = leveling_helpers.level_from_context(context, 0)

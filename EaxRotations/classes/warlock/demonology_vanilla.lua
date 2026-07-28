@@ -274,13 +274,6 @@ local function racial_matches(context, state)
 end
 
 -- ============================================================================
--- Broken API throttle
--- ============================================================================
-local function broken_api_dot_throttled(spell_id)
-    return NS.is_api_health_broken and NS.is_api_health_broken() and NS.recent_spell_cast and NS.recent_spell_cast(spell_id, 2.0)
-end
-
--- ============================================================================
 -- Strategies
 -- ============================================================================
 local strategies = {
@@ -389,7 +382,6 @@ local strategies = {
         name = "CorruptionDoT",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if broken_api_dot_throttled(25311) then return false end
             if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
             local ratio = SPELL_DMG_UPGRADE_RATIO
             if (state.corruption_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_corruption_dmg or 0, state.corruption_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
@@ -620,7 +612,6 @@ local strategies = {
         name = "DemonArmorBuff",
         matches = function(context)
             if context.in_combat then return false end
-            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemonArmor, 3.0) then return false end
             if demo_state.has_demon_armor then return false end
             return demo_state.demon_armor_ready
         end,

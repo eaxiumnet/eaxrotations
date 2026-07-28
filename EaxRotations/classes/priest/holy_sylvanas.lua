@@ -72,6 +72,7 @@ local ACTION = {
     PrayerOfHealing  = define("PrayerOfHealing",  { 25308, 25316, 10961, 10960, 996, 596 }, "PrayerOfHealing"),
     Renew            = define("Renew",            { 25222, 25221, 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }, "Renew"),
     ShadowWordPain   = define("ShadowWordPain",   { 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }, "ShadowWordPain"),
+    ShackleUndead    = define("ShackleUndead",    { 10955, 9485, 9484 }, "ShackleUndead"),
     Shadowfiend      = define("Shadowfiend",      { 34433 }, "Shadowfiend"),
     Smite            = define("Smite",            { 25364, 25363, 10934, 10933, 6060, 1004, 984, 598, 591, 585 }, "Smite"),
     SymbolOfHope     = define("SymbolOfHope",     { 32548 }, "SymbolOfHope"),
@@ -98,6 +99,16 @@ local HOLY_CONCENTRATION_BUFF = { 34753, 34754, 34859, 34860 }
 local PRAYER_OF_MENDING_BUFF = { 33076 } -- PoM buff on target (TBC rank 1)
 local SHADOW_WORD_PAIN_DEBUFF = { 25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
 local HOLY_FIRE_DOT_DEBUFF = { 14914, 15262, 15263, 15264, 15265, 15266, 15267, 15261, 25384 }
+
+local function target_creature_type(unit)
+    if not unit then return nil end
+    if type(NS.unit_creature_type) == "function" then return NS.unit_creature_type(unit) end
+    if unit.get_creature_type then
+        local ok, value = pcall(function() return unit:get_creature_type() end)
+        if ok then return value end
+    end
+    return nil
+end
 
 -- parity feature constants
 -- ============================================================================
@@ -184,6 +195,8 @@ local HOLY_SCHEMA = {
     symbol_of_hope_ready = false,
     friendly_target_ready = false,
     mana_pct = 100,
+    shackle_undead_ready = false,
+    target_creature_type = nil,
     -- FSR state (Five-Second Rule)
     fsr_inside = false, fsr_seconds = 0, fsr_regen_delta = 0,
 }
@@ -220,6 +233,8 @@ local holy_state = {
  abolish_disease_ready = false,
  friendly_target = nil,
  friendly_target_ready = false,
+ shackle_undead_ready = false,
+ target_creature_type = nil,
 }
 -- Shared helpers from core_sylvanas.lua
 local try_cast, spell_exists, spell_ready, debuff_remains, health_pct, player_control_locked, has_player_buff = NS.import_helpers(
@@ -361,12 +376,9 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
  holy_state.flash_heal_ready = spell_exists(ACTION.FlashHeal) and spell_ready(ACTION.FlashHeal, NS.PLAYER_UNIT)
  holy_state.prayer_of_healing_ready = spell_exists(ACTION.PrayerOfHealing) and spell_ready(ACTION.PrayerOfHealing, NS.PLAYER_UNIT, { skip_range = true })
  holy_state.greater_heal_ready = spell_exists(ACTION.GreaterHeal) and spell_ready(ACTION.GreaterHeal, NS.PLAYER_UNIT)
- -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
- local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(14752, 3.0) or false
- if not skip_aura then
-  holy_state.swp_remaining = context.target and debuff_remains(context.target, SHADOW_WORD_PAIN_DEBUFF) or 0
-  holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0
- end -- Fear Ward target logic for dungeons (WoWHead): ward tank on fear risk
+ holy_state.swp_remaining = context.target and debuff_remains(context.target, SHADOW_WORD_PAIN_DEBUFF) or 0
+ holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0
+ -- Fear Ward target logic for dungeons (WoWHead): ward tank on fear risk
   local ward_target = player
   local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
   local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
@@ -388,6 +400,12 @@ context.player_control_locked = (pcl_ok and pcl_result) or false
  local ft = NS.get_friendly_target_entry and NS.get_friendly_target_entry(context)
  holy_state.friendly_target = ft
  holy_state.friendly_target_ready = ft ~= nil
+
+ -- Shackle Undead state
+ local me = player
+ local target = context.target
+ holy_state.shackle_undead_ready = me and NS.spell_ready(ACTION.ShackleUndead, me, { expected_cooldown = 1.5 }) or false
+ holy_state.target_creature_type = target_creature_type(target)
 
   -- parity: Smart Stop-Cast — cancel overhealing casts mid-flight
   if NS.StopCast and type(NS.StopCast.update) == "function" then
@@ -638,6 +656,22 @@ local DSL_DEFS = {
         end },
     },
 }
+
+-- ============================================================================
+-- Shackle Undead: auto-CC on Undead/Demon mobs
+-- ============================================================================
+local UNDEAD_OR_DEMON = { [3] = true, [6] = true }
+local SHACKLE_DEBUFF_IDS = { 9484, 9485, 10955 }
+
+local function shackle_undead_matches(context, state)
+ if not spec_kit.setting_bool(context, "holy_auto_shackle", true) then return false end
+ if not context.has_valid_enemy_target then return false end
+ local ct = state.target_creature_type
+ if not ct or not UNDEAD_OR_DEMON[ct] then return false end
+ if not state.shackle_undead_ready then return false end
+ if context.target and NS.debuff_up and NS.debuff_up(context.target, SHACKLE_DEBUFF_IDS) then return false end
+ return true
+end
 
 local strategies = {
  -- FriendlyTarget (Step 0): honor the player's manually-selected friendly target.
@@ -943,7 +977,6 @@ local strategies = {
  {
   name = "DispelMagic",
   matches = function(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.DispelMagic, 3.0) then return false end
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end
@@ -974,7 +1007,6 @@ local strategies = {
  {
   name = "MassDispel",
   matches = function(context, state)
-   if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.MassDispel, 3.0) then return false end
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end
@@ -1000,7 +1032,6 @@ local strategies = {
  {
   name = "CureDisease",
   matches = function(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CureDisease, 3.0) then return false end
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if not state.cure_disease_ready then return false end
@@ -1020,7 +1051,6 @@ local strategies = {
  {
   name = "AbolishDisease",
   matches = function(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.AbolishDisease, 3.0) then return false end
    if not context.in_combat then return false end
    if context.player_control_locked then return false end
    if not state.abolish_disease_ready then return false end
@@ -1038,6 +1068,7 @@ local strategies = {
  },
  { name = "SymbolOfHope" },
  { name = "FearWard" },
+ { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return try_cast(ACTION.ShackleUndead, context.target, "[HOLY] ShackleUndead", { expected_cooldown = 1.5 }) end },
  {
   name = "RenewTank",
   matches = function(context, state)

@@ -48,7 +48,6 @@ local SERPENT_STING_DEBUFF = { 25295, 13555, 13554, 13553, 13552, 13551, 13550, 
 local SCORPID_STING_DEBUFF = { 3043 }
 local WING_CLIP_DEBUFF = { 2974 }
 local ASPECT_HAWK_BUFF = { 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
-local _last_aspect_hawk_cast = 0  -- Throttle: WoW API buff detection delay
 
 -- ============================================================================
 -- State builder
@@ -95,15 +94,11 @@ local function build_state(context)
     sv_state.pet_alive = pet_alive == true
     sv_state.pet_dead = context.pet_dead == true or (pet ~= nil and not sv_state.pet_alive)
     sv_state.pet_hp_pct = sv_state.pet_alive and pet.get_health_percentage and pet:get_health_percentage() or 100
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(14325, 3.0) or false
-    if not skip_aura then
-        sv_state.has_hunters_mark = target and NS.debuff_up(target, HUNTERS_MARK_DEBUFF) or false
-        sv_state.has_serpent_sting = target and NS.debuff_up(target, SERPENT_STING_DEBUFF) or false
-        sv_state.has_scorpid_sting = target and NS.debuff_up(target, SCORPID_STING_DEBUFF) or false
-        sv_state.wing_clip_active = target and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
-        sv_state.has_aspect_hawk = me and NS.buff_up(me, ASPECT_HAWK_BUFF) or false
-    end
+    sv_state.has_hunters_mark = target and NS.debuff_up(target, HUNTERS_MARK_DEBUFF) or false
+    sv_state.has_serpent_sting = target and NS.debuff_up(target, SERPENT_STING_DEBUFF) or false
+    sv_state.has_scorpid_sting = target and NS.debuff_up(target, SCORPID_STING_DEBUFF) or false
+    sv_state.wing_clip_active = target and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
+    sv_state.has_aspect_hawk = me and NS.buff_up(me, ASPECT_HAWK_BUFF) or false
     sv_state.mend_pet_ready = me and NS.spell_ready(SPELLS.MendPet, me, { skip_range = true }) or false
     sv_state.hunters_mark_ready = target and NS.spell_ready(SPELLS.HuntersMark, target) or false
     sv_state.rapid_fire_ready = me and NS.spell_ready(SPELLS.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
@@ -200,8 +195,6 @@ end
 
 local function aspect_hawk_matches(context, s)
     if s.has_aspect_hawk then return false end
-    -- Throttle: WoW API buff detection lags 1-2 frames — prevent thrashing
-    if (NS.time_now() - _last_aspect_hawk_cast) < 3 then return false end
     return true
 end
 
@@ -352,7 +345,7 @@ local strategies = {
     { name = "MendPet", matches = mend_pet_matches, execute = function(context) return NS.try_cast(SPELLS.MendPet, context.pet or (NS.GetPet and NS.GetPet()) or context.me, "[SURVIVAL] Mend Pet", { skip_range = true }) end },
     { name = "CallPet", matches = call_pet_matches, execute = function(context) return NS.try_cast(SPELLS.CallPet, context.me, "[SURVIVAL] Call Pet", { skip_range = true }) end },
     { name = "RevivePet", matches = revive_pet_matches, execute = function(context) return NS.try_cast(SPELLS.RevivePet, context.me, "[SURVIVAL] Revive Pet", { skip_range = true }) end },
-    { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) local r = NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[SURVIVAL] Aspect of the Hawk", { skip_range = true }); if r then _last_aspect_hawk_cast = NS.time_now() end; return r end },
+    { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) return NS.try_cast(SPELLS.AspectOfTheHawk, context.me, "[SURVIVAL] Aspect of the Hawk", { skip_range = true }) end },
     { name = "FreezingTrap", matches = freezing_trap_matches, execute = function(context) return NS.try_cast(SPELLS.FreezingTrap, context.me, "[SURVIVAL] Freezing Trap", { skip_range = true, expected_cooldown = 30 }) end },
     { name = "HuntersMark", matches = hunters_mark_matches, execute = function(context) return NS.try_cast(SPELLS.HuntersMark, context.target, "[SURVIVAL] Hunter's Mark") end },
     { name = "RapidFire", matches = rapid_fire_matches, execute = function(context) return NS.try_cast(SPELLS.RapidFire, context.me, "[SURVIVAL] Rapid Fire", { skip_range = true, expected_cooldown = 300 }) end },

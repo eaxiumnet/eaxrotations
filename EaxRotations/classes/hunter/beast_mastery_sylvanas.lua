@@ -1096,7 +1096,6 @@ local DSL_DEFS = {
         name = "HuntersMark",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.HuntersMark, 2.0) then return false end
                 return true
             end },
             { type = "custom", fn = function(context, state)

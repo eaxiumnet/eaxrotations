@@ -307,7 +307,6 @@ end
 -- Match functions
 -- ============================================================================
 local function shadowform_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Shadowform, 3.0) then return false end
     if s.has_shadowform then return false end
     if not s.shadowform_known then return false end
     return true
@@ -331,7 +330,6 @@ end
 
 local function inner_fire_matches(context, s)
     if not s.inner_fire_known then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.InnerFire, 3.0) then return false end
     if s.has_inner_fire then return false end
     if not spec_kit.setting_bool(context, "shadow_use_inner_fire", true) then return false end
     return true
@@ -377,7 +375,6 @@ end
 
 local function shadow_word_pain_matches(context, s)
     if not s.swp_known then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShadowWordPain, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
     -- Mana emergency: drop all spells (wand only)
@@ -401,7 +398,6 @@ end
 
 local function devouring_plague_matches(context, s)
     if not s.devouring_plague_known then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DevouringPlague, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target or s.dp_remaining > (s.dp_refresh_window or 3) then return false end
     -- Mana emergency: drop all spells (wand only)

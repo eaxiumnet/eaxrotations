@@ -472,4 +472,120 @@ local ctx_rip_after_grace = Mock.DefaultMeleeContext({
 })
 assert_true(rip.matches(ctx_rip_after_grace), "Rip should match again after the post-cast grace window if debuff is still missing")
 
+-- ============================================================================
+-- Combo-point fallback path coverage
+-- The original bug: finishers never fired when the only available combo-point
+-- source was an API method instead of context.combo_points.  get_combo_points()
+-- now falls back through context.cp, NS.combo_points, NS.get_combo_points,
+-- me.combo_points_current, me.get_combo_points, and me.get_power(4).
+-- ============================================================================
+
+local _test_now = 2.0
+local function next_now()
+    _test_now = _test_now + 0.1
+    return _test_now
+end
+
+local function ctx_with_cp(cp_overrides)
+    local ctx = Mock.DefaultMeleeContext({
+        combo_points = nil, -- nil here is ignored by pairs; cleared below
+        energy = 100,
+        now = next_now(), -- unique timestamp so build_state isn't cached from a previous context
+        target = { _debuff_remains = 0 },
+        me = cp_overrides.me,
+    })
+    ctx.combo_points = nil -- clear the default 0 so the fallback path is exercised
+    return ctx
+end
+
+local shred_strategy = find_strategy("Shred")
+
+local function assert_5cp_finisher(source, ctx)
+    action_calls = {}
+    assert_true(rip.matches(ctx), "Rip should match at 5 CP via " .. source)
+    action_calls = {}
+    assert_false(shred_strategy.matches(ctx), "Shred should not waste CP at 5 CP via " .. source)
+end
+
+-- 1. context.combo_points (primary, already covered elsewhere, used as sanity check)
+local ctx_cp_primary = Mock.DefaultMeleeContext({
+    combo_points = 5,
+    energy = 100,
+    now = next_now(),
+    target = { _debuff_remains = 0 },
+})
+assert_5cp_finisher("context.combo_points", ctx_cp_primary)
+
+-- 2. context.cp alternate field
+local ctx_cp_alt = Mock.DefaultMeleeContext({
+    cp = 5,
+    energy = 100,
+    now = next_now(),
+    target = { _debuff_remains = 0 },
+})
+ctx_cp_alt.combo_points = nil -- clear the default 0 so the cp fallback is exercised
+assert_5cp_finisher("context.cp", ctx_cp_alt)
+
+-- 3. me.combo_points_current fallback
+local ctx_me_combo_points_current = ctx_with_cp({
+    me = {
+        combo_points_current = function(self) return 5 end,
+        get_power = function(self, pt) return nil end,
+        get_max_power = function() return 100 end,
+        get_health_percentage = function() return 100 end,
+    },
+})
+assert_5cp_finisher("me.combo_points_current", ctx_me_combo_points_current)
+
+-- 4. me.get_combo_points fallback
+local ctx_me_get_combo_points = ctx_with_cp({
+    me = {
+        get_combo_points = function(self, target) return 5 end,
+        get_power = function(self, pt) return nil end,
+        get_max_power = function() return 100 end,
+        get_health_percentage = function() return 100 end,
+    },
+})
+assert_5cp_finisher("me.get_combo_points", ctx_me_get_combo_points)
+
+-- 5. me.get_power(4) fallback (power type 4 == combo points)
+local ctx_me_get_power = ctx_with_cp({
+    me = {
+        get_power = function(self, pt)
+            if pt == 4 then return 5 end
+            return 0
+        end,
+        get_max_power = function() return 100 end,
+        get_health_percentage = function() return 100 end,
+    },
+})
+assert_5cp_finisher("me.get_power(4)", ctx_me_get_power)
+
+-- ============================================================================
+-- Bite energy cap: default of 100 lets Bite fire; old default of 39 blocked it.
+-- ============================================================================
+
+local bite_trick = find_strategy("BiteTrick")
+
+-- Rip already up (so Rip defers), 5 CP, plenty of energy, default cap
+local ctx_bite_default_cap = Mock.DefaultMeleeContext({
+    combo_points = 5,
+    energy = 80,
+    now = next_now(),
+    target = { _debuff_remains = 12 },
+})
+action_calls = {}
+assert_true(bite_trick.matches(ctx_bite_default_cap), "BiteTrick should fire with default cap 100 at 80 energy")
+
+-- Same context but with the old 39 cap should block BiteTrick
+local ctx_bite_old_cap = Mock.DefaultMeleeContext({
+    combo_points = 5,
+    energy = 80,
+    now = next_now(),
+    target = { _debuff_remains = 12 },
+    settings = { cat_bite_max_energy = 39 },
+})
+action_calls = {}
+assert_false(bite_trick.matches(ctx_bite_old_cap), "BiteTrick should be blocked with old cap 39")
+
 print("PASS test_cat_custom_matches")

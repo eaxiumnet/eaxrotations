@@ -455,16 +455,12 @@ local function build_state(context)
  resto_state.tranquility_count = 0
  resto_state.in_tree = context.stance == STANCE_TREE
  resto_state.in_caster = not context.stance or context.stance == STANCE_CASTER
- -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
- local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(17116, 3.0) or false
- if not skip_aura then
-  resto_state.tree_aura_count = count_tree_aura_targets(entries, count)
-  resto_state.in_tree = context.stance == STANCE_TREE or NS.has_player_buff(TREE_OF_LIFE_BUFF)
-  resto_state.has_natures_swiftness = NS.has_player_buff(NATURES_SWIFTNESS_BUFF)
-  resto_state.has_clearcasting = NS.has_player_buff(CLEARCASTING_BUFF)
-  resto_state.moonfire_remains = context.target and NS.debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
-  resto_state.insect_swarm_remains = context.target and NS.debuff_remains(context.target, INSECT_SWARM_DEBUFF) or 0
- end
+ resto_state.tree_aura_count = count_tree_aura_targets(entries, count)
+ resto_state.in_tree = context.stance == STANCE_TREE or NS.has_player_buff(TREE_OF_LIFE_BUFF)
+ resto_state.has_natures_swiftness = NS.has_player_buff(NATURES_SWIFTNESS_BUFF)
+ resto_state.has_clearcasting = NS.has_player_buff(CLEARCASTING_BUFF)
+ resto_state.moonfire_remains = context.target and NS.debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
+ resto_state.insect_swarm_remains = context.target and NS.debuff_remains(context.target, INSECT_SWARM_DEBUFF) or 0
  -- Tree of Life talent detection
  if NS.spell_book and NS.spell_book.is_spell_learned then
   resto_state.can_tree = NS.spell_book.is_spell_learned(33891) == true
@@ -778,13 +774,11 @@ local strategies = {
   { name = "BarkskinSelfPreservation" },
   { name = "BearFormFocusedByMelee" },
   { name = "NaturesGraspMelee" },  { name = "RemoveCurse", matches = function(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.RemoveCurse, 3.0) then return false end
     local group_aware = spec_kit.setting_bool(context, "druid_resto_group_aware_utility", true)
     if not (context.control_risk or (group_aware and context.is_group)) then return false end
     return state.cursed_target and NS.spell_ready(ACTION.RemoveCurse, state.cursed_target.unit)
    end, execute = function(_, state) return NS.try_cast(ACTION.RemoveCurse, state.cursed_target.unit, "[RESTO] Remove Curse") end },
   { name = "AbolishPoison", matches = function(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.AbolishPoison, 3.0) then return false end
     local group_aware = spec_kit.setting_bool(context, "druid_resto_group_aware_utility", true)
     if not (context.control_risk or (group_aware and context.is_group)) then return false end
     return state.poison_target and NS.spell_ready(ACTION.AbolishPoison, state.poison_target.unit)

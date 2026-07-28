@@ -34,9 +34,14 @@ NS.CLASS_ID = { WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5,
                 SHAMAN = 7, MAGE = 8, WARLOCK = 9, DRUID = 11 }
 
 local casts = {}
+local last_cast_time = {}
+local current_time = 100
 local buff_rank_returns = {}  -- unit_key -> {active_id, rank_pos}
+local TEST_IDS  -- forward declaration; set after module load
 
 NS.buff_rank = function(unit, ids)
+    -- Only return a rank for the Fortitude test family; other families (e.g. shadow_prot) are nil.
+    if ids and ids[1] ~= TEST_IDS[1] then return nil, nil end
     local key = unit._test_key or "self"
     local r = buff_rank_returns[key]
     if r then return r[1], r[2] end
@@ -45,8 +50,16 @@ end
 
 NS.spell_ready = function(spell, target, opts) return true end
 
-NS.try_cast = function(spell, target, reason)
-    casts[#casts + 1] = { spell = spell, target = target, reason = reason }
+NS.try_cast = function(spell, target, reason, opts)
+    local min_interval = opts and opts.min_interval or 0
+    if min_interval and min_interval > 0 then
+        local last = last_cast_time[spell]
+        if last and (current_time - last) < min_interval then
+            return false
+        end
+    end
+    casts[#casts + 1] = { spell = spell, target = target, reason = reason, opts = opts }
+    last_cast_time[spell] = current_time
     return true
 end
 
@@ -54,14 +67,20 @@ NS.spell_action = function(ids, label)
     return { _ids = ids, _label = label }
 end
 
-NS.broken_api_throttled = nil  -- no throttle in tests
-
 NS.GetPartyMembers = function() return {} end
 
 NS.get_setting = function(key, fallback) return fallback end
 
 NS.gcd_remains = function() return 0 end
-NS.time_now = function() return 100 end
+NS.time_now = function() return current_time end
+
+-- Isolate from any previously-loaded core_sylvanas buff_would_downgrade implementation.
+NS.buff_would_downgrade = nil
+
+local function reset_casts()
+    casts = {}
+    last_cast_time = {}
+end
 
 -- ================================================================
 -- Load the module under test
@@ -71,6 +90,9 @@ package.loaded["shared/buff_upgrade_sylvanas"] = nil
 local ok, mod = pcall(require, "shared/buff_upgrade_sylvanas")
 assert(ok, "Failed to load buff_upgrade_sylvanas: " .. tostring(mod))
 
+-- Use the exact Fortitude cast-ladder the module loaded (RBF-aware, may include WotLK ranks).
+TEST_IDS = mod.PARTY_BUFFS_BY_CLASS[NS.CLASS_ID.PRIEST][1].ids
+
 local needs_upgrade = mod.needs_upgrade
 local try_buff_upgrades = mod.try_buff_upgrades
 
@@ -78,7 +100,6 @@ local try_buff_upgrades = mod.try_buff_upgrades
 -- Test data
 -- ================================================================
 
-local TEST_IDS = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
 local entry = { ids = TEST_IDS, key = "fort" }
 
 local me = { _test_key = "self",
@@ -102,7 +123,7 @@ print("PASS buff_upgrade_no_buff")
 -- 2. needs_upgrade: false when highest rank active (position 1)
 -- ================================================================
 
-buff_rank_returns["self"] = { 25389, 1 }
+buff_rank_returns["self"] = { TEST_IDS[1], 1 }
 assert_false(needs_upgrade(me, entry), "highest rank -> no upgrade needed")
 print("PASS buff_upgrade_highest_rank")
 
@@ -122,19 +143,20 @@ print("PASS buff_upgrade_mid_rank")
 -- 4. try_buff_upgrades: self upgrade triggers cast
 -- ================================================================
 
-casts = {}
+reset_casts()
 buff_rank_returns["self"] = { 1243, 7 }
 local r = try_buff_upgrades({}, {}, me)
 assert_true(r, "self upgrade should return true")
 assert_eq(#casts, 1, "should cast once for self upgrade")
+assert_eq(casts[1].opts and casts[1].opts.min_interval, 3.0, "self upgrade should use 3s min_interval")
 print("PASS buff_upgrade_self_cast")
 
 -- ================================================================
 -- 5. try_buff_upgrades: no-op when at highest rank
 -- ================================================================
 
-casts = {}
-buff_rank_returns["self"] = { 25389, 1 }
+reset_casts()
+buff_rank_returns["self"] = { TEST_IDS[1], 1 }
 r = try_buff_upgrades({}, {}, me)
 assert_false(r, "no upgrade needed -> return false")
 assert_eq(#casts, 0, "should not cast when at highest rank")
@@ -144,21 +166,23 @@ print("PASS buff_upgrade_no_op")
 -- 6. try_buff_upgrades: party member upgrade
 -- ================================================================
 
-casts = {}
+reset_casts()
 NS.GetPartyMembers = function() return { party1 } end
-buff_rank_returns["self"] = { 25389, 1 }  -- self is fine
+buff_rank_returns["self"] = { TEST_IDS[1], 1 }  -- self is fine
 buff_rank_returns["party1"] = { 1243, 7 }  -- party member has low rank
 
 r = try_buff_upgrades({}, {}, me)
 assert_true(r, "party upgrade should return true")
 assert_eq(#casts, 1, "should cast once for party upgrade")
+assert_eq(casts[1].opts and casts[1].opts.min_interval, 3.0, "party upgrade should use 3s min_interval")
 print("PASS buff_upgrade_party_cast")
 
 -- ================================================================
 -- 7. try_buff_upgrades: both self and party — self wins (priority)
 -- ================================================================
 
-casts = {}
+reset_casts()
+NS.GetPartyMembers = function() return { party1 } end
 buff_rank_returns["self"] = { 1243, 7 }
 buff_rank_returns["party1"] = { 1243, 7 }
 
@@ -171,7 +195,7 @@ print("PASS buff_upgrade_self_priority")
 -- 8. try_buff_upgrades: no class buffs -> no-op
 -- ================================================================
 
-casts = {}
+reset_casts()
 buff_rank_returns["self"] = { 1243, 7 }
 local warrior = { _test_key = "self",
     is_alive = function() return true end,
@@ -186,9 +210,9 @@ print("PASS buff_upgrade_no_class_buffs")
 -- 9. try_buff_upgrades: dead party member skipped
 -- ================================================================
 
-casts = {}
+reset_casts()
 NS.GetPartyMembers = function() return { party1 } end
-buff_rank_returns["self"] = { 25389, 1 }
+buff_rank_returns["self"] = { TEST_IDS[1], 1 }
 buff_rank_returns["party1"] = { 1243, 7 }
 party1.is_alive = function() return false end  -- dead
 
@@ -201,14 +225,38 @@ print("PASS buff_upgrade_dead_party")
 party1.is_alive = function() return true end
 
 -- ================================================================
--- 10. buff_would_downgrade: never overwrite better MotW/GotW with worse MotW
+-- 10. min_interval suppresses rapid repeated upgrades
+-- ================================================================
+
+reset_casts()
+NS.GetPartyMembers = function() return {} end
+buff_rank_returns["self"] = { 1243, 7 }
+r = try_buff_upgrades({}, {}, me)
+assert_true(r, "first self upgrade should cast")
+assert_eq(#casts, 1, "first upgrade casts once")
+r = try_buff_upgrades({}, {}, me)
+assert_false(r, "second self upgrade within 3s should be suppressed")
+assert_eq(#casts, 1, "no second cast while min_interval active")
+print("PASS buff_upgrade_min_interval_suppresses")
+
+-- ================================================================
+-- 11. buff_would_downgrade: never overwrite better MotW/GotW with worse MotW
 -- ================================================================
 
 -- Minimal reimplementation of the core helper contract (test sandbox may not
 -- load full core_sylvanas). Mirrors NS.buff_would_downgrade semantics.
 local function buff_would_downgrade(unit, buff_ids, cast_id)
-    local active_id, active_pos = NS.buff_rank(unit, buff_ids)
-    if not active_id or not active_pos then return false end
+    -- Resolve the active aura from the test fixture directly so this helper is
+    -- independent of the Fortitude-specific NS.buff_rank mock.
+    local key = unit._test_key or "self"
+    local active = buff_rank_returns[key]
+    local active_id = active and active[1]
+    if not active_id then return false end
+    local active_pos
+    for i = 1, #buff_ids do
+        if buff_ids[i] == active_id then active_pos = i; break end
+    end
+    if not active_pos then return false end
     local cast_pos
     for i = 1, #buff_ids do
         if buff_ids[i] == cast_id then cast_pos = i; break end

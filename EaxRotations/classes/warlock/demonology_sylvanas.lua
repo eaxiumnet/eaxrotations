@@ -64,6 +64,10 @@ local ACTION = {
 local pet_manager = require("shared/pet_manager_sylvanas")
 
 local potion_helper = require("shared/potion_helper_sylvanas")
+local healthstone_helper = require("shared/warlock_healthstone_sylvanas")
+local soulshatter_helper = require("shared/warlock_soulshatter_sylvanas")
+local death_coil_helper = require("shared/warlock_death_coil_sylvanas")
+local shadow_ward_helper = require("shared/warlock_shadow_ward_sylvanas")
 
 -- ============================================================================
 -- Buff & Debuff ID tables
@@ -353,15 +357,6 @@ local function pet_needs_healing(context)
     return pet_hp < PET_LOW_HP
 end
 
-local function death_coil_matches(context, action)
-    if not context.target then return false end
-    local me = context.me
-    if not me then return false end
-    local hp = me.get_health_percentage and me:get_health_percentage() or 100
-    if hp > 40 then return false end
-    return true
-end
-
 local function health_funnel_matches(context)
     return pet_needs_healing(context)
 end
@@ -425,7 +420,6 @@ local function other_curse_active(s, this_curse)
 end
 
 local function curse_of_doom_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfDoom, 2.0) then return false end
     if not context.target then return false end
     if assigned_curse_blocks(context, "doom") then return false end
     if select_curse(context, s) ~= "doom" then return false end
@@ -436,7 +430,6 @@ local function curse_of_doom_matches(context, s)
 end
 
 local function corruption_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Corruption, 2.0) then return false end
     if not context.target then return false end
     if not s.corruption_ready then return false end
     if NS.debuff_remains(context.target, CORRUPTION_DEBUFF) > DOT_REFRESH_WINDOW then return false end
@@ -446,7 +439,6 @@ local function corruption_matches(context, s)
 end
 
 local function immolate_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Immolate, 2.0) then return false end
     if not context.target then return false end
     if not s.immolate_ready then return false end
     if NS.debuff_remains(context.target, IMMOLATE_DEBUFF) > DOT_REFRESH_WINDOW then return false end
@@ -488,13 +480,7 @@ local function howl_of_terror_matches(context, s)
     return true
 end
 
-local function shadow_ward_matches(context, s)
-    if not s.shadow_ward_ready then return false end
-    return true
-end
-
 local function siphon_life_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.SiphonLife, 2.0) then return false end
     if not context.target then return false end
     if not s.siphon_life_ready then return false end
     -- TTD gate: skip long DoT if target will die before it pays off (30s base)
@@ -509,15 +495,6 @@ local function fel_domination_matches(context, s)
     return true
 end
 
-local function soulshatter_matches(context, s)
-    if not context.in_combat then return false end
-    if not s.soulshatter_ready then return false end
-    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
-    if not me then return false end
-    if NS.cooldown_remains(ACTION.Soulshatter, 300) > 0 then return false end
-    return NS.spell_ready(ACTION.Soulshatter, me, { skip_range = true })
-end
-
 local function incinerate_matches(context, s)
     if not context.target then return false end
     if context.is_moving then return false end
@@ -527,13 +504,11 @@ end
 
 local function fel_armor_matches(context, s)
     if not s then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FelArmor, 3.0) then return false end
     if s.has_fel_armor then return false end
     return s.fel_armor_ready == true
 end
 
 local function soul_fire_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.SoulFire, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
     if not s.soul_fire_ready then return false end
@@ -593,7 +568,6 @@ local function hellfire_matches(context, s)
 end
 
 local function curse_of_agony_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfAgony, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
     if assigned_curse_blocks(context, "agony") then return false end
@@ -606,7 +580,6 @@ local function curse_of_agony_matches(context, s)
 end
 
 local function curse_of_elements_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseElements, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
     if assigned_curse_blocks(context, "elements") then return false end
@@ -618,7 +591,6 @@ local function curse_of_elements_matches(context, s)
 end
 
 local function curse_of_recklessness_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfRecklessness, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
     if assigned_curse_blocks(context, "recklessness") then return false end
@@ -630,7 +602,6 @@ local function curse_of_recklessness_matches(context, s)
 end
 
 local function curse_of_weakness_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfWeakness, 2.0) then return false end
     if not s then return false end
     if not context.target then return false end
     if assigned_curse_blocks(context, "weakness") then return false end
@@ -691,7 +662,6 @@ local DSL_DEFS = {
         name = "FelArmor",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FelArmor, 3.0) then return false end
                 return true
             end },
             { type = "state", field = "has_fel_armor", op = "==", value = false },
@@ -712,7 +682,6 @@ local DSL_DEFS = {
         name = "Corruption",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Corruption, 2.0) then return false end
                 return true
             end },
             { type = "context", field = "target", op = "!=", value = nil },
@@ -826,31 +795,24 @@ local strategies = {
     end },
     { name = "RainOfFire", matches = rain_of_fire_matches, execute = rain_of_fire_execute },
     { name = "Hellfire", matches = hellfire_matches, execute = function(context) return NS.try_cast(ACTION.Hellfire, context.me, "[DEMONOLOGY] Hellfire", { skip_range = true }) end },
-    { name = "DeathCoil", matches = function(context, state) return death_coil_matches(context, { name = "DeathCoil", spell = ACTION.DeathCoil }) end, execute = function(context) return NS.try_cast(ACTION.DeathCoil, context.target, "[DEMONOLOGY] Death Coil", { expected_cooldown = 120 }) end },
+    death_coil_helper.make_strategy("DeathCoil", ACTION.DeathCoil, { label = "[DEMONOLOGY] Death Coil", require_in_combat = true }),
     { name = "LifeTap" },
     { name = "DarkPact", matches = dark_pact_matches, execute = function(context) return NS.try_cast(ACTION.DarkPact, context.me, "[DEMONOLOGY] Dark Pact", { skip_range = true, expected_cooldown = 10 }) end },
-    { name = "ShadowWard", matches = shadow_ward_matches, execute = function(context) return NS.try_cast(ACTION.ShadowWard, context.me, "[DEMONOLOGY] Shadow Ward", { skip_range = true, expected_cooldown = 30 }) end },
+    shadow_ward_helper.make_strategy("ShadowWard", ACTION.ShadowWard, { label = "[DEMONOLOGY] Shadow Ward" }),
     { name = "HowlofTerror", matches = howl_of_terror_matches, execute = function(context) return NS.try_cast(ACTION.HowlofTerror, context.me, "[DEMONOLOGY] Howl of Terror", { skip_range = true, expected_cooldown = 40 }) end },
     { name = "Fear", matches = fear_matches, execute = function(context) return NS.try_cast(ACTION.Fear, context.target, "[DEMONOLOGY] Fear") end },
     { name = "Seduction", matches = seduction_matches, execute = function(context) return NS.try_cast(ACTION.Seduction, context.target, "[DEMONOLOGY] Seduction") end },
-    { name = "Soulshatter", matches = soulshatter_matches, execute = function(context) return NS.try_cast(ACTION.Soulshatter, context.me, "[DEMONOLOGY] Soulshatter", { skip_range = true }) end },
+    soulshatter_helper.make_strategy("Soulshatter", ACTION.Soulshatter, "[DEMONOLOGY] Soulshatter"),
     { name = "LifeTap" },
     { name = "ShadowBolt" },
     { name = "Incinerate", matches = incinerate_matches, execute = function(context) return NS.try_cast(ACTION.Incinerate, context.target, "[DEMONOLOGY] Incinerate") end },
-    { name = "Healthstone",
-      matches = function(context, state)
-          local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
-          if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
-          if not spec_kit.setting_bool(context, "use_healthstones", true) then return false end
-          if threshold <= 0 then return false end
-          if (context.hp or 100) > threshold then return false end
-          if context.is_casting then return false end
-          return state and state.healthstone_ready == true
-      end,
-      execute = function(_, state)
-          return state and state.healthstone_id and NS.use_item_by_id and NS.use_item_by_id(state.healthstone_id) or false
-      end,
-    },
+    healthstone_helper.make_strategy("Healthstone", {
+        healthstone_ids = HEALTHSTONE_IDS,
+        use_state_id = true,
+        require_in_combat = false,
+        priority = 850,
+        is_defensive = true,
+    }),
 }
 
 -- Replace imperative match functions with DSL-compiled equivalents.

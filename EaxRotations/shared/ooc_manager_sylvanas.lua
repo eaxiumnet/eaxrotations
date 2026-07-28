@@ -23,16 +23,14 @@
 --           internal 1s throttle kept the actual cast work at 1Hz. Now
 --           register_ooc_manager() is a no-op for backwards compat and the
 --           sole entry point is main_sylvanas.lua.
--- Safety:   Five-layer throttle chain prevents infinite retry loops:
+-- Safety:   Four-layer throttle chain prevents infinite retry loops:
 --             1. on_update fires at most 1/s via _last_check timer
 --             2. GCD gate — skips entirely when gcd_remains > 0
---             3. broken_api_throttled — per-spell lockout after a successful
---                cast (buffs: 300s / pets: 10s). buff_remains often returns 0
---                on PS when auras are broken, so without a long lockout MotW/
---                Thorns re-queue every GCD.
---             4. Buff threshold — only recast when buff_remains <
---                ooc_buff_threshold (default 30s)
---             5. Healer mana floor — skips buffs when mana < threshold
+--             3. Pure aura/cooldown gates (pet presence, buff remains,
+--                food/flask buff presence) decide whether to cast at all.
+--             4. min_interval on NS.try_cast — per-spell cast history lockout
+--                (buffs: 300s / pets: 10s / food: 3s) prevents retry spam when
+--                aura APIs lie, without relying on separate hardcoded timers.
 -- Decision:  Buff entries define their full rank array; get_spell resolves
 --           the highest known rank via NS.spell_action. Mutually exclusive
 --           groups (Fel Armor/Demon Armor, Water Shield/Lightning Shield)
@@ -46,26 +44,25 @@
 --   2. reset_work_ids copies buff rank IDs into reusable _work_ids table
 --   3. NS.buff_remains checks all buff IDs; nil = API unavailable, skip
 --   4. If remains <= threshold, resolve spell action via get_spell/NS.spell_action
---   5. broken_api_throttled guard: skip for SELF_BUFF_LOCKOUT (300s) after cast
---   6. NS.try_cast with skip_range=true
+--   5. NS.try_cast with skip_range=true and min_interval=SELF_BUFF_LOCKOUT
 --
 -- Throttle chain detail (single entry point now: main_sylvanas.lua dispatch):
 --   main_sylvanas on_rotation_update (20Hz) -> not in_combat && no enemy
 --     -> M.on_update(context) -> 1s internal throttle -> GCD guard
 --     -> per-path logic:
---       try_pet_summon  -> broken_api_throttled(10s) -> NS.try_cast(cooldown)
+--       try_pet_summon  -> pet-existence checks -> NS.try_cast(cooldown, min_interval=10s)
 --       try_self_buffs  -> healer mana floor -> for each entry:
 --         should_handle_buff -> buff_remains <= threshold -> get_spell ->
---         broken_api_throttled(300s) -> NS.try_cast(skip_range)
---       try_buff_upgrades -> buff_rank position > 1 -> NS.try_cast (rank upgrade)
---       try_food_flask  -> broken_api_throttled(3s) -> NS.try_cast (numeric ID, no rank mismatch)
+--         NS.try_cast(skip_range=true, min_interval=300s)
+--       try_buff_upgrades -> buff_rank position > 1 -> NS.try_cast (rank upgrade, min_interval)
+--       try_food_flask  -> food/flask buff check -> NS.try_cast (numeric ID, min_interval=3s)
 
 -- Long-duration class self-buffs (MotW 30m, Thorns 10m, AI, Fort, etc.).
--- When aura APIs lie (buff_remains=0 while buff is up), only recent-cast
--- history can stop recast spam. 5 minutes is well under real durations.
+-- When aura APIs lie (buff_remains=0 while buff is up), try_cast's
+-- min_interval uses actual recent-cast history to stop recast spam.
 local SELF_BUFF_LOCKOUT = 300.0
 local PET_SUMMON_LOCKOUT = 10.0
-local _throttle_log_at = {}
+local FOOD_FLASK_LOCKOUT = 3.0
 
 local _G = _G
 local NS = _G.EaxRotations
@@ -388,18 +385,9 @@ local function try_self_buffs(context, settings, me, class_id)
                     local should_cast = true
                     -- Long lockout after a successful cast: aura APIs often return
                     -- remains=0 on PS, which would otherwise re-queue every GCD.
-                    -- Pass the resolved spell object so NS.broken_api_throttled
-                    -- resolves the correct cast ID via NS.get_spell_id.
-                    if NS.broken_api_throttled and NS.broken_api_throttled(spell, SELF_BUFF_LOCKOUT) then
-                        should_cast = false
-                        local now_t = NS.time_now and NS.time_now() or 0
-                        local last_log = _throttle_log_at[entry.key] or 0
-                        if NS.log and (now_t - last_log) >= 30 then
-                            _throttle_log_at[entry.key] = now_t
-                            NS.log("[OOC] " .. entry.label .. " throttled (recent cast / broken aura API)")
-                        end
-                    end
-                    if should_cast and NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true }) then
+                    -- Use try_cast's min_interval so we throttle only when we actually
+                    -- just cast, rather than a separate hardcoded timer.
+                    if NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true, min_interval = SELF_BUFF_LOCKOUT }) then
                         return true
                     end
                 end
@@ -422,17 +410,9 @@ local function try_pet_summon(settings, me, class_id)
     end
     local spell = get_spell(entry)
     if not spell then return false end
-    -- Throttle retries when spell-book API is broken on private servers
-    if NS.broken_api_throttled and NS.broken_api_throttled(spell, PET_SUMMON_LOCKOUT) then
-        local now_t = NS.time_now and NS.time_now() or 0
-        local last_log = _throttle_log_at[entry.key] or 0
-        if NS.log and (now_t - last_log) >= 30 then
-            _throttle_log_at[entry.key] = now_t
-            NS.log("[OOC] " .. entry.label .. " throttled (recent cast / broken aura API)")
-        end
-        return false
-    end
-    return NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true, expected_cooldown = entry.cooldown }) == true
+    -- min_interval lets try_cast suppress retry spam after a recent cast, while
+    -- the existing pet-existence checks remain pure API-based.
+    return NS.try_cast(spell, me, "[OOC] " .. entry.label, { skip_range = true, expected_cooldown = entry.cooldown, min_interval = PET_SUMMON_LOCKOUT }) == true
 end
 
 local function try_food_flask(settings, me)
@@ -443,15 +423,12 @@ local function try_food_flask(settings, me)
 
     local spell_id = get_setting(settings, "ooc_food_flask_spell", nil)
     if type(spell_id) ~= "number" then return false end
-    -- Throttle retries when spell-book API is broken on private servers
-    if NS.broken_api_throttled and NS.broken_api_throttled(spell_id, 3.0) then
-        if NS.log then NS.log("[OOC] Food/Flask throttled (broken API, spell " .. spell_id .. ")") end
-        return false
-    end
     local entry = { key = "food_flask_" .. tostring(spell_id), label = "Food/Flask", spell = spell_id }
     local spell = get_spell(entry)
     if not spell then return false end
-    return NS.try_cast(spell, me, "[OOC] Food/Flask", { skip_range = true }) == true
+    -- min_interval lets try_cast suppress retry spam after a recent cast; the
+    -- buff presence check above is the pure gate.
+    return NS.try_cast(spell, me, "[OOC] Food/Flask", { skip_range = true, min_interval = FOOD_FLASK_LOCKOUT }) == true
 end
 
 function M.on_update(context)

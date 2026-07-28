@@ -16,6 +16,7 @@ local dispel_manager = NS.DispelManager or require("shared/dispel_manager_sylvan
 local spec_kit = require("shared/spec_kit_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local CCGateDB = CCBreakDB
+local scan_cache = require("shared/middleware_scan_cache_sylvanas")
 local SPELLS = NS.DruidSpells or {}
 local _rbf_ok, RBF = pcall(require, "shared/ranked_buff_families_sylvanas")
 if not _rbf_ok then RBF = nil end
@@ -93,15 +94,6 @@ local ROOT_SNARE_DEBUFFS = {
     3408, 11202, 11201,  -- Crippling Poison
 }
 
--- Throttle shared state to prevent per-frame scan overhead
-local _last_ccbreak_scan = 0
-local _last_ccbreak_result = false
-local CCBREAK_SCAN_INTERVAL = 0.3
-
-local _last_root_scan = 0
-local _last_root_result = false
-local ROOT_SCAN_INTERVAL = 0.2
-
 -- Shared form-shift throttle across all druid modules
 local _last_mw_form_shift = 0
 local MW_FORM_SHIFT_COOLDOWN = 2.0
@@ -115,20 +107,17 @@ local function in_poly_immune_form()
     return false
 end
 
--- Helper: check if druid is rooted or snared (throttled to avoid 17 debuff checks per frame)
-local function is_rooted_or_snared(me)
+-- Helper: check if druid is rooted or snared (cached per context to avoid repeated debuff checks)
+local function is_rooted_or_snared(context, me)
     if not me or not NS.debuff_up then return false end
-    local now = NS.time_now and NS.time_now() or 0
-    if now - _last_root_scan < ROOT_SCAN_INTERVAL then return _last_root_result end
-    _last_root_scan = now
-    for _, id in ipairs(ROOT_SNARE_DEBUFFS) do
-        if NS.debuff_up(me, id) then
-            _last_root_result = true
-            return true
+    return scan_cache.memoize_bool(context, "druid_rooted_or_snared", function()
+        for _, id in ipairs(ROOT_SNARE_DEBUFFS) do
+            if NS.debuff_up(me, id) then
+                return true
+            end
         end
-    end
-    _last_root_result = false
-    return false
+        return false
+    end)
 end
 
 -- Helper: find the best form to shift into for CC immunity
@@ -186,38 +175,31 @@ local strategies = {
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
-            -- Throttle: full scan is expensive (enemy iteration + preemptive CC detection)
-            local now = NS.time_now and NS.time_now() or 0
-            if now - _last_ccbreak_scan < CCBREAK_SCAN_INTERVAL then
-                if not _last_ccbreak_result then return false end
-                -- If we throttled a positive result, fall through to reactive check only
-            else
-                _last_ccbreak_scan = now
-                _last_ccbreak_result = false
-                -- Preemptive scan: check if any nearby enemy is casting Poly/Cyclone/Hibernate on us
-                -- Only preempt if we're in caster form (forms are immune to Poly)
-                if not in_poly_immune_form() then
+            -- Preemptive scan: check if any nearby enemy is casting Poly/Cyclone/Hibernate on us
+            -- Only preempt if we're in caster form (forms are immune to Poly)
+            if not in_poly_immune_form() then
+                local preemptive_enemy = scan_cache.memoize(context, "druid_preemptive_cc", function()
                     local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
                     for _, enemy in ipairs(enemies) do
-                        if enemy then
-                            local is_casting_cc = CCBreakDB.is_casting_preemptive_cc(enemy)
-                            if is_casting_cc then
-                                local ok, etarget = pcall(function() return enemy:get_target() end)
-                                if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
-                                    local form_id = get_best_cc_form(settings)
-                                    if form_id and NS.spell_ready and NS.spell_ready(form_id, me, { skip_range = true }) then
-                                        _last_ccbreak_result = true
-                                        return true
-                                    end
-                                end
+                        if enemy and CCBreakDB.is_casting_preemptive_cc(enemy) then
+                            local ok, etarget = pcall(function() return enemy:get_target() end)
+                            if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
+                                return enemy
                             end
                         end
+                    end
+                    return false
+                end)
+                if preemptive_enemy then
+                    local form_id = get_best_cc_form(context.settings or {})
+                    if form_id and NS.spell_ready and NS.spell_ready(form_id, me, { skip_range = true }) then
+                        return true
                     end
                 end
             end
             -- Reactive: shapeshift to break roots/snares (roots allow casting, so this path works)
-            if is_rooted_or_snared(me) then
-                local form_id = get_best_cc_form(settings)
+            if is_rooted_or_snared(context, me) then
+                local form_id = get_best_cc_form(context.settings or {})
                 if form_id and NS.spell_ready and NS.spell_ready(form_id, me, { skip_range = true }) then
                     return true
                 end
@@ -346,7 +328,6 @@ local strategies = {
             local spell = { id = motw_cast, name = "MarkOfTheWild" }
             -- Aura APIs often report MotW missing after cast → GCD spam.
             -- 300s lockout is well under MotW's real 30m duration.
-            if NS.broken_api_throttled and NS.broken_api_throttled(spell, 300.0) then return false end
             -- GotW + all MotW ranks (best first). Never overwrite Gift / higher MotW with a lower rank.
             local motw_buffs = (RBF and RBF.detect("mark_of_the_wild")) or motw_cast
             if NS.buff_would_downgrade and NS.buff_would_downgrade(context.me, motw_buffs, spell) then return false end
@@ -371,7 +352,6 @@ local strategies = {
             local thorns_cast = (RBF and RBF.cast("thorns")) or { 26992, 9910, 9756, 8914, 1075, 782, 467 }
             local spell = { id = thorns_cast, name = "Thorns" }
             -- Same aura-API failure mode as MotW (live log: Thorns 782 loop).
-            if NS.broken_api_throttled and NS.broken_api_throttled(spell, 300.0) then return false end
             local thorns_buffs = (RBF and RBF.detect("thorns")) or thorns_cast
             if NS.buff_would_downgrade and NS.buff_would_downgrade(context.me, thorns_buffs, spell) then return false end
             if NS.has_player_buff and NS.has_player_buff(thorns_buffs) then return false end

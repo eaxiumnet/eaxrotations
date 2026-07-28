@@ -56,6 +56,7 @@ local ACTION = {
     ShadowWordPain  = define("ShadowWordPain",  {25368, 25367, 10894, 10893, 10892, 2767, 992, 970, 594, 589}, "ShadowWordPain"),
     ShadowWordDeath = define("ShadowWordDeath", {32996, 32379}, "ShadowWordDeath"),
     Shadowfiend     = define("Shadowfiend",     {34433}, "Shadowfiend"),
+    ShackleUndead   = define("ShackleUndead",   {10955, 9485, 9484}, "ShackleUndead"),
     Smite           = define("Smite",           {25364, 25363, 10934, 10933, 6060, 1004, 984, 598, 591, 585}, "Smite"),
     Starshards      = define("Starshards",      {25446, 19305, 19304, 19303, 19302, 19299, 19296, 10797}, "Starshards"),
 }
@@ -74,6 +75,16 @@ local WEAKENED_SOUL_DEBUFF = { 6788 }
 local SKIP_RANGE = { skip_range = true }
 local PSYCHIC_SCREAM_OPTS = { skip_range = true, expected_cooldown = 30 }
 local SHADOWFIEND_OPTS = { expected_cooldown = 300 }
+
+local function target_creature_type(unit)
+    if not unit then return nil end
+    if type(NS.unit_creature_type) == "function" then return NS.unit_creature_type(unit) end
+    if unit.get_creature_type then
+        local ok, value = pcall(function() return unit:get_creature_type() end)
+        if ok then return value end
+    end
+    return nil
+end
 
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local function first_ready_item(ids)
@@ -103,6 +114,7 @@ local smite_state = {
     psychic_scream_ready = false, shadowfiend_ready = false,
     hp_pct = 100, mana_pct = 100, mana_emergency = false, mana_low = false,
     threat_safe = true, enemy_count = 1, is_group = false, healthstone_ready = 0,
+    shackle_undead_ready = false, target_creature_type = nil,
 }
 
 local SMITE_SCHEMA = {
@@ -116,6 +128,7 @@ local SMITE_SCHEMA = {
     psychic_scream_ready = true, shadowfiend_ready = true,
     hp_pct = 100, mana_pct = 100, mana_emergency = false, mana_low = false,
     threat_safe = true, enemy_count = 0, is_group = false, healthstone_ready = 0,
+    shackle_undead_ready = false, target_creature_type = nil,
 }
 
 local function build_state(context)
@@ -127,23 +140,20 @@ local function build_state(context)
     context.mana_pct = context.mana_pct or context.player_mana_pct or (player.mana_pct and player:mana_pct()) or 100
     context.hp = health_pct(NS.PLAYER_UNIT)
 
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(14752, 3.0) or false
-    if not skip_aura then
-        local swp_dur = target and debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
-        smite_state.swp_active = swp_dur > 0
-        smite_state.swp_remaining = swp_dur
-        smite_state.surge_of_light = buff_up(NS.PLAYER_UNIT, SURGE_OF_LIGHT_BUFF)
-        smite_state.dp_remaining = target and debuff_remains(target, DEVOURING_PLAGUE_DEBUFF) or 0
-        smite_state.has_inner_focus = buff_up(NS.PLAYER_UNIT, INNER_FOCUS_BUFF)
-        smite_state.has_inner_fire = buff_up(NS.PLAYER_UNIT, INNER_FIRE_BUFF)
-        smite_state.inner_fire_remains = 0
-        if smite_state.has_inner_fire and type(buff_remains) == "function" then
-            local r = buff_remains(NS.PLAYER_UNIT, INNER_FIRE_BUFF)
-            smite_state.inner_fire_remains = (r ~= nil and r >= 0) and r or 999
-        end
-        smite_state.has_renew = buff_up(NS.PLAYER_UNIT, RENEW_BUFF)
-        smite_state.has_weakened_soul = NS.debuff_up and NS.debuff_up(NS.PLAYER_UNIT, WEAKENED_SOUL_DEBUFF) or false
+    local swp_dur = target and debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
+    smite_state.swp_active = swp_dur > 0
+    smite_state.swp_remaining = swp_dur
+    smite_state.surge_of_light = buff_up(NS.PLAYER_UNIT, SURGE_OF_LIGHT_BUFF)
+    smite_state.dp_remaining = target and debuff_remains(target, DEVOURING_PLAGUE_DEBUFF) or 0
+    smite_state.has_inner_focus = buff_up(NS.PLAYER_UNIT, INNER_FOCUS_BUFF)
+    smite_state.has_inner_fire = buff_up(NS.PLAYER_UNIT, INNER_FIRE_BUFF)
+    smite_state.inner_fire_remains = 0
+    if smite_state.has_inner_fire and type(buff_remains) == "function" then
+        local r = buff_remains(NS.PLAYER_UNIT, INNER_FIRE_BUFF)
+        smite_state.inner_fire_remains = (r ~= nil and r >= 0) and r or 999
     end
+    smite_state.has_renew = buff_up(NS.PLAYER_UNIT, RENEW_BUFF)
+    smite_state.has_weakened_soul = NS.debuff_up and NS.debuff_up(NS.PLAYER_UNIT, WEAKENED_SOUL_DEBUFF) or false
     smite_state.hf_ready = spell_exists(ACTION.HolyFire) and spell_ready(ACTION.HolyFire, target)
     smite_state.mb_ready = spell_exists(ACTION.MindBlast) and spell_ready(ACTION.MindBlast, target)
     smite_state.swd_ready = spell_exists(ACTION.ShadowWordDeath) and spell_ready(ACTION.ShadowWordDeath, target)
@@ -165,6 +175,8 @@ local function build_state(context)
         and (smite_state.swp_remaining or 0) > 2.0
         and (smite_state.swp_remaining or 0) < 3.0
     smite_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
+    smite_state.shackle_undead_ready = spell_exists(ACTION.ShackleUndead) and spell_ready(ACTION.ShackleUndead, player, { expected_cooldown = 1.5 }) or false
+    smite_state.target_creature_type = target_creature_type(target)
     return spec_kit.safe_state(smite_state, SMITE_SCHEMA)
 end
 
@@ -483,6 +495,23 @@ local DSL_DEFS = {
             return try_cast(ACTION.Smite, context.target, "[SMITE] Smite")
         end },
     },
+    {
+        name = "ShackleUndead",
+        conditions = {
+            { type = "custom", fn = function(context, state)
+                if not spec_kit.setting_bool(context, "smite_auto_shackle", true) then return false end
+                if not context.has_valid_enemy_target then return false end
+                local ct = state.target_creature_type
+                if not ct or (ct ~= 3 and ct ~= 6) then return false end
+                if context.target and NS.debuff_up and NS.debuff_up(context.target, {9484, 9485, 10955}) then return false end
+                return true
+            end },
+            { type = "state", field = "shackle_undead_ready", op = "truthy" },
+        },
+        action = { type = "custom", fn = function(context)
+            return try_cast(ACTION.ShackleUndead, context.target, "[SMITE] ShackleUndead")
+        end },
+    },
 }
 
 -- ============================================================================
@@ -505,6 +534,7 @@ local strategies = {
     { name = "MindBlast" },
     { name = "ShadowWordDeath" },
     { name = "HolyNova" },
+    { name = "ShackleUndead" },
     { name = "SmiteFiller" },
 }
 

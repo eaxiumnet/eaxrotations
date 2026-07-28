@@ -166,7 +166,6 @@ local ACTIONS = {
 }
 
 local function immolate_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Immolate, 2.0) then return false end
     if not state then return false end
     state = state or {}
     -- SP-aware gating: skip Immolate when spell damage is below the threshold.
@@ -199,7 +198,6 @@ local function shadowburn_matches(context, action, state)
 end
 
 local function curse_of_doom_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfDoom, 2.0) then return false end
     if not (NS.should_use_long_cd and NS.should_use_long_cd(context, action.cooldown)) then return false end
     if not state then return false end
     state = state or {}
@@ -231,7 +229,6 @@ local function soul_fire_matches(context, action, state)
 end
 
 local function corruption_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Corruption, 2.0) then return false end
     if not state then return false end
     state = state or {}
     if (state.corruption_remains or 0) > 3 then return false end
@@ -239,7 +236,6 @@ local function corruption_matches(context, action, state)
 end
 
 local function curse_of_agony_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CurseOfAgony, 2.0) then return false end
     if not state then return false end
     state = state or {}
     if (state.coa_remains or 0) > 3 then return false end
@@ -263,7 +259,6 @@ local function health_funnel_matches(context, action, state)
 end
 
 local function demon_armor_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(DemonArmorSpell, 3.0) then return false end
     if not state then return false end
     state = state or {}
     if state.has_demon_armor then return false end
@@ -271,7 +266,6 @@ local function demon_armor_matches(context, action, state)
 end
 
 local function shadow_ward_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShadowWard, 3.0) then return false end
     if not state then return false end
     state = state or {}
     if state.has_shadow_ward then return false end

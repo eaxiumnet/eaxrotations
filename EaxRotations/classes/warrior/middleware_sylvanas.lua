@@ -12,6 +12,7 @@ local consumable_manager = require("shared/consumable_manager_sylvanas")
 local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 if not _ok_int or type(interrupt_manager) ~= "table" then interrupt_manager = nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
+local scan_cache = require("shared/middleware_scan_cache_sylvanas")
 local SpellQueue = require("shared/spell_queue_helper_sylvanas")
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
@@ -65,22 +66,6 @@ local DISARM_CLASS_IDS = CONSTANTS.DISARM_CLASS_IDS or { [1] = true, [2] = true,
 local PWS_IDS = { 17, 592, 600, 3747, 6065, 6066, 10898, 10899, 10900, 10901, 25217, 25218, 27623 }
 local BOP_IDS = { 1022, 5599, 10278 }
 
--- Throttled CC-nearby scan for AoE gating (avoids a 50-enemy scan every frame).
--- The PvPCCGate middleware strategy stashes the result on
--- context.warrior_aoe_cc_nearby; spec-level AoE matches
--- (Cleave/Whirlwind/Sweeping Strikes/Thunder Clap) consult that flag so the
--- rotation is NOT short-circuited (the old `return true` froze the entire spec
--- rotation whenever a sheeped/sapped mob was within 15yd, even in PvE).
-local _cc_scan_last = -1
-local _cc_scan_result = false
-local function cc_nearby_throttled(range, interval)
-    local now = (NS.time_now and NS.time_now()) or 0
-    if now - _cc_scan_last >= (interval or 0.5) then
-        _cc_scan_last = now
-        _cc_scan_result = CCGateDB.is_any_nearby_enemy_under_cc(NS, range or 15) and true or false
-    end
-    return _cc_scan_result
-end
 
 -- Whitelist of dangerous spells to reflect in PvP
 local REFLECT_WHITELIST = {
@@ -163,7 +148,6 @@ local strategies = {
             -- and let the throttled broken_api path decide (next line).
             if NS.has_player_buff and NS.has_player_buff(BATTLE_SHOUT_BUFFS) then return false end
             -- Throttle on PS builds where aura API is broken and has_player_buff always returns false
-            if NS.broken_api_throttled and NS.broken_api_throttled(spell, 10.0) then return false end
             return defensive_spell_ready(spell, context)
         end,
         execute = function(context)
@@ -567,9 +551,11 @@ local strategies = {
             return false
         end,
         execute = function(context)
-            -- Refresh the CC-nearby flag (throttled). Deliberately return false so the
+            -- Refresh the CC-nearby flag (cached per context). Deliberately return false so the
             -- spec rotation still runs; only AoE abilities gate themselves on the flag.
-            context.warrior_aoe_cc_nearby = cc_nearby_throttled(15, 0.5)
+            context.warrior_aoe_cc_nearby = scan_cache.memoize_bool(context, "warrior_aoe_cc_nearby", function()
+                return CCGateDB.is_any_nearby_enemy_under_cc(NS, 15) == true
+            end)
             return false
         end,
     },

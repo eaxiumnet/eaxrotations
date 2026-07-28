@@ -58,20 +58,17 @@ local _state = {
 local function _build_state(ctx)
     local t = ctx.target
     local _BARKSKIN_ID = type(SPELLS.Barkskin) == "table" and SPELLS.Barkskin[1] or 22812
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(_BARKSKIN_ID, 3.0) or false
-    if not skip_aura then
-        if t then
-            _state.insect_remains = NS.debuff_remains and NS.debuff_remains(t, _INSECT_DEBUFF) or 0
-            _state.moonfire_remains = NS.debuff_remains and NS.debuff_remains(t, _MOONFIRE_DEBUFF) or 0
-            _state.ff_remains = NS.debuff_remains and NS.debuff_remains(t, _FAERIE_DEBUFF) or 0
-        else
-            _state.insect_remains = 0
-            _state.moonfire_remains = 0
-            _state.ff_remains = 0
-        end
-        _state.natures_grace_active = NS.has_player_buff(_NATURES_BUFF)
-        _state.barkskin_active = NS.has_player_buff(_BARKSKIN_BUFF)
+    if t then
+        _state.insect_remains = NS.debuff_remains and NS.debuff_remains(t, _INSECT_DEBUFF) or 0
+        _state.moonfire_remains = NS.debuff_remains and NS.debuff_remains(t, _MOONFIRE_DEBUFF) or 0
+        _state.ff_remains = NS.debuff_remains and NS.debuff_remains(t, _FAERIE_DEBUFF) or 0
+    else
+        _state.insect_remains = 0
+        _state.moonfire_remains = 0
+        _state.ff_remains = 0
     end
+    _state.natures_grace_active = NS.has_player_buff(_NATURES_BUFF)
+    _state.barkskin_active = NS.has_player_buff(_BARKSKIN_BUFF)
     _state.mana_pct = ctx.mana_pct or ctx.mana or 100
     _state.enemy_count = ctx.enemy_count or 1
     _state.target_ttd = ctx.ttd or ctx.target_ttd or 999
@@ -216,10 +213,7 @@ local _strategies = {
     {
         name="FaerieFireDebuff",
         matches=function(ctx, s)
-            local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FaerieFire, 2.0) or false
-            if not skip then
-                if (s.ff_remains or 0) > 5 then return false end
-            end
+            if (s.ff_remains or 0) > 5 then return false end
             local target = ctx.target
             if not target then return false end
             if not ctx.has_valid_enemy_target then return false end
@@ -233,10 +227,7 @@ local _strategies = {
     {
         name="InsectSwarmDoT",
         matches=function(ctx, s)
-            local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.InsectSwarm, 2.0) or false
-            if not skip then
-                if (s.insect_remains or 0) > 2 then return false end
-            end
+            if (s.insect_remains or 0) > 2 then return false end
             if not ctx.target then return false end
             if not ctx.has_valid_enemy_target then return false end
             local settings = ctx.settings or {}
@@ -251,10 +242,7 @@ local _strategies = {
     {
         name="MoonfireDoT",
         matches=function(ctx, s)
-            local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Moonfire, 2.0) or false
-            if not skip then
-                if (s.moonfire_remains or 0) > 2 then return false end
-            end
+            if (s.moonfire_remains or 0) > 2 then return false end
             if not ctx.target then return false end
             if not ctx.has_valid_enemy_target then return false end
             local settings = ctx.settings or {}
@@ -343,10 +331,7 @@ local _strategies = {
     {
         name="MarkOfTheWild",
         matches=function(ctx)
-            local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.MarkOfTheWild, 3.0) or false
-            if not skip then
-                if NS.buff_up(NS.PLAYER_UNIT, _MOTW_BUFF) then return false end
-            end
+            if NS.buff_up(NS.PLAYER_UNIT, _MOTW_BUFF) then return false end
             if ctx.is_moving then return false end
             return NS.spell_ready(_LOCAL_SPELLS.MarkOfTheWild, NS.PLAYER_UNIT, { skip_range = true })
         end,
@@ -357,10 +342,7 @@ local _strategies = {
     {
         name="ThornsBuff",
         matches=function(ctx)
-            local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Thorns, 3.0) or false
-            if not skip then
-                if NS.buff_up(NS.PLAYER_UNIT, { 9910,9756,8914,1075,782,467}) then return false end
-            end
+            if NS.buff_up(NS.PLAYER_UNIT, { 9910,9756,8914,1075,782,467}) then return false end
             if ctx.in_combat then return false end
             return NS.spell_ready(_LOCAL_SPELLS.Thorns, NS.PLAYER_UNIT, { skip_range = true })
         end,

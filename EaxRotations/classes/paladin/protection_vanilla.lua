@@ -116,24 +116,20 @@ local function build_state(context)
     local target = context.target
 
     prot_state.now_ms = NS.game_time_ms and NS.game_time_ms() or 0
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(25780, 3.0) or false
-    if not skip_aura then
-        prot_state.has_righteous_fury = me and NS.buff_up(me, RIGHTEOUS_FURY_BUFF) or false
-        prot_state.has_holy_shield = me and NS.buff_up(me, HOLY_SHIELD_BUFF) or false
-        -- Track remaining Holy Shield charges via buff.points for proactive refresh
-        prot_state.holy_shield_charges = 0
-        if prot_state.has_holy_shield and type(NS.buff_points) == "function" then
-            local pts = NS.buff_points and NS.buff_points(me, HOLY_SHIELD_BUFF) or nil
-            prot_state.holy_shield_charges = (pts and pts[1]) or 0
-        end
-        prot_state.has_seal = me and NS.buff_up(me, SEAL_RIGHTEOUSNESS_BUFF) or false
-        prot_state.has_devotion_aura = me and NS.buff_up(me, DEVOTION_AURA_BUFF) or false
-        prot_state.has_divine_shield = me and NS.buff_up(me, DIVINE_SHIELD_BUFF) or false
-        prot_state.has_forbearance = me and NS.debuff_up(me, FORBEARANCE_DEBUFF) or false
-        prot_state.consecration_remains = target and NS.debuff_remains(target, CONSECRATION_DEBUFF) or 0
-        prot_state.has_blessing_sanctuary = me and NS.buff_up(me, BLESSING_OF_SANCTUARY_BUFF) or false
+    prot_state.has_righteous_fury = me and NS.buff_up(me, RIGHTEOUS_FURY_BUFF) or false
+    prot_state.has_holy_shield = me and NS.buff_up(me, HOLY_SHIELD_BUFF) or false
+    -- Track remaining Holy Shield charges via buff.points for proactive refresh
+    prot_state.holy_shield_charges = 0
+    if prot_state.has_holy_shield and type(NS.buff_points) == "function" then
+        local pts = NS.buff_points and NS.buff_points(me, HOLY_SHIELD_BUFF) or nil
+        prot_state.holy_shield_charges = (pts and pts[1]) or 0
     end
+    prot_state.has_seal = me and NS.buff_up(me, SEAL_RIGHTEOUSNESS_BUFF) or false
+    prot_state.has_devotion_aura = me and NS.buff_up(me, DEVOTION_AURA_BUFF) or false
+    prot_state.has_divine_shield = me and NS.buff_up(me, DIVINE_SHIELD_BUFF) or false
+    prot_state.has_forbearance = me and NS.debuff_up(me, FORBEARANCE_DEBUFF) or false
+    prot_state.consecration_remains = target and NS.debuff_remains(target, CONSECRATION_DEBUFF) or 0
+    prot_state.has_blessing_sanctuary = me and NS.buff_up(me, BLESSING_OF_SANCTUARY_BUFF) or false
     prot_state.consecration_ready = me and NS.spell_ready(SPELLS.Consecration, me, { skip_range = true, expected_cooldown = 8 }) or false
     prot_state.holy_shield_ready = me and NS.spell_ready(SPELLS.HolyShield, me, { skip_range = true, expected_cooldown = 10 }) or false
     prot_state.exorcism_ready = target and NS.spell_ready(SPELLS.Exorcism, target, { expected_cooldown = 15 }) or false

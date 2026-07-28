@@ -13,11 +13,9 @@ local consumable_manager = require("shared/consumable_manager_sylvanas")
 local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 if not _ok_int or type(interrupt_manager) ~= "table" then interrupt_manager = nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
+local scan_cache = require("shared/middleware_scan_cache_sylvanas")
 local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local SPELLS = NS.MageSpells or {}
-local _mana_gem_last = 0
-local _last_conjure_water = 0
-local _last_conjure_food = 0
 
 -- Spellsteal spell object (TBC: 30449, learned at level 68)
 local SPELLSTEAL_SPELL = SPELLS.Spellsteal or { id = { 30449 }, name = "Spellsteal" }
@@ -65,6 +63,8 @@ local ALL_MAGE_ARMOR_BUFFS = (RBF and RBF.detect("mage_armor")) or { 27125, 2278
 -- Arcane Brilliance first (superior), then AI high→low (Vanilla∪TBC∪WotLK).
 local ARCANE_INTELLECT_BUFFS = (RBF and RBF.detect("arcane_intellect")) or { 27127, 23028, 27126, 10157, 10156, 1461, 1460, 1459 }
 local MANA_GEM_ITEM_IDS = { 22044, 8008, 8007, 5513, 5514 }
+local CONJURED_WATER_ITEM_IDS = { 30703, 22018, 8079, 8078, 8077, 2136, 2288, 3772, 5350 }
+local CONJURED_FOOD_ITEM_IDS = { 22019, 8076, 5349 }
 local CURSE_DEBUFFS = { 28282, 28271, 11719, 5116, 5115, 23426, 23427, 23230, 23229, 23364, 702, 703, 704, 11014, 11015, 11708, 13323, 13325, 13326, 18223, 18222, 18180, 18179, 17407, 1499, 1513, 1515 }
 
 local function self_spell_ready(spell, context)
@@ -93,6 +93,15 @@ local function has_armor_buff()
     return NS.has_player_buff(MOLTEN_ARMOR_BUFFS) and true or false
 end
 
+local function has_any_item(ids)
+    if not NS.has_item then return false end
+    for _, id in ipairs(ids) do
+        local ok, has = pcall(NS.has_item, id)
+        if ok and has then return true end
+    end
+    return false
+end
+
 local function first_ready_mana_gem()
     if not NS.is_item_ready then return nil end
     for _, item_id in ipairs(MANA_GEM_ITEM_IDS) do
@@ -114,9 +123,6 @@ local function find_curse_target(context)
     return nil
 end
 
-local _last_mage_cc_scan = 0
-local MAGE_CC_SCAN_INTERVAL = 0.3
-
 local strategies = {
 
     (interrupt_manager and interrupt_manager.register_interrupt_spell
@@ -133,38 +139,37 @@ local strategies = {
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
-            -- Throttle: expensive enemy iteration
-            local now = NS.time_now and NS.time_now() or 0
-            if now - _last_mage_cc_scan < MAGE_CC_SCAN_INTERVAL then return false end
-            _last_mage_cc_scan = now
             -- Preemptive scan: check if any nearby enemy is casting CC on us
-            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
-            for _, enemy in ipairs(enemies) do
-                if enemy then
-                    local is_casting_cc = OffensiveDispelDB.is_casting_preemptive_cc(enemy)
-                    if is_casting_cc then
+            local preemptive_enemy = scan_cache.memoize(context, "mage_preemptive_cc", function()
+                local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+                for _, enemy in ipairs(enemies) do
+                    if enemy and OffensiveDispelDB.is_casting_preemptive_cc(enemy) then
                         local ok, etarget = pcall(function() return enemy:get_target() end)
                         if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
-                            -- Ice Block: preemptive immunity (expensive, use only vs big CC)
-                            if spec_kit.setting_bool(context, "use_ice_block", true) ~= false then
-                                local ib_id = nil
-                                for _, id in ipairs(ICE_BLOCK_IDS) do
-                                    if NS.is_spell_learned and NS.is_spell_learned(id) then ib_id = id; break end
-                                end
-                                if ib_id and NS.spell_ready and NS.spell_ready(ib_id) then
-                                    return true
-                                end
-                            end
-                            -- Blink: cheaper alternative (breaks stuns/roots, can also dodge projectiles)
-                            if NS.is_spell_learned and NS.is_spell_learned(1953) then
-                                if NS.spell_ready and NS.spell_ready(1953) then
-                                    return true
-                                end
-                            end
-                            return false
+                            return enemy
                         end
                     end
                 end
+                return false
+            end)
+            if preemptive_enemy then
+                -- Ice Block: preemptive immunity (expensive, use only vs big CC)
+                if spec_kit.setting_bool(context, "use_ice_block", true) ~= false then
+                    local ib_id = nil
+                    for _, id in ipairs(ICE_BLOCK_IDS) do
+                        if NS.is_spell_learned and NS.is_spell_learned(id) then ib_id = id; break end
+                    end
+                    if ib_id and NS.spell_ready and NS.spell_ready(ib_id) then
+                        return true
+                    end
+                end
+                -- Blink: cheaper alternative (breaks stuns/roots, can also dodge projectiles)
+                if NS.is_spell_learned and NS.is_spell_learned(1953) then
+                    if NS.spell_ready and NS.spell_ready(1953) then
+                        return true
+                    end
+                end
+                return false
             end
             -- Fallback: check if player is already under breakable CC (Polymorph fizzle-safety)
             local has_cc = OffensiveDispelDB.is_breakable_cc_active(me, NS)
@@ -373,18 +378,12 @@ local strategies = {
             if not context.in_combat then return false end
             local threshold = spec_kit.setting_number(context, "mana_gem_mana_pct", 70)
             if (context.mana_pct or 0) > threshold then return false end
-            local now = NS.time_now and NS.time_now() or 0
-            if now - (_mana_gem_last or 0) < 30 then return false end
             return first_ready_mana_gem() ~= nil
         end,
         execute = function(context)
             local item_id = first_ready_mana_gem()
             if not item_id or not NS.use_item_by_id then return false end
-            local ok = NS.use_item_by_id(item_id) and true or false
-            if ok then
-                _mana_gem_last = NS.time_now and NS.time_now() or 0
-            end
-            return ok
+            return NS.use_item_by_id(item_id) and true or false
         end,
     },
 
@@ -418,15 +417,12 @@ local strategies = {
         matches = function(context)
             if context.in_combat then return false end
             if spec_kit.setting_bool(context, "auto_conjure_water", true) == false then return false end
-            -- Throttle: don't spam conjure
-            local now = NS.time_now and NS.time_now() or 0
-            if (now - (_last_conjure_water or 0)) < 10 then return false end
+            if has_any_item(CONJURED_WATER_ITEM_IDS) then return false end
             local spell = SPELLS.ConjureWater or { id = { 27090, 10140, 10139, 10138, 5505, 5504, 587 }, name = "ConjureWater" }
             if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
             return false
         end,
         execute = function(context)
-            _last_conjure_water = NS.time_now and NS.time_now() or 0
             local spell = SPELLS.ConjureWater or { id = { 27090, 10140, 10139, 10138, 5505, 5504, 587 }, name = "ConjureWater" }
             return NS.try_cast(spell, context.me, "[MAGE] Conjure Water", { skip_range = true })
         end,
@@ -441,14 +437,12 @@ local strategies = {
         matches = function(context)
             if context.in_combat then return false end
             if spec_kit.setting_bool(context, "auto_conjure_food", true) == false then return false end
-            local now = NS.time_now and NS.time_now() or 0
-            if (now - (_last_conjure_food or 0)) < 10 then return false end
+            if has_any_item(CONJURED_FOOD_ITEM_IDS) then return false end
             local spell = SPELLS.ConjureFood or { id = { 27091, 10145, 10144, 10143, 5506, 587 }, name = "ConjureFood" }
             if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
             return false
         end,
         execute = function(context)
-            _last_conjure_food = NS.time_now and NS.time_now() or 0
             local spell = SPELLS.ConjureFood or { id = { 27091, 10145, 10144, 10143, 5506, 587 }, name = "ConjureFood" }
             return NS.try_cast(spell, context.me, "[MAGE] Conjure Food", { skip_range = true })
         end,

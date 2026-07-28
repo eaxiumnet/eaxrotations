@@ -85,7 +85,6 @@ local function combustion_matches_fn(context, state)
 end
 
 local function scorch_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Scorch, 2.0) then return false end
     if context.is_moving then return false end
     if not context.target then return false end
     -- Gate on user toggle for assigned Scorch debuff duty

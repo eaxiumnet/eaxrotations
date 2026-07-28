@@ -238,6 +238,9 @@ local function test_warlock()
     package.preload["shared/tbc_data_sylvanas"] = function()
         return { ITEMS = { healthstones = {}, potions = {} } }
     end
+    package.preload["shared/warlock_healthstone_sylvanas"] = function()
+        return dofile("EaxRotations/shared/warlock_healthstone_sylvanas.lua")
+    end
 
     local strategies = dofile("EaxRotations/classes/warlock/middleware_sylvanas.lua")
     assert_true(strategies, "warlock strategies should load")
@@ -277,10 +280,10 @@ local function test_warlock()
     test_pcall_nil(howl, { settings = { use_pvp_defensives = true } }, "should_kite", "PvPHowlofTerror: should_kite nil")
     test_pcall_nil(howl, { settings = { use_pvp_defensives = true } }, "GetEnemiesCount", "PvPHowlofTerror: GetEnemiesCount nil")
 
-    -- ThreatDrop tests
-    local threat = find_strategy("ThreatDrop")
-    test_pcall_nil(threat, { in_combat = true, threat_pct = 95, settings = { use_threat_drop = true } }, "time_now", "ThreatDrop: time_now nil")
-    test_pcall_nil(threat, { in_combat = true, threat_pct = 95, settings = { use_threat_drop = true } }, "spell_ready", "ThreatDrop: spell_ready nil")
+    -- Soulshatter tests
+    local threat = find_strategy("Soulshatter")
+    test_pcall_nil(threat, { in_combat = true, threat_pct = 95, settings = { use_threat_drop = true } }, "time_now", "Soulshatter: time_now nil")
+    test_pcall_nil(threat, { in_combat = true, threat_pct = 95, settings = { use_threat_drop = true } }, "spell_ready", "Soulshatter: spell_ready nil")
 
     -- Warlock_ShadowWard tests
     local shadow_ward = find_strategy("Warlock_ShadowWard")

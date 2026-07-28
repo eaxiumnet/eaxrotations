@@ -59,7 +59,7 @@ return {
                 header = "Survival",
                 settings = {
                     { key = "use_death_coil", type = "checkbox", label = "Auto Death Coil", default = true, tooltip = "Auto-cast Death Coil on enemy target at low HP for emergency self-heal (also used as CC Break; see PvP section)" },
-                    { key = "death_coil_hp", type = "slider", label = "Death Coil HP", min = 0, max = 100, default = 0 },
+                    { key = "death_coil_hp", type = "slider", label = "Death Coil HP", min = 0, max = 100, default = 40 },
                     { key = "use_cc_break", type = "checkbox", label = "CC Break (Death Coil)", default = true, tooltip = "Preemptively Death Coil when enemy casts Polymorph/Fear/Cyclone at you to interrupt + self-heal" },
                     { key = "healthstone_hp", type = "slider", label = "Healthstone HP", min = 0, max = 100, default = 0 },
                     { key = "use_shadow_ward", type = "checkbox", label = "Shadow Ward", default = true },

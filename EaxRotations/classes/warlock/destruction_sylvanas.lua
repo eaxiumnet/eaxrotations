@@ -23,6 +23,8 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
 local curse_helper = require("shared/warlock_curse_helper_sylvanas")
 local CURSE_REFRESH_WINDOW = curse_helper.CURSE_REFRESH_WINDOW
+local healthstone_helper = require("shared/warlock_healthstone_sylvanas")
+local mana_gem_helper = require("shared/warlock_mana_gem_sylvanas")
 
 -- Centralized spell resolver via spec_kit (rank IDs from class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -42,8 +44,6 @@ local ACTION = {
     ShadowBolt      = define("ShadowBolt",      { 27209, 25307, 11661, 11660, 11659, 7641, 1106, 1088, 705, 695, 686 }, "ShadowBolt"),
     Shadowburn      = define("Shadowburn",      { 30546, 27263, 18871, 18870, 18869, 18868, 18867, 17877 }, "Shadowburn"),
     Shadowfury      = define("Shadowfury",      { 30414, 30413, 30283 }, "Shadowfury"),
-    ShadowWard      = define("ShadowWard",      { 28610, 11740, 11739, 6229 }, "ShadowWard"),
-    Soulshatter     = define("Soulshatter",     { 29858 }, "Soulshatter"),
 }
 
 -- Debuff and buff ID lists for state queries
@@ -55,12 +55,12 @@ local CORRUPTION_DEBUFF = { 27216, 25311, 11672, 11671, 7648, 6223, 6222, 172 }
 local BACKLASH_BUFF = { 34936, 34935 }
 local FEL_ARMOR_BUFF = { 28189, 28176 }
 local DEMON_ARMOR_BUFF = { 27260, 11735, 11734, 11733, 1086, 706, 687, 696 }
-local SHADOW_WARD_BUFF = { 28610, 11740, 11739, 6229 }
+
 local DEMONIC_SACRIFICE_AURA_ALL = { 18789, 18790, 18791, 18792, 35701 }
 
 -- Local spell actions for spells not exposed in NS.WarlockSpells
 local DemonArmorSpell = NS.spell_action({ 27260, 11735, 11734, 11733, 1086, 706, 687 }, "DemonArmor")
-local ShadowWardSpell = NS.spell_action({ 28610, 11740, 11739, 6229 }, "ShadowWard")
+
 local DrainLife = NS.spell_action({ 27220, 27219, 11700, 11699, 7651, 709, 699, 689 }, "DrainLife")
 local HealthFunnel = NS.spell_action({ 27259, 11695, 11694, 11693, 3700, 3699, 3698, 755 }, "HealthFunnel")
 local DarkPact = NS.spell_action({ 27265, 18938, 18937, 18220 }, "DarkPact")
@@ -108,7 +108,6 @@ local DESTRO_SCHEMA = {
     has_backdraft = false,
     has_fel_armor = false,
     has_demon_armor = false,
-    has_shadow_ward = false,
     has_demonic_sacrifice = false,
     hp = 100,
     mana_pct = 100,
@@ -130,7 +129,6 @@ local destro_state = {
     has_backdraft = false,
     has_fel_armor = false,
     has_demon_armor = false,
-    has_shadow_ward = false,
     has_demonic_sacrifice = false,
     hp = 100,
     mana_pct = 100,
@@ -163,7 +161,6 @@ local function build_state(context)
     state.has_backdraft = false
     state.has_fel_armor = me and NS.buff_up(me, FEL_ARMOR_BUFF) or false
     state.has_demon_armor = me and NS.buff_up(me, DEMON_ARMOR_BUFF) or false
-    state.has_shadow_ward = me and NS.buff_up(me, SHADOW_WARD_BUFF) or false
     state.has_demonic_sacrifice = me and NS.buff_up(me, DEMONIC_SACRIFICE_AURA_ALL) or false
     state.hp = context.hp or 100
     state.mana_pct = context.mana_pct or 100
@@ -197,7 +194,6 @@ local ACTIONS = {
     -- Buffs / OOC
     { name = "FelArmor", spell = ACTION.FelArmor, target = "self", kind = "buff", buff = FEL_ARMOR_BUFF, requires_target = false },
     { name = "DemonArmor", spell = DemonArmorSpell, target = "self", kind = "buff", buff = DEMON_ARMOR_BUFF, requires_target = false },
-    { name = "ShadowWard", spell = ShadowWardSpell, target = "self", kind = "buff", buff = SHADOW_WARD_BUFF, requires_target = false, cooldown = 30 },
     { name = "CreateHealthstone", spell = CreateHealthstone, target = "self", ooc = true, requires_target = false },
     { name = "LifeTap", spell = ACTION.LifeTap, target = "self", max_mana = 65, min_hp = 40, requires_target = false },
     { name = "DarkPact", spell = DarkPact, target = "self", max_mana = 55, requires_target = false },
@@ -303,7 +299,6 @@ local function soul_fire_matches(context, action, state)
 end
 
 local function corruption_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Corruption, 2.0) then return false end
     if not state then return false end
     state = state or {}
     if (state.corruption_remains or 0) > 3 then return false end
@@ -311,7 +306,6 @@ local function corruption_matches(context, action, state)
 end
 
 local function curse_of_agony_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfAgony, 2.0) then return false end
     if assigned_curse_blocks(context, "agony") then return false end
     if select_curse(context, state) ~= "agony" then return false end
     if not state then return false end
@@ -322,7 +316,6 @@ local function curse_of_agony_matches(context, action, state)
 end
 
 local function curse_of_elements_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseElements, 2.0) then return false end
     if assigned_curse_blocks(context, "elements") then return false end
     if select_curse(context, state) ~= "elements" then return false end
     if not state then return false end
@@ -333,7 +326,6 @@ local function curse_of_elements_matches(context, action, state)
 end
 
 local function curse_of_recklessness_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfRecklessness, 2.0) then return false end
     if assigned_curse_blocks(context, "recklessness") then return false end
     if select_curse(context, state) ~= "recklessness" then return false end
     if not state then return false end
@@ -344,7 +336,6 @@ local function curse_of_recklessness_matches(context, action, state)
 end
 
 local function curse_of_weakness_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfWeakness, 2.0) then return false end
     if assigned_curse_blocks(context, "weakness") then return false end
     if select_curse(context, state) ~= "weakness" then return false end
     if not state then return false end
@@ -377,7 +368,6 @@ local function dark_pact_matches(context, action, state)
 end
 
 local function fel_armor_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FelArmor, 3.0) then return false end
     if not state then return false end
     state = state or {}
     if state.has_fel_armor then return false end
@@ -385,7 +375,6 @@ local function fel_armor_matches(context, action, state)
 end
 
 local function demon_armor_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(DemonArmorSpell, 3.0) then return false end
     if not state then return false end
     state = state or {}
     if state.has_fel_armor then return false end
@@ -393,13 +382,6 @@ local function demon_armor_matches(context, action, state)
     return true
 end
 
-local function shadow_ward_matches(context, action, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShadowWard, 3.0) then return false end
-    if not state then return false end
-    state = state or {}
-    if state.has_shadow_ward then return false end
-    return true
-end
 
 local function create_healthstone_matches(context, action, state)
     if NS.has_item and not NS.has_item(SOUL_SHARD_ITEM) then return false end
@@ -501,7 +483,6 @@ local DSL_DEFS = {
             { type = "custom", fn = function(context, state)
                 -- Toggle: skip Immolate entirely when disabled (speed kills / pure SB spam)
                 if not spec_kit.setting_bool(context, "destro_use_immolate", true) then return false end
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Immolate, 2.0) then return false end
                 return true
             end },
             { type = "custom", fn = function(context, state)
@@ -553,7 +534,6 @@ local DSL_DEFS = {
         name = "CurseOfDoom",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurseOfDoom, 2.0) then return false end
                 if assigned_curse_blocks(context, "doom") then return false end
                 if select_curse(context, state) ~= "doom" then return false end
                 if not (NS.should_use_long_cd and NS.should_use_long_cd(context, 60)) then return false end
@@ -642,8 +622,7 @@ for i = 1, #ACTIONS do
         custom_matches = function(context, state) return fel_armor_matches(context, action, state) end
     elseif action.name == "DemonArmor" then
         custom_matches = function(context, state) return demon_armor_matches(context, action, state) end
-    elseif action.name == "ShadowWard" then
-        custom_matches = function(context, state) return shadow_ward_matches(context, action, state) end
+
     elseif action.name == "CreateHealthstone" then
         custom_matches = function(context, state) return create_healthstone_matches(context, action, state) end
     elseif action.name == "DeathCoil" then
@@ -698,66 +677,19 @@ end
 -- parity parity strategies (inserted at correct priority positions)
 -- ============================================================================
 
--- ManaGem: auto-use mana items when mana is low
+-- ManaGem: auto-use mana items when mana is low (shared helper)
 -- Insert at position 7 (after DarkPact=6, before DrainLife=7)
-table.insert(strategies, 7, {
-    name = "ManaGem",
-    matches = function(context, state)
-        local threshold = spec_kit.setting_number(context, "destro_mana_gem_threshold", 35)
-        if (state.mana_pct or 100) > threshold then return false end
-        return state.mana_gem_ready or false
-    end,
-    execute = function(context, state)
-        local id = state and state.mana_gem_id
-        if id and NS.use_item_by_id then
-            NS.use_item_by_id(id)
-            return true
-        end
-        return false
-    end,
-})
+table.insert(strategies, 7, mana_gem_helper.make_strategy("ManaGem", "destro_mana_gem_threshold", 35))
 
--- Healthstone: auto-use healthstone when HP is low
--- Insert at position 23 (before Soulshatter)
-table.insert(strategies, 23, {
-    name = "Healthstone",
-    matches = function(context, state)
-        local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
-        if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
-        if not spec_kit.setting_bool(context, "use_healthstones", true) then return false end
-            if threshold <= 0 then return false end
-            if (context.hp or 100) > threshold then return false end
-        if context.is_casting then return false end
-        return state.healthstone_ready or false
-    end,
-    execute = function(_, state)
-        if state and state.healthstone_id and NS.use_item_by_id then
-            return NS.use_item_by_id(state.healthstone_id)
-        end
-        return false
-    end,
-})
-
--- Soulshatter: threat dump
--- Insert at position 25 (after Healthstone shift)
-table.insert(strategies, 25, {
-    name = "Soulshatter",
-    matches = function(context, state)
-        if not context.in_combat then return false end
-        local me = context.me or (NS.GetPlayer and NS.GetPlayer())
-        if not me then return false end
-        if NS.cooldown_remains(ACTION.Soulshatter, 300) > 0 then return false end
-        return NS.spell_ready(ACTION.Soulshatter, me, { skip_range = true })
-    end,
-    execute = function(context)
-        local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
-        return NS.try_cast(ACTION.Soulshatter, me, "[DESTRUCTION] Soulshatter", { skip_range = true })
-    end,
-})
+-- Healthstone: auto-use healthstone when HP is low (shared helper)
+table.insert(strategies, 23, healthstone_helper.make_strategy("Healthstone", {
+    use_state_id = true,
+    label = "[DESTRUCTION]",
+})) -- Soulshatter is provided centrally by warlock middleware (Soulshatter strategy).
 
 -- Replace imperative match functions with DSL-compiled equivalents.
 -- NOTE: The strategies table above is built dynamically from the ACTIONS table,
--- and parity strategies (ManaGem, Healthstone, Soulshatter) are inserted at
+-- and parity strategies (ManaGem, Healthstone) are inserted at
 -- specific priority positions with table.insert. Because those inserts shift
 -- indices, we cannot safely substitute by numeric index. Matching by strategy
 -- name keeps the DSL substitution robust against future parity additions or

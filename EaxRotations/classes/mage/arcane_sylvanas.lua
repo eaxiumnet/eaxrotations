@@ -459,7 +459,6 @@ local DSL_DEFS = {
         name = "IceBarrier",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.IceBarrier, 3.0) then return false end
                 return true
             end },
             { type = "setting", key = "use_defensives", op = "!=", value = false },
@@ -473,7 +472,6 @@ local DSL_DEFS = {
         name = "ManaShield",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ManaShield, 3.0) then return false end
                 return true
             end },
             { type = "setting", key = "use_defensives", op = "!=", value = false },

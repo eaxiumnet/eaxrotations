@@ -145,16 +145,12 @@ local function build_state(context)
     disc_state.group_damaged_count = NS.healing_count_below_hp(entries, count, context.settings.discipline_aoe_hp or 85)
     -- Subgroup count for Prayer of Healing: in raids, only count your own party
     disc_state.subgroup_damaged_count = (Healing.count_subgroup_below_hp and Healing.count_subgroup_below_hp(context.settings.discipline_aoe_hp or 85)) or disc_state.group_damaged_count
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(588, 3.0) or false
-    if not skip_aura then
-        disc_state.has_inner_fire = me and NS.buff_up(me, INNER_FIRE_BUFF) or false
-        disc_state.has_fear_ward = me and NS.buff_up(me, FEAR_WARD_BUFF) or false
-        disc_state.has_power_word_fortitude = me and NS.buff_up(me, POWER_WORD_FORTITUDE_BUFF) or false
-        disc_state.has_divine_spirit = me and NS.buff_up(me, DIVINE_SPIRIT_BUFF) or false
-        disc_state.has_prayer_of_fortitude = false  -- Prayer of Fortitude is TBC-only
-        disc_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
-    end
+    disc_state.has_inner_fire = me and NS.buff_up(me, INNER_FIRE_BUFF) or false
+    disc_state.has_fear_ward = me and NS.buff_up(me, FEAR_WARD_BUFF) or false
+    disc_state.has_power_word_fortitude = me and NS.buff_up(me, POWER_WORD_FORTITUDE_BUFF) or false
+    disc_state.has_divine_spirit = me and NS.buff_up(me, DIVINE_SPIRIT_BUFF) or false
+    disc_state.has_prayer_of_fortitude = false  -- Prayer of Fortitude is TBC-only
+    disc_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
     disc_state.divine_spirit_ready = me and NS.spell_ready(SPELLS.DivineSpirit, me, { skip_range = true }) or false
     disc_state.prayer_of_fortitude_ready = false  -- Prayer of Fortitude is TBC-only
     disc_state.enemy_count = (NS.GetEnemiesCount and NS.GetEnemiesCount(10)) or (context.enemies_count or 0)

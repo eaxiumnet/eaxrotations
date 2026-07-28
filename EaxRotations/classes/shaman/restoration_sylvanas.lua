@@ -379,7 +379,7 @@ end
 -- Match functions
 -- ============================================================================
 local function water_shield_matches(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.WaterShield, 3.0) then return false end    local shield_type = spec_kit.setting(context, "restoration_shield_type", "water")
+    local shield_type = spec_kit.setting(context, "restoration_shield_type", "water")
     if shield_type ~= "water" then return false end
  -- Water Shield costs 0 mana and returns mana — allow even during conserve
  -- Only block during mana emergency (ManaEmergencyWand catches it first)
@@ -397,7 +397,6 @@ local function water_shield_matches(context, state)
 end
 
 local function lightning_shield_matches(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LightningShield, 3.0) then return false end
  local shield_type = spec_kit.setting(context, "restoration_shield_type", "water")
  -- Default is "water" (level 62+). Below that, fall back to Lightning Shield (level 8)
  -- so low-level resto shamans are not left unshielded.
@@ -413,7 +412,6 @@ local function lightning_shield_matches(context, state)
 end
 
 local function earth_shield_tank_matches(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.EarthShield, 3.0) then return false end
  if state.mana_emergency then return false end
  if not state.tank then return false end
  local target = state.tank.unit or NS.PLAYER_UNIT
@@ -543,7 +541,6 @@ end
 
 local function poison_cleansing_totem_matches(context, state)
  if not state.poison_cleansing_totem_ready then return false end
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.PoisonCleansingTotem, 3.0) then return false end
  if state.mana_emergency then return false end
  local dispel_target = _get_cleanse_target(state)
  if not dispel_target then return false end
@@ -553,7 +550,6 @@ end
 
 local function disease_cleansing_totem_matches(context, state)
  if not state.disease_cleansing_totem_ready then return false end
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.DiseaseCleansingTotem, 3.0) then return false end
  if state.mana_emergency then return false end
  local dispel_target = _get_cleanse_target(state)
  if not dispel_target then return false end
@@ -902,7 +898,6 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "cure_poison_ready", op = "truthy" },
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CurePoison, 3.0) then return false end
                 return true
             end },
             { type = "state", field = "mana_emergency", op = "falsy" },
@@ -928,7 +923,6 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "cure_disease_ready", op = "truthy" },
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CureDisease, 3.0) then return false end
                 return true
             end },
             { type = "state", field = "mana_emergency", op = "falsy" },

@@ -315,7 +315,6 @@ local strategies = {
         is_gcd_gated = false,
         matches = function(context)
             local settings = settings_for(context)
-            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
             if settings.auto_shout == false then return false end
             local shout_type = settings.shout_type or "battle"
             if shout_type ~= "battle" then return false end
@@ -334,7 +333,6 @@ local strategies = {
         name = "SunderMaintain",
         matches = function(context, state)
             local settings = settings_for(context)
-            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
             local mode = settings.sunder_armor_mode or "none"
             if not can_attack_target(context) or mode == "none" then return false end
             -- Skip if target has no armor (API unavailable or already fully reduced)
@@ -362,7 +360,6 @@ local strategies = {
         name = "ThunderClap",
         matches = function(context, state)
             local settings = settings_for(context)
-            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
             if not can_attack_target(context) then return false end
             if settings.maintain_thunder_clap == false then return false end
             if context.has_breakable_cc_nearby and settings.pvp_cc_break_check then return false end

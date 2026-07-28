@@ -63,15 +63,12 @@ local caster_state = {
 local function build_state(context)
     local target = context.target
     local me = context.me or NS.GetPlayer()
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
-    if not skip_aura then
-        caster_state.moonfire_remains = target and NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF) or 0
-        caster_state.ff_remains = target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
-        caster_state.insect_remains = target and NS.debuff_remains and NS.debuff_remains(target, INSECT_SWARM_DEBUFF) or 0
-        caster_state.has_motw = me and NS.buff_up and NS.buff_up(me, MOTW_BUFF) or false
-        caster_state.has_rejuv = me and NS.buff_up and NS.buff_up(me, REJUV_BUFF) or false
-        caster_state.has_thorns = me and NS.has_player_buff and NS.has_player_buff(THORNS_BUFF) or false
-    end
+    caster_state.moonfire_remains = target and NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF) or 0
+    caster_state.ff_remains = target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
+    caster_state.insect_remains = target and NS.debuff_remains and NS.debuff_remains(target, INSECT_SWARM_DEBUFF) or 0
+    caster_state.has_motw = me and NS.buff_up and NS.buff_up(me, MOTW_BUFF) or false
+    caster_state.has_rejuv = me and NS.buff_up and NS.buff_up(me, REJUV_BUFF) or false
+    caster_state.has_thorns = me and NS.has_player_buff and NS.has_player_buff(THORNS_BUFF) or false
     caster_state.level = context.level or context.player_level or 60
     caster_state.in_combat = context.in_combat or false
     caster_state.mana_pct = context.mana_pct or (NS.mana_pct and NS.mana_pct(me)) or 100

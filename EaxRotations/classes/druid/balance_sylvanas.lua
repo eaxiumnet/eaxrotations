@@ -246,22 +246,18 @@ local BALANCE_SCHEMA = {
 
 local function build_state(ctx)
     local t = ctx.target
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local _BARKSKIN_ID = type(SPELLS.Barkskin) == "table" and SPELLS.Barkskin[1] or 22812
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(_BARKSKIN_ID, 3.0) or false
-    if not skip_aura then
-        if t then
-            _state.insect_remains = NS.debuff_remains and NS.debuff_remains(t, _INSECT_DEBUFF) or 0
-            _state.moonfire_remains = NS.debuff_remains and NS.debuff_remains(t, _MOONFIRE_DEBUFF) or 0
-            _state.ff_remains = NS.debuff_remains and NS.debuff_remains(t, _FAERIE_DEBUFF) or 0
-        else
-            _state.insect_remains = 0
-            _state.moonfire_remains = 0
-            _state.ff_remains = 0
-        end
-        _state.natures_grace_active = NS.has_player_buff(_NATURES_BUFF)
-        _state.barkskin_active = NS.has_player_buff(_BARKSKIN_BUFF)
+    if t then
+        _state.insect_remains = NS.debuff_remains and NS.debuff_remains(t, _INSECT_DEBUFF) or 0
+        _state.moonfire_remains = NS.debuff_remains and NS.debuff_remains(t, _MOONFIRE_DEBUFF) or 0
+        _state.ff_remains = NS.debuff_remains and NS.debuff_remains(t, _FAERIE_DEBUFF) or 0
+    else
+        _state.insect_remains = 0
+        _state.moonfire_remains = 0
+        _state.ff_remains = 0
     end
+    _state.natures_grace_active = NS.has_player_buff(_NATURES_BUFF)
+    _state.barkskin_active = NS.has_player_buff(_BARKSKIN_BUFF)
     _state.is_group = ctx.is_group or false
     _state.mana_pct = ctx.mana_pct or ctx.mana or 100
     _state.enemy_count = ctx.enemy_count or 1
@@ -432,11 +428,7 @@ local strategies = {
     {
         name="FaerieFireDebuff",
         matches=function(ctx, s)
-            -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-            local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FaerieFire, 2.0) or false
-            if not skip then
-                if (s.ff_remains or 0) > 5 then return false end
-            end
+            if (s.ff_remains or 0) > 5 then return false end
             local target = ctx.target
             if not target then return false end
             if not ctx.has_valid_enemy_target then return false end
@@ -452,11 +444,7 @@ local strategies = {
     {
         name="InsectSwarmDoT",
         matches=function(ctx, s)
-            -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-            local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.InsectSwarm, 2.0) or false
-            if not skip then
-                if (s.insect_remains or 0) > 2 then return false end
-            end
+            if (s.insect_remains or 0) > 2 then return false end
             if not ctx.target then return false end
             if not ctx.has_valid_enemy_target then return false end
             local settings = ctx.settings or {}
@@ -470,11 +458,7 @@ local strategies = {
     {
         name="MoonfireDoT",
         matches=function(ctx, s)
-            -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-            local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Moonfire, 2.0) or false
-            if not skip then
-                if (s.moonfire_remains or 0) >= 3 then return false end
-            end
+            if (s.moonfire_remains or 0) >= 3 then return false end
             if not ctx.target then return false end
             if not ctx.has_valid_enemy_target then return false end
             local settings = ctx.settings or {}
@@ -542,10 +526,7 @@ local strategies = {
         matches=function(ctx, s)
             if not ctx.is_moving then return false end
             if not ctx.has_valid_enemy_target then return false end
-            local skip = NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Moonfire, 2.0) or false
-            if not skip then
-                if (s.moonfire_remains or 0) >= 3 then return false end
-            end
+            if (s.moonfire_remains or 0) >= 3 then return false end
             if (s.mana_pct or 100) < 10 then return false end
             return NS.action_matches(ctx, _ACT_MF)
         end,
@@ -646,9 +627,6 @@ local strategies = {
             if not spec_kit.setting_bool(ctx, "use_self_buffs", true) then return false end
             local spell = ACTION.MarkOfTheWild or SPELLS.MarkOfTheWild
             -- Recent-cast lockout (was inverted: throttled path used to keep casting).
-            if NS.broken_api_throttled and NS.broken_api_throttled(spell, 300.0) then
-                return false
-            end
             -- Never overwrite Gift / higher MotW with a lower MotW rank.
             if NS.buff_would_downgrade and NS.buff_would_downgrade(NS.PLAYER_UNIT or ctx.me, _MOTW_BUFF, spell) then
                 return false
@@ -667,9 +645,6 @@ local strategies = {
             if not spec_kit.setting_bool(ctx, "use_self_buffs", true) then return false end
             local spell = ACTION.Thorns or SPELLS.Thorns
             local thorns_buffs = { 26992, 9910, 9756, 8914, 1075, 782, 467 }
-            if NS.broken_api_throttled and NS.broken_api_throttled(spell, 300.0) then
-                return false
-            end
             if NS.buff_would_downgrade and NS.buff_would_downgrade(NS.PLAYER_UNIT or ctx.me, thorns_buffs, spell) then
                 return false
             end

@@ -164,7 +164,6 @@ local function is_defensive_stance(stance)
 end
 
 local function sunder_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
     if not context.target then return false end
     -- Skip if target has no armor (armorless mob or API unavailable)
     if (context.target_armor or 0) <= 0 then return false end
@@ -178,7 +177,6 @@ local function sunder_matches_fn(context, state)
 end
 
 local function thunderclap_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
     if state.stance ~= STANCE.BATTLE then return false end  -- Vanilla TC requires Battle Stance
     -- Thunder Clap: 8yd self PBAoE
     if not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state)) then
@@ -188,7 +186,6 @@ local function thunderclap_matches_fn(context, state)
 end
 
 local function demo_shout_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
     if (state.demo_remains or 0) > 5 then return false end
     return true
 end
@@ -218,20 +215,17 @@ local function execute_matches_fn(context, state)
 end
 
 local function battle_shout_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
     if state.has_battle_shout then return false end
     return true
 end
 
 local function shield_wall_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ShieldWall, 3.0) then return false end
     if (state.hp or 100) > LOW_HP_LIMIT then return false end
     if state.has_shield_wall then return false end
     return true
 end
 
 local function last_stand_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.LastStand, 3.0) then return false end
     if (state.hp or 100) > LOW_HP_LIMIT then return false end
     if state.has_last_stand then return false end
     return true

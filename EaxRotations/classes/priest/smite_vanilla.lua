@@ -98,24 +98,20 @@ local function build_smite_state(context)
     context.mana_pct = context.mana_pct or context.player_mana_pct or (player.mana_pct and player:mana_pct()) or 100
     context.hp = health_pct(NS.PLAYER_UNIT)
 
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(14752, 3.0) or false
-    if not skip_aura then
-        local swp_dur = target and debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
-        smite_state.swp_active = swp_dur > 0
-        smite_state.swp_remaining = swp_dur
-        smite_state.surge_of_light = buff_up(NS.PLAYER_UNIT, SURGE_OF_LIGHT_BUFF)
-        smite_state.dp_remaining = target and debuff_remains(target, DEVOURING_PLAGUE_DEBUFF) or 0
-        smite_state.has_inner_focus = buff_up(NS.PLAYER_UNIT, INNER_FOCUS_BUFF)
-        smite_state.has_inner_fire = buff_up(NS.PLAYER_UNIT, INNER_FIRE_BUFF)
-        smite_state.inner_fire_remains = 0
-        if smite_state.has_inner_fire and type(buff_remains) == "function" then
-            local r = buff_remains(NS.PLAYER_UNIT, INNER_FIRE_BUFF)
-            smite_state.inner_fire_remains = (r ~= nil and r >= 0) and r or 999
-        end
-        smite_state.has_renew = buff_up(NS.PLAYER_UNIT, RENEW_BUFF)
-        smite_state.has_weakened_soul = NS.debuff_up and NS.debuff_up(NS.PLAYER_UNIT, WEAKENED_SOUL_DEBUFF) or false
+    local swp_dur = target and debuff_remains(target, SHADOW_WORD_PAIN_DEBUFF) or 0
+    smite_state.swp_active = swp_dur > 0
+    smite_state.swp_remaining = swp_dur
+    smite_state.surge_of_light = buff_up(NS.PLAYER_UNIT, SURGE_OF_LIGHT_BUFF)
+    smite_state.dp_remaining = target and debuff_remains(target, DEVOURING_PLAGUE_DEBUFF) or 0
+    smite_state.has_inner_focus = buff_up(NS.PLAYER_UNIT, INNER_FOCUS_BUFF)
+    smite_state.has_inner_fire = buff_up(NS.PLAYER_UNIT, INNER_FIRE_BUFF)
+    smite_state.inner_fire_remains = 0
+    if smite_state.has_inner_fire and type(buff_remains) == "function" then
+        local r = buff_remains(NS.PLAYER_UNIT, INNER_FIRE_BUFF)
+        smite_state.inner_fire_remains = (r ~= nil and r >= 0) and r or 999
     end
+    smite_state.has_renew = buff_up(NS.PLAYER_UNIT, RENEW_BUFF)
+    smite_state.has_weakened_soul = NS.debuff_up and NS.debuff_up(NS.PLAYER_UNIT, WEAKENED_SOUL_DEBUFF) or false
     smite_state.hf_ready = spell_exists(SPELLS.HolyFire) and spell_ready(SPELLS.HolyFire, target)
     smite_state.mb_ready = spell_exists(SPELLS.MindBlast) and spell_ready(SPELLS.MindBlast, target)
     smite_state.swd_ready = spell_exists(SPELLS.ShadowWordDeath) and spell_ready(SPELLS.ShadowWordDeath, target)

@@ -186,14 +186,10 @@ local function build_state(context)
     end
 
     -- -- Buff detection
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
     local LIGHTNING_SHIELD_ID = (type(LIGHTNING_SHIELD_BUFF) == "table" and LIGHTNING_SHIELD_BUFF[1]) or 10432
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(LIGHTNING_SHIELD_ID, 3.0) or false
-    if not skip_aura then
-        enh_state.has_lightning_shield = me and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
-        enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and type(me.get_buff_stacks) == "function" and me:get_buff_stacks(LIGHTNING_SHIELD_BUFF)) or 0
-        enh_state.has_ghost_wolf = me and NS.buff_up(me, GHOST_WOLF_SPELL) or false
-    end
+    enh_state.has_lightning_shield = me and NS.buff_up(me, LIGHTNING_SHIELD_BUFF) or false
+    enh_state.lightning_shield_charges = (me and enh_state.has_lightning_shield and type(me.get_buff_stacks) == "function" and me:get_buff_stacks(LIGHTNING_SHIELD_BUFF)) or 0
+    enh_state.has_ghost_wolf = me and NS.buff_up(me, GHOST_WOLF_SPELL) or false
 
     -- -- Weapon buff detection via WeaponImbueManager + exact enchant IDs.
     local imbue = NS.WeaponImbueManager

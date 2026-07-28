@@ -109,6 +109,8 @@ local ACTION = {
 
     SealRighteousness    = define("SealRighteousness",    {27155, 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154}, "SealRighteousness"),
 
+    TurnEvil             = define("TurnEvil",             {10326}, "TurnEvil"),
+
 }
 
 
@@ -356,6 +358,8 @@ local prot_state = {
 
  righteous_defense_ready = false,
 
+ turn_evil_ready = false,
+
  mana_pct = 100,
 
  hp_pct = 100,
@@ -425,47 +429,42 @@ local function build_state(context)
 
  prot_state.now_ms = NS.game_time_ms and NS.game_time_ms() or 0
 
- -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
 
- local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(25780, 3.0) or false
 
- if not skip_aura then
+ prot_state.has_righteous_fury = me and NS.buff_up(me, RIGHTEOUS_FURY_BUFF) or false
 
-  prot_state.has_righteous_fury = me and NS.buff_up(me, RIGHTEOUS_FURY_BUFF) or false
+ prot_state.has_holy_shield = me and NS.buff_up(me, HOLY_SHIELD_BUFF) or false
 
-  prot_state.has_holy_shield = me and NS.buff_up(me, HOLY_SHIELD_BUFF) or false
+ -- Track remaining Holy Shield charges via buff.points for proactive refresh
 
-  -- Track remaining Holy Shield charges via buff.points for proactive refresh
+ prot_state.holy_shield_charges = 0
 
-  prot_state.holy_shield_charges = 0
+ if prot_state.has_holy_shield and type(NS.buff_points) == "function" then
 
-  if prot_state.has_holy_shield and type(NS.buff_points) == "function" then
+  local pts = NS.buff_points and NS.buff_points(me, HOLY_SHIELD_BUFF) or nil
 
-   local pts = NS.buff_points and NS.buff_points(me, HOLY_SHIELD_BUFF) or nil
-
-   prot_state.holy_shield_charges = (pts and pts[1]) or 0
-
-  end
-
-  prot_state.has_seal = me and NS.buff_up(me, SEAL_RIGHTEOUSNESS_BUFF) or false
-
-  prot_state.has_seal_command = me and NS.buff_up(me, SEAL_COMMAND_BUFF) or false
-
-  prot_state.has_devotion_aura = me and NS.buff_up(me, DEVOTION_AURA_BUFF) or false
-
-  prot_state.has_divine_shield = me and NS.buff_up(me, DIVINE_SHIELD_BUFF) or false
-
-  prot_state.has_forbearance = me and NS.debuff_up(me, FORBEARANCE_DEBUFF) or false
-
-  prot_state.consecration_remains = target and NS.debuff_remains(target, CONSECRATION_DEBUFF) or 0
-
-  prot_state.has_blessing_sanctuary = me and NS.buff_up(me, BLESSING_OF_SANCTUARY_BUFF) or false
-
-  prot_state.has_seal_wisdom = me and NS.buff_up(me, SEAL_WISDOM_BUFF) or false
-
-  prot_state.target_has_wisdom = target and NS.debuff_up(target, JUDGEMENT_WISDOM_DEBUFF) or false
+  prot_state.holy_shield_charges = (pts and pts[1]) or 0
 
  end
+
+ prot_state.has_seal = me and NS.buff_up(me, SEAL_RIGHTEOUSNESS_BUFF) or false
+
+ prot_state.has_seal_command = me and NS.buff_up(me, SEAL_COMMAND_BUFF) or false
+
+ prot_state.has_devotion_aura = me and NS.buff_up(me, DEVOTION_AURA_BUFF) or false
+
+ prot_state.has_divine_shield = me and NS.buff_up(me, DIVINE_SHIELD_BUFF) or false
+
+ prot_state.has_forbearance = me and NS.debuff_up(me, FORBEARANCE_DEBUFF) or false
+
+ prot_state.consecration_remains = target and NS.debuff_remains(target, CONSECRATION_DEBUFF) or 0
+
+ prot_state.has_blessing_sanctuary = me and NS.buff_up(me, BLESSING_OF_SANCTUARY_BUFF) or false
+
+ prot_state.has_seal_wisdom = me and NS.buff_up(me, SEAL_WISDOM_BUFF) or false
+
+ prot_state.target_has_wisdom = target and NS.debuff_up(target, JUDGEMENT_WISDOM_DEBUFF) or false
+
 
  prot_state.consecration_ready = me and NS.spell_ready(ACTION.Consecration, me, { skip_range = true, expected_cooldown = 8 }) or false
 
@@ -504,6 +503,8 @@ local function build_state(context)
  prot_state.seal_of_wisdom_ready = me and NS.spell_ready(ACTION.SealOfWisdom, me, { skip_range = true, expected_cooldown = 1.5 }) or false
 
  prot_state.righteous_defense_ready = me and NS.spell_ready(ACTION.RighteousDefense, me, { skip_range = true, expected_cooldown = 15 }) or false
+
+ prot_state.turn_evil_ready = me and NS.spell_ready(ACTION.TurnEvil, me, { expected_cooldown = 1.5 }) or false
 
  prot_state.is_group = context.is_group or false
 
@@ -992,6 +993,17 @@ local function seal_command_aoe_matches(context, state)
 end
 
 
+local function turn_evil_matches(context, state)
+    if not spec_kit.setting_bool(context, "prot_auto_turn_evil", true) then return false end
+    if not state.turn_evil_ready then return false end
+    if not context.has_valid_enemy_target then return false end
+    local ct = state.target_creature_type
+    if not ct or not DEMON_OR_UNDEAD[ct] then return false end
+    if context.target and NS.debuff_up and NS.debuff_up(context.target, {10326}) then return false end
+    return true
+end
+
+
 local function exorcism_matches(context, state)
 
  if not spec_kit.setting_bool(context, "prot_exorcism", true) then return false end
@@ -1184,6 +1196,7 @@ local ACTIONS = {
     SealRighteousness = {},
     SealOfWisdom = {},
     Consecration = { requires_in_combat = true, requires_target = true },
+    TurnEvil = { requires_target = true },
     Exorcism = { requires_in_combat = true, requires_target = true },
     HolyWrath = { requires_in_combat = true, requires_target = true },
     HammerOfWrath = { requires_in_combat = true, requires_target = true },
@@ -1296,6 +1309,8 @@ local strategies = {
   return NS.try_cast(ACTION.Consecration, context.me, "[PROTECTION] Consecration")
 
  end },
+
+ { name = "TurnEvil", matches = turn_evil_matches, execute = function(context) return NS.try_cast(ACTION.TurnEvil, context.target, "[PROTECTION] TurnEvil") end },
 
  { name = "Exorcism", matches = exorcism_matches, execute = function(context) return NS.try_cast(ACTION.Exorcism, context.target, "[PROTECTION] Exorcism") end },
 

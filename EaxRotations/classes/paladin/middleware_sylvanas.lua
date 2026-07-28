@@ -14,6 +14,7 @@ local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylv
 if not _ok_int or type(interrupt_manager) ~= "table" then interrupt_manager = nil end
 local dispel_manager = NS.DispelManager or require("shared/dispel_manager_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
+local scan_cache = require("shared/middleware_scan_cache_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local CCGateDB = CCBreakDB
 local SPELLS = NS.PaladinSpells or {}
@@ -113,8 +114,6 @@ local function get_divine_shield_spell()
     if type(SPELLS.DivineShield) == "number" then return { id = { SPELLS.DivineShield }, name = "DivineShield" } end
     return nil
 end
-
-local _last_paladin_cc_scan = 0
 
 local strategies = {
 
@@ -329,37 +328,36 @@ local strategies = {
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
-            -- Throttle: expensive enemy iteration
-            local now = NS.time_now and NS.time_now() or 0
-            if now - _last_paladin_cc_scan < 0.3 then return false end
-            _last_paladin_cc_scan = now
             -- Preemptive scan: check if any nearby enemy is casting CC on us
-            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
-            for _, enemy in ipairs(enemies) do
-                if enemy then
-                    local is_casting_cc = CCBreakDB.is_casting_preemptive_cc(enemy)
-                    if is_casting_cc then
+            local preemptive_enemy = scan_cache.memoize(context, "paladin_preemptive_cc", function()
+                local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+                for _, enemy in ipairs(enemies) do
+                    if enemy and CCBreakDB.is_casting_preemptive_cc(enemy) then
                         local ok, etarget = pcall(function() return enemy:get_target() end)
                         if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
-                            -- Divine Shield: preemptive immunity (expensive but guaranteed)
-                            local ds_spell = get_divine_shield_spell()
-                            if ds_spell then
-                                -- Check Forbearance debuff (25771)
-                                if NS.debuff_remains(me, {25771}) > 0 then ds_spell = nil end
-                            end
-                            if ds_spell and NS.spell_ready and NS.spell_ready(ds_spell, me, { skip_range = true }) then
-                                return true
-                            end
-                            -- Blessing of Freedom: cheap root/snare break (doesn't cause Forbearance)
-                            if NS.is_spell_learned and NS.is_spell_learned(1044) then
-                                if NS.spell_ready and NS.spell_ready(BLESSING_OF_FREEDOM_SPELL) then
-                                    return true
-                                end
-                            end
-                            return false
+                            return enemy
                         end
                     end
                 end
+                return false
+            end)
+            if preemptive_enemy then
+                -- Divine Shield: preemptive immunity (expensive but guaranteed)
+                local ds_spell = get_divine_shield_spell()
+                if ds_spell then
+                    -- Check Forbearance debuff (25771)
+                    if NS.debuff_remains(me, {25771}) > 0 then ds_spell = nil end
+                end
+                if ds_spell and NS.spell_ready and NS.spell_ready(ds_spell, me, { skip_range = true }) then
+                    return true
+                end
+                -- Blessing of Freedom: cheap root/snare break (doesn't cause Forbearance)
+                if NS.is_spell_learned and NS.is_spell_learned(1044) then
+                    if NS.spell_ready and NS.spell_ready(BLESSING_OF_FREEDOM_SPELL) then
+                        return true
+                    end
+                end
+                return false
             end
             -- Reactive: check if player is already under breakable CC (Poly/Sap/Repentance/etc.)
             local has_cc, cc_name = CCBreakDB.is_breakable_cc_active(me, NS)

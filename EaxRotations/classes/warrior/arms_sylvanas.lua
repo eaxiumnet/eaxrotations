@@ -518,7 +518,6 @@ local function slam_matches(context, state)
 end
 
 local function sweeping_strikes_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SweepingStrikes, 3.0) then return false end
     if state.aoe_cc_nearby then return false end  -- don't break nearby CC
     local min_count = spec_kit.setting_number(context, "sweeping_strikes_count", SWEEPING_STRIKES_COUNT)
     if not (NS.aoe_target_meets and NS.aoe_target_meets(min_count, (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_8) or 8, context.target, context)) then return false end
@@ -529,7 +528,6 @@ local function sweeping_strikes_matches(context, state)
 end
 
 local function commanding_shout_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CommandingShout, 3.0) then return false end
     if not spec_kit.setting_bool(context, "use_commanding_shout", false) then return false end
     if state.has_commanding_shout then return false end
     if state.rage < 10 then return false end
@@ -537,7 +535,6 @@ local function commanding_shout_matches(context, state)
 end
 
 local function sunder_armor_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
     -- Low-level: get_armor() often returns 0/nil — same silent gate as Druid Faerie Fire.
     local level = (context and (context.level or context.player_level)) or 70
     if level >= 50 and (context.target_armor or 0) <= 0 then return false end
@@ -751,7 +748,6 @@ local function death_wish_matches(context, state)
 end
 
 local function berserker_rage_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BerserkerRage, 3.0) then return false end
     if not state.berserker_rage_ready then return false end
     if state.has_berserker_rage then return false end
     -- Fear break: cast immediately if feared/sapped/incapacitated
@@ -805,7 +801,6 @@ local DSL_DEFS = {
         name = "BattleShout",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
                 return true
             end },
             { type = "state", field = "has_battle_shout", op = "falsy" },
@@ -864,7 +859,6 @@ local DSL_DEFS = {
         name = "Rend",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rend, 2.0) then return false end
                 if execute_phase(context, state) then return false end
                 if state.rend_remains > 3 then return false end
                 if state.target_hp < 25 then return false end
@@ -886,7 +880,6 @@ local DSL_DEFS = {
         conditions = {
             { type = "custom", fn = function(context, state)
                 if state.is_pvp then
-                    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
                     if state.hamstring_remains > 3 then return false end
                     return true
                 end
@@ -896,7 +889,6 @@ local DSL_DEFS = {
                     return true
                 end
                 if spec_kit.setting_bool(context, "hamstring_fleeing_mobs", true) and state.hamstring_remains <= 3 then
-                    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
                     return true
                 end
                 return false
@@ -910,7 +902,6 @@ local DSL_DEFS = {
         name = "DemoralizingShout",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
                 if state.demo_remains > 5 then return false end
                 if not state.is_pvp and state.hp > 70
                     and not (NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_10) or 10, context, state)) then
@@ -930,7 +921,6 @@ local DSL_DEFS = {
         name = "ThunderClap",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
                 if state.aoe_cc_nearby then return false end
                 if state.tclap_remains > 5 then return false end
                 if not state.is_pvp and state.hp > 65

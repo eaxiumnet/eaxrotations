@@ -523,7 +523,6 @@ local function apply_base_matches(strategies, actions)
 end
 
 local function sunder_matches_fn(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.SunderArmor, 2.0) then return false end
  if not context.target then return false end
  -- Low-level: get_armor() often returns 0/nil — same silent gate as Druid Faerie Fire.
  -- Keep armorless skip at 50+ (elementals etc.); below 50 allow Sunder for threat.
@@ -546,7 +545,6 @@ local function devastate_matches_fn(context, state)
 end
 
 local function thunderclap_matches_fn(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ThunderClap, 2.0) then return false end
  if state.aoe_cc_nearby then return false end  -- don't break nearby CC
  -- Thunder Clap: 8yd self PBAoE — multi when 2+ in hit volume
  if NS.aoe_self_meets and NS.aoe_self_meets(2, (NS.AOE_RADIUS and NS.AOE_RADIUS.SELF_8) or 8, context, state) then
@@ -564,7 +562,6 @@ local function thunderclap_matches_fn(context, state)
 end
 
 local function demo_shout_matches_fn(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.DemoralizingShout, 2.0) then return false end
  if (state.demo_remains or 0) > 5 then return false end
  return true
 end
@@ -595,14 +592,12 @@ local function execute_matches_fn(context, state)
 end
 
 local function battle_shout_matches_fn(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.BattleShout, 3.0) then return false end
  if state.has_battle_shout then return false end
  if state.has_commanding_shout then return false end
  return true
 end
 
 local function commanding_shout_matches_fn(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CommandingShout, 3.0) then return false end
  if not spec_kit.setting_bool(context, "use_commanding_shout", false) then return false end
  if state.has_commanding_shout then return false end
  if state.has_battle_shout then return false end
@@ -611,7 +606,6 @@ local function commanding_shout_matches_fn(context, state)
 end
 
 local function shield_wall_matches_fn(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShieldWall, 3.0) then return false end
  if spec_kit.setting_bool(context, "use_shield_wall", true) == false then return false end  local group_aware = spec_kit.setting_bool(context, "warrior_group_aware_defensives", true)
   local default_threshold = (group_aware and state.is_group) and 50 or 35
   local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
@@ -628,7 +622,6 @@ local function shield_wall_matches_fn(context, state)
 end
 
 local function last_stand_matches_fn(context, state)
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LastStand, 3.0) then return false end
  if spec_kit.setting_bool(context, "use_last_stand", true) == false then return false end  local group_aware = spec_kit.setting_bool(context, "warrior_group_aware_defensives", true)
   local default_threshold = (group_aware and state.is_group) and 50 or 35
   local threshold = spec_kit.setting_number(context, "defensive_hp_threshold", default_threshold)
@@ -851,7 +844,6 @@ local DSL_DEFS = {
         name = "LastStand",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LastStand, 3.0) then return false end
                 return true
             end },
             { type = "in_combat" },
@@ -873,7 +865,6 @@ local DSL_DEFS = {
             { type = "setting", key = "use_shield_wall", op = "truthy", default = true },
             { type = "state", field = "has_shield_wall", op = "falsy" },
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShieldWall, 3.0) then return false end
                 if NS.should_use_long_cd and not NS.should_use_long_cd(context, SHIELD_WALL_CD) then return false end
                 local group_aware = spec_kit.setting_bool(context, "warrior_group_aware_defensives", true)
                 local default_threshold = (group_aware and state.is_group) and 50 or 35
@@ -900,7 +891,6 @@ local DSL_DEFS = {
         name = "BattleShout",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.BattleShout, 3.0) then return false end
                 return true
             end },
             { type = "state", field = "has_battle_shout", op = "falsy" },
@@ -912,7 +902,6 @@ local DSL_DEFS = {
         name = "CommandingShout",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.CommandingShout, 3.0) then return false end
                 return true
             end },
             { type = "setting", key = "use_commanding_shout", op = "truthy", default = false },

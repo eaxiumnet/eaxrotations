@@ -55,6 +55,7 @@ local PARTY_BUFFS_BY_CLASS = {
 
 -- Static spell cache: key -> spell_action object. Built once per class load.
 local _spell_cache = {}
+local BUFF_UPGRADE_LOCKOUT = 3.0
 
 local function get_spell(entry)
     local key = entry.key
@@ -98,12 +99,8 @@ local function check_self_buffs(context, settings, me, class_id)
         if needs_upgrade(me, entry) then
             local spell = get_spell(entry)
             if spell and NS.spell_ready(spell, me, { skip_range = true }) then
-                if NS.broken_api_throttled and NS.broken_api_throttled(spell, 3.0) then
-                    -- API unhealthy, skip
-                else
-                    if NS.try_cast(spell, me, "[BUFF_UP] self " .. entry.key) then
-                        return true
-                    end
+                if NS.try_cast(spell, me, "[BUFF_UP] self " .. entry.key, { skip_range = true, min_interval = BUFF_UPGRADE_LOCKOUT }) then
+                    return true
                 end
             end
         end
@@ -127,12 +124,8 @@ local function check_party_buffs(context, settings, me, class_id)
                 if needs_upgrade(member, entry) then
                     local spell = get_spell(entry)
                     if spell and NS.spell_ready(spell, member, { skip_range = true }) then
-                        if NS.broken_api_throttled and NS.broken_api_throttled(spell, 3.0) then
-                            -- API unhealthy, skip
-                        else
-                            if NS.try_cast(spell, member, "[BUFF_UP] party " .. entry.key) then
-                                return true
-                            end
+                        if NS.try_cast(spell, member, "[BUFF_UP] party " .. entry.key, { skip_range = true, min_interval = BUFF_UPGRADE_LOCKOUT }) then
+                            return true
                         end
                     end
                 end

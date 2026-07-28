@@ -154,7 +154,6 @@ end
 -- Match functions
 -- ============================================================================
 local function lightning_shield_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.LightningShield, 3.0) then return false end
     local shield_type = (context.settings and context.settings.restoration_shield_type) or "water"
     if shield_type ~= "lightning" then return false end
     if state.has_lightning_shield then return false end

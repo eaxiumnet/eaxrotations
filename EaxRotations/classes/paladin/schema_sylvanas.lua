@@ -131,6 +131,7 @@ return {
                 settings = {
                     { key = "prot_avenging_wrath", type = "checkbox", label = "Avenging Wrath", default = true, tooltip = "Use Avenging Wrath for +20% damage" },
                     { key = "prot_exorcism", type = "checkbox", label = "Exorcism", default = true, tooltip = "Use Exorcism on demons and undead" },
+                    { key = "prot_auto_turn_evil", type = "checkbox", label = "Auto Turn Evil", default = true, tooltip = "Auto-cast Turn Evil on Undead/Demon targets (CC)." },
                     { key = "prot_hammer_of_wrath", type = "checkbox", label = "Hammer of Wrath", default = true, tooltip = "Execute-range Hammer of Wrath" },
                     { key = "prot_hammer_of_wrath_hp", type = "slider", label = "Hammer of Wrath Target HP %", min = 5, max = 35, default = 20, tooltip = "Use Hammer of Wrath when target HP is below this" },
                 },
@@ -217,6 +218,7 @@ return {
                     { key = "blessing_of_freedom_self", type = "checkbox", label = "Freedom Self", default = true },
                     { key = "blessing_of_freedom_allies", type = "checkbox", label = "Freedom Allies", default = true },
                     { key = "retri_auto_cleanse", type = "checkbox", label = "Auto Cleanse", default = true },
+                    { key = "retri_auto_turn_evil", type = "checkbox", label = "Auto Turn Evil", default = true, tooltip = "Auto-cast Turn Evil on Undead/Demon targets (CC)." },
                     { key = "cleanse_allies", type = "checkbox", label = "Cleanse Allies", default = true },
                 },
             },

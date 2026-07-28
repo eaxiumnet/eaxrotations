@@ -278,11 +278,15 @@ mock_commanding_ready = false
 assert_false(strategies[cs_idx].matches(make_ctx({ settings = { use_commanding_shout = true } }), make_state()), "CommandingShout skips when not ready")
 mock_commanding_ready = true
 
--- Verify broken_api_throttled path for BattleShout/CommandingShout
+-- broken_api_throttled guard removed; BattleShout/CommandingShout now rely on pure aura/cooldown checks.
+-- Verify that toggling broken_api_throttled does NOT affect the BattleShout decision.
+mock_has_battle_shout = false
+mock_has_commanding_shout = false
 mock_broken_api_throttled = true
-assert_false(strategies[bs_idx].matches(make_ctx(), make_state()), "BattleShout skips when broken_api_throttled")
-assert_false(strategies[cs_idx].matches(make_ctx({ settings = { use_commanding_shout = true } }), make_state()), "CommandingShout skips when broken_api_throttled")
+assert_true(strategies[bs_idx].matches(make_ctx(), make_state()), "BattleShout matches when broken_api_throttled returns true (pure aura gate)")
 mock_broken_api_throttled = false
+assert_true(strategies[bs_idx].matches(make_ctx(), make_state()), "BattleShout matches when broken_api_throttled returns false (pure aura gate)")
+
 
 -- BerserkerRage: ready and under fear/sap/incapacitate
 mock_berserker_rage_ready = true

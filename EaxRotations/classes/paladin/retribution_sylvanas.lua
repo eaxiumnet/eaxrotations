@@ -68,6 +68,7 @@ local ACTION = {
     SealWisdom           = define("SealWisdom",           { 27166, 20357, 20356, 20166 }, "SealWisdom"),
     -- SealCommandRank1 is a rank-1-only variant used for prep twist; nil-safe fallback to SealCommand
     SealCommandRank1     = define("SealCommandRank1",     { 20375 }, "SealCommandRank1"),
+    TurnEvil             = define("TurnEvil",             { 10326 }, "TurnEvil"),
 }
 local PLAYER = NS.PLAYER_UNIT
 local _planner_ok, planner = pcall(require, "shared/cooldown_planner_sylvanas")
@@ -233,6 +234,8 @@ local ret_state = {
     can_use_blood = false,
     has_valid_enemy_target = false,
     in_combat = false,
+    target_creature_type = nil,
+    turn_evil_ready = false,
 }
 
 -- get_setting now delegated to spec_kit.setting_*() (Pattern 8)
@@ -355,8 +358,6 @@ end
 local function build_state(context)
     local is_group = context.is_group or false
     ret_state.is_group = is_group
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(27170, 3.0) or false
     ret_state.hp_pct = context.hp or health_pct(context.me, 100)
     ret_state.mana_pct = context.mana_pct or context.mana or 100
     ret_state.enemy_count = context.enemy_count or context.enemies_nearby or 1
@@ -377,25 +378,25 @@ local function build_state(context)
             ret_state.preferred_damage_seal = "martyr"
         end
     end
-    if not skip_aura then
-        ret_state.has_blood = has_player_buff(SEAL_BLOOD_BUFF)
-        ret_state.has_command = has_player_buff(SEAL_COMMAND_BUFF)
-        ret_state.has_command_rank1 = has_player_buff(SEAL_COMMAND_RANK1_BUFF)
-        ret_state.has_crusader = has_player_buff(SEAL_CRUSADER_BUFF)
-        ret_state.has_righteousness = has_player_buff(SEAL_RIGHTEOUSNESS_BUFF)
-        ret_state.has_wisdom = has_player_buff(SEAL_WISDOM_BUFF)
-        ret_state.has_martyr = has_player_buff(SEAL_MARTYR_BUFF)
-        ret_state.has_damage_seal = ret_state.has_blood or ret_state.has_command or ret_state.has_righteousness or ret_state.has_martyr
-        ret_state.has_might = has_player_buff(BLESSING_MIGHT_BUFF)
-        ret_state.has_kings = has_player_buff(BLESSING_KINGS_BUFF)
-        ret_state.has_forbearance = has_player_debuff(FORBEARANCE_DEBUFF)
-        ret_state.target_has_crusader = unit_has_debuff(context.target, JUDGEMENT_CRUSADER_DEBUFF)
-        ret_state.target_has_wisdom = unit_has_debuff(context.target, JUDGEMENT_WISDOM_DEBUFF)
-    end
+    ret_state.has_blood = has_player_buff(SEAL_BLOOD_BUFF)
+    ret_state.has_command = has_player_buff(SEAL_COMMAND_BUFF)
+    ret_state.has_command_rank1 = has_player_buff(SEAL_COMMAND_RANK1_BUFF)
+    ret_state.has_crusader = has_player_buff(SEAL_CRUSADER_BUFF)
+    ret_state.has_righteousness = has_player_buff(SEAL_RIGHTEOUSNESS_BUFF)
+    ret_state.has_wisdom = has_player_buff(SEAL_WISDOM_BUFF)
+    ret_state.has_martyr = has_player_buff(SEAL_MARTYR_BUFF)
+    ret_state.has_damage_seal = ret_state.has_blood or ret_state.has_command or ret_state.has_righteousness or ret_state.has_martyr
+    ret_state.has_might = has_player_buff(BLESSING_MIGHT_BUFF)
+    ret_state.has_kings = has_player_buff(BLESSING_KINGS_BUFF)
+    ret_state.has_forbearance = has_player_debuff(FORBEARANCE_DEBUFF)
+    ret_state.target_has_crusader = unit_has_debuff(context.target, JUDGEMENT_CRUSADER_DEBUFF)
+    ret_state.target_has_wisdom = unit_has_debuff(context.target, JUDGEMENT_WISDOM_DEBUFF)
     ret_state.target_casting = is_casting(context.target)
     ret_state.target_casting_interruptible = ret_state.target_casting and (NS.is_interruptible and NS.is_interruptible(context.target) or false)
     ret_state.target_player = is_player(context.target)
     ret_state.target_fleeing = context.target_fleeing == true or context.target_is_fleeing == true
+    ret_state.target_creature_type = creature_type(context.target)
+    ret_state.turn_evil_ready = NS.spell_ready(ACTION.TurnEvil, context.me or PLAYER, { expected_cooldown = 1.5 }) or false
     ret_state.in_combat = context.in_combat == true
     ret_state.in_melee = distance_to(context, context.target) <= MELEE_RANGE
     local twist_enabled = true
@@ -521,6 +522,7 @@ local ACTIONS = {
     Ret_ManaPotion                     = { requires_target = false, mana_emergency_ok = true },
     Consecration                       = { requires_target = false, requires_in_combat = true, mana_emergency_ok = false },
     Ret_Consecration_ManaDump          = { requires_target = false, requires_in_combat = true, mana_emergency_ok = false },
+    TurnEvil                           = { requires_target = true,  mana_emergency_ok = false },
     Exorcism                           = { requires_target = true,  mana_emergency_ok = false },
     Ret_HolyWrath_AoE                  = { requires_target = false, requires_in_combat = true, mana_emergency_ok = false },
     Ret_JudgeSecondary_CommandCleave   = { requires_target = true,  mana_emergency_ok = false },
@@ -809,13 +811,23 @@ add_strategy(strategies, "Ret_Consecration_ManaDump", 590, function(context, sta
     return spec_kit.setting_bool(context, "consecration_single_target", false) and (state.mana_pct or 0) >= 75 and NS.spell_ready(ACTION.Consecration, PLAYER, { skip_range = true, expected_cooldown = 8 }) or false
 end, function() return cast(ACTION.Consecration, PLAYER, "[RET] Consecration mana dump", { skip_range = true, expected_cooldown = 8 }) end, 8)
 
+add_strategy(strategies, "TurnEvil", 585, function(context, state)
+    if not spec_kit.setting_bool(context, "retri_auto_turn_evil", true) then return false end
+    if not state.turn_evil_ready then return false end
+    if not context.has_valid_enemy_target then return false end
+    local ct = state.target_creature_type
+    if not ct or not DEMON_OR_UNDEAD[ct] then return false end
+    if context.target and NS.debuff_up and NS.debuff_up(context.target, {10326}) then return false end
+    return true
+end, function(context) return NS.try_cast(ACTION.TurnEvil, context.target, "[RET] TurnEvil") end, 30)
+
 add_strategy(strategies, "Exorcism", 580, function(context, state)
     local prep_start = (state.twist_window or TWIST_WINDOW) + 0.75
     if state.can_twist and (state.has_command or state.has_command_rank1) and not state.has_blood and (state.swing_remains or 99) <= prep_start then return false end
     if state.mana_emergency then return false end
     -- [ARTISTRY] Improved: TBC Exorcism only works on Undead and Demons.
     if not context.target then return false end
-    local type = creature_type(context.target)
+    local type = state.target_creature_type
     return (DEMON_OR_UNDEAD[type] and NS.spell_ready(ACTION.Exorcism, context.target, { expected_cooldown = 15 }) or false) or false
 end, function(context) return NS.try_cast(ACTION.Exorcism, context.target, "[RET] Exorcism", { expected_cooldown = 15 }) end, 15)
 
@@ -827,7 +839,7 @@ add_strategy(strategies, "Ret_HolyWrath_AoE", 575, function(context, state)
     if (state.enemy_count or 0) < 2 or (state.mana_pct or 100) < 40 then return false end
     if not (NS.spell_ready(ACTION.HolyWrath, PLAYER, { skip_range = true }) or false) then return false end
     -- Check if target is undead/demon
-    local type = creature_type(context.target)
+    local type = state.target_creature_type
     return DEMON_OR_UNDEAD[type] or false
 end, function() return cast(ACTION.HolyWrath, PLAYER, "[RET] Holy Wrath AoE", { skip_range = true, expected_cooldown = 60 }) end, 60)
 

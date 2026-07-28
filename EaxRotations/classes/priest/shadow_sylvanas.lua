@@ -896,7 +896,6 @@ end
 
 local function devouring_plague_matches(context, s)
     if not s.devouring_plague_known then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.DevouringPlague, 2.0) then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target or s.dp_remaining > (s.dp_refresh_window or 3) then return false end
     -- Mana emergency: drop all spells (wand only)
@@ -1046,6 +1045,7 @@ local function dispel_magic_matches(context, s)
 end
 
 local function shackle_undead_matches(context, s)
+    if not spec_kit.setting_bool(context, "shadow_auto_shackle", true) then return false end
     if not context.has_valid_enemy_target then return false end
     if s.target_creature_type ~= 6 then return false end
     if not s.shackle_undead_ready then return false end
@@ -1114,7 +1114,6 @@ local strategies = {
         if not s.swp_known then return false end
         if not context.is_moving then return false end
         if not context.has_valid_enemy_target then return false end
-        if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShadowWordPain, 2.0) then return false end
         if (s.swp_remaining or 0) > 3 then return false end
         if s.mana_emergency then return false end
         if (s.swp_remaining or 0) <= 0 and not _engaged_with_player(context) then return false end
@@ -1220,7 +1219,6 @@ local DSL_DEFS = {
         name = "Shadowform",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Shadowform, 3.0) then return false end
                 return true
             end },
             { type = "state", field = "has_shadowform", op = "falsy" },
@@ -1241,7 +1239,6 @@ local DSL_DEFS = {
             { type = "context", field = "is_casting", op = "falsy" },
             { type = "context", field = "is_channeling", op = "falsy" },
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.VampiricTouch, 2.0) then return false end
                 return true
             end },
             { type = "custom", fn = function(context, state)
@@ -1287,7 +1284,6 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "swp_known", op = "truthy" },
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ShadowWordPain, 2.0) then return false end
                 return true
             end },
             { type = "custom", fn = function(context, state)
@@ -1385,7 +1381,6 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "inner_fire_known", op = "truthy" },
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.InnerFire, 3.0) then return false end
                 return true
             end },
             { type = "state", field = "has_inner_fire", op = "falsy" },

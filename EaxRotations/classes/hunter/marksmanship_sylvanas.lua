@@ -79,7 +79,6 @@ local HUNTERS_MARK_DEBUFF = { 14325, 14324, 14323, 1130 }
 local SERPENT_STING_DEBUFF = { 27016, 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
 local ASPECT_HAWK_BUFF = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 local ASPECT_VIPER_BUFF = { 34074 }
-local _last_aspect_hawk_cast = 0  -- Throttle: WoW API buff detection delay (~1-2 frames)
 
 local MISDIRECTION_ID = 34477
 local WING_CLIP_DEBUFF = { 2974 }
@@ -187,15 +186,11 @@ local function build_state(context)
     mm_state.pet_alive = pet_alive == true
     mm_state.pet_dead = context.pet_dead == true or (pet ~= nil and not mm_state.pet_alive)
     mm_state.pet_hp_pct = mm_state.pet_alive and pet.get_health_percentage and pet:get_health_percentage() or 100
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(14325, 3.0) or false
-    if not skip_aura then
-        mm_state.has_hunters_mark = target and NS.debuff_up(target, HUNTERS_MARK_DEBUFF) or false
-        mm_state.has_serpent_sting = target and NS.debuff_up(target, SERPENT_STING_DEBUFF) or false
-        mm_state.serpent_sting_remains = target and NS.debuff_remains(target, SERPENT_STING_DEBUFF) or 0
-        mm_state.has_aspect_hawk = me and NS.buff_up(me, ASPECT_HAWK_BUFF) or false
-        mm_state.has_aspect_viper = me and NS.buff_up(me, ASPECT_VIPER_BUFF) or false
-    end
+    mm_state.has_hunters_mark = target and NS.debuff_up(target, HUNTERS_MARK_DEBUFF) or false
+    mm_state.has_serpent_sting = target and NS.debuff_up(target, SERPENT_STING_DEBUFF) or false
+    mm_state.serpent_sting_remains = target and NS.debuff_remains(target, SERPENT_STING_DEBUFF) or 0
+    mm_state.has_aspect_hawk = me and NS.buff_up(me, ASPECT_HAWK_BUFF) or false
+    mm_state.has_aspect_viper = me and NS.buff_up(me, ASPECT_VIPER_BUFF) or false
     mm_state.mend_pet_ready = me and NS.spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
     mm_state.hunters_mark_ready = target and NS.spell_ready(ACTION.HuntersMark, target) or false
     mm_state.rapid_fire_ready = me and NS.spell_ready(ACTION.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
@@ -316,8 +311,6 @@ local function aspect_hawk_matches(context, s)
         local viper_end = spec_kit.setting_number(context, "mana_viper_end", 25)
         if (s.mana_pct or 100) <= viper_end then return false end
     end
-    -- Throttle: prevent thrashing due to WoW API buff detection delay
-    if (NS.time_now() - _last_aspect_hawk_cast) < 3 then return false end
     return true
 end
 
@@ -520,7 +513,7 @@ local strategies = {
           return true
       end,
       execute = function() return pet_manager.set_aggressive() end },
-    { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) local r = NS.try_cast(ACTION.AspectOfTheHawk, context.me, "[MARKSMANSHIP] Aspect of the Hawk", { skip_range = true }); if r then _last_aspect_hawk_cast = NS.time_now() end; return r end },
+    { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) return NS.try_cast(ACTION.AspectOfTheHawk, context.me, "[MARKSMANSHIP] Aspect of the Hawk", { skip_range = true }) end },
     { name = "AspectOfTheViper", matches = aspect_viper_matches, execute = function(context) return NS.try_cast(ACTION.AspectOfTheViper, context.me, "[MARKSMANSHIP] Aspect of the Viper", { skip_range = true }) end },
     { name = "FreezingTrap" },
     { name = "HuntersMark" },

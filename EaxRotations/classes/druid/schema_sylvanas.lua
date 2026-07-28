@@ -78,7 +78,7 @@ return {
                     { key = "cat_use_shred", type = "checkbox", label = "Use Shred", default = true },
                     { key = "cat_use_mangle", type = "checkbox", label = "Use Mangle (Cat)", default = true },
                     { key = "cat_use_ferocious_bite", type = "checkbox", label = "Use Ferocious Bite", default = true },
-                    { key = "cat_bite_max_energy", type = "slider", label = "Bite Max Energy", min = 20, max = 60, default = 39, description = "Don't Bite above this energy to avoid waste" },
+                    { key = "cat_bite_max_energy", type = "slider", label = "Bite Max Energy", min = 20, max = 100, default = 100, description = "Don't Bite above this energy to avoid waste (100 = no cap)" },
                     { key = "cat_use_faerie_fire", type = "checkbox", label = "Use Faerie Fire (Feral)", default = true },
                     { key = "cat_aoe_threshold", type = "slider", label = "AoE Enemy Count", min = 2, max = 6, default = 3 },
                     { key = "cat_energy_pooling", type = "checkbox", label = "Energy Pooling", default = true, description = "Pool energy for optimal finisher timing" },

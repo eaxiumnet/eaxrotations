@@ -505,8 +505,6 @@ local function try_use_item(item_ids, reason)
 end
 
 local function build_state(context)
- -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
- local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(20216, 3.0) or false
  local entries, count = Healing.scan_healing_targets()
  state.entries = entries
  state.is_group = context.is_group or false
@@ -535,23 +533,21 @@ local function build_state(context)
  state.moving = context and context.is_moving or false
  state.in_pvp = NS.is_pvp_zone and NS.is_pvp_zone() or context and context.is_pvp or false
  state.use_group_blessings = state.count >= 5
- if not skip_aura then
-  state.has_divine_favor = NS.has_player_buff(BUFF_DIVINE_FAVOR)
-  state.has_divine_illumination = NS.has_player_buff(BUFF_DIVINE_ILLUMINATION)
-  state.has_forbearance = NS.has_player_debuff and NS.has_player_debuff(BUFF_FORBEARANCE) or NS.has_player_buff(BUFF_FORBEARANCE)
-  state.has_seal_wisdom = NS.has_player_buff(BUFF_SEAL_WISDOM)
-  state.has_seal_light = NS.has_player_buff(BUFF_SEAL_LIGHT)
-  state.has_seal_righteousness = NS.has_player_buff(BUFF_SEAL_RIGHTEOUSNESS)
-  state.has_concentration_aura = NS.has_player_buff(BUFF_CONCENTRATION_AURA)
-  state.has_devotion_aura = NS.has_player_buff(BUFF_DEVOTION_AURA)
-  state.has_fire_aura = NS.has_player_buff(BUFF_FIRE_RESIST_AURA)
-  state.has_frost_aura = NS.has_player_buff(BUFF_FROST_RESIST_AURA)
-  state.has_shadow_aura = NS.has_player_buff(BUFF_SHADOW_RESIST_AURA)
-  state.has_lights_grace = NS.has_player_buff(BUFF_LIGHTS_GRACE)
-  state.lights_grace_remains = NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, BUFF_LIGHTS_GRACE) or 0
-  state.target_has_jol = context and context.target and has_debuff(context.target, DEBUFF_JUDGEMENT_LIGHT) or false
-  state.target_has_jow = context and context.target and has_debuff(context.target, DEBUFF_JUDGEMENT_WISDOM) or false
- end
+ state.has_divine_favor = NS.has_player_buff(BUFF_DIVINE_FAVOR)
+ state.has_divine_illumination = NS.has_player_buff(BUFF_DIVINE_ILLUMINATION)
+ state.has_forbearance = NS.has_player_debuff and NS.has_player_debuff(BUFF_FORBEARANCE) or NS.has_player_buff(BUFF_FORBEARANCE)
+ state.has_seal_wisdom = NS.has_player_buff(BUFF_SEAL_WISDOM)
+ state.has_seal_light = NS.has_player_buff(BUFF_SEAL_LIGHT)
+ state.has_seal_righteousness = NS.has_player_buff(BUFF_SEAL_RIGHTEOUSNESS)
+ state.has_concentration_aura = NS.has_player_buff(BUFF_CONCENTRATION_AURA)
+ state.has_devotion_aura = NS.has_player_buff(BUFF_DEVOTION_AURA)
+ state.has_fire_aura = NS.has_player_buff(BUFF_FIRE_RESIST_AURA)
+ state.has_frost_aura = NS.has_player_buff(BUFF_FROST_RESIST_AURA)
+ state.has_shadow_aura = NS.has_player_buff(BUFF_SHADOW_RESIST_AURA)
+ state.has_lights_grace = NS.has_player_buff(BUFF_LIGHTS_GRACE)
+ state.lights_grace_remains = NS.buff_remains and NS.buff_remains(NS.PLAYER_UNIT, BUFF_LIGHTS_GRACE) or 0
+ state.target_has_jol = context and context.target and has_debuff(context.target, DEBUFF_JUDGEMENT_LIGHT) or false
+ state.target_has_jow = context and context.target and has_debuff(context.target, DEBUFF_JUDGEMENT_WISDOM) or false
 
  for i = 1, state.count do
   local entry = entries[i]
@@ -898,7 +894,6 @@ local strategies = {
  {
   name = "PurifySelf",
   matches = function(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Purify, 3.0) then return false end
    if spec_kit.setting_bool(context, "holy_auto_cleanse", true) == false then return false end
    return can_cast_on(Purify, s.purify_target)
   end,
@@ -909,7 +904,6 @@ local strategies = {
  {
   name = "CleanseParty",
   matches = function(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Cleanse, 3.0) then return false end
    if spec_kit.setting_bool(context, "holy_auto_cleanse", true) == false then return false end
    local group_aware = spec_kit.setting_bool(context, "paladin_group_aware_utility", true)
    if not (context.control_risk or (group_aware and context.is_group)) then return false end

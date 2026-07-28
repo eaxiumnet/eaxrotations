@@ -304,10 +304,7 @@ local function racial_matches(context, state)
     return true
 end
 
--- Throttle DoT re-matches when aura APIs are broken on private servers.
-local function broken_api_dot_throttled(spell_id)
-    return NS.is_api_health_broken and NS.is_api_health_broken() and NS.recent_spell_cast and NS.recent_spell_cast(spell_id, 2.0)
-end
+
 local strategies = {
 
     -- Auto Damage Potion — gate on context.has_damage_potion (inventory_helper)
@@ -417,7 +414,6 @@ local strategies = {
         name = "CorruptionDoT",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if broken_api_dot_throttled(25311) then return false end
             if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end	            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
 	            local ratio = SPELL_DMG_UPGRADE_RATIO
 	            if (state.corruption_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_corruption_dmg or 0, state.corruption_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end

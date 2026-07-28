@@ -82,6 +82,7 @@ NS.PaladinSpells = {
     SealOfCommand = 20375,
     SealRighteousness = 21084,
     SealOfWisdom = 20166,
+    TurnEvil = 10326,
 }
 NS.PaladinConstants = {}
 
@@ -153,7 +154,7 @@ local strategies = prot.strategies
 -- ============================================================================
 -- Test 1: Strategy count
 -- ============================================================================
-assert_eq(#strategies, 26, "strategy count = 26")
+assert_eq(#strategies, 27, "strategy count = 27")
 
 -- ============================================================================
 -- Test 2: Full priority order
@@ -168,23 +169,24 @@ local expected_order = {
     "SealRighteousness",        -- 7
     "SealOfWisdom",             -- 8
     "Consecration",             -- 9
-    "Exorcism",                 -- 10
-    "HolyWrath",                -- 11 (DSL)
-    "HammerOfWrath",            -- 12 (DSL)
-    "AvengingWrath",            -- 13 (DSL)
-    "AvengerShield",            -- 14
-    "DevotionAura",             -- 15
-    "BlessingOfSanctuary",      -- 16
-    "HolyShock",                -- 17 (DSL)
-    "FlashOfLight",             -- 18
-    "HolyLight",                -- 19
-    "Cleanse",                  -- 20 (DSL)
-    "DivineProtection",         -- 21 (DSL)
-    "DivineShield",             -- 22
-    "LayOnHands",               -- 23
-    "RighteousDefense",         -- 24
-    "BlessingOfProtectionAlly", -- 25
-    "BlessingOfKingsParty",     -- 26
+    "TurnEvil",                 -- 10
+    "Exorcism",                 -- 11
+    "HolyWrath",                -- 12 (DSL)
+    "HammerOfWrath",            -- 13 (DSL)
+    "AvengingWrath",            -- 14 (DSL)
+    "AvengerShield",            -- 15
+    "DevotionAura",             -- 16
+    "BlessingOfSanctuary",      -- 17
+    "HolyShock",                -- 18 (DSL)
+    "FlashOfLight",             -- 19
+    "HolyLight",                -- 20
+    "Cleanse",                  -- 21 (DSL)
+    "DivineProtection",         -- 22 (DSL)
+    "DivineShield",             -- 23
+    "LayOnHands",               -- 24
+    "RighteousDefense",         -- 25
+    "BlessingOfProtectionAlly", -- 26
+    "BlessingOfKingsParty",     -- 27
 }
 
 for i = 1, #expected_order do
@@ -195,12 +197,12 @@ end
 -- Test 3: DSL strategy positions
 -- ============================================================================
 local dsl_positions = {
-    HolyWrath = 11,
-    HammerOfWrath = 12,
-    AvengingWrath = 13,
-    HolyShock = 17,
-    Cleanse = 20,
-    DivineProtection = 21,
+    HolyWrath = 12,
+    HammerOfWrath = 13,
+    AvengingWrath = 14,
+    HolyShock = 18,
+    Cleanse = 21,
+    DivineProtection = 22,
 }
 
 for name, pos in pairs(dsl_positions) do
@@ -248,7 +250,7 @@ local function make_state(overrides)
 end
 
 -- HammerOfWrath: requires setting enabled, combat target, spell ready, target HP <= threshold
-local idx_how = 12
+local idx_how = 13
 mock_spell_ready_result = true
 mock_in_combat = true
 mock_target_hp_pct = 15
@@ -258,7 +260,7 @@ assert_false(strategies[idx_how].matches(make_ctx({ settings = { prot_hammer_of_
 assert_false(strategies[idx_how].matches(make_ctx(), make_state({ hammer_of_wrath_ready = false, target_hp_pct = 15 })), "HammerOfWrath skips when not ready")
 
 -- AvengingWrath: requires setting enabled, cooldowns, no forbearance, spell ready, TTD gate
-local idx_aw = 13
+local idx_aw = 14
 assert_true(strategies[idx_aw].matches(make_ctx({ settings = { use_cooldowns = true } }), make_state({ has_forbearance = false, avenging_wrath_ready = true })), "AvengingWrath matches when ready, no forbearance")
 assert_false(strategies[idx_aw].matches(make_ctx({ settings = { use_cooldowns = true } }), make_state({ has_forbearance = true })), "AvengingWrath skips with forbearance")
 assert_false(strategies[idx_aw].matches(make_ctx({ settings = { use_cooldowns = true } }), make_state({ avenging_wrath_ready = false })), "AvengingWrath skips when not ready")
@@ -266,20 +268,20 @@ assert_false(strategies[idx_aw].matches(make_ctx({ settings = { use_cooldowns = 
 assert_false(strategies[idx_aw].matches(make_ctx({ settings = { use_cooldowns = true }, ttd_known = true, ttd = 10 }), make_state()), "AvengingWrath skips when TTD < 15")
 
 -- HolyShock: requires combat target, spell ready, hp above FoL threshold
-local idx_hs = 17
+local idx_hs = 18
 assert_true(strategies[idx_hs].matches(make_ctx(), make_state({ hp_pct = 80, holy_shock_ready = true })), "HolyShock matches at hp=80 (above FoL threshold)")
 assert_false(strategies[idx_hs].matches(make_ctx(), make_state({ hp_pct = 35 })), "HolyShock skips at hp=35 (below FoL threshold)")
 assert_false(strategies[idx_hs].matches(make_ctx(), make_state({ holy_shock_ready = false })), "HolyShock skips when not ready")
 
 -- Cleanse: requires setting enabled, needs_cleanse, cleanse_ready
-local idx_cl = 20
+local idx_cl = 21
 assert_true(strategies[idx_cl].matches(make_ctx(), make_state({ needs_cleanse = true, cleanse_ready = true })), "Cleanse matches when needs_cleanse + ready")
 assert_false(strategies[idx_cl].matches(make_ctx(), make_state({ needs_cleanse = false })), "Cleanse skips when no cleanse needed")
 assert_false(strategies[idx_cl].matches(make_ctx(), make_state({ needs_cleanse = true, cleanse_ready = false })), "Cleanse skips when not ready")
 assert_false(strategies[idx_cl].matches(make_ctx({ settings = { prot_cleanse = false } }), make_state({ needs_cleanse = true })), "Cleanse skips when disabled")
 
 -- HolyWrath: requires setting, combat target, enemy_count >= 2, spell ready, demon/undead
-local idx_hw = 11
+local idx_hw = 12
 mock_target_creature_type = 3  -- Demon
 assert_true(strategies[idx_hw].matches(make_ctx(), make_state({ enemy_count = 3, holy_wrath_ready = true, target_creature_type = 3 })), "HolyWrath matches 3 demon enemies")
 assert_false(strategies[idx_hw].matches(make_ctx(), make_state({ enemy_count = 1, target_creature_type = 3 })), "HolyWrath skips at 1 enemy")
@@ -287,7 +289,7 @@ assert_false(strategies[idx_hw].matches(make_ctx(), make_state({ enemy_count = 3
 assert_false(strategies[idx_hw].matches(make_ctx(), make_state({ enemy_count = 3, target_creature_type = 3, holy_wrath_ready = false })), "HolyWrath skips when not ready")
 
 -- DivineProtection: requires hp <= threshold, no forbearance, no divine shield, ready, 3s throttle
-local idx_dp = 21
+local idx_dp = 22
 mock_time = 5  -- >3s so the anti-loop throttle passes on first call
 assert_true(strategies[idx_dp].matches(make_ctx(), make_state({ hp_pct = 20, has_forbearance = false, has_divine_shield = false, divine_protection_ready = true })), "DivineProtection matches at hp=20")
 assert_false(strategies[idx_dp].matches(make_ctx(), make_state({ hp_pct = 30 })), "DivineProtection skips at hp=30 (above threshold)")

@@ -278,7 +278,6 @@ end
 
 -- IN COMBAT ? Hunter's Mark
 local function hunters_mark_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.HuntersMark, 2.0) then return false end
     if not mounted_bail(context, s) then return false end
     if not s.in_combat then return false end
     if not context.target then return false end

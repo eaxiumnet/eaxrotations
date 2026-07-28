@@ -120,6 +120,7 @@ return {
                 header = "Self Survival",
                 settings = {
                     { key = "discipline_healthstone_hp", type = "slider", label = "Healthstone HP (%)", min = 10, max = 60, default = 35 },
+                    { key = "disc_auto_shackle", type = "checkbox", label = "Auto Shackle Undead", default = true, tooltip = "Automatically cast Shackle Undead on Undead/Demon mobs." },
                 },
             },
         },
@@ -189,6 +190,7 @@ return {
                     { key = "holy_prepull_renew", type = "checkbox", label = "Pre-Pull Renew", default = true },
                     { key = "holy_dps_when_idle", type = "checkbox", label = "DPS When Idle", default = false },
                     { key = "holy_dps_mana_floor", type = "slider", label = "DPS Mana Floor (%)", min = 10, max = 90, default = 70 },
+                    { key = "holy_auto_shackle", type = "checkbox", label = "Auto Shackle Undead", default = true, tooltip = "Automatically cast Shackle Undead on Undead/Demon mobs." },
                 },
             },
             {
@@ -212,6 +214,7 @@ return {
                         { text = "Cleave", value = "cleave" },
                         { text = "AoE", value = "aoe" },
                     } },
+                    { key = "shadow_auto_shackle", type = "checkbox", label = "Auto Shackle Undead", default = true, tooltip = "Automatically cast Shackle Undead on Undead mobs." },
                     { key = "shadow_multidot_mode", type = "dropdown", label = "Multi-DoT Mode", default = 1, options = {
                         { text = "Off", value = 1 },
                         { text = "Near Target Only", value = 2 },
@@ -308,6 +311,7 @@ return {
                 header = "Threat & Safety",
                 settings = {
                     { key = "smite_threat_safe", type = "checkbox", label = "Threat Safety Gate", default = true },
+                    { key = "smite_auto_shackle", type = "checkbox", label = "Auto Shackle Undead", default = true, tooltip = "Automatically cast Shackle Undead on Undead/Demon mobs." },
                 },
             },
         },

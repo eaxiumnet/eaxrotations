@@ -260,6 +260,11 @@ local function build_state(context)
         local ok, cp = pcall(me.combo_points_current, me)
         if ok and type(cp) == "number" then combat_state.combo_points = cp end
     end
+    -- Fallback: get_power(me, 4) — combo points = power type 4 in WoW API
+    if me and type(me.get_power) == "function" then
+        local ok2, cp2 = pcall(me.get_power, me, 4)
+        if ok2 and type(cp2) == "number" then combat_state.combo_points = cp2 end
+    end
     combat_state.energy = context.energy or (me and NS.unit_energy_pct and NS.unit_energy_pct(me)) or 100
     -- IZI SDK: energy_predicted gives projected energy after next tick (better pooling)
     if me and type(me.energy_predicted) == "function" then
@@ -385,7 +390,6 @@ local function kick_matches(context, s)
 end
 
 local function stealth_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Stealth, 3.0) then return false end
     if s.in_combat then return false end
     if s.is_stealthed then return false end
     return true
@@ -427,7 +431,6 @@ local function blade_flurry_wrapper(context, s)
 end
 
 local function rupture_wrapper(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Rupture, 2.0) then return false end
     if not s.rupture_ready then return false end
     if s.energy_pool_finisher then return false end
     -- Research: only Rupture when target lives > ttd floor (avoid wasted DoT ticks)
@@ -441,7 +444,6 @@ local function rupture_wrapper(context, s)
 end
 
 local function shiv_purge_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Shiv, 2.0) then return false end
     if not spec_kit.setting_bool(context, "use_shiv_purge", true) then return false end
     if not (NS.is_spell_learned and NS.is_spell_learned(5938)) then return false end
     if not s.in_combat then return false end
@@ -589,7 +591,6 @@ local DSL_DEFS = {
         name = "SliceAndDice",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.SliceAndDice, 3.0) then return false end
                 return true
             end },
             { type = "state", field = "slice_and_dice_ready", op = "truthy" },

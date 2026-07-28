@@ -222,22 +222,18 @@ end
 
 local function build_state(context)
     local target = context.target
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(1787, 3.0) or false
     subtlety_state.is_group = context.is_group or false
-    if not skip_aura then
-        subtlety_state.stealth_up = player_buff_up(STEALTH_BUFF)
-        subtlety_state.slice_remains = NS.buff_remains and (NS.buff_remains(context.me, SLICE_AND_DICE_BUFF) or 0) or 0
-        subtlety_state.rupture_remains = target_debuff_remains(target, RUPTURE_DEBUFF)
-        subtlety_state.hemo_remains = target_debuff_remains(target, HEMORRHAGE_DEBUFF)
-        subtlety_state.expose_remains = target_debuff_remains(target, EXPOSE_ARMOR_DEBUFF)
-        subtlety_state.garrote_remains = target_debuff_remains(target, GARROTE_DEBUFF)
-        subtlety_state.cheap_shot_remains = target_debuff_remains(target, CHEAP_SHOT_DEBUFF)
-        subtlety_state.kidney_remains = target_debuff_remains(target, KIDNEY_SHOT_DEBUFF)
-        subtlety_state.shadowstep_buff = player_buff_up(SHADOWSTEP_BUFF)
-        subtlety_state.master_of_subtlety = player_buff_up(MASTER_OF_SUBTLETY_BUFF)
-        subtlety_state.control_active = target_debuff_remains(target, CONTROL_DEBUFFS) > 0
-    end
+    subtlety_state.stealth_up = player_buff_up(STEALTH_BUFF)
+    subtlety_state.slice_remains = NS.buff_remains and (NS.buff_remains(context.me, SLICE_AND_DICE_BUFF) or 0) or 0
+    subtlety_state.rupture_remains = target_debuff_remains(target, RUPTURE_DEBUFF)
+    subtlety_state.hemo_remains = target_debuff_remains(target, HEMORRHAGE_DEBUFF)
+    subtlety_state.expose_remains = target_debuff_remains(target, EXPOSE_ARMOR_DEBUFF)
+    subtlety_state.garrote_remains = target_debuff_remains(target, GARROTE_DEBUFF)
+    subtlety_state.cheap_shot_remains = target_debuff_remains(target, CHEAP_SHOT_DEBUFF)
+    subtlety_state.kidney_remains = target_debuff_remains(target, KIDNEY_SHOT_DEBUFF)
+    subtlety_state.shadowstep_buff = player_buff_up(SHADOWSTEP_BUFF)
+    subtlety_state.master_of_subtlety = player_buff_up(MASTER_OF_SUBTLETY_BUFF)
+    subtlety_state.control_active = target_debuff_remains(target, CONTROL_DEBUFFS) > 0
     subtlety_state.combo = context.combo_points or context.combo or 0
     subtlety_state.energy = context.energy or 0
     -- IZI SDK: energy_predicted for smarter pooling decisions
@@ -246,6 +242,11 @@ local function build_state(context)
     if me and type(me.combo_points_current) == "function" then
         local ok, cp = pcall(me.combo_points_current, me)
         if ok and type(cp) == "number" then subtlety_state.combo = cp end
+    end
+    -- Fallback: get_power(me, 4) — combo points = power type 4 in WoW API
+    if me and type(me.get_power) == "function" then
+        local ok2, cp2 = pcall(me.get_power, me, 4)
+        if ok2 and type(cp2) == "number" then subtlety_state.combo = cp2 end
     end
     if me and type(me.energy_predicted) == "function" then
         local ok, pred = pcall(me.energy_predicted, me)

@@ -1549,8 +1549,7 @@ end
 -- Edge case: Aspect management
 -- ============================================================================
 do
-    -- Reload module to reset `_last_aspect_hawk_cast` throttle (previous tests may have
-    -- called execute_AspectHawk, setting the throttle to a near-current timestamp).
+    -- Reload module to get a fresh registration for these edge tests.
     local ok, mod = pcall(dofile, "EaxRotations/classes/hunter/leveling_sylvanas.lua")
     if not ok then error("Failed to reload for aspect edge test: " .. tostring(mod)) end
     strategies = (type(mod) == "table" and (mod.strategies or mod)) or strategies
@@ -2273,7 +2272,7 @@ end
 local combat_gated = {4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 
 do
-    -- Reload module to reset `_last_aspect_hawk_cast` (AspectHawk throttle)
+    -- Reload module to get a fresh registration for these OOC guard tests.
     local ok, mod = pcall(dofile, "EaxRotations/classes/hunter/leveling_sylvanas.lua")
     if not ok then error("Failed to reload for OOC guard test: " .. tostring(mod)) end
     strategies = (type(mod) == "table" and (mod.strategies or mod)) or strategies

@@ -63,9 +63,10 @@ local ctx_dc_high = {
 assert_false(death_coil.matches(ctx_dc_high), "DeathCoil should not match when HP > 40")
 assert_eq(#action_calls, 0, "action_matches should not be called when HP > 40")
 
--- Low HP -> should match
+-- Low HP -> should match (must be in combat)
 action_calls = {}
 local ctx_dc_low = {
+    in_combat = true,
     target = {},
     me = {
         get_health_percentage = function() return 30 end,

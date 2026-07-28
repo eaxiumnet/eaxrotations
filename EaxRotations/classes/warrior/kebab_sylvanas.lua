@@ -315,7 +315,6 @@ local DSL_DEFS = {
     { name = "BattleShout", conditions = {
         { type = "custom", fn = function(context, state)
             local settings = settings_for(context)
-            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
             if settings.auto_shout == false then return false end
             if (settings.shout_type or "battle") ~= "battle" then return false end
             if not can_attack_target(context) then return false end
@@ -332,7 +331,6 @@ local DSL_DEFS = {
     { name = "CommandingShout", conditions = {
         { type = "custom", fn = function(context, state)
             local settings = settings_for(context)
-            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.CommandingShout, 3.0) then return false end
             if settings.auto_shout == false then return false end
             if not can_attack_target(context) then return false end
             if context.has_breakable_cc_nearby and settings.pvp_cc_break_check then return false end
@@ -347,7 +345,6 @@ local DSL_DEFS = {
     { name = "SunderMaintain", conditions = {
         { type = "custom", fn = function(context, state)
             local settings = settings_for(context)
-            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
             local mode = settings.sunder_armor_mode or "none"
             if not can_attack_target(context) or mode == "none" then return false end
             if (context.target_armor or 0) <= 0 then return false end
@@ -367,7 +364,6 @@ local DSL_DEFS = {
     { name = "ThunderClap", conditions = {
         { type = "custom", fn = function(context, state)
             local settings = settings_for(context)
-            if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ThunderClap, 2.0) then return false end
             if not can_attack_target(context) then return false end
             if settings.maintain_thunder_clap == false then return false end
             if context.has_breakable_cc_nearby and settings.pvp_cc_break_check then return false end

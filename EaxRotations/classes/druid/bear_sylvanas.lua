@@ -402,20 +402,17 @@ local function build_state(context)
     state.use_pvp_cc_gate   = spec_kit.setting_bool(context, "use_pvp_cc_gating", true)
 
     -- auras (nil-safe; broken-API guard for crashy private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
-    if not skip_aura then
-        state.has_clearcasting   = (NS.buff_up and NS.buff_up(state.me, CLEARCASTING_BUFF)) or false
-        state.has_barkskin       = (NS.buff_up and NS.buff_up(state.me, BARKSKIN_BUFF)) or false
-        state.has_frenzied_regen = (NS.buff_up and NS.buff_up(state.me, FRENZIED_REGEN_BUFF)) or false
-        state.has_mark           = (NS.buff_up and NS.buff_up(state.me, MARK_BUFF)) or false
-        state.has_thorns         = (NS.buff_remains and NS.buff_remains(state.me, THORNS_BUFF) or 0) > THORNS_REFRESH
-        state.faerie_remains     = NS.debuff_remains(state.target, FAERIE_FIRE_DEBUFF) or 0
-        state.lacerate_remains   = NS.debuff_remains(state.target, LACERATE_DEBUFF) or 0
-        state.lacerate_stacks    = (NS.get_debuff_stacks and NS.get_debuff_stacks(state.target, LACERATE_DEBUFF))
-                                   or (NS.debuff_stacks and NS.debuff_stacks(state.target, LACERATE_DEBUFF)) or 0
-        state.mangle_remains    = NS.debuff_remains(state.target, MANGLE_DEBUFF) or 0
-        state.demo_remains       = NS.debuff_remains(state.target, DEMO_ROAR_DEBUFF) or 0
-    end
+    state.has_clearcasting   = (NS.buff_up and NS.buff_up(state.me, CLEARCASTING_BUFF)) or false
+    state.has_barkskin       = (NS.buff_up and NS.buff_up(state.me, BARKSKIN_BUFF)) or false
+    state.has_frenzied_regen = (NS.buff_up and NS.buff_up(state.me, FRENZIED_REGEN_BUFF)) or false
+    state.has_mark           = (NS.buff_up and NS.buff_up(state.me, MARK_BUFF)) or false
+    state.has_thorns         = (NS.buff_remains and NS.buff_remains(state.me, THORNS_BUFF) or 0) > THORNS_REFRESH
+    state.faerie_remains     = NS.debuff_remains(state.target, FAERIE_FIRE_DEBUFF) or 0
+    state.lacerate_remains   = NS.debuff_remains(state.target, LACERATE_DEBUFF) or 0
+    state.lacerate_stacks    = (NS.get_debuff_stacks and NS.get_debuff_stacks(state.target, LACERATE_DEBUFF))
+                               or (NS.debuff_stacks and NS.debuff_stacks(state.target, LACERATE_DEBUFF)) or 0
+    state.mangle_remains    = NS.debuff_remains(state.target, MANGLE_DEBUFF) or 0
+    state.demo_remains       = NS.debuff_remains(state.target, DEMO_ROAR_DEBUFF) or 0
 
     -- readiness
     state.mangle_ready = spell_ready(ACTION.MangleBear, state.target)
@@ -477,7 +474,6 @@ local function mark_matches(context, action)
     if s.is_bear then return false end              -- never break bear form for buffs
     local spell = ACTION.MarkOfTheWild or action
     -- When aura APIs return remains=0, recent-cast lockout stops MotW spam.
-    if NS.broken_api_throttled and NS.broken_api_throttled(spell, 300.0) then return false end
     -- Never overwrite Gift / higher MotW with a worse MotW rank.
     if NS.buff_would_downgrade and NS.buff_would_downgrade(s.me, MARK_BUFF, spell) then return false end
     if (NS.buff_remains and NS.buff_remains(s.me, MARK_BUFF) or 0) > MOTW_REFRESH then return false end
@@ -491,7 +487,6 @@ local function thorns_matches(context, action)
     if s.is_bear then return false end              -- never break bear form for buffs
     local spell = ACTION.Thorns or action
     -- Live log: Thorns 782 re-queued every GCD while aura API reports missing.
-    if NS.broken_api_throttled and NS.broken_api_throttled(spell, 300.0) then return false end
     if NS.buff_would_downgrade and NS.buff_would_downgrade(s.me, THORNS_BUFF, spell) then return false end
     if (NS.buff_remains and NS.buff_remains(s.me, THORNS_BUFF) or 0) > THORNS_REFRESH then return false end
     return action_ready(context, action)

@@ -132,6 +132,12 @@ package.loaded["shared/potion_helper_sylvanas"] = {
     MANA_POTION_IDS = {},
 }
 
+-- Soulshatter helper is required by destruction_sylvanas.lua; preload the real helper
+-- so the spec file loads without hitting disk in the mocked environment.
+package.loaded["shared/warlock_soulshatter_sylvanas"] = dofile("EaxRotations/shared/warlock_soulshatter_sylvanas.lua")
+package.loaded["shared/warlock_healthstone_sylvanas"] = dofile("EaxRotations/shared/warlock_healthstone_sylvanas.lua")
+package.loaded["shared/warlock_mana_gem_sylvanas"] = dofile("EaxRotations/shared/warlock_mana_gem_sylvanas.lua")
+
 -- Load the real DSL engine and cache it so the spec file's require() picks it up
 package.loaded["shared/strategy_dsl_sylvanas"] = dofile("EaxRotations/shared/strategy_dsl_sylvanas.lua")
 

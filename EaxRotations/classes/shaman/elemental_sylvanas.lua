@@ -165,7 +165,6 @@ end
 -- ============================================================================
 
 local function lightning_shield_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.LightningShield, 3.0) then return false end
     if state.mana_emergency then return false end
     if not spec_kit.setting_bool(context, "elemental_lightning_shield", true) then return false end
     if state.lightning_shield_up then return false end
@@ -236,7 +235,6 @@ local function lightning_bolt_matches_fn(context, state)
 end
 
 local function flame_shock_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FlameShock, 2.0) then return false end
     if not context.target then return false end
     -- Research: only clip Flame Shock at <1s remaining (prevents shock CD starvation)
     if (state.flame_remains or 0) > 1 then return false end    -- SP-aware gating: skip Flame Shock if spell damage is below minimum threshold
@@ -281,7 +279,6 @@ local function natures_swiftness_matches_fn(context, state)
 end
 
 local function water_shield_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.WaterShield, 3.0) then return false end
     if state.mana_emergency then return false end
     local ws_mana = spec_kit.setting_number(context, "elemental_water_shield_mana", WATER_SHIELD_MANA_DEFAULT)
     if (state.mana_pct or 100) > ws_mana then return false end
@@ -294,7 +291,6 @@ local function ghost_wolf_matches_fn(context, state)
 end
 
 local function tremor_totem_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.TremorTotem, 3.0) then return false end
     if not context.in_combat then return false end
     if state.mana_emergency then return false end
     if not (context.fear_nearby or false) then return false end
@@ -308,7 +304,6 @@ local function earthbind_totem_matches_fn(context, state)
 end
 
 local function mana_tide_totem_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ManaTideTotem, 3.0) then return false end
     if state.mana_emergency then return false end
     if (state.mana_pct or 100) > 30 then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(ACTION.ManaTideTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
@@ -324,7 +319,6 @@ end
 -- ============================================================================
 
 local function flametongue_weapon_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FlametongueWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_flametongue then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(ACTION.FlametongueWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
@@ -339,7 +333,6 @@ local function flametongue_weapon_execute(context, state)
 end
 
 local function windfury_weapon_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.WindfuryWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_windfury then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(ACTION.WindfuryWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
@@ -354,7 +347,6 @@ local function windfury_weapon_execute(context, state)
 end
 
 local function rockbiter_weapon_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.RockbiterWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_rockbiter then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(ACTION.RockbiterWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
@@ -448,7 +440,7 @@ local DSL_DEFS = {
         name = "WaterShield",
         conditions = {
             { type = "custom", fn = function(context, state)
-                return not (NS.broken_api_throttled and NS.broken_api_throttled(ACTION.WaterShield, 3.0))
+return true
             end },
             { type = "state", field = "mana_emergency", op = "==", value = false },
             { type = "custom", fn = function(context, state)
@@ -480,7 +472,7 @@ local DSL_DEFS = {
         name = "ManaTideTotem",
         conditions = {
             { type = "custom", fn = function(context, state)
-                return not (NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ManaTideTotem, 3.0))
+return true
             end },
             { type = "state", field = "mana_emergency", op = "==", value = false },
             { type = "state", field = "mana_pct", op = "<=", value = 30 },
@@ -492,7 +484,7 @@ local DSL_DEFS = {
         name = "FlameShock",
         conditions = {
             { type = "custom", fn = function(context, state)
-                return not (NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FlameShock, 2.0))
+return true
             end },
             { type = "custom", fn = function(context, state) return context.target ~= nil end },
             { type = "state", field = "flame_remains", op = "<=", value = 1 },

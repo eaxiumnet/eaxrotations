@@ -20,7 +20,7 @@ setup_asserts()
 
 -- Mock NS namespace
 local spell_ready_calls = {}
-_G.EaxRotations = {
+local NS = {
     WarlockSpells = {
         DeathCoil = { ids = { 27223 }, name = "DeathCoil" },
         Soulshatter = { ids = { 29858 }, name = "Soulshatter" },
@@ -37,7 +37,9 @@ _G.EaxRotations = {
     spell_action = function(tbl) return tbl end,
     has_player_buff = function(buff_list) return false end,
     buff_remains = function(me, ids) return 0 end,
-    debuff_remains = function(target, ids) return 0 end,
+    debuff_remains = function(target, ids)
+        return target and target._debuff_remains or 0
+    end,
     get_debuff_stacks = function(target, ids) return 0 end,
     spell_ready = function(spell, target, opts)
         spell_ready_calls[#spell_ready_calls + 1] = { spell = spell, target = target, opts = opts }
@@ -52,6 +54,7 @@ _G.EaxRotations = {
     cooldown_remains = function(spell, cd) return 0 end,
     rotation_registry = { register = function() end },
 }
+_G.EaxRotations = NS
 
 -- Override require for tbc_data/offensive_dispel to return empty stubs
 local orig_pcall = _G.pcall
@@ -73,6 +76,20 @@ _G.require = function(path)
     end
     return orig_require(path)
 end
+
+-- Stub the buff manager helper so the spec falls back to NS.debuff_remains,
+-- which our mock drives via target._debuff_remains. This keeps the pure-API
+-- DoT tests deterministic without needing a real buff_manager cache.
+package.loaded["shared/buff_manager_helper_sylvanas"] = {
+    get_all_debuffs = function() return {} end,
+    get_debuff_data = function() return nil end,
+    get_buff_data = function() return nil end,
+    get_all_buffs = function() return {} end,
+    has_any_debuff = function() return false end,
+    has_any_buff = function() return false end,
+    debuff_remaining = function() return 0 end,
+    buff_remaining = function() return 0 end,
+}
 
 local result = dofile("EaxRotations/classes/warlock/affliction_sylvanas.lua")
 assert_true(result, "affliction module should load")
@@ -348,5 +365,95 @@ assert_false(drain_soul.matches({
 }, {
     target_hp = 15,
 }), "DrainSoul should not match when already channeling")
+
+-- ============================================================================
+-- Pure-API DoT gating regression coverage
+-- Hardcoded per-target lockouts were removed; gating must rely only on
+-- NS.debuff_remains and NS.spell_ready.
+-- ============================================================================
+
+local function assert_dot_pure_api_gates(name)
+    local dot = find_strategy(name)
+
+    -- Missing debuff + spell ready -> should match
+    spell_ready_calls = {}
+    local ctx_missing = {
+        has_valid_enemy_target = true,
+        target = { _debuff_remains = 0 },
+        ttd = 100,
+        settings = {},
+    }
+    local state_missing = {
+        ua_remains = 0, corruption_remains = 0,
+        siphon_remains = 0, immolate_remains = 0,
+    }
+    assert_true(dot.matches(ctx_missing, state_missing), name .. " should match when debuff is missing and spell_ready is true")
+
+    -- Active debuff (well past refresh window) -> should NOT match
+    spell_ready_calls = {}
+    local ctx_active = {
+        has_valid_enemy_target = true,
+        target = { _debuff_remains = 10 },
+        ttd = 100,
+        settings = {},
+    }
+    local state_active = {
+        ua_remains = 10, corruption_remains = 10,
+        siphon_remains = 10, immolate_remains = 10,
+    }
+    assert_false(dot.matches(ctx_active, state_active), name .. " should not match when debuff still has significant duration")
+end
+
+assert_dot_pure_api_gates("UnstableAffliction")
+assert_dot_pure_api_gates("CorruptionDoT")
+assert_dot_pure_api_gates("SiphonLife")
+assert_dot_pure_api_gates("ImmolateDoT")
+
+-- ============================================================================
+-- Removed-throttle regression: broken_api_throttled must not affect DoT decisions
+-- ============================================================================
+local broken_api_calls = {}
+NS.broken_api_throttled = function(spell, seconds)
+    broken_api_calls[#broken_api_calls + 1] = { spell = spell, seconds = seconds }
+    return true  -- would have throttled everything under the old scheme
+end
+
+local function assert_dot_unaffected_by_throttle(name)
+    local dot = find_strategy(name)
+
+    -- Even with broken_api_throttled returning true, a missing debuff + ready spell should match.
+    spell_ready_calls = {}
+    local ctx = {
+        has_valid_enemy_target = true,
+        target = { _debuff_remains = 0 },
+        ttd = 100,
+        settings = {},
+    }
+    local state = {
+        ua_remains = 0, corruption_remains = 0,
+        siphon_remains = 0, immolate_remains = 0,
+    }
+    assert_true(dot.matches(ctx, state), name .. " should still match when broken_api_throttled throttles (pure API gate)")
+
+    -- And an active debuff should still not match.
+    spell_ready_calls = {}
+    ctx.target = { _debuff_remains = 10 }
+    state = {
+        ua_remains = 10, corruption_remains = 10,
+        siphon_remains = 10, immolate_remains = 10,
+    }
+    assert_false(dot.matches(ctx, state), name .. " should still skip active debuff when broken_api_throttled throttles (pure API gate)")
+end
+
+assert_dot_unaffected_by_throttle("UnstableAffliction")
+assert_dot_unaffected_by_throttle("CorruptionDoT")
+assert_dot_unaffected_by_throttle("SiphonLife")
+assert_dot_unaffected_by_throttle("ImmolateDoT")
+
+-- The DoT strategies should never consult the legacy throttle helper.
+assert_eq(#broken_api_calls, 0, "No DoT strategy should call broken_api_throttled")
+
+-- Restore
+NS.broken_api_throttled = nil
 
 print("PASS test_affliction_custom_matches")

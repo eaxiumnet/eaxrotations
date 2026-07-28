@@ -221,7 +221,6 @@ end
 
 --- Ice Barrier: cast when hp is low and barrier isn't up
 local function ice_barrier_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.IceBarrier, 3.0) then return false end
     if s.has_ice_barrier then return false end
     if (s.hp_pct or 100) > 60 then return false end
     if not spec_kit.setting_bool(context, "use_defensives", true) then return false end
@@ -231,7 +230,6 @@ end
 
 --- Mana Shield: cast when hp is critically low and mana is available
 local function mana_shield_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ManaShield, 3.0) then return false end
     if s.has_mana_shield then return false end
     if (s.hp_pct or 100) > 40 then return false end
     if (s.mana_pct or 0) < 30 then return false end

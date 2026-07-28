@@ -156,7 +156,7 @@ local st_boundary = { mana_pct = 30, hp_pct = 80 }
 assert_true(life_tap.matches(ctx_boundary, st_boundary), "LifeTap should match when mana == threshold (uses > not >=)")
 
 -- ============================================================================
--- LifeTap anti-spam: should not match again within throttle window
+-- LifeTap pure API: no hardcoded throttle; gating is mana/HP/spell_ready only
 -- ============================================================================
 
 local ctx_spam = {
@@ -171,20 +171,10 @@ current_time = 1000
 assert_true(life_tap.matches(ctx_spam, st_spam), "LifeTap should match before first cast")
 life_tap.execute()
 
--- Immediately after cast, should NOT match again
+-- Immediately after cast it can match again as long as the API says it's ready
 action_calls = {}
 current_time = 1001
-assert_false(life_tap.matches(ctx_spam, st_spam), "LifeTap should not match immediately after cast")
-
--- Within throttle window, should NOT match
-action_calls = {}
-current_time = 1001.4
-assert_false(life_tap.matches(ctx_spam, st_spam), "LifeTap should not match within throttle window")
-
--- After throttle window expires, should match again
-action_calls = {}
-current_time = 1002
-assert_true(life_tap.matches(ctx_spam, st_spam), "LifeTap should match after throttle window expires")
+assert_true(life_tap.matches(ctx_spam, st_spam), "LifeTap can match immediately after cast when spell_ready is true")
 
 -- Should NOT match while casting
 action_calls = {}

@@ -248,6 +248,11 @@ function rogue_leveling.build_state(context)
     -- Combo points
 
     state.combo_points = context.combo_points or context.combo or read_numeric_helper(NS.combo_points) or 0
+    -- Fallback: get_power(me, 4) — combo points = power type 4 in WoW API
+    if me and type(me.get_power) == "function" then
+        local ok2, cp2 = pcall(me.get_power, me, 4)
+        if ok2 and type(cp2) == "number" then state.combo_points = cp2 end
+    end
 
     state.max_combo_points = 5
 

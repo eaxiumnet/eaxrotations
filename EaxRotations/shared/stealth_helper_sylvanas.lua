@@ -100,8 +100,6 @@ function M.try(context)
 
     -- Broken-API guard: prevents crash loops on private servers with bad aura API
     -- (matches the pattern in combat_sylvanas.lua:230 and assassination_sylvanas.lua:63).
-    if NS.broken_api_throttled and NS.broken_api_throttled(id, 3.0) then return false end
-
     -- Target selection: prefer context.target, fall back to NS.GetBestEnemyTarget.
     -- NS.GetBestEnemyTarget(range) returns the closest hostile in `range` yards.
     local enemy = context.target

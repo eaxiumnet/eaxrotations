@@ -97,8 +97,7 @@ assert_true(strategy_names["SearingPain"], "SearingPain should be present")
 assert_true(strategy_names["LifeTap"], "LifeTap should be present")
 assert_true(strategy_names["DeathCoil"], "DeathCoil should be present")
 assert_true(strategy_names["RainOfFire"], "RainOfFire should be present")
-assert_true(strategy_names["SeedOfCorruption"], "SeedOfCorruption should be present") -- features now implemented
- assert_true(strategy_names["ManaGem"], "ManaGem should be present - feature: auto-use mana items at threshold")
- assert_true(strategy_names["Soulshatter"], "Soulshatter should be present - feature: threat management")
- 
- print("PASS test_destruction_mana_gem (gap audit: " .. #strategies .. " strategies present, ManaGem + Soulshatter implemented)")
+assert_true(strategy_names["SeedOfCorruption"], "SeedOfCorruption should be present") -- features now implemented assert_true(strategy_names["ManaGem"], "ManaGem should be present - feature: auto-use mana items at threshold")
+ assert_false(strategy_names["Soulshatter"], "Soulshatter should no longer be in destruction strategies; it lives in warlock middleware")
+
+ 	 print("PASS test_destruction_mana_gem (gap audit: " .. #strategies .. " strategies present, ManaGem implemented, Soulshatter moved to middleware)")

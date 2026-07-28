@@ -6,7 +6,7 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 -- ============================================================================
--- Test: OOC Manager — GCD check and broken_api_throttled guard
+-- Test: OOC Manager — GCD check, pure API gates, and min_interval lockout
 -- ============================================================================
 local NS = _G.EaxRotations or {}
 _G.EaxRotations = NS
@@ -21,11 +21,23 @@ NS.log = print
 
 -- Configurable mocks
 local buff_remains_value = 0
+local has_food_buff = false
 local casts = {}
-local throttle_set = {}
+local last_cast_time = {}
 
-NS.try_cast = function(spell, target, reason)
-    casts[#casts + 1] = { spell = spell, reason = reason }
+-- Mock try_cast that respects opts.min_interval, expected_cooldown, skip_range.
+NS.try_cast = function(spell, target, reason, opts)
+    local now = current_time
+    local min_interval = opts and opts.min_interval or 0
+    -- Respect min_interval based on the spell object identity.
+    if min_interval and min_interval > 0 then
+        local last = last_cast_time[spell]
+        if last and (now - last) < min_interval then
+            return false
+        end
+    end
+    casts[#casts + 1] = { spell = spell, target = target, reason = reason, opts = opts }
+    last_cast_time[spell] = now
     return true
 end
 NS.spell_ready = function(spell, target, opts) return true end
@@ -33,11 +45,12 @@ NS.spell_action = function(spell, label) return {} end
 NS.GetPlayer = function() return { is_in_combat = function() return false end } end
 NS.GetPet = function() return nil end
 NS.buff_remains = function(unit, ids) return buff_remains_value end
-NS.has_player_buff = function(ids) return false end
+NS.has_player_buff = function(ids) return has_food_buff end
 NS.mana_pct = function(unit) return 80 end
 NS.gcd_remains = function() return 0 end
 NS.POWER_RAGE = 1
 NS.power_current = function(power_type) return 100 end  -- enough rage for warrior OOC tests
+NS.buff_would_downgrade = nil
 NS.broken_api_throttled = nil
 
 -- Load module with error checking
@@ -73,6 +86,11 @@ local function run_one(ctx)
     return OOC.on_update(ctx)
 end
 
+-- Helper: reset per-test cast tracking (cast history remains for min_interval tests)
+local function reset_casts()
+    casts = {}
+end
+
 -- ================================================================
 -- 1. GCD CHECK
 -- ================================================================
@@ -99,107 +117,91 @@ assert(r == false, "GCD nil guard should not crash")
 print("PASS ooc_gcd_nil_guard")
 
 -- ================================================================
--- 2. BROKEN_API_THROTTLED — try_self_buffs
+-- 2. SELF-BUFFS — pure aura gate and min_interval
 -- ================================================================
--- Warrior (CLASS.WARRIOR = 1): Battle Shout entry has spell = { 25289, 2048, ... }
---   spell_id extracted = entry.spell[1] = 25289
+-- Warrior (CLASS.WARRIOR = 1): Battle Shout entry
 
--- 2a. Buff spell throttled -> skip
+-- 2a. Buff missing -> cast with min_interval = 300
 load_module()
+reset_casts()
+last_cast_time = {}
 NS.player_class_id = 1  -- WARRIOR
 NS.gcd_remains = function() return 0 end
 buff_remains_value = 0   -- buff missing, would normally try cast
--- Note: with the fix, broken_api_throttled receives the resolved spell object
--- (a table), not entry.spell[1]. A table arg means "throttle any spell".
-NS.broken_api_throttled = function(spell_id, seconds)
-    return type(spell_id) == "table"
-end
+has_food_buff = false
 r = run_one(base_ctx)
--- try_pet_summon: warrior has no pet entry -> false
--- try_self_buffs: Battle Shout throttled -> skip -> false
--- try_food_flask: no food settings -> false
-assert(r == false, "Throttled Battle Shout should be skipped, got " .. tostring(r))
-print("PASS ooc_buff_throttled_skipped")
-
--- 2b. Not throttled -> cast succeeds
-load_module()
-NS.player_class_id = 1
-NS.gcd_remains = function() return 0 end
-buff_remains_value = 0
-casts = {}
-NS.broken_api_throttled = function(spell_id, seconds) return false end
-r = run_one(base_ctx)
-assert(r == true, "Unthrottled Battle Shout should cast, got " .. tostring(r))
+assert(r == true, "Battle Shout should cast when buff missing, got " .. tostring(r))
 assert(#casts >= 1, "Should have at least 1 cast, got " .. #casts)
-print("PASS ooc_buff_unthrottled_casts (" .. #casts .. " casts)")
+assert(casts[1].opts and casts[1].opts.min_interval == 300.0,
+    "Expected self-buff min_interval=300.0, got " .. tostring(casts[1].opts and casts[1].opts.min_interval))
+print("PASS ooc_self_buff_casts_with_min_interval")
 
--- 2c. broken_api_throttled = nil -> proceed normally
+-- 2b. Second attempt within 300s is suppressed by min_interval
+-- (Do not clear last_cast_time; the previous cast should still be in history.)
+r = run_one(base_ctx)
+assert(r == false, "Second Battle Shout within min_interval should be suppressed, got " .. tostring(r))
+assert(#casts == 1, "No second cast should happen while min_interval active, got " .. #casts)
+print("PASS ooc_self_buff_min_interval_suppresses")
+
+-- 2c. Buff already active -> no cast
 load_module()
+reset_casts()
+last_cast_time = {}
 NS.player_class_id = 1
 NS.gcd_remains = function() return 0 end
-buff_remains_value = 0
-casts = {}
-NS.broken_api_throttled = nil
+buff_remains_value = 60  -- above threshold? threshold is 30; active -> skip
 r = run_one(base_ctx)
-assert(r == true, "Nil broken_api_throttled should not block, got " .. tostring(r))
-assert(#casts >= 1, "Should cast when throttle is nil, got " .. #casts)
-print("PASS ooc_buff_throttle_nil_guard")
+assert(r == false, "Battle Shout should skip when buff active, got " .. tostring(r))
+assert(#casts == 0, "No cast when buff active")
+print("PASS ooc_self_buff_active_skips")
 
 -- ================================================================
--- 3. BROKEN_API_THROTTLED — try_pet_summon
+-- 3. PET SUMMON — pure pet-existence gate and min_interval
 -- ================================================================
 -- Hunter (CLASS.HUNTER = 3): PET_SUMMON_BY_CLASS[3].spell = 883 (Call Pet)
 -- NOTE: Hunter also has Aspect of the Hawk in DEFAULT_BUFFS_BY_CLASS,
 -- so buff_remains > threshold (30) to skip self_buffs.
 
--- 3a. Call Pet throttled -> skip
+-- 3a. No pet -> cast with expected_cooldown and min_interval = 10
 load_module()
+reset_casts()
+last_cast_time = {}
 NS.player_class_id = 3  -- HUNTER
 NS.gcd_remains = function() return 0 end
 NS.GetPet = function() return nil end
 buff_remains_value = 31  -- > threshold (30), skip self_buffs
-casts = {}
--- Note: with the fix, broken_api_throttled receives the resolved spell object
--- (a table), not entry.spell. A table arg means "throttle any spell".
-NS.broken_api_throttled = function(spell_id, seconds)
-    return type(spell_id) == "table"
-end
 r = run_one(base_ctx)
--- try_pet_summon: throttled -> false
--- try_self_buffs: buff_remains > threshold -> false
--- try_food_flask: no food settings -> false
-assert(r == false, "Throttled Call Pet should be skipped, got " .. tostring(r))
-print("PASS ooc_pet_throttled_skipped")
+assert(r == true, "Call Pet should cast when no pet, got " .. tostring(r))
+assert(#casts >= 1, "Should have at least 1 pet cast, got " .. #casts)
+assert(casts[1].opts and casts[1].opts.min_interval == 10.0,
+    "Expected pet min_interval=10.0, got " .. tostring(casts[1].opts and casts[1].opts.min_interval))
+assert(casts[1].opts and casts[1].opts.expected_cooldown == 10,
+    "Expected pet expected_cooldown=10, got " .. tostring(casts[1].opts and casts[1].opts.expected_cooldown))
+print("PASS ooc_pet_casts_with_min_interval")
 
--- 3b. Not throttled -> cast succeeds
+-- 3b. Second attempt within 10s suppressed
+-- (Keep cast history from 3a.)
+r = run_one(base_ctx)
+assert(r == false, "Second Call Pet within min_interval should be suppressed, got " .. tostring(r))
+assert(#casts == 1, "No second cast should happen while pet min_interval active")
+print("PASS ooc_pet_min_interval_suppresses")
+
+-- 3c. Pet already exists -> pure gate skips before try_cast
 load_module()
+reset_casts()
+last_cast_time = {}
 NS.player_class_id = 3
 NS.gcd_remains = function() return 0 end
-NS.GetPet = function() return nil end
+NS.GetPet = function() return {} end  -- pet exists
 buff_remains_value = 31
-casts = {}
-NS.broken_api_throttled = function(spell_id, seconds) return false end
 r = run_one(base_ctx)
-assert(r == true, "Unthrottled Call Pet should cast, got " .. tostring(r))
-print("PASS ooc_pet_unthrottled_casts")
-
--- 3c. broken_api_throttled = nil -> proceed normally
-load_module()
-NS.player_class_id = 3
-NS.gcd_remains = function() return 0 end
-NS.GetPet = function() return nil end
-buff_remains_value = 31
-casts = {}
-NS.broken_api_throttled = nil
-r = run_one(base_ctx)
-assert(r == true, "Nil broken_api_throttled should not block pet sumon, got " .. tostring(r))
-print("PASS ooc_pet_throttle_nil_guard")
+assert(r == false, "Call Pet should skip when pet already exists, got " .. tostring(r))
+assert(#casts == 0, "No cast when pet exists")
+print("PASS ooc_pet_present_skips")
 
 -- ================================================================
--- 4. BROKEN_API_THROTTLED — try_food_flask
+-- 4. FOOD/FLASK — pure buff gate and min_interval
 -- ================================================================
--- Use warrior (no pet summon) + buff_remains > threshold to reach food_flask.
--- Food/flask uses a configured spell_id from settings.
 
 local food_ctx = {
     me = {},
@@ -214,44 +216,43 @@ local food_ctx = {
     },
 }
 
--- 4a. Food/spell throttled -> skip
+-- 4a. No food buff -> cast with min_interval = 3
 load_module()
+reset_casts()
+last_cast_time = {}
 NS.player_class_id = 1  -- warrior (no pet summon entry)
 NS.gcd_remains = function() return 0 end
 buff_remains_value = 31  -- skip self_buffs
-casts = {}
-throttle_set = { [12345] = true }  -- throttle food spell
-NS.broken_api_throttled = function(spell_id, seconds)
-    return throttle_set[spell_id] == true
-end
+has_food_buff = false
 r = run_one(food_ctx)
-assert(r == false, "Throttled food/flask should be skipped, got " .. tostring(r))
-print("PASS ooc_food_throttled_skipped")
+assert(r == true, "Food/flask should cast when no buff, got " .. tostring(r))
+assert(#casts >= 1, "Should have at least 1 food cast, got " .. #casts)
+assert(casts[1].opts and casts[1].opts.min_interval == 3.0,
+    "Expected food/flask min_interval=3.0, got " .. tostring(casts[1].opts and casts[1].opts.min_interval))
+print("PASS ooc_food_casts_with_min_interval")
 
--- 4b. Not throttled -> cast succeeds
+-- 4b. Second attempt within 3s suppressed
+-- (Keep cast history from 4a.)
+r = run_one(food_ctx)
+assert(r == false, "Second food/flask within min_interval should be suppressed, got " .. tostring(r))
+assert(#casts == 1, "No second cast should happen while food min_interval active")
+print("PASS ooc_food_min_interval_suppresses")
+
+-- 4c. Food buff already active -> pure gate skips before try_cast
 load_module()
+reset_casts()
+last_cast_time = {}
 NS.player_class_id = 1
 NS.gcd_remains = function() return 0 end
 buff_remains_value = 31
-casts = {}
-NS.broken_api_throttled = function(spell_id, seconds) return false end
+has_food_buff = true
 r = run_one(food_ctx)
-assert(r == true, "Unthrottled food/flask should cast, got " .. tostring(r))
-print("PASS ooc_food_unthrottled_casts")
-
--- 4c. broken_api_throttled = nil -> proceed normally
-load_module()
-NS.player_class_id = 1
-NS.gcd_remains = function() return 0 end
-buff_remains_value = 31
-casts = {}
-NS.broken_api_throttled = nil
-r = run_one(food_ctx)
-assert(r == true, "Nil broken_api_throttled should not block food, got " .. tostring(r))
-print("PASS ooc_food_throttle_nil_guard")
+assert(r == false, "Food/flask should skip when buff active, got " .. tostring(r))
+assert(#casts == 0, "No cast when food buff active")
+print("PASS ooc_food_buff_active_skips")
 
 -- ================================================================
--- 5. Regression: in_combat blocks (preserving original test)
+-- 5. Regression: in_combat blocks
 -- ================================================================
 local combat_ctx = { in_combat = true, settings = { use_ooc_manager = true } }
 local combat_result = OOC.on_update(combat_ctx)
@@ -259,127 +260,19 @@ assert(combat_result == false, "OOC manager should return false in combat, got "
 print("PASS ooc_in_combat_blocks")
 
 -- ================================================================
--- 6. BROKEN_API_THROTTLED — argument verification with spy
+-- 6. Nil-guard: broken_api_throttled no longer required
 -- ================================================================
--- These tests verify that the correct spell_id and 3.0 window
--- are passed to broken_api_throttled for each entry shape.
-
-local spy = {}
-
--- 6a. Self-buffs: resolved spell object is passed to broken_api_throttled
---     The resolved spell object resolves to the max-rank cast ID (6673) via NS.get_spell_id
 load_module()
-spy = {}
-NS.broken_api_throttled = function(spell_id, seconds)
-    spy[#spy + 1] = { spell_id = spell_id, seconds = seconds }
-    return true
-end
-NS.player_class_id = 1  -- WARRIOR
+reset_casts()
+last_cast_time = {}
+NS.player_class_id = 1
 NS.gcd_remains = function() return 0 end
 buff_remains_value = 0
+NS.broken_api_throttled = nil  -- should be ignored entirely
 r = run_one(base_ctx)
-assert(#spy >= 1, "broken_api_throttled should have been called for Battle Shout, got " .. #spy)
--- With the fix, spell_id is the resolved spell object (table), not a raw number
-assert(type(spy[1].spell_id) == "table", "Expected spell_id to be a resolved spell table, got " .. type(spy[1].spell_id))
-local resolved_id = NS.get_spell_id and NS.get_spell_id(spy[1].spell_id)
--- resolved_id should be 6673 (max rank, the cast ID) on PS builds via fallback_spell_id
--- In test context the exact ID depends on the resolver availability
-assert(spy[1].seconds == 300.0, "Expected seconds=300.0 for Battle Shout, got " .. tostring(spy[1].seconds))
-print("PASS ooc_spy_self_buff_array_entry")
-
--- 6b. Self-buffs: 'ids' table entry shape — resolved spell object passed to broken_api_throttled
---     Use Shaman (CLASS.SHAMAN = 7) with Water Shield (min_level=60)
-load_module()
-spy = {}
-NS.broken_api_throttled = function(spell_id, seconds)
-    spy[#spy + 1] = { spell_id = spell_id, seconds = seconds }
-    return true
-end
-NS.player_class_id = 7  -- SHAMAN
-NS.gcd_remains = function() return 0 end
-buff_remains_value = 0  -- buff missing, will try to cast
-r = run_one(base_ctx)
--- try_pet_summon: shaman has no pet entry -> false
--- try_self_buffs: Water Shield is first entry (min_level=60, player_level defaults to 70)
---   spell_id is the resolved spell object (table)
-assert(#spy >= 1, "broken_api_throttled should have been called for Water Shield, got " .. #spy)
-assert(type(spy[1].spell_id) == "table", "Expected spell_id to be a resolved spell table, got " .. type(spy[1].spell_id))
-assert(spy[1].seconds == 300.0, "Expected seconds=300.0 for Water Shield, got " .. tostring(spy[1].seconds))
-print("PASS ooc_spy_self_buff_ids_entry")
-
--- 6c. Pet summon: resolved spell object passed to broken_api_throttled
-load_module()
-spy = {}
-NS.broken_api_throttled = function(spell_id, seconds)
-    spy[#spy + 1] = { spell_id = spell_id, seconds = seconds }
-    return true
-end
-NS.player_class_id = 3  -- HUNTER
-NS.gcd_remains = function() return 0 end
-NS.GetPet = function() return nil end
-buff_remains_value = 31  -- > threshold, skip self_buffs
-r = run_one(base_ctx)
--- try_pet_summon: resolved spell object (table) is passed, not raw number
-assert(#spy >= 1, "broken_api_throttled should have been called for Call Pet, got " .. #spy)
-assert(type(spy[1].spell_id) == "table", "Expected spell_id to be a resolved spell table, got " .. type(spy[1].spell_id))
-assert(spy[1].seconds == 10.0, "Expected seconds=10.0 for Call Pet, got " .. tostring(spy[1].seconds))
-print("PASS ooc_spy_pet_summon_number_entry")
-
--- 6d. Food/flask: spell_id from settings (ooc_food_flask_spell = 12345)
-load_module()
-spy = {}
-NS.broken_api_throttled = function(spell_id, seconds)
-    spy[#spy + 1] = { spell_id = spell_id, seconds = seconds }
-    return true
-end
-NS.player_class_id = 1  -- WARRIOR (no pet entry)
-NS.gcd_remains = function() return 0 end
-buff_remains_value = 31  -- skip self_buffs
-r = run_one(food_ctx)
--- try_food_flask: spell_id from settings.ooc_food_flask_spell = 12345
-assert(#spy >= 1, "broken_api_throttled should have been called for food/flask, got " .. #spy)
-assert(spy[1].spell_id == 12345, "Expected spell_id 12345 for food/flask, got " .. tostring(spy[1].spell_id))
-assert(spy[1].seconds == 3.0, "Expected seconds=3.0 for food/flask, got " .. tostring(spy[1].seconds))
-print("PASS ooc_spy_food_flask_number_entry")
-
--- ================================================================
--- 7. NS.reset_api_health() clears broken_api_throttled state
--- ================================================================
--- These tests verify that after calling NS.reset_api_health(), the
--- OOC manager no longer throttles casts via broken_api_throttled.
--- They use a controllable flag to simulate the _api_health_broken
--- internal state being toggled, matching what reset_api_health()
--- does on non-PS builds (sets _api_health_broken = false).
-
-local health_broken = false
-local health_spell_id = nil
-
--- 7a. Before reset: broken_api state blocks the OOC cast
-load_module()
-health_broken = true
-health_spell_id = nil
-NS.broken_api_throttled = function(spell_id, seconds)
-    if health_broken and type(spell_id) == "table" then
-        return true  -- throttled
-    end
-    return false
-end
-NS.player_class_id = 1  -- WARRIOR
-NS.gcd_remains = function() return 0 end
-buff_remains_value = 0
-casts = {}
-r = run_one(base_ctx)
--- Battle Shout is throttled -> should return false (no cast)
-assert(r == false, "With broken API, OOC should be blocked, got " .. tostring(r))
-print("PASS ooc_reset_health_before")
-
--- 7b. After clearing broken flag: cast proceeds
-health_broken = false  -- Simulate reset_api_health() clearing the flag
-casts = {}
-r = run_one(base_ctx)
-assert(r == true, "After clearing broken flag, OOC should cast, got " .. tostring(r))
-assert(#casts >= 1, "Should cast after clearing broken flag, got " .. #casts)
-print("PASS ooc_reset_health_after")
+assert(r == true, "Nil broken_api_throttled should not block, got " .. tostring(r))
+assert(#casts >= 1, "Should cast when broken_api_throttled is nil, got " .. #casts)
+print("PASS ooc_broken_api_throttled_nil_guard")
 
 -- ================================================================
 -- Done

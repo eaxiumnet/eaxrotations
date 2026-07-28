@@ -51,11 +51,8 @@ local caster_state = {
 local function build_state(context)
     local target = context.target
     local me = context.me or NS.GetPlayer()
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
-    if not skip_aura then
-        caster_state.moonfire_remains = target and NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF) or 0
-        caster_state.ff_remains = target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
-    end
+    caster_state.moonfire_remains = target and NS.debuff_remains and NS.debuff_remains(target, MOONFIRE_DEBUFF) or 0
+    caster_state.ff_remains = target and NS.debuff_remains and NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
     caster_state.in_combat = context.in_combat or false
     caster_state.is_group = context.is_group or false
     caster_state.mana_pct = context.mana_pct or (NS.mana_pct and NS.mana_pct(me)) or 100
@@ -114,7 +111,6 @@ local DSL_DEFS = {
                 if not caster_context_allowed(context) then return false end
                 if not spec_kit.setting_bool(context, "use_self_buffs", true) then return false end
                 if context.in_combat then return false end
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Thorns, 300.0) then return false end
                 if NS.buff_would_downgrade and NS.buff_would_downgrade(context.me or NS.PLAYER_UNIT, THORNS_BUFF, ACTION.Thorns) then
                     return false
                 end

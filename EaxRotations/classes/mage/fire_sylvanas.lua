@@ -357,7 +357,6 @@ local DSL_DEFS = {
                 { type = "state", field = "scorch_remains", op = "<=", value = 4 },
             } },
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.Scorch, 2.0) then return false end
                 return NS.spell_ready(ACTION.Scorch, context.target)
             end },
         },

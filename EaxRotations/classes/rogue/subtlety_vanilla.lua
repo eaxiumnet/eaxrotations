@@ -129,19 +129,15 @@ end
 
 local function build_state(context)
     local target = context.target
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(1787, 3.0) or false
-    if not skip_aura then
-        subtlety_state.stealth_up = player_buff_up(STEALTH_BUFF)
-        subtlety_state.slice_remains = NS.buff_remains and (NS.buff_remains(context.me, SLICE_AND_DICE_BUFF) or 0) or 0
-        subtlety_state.rupture_remains = target_debuff_remains(target, RUPTURE_DEBUFF)
-        subtlety_state.hemo_remains = target_debuff_remains(target, HEMORRHAGE_DEBUFF)
-        subtlety_state.expose_remains = target_debuff_remains(target, EXPOSE_ARMOR_DEBUFF)
-        subtlety_state.garrote_remains = target_debuff_remains(target, GARROTE_DEBUFF)
-        subtlety_state.cheap_shot_remains = target_debuff_remains(target, CHEAP_SHOT_DEBUFF)
-        subtlety_state.kidney_remains = target_debuff_remains(target, KIDNEY_SHOT_DEBUFF)
-        subtlety_state.control_active = target_debuff_remains(target, CONTROL_DEBUFFS) > 0
-    end
+    subtlety_state.stealth_up = player_buff_up(STEALTH_BUFF)
+    subtlety_state.slice_remains = NS.buff_remains and (NS.buff_remains(context.me, SLICE_AND_DICE_BUFF) or 0) or 0
+    subtlety_state.rupture_remains = target_debuff_remains(target, RUPTURE_DEBUFF)
+    subtlety_state.hemo_remains = target_debuff_remains(target, HEMORRHAGE_DEBUFF)
+    subtlety_state.expose_remains = target_debuff_remains(target, EXPOSE_ARMOR_DEBUFF)
+    subtlety_state.garrote_remains = target_debuff_remains(target, GARROTE_DEBUFF)
+    subtlety_state.cheap_shot_remains = target_debuff_remains(target, CHEAP_SHOT_DEBUFF)
+    subtlety_state.kidney_remains = target_debuff_remains(target, KIDNEY_SHOT_DEBUFF)
+    subtlety_state.control_active = target_debuff_remains(target, CONTROL_DEBUFFS) > 0
     subtlety_state.combo = context.combo_points or context.combo or 0
     subtlety_state.energy = context.energy or 0
     subtlety_state.energy_low = subtlety_state.energy < ENERGY_LOW_BUILDER

@@ -373,16 +373,13 @@ local function build_state(context)
     state.target_target_is_tank = is_tank(target_target)
     state.target_target_is_healer = is_healer(target_target)
 
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
-    if not skip_aura then
-        state.has_clearcasting = NS.buff_up(state.me, CLEARCASTING_BUFF) or false
-        state.has_barkskin = NS.buff_up(state.me, BARKSKIN_BUFF) or false
-        state.has_frenzied_regen = NS.buff_up(state.me, FRENZIED_REGEN_BUFF) or false
-        state.has_mark = NS.buff_up(state.me, MARK_BUFF) or false
-        state.has_thorns = (NS.buff_remains(state.me, THORNS_BUFF) or 0) > THORNS_REFRESH
-        state.faerie_remains = NS.debuff_remains(state.target, FAERIE_FIRE_DEBUFF) or 0
-        state.demo_remains = NS.debuff_remains(state.target, DEMO_ROAR_DEBUFF) or 0
-    end
+    state.has_clearcasting = NS.buff_up(state.me, CLEARCASTING_BUFF) or false
+    state.has_barkskin = NS.buff_up(state.me, BARKSKIN_BUFF) or false
+    state.has_frenzied_regen = NS.buff_up(state.me, FRENZIED_REGEN_BUFF) or false
+    state.has_mark = NS.buff_up(state.me, MARK_BUFF) or false
+    state.has_thorns = (NS.buff_remains(state.me, THORNS_BUFF) or 0) > THORNS_REFRESH
+    state.faerie_remains = NS.debuff_remains(state.target, FAERIE_FIRE_DEBUFF) or 0
+    state.demo_remains = NS.debuff_remains(state.target, DEMO_ROAR_DEBUFF) or 0
 
     state.swipe_ready = spell_ready(SPELLS.SwipeBear, state.me)
     state.maul_ready = spell_ready(SPELLS.Maul, state.target)

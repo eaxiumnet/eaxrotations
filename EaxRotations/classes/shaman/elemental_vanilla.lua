@@ -114,7 +114,6 @@ end
 -- ============================================================================
 
 local function lightning_shield_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.LightningShield, 3.0) then return false end
     local s = context.settings or {}
     if state.mana_emergency then return false end
     if s.elemental_lightning_shield == false then return false end
@@ -160,7 +159,6 @@ local function lightning_bolt_matches_fn(context, state)
 end
 
 local function flame_shock_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FlameShock, 2.0) then return false end
     if not context.target then return false end
     -- Research: only clip Flame Shock at <1s remaining (prevents shock CD starvation)
     if (state.flame_remains or 0) > 1 then return false end    -- SP-aware gating: skip Flame Shock if spell damage is below minimum threshold
@@ -224,7 +222,6 @@ local function ghost_wolf_matches_fn(context, state)
 end
 
 local function tremor_totem_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.TremorTotem, 3.0) then return false end
     if not context.in_combat then return false end
     if state.mana_emergency then return false end
     if not context.fear_nearby then return false end
@@ -239,7 +236,6 @@ end
 
 local function mana_tide_totem_matches_fn(context, state)
     if NS.should_use_long_cd and not NS.should_use_long_cd(context, 300) then return false end
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.ManaTideTotem, 3.0) then return false end
     if state.mana_emergency then return false end
     if (state.mana_pct or 100) > 30 then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.ManaTideTotem, NS.PLAYER_UNIT, { skip_range = true }) or false
@@ -255,7 +251,6 @@ end
 -- ============================================================================
 
 local function flametongue_weapon_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.FlametongueWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_flametongue then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.FlametongueWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
@@ -270,7 +265,6 @@ local function flametongue_weapon_execute(context, state)
 end
 
 local function windfury_weapon_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.WindfuryWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_windfury then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.WindfuryWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false
@@ -285,7 +279,6 @@ local function windfury_weapon_execute(context, state)
 end
 
 local function rockbiter_weapon_matches_fn(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.RockbiterWeapon, 3.0) then return false end
     if context.in_combat then return false end
     if state.has_rockbiter then return false end
     return NS.spell_ready ~= nil and NS.spell_ready(SPELLS.RockbiterWeapon, NS.PLAYER_UNIT, { skip_range = true }) or false

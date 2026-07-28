@@ -14,6 +14,7 @@ local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylv
 if not _ok_int or type(interrupt_manager) ~= "table" then interrupt_manager = nil end
 local dispel_manager = NS.DispelManager or require("shared/dispel_manager_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
+local scan_cache = require("shared/middleware_scan_cache_sylvanas")
 local SPELLS = NS.PriestSpells or {}
 local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 
@@ -22,10 +23,7 @@ local DISPEL_MAGIC_IDS = { 988, 527 }
 -- Abolish Disease IDs by rank
 local ABOLISH_DISEASE_IDS = { 552, 552, 552 }  -- Same ID in TBC
 
--- Throttle shared state for expensive enemy scans
-local _last_priest_md_scan = 0
-local _last_priest_threat_fade_scan = 0
-local _last_priest_enhanced_fade_scan = 0
+
 
 -- Check if debuff is magic type
 local function has_magic_debuff_on_unit(unit)
@@ -115,6 +113,22 @@ local function get_offensive_dispel_target(context)
 end
 
 -- ============================================================================
+-- Helper: find a Mass Dispel target (enemy with Divine Shield / Ice Block)
+-- ============================================================================
+local function find_mass_dispel_target(context)
+    local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+    for _, enemy in ipairs(enemies) do
+        if enemy then
+            local should_md, buff_name = OffensiveDispelDB.should_mass_dispel(enemy, NS)
+            if should_md then
+                return { enemy = enemy, buff_name = buff_name }
+            end
+        end
+    end
+    return false
+end
+
+-- ============================================================================
 -- Helper: find the best Mana Burn target (enemy healer with most mana)
 -- ============================================================================
 local function find_mana_burn_target(context)
@@ -168,41 +182,19 @@ local strategies = {
             -- Spell check
             if not (NS.is_spell_learned and NS.is_spell_learned(SPELLS.MassDispel)) then return false end
             if not (NS.spell_ready and NS.spell_ready(SPELLS.MassDispel)) then return false end
-            -- Throttle: expensive enemy iteration
-            local now = NS.time_now and NS.time_now() or 0
-            if now - (_last_priest_md_scan or 0) < 0.3 then return false end
-            _last_priest_md_scan = now
-            -- Scan enemies for Divine Shield / Ice Block
-            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
-            for _, enemy in ipairs(enemies) do
-                if enemy then
-                    local should_md, buff_name = OffensiveDispelDB.should_mass_dispel(enemy, NS)
-                    if should_md then
-                        return true
-                    end
-                end
-            end
-            return false
+            -- Scan enemies for Divine Shield / Ice Block (cached per context)
+            local md = scan_cache.memoize(context, "priest_mass_dispel_target", function() return find_mass_dispel_target(context) end)
+            return md ~= nil
         end,
         execute = function(context)
             -- Find the target with the critical buff (cast Mass Dispel on their position)
             -- Reuse the cached scan result from matches if still valid
-            local now = NS.time_now and NS.time_now() or 0
-            if now - (_last_priest_md_scan or 0) >= 0.3 then
-                _last_priest_md_scan = now
-            end
-            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
-            for _, enemy in ipairs(enemies) do
-                if enemy then
-                    local should_md, buff_name = OffensiveDispelDB.should_mass_dispel(enemy, NS)
-                    if should_md then
-                        local pos = enemy.get_position and enemy:get_position() or nil
-                        if pos and NS.try_cast_position then
-                            return NS.try_cast_position(SPELLS.MassDispel, pos, enemy, "[PRIEST] Mass Dispel -> " .. (buff_name or "bubble"))
-                        end
-                        return false
-                    end
-                end
+            local md = scan_cache.memoize(context, "priest_mass_dispel_target", function() return find_mass_dispel_target(context) end)
+            if not md then return false end
+            local enemy, buff_name = md.enemy, md.buff_name
+            local pos = enemy and enemy.get_position and enemy:get_position() or nil
+            if pos and NS.try_cast_position then
+                return NS.try_cast_position(SPELLS.MassDispel, pos, enemy, "[PRIEST] Mass Dispel -> " .. (buff_name or "bubble"))
             end
             return false
         end,
@@ -279,20 +271,20 @@ local strategies = {
             if not (NS.has_group_combat_ally_40 and NS.has_group_combat_ally_40()) then return false end
             if not (NS.spell_ready and SPELLS.Fade and NS.spell_ready(SPELLS.Fade, context.me, { skip_range = true })) then return false end
             if context.me and NS.has_buff and NS.has_buff(context.me, SPELLS.Fade) then return false end
-            -- Throttle: expensive enemy iteration
-            local now = NS.time_now and NS.time_now() or 0
-            if now - _last_priest_threat_fade_scan < 0.5 then return false end
-            _last_priest_threat_fade_scan = now
-            local enemies = (NS.GetEnemiesInRange and NS.GetEnemiesInRange(20)) or {}
-            for _, enemy in ipairs(enemies) do
-                if enemy then
-                    local ok, etarget = pcall(function() return enemy:get_target() end)
-                    if ok and etarget and context.me and NS.same_unit and NS.same_unit(etarget, context.me) then
-                        return true
+            -- Check if any visible enemy is targeting the player (cached per context)
+            local targeting_player = scan_cache.memoize_bool(context, "priest_threat_fade_targeting", function()
+                local enemies = (NS.GetEnemiesInRange and NS.GetEnemiesInRange(20)) or {}
+                for _, enemy in ipairs(enemies) do
+                    if enemy then
+                        local ok, etarget = pcall(function() return enemy:get_target() end)
+                        if ok and etarget and context.me and NS.same_unit and NS.same_unit(etarget, context.me) then
+                            return true
+                        end
                     end
                 end
-            end
-            return false
+                return false
+            end)
+            return targeting_player
         end,
         execute = function(context)
             return NS.try_cast(SPELLS.Fade, context.me, "[PRIEST] Fade", { skip_range = true })
@@ -484,27 +476,24 @@ local strategies = {
                 if NS.has_buff(context.me, 586) then return false end
             end
             
-            -- Check if any visible enemy is targeting player
-            -- This is a simplified check - in practice might need more sophisticated threat detection
-            -- Throttle: expensive enemy iteration
-            local now2 = NS.time_now and NS.time_now() or 0
-            if now2 - _last_priest_enhanced_fade_scan < 0.5 then return false end
-            _last_priest_enhanced_fade_scan = now2
-            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(40) or {}
-            for _, enemy in ipairs(enemies) do
-                if enemy then
-                    -- Check if this enemy is targeting us
-                    local target_of_enemy = nil
-                    local ok, val = pcall(function() return enemy:get_target() end)
-                    if ok then target_of_enemy = val end
-                    
-                    if target_of_enemy and NS.same_unit and NS.same_unit(target_of_enemy, context.me) then
-                        return true
+            -- Check if any visible enemy is targeting player (cached per context)
+            local targeting_player = scan_cache.memoize_bool(context, "priest_enhanced_fade_targeting", function()
+                local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(40) or {}
+                for _, enemy in ipairs(enemies) do
+                    if enemy then
+                        -- Check if this enemy is targeting us
+                        local target_of_enemy = nil
+                        local ok, val = pcall(function() return enemy:get_target() end)
+                        if ok then target_of_enemy = val end
+
+                        if target_of_enemy and NS.same_unit and NS.same_unit(target_of_enemy, context.me) then
+                            return true
+                        end
                     end
                 end
-            end
-            
-            return false
+                return false
+            end)
+            return targeting_player
         end,
         execute = function(context)
             local fade_id = 586

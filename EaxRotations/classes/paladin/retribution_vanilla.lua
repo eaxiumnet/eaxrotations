@@ -212,8 +212,6 @@ local function damage_seal_spell(state)
 end
 
 local function build_state(context)
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(20375, 3.0) or false
     ret_state.hp_pct = context.hp or health_pct(context.me, 100)
     ret_state.mana_pct = context.mana_pct or context.mana or 100
     ret_state.enemy_count = context.enemy_count or context.enemies_nearby or 1
@@ -225,21 +223,19 @@ local function build_state(context)
     -- [ARTISTRY] Improved: Dynamic Twist Window from settings (ms to seconds)
     local twist_ms = get_setting(context, "retri_twist_window", 450)
     ret_state.twist_window = twist_ms / 1000
-    if not skip_aura then
-        ret_state.has_blood = false  -- TBC-only
-        ret_state.has_command = has_player_buff(SEAL_COMMAND_BUFF)
-        ret_state.has_command_rank1 = has_player_buff(SEAL_COMMAND_RANK1_BUFF)
-        ret_state.has_crusader = has_player_buff(SEAL_CRUSADER_BUFF)
-        ret_state.has_righteousness = has_player_buff(SEAL_RIGHTEOUSNESS_BUFF)
-        ret_state.has_wisdom = has_player_buff(SEAL_WISDOM_BUFF)
-        ret_state.has_martyr = false  -- TBC-only
-        ret_state.has_damage_seal = ret_state.has_blood or ret_state.has_command or ret_state.has_righteousness or ret_state.has_martyr
-        ret_state.has_might = has_player_buff(BLESSING_MIGHT_BUFF)
-        ret_state.has_kings = has_player_buff(BLESSING_KINGS_BUFF)
-        ret_state.has_forbearance = has_player_debuff(FORBEARANCE_DEBUFF)
-        ret_state.target_has_crusader = unit_has_debuff(context.target, JUDGEMENT_CRUSADER_DEBUFF)
-        ret_state.target_has_wisdom = unit_has_debuff(context.target, JUDGEMENT_WISDOM_DEBUFF)
-    end
+    ret_state.has_blood = false  -- TBC-only
+    ret_state.has_command = has_player_buff(SEAL_COMMAND_BUFF)
+    ret_state.has_command_rank1 = has_player_buff(SEAL_COMMAND_RANK1_BUFF)
+    ret_state.has_crusader = has_player_buff(SEAL_CRUSADER_BUFF)
+    ret_state.has_righteousness = has_player_buff(SEAL_RIGHTEOUSNESS_BUFF)
+    ret_state.has_wisdom = has_player_buff(SEAL_WISDOM_BUFF)
+    ret_state.has_martyr = false  -- TBC-only
+    ret_state.has_damage_seal = ret_state.has_blood or ret_state.has_command or ret_state.has_righteousness or ret_state.has_martyr
+    ret_state.has_might = has_player_buff(BLESSING_MIGHT_BUFF)
+    ret_state.has_kings = has_player_buff(BLESSING_KINGS_BUFF)
+    ret_state.has_forbearance = has_player_debuff(FORBEARANCE_DEBUFF)
+    ret_state.target_has_crusader = unit_has_debuff(context.target, JUDGEMENT_CRUSADER_DEBUFF)
+    ret_state.target_has_wisdom = unit_has_debuff(context.target, JUDGEMENT_WISDOM_DEBUFF)
     ret_state.target_casting = is_casting(context.target)
     ret_state.target_casting_interruptible = ret_state.target_casting and (NS.is_interruptible and NS.is_interruptible(context.target) or false)
     ret_state.target_player = is_player(context.target)

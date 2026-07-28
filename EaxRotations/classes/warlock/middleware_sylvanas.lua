@@ -12,6 +12,7 @@ local consumable_manager = require("shared/consumable_manager_sylvanas")
 local _ok_int, interrupt_manager = pcall(require, "shared/interrupt_manager_sylvanas")
 if not _ok_int or type(interrupt_manager) ~= "table" then interrupt_manager = nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
+local scan_cache = require("shared/middleware_scan_cache_sylvanas")
 local OffensiveDispelDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
 if not _data_ok or type(TBC) ~= "table" then TBC = { ITEMS = {} } end
@@ -33,7 +34,6 @@ local _cached_cc_break_fresh = false
 local _cached_devour_unit = nil
 local _cached_devour_priority = 0
 local _cached_devour_fresh = false
-local _last_warlock_cc_scan = 0
 local function get_devour_magic_target(context)
     if _cached_devour_fresh then
         return _cached_devour_unit, _cached_devour_priority
@@ -59,11 +59,12 @@ local function get_devour_magic_target(context)
     return best_unit, best_priority
 end
 local HEALTHSTONE_ITEMS = (TBC.ITEMS and TBC.ITEMS.healthstones) or { 22105, 22104, 22103, 19013, 19012, 19011, 19010, 19009, 19008, 19007, 19006, 19005, 19004, 5510, 5509, 5511, 5512 }
-local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
+local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}-- Shared warlock helpers
+local soulshatter_helper = require("shared/warlock_soulshatter_sylvanas")
+local healthstone_helper = require("shared/warlock_healthstone_sylvanas")
+local death_coil_helper = require("shared/warlock_death_coil_sylvanas")
+local shadow_ward_helper = require("shared/warlock_shadow_ward_sylvanas")
 
--- Local anti-spam timers for long-CD spells
-local _last_soulshatter_time = 0
-local _last_create_hs_retry = 0
 local HEALING_POTION_ITEMS = {
     TBC_POTIONS.crystal_healing or 33934,
     TBC_POTIONS.auchenai_healing or 32947,
@@ -92,31 +93,28 @@ local strategies = {
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
-            -- Throttle: expensive enemy iteration
-            local now = NS.time_now and NS.time_now() or 0
-            if now - (_last_warlock_cc_scan or 0) < 0.3 then return false end
-            _last_warlock_cc_scan = now
             -- Preemptive scan: enemy casting CC at us → Death Coil to interrupt
-            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
-            for _, enemy in ipairs(enemies) do
-                if enemy then
-                    local is_casting_cc = OffensiveDispelDB.is_casting_preemptive_cc(enemy)
-                    if is_casting_cc then
+            local preemptive_enemy = scan_cache.memoize(context, "warlock_preemptive_cc", function()
+                local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+                for _, enemy in ipairs(enemies) do
+                    if enemy and OffensiveDispelDB.is_casting_preemptive_cc(enemy) then
                         local ok, etarget = pcall(function() return enemy:get_target() end)
                         if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
-                            -- Death Coil ready? (2min CD horror, interrupts the cast)
-                            local dc_id = nil
-                            for _, id in ipairs(DEATH_COIL_IDS) do
-                                if NS.is_spell_learned and NS.is_spell_learned(id) then dc_id = id; break end
-                            end
-                            if dc_id and NS.spell_ready and NS.spell_ready(dc_id, enemy) then
-                                _cached_cc_break_target = enemy
-                                _cached_cc_break_fresh = true
-                                return true
-                            end
-                            break
+                            return enemy
                         end
                     end
+                end
+                return false
+            end)
+            if preemptive_enemy then
+                local dc_id = nil
+                for _, id in ipairs(DEATH_COIL_IDS) do
+                    if NS.is_spell_learned and NS.is_spell_learned(id) then dc_id = id; break end
+                end
+                if dc_id and NS.spell_ready and NS.spell_ready(dc_id, preemptive_enemy) then
+                    _cached_cc_break_target = preemptive_enemy
+                    _cached_cc_break_fresh = true
+                    return true
                 end
             end
             -- Fallback: player already under breakable CC — Death Coil the attacker if possible
@@ -221,162 +219,47 @@ local strategies = {
             return NS.try_cast(SPELLS.HowlofTerror, context.me, "[WARLOCK] Howl of Terror", { skip_range = true })
         end,
     },        {
-            name = "ThreatDrop",
+            name = "Soulshatter",
+            priority = 920,
+            is_defensive = true,
             matches = function(context)
-                if spec_kit.setting_bool(context, "use_threat_drop", true) == false then return false end
-                if not context.in_combat then return false end
-                -- Only when threat is high (80%+)
-                if context.threat_pct and context.threat_pct < 80 then return false end
-                -- Local anti-spam: Soulshatter has 5min cooldown, enforce minimum 290s between casts
-                local now = NS.time_now and NS.time_now() or 0
-                if (now - _last_soulshatter_time) < 290 then return false end
-                local me = context.me or (NS.GetPlayer and NS.GetPlayer())
-                if not me then return false end
-                if NS.spell_ready then return NS.spell_ready(SPELLS.Soulshatter, me, { skip_range = true }) end
-                return false
+                return soulshatter_helper.matches(context, SPELLS.Soulshatter)
             end,
-        execute = function(context)
-            local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
-            local ok = NS.try_cast(SPELLS.Soulshatter, me, "[WARLOCK] Soulshatter", { skip_range = true })
-            if ok and NS.time_now then _last_soulshatter_time = NS.time_now() end
-            return ok
-        end,
-    },
+            execute = function(context)
+                return soulshatter_helper.execute(context, SPELLS.Soulshatter, "[WARLOCK] Soulshatter")
+            end,
+        },
 
     -- ========================================================================
     -- DEATH COIL (Emergency heal + fear — highest priority in combat)
     -- ========================================================================
-    {
-        name = "Warlock_DeathCoil",
+    death_coil_helper.make_strategy("Warlock_DeathCoil", SPELLS.DeathCoil or { id = DEATH_COIL_IDS, name = "DeathCoil" }, {
         priority = 1000,
         is_defensive = true,
-        matches = function(context)
-            if not context.in_combat then return false end
-            -- BUGFIX (2026-06-29): respect the master ``use_auto_consumables``
-            -- AND a new ``use_death_coil`` per-spell toggle.  Previously this
-            -- strategy fired at low HP regardless of either setting.
-            if spec_kit.setting_bool(context, "use_auto_consumables", true) == false then return false end
-            if spec_kit.setting_bool(context, "use_death_coil", true) == false then return false end
-            local threshold = spec_kit.setting_number(context, "death_coil_hp", 0)
-            if threshold <= 0 then return false end
-            if (context.hp or 100) <= threshold then
-                return true
-            end
-            return false
-        end,
-        execute = function(context)
-            -- Death Coil is a fear effect that heals the warlock when it damages the enemy
-            -- Cast on enemy target, the self-heal is a passive effect
-            local target = context.target
-            if not target then return false end
-            local spell = SPELLS.DeathCoil or { id = DEATH_COIL_IDS, name = "DeathCoil" }
-            if NS.spell_ready and NS.spell_ready(spell, target, {}) then
-                return NS.try_cast(spell, target, "[WARLOCK] Death Coil")
-            end
-            return false
-        end,
-    },
+        label = "[WARLOCK] Death Coil",
+        require_in_combat = true,
+    }),
 
     -- ========================================================================
     -- HEALTHSTONE (Recovery - Healthstone then Healing Potion)
     -- ========================================================================
-    {
-        name = "Warlock_Healthstone",
+    healthstone_helper.make_strategy("Warlock_Healthstone", {
+        healthstone_ids = HEALTHSTONE_ITEMS,
+        fallback_potion_ids = HEALING_POTION_ITEMS,
+        allow_while_casting = true,
+        use_consumable_manager = true,
         priority = 850,
         is_defensive = true,
-        matches = function(context)
-            if not context.in_combat then return false end
-            -- BUGFIX (2026-06-29): respect the master + per-category toggles.
-            -- Previously this strategy ignored ``use_auto_consumables`` and
-            -- ``use_healthstones`` entirely, leading to auto-chugging at low
-            -- HP regardless of the user's preference.  Also add a fast-path
-            -- bag check before matches returns true so the dispatcher doesn't
-            -- iterate ``HEALTHSTONE_ITEMS`` for a player with nothing in bags.
-            if spec_kit.setting_bool(context, "use_auto_consumables", true) == false then return false end
-            if spec_kit.setting_bool(context, "use_healthstones", true) == false then return false end
-            local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
-            if threshold <= 0 then return false end
-            if (context.hp or 100) > threshold then return false end
-            -- Fast-path bag scan (cached) so we don't trigger the execute
-            -- loop when player has zero healthstones / potions in bags.
-            local consumable_manager
-            pcall(function() consumable_manager = require("shared/consumable_manager_sylvanas") end)
-            if consumable_manager and type(consumable_manager.has_any_consumable) == "function" then
-                local ids = {}
-                local seen = {}
-                local add = function(id)
-                    if type(id) == "number" and id > 0 and not seen[id] then
-                        seen[id] = true
-                        ids[#ids + 1] = id
-                    end
-                end
-                if type(HEALTHSTONE_ITEMS) == "table" then
-                    for _, id in ipairs(HEALTHSTONE_ITEMS) do add(id) end
-                end
-                if type(HEALING_POTION_ITEMS) == "table" then
-                    for _, id in ipairs(HEALING_POTION_ITEMS) do add(id) end
-                end
-                if #ids > 0 and not consumable_manager.has_any_consumable(ids) then
-                    return false
-                end
-            end
-            return true
-        end,
-        execute = function(context)
-            -- Try Healthstone first (item-based, has CD)
-            local used_item = false
-            if NS.use_item and context.me then
-                for _, item_id in ipairs(HEALTHSTONE_ITEMS) do
-                    if NS.use_item(item_id, context.me) then
-                        used_item = true
-                        break
-                    end
-                end
-            end
-            if used_item then return true end
-
-            -- Fallback: Healing Potion if no Healthstone used
-            if settings and settings.use_health_potions ~= false and NS.use_item and context.me then
-                for _, item_id in ipairs(HEALING_POTION_ITEMS) do
-                    if NS.use_item(item_id, context.me) then
-                        return true
-                    end
-                end
-            end
-            return false
-        end,
-    },
+    }),
 
     -- ========================================================================
     -- SHADOW WARD (Absorb shadow damage — PvP caster defense)
     -- ========================================================================
-    {
-        name = "Warlock_ShadowWard",
+    shadow_ward_helper.make_strategy("Warlock_ShadowWard", SPELLS.ShadowWard or { id = SHADOW_WARD_IDS, name = "ShadowWard" }, {
         priority = 900,
         is_defensive = true,
-        matches = function(context)
-            if not context.in_combat then return false end
-            if spec_kit.setting_bool(context, "use_shadow_ward", true) == false then return false end
-            local hp = context.hp or 100
-            local threshold = spec_kit.setting_number(context, "shadow_ward_hp", 70)
-            if hp > threshold then return false end
-            -- Check if Shadow Ward buff already active
-            if NS.has_player_buff and NS.has_player_buff(SHADOW_WARD_IDS) then return false end
-            -- Only vs shadow casters (Warlock, Shadow Priest)
-            if context.target then
-                local class_id = nil
-                pcall(function() class_id = context.target:get_class() end)
-                if not SHADOW_CASTER_CLASS_IDS[class_id] then return false end
-            end
-            local spell = SPELLS.ShadowWard or { id = SHADOW_WARD_IDS, name = "ShadowWard" }
-            if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
-            return false
-        end,
-        execute = function(context)
-            local spell = SPELLS.ShadowWard or { id = SHADOW_WARD_IDS, name = "ShadowWard" }
-            return NS.try_cast(spell, context.me, "[WARLOCK] Shadow Ward", { skip_range = true })
-        end,
-    },
+        label = "[WARLOCK] Shadow Ward",
+    }),
 
     -- ========================================================================
     -- FEL DOMINATION (Instant pet summon — emergency replacement)
@@ -462,9 +345,6 @@ local strategies = {
         matches = function(context)
             if context.in_combat then return false end
             if spec_kit.setting_bool(context, "auto_create_healthstone", true) == false then return false end
-            -- Retry throttle: don't retry for 3s after last failure (e.g. missing reagent)
-            local now = NS.time_now and NS.time_now() or 0
-            if (now - _last_create_hs_retry) < 3 then return false end
             -- Check if we already have a Healthstone (item check)
             local has_hs = false
             if NS.has_item then
@@ -483,10 +363,7 @@ local strategies = {
                 local ok_shard, count = pcall(NS.core.inventory.get_item_count, SOUL_SHARD_ITEM)
                 has_shard = ok_shard and (count or 0) > 0
             end
-            if not has_shard then
-                if NS.time_now then _last_create_hs_retry = NS.time_now() end
-                return false
-            end
+            if not has_shard then return false end
             local spell = { id = { 27230, 11730, 11729, 6202, 6201, 5699 }, name = "CreateHealthstone" }
             if NS.spell_ready then return NS.spell_ready(spell, context.me, { skip_range = true }) end
             return false

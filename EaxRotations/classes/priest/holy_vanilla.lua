@@ -205,12 +205,8 @@ local function build_holy_state(context)
     holy_state.pom_ready = false  -- Prayer of Mending is TBC-only
     holy_state.coh_ready = false  -- Circle of Healing is TBC-only
     holy_state.has_inner_focus = has_player_buff(INNER_FOCUS_BUFF)
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(14752, 3.0) or false
-    if not skip_aura then
-        holy_state.swp_remaining = context.target and debuff_remains(context.target, SHADOW_WORD_PAIN_DEBUFF) or 0
-        holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0
-    end
+    holy_state.swp_remaining = context.target and debuff_remains(context.target, SHADOW_WORD_PAIN_DEBUFF) or 0
+    holy_state.holy_fire_remaining = context.target and debuff_remains(context.target, HOLY_FIRE_DOT_DEBUFF) or 0
     holy_state.lightwell_ready = spell_exists(SPELLS.Lightwell) and spell_ready(SPELLS.Lightwell, NS.PLAYER_UNIT)
     holy_state.dispel_magic_ready = spell_exists(SPELLS.DispelMagic) and spell_ready(SPELLS.DispelMagic, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)
     holy_state.cure_disease_ready = spell_exists(SPELLS.CureDisease) and spell_ready(SPELLS.CureDisease, (lowest_entry and lowest_entry.unit) or NS.PLAYER_UNIT)

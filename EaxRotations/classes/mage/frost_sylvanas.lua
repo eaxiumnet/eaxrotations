@@ -379,7 +379,6 @@ local function evocation_matches(context, s)
 end
 
 local function mana_shield_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ManaShield, 3.0) then return false end
     if context.settings and (context.settings.use_defensives == false or context.settings.use_mana_shield == false) then return false end
     if s.has_mana_shield then return false end
     if not s.mana_shield_ready then return false end
@@ -387,7 +386,6 @@ local function mana_shield_matches(context, s)
 end
 
 local function arcane_intellect_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.ArcaneIntellect, 3.0) then return false end
     if context.settings and context.settings.use_self_buffs == false then return false end
     if s.has_arcane_intellect then return false end
     if not s.arcane_intellect_ready then return false end
@@ -443,7 +441,6 @@ local function arcane_missiles_matches(context, s)
 end
 
 local function frost_armor_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.FrostArmor, 3.0) then return false end
     if context.settings and context.settings.use_self_buffs == false then return false end
     if s.has_any_armor then return false end
     -- Frost/Ice Armor is the low-level fallback; once Mage Armor is learned (lvl 34+)
@@ -454,7 +451,6 @@ local function frost_armor_matches(context, s)
 end
 
 local function mage_armor_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.MageArmor, 3.0) then return false end
     if context.settings and context.settings.use_self_buffs == false then return false end
     if s.has_mage_armor then return false end
     -- Skip when Mage Armor is not learned so we never spam an unlearned spell;
@@ -500,7 +496,6 @@ local DSL_DEFS = {
         name = "IceBarrier",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.IceBarrier, 3.0) then return false end
                 return true
             end },
             { type = "setting", key = "use_defensives", op = "!=", value = false },

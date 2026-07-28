@@ -89,7 +89,6 @@ local SCORPID_STING_DEBUFF = { 3043 }
 local WING_CLIP_DEBUFF = { 2974 }
 local ASPECT_HAWK_BUFF = { 27044, 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
 local ASPECT_VIPER_BUFF = { 34074 }
-local _last_aspect_hawk_cast = 0  -- Throttle: WoW API buff detection delay (~1-2 frames)
 
 local HEALTHSTONE_IDS = { 22105, 22104, 22103, 19013, 19012, 19011, 5512 }
 local function first_ready_item(ids)
@@ -182,16 +181,12 @@ local function build_state(context)
     sv_state.pet_alive = pet_alive == true
     sv_state.pet_dead = context.pet_dead == true or (pet ~= nil and not sv_state.pet_alive)
     sv_state.pet_hp_pct = sv_state.pet_alive and pet.get_health_percentage and pet:get_health_percentage() or 100
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(14325, 3.0) or false
-    if not skip_aura then
-        sv_state.has_hunters_mark = target and NS.debuff_up(target, HUNTERS_MARK_DEBUFF) or false
-        sv_state.has_serpent_sting = target and NS.debuff_up(target, SERPENT_STING_DEBUFF) or false
-        sv_state.has_scorpid_sting = target and NS.debuff_up(target, SCORPID_STING_DEBUFF) or false
-        sv_state.wing_clip_active = target and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
-        sv_state.has_aspect_hawk = me and NS.buff_up(me, ASPECT_HAWK_BUFF) or false
-        sv_state.has_aspect_viper = me and NS.buff_up(me, ASPECT_VIPER_BUFF) or false
-    end
+    sv_state.has_hunters_mark = target and NS.debuff_up(target, HUNTERS_MARK_DEBUFF) or false
+    sv_state.has_serpent_sting = target and NS.debuff_up(target, SERPENT_STING_DEBUFF) or false
+    sv_state.has_scorpid_sting = target and NS.debuff_up(target, SCORPID_STING_DEBUFF) or false
+    sv_state.wing_clip_active = target and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
+    sv_state.has_aspect_hawk = me and NS.buff_up(me, ASPECT_HAWK_BUFF) or false
+    sv_state.has_aspect_viper = me and NS.buff_up(me, ASPECT_VIPER_BUFF) or false
     sv_state.mend_pet_ready = me and NS.spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
     sv_state.hunters_mark_ready = target and NS.spell_ready(ACTION.HuntersMark, target) or false
     sv_state.rapid_fire_ready = me and NS.spell_ready(ACTION.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
@@ -326,8 +321,6 @@ local function aspect_hawk_matches(context, s)
     if s.has_aspect_viper then
         if (s.mana_pct or 100) <= 25 then return false end
     end
-    -- Throttle: prevent thrashing due to WoW API buff detection delay
-    if (NS.time_now() - _last_aspect_hawk_cast) < 3 then return false end
     return true
 end
 
@@ -644,7 +637,7 @@ local strategies = {
     { name = "MendPet" },
     { name = "CallPet", matches = call_pet_matches, execute = function(context) return NS.try_cast(ACTION.CallPet, context.me, "[SURVIVAL] Call Pet", { skip_range = true }) end },
     { name = "RevivePet", matches = revive_pet_matches, execute = function(context) return NS.try_cast(ACTION.RevivePet, context.me, "[SURVIVAL] Revive Pet", { skip_range = true }) end },
-    { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) local r = NS.try_cast(ACTION.AspectOfTheHawk, context.me, "[SURVIVAL] Aspect of the Hawk", { skip_range = true }); if r then _last_aspect_hawk_cast = NS.time_now() end; return r end },
+    { name = "AspectOfTheHawk", matches = aspect_hawk_matches, execute = function(context) return NS.try_cast(ACTION.AspectOfTheHawk, context.me, "[SURVIVAL] Aspect of the Hawk", { skip_range = true }) end },
     { name = "AspectOfTheViper" },
     { name = "FreezingTrap" },
     { name = "WyvernSting", matches = wyvern_sting_matches, execute = function(context) return NS.try_cast(ACTION.WyvernSting, context.target, "[SURVIVAL] Wyvern Sting") end },

@@ -284,36 +284,32 @@ local function build_state(context)
    end
   end
  end
- -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
- local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(588, 3.0) or false
- if not skip_aura then
-  disc_state.has_inner_fire = me and NS.buff_up(me, INNER_FIRE_BUFF) or false
-  -- Fear Ward: determine target (tank in fear risk per WoWHead dungeon guides: Hellmaw, Scryers, Nightbane Bellowing Roar, etc.)
-  -- Pre-ward the tank to prevent feared tank pulling packs and wipes.
-  local ward_target = me
-  local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
-  local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
-  if context and (group_aware and context.is_group) and fear_risk then
-    if context.party_tanks and #context.party_tanks > 0 then
-      ward_target = context.party_tanks[1]
-    elseif NS.GetPartyMembers then
-      local party = NS.GetPartyMembers()
-      for _, u in ipairs(party or {}) do
-        if u and not NS.same_unit(u, me) and NS.is_tank_unit and NS.is_tank_unit(u) then
-          ward_target = u
-          break
-        end
-      end
-    end
-  end
-  disc_state.fear_ward_target = ward_target
-  local ward_on_target = ward_target and NS.buff_up(ward_target, FEAR_WARD_BUFF) or false
-  disc_state.has_fear_ward = ward_on_target
-  disc_state.has_power_word_fortitude = me and NS.buff_up(me, POWER_WORD_FORTITUDE_BUFF) or false
-  disc_state.has_divine_spirit = me and NS.buff_up(me, DIVINE_SPIRIT_BUFF) or false
-  disc_state.has_prayer_of_fortitude = me and NS.buff_up(me, PRAYER_OF_FORTITUDE_BUFF) or false
-  disc_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
+ disc_state.has_inner_fire = me and NS.buff_up(me, INNER_FIRE_BUFF) or false
+ -- Fear Ward: determine target (tank in fear risk per WoWHead dungeon guides: Hellmaw, Scryers, Nightbane Bellowing Roar, etc.)
+ -- Pre-ward the tank to prevent feared tank pulling packs and wipes.
+ local ward_target = me
+ local fear_risk = context and (context.fear_nearby or context.known_fear_boss or context.fear_on_tank or context.control_risk)
+ local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
+ if context and (group_aware and context.is_group) and fear_risk then
+   if context.party_tanks and #context.party_tanks > 0 then
+     ward_target = context.party_tanks[1]
+   elseif NS.GetPartyMembers then
+     local party = NS.GetPartyMembers()
+     for _, u in ipairs(party or {}) do
+       if u and not NS.same_unit(u, me) and NS.is_tank_unit and NS.is_tank_unit(u) then
+         ward_target = u
+         break
+       end
+     end
+   end
  end
+ disc_state.fear_ward_target = ward_target
+ local ward_on_target = ward_target and NS.buff_up(ward_target, FEAR_WARD_BUFF) or false
+ disc_state.has_fear_ward = ward_on_target
+ disc_state.has_power_word_fortitude = me and NS.buff_up(me, POWER_WORD_FORTITUDE_BUFF) or false
+ disc_state.has_divine_spirit = me and NS.buff_up(me, DIVINE_SPIRIT_BUFF) or false
+ disc_state.has_prayer_of_fortitude = me and NS.buff_up(me, PRAYER_OF_FORTITUDE_BUFF) or false
+ disc_state.has_inner_focus = me and NS.buff_up(me, INNER_FOCUS_BUFF) or false
  disc_state.divine_spirit_ready = me and NS.spell_ready(ACTION.DivineSpirit, me, { skip_range = true }) or false
  disc_state.prayer_of_fortitude_ready = me and NS.spell_ready(ACTION.PrayerOfFortitude, me, { skip_range = true }) or false
  disc_state.enemy_count = (NS.GetEnemiesCount and NS.GetEnemiesCount(10)) or (context.enemies_count or 0)
@@ -587,6 +583,7 @@ local function psychic_scream_matches(context, s)
 end
 
 local function shackle_undead_matches(context, s)
+ if not spec_kit.setting_bool(context, "disc_auto_shackle", true) then return false end
  if not context.has_valid_enemy_target then return false end
  if s.target_creature_type ~= 6 then return false end
  if not s.shackle_undead_ready then return false end
@@ -596,7 +593,6 @@ end
 
 local function dispel_magic_matches(context, s)
  if not s.dispel_magic_ready then return false end
- if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.DispelMagic, 3.0) then return false end
  -- Dungeon opt: if control_risk (from researched MC/fear), dispel to speed and save
  local group_aware = spec_kit.setting_bool(context, "priest_group_aware_utility", true)
  if context.control_risk or context.fear_nearby or (group_aware and context.is_group) then
@@ -943,7 +939,6 @@ end },
  { name = "ShackleUndead", matches = shackle_undead_matches, execute = function(context) return NS.try_cast(ACTION.ShackleUndead, context.target, "[DISCIPLINE] ShackleUndead", { expected_cooldown = 1.5 }) end },
  { name = "DispelMagic", matches = dispel_magic_matches, execute = function() return NS.try_cast(ACTION.DispelMagic, NS.PLAYER_UNIT, "[DISCIPLINE] DispelMagic") end },
  { name = "MassDispel", matches = function(context, s)
-   if NS.broken_api_throttled and NS.broken_api_throttled(ACTION.MassDispel, 3.0) then return false end
    if not context.in_combat then return false end
    if not s.mass_dispel_ready then return false end
    if not spec_kit.setting_bool(context, "use_party_dispel", true) then return false end    if context.mana_pct < 30 then return false end

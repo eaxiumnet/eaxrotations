@@ -6,8 +6,7 @@
 -- WHEN:  combat with valid enemy target, dual-wield or 2H.
 -- WHY:   mirrors SimulationCraft / wowsims APL with TBC-era mechanics.
 -- SAFETY: state.* reads nil-guarded via spec_kit.safe_state(); no on_update() allocs.
---         DSL custom nodes replicate imperative gates verbatim (incl.
---         NS.broken_api_throttled); behavior preserved 1:1.
+--         DSL custom nodes replicate imperative gates verbatim; behavior preserved 1:1.
 
 -- Warrior Fury priority list — parity v1.0.6+ parity (auto-charge, rampage stacks, sunder, rend, overpower, defensives)
 local NS = _G.EaxRotations
@@ -666,7 +665,6 @@ end
 
 -- Sunder Armor: stack armor reduction
 local function sunder_armor_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SunderArmor, 2.0) then return false end
     -- Low-level: get_armor() often returns 0/nil — same silent gate as Druid Faerie Fire.
     local level = (context and (context.level or context.player_level)) or 70
     if level >= 50 and (context.target_armor or 0) <= 0 then return false end
@@ -772,7 +770,6 @@ end
 
 -- Berserker Rage: fear break / enrage
 local function berserker_rage_matches(context, state)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BerserkerRage, 3.0) then return false end
     if state.has_berserker_rage then return false end
     if not state.berserker_rage_ready then return false end
     -- Fear break: cast immediately if feared/sapped/incapacitated
@@ -797,7 +794,6 @@ end
 local function hamstring_matches(context, state)
     -- PvP snare
     if state.is_pvp then
-        if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Hamstring, 2.0) then return false end
         if (state.hamstring_remains or 0) > 3 then return false end
         return action(context, build_action("Hamstring", ACTION.Hamstring, { min_rage = 10, debuff = HAMSTRING_DEBUFF, refresh = 3 }))
     end
@@ -904,7 +900,6 @@ local DSL_DEFS = {
         name = "BattleShout",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.BattleShout, 3.0) then return false end
                 return true
             end },
             { type = "state", field = "has_battle_shout", op = "falsy" },
@@ -932,7 +927,6 @@ local DSL_DEFS = {
         name = "Rampage",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rampage, 3.0) then return false end
                 return true
             end },
             { type = "in_combat" },
@@ -999,7 +993,6 @@ local DSL_DEFS = {
         name = "DemoralizingShout",
         conditions = {
             { type = "custom", fn = function(context, state)
-                if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.DemoralizingShout, 2.0) then return false end
                 return true
             end },
             { type = "state", field = "demo_remains", op = "<=", value = 5 },

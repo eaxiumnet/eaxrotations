@@ -31,6 +31,10 @@ local SPELLS = NS.WarlockSpells or {}
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
 local curse_helper = require("shared/warlock_curse_helper_sylvanas")
+local healthstone_helper = require("shared/warlock_healthstone_sylvanas")
+local soulshatter_helper = require("shared/warlock_soulshatter_sylvanas")
+local death_coil_helper = require("shared/warlock_death_coil_sylvanas")
+local shadow_ward_helper = require("shared/warlock_shadow_ward_sylvanas")
 local CURSE_REFRESH_WINDOW = curse_helper.CURSE_REFRESH_WINDOW
 
 -- Centralized spell resolver via spec_kit (rank IDs from warlock/class_sylvanas.lua).
@@ -118,7 +122,10 @@ local function scan_target_dots(target)
         if id then
             local remains = row.remaining or 0
             if remains > 0 then
-                out[id] = remains / 1000
+                -- buff_manager may return milliseconds or seconds depending on build.
+                -- Values >= 1000 are almost certainly ms; smaller values are seconds.
+                if remains >= 1000 then remains = remains / 1000 end
+                out[id] = remains
             end
         end
     end
@@ -157,6 +164,7 @@ local function profiled_matches(name, fn)
         return result
     end
 end
+
 
 --- Find a target missing the specified DoT.
 --- Primary: TSHelper.get_dps_targets (target_selector priority list).
@@ -279,14 +287,11 @@ local IMP_FIREBOLT_IDS       = { 3110, 7799, 7800, 7801, 7802, 11762, 11763, 272
 local DOT_REFRESH_WINDOW = 1.5   -- refresh within last 1.5s per Research Angle 1 (clip <1.5s)
 local SOUL_SHARD_CAPTURE_TTD = 5  -- TBC: Drain Soul is shard-capture only (mob about to die); sub-25% execute is Wrath, not TBC
 local LIFE_TAP_SAFETY_HP = 35   -- don't Life Tap below this HP%
-local LIFE_TAP_MIN_INTERVAL = 1.5  -- throttle Life Tap to prevent double-tap
 
 -- Snapshot-aware refresh constants
 local SPELL_DMG_UPGRADE_RATIO = 1.08    -- Refresh only if 8%+ spell damage upgrade
 local REFRESH_EXTRA_WINDOW = 1.5         -- Extra seconds past pandemic window for upgrade refresh
--- Local anti-spam: Soulshatter has 5min CD, use local timer as fallback for broken API
-local _last_soulshatter = 0
-local _last_life_tap = 0
+
 
 local LOCAL_SPELLS = {
     DrainLife       = NS.spell_action({ 27220, 27219, 11700, 11699, 7651, 709, 699, 689 }, "DrainLife"),
@@ -315,6 +320,8 @@ local LOCAL_SPELLS = {
     Shadowburn      = NS.spell_action({ 30546, 27263, 18871, 18870, 18869, 18868, 18867, 17877 }, "Shadowburn"),
     RainOfFire      = NS.spell_action({ 27212, 17954, 17953, 5740 }, "RainOfFire"),
 }
+
+local SHADOW_WARD_IDS = { 28610, 11740, 11739, 6229 }
 
 local BLOODLUST_LOWER_RATIO = 1.04      -- More aggressive upgrade threshold during Bloodlust/Heroism
 local BLOODLUST_BUFFS = { 2825, 32182 }  -- Bloodlust (Horde) / Heroism (Alliance)
@@ -632,10 +639,7 @@ local function racial_matches(context, state)
     return true
 end
 
--- Throttle DoT re-matches when aura APIs are broken on private servers.
-local function broken_api_dot_throttled(spell_id)
-    return NS.is_api_health_broken and NS.is_api_health_broken() and NS.recent_spell_cast and NS.recent_spell_cast(spell_id, 2.0)
-end
+
 -- ============================================================================
 -- Declarative Strategy DSL definitions (6 strategies converted)
 -- ============================================================================
@@ -674,30 +678,13 @@ local DSL_DEFS = {
         end },
     },
     {
-        name = "DeathCoilSurvival",
+        name = "NightfallProc",
         conditions = {
             { type = "context", field = "has_valid_enemy_target", op = "==", value = true },
-            { type = "state", field = "hp_pct", op = "<=", value = 30 },
-            { type = "spell_ready", spell = LOCAL_SPELLS.DeathCoil, target = "target" },
+            { type = "state", field = "nightfall_active", op = "==", value = true },
+            { type = "spell_ready", spell = ACTION.ShadowBolt, target = "target" },
         },
-        action = { type = "cast", spell = LOCAL_SPELLS.DeathCoil, target = "target", label = "[AFFL] Death Coil (survival + heal)" },
-    },
-    {
-        name = "Healthstone",
-        conditions = {
-            { type = "setting", key = "use_auto_consumables", op = "truthy", default = true },
-            { type = "setting", key = "use_healthstones", op = "truthy", default = true },
-            { type = "custom", fn = function(context, state)
-                local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
-                if threshold <= 0 then return false end
-                return (context.hp or 100) <= threshold
-            end },
-            { type = "context", field = "is_casting", op = "falsy" },
-            { type = "state", field = "healthstone_ready", op = "==", value = true },
-        },
-        action = { type = "custom", fn = function(context, state)
-            return state and state.healthstone_id and NS.use_item_by_id and NS.use_item_by_id(state.healthstone_id) or false
-        end },
+        action = { type = "cast", spell = ACTION.ShadowBolt, target = "target", label = "[AFFL] Nightfall instant Shadow Bolt" },
     },
     {
         name = "NightfallProc",
@@ -757,59 +744,22 @@ local strategies = {
     -- ------------------------------------------------------------------------
     -- 1. Death Coil (survival heal + CC)
     -- ------------------------------------------------------------------------
-    {
-        name = "DeathCoilSurvival",
-        matches = function(context, state)
-            if not context.has_valid_enemy_target then return false end
-            if (state.hp_pct or 100) > 30 then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.DeathCoil, context.target) or false
-        end,
-        execute = function(context)
-            return NS.try_cast(LOCAL_SPELLS.DeathCoil, context.target, "[AFFL] Death Coil (survival + heal)")
-        end,
-    },
+    death_coil_helper.make_strategy("DeathCoilSurvival", LOCAL_SPELLS.DeathCoil, { label = "[AFFL] Death Coil (survival + heal)" }),
 
     -- ------------------------------------------------------------------------
     -- 2. Healthstone
     -- ------------------------------------------------------------------------
-    {
-        name = "Healthstone",
-        matches = function(context, state)
-            local threshold = spec_kit.setting_number(context, "healthstone_hp", 0)
-            if not spec_kit.setting_bool(context, "use_auto_consumables", true) then return false end
-            if not spec_kit.setting_bool(context, "use_healthstones", true) then return false end
-            if threshold <= 0 then return false end
-            if (context.hp or 100) > threshold then return false end
-            if context.is_casting then return false end
-            return state and state.healthstone_ready == true
-        end,
-        execute = function(_, state)
-            return state and state.healthstone_id and NS.use_item_by_id and NS.use_item_by_id(state.healthstone_id) or false
-        end,
-    },
+    healthstone_helper.make_strategy("Healthstone", {
+        use_state_id = true,
+        require_in_combat = false,
+        priority = 850,
+        is_defensive = true,
+    }),
 
     -- ------------------------------------------------------------------------
     -- 3. Soulshatter (threat reduction)
     -- ------------------------------------------------------------------------
-    {
-        name = "Soulshatter",
-        matches = function(context, state)
-            if not context.in_combat then return false end
-            if context.threat_pct and context.threat_pct < 80 then return false end
-            local me = context.me or (NS.GetPlayer and NS.GetPlayer())
-            if not me then return false end
-            -- Local timer: Soul shatter has 5min CD
-            if (NS.time_now() - _last_soulshatter) < 290 then return false end
-            if NS.cooldown_remains(ACTION.Soulshatter, 300) > 0 then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Soulshatter, me, { skip_range = true }) or false
-        end,
-        execute = function(context)
-            local me = context.me or (NS.GetPlayer and NS.GetPlayer()) or NS.PLAYER_UNIT
-            local ok = NS.try_cast(ACTION.Soulshatter, me, "[AFFL] Soulshatter", { skip_range = true })
-            if ok then _last_soulshatter = NS.time_now() end
-            return ok
-        end,
-    },
+    soulshatter_helper.make_strategy("Soulshatter", ACTION.Soulshatter, "[AFFL] Soulshatter"),
 
     -- ------------------------------------------------------------------------
     -- ------------------------------------------------------------------------
@@ -828,70 +778,9 @@ local strategies = {
     },
     -- ------------------------------------------------------------------------
     {
-        name = "CorruptionDoT",
-        matches = profiled_matches("CorruptionDoT", function(context, state)
-            if not context.has_valid_enemy_target then return false end
-            if broken_api_dot_throttled(27216) then return false end
-            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
-            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
-            if (state.corruption_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_corruption_dmg or 0, state.corruption_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
-            -- DoT TTD gating
-            local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
-            if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.corruption, ttd_threshold) then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, context.target) or false
-        end),
-        execute = function(context)
-            local ok = NS.try_cast(ACTION.Corruption, context.target, "[AFFL] Corruption")
-            if ok and aff_state.spell_damage then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
-            return ok
-        end,
-    },
-    -- Corruption Spread — multi-DoT via find_dot_target (TSHelper + IZI enemies fallback)
-    {
-        name = "CorruptionSpread",
-        matches = function(context, state)
-            -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
-            -- Inverted from previous to match intended multi-dot behavior.
-            if (state.corruption_remains or 0) <= DOT_REFRESH_WINDOW then return false end
-            local target = find_dot_target(CORRUPTION_DEBUFF[1])
-            if not target then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, target) or false
-        end,
-        execute = function(context)
-            local target = find_dot_target(CORRUPTION_DEBUFF[1])
-            if not target then return false end
-            return NS.try_cast(ACTION.Corruption, target, "[AFFL] Corruption Spread")
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 5a. MovingCorruption (instant DoT while moving)
-    -- ------------------------------------------------------------------------
-    {
-        name = "MovingCorruption",
-        matches = function(context, state)
-            if not context.is_moving then return false end
-            if not context.has_valid_enemy_target then return false end
-            if broken_api_dot_throttled(27216) then return false end
-            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, context.target) or false
-        end,
-        execute = function(context)
-            local ok = NS.try_cast(ACTION.Corruption, context.target, "[AFFL] Corruption (moving)")
-            if ok and aff_state.spell_damage then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
-            return ok
-        end,
-    },
-
-    -- ------------------------------------------------------------------------
-    -- 6. Unstable Affliction (primary DoT — dispel protection, 1.5s cast)
-    -- ------------------------------------------------------------------------
-    {
         name = "UnstableAffliction",
         matches = profiled_matches("UnstableAffliction", function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if broken_api_dot_throttled(30405) then return false end
             if (state.ua_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
@@ -926,14 +815,71 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 7. Siphon Life (DoT + self-heal, if talented)
+    -- Siphon Life (DoT + self-heal, if talented)
     -- Requires ISB debuff on target to maximize Shadow damage benefit
+    -- ------------------------------------------------------------------------
+    {
+        name = "CorruptionDoT",
+        matches = profiled_matches("CorruptionDoT", function(context, state)
+            if not context.has_valid_enemy_target then return false end
+            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
+            local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
+            if (state.corruption_remains or 0) > 0 and not should_snapshot_upgrade(state.spell_damage or 0, state.snapshot_corruption_dmg or 0, state.corruption_remains or 0, DOT_REFRESH_WINDOW, ratio) then return false end
+            -- DoT TTD gating
+            local ttd_threshold = spec_kit.setting_number(context, "dot_ttd_threshold", 50) / 100
+            if DotTTD.should_skip_dot(context.ttd, DotTTD.DOT_DURATIONS.corruption, ttd_threshold) then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, context.target) or false
+        end),
+        execute = function(context)
+            local ok = NS.try_cast(ACTION.Corruption, context.target, "[AFFL] Corruption")
+            if ok and aff_state.spell_damage then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
+            return ok
+        end,
+    },
+    -- Corruption Spread — multi-DoT via find_dot_target (TSHelper + IZI enemies fallback)
+    {
+        name = "CorruptionSpread",
+        matches = function(context, state)
+            -- Fire spread to additional targets when primary already has the DoT (remains sufficient).
+            -- Inverted from previous to match intended multi-dot behavior.
+            if (state.corruption_remains or 0) <= DOT_REFRESH_WINDOW then return false end
+            local target = find_dot_target(CORRUPTION_DEBUFF[1])
+            if not target then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, target) or false
+        end,
+        execute = function(context)
+            local target = find_dot_target(CORRUPTION_DEBUFF[1])
+            if not target then return false end
+            return NS.try_cast(ACTION.Corruption, target, "[AFFL] Corruption Spread")
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- MovingCorruption (instant DoT while moving)
+    -- ------------------------------------------------------------------------
+    {
+        name = "MovingCorruption",
+        matches = function(context, state)
+            if not context.is_moving then return false end
+            if not context.has_valid_enemy_target then return false end
+            if (state.corruption_remains or 0) > DOT_REFRESH_WINDOW then return false end
+            return NS.spell_ready ~= nil and NS.spell_ready(ACTION.Corruption, context.target) or false
+        end,
+        execute = function(context)
+            local ok = NS.try_cast(ACTION.Corruption, context.target, "[AFFL] Corruption (moving)")
+            if ok and aff_state.spell_damage then aff_state.snapshot_corruption_dmg = aff_state.spell_damage end
+            return ok
+        end,
+    },
+
+    -- ------------------------------------------------------------------------
+    -- Unstable Affliction (primary DoT — dispel protection, 1.5s cast)
     -- ------------------------------------------------------------------------
     {
         name = "SiphonLife",
         matches = profiled_matches("SiphonLife", function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if broken_api_dot_throttled(30911) then return false end
             if (state.siphon_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Snapshot-aware: hold refresh if current spell damage is not an upgrade over snapshotted
             local ratio = state.has_bloodlust and BLOODLUST_LOWER_RATIO or SPELL_DMG_UPGRADE_RATIO
@@ -969,13 +915,12 @@ local strategies = {
     },
 
     -- ------------------------------------------------------------------------
-    -- 5. Immolate (wowsims priority #5: after Siphon Life, before curses)
+    -- Immolate (wowsims priority #5: after Siphon Life, before curses)
     -- ------------------------------------------------------------------------
     {
         name = "ImmolateDoT",
         matches = function(context, state)
             if not context.has_valid_enemy_target then return false end
-            if broken_api_dot_throttled(27215) then return false end
             if (state.immolate_remains or 0) > DOT_REFRESH_WINDOW then return false end
             -- Skip if target TTD is very short
             if context.ttd_known and context.ttd < 5 then return false end
@@ -1295,14 +1240,12 @@ local strategies = {
         max_mana = 65,
         matches = function(context, state)
             if context.is_casting or context.is_channeling then return false end
-            if (NS.time_now() - _last_life_tap) < LIFE_TAP_MIN_INTERVAL then return false end
             local threshold = math.min(spec_kit.setting_number(context, "aff_life_tap_mana", 30), 65)
             if (state.mana_pct or 100) > threshold then return false end
             if (state.hp_pct or 100) < LIFE_TAP_SAFETY_HP then return false end
             return NS.spell_ready ~= nil and NS.spell_ready(ACTION.LifeTap, NS.PLAYER_UNIT, { skip_range = true }) or false
         end,
         execute = function()
-            _last_life_tap = NS.time_now()
             return NS.try_cast(ACTION.LifeTap, NS.PLAYER_UNIT, "[AFFL] Life Tap")
         end,
     },
@@ -1476,18 +1419,7 @@ local strategies = {
     -- ------------------------------------------------------------------------
     -- 24. Shadow Ward (shadow absorb)
     -- ------------------------------------------------------------------------
-    {
-        name = "ShadowWard",
-        matches = function(context)
-            local group_aware = spec_kit.setting_bool(context, "warlock_group_aware_utility", true)
-            if not (context.is_pvp or (group_aware and context.is_group)) then return false end
-            if not context.enemy_shadow_caster then return false end
-            return NS.spell_ready ~= nil and NS.spell_ready(LOCAL_SPELLS.ShadowWard, NS.PLAYER_UNIT, { skip_range = true }) or false
-        end,
-        execute = function()
-            return NS.try_cast(LOCAL_SPELLS.ShadowWard, NS.PLAYER_UNIT, "[AFFL PvP] Shadow Ward")
-        end,
-    },
+    shadow_ward_helper.make_strategy("ShadowWard", LOCAL_SPELLS.ShadowWard, { label = "[AFFL PvP] Shadow Ward", use_group_aware = true }),
 
     -- ------------------------------------------------------------------------
     -- 25. Soulstone (pre-combat self-buff)

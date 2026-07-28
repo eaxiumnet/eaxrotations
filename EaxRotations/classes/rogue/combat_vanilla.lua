@@ -203,7 +203,6 @@ end
 -- Match functions
 -- ============================================================================
 local function stealth_matches(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Stealth, 3.0) then return false end
     if s.in_combat then return false end
     if s.has_stealth then return false end
     if not s.stealth_ready then return false end
@@ -232,7 +231,6 @@ local function blade_flurry_wrapper(context, s)
 end
 
 local function slice_and_dice_wrapper(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.SliceAndDice, 3.0) then return false end
     if not s.slice_and_dice_ready then return false end
     -- Research: maintain 100% uptime; refresh when <3s remains
     if s.has_snd and not s.snd_needs_refresh then return false end
@@ -241,7 +239,6 @@ local function slice_and_dice_wrapper(context, s)
 end
 
 local function rupture_wrapper(context, s)
-    if NS.broken_api_throttled and NS.broken_api_throttled(SPELLS.Rupture, 2.0) then return false end
     if not s.rupture_ready then return false end
     if s.energy_pool_finisher then return false end
     -- Research: only Rupture when target lives > ttd floor (avoid wasted DoT ticks)

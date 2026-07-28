@@ -240,13 +240,10 @@ local function build_state(context)
     resto_state.poison_target = nil
     resto_state.tranquility_count = 0
     resto_state.in_caster = not context.stance or context.stance == STANCE_CASTER
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(17116, 3.0) or false
-    if not skip_aura then
-        resto_state.has_natures_swiftness = NS.has_player_buff(NATURES_SWIFTNESS_BUFF)
-        resto_state.has_clearcasting = NS.has_player_buff(CLEARCASTING_BUFF)
-        resto_state.moonfire_remains = context.target and NS.debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
-        resto_state.insect_swarm_remains = context.target and NS.debuff_remains(context.target, INSECT_SWARM_DEBUFF) or 0
-    end
+    resto_state.has_natures_swiftness = NS.has_player_buff(NATURES_SWIFTNESS_BUFF)
+    resto_state.has_clearcasting = NS.has_player_buff(CLEARCASTING_BUFF)
+    resto_state.moonfire_remains = context.target and NS.debuff_remains(context.target, MOONFIRE_DEBUFF) or 0
+    resto_state.insect_swarm_remains = context.target and NS.debuff_remains(context.target, INSECT_SWARM_DEBUFF) or 0
     resto_state.mana_pct = context.mana_pct or context.player_mana_pct or 100
     local mana_conserve_pct = (settings.resto_mana_conserve_pct ~= nil and settings.resto_mana_conserve_pct) or MANA_CONSERVE_PCT
     local mana_emergency_pct = (settings.resto_mana_emergency_pct ~= nil and settings.resto_mana_emergency_pct) or MANA_EMERGENCY_PCT

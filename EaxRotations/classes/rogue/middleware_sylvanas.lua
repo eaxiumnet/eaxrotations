@@ -15,6 +15,7 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local _imbue_ok, WeaponImbue = pcall(require, "shared/weapon_imbue_sylvanas")
 if not _imbue_ok or type(WeaponImbue) ~= "table" then WeaponImbue = nil end
 local SPELLS = NS.RogueSpells or {}
+local scan_cache = require("shared/middleware_scan_cache_sylvanas")
 local CCBreakDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
 local CCGateDB = CCBreakDB  -- Same module for CC break + CC gate
 
@@ -23,7 +24,6 @@ local EVASION_IDS = { 26669, 5277 }      -- Evasion
 local CLOAK_IDS = { 31224 }               -- Cloak of Shadows
 local VANISH_IDS = { 26889, 1857, 1856 } -- Vanish
 local THISTLE_TEA_ID = 7676              -- Thistle Tea (item-based energy restore)
-local _last_rogue_cc_scan = 0
 local _last_poison_warn = 0
 
 -- Check if unit is melee attacker
@@ -125,31 +125,30 @@ local strategies = {
             if not context.in_combat then return false end
             local me = context.me or NS.GetPlayer()
             if not me then return false end
-            -- Throttle: expensive enemy iteration
-            local now = NS.time_now and NS.time_now() or 0
-            if now - _last_rogue_cc_scan < 0.3 then return false end
-            _last_rogue_cc_scan = now
             -- Preemptive scan: enemy casting CC at us → Cloak (magic immunity) or Vanish (escape)
-            local cloak_id = get_known_spell_id(CLOAK_IDS)
-            local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
-            for _, enemy in ipairs(enemies) do
-                if enemy then
-                    local is_casting_cc = CCBreakDB.is_casting_preemptive_cc(enemy)
-                    if is_casting_cc then
+            local preemptive_enemy = scan_cache.memoize(context, "rogue_preemptive_cc", function()
+                local enemies = NS.GetEnemiesInRange and NS.GetEnemiesInRange(30) or {}
+                for _, enemy in ipairs(enemies) do
+                    if enemy and CCBreakDB.is_casting_preemptive_cc(enemy) then
                         local ok, etarget = pcall(function() return enemy:get_target() end)
                         if ok and etarget and NS.same_unit and NS.same_unit(etarget, me) then
-                            if cloak_id and NS.spell_ready and NS.spell_ready(cloak_id) then
-                                return true
-                            end
-                            -- Vanish: escape everything (emergency option)
-                            local vanish_id = get_known_spell_id(VANISH_IDS)
-                            if vanish_id and NS.spell_ready and NS.spell_ready(vanish_id) then
-                                return true
-                            end
-                            break
+                            return enemy
                         end
                     end
                 end
+                return false
+            end)
+            if preemptive_enemy then
+                local cloak_id = get_known_spell_id(CLOAK_IDS)
+                if cloak_id and NS.spell_ready and NS.spell_ready(cloak_id) then
+                    return true
+                end
+                -- Vanish: escape everything (emergency option)
+                local vanish_id = get_known_spell_id(VANISH_IDS)
+                if vanish_id and NS.spell_ready and NS.spell_ready(vanish_id) then
+                    return true
+                end
+                return false
             end
             -- Fallback: player is already under breakable CC — Cloak to dispel, Vanish to escape
             local has_cc = CCBreakDB.is_breakable_cc_active(me, NS)

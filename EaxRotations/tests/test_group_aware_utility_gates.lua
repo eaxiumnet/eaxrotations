@@ -180,7 +180,7 @@ assert_false(shadow_ward.matches(warlock_ctx(false, { enemy_shadow_caster = true
 assert_true(cc_fear.matches(warlock_ctx(true, { target = {} }), {}), "CC_Fear should match with toggle on")
 assert_true(cc_howl.matches(warlock_ctx(true, { melee_on_you = true }), {}), "CC_HowlOfTerror should match with toggle on")
 assert_true(cc_tongues.matches(warlock_ctx(true, { target = {}, enemy_caster = true }), {}), "PvP_CurseTongues should match with toggle on")
-assert_true(shadow_ward.matches(warlock_ctx(true, { enemy_shadow_caster = true }), {}), "ShadowWard should match with toggle on")
+assert_true(shadow_ward.matches(warlock_ctx(true, { in_combat = true, hp = 50, enemy_shadow_caster = true }), { shadow_ward_ready = true }), "ShadowWard should match with toggle on")
 
 -- PvP bypasses the toggle entirely
 assert_true(cc_fear.matches(warlock_ctx(false, { is_pvp = true, target = {} }), {}), "CC_Fear should match in PvP even with toggle off")

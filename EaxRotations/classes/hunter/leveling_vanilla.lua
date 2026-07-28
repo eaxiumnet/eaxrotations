@@ -17,7 +17,6 @@ local HUNTERS_MARK_IDS = { 14325, 14324, 14323, 1130 }
 
 local context_allowed = leveling.create_context_guard()
 local leveling_state = {}
-local _last_aspect_hawk_cast = 0  -- Throttle: WoW API buff detection delay
 
 local function safe_buff_up(unit, ids)
     if not unit or not NS.buff_up then return false end
@@ -82,8 +81,6 @@ local function aspect_hawk_matches(context, state)
     if state.in_combat then return false end
     if state.has_aspect_hawk then return false end
     if not state.aspect_hawk_ready then return false end
-    -- Throttle: WoW API buff detection lags 1-2 frames — prevent thrashing
-    if (NS.time_now() - _last_aspect_hawk_cast) < 3 then return false end
     return true
 end
 
@@ -247,9 +244,7 @@ end
 local strategies = {
     { name = "AspectHawk", matches = aspect_hawk_matches,
       execute = function()
-          local result = NS.try_cast and NS.try_cast(SPELLS.AspectOfTheHawk, NS.PLAYER_UNIT, "[LEVELING] Aspect of the Hawk") or false
-          if result then _last_aspect_hawk_cast = NS.time_now() end
-          return result
+          return NS.try_cast and NS.try_cast(SPELLS.AspectOfTheHawk, NS.PLAYER_UNIT, "[LEVELING] Aspect of the Hawk") or false
       end },
 
     { name = "AspectCheetah", matches = aspect_cheetah_matches,
