@@ -9,6 +9,7 @@ if not NS then return nil end
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.RogueSpells or {}
 local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 -- ============================================================================
 -- Buff & Debuff ID tables
@@ -38,6 +39,16 @@ local HEALING_ITEM_IDS = { 22829, 22793, 13447, 22105, 22104, 22103, 5512, 5511,
 -- ============================================================================
 -- State builder (pre-allocated)
 -- ============================================================================
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local ASSN_VANILLA_SCHEMA = {
+    stealth_active = false,  slice_dice_active = false,  snd_remains = 0,
+    snd_needs_refresh = false,  rupture_remains = 0,  garrote_remains = 0,
+    dp_stacks = 0,  dp_remains = 0,  target_poisoned = false,
+    combo = 0,  energy = 0,  energy_low = false,  energy_pool_finisher = false,
+    hp_pct = 100,  find_weakness_active = false,
+    has_cold_blood = false,  healing_item_id = nil,
+}
+
 local assassin_state = {
     stealth_active = false,
     slice_dice_active = false,
@@ -105,7 +116,7 @@ local function build_state(context)
             break
         end
     end
-    return assassin_state
+    return spec_kit.safe_state(assassin_state, ASSN_VANILLA_SCHEMA)
 end
 
 local function assassination_leveling_builder_matches(context, state)

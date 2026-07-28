@@ -58,6 +58,27 @@ end
 -- State builder
 -- ============================================================================
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults for rogue leveling.
+local LEVELING_VANILLA_SCHEMA = {
+    hp = 100,  energy = 100,  combo_points = 0,  max_combo_points = 5,
+    enemies = 0,  in_combat = false,  is_pvp = false,  in_melee_range = false,
+    is_moving = false,  target = nil,
+    use_cooldowns = true,  use_blade_flurry = true,
+    blade_flurry_min_enemies = 3,  vanish_hp = 15,
+    use_interrupt = true,  use_expose_armor = false,
+    has_slice_and_dice = false,  stealthed = false,
+    sinister_strike_ready = false,  eviscerate_ready = false,
+    slice_and_dice_ready = false,  rupture_ready = false,
+    garrote_ready = false,  ambush_ready = false,
+    kick_ready = false,  gouge_ready = false,
+    evasion_ready = false,  sprint_ready = false,
+    blade_flurry_ready = false,  adrenaline_rush_ready = false,
+    cold_blood_ready = false,  vanish_ready = false,
+    stealth_ready = false,  kidney_shot_ready = false,
+    expose_armor_ready = false,  shiv_ready = false,
+    thistle_tea_ready = false,  sap_ready = false,  blind_ready = false,
+}
+
 function rogue_leveling.build_state(context)
     if not context then return nil end
 
@@ -103,7 +124,7 @@ function rogue_leveling.build_state(context)
     state.blade_flurry_min_enemies = spec_kit.setting_number(context, "leveling_blade_flurry_enemies", 3)
     state.vanish_hp = spec_kit.setting_number(context, "leveling_vanish_hp", 15)
 
-    return state
+    return spec_kit.safe_state(state, LEVELING_VANILLA_SCHEMA)
 end
 
 -- ============================================================================

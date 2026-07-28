@@ -108,6 +108,28 @@ end
 -- ============================================================================
 -- State builder
 -- ============================================================================
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local COMBAT_VANILLA_SCHEMA = {
+    has_stealth = false,  has_snd = false,  has_blade_flurry = false,
+    has_adrenaline_rush = false,
+    snd_remains = 0,  rupture_remains = 0,
+    combo_points = 0,  energy = 100,  hp_pct = 100,
+    in_combat = false,  enemy_count = 1,  target_count = 1,
+    target_casting = false,
+    energy_low = false,  energy_pool_finisher = false,
+    heroism_active = false,  threat_pct = 0,
+    snd_needs_refresh = false,  expose_assigned = false,
+    stealth_ready = false,  adrenaline_rush_ready = false,
+    blade_flurry_ready = false,  slice_and_dice_ready = false,
+    rupture_ready = false,  eviscerate_ready = false,
+    sinister_strike_ready = false,  kick_ready = false,
+    gouge_ready = false,  sprint_ready = false,
+    vanish_ready = false,  feint_ready = false,
+    hemorrhage_ready = false,  backstab_ready = false,
+    ghostly_strike_ready = false,  kidney_shot_ready = false,
+    expose_armor_ready = false,
+}
+
 local combat_state = {
     has_stealth = false,
     has_snd = false,
@@ -192,7 +214,7 @@ local function build_state(context)
     combat_state.snd_needs_refresh = combat_state.has_snd and combat_state.snd_remains <= SND_REFRESH_WINDOW
     combat_state.expose_assigned = context.settings and context.settings.combat_expose_assigned or false
 
-    return combat_state
+    return spec_kit.safe_state(combat_state, COMBAT_VANILLA_SCHEMA)
 end
 
 local function cooldowns_enabled(context)

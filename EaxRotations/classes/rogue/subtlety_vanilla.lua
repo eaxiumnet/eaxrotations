@@ -7,6 +7,7 @@
 local NS = _G.EaxRotations
 if not NS then return nil end
 
+local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local BASE_SPELLS = NS.RogueSpells or {}
 
@@ -75,6 +76,19 @@ local ENERGY_LOW_BUILDER = 40
 local ENERGY_LOW_FINISHER = 25
 local RUPTURE_TTD_FLOOR = 12
 local FEINT_THREAT_DEFAULT = 90
+
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local SUB_VANILLA_SCHEMA = {
+    stealth_up = false,  slice_remains = 0,  rupture_remains = 0,
+    hemo_remains = 0,  expose_remains = 0,  garrote_remains = 0,
+    cheap_shot_remains = 0,  kidney_remains = 0,
+    shadowstep_buff = false,  master_of_subtlety = false,
+    combo = 0,  energy = 0,  energy_low = false,  energy_pool_finisher = false,
+    hp = 100,  target_hp = 100,  target_distance = 40,  target_count = 1,
+    is_behind = false,  is_caster_target = false,
+    control_active = false,  threat_pct = 0,
+    vanish_cd = 0,  sprint_cd = 0,  evasion_cd = 0,
+}
 
 local subtlety_state = {
     stealth_up = false,
@@ -152,7 +166,7 @@ local function build_state(context)
     subtlety_state.vanish_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Vanish) or 0
     subtlety_state.sprint_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Sprint) or 0
     subtlety_state.evasion_cd = NS.get_spell_cd and NS.get_spell_cd(SPELLS.Evasion) or 0
-    return subtlety_state
+    return spec_kit.safe_state(subtlety_state, SUB_VANILLA_SCHEMA)
 end
 
 local function has_enemy(context)
