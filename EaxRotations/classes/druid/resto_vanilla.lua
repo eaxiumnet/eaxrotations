@@ -339,6 +339,8 @@ local strategies = {
 }
 
 local module = { strategies = strategies, build_state = build_state }
-NS.rotation_registry:register("resto", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("resto", strategies, { get_state = build_state })
+end
 -- Druid resto_vanilla rotation registered (Classic Vanilla)
 return module

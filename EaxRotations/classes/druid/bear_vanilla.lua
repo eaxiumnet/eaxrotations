@@ -654,6 +654,8 @@ for i = 1, #ACTIONS do
     }
 end
 
-NS.rotation_registry:register("bear", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("bear", strategies, { get_state = build_state })
+end
 -- Druid bear_vanilla rotation registered (Classic Vanilla)
 return strategies

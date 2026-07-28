@@ -352,6 +352,8 @@ local _strategies = {
     },
 }
 
-NS.rotation_registry:register("balance", _strategies, { get_state = _build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("balance", _strategies, { get_state = _build_state })
+end
 return { strategies = _strategies, build_state = _build_state }
 

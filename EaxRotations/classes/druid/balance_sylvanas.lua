@@ -398,7 +398,7 @@ local strategies = {
         name="PreHurricaneBarkskin",
         matches=function(ctx, s)
             local min_targets = (ctx.settings and ctx.settings.balance_hurricane_targets) or 3
-            if not (NS.aoe_target_meets and NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, ctx.target, ctx)) then return false end
+            if not (NS.aoe_target_meets and NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, ctx.target, ctx, s)) then return false end
             if ctx.is_moving then return false end
             if (s.mana_pct or 100) < 35 then return false end
             if s.barkskin_active then return false end
@@ -415,7 +415,7 @@ local strategies = {
         name="HurricaneAoE",
         matches=function(ctx, s)
             local min_targets = (ctx.settings and ctx.settings.balance_hurricane_targets) or 3
-            if not (NS.aoe_target_meets and NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, ctx.target, ctx)) then return false end
+            if not (NS.aoe_target_meets and NS.aoe_target_meets(min_targets, (NS.AOE_RADIUS and NS.AOE_RADIUS.GROUND_8) or 8, ctx.target, ctx, s)) then return false end
             if ctx.is_moving then return false end
             if (s.mana_pct or 100) < 35 then return false end
             if not SPELLS.Hurricane then return false end
