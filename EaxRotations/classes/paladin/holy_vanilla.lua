@@ -92,6 +92,32 @@ local LIGHT_HEAL_DEFICIT = 900
 local MEDIUM_HEAL_DEFICIT = 1900
 local LARGE_HEAL_DEFICIT = 3200
 
+-- ============================================================================
+-- Schema (Pattern 14 nil-guard defaults via spec_kit.safe_state)
+-- ============================================================================
+local HOLY_VANILLA_SCHEMA = {
+    -- Null-object fields (targets, spells, labels — default nil is correct)
+    entries = nil,  count = 0,  lowest = nil,  tank = nil,
+    cleanse_target = nil,  purify_target = nil,  mana_target = nil,
+    freedom_target = nil,  protection_target = nil,  sacrifice_target = nil,
+    pvp_stun_target = nil,  aura_spell = nil,  aura_label = nil,
+    blessing_target = nil,  blessing_spell = nil,  blessing_label = nil,
+    heal_target = nil,  heal_spell = nil,  heal_label = nil,  heal_priority = 0,
+    holy_light_spell = nil,  holy_light_label = nil,
+    friendly_target = nil,  friendly_target_ready = false,
+    -- Resources (Pattern 14: assume full → skip defensives)
+    mana_pct = 100,  hp_pct = 100,  target_hp_pct = 100,
+    emergency_count = 0,  heavy_healing = false,  use_group_blessings = false,
+    in_pvp = false,  moving = false,
+    -- Buff/debuff state
+    has_divine_favor = false,  has_forbearance = false,
+    has_seal_wisdom = false,  has_seal_righteousness = false,
+    has_concentration_aura = false,  has_devotion_aura = false,
+    has_fire_aura = false,  has_frost_aura = false,  has_shadow_aura = false,
+    has_lights_grace = false,
+    target_has_jol = false,  target_has_jow = false,
+}
+
 local state = {
     entries = nil,
     count = 0,
@@ -428,7 +454,7 @@ local function build_state(context)
     choose_aura(context, state)
     state.heal_target = state.lowest or state.tank
     if can_help(state.heal_target) then choose_smart_heal(context, state, state.heal_target) end
-    return state
+    return spec_kit.safe_state(state, HOLY_VANILLA_SCHEMA)
 end
 
 local function has_valid_enemy(context)

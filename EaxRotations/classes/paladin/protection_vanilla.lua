@@ -58,6 +58,32 @@ local get_setting = spec_kit.setting
 -- ============================================================================
 
 -- ============================================================================
+-- Schema (Pattern 14 nil-guard defaults via spec_kit.safe_state)
+-- ============================================================================
+local PROT_VANILLA_SCHEMA = {
+    -- Resources: assume full → skip defensives (Pattern 14)
+    hp_pct = 100,  mana_pct = 100,  target_hp_pct = 100,
+    -- Counts: assume zero → skip AoE (Pattern 14)
+    enemy_count = 0,  consecration_remains = 0,  holy_shield_charges = 0,
+    now_ms = 0,
+    -- Spell readiness: assume ready (nil → fallback reads true)
+    holy_shield_ready = true,  exorcism_ready = true,  judgement_ready = true,
+    divine_shield_ready = true,  lay_on_hands_ready = true,
+    hammer_of_justice_ready = true,  hammer_of_wrath_ready = true,
+    flash_of_light_ready = true,  holy_light_ready = true,
+    holy_shock_ready = true,  holy_wrath_ready = true,
+    cleanse_ready = true,  seal_of_wisdom_ready = true,
+    -- Buff/debuff state: assume buffed → skip re-application
+    has_righteous_fury = true,  has_holy_shield = true,  has_seal = true,
+    has_devotion_aura = true,  has_divine_shield = false,
+    has_forbearance = false,  has_blessing_sanctuary = true,
+    needs_cleanse = false,  target_casting = false,  cc_nearby = false,
+    -- Misc
+    target_creature_type = nil,  ally_threatened = nil,  low_hp_ally = nil,
+    consecration_ready = true,
+}
+
+-- ============================================================================
 -- State builder
 -- ============================================================================
 local prot_state = {
@@ -193,7 +219,7 @@ local function build_state(context)
         end
     end
 
-    return prot_state
+    return spec_kit.safe_state(prot_state, PROT_VANILLA_SCHEMA)
 end
 
 local function cooldowns_enabled(context)

@@ -63,6 +63,25 @@ for i = 1, #(TBC_ITEMS.healthstones or {}) do
     HEALING_ITEMS[#HEALING_ITEMS + 1] = TBC_ITEMS.healthstones[i]
 end
 
+-- ============================================================================
+-- Schema (Pattern 14 nil-guard defaults via spec_kit.safe_state)
+-- ============================================================================
+local RET_VANILLA_SCHEMA = {
+    -- Resources: assume full → skip defensives (Pattern 14)
+    hp_pct = 100,  mana_pct = 100,  target_hp_pct = 100,  enemy_count = 1,
+    swing_remains = 99,  in_melee = true,  can_twist = false,  can_use_blood = false,
+    -- Seals
+    has_blood = false,  has_command = false,  has_command_rank1 = false,
+    has_crusader = false,  has_righteousness = false,  has_wisdom = false,
+    has_martyr = false,  has_damage_seal = false,
+    -- Blessings / debuffs
+    has_might = false,  has_kings = false,  has_forbearance = false,
+    target_has_crusader = false,  target_has_wisdom = false,
+    -- Target
+    target_casting = false,  target_casting_interruptible = false,
+    target_player = false,  target_fleeing = false,
+}
+
 local TWIST_WINDOW = 0.45
 local TWIST_PREP_WINDOW = 1.20
 local MELEE_RANGE = 8
@@ -246,7 +265,7 @@ local function build_state(context)
     ret_state.secondary_target = find_secondary_enemy(context)
     ret_state.mana_item = first_ready_item(MANA_POTIONS)
     ret_state.healing_item = first_ready_item(HEALING_ITEMS)
-    return ret_state
+    return spec_kit.safe_state(ret_state, RET_VANILLA_SCHEMA)
 end
 
 local function cast(spell, target, reason, opts)
