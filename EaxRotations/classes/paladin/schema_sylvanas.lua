@@ -101,7 +101,6 @@ return {
             {
                 header = "Rotation & Seals",
                 settings = {
-                    { key = "prot_post_swing_judge", type = "checkbox", label = "Post-Swing Judgement", default = true, tooltip = "Queue Judgement immediately after melee swing to avoid delaying auto-attacks" },
                     { key = "prot_holy_shield", type = "checkbox", label = "Holy Shield", default = true, tooltip = "Maintain Holy Shield for uncrushable and damage" },
                     { key = "prot_holy_shield_charges", type = "slider", label = "Holy Shield Refresh at Charges", min = 1, max = 8, default = 2, tooltip = "Refresh Holy Shield when charges drop to this level" },
                     { key = "prot_consecration", type = "checkbox", label = "Consecration", default = true, tooltip = "Use Consecration for AoE threat" },

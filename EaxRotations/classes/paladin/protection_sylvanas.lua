@@ -698,14 +698,6 @@ local function build_state(context)
 end
 
 
-local function post_swing_judge_gate(context, state)
-    if not spec_kit.setting_bool(context, "prot_post_swing_judge", true) then return true end
-    local swing_remains = state.swing_remains or 99
-    if swing_remains < 0.3 then return false end
-    if swing_remains > 1.5 then return true end
-    return true
-end
-
 local function find_ally(context, predicate)
 
  local members = context.party_members or context.group_members
