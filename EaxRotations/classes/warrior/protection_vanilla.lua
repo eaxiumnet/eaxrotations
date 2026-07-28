@@ -97,13 +97,55 @@ local prot_state = {
     sunder_ready = false,
 }
 
+-- Schema for safe_state: mirrors prot_state defaults. Fields NOT listed here
+-- use spec_kit.SAFE_STATE_DEFAULTS (rage→0, hp→100, enemy_count→0, etc.).
+local PROT_VANILLA_SCHEMA = {
+    sunder_stacks = 0,
+    sunder_remains = 0,
+    demo_remains = 0,
+    tclap_remains = 0,
+    hp = 100,
+    rage = 0,
+    stance = 2,
+    enemy_count = 1,
+    is_pvp = false,
+    in_combat = false,
+    target_hp = 100,
+    target_is_casting = false,
+    target_casting_interruptible = false,
+    has_battle_shout = false,
+    has_last_stand = false,
+    has_shield_wall = false,
+    revenge_ready = false,
+    shield_slam_ready = false,
+    shield_block_ready = false,
+    demo_ready = false,
+    tclap_ready = false,
+    hs_ready = false,
+    execute_ready = false,
+    pummel_ready = false,
+    taunt_ready = false,
+    mocking_ready = false,
+    challenging_ready = false,
+    disarm_ready = false,
+    intercept_ready = false,
+    hamstring_ready = false,
+    berserker_rage_ready = false,
+    battle_shout_ready = false,
+    shield_bash_ready = false,
+    bloodrage_ready = false,
+    rend_ready = false,
+    intimidating_shout_ready = false,
+    sunder_ready = false,
+}
+
 local setting = spec_kit.setting
 
 local _last_build_state_time = -1
 local function build_state(context)
     local state = prot_state
     local now = context.now
-    if now and now == _last_build_state_time then return state end
+    if now and now == _last_build_state_time then return spec_kit.safe_state(state, PROT_VANILLA_SCHEMA) end
     now = now or (NS.time_now and NS.time_now() or 0)
     if context.now then _last_build_state_time = now end
     state.now = now
@@ -156,7 +198,7 @@ local function build_state(context)
     prot_state.intimidating_shout_ready = me and NS.spell_ready(SPELLS.IntimidatingShout, me, { skip_range = true, expected_cooldown = INTIMIDATING_SHOUT_CD }) or false
     prot_state.sunder_ready = target and NS.spell_ready(SPELLS.SunderArmor, target) or false
 
-    return prot_state
+    return spec_kit.safe_state(prot_state, PROT_VANILLA_SCHEMA)
 end
 
 local function is_defensive_stance(stance)

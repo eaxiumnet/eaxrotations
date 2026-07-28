@@ -145,6 +145,61 @@ local arms_state = {
     healthstone_id = nil,
 }
 
+-- Schema for safe_state: mirrors arms_state defaults. Fields NOT listed here
+-- use spec_kit.SAFE_STATE_DEFAULTS (rage→0, hp→100, enemy_count→0, etc.).
+local ARMS_VANILLA_SCHEMA = {
+    stance = STANCE.BATTLE,
+    enemy_count = 1,
+    is_pvp = false,
+    in_combat = false,
+    is_moving = false,
+    target_is_player = false,
+    target_is_pet = false,
+    target_is_casting = false,
+    target_casting_interruptible = false,
+    target_is_melee = false,
+    has_battle_shout = false,
+    has_berserker_rage = false,
+    has_sweeping_strikes = false,
+    ms_remains = 0,
+    rend_remains = 0,
+    hamstring_remains = 0,
+    demo_remains = 0,
+    tclap_remains = 0,
+    sunder_stacks = 0,
+    ms_cd = 99,
+    ww_cd = 99,
+    ss_cd = 99,
+    overpower_ready = false,
+    execute_ready = false,
+    ms_ready = false,
+    ww_ready = false,
+    slam_ready = false,
+    sweeping_ready = false,
+    heroic_ready = false,
+    cleave_ready = false,
+    pummel_ready = false,
+    intercept_ready = false,
+    charge_ready = false,
+    hamstring_ready = false,
+    piercing_ready = false,
+    disarm_ready = false,
+    intimidating_ready = false,
+    thunder_ready = false,
+    demo_ready = false,
+    bloodrage_ready = false,
+    death_wish_ready = false,
+    recklessness_ready = false,
+    retaliation_ready = false,
+    shield_wall_ready = false,
+    execute_phase = false,
+    target_in_combat = false,
+    mh_until = 999,
+    mh_progress = 0,
+    healthstone_ready = false,
+    healthstone_id = nil,
+}
+
 local setting = spec_kit.setting
 
 local function player_target(context, action_row)
@@ -228,7 +283,7 @@ local _last_build_state_time = -1
 local function build_state(context)
     local state = arms_state
     local now = context.now
-    if now and now == _last_build_state_time then return state end
+    if now and now == _last_build_state_time then return spec_kit.safe_state(state, ARMS_VANILLA_SCHEMA) end
     now = now or (NS.time_now and NS.time_now() or 0)
     if context.now then _last_build_state_time = now end
     state.now = now
@@ -306,7 +361,7 @@ local function build_state(context)
     arms_state.mh_until = me and NS.swing_time_until(me) or 999
     arms_state.mh_progress = me and NS.swing_progress(me) or 0
 
-    return arms_state
+    return spec_kit.safe_state(arms_state, ARMS_VANILLA_SCHEMA)
 end
 
 local function battle_stance_action()

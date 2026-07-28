@@ -13,6 +13,7 @@ do
     if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
 end
 
+local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.WarriorSpells or {}
 local CONSTANTS = NS.WarriorConstants or {}
@@ -112,6 +113,46 @@ local fury_state = {
     target_count = 1,
 }
 
+-- Schema for safe_state: mirrors fury_state defaults. Fields NOT listed here
+-- use spec_kit.SAFE_STATE_DEFAULTS (rage→0, hp→100, enemy_count→0, etc.).
+local FURY_VANILLA_SCHEMA = {
+    rage = 0,
+    hp = 100,
+    target_hp = 100,
+    in_melee_range = false,
+    has_valid_enemy = false,
+    bw_ready = false,
+    berserker_rage_ready = false,
+    bloodrage_ready = false,
+    charge_ready = false,
+    death_wish_ready = false,
+    demo_ready = false,
+    execute_ready = false,
+    hamstring_ready = false,
+    heroic_strike_ready = false,
+    intercept_ready = false,
+    overpower_ready = false,
+    pummel_ready = false,
+    recklessness_ready = false,
+    rend_ready = false,
+    slam_ready = false,
+    sunder_ready = false,
+    sweeping_strikes_ready = false,
+    tclap_ready = false,
+    whirlwind_ready = false,
+    has_battle_shout = false,
+    has_demo_shout = false,
+    has_rend = false,
+    has_sunder = false,
+    has_tclap = false,
+    has_hamstring = false,
+    overpower_window = false,
+    target_ttd = 15,
+    target_count = 1,
+    bloodthirst_ready = false,
+    cleave_ready = false,
+}
+
 local function spell_ready(spell, target, opts)
     if NS.spell_ready then return NS.spell_ready(spell, target, opts) or false end
     return false
@@ -171,7 +212,7 @@ local function build_state(context)
     fury_state.tclap_ready = target and spell_ready(ACTION.ThunderClap, target)
     fury_state.whirlwind_ready = target and spell_ready(ACTION.Whirlwind, target)
     fury_state.cleave_ready = target and spell_ready(ACTION.Cleave, target)
-    return fury_state
+    return spec_kit.safe_state(fury_state, FURY_VANILLA_SCHEMA)
 end
 
 -- Classic Fury Strategy table

@@ -13,6 +13,7 @@ do
     if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
 end
 
+local spec_kit = require("shared/spec_kit_sylvanas")
 local potion_helper = require("shared/potion_helper_sylvanas")
 
 local load_player = NS.GetPlayer and NS.GetPlayer()
@@ -128,8 +129,21 @@ local kebab_state = {
     ww_cd = 0,
 }
 
+-- Schema for safe_state: mirrors kebab_state defaults. Fields NOT listed here
+-- use spec_kit.SAFE_STATE_DEFAULTS (rage→0, hp→100, enemy_count→0, etc.).
+local KEBAB_VANILLA_SCHEMA = {
+    general_use = false,
+    target_below_20 = false,
+    sunder_stacks = 0,
+    sunder_duration = 0,
+    thunder_clap_duration = 0,
+    demo_shout_duration = 0,
+    ms_cd = 0,
+    ww_cd = 0,
+}
+
 local function build_kebab_state(context)
-    if context._kebab_valid then return kebab_state end
+    if context._kebab_valid then return spec_kit.safe_state(kebab_state, KEBAB_VANILLA_SCHEMA) end
     context._kebab_valid = true
     context.settings = context.settings or EMPTY_SETTINGS
 
@@ -160,7 +174,7 @@ local function build_kebab_state(context)
     kebab_state.ms_cd = get_cooldown(SPELLS.MortalStrike)
     kebab_state.ww_cd = get_cooldown(SPELLS.Whirlwind)
 
-    return kebab_state
+    return spec_kit.safe_state(kebab_state, KEBAB_VANILLA_SCHEMA)
 end
 
 local function general_use_kebab(context, state)

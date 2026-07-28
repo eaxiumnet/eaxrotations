@@ -66,6 +66,45 @@ end
 -- State builder
 -- ============================================================================
 
+-- Schema for safe_state: Pattern 14 defaults for all numeric state fields.
+-- Fields NOT listed here use spec_kit.SAFE_STATE_DEFAULTS (rage→0, hp→100, etc.).
+local LEVELING_VANILLA_SCHEMA = {
+    rage = 0,
+    charge_ready = false,
+    rend_ready = false,
+    heroic_strike_ready = false,
+    overpower_ready = false,
+    thunder_clap_ready = false,
+    demoralizing_shout_ready = false,
+    execute_ready = false,
+    shield_bash_ready = false,
+    battle_shout_ready = false,
+    bloodrage_ready = false,
+    cleave_ready = false,
+    whirlwind_ready = false,
+    sweeping_strikes_ready = false,
+    mortal_strike_ready = false,
+    sunder_armor_ready = false,
+    hamstring_ready = false,
+    slam_ready = false,
+    disarm_ready = false,
+    shield_wall_ready = false,
+    intimidating_shout_ready = false,
+    berserker_rage_ready = false,
+    pummel_ready = false,
+    bloodthirst_ready = false,
+    shield_slam_ready = false,
+    is_pvp = false,
+    in_melee_range = false,
+    disarm_class_ok = false,
+    disarm_burst_name = nil,
+    has_battle_shout = false,
+    use_execute = true,
+    use_rend = true,
+    use_thunder_clap = true,
+    exec_hp = 20,
+}
+
 function warrior_leveling.build_state(context)
     if not context then return nil end
 
@@ -131,7 +170,7 @@ function warrior_leveling.build_state(context)
     state.use_thunder_clap = spec_kit.setting_bool(context, "leveling_use_thunder_clap", true)
     state.exec_hp = spec_kit.setting_number(context, "leveling_exec_hp", 20)
 
-    return state
+    return spec_kit.safe_state(state, LEVELING_VANILLA_SCHEMA)
 end
 
 -- ============================================================================
