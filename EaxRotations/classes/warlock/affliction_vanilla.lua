@@ -28,6 +28,7 @@ if type(__eax_ns) == "table" then __eax_ns.file_versions = __eax_versions end
 local NS = _G.EaxRotations
 if not NS then return nil end
 local pet_manager = require("shared/pet_manager_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 local SPELLS = NS.WarlockSpells or {}
@@ -134,11 +135,26 @@ local aff_state = {
     enemy_count = 1,
 }
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local AFFL_VANILLA_SCHEMA = {
+    ua_remains = 0,  corruption_remains = 0,  agony_remains = 0,
+    doom_remains = 0,  siphon_remains = 0,  immolate_remains = 0,
+    coe_remains = 0,  se_stacks = 0,  isb_stacks = 0,
+    nightfall_active = false,  mana_pct = 100,  hp_pct = 100,
+    target_hp = 100,  pet_alive = false,  pet_health = 100,
+    pet_mana = 100,  mana_potion_id = nil,  healthstone_id = nil,
+    healthstone_ready = false,  amplify_curse_ready = false,
+    has_soulstone = false,  wand_learned = false,
+    spell_damage = 0,  snapshot_ua_dmg = 0,  snapshot_corruption_dmg = 0,
+    snapshot_siphon_dmg = 0,  snapshot_immolate_dmg = 0,
+    snapshot_target = nil,  enemy_count = 1,  has_bloodlust = false,
+}
+
 local _last_build_state_time = -1
 local function build_state(context)
     -- Pattern 6: frame-keyed dedup
     local now = context.now or (NS.time_now and NS.time_now() or 0)
-    if now == _last_build_state_time then return aff_state end
+    if now == _last_build_state_time then return spec_kit.safe_state(aff_state, AFFL_VANILLA_SCHEMA) end
     if context.now then _last_build_state_time = now end
     local target = context.target
     if target then
@@ -227,7 +243,7 @@ local function build_state(context)
     end
     -- Wand (Shoot) spell readiness
     aff_state.wand_learned = NS.spell_exists and NS.spell_exists(5019) or false
-    return aff_state
+    return spec_kit.safe_state(aff_state, AFFL_VANILLA_SCHEMA)
 	end
 
 	-- ============================================================================

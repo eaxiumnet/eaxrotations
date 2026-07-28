@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local SPELLS = NS.WarlockSpells or {}
 local pet_manager = require("shared/pet_manager_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 local _data_ok, TBC = pcall(require, "shared/tbc_data_sylvanas")
@@ -129,11 +130,34 @@ local demo_state = {
     soulshatter_ready = false,
 }
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local DEMO_VANILLA_SCHEMA = {
+    has_demon_armor = false,  has_pet = false,  pet_hp_pct = 100,
+    pet_mana_pct = 100,  hp_pct = 100,  mana_pct = 100,
+    target_hp = 100,  enemy_count = 1,  in_combat = false,
+    is_pvp = false,  target_is_casting = false,
+    corruption_remains = 0,  agony_remains = 0,  doom_remains = 0,
+    siphon_remains = 0,  immolate_remains = 0,  coe_remains = 0,
+    nightfall_active = false,  spell_damage = 0,
+    snapshot_corruption_dmg = 0,  snapshot_siphon_dmg = 0,
+    snapshot_immolate_dmg = 0,  snapshot_target = nil,
+    fel_domination_ready = false,  health_funnel_ready = false,
+    mana_potion_id = nil,  healthstone_id = nil,  healthstone_ready = false,
+    has_soulstone = false,  wand_learned = false,
+    death_coil_ready = false,  corruption_ready = false,
+    agony_ready = false,  doom_ready = false,  siphon_ready = false,
+    immolate_ready = false,  shadow_bolt_ready = false,
+    life_tap_ready = false,  dark_pact_ready = false,
+    drain_soul_ready = false,  drain_life_ready = false,
+    fear_ready = false,  howl_ready = false,  shadow_ward_ready = false,
+    amplify_curse_ready = false,  soulshatter_ready = false,
+}
+
 local _last_build_state_time = -1
 local function build_state(context)
     -- Pattern 6: frame-keyed dedup
     local now = context.now or (NS.time_now and NS.time_now() or 0)
-    if now == _last_build_state_time then return demo_state end
+    if now == _last_build_state_time then return spec_kit.safe_state(demo_state, DEMO_VANILLA_SCHEMA) end
     if context.now then _last_build_state_time = now end
     local target = context.target
     local me = context.me or (NS.GetPlayer and NS.GetPlayer())
@@ -234,7 +258,7 @@ local function build_state(context)
     end
     demo_state.has_soulstone = me and NS.has_player_buff and NS.has_player_buff(SOULSTONE_BUFF_IDS) or false
 
-    return demo_state
+    return spec_kit.safe_state(demo_state, DEMO_VANILLA_SCHEMA)
 end
 
 -- ============================================================================

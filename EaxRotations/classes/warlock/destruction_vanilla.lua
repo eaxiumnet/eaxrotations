@@ -35,6 +35,7 @@ do
     if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
 end
 local potion_helper = require("shared/potion_helper_sylvanas")
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.WarlockSpells or {}
 
 -- Debuff and buff ID lists for state queries
@@ -91,11 +92,23 @@ local destro_state = {
     mana_gem_ready = false,
     spell_damage = 0,
 }
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local DESTRO_VANILLA_SCHEMA = {
+    immolate_remains = 0,  corruption_remains = 0,
+    cod_remains = 0,  coa_remains = 0,
+    has_backlash = false,  has_backdraft = false,
+    has_demon_armor = false,  has_shadow_ward = false,
+    hp = 100,  hp_pct = 100,  mana_pct = 100,
+    mana_gem_id = nil,  mana_gem_ready = false,
+    spell_damage = 0,  level = 60,
+    target_casting = false,  target_casting_interruptible = false,
+}
+
 local _last_build_state_time = -1
 local function build_state(context)
     -- Pattern 6: frame-keyed dedup
     local now = context.now or (NS.time_now and NS.time_now() or 0)
-    if now == _last_build_state_time then return destro_state end
+    if now == _last_build_state_time then return spec_kit.safe_state(destro_state, DESTRO_VANILLA_SCHEMA) end
     if context.now then _last_build_state_time = now end
     local target = context.target
     local me = NS.GetPlayer()
@@ -125,7 +138,7 @@ local function build_state(context)
         end
     end
     state.mana_gem_ready = state.mana_gem_id ~= nil
-    return state
+    return spec_kit.safe_state(state, DESTRO_VANILLA_SCHEMA)
 end
 
 local ACTIONS = {

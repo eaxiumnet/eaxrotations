@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.WarlockSpells or {}
 
 local DEMON_ARMOR_BUFF = { 11735, 11734, 11733, 1086, 706, 696, 687 }
@@ -40,6 +41,26 @@ local function safe_debuff_remains(unit, debuff_ids)
     return remains
 end
 
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local LEVELING_VANILLA_SCHEMA = {
+    in_combat = false,  mana_pct = 100,  hp = 100,  enemies = 0,
+    target = nil,  is_moving = false,  pet = nil,  pet_hp = 100,
+    use_interrupt = true,  wand_threshold = 30,  life_tap_mana = 30,
+    drain_soul_execute = 25,  use_immolate = true,
+    use_corruption = true,  use_curse_of_agony = true,
+    drain_life_hp = 60,
+    shadow_bolt_ready = false,  searing_pain_ready = false,
+    corruption_ready = false,  immolate_ready = false,
+    curse_of_agony_ready = false,  life_tap_ready = false,
+    fear_ready = false,  drain_soul_ready = false,
+    death_coil_ready = false,  health_funnel_ready = false,
+    healthstone_ready = false,  soulstone_ready = false,
+    spell_lock_ready = false,  howl_of_terror_ready = false,
+    siphon_life_ready = false,  drain_life_ready = false,
+    demon_armor_ready = false,  has_demon_armor = false,
+    wand_learned = false,
+}
+
 local leveling_state = {}
 
 local function leveling_context_allowed(context)
@@ -54,7 +75,7 @@ local function build_state(context)
     if not context then return nil end
     -- Pattern 6: frame-keyed dedup
     local now = context.now or (NS.time_now and NS.time_now() or 0)
-    if now == _last_build_state_time then return leveling_state end
+    if now == _last_build_state_time then return spec_kit.safe_state(leveling_state, LEVELING_VANILLA_SCHEMA) end
     if context.now then _last_build_state_time = now end
     local settings = context.settings or EMPTY_SETTINGS
     local me = context.me
@@ -105,7 +126,7 @@ local function build_state(context)
         leveling_state.pet_hp = 100
     end
 
-    return leveling_state
+    return spec_kit.safe_state(leveling_state, LEVELING_VANILLA_SCHEMA)
 end
 
 local function demon_armor_matches(context, state)
