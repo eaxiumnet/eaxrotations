@@ -676,7 +676,9 @@ local strategies = {
     },
 }
 
-NS.rotation_registry:register("demonology", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("demonology", strategies, { get_state = build_state })
+end
 -- [VANILLA] Warlock Demonology rotation registered (S+ tier)
 return { strategies = strategies, build_state = build_state }
 

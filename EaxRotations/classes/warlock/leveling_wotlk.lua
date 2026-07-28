@@ -168,7 +168,7 @@ local DSL_DEFS = {
             { type = "custom", fn = function(context, state)
                 if not NS.aoe_target_meets then return false end
                 local radius = (NS.AOE_RADIUS and NS.AOE_RADIUS.TARGET_15) or 15
-                return NS.aoe_target_meets(3, radius, context and context.target, context) and true or false
+                return NS.aoe_target_meets(3, radius, context and context.target, context, state) and true or false
             end },
         },
         action = { type = "cast", spell = ACTION.SeedOfCorruption, target = "target" },
