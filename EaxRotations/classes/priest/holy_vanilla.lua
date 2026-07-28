@@ -795,7 +795,8 @@ local strategies = {
     },
 }
 
-NS.rotation_registry:register("holy", strategies, {
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("holy", strategies, {
     get_state = build_holy_state,
     format_context_log = function(_, state)
         return format(
@@ -808,6 +809,7 @@ NS.rotation_registry:register("holy", strategies, {
         )
     end,
 })
+end
 
 -- Holy priest rotation registered
 return strategies

@@ -536,7 +536,9 @@ local strategies = {
     { name = "Starshards", matches = starshards_matches, execute = function(context) return NS.try_cast(SPELLS.Starshards, context.target, "[SHADOW] Starshards") end },
 }
 
-NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("shadow", strategies, { get_state = build_state })
+end
 -- Priest shadow rotation registered
 return strategies
 

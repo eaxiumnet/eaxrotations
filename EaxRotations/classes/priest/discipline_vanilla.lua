@@ -621,6 +621,8 @@ for i = 1, #idle_dps_strategies do
     strategies[#strategies + 1] = idle_dps_strategies[i]
 end
 
-NS.rotation_registry:register("discipline", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("discipline", strategies, { get_state = build_state })
+end
 -- Priest discipline rotation registered
 return strategies

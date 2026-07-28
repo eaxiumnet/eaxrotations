@@ -457,7 +457,8 @@ local strategies = {
     },
 }
 
-NS.rotation_registry:register("smite", strategies, {
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("smite", strategies, {
     get_state = build_smite_state,
     format_context_log = function(context, state)
         return format(
@@ -479,6 +480,7 @@ NS.rotation_registry:register("smite", strategies, {
         )
     end,
 })
+end
 
 -- Smite priest rotation registered (solo/leveling/PvP support)
 return strategies
