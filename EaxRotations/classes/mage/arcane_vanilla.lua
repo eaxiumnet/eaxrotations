@@ -47,6 +47,20 @@ local PHASE_EMERGENCY = "emergency"
 -- ============================================================================
 -- Phase State Machine State
 -- ============================================================================
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local ARCANE_VANILLA_SCHEMA = {
+    phase = PHASE_CONSERVE,
+    ab_stacks = 0,  ab_remains = 0,
+    has_arcane_power = false,  has_presence_of_mind = false,
+    has_ice_barrier = false,  has_mana_shield = false,
+    mana_pct = 100,  hp_pct = 100,  max_mana = 15000,
+    in_combat = false,  is_moving = false,  target_casting = false,
+    min_mtte = 12,  mtte_burn = 999,  mtte_conserve = 999,
+    mana_gem_available = false,  evocation_available = false,
+    bloodlust_active = false,  can_burn = false,  should_conserve = false,
+    has_clearcasting = false,  arcane_power_available = false,
+}
+
 local arcane_state = {
     phase = PHASE_CONSERVE,
     ab_stacks = 0,
@@ -172,7 +186,7 @@ local function build_state(context)
         s.phase = PHASE_EMERGENCY
         s.can_burn = false
         s.should_conserve = true
-        return s
+        return spec_kit.safe_state(s, ARCANE_VANILLA_SCHEMA)
     end
 
     -- Determine if we can sustain a burn phase
@@ -210,7 +224,7 @@ local function build_state(context)
         s.phase = PHASE_CONSERVE
     end
 
-    return s
+    return spec_kit.safe_state(s, ARCANE_VANILLA_SCHEMA)
 end
 
 

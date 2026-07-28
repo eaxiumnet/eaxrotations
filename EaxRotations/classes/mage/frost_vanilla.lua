@@ -14,6 +14,7 @@ do
     if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
 end
 local SPELLS = NS.MageSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 
@@ -85,6 +86,27 @@ end
 -- ============================================================================
 -- State builder
 -- ============================================================================
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local FROST_VANILLA_SCHEMA = {
+    has_ice_barrier = false,  has_mana_shield = false,
+    has_arcane_intellect = false,  has_ice_block = false,
+    has_presence_of_mind = false,  has_combustion = false,
+    mana_pct = 100,  hp_pct = 100,  enemy_count = 1,
+    target_casting = false,  target_hp_pct = 100,
+    target_not_rooted = false,  in_combat = false,
+    ice_barrier_ready = false,  ice_block_ready = false,
+    cold_snap_ready = false,  frost_nova_ready = false,
+    cone_of_cold_ready = false,  blizzard_ready = false,
+    frostbolt_ready = false,  presence_of_mind_ready = false,
+    evocation_ready = false,  mana_shield_ready = false,
+    arcane_intellect_ready = false,  fire_blast_ready = false,
+    frost_ward_ready = false,  counterspell_ready = false,
+    polymorph_ready = false,  remove_curse_ready = false,
+    scorch_ready = false,  arcane_missiles_ready = false,
+    winter_chill_stacks = 0,  frostbite_active = false,
+    mana_gem_available = false,  ice_barrier_remains = 999,
+}
+
 local frost_state = {
     has_ice_barrier = false,
     has_mana_shield = false,
@@ -179,7 +201,7 @@ local function build_state(context)
     frost_state.mana_gem_available = first_ready_mana_gem() ~= nil
     frost_state.ice_barrier_remains = me and (NS.buff_remains and NS.buff_remains(me, ICE_BARRIER_BUFF)) or 999
 
-    return frost_state
+    return spec_kit.safe_state(frost_state, FROST_VANILLA_SCHEMA)
 end
 
 -- (Action definitions removed ? all execute functions use NS.try_cast directly)

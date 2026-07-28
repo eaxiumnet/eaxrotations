@@ -8,6 +8,7 @@ local NS = _G.EaxRotations
 if not NS then return nil end
 local leveling = require("shared/leveling_sylvanas")
 if not leveling then return nil end
+local spec_kit = require("shared/spec_kit_sylvanas")
 local SPELLS = NS.MageSpells or {}
 
 -- ============================================================================
@@ -66,7 +67,30 @@ end
 -- State builder
 -- ============================================================================
 
-local function build_state(context)
+-- Schema for safe_state: Pattern 14 nil-guard defaults for mage leveling.
+local LEVELING_VANILLA_SCHEMA = {
+    hp = 100,  mana_pct = 100,  enemies = 0,
+    in_combat = false,  is_moving = false,  target = nil,
+    has_ai = false,  has_frost_armor = false,  has_ice_barrier = false,
+    has_mana_shield = false,  has_fire_ward = false,
+    wand_threshold = 30,  polymorph_hp = 40,
+    use_arcane_missiles = true,  use_scorch = true,
+    use_interrupt = true,  use_fire_blast = true,
+    use_fireball = true,  use_mana_gem = true,
+    mana_gem_threshold = 70,  mana_gem_available = false,
+    conjure_gem_ready = false,  wand_learned = false,
+    frostbolt_ready = false,  fire_blast_ready = false,
+    scorch_ready = false,  fireball_ready = false,
+    arcane_missiles_ready = false,  frost_nova_ready = false,
+    blizzard_ready = false,  polymorph_ready = false,
+    counterspell_ready = false,  evocation_ready = false,
+    ice_barrier_ready = false,  mana_shield_ready = false,
+    ai_ready = false,  remove_curse_ready = false,
+    frost_armor_ready = false,  fire_ward_ready = false,
+    cone_of_cold_ready = false,  blink_ready = false,
+}
+
+function build_state(context)
     if not context then return nil end
     local settings = context.settings or EMPTY_SETTINGS
     local me = context.me
@@ -134,7 +158,7 @@ local function build_state(context)
     local ok_wand, exists = pcall(NS.spell_exists, WAND_SPELL_ID)
     state.wand_learned = ok_wand and exists or false
 
-    return state
+    return spec_kit.safe_state(state, LEVELING_VANILLA_SCHEMA)
 end
 
 -- ============================================================================

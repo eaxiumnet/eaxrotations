@@ -14,6 +14,7 @@ do
     if _ok_aoe and AoeHV and AoeHV.install then AoeHV.install(NS) end
 end
 local SPELLS = NS.MageSpells or {}
+local spec_kit = require("shared/spec_kit_sylvanas")
 
 local potion_helper = require("shared/potion_helper_sylvanas")
 
@@ -28,6 +29,13 @@ local MANA_GEM_CONJURE = { 10054, 10053, 3552, 759 }  -- Conjure Mana Ruby..Agat
 -- ============================================================================
 -- State builder
 -- ============================================================================
+
+-- Schema for safe_state: Pattern 14 nil-guard defaults.
+local FIRE_VANILLA_SCHEMA = {
+    scorch_stacks = 0,  scorch_remains = 0,
+    combustion_ready = false,  mana_pct = 100,
+    mana_gem_available = false,  remove_curse_ready = false,
+}
 
 local fire_state = {
     scorch_stacks = 0,
@@ -67,7 +75,7 @@ local function build_state(context)
     fire_state.mana_pct = context.mana_pct or 100
     fire_state.remove_curse_ready = NS.spell_ready(SPELLS.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
     fire_state.mana_gem_available = first_ready_mana_gem() ~= nil
-    return fire_state
+    return spec_kit.safe_state(fire_state, FIRE_VANILLA_SCHEMA)
 end
 
 -- ============================================================================
