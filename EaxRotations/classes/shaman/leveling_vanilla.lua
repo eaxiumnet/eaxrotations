@@ -149,8 +149,6 @@ function shaman_leveling.build_state(context)
     state.tremor_totem_ready = spell_ready(SPELLS.TremorTotem, me, { skip_range = true })
     state.stormstrike_ready = spell_ready(SPELLS.Stormstrike, state.target)
 
-    state.tremor_totem_ready = spell_ready(SPELLS.TremorTotem, me, { skip_range = true })
-
     state.has_lightning_shield = has_buff(LIGHTNING_SHIELD_BUFF)
     local _dist = state.target and state.target.get_distance and state.target:get_distance(me)
     state.in_melee_range = _dist and _dist <= 5 or false

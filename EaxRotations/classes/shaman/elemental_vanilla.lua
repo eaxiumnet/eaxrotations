@@ -469,7 +469,9 @@ local strategies = {
       execute = function() return NS.try_cast(SPELLS.TotemicCall, NS.PLAYER_UNIT, "[ELEMENTAL] Totemic Call") end },
 }
 
-NS.rotation_registry:register("elemental", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("elemental", strategies, { get_state = build_state })
+end
 -- Shaman elemental rotation registered (deep enhanced, parity weapon/heal/totem parity)
 return strategies
 

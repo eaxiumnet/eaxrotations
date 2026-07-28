@@ -477,7 +477,9 @@ local idle_dps_strategies = {
     { name = "LightningBolt", matches = lightning_bolt_matches, execute = function(context) return NS.try_cast(SPELLS.LightningBolt, context.target, "[RESTO] LightningBolt", { expected_cooldown = 2.5 }) end },
 }
 
-NS.rotation_registry:register("restoration", healing_strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("restoration", healing_strategies, { get_state = build_state })
+end
 -- Shaman restoration rotation registered
 local restoration_module = {
     strategies = healing_strategies,

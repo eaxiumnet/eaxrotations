@@ -985,6 +985,8 @@ local strategies = {
     { name = "LightningBolt", matches = lightning_bolt_matches, execute = function(ctx) return NS.try_cast(SPELLS.LightningBolt, ctx.target, "[ENHANCEMENT] Lightning Bolt") end },
 }
 
-NS.rotation_registry:register("enhancement", strategies, { get_state = build_state })
+if NS.rotation_registry and NS.rotation_registry.register then
+    NS.rotation_registry:register("enhancement", strategies, { get_state = build_state })
+end
 -- Shaman enhancement rotation registered (parity v2.0 port)
 return strategies
