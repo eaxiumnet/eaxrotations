@@ -258,13 +258,12 @@ local strategies = {
     { name = "AimedShot", matches = aimed_shot_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.AimedShot, context.target, "[LEVELING] Aimed Shot") or false end },
     { name = "MendPet", matches = mend_pet_matches,
+      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.MendPet, context.pet, "[LEVELING] Mend Pet") or false end },
     -- Melee weave: Raptor Strike + Mongoose Bite (when target is in melee range)
     { name = "MongooseBite", matches = mongoose_bite_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.MongooseBite, context.target, "[LEVELING] Mongoose Bite") or false end },
     { name = "RaptorStrike", matches = raptor_strike_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.RaptorStrike, context.target, "[LEVELING] Raptor Strike") or false end },
-
-      execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.MendPet, context.pet, "[LEVELING] Mend Pet") or false end },
     { name = "ConcussiveShot", matches = concussive_shot_matches,
       execute = function(context) if not context then return false end return NS.try_cast and NS.try_cast(SPELLS.ConcussiveShot, context.target, "[LEVELING] Concussive Shot") or false end },
     { name = "WingClip", matches = wing_clip_matches,
