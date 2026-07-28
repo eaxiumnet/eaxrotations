@@ -328,6 +328,10 @@ local tests = {
 
  "test_cat_trick_optimizations.lua",
 
+ "test_cat_pool_for_rip.lua",
+
+ "test_cat_pool_for_builder_tick.lua",
+
  -- Pattern 15 header audit (hygiene regression)
  "test_pattern15_audit.lua",
 

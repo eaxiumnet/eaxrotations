@@ -20,6 +20,13 @@ local _snap_ok, Snapshot = pcall(require, "shared/snapshot_sylvanas")
 if not _snap_ok or type(Snapshot) ~= "table" then Snapshot = nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local leveling_helpers = require("shared/leveling_helpers_sylvanas")
+
+-- Wrapper so low-level helper failures don't crash finisher matches.
+local function is_low_level(level)
+    local ok, result = pcall(function() return leveling_helpers.is_low_level(level) end)
+    if ok then return result end
+    return false
+end
 local dsl = require("shared/strategy_dsl_sylvanas")
 
 -- Static reusable opts table to avoid per-frame allocation in hot path (Pattern 4)
@@ -389,11 +396,15 @@ local function get_combo_points(context, target)
     if type(context.cp) == "number" then return context.cp end
     -- NS helpers (pcall-guarded; some builds expose a global combo-point reader)
     if NS.combo_points then
-        local ok, cp = pcall(NS.combo_points, target)
+        local ok, cp = pcall(NS.combo_points)
+        if ok and type(cp) == "number" then return cp end
+        ok, cp = pcall(NS.combo_points, target)
         if ok and type(cp) == "number" then return cp end
     end
     if NS.get_combo_points then
-        local ok, cp = pcall(NS.get_combo_points, target)
+        local ok, cp = pcall(NS.get_combo_points)
+        if ok and type(cp) == "number" then return cp end
+        ok, cp = pcall(NS.get_combo_points, target)
         if ok and type(cp) == "number" then return cp end
     end
     -- Fallback: query the local PLAYER directly.
@@ -408,10 +419,30 @@ local function get_combo_points(context, target)
             local ok, cp = pcall(me.combo_points_current, me)
             if ok and type(cp) == "number" then return cp end
         end
+        if type(me.get_combo_points) == "function" then
+            local ok, cp = pcall(me.get_combo_points, me)
+            if ok and type(cp) == "number" then return cp end
+            ok, cp = pcall(me.get_combo_points, me, target)
+            if ok and type(cp) == "number" then return cp end
+        end
         if type(me.get_power) == "function" then
             local ok, cp = pcall(me.get_power, me, 4)
             if ok and type(cp) == "number" then return cp end
         end
+    end
+    -- Global NS helpers and target-bound combo point fallbacks for builds where
+    -- the player object does not expose the values directly.
+    if NS.get_combo_points then
+        local ok, cp = pcall(NS.get_combo_points, me, target)
+        if ok and type(cp) == "number" then return cp end
+        ok, cp = pcall(NS.get_combo_points)
+        if ok and type(cp) == "number" then return cp end
+    end
+    if NS.combo_points then
+        local ok, cp = pcall(NS.combo_points, target)
+        if ok and type(cp) == "number" then return cp end
+        ok, cp = pcall(NS.combo_points)
+        if ok and type(cp) == "number" then return cp end
     end
     return 0
 end
@@ -658,25 +689,21 @@ build_state = function(context)
     state.is_pvp = context.is_pvp == true or spec_kit.setting_bool(context, "pvp_mode", false)
     state.is_player_target = is_target_player(target, context)
     state.is_mounted = context.is_mounted or false
-    -- Broken-API guard: skip aura checks if API is unhealthy (prevents crash loops on private servers)
-    local skip_aura = NS.broken_api_throttled and NS.broken_api_throttled(22812, 3.0) or false
-    if not skip_aura then
-        state.is_stealthed = context.is_stealthed == true or NS.buff_up(me, PROWL_BUFF) or false
-        state.clearcasting = NS.buff_up(me, OMEN_OF_CLARITY_BUFF) or false
-        state.has_tigers_fury = NS.buff_up(me, TIGERS_FURY_BUFF) or false
-        state.has_dash = NS.buff_up(me, DASH_BUFF) or false
-        state.has_barkskin = NS.buff_up(me, BARKSKIN_BUFF) or false
-        state.has_track_humanoids = NS.buff_up(me, TRACK_HUMANOIDS_BUFF) or false
-        state.has_wolfshead = has_wolfshead_equipped(me) or NS.buff_up(me, WOLFSHEAD_BUFF) or spec_kit.setting_bool(context, "cat_wolfshead_helm", false)
-        state.has_bloodlust = NS.buff_up(me, BLOODLUST_BUFFS) or false
-        state.has_berserk = NS.buff_up(me, BERSERK_BUFF) or false
-        state.rip_remains = NS.debuff_remains(target, RIP_DEBUFF) or 0
-        state.rake_remains = NS.debuff_remains(target, RAKE_DEBUFF) or 0
-        state.mangle_remains = NS.debuff_remains(target, MANGLE_DEBUFF) or 0
-        state.faerie_fire_remains = NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
-        state.pounce_remains = NS.debuff_remains(target, POUNCE_DEBUFF) or 0
-        state.maim_remains = NS.debuff_remains(target, MAIM_DEBUFF) or 0
-    end
+    state.is_stealthed = context.is_stealthed == true or NS.buff_up(me, PROWL_BUFF) or false
+    state.clearcasting = NS.buff_up(me, OMEN_OF_CLARITY_BUFF) or false
+    state.has_tigers_fury = NS.buff_up(me, TIGERS_FURY_BUFF) or false
+    state.has_dash = NS.buff_up(me, DASH_BUFF) or false
+    state.has_barkskin = NS.buff_up(me, BARKSKIN_BUFF) or false
+    state.has_track_humanoids = NS.buff_up(me, TRACK_HUMANOIDS_BUFF) or false
+    state.has_wolfshead = has_wolfshead_equipped(me) or NS.buff_up(me, WOLFSHEAD_BUFF) or spec_kit.setting_bool(context, "cat_wolfshead_helm", false)
+    state.has_bloodlust = NS.buff_up(me, BLOODLUST_BUFFS) or false
+    state.has_berserk = NS.buff_up(me, BERSERK_BUFF) or false
+    state.rip_remains = NS.debuff_remains(target, RIP_DEBUFF) or 0
+    state.rake_remains = NS.debuff_remains(target, RAKE_DEBUFF) or 0
+    state.mangle_remains = NS.debuff_remains(target, MANGLE_DEBUFF) or 0
+    state.faerie_fire_remains = NS.debuff_remains(target, FAERIE_FIRE_DEBUFF) or 0
+    state.pounce_remains = NS.debuff_remains(target, POUNCE_DEBUFF) or 0
+    state.maim_remains = NS.debuff_remains(target, MAIM_DEBUFF) or 0
     state.is_cat = NS.has_form and NS.has_form("cat") or context.stance == STANCE_CAT
     state.is_behind = is_behind_target(target, context)
     state.level = context.level or context.player_level or 70
@@ -828,6 +855,11 @@ local DSL_DEFS = {
                 if state.energy + fury_gain > max_energy then return false end
                 if state.energy > ENERGY_CAP - TIGERS_FURY_ENERGY - 5 and state.next_tick_in <= 0.6 then return false end
                 if (state.combo_points or 0) >= 5 and (state.energy or 0) >= RIP_COST then return false end
+                if NS.debug and NS.log then
+                    NS.log(string.format("[CAT-DIAG] TigersFury: in_combat=%s is_stealthed=%s has_tigers_fury=%s energy=%s cp=%s",
+                        tostring(state.in_combat), tostring(state.is_stealthed), tostring(state.has_tigers_fury),
+                        tostring(state.energy), tostring(state.combo_points)))
+                end
                 return true
             end },
         },
@@ -940,7 +972,7 @@ local function faerie_fire_matches(context, action)
     if not state.target then return false end
     if state.is_stealthed then return false end
     if state.faerie_fire_remains > FAERIE_FIRE_REFRESH then return false end
-    if leveling_helpers.is_low_level(state.level) then return true end
+    if is_low_level(state.level) then return true end
     -- Use on players or long living targets even if armor check fails (for level 42+)
     if state.is_pvp or state.is_player_target or target_lives(state, LONG_TTD) then
         return true
@@ -971,21 +1003,28 @@ local function mangle_debuff_matches(context, action)
     return true
 end
 
-local function rip_matches(context, action)
-    local state = build_state(context)
+-- Returns true if Rip would match right now, without side effects. Used by
+-- Ferocious Bite strategies to decide whether to defer to Rip.
+local function rip_matches_now(context, state)
+    if not state then state = build_state(context) end
     if not would_rip_fire(state, context) then return false end
     local required_cp = spec_kit.setting_number(context, "cat_rip_cp", 5)
-    if leveling_helpers.is_low_level(state.level) then required_cp = math.min(required_cp, 4) end
+    if is_low_level(state.level) then required_cp = math.min(required_cp, 4) end
     if not state.target then return false end
     if (state.combo_points or 0) < required_cp then return false end
     -- Post-cast grace: don't recast Rip while the debuff API still reads 0 right
     -- after a cast (application latency); wait out POST_CAST_GRACE first.
     if (state.rip_remains or 0) <= 0 and ((state.now or 0) - _rip_recast_time) < POST_CAST_GRACE then return false end
-    -- TTD gate: skip Rip if target dying soon (needs time to tick)
-    if state.target_ttd > 0 and state.target_ttd < 6 then return false end
+    -- TTD gating is already enforced by would_rip_fire -> target_lives(MIN_RIP_TTD=10);
+    -- no separate < 6s re-check is reachable when would_rip_fire passed with a known TTD.
     if should_wait_for_tick(state, RIP_COST) then return false end
     if not should_snapshot_upgrade(state.attack_power, state.rip_ap, state.rip_remains, RIP_REFRESH_WINDOW, AP_UPGRADE_RATIO) then return false end
     return true
+end
+
+local function rip_matches(context, action)
+    local state = build_state(context)
+    return rip_matches_now(context, state)
 end
 
 -- ============================================================================
@@ -1003,7 +1042,8 @@ local function rip_trick_matches(context, action)
     if (state.mana_pct or 100) < POWERSHIFT_MIN_MANA then return false end
     if (state.combo_points or 0) < 1 then return false end
     if (state.rip_remains or 0) > 0 then return false end
-    if (state.target_ttd or 999) > 0 and (state.target_ttd or 999) < 6 then return false end
+    -- TTD gating is already enforced by would_rip_fire -> target_lives(MIN_RIP_TTD=10);
+    -- no separate < 6s re-check is reachable when would_rip_fire passed with a known TTD.
     local energy = (state.energy or 0)
     local next_energy = energy + ENERGY_PER_TICK
     local in_window_now = energy >= RIP_COST and energy < MANGLE_COST
@@ -1054,11 +1094,11 @@ end
 local function bite_matches(context, action)
     local state = build_state(context)
     local required_cp = spec_kit.setting_number(context, "cat_ferocious_bite_cp", 5)
-    if leveling_helpers.is_low_level(state.level) then required_cp = math.min(required_cp, 4) end
-    if state.combo_points < required_cp then return false end
-    -- Only defer to Rip if Rip will actually be used on this target. When Rip is
-    -- disabled, or elites-only on a non-elite, spend CP on Ferocious Bite instead.
-    if would_rip_fire(state, context) and state.rip_remains <= RIP_REFRESH_WINDOW then return false end
+    if is_low_level(state.level) then required_cp = math.min(required_cp, 4) end
+    if (state.combo_points or 0) < required_cp then return false end
+    -- Only defer to Rip if Rip will actually be cast right now. When Rip is
+    -- disabled, elites-only on a non-elite, or not ready, spend CP on Ferocious Bite.
+    if rip_matches_now(context, state) then return false end
     if should_wait_for_tick(state, BITE_COST) then return false end
     return true
 end
@@ -1068,11 +1108,11 @@ local function bite_trick_matches(context, action)
     if not state.in_combat then return false end
     if spec_kit.setting_bool(context, "cat_use_ferocious_bite", true) == false then return false end
     if (state.combo_points or 0) < 5 then return false end
-    local bite_max_energy = spec_kit.setting_number(context, "cat_bite_max_energy", 39)
+    local bite_max_energy = spec_kit.setting_number(context, "cat_bite_max_energy", 100)
     if (state.energy or 0) > bite_max_energy then return false end
     if (state.energy or 0) < BITE_COST then return false end
     if state.next_tick_in <= 0.1 then return false end
-    if would_rip_fire(state, context) and state.rip_remains <= 2 then return false end
+    if rip_matches_now(context, state) then return false end
     return true
 end
 
@@ -1213,12 +1253,19 @@ local function wait_execute(context)
     local state = build_state(context)
     if not state.should_execute then return false end
     if state.combo_points < spec_kit.setting_number(context, "cat_ferocious_bite_cp", 5) then return false end
-    if state.energy >= BITE_COST then return false end
-    return true
+    -- Only pool when an energy tick is about to give us enough energy for FB.
+    -- When energy is well below BITE_COST with no imminent tick, return false so
+    -- the lower-priority FerociousBite strategy can attempt the cast (and fail
+    -- gracefully) instead of being blocked by this no-op strategy.
+    return should_wait_for_tick(state, BITE_COST)
 end
 
-local function wait_execute_execute()
-    return false
+local function execute_bite(context)
+    -- Execute phase: target is dying — spend combo points on FerociousBite immediately.
+    local target = context.target
+    _opts.expected_cooldown = nil
+    _opts.skip_gcd = nil
+    return NS.try_cast(ACTION.FerociousBite, target, "[CAT] PoolForExecuteBite", _opts)
 end
 
 local ACTIONS = {
@@ -1283,9 +1330,16 @@ local strategies = {
           return NS.spell_ready(ACTION.RemoveCurse, NS.PLAYER_UNIT, { skip_range = true })
       end,
       execute = function() return NS.try_cast(ACTION.RemoveCurse, NS.PLAYER_UNIT, "[CAT] Remove Curse self", { skip_range = true }) end },
-    { name = "PoolForRip", matches = pool_for_builder_matches, execute = wait_execute_execute },
-    { name = "PoolForBuilderTick", matches = pool_for_builder_matches, execute = wait_execute_execute },
-    { name = "PoolForExecuteBite", matches = wait_execute, execute = wait_execute_execute },
+    { name = "PoolForRip",
+      matches = function(context)
+          local state = build_state(context)
+          return state.should_pool_for_rip == true and should_wait_for_tick(state, RIP_COST)
+      end,
+      execute = function() return true end },  -- no-op: just wait for energy tick
+    { name = "PoolForBuilderTick",
+      matches = pool_for_builder_matches,
+      execute = function() return true end },  -- no-op: just wait for energy tick
+    { name = "PoolForExecuteBite", matches = wait_execute, execute = execute_bite },
 }
 
 for i = 1, #ACTIONS do
