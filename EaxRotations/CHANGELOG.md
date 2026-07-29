@@ -1,5 +1,32 @@
 # Changelog
 
+## 2.18.0 — 2026-07-29
+
+### Customer Changelog
+- **9-class audit complete**: ~32 bugs fixed across all 9 class directories (Paladin, Warrior, Hunter, Rogue, Mage, Warlock, Priest, Shaman, Druid). Fixed unguarded registrations (crash on nil registry), missing state arguments in AoE gating calls, duplicate strategies, dead code, and nil field references.
+- **All 40 vanilla spec files migrated to safe_state**: Every Classic Era (Vanilla) spec file now uses `spec_kit.safe_state()` for structural nil-guard enforcement, making the Pattern 14 nil-guard bug structurally impossible across the entire codebase.
+- **WotLK DSL adoption 100% complete**: All 41 WotLK spec files now use the declarative strategy DSL (was previously reported as 19/41 — actually already 100%).
+- Version **2.18.0**.
+- All tests passing: 398 rotation + 31 leveling suites (429 total).
+
+### Developer Notes
+- **9-class audit** (`plans/class-audit-summary-2026-07-29.md`): Comprehensive audit of all 9 class directories checking for `luac -p` compilation, banned APIs, `broken_api_throttled` remnants, unguarded `menu:get()`, unguarded `NS.rotation_registry:register()`, missing `state` args in `aoe_target_meets()`, duplicate strategies/assignments, dead code, and `safe_state` adoption.
+- **Bug severity**: 7 Medium (crashes on nil registry, nil field access, broken AoE gating, cache-hit nil-guard bypass), ~25 Low (unguarded registrations, dead code, duplicate strategies/assignments, missing imports).
+- **safe_state migration**: Each of the 40 vanilla files received a `SCHEMA` table with Pattern 14 nil-guard defaults and `spec_kit.safe_state(state, SCHEMA)` wrapping on all `build_state` return paths.
+- **Warrior cache-hit fix**: `arms_sylvanas.lua` — `safe_state` was not applied on the `build_state` cache-hit early-return path, causing nil-guard bypass on cache hits. Fixed by wrapping the cache-hit return.
+- **Hunter fixes**: `leveling_vanilla.lua` — malformed strategy table nesting (strategies were nested inside another table). `leveling_wotlk.lua` — missing `state` argument in strategy match function. `beast_mastery_vanilla.lua` — broken pcall registration pattern that crashes if `NS.rotation_registry` is nil.
+- **Rogue fixes**: `assassination_sylvanas.lua` — `blind_ready` field referenced in match function but never populated in `build_state` (nil access). Dead code removed across multiple files.
+- **Mage fix**: `frost_vanilla.lua` — duplicate Frostbolt strategy entry (dead code).
+- **Warlock fix**: `leveling_wotlk.lua` — missing `state` arg in `SeedOfCorruption` `aoe_target_meets()` call (AoE gating broken).
+- **Priest fix**: `leveling_vanilla.lua` — duplicate strategy entries.
+- **Shaman fix**: `leveling_vanilla.lua` — duplicate `tremor_totem_ready` state field assignment.
+- **Druid fix**: `balance_sylvanas.lua` — missing `state` (s) arg in 2 `aoe_target_meets()` calls (`PreHurricaneBarkskin` + `HurricaneAoE`). `balance_vanilla.lua` — missing `spec_kit` require (using `spec_kit.setting_bool` without importing).
+- **Paladin cleanup**: Removed dead `post_swing_judge_gate` function and unused `prot_post_swing_judge` schema setting.
+- **Plans cleanup**: Archived 26 completed plans to `plans/_archive/`, removed 10 duplicate plan files.
+- **WotLK DSL adoption**: Verified all 41 WotLK files have `DSL_DEFS` tables + `dsl.compile_strategy` substitution. 43/43 WotLK test suites pass. Plan marked COMPLETE and archived.
+- **Documentation**: AGENTS.md updated (Pattern 14 + Pattern 16 migration status), README.md updated (migration state table + badges + version), `_active.md` updated (archived plan paths + test counts + WotLK DSL status).
+- **.gitignore cleanup**: Binary directories (`common`, `core_lua`) and temp files excluded from git tracking.
+
 ## 2.17.0 — 2026-07-26
 
 ### Customer Changelog
