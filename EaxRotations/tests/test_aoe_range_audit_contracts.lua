@@ -105,7 +105,7 @@ end
 
 -- 4) Audit artifact
 do
-    local src = read_file("plans/aoe-range-audit-2026-07-16.md")
+    local src = read_file("plans/_archive/aoe-range-audit-2026-07-16.md")
     all_ok = assert_true(src ~= nil, "audit plan exists") and all_ok
     if src then
         all_ok = assert_true(src:find("Mismatch", 1, true) ~= nil or src:find("hit-volume", 1, true) ~= nil,
