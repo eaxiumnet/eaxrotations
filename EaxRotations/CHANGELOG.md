@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.18.1 — 2026-07-29
+
+### Customer Changelog
+- **EaxESP attachment API crash fix**: Resolved the critical bug where `get_attachment_position()` and `get_attachment_name_position()` caused hard client crashes (native access violations). All attachment API calls have been eliminated — the renderer now uses `pos.z + offset` fallback for all height calculations. Diagnostic tools are gated behind an explicit opt-in global.
+- Version **2.18.1**.
+- All tests passing: 398 rotation + 31 leveling suites (429 total).
+
+### Developer Notes
+- **Attachment API resolution** (`plans/_archive/bug-report-sylvanas-attachment-api-crash.md`): Both `get_attachment_position(id)` and `get_attachment_name_position()` cause native access violations on Sylvanas Core 1.981+ that `pcall` cannot intercept. Resolution: eliminate all API invocations.
+- `EaxESP/attachment_safe.lua` — `probe_once()` does existence-only checks (`type() == "function"`); `name_pos()` and `attachment_pos()` always return `nil`; `head_position()` uses `get_position() + offset`; dead code (`vec3_ok`, `copy_vec`, `M._ok_ids`) cleaned.
+- `EaxESP/diagnostic_attachment_only.lua` — API calls gated behind `_G.EAXESP_ALLOW_ATTACHMENT_CALLS=true`.
+- `EaxESP/diagnostic_api_crash.lua` — Attachment entries gated behind `EAXESP_ALLOW_ATTACHMENT_CALLS`; non-attachment methods still run.
+- `EaxESP/tests/test_attachment_safe_module.lua` — Assertions updated for always-nil behavior.
+- `EaxESP/tests/test_attachment_safe_probe.lua` — `probe()` and `probe_target()` gated behind `EAXESP_ALLOW_ATTACHMENT_CALLS`.
+- **Full audit**: `reader.lua`, `main.lua`, `renderer.lua` confirmed zero direct calls to attachment APIs — all go through `attachment_safe.lua`.
+- **Plans archived**: Both bug reports + crash hardening plan moved to `plans/_archive/`.
+- EaxESP files are `.gitignored` (local-only); changes applied locally.
+
 ## 2.18.0 — 2026-07-29
 
 ### Customer Changelog
