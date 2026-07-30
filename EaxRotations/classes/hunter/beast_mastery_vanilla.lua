@@ -357,8 +357,14 @@ end
 local function rapid_fire_matches(context, s)
     if NS.should_use_long_cd and not NS.should_use_long_cd(context, 300) then return false end
     if not mounted_bail(context, s) then return false end
-    if not cooldowns_allowed(context) then return false end
+    if not s.use_cooldowns or not s.in_combat then return false end
     if not s.rapid_fire_ready then return false end
+    if not s.aimed_shot_ready then return false end
+    local tracker = NS.HunterClipTracker
+    if tracker and type(tracker.ms_until_auto) == "function" then
+        local remains = tracker.ms_until_auto()
+        if remains >= 100 then return false end
+    end
     return true
 end
 

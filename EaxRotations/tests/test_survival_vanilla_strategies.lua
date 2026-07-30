@@ -70,6 +70,7 @@ end
 local aimed = find("AimedShot")
 local arcane = find("ArcaneShot")
 local serpent = find("SerpentSting")
+local rapid = find("RapidFire")
 
 local aimed_i, multi_i
 for i = 1, #strategies do
@@ -93,5 +94,18 @@ assert_false(serpent.matches({}, { has_serpent_sting = true, serpent_sting_ready
     "SerpentSting must not match when already applied")
 assert_true(serpent.matches({}, { has_serpent_sting = false, serpent_sting_ready = true }),
     "SerpentSting matches when missing")
+
+ms_until_auto_val = 50
+assert_true(rapid.matches({ settings = {} }, {
+    in_combat = true, rapid_fire_ready = true, aimed_shot_ready = true,
+}), "RapidFire aligns inside the wowsims 100ms auto-shot window")
+ms_until_auto_val = 100
+assert_false(rapid.matches({ settings = {} }, {
+    in_combat = true, rapid_fire_ready = true, aimed_shot_ready = true,
+}), "RapidFire defers outside the wowsims auto-shot window")
+ms_until_auto_val = 50
+assert_false(rapid.matches({ settings = {} }, {
+    in_combat = true, rapid_fire_ready = true, aimed_shot_ready = false,
+}), "RapidFire defers when the required Aimed Shot rank is unavailable")
 
 print("PASS test_survival_vanilla_strategies")

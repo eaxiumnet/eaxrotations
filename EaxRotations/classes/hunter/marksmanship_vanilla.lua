@@ -170,6 +170,12 @@ local function rapid_fire_matches(context, s)
     if not cooldowns_enabled(context) then return false end
     if not s.in_combat then return false end
     if not s.rapid_fire_ready then return false end
+    if not s.aimed_shot_ready then return false end
+    local tracker = NS.HunterClipTracker
+    if tracker and type(tracker.ms_until_auto) == "function" then
+        local remains = tracker.ms_until_auto()
+        if remains >= 100 then return false end
+    end
     return true
 end
 

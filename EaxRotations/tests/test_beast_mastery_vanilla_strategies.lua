@@ -87,6 +87,7 @@ end
 local aimed = find("AimedShot")
 local arcane = find("ArcaneShot")
 local multi = find("MultiShot")
+local rapid = find("RapidFire")
 
 local aimed_i, multi_i, arcane_i
 for i = 1, #strategies do
@@ -109,5 +110,21 @@ assert_false(arcane.matches({ in_combat = true, target = {}, me = {} }, state),
 state.aimed_shot_ready = false
 assert_true(arcane.matches({ in_combat = true, target = {}, me = {} }, state),
     "ArcaneShot matches when Aimed not ready")
+
+ms_until_auto_val = 50
+assert_true(rapid.matches({ in_combat = true, settings = {} }, {
+    in_combat = true, use_cooldowns = true, rapid_fire_ready = true,
+    aimed_shot_ready = true, is_mounted = false,
+}), "RapidFire aligns inside the wowsims 100ms auto-shot window")
+ms_until_auto_val = 100
+assert_false(rapid.matches({ in_combat = true, settings = {} }, {
+    in_combat = true, use_cooldowns = true, rapid_fire_ready = true,
+    aimed_shot_ready = true, is_mounted = false,
+}), "RapidFire defers outside the wowsims auto-shot window")
+ms_until_auto_val = 50
+assert_false(rapid.matches({ in_combat = true, settings = {} }, {
+    in_combat = true, use_cooldowns = true, rapid_fire_ready = true,
+    aimed_shot_ready = false, is_mounted = false,
+}), "RapidFire defers when the required Aimed Shot rank is unavailable")
 
 print("PASS test_beast_mastery_vanilla_strategies")

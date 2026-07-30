@@ -68,6 +68,7 @@ end
 local combat_aimed = find("InCombatAimedShot")
 local prepull = find("AimedShotPrepull")
 local multi = find("MultiShot")
+local rapid = find("RapidFire")
 
 ms_until_auto_val = 0
 assert_false(combat_aimed.matches({}, { in_combat = false, aimed_shot_ready = true, mana_pct = 80 }),
@@ -86,5 +87,18 @@ assert_false(multi.matches({ has_breakable_cc_nearby = true }, { multi_shot_read
     "MultiShot must not match near breakable CC")
 assert_true(multi.matches({}, { multi_shot_ready = true, mana_pct = 80 }),
     "MultiShot matches when ready with mana")
+
+ms_until_auto_val = 50
+assert_true(rapid.matches({ settings = {} }, {
+    in_combat = true, rapid_fire_ready = true, aimed_shot_ready = true,
+}), "RapidFire aligns inside the wowsims 100ms auto-shot window")
+ms_until_auto_val = 100
+assert_false(rapid.matches({ settings = {} }, {
+    in_combat = true, rapid_fire_ready = true, aimed_shot_ready = true,
+}), "RapidFire defers outside the wowsims auto-shot window")
+ms_until_auto_val = 50
+assert_false(rapid.matches({ settings = {} }, {
+    in_combat = true, rapid_fire_ready = true, aimed_shot_ready = false,
+}), "RapidFire defers when the required Aimed Shot rank is unavailable")
 
 print("PASS test_marksmanship_vanilla_strategies")
