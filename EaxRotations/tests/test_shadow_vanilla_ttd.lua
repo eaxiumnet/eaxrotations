@@ -1,3 +1,9 @@
+-- test_shadow_vanilla_ttd.lua -- Shadow Priest vanilla target-TTD regression test.
+-- WHAT:  verifies the Shadow Word: Pain target-lifetime gate and fallback behavior.
+-- WHEN:  run as a focused regression test or from the rotation test suite.
+-- WHY:   protects the 10-second TTD threshold without changing rotation behavior.
+-- SAFETY: fully mocked; assertions cover strategy matching only.
+
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
 local function assert_true(value, label) if not value then error(label, 2) end end
