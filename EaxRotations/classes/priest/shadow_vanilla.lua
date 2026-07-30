@@ -403,6 +403,7 @@ local function shadow_word_pain_matches(context, s)
     if not s.swp_known then return false end
     if not can_break_mind_flay(s) then return false end
     if not context.has_valid_enemy_target then return false end
+    if context.ttd and context.ttd > 0 and context.ttd < 10 then return false end
     -- Mana emergency: drop all spells (wand only)
     if s.mana_emergency then return false end
     -- Shadow Weaving maintenance: extend refresh window from 3s to 5s when stacks < 5
