@@ -1,7 +1,7 @@
 -- discipline_sylvanas.lua -- Priest Discipline healing for TBC Anniversary (2.5.5).
 -- WHAT: support/hybrid healer (emergency PW:S, PoM, Greater Heal, Power Infusion).
 -- WHEN: combat or pre-combat, with valid friendly targets.
--- WHY:   mirrors TBC discipline consensus from wowsims (no APL), Icy Veins, Wowhead: PI on CD + PW:S on tank/low + Renew + GH/Flash + CoH/PoH for raid (PI bot + emergency shields).
+-- WHY:   mirrors TBC support healing: emergency shields respect Weakened Soul; Holy-only Circle of Healing is excluded.
 -- SAFETY: Pattern 14 eliminated via spec_kit.safe_state(); no manual nil-guards; no on_update() allocs.
 local NS = _G.EaxRotations
 if not NS then return nil end
@@ -36,7 +36,6 @@ end
 
 local ACTION = {
     BindingHeal       = define("BindingHeal",       { 32546 }, "BindingHeal"),
-    CircleofHealing   = define("CircleofHealing",   { 34866, 34865, 34864, 34863, 34861 }, "CircleofHealing"),
     DispelMagic       = define("DispelMagic",       { 988, 527 }, "DispelMagic"),
     MassDispel        = define("MassDispel",        { 32375 }, "MassDispel"),  -- TBC dungeon speed: AoE magic (per WoWHead)
     DivineSpirit      = define("DivineSpirit",      { 25312, 27841, 14819, 14818, 14752 }, "DivineSpirit"),
@@ -155,7 +154,6 @@ local DISC_SCHEMA = {
     greater_heal_ready = false,
     renew_ready = false,
     binding_heal_ready = false,
-    circle_of_healing_ready = false,
     prayer_of_healing_ready = false,
     prayer_of_mending_ready = false,
     shadow_word_pain_ready = false,
@@ -207,7 +205,6 @@ local disc_state = {
  greater_heal_ready = false,
  renew_ready = false,
  binding_heal_ready = false,
- circle_of_healing_ready = false,
  prayer_of_healing_ready = false,
  prayer_of_mending_ready = false,
  shadow_word_pain_ready = false,
@@ -323,7 +320,6 @@ local function build_state(context)
  disc_state.greater_heal_ready = me and NS.spell_ready(ACTION.GreaterHeal, me, { skip_range = true }) or false
  disc_state.renew_ready = me and NS.spell_ready(ACTION.Renew, me, { skip_range = true }) or false
  disc_state.binding_heal_ready = me and NS.spell_ready(ACTION.BindingHeal, me, { skip_range = true }) or false
- disc_state.circle_of_healing_ready = me and NS.spell_ready(ACTION.CircleofHealing, me, { skip_range = true }) or false
  disc_state.prayer_of_healing_ready = me and NS.spell_ready(ACTION.PrayerOfHealing, me, { skip_range = true }) or false
  disc_state.prayer_of_mending_ready = me and NS.spell_ready(ACTION.PrayerofMending, me, { skip_range = true }) or false
  disc_state.shadow_word_pain_ready = me and NS.spell_ready(ACTION.ShadowWordPain, me, { expected_cooldown = 1.5 }) or false
@@ -454,18 +450,9 @@ local function binding_heal_matches(context, s)
  return true
 end
 
-local function circle_of_healing_matches(context, s)
- if context.is_moving then return false end
- if s.group_damaged_count < 3 then return false end
- if not s.circle_of_healing_ready then return false end
-  -- Predictive overheal gate: skip CoH if even the lowest target doesn't need it
-  local coh_target = s.lowest and s.lowest.unit or NS.PLAYER_UNIT
-  if gate_overheal("CircleOfHealing", coh_target, 1.5, context.settings, _spell_id(ACTION.CircleofHealing)) then return false end
- return true
-end
-
 local function prayer_of_healing_matches(context, s)
  if context.is_moving then return false end
+ if (s.mana_pct or context.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
  -- Advanced: prefer party_injured_count from core.party frames for accurate PoH subgroup
  local poh_count = s.party_injured_count or s.subgroup_damaged_count or s.group_damaged_count
  if poh_count < 4 then return false end
@@ -904,7 +891,6 @@ local healing_strategies = {
      return true
     end },
   { name = "BindingHeal", matches = binding_heal_matches, execute = function(context, s) return NS.try_cast(ACTION.BindingHeal, s.lowest.unit, "[DISCIPLINE] Binding Heal") end },
- { name = "CircleOfHealing", matches = circle_of_healing_matches, execute = function() return NS.try_cast(ACTION.CircleofHealing, NS.PLAYER_UNIT, "[DISCIPLINE] CircleOfHealing") end },
  { name = "PrayerOfHealing", matches = prayer_of_healing_matches, execute = function() return NS.try_cast(ACTION.PrayerOfHealing, NS.PLAYER_UNIT, "[DISCIPLINE] PrayerOfHealing") end },
  { name = "RenewTank" },
  { name = "RenewLowest", matches = renew_lowest_matches, execute = function(context, s) return NS.try_cast(ACTION.Renew, s.lowest.unit, string.format("[DISCIPLINE] Renew %.0f%%", s.lowest.effective_hp or 0)) end },

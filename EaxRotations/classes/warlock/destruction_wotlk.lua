@@ -21,6 +21,11 @@ local ACTION = {
     SoulFire = define("SoulFire", { 30545, 27211, 17924, 6353 }, "SoulFire"),
 }
 
+local IMMOLATE_CAST_TIME = type(ACTION.Immolate) == "table"
+    and ACTION.Immolate._meta and ACTION.Immolate._meta.cast_time
+local IMMOLATE_REFRESH_SECONDS = type(IMMOLATE_CAST_TIME) == "number"
+    and IMMOLATE_CAST_TIME or 2.0
+
 local IMMOLATE_DEBUFF = { 27215, 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }
 
 local DESTRUCTION_SCHEMA = {
@@ -51,14 +56,14 @@ local DSL_DEFS = {
     {
         name = "Immolate",
         conditions = {
-            { type = "state", field = "immolate_remains", op = "<", value = 3 },
+            { type = "state", field = "immolate_remains", op = "<", value = IMMOLATE_REFRESH_SECONDS },
         },
         action = { type = "cast", spell = ACTION.Immolate, target = "target", label = "[DESTRUCTION WOTLK] Immolate" },
     },
     {
         name = "Conflagrate",
         conditions = {
-            { type = "state", field = "immolate_remains", op = ">", value = 3 },
+            { type = "state", field = "immolate_remains", op = ">", value = 0 },
         },
         action = { type = "cast", spell = ACTION.Conflagrate, target = "target", label = "[DESTRUCTION WOTLK] Conflagrate" },
     },
@@ -89,8 +94,8 @@ local DSL_DEFS = {
 -- Strategies (name-only placeholders; DSL-compiled equivalents replace them)
 -- ============================================================================
 local strategies = {
-    { name = "Immolate" },
     { name = "Conflagrate" },
+    { name = "Immolate" },
     { name = "ChaosBolt" },
     { name = "Incinerate" },
     { name = "SoulFire" },

@@ -72,7 +72,7 @@ local function ctx(o)
     local c = {
         me = { get_distance = function() return 5 end },
         target = { get_creature_type = function() return 3 end, is_player = function() return false end },
-        settings = {}, in_combat = true, enemy_count = 1,
+        settings = { use_consecration = true, use_exorcism = true }, in_combat = true, enemy_count = 1,
     }
     if o then for k, v in pairs(o) do c[k] = v end end
     return c

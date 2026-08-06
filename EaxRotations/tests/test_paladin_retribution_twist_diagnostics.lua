@@ -50,6 +50,7 @@ _G.EaxRotations = {
     is_valid_target = function(u) return true end,
     unit_health_pct = function(u) return 100 end,
     unit_mana_pct = function(u) return 100 end,
+    aoe_self_meets = function() return true end,
     cooldown_remains = function(spell) return 99 end,
     rotation_registry = { register = function(self, spec, strategies, opts)
         _captured_strategies = strategies
@@ -95,5 +96,22 @@ assert_true(twist_blood.matches(ctx_no_diag, state), "C4: twist still matches wi
 local ok2 = twist_blood.execute()
 assert_true(ok2, "C4: twist execute still succeeds with diagnostics off")
 print("  [ PASS ] C4: diagnostics off does not break execute")
+
+local default_state = {
+    can_twist = false, has_command = false, has_command_rank1 = false, has_blood = false,
+    swing_remains = 99, twist_window = 0.45, mana_pct = 100, mana_emergency = false,
+    target_creature_type = 3, enemy_count = 3, target_hp_pct = 100, has_forbearance = false,
+    major_cd_window = true,
+}
+local exorcism = find_strategy("Exorcism")
+assert_false(exorcism.matches(ctx, default_state), "Default Retribution must not select Exorcism")
+local consecration = find_strategy("Consecration")
+assert_false(consecration.matches(ctx, default_state), "Default Retribution must not select Consecration")
+local avenging_wrath = find_strategy("Ret_AvengingWrath_Burst")
+assert_false(avenging_wrath.matches({ me = ctx.me, target = ctx.target, in_combat = true, combat_time = 0 }, default_state),
+    "Retribution major cooldown must respect the 11-second opener delay")
+default_state.major_cd_window = false
+assert_true(avenging_wrath.matches({ me = ctx.me, target = ctx.target, in_combat = true, combat_time = 45 }, default_state),
+    "Retribution major cooldown remains available after the delay")
 
 print("PASS test_paladin_retribution_twist_diagnostics")

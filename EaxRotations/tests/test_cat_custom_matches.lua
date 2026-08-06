@@ -472,14 +472,6 @@ local ctx_rip_after_grace = Mock.DefaultMeleeContext({
 })
 assert_true(rip.matches(ctx_rip_after_grace), "Rip should match again after the post-cast grace window if debuff is still missing")
 
--- ============================================================================
--- Combo-point fallback path coverage
--- The original bug: finishers never fired when the only available combo-point
--- source was an API method instead of context.combo_points.  get_combo_points()
--- now falls back through context.cp, NS.combo_points, NS.get_combo_points,
--- me.combo_points_current, me.get_combo_points, and me.get_power(4).
--- ============================================================================
-
 local _test_now = 2.0
 local function next_now()
     _test_now = _test_now + 0.1
@@ -560,6 +552,28 @@ local ctx_me_get_power = ctx_with_cp({
     },
 })
 assert_5cp_finisher("me.get_power(4)", ctx_me_get_power)
+
+local ctx_native_zero = Mock.DefaultMeleeContext({
+    combo_points = 5,
+    energy = 100,
+    now = next_now(),
+    target = { _debuff_remains = 0 },
+    me = {
+        combo_points_current = function() return 5 end,
+        get_power = function(_, pt)
+            if pt == 4 then return 0 end
+            return nil
+        end,
+        get_max_power = function() return 100 end,
+        get_health_percentage = function() return 100 end,
+    },
+})
+local native_zero_state = result.build_state(ctx_native_zero)
+assert_eq(native_zero_state.combo_points, 0,
+    "build_state should prefer authoritative get_power=0 over stale context/SDK=5")
+action_calls = {}
+assert_false(rip.matches(ctx_native_zero),
+    "Rip should not match when authoritative get_power=0 overrides stale context/SDK=5")
 
 -- ============================================================================
 -- Bite energy cap: default of 100 lets Bite fire; old default of 39 blocked it.

@@ -254,7 +254,7 @@ local idx_how = 13
 mock_spell_ready_result = true
 mock_in_combat = true
 mock_target_hp_pct = 15
-assert_true(strategies[idx_how].matches(make_ctx(), make_state({ target_hp_pct = 15 })), "HammerOfWrath matches at target_hp=15")
+assert_true(strategies[idx_how].matches(make_ctx({ settings = { prot_hammer_of_wrath = true } }), make_state({ target_hp_pct = 15 })), "HammerOfWrath matches at target_hp=15")
 assert_false(strategies[idx_how].matches(make_ctx(), make_state({ target_hp_pct = 25 })), "HammerOfWrath skips at target_hp=25")
 assert_false(strategies[idx_how].matches(make_ctx({ settings = { prot_hammer_of_wrath = false } }), make_state({ target_hp_pct = 15 })), "HammerOfWrath skips when disabled")
 assert_false(strategies[idx_how].matches(make_ctx(), make_state({ hammer_of_wrath_ready = false, target_hp_pct = 15 })), "HammerOfWrath skips when not ready")

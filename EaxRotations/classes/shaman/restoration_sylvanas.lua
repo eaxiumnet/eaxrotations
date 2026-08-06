@@ -417,7 +417,7 @@ local function earth_shield_tank_matches(context, state)
  local target = state.tank.unit or NS.PLAYER_UNIT
  if not target then return false end
  if not state.earth_shield_ready then return false end
- -- Refresh when charges are low (configurable threshold, default ≤ 2)    local charge_threshold = spec_kit.setting_number(context, "restoration_earth_shield_charge_threshold", EARTH_SHIELD_CHARGE_DEFAULT)
+ local charge_threshold = spec_kit.setting_number(context, "restoration_earth_shield_charge_threshold", EARTH_SHIELD_CHARGE_DEFAULT)
  if NS.buff_up(target, EARTH_SHIELD_BUFF) then
   if (state.earth_shield_charges or 0) > charge_threshold then return false end
   -- Earth Shield is expiring soon and charges are low
@@ -714,7 +714,8 @@ local healing_strategies = {
     end,
     execute = function(ctx)
       local id = first_ready_item(HEALTHSTONE_IDS)
-      if id then NS.use_item_by_id(id, ctx.me) end
+      if id and NS.use_item_by_id then return NS.use_item_by_id(id, ctx.me) and true or false end
+      return false
     end },
  -- Mana emergency: auto-attack only, all spells forbidden (Research: Mana < 5%)
  { name = "ManaEmergencyWand",

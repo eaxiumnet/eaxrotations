@@ -35,6 +35,7 @@ local function new_unit(opts)
     function unit:get_total_shield() return opts.absorb or 0 end
     function unit:get_group_role() return opts.role or -1 end
     function unit:is_tank() return opts.is_tank == true end
+    function unit:is_party_member() return opts.party == true end
     function unit:is_friend_with(other) return opts.friend == true end
     function unit:get_distance(other) return opts.distance or 0 end
     return unit
@@ -43,9 +44,9 @@ end
 local player = new_unit({ health = 900, max_health = 1000, role = -1, distance = 0 })
 function player:get_class() return 5 end
 
-local ally_in_range = new_unit({ health = 500, max_health = 1000, role = 0, friend = true, distance = 35 })
-local ally_out_of_range = new_unit({ health = 100, max_health = 1000, role = 0, friend = true, distance = 42 })
-local role_extension_tank = new_unit({ health = 700, max_health = 1000, role = -1, is_tank = true, friend = true, distance = 30 })
+local ally_in_range = new_unit({ health = 500, max_health = 1000, role = 0, party = true, friend = true, distance = 35 })
+local ally_out_of_range = new_unit({ health = 100, max_health = 1000, role = 0, party = true, friend = true, distance = 42 })
+local role_extension_tank = new_unit({ health = 700, max_health = 1000, role = -1, is_tank = true, party = true, friend = true, distance = 30 })
 
 _G.core = {
     time = function() return 0 end,
@@ -81,6 +82,54 @@ assert_true(player_entry and player_entry.is_player == true, "player healing ent
 assert_true(tank_entry and tank_entry.is_tank == true, "tank role should be flagged from get_group_role()")
 assert_true(extension_tank_entry and extension_tank_entry.is_tank == true, "tank role should be flagged from is_tank() extension")
 assert_true(out_entry == nil, "42 yd unit should not be selected as heal target")
+
+local authoritative_party = new_unit({ health = 600, max_health = 1000, party = false, friend = true, distance = 25 })
+local authoritative_raid = new_unit({ health = 550, max_health = 1000, party = false, friend = true, distance = 30 })
+local nearby_non_party = new_unit({ health = 100, max_health = 1000, party = false, friend = true, distance = 20 })
+local generic_selector_unit = new_unit({ health = 90, max_health = 1000, party = false, friend = true, distance = 15 })
+local group_pet = new_unit({ health = 200, max_health = 1000, party = false, friend = true, distance = 20 })
+local selector_calls = 0
+
+function player:get_party_members_in_range()
+    return { nearby_non_party }
+end
+
+_G.core.object_manager.get_party_frames = function() return { authoritative_party } end
+_G.core.object_manager.get_raid_members = function() return { authoritative_raid } end
+NS.izi = {
+    party = function()
+        selector_calls = selector_calls + 1
+        return { generic_selector_unit }
+    end,
+}
+NS.PetHeal = {
+    append_entries = function(out, count)
+        out[count + 1] = {
+            unit = group_pet,
+            hp = 20,
+            effective_hp = 12,
+            is_pet = true,
+        }
+        return count + 1
+    end,
+}
+
+local contract_entries = {}
+local contract_count = NS.build_healing_entries(contract_entries)
+local function entry_for(unit)
+    for i = 1, contract_count do
+        if contract_entries[i] and contract_entries[i].unit == unit then return contract_entries[i] end
+    end
+    return nil
+end
+
+assert_true(entry_for(authoritative_party) ~= nil, "party-frame member should be a healer target")
+assert_true(entry_for(authoritative_raid) ~= nil, "raid member should be a healer target")
+assert_true(entry_for(player) ~= nil, "self should be a healer target")
+assert_true(entry_for(nearby_non_party) == nil, "nearby non-party unit must not be a healer target")
+assert_true(entry_for(generic_selector_unit) == nil, "generic selector result must not be a healer target")
+assert_true(entry_for(group_pet) and entry_for(group_pet).is_pet == true, "pet path should remain available")
+assert_eq(selector_calls, 0, "generic izi.party selector must not be consulted")
 
 local druid_class = read_file("EaxRotations/classes/druid/class_sylvanas.lua")
 local healing_pos = assert(druid_class:find('load_child%("healing_sylvanas"%)'))

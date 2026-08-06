@@ -168,19 +168,18 @@ test("SavageRoar: does not match with 0 combo points", function()
     assert_false(cat.strategies[3].matches(ctx, state), "SavageRoar should not match with 0 combo")
 end)
 
--- Rip (4): rip_remains < 3 and combo_points >= 4
-test("Rip: matches when debuff < 3 and combo >= 4", function()
+test("Rip: matches when debuff < 3 and combo >= 5", function()
     local state = cat.build_state(ctx)
     state.rip_remains = 0
     state.combo_points = 5
-    assert_true(cat.strategies[4].matches(ctx, state), "Rip should match with combo >= 4 and debuff < 3")
+    assert_true(cat.strategies[4].matches(ctx, state), "Rip should match with combo >= 5 and debuff < 3")
 end)
 
-test("Rip: does not match with combo < 4", function()
+test("Rip: does not match with combo < 5", function()
     local state = cat.build_state(ctx)
     state.rip_remains = 0
-    state.combo_points = 3
-    assert_false(cat.strategies[4].matches(ctx, state), "Rip should not match with combo < 4")
+    state.combo_points = 4
+    assert_false(cat.strategies[4].matches(ctx, state), "Rip should not match with combo < 5")
 end)
 
 -- Rake (5): rake_remains < 3 and energy >= 40
@@ -198,12 +197,18 @@ test("Rake: does not match with energy < 40", function()
     assert_false(cat.strategies[5].matches(ctx, state), "Rake should not match with energy < 40")
 end)
 
--- FerociousBite (6): combo_points >= 4 and target_hp < 25
-test("FerociousBite: matches when combo >= 4 and target_hp < 25", function()
+test("FerociousBite: matches when combo >= 5 and target_hp < 25", function()
     local state = cat.build_state(ctx)
     state.combo_points = 5
     state.target_hp = 20
-    assert_true(cat.strategies[6].matches(ctx, state), "FerociousBite should match in execute range")
+    assert_true(cat.strategies[6].matches(ctx, state), "FerociousBite should match with combo >= 5 in execute range")
+end)
+
+test("FerociousBite: does not match with combo < 5", function()
+    local state = cat.build_state(ctx)
+    state.combo_points = 4
+    state.target_hp = 20
+    assert_false(cat.strategies[6].matches(ctx, state), "FerociousBite should not match with combo < 5")
 end)
 
 test("FerociousBite: does not match when target_hp >= 25", function()

@@ -4,10 +4,20 @@
 -- WHY:   single entry point for 245 rotation-suite validations; ensures no regressions.
 -- SAFETY: pure orchestration; no rotation logic; fails fast on first suite error.
 
+local module_path = package.path
+if not module_path:find("%.%./%?%.lua", 1, false) then
+    package.path = "../?.lua;../?/init.lua;" .. module_path
+end
 local runner = require("EaxRotations/tests/test_runner_lib")
 local mode, root = runner.parse_args(arg, "EaxRotations")
+if not runner.file_exists(root .. "/tests/run_rotation_tests.lua") then
+    local ok, lfs = pcall(require, "lfs")
+    if ok and lfs.chdir("..") then root = "EaxRotations" end
+end
 
+local manifest_only_test = "test_class_loader_cata_fallback.lua"
 local tests = {
+ "test_manifest_completeness.lua",
  "test_pvp_burst_window.lua",
  "test_boss_school_immunity.lua",
 
@@ -15,6 +25,7 @@ local tests = {
  "test_range_verification_oor_fallthrough.lua",
  "test_aoe_range_audit_contracts.lua",
  "test_aoe_hit_volume_gates.lua",
+ "test_class_loader_cata_fallback.lua",
  "test_class_loader_wotlk_fallback.lua",
  "test_ranked_buff_no_downgrade.lua",
  "test_update_callback_void_registration.lua",
@@ -22,6 +33,12 @@ local tests = {
  -- Dispatcher + loader regressions
  "test_dispatcher_role_mode.lua",
  "test_class_loader_fail_closed.lua",
+ "test_sod_registry_manifest.lua",
+ "test_sod_class_loader_integration.lua",
+ "test_sod_rotation_matrix.lua",
+ "test_sod_source_audit.lua",
+     "test_core_min_combo_gate.lua",
+    "test_combo_points_reader.lua",
 
  -- New feature tests (parity)
  "test_shadow_silence_interrupt.lua",
@@ -155,7 +172,10 @@ local tests = {
  "test_balance_custom_matches.lua",
  "test_bear_custom_matches.lua",
  "test_cat_custom_matches.lua",
- "test_cat_vanilla_low_level_gating.lua",
+ "test_feral_druid_finisher_bear_rage_characterization.lua",
+ "test_feral_druid_finisher_bear_rage_review.lua",
+    "test_cat_vanilla_low_level_gating.lua",
+    "test_cat_low_level_rip_ttd.lua",
  "test_druid_vanilla_low_level_gating.lua",
  "test_druid_feral_l42_mangle_gate.lua",
  "test_druid_feral_level_42.lua",
@@ -274,6 +294,7 @@ local tests = {
  "test_shaman_leveling_registration.lua",
 
  "test_role_rotation_regressions.lua",
+ "test_healer_encounter_profiles.lua",
 
  -- Shaman
  "test_shaman_lightning_shield_throttle.lua",
@@ -418,6 +439,7 @@ local tests = {
  "test_tbc_spell_ladders.lua",
  "test_mage_vanilla_nil_guards.lua",
  "test_priest_vanilla_nil_guards.lua",
+ "test_shadow_vanilla_ttd.lua",
  "test_shaman_vanilla_nil_guards.lua",
   "test_warlock_vanilla_nil_guards.lua",
 
@@ -438,8 +460,9 @@ local tests = {
   "test_combat_vanilla_strategies.lua",
   "test_caster_vanilla_strategies.lua",
   "test_healing_helper_triage.lua",
-  "test_paladin_healing_strategies.lua",
-  "test_priest_healing_strategies.lua",
+ "test_paladin_healing_strategies.lua",
+  "test_holy_paladin_guide_fixes.lua",
+ "test_priest_healing_strategies.lua",
   "test_shaman_healing_strategies.lua",
 
   "test_priest_holy_vanilla_friendly_target.lua",
@@ -469,7 +492,21 @@ local tests = {
   "test_other_classes_middleware_nil_guard.lua",
   "test_playstyle_tooltip_class_name.lua",
   "test_restoration_shield_tracking.lua",
-  "test_spec_kit.lua",
+ "test_spec_kit.lua",
+  "test_sod_shared.lua",
+  "test_sod_shared_nil.lua",
+  "test_sod_runtime_selection.lua",
+  "test_sod_runtime_selection_nil.lua",
+  "test_sod_runtime_bootstrap.lua",
+  "test_sod_runtime_action_gating.lua",
+  "test_sod_druid_hunter.lua",
+  "test_sod_druid_hunter_nil.lua",
+  "test_sod_mage_paladin_priest.lua",
+  "test_sod_mage_paladin_priest_nil.lua",
+  "test_sod_rogue_shaman_rotations.lua",
+  "test_sod_rogue_shaman_adversarial.lua",
+  "test_sod_warlock_warrior_rotations.lua",
+  "test_sod_warlock_warrior_adversarial.lua",
   "test_spell_validation_talent_inference_health.lua",
   "test_ttd_normalization.lua",
   "test_ttd_tracker.lua",

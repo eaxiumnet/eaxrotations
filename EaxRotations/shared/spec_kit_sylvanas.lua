@@ -84,6 +84,91 @@ function M.define_action_for_class(SPELLS)
     end
 end
 
+M.SOD_PHASE_MIN = 1
+M.SOD_PHASE_MAX = 8
+M.SOD_PHASE_DEFAULT = 8
+
+local function is_positive_integer(value)
+    return type(value) == "number" and value > 0 and value % 1 == 0
+end
+
+local function valid_action_ids(value)
+    if is_positive_integer(value) then return true end
+    if type(value) ~= "table" or #value == 0 then return false end
+    for i = 1, #value do
+        if not is_positive_integer(value[i]) then return false end
+    end
+    return true
+end
+
+local function valid_sod_phase(value)
+    return is_positive_integer(value)
+        and value >= M.SOD_PHASE_MIN
+        and value <= M.SOD_PHASE_MAX
+end
+
+function M.define_sod_action_for_class(SPELLS)
+    local define = M.define_action_for_class(SPELLS)
+    return function(spell_field, rank_ids, requirements, label)
+        local source_ids = rank_ids
+        if type(SPELLS) == "table" and SPELLS[spell_field] ~= nil then
+            source_ids = SPELLS[spell_field]
+        end
+        if not valid_action_ids(source_ids) then return nil, "invalid action ids" end
+        if requirements ~= nil and type(requirements) ~= "table" then
+            return nil, "invalid requirements"
+        end
+
+        requirements = requirements or {}
+        local rune_id = requirements.rune_id
+        if rune_id ~= nil and not is_positive_integer(rune_id) then
+            return nil, "invalid rune id"
+        end
+
+        local min_phase = requirements.min_phase or M.SOD_PHASE_MIN
+        local max_phase = requirements.max_phase or M.SOD_PHASE_MAX
+        if not valid_sod_phase(min_phase) or not valid_sod_phase(max_phase) or min_phase > max_phase then
+            return nil, "invalid phase range"
+        end
+
+        return {
+            action = define(spell_field, rank_ids, label),
+            rune_id = rune_id,
+            min_phase = min_phase,
+            max_phase = max_phase,
+        }
+    end
+end
+
+function M.sod_phase(context)
+    if context ~= nil and type(context) ~= "table" then return nil end
+    if context and context.sod_phase ~= nil then
+        if valid_sod_phase(context.sod_phase) then return context.sod_phase end
+        return nil
+    end
+
+    local configured = M.setting(context, "sod_phase", nil)
+    if configured == nil then return M.SOD_PHASE_DEFAULT end
+    if valid_sod_phase(configured) then return configured end
+    return nil
+end
+
+function M.has_sod_rune(context, rune_id)
+    if type(context) ~= "table" or not is_positive_integer(rune_id) then return false end
+    local runes = context.sod_runes
+    return type(runes) == "table" and runes[rune_id] == true
+end
+
+function M.sod_action_available(context, descriptor)
+    if type(descriptor) ~= "table" or descriptor.action == nil then return false end
+    if not valid_sod_phase(descriptor.min_phase) or not valid_sod_phase(descriptor.max_phase) then return false end
+
+    local phase = M.sod_phase(context)
+    if not phase or phase < descriptor.min_phase or phase > descriptor.max_phase then return false end
+    if descriptor.rune_id ~= nil and not M.has_sod_rune(context, descriptor.rune_id) then return false end
+    return true
+end
+
 -- -----------------------------------------------------------------------------
 -- SAFE_STATE_DEFAULTS: documented per-field defaults for AGENTS.md Pattern 14.
 -- Centralizing this here means a new spec doesn't re-derive (or mis-derive)

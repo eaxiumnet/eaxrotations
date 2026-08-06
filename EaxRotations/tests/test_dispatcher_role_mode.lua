@@ -121,4 +121,24 @@ assert_true(#strategies_fired == 1, "Dispatcher: exactly ONE strategy should fir
 assert_true(strategies_fired[1].name == "Heal_Greater", "Dispatcher: role mode must be selected FIRST; healer mode should run only healer strategies (fired=" .. tostring(strategies_fired[1].name) .. ")")
 assert_true(casts <= 1, "Dispatcher: at most ONE cast should be emitted per tick (casts=" .. tostring(casts) .. ")")
 
+NS.class_middleware = { rogue = {} }
+NS.rotation_registry = {
+    class_config = {
+        class_key = "rogue",
+        default_playstyle = "combat",
+        playstyles = { { name = "sod_rogue_combat", display_name = "DPS" } },
+    },
+    playstyles = {
+        sod_rogue_combat = { track("SoD_Combat", "sod") },
+    },
+    options = { sod_rogue_combat = {} },
+}
+NS.set_setting("playstyle", nil)
+NS.set_setting("active_playstyle", nil)
+NS.refresh_settings_cache()
+reset()
+dispatcher.on_rotation_update()
+assert_true(#strategies_fired == 1 and strategies_fired[1].name == "SoD_Combat",
+    "Dispatcher: invalid legacy default must fall back to the first SoD playstyle")
+
 print("PASS test_dispatcher_role_mode")

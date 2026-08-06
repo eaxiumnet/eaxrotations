@@ -507,7 +507,13 @@ local config = {
         { name = "retribution", display_name = "Retribution" },
     },
 }
+local is_sod = type(NS.is_sod) == "function" and NS.is_sod() or false
+if is_sod then config.playstyles = cl.sod_playstyles("paladin") end
 NS.rotation_registry:set_class_config(config)
+if is_sod then
+    cl.load_sod_specs("paladin", "Paladin")
+    return config
+end
 
 load_child("middleware_sylvanas")
 load_child("heal_helper_sylvanas")

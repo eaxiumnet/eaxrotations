@@ -594,7 +594,15 @@ local config = {
         { name = "resto", display_name = "Resto" },
     },
 }
+local is_sod = type(NS.is_sod) == "function" and NS.is_sod() or false
+if is_sod then
+    config.playstyles = cl.sod_playstyles("druid")
+end
 NS.rotation_registry:set_class_config(config)
+if is_sod then
+    cl.load_sod_specs("druid", "Druid")
+    return config
+end
 
 load_spec("leveling", true)
 load_child("middleware_sylvanas")

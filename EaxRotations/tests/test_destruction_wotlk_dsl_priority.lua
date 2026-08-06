@@ -11,8 +11,25 @@
 
 package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;./?.lua;api/?.lua;api/?/?.lua;" .. package.path
 
+_G.EaxRotations = {
+    WarlockSpells = {},
+    spell_action = function(ids, label)
+        local action_ids = type(ids) == "table" and ids or { ids }
+        return {
+            _meta = {
+                id = action_ids[1],
+                ids = action_ids,
+                label = label,
+                cast_time = label == "Immolate" and 2.5 or 0,
+            },
+        }
+    end,
+    debuff_remains = function() return 0 end,
+    rotation_registry = { register = function() end },
+    log = function() end,
+}
+package.loaded["classes/warlock/destruction_wotlk"] = nil
 local NS = _G.EaxRotations
-if not NS then return nil end
 
 local function assert_equal(a, b, label)
     if a ~= b then
@@ -83,7 +100,7 @@ end
 -- ============================================================================
 local tests = {}
 
--- Priority order: Immolate > Conflagrate > ChaosBolt > Incinerate > SoulFire
+-- Priority order: Conflagrate > Immolate > ChaosBolt > Incinerate > SoulFire
 tests.priority_order = function()
     local ctx = make_context({})
     local first = find_first_match(ctx)
@@ -94,7 +111,16 @@ end
 tests.test_Immolate_matches_when_expiring = function()
     local ctx = make_context({})
     local ok = strategy_matches("Immolate", ctx)
-    assert_true(ok, "Immolate should match when immolate_remains < 3")
+    assert_true(ok, "Immolate should match when immolate_remains < 2.5")
+end
+
+-- Immolate: reads the cast time from the action's production metadata shape.
+tests.test_Immolate_uses_action_metadata_cast_time = function()
+    local ctx = make_context({})
+    local state = build_state(ctx)
+    state.immolate_remains = 2.25
+    assert_true(strategy_matches("Immolate", ctx, state),
+        "Immolate should use _meta.cast_time instead of the fallback threshold")
 end
 
 -- Immolate: does not match when debuff is fresh
@@ -109,26 +135,11 @@ tests.test_Immolate_does_not_match_when_fresh = function()
             break
         end
     end
-    assert_false(ok, "Immolate should not match when immolate_remains >= 3")
+    assert_false(ok, "Immolate should not match when immolate_remains >= 2.5")
 end
 
--- Conflagrate: matches when Immolate is active
+-- Conflagrate: matches whenever Immolate is still active
 tests.test_Conflagrate_matches_when_immolate_active = function()
-    local ctx = make_context({})
-    local state = build_state(ctx)
-    state.immolate_remains = 5
-    local ok = false
-    for _, s in ipairs(strategies) do
-        if s.name == "Conflagrate" then
-            ok = s.matches(ctx, state)
-            break
-        end
-    end
-    assert_true(ok, "Conflagrate should match when immolate_remains > 3")
-end
-
--- Conflagrate: does not match when Immolate is expiring
-tests.test_Conflagrate_does_not_match_when_immolate_expiring = function()
     local ctx = make_context({})
     local state = build_state(ctx)
     state.immolate_remains = 1
@@ -139,7 +150,16 @@ tests.test_Conflagrate_does_not_match_when_immolate_expiring = function()
             break
         end
     end
-    assert_false(ok, "Conflagrate should not match when immolate_remains <= 3")
+    assert_true(ok, "Conflagrate should match while immolate_remains is positive")
+end
+
+-- Pinned destro APL orders Conflagrate before the Immolate refresh window.
+tests.test_Conflagrate_wins_before_Immolate_refresh = function()
+    local ctx = make_context({})
+    local state = build_state(ctx)
+    state.immolate_remains = 1.5
+    assert_equal("Conflagrate", find_first_match(ctx, state),
+        "Conflagrate should precede the Immolate refresh at 1.5s remaining")
 end
 
 -- ChaosBolt: matches when mana >= 20

@@ -37,6 +37,7 @@ _G.EaxRotations = {
         FeralSpirit = make_action(51533, "FeralSpirit"),
         ShamanisticRage = make_action(30823, "ShamanisticRage"),
     },
+    spell_action = make_action,
     GetPlayer = function() return {
         get_health_percentage = function() return 80 end,
         get_mana_percentage = function() return 80 end,
@@ -81,7 +82,7 @@ print("=== test_enhancement_wotlk_dsl_priority ===")
 local enh = dofile("EaxRotations/classes/shaman/enhancement_wotlk.lua")
 assert_true(type(enh) == "table", "enhancement_wotlk should return a table")
 assert_true(type(enh.strategies) == "table", "enhancement_wotlk should expose strategies")
-assert_true(#enh.strategies == 4, "enhancement_wotlk should have 4 strategies")
+    assert_true(#enh.strategies == 11, "enhancement_wotlk should have 11 strategies")
 
 local registered = _G.EaxRotations._registered_enhancement
 assert_true(registered ~= nil, "enhancement_wotlk should register under 'enhancement'")
@@ -90,10 +91,8 @@ assert_true(registered ~= nil, "enhancement_wotlk should register under 'enhance
 -- Priority order test
 -- ============================================================================
 local expected_order = {
-    "ShamanisticRage",
-    "FeralSpirit",
-    "Stormstrike",
-    "LavaLash",
+    "FeralSpirit", "Bloodlust", "LightningBolt", "Stormstrike", "FlameShock",
+    "EarthShock", "CallOfTheElements", "MagmaTotem", "FireNova", "LightningShield", "LavaLash",
 }
 
 test("priority order: 4 strategies match expected order", function()
@@ -109,68 +108,60 @@ end)
 
 local ctx = { in_combat = true, target = {}, settings = {} }
 
--- ShamanisticRage: matches when in_combat, ready, long_cd allowed
-test("ShamanisticRage: matches when all conditions met", function()
-    local orig_long_cd = _G.EaxRotations.should_use_long_cd
-    _G.EaxRotations.should_use_long_cd = function(ctx, cd) return true end
-    local state = enh.build_state(ctx)
-    state.in_combat = true
-    state.shamanistic_rage_ready = true
-    local ok = enh.strategies[1].matches(ctx, state)
-    _G.EaxRotations.should_use_long_cd = orig_long_cd
-    assert_true(ok, "ShamanisticRage should match when all conditions met")
-end)
-
-test("ShamanisticRage: does not match when out of combat", function()
-    local state = enh.build_state(ctx)
-    state.in_combat = false
-    state.shamanistic_rage_ready = true
-    assert_false(enh.strategies[1].matches(ctx, state), "ShamanisticRage should not match when out of combat")
-end)
-
-test("ShamanisticRage: does not match when not ready", function()
-    local state = enh.build_state(ctx)
-    state.in_combat = true
-    state.shamanistic_rage_ready = false
-    assert_false(enh.strategies[1].matches(ctx, state), "ShamanisticRage should not match when not ready")
-end)
-
--- FeralSpirit: matches when in_combat, ready, long_cd allowed
+-- FeralSpirit: matches when in_combat and ready
 test("FeralSpirit: matches when all conditions met", function()
-    local orig_long_cd = _G.EaxRotations.should_use_long_cd
-    _G.EaxRotations.should_use_long_cd = function(ctx, cd) return true end
     local state = enh.build_state(ctx)
     state.in_combat = true
     state.feral_spirit_ready = true
-    local ok = enh.strategies[2].matches(ctx, state)
-    _G.EaxRotations.should_use_long_cd = orig_long_cd
-    assert_true(ok, "FeralSpirit should match when all conditions met")
+    assert_true(enh.strategies[1].matches(ctx, state), "FeralSpirit should match when all conditions met")
 end)
 
 test("FeralSpirit: does not match when out of combat", function()
     local state = enh.build_state(ctx)
     state.in_combat = false
     state.feral_spirit_ready = true
-    assert_false(enh.strategies[2].matches(ctx, state), "FeralSpirit should not match when out of combat")
+    assert_false(enh.strategies[1].matches(ctx, state), "FeralSpirit should not match when out of combat")
 end)
 
 test("FeralSpirit: does not match when not ready", function()
     local state = enh.build_state(ctx)
     state.in_combat = true
     state.feral_spirit_ready = false
-    assert_false(enh.strategies[2].matches(ctx, state), "FeralSpirit should not match when not ready")
+    assert_false(enh.strategies[1].matches(ctx, state), "FeralSpirit should not match when not ready")
+end)
+
+-- Bloodlust: matches when in combat and ready
+test("Bloodlust: matches when all conditions met", function()
+    local state = enh.build_state(ctx)
+    state.in_combat = true
+    state.bloodlust_ready = true
+    assert_true(enh.strategies[2].matches(ctx, state), "Bloodlust should match when all conditions met")
+end)
+
+test("Bloodlust: does not match when out of combat", function()
+    local state = enh.build_state(ctx)
+    state.in_combat = false
+    state.bloodlust_ready = true
+    assert_false(enh.strategies[2].matches(ctx, state), "Bloodlust should not match when out of combat")
+end)
+
+test("Bloodlust: does not match when not ready", function()
+    local state = enh.build_state(ctx)
+    state.in_combat = true
+    state.bloodlust_ready = false
+    assert_false(enh.strategies[2].matches(ctx, state), "Bloodlust should not match when not ready")
 end)
 
 -- Stormstrike: always matches
 test("Stormstrike: always matches", function()
     local state = enh.build_state(ctx)
-    assert_true(enh.strategies[3].matches(ctx, state), "Stormstrike should always match")
+    assert_true(enh.strategies[4].matches(ctx, state), "Stormstrike should always match")
 end)
 
 -- LavaLash: always matches
 test("LavaLash: always matches", function()
     local state = enh.build_state(ctx)
-    assert_true(enh.strategies[4].matches(ctx, state), "LavaLash should always match")
+    assert_true(enh.strategies[11].matches(ctx, state), "LavaLash should always match")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

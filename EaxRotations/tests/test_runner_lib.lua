@@ -23,6 +23,13 @@
 
 local M = {}
 
+function M.prepare_module_path()
+    local parent_pattern = "../?.lua;../?/init.lua;"
+    if not package.path:find("%.%./%?%.lua", 1, false) then
+        package.path = parent_pattern .. package.path
+    end
+end
+
 -- ---------------------------------------------------------------------------
 -- CLI parsing
 -- ---------------------------------------------------------------------------
@@ -307,6 +314,24 @@ function M.file_exists(path)
     if not f then return false end
     f:close()
     return true
+end
+
+function M.assert_manifest_complete(files, registered, allowlisted)
+    local seen = {}
+    for i = 1, #registered do
+        local name = registered[i]
+        if seen[name] then error("duplicate test manifest entry: " .. name, 2) end
+        seen[name] = true
+    end
+    for i = 1, #allowlisted do seen[allowlisted[i]] = true end
+    local missing = {}
+    for i = 1, #files do
+        if not seen[files[i]] then missing[#missing + 1] = files[i] end
+    end
+    if #missing > 0 then
+        table.sort(missing)
+        error("unregistered test files: " .. table.concat(missing, ", "), 2)
+    end
 end
 
 -- ---------------------------------------------------------------------------

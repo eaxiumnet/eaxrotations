@@ -240,6 +240,22 @@ local function safe_method(unit, method, fallback)
     return result
 end
 
+local function current_rage(context, unit)
+    local get_power = unit and (NS.safe_field and NS.safe_field(unit, "get_power") or unit.get_power)
+    if type(get_power) == "function" then
+        local ok, rage = pcall(get_power, unit, NS.POWER_RAGE or 1)
+        if ok and type(rage) == "number" then return rage end
+    end
+    return context.rage or 0
+end
+
+local function safe_debuff_remains(unit, ids)
+    if not unit or type(NS.debuff_remains) ~= "function" then return 0 end
+    local ok, remains = pcall(NS.debuff_remains, unit, ids)
+    if ok and type(remains) == "number" then return remains end
+    return 0
+end
+
 local function same_unit(a, b)
     if not a or not b then return false end
     if NS.same_unit then return NS.same_unit(a, b) end
@@ -356,7 +372,7 @@ local function build_state(context)
     state.me        = context.me or (NS.GetPlayer and NS.GetPlayer()) or nil
     state.target    = context.target
     state.hp        = context.hp or 100
-    state.rage      = context.rage or 0
+    state.rage      = current_rage(context, state.me)
     state.stance    = context.stance or (NS.get_player_stance and NS.get_player_stance()) or STANCE_CASTER
     state.in_combat   = context.in_combat == true
     state.combat_time = context.combat_time or 0
@@ -407,12 +423,12 @@ local function build_state(context)
     state.has_frenzied_regen = (NS.buff_up and NS.buff_up(state.me, FRENZIED_REGEN_BUFF)) or false
     state.has_mark           = (NS.buff_up and NS.buff_up(state.me, MARK_BUFF)) or false
     state.has_thorns         = (NS.buff_remains and NS.buff_remains(state.me, THORNS_BUFF) or 0) > THORNS_REFRESH
-    state.faerie_remains     = NS.debuff_remains(state.target, FAERIE_FIRE_DEBUFF) or 0
-    state.lacerate_remains   = NS.debuff_remains(state.target, LACERATE_DEBUFF) or 0
+    state.faerie_remains     = safe_debuff_remains(state.target, FAERIE_FIRE_DEBUFF)
+    state.lacerate_remains   = safe_debuff_remains(state.target, LACERATE_DEBUFF)
     state.lacerate_stacks    = (NS.get_debuff_stacks and NS.get_debuff_stacks(state.target, LACERATE_DEBUFF))
                                or (NS.debuff_stacks and NS.debuff_stacks(state.target, LACERATE_DEBUFF)) or 0
-    state.mangle_remains    = NS.debuff_remains(state.target, MANGLE_DEBUFF) or 0
-    state.demo_remains       = NS.debuff_remains(state.target, DEMO_ROAR_DEBUFF) or 0
+    state.mangle_remains     = safe_debuff_remains(state.target, MANGLE_DEBUFF)
+    state.demo_remains       = safe_debuff_remains(state.target, DEMO_ROAR_DEBUFF)
 
     -- readiness
     state.mangle_ready = spell_ready(ACTION.MangleBear, state.target)

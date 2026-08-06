@@ -78,6 +78,18 @@ local function make_ctx(overrides)
     return Mock.DefaultBearContext(overrides)
 end
 
+local bear_target = { _debuff_remains = 7 }
+local normal_debuff_state = result.build_state(make_ctx({ target = bear_target, now = 100 }))
+assert_eq(normal_debuff_state.faerie_remains, 7, "normal debuff remains should be preserved")
+local saved_debuff_remains = _G.EaxRotations.debuff_remains
+_G.EaxRotations.debuff_remains = nil
+local missing_debuff_state = result.build_state(make_ctx({ target = bear_target, now = 101 }))
+assert_eq(missing_debuff_state.faerie_remains, 0, "missing debuff API should produce zero remains")
+_G.EaxRotations.debuff_remains = function() error("debuff API unavailable") end
+local throwing_debuff_state = result.build_state(make_ctx({ target = bear_target, now = 102 }))
+assert_eq(throwing_debuff_state.demo_remains, 0, "throwing debuff API should produce zero remains")
+_G.EaxRotations.debuff_remains = saved_debuff_remains
+
 -- ============================================================================
 -- OOC buffs must NEVER cast in bear form (MotW/Thorns cancel form → shift loop)
 -- ============================================================================
@@ -143,6 +155,25 @@ assert_false(lacerate.matches(make_ctx({ target = nil, has_valid_enemy_target = 
 -- ============================================================================
 
 local swipe_aoe = find_strategy("SwipeAoE")
+
+local full_rage_bear = {
+    get_power = function(_, power_type)
+        if power_type == 1 then return 100 end
+        return 0
+    end,
+}
+local full_rage_context = make_ctx({
+    me = full_rage_bear,
+    rage = 0,
+    enemy_count = 3,
+    target = { _debuff_stacks = 5, _debuff_remains = 10 },
+    target_ttd = 60,
+    target_range = 5,
+    settings = { bear_aoe_threshold = 2, bear_maul_rage = 40, bear_swing_timer = false },
+})
+action_calls = {}
+assert_true(swipe_aoe.matches(full_rage_context),
+    "SwipeAoE should use player get_power(1) when dispatcher rage is stale at zero")
 
 -- Too few enemies -> should NOT match
 action_calls = {}
@@ -216,6 +247,54 @@ local maul = find_strategy("Maul")
 local maul_settings = { bear_maul_rage = 50 }
 
 action_calls = {}
+assert_true(maul.matches(full_rage_context),
+    "Maul should use player get_power(1) at full rage with three targets and threshold 40")
+
+local _prev_is_current = _G.EaxRotations.is_current_spell
+_G.EaxRotations.is_current_spell = function(spell_id) return spell_id == 26996 end
+assert_false(maul.matches(full_rage_context),
+    "Maul must keep its already-queued next-swing guard when rage comes from the player")
+_G.EaxRotations.is_current_spell = _prev_is_current
+
+assert_false(maul.matches(make_ctx({
+    me = full_rage_bear,
+    rage = 0,
+    enemy_count = 3,
+    target = { _debuff_stacks = 5, _debuff_remains = 10 },
+    target_ttd = 2,
+    target_range = 5,
+    settings = { bear_aoe_threshold = 2, bear_maul_rage = 40, bear_swing_timer = false },
+})), "Maul must keep its TTD guard when rage comes from the player")
+
+local _prev_swing_time_until = _G.EaxRotations.swing_time_until
+_G.EaxRotations.swing_time_until = function() return 0.1 end
+assert_false(maul.matches(make_ctx({
+    me = full_rage_bear,
+    rage = 0,
+    enemy_count = 3,
+    target = { _debuff_stacks = 5, _debuff_remains = 10 },
+    target_ttd = 60,
+    target_range = 5,
+    settings = { bear_aoe_threshold = 2, bear_maul_rage = 40, bear_swing_timer = true },
+})), "Maul must keep its near-swing re-queue guard when rage comes from the player")
+_G.EaxRotations.swing_time_until = _prev_swing_time_until
+
+local reserve_rage_bear = {
+    get_power = function(_, power_type)
+        if power_type == 1 then return 30 end
+        return 0
+    end,
+}
+assert_false(maul.matches(make_ctx({
+    me = reserve_rage_bear,
+    rage = 0,
+    target = { _debuff_stacks = 5, _debuff_remains = 10 },
+    target_ttd = 60,
+    target_range = 5,
+    settings = { bear_maul_rage = 20, bear_swing_timer = false },
+})), "Maul must keep the Mangle reserve when rage comes from the player")
+
+action_calls = {}
 assert_false(maul.matches(make_ctx({ rage = 20, target = { _debuff_stacks = 5 }, settings = maul_settings })), "Maul should not match when rage < maul_rage")
 assert_eq(#action_calls, 0, "action_matches should not be called when rage < maul_rage")
 
@@ -223,7 +302,6 @@ action_calls = {}
 assert_true(maul.matches(make_ctx({ rage = 50, target = { _debuff_stacks = 5 }, settings = maul_settings })), "Maul should match when rage >= maul_rage and lacerate at 5")
 
 -- Already-queued next-swing Maul must not rematch (prevents spell-queue spam)
-local _prev_is_current = _G.EaxRotations.is_current_spell
 _G.EaxRotations.is_current_spell = function(spell_id)
     return spell_id == 6807 or spell_id == 26996
 end

@@ -265,6 +265,22 @@ if class_name then
     end
 end
 
+if NS and type(NS.is_sod) == "function" and NS.is_sod() and type(class_schema) == "table" then
+    if not class_schema.__eax_sod_settings_added then
+        local sod_settings = {
+            { key = "sod_phase", type = "slider", label = "SoD Phase", min = 1, max = 8, default = 8 },
+        }
+        if type(class_schema[1]) == "table" and class_schema[1].sections then
+            class_schema[1].sections[#class_schema[1].sections + 1] = {
+                header = "Season of Discovery", settings = sod_settings,
+            }
+        else
+            for _, setting in ipairs(sod_settings) do class_schema[#class_schema + 1] = setting end
+        end
+        class_schema.__eax_sod_settings_added = true
+    end
+end
+
 -- Inject shared quick-win schema sections into every class schema.
 -- This adds Auto-AoE and Force Command toggles without touching individual class files.
 if class_schema and NS and NS.common_auto_aoe_section then
@@ -647,6 +663,7 @@ local menu_elements = {
     dump_spells_btn = core.menu.button("eax_dump_spells"),
     debug_swing_timer_chk = core.menu.checkbox(false, "eax_debug_swing_timer"),
     debug_game_events_chk = core.menu.checkbox(false, "eax_debug_game_events"),
+    debug_combo_points_chk = core.menu.checkbox(false, "eax_debug_combo_points"),
     -- Theme customization
     theme_tree = make_tree("eaxrot_theme"),
     theme_enabled_chk = core.menu.checkbox(true, "eax_theme_override_enabled"),
@@ -1012,6 +1029,9 @@ local function render_menu()
             if menu_elements.debug_game_events_chk then
                 menu_elements.debug_game_events_chk:render("Debug Game Events", "Log event dispatcher registration and dispatch")
             end
+            if menu_elements.debug_combo_points_chk then
+                menu_elements.debug_combo_points_chk:render("Debug Combo Points", "Log combo point reads, resolved power-type enums, and min_combo gate rejections")
+            end
         end)
     end)
 
@@ -1122,6 +1142,10 @@ local function on_update()
         if menu_elements.debug_game_events_chk then
             local ok, ge = pcall(function() return menu_elements.debug_game_events_chk:get_state() end)
             NS._DEBUG_GAME_EVENTS = ok and ge == true
+        end
+        if menu_elements.debug_combo_points_chk then
+            local ok, cp = pcall(function() return menu_elements.debug_combo_points_chk:get_state() end)
+            NS._DEBUG_COMBO_POINTS = ok and cp == true
         end
     end
 

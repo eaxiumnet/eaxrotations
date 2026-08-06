@@ -392,6 +392,12 @@ function M.initialize(schema, class_config, MenuTheme, playstyle_keys,
         _widget_registry[#_widget_registry + 1] = {
             id = "eax_debug_game_events", type = "checkbox", default = false,
         }
+        diag_section:checkbox("eax_debug_combo_points", "Debug Combo Points", false, {
+            description = "Log combo point reads, resolved power-type enums, and min_combo gate rejections",
+        })
+        _widget_registry[#_widget_registry + 1] = {
+            id = "eax_debug_combo_points", type = "checkbox", default = false,
+        }
     end
 
     _initialized = true

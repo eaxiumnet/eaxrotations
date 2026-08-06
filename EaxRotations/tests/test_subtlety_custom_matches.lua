@@ -14,9 +14,11 @@ local function at(v,l) if not v then error(l or "fail",2) end end
 local function af(v,l) if v then error(l or "fail",2) end end
 
 local cap_gs
+local combo_reader_calls = 0
 _G.EaxRotations = {
   RogueSpells = { Backstab=53, Hemorrhage=16511, SliceAndDice=5171, Rupture=1943, Eviscerate=2098, KidneyShot=408, Evasion=5277, Vanish=1856, Shadowstep=36554, Sprint=2983, CheapShot=1833, Garrote=703, Ambush=8676, Sap=6770, Stealth=1787, Premeditation=14183, Blind=2094, Gouge=1776, GhostlyStrike=14278, DeadlyThrow=26679, ExposeArmor=8647, Feint=1966, Preparation=14185, Shiv=5938, Kick=1769, CloakOfShadows=31224 },
   spell_ready=function() return true end, is_spell_learned=function() return true end,
+  has_player_buff=function() return false end,
   spell_action=function() return {} end,
   setting=function(context, key, default) local s=(context and context.settings) or {}; if s[key] ~= nil then return s[key] end; return default end,
   buff_remains=function() return 0 end, debuff_remains=function() return 0 end,
@@ -30,6 +32,10 @@ _G.EaxRotations = {
 }
 package.loaded["shared/potion_helper_sylvanas"] = {}
 package.loaded["shared/offensive_dispel_sylvanas"] = { find_best_dispel_target = function() return nil end }
+package.loaded["shared/combo_points_reader_sylvanas"] = function(unit, power_type)
+  combo_reader_calls = combo_reader_calls + 1
+  return unit:get_power(power_type)
+end
 package.loaded["shared/hunter_core_sylvanas"] = nil
 package.loaded["shared/targeting_sylvanas"] = nil
 package.loaded["shared/cooldown_planner_sylvanas"] = nil
@@ -87,5 +93,13 @@ local hs = fs("Healthstone")
 af(hs.matches({in_combat=true},cs({hp=50,healthstone_ready=22105})),"Healthstone high hp")
 at(hs.matches({in_combat=true},cs({hp=20,healthstone_ready=22105})),"Healthstone low hp")
 af(hs.matches({in_combat=true},cs({hp=20,healthstone_ready=0})),"Healthstone none ready")
+
+local stale_combo_player = {
+  combo_points_current = function() return 5 end,
+  get_power = function(_, power_type) if power_type == 4 then return 0 end return 0 end,
+}
+local authoritative_state = cap_gs({ me = stale_combo_player, target = {}, in_combat = true })
+at(combo_reader_calls > 0, "Subtlety must use the shared combo-point reader")
+at(authoritative_state.combo == 0, "Subtlety must preserve authoritative zero combo points")
 
 print("PASS test_subtlety_custom_matches")

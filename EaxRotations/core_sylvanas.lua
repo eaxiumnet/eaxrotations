@@ -39,18 +39,45 @@ pcall(function() spec_kit = require("shared/spec_kit_sylvanas") end)
 
 NS.core = core
 
--- Expansion helpers (dual-version support for TBC and Classic)
--- Normalized expansion key: "tbc" | "vanilla" | nil (unknown)
+local _settings_manager
+do
+    local _sm_ok, _sm = pcall(require, "common/modules/settings_manager")
+    if _sm_ok and type(_sm) == "table" then _settings_manager = _sm end
+end
+
+-- Expansion helpers (multi-version support for TBC, SoD, Classic, WotLK, and Cata)
+-- Normalized expansion key: "tbc" | "sod" | "vanilla" | "wotlk" | "cata" | nil (unknown)
 local _expansion_key = nil
+local function _requested_runtime_mode()
+    local settings = NS.settings
+    if type(settings) == "table" and settings.runtime_mode ~= nil then
+        return settings.runtime_mode
+    end
+    if _settings_manager and type(_settings_manager.get) == "function" then
+        local ok, value = pcall(_settings_manager.get, _settings_manager, "runtime_mode")
+        if ok then return value end
+    end
+    return nil
+end
+
 local function _resolve_expansion_key()
     if _expansion_key ~= nil then return _expansion_key end
+    local requested_mode = _requested_runtime_mode()
+    if type(requested_mode) == "string" and requested_mode:lower() == "sod" then
+        _expansion_key = "sod"
+        return _expansion_key
+    end
     local gv = _cached_game_version
     if not gv then
         gv = core.get_game_version and core.get_game_version()
     end
     if gv then
         local s = tostring(gv):lower()
-        if s:find("vanilla") or s:find("classic") then
+        if s:find("season of discovery", 1, true) or s == "sod" then
+            _expansion_key = "sod"
+        elseif s:find("cata", 1, true) or s:find("cataclysm", 1, true) or s:find("4.3", 1, true) then
+            _expansion_key = "cata"
+        elseif s:find("vanilla") or s:find("classic") then
             _expansion_key = "vanilla"
         elseif s:find("wotlk") or s:find("wrath") or s:find("3%.3") then
             _expansion_key = "wotlk"
@@ -84,9 +111,19 @@ function NS.is_wotlk()
     return _resolve_expansion_key() == "wotlk"
 end
 
+function NS.is_sod()
+    return _resolve_expansion_key() == "sod"
+end
+
+function NS.is_cata()
+    return _resolve_expansion_key() == "cata"
+end
+
 function NS.get_expansion_max_level()
+    if NS.is_sod() then return 60 end
     if NS.is_vanilla() then return 60 end
     if NS.is_wotlk() then return 80 end
+    if NS.is_cata() then return 85 end
     return 70
 end
 
@@ -147,11 +184,6 @@ end
 -- cooldown_tracker: native engine-level cooldown observation (replaces enemy_cd_tracker)
 local _ct_ok, _cooldown_tracker = pcall(require, "common/utility/cooldown_tracker")
 if not _ct_ok or type(_cooldown_tracker) ~= "table" then _cooldown_tracker = nil end
-
--- settings_manager: engine-level settings (O(1) get/set, replaces manual 200ms cache rebuild in get_setting).
--- Per apidocs and API_ADOPTION_ANALYSIS, this was declared but never loaded.
-local _sm_ok, _settings_manager = pcall(require, "common/modules/settings_manager")
-if not _sm_ok or type(_settings_manager) ~= "table" then _settings_manager = nil end
 
 -- spell_helper: native spell readiness checks (cooldown + range + resource + facing + LOS + learned)
 local _sh_ok, _spell_helper = pcall(require, "common/utility/spell_helper")
@@ -284,8 +316,10 @@ if _ok_enums and type(_enums) == "table" and _enums.power_type then
     NS.POWER_RAGE   = _enums.power_type.RAGE   or 1
     NS.POWER_FOCUS  = _enums.power_type.FOCUS  or 2
     NS.POWER_ENERGY = _enums.power_type.ENERGY or 3
+    NS.POWER_COMBO  = _enums.power_type.COMBOPOINTS or 4
 else
     NS.POWER_MANA, NS.POWER_RAGE, NS.POWER_FOCUS, NS.POWER_ENERGY = 0, 1, 2, 3
+    NS.POWER_COMBO = 4
 end
 
 if _ok_enums and type(_enums) == "table" and _enums.class_id then
@@ -2724,6 +2758,20 @@ local function _swing_debug(msg)
     if now - _swing_debug_last < 5.0 then return end
     _swing_debug_last = now
     pcall(NS.log, "[SwingTimer] " .. tostring(msg))
+end
+
+-- Combo point debug: set NS._DEBUG_COMBO_POINTS = true (or tick the "Debug Combo Points"
+-- diagnostics checkbox) to see CP reads, resolved power-type enums, and gate rejections.
+NS._DEBUG_COMBO_POINTS = false
+local _cp_debug_last = 0
+
+function NS.cp_debug(msg)
+    if not NS._DEBUG_COMBO_POINTS then return end
+    if not NS.log then return end
+    local now = (NS.time_now and NS.time_now()) or 0
+    if now - _cp_debug_last < 2.0 then return end
+    _cp_debug_last = now
+    pcall(NS.log, "[ComboPoints] " .. tostring(msg))
 end
 
 -- Max sane weapon swing (2H slow + buffer). Values above this mean time-base mismatch.
@@ -5189,7 +5237,7 @@ local function append_healing_source_unit(out, unit)
 
 end
 
-local function append_healing_source_list(out, list)
+local function append_healing_source_list(out, list, require_party_marker)
 
     if type(list) ~= "table" then return 0 end
 
@@ -5197,7 +5245,11 @@ local function append_healing_source_list(out, list)
 
     for i = 1, #list do
 
-        added = added + append_healing_source_unit(out, list[i])
+        local unit = list[i]
+        local is_party_member = safe_field(unit, "is_party_member")
+        if not require_party_marker or (is_party_member and safe(is_party_member, unit) == true) then
+            added = added + append_healing_source_unit(out, unit)
+        end
 
     end
 
@@ -5212,6 +5264,7 @@ local function get_party_ally_list(me)
     healing_source_units.n = 0
 
     local added = 0
+    local authoritative_source = false
 
     -- Maximize the new core.party / get_party_frames feature for accurate party
     -- (exact UI members in order, excludes self). This is the foundation of advanced
@@ -5221,44 +5274,30 @@ local function get_party_ally_list(me)
     -- Try raid if available (for full raid content)
     local get_raid_members = object_manager and object_manager.get_raid_members
     if type(get_raid_members) == "function" then
-        added = added + append_healing_source_list(healing_source_units, safe(get_raid_members))
+        local members = safe(get_raid_members)
+        if type(members) == "table" then
+            authoritative_source = true
+            added = added + append_healing_source_list(healing_source_units, members)
+        end
     end
 
     -- Primary: party frames (new feature) - authoritative and cheap
     local get_party_frames = object_manager and object_manager.get_party_frames
     if type(get_party_frames) == "function" then
-        added = added + append_healing_source_list(healing_source_units, safe(get_party_frames))
-    end
-
-    -- Also pull via centralized GetPartyMembers (which prefers frames)
-    added = added + append_healing_source_list(healing_source_units, NS.GetPartyMembers and NS.GetPartyMembers() or nil)
-
-    -- Range-based party members as supplement (for pets or edge range)
-    local get_party_members_in_range = safe_field(me, "get_party_members_in_range")
-    if type(get_party_members_in_range) == "function" then
-        added = added + append_healing_source_list(healing_source_units, safe(get_party_members_in_range, me, 40, true))
-    end
-
-    -- Use izi.party (high-level wrapper over party frames) + unit_helper party_only
-    -- for the most advanced accurate party-only ally list.
-    if NS.izi and type(NS.izi.party) == "function" then
-        local ok, iparty = pcall(NS.izi.party, 40)
-        if ok and type(iparty) == "table" then
-            added = added + append_healing_source_list(healing_source_units, iparty)
-        end
-    end
-    if _unit_helper then
-        local pos = safe_field(me, "get_position") and safe(safe_field(me, "get_position"), me) or nil
-        if pos then
-            local ok, allies = pcall(_unit_helper.get_ally_list_around, _unit_helper, pos, 40, true, true, false)
-            if ok and type(allies) == "table" then
-                added = added + append_healing_source_list(healing_source_units, allies)
-            end
+        local members = safe(get_party_frames)
+        if type(members) == "table" then
+            authoritative_source = true
+            added = added + append_healing_source_list(healing_source_units, members)
         end
     end
 
-    -- Integrate platform target_selector:get_targets_heal for menu-driven best heal targets
-    added = added + append_healing_source_list(healing_source_units, NS.get_targets_heal(5))
+    if not authoritative_source then
+        added = added + append_healing_source_list(
+            healing_source_units,
+            NS.GetPartyMembers and NS.GetPartyMembers() or nil,
+            true
+        )
+    end
 
     append_healing_source_unit(healing_source_units, me)
 
@@ -5280,39 +5319,9 @@ function NS.build_healing_entries(out, decorate)
 
     local units, count = get_party_ally_list(me)
 
-    -- Fallback: if party APIs returned only self, also scan visible friendlies
-    -- Guard: if units is nil (e.g., player is dead), create empty table first
     if not units then
         units = {}
         count = 0
-    end
-
-    if count <= 1 then
-
-        local vis, vis_count = NS.get_visible_units(false, 200)
-
-        if vis and vis_count > 0 then
-
-            for i = 1, vis_count do
-
-                local u = vis[i]
-
-                local is_friend_with = safe_field(u, "is_friend_with")
-
-                if u and not NS.same_unit(u, me) and NS.unit_alive(u) and safe(is_friend_with, u, me) and (distance(u, me) or 999) <= 40 then
-
-                    count = count + 1
-
-                    units[count] = u
-
-                end
-
-            end
-
-            units.n = count
-
-        end
-
     end
 
     local n = 0
@@ -6081,9 +6090,33 @@ function NS.action_matches(context, action)
 
     end
 
-    if action.min_combo and (context.combo_points or 0) < action.min_combo then
+    -- nil = CP read FAILED (main_sylvanas.lua returns nil, not 0, by design), so skip the
+    -- gate and let the spec's build_state fallback decide. Collapsing nil to 0 via `or 0`
+    -- blocked every finisher (Rip/Ferocious Bite/Maim). A real 0 must still block.
+    if action.min_combo and context.combo_points ~= nil and context.combo_points < action.min_combo then
+
+        if NS._DEBUG_COMBO_POINTS and NS.cp_debug then
+            NS.cp_debug(string.format(
+                "gate REJECT %s: min_combo=%s context.combo_points=%s",
+                tostring(action.name or action.label or "?"),
+                tostring(action.min_combo),
+                tostring(context.combo_points)
+            ))
+        end
 
         return false
+
+    end
+
+    if action.min_combo and context.combo_points == nil then
+
+        if NS._DEBUG_COMBO_POINTS and NS.cp_debug then
+            NS.cp_debug(string.format(
+                "gate SKIP %s: min_combo=%s but context.combo_points is nil (CP read failed; spec fallback decides)",
+                tostring(action.name or action.label or "?"),
+                tostring(action.min_combo)
+            ))
+        end
 
     end
 

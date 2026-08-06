@@ -16,6 +16,7 @@ local CCGateDB = NS.OffensiveDispelDB or require("shared/offensive_dispel_sylvan
 
 -- spec_kit migration #25
 local spec_kit = require("shared/spec_kit_sylvanas")
+local read_combo_points = require("shared/combo_points_reader_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
 local define = spec_kit.define_action_for_class(BASE_SPELLS)
 local ACTION = {
@@ -238,16 +239,8 @@ local function build_state(context)
     subtlety_state.energy = context.energy or 0
     -- IZI SDK: energy_predicted for smarter pooling decisions
     local me = context.me or (NS.GetPlayer and NS.GetPlayer())
-    -- IZI SDK: combo_points_current() is a more reliable source when available
-    if me and type(me.combo_points_current) == "function" then
-        local ok, cp = pcall(me.combo_points_current, me)
-        if ok and type(cp) == "number" then subtlety_state.combo = cp end
-    end
-    -- Fallback: get_power(me, 4) — combo points = power type 4 in WoW API
-    if me and type(me.get_power) == "function" then
-        local ok2, cp2 = pcall(me.get_power, me, 4)
-        if ok2 and type(cp2) == "number" then subtlety_state.combo = cp2 end
-    end
+    local combo_points = read_combo_points(me, NS.POWER_COMBO or 4)
+    if type(combo_points) == "number" then subtlety_state.combo = combo_points end
     if me and type(me.energy_predicted) == "function" then
         local ok, pred = pcall(me.energy_predicted, me)
         subtlety_state.energy_predicted = (ok and type(pred) == "number") and pred or subtlety_state.energy

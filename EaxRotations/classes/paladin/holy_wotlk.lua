@@ -39,7 +39,7 @@ local holy_state = {
 local function build_state(context)
     local state = spec_kit.safe_state(holy_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
-    local target = context and context.target
+    local target = (context and context.lowest and context.lowest.unit) or me
     state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
@@ -56,21 +56,21 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "beacon_up", op = "falsy" },
         },
-        action = { type = "cast", spell = ACTION.BeaconOfLight, target = "target" },
+        action = { type = "cast", spell = ACTION.BeaconOfLight, target = "friendly" },
     },
     {
         name = "SacredShield",
         conditions = {
             { type = "state", field = "sacred_shield_up", op = "falsy" },
         },
-        action = { type = "cast", spell = ACTION.SacredShield, target = "target" },
+        action = { type = "cast", spell = ACTION.SacredShield, target = "friendly" },
     },
     {
         name = "HolyShock",
         conditions = {
             { type = "state", field = "target_hp", op = "<", value = 80 },
         },
-        action = { type = "cast", spell = ACTION.HolyShock, target = "target" },
+        action = { type = "cast", spell = ACTION.HolyShock, target = "friendly" },
     },
     {
         name = "HolyLight",
@@ -78,7 +78,7 @@ local DSL_DEFS = {
             { type = "state", field = "target_hp", op = "<", value = 50 },
             { type = "state", field = "mana_pct", op = ">=", value = 30 },
         },
-        action = { type = "cast", spell = ACTION.HolyLight, target = "target" },
+        action = { type = "cast", spell = ACTION.HolyLight, target = "friendly" },
     },
     {
         name = "FlashOfLight",
@@ -86,7 +86,7 @@ local DSL_DEFS = {
             { type = "state", field = "target_hp", op = "<", value = 70 },
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
         },
-        action = { type = "cast", spell = ACTION.FlashOfLight, target = "target" },
+        action = { type = "cast", spell = ACTION.FlashOfLight, target = "friendly" },
     },
 }
 

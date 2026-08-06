@@ -188,10 +188,9 @@ local function select_heal(context, state, target, options)
             heal_result.label = "NS + HW"
             heal_result.spell_type = "NS_HealingWave"
         else
-            -- Need to activate Nature's Swiftness first
-            heal_result.spell = nil
-            heal_result.label = "NS Emergency"
-            heal_result.spell_type = "NaturesSwiftness"
+            heal_result.spell = SHAMAN_SPELLS.LesserHealingWave or nil
+            heal_result.label = "LHW emergency fallback"
+            heal_result.spell_type = "LesserHealingWave"
         end
         return heal_result
     end

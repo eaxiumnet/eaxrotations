@@ -108,6 +108,12 @@ local function make_context()
     }
 end
 
+local function make_context_with_optional_spells()
+    local context = make_context()
+    context.settings = { use_consecration = true, use_exorcism = true }
+    return context
+end
+
 -- A "not suppressed" base state: twist OFF, in melee, mana fine, enough enemies.
 local function base_state(overrides)
     local s = {
@@ -156,16 +162,16 @@ assert_false(crusader.matches(make_context(), base_state({ can_twist = true, swi
 print("  [ PASS ] C5: boundary prep_start is suppressed")
 
 -- C6: Consecration honours the same twist-suppress gate
-assert_false(consecration.matches(make_context(), base_state({ can_twist = true, swing_remains = 0.3 })),
+assert_false(consecration.matches(make_context_with_optional_spells(), base_state({ can_twist = true, swing_remains = 0.3 })),
     "C6: Consecration suppressed near swing when twisting")
-assert_true(consecration.matches(make_context(), base_state({ can_twist = true, swing_remains = 5.0 })),
+assert_true(consecration.matches(make_context_with_optional_spells(), base_state({ can_twist = true, swing_remains = 5.0 })),
     "C6b: Consecration allowed when swing far")
 print("  [ PASS ] C6: Consecration honours twist-suppress gate")
 
 -- C7: Exorcism honours the same twist-suppress gate (undead target → spell_ready path)
-assert_false(exorcism.matches(make_context(), base_state({ can_twist = true, swing_remains = 0.3 })),
+assert_false(exorcism.matches(make_context_with_optional_spells(), base_state({ can_twist = true, swing_remains = 0.3 })),
     "C7: Exorcism suppressed near swing when twisting")
-assert_true(exorcism.matches(make_context(), base_state({ can_twist = true, swing_remains = 5.0 })),
+assert_true(exorcism.matches(make_context_with_optional_spells(), base_state({ can_twist = true, swing_remains = 5.0 })),
     "C7b: Exorcism allowed when swing far")
 print("  [ PASS ] C7: Exorcism honours twist-suppress gate")
 

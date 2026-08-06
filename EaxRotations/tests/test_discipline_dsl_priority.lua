@@ -131,8 +131,8 @@ local strategies = disc.strategies
 local expected_order = {
     "FriendlyTarget", "PowerWordShieldTank", "EmergencyPowerWordShield",
     "PrayerOfMendingTank", "EmergencyFlashHeal", "PreemptiveGreaterHeal",
-    "GreaterHeal", "FSRPause", "BindingHeal", "CircleOfHealing",
-    "PrayerOfHealing", "RenewTank", "RenewLowest", "InnerFire",
+    "GreaterHeal", "FSRPause", "BindingHeal", "PrayerOfHealing",
+    "RenewTank", "RenewLowest", "InnerFire",
     "FearWard", "PowerWordFortitude", "SymbolOfHope", "DivineSpirit",
     "PrayerOfFortitude", "PsychicScream", "ShackleUndead", "DispelMagic",
     "MassDispel", "PainSuppression", "PowerInfusion", "InnerFocus",
@@ -152,9 +152,9 @@ assert_true(dsl_indices["PowerWordShieldTank"] == 2, "PowerWordShieldTank at ind
 assert_true(dsl_indices["EmergencyPowerWordShield"] == 3, "EmergencyPowerWordShield at index 3")
 assert_true(dsl_indices["PrayerOfMendingTank"] == 4, "PrayerOfMendingTank at index 4")
 assert_true(dsl_indices["EmergencyFlashHeal"] == 5, "EmergencyFlashHeal at index 5")
-assert_true(dsl_indices["RenewTank"] == 12, "RenewTank at index 12")
-assert_true(dsl_indices["InnerFire"] == 14, "InnerFire at index 14")
-assert_true(dsl_indices["PainSuppression"] == 24, "PainSuppression at index 24")
+assert_true(dsl_indices["RenewTank"] == 11, "RenewTank at index 11")
+assert_true(dsl_indices["InnerFire"] == 13, "InnerFire at index 13")
+assert_true(dsl_indices["PainSuppression"] == 23, "PainSuppression at index 23")
 
 -- ============================================================================
 -- Mock context + state helpers
@@ -252,7 +252,7 @@ assert_false(strategies[idx_fh].matches(make_ctx(), make_state({ mana_pct = 10 }
 -- ============================================================================
 -- RenewTank: tank missing renew, HP below threshold
 -- ============================================================================
-local idx_renew = 12
+local idx_renew = 11
 -- Positive
 assert_true(strategies[idx_renew].matches(make_ctx(), make_state()),
     "RenewTank matches when tank missing Renew and HP low")
@@ -263,7 +263,7 @@ assert_false(strategies[idx_renew].matches(make_ctx(), make_state({ tank = { uni
 -- ============================================================================
 -- InnerFire: missing buff, spell ready, safe in combat
 -- ============================================================================
-local idx_ifire = 14
+local idx_ifire = 13
 -- Positive
 assert_true(strategies[idx_ifire].matches(make_ctx(), make_state({ has_inner_fire = false })),
     "InnerFire matches when buff missing and in safe combat")
@@ -274,7 +274,7 @@ assert_false(strategies[idx_ifire].matches(make_ctx(), make_state({ has_inner_fi
 -- ============================================================================
 -- PainSuppression: in combat, tank low, spell ready
 -- ============================================================================
-local idx_ps = 24
+local idx_ps = 23
 -- Positive
 assert_true(strategies[idx_ps].matches(make_ctx(), make_state()),
     "PainSuppression matches when tank is low in combat")

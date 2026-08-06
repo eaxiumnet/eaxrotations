@@ -73,6 +73,15 @@ local function find_strategy(name)
     error("strategy not found: " .. name)
 end
 
+local function has_strategy(name)
+    for i = 1, #strategies do
+        if strategies[i].name == name then return true end
+    end
+    return false
+end
+
+assert_false(has_strategy("CircleOfHealing"), "Discipline should not expose Holy-only CircleOfHealing")
+
 -- ============================================================================
 -- EmergencyPowerWordShield: only when lowest HP <= threshold and no weakened soul
 -- ============================================================================
@@ -192,6 +201,29 @@ assert_true(gh.matches({ in_combat = true, is_moving = false, settings = { disci
 -- No lowest -> should NOT match
 action_calls = {}
 assert_false(gh.matches({ in_combat = true, is_moving = false, settings = { discipline_greater_heal_hp = 82, discipline_flash_hp = 55 } }, { lowest = false }), "GreaterHeal should not match without lowest")
+
+local poh = find_strategy("PrayerOfHealing")
+assert_false(poh.matches({ is_moving = false, mana_pct = 80, settings = {} }, {
+    subgroup_damaged_count = 3,
+    group_damaged_count = 5,
+    prayer_of_healing_ready = true,
+    lowest = { unit = {} },
+    mana_pct = 80,
+}), "PrayerOfHealing should not match below four injured subgroup members")
+assert_true(poh.matches({ is_moving = false, mana_pct = 80, settings = {} }, {
+    subgroup_damaged_count = 4,
+    group_damaged_count = 4,
+    prayer_of_healing_ready = true,
+    lowest = { unit = {} },
+    mana_pct = 80,
+}), "PrayerOfHealing should match at four injured subgroup members")
+assert_false(poh.matches({ is_moving = false, mana_pct = 14, settings = {} }, {
+    subgroup_damaged_count = 4,
+    group_damaged_count = 4,
+    prayer_of_healing_ready = true,
+    lowest = { unit = {} },
+    mana_pct = 14,
+}), "PrayerOfHealing should not match below Discipline's healing mana floor")
 
 -- ============================================================================
 -- IdleShadowWordPain: only in combat, dps_when_idle, valid enemy, group stable

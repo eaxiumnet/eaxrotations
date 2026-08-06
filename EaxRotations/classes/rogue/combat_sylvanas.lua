@@ -15,6 +15,7 @@ if not NS then return nil end
 	local SPELLS = NS.RogueSpells or {}
 	local spec_kit = require("shared/spec_kit_sylvanas")
 	local dsl = require("shared/strategy_dsl_sylvanas")
+	local read_combo_points = require("shared/combo_points_reader_sylvanas")
 
 -- Centralized spell resolver via spec_kit (rank IDs from rogue/class_sylvanas.lua).
 local define = spec_kit.define_action_for_class(SPELLS)
@@ -67,6 +68,14 @@ local VIGOR_TALENT_ID = 14983
 local function get_energy_cap(me)
     if me and NS.has_talent and NS.has_talent(me, VIGOR_TALENT_ID) then
         return 110
+    end
+    return 100
+end
+
+local function read_energy(me)
+    if me and type(me.get_power) == "function" then
+        local ok, energy = pcall(me.get_power, me, NS.POWER_ENERGY or 3)
+        if ok and type(energy) == "number" then return energy end
     end
     return 100
 end
@@ -255,17 +264,9 @@ local function build_state(context)
     combat_state.snd_remains = me and NS.buff_remains(me, SND_BUFF) or 0
     combat_state.rupture_remains = target and NS.debuff_remains(target, RUPTURE_DEBUFF) or 0
     combat_state.combo_points = context.combo_points or 0
-    -- IZI SDK: combo_points_current() is a more reliable source when available
-    if me and type(me.combo_points_current) == "function" then
-        local ok, cp = pcall(me.combo_points_current, me)
-        if ok and type(cp) == "number" then combat_state.combo_points = cp end
-    end
-    -- Fallback: get_power(me, 4) — combo points = power type 4 in WoW API
-    if me and type(me.get_power) == "function" then
-        local ok2, cp2 = pcall(me.get_power, me, 4)
-        if ok2 and type(cp2) == "number" then combat_state.combo_points = cp2 end
-    end
-    combat_state.energy = context.energy or (me and NS.unit_energy_pct and NS.unit_energy_pct(me)) or 100
+    local combo_points = read_combo_points(me, NS.POWER_COMBO or 4)
+    if type(combo_points) == "number" then combat_state.combo_points = combo_points end
+    combat_state.energy = context.energy or read_energy(me)
     -- IZI SDK: energy_predicted gives projected energy after next tick (better pooling)
     if me and type(me.energy_predicted) == "function" then
         local ok, pred = pcall(me.energy_predicted, me)

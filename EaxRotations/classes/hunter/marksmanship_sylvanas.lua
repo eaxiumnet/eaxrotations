@@ -101,10 +101,63 @@ end
 
 -- Safe API wrappers (mirror beast_mastery/leveling): a single API failure must
 -- never blank build_state (dispatcher falls back to raw context on throw).
-local function safe_spell_ready(spell, target, opts)
-    if not NS.spell_ready then return false end
-    local ok, a = pcall(NS.spell_ready, spell, target, opts)
-    return ok and a or false
+--
+-- TEMP DIAGNOSTIC (2026-08-06): live BM regression; swallowed errors are
+-- re-emitted (throttled 2s) so the crashing call is visible in the console.
+-- REMOVE once the live root cause is identified.
+local _last_swallowed_warn = 0
+local function warn_swallowed(label, err)
+    local now = (NS.time_now and NS.time_now()) or 0
+    if now - _last_swallowed_warn <= 2 then return end
+    _last_swallowed_warn = now
+    if NS.log then NS.log("MM swallowed API error [" .. label .. "]: " .. tostring(err)) end
+end
+
+-- Spell readiness comes from REAL API returns (IZI castability + core
+-- cooldown) — no hardcoded stand-in values. The native spell_helper path in
+-- NS.spell_ready is deliberately NOT used for readiness; castability is asked
+-- of the IZI spell object instead.
+local function izi_spell_for(spell)
+    if not NS.izi or type(NS.izi.spell) ~= "function" then return nil end
+    local ids
+    if type(spell) == "number" then ids = spell
+    elseif type(spell) == "table" then
+        if spell._meta and spell._meta.ids then ids = spell._meta.ids
+        elseif spell.ids then ids = spell.ids
+        else ids = spell end
+    end
+    if ids == nil then return nil end
+    local ok, s = pcall(NS.izi.spell, ids)
+    if not ok then warn_swallowed("izi.spell", s); return nil end
+    return s
+end
+
+local function spell_ready(spell, target, opts)
+    if not spell then return false end
+    opts = opts or {}
+    -- 1) Cooldown: real cooldown API return (spell_helper charges → core
+    --    spell_book information → cast-history); >0 means not ready.
+    if NS.cooldown_remains then
+        local cd = NS.cooldown_remains(spell, opts.expected_cooldown)
+        if cd > 0 then return false end
+    end
+    -- 2) Castability: IZI spell object (range/facing/usable/charges).
+    --    GCD skipped here — NS.try_cast/izi cast_safe enforces the global at
+    --    cast time; skip_moving is on because hunter instants cast while moving.
+    local izi_spell = izi_spell_for(spell)
+    if izi_spell and type(izi_spell.is_castable_to_unit) == "function" and target then
+        local ok, res = pcall(izi_spell.is_castable_to_unit, izi_spell, target, {
+            skip_gcd = true,
+            skip_moving = true,
+            skip_facing = opts.skip_facing == true,
+            skip_range = opts.skip_range == true,
+        })
+        if not ok then warn_swallowed("izi is_castable_to_unit", res); return false end
+        return res == true
+    end
+    -- 3) Non-IZI runtime (unit-test harness): NS.spell_ready's real return.
+    if NS.spell_ready then return NS.spell_ready(spell, target, opts) == true end
+    return false
 end
 
 local function safe_buff_up(unit, ids)
@@ -224,48 +277,48 @@ local function build_state(context)
     end)() or 0
     mm_state.has_aspect_hawk = me and safe_buff_up(me, ASPECT_HAWK_BUFF) or false
     mm_state.has_aspect_viper = me and safe_buff_up(me, ASPECT_VIPER_BUFF) or false
-    mm_state.mend_pet_ready = me and safe_spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
-    mm_state.hunters_mark_ready = target and safe_spell_ready(ACTION.HuntersMark, target) or false
-    mm_state.rapid_fire_ready = me and safe_spell_ready(ACTION.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
+    mm_state.mend_pet_ready = me and spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
+    mm_state.hunters_mark_ready = target and spell_ready(ACTION.HuntersMark, target) or false
+    mm_state.rapid_fire_ready = me and spell_ready(ACTION.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
     mm_state.rapid_fire_cd = safe_cooldown_remains(ACTION.RapidFire) or 0
-    mm_state.aimed_shot_prepull_ready = target and safe_spell_ready(ACTION.AimedShot, target, { expected_cooldown = 6 }) or false
-    mm_state.aimed_shot_ready = target and safe_spell_ready(ACTION.AimedShot, target, { expected_cooldown = 6 }) or false
-    mm_state.silencing_shot_ready = target and safe_spell_ready(ACTION.SilencingShot, target, { expected_cooldown = 20 }) or false
+    mm_state.aimed_shot_prepull_ready = target and spell_ready(ACTION.AimedShot, target, { expected_cooldown = 6 }) or false
+    mm_state.aimed_shot_ready = target and spell_ready(ACTION.AimedShot, target, { expected_cooldown = 6 }) or false
+    mm_state.silencing_shot_ready = target and spell_ready(ACTION.SilencingShot, target, { expected_cooldown = 20 }) or false
     mm_state.target_is_casting = target and ((target.is_casting and target:is_casting()) or false)
     mm_state.target_interruptible = mm_state.target_is_casting and (function()
         if not NS.is_interruptible then return false end
         local ok, inter = pcall(NS.is_interruptible, target)
         return ok and inter or false
     end)() or false
-    mm_state.kill_command_ready = target and safe_spell_ready(ACTION.KillCommand, target, { expected_cooldown = 5 }) or false
-    mm_state.multi_shot_ready = target and safe_spell_ready(ACTION.MultiShot, target, { expected_cooldown = 10 }) or false
-    mm_state.steady_shot_ready = target and safe_spell_ready(ACTION.SteadyShot, target) or false
-    mm_state.arcane_shot_ready = target and safe_spell_ready(ACTION.ArcaneShot, target, { expected_cooldown = 6 }) or false
-    mm_state.serpent_sting_ready = target and safe_spell_ready(ACTION.SerpentSting, target) or false
-    mm_state.call_pet_ready = me and safe_spell_ready(ACTION.CallPet, me, { skip_range = true }) or false
-    mm_state.revive_pet_ready = me and safe_spell_ready(ACTION.RevivePet, me, { skip_range = true }) or false
-    mm_state.feign_death_ready = me and safe_spell_ready(ACTION.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
-    mm_state.freezing_trap_ready = me and safe_spell_ready(ACTION.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
-    mm_state.viper_sting_ready = target and safe_spell_ready(ACTION.ViperSting, target, { expected_cooldown = 8 }) or false
-    mm_state.readiness_ready = me and safe_spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
-    mm_state.trueshot_aura_ready = me and safe_spell_ready(ACTION.TrueshotAura, me, { skip_range = true, expected_cooldown = 120 }) or false
+    mm_state.kill_command_ready = target and spell_ready(ACTION.KillCommand, target, { expected_cooldown = 5 }) or false
+    mm_state.multi_shot_ready = target and spell_ready(ACTION.MultiShot, target, { expected_cooldown = 10 }) or false
+    mm_state.steady_shot_ready = target and spell_ready(ACTION.SteadyShot, target) or false
+    mm_state.arcane_shot_ready = target and spell_ready(ACTION.ArcaneShot, target, { expected_cooldown = 6 }) or false
+    mm_state.serpent_sting_ready = target and spell_ready(ACTION.SerpentSting, target) or false
+    mm_state.call_pet_ready = me and spell_ready(ACTION.CallPet, me, { skip_range = true }) or false
+    mm_state.revive_pet_ready = me and spell_ready(ACTION.RevivePet, me, { skip_range = true }) or false
+    mm_state.feign_death_ready = me and spell_ready(ACTION.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
+    mm_state.freezing_trap_ready = me and spell_ready(ACTION.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    mm_state.viper_sting_ready = target and spell_ready(ACTION.ViperSting, target, { expected_cooldown = 8 }) or false
+    mm_state.readiness_ready = me and spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
+    mm_state.trueshot_aura_ready = me and spell_ready(ACTION.TrueshotAura, me, { skip_range = true, expected_cooldown = 120 }) or false
     mm_state.trueshot_aura_active = me and safe_buff_up(me, { 19506, 20905, 20906 }) or false
-    mm_state.raptor_strike_ready = target and safe_spell_ready(RAPTOR_STRIKE_IDS, target) or false
-    mm_state.concussive_shot_ready = target and safe_spell_ready(CONCUSSIVE_SHOT_IDS, target) or false
-    mm_state.volley_ready = target and safe_spell_ready(VOLLEY_IDS, target) or false
-    mm_state.explosive_trap_ready = me and safe_spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    mm_state.raptor_strike_ready = target and spell_ready(RAPTOR_STRIKE_IDS, target) or false
+    mm_state.concussive_shot_ready = target and spell_ready(CONCUSSIVE_SHOT_IDS, target) or false
+    mm_state.volley_ready = target and spell_ready(VOLLEY_IDS, target) or false
+    mm_state.explosive_trap_ready = me and spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
     mm_state.wing_clip_active = target and safe_debuff_up(target, WING_CLIP_DEBUFF) or false
-    mm_state.wing_clip_ready = target and safe_spell_ready(ACTION.WingClip, target) or false
+    mm_state.wing_clip_ready = target and spell_ready(ACTION.WingClip, target) or false
     mm_state.use_misdirection = spec_kit.setting_bool(context, "use_misdirection", false)
     mm_state.is_group = context.is_group or false
-    mm_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
+    mm_state.mana_pct = context.mana_pct or (me and NS.mana_pct and NS.mana_pct(me))
     mm_state.in_combat = context.in_combat or false
-    mm_state.enemy_count = context.enemy_count or context.enemies_count or 1
+    mm_state.enemy_count = context.enemy_count or context.enemies_count
     mm_state.is_ooc = not mm_state.in_combat
     mm_state.pre_steady_leveling = ((context.player_level or 70) < 62) or (context.is_leveling == true and not mm_state.steady_shot_ready)
     mm_state.hunter_melee_weave = spec_kit.setting_bool(context, "hunter_melee_weave", true)
     mm_state.hunter_shot_timer_buffer = spec_kit.setting_number(context, "hunter_shot_timer_buffer", 150)
-    mm_state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance) or 10000
+    mm_state.distance_sq = context.distance_sq or (context.target_range and context.target_range * context.target_range) or (context.distance and context.distance * context.distance)
     mm_state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
     return spec_kit.safe_state(mm_state, MM_SCHEMA)
@@ -506,7 +559,7 @@ local strategies = {
           if not context.in_combat then return false end
           if (state.hp_pct or 100) > 25 then return false end
           if state.has_deterrence then return false end
-          return NS.spell_ready ~= nil and NS.spell_ready(19263, context.me, { skip_range = true }) or false
+          return spell_ready(19263, context.me, { skip_range = true })
       end,
       execute = function(context) return NS.try_cast(19263, context.me, "[MARKSMANSHIP] Deterrence", { skip_range = true, expected_cooldown = 300 }) end },
     { name = "CallPet", matches = call_pet_matches, execute = function(context) return NS.try_cast(ACTION.CallPet, context.me, "[MARKSMANSHIP] Call Pet", { skip_range = true }) end },

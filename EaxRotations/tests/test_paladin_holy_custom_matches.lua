@@ -101,7 +101,6 @@ action_calls = {}
 assert_false(divine_favor.matches({}, { lowest = nil }), "DivineFavor should not match without lowest")
 
 -- ============================================================================
--- HolyShock: only when lowest HP <= emergency_hp OR moving
 -- ============================================================================
 
 local holy_shock = find_strategy("HolyShock")
@@ -122,13 +121,12 @@ local ctx_hs_low = {
 }
 assert_true(holy_shock.matches(ctx_hs_low, { lowest = { effective_hp = 30, unit = {} } }), "HolyShock should match when HP <= threshold")
 
--- Moving, high HP -> should match
 action_calls = {}
 local ctx_hs_move = {
     settings = { holy_shock_hp = 40 },
     is_moving = true,
 }
-assert_true(holy_shock.matches(ctx_hs_move, { lowest = { effective_hp = 60, unit = {} } }), "HolyShock should match when moving")
+assert_true(holy_shock.matches(ctx_hs_move, { lowest = { effective_hp = 60, unit = {} } }), "HolyShock should match as an instant moving fallback")
 
 -- No lowest -> should NOT match
 action_calls = {}

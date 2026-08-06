@@ -790,6 +790,7 @@ local strategies = {
    if context.player_control_locked then return false end
    if not spec_kit.setting_bool(context, "holy_use_coh", true) then return false end
    if not state.coh_ready then return false end
+   if (state.mana_pct or context.mana_pct or 100) < spec_kit.setting_number(context, "holy_fh_mana_floor", 15) then return false end
    return (state.group_damaged_count or 0) >= spec_kit.setting_number(context, "holy_aoe_count", 3)
   end,
   execute = function(_, state)
@@ -823,6 +824,7 @@ local strategies = {
    if context.player_control_locked or context.is_moving then return false end
    if not spec_kit.setting_bool(context, "holy_use_poh", true) then return false end
    if not state.prayer_of_healing_ready then return false end
+   if (state.mana_pct or context.mana_pct or 100) < spec_kit.setting_number(context, "holy_fh_mana_floor", 15) then return false end
    -- Use subgroup count for PoH (only counts your party in raids)
    local poh_count = state.subgroup_damaged_count or state.group_damaged_count
    if poh_count < spec_kit.setting_number(context, "holy_aoe_count", 3) then return false end

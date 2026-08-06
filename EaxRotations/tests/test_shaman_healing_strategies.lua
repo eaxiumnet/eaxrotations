@@ -138,6 +138,15 @@ assert_true(lhw.matches({
 }), "LHW matches low HP")
 assert_true(overheal_calls > 0, "overheal gate exercised")
 
+local emergency_fallback = mod.select_heal({ is_moving = false, settings = {} }, {
+    natures_swiftness_active = false,
+}, {
+    effective_hp = 20, effective_deficit = 8000, deficit = 8000,
+    max_hp = 10000, unit = {},
+})
+assert_true(emergency_fallback and emergency_fallback.spell == 25420,
+    "Lesser Healing Wave is the emergency fallback when Nature's Swiftness is unavailable")
+
 local poison = find("CurePoison")
 assert_true(poison.matches({ settings = {} }, {
     cure_poison_ready = true,

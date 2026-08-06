@@ -10,6 +10,7 @@ package.path = "EaxRotations/?.lua;EaxRotations/?/?.lua;EaxRotations/?/?/?.lua;.
 local assert_true = function(v, label) if not v then error(label or "assert_true failed", 2) end end
 local assert_false = function(v, label) if v then error(label or "assert_false failed", 2) end end
 local failures, total_tests, total_passed = {}, 0, 0
+local last_execute_target = nil
 
 local function test(label, fn)
     total_tests = total_tests + 1
@@ -49,7 +50,7 @@ _G.EaxRotations = {
     spell_action = make_action,
     spell_ready = function() return true end,
     spell_exists = function() return true end,
-    try_cast = function() return true end,
+    try_cast = function(spell, target) last_execute_target = target; return true end,
     buff_up = function(unit, ids) return false end,
     buff_remains = function() return 0 end,
     debuff_up = function(unit, ids) return false end,
@@ -106,6 +107,21 @@ end)
 -- Match gate tests
 -- ============================================================================
 local ctx = { in_combat = true, target = {}, settings = {} }
+
+test("healing strategies use the lowest friendly target", function()
+    local ally = { get_health_percentage = function() return 35 end }
+    local ctx_friendly = {
+        in_combat = true,
+        target = { get_health_percentage = function() return 90 end },
+        lowest = { unit = ally, hp = 35 },
+        settings = {},
+    }
+    local state = holy.build_state(ctx_friendly)
+    assert_true(state.target_hp == 35, "Holy paladin should score the lowest friendly unit")
+    last_execute_target = nil
+    assert_true(holy.strategies[4].execute(ctx_friendly, state), "Holy Light should execute")
+    assert_true(last_execute_target == ally, "Holy Light should target the lowest friendly unit")
+end)
 
 -- BeaconOfLight (1): matches when beacon_up falsy
 test("BeaconOfLight: matches when buff down", function()

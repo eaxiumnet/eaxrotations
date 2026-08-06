@@ -475,6 +475,7 @@ local SPELLS = {
 
 NS.ShamanSpells = SPELLS
 
+local is_sod = type(NS.is_sod) == "function" and NS.is_sod() or false
 local config = {
     class_key = "shaman",
     class_name = "Shaman",
@@ -486,7 +487,12 @@ local config = {
         { name = "restoration", display_name = "Restoration" },
     },
 }
+if is_sod then config.playstyles = cl.sod_playstyles("shaman") end
 NS.rotation_registry:set_class_config(config)
+if is_sod then
+    cl.load_sod_specs("shaman", "Shaman")
+    return config
+end
 
 load_child("middleware_sylvanas")
 load_child("healing_sylvanas")

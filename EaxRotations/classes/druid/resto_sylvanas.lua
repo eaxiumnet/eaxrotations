@@ -424,6 +424,8 @@ local function choose_swiftmend_target(entries, count, threshold)
 end
 
 local function build_state(context)
+ resto_state.should_move_form = false
+ resto_state.should_dance_caster = false
  local entries, count = Healing.scan_healing_targets()
  local lifebloom_targets = spec_kit.setting_number(context, "resto_lifebloom_targets", 3)
  if lifebloom_targets < 1 then lifebloom_targets = 1 elseif lifebloom_targets > 3 then lifebloom_targets = 3 end
@@ -801,9 +803,9 @@ local strategies = {
   return PreemptiveHeal.execute(context, state, ACTION.Regrowth, string.format("[RESTO] Preemptive Regrowth %.0f%%", target_entry.effective_hp or 0), { cast_time = 2.0, heal_size = 1500 })
  end },
   { name = "NaturesSwiftness", matches = NaturesSwiftness_matches, execute = NaturesSwiftness_execute },
+  { name = "LeaveTreeForDirectHeal", matches = LeaveTreeForDirectHeal_matches, execute = LeaveTreeForDirectHeal_execute },
   { name = "NaturesSwiftnessHealingTouch", matches = NaturesSwiftnessHealingTouch_matches, execute = NaturesSwiftnessHealingTouch_execute },
   { name = "TranquilityEmergency", matches = TranquilityEmergency_matches, execute = TranquilityEmergency_execute },
-  { name = "LeaveTreeForDirectHeal", matches = LeaveTreeForDirectHeal_matches, execute = LeaveTreeForDirectHeal_execute },
  { name = "HealingTouchMaxEmergency", matches = function(context, state)
   if context.is_moving or not state.ht_target then return false end
   if not NS.spell_ready(ACTION.HealingTouch, state.ht_target.unit) then return false end

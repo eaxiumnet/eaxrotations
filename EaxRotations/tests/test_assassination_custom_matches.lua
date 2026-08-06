@@ -31,6 +31,11 @@ NS.OffensiveDispelDB = { find_best_dispel_target = function() return nil end }
 NS.rotation_registry = { register = function(self, spec, strats, opts) cap_st = strats; cap_gs = opts and opts.get_state end }
 package.loaded["shared/potion_helper_sylvanas"] = {}
 package.loaded["shared/offensive_dispel_sylvanas"] = { find_best_dispel_target = function() return nil end }
+local combo_reader_calls = 0
+package.loaded["shared/combo_points_reader_sylvanas"] = function(unit, power_type)
+    combo_reader_calls = combo_reader_calls + 1
+    return unit:get_power(power_type)
+end
 
 local st = dofile("EaxRotations/classes/rogue/assassination_sylvanas.lua").strategies
 assert(cap_st, "Assassination strategies captured via register")
@@ -126,5 +131,13 @@ local ok_lss, err_lss = pcall(function()
 end)
 NS.spell_exists = saved_exists
 if not ok_lss then error(err_lss) end
+
+local stale_combo_player = {
+    combo_points_current = function() return 5 end,
+    get_power = function(_, power_type) if power_type == 4 then return 0 end return 0 end,
+}
+local authoritative_state = cap_gs({ me = stale_combo_player, target = {}, in_combat = true })
+at(combo_reader_calls > 0, "Assassination must use the shared combo-point reader")
+at(authoritative_state.combo == 0, "Assassination must preserve authoritative zero combo points")
 
 print("PASS test_assassination_custom_matches")

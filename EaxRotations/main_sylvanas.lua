@@ -205,6 +205,16 @@ local _cached_talent_build = nil
 local _cached_talent_build_time = 0
 
 local _get_expansion_max_level = NS.get_expansion_max_level
+local _is_sod = NS.is_sod
+local _get_sod_runes = NS.get_sod_runes
+local EMPTY_SOD_RUNES = {}
+local SOD_DEFAULT_PHASE = 8
+
+local function sod_phase(settings)
+    local phase = settings and tonumber(settings.sod_phase) or nil
+    if phase and phase >= 1 and phase <= 8 and phase == math.floor(phase) then return phase end
+    return SOD_DEFAULT_PHASE
+end
 local function _get_player()
     local p = NS.GetPlayer and NS.GetPlayer()
     if p then return p end
@@ -543,23 +553,17 @@ local function throttled_enemies_count()
     return enemies.n or #enemies
 end
 
+local _ok_cp_reader, _read_combo_points = pcall(require, "shared/combo_points_reader_sylvanas")
+
 local function combo_points(me)
     if not me then return nil end
-    -- IZI SDK: combo_points_current() is the documented combo-point reader
-    -- (see .api/common/izi_sdk.lua). Call it directly via pcall — the
-    -- safe_field/fast indirection was silently masking read failures.
-    if type(me.combo_points_current) == "function" then
-        local ok, cp = pcall(me.combo_points_current, me)
-        if ok and type(cp) == "number" then return cp end
+    if _ok_cp_reader and type(_read_combo_points) == "function" then
+        return _read_combo_points(me, NS.POWER_COMBO)
     end
-    -- Fallback: native get_power with power type 4 (combo points in WoW API).
     if type(me.get_power) == "function" then
-        local ok, cp = pcall(me.get_power, me, 4)
+        local ok, cp = pcall(me.get_power, me, NS.POWER_COMBO or 4)
         if ok and type(cp) == "number" then return cp end
     end
-    -- Return nil (NOT 0) on failure so consumers' fallback chains activate.
-    -- Returning 0 is indistinguishable from "genuinely zero CP" and masks
-    -- read failures — this was the root cause of Rip never firing.
     return nil
 end
 
@@ -1226,6 +1230,13 @@ local function build_context()
     _context._register("heal_targets_count", {"heal_targets"}, function(ctx) return #ctx.heal_targets end)
 
     _context.settings = NS.settings or {}
+    _context.is_sod = _is_sod and _is_sod() or false
+    _context.sod_phase = _context.is_sod and sod_phase(_context.settings) or nil
+    _context.sod_runes = EMPTY_SOD_RUNES
+    if _context.is_sod and type(_get_sod_runes) == "function" then
+        local ok, runes = pcall(_get_sod_runes, _context.settings)
+        if ok and type(runes) == "table" then _context.sod_runes = runes end
+    end
     -- ttd, ttd_source, ttd_known are now lazy (registered above)
     _context.has_breakable_cc_nearby = _api.has_breakable_cc_nearby and _api.has_breakable_cc_nearby() or false
     -- Boss school immunities for strategy gating
@@ -1487,6 +1498,16 @@ local function normalize_playstyle(registry, active)
     end
 
     local fallback = config.default_playstyle
+    if not (fallback and registry.playstyles[fallback]) then
+        for i = 1, #(config.playstyles or {}) do
+            local entry = config.playstyles[i]
+            local name = type(entry) == "table" and entry.name or entry
+            if type(name) == "string" and registry.playstyles[name] then
+                fallback = name
+                break
+            end
+        end
+    end
     if fallback and registry.playstyles[fallback] then
         local key = tostring(active or "nil") .. "->" .. tostring(fallback)
         if last_playstyle_warning ~= key then

@@ -29,6 +29,8 @@ local mock_ns = {
 }
 _G.EaxRotations = mock_ns
 
+local last_execute_target = nil
+
 local _mock_spec_kit = {
     merge_state = dofile("EaxRotations/tests/spec_kit_merge_state.lua").merge_state,
     define_action_for_class = function(spells)
@@ -72,6 +74,9 @@ package.preload["shared/strategy_dsl_sylvanas"] = function()
                 end,
                 execute = function(ctx)
                     local spell = defn.action and defn.action.spell
+                    if defn.action and defn.action.target == "friendly" then
+                        last_execute_target = ctx.lowest and ctx.lowest.unit or nil
+                    end
                     if spell and spell.cast_safe then return spell:cast_safe() end
                     return false
                 end,
@@ -92,7 +97,6 @@ local build_state = mod.build_state
 local tests = {}
 local passed = 0
 local failed = 0
-
 function tests.priority_order()
     local expected = { "PowerWordShield", "Penance", "PrayerOfMending", "Renew" }
     for i, name in ipairs(expected) do
@@ -143,6 +147,22 @@ tests.test_PrayerOfMending_always_matches = test_match("PrayerOfMending", {}, tr
 -- Renew: matches when renew_remains < 3
 tests.test_Renew_matches_when_expiring = test_match("Renew", { renew_remains = 2 }, true)
 tests.test_Renew_does_not_match_when_fresh = test_match("Renew", { renew_remains = 10 }, false)
+
+tests.test_heals_use_lowest_friendly_target = function()
+    local ally = { get_health_percentage = function() return 35 end }
+    local ctx = {
+        in_combat = true,
+        target = { get_health_percentage = function() return 90 end },
+        lowest = { unit = ally, hp = 35 },
+        enemy_count = 1,
+    }
+    local state = build_state(ctx)
+    if state.target_hp ~= 35 then return false, "Discipline should score the lowest friendly unit" end
+    last_execute_target = nil
+    if not strategies[2].execute(ctx, state) then return false, "Penance should execute" end
+    if last_execute_target ~= ally then return false, "Penance should target the lowest friendly unit" end
+    return true
+end
 
 for name, fn in pairs(tests) do
     local ok, err = pcall(fn)

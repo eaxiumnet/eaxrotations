@@ -25,6 +25,7 @@ _G.EaxRotations = {
         PowerWordShield = 17,
         CircleofHealing = 34861,
         InnerFocus = 14751,
+        PrayerOfHealing = { id = function() return 25308 end },
         ShadowWordPain = 589,
     },
     PLAYER_UNIT = {},
@@ -170,9 +171,50 @@ local ctx_coh_ok = {
 }
 assert_true(coh.matches(ctx_coh_ok, { group_damaged_count = 4, coh_ready = true }), "CircleOfHealing should match with >= threshold damaged")
 
+assert_false(coh.matches({
+    in_combat = true,
+    player_control_locked = false,
+    mana_pct = 14,
+    settings = { holy_use_coh = true, holy_aoe_count = 3, holy_fh_mana_floor = 15 },
+}, { group_damaged_count = 4, coh_ready = true, mana_pct = 14 }), "CircleOfHealing should not match below the healing mana floor")
+
 -- Player control locked -> should NOT match
 action_calls = {}
 assert_false(coh.matches({ player_control_locked = true }, { group_damaged_count = 4 }), "CircleOfHealing should not match when control locked")
+
+local poh = find_strategy("PrayerOfHealing")
+local ctx_poh = {
+    in_combat = true,
+    player_control_locked = false,
+    is_moving = false,
+    mana_pct = 80,
+    settings = { holy_use_poh = true, holy_aoe_count = 3, holy_fh_mana_floor = 15 },
+}
+assert_false(poh.matches(ctx_poh, {
+    subgroup_damaged_count = 2,
+    group_damaged_count = 5,
+    prayer_of_healing_ready = true,
+    lowest = { unit = {} },
+}), "PrayerOfHealing should use the subgroup threshold, not raid-wide injuries")
+assert_true(poh.matches(ctx_poh, {
+    subgroup_damaged_count = 3,
+    group_damaged_count = 3,
+    prayer_of_healing_ready = true,
+    lowest = { unit = {} },
+}), "PrayerOfHealing should match at the subgroup threshold")
+assert_false(poh.matches({
+    in_combat = true,
+    player_control_locked = false,
+    is_moving = false,
+    mana_pct = 14,
+    settings = { holy_use_poh = true, holy_aoe_count = 3, holy_fh_mana_floor = 15 },
+}, {
+    subgroup_damaged_count = 3,
+    group_damaged_count = 3,
+    prayer_of_healing_ready = true,
+    lowest = { unit = {} },
+    mana_pct = 14,
+}), "PrayerOfHealing should not match below the healing mana floor")
 
 -- ============================================================================
 -- InnerFocus: only in combat, not already buffed

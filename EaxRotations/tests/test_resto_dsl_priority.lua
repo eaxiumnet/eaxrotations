@@ -44,6 +44,18 @@ NS.same_unit = function(a, b) return a == b end
 NS.is_in_party = function() return false end
 NS.is_in_raid = function() return false end
 NS.has_dispel_type_debuff = function() return false end
+NS.healing_get_tank = function(entries, count)
+    for i = 1, count do
+        if entries[i].is_tank then return entries[i] end
+    end
+    return nil
+end
+NS.healing_get_lowest_hp = function(entries, count, threshold)
+    for i = 1, count do
+        if (entries[i].effective_hp or 100) <= threshold then return entries[i] end
+    end
+    return nil
+end
 NS.rotation_registry = { register = function() end }
 NS.log = function() end
 
@@ -84,8 +96,9 @@ local mock_spec_kit = {
     end,
 }
 package.loaded["shared/spec_kit_sylvanas"] = mock_spec_kit
+local scan_entries = {}
 package.loaded["classes/druid/healing_sylvanas"] = {
-    scan_healing_targets = function() return {}, 0 end,
+    scan_healing_targets = function() return scan_entries, #scan_entries end,
 }
 package.loaded["shared/potion_helper_sylvanas"] = {
     MANA_POTION_IDS = { 28100 },
@@ -156,6 +169,40 @@ local function make_state(overrides)
     for k, v in pairs(overrides or {}) do s[k] = v end
     return s
 end
+
+scan_entries = {}
+local move_state = resto.build_state(make_ctx({
+    is_moving = true,
+    in_combat = false,
+    target_distance = 30,
+}))
+assert_true(move_state.should_move_form,
+    "Repositioning frame requests a movement form")
+
+local settled_state = resto.build_state(make_ctx({
+    is_moving = false,
+    in_combat = true,
+    target_distance = 0,
+}))
+assert_false(settled_state.should_move_form,
+    "Movement-form request resets when the next frame no longer needs repositioning")
+
+local tree_emergency = { unit = {}, effective_hp = 20, is_tank = false }
+scan_entries = { tree_emergency }
+local tree_state = resto.build_state(make_ctx({
+    in_combat = true,
+    stance = 5,
+}))
+assert_true(tree_state.should_dance_caster,
+    "Tree emergency frame requests caster-form dancing")
+
+scan_entries = {}
+local caster_state = resto.build_state(make_ctx({
+    in_combat = true,
+    stance = 0,
+}))
+assert_false(caster_state.should_dance_caster,
+    "Caster frame clears the prior Tree emergency dance request")
 
 -- ============================================================================
 -- Priority order sanity check
@@ -264,6 +311,73 @@ local ok_party_2, err_party_2 = pcall(function()
 end)
 NS.is_in_party = old_is_party_2
 if not ok_party_2 then error(err_party_2) end
+
+local function assert_same(actual, expected, msg)
+    assert_true(actual == expected, msg)
+end
+
+local full_health = { unit = {}, effective_hp = 100, is_tank = true,
+    lifebloom_stacks = 3, lifebloom_remains = 5,
+    has_rejuvenation = true, has_regrowth = true }
+scan_entries = { full_health }
+local full_state = resto.build_state(make_ctx({ in_combat = true }))
+assert_true(full_state.ht_target == nil and full_state.regrowth_target == nil
+        and full_state.rejuv_target == nil and full_state.lifebloom_tank == nil,
+    "Full-health tank with maintained HoTs does not trigger healing spam")
+
+local injured_party = { unit = {}, effective_hp = 80, is_tank = false,
+    lifebloom_stacks = 1, lifebloom_remains = 5,
+    has_rejuvenation = false, has_regrowth = true }
+scan_entries = { injured_party }
+local injured_state = resto.build_state(make_ctx({ in_combat = true }))
+assert_same(injured_state.rejuv_target, injured_party,
+    "Injured authoritative party entry receives Rejuvenation maintenance")
+
+local missing_hot_tank = { unit = {}, effective_hp = 80, is_tank = true,
+    lifebloom_stacks = 0, lifebloom_remains = 0,
+    has_rejuvenation = true, has_regrowth = true }
+scan_entries = { missing_hot_tank }
+local missing_hot_state = resto.build_state(make_ctx({ in_combat = true }))
+assert_same(missing_hot_state.lifebloom_tank, missing_hot_tank,
+    "Tank missing Lifebloom is selected for triple-stack maintenance")
+
+local nearby_non_party = { unit = {}, effective_hp = 10, is_tank = false,
+    lifebloom_stacks = 0, lifebloom_remains = 0,
+    has_rejuvenation = false, has_regrowth = false }
+scan_entries = { injured_party }
+local boundary_state = resto.build_state(make_ctx({ in_combat = true }))
+assert_false(boundary_state.lowest and boundary_state.lowest.unit == nearby_non_party.unit,
+    "Non-party unit omitted by the authoritative healing scanner is never selected")
+
+local ns_healing_touch = find_strategy("NaturesSwiftnessHealingTouch")
+local tranquility = find_strategy("TranquilityEmergency")
+local leave_tree = find_strategy("LeaveTreeForDirectHeal")
+local emergency_target = { unit = {}, effective_hp = 20, time_to_die = 2 }
+local tree_emergency_state = make_state({
+    in_tree = true,
+    should_dance_caster = true,
+    has_natures_swiftness = true,
+    ns_target = emergency_target,
+    tranquility_count = 3,
+})
+local first_tree_emergency
+for i = 1, #strategies do
+    local strategy = strategies[i]
+    if strategy.matches(make_ctx({ in_combat = true, stance = 5 }), tree_emergency_state) then
+        first_tree_emergency = strategy.name
+        break
+    end
+end
+assert_same(first_tree_emergency, "LeaveTreeForDirectHeal",
+    "Tree emergency leaves form before Healing Touch or Tranquility")
+assert_true(ns_healing_touch.matches(make_ctx({ in_combat = true, stance = 0 }),
+        make_state({ has_natures_swiftness = true, ns_target = emergency_target })),
+    "Nature's Swiftness Healing Touch remains available in caster form")
+assert_true(tranquility.matches(make_ctx({ in_combat = true, stance = 0 }),
+        make_state({ tranquility_count = 3 })),
+    "Tranquility remains available in caster form for raid emergencies")
+assert_true(leave_tree.matches(make_ctx({ in_combat = true, stance = 5 }), tree_emergency_state),
+    "LeaveTreeForDirectHeal matches the Tree emergency transition")
 
 -- ============================================================================
 -- Summary

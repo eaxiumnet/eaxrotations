@@ -83,7 +83,7 @@ end
 
 dofile("EaxRotations/classes/paladin/protection_sylvanas.lua")
 
-local ctx = { in_combat = true, is_mounted = false, has_valid_enemy_target = true, me = {}, target = { x=1, y=1 }, settings = { playstyle = "protection" } }
+local ctx = { in_combat = true, is_mounted = false, has_valid_enemy_target = true, me = {}, target = { x=1, y=1 }, settings = { playstyle = "protection", prot_judgement = true } }
 
 -- C1: Normal mana → judgement allowed (has_seal / SoR)
 local jud = find_strategy("Judgement")
@@ -131,6 +131,18 @@ assert_true(sor, "SealRighteousness strategy should exist")
 assert_false(sor.matches(ctx, build_state_proxy({ judgement_wisdom_mode = true, has_seal = false, has_seal_wisdom = false, mana_pct = 15 })),
     "C4d: JoW mode blocks SoR re-apply")
 print("  [ PASS ] C4d: SoR blocked during JoW mode")
+
+local avenger = find_strategy("AvengerShield")
+assert_true(avenger, "AvengerShield strategy should exist")
+local hammer = find_strategy("HammerOfWrath")
+assert_true(hammer, "HammerOfWrath strategy should exist")
+local default_ctx = { in_combat = true, is_mounted = false, has_valid_enemy_target = true, me = {}, target = { x=1, y=1 }, settings = {} }
+assert_false(avenger.matches(default_ctx, build_state_proxy({ avenger_ready = true })),
+    "Default Protection must not select Avenger's Shield")
+assert_false(jud.matches(default_ctx, build_state_proxy({ judgement_ready = true, has_seal = true })),
+    "Default Protection must not select Judgement")
+assert_false(hammer.matches(default_ctx, build_state_proxy({ hammer_of_wrath_ready = true, target_hp_pct = 20 })),
+    "Default Protection must not select Hammer of Wrath")
 
 -- C5: Hysteresis — last mode retained in dead band (20% threshold, 21% mana)
 local s5 = build_state_proxy({ mana_pct = 21, last_judgement_mode = "wisdom" })

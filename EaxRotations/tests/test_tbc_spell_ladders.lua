@@ -335,7 +335,10 @@ local pally_fillers = {
     "SealTwistBlood", "SealTwistPrepCommand",
 }
 ladder_case("EaxRotations/classes/paladin/retribution_sylvanas.lua", pally_fillers, { class_folder = "paladin" })
-ladder_case("EaxRotations/classes/paladin/protection_sylvanas.lua", pally_fillers, { class_folder = "paladin" })
+ladder_case("EaxRotations/classes/paladin/protection_sylvanas.lua", pally_fillers, {
+    class_folder = "paladin",
+    context_extra = { settings = { prot_judgement = true, prot_avenger_shield = true } },
+})
 ladder_case("EaxRotations/classes/paladin/holy_sylvanas.lua", pally_fillers, { class_folder = "paladin" })
 ladder_case("EaxRotations/classes/paladin/leveling_sylvanas.lua", {
     "Judgement", "HolyLight", "SealOfRighteousness", "Consecration", "FlashOfLight",

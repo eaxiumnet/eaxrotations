@@ -859,7 +859,7 @@ end
 
 local function avenger_shield_matches(context, state)
 
- if not spec_kit.setting_bool(context, "prot_avenger_shield", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_avenger_shield", false) then return false end
 
  if not state.avenger_ready then return false end
 
@@ -869,7 +869,7 @@ local function avenger_shield_matches(context, state)
 
  -- Opener mode: pre-pull when target exists but not yet in combat
 
- local is_opener = spec_kit.setting_bool(context, "prot_avenger_opener", true)
+ local is_opener = spec_kit.setting_bool(context, "prot_avenger_opener", false)
 
   and context.has_valid_enemy_target
 
@@ -888,7 +888,7 @@ end
 
 local function judgement_matches(context, state)
 
- if not spec_kit.setting_bool(context, "prot_judgement", true) then return false end
+ if not spec_kit.setting_bool(context, "prot_judgement", false) then return false end
 
  if not state.judgement_ready then return false end
 
@@ -1369,7 +1369,7 @@ local DSL_DEFS = {
     {
         name = "HammerOfWrath",
         conditions = {
-            { type = "setting", key = "prot_hammer_of_wrath", op = "truthy", default = true },
+            { type = "setting", key = "prot_hammer_of_wrath", op = "truthy", default = false },
             { type = "state", field = "hammer_of_wrath_ready", op = "truthy" },
             { type = "custom", fn = function(context, state)
                 local execute_hp = spec_kit.setting_number(context, "prot_hammer_of_wrath_hp", 20)

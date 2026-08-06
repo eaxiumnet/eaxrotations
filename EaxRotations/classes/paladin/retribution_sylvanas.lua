@@ -647,6 +647,7 @@ add_strategy(strategies, "Ret_AvengingWrath_Burst", 780, function(context, state
     if not (NS.spell_ready(ACTION.AvengingWrath, PLAYER, { skip_range = true, expected_cooldown = 180 }) or false) then return false end
     -- TTD gate: don't waste 3min CD on a dying target
     if context.ttd_known and context.ttd > 0 and context.ttd < 15 then return false end
+    if (context.combat_time or 0) < 11 then return false end
     -- Align with major power windows (Bloodlust/Drums/other CDs) or burn late fight
     local align = state.major_cd_window or false
     local combat_time = context.combat_time or 0
@@ -794,6 +795,7 @@ strategies[#strategies + 1] = {
     priority = 600,
     cooldown = 8,
     matches = function(context, state)
+        if not spec_kit.setting_bool(context, "use_consecration", false) then return false end
         local prep_start = (state.twist_window or TWIST_WINDOW) + 0.75
         if state.can_twist and (state.has_command or state.has_command_rank1) and not state.has_blood and (state.swing_remains or 99) <= prep_start then return false end
         if state.mana_emergency then return false end
@@ -822,6 +824,7 @@ add_strategy(strategies, "TurnEvil", 585, function(context, state)
 end, function(context) return NS.try_cast(ACTION.TurnEvil, context.target, "[RET] TurnEvil") end, 30)
 
 add_strategy(strategies, "Exorcism", 580, function(context, state)
+    if not spec_kit.setting_bool(context, "use_exorcism", false) then return false end
     local prep_start = (state.twist_window or TWIST_WINDOW) + 0.75
     if state.can_twist and (state.has_command or state.has_command_rank1) and not state.has_blood and (state.swing_remains or 99) <= prep_start then return false end
     if state.mana_emergency then return false end

@@ -105,7 +105,7 @@ local DSL_DEFS = {
         name = "Rip",
         conditions = {
             { type = "state", field = "rip_remains", op = "<", value = 3 },
-            { type = "state", field = "combo_points", op = ">=", value = 4 },
+            { type = "state", field = "combo_points", op = ">=", value = 5 },
         },
         action = { type = "cast", spell = ACTION.Rip, target = "target" },
     },
@@ -120,7 +120,7 @@ local DSL_DEFS = {
     {
         name = "FerociousBite",
         conditions = {
-            { type = "state", field = "combo_points", op = ">=", value = 4 },
+            { type = "state", field = "combo_points", op = ">=", value = 5 },
             { type = "state", field = "target_hp", op = "<", value = 25 },
         },
         action = { type = "cast", spell = ACTION.FerociousBite, target = "target" },

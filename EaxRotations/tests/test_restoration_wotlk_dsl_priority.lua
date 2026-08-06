@@ -37,6 +37,7 @@ _G.EaxRotations = {
         HealingWave = make_action(25396, "HealingWave"),
         EarthShield = make_action(32594, "EarthShield"),
     },
+    spell_action = make_action,
     GetPlayer = function() return {
         get_health_percentage = function() return 80 end,
         get_mana_percentage = function() return 100 end,
@@ -78,7 +79,7 @@ print("=== test_restoration_wotlk_dsl_priority ===")
 local resto = dofile("EaxRotations/classes/shaman/restoration_wotlk.lua")
 assert_true(type(resto) == "table", "restoration_wotlk should return a table")
 assert_true(type(resto.strategies) == "table", "restoration_wotlk should expose strategies")
-assert_true(#resto.strategies == 4, "restoration_wotlk should have 4 strategies")
+    assert_true(#resto.strategies == 6, "restoration_wotlk should have 6 strategies")
 
 local registered = _G.EaxRotations._registered_restoration
 assert_true(registered ~= nil, "restoration_wotlk should register under 'restoration'")
@@ -87,10 +88,7 @@ assert_true(registered ~= nil, "restoration_wotlk should register under 'restora
 -- Priority order test
 -- ============================================================================
 local expected_order = {
-    "EarthShield",
-    "Riptide",
-    "ChainHeal",
-    "HealingWave",
+    "ManaTideTotem", "EarthShield", "Riptide", "ChainHeal", "HealingWave", "LesserHealingWave",
 }
 
 test("priority order: 4 strategies match expected order", function()
@@ -109,48 +107,51 @@ local ctx = { in_combat = true, target = {}, settings = {} }
 test("EarthShield: matches when buff down", function()
     local state = resto.build_state(ctx)
     state.earth_shield_up = false
-    assert_true(resto.strategies[1].matches(ctx, state), "EarthShield should match when buff down")
+    assert_true(resto.strategies[2].matches(ctx, state), "EarthShield should match when buff down")
 end)
 
 test("EarthShield: does not match when buff up", function()
     local state = resto.build_state(ctx)
     state.earth_shield_up = true
-    assert_false(resto.strategies[1].matches(ctx, state), "EarthShield should not match when buff up")
+    assert_false(resto.strategies[2].matches(ctx, state), "EarthShield should not match when buff up")
 end)
 
 -- Riptide (2): riptide_remains < 3
 test("Riptide: matches when buff expiring", function()
     local state = resto.build_state(ctx)
     state.riptide_remains = 1
-    assert_true(resto.strategies[2].matches(ctx, state), "Riptide should match when remains < 3")
+    assert_true(resto.strategies[3].matches(ctx, state), "Riptide should match when remains < 3")
 end)
 
 test("Riptide: does not match when buff fresh", function()
     local state = resto.build_state(ctx)
     state.riptide_remains = 10
-    assert_false(resto.strategies[2].matches(ctx, state), "Riptide should not match when remains >= 3")
+    assert_false(resto.strategies[3].matches(ctx, state), "Riptide should not match when remains >= 3")
 end)
 
 -- ChainHeal (3): enemy_count >= 2 and mana_pct >= 25
 test("ChainHeal: matches with 2+ enemies and mana >= 25", function()
     local state = resto.build_state(ctx)
-    state.enemy_count = 2
+    state.injured_count = 2
+    state.lowest_hp = 80
     state.mana_pct = 25
-    assert_true(resto.strategies[3].matches(ctx, state), "ChainHeal should match with 2+ targets and mana >= 25")
+    assert_true(resto.strategies[4].matches(ctx, state), "ChainHeal should match with 2+ injured allies and mana >= 25")
 end)
 
 test("ChainHeal: does not match single target", function()
     local state = resto.build_state(ctx)
-    state.enemy_count = 1
+    state.injured_count = 1
+    state.lowest_hp = 80
     state.mana_pct = 100
-    assert_false(resto.strategies[3].matches(ctx, state), "ChainHeal should not match single target")
+    assert_false(resto.strategies[4].matches(ctx, state), "ChainHeal should not match one injured ally")
 end)
 
 test("ChainHeal: does not match when mana < 25", function()
     local state = resto.build_state(ctx)
-    state.enemy_count = 3
+    state.injured_count = 3
+    state.lowest_hp = 80
     state.mana_pct = 20
-    assert_false(resto.strategies[3].matches(ctx, state), "ChainHeal should not match when mana < 25")
+    assert_false(resto.strategies[4].matches(ctx, state), "ChainHeal should not match when mana < 25")
 end)
 
 -- HealingWave (4): target_hp < 70 and mana_pct >= 20
@@ -158,21 +159,21 @@ test("HealingWave: matches when target < 70 and mana >= 20", function()
     local state = resto.build_state(ctx)
     state.target_hp = 60
     state.mana_pct = 20
-    assert_true(resto.strategies[4].matches(ctx, state), "HealingWave should match with target < 70 and mana >= 20")
+    assert_true(resto.strategies[5].matches(ctx, state), "HealingWave should match with target < 70 and mana >= 20")
 end)
 
 test("HealingWave: does not match when target >= 70", function()
     local state = resto.build_state(ctx)
     state.target_hp = 75
     state.mana_pct = 100
-    assert_false(resto.strategies[4].matches(ctx, state), "HealingWave should not match when target >= 70")
+    assert_false(resto.strategies[5].matches(ctx, state), "HealingWave should not match when target >= 70")
 end)
 
 test("HealingWave: does not match when mana < 20", function()
     local state = resto.build_state(ctx)
     state.target_hp = 60
     state.mana_pct = 10
-    assert_false(resto.strategies[4].matches(ctx, state), "HealingWave should not match when mana < 20")
+    assert_false(resto.strategies[5].matches(ctx, state), "HealingWave should not match when mana < 20")
 end)
 
 print(string.format("Tests: %d/%d passed", total_passed, total_tests))

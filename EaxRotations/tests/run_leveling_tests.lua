@@ -4,8 +4,16 @@
 -- WHY:   single entry point for 13 leveling-suite validations; ensures no regressions.
 -- SAFETY: pure orchestration; no rotation logic; fails fast on first suite error.
 
+local module_path = package.path
+if not module_path:find("%.%./%?%.lua", 1, false) then
+    package.path = "../?.lua;../?/init.lua;" .. module_path
+end
 local runner = require("EaxRotations/tests/test_runner_lib")
 local mode, root = runner.parse_args(arg, "EaxRotations")
+if not runner.file_exists(root .. "/tests/run_leveling_tests.lua") then
+    local ok, lfs = pcall(require, "lfs")
+    if ok and lfs.chdir("..") then root = "EaxRotations" end
+end
 
 local tests = {
     "test_leveling_mage.lua",

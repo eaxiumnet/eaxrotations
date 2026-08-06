@@ -61,7 +61,7 @@ end
 
 local function ctx(o)
     local c = {
-        me = {}, target = {}, settings = {}, in_combat = true,
+        me = {}, target = {}, settings = { prot_hammer_of_wrath = true }, in_combat = true,
         has_valid_enemy_target = true,
     }
     if o then for k, v in pairs(o) do c[k] = v end end

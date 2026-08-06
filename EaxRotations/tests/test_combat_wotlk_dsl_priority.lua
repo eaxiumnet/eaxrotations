@@ -63,6 +63,7 @@ package.preload["shared/strategy_dsl_sylvanas"] = function()
                         if cond.type == "state" then
                             local val = state[cond.field]
                             if cond.op == "<" and (val or 0) >= (cond.value or 0) then return false end
+                            if cond.op == "<=" and (val or 0) > (cond.value or 0) then return false end
                             if cond.op == ">=" and (val or 0) < (cond.value or 0) then return false end
                             if cond.op == ">" and (val or 0) <= (cond.value or 0) then return false end
                             if cond.op == "truthy" and not val then return false end
@@ -133,10 +134,11 @@ local function test_match(name, state_overrides, expected)
     end
 end
 
--- SliceAndDice: matches when snd_remains < 3 AND combo_points >= 1
-tests.test_SliceAndDice_matches_when_expiring = test_match("SliceAndDice", { snd_remains = 2, combo_points = 2 }, true)
+tests.test_SliceAndDice_matches_when_expiring = test_match("SliceAndDice", { snd_remains = 1, combo_points = 2 }, true)
+tests.test_SliceAndDice_does_not_refresh_early = test_match("SliceAndDice", { snd_remains = 2, combo_points = 2 }, false)
+tests.test_SliceAndDice_does_not_refresh_after_boundary = test_match("SliceAndDice", { snd_remains = 1.01, combo_points = 2 }, false)
 tests.test_SliceAndDice_does_not_match_when_fresh = test_match("SliceAndDice", { snd_remains = 10, combo_points = 2 }, false)
-tests.test_SliceAndDice_does_not_match_no_cp = test_match("SliceAndDice", { snd_remains = 2, combo_points = 0 }, false)
+tests.test_SliceAndDice_does_not_match_no_cp = test_match("SliceAndDice", { snd_remains = 1, combo_points = 0 }, false)
 
 -- BladeFlurry: matches when in_combat AND ready AND enemy_count >= 2 AND long_cd ok
 tests.test_BladeFlurry_matches = test_match("BladeFlurry", { in_combat = true, blade_flurry_ready = true, enemy_count = 2 }, true)

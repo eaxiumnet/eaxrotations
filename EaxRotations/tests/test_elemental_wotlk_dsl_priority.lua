@@ -34,8 +34,14 @@ local _mock_spec_kit = {
     define_action_for_class = function(spells)
         return function(name, ids, label)
             local id = type(ids) == "table" and ids[1] or ids
-            return { cast_safe = function(self, target) return true end, spell_id = id }
+            return { cast_safe = function(self, target) return true end, spell_id = id,
+                cooldown_remaining = function() return 0 end }
         end
+    end,
+    define_action = function(name, ids, label)
+        local id = type(ids) == "table" and ids[1] or ids
+        return { cast_safe = function(self, target) return true end, spell_id = id,
+            cooldown_remaining = function() return 0 end }
     end,
     safe_state = function(tbl)
         local mt = {
@@ -54,7 +60,7 @@ package.preload["shared/spec_kit_sylvanas"] = function() return _mock_spec_kit e
 package.preload["shared/strategy_dsl_sylvanas"] = function()
     local dsl = {
         compile_strategy = function(defn, opts)
-            local conditions = defn.conditions or {}
+        local conditions = defn.conditions or {}
             return {
                 name = defn.name,
                 matches = function(context, state)
@@ -63,6 +69,8 @@ package.preload["shared/strategy_dsl_sylvanas"] = function()
                             local val = state[cond.field]
                             if cond.op == "<" and (val or 0) >= (cond.value or 0) then return false end
                             if cond.op == ">=" and (val or 0) < (cond.value or 0) then return false end
+                            if cond.op == "truthy" and not val then return false end
+                            if cond.op == "falsy" and val then return false end
                         elseif cond.type == "custom" and cond.fn then
                             if not cond.fn(context, state) then return false end
                         end
@@ -93,7 +101,8 @@ local passed = 0
 local failed = 0
 
 function tests.priority_order()
-    local expected = { "FlameShock", "LavaBurst", "ChainLightning", "Thunderstorm", "LightningBolt" }
+    local expected = { "Bloodlust", "FireElemental", "ElementalMastery", "TotemOfWrath", "SearingTotem",
+        "FlameShock", "ChainLightning", "LavaBurst", "LightningBolt", "Thunderstorm" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
@@ -106,7 +115,8 @@ local function make_state(overrides)
     local ctx = { in_combat = true, target = {}, enemy_count = 1 }
     local raw = {
         hp = 100, mana_pct = 100, target_hp = 100, enemy_count = 1, in_combat = true,
-        flame_shock_remains = 0,
+        flame_shock_remains = 0, totem_of_wrath_up = false,
+        fire_elemental_active = false, searing_totem_up = false,
     }
     for k, v in pairs(overrides or {}) do raw[k] = v end
     return ctx, raw
@@ -129,13 +139,30 @@ local function test_match(name, state_overrides, expected)
     end
 end
 
+tests.test_TotemOfWrath_matches_pre_pull_when_missing = test_match("TotemOfWrath",
+    { in_combat = false, totem_of_wrath_up = false }, true)
+tests.test_TotemOfWrath_does_not_match_in_combat = test_match("TotemOfWrath",
+    { in_combat = true, totem_of_wrath_up = false }, false)
+tests.test_TotemOfWrath_does_not_match_when_active = test_match("TotemOfWrath",
+    { in_combat = false, totem_of_wrath_up = true }, false)
+
+tests.test_SearingTotem_matches_in_combat_when_available = test_match("SearingTotem",
+    { in_combat = true, fire_elemental_active = false, searing_totem_up = false }, true)
+tests.test_SearingTotem_does_not_match_out_of_combat = test_match("SearingTotem",
+    { in_combat = false, fire_elemental_active = false, searing_totem_up = false }, false)
+tests.test_SearingTotem_does_not_match_during_fire_elemental = test_match("SearingTotem",
+    { in_combat = true, fire_elemental_active = true, searing_totem_up = false }, false)
+tests.test_SearingTotem_does_not_match_when_active = test_match("SearingTotem",
+    { in_combat = true, fire_elemental_active = false, searing_totem_up = true }, false)
+
 -- FlameShock: matches when flame_shock_remains < 3
 tests.test_FlameShock_matches_when_expiring = test_match("FlameShock", { flame_shock_remains = 2 }, true)
 tests.test_FlameShock_does_not_match_when_fresh = test_match("FlameShock", { flame_shock_remains = 10 }, false)
 
 -- LavaBurst: matches when mana_pct >= 20
-tests.test_LavaBurst_matches_when_mana_ok = test_match("LavaBurst", { mana_pct = 50 }, true)
-tests.test_LavaBurst_does_not_match_when_low_mana = test_match("LavaBurst", { mana_pct = 10 }, false)
+tests.test_LavaBurst_matches_when_mana_ok = test_match("LavaBurst", { flame_shock_remains = 5, mana_pct = 50 }, true)
+tests.test_LavaBurst_does_not_match_when_low_mana = test_match("LavaBurst", { flame_shock_remains = 5, mana_pct = 10 }, false)
+tests.test_LavaBurst_does_not_match_without_flame_shock = test_match("LavaBurst", { flame_shock_remains = 0, mana_pct = 100 }, false)
 
 -- ChainLightning: matches when enemy_count >= 2 AND mana_pct >= 25
 tests.test_ChainLightning_matches_when_aoe = test_match("ChainLightning", { enemy_count = 3, mana_pct = 50 }, true)

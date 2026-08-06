@@ -19,6 +19,7 @@ if not _cm_ok or type(CombatMode) ~= "table" then CombatMode = nil end
 local _snap_ok, Snapshot = pcall(require, "shared/snapshot_sylvanas")
 if not _snap_ok or type(Snapshot) ~= "table" then Snapshot = nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
+local _ok_cp_reader, _read_combo_points = pcall(require, "shared/combo_points_reader_sylvanas")
 local leveling_helpers = require("shared/leveling_helpers_sylvanas")
 
 -- Wrapper so low-level helper failures don't crash finisher matches.
@@ -136,6 +137,10 @@ local RAKE_REFRESH_WINDOW = 3.0
 local MANGLE_REFRESH_WINDOW = 3.0
 local FAERIE_FIRE_REFRESH = 6.0
 local MIN_RIP_TTD = 10.0
+-- Below level 32 Ferocious Bite (rank 1) is unlearned, leaving Rip as the only CP
+-- dump; the endgame 10s floor would suppress it on every leveling mob and strand CP.
+local FEROCIOUS_BITE_LEVEL = 32
+local MIN_RIP_TTD_NO_BITE = 4.0
 local MIN_RAKE_TTD = 6.0
 local SNAPSHOT_RESET_GRACE = 1.5  -- seconds after cast before recasting when debuff API lags
 local POST_CAST_GRACE = 1.5  -- seconds to suppress Rip/Rake recast while debuff API still reads 0
@@ -392,8 +397,28 @@ local function has_wolfshead_equipped(me)
 end
 
 local function get_combo_points(context, target)
-    if type(context.combo_points) == "number" then return context.combo_points end
-    if type(context.cp) == "number" then return context.cp end
+    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
+    if me then
+        if _ok_cp_reader and type(_read_combo_points) == "function" then
+            local cp = _read_combo_points(me, NS.POWER_COMBO)
+            if type(cp) == "number" and cp >= 0 and cp <= 5 then return cp end
+        end
+    end
+
+    local context_cp = context.combo_points
+    if type(context_cp) ~= "number" then context_cp = context.cp end
+    local has_context_cp = type(context_cp) == "number"
+    if has_context_cp then return context_cp end
+
+    if me then
+        if type(me.get_combo_points) == "function" then
+            local ok, cp = pcall(me.get_combo_points, me)
+            if ok and type(cp) == "number" then return cp end
+            ok, cp = pcall(me.get_combo_points, me, target)
+            if ok and type(cp) == "number" then return cp end
+        end
+    end
+
     -- NS helpers (pcall-guarded; some builds expose a global combo-point reader)
     if NS.combo_points then
         local ok, cp = pcall(NS.combo_points)
@@ -406,29 +431,6 @@ local function get_combo_points(context, target)
         if ok and type(cp) == "number" then return cp end
         ok, cp = pcall(NS.get_combo_points, target)
         if ok and type(cp) == "number" then return cp end
-    end
-    -- Fallback: query the local PLAYER directly.
-    -- TBC combo points live on the PLAYER (bound to the target), NOT the target.
-    -- IZI SDK exposes combo_points_current() (preferred); native get_power(4)
-    -- is the fallback (combo points = power type 4 in the WoW API). Without this
-    -- fallback, state.combo_points silently becomes 0 and Rip/Bite (which need
-    -- CP >= cat_rip_cp) never fire.
-    local me = context.me or (NS.GetPlayer and NS.GetPlayer())
-    if me then
-        if type(me.combo_points_current) == "function" then
-            local ok, cp = pcall(me.combo_points_current, me)
-            if ok and type(cp) == "number" then return cp end
-        end
-        if type(me.get_combo_points) == "function" then
-            local ok, cp = pcall(me.get_combo_points, me)
-            if ok and type(cp) == "number" then return cp end
-            ok, cp = pcall(me.get_combo_points, me, target)
-            if ok and type(cp) == "number" then return cp end
-        end
-        if type(me.get_power) == "function" then
-            local ok, cp = pcall(me.get_power, me, 4)
-            if ok and type(cp) == "number" then return cp end
-        end
     end
     -- Global NS helpers and target-bound combo point fallbacks for builds where
     -- the player object does not expose the values directly.
@@ -445,6 +447,29 @@ local function get_combo_points(context, target)
         if ok and type(cp) == "number" then return cp end
     end
     return 0
+end
+
+local function probe_combo_sources(me, context, resolved)
+    if not NS._DEBUG_COMBO_POINTS or not NS.cp_debug then return end
+    local parts = {}
+    parts[#parts + 1] = "resolved=" .. tostring(resolved)
+    parts[#parts + 1] = "context.combo_points=" .. tostring(context.combo_points)
+    parts[#parts + 1] = "POWER_COMBO=" .. tostring(NS.POWER_COMBO)
+    if me and type(me.combo_points_current) == "function" then
+        local ok, cp = pcall(me.combo_points_current, me)
+        parts[#parts + 1] = "combo_points_current=" .. (ok and tostring(cp) or "ERR")
+    else
+        parts[#parts + 1] = "combo_points_current=absent"
+    end
+    if me and type(me.get_power) == "function" then
+        for _, idx in ipairs({ 3, 4, 5, 14 }) do
+            local ok, cp = pcall(me.get_power, me, idx)
+            parts[#parts + 1] = "get_power(" .. idx .. ")=" .. (ok and tostring(cp) or "ERR")
+        end
+    else
+        parts[#parts + 1] = "get_power=absent"
+    end
+    NS.cp_debug(table.concat(parts, " "))
 end
 
 local function get_energy(context)
@@ -560,11 +585,16 @@ local function target_lives(state, seconds)
     return (state.target_ttd or 999) >= seconds
 end
 
+local function rip_ttd_floor(state)
+    if (state.level or 70) < FEROCIOUS_BITE_LEVEL then return MIN_RIP_TTD_NO_BITE end
+    return MIN_RIP_TTD
+end
+
 -- Determine whether Rip is intended for this target, accounting for user
 -- settings that disable Rip or restrict it to elite/boss targets.
 local function would_rip_fire(state, context)
     if not spec_kit.setting_bool(context, "cat_use_rip", true) then return false end
-    if not target_lives(state, MIN_RIP_TTD) then return false end
+    if not target_lives(state, rip_ttd_floor(state)) then return false end
     if spec_kit.setting_bool(context, "cat_rip_elites_only", false) then
         if state.target_is_boss then return true end
         if (state.target_classification or 0) >= 1 then return true end
@@ -680,6 +710,7 @@ build_state = function(context)
     state.mana_pct = get_mana_pct(context)
     state.energy = has_energy_context and get_energy(context) or ENERGY_CAP
     state.combo_points = get_combo_points(context, target)
+    probe_combo_sources(me, context, state.combo_points)
     state.enemy_count = context.enemy_count or 1
     state.target_hp = context.target_hp or (NS.health_pct and NS.health_pct(target)) or 100
     state.target_ttd = context.ttd or context.target_ttd or 999
@@ -1005,20 +1036,52 @@ end
 
 -- Returns true if Rip would match right now, without side effects. Used by
 -- Ferocious Bite strategies to decide whether to defer to Rip.
+-- Always returns false so gate call sites can `return rip_reject(...)` inline.
+local function rip_reject(reason, extra)
+    if not NS._DEBUG_COMBO_POINTS or not NS.cp_debug then return false end
+    NS.cp_debug("[Rip] BLOCKED by " .. reason .. (extra and (" " .. extra) or ""))
+    return false
+end
+
 local function rip_matches_now(context, state)
     if not state then state = build_state(context) end
-    if not would_rip_fire(state, context) then return false end
+    if NS._DEBUG_COMBO_POINTS and NS.cp_debug then
+        local rip_id
+        if ACTION.Rip and type(ACTION.Rip.id) == "function" then
+            local ok, v = pcall(ACTION.Rip.id, ACTION.Rip)
+            rip_id = ok and v or "ERR"
+        end
+        NS.cp_debug("[Rip] resolved_spell_id=" .. tostring(rip_id))
+    end
+    if not would_rip_fire(state, context) then
+        return rip_reject("would_rip_fire",
+            "use_rip=" .. tostring(spec_kit.setting_bool(context, "cat_use_rip", true)) ..
+            " ttd=" .. tostring(state.target_ttd) .. " (needs >=" .. rip_ttd_floor(state) .. " or 0/nil)" ..
+            " level=" .. tostring(state.level) ..
+            " elites_only=" .. tostring(spec_kit.setting_bool(context, "cat_rip_elites_only", false)) ..
+            " boss=" .. tostring(state.target_is_boss) ..
+            " classification=" .. tostring(state.target_classification))
+    end
     local required_cp = spec_kit.setting_number(context, "cat_rip_cp", 5)
     if is_low_level(state.level) then required_cp = math.min(required_cp, 4) end
-    if not state.target then return false end
-    if (state.combo_points or 0) < required_cp then return false end
+    if not state.target then return rip_reject("no-target") end
+    if (state.combo_points or 0) < required_cp then
+        return rip_reject("combo_points", "cp=" .. tostring(state.combo_points) .. " required=" .. tostring(required_cp) .. " level=" .. tostring(state.level))
+    end
     -- Post-cast grace: don't recast Rip while the debuff API still reads 0 right
     -- after a cast (application latency); wait out POST_CAST_GRACE first.
-    if (state.rip_remains or 0) <= 0 and ((state.now or 0) - _rip_recast_time) < POST_CAST_GRACE then return false end
+    if (state.rip_remains or 0) <= 0 and ((state.now or 0) - _rip_recast_time) < POST_CAST_GRACE then
+        return rip_reject("post-cast-grace", "since_cast=" .. tostring((state.now or 0) - _rip_recast_time) .. " grace=" .. POST_CAST_GRACE)
+    end
     -- TTD gating is already enforced by would_rip_fire -> target_lives(MIN_RIP_TTD=10);
     -- no separate < 6s re-check is reachable when would_rip_fire passed with a known TTD.
-    if should_wait_for_tick(state, RIP_COST) then return false end
-    if not should_snapshot_upgrade(state.attack_power, state.rip_ap, state.rip_remains, RIP_REFRESH_WINDOW, AP_UPGRADE_RATIO) then return false end
+    if should_wait_for_tick(state, RIP_COST) then
+        return rip_reject("energy-tick-pooling", "energy=" .. tostring(state.energy) .. " cost=" .. RIP_COST)
+    end
+    if not should_snapshot_upgrade(state.attack_power, state.rip_ap, state.rip_remains, RIP_REFRESH_WINDOW, AP_UPGRADE_RATIO) then
+        return rip_reject("snapshot-upgrade", "ap=" .. tostring(state.attack_power) .. " rip_ap=" .. tostring(state.rip_ap) .. " remains=" .. tostring(state.rip_remains))
+    end
+    if NS._DEBUG_COMBO_POINTS and NS.cp_debug then NS.cp_debug("[Rip] ALL GATES PASS -> should cast") end
     return true
 end
 

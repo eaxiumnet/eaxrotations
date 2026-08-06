@@ -125,21 +125,21 @@ end
 -- ============================================================================
 -- Contract 1: Pre-pull, opener enabled, target exists, ready → match
 -- ============================================================================
-assert_true(avenger.matches(make_context(false, true, { prot_avenger_opener = true }), make_state(true)),
+assert_true(avenger.matches(make_context(false, true, { prot_avenger_shield = true, prot_avenger_opener = true }), make_state(true)),
     "C1: pre-pull + opener enabled + target + ready → should match")
 print("  [ PASS ] C1: pre-pull opener → match")
 
 -- ============================================================================
 -- Contract 2: Pre-pull, opener disabled → no match
 -- ============================================================================
-assert_false(avenger.matches(make_context(false, true, { prot_avenger_opener = false }), make_state(true)),
+assert_false(avenger.matches(make_context(false, true, { prot_avenger_shield = true, prot_avenger_opener = false }), make_state(true)),
     "C2: pre-pull + opener disabled → should NOT match")
 print("  [ PASS ] C2: pre-pull opener disabled → no match")
 
 -- ============================================================================
 -- Contract 3: In combat, normal usage → match
 -- ============================================================================
-assert_true(avenger.matches(make_context(true, true, {}), make_state(true)),
+assert_true(avenger.matches(make_context(true, true, { prot_avenger_shield = true }), make_state(true)),
     "C3: in combat + target + ready → should match")
 print("  [ PASS ] C3: in combat → match")
 

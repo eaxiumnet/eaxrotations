@@ -47,6 +47,11 @@ NS.buff_stacks = function() return 0 end
 NS.buff_remains = function() return 0 end
 NS.spell_ready = function() return true end
 NS.try_cast = function() return true end
+local _healthstone_used = false
+NS.use_item_by_id = function(id, target)
+    _healthstone_used = id ~= nil and target == NS.PLAYER_UNIT
+    return _healthstone_used
+end
 NS.unit_mana_pct = function() return 100 end
 NS.unit_health_pct = function() return 100 end
 NS.unit_distance = function() return 100 end
@@ -121,7 +126,7 @@ package.loaded["shared/tbc_data_sylvanas"] = { SPELLS = { shaman = {} } }
 package.loaded["shared/health_pred_helper_sylvanas"] = nil
 package.loaded["shared/aoe_hit_volume_sylvanas"] = { install = function() end }
 package.loaded["shared/find_dead_party_ally_sylvanas"] = nil
-package.loaded["common/utility/inventory_helper"] = { has_item = function() return nil end }
+package.loaded["common/utility/inventory_helper"] = { has_item = function() return true end }
 
 -- Load the real DSL engine and cache it so the spec file's require() picks it up
 package.loaded["shared/strategy_dsl_sylvanas"] = dofile("EaxRotations/shared/strategy_dsl_sylvanas.lua")
@@ -129,6 +134,35 @@ package.loaded["shared/strategy_dsl_sylvanas"] = dofile("EaxRotations/shared/str
 -- Load the restoration spec
 local resto = dofile("EaxRotations/classes/shaman/restoration_sylvanas.lua")
 local strategies = resto.strategies
+
+local healthstone
+for i = 1, #strategies do
+    if strategies[i].name == "Healthstone" then healthstone = strategies[i] break end
+end
+assert_true(healthstone ~= nil, "Healthstone strategy exists")
+_healthstone_used = false
+assert_true(healthstone.matches(make_ctx and make_ctx({}) or { in_combat = true }, { hp_pct = 20, healthstone_ready = 1 }), "Healthstone matches at low health")
+assert_true(healthstone.execute({ me = NS.PLAYER_UNIT }) == true, "Healthstone executor reports successful item use")
+assert_true(_healthstone_used, "Healthstone executor uses the selected item")
+NS.use_item_by_id = function() return false end
+assert_false(healthstone.execute({ me = NS.PLAYER_UNIT }), "Healthstone executor preserves failed item use")
+
+local earth_shield
+for i = 1, #strategies do
+    if strategies[i].name == "EarthShieldTank" then earth_shield = strategies[i] break end
+end
+assert_true(earth_shield ~= nil, "EarthShieldTank strategy exists")
+NS.buff_up = function() return true end
+local earth_shield_ok, earth_shield_matches = pcall(earth_shield.matches, { settings = {} }, {
+    mana_emergency = false,
+    tank = { unit = {} },
+    earth_shield_ready = true,
+    earth_shield_charges = 1,
+    earth_shield_remains = 4,
+})
+assert_true(earth_shield_ok, "Earth Shield low-charge refresh does not crash")
+assert_true(earth_shield_matches, "Earth Shield refreshes at low charges near expiry")
+NS.buff_up = function() return false end
 
 -- ============================================================================
 -- Priority order verification

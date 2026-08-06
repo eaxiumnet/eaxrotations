@@ -332,7 +332,7 @@ assert_true(holy_shock.matches(make_ctx(), make_state({ lowest = { unit = "party
 assert_false(holy_shock.matches(make_ctx({ is_moving = false }), make_state({ lowest = { unit = "party1", effective_hp = 80 } })),
     "HolyShock skips at high HP when not moving")
 assert_true(holy_shock.matches(make_ctx({ is_moving = true }), make_state({ lowest = { unit = "party1", effective_hp = 80 } })),
-    "HolyShock matches at high HP when moving")
+    "HolyShock matches as an instant fallback when moving")
 assert_false(holy_shock.matches(make_ctx(), make_state({ lowest = nil })),
     "HolyShock skips when no lowest target")
 

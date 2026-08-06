@@ -35,8 +35,14 @@ local _mock_spec_kit = {
     define_action_for_class = function(spells)
         return function(name, ids, label)
             local id = type(ids) == "table" and ids[1] or ids
-            return { cast_safe = function(self, target) return true end, spell_id = id }
+            return { cast_safe = function(self, target) return true end, spell_id = id,
+                cooldown_remaining = function() return 0 end }
         end
+    end,
+    define_action = function(name, ids, label)
+        local id = type(ids) == "table" and ids[1] or ids
+        return { cast_safe = function(self, target) return true end, spell_id = id,
+            cooldown_remaining = function() return 0 end }
     end,
     safe_state = function(tbl)
         local mt = {
@@ -99,7 +105,9 @@ local passed = 0
 local failed = 0
 
 function tests.priority_order()
-    local expected = { "HuntersMark", "BestialWrath", "KillCommand", "SerpentSting", "ArcaneShot", "SteadyShot" }
+    local expected = { "AspectOfTheViper", "AspectOfTheDragonhawk", "HuntersMark", "BestialWrath",
+        "KillShot", "ExplosiveTrap", "KillCommand", "SerpentSting", "AimedShot", "MultiShot",
+        "ArcaneShot", "SteadyShot" }
     for i, name in ipairs(expected) do
         local s = strategies[i]
         if not s then return false, "missing strategy at position " .. i .. " (expected " .. name .. ")" end
@@ -112,7 +120,9 @@ local function make_state(overrides)
     local ctx = { in_combat = true, target = {}, enemy_count = 1 }
     local raw = {
         hp = 100, mana_pct = 100, target_hp = 100, enemy_count = 1, in_combat = true,
-        mark_remains = 0, serpent_remains = 0, bestial_wrath_ready = false,
+        mark_remains = 0, serpent_remains = 0, explosive_trap_remains = 0,
+        target_remaining_time = 100, bestial_wrath_ready = false,
+        viper_up = false, dragonhawk_up = false,
     }
     for k, v in pairs(overrides or {}) do raw[k] = v end
     return ctx, raw
@@ -143,12 +153,22 @@ tests.test_HuntersMark_does_not_match_when_fresh = test_match("HuntersMark", { m
 tests.test_BestialWrath_matches_when_ready = test_match("BestialWrath", { bestial_wrath_ready = true }, true)
 tests.test_BestialWrath_does_not_match_when_not_ready = test_match("BestialWrath", { bestial_wrath_ready = false }, false)
 
+tests.test_Dragonhawk_transitions_from_viper = test_match("AspectOfTheDragonhawk",
+    { viper_up = true, dragonhawk_up = false, mana_pct = 50 }, true)
+
 -- KillCommand: unconditional (always matches)
 tests.test_KillCommand_always_matches = test_match("KillCommand", {}, true)
+
+tests.test_ExplosiveTrap_matches_when_inactive = test_match("ExplosiveTrap", { explosive_trap_remains = 0 }, true)
+tests.test_ExplosiveTrap_does_not_match_when_active = test_match("ExplosiveTrap", { explosive_trap_remains = 5 }, false)
 
 -- SerpentSting: matches when serpent_remains < 3
 tests.test_SerpentSting_matches_when_expiring = test_match("SerpentSting", { serpent_remains = 2 }, true)
 tests.test_SerpentSting_does_not_match_when_fresh = test_match("SerpentSting", { serpent_remains = 10 }, false)
+tests.test_SerpentSting_does_not_match_when_target_dies_soon = test_match("SerpentSting",
+    { serpent_remains = 0, target_remaining_time = 6 }, false)
+tests.test_SerpentSting_matches_when_target_lives_long_enough = test_match("SerpentSting",
+    { serpent_remains = 0, target_remaining_time = 7 }, true)
 
 -- ArcaneShot: matches when mana_pct >= 20
 tests.test_ArcaneShot_matches_when_mana_ok = test_match("ArcaneShot", { mana_pct = 50 }, true)

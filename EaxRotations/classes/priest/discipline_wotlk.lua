@@ -36,7 +36,7 @@ local discipline_state = {
 local function build_state(context)
     local state = spec_kit.safe_state(discipline_state)
     local me = NS.me or (NS.GetPlayer and NS.GetPlayer())
-    local target = context and context.target
+    local target = (context and context.lowest and context.lowest.unit) or me
     state.hp = (me and me.get_health_percentage and me:get_health_percentage()) or 100
     state.mana_pct = (me and me.get_mana_percentage and me:get_mana_percentage()) or 100
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
@@ -53,24 +53,24 @@ local DSL_DEFS = {
         conditions = {
             { type = "state", field = "weakened_soul_up", op = "falsy" },
         },
-        action = { type = "cast", spell = ACTION.PowerWordShield, target = "target" },
+        action = { type = "cast", spell = ACTION.PowerWordShield, target = "friendly" },
     },
     {
         name = "Penance",
         conditions = {},
-        action = { type = "cast", spell = ACTION.Penance, target = "target" },
+        action = { type = "cast", spell = ACTION.Penance, target = "friendly" },
     },
     {
         name = "PrayerOfMending",
         conditions = {},
-        action = { type = "cast", spell = ACTION.PrayerOfMending, target = "target" },
+        action = { type = "cast", spell = ACTION.PrayerOfMending, target = "friendly" },
     },
     {
         name = "Renew",
         conditions = {
             { type = "state", field = "renew_remains", op = "<", value = 3 },
         },
-        action = { type = "cast", spell = ACTION.Renew, target = "target" },
+        action = { type = "cast", spell = ACTION.Renew, target = "friendly" },
     },
 }
 

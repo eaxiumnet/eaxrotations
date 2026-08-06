@@ -11,17 +11,19 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 
-local define = spec_kit.define_action_for_class(SPELLS)
+local define = spec_kit.define_action
 
 local ACTION = {
-    Riptide = define("Riptide", 61295, "Riptide"),
-    ChainHeal = define("ChainHeal", { 25423, 25422, 10623, 10622, 1064 }, "ChainHeal"),
-    HealingWave = define("HealingWave", { 25396, 25391, 25357, 10396, 10395, 8005, 959, 939, 913, 547, 332, 331 }, "HealingWave"),
-    EarthShield = define("EarthShield", { 32594, 32593, 974 }, "EarthShield"),
+    ManaTideTotem = define("ManaTideTotem", 16190, "ManaTideTotem"),
+    EarthShield = define("EarthShield", 49284, "EarthShield"),
+    Riptide = define("Riptide", 61301, "Riptide"),
+    ChainHeal = define("ChainHeal", 55459, "ChainHeal"),
+    HealingWave = define("HealingWave", 49273, "HealingWave"),
+    LesserHealingWave = define("LesserHealingWave", 49276, "LesserHealingWave"),
 }
 
-local RIPTIDE_BUFF = { 61295, 61299, 61300, 61301 }
-local EARTH_SHIELD_BUFF = { 32594, 32593, 974 }
+local RIPTIDE_BUFF = { 61301, 61300, 61299, 61295 }
+local EARTH_SHIELD_BUFF = { 49284, 32594, 32593, 974 }
 
 local restoration_state = {
     hp = 100,
@@ -31,6 +33,9 @@ local restoration_state = {
     in_combat = false,
     riptide_remains = 0,
     earth_shield_up = false,
+    mana_tide_ready = false,
+    injured_count = 0,
+    lowest_hp = 100,
 }
 
 local function build_state(context)
@@ -44,10 +49,21 @@ local function build_state(context)
     state.in_combat = (context and context.in_combat) or false
     state.riptide_remains = (target and NS.buff_remains and NS.buff_remains(target, RIPTIDE_BUFF)) or 0
     state.earth_shield_up = (target and NS.buff_up and NS.buff_up(target, EARTH_SHIELD_BUFF)) or false
+    state.mana_tide_ready = (context and context.mana_tide_ready) or false
+    state.injured_count = (context and context.injured_count) or 0
+    state.lowest_hp = (context and context.lowest_hp) or state.target_hp
     return state
 end
 
 local DSL_DEFS = {
+    {
+        name = "ManaTideTotem",
+        conditions = {
+            { type = "state", field = "mana_tide_ready", op = "truthy" },
+            { type = "state", field = "mana_pct", op = "<", value = 30 },
+        },
+        action = { type = "cast", spell = ACTION.ManaTideTotem, target = "self" },
+    },
     {
         name = "EarthShield",
         conditions = {
@@ -65,10 +81,19 @@ local DSL_DEFS = {
     {
         name = "ChainHeal",
         conditions = {
-            { type = "state", field = "enemy_count", op = ">=", value = 2 },
+            { type = "state", field = "injured_count", op = ">=", value = 2 },
+            { type = "state", field = "lowest_hp", op = "<", value = 85 },
             { type = "state", field = "mana_pct", op = ">=", value = 25 },
         },
         action = { type = "cast", spell = ACTION.ChainHeal, target = "target" },
+    },
+    {
+        name = "LesserHealingWave",
+        conditions = {
+            { type = "state", field = "target_hp", op = "<", value = 90 },
+            { type = "state", field = "mana_pct", op = ">=", value = 10 },
+        },
+        action = { type = "cast", spell = ACTION.LesserHealingWave, target = "target" },
     },
     {
         name = "HealingWave",
@@ -81,10 +106,12 @@ local DSL_DEFS = {
 }
 
 local strategies = {
+    { name = "ManaTideTotem" },
     { name = "EarthShield" },
     { name = "Riptide" },
     { name = "ChainHeal" },
     { name = "HealingWave" },
+    { name = "LesserHealingWave" },
 }
 
 for i = 1, #strategies do

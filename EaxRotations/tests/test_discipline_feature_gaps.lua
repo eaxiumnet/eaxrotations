@@ -149,7 +149,7 @@ assert_true(strategy_names["PrayerOfMendingTank"], "PrayerOfMendingTank should b
 assert_true(strategy_names["EmergencyFlashHeal"], "EmergencyFlashHeal should be present")
 assert_true(strategy_names["GreaterHeal"], "GreaterHeal should be present")
 assert_true(strategy_names["BindingHeal"], "BindingHeal should be present")
-assert_true(strategy_names["CircleOfHealing"], "CircleOfHealing should be present")
+assert_false(strategy_names["CircleOfHealing"], "Holy-only CircleOfHealing should be absent")
 assert_true(strategy_names["PrayerOfHealing"], "PrayerOfHealing should be present")
 assert_true(strategy_names["RenewTank"], "RenewTank should be present")
 assert_true(strategy_names["RenewLowest"], "RenewLowest should be present")
@@ -183,7 +183,7 @@ end
 
 -- All 4 gaps + 3 ClassResearchTBC enhancements + Shadowfiend + ManaPotion are now implemented.
 -- PowerWordShieldLowest was removed as duplicate of EmergencyPowerWordShield.
-assert_eq(#strategies, 35, "expected 35 strategies (31 original + Shadowfiend + ManaPotion + FSRPause + MassDispel for dungeon AoE), got " .. #strategies)
+assert_eq(#strategies, 34, "expected 34 TBC Discipline strategies without Holy-only CircleOfHealing, got " .. #strategies)
 
 print("PASS test_discipline_feature_gaps (gap audit: " .. #strategies .. " strategies present, " .. present_gaps .. "/4 parity gaps closed)")
 

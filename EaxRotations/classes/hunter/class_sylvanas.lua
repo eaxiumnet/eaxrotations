@@ -365,7 +365,13 @@ local config = {
         { name = "survival", display_name = "Survival" },
     },
 }
+local is_sod = type(NS.is_sod) == "function" and NS.is_sod() or false
+if is_sod then config.playstyles = cl.sod_playstyles("hunter") end
 NS.rotation_registry:set_class_config(config)
+if is_sod then
+    cl.load_sod_specs("hunter", "Hunter")
+    return config
+end
 
 local function register_auto_shot_callback()
     if NS._hunter_auto_shot_callback_registered then return end

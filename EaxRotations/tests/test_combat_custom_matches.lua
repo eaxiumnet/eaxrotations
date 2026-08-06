@@ -19,6 +19,8 @@ setup_asserts()
 
 -- Mock NS namespace
 local spell_ready_calls = {}
+local build_state
+local combo_reader_calls = 0
 _G.EaxRotations = {
     RogueSpells = {
         Stealth = 1784,
@@ -59,11 +61,16 @@ _G.EaxRotations = {
     log = function() end,
     time_now = function() return 1000 end,
     broken_api_throttled = function(spell, seconds) return false end,
-    rotation_registry = { register = function() end },
+    rotation_registry = { register = function(self, spec, strats, opts) build_state = opts and opts.get_state end },
 }
+package.loaded["shared/combo_points_reader_sylvanas"] = function(unit, power_type)
+    combo_reader_calls = combo_reader_calls + 1
+    return unit:get_power(power_type)
+end
 
 local strategies = dofile("EaxRotations/classes/rogue/combat_sylvanas.lua").strategies
 assert_true(strategies, "strategies table should load")
+assert_true(build_state, "build_state should be registered")
 
 local function find_strategy(name)
     for i = 1, #strategies do
@@ -299,5 +306,22 @@ assert_false(eviscerate.matches({
     eviscerate_ready = true, combo_points = 4, energy = 50, energy_pool_finisher = false,
     deadly_poison_stacks = 0, envenom_ready = false,
 }), "Eviscerate at 70 still requires 5 CP")
+
+local stale_combo_player = {
+    combo_points_current = function() return 5 end,
+    get_power = function(_, power_type)
+        if power_type == 4 then return 0 end
+        if power_type == 3 then return 40 end
+        return 0
+    end,
+    get_max_power = function(_, power_type)
+        if power_type == 3 then return 100 end
+        return 5
+    end,
+}
+local authoritative_state = build_state({ me = stale_combo_player, target = {}, in_combat = true, hp = 100 })
+assert_true(combo_reader_calls > 0, "Combat must use the shared combo-point reader")
+assert_eq(authoritative_state.combo_points, 0, "Combat must preserve authoritative zero combo points")
+assert_eq(authoritative_state.energy, 40, "Combat energy fallback must read absolute native energy")
 
 print("PASS test_combat_custom_matches")

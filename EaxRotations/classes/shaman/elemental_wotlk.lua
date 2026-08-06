@@ -11,17 +11,25 @@ local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl      = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.ShamanSpells or {}
 
-local define = spec_kit.define_action_for_class(SPELLS)
+local define = spec_kit.define_action
 
 local ACTION = {
-    FlameShock = define("FlameShock", { 25457, 29228, 10448, 10447, 8053, 8052, 8050 }, "FlameShock"),
-    LavaBurst = define("LavaBurst", 51505, "LavaBurst"),
-    LightningBolt = define("LightningBolt", { 25449, 25448, 15208, 15207, 10392, 10391, 6041, 943, 915, 548, 529, 403 }, "LightningBolt"),
-    ChainLightning = define("ChainLightning", { 25442, 25439, 10605, 2860, 930, 421 }, "ChainLightning"),
-    Thunderstorm = define("Thunderstorm", 51490, "Thunderstorm"),
+    Bloodlust = define("Bloodlust", 2825, "Bloodlust"),
+    FireElemental = define("FireElemental", 2894, "FireElemental"),
+    ElementalMastery = define("ElementalMastery", 16166, "ElementalMastery"),
+    TotemOfWrath = define("TotemOfWrath", 57722, "TotemOfWrath"),
+    SearingTotem = define("SearingTotem", 58704, "SearingTotem"),
+    FlameShock = define("FlameShock", 49233, "FlameShock"),
+    ChainLightning = define("ChainLightning", 49271, "ChainLightning"),
+    LavaBurst = define("LavaBurst", 60043, "LavaBurst"),
+    LightningBolt = define("LightningBolt", 49238, "LightningBolt"),
+    Thunderstorm = define("Thunderstorm", 59159, "Thunderstorm"),
 }
 
-local FLAME_SHOCK_DEBUFF = { 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
+local FLAME_SHOCK_DEBUFF = { 49233, 25457, 29228, 10448, 10447, 8053, 8052, 8050 }
+local FIRE_ELEMENTAL_BUFF = { 2894 }
+local TOTEM_OF_WRATH_BUFF = { 57722 }
+local SEARING_TOTEM_DEBUFF = { 58704 }
 
 local elemental_state = {
     hp = 100,
@@ -30,6 +38,12 @@ local elemental_state = {
     enemy_count = 1,
     in_combat = false,
     flame_shock_remains = 0,
+    bloodlust_ready = false,
+    fire_elemental_ready = false,
+    elemental_mastery_ready = false,
+    fire_elemental_active = false,
+    totem_of_wrath_up = false,
+    searing_totem_up = false,
 }
 
 local function build_state(context)
@@ -42,10 +56,66 @@ local function build_state(context)
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
     state.flame_shock_remains = (target and NS.debuff_remains and NS.debuff_remains(target, FLAME_SHOCK_DEBUFF)) or 0
+    state.bloodlust_ready = (context and context.bloodlust_ready) or false
+    state.fire_elemental_ready = (context and context.fire_elemental_ready) or false
+    state.elemental_mastery_ready = (context and context.elemental_mastery_ready) or false
+    if context and context.fire_elemental_active ~= nil then
+        state.fire_elemental_active = context.fire_elemental_active
+    else
+        state.fire_elemental_active = (me and NS.buff_up and NS.buff_up(me, FIRE_ELEMENTAL_BUFF)) or false
+    end
+    if context and context.totem_of_wrath_up ~= nil then
+        state.totem_of_wrath_up = context.totem_of_wrath_up
+    else
+        state.totem_of_wrath_up = (me and NS.buff_up and NS.buff_up(me, TOTEM_OF_WRATH_BUFF)) or false
+    end
+    if context and context.searing_totem_up ~= nil then
+        state.searing_totem_up = context.searing_totem_up
+    else
+        state.searing_totem_up = (target and NS.debuff_up and NS.debuff_up(target, SEARING_TOTEM_DEBUFF)) or false
+    end
     return state
 end
 
 local DSL_DEFS = {
+    {
+        name = "Bloodlust",
+        conditions = {
+            { type = "state", field = "bloodlust_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.Bloodlust, target = "self" },
+    },
+    {
+        name = "FireElemental",
+        conditions = {
+            { type = "state", field = "fire_elemental_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.FireElemental, target = "self" },
+    },
+    {
+        name = "ElementalMastery",
+        conditions = {
+            { type = "state", field = "elemental_mastery_ready", op = "truthy" },
+        },
+        action = { type = "cast", spell = ACTION.ElementalMastery, target = "self" },
+    },
+    {
+        name = "TotemOfWrath",
+        conditions = {
+            { type = "state", field = "in_combat", op = "falsy" },
+            { type = "state", field = "totem_of_wrath_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.TotemOfWrath, target = "self" },
+    },
+    {
+        name = "SearingTotem",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "state", field = "fire_elemental_active", op = "falsy" },
+            { type = "state", field = "searing_totem_up", op = "falsy" },
+        },
+        action = { type = "cast", spell = ACTION.SearingTotem, target = "self" },
+    },
     {
         name = "FlameShock",
         conditions = {
@@ -56,6 +126,7 @@ local DSL_DEFS = {
     {
         name = "LavaBurst",
         conditions = {
+            { type = "state", field = "flame_shock_remains", op = ">=", value = 1 },
             { type = "state", field = "mana_pct", op = ">=", value = 20 },
         },
         action = { type = "cast", spell = ACTION.LavaBurst, target = "target" },
@@ -85,11 +156,16 @@ local DSL_DEFS = {
 }
 
 local strategies = {
+    { name = "Bloodlust" },
+    { name = "FireElemental" },
+    { name = "ElementalMastery" },
+    { name = "TotemOfWrath" },
+    { name = "SearingTotem" },
     { name = "FlameShock" },
-    { name = "LavaBurst" },
     { name = "ChainLightning" },
-    { name = "Thunderstorm" },
+    { name = "LavaBurst" },
     { name = "LightningBolt" },
+    { name = "Thunderstorm" },
 }
 
 for i = 1, #strategies do

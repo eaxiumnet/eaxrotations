@@ -463,6 +463,7 @@ NS.WarriorConstants = {
     DISARM_CLASS_IDS = { [1] = true, [2] = true, [4] = true, [7] = true },
 }
 
+local is_sod = type(NS.is_sod) == "function" and NS.is_sod() or false
 local config = {
     class_key = "warrior",
     class_name = "Warrior",
@@ -475,7 +476,12 @@ local config = {
         { name = "protection", display_name = "Protection" },
     },
 }
+if is_sod then config.playstyles = cl.sod_playstyles("warrior") end
 NS.rotation_registry:set_class_config(config)
+if is_sod then
+    cl.load_sod_specs("warrior", "Warrior")
+    return config
+end
 
 load_child("middleware_sylvanas")
 load_spec("leveling", true)

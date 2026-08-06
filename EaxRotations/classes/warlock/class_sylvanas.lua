@@ -300,6 +300,7 @@ local SPELLS = {
 
 NS.WarlockSpells = SPELLS
 
+local is_sod = type(NS.is_sod) == "function" and NS.is_sod() or false
 local config = {
     class_key = "warlock",
     class_name = "Warlock",
@@ -312,7 +313,12 @@ local config = {
         { name = "destruction", display_name = "Destruction" },
     },
 }
+if is_sod then config.playstyles = cl.sod_playstyles("warlock") end
 NS.rotation_registry:set_class_config(config)
+if is_sod then
+    cl.load_sod_specs("warlock", "Warlock")
+    return config
+end
 
 load_child("middleware_sylvanas")
 load_spec("leveling", true)

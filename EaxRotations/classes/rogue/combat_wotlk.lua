@@ -55,7 +55,7 @@ local DSL_DEFS = {
     {
         name = "SliceAndDice",
         conditions = {
-            { type = "state", field = "snd_remains", op = "<", value = 3 },
+            { type = "state", field = "snd_remains", op = "<=", value = 1 },
             { type = "state", field = "combo_points", op = ">=", value = 1 },
         },
         action = { type = "cast", spell = ACTION.SliceAndDice, target = "self" },

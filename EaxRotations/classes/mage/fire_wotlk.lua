@@ -13,20 +13,25 @@ if not NS then return nil end
 local spec_kit = require("shared/spec_kit_sylvanas")
 local dsl = require("shared/strategy_dsl_sylvanas")
 local SPELLS = NS.MageSpells or {}
+local core = NS.core or _G.core or {}
+local _get_spell_cast_time = core.spell_book and core.spell_book.get_spell_cast_time
 
-local define = spec_kit.define_action_for_class(SPELLS)
+local SCORCH_ID = 42859
+
+local define = spec_kit.define_action
 
 local ACTION = {
-    Pyroblast = define("Pyroblast", { 33938, 12526, 12525, 12524, 12523, 12522, 12521, 11366 }, "Pyroblast"),
-    LivingBomb = define("LivingBomb", 44457, "LivingBomb"),
-    Scorch = define("Scorch", { 30455, 2948, 8444, 8445, 8446, 8447, 10211, 10210, 27073, 27074 }, "Scorch"),
+    Pyroblast = define("Pyroblast", { 42891 }, "Pyroblast"),
+    LivingBomb = define("LivingBomb", { 55360 }, "LivingBomb"),
+    FireBlast = define("FireBlast", { 42873 }, "FireBlast"),
+    Scorch = define("Scorch", { 42859 }, "Scorch"),
     Fireball = define("Fireball", { 42833, 38692, 27070, 25306, 10151, 10150, 10149, 10148, 8402, 8401, 8400, 3140, 145, 143, 133 }, "Fireball"),
     Combustion = define("Combustion", 11129, "Combustion"),
 }
 
-local LIVING_BOMB_DEBUFF = { 44457, 44459, 44460, 44461 }
-local SCORCH_DEBUFF = { 30455, 2948, 8444, 8445, 8446, 8447, 10211, 10210, 27073, 27074 }
-local HOT_STREAK_BUFF = { 48108 }
+local LIVING_BOMB_DEBUFF = { 55360 }
+local SCORCH_DEBUFF = { 12873 }
+local HOT_STREAK_BUFF = { 44448 }
 
 local fire_state = {
     hp = 100,
@@ -37,7 +42,23 @@ local fire_state = {
     living_bomb_remains = 0,
     scorch_remains = 0,
     hot_streak_proc = false,
+    ttd = 999,
+    scorch_cast_time = nil,
 }
+
+local function resolve_scorch_cast_time(context)
+    local context_cast_time = context and context.scorch_cast_time
+    if type(context_cast_time) == "number" and context_cast_time > 0 then
+        return context_cast_time
+    end
+    if type(_get_spell_cast_time) == "function" then
+        local ok, cast_time = pcall(_get_spell_cast_time, SCORCH_ID)
+        if ok and type(cast_time) == "number" and cast_time > 0 then
+            return cast_time
+        end
+    end
+    return nil
+end
 
 local function build_state(context)
     local state = spec_kit.safe_state(fire_state)
@@ -48,6 +69,9 @@ local function build_state(context)
     state.target_hp = (target and target.get_health_percentage and target:get_health_percentage()) or 100
     state.enemy_count = (context and context.enemy_count) or 1
     state.in_combat = (context and context.in_combat) or false
+    local ttd = context and context.ttd
+    state.ttd = type(ttd) == "number" and ttd > 0 and ttd or 999
+    state.scorch_cast_time = resolve_scorch_cast_time(context)
     state.living_bomb_remains = (target and NS.debuff_remains and NS.debuff_remains(target, LIVING_BOMB_DEBUFF)) or 0
     state.scorch_remains = (target and NS.debuff_remains and NS.debuff_remains(target, SCORCH_DEBUFF)) or 0
     state.hot_streak_proc = (me and NS.buff_up and NS.buff_up(me, HOT_STREAK_BUFF)) or false
@@ -62,6 +86,7 @@ local DSL_DEFS = {
         name = "Combustion",
         conditions = {
             { type = "state", field = "in_combat", op = "truthy" },
+            { type = "context", field = "target", op = "!=", value = nil },
             { type = "custom", fn = function(context, state)
                 if NS.should_use_long_cd and not NS.should_use_long_cd(context, 180) then return false end
                 return true
@@ -72,6 +97,8 @@ local DSL_DEFS = {
     {
         name = "Pyroblast",
         conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "context", field = "target", op = "!=", value = nil },
             { type = "state", field = "hot_streak_proc", op = "truthy" },
         },
         action = { type = "cast", spell = ACTION.Pyroblast, target = "target" },
@@ -79,22 +106,48 @@ local DSL_DEFS = {
     {
         name = "LivingBomb",
         conditions = {
-            { type = "state", field = "living_bomb_remains", op = "<", value = 3 },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "context", field = "target", op = "!=", value = nil },
+            { type = "state", field = "living_bomb_remains", op = "<=", value = 0 },
+            { type = "state", field = "ttd", op = ">", value = 12 },
         },
         action = { type = "cast", spell = ACTION.LivingBomb, target = "target" },
     },
     {
+        name = "FireBlast",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "context", field = "target", op = "!=", value = nil },
+            { type = "custom", fn = function(context, state)
+                local cast_time = state.scorch_cast_time
+                return type(cast_time) == "number" and cast_time > 0 and state.ttd <= cast_time
+            end },
+        },
+        action = { type = "cast", spell = ACTION.FireBlast, target = "target" },
+    },
+    {
         name = "Scorch",
         conditions = {
-            { type = "state", field = "scorch_remains", op = "<", value = 3 },
-            { type = "state", field = "mana_pct", op = ">=", value = 15 },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "context", field = "target", op = "!=", value = nil },
+            { type = "state", field = "scorch_remains", op = "<=", value = 4 },
+        },
+        action = { type = "cast", spell = ACTION.Scorch, target = "target" },
+    },
+    {
+        name = "ScorchFinal",
+        conditions = {
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "context", field = "target", op = "!=", value = nil },
+            { type = "state", field = "ttd", op = "<=", value = 4 },
         },
         action = { type = "cast", spell = ACTION.Scorch, target = "target" },
     },
     {
         name = "Fireball",
         conditions = {
-            { type = "state", field = "mana_pct", op = ">=", value = 20 },
+            { type = "state", field = "in_combat", op = "truthy" },
+            { type = "context", field = "target", op = "!=", value = nil },
         },
         action = { type = "cast", spell = ACTION.Fireball, target = "target" },
     },
@@ -105,9 +158,11 @@ local DSL_DEFS = {
 -- -----------------------------------------------------------------------------
 local strategies = {
     { name = "Combustion" },
+    { name = "Scorch" },
     { name = "Pyroblast" },
     { name = "LivingBomb" },
-    { name = "Scorch" },
+    { name = "FireBlast" },
+    { name = "ScorchFinal" },
     { name = "Fireball" },
 }
 

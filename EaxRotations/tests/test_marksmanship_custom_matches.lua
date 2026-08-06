@@ -13,6 +13,7 @@ local function at(v,l) if not v then error(l or "fail",2) end end
 local function af(v,l) if v then error(l or "fail",2) end end
 
 local cap_gs
+local bestial_wrath_casts = 0
 _G.EaxRotations = {
   HunterSpells = { HuntersMark=1130, RapidFire=3045, KillCommand=34026, MultiShot=2643, SteadyShot=5662, ArcaneShot=3044, SerpentSting=1978, CallPet=883, RevivePet=982, AimedShot=19434, SilencingShot=34490, TrueshotAura=19506, FeignDeath=5384, Readiness=23989, FreezingTrap=1499, ViperSting=3034, WingClip=2974, RaptorStrike=2973, Volley=1510, ExplosiveTrap=13813, ConcussiveShot=5116, BestialWrath=19574, MendPet=136, AspectOfTheHawk=13165, AspectOfTheViper=34074 },
   spell_ready=function() return true end, is_spell_learned=function() return true end,
@@ -20,6 +21,8 @@ _G.EaxRotations = {
   debuff_remains=function() return 0 end, cooldown_remains=function() return 0 end,
   broken_api_throttled=function() return false end, is_interruptible=function() return true end,
   unit_alive=function() return true end, unit_mana_pct=function() return 100 end,
+  gate_cooldown_boss_only=function() return true end,
+  try_cast=function() bestial_wrath_casts = bestial_wrath_casts + 1; return true end,
   log=function() end, time_now=function() return 100 end,
   GetPlayer=function() return {} end, GetPet=function() return nil end,
   HunterClipTracker = { can_cast_steady=function() return true end, ms_until_auto=function() return 0 end, record_manual_shot=function() end },
@@ -75,5 +78,13 @@ local cp=fs("CallPet")
 af(cp.matches({},cs({has_pet=true})),"CP has pet")
 af(cp.matches({},cs({has_pet=false,in_combat=true})),"CP in combat")
 at(cp.matches({},cs({has_pet=false,in_combat=false,call_pet_ready=true})),"CP match")
+
+local bw = fs("BestialWrath")
+af(bw.matches({ target = {}, pet = {} }, cs({ bestial_wrath_ready = true })),
+    "MM must not select Bestial Wrath even when every runtime gate is open")
+if bw.matches({ target = {}, pet = {} }, cs({ bestial_wrath_ready = true })) then
+    bw.execute({ target = {}, pet = {} })
+end
+at(bestial_wrath_casts == 0, "MM must not execute Bestial Wrath")
 
 print("PASS test_marksmanship_custom_matches")

@@ -161,6 +161,9 @@ local TANK_HEAL_TARGET_HP = 92
 local LIGHT_HEAL_DEFICIT = 900
 local MEDIUM_HEAL_DEFICIT = 1900
 local LARGE_HEAL_DEFICIT = 3200
+local MIN_HEAL_MANA_PCT = 5
+local LOW_MANA_EMERGENCY_HP = 55
+local FLASH_CONSERVE_MANA_PCT = 15
 
 -- ============================================================================
 -- Schema (Pattern 14 nil-guard defaults via spec_kit.safe_state)
@@ -294,6 +297,8 @@ end
 local function can_help(entry)
  if not entry or not entry.unit then return false end
  if entry.is_dead == true or entry.dead == true then return false end
+ if entry.hostile == true or entry.is_friendly == false then return false end
+ if entry.is_valid == false or entry.valid == false then return false end
  return true
 end
 
@@ -367,11 +372,26 @@ local function choose_holy_light_rank(context, entry)
  return HolyLightRank4, "Holy Light R4"
 end
 
+local function choose_flash_of_light(context, s, entry)
+ if (s.mana_pct or 100) < MIN_HEAL_MANA_PCT then return nil end
+ if (s.mana_pct or 100) < FLASH_CONSERVE_MANA_PCT and NS.spell_ready(FlashOfLightRank6, entry.unit, EMPTY_OPTS) then
+  return FlashOfLightRank6, "Flash of Light R6 conserve"
+ end
+ return ACTION.FlashOfLight, "Flash of Light R7"
+end
+
 local function choose_smart_heal(context, s, entry)
  if not can_help(entry) then return nil end
  local hp = predicted_hp_of(entry, 2.5)
  local deficit = deficit_of(entry)
  local flash_hp = spec_kit.setting_number(context, "holy_flash_light_hp", 85)
+ if (s.mana_pct or 100) < MIN_HEAL_MANA_PCT then
+  if hp > LOW_MANA_EMERGENCY_HP or not NS.spell_ready(FlashOfLightRank6, entry.unit, EMPTY_OPTS) then return nil end
+  if gate_overheal("FlashOfLight", entry.unit, 1.5, context.settings, _spell_id(FlashOfLightRank6)) then return nil end
+  s.heal_spell = FlashOfLightRank6
+  s.heal_label = "Flash of Light R6 emergency"
+  return s.heal_spell
+ end
  local shock_hp = spec_kit.setting_number(context, "holy_shock_hp", 40)
  if (context and context.is_moving or s.moving) and hp <= flash_hp and NS.spell_ready(ACTION.HolyShock, entry.unit, EMPTY_OPTS) then
   s.heal_spell = ACTION.HolyShock
@@ -409,14 +429,7 @@ local function choose_smart_heal(context, s, entry)
   return s.heal_spell
  end
  if hp <= flash_hp then
-  -- Flash of Light downranking: use rank 6 [25297] for mana conservation < 15%
-  if (s.mana_pct or 100) < 15 and NS.spell_ready(FlashOfLightRank6, entry.unit, EMPTY_OPTS) then
-   s.heal_spell = FlashOfLightRank6
-   s.heal_label = "Flash of Light R6 conserve"
-  else
-   s.heal_spell = ACTION.FlashOfLight
-   s.heal_label = "Flash of Light"
-  end
+  s.heal_spell, s.heal_label = choose_flash_of_light(context, s, entry)
   return s.heal_spell
  end
  return nil
@@ -783,8 +796,11 @@ local DSL_DEFS = {
         conditions = {
             { type = "custom", fn = function(context, s)
                 if not can_help(s.lowest) then return false end
+                if (s.mana_pct or 100) < MIN_HEAL_MANA_PCT then return false end
                 local moving = s.moving or (context and context.is_moving)
-                if hp_of(s.lowest) > spec_kit.setting_number(context, "holy_shock_hp", 40) and not moving then return false end
+                local hp = hp_of(s.lowest)
+                if hp > spec_kit.setting_number(context, "holy_shock_hp", 40)
+                    and (not moving or hp > spec_kit.setting_number(context, "holy_flash_light_hp", 85)) then return false end
                 if not (NS.spell_ready and NS.spell_ready(ACTION.HolyShock, s.lowest.unit, EMPTY_OPTS)) then return false end
                 return not gate_overheal("HolyShock", s.lowest.unit, 1.5, context.settings, _spell_id(ACTION.HolyShock))
             end },
@@ -797,7 +813,7 @@ local DSL_DEFS = {
         name = "HolyLightEmergency",
         conditions = {
             { type = "custom", fn = function(context, s)
-                if not can_help(s.lowest) or hp_of(s.lowest) > 55 then return false end
+                if not can_help(s.lowest) or (s.mana_pct or 100) < LOW_MANA_PCT or hp_of(s.lowest) > 55 then return false end
                 s.holy_light_spell, s.holy_light_label = choose_holy_light_rank(context, s.lowest)
                 if not (NS.spell_ready and NS.spell_ready(s.holy_light_spell, s.lowest.unit, EMPTY_OPTS)) then return false end
                 return not gate_overheal("HolyLight", s.lowest.unit, 2.5, context.settings, _spell_id(s.holy_light_spell))
@@ -1030,17 +1046,18 @@ local strategies = {
     end,
   },
   {
-   name = "FlashOfLightEfficientTopoff",
+  name = "FlashOfLightEfficientTopoff",
   matches = function(context, s)
    if not can_help(s.lowest) then return false end
    if hp_of(s.lowest) > spec_kit.setting_number(context, "holy_flash_light_hp", 85) then return false end
-   if not (NS.spell_ready and NS.spell_ready(ACTION.FlashOfLight, s.lowest.unit, EMPTY_OPTS)) then return false end
+   s.heal_spell, s.heal_label = choose_flash_of_light(context, s, s.lowest)
+   if not s.heal_spell or not (NS.spell_ready and NS.spell_ready(s.heal_spell, s.lowest.unit, EMPTY_OPTS)) then return false end
    -- Predictive overheal gate: skip FoL if predicted deficit is small
-   if gate_overheal("FlashOfLight", s.lowest.unit, 1.5, context.settings, _spell_id(ACTION.FlashOfLight)) then return false end
+   if gate_overheal("FlashOfLight", s.lowest.unit, 1.5, context.settings, _spell_id(s.heal_spell)) then return false end
    return true
   end,
   execute = function(_, s)
-   return cast_on(ACTION.FlashOfLight, s.lowest, format("[HOLY] Flash of Light efficient %.0f%%", hp_of(s.lowest)))
+   return cast_on(s.heal_spell or ACTION.FlashOfLight, s.lowest, format("[HOLY] %s efficient %.0f%%", s.heal_label or "Flash of Light", hp_of(s.lowest)))
   end,
  },
  { name = "SealOfWisdomLowMana" },
