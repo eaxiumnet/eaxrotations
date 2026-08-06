@@ -302,8 +302,19 @@ end
 function M.pet_alive()
     local pet = M.get_pet()
     if not pet then return false end
+    -- Fail-open alive check (mirrors NS.unit_alive): is_alive() is not present
+    -- on every PS build; is_dead()/is_valid()/is_ghost() decide instead.
+    -- Failing closed here silently killed the whole BM pet lane (Kill Command,
+    -- Bestial Wrath, Mend Pet, Intimidation) on the live client.
+    if NS.unit_alive then
+        local ok, alive = pcall(NS.unit_alive, pet)
+        if ok then return alive == true end
+    end
     local ok, alive = pcall(function() return pet:is_alive() end)
-    return ok and alive
+    if ok and type(alive) == "boolean" then return alive end
+    local okd, dead = pcall(function() return pet:is_dead() end)
+    if okd and type(dead) == "boolean" then return not dead end
+    return true
 end
 
 function M.pet_hp_pct()

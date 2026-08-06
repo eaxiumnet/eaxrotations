@@ -116,9 +116,10 @@ local function warn_swallowed(label, err)
 end
 
 -- Spell readiness comes from REAL API returns (IZI castability + core
--- cooldown) — no hardcoded stand-in values. The native spell_helper path in
--- NS.spell_ready is deliberately NOT used for readiness; castability is asked
--- of the IZI spell object instead.
+-- cooldown) — no hardcoded stand-in values. IZI is the primary castability
+-- read; when IZI reports not-castable, NS.spell_ready (the engine readiness
+-- API every working spec runs on) is consulted before blocking, and the
+-- final cooldown/range/usable gate runs in NS.try_cast at cast time.
 local function izi_spell_for(spell)
     if not NS.izi or type(NS.izi.spell) ~= "function" then return nil end
     local ids
@@ -154,8 +155,27 @@ local function spell_ready(spell, target, opts)
             skip_facing = opts.skip_facing == true,
             skip_range = opts.skip_range == true,
         })
-        if not ok then warn_swallowed("izi is_castable_to_unit", res); return false end
-        return res == true
+        if not ok then
+            warn_swallowed("izi is_castable_to_unit", res)
+        elseif res == true then
+            return true
+        end
+        -- IZI said not-castable (or threw): do not let a single API verdict
+        -- blank the spell. Consult NS.spell_ready — the repo-standard
+        -- readiness API every working spec runs on — before blocking. IZI has
+        -- been observed false-gating enemy-target casts on the live client
+        -- while NS.spell_ready says ready. The authoritative cooldown/range/
+        -- usable gate still runs in NS.try_cast/evaluate_cast at cast time, so
+        -- a genuinely OOR or on-CD spell is still rejected there.
+        if NS.spell_ready then
+            local ok2, ready2 = pcall(NS.spell_ready, spell, target, opts)
+            if ok2 and ready2 == true then
+                warn_swallowed("izi-not-castable but NS.spell_ready ready")
+                return true
+            end
+            return false
+        end
+        return false
     end
     -- 3) Non-IZI runtime (unit-test harness): NS.spell_ready's real return.
     if NS.spell_ready then return NS.spell_ready(spell, target, opts) == true end
