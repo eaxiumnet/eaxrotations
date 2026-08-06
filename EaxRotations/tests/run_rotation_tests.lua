@@ -158,6 +158,9 @@ local tests = {
  "test_beast_mastery_custom_matches.lua",
  "test_marksmanship_custom_matches.lua",
  "test_survival_custom_matches.lua",
+ -- Live "BM only auto-attacks" regressions (2026-08-06)
+ "test_hunter_core_pet_alive_fallback.lua",
+ "test_beast_mastery_izi_false_gate_fallback.lua",
 
 
  -- Priest tests
@@ -467,6 +470,7 @@ local tests = {
 
   "test_priest_holy_vanilla_friendly_target.lua",
  "test_priest_discipline_vanilla_friendly_target.lua",
+ "test_priest_discipline_poh_nil_guard.lua",
  "test_paladin_holy_vanilla_friendly_target.lua",
  "test_druid_resto_vanilla_friendly_target.lua",
  "test_shaman_resto_vanilla_friendly_target.lua",

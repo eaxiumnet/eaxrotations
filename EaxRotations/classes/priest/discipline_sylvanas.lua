@@ -454,7 +454,7 @@ local function prayer_of_healing_matches(context, s)
  if context.is_moving then return false end
  if (s.mana_pct or context.mana_pct or 100) < CONSUME_MANA_FLOOR then return false end
  -- Advanced: prefer party_injured_count from core.party frames for accurate PoH subgroup
- local poh_count = s.party_injured_count or s.subgroup_damaged_count or s.group_damaged_count
+ local poh_count = s.party_injured_count or s.subgroup_damaged_count or s.group_damaged_count or 0
  if poh_count < 4 then return false end
  if not s.prayer_of_healing_ready then return false end
   -- Predictive overheal gate: skip PoH if even the lowest target doesn't need a per-tick heal
@@ -615,7 +615,7 @@ local function inner_focus_matches(context, s)
  if not spec_kit.setting_bool(context, "discipline_use_inner_focus", true) then return false end
  -- Use when tank needs a big heal or raid needs PoH
  local tank_hp = s.tank and (s.tank.effective_hp or 100) or 100
- if tank_hp > spec_kit.setting_number(context, "discipline_if_hp", 65) and s.group_damaged_count < 4 then return false end
+ if tank_hp > spec_kit.setting_number(context, "discipline_if_hp", 65) and (s.group_damaged_count or 0) < 4 then return false end
  return true
 end
 
