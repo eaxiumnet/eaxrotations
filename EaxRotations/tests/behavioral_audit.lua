@@ -202,10 +202,21 @@ function M.build_ns(class_key)
     end
 
     ns.spell_exists = function() return true end
-    ns.spell_ready = function() return true end
+    ns.spell_ready = function(spell, target, opts)
+        return ns.cooldown_remains(spell) <= 0
+    end
     ns.is_spell_learned = function() return true end
     ns.spell_cooldown_ready = function() return true end
-    ns.cooldown_remains = function() return 0 end
+    -- Scenario-driven cooldowns: scenarios set on_cd = { [spell_id] = seconds }.
+    -- Accepts both numeric spell IDs and NS spell_action tables (kebab style).
+    ns.cooldown_remains = function(spell)
+        local on_cd = ns._bstate("on_cd", nil)
+        if type(on_cd) == "table" and spell then
+            local id = type(spell) == "number" and spell or (type(spell) == "table" and spell.ids and spell.ids[1])
+            if id and on_cd[id] then return on_cd[id] end
+        end
+        return 0
+    end
 
     ns.buff_up = function() return false end
     ns.buff_remains = function() return 0 end
@@ -332,8 +343,8 @@ function M.build_ns(class_key)
     ns.gate_overheal = function() return false end
     ns.gate_cooldown_boss_only = function() return true end
     ns.should_use_long_cd = function() return true end
-    ns.should_refresh_dot = function() return false end
-    ns.has_dispel_type_debuff = function() return false end
+    ns.should_refresh_dot = function() return not ns._bstate("buffs_up", false) end
+    ns.has_dispel_type_debuff = function() return ns._bstate("friends_afflicted", false) end
     ns.is_breakable_cc_active = function() return false end
     ns.has_healing_reduction_debuff = function() return false end
     ns.get_best_heal_target = function() return nil end
@@ -353,7 +364,7 @@ function M.build_ns(class_key)
     -- Subsystem namespaces specs access (populated by class registration in
     -- the live engine; permissive stubs keep the audit loadable).
     ns.ConsumableManager = { should_use = function() return false end, try_use = function() return false end }
-    ns.DispelManager = { try_dispel = function() return false end, should_dispel = function() return false end }
+    ns.DispelManager = { try_dispel = function() return ns._bstate("friends_afflicted", false) end, should_dispel = function() return ns._bstate("friends_afflicted", false) end }
     ns.Triage = { score = function() return 0 end, rank = function() return {} end }
     ns.HealerDeficit = { deficit_of = function() return 0 end }
     ns.TrinketManager = { try_use = function() return false end }
@@ -372,8 +383,11 @@ function M.build_ns(class_key)
     ns.Targeting = { pick = function() return nil end }
     ns.WeaponImbueManager = { apply = function() return false end }
     ns.OffensiveDispelDB = {
-        should_purge = function() return false end,
-        find_best_dispel_target = function() return nil end,
+        should_purge = function() return ns._bstate("enemy_buffed", false) end,
+        find_best_dispel_target = function(target)
+            if ns._bstate("enemy_buffed", false) then return target, 10 end
+            return nil
+        end,
         is_breakable_cc_active = function() return false, nil end,
         is_casting_preemptive_cc = function() return false, nil end,
     }
@@ -434,7 +448,7 @@ function M.build_ns(class_key)
     ns.EQUIPMENT_SLOTS = { HEAD = 1 }
     ns.broken_api_throttled = function() return false end
     ns.is_interruptible = function() return true end
-    ns.target_casting = function() return false end
+    ns.target_casting = function() return ns._bstate("target_is_casting", false) end
     ns.is_in_melee_range = function() return true end
     ns.cp_debug = function() end
     ns.time_until_swing = function() return 0.5 end
@@ -543,6 +557,14 @@ local function _base_ctx(profile)
         combat_time = 30,
         gcd_remains = 0,
         on_gcd = false,
+        is_moving = false,
+        me_casting = false,
+        in_melee_range = true,
+        ttd_known = true,
+        has_health_potion = false,
+        has_mana_potion = false,
+        friends_afflicted = false,
+        enemy_buffed = false,
         settings = {},
         lowest = { unit = nil, hp = 100 },
     }
@@ -574,15 +596,22 @@ M.SCENARIOS = {
     { name = "energy_low",       overrides = { combo_points = 0, energy = 30 } },
     { name = "aoe",              overrides = { enemy_count = 4, enemies_count = 4 } },
     { name = "execute",          overrides = { target_hp = 8, ttd = 6, target_ttd = 6 } },
-    { name = "low_mana",         overrides = { mana_pct = 30, player_mana = 300, player_mana_pct = 30 } },
-    { name = "low_self",         overrides = { hp = 30, player_hp = 30 } },
+    { name = "low_mana",         overrides = { mana_pct = 10, player_mana = 300, player_mana_pct = 10, has_potions = true } },
+    { name = "low_self",         overrides = { hp = 15, player_hp = 15, has_potions = true } },
     { name = "moving",           overrides = { is_moving = true } },
     { name = "target_casting",   overrides = { target_is_casting = true } },
     { name = "stealth",          overrides = { is_stealthed = true, combo_points = 0 } },
     { name = "buffs_up",         overrides = { buffs_up = true, combo_points = 0 } },
     { name = "pull",             overrides = { in_combat = false, buffs_up = true, is_stealthed = true, combo_points = 0 } },
-    { name = "short_ttd",        overrides = { target_ttd = 2, ttd = 2, combo_points = 5, energy = 60 } },
+    { name = "short_ttd",        overrides = { target_ttd = 2, ttd = 2, target_hp = 20, combo_points = 5, energy = 60 } },
+    { name = "mid_ttd",          overrides = { target_ttd = 30, ttd = 30 } },
+    { name = "long_ttd",         overrides = { target_ttd = 120, ttd = 120 } },
     { name = "pvp_interrupt",    overrides = { is_pvp = true, target_is_casting = true, combo_points = 3 } },
+    { name = "berserker_interrupt", overrides = { stance = 3, target_is_casting = true } },
+    { name = "potions_ready",    overrides = { has_potions = true } },
+    { name = "friends_afflicted", overrides = { friends_afflicted = true, friends_hp = { 100, 100, 100 } } },
+    { name = "enemy_buffed",     overrides = { enemy_buffed = true } },
+    { name = "me_casting",       overrides = { me_casting = true, friends_hp = { 25, 60, 80 }, lowest_hp = 25 } },
     { name = "battle_stance",    overrides = { stance = 1 } },
     { name = "defensive_stance", overrides = { stance = 2 } },
     { name = "berserker_stance", overrides = { stance = 3 } },
@@ -614,6 +643,8 @@ local function _scenario_me(profile, ctx)
         if p == M.POWER.MANA then return ctx.player_mana or ctx.mana_pct or 100 end
         return 100
     end
+    me.is_casting = function(self) return ctx.me_casting == true end
+    me.is_channeling = function(self) return ctx.me_casting == true end
     return me
 end
 
@@ -643,11 +674,15 @@ function M.build_context_for(class_key, scenario)
         combo_points=true, energy=true, rage=true, focus=true,
         is_moving=true, is_stealthed=true, target_is_casting=true,
         stance=true, buffs_up=true, faction=true, pet_hp=true, pet_dead=true,
-        lowest_hp=true,
+        lowest_hp=true, has_potions=true, friends_afflicted=true,
+        enemy_buffed=true, me_casting=true,
     }
     for k, v in pairs(overrides) do
         if k == "friends_hp" then
             ctx.friends_hp = v
+        elseif k == "has_potions" then
+            ctx.has_health_potion = true
+            ctx.has_mana_potion = true
         elseif known[k] then
             ctx[k] = v
         end
@@ -720,6 +755,7 @@ function M.apply_battery_state(ns, ctx, class_key)
         faction = ctx.faction or 0,
         hp = ctx.hp or 100,
         mana_pct = ctx.mana_pct or 100,
+        on_cd = ctx.on_cd,
     }
     -- Pets (hunter + warlock)
     if ctx.pet ~= nil then
@@ -734,6 +770,7 @@ function M.apply_battery_state(ns, ctx, class_key)
         ns.GetPet = function() return nil end
         ns.get_pet_hp = function() return 100 end
     end
+    ns.has_health_potion = ctx.has_health_potion == true
     -- Healers: bind healing scans to the current friend roster. Scans return
     -- ENTRIES ({ unit, hp, effective_hp }) exactly like the live modules, so
     -- the NS.healing_* rankers below produce a usable lowest/tank entry.
@@ -749,6 +786,9 @@ function M.apply_battery_state(ns, ctx, class_key)
                 health_pct = hp,
                 has_renew = false,
                 has_buff = false,
+                has_poison = ctx.friends_afflicted == true,
+                has_disease = ctx.friends_afflicted == true,
+                has_magic = ctx.friends_afflicted == true,
             }
         end
         return ents, #ents
