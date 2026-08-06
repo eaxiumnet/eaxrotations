@@ -95,9 +95,37 @@ local function first_ready_item(ids)
     if type(inventory_helper) ~= "table" then return nil end
     if type(inventory_helper.has_item) ~= "function" then return nil end
     for _, id in ipairs(ids) do
-        if inventory_helper.has_item(id) then return id end
+        local ok, has = pcall(inventory_helper.has_item, id)
+        if ok and has then return id end
     end
     return nil
+end
+
+-- Safe API wrappers (mirror beast_mastery/leveling): a single API failure must
+-- never blank build_state (dispatcher falls back to raw context on throw).
+local function safe_spell_ready(spell, target, opts)
+    if not NS.spell_ready then return false end
+    local ok, a = pcall(NS.spell_ready, spell, target, opts)
+    return ok and a or false
+end
+
+local function safe_buff_up(unit, ids)
+    if not unit or not NS.buff_up then return false end
+    local ok, a = pcall(NS.buff_up, unit, ids)
+    return ok and a or false
+end
+
+local function safe_debuff_up(unit, ids)
+    if not unit or not NS.debuff_up then return false end
+    local ok, a = pcall(NS.debuff_up, unit, ids)
+    return ok and a or false
+end
+
+local function safe_cooldown_remains(spell)
+    if not NS.cooldown_remains then return 0 end
+    local ok, a = pcall(NS.cooldown_remains, spell)
+    if ok and type(a) == "number" then return a end
+    return 0
 end
 
 -- ============================================================================
@@ -181,36 +209,36 @@ local function build_state(context)
     sv_state.pet_alive = pet_alive == true
     sv_state.pet_dead = context.pet_dead == true or (pet ~= nil and not sv_state.pet_alive)
     sv_state.pet_hp_pct = sv_state.pet_alive and pet.get_health_percentage and pet:get_health_percentage() or 100
-    sv_state.has_hunters_mark = target and NS.debuff_up(target, HUNTERS_MARK_DEBUFF) or false
-    sv_state.has_serpent_sting = target and NS.debuff_up(target, SERPENT_STING_DEBUFF) or false
-    sv_state.has_scorpid_sting = target and NS.debuff_up(target, SCORPID_STING_DEBUFF) or false
-    sv_state.wing_clip_active = target and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
-    sv_state.has_aspect_hawk = me and NS.buff_up(me, ASPECT_HAWK_BUFF) or false
-    sv_state.has_aspect_viper = me and NS.buff_up(me, ASPECT_VIPER_BUFF) or false
-    sv_state.mend_pet_ready = me and NS.spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
-    sv_state.hunters_mark_ready = target and NS.spell_ready(ACTION.HuntersMark, target) or false
-    sv_state.rapid_fire_ready = me and NS.spell_ready(ACTION.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
-    sv_state.rapid_fire_cd = NS.cooldown_remains and NS.cooldown_remains(ACTION.RapidFire) or 0
-    sv_state.explosive_trap_ready = me and NS.spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
-    sv_state.immolation_trap_ready = me and NS.spell_ready(ACTION.ImmolationTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
-    sv_state.mongoose_bite_ready = target and NS.spell_ready(ACTION.MongooseBite, target) or false
-    sv_state.kill_command_ready = target and NS.spell_ready(ACTION.KillCommand, target, { expected_cooldown = 5 }) or false
-    sv_state.multi_shot_ready = target and NS.spell_ready(ACTION.MultiShot, target, { expected_cooldown = 10 }) or false
-    sv_state.steady_shot_ready = target and NS.spell_ready(ACTION.SteadyShot, target) or false
-    sv_state.arcane_shot_ready = target and NS.spell_ready(ACTION.ArcaneShot, target, { expected_cooldown = 6 }) or false
-    sv_state.serpent_sting_ready = target and NS.spell_ready(ACTION.SerpentSting, target) or false
-    sv_state.call_pet_ready = me and NS.spell_ready(ACTION.CallPet, me, { skip_range = true }) or false
-    sv_state.revive_pet_ready = me and NS.spell_ready(ACTION.RevivePet, me, { skip_range = true }) or false
-    sv_state.feign_death_ready = me and NS.spell_ready(ACTION.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
-    sv_state.freezing_trap_ready = me and NS.spell_ready(ACTION.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
-    sv_state.snake_trap_ready = me and NS.spell_ready(ACTION.SnakeTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
-    sv_state.viper_sting_ready = target and NS.spell_ready(ACTION.ViperSting, target, { expected_cooldown = 8 }) or false
-    sv_state.wyvern_sting_ready = target and NS.spell_ready(ACTION.WyvernSting, target) or false
-    sv_state.scorpid_sting_ready = target and NS.spell_ready(ACTION.ScorpidSting, target) or false
-    sv_state.raptor_strike_ready = target and NS.spell_ready(ACTION.RaptorStrike, target) or false
-    sv_state.wing_clip_ready = target and NS.spell_ready(ACTION.WingClip, target) or false
-    sv_state.volley_ready = target and NS.spell_ready(ACTION.Volley, target) or false
-    sv_state.readiness_ready = me and NS.spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
+    sv_state.has_hunters_mark = target and safe_debuff_up(target, HUNTERS_MARK_DEBUFF) or false
+    sv_state.has_serpent_sting = target and safe_debuff_up(target, SERPENT_STING_DEBUFF) or false
+    sv_state.has_scorpid_sting = target and safe_debuff_up(target, SCORPID_STING_DEBUFF) or false
+    sv_state.wing_clip_active = target and safe_debuff_up(target, WING_CLIP_DEBUFF) or false
+    sv_state.has_aspect_hawk = me and safe_buff_up(me, ASPECT_HAWK_BUFF) or false
+    sv_state.has_aspect_viper = me and safe_buff_up(me, ASPECT_VIPER_BUFF) or false
+    sv_state.mend_pet_ready = me and safe_spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
+    sv_state.hunters_mark_ready = target and safe_spell_ready(ACTION.HuntersMark, target) or false
+    sv_state.rapid_fire_ready = me and safe_spell_ready(ACTION.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
+    sv_state.rapid_fire_cd = safe_cooldown_remains(ACTION.RapidFire) or 0
+    sv_state.explosive_trap_ready = me and safe_spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    sv_state.immolation_trap_ready = me and safe_spell_ready(ACTION.ImmolationTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    sv_state.mongoose_bite_ready = target and safe_spell_ready(ACTION.MongooseBite, target) or false
+    sv_state.kill_command_ready = target and safe_spell_ready(ACTION.KillCommand, target, { expected_cooldown = 5 }) or false
+    sv_state.multi_shot_ready = target and safe_spell_ready(ACTION.MultiShot, target, { expected_cooldown = 10 }) or false
+    sv_state.steady_shot_ready = target and safe_spell_ready(ACTION.SteadyShot, target) or false
+    sv_state.arcane_shot_ready = target and safe_spell_ready(ACTION.ArcaneShot, target, { expected_cooldown = 6 }) or false
+    sv_state.serpent_sting_ready = target and safe_spell_ready(ACTION.SerpentSting, target) or false
+    sv_state.call_pet_ready = me and safe_spell_ready(ACTION.CallPet, me, { skip_range = true }) or false
+    sv_state.revive_pet_ready = me and safe_spell_ready(ACTION.RevivePet, me, { skip_range = true }) or false
+    sv_state.feign_death_ready = me and safe_spell_ready(ACTION.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
+    sv_state.freezing_trap_ready = me and safe_spell_ready(ACTION.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    sv_state.snake_trap_ready = me and safe_spell_ready(ACTION.SnakeTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    sv_state.viper_sting_ready = target and safe_spell_ready(ACTION.ViperSting, target, { expected_cooldown = 8 }) or false
+    sv_state.wyvern_sting_ready = target and safe_spell_ready(ACTION.WyvernSting, target) or false
+    sv_state.scorpid_sting_ready = target and safe_spell_ready(ACTION.ScorpidSting, target) or false
+    sv_state.raptor_strike_ready = target and safe_spell_ready(ACTION.RaptorStrike, target) or false
+    sv_state.wing_clip_ready = target and safe_spell_ready(ACTION.WingClip, target) or false
+    sv_state.volley_ready = target and safe_spell_ready(ACTION.Volley, target) or false
+    sv_state.readiness_ready = me and safe_spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
     sv_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
     sv_state.in_combat = context.in_combat or false
     sv_state.enemy_count = context.enemy_count or context.enemies_count or 1

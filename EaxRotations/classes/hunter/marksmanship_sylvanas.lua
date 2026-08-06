@@ -93,9 +93,37 @@ local function first_ready_item(ids)
     if type(inventory_helper) ~= "table" then return nil end
     if type(inventory_helper.has_item) ~= "function" then return nil end
     for _, id in ipairs(ids) do
-        if inventory_helper.has_item(id) then return id end
+        local ok, has = pcall(inventory_helper.has_item, id)
+        if ok and has then return id end
     end
     return nil
+end
+
+-- Safe API wrappers (mirror beast_mastery/leveling): a single API failure must
+-- never blank build_state (dispatcher falls back to raw context on throw).
+local function safe_spell_ready(spell, target, opts)
+    if not NS.spell_ready then return false end
+    local ok, a = pcall(NS.spell_ready, spell, target, opts)
+    return ok and a or false
+end
+
+local function safe_buff_up(unit, ids)
+    if not unit or not NS.buff_up then return false end
+    local ok, a = pcall(NS.buff_up, unit, ids)
+    return ok and a or false
+end
+
+local function safe_debuff_up(unit, ids)
+    if not unit or not NS.debuff_up then return false end
+    local ok, a = pcall(NS.debuff_up, unit, ids)
+    return ok and a or false
+end
+
+local function safe_cooldown_remains(spell)
+    if not NS.cooldown_remains then return 0 end
+    local ok, a = pcall(NS.cooldown_remains, spell)
+    if ok and type(a) == "number" then return a end
+    return 0
 end
 
 -- ============================================================================
@@ -186,39 +214,48 @@ local function build_state(context)
     mm_state.pet_alive = pet_alive == true
     mm_state.pet_dead = context.pet_dead == true or (pet ~= nil and not mm_state.pet_alive)
     mm_state.pet_hp_pct = mm_state.pet_alive and pet.get_health_percentage and pet:get_health_percentage() or 100
-    mm_state.has_hunters_mark = target and NS.debuff_up(target, HUNTERS_MARK_DEBUFF) or false
-    mm_state.has_serpent_sting = target and NS.debuff_up(target, SERPENT_STING_DEBUFF) or false
-    mm_state.serpent_sting_remains = target and NS.debuff_remains(target, SERPENT_STING_DEBUFF) or 0
-    mm_state.has_aspect_hawk = me and NS.buff_up(me, ASPECT_HAWK_BUFF) or false
-    mm_state.has_aspect_viper = me and NS.buff_up(me, ASPECT_VIPER_BUFF) or false
-    mm_state.mend_pet_ready = me and NS.spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
-    mm_state.hunters_mark_ready = target and NS.spell_ready(ACTION.HuntersMark, target) or false
-    mm_state.rapid_fire_ready = me and NS.spell_ready(ACTION.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
-    mm_state.rapid_fire_cd = NS.cooldown_remains and NS.cooldown_remains(ACTION.RapidFire) or 0
-    mm_state.aimed_shot_prepull_ready = target and NS.spell_ready(ACTION.AimedShot, target, { expected_cooldown = 6 }) or false
-    mm_state.aimed_shot_ready = target and NS.spell_ready(ACTION.AimedShot, target, { expected_cooldown = 6 }) or false
-    mm_state.silencing_shot_ready = target and NS.spell_ready(ACTION.SilencingShot, target, { expected_cooldown = 20 }) or false
+    mm_state.has_hunters_mark = target and safe_debuff_up(target, HUNTERS_MARK_DEBUFF) or false
+    mm_state.has_serpent_sting = target and safe_debuff_up(target, SERPENT_STING_DEBUFF) or false
+    mm_state.serpent_sting_remains = target and (function()
+        if not NS.debuff_remains then return 0 end
+        local ok, rem = pcall(NS.debuff_remains, target, SERPENT_STING_DEBUFF)
+        if ok and type(rem) == "number" then return rem end
+        return 0
+    end)() or 0
+    mm_state.has_aspect_hawk = me and safe_buff_up(me, ASPECT_HAWK_BUFF) or false
+    mm_state.has_aspect_viper = me and safe_buff_up(me, ASPECT_VIPER_BUFF) or false
+    mm_state.mend_pet_ready = me and safe_spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
+    mm_state.hunters_mark_ready = target and safe_spell_ready(ACTION.HuntersMark, target) or false
+    mm_state.rapid_fire_ready = me and safe_spell_ready(ACTION.RapidFire, me, { skip_range = true, expected_cooldown = 300 }) or false
+    mm_state.rapid_fire_cd = safe_cooldown_remains(ACTION.RapidFire) or 0
+    mm_state.aimed_shot_prepull_ready = target and safe_spell_ready(ACTION.AimedShot, target, { expected_cooldown = 6 }) or false
+    mm_state.aimed_shot_ready = target and safe_spell_ready(ACTION.AimedShot, target, { expected_cooldown = 6 }) or false
+    mm_state.silencing_shot_ready = target and safe_spell_ready(ACTION.SilencingShot, target, { expected_cooldown = 20 }) or false
     mm_state.target_is_casting = target and ((target.is_casting and target:is_casting()) or false)
-    mm_state.target_interruptible = mm_state.target_is_casting and (NS.is_interruptible and NS.is_interruptible(target) or false)
-    mm_state.kill_command_ready = target and NS.spell_ready(ACTION.KillCommand, target, { expected_cooldown = 5 }) or false
-    mm_state.multi_shot_ready = target and NS.spell_ready(ACTION.MultiShot, target, { expected_cooldown = 10 }) or false
-    mm_state.steady_shot_ready = target and NS.spell_ready(ACTION.SteadyShot, target) or false
-    mm_state.arcane_shot_ready = target and NS.spell_ready(ACTION.ArcaneShot, target, { expected_cooldown = 6 }) or false
-    mm_state.serpent_sting_ready = target and NS.spell_ready(ACTION.SerpentSting, target) or false
-    mm_state.call_pet_ready = me and NS.spell_ready(ACTION.CallPet, me, { skip_range = true }) or false
-    mm_state.revive_pet_ready = me and NS.spell_ready(ACTION.RevivePet, me, { skip_range = true }) or false
-    mm_state.feign_death_ready = me and NS.spell_ready(ACTION.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
-    mm_state.freezing_trap_ready = me and NS.spell_ready(ACTION.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
-    mm_state.viper_sting_ready = target and NS.spell_ready(ACTION.ViperSting, target, { expected_cooldown = 8 }) or false
-    mm_state.readiness_ready = me and NS.spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
-    mm_state.trueshot_aura_ready = me and NS.spell_ready(ACTION.TrueshotAura, me, { skip_range = true, expected_cooldown = 120 }) or false
-    mm_state.trueshot_aura_active = me and NS.buff_up(me, { 19506, 20905, 20906 }) or false
-    mm_state.raptor_strike_ready = target and NS.spell_ready(RAPTOR_STRIKE_IDS, target) or false
-    mm_state.concussive_shot_ready = target and NS.spell_ready(CONCUSSIVE_SHOT_IDS, target) or false
-    mm_state.volley_ready = target and NS.spell_ready(VOLLEY_IDS, target) or false
-    mm_state.explosive_trap_ready = me and NS.spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
-    mm_state.wing_clip_active = target and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
-    mm_state.wing_clip_ready = target and NS.spell_ready(ACTION.WingClip, target) or false
+    mm_state.target_interruptible = mm_state.target_is_casting and (function()
+        if not NS.is_interruptible then return false end
+        local ok, inter = pcall(NS.is_interruptible, target)
+        return ok and inter or false
+    end)() or false
+    mm_state.kill_command_ready = target and safe_spell_ready(ACTION.KillCommand, target, { expected_cooldown = 5 }) or false
+    mm_state.multi_shot_ready = target and safe_spell_ready(ACTION.MultiShot, target, { expected_cooldown = 10 }) or false
+    mm_state.steady_shot_ready = target and safe_spell_ready(ACTION.SteadyShot, target) or false
+    mm_state.arcane_shot_ready = target and safe_spell_ready(ACTION.ArcaneShot, target, { expected_cooldown = 6 }) or false
+    mm_state.serpent_sting_ready = target and safe_spell_ready(ACTION.SerpentSting, target) or false
+    mm_state.call_pet_ready = me and safe_spell_ready(ACTION.CallPet, me, { skip_range = true }) or false
+    mm_state.revive_pet_ready = me and safe_spell_ready(ACTION.RevivePet, me, { skip_range = true }) or false
+    mm_state.feign_death_ready = me and safe_spell_ready(ACTION.FeignDeath, me, { skip_range = true, expected_cooldown = 30 }) or false
+    mm_state.freezing_trap_ready = me and safe_spell_ready(ACTION.FreezingTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    mm_state.viper_sting_ready = target and safe_spell_ready(ACTION.ViperSting, target, { expected_cooldown = 8 }) or false
+    mm_state.readiness_ready = me and safe_spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
+    mm_state.trueshot_aura_ready = me and safe_spell_ready(ACTION.TrueshotAura, me, { skip_range = true, expected_cooldown = 120 }) or false
+    mm_state.trueshot_aura_active = me and safe_buff_up(me, { 19506, 20905, 20906 }) or false
+    mm_state.raptor_strike_ready = target and safe_spell_ready(RAPTOR_STRIKE_IDS, target) or false
+    mm_state.concussive_shot_ready = target and safe_spell_ready(CONCUSSIVE_SHOT_IDS, target) or false
+    mm_state.volley_ready = target and safe_spell_ready(VOLLEY_IDS, target) or false
+    mm_state.explosive_trap_ready = me and safe_spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    mm_state.wing_clip_active = target and safe_debuff_up(target, WING_CLIP_DEBUFF) or false
+    mm_state.wing_clip_ready = target and safe_spell_ready(ACTION.WingClip, target) or false
     mm_state.use_misdirection = spec_kit.setting_bool(context, "use_misdirection", false)
     mm_state.is_group = context.is_group or false
     mm_state.mana_pct = context.mana_pct or (me and NS.unit_mana_pct(me)) or 100
@@ -365,14 +402,7 @@ local function viper_sting_matches(context, s)
 end
 
 local function bestial_wrath_matches(context, s)
-    -- Bestial Wrath is a 31-point Beast Mastery talent; MM builds lack it.
-    if not ACTION.BestialWrath then return false end
-    if NS.is_spell_learned and not NS.is_spell_learned(ACTION.BestialWrath) then return false end
-    if not s.in_combat then return false end
-    if not (NS.gate_cooldown_boss_only and NS.gate_cooldown_boss_only(context)) then return false end
-    if not s.pet_alive then return false end
-    if not s.bestial_wrath_ready then return false end
-    return true
+    return false
 end
 
 local function readiness_matches(context, s)

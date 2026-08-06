@@ -82,9 +82,50 @@ local function first_ready_item(ids)
     if type(inventory_helper) ~= "table" then return nil end
     if type(inventory_helper.has_item) ~= "function" then return nil end
     for _, id in ipairs(ids) do
-        if inventory_helper.has_item(id) then return id end
+        local ok, has = pcall(inventory_helper.has_item, id)
+        if ok and has then return id end
     end
     return nil
+end
+
+-- Safe API wrappers (mirror leveling_sylvanas pattern): a single API failure
+-- (e.g. native spell_helper path) must never blank the whole build_state.
+local function safe_any(fn, ...)
+    if type(fn) ~= "function" then return nil end
+    local ok, a = pcall(fn, ...)
+    if ok then return a end
+    return nil
+end
+
+local function safe_spell_ready(spell, target, opts)
+    if not NS.spell_ready then return false end
+    local ok, a = pcall(NS.spell_ready, spell, target, opts)
+    return ok and a or false
+end
+
+local function safe_buff_up(unit, ids)
+    if not unit or not NS.buff_up then return false end
+    local ok, a = pcall(NS.buff_up, unit, ids)
+    return ok and a or false
+end
+
+local function safe_debuff_up(unit, ids)
+    if not unit or not NS.debuff_up then return false end
+    local ok, a = pcall(NS.debuff_up, unit, ids)
+    return ok and a or false
+end
+
+local function safe_is_spell_learned(spell)
+    if not NS.is_spell_learned then return false end
+    local ok, a = pcall(NS.is_spell_learned, spell)
+    return ok and a or false
+end
+
+local function safe_cooldown_remains(spell)
+    if not NS.cooldown_remains then return 0 end
+    local ok, a = pcall(NS.cooldown_remains, spell)
+    if ok and type(a) == "number" then return a end
+    return 0
 end
 
 -- ============================================================================
@@ -207,64 +248,64 @@ local function build_state(context)
     state.has_pet = pet ~= nil
     state.pet_alive = hunter_core.pet_alive()
     state.pet_hp = hunter_core.pet_hp_pct()
-    state.has_pet_spell = me and NS.is_spell_learned and NS.is_spell_learned(ACTION.CallPet) or false
+    state.has_pet_spell = me and safe_is_spell_learned(ACTION.CallPet) or false
 
     -- Aspect state
-    state.has_hawk = me and NS.buff_up and NS.buff_up(me, ASPECT_HAWK_IDS) or false
-    state.has_viper = me and NS.buff_up and NS.buff_up(me, ASPECT_VIPER_IDS) or false
-    state.has_cheetah = me and NS.buff_up and NS.buff_up(me, ASPECT_CHEETAH_IDS) or false
+    state.has_hawk = me and safe_buff_up(me, ASPECT_HAWK_IDS) or false
+    state.has_viper = me and safe_buff_up(me, ASPECT_VIPER_IDS) or false
+    state.has_cheetah = me and safe_buff_up(me, ASPECT_CHEETAH_IDS) or false
 
     -- Debuff state
     if target then
-        state.has_hunters_mark = NS.debuff_up and NS.debuff_up(target, HUNTER_MARK_IDS) or false
-        state.has_serpent_sting = NS.debuff_up and NS.debuff_up(target, SERPENT_STING_IDS) or false
-        state.has_scorpid_sting = NS.debuff_up and NS.debuff_up(target, SCORPID_STING_IDS) or false
-        state.has_viper_sting = NS.debuff_up and NS.debuff_up(target, VIPER_STING_IDS) or false
-        state.wing_clip_active = NS.debuff_up and NS.debuff_up(target, WING_CLIP_DEBUFF) or false
+        state.has_hunters_mark = safe_debuff_up(target, HUNTER_MARK_IDS) or false
+        state.has_serpent_sting = safe_debuff_up(target, SERPENT_STING_IDS) or false
+        state.has_scorpid_sting = safe_debuff_up(target, SCORPID_STING_IDS) or false
+        state.has_viper_sting = safe_debuff_up(target, VIPER_STING_IDS) or false
+        state.wing_clip_active = safe_debuff_up(target, WING_CLIP_DEBUFF) or false
     end
 
     -- Spell readiness
-    state.hunters_mark_ready = target and NS.spell_ready and NS.spell_ready(ACTION.HuntersMark, target) or false
-    state.serpent_sting_ready = target and NS.spell_ready and NS.spell_ready(ACTION.SerpentSting, target) or false
-    state.arcane_shot_ready = target and NS.spell_ready and NS.spell_ready(ACTION.ArcaneShot, target) or false
-    state.steady_shot_ready = target and NS.spell_ready and NS.spell_ready(ACTION.SteadyShot, target) or false
-    state.multi_shot_ready = target and NS.spell_ready and NS.spell_ready(ACTION.MultiShot, target) or false
-    state.kill_command_ready = target and NS.spell_ready and NS.spell_ready(ACTION.KillCommand, target) or false
-    state.bestial_wrath_ready = me and NS.spell_ready and NS.spell_ready(ACTION.BestialWrath, me, { skip_range = true }) or false
-    state.intimidation_ready = me and NS.spell_ready and NS.spell_ready(ACTION.Intimidation, me, { skip_range = true }) or false
-    state.rapid_fire_ready = me and NS.spell_ready and NS.spell_ready(ACTION.RapidFire, me, { skip_range = true }) or false
-    state.rapid_fire_cd = NS.cooldown_remains and NS.cooldown_remains(ACTION.RapidFire) or 0
-    state.feign_death_ready = me and NS.spell_ready and NS.spell_ready(ACTION.FeignDeath, me, { skip_range = true }) or false
-    state.mend_pet_ready = me and NS.spell_ready and NS.spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
-    state.call_pet_ready = me and NS.spell_ready and NS.spell_ready(ACTION.CallPet, me, { skip_range = true }) or false
-    state.revive_pet_ready = me and NS.spell_ready and NS.spell_ready(ACTION.RevivePet, me, { skip_range = true }) or false
-    state.readiness_ready = me and NS.spell_ready and NS.spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
+    state.hunters_mark_ready = target and safe_spell_ready(ACTION.HuntersMark, target) or false
+    state.serpent_sting_ready = target and safe_spell_ready(ACTION.SerpentSting, target) or false
+    state.arcane_shot_ready = target and safe_spell_ready(ACTION.ArcaneShot, target) or false
+    state.steady_shot_ready = target and safe_spell_ready(ACTION.SteadyShot, target) or false
+    state.multi_shot_ready = target and safe_spell_ready(ACTION.MultiShot, target) or false
+    state.kill_command_ready = target and safe_spell_ready(ACTION.KillCommand, target) or false
+    state.bestial_wrath_ready = me and safe_spell_ready(ACTION.BestialWrath, me, { skip_range = true }) or false
+    state.intimidation_ready = me and safe_spell_ready(ACTION.Intimidation, me, { skip_range = true }) or false
+    state.rapid_fire_ready = me and safe_spell_ready(ACTION.RapidFire, me, { skip_range = true }) or false
+    state.rapid_fire_cd = safe_cooldown_remains(ACTION.RapidFire) or 0
+    state.feign_death_ready = me and safe_spell_ready(ACTION.FeignDeath, me, { skip_range = true }) or false
+    state.mend_pet_ready = me and safe_spell_ready(ACTION.MendPet, me, { skip_range = true }) or false
+    state.call_pet_ready = me and safe_spell_ready(ACTION.CallPet, me, { skip_range = true }) or false
+    state.revive_pet_ready = me and safe_spell_ready(ACTION.RevivePet, me, { skip_range = true }) or false
+    state.readiness_ready = me and safe_spell_ready(ACTION.Readiness, me, { skip_range = true, expected_cooldown = 300 }) or false
     -- Viper Sting ready from SPELLS or fallback
     if ACTION.ViperSting then
-        state.viper_sting_ready = target and NS.spell_ready and NS.spell_ready(ACTION.ViperSting, target) or false
+        state.viper_sting_ready = target and safe_spell_ready(ACTION.ViperSting, target) or false
     end
     if ACTION.ScorpidSting then
-        state.scorpid_sting_ready = target and NS.spell_ready and NS.spell_ready(ACTION.ScorpidSting, target) or false
+        state.scorpid_sting_ready = target and safe_spell_ready(ACTION.ScorpidSting, target) or false
     end
     -- Raptor Strike ready (melee weaving)
-    state.raptor_strike_ready = target and NS.spell_ready and NS.spell_ready(RAPTOR_STRIKE_IDS, target) or false
+    state.raptor_strike_ready = target and safe_spell_ready(RAPTOR_STRIKE_IDS, target) or false
     -- Concussive Shot ready
-    state.concussive_shot_ready = target and NS.spell_ready and NS.spell_ready(CONCUSSIVE_SHOT_IDS, target) or false
+    state.concussive_shot_ready = target and safe_spell_ready(CONCUSSIVE_SHOT_IDS, target) or false
     -- Volley ready (AoE)
-    state.volley_ready = target and NS.spell_ready and NS.spell_ready(VOLLEY_IDS, target) or false
+    state.volley_ready = target and safe_spell_ready(VOLLEY_IDS, target) or false
     -- Explosive Trap ready (AoE)
-    state.explosive_trap_ready = me and NS.spell_ready and NS.spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
+    state.explosive_trap_ready = me and safe_spell_ready(ACTION.ExplosiveTrap, me, { skip_range = true, expected_cooldown = 30 }) or false
 
     -- Trinket state
-    if NS.TrinketManager then
-        local trinkets = NS.TrinketManager.get_equipped_trinkets and NS.TrinketManager.get_equipped_trinkets()
+    if NS.TrinketManager and type(NS.TrinketManager.get_equipped_trinkets) == "function" then
+        local trinkets = safe_any(NS.TrinketManager.get_equipped_trinkets)
         if trinkets then
             state.trinket_1_id = trinkets[1] and trinkets[1].item_id or nil
             state.trinket_2_id = trinkets[2] and trinkets[2].item_id or nil
         end
     end
-    state.trinket_1_ready = state.trinket_1_id ~= nil and is_item_ready(me, state.trinket_1_id)
-    state.trinket_2_ready = state.trinket_2_id ~= nil and is_item_ready(me, state.trinket_2_id)
+    state.trinket_1_ready = state.trinket_1_id ~= nil and safe_any(is_item_ready, me, state.trinket_1_id) or false
+    state.trinket_2_ready = state.trinket_2_id ~= nil and safe_any(is_item_ready, me, state.trinket_2_id) or false
 
     -- parity settings (via spec_kit)
     state.aspect_mode = spec_kit.setting(context, "aspect_mode", "auto")
@@ -295,12 +336,12 @@ local function build_state(context)
     state.healthstone_ready = first_ready_item(HEALTHSTONE_IDS) or 0
 
     -- Major power-window awareness for cooldown alignment
-    state.bloodlust_active = me and NS.buff_up and NS.buff_up(me, BLOODLUST_HEROISM_BUFFS) or false
-    state.major_cd_active = planner and planner.is_major_offensive_cd_active(context) or false
+    state.bloodlust_active = me and safe_buff_up(me, BLOODLUST_HEROISM_BUFFS) or false
+    state.major_cd_active = (planner and type(planner.is_major_offensive_cd_active) == "function") and safe_any(planner.is_major_offensive_cd_active, context) or false
     state.major_cd_window = state.bloodlust_active or state.major_cd_active
 
     if HitCap then
-        local hit_info = HitCap.get_hit_cap("hunter_ranged")
+        local hit_info = safe_any(HitCap.get_hit_cap, "hunter_ranged")
         if hit_info then
             state.hit_cap_pct = hit_info.pct_needed
             state.hit_cap_rating_needed = hit_info.rating_needed
