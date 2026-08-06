@@ -471,6 +471,7 @@ local tests = {
   "test_priest_holy_vanilla_friendly_target.lua",
  "test_priest_discipline_vanilla_friendly_target.lua",
  "test_priest_discipline_poh_nil_guard.lua",
+ "test_rogue_assassination_rupture_ttd_nil_guard.lua",
  "test_paladin_holy_vanilla_friendly_target.lua",
  "test_druid_resto_vanilla_friendly_target.lua",
  "test_shaman_resto_vanilla_friendly_target.lua",
