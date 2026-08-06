@@ -149,7 +149,7 @@ Every spec file follows the same 9-part layout. Start with the **reference imple
 | 8. strategies | `{ name=, matches=, execute= }` ordered list | Dispatcher runs first match that returns true |
 | 9. Register + return | Guarded `NS.rotation_registry:register(...)` + `return strategies` | Nil-safe registration + test-consumable return |
 
-See `AGENTS.md` Pattern 16 for the full annotated skeleton.
+See the full annotated skeleton in `AGENTS.md` Pattern 16 (local-only file at the repo root, not tracked in this repo).
 
 ### Migration state (spec_kit adoption)
 
@@ -162,10 +162,10 @@ See `AGENTS.md` Pattern 16 for the full annotated skeleton.
 | ✅ Done | WotLK spec files (all 9 classes) | All `*_wotlk.lua` spec files | ~20 |
 | **Total** | | | **~91** |
 
-Each vanilla file now has a `<SPEC>_VANILLA_SCHEMA` table with Pattern 14 nil-guard defaults and wraps all `build_state` return paths (including cache-hit early returns) in `spec_kit.safe_state(state, SCHEMA)`. See `plans/class-audit-summary-2026-07-29.md` for the full audit report.
+Each vanilla file now has a `<SPEC>_VANILLA_SCHEMA` table with Pattern 14 nil-guard defaults and wraps all `build_state` return paths (including cache-hit early returns) in `spec_kit.safe_state(state, SCHEMA)`. (The full audit report `plans/class-audit-summary-2026-07-29.md` was removed with the `plans/` cleanup.)
 
 > Enforced by `tests/test_spec_layout_compliance.lua`. To mark a spec as converted, add it to the `CONVERTED` table in that test after conversion + full test gate.
-> Convert a spec **only when already editing it** — never big-bang (AGENTS.md Pattern 16).
+> Convert a spec **only when already editing it** — never big-bang (AGENTS.md Pattern 16, local-only).
 
 ---
 
