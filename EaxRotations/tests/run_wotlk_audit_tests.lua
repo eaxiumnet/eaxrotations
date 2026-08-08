@@ -65,6 +65,43 @@ local WOTLK_REFERENCE_ALIASES = {
     [31935] = { kind = "VALID_RANK_ALIAS", family = "Avenger's Shield", source = "sim/paladin/avengers_shield.go" },
     [48826] = { kind = "VALID_RANK_ALIAS", family = "Avenger's Shield", source = "wowhead WotLK Classic spell=48826 (Avenger's Shield) + shared/wowhead_data_bridge_spell_index_wotlk_sylvanas.lua [48827] rank family" },
     [61411] = { kind = "VALID_BRIDGE_GAP", family = "Shield of Righteousness", source = "sim/paladin/shield_of_righteousness.go" },
+    -- Rank-audit 2026-08-08 (shared-module sweep): signature-ladder tops from
+    -- shared/talent_inference_sylvanas.lua that were still TBC-era. Verified on
+    -- wowhead WotLK Classic + wowsims/wotlk sim source; the bridge omits them.
+    [47488] = { kind = "VALID_RANK_ALIAS", family = "Shield Slam", source = "wowhead WotLK Classic spell=47488/shield-slam + sim/warrior/shield_slam.go (47487 disproven: 30356 is TBC-era rank 6)" },
+    [48660] = { kind = "VALID_RANK_ALIAS", family = "Hemorrhage", source = "sim/rogue/hemorrhage.go" },
+    [48089] = { kind = "VALID_RANK_ALIAS", family = "Circle of Healing", source = "sim/priest/circle_of_healing.go" },
+    -- Pet-ability ladder tops (shared/pet_manager_sylvanas.lua) verified on wowhead
+    -- WotLK Classic; these pet abilities never entered the player-spell bridge.
+    [27047] = { kind = "VALID_RANK_ALIAS", family = "Pet: Growl", source = "wowhead WotLK Classic spell=27047/growl + prior TBC-era read" },
+    [27049] = { kind = "VALID_RANK_ALIAS", family = "Pet: Claw", source = "wowhead WotLK Classic spell=27049/claw" },
+    [27050] = { kind = "VALID_RANK_ALIAS", family = "Pet: Bite", source = "wowhead WotLK Classic spell=27050/bite" },
+    [27051] = { kind = "VALID_RANK_ALIAS", family = "Pet: Demoralizing Screech", source = "wowhead WotLK Classic spell=27051/demoralizing-screech" },
+    [39023] = { kind = "VALID_RANK_ALIAS", family = "Pet: Firebolt (imp)", source = "wowhead WotLK Classic spell=39023/firebolt" },
+    [27270] = { kind = "VALID_RANK_ALIAS", family = "Pet: Torment (voidwalker)", source = "wowhead WotLK Classic spell=27270/torment" },
+    [52472] = { kind = "VALID_RANK_ALIAS", family = "Pet: Claw (level 80)", source = "sim/hunter/pet_abilities.go ClawSpellID + wowhead WotLK Classic spell=52472/claw" },
+    [52474] = { kind = "VALID_RANK_ALIAS", family = "Pet: Bite (level 80)", source = "sim/hunter/pet_abilities.go BiteSpellID + wowhead WotLK Classic spell=52474/bite" },
+    [35291] = { kind = "VALID_RANK_ALIAS", family = "Pet: Gore", source = "wowhead WotLK Classic spell=35291/gore" },
+    [25016] = { kind = "VALID_RANK_ALIAS", family = "Pet: Lightning Breath", source = "wowhead WotLK Classic spell=25016/lightning-breath" },
+    -- Shared-module sweep part 2 (2026-08-08): remaining pet-ability ladder tails
+    -- (shared/pet_manager_sylvanas.lua) + talent-signature heads (talent_inference).
+    -- Furious Howl is the WotLK-era wolf Howl (TBC ladder topped at 24600, which
+    -- wowhead shows as the NPC-collision 'Web Spin'); Thunderstomp stayed TBC-era.
+    [64495] = { kind = "VALID_RANK_ALIAS", family = "Pet: Furious Howl (wolf)", source = "wowhead WotLK Classic spell=64495/furious-howl (Wolf Pet Abilities) + sim/hunter/pet_abilities.go FuriousHowl" },
+    [26093] = { kind = "VALID_RANK_ALIAS", family = "Pet: Thunderstomp (wind serpent)", source = "local TBC DBC family 26090-26093 (26090 = Thunderstomp); wowhead WotLK/TBC page shows NPC collision 'Quake' (pet-book artifact); wowsims omits Thunderstomp in WotLK" },
+    [19443] = { kind = "VALID_RANK_ALIAS", family = "Pet: Sacrifice (voidwalker)", source = "wowhead WotLK Classic spell=19443/sacrifice" },
+    [17854] = { kind = "VALID_RANK_ALIAS", family = "Pet: Consume Shadows (voidwalker)", source = "wowhead WotLK Classic spell=17854/consume-shadows" },
+    [11781] = { kind = "VALID_RANK_ALIAS", family = "Pet: Lash of Pain (succubus)", source = "wowhead WotLK Classic spell=11781/lash-of-pain" },
+    [54053] = { kind = "VALID_RANK_ALIAS", family = "Pet: Shadow Bite (felhunter)", source = "wowhead WotLK Classic spell=54053/shadow-bite + sim/warlock/pet_abilities.go ShadowBite 54053" },
+    [30198] = { kind = "VALID_RANK_ALIAS", family = "Pet: Intercept (felguard)", source = "wowhead WotLK Classic spell=30198/intercept (Warlock Pet Abilities)" },
+    [33700] = { kind = "VALID_RANK_ALIAS", family = "Pet: Anguish (felguard)", source = "wowhead WotLK Classic spell=33700/anguish (Warlock Pet Abilities)" },
+    [27068] = { kind = "VALID_RANK_ALIAS", family = "Wyvern Sting", source = "wowhead WotLK Classic spell=27068/wyvern-sting (survival signature head)" },
+    -- Talent spells used as signature heads in shared/talent_inference_sylvanas.lua.
+    -- These are era-stable TALENT spell IDs (no rank escalation), so they are not
+    -- rank ladders; the pins document them as canonical WotLK talent signatures.
+    [18272] = { kind = "VALID_TALENT_SPELL", family = "Talent: Shadow Mastery", source = "wowhead WotLK Classic spell=18272/shadow-mastery (Warlock Talents)" },
+    [18769] = { kind = "VALID_TALENT_SPELL", family = "Talent: Unholy Power", source = "wowhead WotLK Classic spell=18769/unholy-power (Warlock Talents)" },
+    [12295] = { kind = "VALID_TALENT_SPELL", family = "Talent: Tactical Mastery", source = "wowhead WotLK Classic spell=12295/tactical-mastery (Warrior Talents)" },
     [27170] = { kind = "VALID_RANK_ALIAS", family = "Seal of Command", source = "sim/paladin/seals.go" },
     [20920] = { kind = "VALID_RANK_ALIAS", family = "Seal of Command", source = "sim/paladin/seals.go" },
     [20919] = { kind = "VALID_RANK_ALIAS", family = "Seal of Command", source = "sim/paladin/seals.go" },
@@ -173,7 +210,9 @@ local WOTLK_BRIDGE_MAX_RANKS = {
     [11585] = "Overpower", [47475] = "Slam", [47502] = "Thunder Clap",
     [47437] = "Demoralizing Shout", [25212] = "Hamstring", [6554] = "Pummel",
     [30335] = "Bloodthirst", [12292] = "Death Wish", [47520] = "Cleave",
-    [30356] = "Shield Slam", [30357] = "Revenge", [30022] = "Devastate",
+    -- 30356 removed 2026-08-08: wowhead + wowsims confirm 47488 is the real
+    -- WotLK Shield Slam max (30356 is TBC-era rank 6, pinned via alias above).
+    [30357] = "Revenge", [30022] = "Devastate",
     -- deathknight
     [49909] = "Icy Touch", [49921] = "Plague Strike", [51425] = "Obliterate",
     [51411] = "Howling Blast", [55268] = "Frost Strike", [49930] = "Blood Strike",
@@ -439,6 +478,89 @@ local function scan_file(filepath)
     return scan_content(content)
 end
 
+-- ============================================================================
+-- Shared-module ladder scan (rank-audit 2026-08-08, part 2)
+--
+-- The class-file scan above only enforces STALE_TOP on define() ladders in
+-- classes/.  Two shared modules ALSO carry era-sensitive rank ladders that the
+-- campaign's verified-max convention must cover:
+--
+--   * shared/talent_inference_sylvanas.lua — `ids = { ... }` signature lists.
+--     Resolution is ANY-match (has_any_spell_learned), but the campaign prepends
+--     the verified WotLK max rank FIRST, so the ladder HEAD (first element) is
+--     the pin target.  Talent spells (Shadow Mastery etc.) are era-stable
+--     signatures, not rank ladders — pinned via VALID_TALENT_SPELL below.
+--
+--   * shared/pet_manager_sylvanas.lua — `local NAME = { ... }` pure-numeric pet
+--     ability ladders.  The scanner iterates them TAIL-FIRST (for i = #list, 1, -1),
+--     so the resolution head is the LAST element.  The campaign appended the
+--     WotLK-era pet rank at the END of each ladder; the tail is the pin target.
+--
+--   Enforcement: STALE_TOP only (a ladder head that is not a pinned WotLK max
+--   rank fails).  Full classify_id INVALID/TBC checks are intentionally NOT run
+--   on shared modules: pet abilities and TBC-era mid-ranks legitimately live
+--   outside the player-spell bridge, so those lists are validated by their heads.
+-- ============================================================================
+local WOTLK_SHARED_LADDERS = {
+    { file = "shared/talent_inference_sylvanas.lua", mode = "talent_ids",   head = "first" },
+    { file = "shared/pet_manager_sylvanas.lua",      mode = "numeric_local", head = "last" },
+}
+
+local function extract_shared_ladders(content, mode, head_pos)
+    local ladders = {}
+    if type(content) ~= "string" then return ladders end
+    local line_no = 0
+    for line in content:gmatch("[^\r\n]+") do
+        line_no = line_no + 1
+        if not is_comment_line(line) then
+            local tables = {}
+            if mode == "talent_ids" then
+                -- capture every `ids = { ... }` table on the line
+                for t in line:gmatch("ids%s*=%s*(%b{})") do
+                    tables[#tables + 1] = t
+                end
+            elseif mode == "numeric_local" then
+                -- capture `local NAME = { ... }` tables whose contents are pure numeric
+                -- ([%w_]+ matches PET_GROWL / FELHUNTER_BITE etc.; single-word locals only)
+                for t in line:gmatch("local%s+[%w_]+%s*=%s*(%b{})") do
+                    tables[#tables + 1] = t
+                end
+            end
+            for _, t in ipairs(tables) do
+                local inner = t:sub(2, -2)
+                if not inner:find("=") then
+                    local nums = {}
+                    for n in inner:gmatch("(%d+)") do
+                        local v = tonumber(n)
+                        if v and v >= 1000 and v <= 99999 then nums[#nums + 1] = v end
+                    end
+                    if #nums >= 2 then
+                        local head = (head_pos == "last") and nums[#nums] or nums[1]
+                        ladders[#ladders + 1] = { line = line_no, head = head, count = #nums }
+                    end
+                end
+            end
+        end
+    end
+    return ladders
+end
+
+local function scan_shared_ladders(content, mode, head_pos)
+    local hits = {}
+    for _, ladder in ipairs(extract_shared_ladders(content, mode, head_pos)) do
+        if not is_max_rank(ladder.head) then
+            hits[#hits + 1] = {
+                line = ladder.line,
+                id = ladder.head,
+                kind = "STALE_TOP",
+                family = "shared-module ladder head is not a pinned WotLK max rank",
+                snippet = "head id " .. ladder.head .. " (" .. ladder.count .. " ids)",
+            }
+        end
+    end
+    return hits
+end
+
 local WOTLK_FILES = {
     "classes/deathknight/blood_wotlk.lua",
     "classes/deathknight/frost_wotlk.lua",
@@ -538,8 +660,8 @@ local function run_self_tests()
     expect(stale_ladder.hits[1].kind, "STALE_TOP", "stale top kind")
     expect(stale_ladder.hits[1].id, 27072, "stale top id")
 
-    expect(map_count(WOTLK_REFERENCE_ALIASES), 104, "pinned allowlist size")
-    expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 94, "bridge max rank count")
+    expect(map_count(WOTLK_REFERENCE_ALIASES), 129, "pinned allowlist size")
+    expect(map_count(WOTLK_BRIDGE_MAX_RANKS), 93, "bridge max rank count")
     expect(map_count(WOTLK_UNVERIFIED_ALIASES), 0, "unverified alias size")
     expect(WOTLK_REJECTED_IDS[48999], true, "disproven Counterattack ID rejected")
     expect(WOTLK_REFERENCE_ALIASES[44459], nil, "disproven ID absent from allowlist")
@@ -549,7 +671,24 @@ local function run_self_tests()
         expect(seen[file], nil, "duplicate inventory entry")
         seen[file] = true
     end
-    print("[PASS] WotLK audit self-tests: malformed input, pinned allowlist, rank-top enforcement, unverified aliases resolved, negative IDs, 41-file inventory")
+
+    -- Shared-module ladder scan: talent signature heads (first) + pet ladder
+    -- tails (last) must all be pinned WotLK max ranks.
+    expect(#WOTLK_SHARED_LADDERS, 2, "shared ladder inventory size")
+    local ti = read_file("EaxRotations/shared/talent_inference_sylvanas.lua")
+    expect(ti ~= nil, true, "talent_inference file readable")
+    local pm = read_file("EaxRotations/shared/pet_manager_sylvanas.lua")
+    expect(pm ~= nil, true, "pet_manager file readable")
+    expect(#scan_shared_ladders(ti, "talent_ids", "first"), 0, "talent_inference heads all pinned")
+    expect(#scan_shared_ladders(pm, "numeric_local", "last"), 0, "pet_manager tails all pinned")
+    -- extraction sanity: pet manager has 16 multi-ID ladders, talent has 18
+    expect(#extract_shared_ladders(pm, "numeric_local", "last"), 16, "pet_manager ladder count")
+    expect(#extract_shared_ladders(ti, "talent_ids", "first"), 18, "talent_inference ladder count")
+    -- negative probe: an unpinned shared head must be flagged
+    local stale_shared = scan_shared_ladders('local FOO = { 2649, 14268, 14925 }', "numeric_local", "last")
+    expect(#stale_shared, 1, "stale pet tail flagged")
+    expect(stale_shared[1].kind, "STALE_TOP", "stale pet tail kind")
+    print("[PASS] WotLK audit self-tests: malformed input, pinned allowlist, rank-top enforcement, shared-ladder heads/tails, unverified aliases resolved, negative IDs, 41-file inventory")
 end
 
 local function run_invalid_probe()
@@ -666,6 +805,31 @@ for _, file in ipairs(WOTLK_FILES) do
     end
 end
 
+-- Shared-module ladder scan: talent signature heads + pet ladder tails.
+for _, spec in ipairs(WOTLK_SHARED_LADDERS) do
+    local path = root .. "/" .. spec.file
+    total = total + 1
+    local content = read_file(path)
+    if not content then
+        skipped = skipped + 1
+        print(string.format("  [ SKIP ]  %-50s file not present", spec.file))
+    else
+        local hits = scan_shared_ladders(content, spec.mode, spec.head)
+        if #hits > 0 then
+            failed = failed + 1
+            failures[#failures + 1] = { file = spec.file, hits = hits }
+            print(string.format("  [ FAIL ]  %-50s %d stale shared-ladder top(s)", spec.file, #hits))
+            for _, hit in ipairs(hits) do
+                print(string.format("            line %4d: id %d [%s]  %s",
+                    hit.line, hit.id, hit.kind, hit.snippet))
+            end
+        else
+            passed = passed + 1
+            print(string.format("  [ PASS ]  %-50s shared ladders clean", spec.file))
+        end
+    end
+end
+
 print("")
 print("=============================================================================")
 print("  WOTLK SPELL AUDIT RESULTS")
@@ -699,5 +863,6 @@ if failed > 0 or skipped > 0 then
     os.exit(1)
 end
 
-print("  All 41 WotLK files accounted for; unknown IDs are the only audit failures.")
+print("  All 41 WotLK files + 2 shared-module ladder sets accounted for; unknown IDs")
+print("  and unpinned shared ladder heads/tails are the only audit failures.")
 os.exit(0)

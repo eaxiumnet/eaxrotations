@@ -39,6 +39,35 @@ local WOTLK_ONLY_IDS = {
     [61780] = "Polymorph (Turkey) (WotLK; not in TBC)",
 }
 
+-- Cross-era signature heads (rank-audit 2026-08-08): shared/talent_inference_
+-- sylvanas.lua runs on EVERY client (the dispatcher main.lua -> main_sylvanas.lua
+-- calls TI.infer_cached on both TBC and WotLK). Its signature lists therefore
+-- carry BOTH the TBC-era ladder AND the verified WotLK max rank (prepended
+-- first). On a TBC client the WotLK ID is simply not learned; on a WotLK client
+-- it is the rank-7 a max-level player actually has — without it, spec inference
+-- silently fails on WotLK. These are the SAME IDs pinned in
+-- run_wotlk_audit_tests.lua's WOTLK_REFERENCE_ALIASES; the allowlist below is
+-- scoped to the one cross-era module (CROSS_ERA_FILES), so a WotLK rank can
+-- still never return to a *_sylvanas.lua CLASS file.
+local SHARED_CROSS_ERA_IDS = {
+    [48160] = "Vampiric Touch (WotLK max)",
+    [48089] = "Circle of Healing (WotLK max)",
+    [42891] = "Pyroblast (WotLK max)",
+    [47486] = "Mortal Strike (WotLK max)",
+    [47488] = "Shield Slam (WotLK max)",
+    [48666] = "Mutilate (WotLK max)",
+    [48660] = "Hemorrhage (WotLK max)",
+    [49050] = "Aimed Shot (WotLK max)",
+    [48564] = "Mangle (Bear) (WotLK max)",
+    [48566] = "Mangle (Cat) (WotLK max)",
+    [48821] = "Holy Shock (WotLK max)",
+    [48827] = "Avenger's Shield (WotLK max)",
+}
+
+local CROSS_ERA_FILES = {
+    ["shared/talent_inference_sylvanas.lua"] = true,
+}
+
 local valid_item_ids = {}
 for id in pairs(item_index) do
     valid_item_ids[id] = true
@@ -257,7 +286,7 @@ local function is_comment_line(line)
     return line:match("^%s*%-%-") ~= nil
 end
 
-local function scan_content(content)
+local function scan_content(content, cross_era)
     if type(content) ~= "string" then
         return { error = "content must be a string", hits = {} }
     end
@@ -278,16 +307,24 @@ local function scan_content(content)
                         snippet = line:match("^%s*(.-)%s*$") or line,
                     }
                 elseif not valid_spell_ids[id] then
-                    local kind = "INVALID"
-                    if valid_item_ids[id] then
-                        kind = "ITEM_AS_SPELL"
+                    -- Cross-era shared modules (talent_inference) legitimately
+                    -- carry the verified WotLK max-rank signature heads; a TBC
+                    -- client just never learns them, and they are pinned in the
+                    -- WotLK audit. Class files never get this allowance.
+                    if cross_era and SHARED_CROSS_ERA_IDS[id] then
+                        -- allowed: cross-era signature head
+                    else
+                        local kind = "INVALID"
+                        if valid_item_ids[id] then
+                            kind = "ITEM_AS_SPELL"
+                        end
+                        hits[#hits + 1] = {
+                            line = line_no,
+                            id = id,
+                            kind = kind,
+                            snippet = (line:match("^%s*(.-)%s*$") or line):sub(1, 100),
+                        }
                     end
-                    hits[#hits + 1] = {
-                        line = line_no,
-                        id = id,
-                        kind = kind,
-                        snippet = (line:match("^%s*(.-)%s*$") or line):sub(1, 100),
-                    }
                 end
             end
         end
@@ -304,7 +341,9 @@ local function scan_file(filepath)
     if not content then
         return { error = "could not read", hits = {} }
     end
-    return scan_content(content)
+    -- Cross-era flag is scoped to the shared talent_inference module only.
+    local cross_era = CROSS_ERA_FILES[filepath:gsub("^" .. root .. "/", "")] == true
+    return scan_content(content, cross_era)
 end
 
 -- ---------------------------------------------------------------------------
@@ -370,6 +409,25 @@ local function run_self_tests()
     local valid2 = scan_content("Berserk = define(\"Berserk\", { 30330 }, \"Berserk\")")
     expect(valid2.found, false, "valid TBC ID must be silent (flat define shape)")
 
+    -- Cross-era allowlist: every pinned WotLK max-rank signature head must be
+    -- accepted in the cross-era shared module (cross_era=true) and REJECTED in
+    -- a class-file context (cross_era=nil) — so the allowance can never leak
+    -- into *_sylvanas.lua class files.
+    local cross_count = 0
+    for _ in pairs(SHARED_CROSS_ERA_IDS) do cross_count = cross_count + 1 end
+    expect(cross_count, 12, "SHARED_CROSS_ERA_IDS size")
+    local leaky = {}
+    for id, desc in pairs(SHARED_CROSS_ERA_IDS) do
+        local probe = "local PROBE = { ids = { " .. id .. " } }"
+        local allowed = scan_content(probe, true)
+        expect(allowed.found, false, "cross-era head allowed in shared module: " .. desc)
+        local rejected = scan_content(probe)
+        if not rejected.found then
+            leaky[#leaky + 1] = string.format("%d (%s)", id, desc)
+        end
+    end
+    expect(#leaky, 0, "cross-era heads rejected in class-file context (leaked: " .. table.concat(leaky, "; ") .. ")")
+
     -- Inventory: no duplicate file entries.
     local seen_files = {}
     for _, f in ipairs(SYLVANAS_FILES) do
@@ -388,7 +446,7 @@ local function run_self_tests()
     expect(is_tracked("classes/mage/arcane_sylvanas.lua"), false, "untracked inventory entry stays clear")
     TRACKED = saved_tracked
 
-    print("[PASS] Sylvanas audit self-tests: malformed input, all 4 WOTLK_ONLY_IDS pins fire, valid TBC ID silent, no duplicate inventory entries, masking-gap helper resolves")
+    print("[PASS] Sylvanas audit self-tests: malformed input, all 4 WOTLK_ONLY_IDS pins fire, all 12 cross-era heads scoped to shared module only, valid TBC ID silent, no duplicate inventory entries, masking-gap helper resolves")
 end
 
 -- ---------------------------------------------------------------------------

@@ -44,12 +44,12 @@ local _states = {}
 -- Pet spell ID tables (DBC-verified for TBC 2.5.5)
 -- ============================================================================
 -- Hunter pet abilities
-local PET_GROWL       = { 2649, 14268, 14269, 14270, 14271, 14925 }
-local PET_CLAW        = { 2981, 14261, 14262, 14263, 14264, 14265 }
-local PET_BITE        = { 17253, 17254, 17255, 17256, 17257, 27050 }
+local PET_GROWL       = { 2649, 14268, 14269, 14270, 14271, 14925, 27047 }
+local PET_CLAW        = { 2981, 14261, 14262, 14263, 14264, 14265, 27049, 52472 }
+local PET_BITE        = { 17253, 17254, 17255, 17256, 17257, 27050, 52474 }
 local PET_GORE        = { 35290, 35291 }
-local PET_HOWL        = { 24597, 24598, 24599, 24600 }
-local PET_SCREECH     = { 24604 }
+local PET_HOWL        = { 24597, 24598, 24599, 24600, 64495 }
+local PET_SCREECH     = { 24604, 27051 }
 local PET_THUNDER     = { 26090, 26093 }
 local PET_LIGHTNING   = { 25011, 25012, 25013, 25014, 25015, 25016 }
 local PET_POISON      = { 24640 }
@@ -57,17 +57,17 @@ local PET_DASH        = { 23099 }
 local PET_DIVE        = { 23145 }
 
 -- Warlock pet abilities
-local IMP_FIREBOLT    = { 3110, 7799, 7800, 7801, 7802, 11762, 11763, 27267 }
-local VW_TAUNT        = { 17735, 11774, 11775 }
+local IMP_FIREBOLT    = { 3110, 7799, 7800, 7801, 7802, 11762, 11763, 27267, 39023 }
+local VW_TAUNT        = { 17735, 11774, 11775, 27270 }
 local VW_SACRIFICE    = { 7812, 19438, 19440, 19441, 19442, 19443 }
 local VW_CONSUME      = { 17767, 17850, 17851, 17852, 17853, 17854 }
 local SUCC_LASH       = { 7814, 11778, 11779, 11780, 11781 }
 local SUCC_SEDUCE     = { 6358 }
-local FELHUNTER_BITE  = { 54053, 54049, 54050, 54051, 54052 }
+local FELHUNTER_BITE  = { 54049, 54050, 54051, 54052, 54053 }
 local FELHUNTER_DEVOUR= { 19505 }
 local FELHUNTER_SPELL = { 19647 }
 local FELGUARD_CLEAVE = { 30213 }
-local FELGUARD_INTERCEPT = { 30198, 30197, 30196 }
+local FELGUARD_INTERCEPT = { 30196, 30197, 30198 }
 local FELGUARD_ANGUISH = { 33698, 33699, 33700 }
 
 -- Mage pet abilities (Water Elemental)

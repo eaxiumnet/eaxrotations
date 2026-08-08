@@ -15,52 +15,52 @@ local TALENT_SIGNATURES = {
     -- Priest
     priest = {
         shadowform = { ids = { 15473 }, talent = "Shadowform", tree = "shadow" },
-        vampiric_touch = { ids = { 34914, 34916, 34917 }, talent = "Vampiric Touch", tree = "shadow" },
+        vampiric_touch = { ids = { 48160, 34914, 34916, 34917 }, talent = "Vampiric Touch", tree = "shadow" },
         pain_suppression = { ids = { 33206 }, talent = "Pain Suppression", tree = "discipline" },
         power_infusion = { ids = { 10060 }, talent = "Power Infusion", tree = "discipline" },
-        circle_of_healing = { ids = { 34861, 34863, 34864, 34865, 34866 }, talent = "Circle of Healing", tree = "holy" },
+        circle_of_healing = { ids = { 48089, 34861, 34863, 34864, 34865, 34866 }, talent = "Circle of Healing", tree = "holy" },
     },
     
     -- Mage
     mage = {
-        ice_barrier = { ids = { 11426, 13031, 13032, 13033 }, talent = "Ice Barrier", tree = "frost" },
+        ice_barrier = { ids = { 33405, 11426, 13031, 13032, 13033 }, talent = "Ice Barrier", tree = "frost" },
         combustion = { ids = { 11129 }, talent = "Combustion", tree = "fire" },
         arcane_power = { ids = { 12042 }, talent = "Arcane Power", tree = "arcane" },
         presence_of_mind = { ids = { 12043 }, talent = "Presence of Mind", tree = "arcane" },
-        pyroblast = { ids = { 11366, 12505, 12522, 12523, 12524, 12525, 12526, 18809, 27132, 27133 }, talent = "Pyroblast", tree = "fire" },
+        pyroblast = { ids = { 42891, 11366, 12505, 12522, 12523, 12524, 12525, 12526, 18809, 27132, 27133 }, talent = "Pyroblast", tree = "fire" },
     },
     
     -- Warlock
     warlock = {
         soul_link = { ids = { 19028 }, talent = "Soul Link", tree = "demonology" },
-        conflagrate = { ids = { 17962, 18930, 18931, 18932, 27266, 27267 }, talent = "Conflagrate", tree = "destruction" },
+        conflagrate = { ids = { 30912, 17962, 18930, 18931, 18932, 27266, 27267 }, talent = "Conflagrate", tree = "destruction" },
         shadow_mastery = { ids = { 18272, 18273, 18274, 18275 }, talent = "Shadow Mastery", tree = "affliction" },
         unholy_power = { ids = { 18769, 18770, 18771, 18772, 18773 }, talent = "Unholy Power", tree = "demonology" },
     },
     
     -- Warrior
     warrior = {
-        mortal_strike = { ids = { 12294, 21551, 21552, 21553, 25248, 30330 }, talent = "Mortal Strike", tree = "arms" },
-        bloodthirst = { ids = { 23881, 23892, 23893, 23894, 25251, 30335 }, talent = "Bloodthirst", tree = "fury" },
-        shield_slam = { ids = { 23922, 23923, 23924, 23925, 25258, 30356 }, talent = "Shield Slam", tree = "protection" },
+        mortal_strike = { ids = { 47486, 12294, 21551, 21552, 21553, 25248, 30330 }, talent = "Mortal Strike", tree = "arms" },
+        bloodthirst = { ids = { 30335, 23881, 23892, 23893, 23894, 25251 }, talent = "Bloodthirst", tree = "fury" },
+        shield_slam = { ids = { 47488, 23922, 23923, 23924, 23925, 25258, 30356 }, talent = "Shield Slam", tree = "protection" },
         tactical_mastery = { ids = { 12295, 12676, 12677 }, talent = "Tactical Mastery", tree = "arms" },
         death_wish = { ids = { 12292 }, talent = "Death Wish", tree = "fury" },
     },
     
     -- Rogue
     rogue = {
-        mutilate = { ids = { 32684, 34411, 34412, 34413 }, talent = "Mutilate", tree = "assassination" },
+        mutilate = { ids = { 48666, 32684, 34411, 34412, 34413 }, talent = "Mutilate", tree = "assassination" },
         adrenaline_rush = { ids = { 13750 }, talent = "Adrenaline Rush", tree = "combat" },
-        hemo = { ids = { 16511, 17347, 17348, 26864, 26865 }, talent = "Hemorrhage", tree = "subtlety" },
+        hemo = { ids = { 48660, 16511, 17347, 17348, 26864, 26865 }, talent = "Hemorrhage", tree = "subtlety" },
         preparation = { ids = { 14185 }, talent = "Preparation", tree = "subtlety" },
     },
     
     -- Hunter
     hunter = {
         bestial_wrath = { ids = { 19574 }, talent = "Bestial Wrath", tree = "beast_mastery" },
-        aimed_shot = { ids = { 19434, 20900, 20901, 20902, 20903, 20904 }, talent = "Aimed Shot", tree = "marksmanship" },
+        aimed_shot = { ids = { 49050, 19434, 20900, 20901, 20902, 20903, 20904 }, talent = "Aimed Shot", tree = "marksmanship" },
         scatter_shot = { ids = { 19503 }, talent = "Scatter Shot", tree = "survival" },
-        wyvern_sting = { ids = { 19386, 24132, 24133, 27068 }, talent = "Wyvern Sting", tree = "survival" },
+        wyvern_sting = { ids = { 27068, 19386, 24132, 24133 }, talent = "Wyvern Sting", tree = "survival" },
     },
     
     -- Shaman
@@ -77,13 +77,13 @@ local TALENT_SIGNATURES = {
         swiftmend = { ids = { 18562 }, talent = "Swiftmend", tree = "restoration" },
         innervate = { ids = { 29166 }, talent = "Innervate", tree = "restoration" },
         force_of_nature = { ids = { 33831 }, talent = "Force of Nature", tree = "balance" },
-        mangle = { ids = { 33982, 33983 }, talent = "Mangle", tree = "feral" },
+        mangle = { ids = { 48564, 48566, 33982, 33983 }, talent = "Mangle", tree = "feral" },
     },
     
     -- Paladin
     paladin = {
-        holy_shock = { ids = { 20473, 20929, 20930, 27174, 27175 }, talent = "Holy Shock", tree = "holy" },
-        avengers_shield = { ids = { 31935, 32699, 32700 }, talent = "Avenger's Shield", tree = "protection" },
+        holy_shock = { ids = { 48821, 20473, 20929, 20930, 27174, 27175 }, talent = "Holy Shock", tree = "holy" },
+        avengers_shield = { ids = { 48827, 31935, 32699, 32700 }, talent = "Avenger's Shield", tree = "protection" },
         crusader_strike = { ids = { 35395 }, talent = "Crusader Strike", tree = "retribution" },
         divine_favor = { ids = { 20216 }, talent = "Divine Favor", tree = "holy" },
     },

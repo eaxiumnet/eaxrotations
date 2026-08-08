@@ -19,7 +19,7 @@ local STANCE = CONSTANTS.STANCE or { BATTLE = 1, DEFENSIVE = 2, BERSERKER = 3 }
 local define = spec_kit.define_action_for_class(SPELLS)
 
 local ACTION = {
-    ShieldSlam = define("ShieldSlam", { 30356, 25258, 23925, 23924, 23923, 23922 }, "ShieldSlam"),
+    ShieldSlam = define("ShieldSlam", { 47488, 30356, 25258, 23925, 23924, 23923, 23922 }, "ShieldSlam"),
     Revenge = define("Revenge", { 30357, 25269, 25288, 11601, 11600, 7379, 6574, 6572 }, "Revenge"),
     Devastate = define("Devastate", { 30022, 30016, 20243 }, "Devastate"),
     HeroicStrike = define("HeroicStrike", { 47450, 30324, 29707, 25286, 11567, 11566, 11565, 11564, 1608, 285, 284, 78 }, "HeroicStrike"),
