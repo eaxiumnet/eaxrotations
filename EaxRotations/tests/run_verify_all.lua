@@ -2,8 +2,12 @@
 -- WHAT:  runs rotation + leveling + WotLK tests, the 4 spell-ID audits
 --        (sylvanas/vanilla-contamination/vanilla-existence/wotlk), the three
 --        audits' --self-test pinned-rank enforcement modes (vanilla TBC_IDS,
---        sylvanas WOTLK_ONLY_IDS, wotlk allowlist + rank-top), and the
---        behavioral battery; parses each runner's own totals instead of
+--        sylvanas WOTLK_ONLY_IDS, wotlk allowlist + rank-top), the
+--        behavioral battery, and the clean-checkout dependency probe
+--        (run_clean_checkout_probe.lua -- flags any test file-read target
+--        that resolves to a gitignored file instead of a tracked or
+--        self-provisioning path, so the 5-suite env-gap class can never
+--        silently return); parses each runner's own totals instead of
 --        trusting exit codes (the rotation runner exits 0 even when suites
 --        fail).
 -- WHEN:  invoked via lua EaxRotations/tests/verify_all.lua (or CI).
@@ -215,6 +219,20 @@ local components = {
                 { "load failures " .. tostring(load_fail) .. " (expected 0)", load_fail == 0 },
                 { "never-firing " .. never .. " (expected 100)", never == 100 },
             }
+        end,
+    },
+    -- Clean-checkout dependency probe: scans every test/runner for file-read
+    -- path literals and asserts each resolves to a tracked file or a
+    -- self-provisioning artifact (.omo/evidence regenerated per run). A test
+    -- reading a gitignored file (wowsims.db, .omo/evidence/*) passes on a dev
+    -- box and silently fails on a clean checkout -- the 5-suite gap class.
+    -- The probe prints [PASS] only when zero untracked targets are found.
+    {
+        label = "clean-checkout dep probe",
+        cmd = "lua " .. R .. "/run_clean_checkout_probe.lua",
+        check = function(c)
+            return { { "no untracked test-read targets ([PASS] marker present)",
+                       c:find("[PASS]", 1, true) ~= nil } }
         end,
     },
 }

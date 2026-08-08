@@ -10,8 +10,13 @@ local audit_helper = require("EaxRotations/tests/audit_helper")
 
 local lfs, lfs_err = audit_helper.require_lfs()
 if not lfs then
-    print("SKIP check_todos (" .. tostring(lfs_err) .. ")")
-    return
+    -- Fail-closed (mirror run_clean_checkout_probe.lua): a SKIP + exit 0 on a
+    -- missing dependency silently disables this audit — the exact graceful-skip
+    -- masking class that hid the 5 rotation-suite gaps. lfs is a hard requirement
+    -- for the walk, so a build without it must fail loudly, not pass green.
+    print("[ERROR] check_todos cannot run (" .. tostring(lfs_err) .. ")")
+    print("        lfs is required to walk the EaxRotations tree; install it or fix the build.")
+    os.exit(1)
 end
 
 local MARKERS = { "TODO", "FIXME", "XXX", "HACK" }
