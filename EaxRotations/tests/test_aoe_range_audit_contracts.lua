@@ -104,8 +104,10 @@ do
 end
 
 -- 4) Audit artifact
+-- Tracked under EaxRotations/docs/ (the old plans/_archive/ path was never
+-- git-tracked, so a clean checkout had no plan doc; docs/ is tracked).
 do
-    local src = read_file("plans/_archive/aoe-range-audit-2026-07-16.md")
+    local src = read_file("EaxRotations/docs/aoe_range_audit_plan_2026-07-16.md")
     all_ok = assert_true(src ~= nil, "audit plan exists") and all_ok
     if src then
         all_ok = assert_true(src:find("Mismatch", 1, true) ~= nil or src:find("hit-volume", 1, true) ~= nil,

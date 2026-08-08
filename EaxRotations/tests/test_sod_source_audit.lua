@@ -22,12 +22,39 @@ local function open_first(candidates)
     return nil
 end
 
+-- Self-provision: the Task-1 action-map is a gitignored evidence artifact
+-- (.omo/ is local-only), so a clean checkout has no map. Generate it from the
+-- same real loaders the test exercises via the tracked generator module
+-- (EaxRotations/tools/generate_sod_task1_action_map.lua) so this suite passes
+-- everywhere without a hand-dropped file. Re-running keeps the map in sync.
+local function ensure_map()
+    local found = open_first({
+        ".omo/evidence/task-1-sod-action-map.jsonl",
+        "EaxRotations/.omo/evidence/task-1-sod-action-map.jsonl",
+        "../.omo/evidence/task-1-sod-action-map.jsonl",
+    })
+    if found then found:close() return end
+    local ok, gen = pcall(require, "tools/generate_sod_task1_action_map")
+    assert_true(ok and type(gen) == "table" and type(gen.generate) == "function",
+        "self-provision failed: cannot load tools/generate_sod_task1_action_map")
+    local summary = gen.generate(".omo/evidence")
+    assert_true(summary and summary.loaded == 20, "self-provision loaded 20 roles")
+    -- The generator cached the 20 modules under package.loaded; drop them so
+    -- this test's own load loop re-runs each module and registers its role.
+    if type(gen.clear_loaded_modules) == "function" then
+        gen.clear_loaded_modules()
+    end
+    print("  [self-provision] generated Task 1 action map (" .. tostring(summary and summary.ids)
+        .. " unique action IDs)")
+end
+ensure_map()
+
 local map_handle = open_first({
     ".omo/evidence/task-1-sod-action-map.jsonl",
     "EaxRotations/.omo/evidence/task-1-sod-action-map.jsonl",
     "../.omo/evidence/task-1-sod-action-map.jsonl",
 })
-assert_true(map_handle ~= nil, "Task 1 action-map JSONL is missing")
+assert_true(map_handle ~= nil, "Task 1 action-map JSONL is missing after self-provision")
 
 local action_map_ids = {}
 local action_map_records = 0

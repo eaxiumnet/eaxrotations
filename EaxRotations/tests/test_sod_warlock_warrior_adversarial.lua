@@ -23,7 +23,12 @@ _G.EaxRotations = {
 
 local function load_role(path)
     package.loaded[path] = nil
-    return require(path)
+    -- Parens force a single return value: this Lua's require() returns the
+    -- module table AND the resolved file path, and a function call in the
+    -- last table-constructor slot spreads ALL return values — the stray path
+    -- string silently grew `roles` to 5 entries and crashed the inner loop
+    -- with "attempt to index a nil value" (slot 5 was a string).
+    return (require(path))
 end
 
 local roles = {

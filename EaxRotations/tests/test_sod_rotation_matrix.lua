@@ -96,7 +96,9 @@ local roles = {
         context = { mana_pct = 50, lowest = { unit = heal_target, hp = 70 } } },
     { class = "shaman", key = "sod_shaman_warden", path = "classes/shaman/warden_sod",
         order = { "ShamanisticRage", "FlameShock", "MaelstromChainLightning", "MoltenBlast", "Stormstrike", "EarthShock", "MaelstromLightningBolt", "FrostShock", "MagmaTotem", "SearingTotem" },
-        context = { mana_pct = 50, rockbiter_imbued = true } },
+        -- build_state reads context.mainhand_imbue (not rockbiter_imbued), and
+        -- the first strategy (ShamanisticRage) gates on WardenGate rune 408531.
+        context = { mana_pct = 50, mainhand_imbue = "rockbiter", sod_runes = { [408531] = true } } },
     { class = "warlock", key = "sod_warlock_dps", path = "classes/warlock/dps_sod",
         order = { "MendPet", "CallPet", "RevivePet", "HealthFunnel", "CurseOfRecklessness", "Shadowburn", "ChaosBolt", "Incinerate", "Conflagrate", "Immolate", "Corruption", "LifeTap", "ShadowBolt" },
         context = { pet = pet, pet_alive = true, pet_hp_pct = 20 } },
