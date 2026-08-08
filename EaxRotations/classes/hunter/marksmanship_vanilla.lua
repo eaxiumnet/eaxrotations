@@ -37,8 +37,8 @@ end
 -- Buff & Debuff ID tables
 -- ============================================================================
 local HUNTERS_MARK_DEBUFF = { 14325, 14324, 14323, 1130 }
-local SERPENT_STING_DEBUFF = { 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
-local ASPECT_HAWK_BUFF = { 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
+local SERPENT_STING_DEBUFF = { 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
+local ASPECT_HAWK_BUFF = { 14322, 14321, 14320, 14319, 14318, 13165 }
 local ASPECT_VIPER_BUFF = { }
 
 local SERPENT_STING_REFRESH_SEC = 1.5

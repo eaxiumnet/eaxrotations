@@ -40,11 +40,11 @@ local function record_manual_shot()
         tracker.record_manual_shot()
     end
 end
-local SERPENT_STING_IDS  = { 25295, 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
+local SERPENT_STING_IDS  = { 13555, 13554, 13553, 13552, 13551, 13550, 13549, 1978 }
 local SCORPID_STING_IDS  = { 3043 }
 local VIPER_STING_IDS    = { 14280, 14279, 3034 }
 local HUNTER_MARK_IDS    = { 14325, 14324, 14323, 1130 }
-local ASPECT_HAWK_IDS    = { 25296, 14322, 14321, 14320, 14319, 14318, 13165 }
+local ASPECT_HAWK_IDS    = { 14322, 14321, 14320, 14319, 14318, 13165 }
 local ASPECT_VIPER_IDS   = { }
 local ASPECT_CHEETAH_IDS = { 5118 }
 local MISDIRECTION_ID    = nil

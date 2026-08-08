@@ -42,7 +42,7 @@ local SURGE_OF_LIGHT_BUFF = 0
 local INNER_FOCUS_BUFF = 14751
 -- max Classic rank 6 = 10952; TBC rank 7 excluded
 local INNER_FIRE_BUFF = { 10952, 10951, 1006, 602, 7128, 588 }
-local RENEW_BUFF = { 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
+local RENEW_BUFF = { 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
 local WEAKENED_SOUL_DEBUFF = { 6788 }
 
 -- Base cast times with Divine Fury talent: Smite 2.0s, Holy Fire 3.0s

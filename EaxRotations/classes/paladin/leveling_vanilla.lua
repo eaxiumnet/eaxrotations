@@ -10,8 +10,8 @@ local SPELLS = NS.PaladinSpells or {}
 local leveling = require("shared/leveling_sylvanas")
 local spec_kit = require("shared/spec_kit_sylvanas")
 
-local BLESSING_MIGHT_BUFF = { 25291, 19838, 19837, 19836, 19835, 19834, 19740 }
-local BLESSING_WISDOM_BUFF = { 25290, 19854, 19853, 19852, 19850 }
+local BLESSING_MIGHT_BUFF = { 19838, 19837, 19836, 19835, 19834, 19740 }
+local BLESSING_WISDOM_BUFF = { 19854, 19853, 19852, 19850 }
 local DEVOTION_AURA_BUFF = { 10293, 10292, 1032, 643, 10291, 10290, 465 }
 local ANY_SEAL_BUFF = { 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154, 20920, 20919, 20918, 20915, 20375, 20308, 20307, 20306, 20305, 21082, 20162, 20164, 20349, 20348, 20347, 20165, 20357, 20356, 20166 }
 local DEMON_OR_UNDEAD = { [3] = true, [6] = true }
@@ -239,7 +239,7 @@ local function retribution_aura_matches(context, state)
     if state.in_combat then return false end
     if not state.retribution_aura_ready then return false end
     if state.has_devotion_aura then return false end  -- dont override devotion
-    local RETRIBUTION_AURA_BUFF = { 27150, 10301, 10300, 10299, 10298, 7294 }
+    local RETRIBUTION_AURA_BUFF = { 10301, 10300, 10299, 10298, 7294 }
     if safe_buff_up(context.me, RETRIBUTION_AURA_BUFF) then return false end
     return true
 end

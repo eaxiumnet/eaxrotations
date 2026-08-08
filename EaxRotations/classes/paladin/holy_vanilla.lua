@@ -33,7 +33,7 @@ end
 
 -- Classic Vanilla Holy spells not exposed by the base Paladin class map.
 local BlessingOfLight = SPELLS.BlessingOfLight or spell_action({ 19979, 19978, 19977 }, "BlessingOfLight")
-local GreaterBlessingOfLight = SPELLS.GreaterBlessingOfLight or spell_action({ 25890 }, "GreaterBlessingOfLight")
+local GreaterBlessingOfLight = SPELLS.GreaterBlessingOfLight or spell_action({ 19979, 19978, 19977 }, "GreaterBlessingOfLight")
 local BlessingOfFreedom = SPELLS.BlessingOfFreedom or spell_action({ 1044 }, "BlessingOfFreedom")
 local BlessingOfProtection = SPELLS.BlessingOfProtection or spell_action({ 10278, 5599, 1022 }, "BlessingOfProtection")
 local BlessingOfSacrifice = SPELLS.BlessingOfSacrifice or spell_action({ 20729, 6940 }, "BlessingOfSacrifice")
@@ -43,8 +43,9 @@ local ShadowResistanceAura = SPELLS.ShadowResistanceAura or spell_action({ 19896
 local SealOfLight = SPELLS.SealOfLight or spell_action({ 20349, 20348, 20347, 20165 }, "SealOfLight")
 local Purify = SPELLS.Purify or spell_action({ 1152 }, "Purify") -- DB2: learned at level 8
 
-local HolyLightRank11 = spell_action({ 25292 }, "HolyLightRank9")
-local HolyLightRank9 = spell_action({ 25292 }, "HolyLightRank9")
+-- Vanilla Holy Light max rank is 10329 (rank 8); TBC 25292/27135/27136 are NOT learnable here.
+local HolyLightRank11 = spell_action({ 10329 }, "HolyLightRank8")
+local HolyLightRank9 = spell_action({ 10329 }, "HolyLightRank8")
 local HolyLightRank7 = spell_action({ 10328 }, "HolyLightRank7")
 local HolyLightRank4 = spell_action({ 1042 }, "HolyLightRank4")
 local FlashOfLightRank6 = spell_action({ 19943 }, "FlashOfLightRank6")
@@ -54,9 +55,9 @@ local BUFF_FORBEARANCE = { 25771 }
 local BUFF_SEAL_WISDOM = { 20357, 20356, 20166 }
 local BUFF_SEAL_LIGHT = { 20349, 20348, 20347, 20165 }
 local BUFF_SEAL_RIGHTEOUSNESS = { 20293, 20292, 20291, 20290, 20289, 20288, 20287, 21084, 20154 }
-local BUFF_BLESSING_LIGHT = { 19979, 19978, 19977, 25890 }
-local BUFF_BLESSING_WISDOM = { 25918, 25894, 25290, 19854, 19853, 19852, 19850, 19742 }
-local BUFF_BLESSING_KINGS = { 25898, 20217 }
+local BUFF_BLESSING_LIGHT = { 19979, 19978, 19977 }
+local BUFF_BLESSING_WISDOM = { 19854, 19853, 19852, 19850, 19742 }
+local BUFF_BLESSING_KINGS = { 20217 }
 local BUFF_BLESSING_FREEDOM = { 1044 }
 local BUFF_BLESSING_PROTECTION = { 10278, 5599, 1022 }
 local BUFF_BLESSING_SACRIFICE = { 20729, 6940 }
@@ -75,7 +76,7 @@ local FIRE_DAMAGE_DEBUFFS = { 22959, 10161, 16536 }
 local FROST_DAMAGE_DEBUFFS = { 12494, 116, 7321 }
 local SHADOW_DAMAGE_DEBUFFS = { }
 local ROOT_SNARE_DEBUFFS = { 122, 339, 512, 865, 1022, 116, 1715, 2974, 3409, 3600, 12494 }
-local PHYSICAL_FOCUS_DEBUFFS = { 26017, 12809, 25274, 25273 }
+local PHYSICAL_FOCUS_DEBUFFS = { 26017, 12809 }
 local DARK_RUNE_IDS = { 20520, 12662 }
 
 local DEFAULT_SCAN_HP = 96

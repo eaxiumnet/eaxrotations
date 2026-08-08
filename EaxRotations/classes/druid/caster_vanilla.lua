@@ -17,11 +17,11 @@ local ACTION = {
     FaerieFire     = define("FaerieFire",     { 9907, 9749, 778, 770 }, "FaerieFire"),
     Innervate      = define("Innervate",      { 29166 }, "Innervate"),
     Moonfire       = define("Moonfire",       { 9835, 9834, 9833, 8929, 8928, 8927, 8926, 8925, 8924, 8921 }, "Moonfire"),
-    Starfire       = define("Starfire",       { 25298, 9876, 9875, 8951, 8950, 8949, 2912 }, "Starfire"),
+    Starfire       = define("Starfire",       { 9876, 9875, 8951, 8950, 8949, 2912 }, "Starfire"),
     Wrath          = define("Wrath",          { 9912, 8905, 6780, 5180, 5179, 5178, 5177, 5176 }, "Wrath"),
     InsectSwarm    = define("InsectSwarm",    { 24977, 24976, 24975, 24974, 5570 }, "InsectSwarm"),
-    HealingTouch   = define("HealingTouch",   { 25297, 9889, 9888, 9758, 8903, 6778, 5189, 5188, 5187, 5186, 5185 }, "HealingTouch"),
-    Rejuvenation   = define("Rejuvenation",   { 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }, "Rejuvenation"),
+    HealingTouch   = define("HealingTouch",   { 9889, 9888, 9758, 8903, 6778, 5189, 5188, 5187, 5186, 5185 }, "HealingTouch"),
+    Rejuvenation   = define("Rejuvenation",   { 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }, "Rejuvenation"),
     MarkOfTheWild  = define("MarkOfTheWild",  { 9885, 9884, 8907, 5234, 6756, 5232, 1126 }, "MarkOfTheWild"),
     Thorns         = define("Thorns",         { 9910, 9756, 8914, 1075, 782, 467 }, "Thorns"),
 }
@@ -31,7 +31,7 @@ local FAERIE_FIRE_DEBUFF = { 9907, 9749, 778, 770 }
 local INSECT_SWARM_DEBUFF = { 24977, 24976, 24975, 24974, 5570 }
 local THORNS_BUFF = { 9910, 9756, 8914, 1075, 782, 467 }
 local MOTW_BUFF = { 9885, 9884, 8907, 5234, 6756, 5232, 1126, 21850, 21849 }
-local REJUV_BUFF = { 25299, 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }
+local REJUV_BUFF = { 9841, 9840, 9839, 8910, 3627, 2091, 2090, 1430, 1058, 774 }
 
 local CASTER_SCHEMA = {
     moonfire_remains = 0,

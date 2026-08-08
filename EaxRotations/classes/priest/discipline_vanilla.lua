@@ -17,11 +17,12 @@ local EMPTY_SETTINGS = {}
 local SHADOW_WORD_PAIN_DEBUFF = { 10894, 10893, 10892, 2767, 992, 970, 594, 589 }
 local WEAKENED_SOUL_DEBUFF = { 6788 }
 
-local DIVINE_SPIRIT_BUFF = { 25312,  14819, 14818, 14752 }
+local DIVINE_SPIRIT_BUFF = { 14819, 14818, 14752 }
 -- Mana conservation floors (Research.md Angle 4 Part B)
 local CONSUME_MANA_FLOOR = 15  -- Below this: shield only, no heals
 -- Vanilla Greater Heal: Rank 5=25314, Rank 4=10965, Rank 3=10964.
-local GREATER_HEAL_MAX = 25314
+-- Vanilla Greater Heal max rank is 10965 (rank 4); TBC 25314 is NOT learnable here.
+local GREATER_HEAL_MAX = 10965
 local GREATER_HEAL_CONSERVE = 10965
 local GREATER_HEAL_EFFICIENT = 10964
 
@@ -62,8 +63,8 @@ local function _check_pushback(context)
 end
 local INNER_FIRE_BUFF = { 10952, 10951, 1006, 602, 7128, 588 }
 local FEAR_WARD_BUFF = { 6346 }
-local POWER_WORD_FORTITUDE_BUFF = { 25389, 10938, 10937, 2791, 1245, 1244, 1243 }
-local RENEW_BUFF = { 25315, 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
+local POWER_WORD_FORTITUDE_BUFF = { 10938, 10937, 2791, 1245, 1244, 1243 }
+local RENEW_BUFF = { 10929, 10928, 10927, 6078, 6077, 6076, 6075, 6074, 139 }
 local INNER_FOCUS_BUFF = { 14751 }
 -- parity feature constants
 local FADE_BUFF = { 10942, 10941, 9592, 9579, 9578, 586 }

@@ -39,12 +39,12 @@ local TBC_POTIONS = (TBC.ITEMS and TBC.ITEMS.potions) or {}
 -- ============================================================================
 -- Debuff & Buff ID tables
 -- ============================================================================
-local CORRUPTION_DEBUFF      = { 25311, 11672, 11671, 7648, 6223, 6222, 172 }
+local CORRUPTION_DEBUFF      = { 11672, 11671, 7648, 6223, 6222, 172 }
 local CURSE_OF_AGONY_DEBUFF  = { 11713, 11712, 11711, 6217, 1014, 980 }
 local CURSE_OF_DOOM_DEBUFF   = { 603 }
 local UNSTABLE_AFFL_DEBUFF   = { }  -- UA is TBC-only; empty in Classic
 local SIPHON_LIFE_DEBUFF     = { 18881, 18880, 18879, 18265 }
-local IMMOLATE_DEBUFF        = { 25309, 11668, 11667, 11665, 2941, 1094, 707, 348 }	local SHADOW_EMBRACE_DEBUFF  = { }  -- Shadow Embrace is TBC-only; empty in Classic	local ISB_DEBUFF = { 17800 } -- Shadow Vulnerability (ISB proc debuff)
+local IMMOLATE_DEBUFF        = { 11668, 11667, 11665, 2941, 1094, 707, 348 }	local SHADOW_EMBRACE_DEBUFF  = { }  -- Shadow Embrace is TBC-only; empty in Classic	local ISB_DEBUFF = { 17800 } -- Shadow Vulnerability (ISB proc debuff)
 local CURSE_OF_ELEMENTS_DEBUFF = { 11722, 11721, 1490 }
 local SEED_OF_CORRUPTION_DEBUFF = { }  -- Seed is TBC-only; empty in Classic
 local NIGHTFALL_BUFF         = { 17941 }  -- Shadow Trance
