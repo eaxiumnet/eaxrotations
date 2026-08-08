@@ -81,20 +81,24 @@ gitignored).
 ## 4. `test_id_audit_report.lua` — un-regenerated report (env, script exists)
 
 **Failure:** `missing buff_debuff_full_verification.json — run python
-build_tools/generate_buff_debuff_verification.py` (line 54). The test itself
-names the fix.
+EaxRotations/tools/generate_buff_debuff_verification.py` (line 54). The test
+itself names the fix.
 
 **Missing input:** `EaxRotations/tools/buff_debuff_full_verification.json`
 (also tried as `tools/...`).
 
-**Provision (verified):** the generator exists at
-`build_tools/generate_buff_debuff_verification.py` and is **offline** — it
-reads `wowheadScrape/dbc_extract/wowsims.db` plus the
+**Provision (verified):** the generator is now **tracked** at
+`EaxRotations/tools/generate_buff_debuff_verification.py` (moved from the
+gitignored `build_tools/` on 2026-08-08) and is **offline** — it reads
+`wowheadScrape/dbc_extract/wowsims.db` (optional; degrades to `{}` when
+absent) plus the
 `shared/wowhead_data_bridge_spell_index_{vanilla,tbc,wotlk}_sylvanas.lua`
-files and writes `REPORT_JSON = <tools>/buff_debuff_full_verification.json`
-(line 28/520). Run from the project root:
-`python build_tools/generate_buff_debuff_verification.py`.
-Both `tools/` and `build_tools/` are gitignored, so the JSON is local-only.
+files and writes `REPORT_JSON = EaxRotations/tools/buff_debuff_full_verification.json`.
+Run from the project root:
+`python EaxRotations/tools/generate_buff_debuff_verification.py`.
+`run_all_checks.sh` step 1 regenerates it on every gate run and fails on
+drift from the committed JSON, so CI provably regenerates the evidence
+before the rotation suite executes.
 
 ## 5. `test_sod_warlock_warrior_adversarial.lua` — multi-return spread (bug, not env)
 
@@ -129,7 +133,9 @@ Probe-verified: `#roles = 4`, all slots tables. (Note: `select(1, …)` does
   1. `plans/_archive/aoe-range-audit-2026-07-16.md` — restore doc (never tracked) or repoint test;
   2. `.omo/evidence/task-1-sod-action-map.jsonl` — external SoD Task-1 evidence artifact;
   3. `tools/buff_debuff_full_verification.json` — regenerate offline with
-     `python build_tools/generate_buff_debuff_verification.py`.
+     `python EaxRotations/tools/generate_buff_debuff_verification.py`
+     (generator is now tracked under `EaxRotations/tools/`; `run_all_checks.sh`
+     step 1 regenerates it and drift-checks the committed copy).
 - **Test bugs (2, minimal verified fixes, not yet applied):**
   - `test_sod_rotation_matrix.lua` — warden context: use `mainhand_imbue = "rockbiter"` + `sod_runes = { [408531] = true }`;
   - `test_sod_warlock_warrior_adversarial.lua` — `return (require(path))` in `load_role`.
@@ -149,7 +155,7 @@ env-gated in clean checkouts because its evidence artifact is gitignored.
 | `test_aoe_range_audit_contracts.lua` | Plan doc created **tracked** at `EaxRotations/docs/aoe_range_audit_plan_2026-07-16.md`; test repointed (line 108). | ✅ (doc is in `EaxRotations/docs/`) |
 | `test_sod_rotation_matrix.lua` | Warden fixture context → `mainhand_imbue = "rockbiter"` + `sod_runes = { [408531] = true }` (build_state reads `mainhand_imbue`, WardenGate rune gates ShamanisticRage). | ✅ |
 | `test_sod_source_audit.lua` | **Self-provisioning** via the tracked generator `EaxRotations/tools/generate_sod_task1_action_map.lua` (mirrors the test's capture mock, loads all 20 real roles) → 136 unique action IDs into `.omo/evidence/task-1-sod-action-map.jsonl` + manifest. The test regenerates on a cache-miss (clean checkouts included) and clears `package.loaded` so both its own load loop and the generator re-register each role. | ✅ (self-provisioning; no manual step) |
-| `test_id_audit_report.lua` | `python build_tools/generate_buff_debuff_verification.py` (offline, reads `wowheadScrape/dbc_extract/wowsims.db` + spell-index bridges) → `EaxRotations/tools/buff_debuff_full_verification.json` (unique=2226 ok=2226 fail=0). | ✅ (json lives in `EaxRotations/tools/`, tracked) |
+| `test_id_audit_report.lua` | `python EaxRotations/tools/generate_buff_debuff_verification.py` (offline, reads `wowheadScrape/dbc_extract/wowsims.db` + spell-index bridges; now TRACKED at `EaxRotations/tools/` so CI regenerates it) → `EaxRotations/tools/buff_debuff_full_verification.json` (unique=2226 ok=2226 fail=0). | ✅ (generator + json both tracked; `run_all_checks.sh` step 1 regenerates + drift-checks) |
 | `test_sod_warlock_warrior_adversarial.lua` | `return (require(path))` in `load_role` — parens force a single return value (require returns module + resolved path; the path string leaked into the `roles` table). | ✅ |
 
 **Verified:** `run_rotation_tests.lua` → **Total: 466 / Passed: 466 / Failed: 0**;
