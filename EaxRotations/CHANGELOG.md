@@ -1,5 +1,55 @@
 # Changelog
 
+## 2.20.0 — 2026-08-08
+
+### Customer Changelog
+- **WotLK 3.3.5 rank verification**: every `*_wotlk.lua` rotation + leveling file
+  audited against wowhead WotLK pages, wowsims APL JSONs, and the Go sim
+  source. Two classes were already clean (hunter, shaman), two more clean after
+  fixes (mage, paladin), and a systemic stale-ladder problem was fixed across
+  **22 files / ~40 defines**.
+  - **Live mis-cast bugs fixed**: Paladin Hammer of Wrath `48807` (was an
+    Engineering consumable, Runic Healing Injector) → `48806`; warrior Execute
+    `47498` (was Devastate) → `47471`; warrior Heroic Strike `47497` (was
+    Devastate rank 2) → `47450`; mage Cold Snap `12472` (was Icy Veins — so
+    Cold Snap never fired and the Icy Veins reset triggered instead) → `11958`;
+    DK leveling Plague Strike `49922` (NPC spell) → `49921`, Heart Strike
+    `55263` (NPC spell) → `55262`.
+  - **TBC-era ladder tops replaced** with verified 3.3.5 max ranks (Corruption
+    `47813`, ShadowBolt `47809`, Immolate `47811`, SoulFire `47825`, Frostbolt
+    `42842`, Ice Lance `42914`, Shadow Word: Pain `48125`, and ~30 more) so
+    max-level filler lanes no longer resolve to nil.
+- **Classic vanilla purge**: 26 TBC-era spell IDs removed from vanilla spec +
+  leveling files (17 files) — Classic now resolves the true Classic max rank
+  instead of a TBC-only rank that could mis-cast or fail silently.
+- **TBC purge**: WotLK-era spell leaks removed from sylvanas files (feral cat
+  Berserk `50334`, polymorph debuff lists) — restored correct TBC behavior.
+- **Rotation suite 466/466 green**: the 5 remaining env/data-file-gated suites
+  were provisioned (2 test-bug fixes, tracked AoE plan doc, buff_debuff
+  verification JSON, self-provisioning SOD task-1 action-map generator) — the
+  full rotation suite now passes on a clean checkout.
+- Version **2.20.0**.
+- Tests: 469 rotation + 33 leveling suites registered (502 total; 466 rotation
+  passing at runtime, all green).
+
+### Developer Notes
+- **WotLK rank audit** (`docs/wotlk_rank_audit_2026-08-08.md`): bug family A
+  (wrong ID at ladder top → live mis-cast or dead lane) + family B (TBC-era
+  tops → nil resolution at max level); fixes prepended per the project
+  `get_spell_id`-returns-first-known pattern.
+- **Vanilla/TBC sweeps** (`docs/vanilla_tbc_leveling_rank_sweep_2026-08-08.md`):
+  extending the audit's `TBC_IDS` with the full TBC rank block surfaced 26
+  TBC-era IDs across 14 vanilla spec files + 6 leveling tops; TBC leveling was
+  clean except the platform-consistent Seal of the Martyr `348700`.
+- **CI hardening**: rank-top enforcement (STALE_TOP detection + pinned max-rank
+  allowlists) in the vanilla/TBC/WotLK audits with `--probe-stale-top`/self-test
+  modes wired into `verify_all`; zero-skip masking-gap checks in the sylvanas
+  audit against `git ls-files`; clean-checkout dependency probe
+  (`run_clean_checkout_probe.lua`, 3,679 literals / 495 files) as a `verify_all`
+  component (now 13); fail-closed lfs guards in `check_todos`/
+  `check_unused_requires`; self-provisioning SOD generator + tracked buff_debuff
+  generator with LF pinning.
+
 ## 2.19.0 — 2026-08-08
 
 ### Customer Changelog
